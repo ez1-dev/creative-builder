@@ -1,16 +1,45 @@
 
 
-# Adicionar coluna "Valor Desconto" na grid do Painel de Compras
+# Fix Excel Export Authentication
 
-## Mudança
+## Problem
+The export uses `window.open(url, '_blank')` which opens the URL in a new browser tab. This approach:
+1. Cannot send custom headers (`Authorization: Bearer`, `ngrok-skip-browser-warning`)
+2. Relies on `access_token` as a query parameter, which the backend may not support
 
-**Arquivo:** `src/pages/PainelComprasPage.tsx`
+## Solution
+Change `ExportButton` to use `fetch()` with proper headers, then trigger the file download programmatically via a Blob URL.
 
-Adicionar uma nova coluna `valor_desconto_total` no array `columns`, posicionada após `percentual_desconto` (% Desc.) e antes de `valor_liquido`:
+## Changes
 
+**File: `src/components/erp/ExportButton.tsx`**
+
+Replace `window.open()` with:
+1. Call `fetch()` using the API's base URL + endpoint + params, including `Authorization: Bearer <token>` and `ngrok-skip-browser-warning` headers
+2. Convert response to Blob
+3. Create a temporary `<a>` element with `URL.createObjectURL(blob)` to trigger download
+4. Add loading state and error handling with toast feedback
+5. Extract filename from `Content-Disposition` header if available, fallback to `export.xlsx`
+
+### Technical detail
 ```typescript
-{ key: 'valor_desconto_total', header: 'Vlr. Desconto', align: 'right', render: (v) => formatCurrency(v) },
+const handleExport = async () => {
+  setLoading(true);
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true',
+      },
+    });
+    if (!response.ok) throw new Error('Erro ao exportar');
+    const blob = await response.blob();
+    // trigger download via temporary <a> tag
+  } catch {
+    toast.error('Falha ao exportar');
+  } finally {
+    setLoading(false);
+  }
+};
 ```
-
-O campo `valor_desconto_total` já é retornado pela API (usado nos KPIs do resumo). Nenhuma alteração de backend necessária.
 
