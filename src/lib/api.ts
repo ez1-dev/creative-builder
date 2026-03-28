@@ -47,6 +47,7 @@ class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
       ...((options.headers as Record<string, string>) || {}),
     };
 
@@ -78,6 +79,7 @@ class ApiClient {
     const params = new URLSearchParams({ usuario, senha });
     const response = await fetch(`${getApiBaseUrl()}/login?${params}`, {
       method: 'POST',
+      headers: { 'ngrok-skip-browser-warning': 'true' },
     });
 
     if (!response.ok) {
