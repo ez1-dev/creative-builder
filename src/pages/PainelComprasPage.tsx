@@ -181,12 +181,12 @@ export default function PainelComprasPage() {
                 <div>
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores de Pendência</h3>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                    <KPICard title="Valor Pendente" value={formatCurrency(resumo.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} />
-                    <KPICard title="Itens Pendentes" value={resumo.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} />
-                    <KPICard title="Itens Atrasados" value={resumo.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} />
-                    <KPICard title="OCs Atrasadas" value={resumo.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} />
-                    <KPICard title="Maior Atraso" value={`${resumo.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} />
-                    <KPICard title="Ticket Médio/Item" value={formatCurrency(resumo.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
+                    <KPICard title="Valor Pendente" value={formatCurrency(resumo.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" />
+                    <KPICard title="Itens Pendentes" value={resumo.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" />
+                    <KPICard title="Itens Atrasados" value={resumo.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" />
+                    <KPICard title="OCs Atrasadas" value={resumo.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" />
+                    <KPICard title="Maior Atraso" value={`${resumo.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" />
+                    <KPICard title="Ticket Médio/Item" value={formatCurrency(resumo.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
                   </div>
                 </div>
 
