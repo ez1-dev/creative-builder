@@ -122,6 +122,28 @@ export default function PainelComprasPage() {
           </Select>
         </div>
         <div><Label className="text-xs">Motivo Desconto (CodMot)</Label><Input value={filters.codigo_motivo_oc} onChange={(e) => setFilters(f => ({ ...f, codigo_motivo_oc: e.target.value }))} placeholder="Ex.: 19" className="h-8 text-xs" /></div>
+        <div>
+          <Label className="text-xs">Tipo Item</Label>
+          <Select value={filters.tipo_item} onValueChange={(v) => setFilters(f => ({ ...f, tipo_item: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="PRODUTO">Produto</SelectItem>
+              <SelectItem value="SERVICO">Serviço</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Tipo OC</Label>
+          <Select value={filters.tipo_oc} onValueChange={(v) => setFilters(f => ({ ...f, tipo_oc: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="NORMAL">Normal</SelectItem>
+              <SelectItem value="MISTA">Mista</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="pendentes" checked={filters.somente_pendentes} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_pendentes: !!v }))} />
           <Label htmlFor="pendentes" className="text-xs">Somente pendentes</Label>
