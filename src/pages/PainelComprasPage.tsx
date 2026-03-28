@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { ShoppingCart, AlertTriangle, TrendingUp, Package } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt } from 'lucide-react';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
@@ -163,76 +163,134 @@ export default function PainelComprasPage() {
             <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="dashboard" className="space-y-4">
+          <TabsContent value="dashboard" className="space-y-6">
             {resumo && (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                <KPICard title="Total OCs" value={resumo.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} />
-                <KPICard title="Valor Líquido" value={formatCurrency(resumo.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
-                <KPICard title="Itens Pendentes" value={resumo.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} />
-                <KPICard title="Itens Atrasados" value={resumo.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} />
-                <KPICard title="Fornecedores" value={resumo.total_fornecedores} variant="default" />
-                <KPICard title="Maior Atraso" value={`${resumo.maior_atraso_dias} dias`} variant="destructive" />
-              </div>
+              <>
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores Financeiros</h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                    <KPICard title="Total OCs" value={resumo.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} />
+                    <KPICard title="Valor Bruto" value={formatCurrency(resumo.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} />
+                    <KPICard title="Desconto Total" value={formatCurrency(resumo.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} />
+                    <KPICard title="Valor Líquido" value={formatCurrency(resumo.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
+                    <KPICard title="Impostos Totais" value={formatCurrency(resumo.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} />
+                    <KPICard title="Fornecedores" value={resumo.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores de Pendência</h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                    <KPICard title="Valor Pendente" value={formatCurrency(resumo.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} />
+                    <KPICard title="Itens Pendentes" value={resumo.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} />
+                    <KPICard title="Itens Atrasados" value={resumo.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} />
+                    <KPICard title="OCs Atrasadas" value={resumo.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} />
+                    <KPICard title="Maior Atraso" value={`${resumo.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} />
+                    <KPICard title="Ticket Médio/Item" value={formatCurrency(resumo.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contagem de Itens</h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                    <KPICard title="Total Linhas" value={resumo.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} />
+                    <KPICard title="Itens Produto" value={resumo.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} />
+                    <KPICard title="Itens Serviço" value={resumo.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} />
+                  </div>
+                </div>
+              </>
             )}
 
             {graficos && (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {graficos.top_fornecedores?.length > 0 && (
-                  <div className="rounded-md border bg-card p-4">
-                    <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={graficos.top_fornecedores} layout="vertical">
-                        <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                        <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
-                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                        <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {graficos.top_fornecedores?.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={graficos.top_fornecedores} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
 
-                {graficos.situacoes?.length > 0 && (
-                  <div className="rounded-md border bg-card p-4">
-                    <h3 className="mb-3 text-sm font-semibold">Situação das OCs</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie data={graficos.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                          {graficos.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                  {graficos.situacoes?.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Situação das OCs</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie data={graficos.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                            {graficos.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
 
-                {graficos.entregas_por_mes?.length > 0 && (
-                  <div className="rounded-md border bg-card p-4">
-                    <h3 className="mb-3 text-sm font-semibold">Entregas por Mês</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={graficos.entregas_por_mes}>
-                        <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
-                        <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                        <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                  {graficos.tipos?.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Tipos de Item</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie data={graficos.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
+                            {graficos.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
 
-                {graficos.familias?.length > 0 && (
-                  <div className="rounded-md border bg-card p-4">
-                    <h3 className="mb-3 text-sm font-semibold">Top Famílias</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={graficos.familias} layout="vertical">
-                        <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
-                        <YAxis type="category" dataKey="codigo_familia" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                        <Bar dataKey="valor_liquido_total" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
+                  {graficos.entregas_por_mes?.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Entregas por Mês</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={graficos.entregas_por_mes}>
+                          <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
+                          <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {graficos.familias?.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Top Famílias</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={graficos.familias} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <YAxis type="category" dataKey="codigo_familia" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {graficos.origens?.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Origens</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={graficos.origens} layout="vertical">
+                          <XAxis type="number" className="text-xs" />
+                          <YAxis type="category" dataKey="origem" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Bar dataKey="quantidade_itens" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </TabsContent>
