@@ -76,7 +76,7 @@ class ApiClient {
 
   async login(usuario: string, senha: string) {
     const params = new URLSearchParams({ usuario, senha });
-    const response = await fetch(`${API_BASE_URL}/login?${params}`, {
+    const response = await fetch(`${getApiBaseUrl()}/login?${params}`, {
       method: 'POST',
     });
 
