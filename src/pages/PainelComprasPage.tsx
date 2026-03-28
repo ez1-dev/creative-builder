@@ -48,7 +48,7 @@ export default function PainelComprasPage() {
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: '',
+    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +65,8 @@ export default function PainelComprasPage() {
       if (!params.situacao_oc || params.situacao_oc === 'TODOS') delete params.situacao_oc;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
-      if (!params.codigo_motivo_oc) delete params.codigo_motivo_oc;
+      if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
+      if (!params.observacao_oc) delete params.observacao_oc;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
       setData(result);
       setPagina(page);
@@ -82,7 +83,7 @@ export default function PainelComprasPage() {
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: '',
+    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
   });
 
   const resumo = data?.resumo;
@@ -127,7 +128,17 @@ export default function PainelComprasPage() {
             </SelectContent>
           </Select>
         </div>
-        <div><Label className="text-xs">Motivo Desconto (CodMot)</Label><Input value={filters.codigo_motivo_oc} onChange={(e) => setFilters(f => ({ ...f, codigo_motivo_oc: e.target.value }))} placeholder="Ex.: 19" className="h-8 text-xs" /></div>
+        <div>
+          <Label className="text-xs">Desconto</Label>
+          <Select value={filters.codigo_motivo_oc} onValueChange={(v) => setFilters(f => ({ ...f, codigo_motivo_oc: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="19">Com desconto</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Obs./Valor Desconto</Label><Input value={filters.observacao_oc} onChange={(e) => setFilters(f => ({ ...f, observacao_oc: e.target.value }))} placeholder="Pesquisar desconto..." className="h-8 text-xs" /></div>
         <div>
           <Label className="text-xs">Tipo Item</Label>
           <Select value={filters.tipo_item} onValueChange={(v) => setFilters(f => ({ ...f, tipo_item: v }))}>
