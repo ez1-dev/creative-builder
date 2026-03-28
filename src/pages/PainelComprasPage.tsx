@@ -118,6 +118,7 @@ export default function PainelComprasPage() {
               <SelectItem value="3">Cancelada</SelectItem>
               <SelectItem value="4">Fechada</SelectItem>
               <SelectItem value="5">Suspensa</SelectItem>
+              <SelectItem value="9">Encerrada</SelectItem>
             </SelectContent>
           </Select>
         </div>
