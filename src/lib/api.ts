@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const getApiBaseUrl = () =>
+  localStorage.getItem('erp_api_url') || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export const getApiUrl = getApiBaseUrl;
 
 class ApiClient {
   private token: string | null = null;
@@ -52,7 +55,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       ...options,
       headers,
     });
@@ -73,7 +76,7 @@ class ApiClient {
 
   async login(usuario: string, senha: string) {
     const params = new URLSearchParams({ usuario, senha });
-    const response = await fetch(`${API_BASE_URL}/login?${params}`, {
+    const response = await fetch(`${getApiBaseUrl()}/login?${params}`, {
       method: 'POST',
     });
 
@@ -115,7 +118,7 @@ class ApiClient {
         }
       });
     }
-    return `${API_BASE_URL}${endpoint}?${searchParams.toString()}`;
+    return `${getApiBaseUrl()}${endpoint}?${searchParams.toString()}`;
   }
 }
 
