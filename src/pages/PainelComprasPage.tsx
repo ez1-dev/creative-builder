@@ -65,7 +65,8 @@ export default function PainelComprasPage() {
       if (!params.situacao_oc || params.situacao_oc === 'TODOS') delete params.situacao_oc;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
-      if (!params.codigo_motivo_oc) delete params.codigo_motivo_oc;
+      if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
+      if (!params.observacao_oc) delete params.observacao_oc;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
       setData(result);
       setPagina(page);
