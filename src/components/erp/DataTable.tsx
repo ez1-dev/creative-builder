@@ -22,6 +22,7 @@ export function DataTable<T extends Record<string, any>>({
   data,
   loading = false,
   emptyMessage = 'Nenhum registro encontrado.',
+  rowClassName,
 }: DataTableProps<T>) {
   if (loading) {
     return (
