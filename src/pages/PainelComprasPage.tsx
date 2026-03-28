@@ -35,6 +35,7 @@ const columns: Column<any>[] = [
   { key: 'quantidade_pedida', header: 'Qtd. Pedida', align: 'right', render: (v) => formatNumber(v, 2) },
   { key: 'saldo_pendente', header: 'Saldo Pend.', align: 'right', render: (v) => formatNumber(v, 2) },
   { key: 'preco_unitario', header: 'Preço Unit.', align: 'right', render: (v) => formatCurrency(v) },
+  { key: 'percentual_desconto', header: '% Desc.', align: 'right', render: (v) => v ? `${formatNumber(v, 2)}%` : '-' },
   { key: 'valor_liquido', header: 'Vlr. Líquido', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'situacao_oc', header: 'Situação', render: (v) => situacaoLabel(v) },
   { key: 'dias_atraso', header: 'Dias Atraso', align: 'right', render: (v) => v > 0 ? <span className="text-destructive font-semibold">{v}</span> : '-' },
