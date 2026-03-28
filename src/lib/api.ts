@@ -192,7 +192,25 @@ export interface BomResponse {
   dados: any[];
 }
 
+export interface NotasRecebimentoResponse extends PaginatedResponse<any> {
+  resumo?: {
+    total_nfs: number;
+    total_itens: number;
+    total_fornecedores: number;
+    valor_liquido_total: number;
+    valor_bruto_total: number;
+    quantidade_recebida_total: number;
+  };
+}
+
 export interface AuditoriaResponse extends PaginatedResponse<any> {
+  resumo: {
+    total_registros: number;
+    total_ncm_vazio: number;
+    total_cst_vazio: number;
+    total_divergencias: number;
+  };
+}
   resumo: {
     total_registros: number;
     total_ncm_vazio: number;
