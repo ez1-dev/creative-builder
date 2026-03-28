@@ -1,45 +1,65 @@
 
 
-# Fix Excel Export Authentication
+# Nova Aba: Notas Fiscais de Recebimento
 
-## Problem
-The export uses `window.open(url, '_blank')` which opens the URL in a new browser tab. This approach:
-1. Cannot send custom headers (`Authorization: Bearer`, `ngrok-skip-browser-warning`)
-2. Relies on `access_token` as a query parameter, which the backend may not support
+## Resumo
 
-## Solution
-Change `ExportButton` to use `fetch()` with proper headers, then trigger the file download programmatically via a Blob URL.
+Criar a página `NotasRecebimentoPage` seguindo o mesmo padrão do `PainelComprasPage`: filtros, KPIs, tabela analítica com paginação e exportação Excel. O endpoint backend (`/api/notas-recebimento`) já será criado pelo usuário no lado servidor -- o frontend apenas consome.
 
-## Changes
+## Arquivos a criar/alterar
 
-**File: `src/components/erp/ExportButton.tsx`**
+### 1. Criar `src/pages/NotasRecebimentoPage.tsx`
+Página completa seguindo o padrão existente:
 
-Replace `window.open()` with:
-1. Call `fetch()` using the API's base URL + endpoint + params, including `Authorization: Bearer <token>` and `ngrok-skip-browser-warning` headers
-2. Convert response to Blob
-3. Create a temporary `<a>` element with `URL.createObjectURL(blob)` to trigger download
-4. Add loading state and error handling with toast feedback
-5. Extract filename from `Content-Disposition` header if available, fallback to `export.xlsx`
+**Filtros** (dentro de `FilterPanel`):
+- Fornecedor, Número NF, Série, Código item, Descrição item
+- Centro de custo, Projeto, Transação
+- Data recebimento de/até (type="date")
+- Tipo item (Select: Todos/Produto/Serviço)
+- Valor líquido mín/máx
 
-### Technical detail
+**KPIs** (6 cards com `KPICard` + animação stagger):
+- NFs distintas, Itens recebidos, Fornecedores, Valor líquido total, Valor bruto total, Qtd. recebida total
+
+**Tabela** (usando `DataTable`):
+- Colunas: NF, Série, Fornecedor, Emissão, Recebimento, Tipo, Código item, Descrição, Derivação, UM, Transação, Depósito, Centro custo, Projeto, Qtd. recebida, Preço unit., Valor bruto, Valor líquido, IPI, ICMS, ICMS ST, PIS, COFINS, ISS, OC origem
+
+**Paginação** com `PaginationControl`
+
+**Exportação** com `ExportButton` apontando para `/api/export/notas-recebimento`
+
+**API call**: `api.get('/api/notas-recebimento', params)` retornando `PaginatedResponse` com `resumo` opcional.
+
+### 2. Atualizar `src/lib/api.ts`
+Adicionar interface `NotasRecebimentoResponse`:
 ```typescript
-const handleExport = async () => {
-  setLoading(true);
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'ngrok-skip-browser-warning': 'true',
-      },
-    });
-    if (!response.ok) throw new Error('Erro ao exportar');
-    const blob = await response.blob();
-    // trigger download via temporary <a> tag
-  } catch {
-    toast.error('Falha ao exportar');
-  } finally {
-    setLoading(false);
-  }
-};
+export interface NotasRecebimentoResponse extends PaginatedResponse<any> {
+  resumo?: {
+    total_nfs: number;
+    total_itens: number;
+    total_fornecedores: number;
+    valor_liquido_total: number;
+    valor_bruto_total: number;
+    quantidade_recebida_total: number;
+  };
+}
 ```
+
+### 3. Atualizar `src/components/AppSidebar.tsx`
+Adicionar item no array `modules`:
+```typescript
+{ title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput }
+```
+
+### 4. Atualizar `src/App.tsx`
+Adicionar rota:
+```typescript
+<Route path="/notas-recebimento" element={<NotasRecebimentoPage />} />
+```
+
+## Detalhes Técnicos
+- KPIs calculados client-side a partir de `resumo` (se a API retornar) ou dos `dados` da página atual como fallback
+- Mesmos componentes reutilizados: `PageHeader`, `FilterPanel`, `DataTable`, `PaginationControl`, `ExportButton`, `KPICard`
+- Formatação com `formatCurrency`, `formatNumber`, `formatDate` de `src/lib/format.ts`
+- Sem gráficos nesta primeira versão (aba analítica primeiro, conforme recomendação do usuário)
 
