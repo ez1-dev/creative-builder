@@ -51,6 +51,7 @@ export default function NotasRecebimentoPage() {
     centro_custo: '', numero_projeto: '', transacao: '',
     data_recebimento_ini: '', data_recebimento_fim: '',
     tipo_item: 'TODOS', valor_min: '', valor_max: '',
+    situacao_nf: '',
   });
   const [data, setData] = useState<NotasRecebimentoResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,6 +66,7 @@ export default function NotasRecebimentoPage() {
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
+      if (!params.situacao_nf) delete params.situacao_nf;
       const result = await api.get<NotasRecebimentoResponse>('/api/notas-recebimento', params);
       setData(result);
       setPagina(page);
@@ -81,6 +83,7 @@ export default function NotasRecebimentoPage() {
     centro_custo: '', numero_projeto: '', transacao: '',
     data_recebimento_ini: '', data_recebimento_fim: '',
     tipo_item: 'TODOS', valor_min: '', valor_max: '',
+    situacao_nf: '',
   });
 
   // KPIs from resumo if available, otherwise calculate from page data
@@ -120,6 +123,20 @@ export default function NotasRecebimentoPage() {
               <SelectItem value="TODOS">Todos</SelectItem>
               <SelectItem value="PRODUTO">Produto</SelectItem>
               <SelectItem value="SERVIÇO">Serviço</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Situação NF</Label>
+          <Select value={filters.situacao_nf} onValueChange={(v) => setFilters(f => ({ ...f, situacao_nf: v === 'TODAS' ? '' : v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODAS">Todas</SelectItem>
+              <SelectItem value="1">Situação 1</SelectItem>
+              <SelectItem value="2">Situação 2</SelectItem>
+              <SelectItem value="3">Situação 3</SelectItem>
+              <SelectItem value="4">Situação 4</SelectItem>
+              <SelectItem value="5">Situação 5</SelectItem>
             </SelectContent>
           </Select>
         </div>
