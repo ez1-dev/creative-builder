@@ -1,33 +1,26 @@
 
 
-# Ajustar filtros Situação OC e Motivo Desconto no Painel de Compras
+# Adicionar dropdowns Tipo Item e Tipo OC no Painel de Compras
 
 ## Situação atual
-Os filtros já existem no código (linhas 107-121), mas precisam de ajustes para alinhar com o backend:
+Os campos `tipo_item` e `tipo_oc` já existem no estado `filters` (linha 47) com valor default `'TODOS'` e já são enviados à API. Porém não há campos visuais no painel de filtros para eles.
 
 ## Mudanças em `src/pages/PainelComprasPage.tsx`
 
-### 1. Renomear campo `codigo_motivo` → `codigo_motivo_oc`
-No estado `filters`, no `clearFilters`, e no campo Input — para corresponder ao parâmetro esperado pelo backend.
+### Adicionar dois Select dropdowns no FilterPanel (após linha 124, antes do checkbox)
 
-### 2. Atualizar opções do Select "Situação OC"
-Substituir as opções atuais (que têm valor "9=Encerrada") pelas opções corretas do backend:
-- `TODOS` → Todas
-- `0` → Aberta
-- `1` → Parcial
-- `2` → Recebida
-- `3` → Cancelada
-- `4` → Fechada (novo)
-- `5` → Suspensa (novo)
+**Tipo Item** — baseado nos dados retornados pela API (`PRODUTO`, `SERVIÇO`):
+- `TODOS` → Todos
+- `PRODUTO` → Produto
+- `SERVICO` → Serviço
 
-Usar valor `"TODOS"` como sentinela (já funciona assim).
+**Tipo OC** — baseado nos dados da API (`MISTA`, `NORMAL`, etc.):
+- `TODOS` → Todos
+- `NORMAL` → Normal
+- `MISTA` → Mista
 
-### 3. Atualizar label do campo de desconto
-De "Cód. Desconto" para "Motivo Desconto (CodMot)" com placeholder "Ex.: 19".
+### Lógica de envio
+Já funciona automaticamente — o `api.get` ignora valores vazios, e `TODOS` é enviado como parâmetro (o backend já aceita).
 
-### 4. Garantir envio correto
-Na função `search`, adicionar lógica para não enviar `situacao_oc` quando `"TODOS"` e não enviar `codigo_motivo_oc` quando vazio — limpando do params antes do envio.
-
-### 5. Atualizar `situacaoLabel`
-Adicionar mapeamento para valores 4 (Fechada) e 5 (Suspensa) na função usada na tabela.
+Nenhuma outra mudança necessária.
 
