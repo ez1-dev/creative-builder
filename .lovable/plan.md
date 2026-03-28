@@ -1,79 +1,43 @@
 
-# ERP Web - Frontend React para API FastAPI
 
-## Visão Geral
-Desenvolver o frontend React completo para consumir a API FastAPI ERP existente (rodando em localhost). O design seguirá o estilo atual do sistema — funcional, com tabelas de dados, filtros, KPIs e navegação por abas.
+# Corrigir "Failed to fetch" — Suporte Local + Preview
 
-## Configuração
-- URL base da API configurável (padrão: `http://localhost:8000`)
-- Serviço de API centralizado com interceptor de token JWT
-- Re-autenticação automática quando o token expirar
+## Problema
+O preview do Lovable roda na nuvem e não consegue acessar `localhost:8000`. Quando o usuário tenta fazer login, o `fetch` falha porque a API não é alcançável.
 
-## Módulos
+## Solução
 
-### 1. Login
-- Tela de login com usuário e senha
-- Armazenamento do token JWT
-- Redirecionamento automático se não autenticado
+### 1. Mensagem de erro amigável no login
+Atualmente, o erro genérico "Failed to fetch" é exibido. Vamos interceptar esse erro específico e mostrar uma mensagem clara explicando que a API não está acessível, com instruções.
 
-### 2. Layout Principal
-- Sidebar ou tabs para navegar entre os módulos
-- Header com nome do usuário logado e botão de logout
-- Estilo corporativo similar ao atual (azul, tabelas com header colorido)
+**Arquivo:** `src/pages/LoginPage.tsx`
+- No `catch` do `handleSubmit`, detectar `TypeError` / "Failed to fetch" e exibir: *"Não foi possível conectar à API. Verifique se a API está rodando e acessível."*
 
-### 3. Estoque
-- Filtros: código, descrição, família, origem, depósito, "somente com estoque"
-- Tabela paginada com os dados de saldo
-- Botão de exportar Excel
+### 2. Indicador de status da API na tela de login
+Adicionar um pequeno badge que mostra se a API está online ou offline, fazendo um `fetch` para um endpoint de health check (ou simplesmente tentando um GET na raiz da API).
 
-### 4. Onde Usa
-- Filtros: código componente, derivação, código modelo
-- Tabela paginada mostrando onde o componente é utilizado
-- Exportação Excel
+**Arquivo:** `src/pages/LoginPage.tsx`
+- `useEffect` que faz `fetch(API_BASE_URL)` ao montar o componente
+- Exibe badge verde "API Online" ou vermelho "API Offline" abaixo do formulário
+- Mostra a URL configurada para o usuário saber para onde está apontando
 
-### 5. Estrutura (BOM)
-- Campo para código do modelo e derivação
-- Exibição hierárquica da estrutura (árvore/tabela com indentação por nível)
-- Indicadores visuais de ciclos e modelos filhos
-- Exportação Excel
+### 3. Configuração flexível da URL da API
+Adicionar um campo na tela de login que permite o usuário alterar a URL da API em tempo real (salva no localStorage), útil para quem usa ngrok ou IP interno.
 
-### 6. Compras / Custos do Produto
-- Filtros completos (código, descrição, família, origem, derivação, OC aberta)
-- Tabela com dados de última NF, preço médio, OCs abertas
-- Exportação Excel
+**Arquivo:** `src/pages/LoginPage.tsx`
+- Pequeno link "Configurar API" que expande um campo de texto com a URL atual
+- Ao salvar, grava no `localStorage` e recarrega
 
-### 7. Painel de Compras
-- **Dashboard** com KPIs: total OCs, valor líquido, itens pendentes, atrasados
-- Gráficos: top fornecedores, situações, tipos, famílias, entregas por mês
-- **Lista detalhada** com filtros avançados (item, fornecedor, projeto, centro de custo, datas, valores, situação)
-- Agrupamento por fornecedor
-- Paginação e exportação Excel
+**Arquivo:** `src/lib/api.ts`
+- Ler `localStorage.getItem('erp_api_url')` como prioridade sobre `import.meta.env.VITE_API_URL`
 
-### 8. Engenharia x Produção
-- Filtros: unidade de negócio, projeto, desenho, revisão, OP, origem, família, datas, status
-- KPIs: total projetos, kg engenharia, kg produzido, kg estoque, % atendimento
-- Tabela com barras de progresso visuais para atendimento
-- Exportação Excel
+### 4. Melhorar tratamento de erros no ApiClient
+**Arquivo:** `src/lib/api.ts`
+- Envolver o `fetch` do método `login` em try/catch para capturar `TypeError` (rede) e lançar erro com mensagem mais descritiva
 
-### 9. Auditoria Tributária
-- Filtros: código, descrição, família, origem, NCM, CST, transação, checkboxes de divergência
-- KPIs: total, NCM vazio, CST vazio, divergências
-- Tabela com status coloridos (Ok, Parcial, etc.)
-- Exportação Excel e CSV (com limite de linhas para Excel)
+## Resumo das alterações
+| Arquivo | Mudança |
+|---|---|
+| `src/lib/api.ts` | URL dinâmica via localStorage + tratamento de erro de rede |
+| `src/pages/LoginPage.tsx` | Badge de status da API + campo de configuração de URL + mensagem de erro melhorada |
 
-## Componentes Reutilizáveis
-- `DataTable` — tabela com paginação, filtro local, cabeçalho fixo
-- `FilterPanel` — painel de filtros colapsável
-- `KPICard` — card de indicador
-- `ExportButtons` — botões de exportação (Excel/CSV) com download direto
-- `Pagination` — controle de paginação
-
-## Estrutura de Páginas
-- `/login` — Tela de login
-- `/estoque` — Consulta de estoque
-- `/onde-usa` — Onde usa
-- `/bom` — Estrutura/BOM
-- `/compras-produto` — Compras e custos
-- `/painel-compras` — Painel de compras (dashboard + lista)
-- `/engenharia-producao` — Engenharia x Produção
-- `/auditoria-tributaria` — Auditoria Tributária
