@@ -79,6 +79,7 @@ class ApiClient {
     const params = new URLSearchParams({ usuario, senha });
     const response = await fetch(`${getApiBaseUrl()}/login?${params}`, {
       method: 'POST',
+      headers: { 'ngrok-skip-browser-warning': 'true' },
     });
 
     if (!response.ok) {

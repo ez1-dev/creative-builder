@@ -23,7 +23,7 @@ export default function LoginPage() {
   const checkApi = async () => {
     setApiStatus('checking');
     try {
-      await fetch(getApiUrl(), { method: 'GET', signal: AbortSignal.timeout(5000) });
+      await fetch(getApiUrl(), { method: 'GET', signal: AbortSignal.timeout(5000), headers: { 'ngrok-skip-browser-warning': 'true' } });
       setApiStatus('online');
     } catch {
       setApiStatus('offline');
