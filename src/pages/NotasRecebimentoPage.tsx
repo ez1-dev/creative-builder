@@ -126,6 +126,20 @@ export default function NotasRecebimentoPage() {
             </SelectContent>
           </Select>
         </div>
+        <div>
+          <Label className="text-xs">Situação NF</Label>
+          <Select value={filters.situacao_nf} onValueChange={(v) => setFilters(f => ({ ...f, situacao_nf: v === 'TODAS' ? '' : v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODAS">Todas</SelectItem>
+              <SelectItem value="1">Situação 1</SelectItem>
+              <SelectItem value="2">Situação 2</SelectItem>
+              <SelectItem value="3">Situação 3</SelectItem>
+              <SelectItem value="4">Situação 4</SelectItem>
+              <SelectItem value="5">Situação 5</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <div><Label className="text-xs">Valor Líq. Mín.</Label><Input type="number" value={filters.valor_min} onChange={(e) => setFilters(f => ({ ...f, valor_min: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Valor Líq. Máx.</Label><Input type="number" value={filters.valor_max} onChange={(e) => setFilters(f => ({ ...f, valor_max: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
