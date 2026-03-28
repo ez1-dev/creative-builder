@@ -128,7 +128,17 @@ export default function PainelComprasPage() {
             </SelectContent>
           </Select>
         </div>
-        <div><Label className="text-xs">Motivo Desconto (CodMot)</Label><Input value={filters.codigo_motivo_oc} onChange={(e) => setFilters(f => ({ ...f, codigo_motivo_oc: e.target.value }))} placeholder="Ex.: 19" className="h-8 text-xs" /></div>
+        <div>
+          <Label className="text-xs">Desconto</Label>
+          <Select value={filters.codigo_motivo_oc} onValueChange={(v) => setFilters(f => ({ ...f, codigo_motivo_oc: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="19">Com desconto</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Obs./Valor Desconto</Label><Input value={filters.observacao_oc} onChange={(e) => setFilters(f => ({ ...f, observacao_oc: e.target.value }))} placeholder="Pesquisar desconto..." className="h-8 text-xs" /></div>
         <div>
           <Label className="text-xs">Tipo Item</Label>
           <Select value={filters.tipo_item} onValueChange={(v) => setFilters(f => ({ ...f, tipo_item: v }))}>
