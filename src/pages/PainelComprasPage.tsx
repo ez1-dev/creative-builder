@@ -104,6 +104,21 @@ export default function PainelComprasPage() {
         <div><Label className="text-xs">Entrega até</Label><Input type="date" value={filters.data_entrega_fim} onChange={(e) => setFilters(f => ({ ...f, data_entrega_fim: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><Input value={filters.familia} onChange={(e) => setFilters(f => ({ ...f, familia: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Origem</Label><Input value={filters.origem_material} onChange={(e) => setFilters(f => ({ ...f, origem_material: e.target.value }))} className="h-8 text-xs" /></div>
+        <div>
+          <Label className="text-xs">Situação OC</Label>
+          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v === 'TODAS' ? '' : v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODAS">Todas</SelectItem>
+              <SelectItem value="0">Aberta</SelectItem>
+              <SelectItem value="1">Parcial</SelectItem>
+              <SelectItem value="2">Recebida</SelectItem>
+              <SelectItem value="3">Cancelada</SelectItem>
+              <SelectItem value="9">Encerrada</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div><Label className="text-xs">Cód. Desconto</Label><Input value={filters.codigo_motivo} onChange={(e) => setFilters(f => ({ ...f, codigo_motivo: e.target.value }))} className="h-8 text-xs" /></div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="pendentes" checked={filters.somente_pendentes} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_pendentes: !!v }))} />
           <Label htmlFor="pendentes" className="text-xs">Somente pendentes</Label>
