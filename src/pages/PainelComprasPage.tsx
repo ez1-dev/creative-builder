@@ -61,6 +61,8 @@ export default function PainelComprasPage() {
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
+      if (!params.situacao_oc || params.situacao_oc === 'TODOS') delete params.situacao_oc;
+      if (!params.codigo_motivo_oc) delete params.codigo_motivo_oc;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
       setData(result);
       setPagina(page);
