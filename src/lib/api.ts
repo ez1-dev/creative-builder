@@ -118,7 +118,7 @@ class ApiClient {
         }
       });
     }
-    return `${API_BASE_URL}${endpoint}?${searchParams.toString()}`;
+    return `${getApiBaseUrl()}${endpoint}?${searchParams.toString()}`;
   }
 }
 
