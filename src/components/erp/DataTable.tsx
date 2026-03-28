@@ -60,7 +60,7 @@ export function DataTable<T extends Record<string, any>>({
             </TableRow>
           ) : (
             data.map((row, rowIndex) => (
-              <TableRow key={rowIndex} className={rowIndex % 2 === 0 ? '' : 'table-stripe-bg'}>
+              <TableRow key={rowIndex} className={rowClassName ? rowClassName(row, rowIndex) : (rowIndex % 2 === 0 ? '' : 'table-stripe-bg')}>
                 {columns.map((col) => (
                   <TableCell
                     key={col.key}
