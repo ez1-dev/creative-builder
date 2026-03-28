@@ -51,6 +51,7 @@ export default function NotasRecebimentoPage() {
     centro_custo: '', numero_projeto: '', transacao: '',
     data_recebimento_ini: '', data_recebimento_fim: '',
     tipo_item: 'TODOS', valor_min: '', valor_max: '',
+    situacao_nf: '',
   });
   const [data, setData] = useState<NotasRecebimentoResponse | null>(null);
   const [loading, setLoading] = useState(false);
