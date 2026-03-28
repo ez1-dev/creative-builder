@@ -12,33 +12,47 @@ import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { AlertTriangle, GitBranch } from 'lucide-react';
 
+const levelColors: Record<number, string> = {
+  1: 'bg-green-100',
+  2: 'bg-red-50',
+  3: 'bg-yellow-50',
+};
+const defaultLevelColor = 'bg-blue-50';
+
 const columns: Column<any>[] = [
   {
-    key: 'nivel', header: 'Nível', render: (v, row) => (
-      <span style={{ paddingLeft: `${((v || 1) - 1) * 16}px` }} className="flex items-center gap-1">
-        {row.possui_filhos && <GitBranch className="h-3 w-3 text-primary" />}
-        {row.ciclo_detectado && <AlertTriangle className="h-3 w-3 text-destructive" />}
-        {v}
-      </span>
-    ),
+    key: 'nivel', header: 'Nível', render: (v) => v,
   },
   { key: 'codigo_componente', header: 'Código' },
-  { key: 'descricao_componente', header: 'Descrição' },
+  {
+    key: 'descricao_componente', header: 'Descrição', render: (v, row) => {
+      const nivel = row.nivel || 1;
+      const indent = (nivel - 1) * 20;
+      const prefix = nivel > 1 ? '- ' : '';
+      return (
+        <span
+          style={{ paddingLeft: `${indent}px` }}
+          className={`flex items-center gap-1 ${row.possui_filhos ? 'font-bold' : ''}`}
+        >
+          {row.possui_filhos && <GitBranch className="h-3 w-3 text-primary shrink-0" />}
+          {row.ciclo_detectado && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+          {prefix}{v}
+        </span>
+      );
+    },
+  },
   { key: 'derivacao_componente', header: 'Derivação' },
   { key: 'unidade_medida', header: 'Unidade' },
   { key: 'tipo_produto', header: 'Tipo' },
   { key: 'estagio', header: 'Estágio' },
   { key: 'quantidade_utilizada', header: 'Qtd.', align: 'right', render: (v) => formatNumber(v, 4) },
   { key: 'perda_percentual', header: '% Perda', align: 'right', render: (v) => formatNumber(v, 2) },
-  {
-    key: 'possui_filhos', header: 'Status', render: (_, row) => (
-      <div className="flex gap-1">
-        {row.possui_filhos && <Badge variant="secondary" className="text-[10px]">Modelo</Badge>}
-        {row.ciclo_detectado && <Badge variant="destructive" className="text-[10px]">Ciclo</Badge>}
-      </div>
-    ),
-  },
 ];
+
+function getBomRowClassName(row: any) {
+  const nivel = row.nivel || 1;
+  return levelColors[nivel] || defaultLevelColor;
+}
 
 export default function BomPage() {
   const [filters, setFilters] = useState({ codmod: '', codder: '', max_nivel: '10' });
@@ -81,7 +95,7 @@ export default function BomPage() {
             <KPICard title="Níveis" value={data.total_niveis} variant="default" />
             <KPICard title="Modelos Filhos" value={data.total_modelos_filhos} variant="warning" />
           </div>
-          <DataTable columns={columns} data={data.dados} loading={loading} />
+          <DataTable columns={columns} data={data.dados} loading={loading} rowClassName={getBomRowClassName} />
         </>
       )}
     </div>
