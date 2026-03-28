@@ -1,4 +1,7 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const getApiBaseUrl = () =>
+  localStorage.getItem('erp_api_url') || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export const getApiUrl = getApiBaseUrl;
 
 class ApiClient {
   private token: string | null = null;
