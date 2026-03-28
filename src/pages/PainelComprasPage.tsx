@@ -193,9 +193,9 @@ export default function PainelComprasPage() {
                 <div>
                   <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contagem de Itens</h3>
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                    <KPICard title="Total Linhas" value={resumo.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} />
-                    <KPICard title="Itens Produto" value={resumo.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} />
-                    <KPICard title="Itens Serviço" value={resumo.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} />
+                    <KPICard title="Total Linhas" value={resumo.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" />
+                    <KPICard title="Itens Produto" value={resumo.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={resumo.total_linhas ? [{ label: 'Produtos', value: `${resumo.itens_produto ?? 0} (${((resumo.itens_produto ?? 0) / resumo.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${resumo.itens_servico ?? 0} (${((resumo.itens_servico ?? 0) / resumo.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
+                    <KPICard title="Itens Serviço" value={resumo.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" />
                   </div>
                 </div>
               </>
