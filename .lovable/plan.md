@@ -1,38 +1,36 @@
 
 
-# BOM com visualização em árvore colorida por nível
+# Expandir/Colapsar níveis na árvore BOM
 
-## Objetivo
-Adicionar uma visualização estilo árvore na tabela BOM, similar à imagem de referência (receita de "Bolo de cenoura"), onde:
-- Itens são **indentados** conforme o nível hierárquico
-- Cada nível tem uma **cor de fundo diferente** para facilitar a leitura
-- Itens que são **modelos/subconjuntos** (possuem filhos) aparecem em **negrito**
-- A descrição incorpora a indentação visual com traço (`-`) como na imagem
+## Abordagem
+Os dados BOM vêm como lista plana ordenada hierarquicamente. Um item no nível N é "pai" dos itens consecutivos com nível > N que o seguem. A lógica de expand/collapse filtra visualmente os filhos de nós colapsados.
 
 ## Mudanças
 
-### 1. `src/pages/BomPage.tsx`
-- Reorganizar colunas para dar mais destaque à **Descrição** (principal coluna visual)
-- Na coluna Descrição, aplicar:
-  - `paddingLeft` proporcional ao nível (indentação em árvore)
-  - Prefixo `"- "` para itens filhos
-  - **Negrito** para itens que possuem filhos (são subconjuntos)
-- Adicionar cor de fundo por linha baseada no `nivel`:
-  - Nível 1: verde claro
-  - Nível 2: rosa/vermelho claro  
-  - Nível 3: amarelo claro
-  - Nível 4+: azul claro
-- Remover coluna "Status" redundante (a informação visual já indica modelos)
+### `src/pages/BomPage.tsx`
+- Adicionar estado `collapsedRows: Set<number>` (índices dos itens colapsados no array original)
+- Criar função `getVisibleRows()` que percorre `data.dados` e oculta filhos de nós colapsados:
+  - Quando um item no índice `i` está no Set, pular todos os itens seguintes com `nivel` maior que o dele
+- Na coluna Descrição, para itens com `possui_filhos`:
+  - Adicionar ícone clicável `ChevronRight` (colapsado) ou `ChevronDown` (expandido)
+  - onClick alterna o índice no Set
+- Adicionar botões globais "Expandir Tudo" / "Colapsar Tudo" no header da página
+- As `columns` deixam de ser constante estática e passam a ser geradas dentro do componente (para acessar o estado de collapse e o handler de toggle)
 
-### 2. `src/components/erp/DataTable.tsx`
-- Adicionar prop opcional `rowClassName` para permitir cor de fundo customizada por linha
-- Manter compatibilidade com uso existente em outras páginas
+### Lógica de visibilidade
+```text
+Para cada item em data.dados:
+  Se skip_until_level está definido e item.nivel > skip_until_level:
+    → ocultar (é filho de nó colapsado)
+  Senão:
+    → limpar skip_until_level
+    → mostrar item
+    Se item está colapsado:
+      → definir skip_until_level = item.nivel
+```
 
-## Paleta de cores (baseada na imagem)
-| Nível | Cor |
-|-------|-----|
-| 1 | `bg-green-100` |
-| 2 | `bg-red-50` / `bg-pink-50` |
-| 3 | `bg-yellow-50` |
-| 4+ | `bg-blue-50` |
+### Ícones visuais
+- `ChevronRight` → nó colapsado (clique para expandir)
+- `ChevronDown` → nó expandido (clique para colapsar)
+- Itens sem filhos não mostram chevron
 
