@@ -90,15 +90,14 @@ export default function NotasRecebimentoPage() {
     situacao_nf: '',
   });
 
-  // KPIs from resumo if available, otherwise calculate from page data
-  const resumo = data?.resumo;
+  // Always calculate KPIs from page data to respect active filters
   const dados = data?.dados || [];
-  const totalNfs = resumo?.total_nfs ?? new Set(dados.map(d => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
-  const totalItens = resumo?.total_itens ?? dados.length;
-  const totalFornecedores = resumo?.total_fornecedores ?? new Set(dados.map(d => d.codigo_fornecedor)).size;
-  const valorLiquidoTotal = resumo?.valor_liquido_total ?? dados.reduce((acc, d) => acc + Number(d.valor_liquido || 0), 0);
-  const valorBrutoTotal = resumo?.valor_bruto_total ?? dados.reduce((acc, d) => acc + Number(d.valor_bruto || 0), 0);
-  const qtdRecebidaTotal = resumo?.quantidade_recebida_total ?? dados.reduce((acc, d) => acc + Number(d.quantidade_recebida || 0), 0);
+  const totalNfs = new Set(dados.map(d => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
+  const totalItens = dados.length;
+  const totalFornecedores = new Set(dados.map(d => d.codigo_fornecedor)).size;
+  const valorLiquidoTotal = dados.reduce((acc, d) => acc + Number(d.valor_liquido || 0), 0);
+  const valorBrutoTotal = dados.reduce((acc, d) => acc + Number(d.valor_bruto || 0), 0);
+  const qtdRecebidaTotal = dados.reduce((acc, d) => acc + Number(d.quantidade_recebida || 0), 0);
 
   return (
     <div className="space-y-4 p-4">
