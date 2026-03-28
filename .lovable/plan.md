@@ -1,25 +1,23 @@
 
 
-# Ajustar filtro de Desconto no Painel de Compras
+# Animações de Entrada nos KPIs com Framer Motion
 
-## Mudanças em `src/pages/PainelComprasPage.tsx`
+## Mudanças
 
-### 1. State dos filtros
-- Alterar `codigo_motivo_oc` de Input livre para valor padrão `'TODOS'`
-- Adicionar `observacao_oc: ''` ao state de filtros e ao `clearFilters`
+### 1. Instalar `framer-motion`
+Adicionar dependência ao `package.json`.
 
-### 2. Substituir o filtro atual (linha 130)
-Trocar o Input "Motivo Desconto (CodMot)" por:
-- **Select** `codigoMotivoOcPainelCompras` com opções: `TODOS` e `19 = Com desconto`
-- **Input** `observacaoOcPainelCompras` para pesquisar valor/texto do desconto
+### 2. Atualizar `KPICard` (`src/components/erp/KPICard.tsx`)
+- Adicionar prop opcional `index?: number` para escalonamento (stagger)
+- Envolver o wrapper externo do card com `motion.div` do framer-motion
+- Animação: fade-in + slide-up (`opacity: 0→1`, `y: 20→0`)
+- Delay escalonado: `index * 0.05s` para efeito cascata
+- Duração: `0.4s` com easing suave
 
-### 3. Lógica de envio (função `search`)
-- Se `codigo_motivo_oc === 'TODOS'` → remover do params (já existente)
-- Se `codigo_motivo_oc === '19'` → enviar `codigo_motivo_oc=19`
-- Se `observacao_oc` preenchido → enviar `observacao_oc=<valor>`
-- O backend já trata a lógica de filtro SQL conforme descrito
+### 3. Atualizar `PainelComprasPage.tsx`
+- Passar prop `index={i}` para cada `KPICard` no dashboard (usando o índice do array ou posição manual)
 
 ### Detalhes técnicos
-- Componentes já importados: `Select`, `SelectContent`, `SelectItem`, `SelectTrigger`, `SelectValue`, `Input`, `Label`
-- Nenhuma dependência nova necessária
+- `motion.div` com `initial={{ opacity: 0, y: 20 }}`, `animate={{ opacity: 1, y: 0 }}`, `transition={{ delay: index * 0.05, duration: 0.4 }}`
+- Animação só executa na montagem inicial (sem `whileInView` para evitar re-trigger ao scroll)
 
