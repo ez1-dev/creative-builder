@@ -4,6 +4,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Info } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface KPIDetail {
   label: string;
@@ -18,6 +19,7 @@ interface KPICardProps {
   variant?: 'default' | 'success' | 'warning' | 'destructive' | 'info';
   tooltip?: string;
   details?: KPIDetail[];
+  index?: number;
 }
 
 const variantClasses = {
@@ -28,7 +30,7 @@ const variantClasses = {
   info: 'border-l-4 border-l-[hsl(var(--info))]',
 };
 
-export function KPICard({ title, value, subtitle, icon, variant = 'default', tooltip, details }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon, variant = 'default', tooltip, details, index = 0 }: KPICardProps) {
   const hasDetails = details && details.length > 0;
 
   const cardContent = (
@@ -62,8 +64,18 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
     </TooltipProvider>
   ) : hasDetails ? cardContent : <div>{cardContent}</div>;
 
+  const animationWrapper = (children: React.ReactNode) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
+  );
+
   if (hasDetails) {
-    return (
+    return animationWrapper(
       <Popover>
         <PopoverTrigger asChild>
           {tooltip ? (
@@ -90,5 +102,5 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
     );
   }
 
-  return wrappedWithTooltip;
+  return animationWrapper(wrappedWithTooltip);
 }
