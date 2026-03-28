@@ -1,20 +1,33 @@
 
 
-# Adicionar filtros Situação OC e Código Desconto ao Painel de Compras
+# Ajustar filtros Situação OC e Motivo Desconto no Painel de Compras
 
-## Mudanças
+## Situação atual
+Os filtros já existem no código (linhas 107-121), mas precisam de ajustes para alinhar com o backend:
 
-### `src/pages/PainelComprasPage.tsx`
+## Mudanças em `src/pages/PainelComprasPage.tsx`
 
-1. **Adicionar campos ao estado `filters`**:
-   - `situacao_oc: ''` — Situação da OC (SitOcp)
-   - `codigo_motivo: ''` — Código do motivo/desconto (CodMot)
+### 1. Renomear campo `codigo_motivo` → `codigo_motivo_oc`
+No estado `filters`, no `clearFilters`, e no campo Input — para corresponder ao parâmetro esperado pelo backend.
 
-2. **Adicionar campos visuais no `FilterPanel`**:
-   - **Situação OC**: Select/dropdown com as opções já mapeadas no `situacaoLabel` (Aberta=0, Parcial=1, Recebida=2, Cancelada=3, Encerrada=9, e "Todas" como default vazio)
-   - **Cód. Desconto**: Input text para filtro livre por CodMot
+### 2. Atualizar opções do Select "Situação OC"
+Substituir as opções atuais (que têm valor "9=Encerrada") pelas opções corretas do backend:
+- `TODOS` → Todas
+- `0` → Aberta
+- `1` → Parcial
+- `2` → Recebida
+- `3` → Cancelada
+- `4` → Fechada (novo)
+- `5` → Suspensa (novo)
 
-3. **Atualizar `clearFilters`**: Incluir os dois novos campos no reset
+Usar valor `"TODOS"` como sentinela (já funciona assim).
 
-4. **Lógica de envio**: Os valores são passados como params na chamada API (já funciona automaticamente pelo spread `...filters`)
+### 3. Atualizar label do campo de desconto
+De "Cód. Desconto" para "Motivo Desconto (CodMot)" com placeholder "Ex.: 19".
+
+### 4. Garantir envio correto
+Na função `search`, adicionar lógica para não enviar `situacao_oc` quando `"TODOS"` e não enviar `codigo_motivo_oc` quando vazio — limpando do params antes do envio.
+
+### 5. Atualizar `situacaoLabel`
+Adicionar mapeamento para valores 4 (Fechada) e 5 (Suspensa) na função usada na tabela.
 
