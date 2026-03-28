@@ -1,29 +1,20 @@
 
 
-# Adicionar KPI Cards acima das abas no Painel de Compras
+# Adicionar filtro "Situação NF" na página de Notas de Recebimento
 
-## Problema
-Os KPI cards atualmente estão dentro da aba "Dashboard", então ao alternar para "Lista Detalhada" os indicadores desaparecem.
+## Alteração: `src/pages/NotasRecebimentoPage.tsx`
 
-## Solução
-Mover os KPI cards principais para **fora das abas**, ficando sempre visíveis após a consulta, independente da aba selecionada.
+1. Adicionar `situacao_nf: ''` ao estado `filters` e ao `clearFilters`
+2. Adicionar um `<Select>` no `<FilterPanel>` com as opções:
+   - Todas (valor vazio)
+   - Situação 1 a 5
+3. O parâmetro `situacao_nf` já será enviado como query param na chamada `api.get('/api/notas-recebimento', params)` -- basta incluí-lo no objeto filters e remover quando vazio (mesmo padrão dos outros filtros)
 
-## Alteração: `src/pages/PainelComprasPage.tsx`
+O componente usará o mesmo `<Select>` (Radix) já usado no filtro "Tipo Item", mantendo consistência visual.
 
-Extrair os 3 blocos de KPIs (Indicadores Financeiros, Indicadores de Pendência, Contagem de Itens) para **antes** do componente `<Tabs>`, mantendo-os visíveis em ambas as abas.
+## Detalhes técnicos
 
-Estrutura resultante:
-```text
-PageHeader
-FilterPanel
-── KPI Cards (sempre visíveis quando houver dados)
-   ├─ Indicadores Financeiros (6 cards)
-   ├─ Indicadores de Pendência (6 cards)
-   └─ Contagem de Itens (3 cards)
-── Tabs
-   ├─ Dashboard (gráficos apenas)
-   └─ Lista Detalhada (tabela + paginação)
-```
-
-Nenhum arquivo novo. Apenas reorganização do JSX existente.
+- No `search()`, adicionar lógica para deletar `params.situacao_nf` quando vazio (padrão existente)
+- Não é necessário adicionar coluna na tabela pois é apenas filtro
+- Backend precisa receber o param `situacao_nf` e aplicar `WHERE E440NFC.SITNFC = ?`
 
