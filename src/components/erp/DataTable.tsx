@@ -14,6 +14,7 @@ interface DataTableProps<T> {
   data: T[];
   loading?: boolean;
   emptyMessage?: string;
+  rowClassName?: (row: T, index: number) => string;
 }
 
 export function DataTable<T extends Record<string, any>>({
