@@ -66,6 +66,7 @@ export default function NotasRecebimentoPage() {
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
+      if (!params.situacao_nf) delete params.situacao_nf;
       const result = await api.get<NotasRecebimentoResponse>('/api/notas-recebimento', params);
       setData(result);
       setPagina(page);
