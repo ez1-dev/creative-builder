@@ -19,7 +19,7 @@ import { ShoppingCart, AlertTriangle, TrendingUp, Package } from 'lucide-react';
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
 const situacaoLabel = (s: number) => {
-  const map: Record<number, string> = { 0: 'Aberta', 1: 'Parcial', 2: 'Recebida', 3: 'Cancelada', 4: 'Fechada', 5: 'Suspensa', 9: 'Encerrada' };
+  const map: Record<number, string> = { 1: 'Aberto Total', 2: 'Aberto Parcial', 3: 'Suspenso', 4: 'Liquidado', 5: 'Cancelado', 6: 'Aguard. Integração WMS', 7: 'Em Transmissão', 8: 'Prep. Análise/NF', 9: 'Não Fechado' };
   return map[s] || `Sit. ${s}`;
 };
 
@@ -114,13 +114,15 @@ export default function PainelComprasPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todas</SelectItem>
-              <SelectItem value="0">Aberta</SelectItem>
-              <SelectItem value="1">Parcial</SelectItem>
-              <SelectItem value="2">Recebida</SelectItem>
-              <SelectItem value="3">Cancelada</SelectItem>
-              <SelectItem value="4">Fechada</SelectItem>
-              <SelectItem value="5">Suspensa</SelectItem>
-              <SelectItem value="9">Encerrada</SelectItem>
+              <SelectItem value="1">Aberto Total</SelectItem>
+              <SelectItem value="2">Aberto Parcial</SelectItem>
+              <SelectItem value="3">Suspenso</SelectItem>
+              <SelectItem value="4">Liquidado</SelectItem>
+              <SelectItem value="5">Cancelado</SelectItem>
+              <SelectItem value="6">Aguard. Integração WMS</SelectItem>
+              <SelectItem value="7">Em Transmissão</SelectItem>
+              <SelectItem value="8">Prep. Análise/NF</SelectItem>
+              <SelectItem value="9">Não Fechado</SelectItem>
             </SelectContent>
           </Select>
         </div>
