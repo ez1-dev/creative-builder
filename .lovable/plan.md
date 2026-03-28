@@ -1,26 +1,23 @@
 
 
-# Corrigir "Failed to fetch" com ngrok — Header + CORS
+# Fixar URL padrão da API para o ngrok
 
 ## Problema
-O ngrok gratuito exibe uma página de aviso (interstitial) para requisições que não incluem o header `ngrok-skip-browser-warning`. Isso causa "Failed to fetch" mesmo com a URL correta configurada.
+O front roda no preview do Lovable (não é localhost), então `http://localhost:8000` nunca vai funcionar. O usuário precisa configurar manualmente toda vez.
 
 ## Solução
 
-### 1. Adicionar header `ngrok-skip-browser-warning` em todas as requisições
-**Arquivo:** `src/lib/api.ts`
+### 1. Criar arquivo `.env.local` na raiz do projeto
+```
+VITE_API_URL=https://flakily-wanning-faye.ngrok-free.dev
+```
 
-- No método `request()`, adicionar o header `ngrok-skip-browser-warning: true` quando a URL contiver `ngrok`
-- No método `login()`, adicionar o mesmo header no `fetch`
-- No health check do `LoginPage.tsx`, adicionar o header no `fetch` de verificação
+Isso faz com que `import.meta.env.VITE_API_URL` retorne a URL do ngrok automaticamente, eliminando a necessidade de configurar manualmente na tela de login.
 
-### 2. Garantir que o health check também use o header
-**Arquivo:** `src/pages/LoginPage.tsx`
-- No `checkApi`, adicionar o header `ngrok-skip-browser-warning` no fetch
+### 2. Nenhuma mudança em `src/lib/api.ts`
+O código já lê `import.meta.env.VITE_API_URL` como fallback — basta o `.env.local` existir.
 
-## Resumo
-| Arquivo | Mudança |
-|---|---|
-| `src/lib/api.ts` | Header `ngrok-skip-browser-warning` no `request()` e `login()` |
-| `src/pages/LoginPage.tsx` | Header no health check |
+## Observação
+- A URL do ngrok muda a cada reinício (plano gratuito). Quando mudar, atualize o `.env.local` ou use "Configurar API" na tela de login.
+- O CORS na FastAPI com `allow_origins=["*"]` continua sendo necessário no backend.
 
