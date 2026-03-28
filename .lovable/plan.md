@@ -1,34 +1,14 @@
 
 
-# Corrigir mapeamento de Situação OC no Painel de Compras
+# Adicionar coluna de Desconto na Lista Detalhada do Painel de Compras
 
-## Problema
-O dropdown e o helper `situacaoLabel` usam mapeamento incorreto. O backend usa:
-1 = Aberto Total, 2 = Aberto Parcial, 3 = Suspenso, 4 = Liquidado, 5 = Cancelado, 6 = Aguardando Integração WMS, 7 = Em Transmissão, 8 = Preparação Análise ou NF, 9 = Não Fechado.
+## Mudança em `src/pages/PainelComprasPage.tsx`
 
-## Mudanças em `src/pages/PainelComprasPage.tsx`
+Adicionar uma nova coluna na definição de `columns` (após `preco_unitario`, antes de `valor_liquido`):
 
-### 1. Atualizar `situacaoLabel` (linha 22)
 ```ts
-const map: Record<number, string> = {
-  1: 'Aberto Total', 2: 'Aberto Parcial', 3: 'Suspenso',
-  4: 'Liquidado', 5: 'Cancelado', 6: 'Aguard. Integração WMS',
-  7: 'Em Transmissão', 8: 'Prep. Análise/NF', 9: 'Não Fechado'
-};
+{ key: 'percentual_desconto', header: '% Desc.', align: 'right', render: (v) => v ? `${formatNumber(v, 2)}%` : '-' },
 ```
 
-### 2. Atualizar opções do Select (linhas 116-123)
-Substituir as opções atuais por:
-- `TODOS` → Todas
-- `1` → Aberto Total
-- `2` → Aberto Parcial
-- `3` → Suspenso
-- `4` → Liquidado
-- `5` → Cancelado
-- `6` → Aguard. Integração WMS
-- `7` → Em Transmissão
-- `8` → Prep. Análise/NF
-- `9` → Não Fechado
-
-Remover a opção `0` (Aberta) que não existe no backend.
+A API já retorna o campo de desconto nos dados — basta exibi-lo na tabela. Se o campo retornado pela API tiver nome diferente (ex: `desconto`, `valor_desconto`), ajustaremos o `key` conforme necessário.
 
