@@ -1,36 +1,20 @@
 
 
-# Expandir/Colapsar níveis na árvore BOM
-
-## Abordagem
-Os dados BOM vêm como lista plana ordenada hierarquicamente. Um item no nível N é "pai" dos itens consecutivos com nível > N que o seguem. A lógica de expand/collapse filtra visualmente os filhos de nós colapsados.
+# Adicionar filtros Situação OC e Código Desconto ao Painel de Compras
 
 ## Mudanças
 
-### `src/pages/BomPage.tsx`
-- Adicionar estado `collapsedRows: Set<number>` (índices dos itens colapsados no array original)
-- Criar função `getVisibleRows()` que percorre `data.dados` e oculta filhos de nós colapsados:
-  - Quando um item no índice `i` está no Set, pular todos os itens seguintes com `nivel` maior que o dele
-- Na coluna Descrição, para itens com `possui_filhos`:
-  - Adicionar ícone clicável `ChevronRight` (colapsado) ou `ChevronDown` (expandido)
-  - onClick alterna o índice no Set
-- Adicionar botões globais "Expandir Tudo" / "Colapsar Tudo" no header da página
-- As `columns` deixam de ser constante estática e passam a ser geradas dentro do componente (para acessar o estado de collapse e o handler de toggle)
+### `src/pages/PainelComprasPage.tsx`
 
-### Lógica de visibilidade
-```text
-Para cada item em data.dados:
-  Se skip_until_level está definido e item.nivel > skip_until_level:
-    → ocultar (é filho de nó colapsado)
-  Senão:
-    → limpar skip_until_level
-    → mostrar item
-    Se item está colapsado:
-      → definir skip_until_level = item.nivel
-```
+1. **Adicionar campos ao estado `filters`**:
+   - `situacao_oc: ''` — Situação da OC (SitOcp)
+   - `codigo_motivo: ''` — Código do motivo/desconto (CodMot)
 
-### Ícones visuais
-- `ChevronRight` → nó colapsado (clique para expandir)
-- `ChevronDown` → nó expandido (clique para colapsar)
-- Itens sem filhos não mostram chevron
+2. **Adicionar campos visuais no `FilterPanel`**:
+   - **Situação OC**: Select/dropdown com as opções já mapeadas no `situacaoLabel` (Aberta=0, Parcial=1, Recebida=2, Cancelada=3, Encerrada=9, e "Todas" como default vazio)
+   - **Cód. Desconto**: Input text para filtro livre por CodMot
+
+3. **Atualizar `clearFilters`**: Incluir os dois novos campos no reset
+
+4. **Lógica de envio**: Os valores são passados como params na chamada API (já funciona automaticamente pelo spread `...filters`)
 
