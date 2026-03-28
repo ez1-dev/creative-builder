@@ -19,7 +19,7 @@ import { ShoppingCart, AlertTriangle, TrendingUp, Package } from 'lucide-react';
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
 const situacaoLabel = (s: number) => {
-  const map: Record<number, string> = { 0: 'Aberta', 1: 'Parcial', 2: 'Recebida', 3: 'Cancelada', 9: 'Encerrada' };
+  const map: Record<number, string> = { 0: 'Aberta', 1: 'Parcial', 2: 'Recebida', 3: 'Cancelada', 4: 'Fechada', 5: 'Suspensa', 9: 'Encerrada' };
   return map[s] || `Sit. ${s}`;
 };
 
