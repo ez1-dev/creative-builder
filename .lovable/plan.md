@@ -1,36 +1,42 @@
 
 
-# Dashboard Completo do Painel de Compras
+# Tooltips e Drill-Down nos KPIs do Dashboard de Compras
 
-## Situação Atual
-Já existe uma aba Dashboard com 6 KPIs e 4 gráficos. Porém a API retorna dados adicionais não exibidos:
-- **Resumo**: `valor_bruto_total`, `valor_desconto_total`, `valor_pendente_total`, `impostos_totais`, `saldo_pendente_total`, `ocs_atrasadas`, `ticket_medio_item`, `itens_produto`, `itens_servico`, `total_linhas`
-- **Gráficos**: `tipos` e `origens` não utilizados
+## Objetivo
+Tornar os KPIs interativos: ao passar o mouse, exibir tooltip com detalhes extras; ao clicar, abrir um popover/dialog com breakdown dos dados.
 
-## Mudanças em `src/pages/PainelComprasPage.tsx`
+## Mudanças
 
-### 1. Expandir KPIs (de 6 para ~12)
-Reorganizar em duas linhas de cards, adicionando:
-- Valor Bruto Total
-- Valor Desconto Total  
-- Valor Pendente Total
-- Impostos Totais
-- OCs Atrasadas
-- Ticket Médio por Item
-- Itens Produto vs Serviço (contagem)
-- Total de Linhas
+### 1. Atualizar `KPICard` (`src/components/erp/KPICard.tsx`)
+- Adicionar props opcionais: `tooltip?: string`, `details?: { label: string; value: string }[]`, `onClick?: () => void`
+- Envolver o card com `TooltipProvider > Tooltip > TooltipTrigger/TooltipContent` quando `tooltip` estiver presente
+- Quando `details` estiver presente, ao clicar no card abrir um `Popover` com uma mini-tabela dos detalhes (label/value pairs)
+- Adicionar `cursor-pointer` quando clicável
+- Usar componentes existentes: `Tooltip`, `Popover`
 
-### 2. Adicionar gráficos faltantes
-- **Tipos de Item** (Produto vs Serviço) — PieChart com `graficos.tipos`
-- **Origens** — BarChart horizontal com `graficos.origens`
+### 2. Atualizar KPIs no Dashboard (`src/pages/PainelComprasPage.tsx`)
+Adicionar `tooltip` descritivo e `details` com breakdown para cada KPI:
 
-### 3. Layout aprimorado
-- KPIs em grid responsivo `grid-cols-2 md:grid-cols-4 lg:grid-cols-6`
-- Gráficos em grid `grid-cols-1 lg:grid-cols-2 xl:grid-cols-3` para melhor distribuição
-- Seções visuais separadas com títulos (Indicadores Financeiros, Indicadores de Pendência, Análises Gráficas)
+**Indicadores Financeiros:**
+- Total OCs: tooltip "Quantidade total de Ordens de Compra", details com OCs por situação (usando `graficos.situacoes`)
+- Valor Bruto: tooltip "Soma dos valores brutos antes de descontos"
+- Desconto Total: tooltip "Soma de todos os descontos aplicados"
+- Valor Líquido: tooltip "Valor bruto menos descontos", details com breakdown bruto/desconto/líquido
+- Impostos Totais: tooltip "Soma de IPI, ICMS, ISS e outros impostos"
+- Fornecedores: tooltip "Quantidade de fornecedores distintos"
+
+**Indicadores de Pendência:**
+- Valor Pendente: tooltip "Valor total de itens ainda não recebidos"
+- Itens Pendentes/Atrasados: tooltip explicativo, details com top itens atrasados
+- OCs Atrasadas: tooltip "Quantidade de OCs com entrega vencida"
+- Maior Atraso: tooltip "Maior número de dias de atraso entre todos os itens"
+- Ticket Médio: tooltip "Valor líquido total dividido pelo número de itens"
+
+**Contagem:**
+- Total Linhas/Itens Produto/Serviço: tooltips descritivos, details com percentual produto vs serviço
 
 ### Detalhes Técnicos
-- Todos os dados já vêm da API (`resumo` e `graficos`), sem chamadas adicionais
-- Usa componentes existentes: `KPICard`, Recharts (`BarChart`, `PieChart`), `formatCurrency`, `formatNumber`
-- Ícones adicionais do lucide-react: `DollarSign`, `Clock`, `Percent`, `FileText`
+- Imports necessários: `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` e `Popover, PopoverTrigger, PopoverContent`
+- O popover de detalhes usa layout simples: lista de `div` com `flex justify-between` para label/value
+- Nenhuma chamada extra à API — todos os dados já estão em `resumo` e `graficos`
 
