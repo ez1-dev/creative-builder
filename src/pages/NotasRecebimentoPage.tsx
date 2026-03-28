@@ -16,6 +16,10 @@ import { FileText, Package, Users, DollarSign, TrendingUp, Boxes } from 'lucide-
 const columns: Column<any>[] = [
   { key: 'numero_nf', header: 'NF' },
   { key: 'serie_nf', header: 'Série' },
+  { key: 'situacao_nf', header: 'Situação', render: (v) => {
+    const map: Record<string, string> = { '1': 'Situação 1', '2': 'Situação 2', '3': 'Situação 3', '4': 'Situação 4', '5': 'Situação 5' };
+    return map[String(v)] || v || '-';
+  }},
   { key: 'nome_fornecedor', header: 'Fornecedor' },
   { key: 'data_emissao', header: 'Emissão', render: (v) => formatDate(v) },
   { key: 'data_recebimento', header: 'Recebimento', render: (v) => formatDate(v) },
