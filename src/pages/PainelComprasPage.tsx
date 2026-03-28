@@ -77,7 +77,7 @@ export default function PainelComprasPage() {
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false,
+    agrupar_por_fornecedor: false, situacao_oc: '', codigo_motivo: '',
   });
 
   const resumo = data?.resumo;
