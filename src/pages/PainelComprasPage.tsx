@@ -19,7 +19,7 @@ import { ShoppingCart, AlertTriangle, TrendingUp, Package } from 'lucide-react';
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
 const situacaoLabel = (s: number) => {
-  const map: Record<number, string> = { 0: 'Aberta', 1: 'Parcial', 2: 'Recebida', 3: 'Cancelada', 9: 'Encerrada' };
+  const map: Record<number, string> = { 0: 'Aberta', 1: 'Parcial', 2: 'Recebida', 3: 'Cancelada', 4: 'Fechada', 5: 'Suspensa', 9: 'Encerrada' };
   return map[s] || `Sit. ${s}`;
 };
 
@@ -47,7 +47,7 @@ export default function PainelComprasPage() {
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: '', codigo_motivo: '',
+    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: '',
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -61,6 +61,8 @@ export default function PainelComprasPage() {
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
+      if (!params.situacao_oc || params.situacao_oc === 'TODOS') delete params.situacao_oc;
+      if (!params.codigo_motivo_oc) delete params.codigo_motivo_oc;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
       setData(result);
       setPagina(page);
@@ -77,7 +79,7 @@ export default function PainelComprasPage() {
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: '', codigo_motivo: '',
+    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: '',
   });
 
   const resumo = data?.resumo;
@@ -105,20 +107,21 @@ export default function PainelComprasPage() {
         <div><Label className="text-xs">Família</Label><Input value={filters.familia} onChange={(e) => setFilters(f => ({ ...f, familia: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Origem</Label><Input value={filters.origem_material} onChange={(e) => setFilters(f => ({ ...f, origem_material: e.target.value }))} className="h-8 text-xs" /></div>
         <div>
-          <Label className="text-xs">Situação OC</Label>
-          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v === 'TODAS' ? '' : v }))}>
+          <Label className="text-xs">Situação da OC</Label>
+          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v }))}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="TODAS">Todas</SelectItem>
+              <SelectItem value="TODOS">Todas</SelectItem>
               <SelectItem value="0">Aberta</SelectItem>
               <SelectItem value="1">Parcial</SelectItem>
               <SelectItem value="2">Recebida</SelectItem>
               <SelectItem value="3">Cancelada</SelectItem>
-              <SelectItem value="9">Encerrada</SelectItem>
+              <SelectItem value="4">Fechada</SelectItem>
+              <SelectItem value="5">Suspensa</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        <div><Label className="text-xs">Cód. Desconto</Label><Input value={filters.codigo_motivo} onChange={(e) => setFilters(f => ({ ...f, codigo_motivo: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Motivo Desconto (CodMot)</Label><Input value={filters.codigo_motivo_oc} onChange={(e) => setFilters(f => ({ ...f, codigo_motivo_oc: e.target.value }))} placeholder="Ex.: 19" className="h-8 text-xs" /></div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="pendentes" checked={filters.somente_pendentes} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_pendentes: !!v }))} />
           <Label htmlFor="pendentes" className="text-xs">Somente pendentes</Label>
