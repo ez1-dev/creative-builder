@@ -114,13 +114,15 @@ export default function PainelComprasPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todas</SelectItem>
-              <SelectItem value="0">Aberta</SelectItem>
-              <SelectItem value="1">Parcial</SelectItem>
-              <SelectItem value="2">Recebida</SelectItem>
-              <SelectItem value="3">Cancelada</SelectItem>
-              <SelectItem value="4">Fechada</SelectItem>
-              <SelectItem value="5">Suspensa</SelectItem>
-              <SelectItem value="9">Encerrada</SelectItem>
+              <SelectItem value="1">Aberto Total</SelectItem>
+              <SelectItem value="2">Aberto Parcial</SelectItem>
+              <SelectItem value="3">Suspenso</SelectItem>
+              <SelectItem value="4">Liquidado</SelectItem>
+              <SelectItem value="5">Cancelado</SelectItem>
+              <SelectItem value="6">Aguard. Integração WMS</SelectItem>
+              <SelectItem value="7">Em Transmissão</SelectItem>
+              <SelectItem value="8">Prep. Análise/NF</SelectItem>
+              <SelectItem value="9">Não Fechado</SelectItem>
             </SelectContent>
           </Select>
         </div>
