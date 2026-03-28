@@ -1,26 +1,22 @@
 
 
-# Adicionar dropdowns Tipo Item e Tipo OC no Painel de Compras
+# Corrigir filtro Situação OC no Painel de Compras
 
-## Situação atual
-Os campos `tipo_item` e `tipo_oc` já existem no estado `filters` (linha 47) com valor default `'TODOS'` e já são enviados à API. Porém não há campos visuais no painel de filtros para eles.
+## Problema identificado
+O dropdown de "Situação da OC" está faltando a opção **"9" (Encerrada)**, que aparece frequentemente nos dados da API. Além disso, a limpeza de parâmetros na função `search` não remove `tipo_item` e `tipo_oc` quando são `"TODOS"`, enviando valores desnecessários ao backend.
+
+Nos dados reais da API, vejo registros com `situacao_oc: 1` (Parcial) e `situacao_oc: 9` (Encerrada), mas **nenhum com `situacao_oc: 0` (Aberta)**. O filtro funciona corretamente — simplesmente não há OCs com status 0 nos dados atuais.
 
 ## Mudanças em `src/pages/PainelComprasPage.tsx`
 
-### Adicionar dois Select dropdowns no FilterPanel (após linha 124, antes do checkbox)
+### 1. Adicionar opção "Encerrada" (valor 9) ao dropdown Situação OC
+Inserir `<SelectItem value="9">Encerrada</SelectItem>` após "Suspensa".
 
-**Tipo Item** — baseado nos dados retornados pela API (`PRODUTO`, `SERVIÇO`):
-- `TODOS` → Todos
-- `PRODUTO` → Produto
-- `SERVICO` → Serviço
-
-**Tipo OC** — baseado nos dados da API (`MISTA`, `NORMAL`, etc.):
-- `TODOS` → Todos
-- `NORMAL` → Normal
-- `MISTA` → Mista
-
-### Lógica de envio
-Já funciona automaticamente — o `api.get` ignora valores vazios, e `TODOS` é enviado como parâmetro (o backend já aceita).
-
-Nenhuma outra mudança necessária.
+### 2. Limpar `tipo_item` e `tipo_oc` quando "TODOS" na função `search`
+Adicionar na função `search`:
+```
+if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
+if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
+```
+Isso evita enviar parâmetros com valor `TODOS` ao backend, alinhando com o mesmo padrão já usado para `situacao_oc`.
 
