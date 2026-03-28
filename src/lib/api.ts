@@ -55,7 +55,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
       ...options,
       headers,
     });
