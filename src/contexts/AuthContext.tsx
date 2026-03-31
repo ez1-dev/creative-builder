@@ -85,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setDisplayName(null);
         setErpUser(null);
+        setErpConnected(false);
         setApproved(false);
         setLoading(false);
       }
