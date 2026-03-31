@@ -431,7 +431,56 @@ export default function ConfiguracoesPage() {
           </Card>
         </TabsContent>
 
-        {/* === API === */}
+        {/* === APROVAÇÕES === */}
+        <TabsContent value="approvals">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Aprovação de Novos Usuários</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Cadastro</TableHead>
+                    <TableHead className="w-32">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingUsers.map(u => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.email || '—'}</TableCell>
+                      <TableCell>{u.display_name || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleApproveUser(u.id)}>
+                            <UserCheck className="h-3.5 w-3.5" /> Aprovar
+                          </Button>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => handleRejectUser(u.id)}>
+                            <UserX className="h-3.5 w-3.5" /> Rejeitar
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {pendingUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        Nenhum usuário pendente de aprovação
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
         <TabsContent value="api">
           <Card>
             <CardHeader className="pb-2">
