@@ -1,19 +1,39 @@
 
 
-# Fix: Race Condition Causing "Acesso Pendente" for Approved Users
+# Fix: Recursão Infinita nas Policies RLS da Tabela `profiles`
 
-## Problem
-In `AuthContext.tsx`, `setLoading(false)` runs **before** `fetchProfile` completes. Since `approved` defaults to `false`, the layout renders the pending screen before the profile data arrives.
+## Problema
+O erro `infinite recursion detected in policy for relation "profiles"` ocorre porque as policies "Admins can read all profiles" e "Admins can update all profiles" fazem JOIN com a própria tabela `profiles` para verificar se o usuário é admin. Isso causa recursão infinita — a policy precisa ler `profiles` para avaliar se pode ler `profiles`.
 
-Two places cause this:
-1. **Line 69-75**: `fetchProfile` is called via `setTimeout` (deferred), but `setLoading(false)` runs immediately after on line 75
-2. **Line 81-84**: `fetchProfile` is called but not awaited before `setLoading(false)` on line 84
+## Solução
 
-## Fix — `src/contexts/AuthContext.tsx`
+### 1. Migração SQL
+- Criar função `SECURITY DEFINER` chamada `is_admin(uid uuid)` que verifica se o usuário é administrador consultando `user_access` + `access_profiles` + `profiles` **sem passar por RLS** (porque `SECURITY DEFINER` bypassa RLS)
+- Dropar as 4 policies existentes da tabela `profiles`
+- Recriar as policies usando a nova função `is_admin()` em vez do subselect com JOIN em `profiles`
 
-- In `onAuthStateChange`: do NOT set `setLoading(false)` when there's a user session until `fetchProfile` resolves. Call `fetchProfile` with `await` and set loading to false inside a `.then()` or after the await
-- In `getSession`: await `fetchProfile` before calling `setLoading(false)`
-- Remove the `setTimeout` wrapper around `fetchProfile` — it was likely added to avoid a Supabase deadlock warning, but we can handle that by keeping the `setTimeout` while still tracking when the profile is loaded (e.g., have `fetchProfile` set loading to false itself)
+```sql
+CREATE OR REPLACE FUNCTION public.is_admin(_uid uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM user_access ua
+    JOIN access_profiles ap ON ap.id = ua.profile_id
+    JOIN profiles p ON upper(p.erp_user) = upper(ua.user_login)
+    WHERE p.id = _uid AND ap.name = 'Administrador'
+  );
+$$;
+```
 
-Concrete approach: have `fetchProfile` call `setLoading(false)` at the end, and remove the standalone `setLoading(false)` calls that happen before profile is loaded.
+Policies reescritas:
+- **Users can read own profile**: `auth.uid() = id` (sem mudança)
+- **Users can update own profile**: `auth.uid() = id` (sem mudança)
+- **Admins can read all profiles**: `public.is_admin(auth.uid())`
+- **Admins can update all profiles**: `public.is_admin(auth.uid())`
+
+### 2. Nenhuma mudança no frontend
+O código já está correto — o problema é exclusivamente nas policies do banco.
 
