@@ -14,6 +14,7 @@ import PainelComprasPage from "@/pages/PainelComprasPage";
 import EngenhariaProducaoPage from "@/pages/EngenhariaProducaoPage";
 import AuditoriaTributariaPage from "@/pages/AuditoriaTributariaPage";
 import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
+import NumeroSeriePage from "@/pages/NumeroSeriePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
