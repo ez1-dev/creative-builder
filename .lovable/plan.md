@@ -1,18 +1,33 @@
 
 
-# Filtro de Busca Rápida em Todas as Grids
+# Restringir Configuração de API ao Administrador na Tela de Login
 
-## Objetivo
-Adicionar um campo de busca rápida acima de cada `DataTable` que filtra os resultados já carregados em tempo real, pesquisando em todas as colunas visíveis.
+## Problema
+Atualmente, todos os usuários veem o status da API, a URL e o botão "Configurar API" na tela de login. Isso deve ser visível apenas para administradores.
 
-## Alteração
+## Abordagem
+Como na tela de login o usuário ainda não está autenticado, usaremos um flag em `localStorage` (`erp_is_admin`) que é setado quando um administrador faz login com sucesso. Na próxima vez que a tela de login for exibida (ex: após logout), o flag determina se a seção de API aparece.
 
-### Arquivo único: `src/components/erp/DataTable.tsx`
-- Adicionar estado interno `searchTerm` com um `Input` de busca acima da tabela (ícone de lupa, placeholder "Buscar nos resultados...")
-- Filtrar `data` localmente: para cada linha, converter todos os valores das colunas em string e verificar se contém o termo digitado (case-insensitive)
-- O campo de busca só aparece quando há dados (`data.length > 0`)
-- Exibir contador de resultados filtrados vs total (ex: "Exibindo 12 de 50")
-- Adicionar prop opcional `enableSearch?: boolean` (default `true`) para permitir desabilitar em casos específicos
+## Alterações
 
-Como a alteração é centralizada no componente `DataTable`, todas as páginas (Estoque, Compras, Onde Usa, BOM, Notas, etc.) ganham o filtro automaticamente sem nenhuma mudança.
+### 1. `src/contexts/AuthContext.tsx`
+- Após login bem-sucedido e carregamento do perfil, verificar se o `erp_user` do perfil tem um registro em `user_access` vinculado a um perfil com nome "Administrador"
+- Se sim, salvar `localStorage.setItem('erp_is_admin', 'true')`
+- No logout, remover o flag: `localStorage.removeItem('erp_is_admin')`
+
+### 2. `src/pages/LoginPage.tsx`
+- Ler `localStorage.getItem('erp_is_admin') === 'true'` para determinar visibilidade
+- **Esconder** toda a seção de API (status badge, URL, botão "Configurar API" e o painel de config) quando o flag não estiver presente
+- Manter o `checkApi()` rodando internamente para que a API esteja configurada, mas sem exibir nada ao usuário comum
+
+### Fluxo
+```text
+Admin faz login → perfil carregado → flag 'erp_is_admin' salvo
+Admin faz logout → tela de login mostra seção de API
+Usuário comum faz login → sem flag → tela de login limpa (sem info de API)
+```
+
+## Detalhes Técnicos
+- O flag em localStorage é apenas para controle de UI na tela de login (não é segurança crítica, pois a configuração da URL da API não dá acesso a dados protegidos)
+- A verificação de admin usa a tabela `user_access` + `access_profiles` onde `name = 'Administrador'`
 
