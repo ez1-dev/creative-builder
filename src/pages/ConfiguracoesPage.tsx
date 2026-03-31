@@ -109,16 +109,18 @@ export default function ConfiguracoesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }] = await Promise.all([
+    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }] = await Promise.all([
       supabase.from('access_profiles').select('*').order('name'),
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
       supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
+      supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true).not('erp_user', 'is', null),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
     setUserAccess(ua || []);
     setPendingUsers(pending || []);
+    setApprovedUsers((approved as ApprovedUser[]) || []);
     setLoading(false);
   }, []);
 
