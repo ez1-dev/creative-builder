@@ -36,7 +36,10 @@ export default function ComprasProdutoPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async (page = 1) => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const result = await api.get<PaginatedResponse<any>>('/api/compras-produto', { ...filters, pagina: page, tamanho_pagina: 100 });
