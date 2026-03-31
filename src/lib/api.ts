@@ -62,9 +62,7 @@ class ApiClient {
     });
 
     if (response.status === 401) {
-      this.logout();
-      window.location.href = '/login';
-      throw new Error('Sessão expirada');
+      throw new Error('Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.');
     }
 
     if (!response.ok) {
