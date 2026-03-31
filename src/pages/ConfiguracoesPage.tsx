@@ -73,6 +73,8 @@ export default function ConfiguracoesPage() {
   // API config states
   const [apiUrl, setApiUrl] = useState(getApiUrl());
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [apiUser, setApiUser] = useState(localStorage.getItem('erp_api_user') || '');
+  const [apiPass, setApiPass] = useState(localStorage.getItem('erp_api_pass') || '');
 
   const checkApi = useCallback(async () => {
     setApiStatus('checking');
