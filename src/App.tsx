@@ -19,7 +19,9 @@ import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
 import NotFound from "@/pages/NotFound";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1 } },
+});
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { canView, loading, hasPermissions } = useUserPermissions();
