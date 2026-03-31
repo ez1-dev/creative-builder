@@ -1,13 +1,42 @@
 
 
-# Remover Confirmação de Email no Cadastro
+# Fix: Email não aparece na aprovação de usuários
 
-## O que será feito
-Desativar a verificação de email no cadastro, permitindo que novos usuários façam login imediatamente após se registrar (ainda precisarão de aprovação do admin).
+## Problema
+O trigger `handle_new_user` salva o email usando `NEW.raw_user_meta_data->>'email'`, mas o signup não envia o email nos metadados — ele está disponível em `NEW.email`. Por isso, o campo `email` na tabela `profiles` fica `NULL`.
 
-## Passos
+## Solução
 
-1. **Configurar auto-confirm de email** — Usar a ferramenta `cloud--configure_auth` para ativar `autoconfirm` de emails, eliminando a necessidade de verificação por email.
+### 1. Migração SQL
+Atualizar a função `handle_new_user` para usar `NEW.email` (que é o campo correto da tabela `auth.users`):
 
-2. **Atualizar mensagem de cadastro no `LoginPage.tsx`** — Remover a parte "Verifique seu email" da mensagem de sucesso, mantendo apenas o aviso sobre aprovação do administrador.
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email)
+  VALUES (NEW.id, NEW.email);
+  RETURN NEW;
+END;
+$$;
+```
+
+### 2. Corrigir registros existentes sem email
+Atualizar os perfis que já existem e estão com email NULL, buscando o email correto da tabela `auth.users`:
+
+```sql
+UPDATE public.profiles p
+SET email = u.email
+FROM auth.users u
+WHERE p.id = u.id AND p.email IS NULL;
+```
+
+### Resultado
+- Novos cadastros terão o email salvo corretamente
+- Registros antigos sem email serão corrigidos
+- A tela de aprovações mostrará o email normalmente
 
