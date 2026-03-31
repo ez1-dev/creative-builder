@@ -30,7 +30,7 @@ export default function LoginPage() {
     try {
       if (isSignup) {
         await signup(email, senha);
-        toast.success('Cadastro realizado! Verifique seu email e aguarde a aprovação de um administrador.', { duration: 8000 });
+        toast.success('Cadastro realizado! Aguarde a aprovação de um administrador para acessar o sistema.', { duration: 8000 });
       } else {
         await login(email, senha);
         toast.success('Login realizado com sucesso!');
