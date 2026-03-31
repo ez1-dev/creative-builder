@@ -1,24 +1,31 @@
 
 
-# Corrigir: tela desaparece ao consultar dados (ERP API 401)
+# Corrigir erro "Sessão da API ERP expirada" para usuários sem `erp_user`
 
-## Problema
-Quando o usuário tenta consultar dados (ex: Estoque), a chamada vai para a API ERP externa. Como não existe `erp_token` no localStorage (o login agora é via Supabase, não pela API ERP), a API retorna 401. O código em `src/lib/api.ts` linha 64-67 reage ao 401 fazendo `window.location.href = '/login'` — a tela "desaparece".
+## Diagnóstico
 
-## Solução
+O usuário `renatostank@gmail.com` tem `erp_user = NULL` no banco. Sem esse campo preenchido, o login automático na API ERP é ignorado, e qualquer consulta de dados falha com 401.
 
-### 1. Alterar `src/lib/api.ts` — Não redirecionar ao `/login` no 401
-- Remover o `window.location.href = '/login'` do tratamento de 401
-- Remover o `this.logout()` (que limpa tokens do localStorage mas não tem relação com Supabase auth)
-- Apenas lançar um erro com mensagem clara: `"Sessão da API ERP expirada. Verifique a conexão da API nas Configurações."`
-- O usuário verá um toast de erro mas a tela não vai desaparecer
+Já o `renato.stank@unoesc.edu.br` tem `erp_user = RENATO.STANK@UNOESC.EDU.BR` — mas o login automático está falhando com "Login inválido" (visível nos logs do console). Provavelmente esse valor não é um usuário válido na API ERP externa.
 
-### 2. Adicionar login automático na API ERP após login Supabase
-- Em `src/contexts/AuthContext.tsx`, após o `fetchProfile` retornar o `erp_user`, fazer automaticamente o login na API ERP usando o `erp_user` como credencial
-- Chamar `api.login(erpUser, erpUser)` ou equivalente para obter o `erp_token`
-- Isso garante que o token da API ERP esteja disponível quando o usuário navegar para as telas de consulta
+## Opções
 
-### Resultado
-- O 401 da API ERP não vai mais redirecionar para `/login` nem "sumir" com a tela
-- O token da API ERP será obtido automaticamente após login Supabase
+Há duas abordagens possíveis:
+
+### Opção A — Corrigir os dados (recomendado se esses usuários devem ter acesso ao ERP)
+- Atribuir o `erp_user` correto para `renatostank@gmail.com` via Configurações → Aprovações
+- Corrigir o `erp_user` de `renato.stank@unoesc.edu.br` para um login válido na API ERP (ex: `RENATO` em vez de `RENATO.STANK@UNOESC.EDU.BR`)
+
+### Opção B — Melhorar o tratamento no código (recomendado como melhoria geral)
+Nas páginas de consulta (Estoque, Onde Usa, etc.), antes de chamar a API ERP, verificar se o usuário tem `erp_user` configurado. Se não tiver, exibir uma mensagem amigável como:
+
+> "Seu usuário ERP não está configurado. Solicite a um administrador que vincule seu usuário nas Configurações."
+
+**Alterações:**
+1. **`src/contexts/AuthContext.tsx`** — Expor um flag `erpConnected` (true se login ERP automático foi bem-sucedido)
+2. **Páginas de consulta** (EstoquePage, OndeUsaPage, etc.) — Verificar `erpConnected` ou `erpUser` antes de fazer chamadas à API, mostrando alerta informativo em vez de erro genérico
+
+## Recomendação
+
+Implementar **ambas**: corrigir os dados imediatos e adicionar a verificação no código para que futuros usuários sem `erp_user` vejam uma mensagem clara.
 
