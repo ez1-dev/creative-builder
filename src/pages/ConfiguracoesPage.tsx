@@ -65,6 +65,7 @@ export default function ConfiguracoesPage() {
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
   
+  const [pendingProfileSelections, setPendingProfileSelections] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // API config states
@@ -133,12 +134,24 @@ export default function ConfiguracoesPage() {
       toast.error('Usuário sem email cadastrado');
       return;
     }
-    const { error } = await supabase.from('profiles').update({ approved: true, erp_user: user.email.toUpperCase() } as any).eq('id', userId);
+    const selectedProfileId = pendingProfileSelections[userId];
+    if (!selectedProfileId) {
+      toast.error('Selecione um Perfil de Acesso antes de aprovar');
+      return;
+    }
+    const erpLogin = user.email.toUpperCase();
+    const { error } = await supabase.from('profiles').update({ approved: true, erp_user: erpLogin } as any).eq('id', userId);
     if (error) {
       toast.error('Erro ao aprovar usuário');
       return;
     }
-    toast.success('Usuário aprovado com sucesso');
+    const { error: accessError } = await supabase.from('user_access').insert({ user_login: erpLogin, profile_id: selectedProfileId });
+    if (accessError) {
+      toast.error('Usuário aprovado, mas erro ao vincular perfil');
+    } else {
+      toast.success('Usuário aprovado e perfil atribuído');
+    }
+    setPendingProfileSelections(prev => { const n = { ...prev }; delete n[userId]; return n; });
     fetchData();
   };
 
@@ -471,6 +484,7 @@ export default function ConfiguracoesPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Cadastro</TableHead>
+                    <TableHead>Perfil de Acesso</TableHead>
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -483,8 +497,18 @@ export default function ConfiguracoesPage() {
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
                       </TableCell>
                       <TableCell>
+                        <Select value={pendingProfileSelections[u.id] || ''} onValueChange={(val) => setPendingProfileSelections(prev => ({ ...prev, [u.id]: val }))}>
+                          <SelectTrigger className="h-8 text-xs w-[180px]"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {profiles.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleApproveUser(u.id)}>
+                          <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleApproveUser(u.id)} disabled={!pendingProfileSelections[u.id]}>
                             <UserCheck className="h-3.5 w-3.5" /> Aprovar
                           </Button>
                           <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => handleRejectUser(u.id)}>
