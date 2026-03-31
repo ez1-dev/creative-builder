@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
