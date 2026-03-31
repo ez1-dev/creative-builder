@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   displayName: string | null;
   erpUser: string | null;
+  approved: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
