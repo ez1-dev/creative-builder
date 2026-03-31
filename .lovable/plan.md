@@ -1,25 +1,29 @@
 
 
-# Exigir Perfil de Acesso na Aprovação
+# Filtrar menus do sidebar com base nas permissões do usuário
 
 ## Problema
-Hoje o admin aprova o usuário sem vincular a um Perfil de Acesso. O usuário fica aprovado mas sem permissões até que alguém vá na aba "Usuários" atribuir manualmente.
+O sidebar só filtra o menu "Configurações" com base nas permissões. Todos os outros menus são exibidos para qualquer usuário, ignorando as permissões definidas no perfil (ex: `Usuarios_Fabrica_Genius` só tem Estoque e Onde Usa, mas vê tudo).
 
 ## Solução
 
-### Alterar a aba Aprovações em `src/pages/ConfiguracoesPage.tsx`
+### Alterar `src/components/AppSidebar.tsx`
 
-1. **Adicionar state** `pendingProfileSelections: Record<string, string>` para armazenar o perfil selecionado por usuário pendente.
+Atualizar o filtro `visibleModules` para verificar `canView` em **todos** os módulos, não apenas em Configurações:
 
-2. **Adicionar coluna "Perfil de Acesso"** na tabela de aprovações com um `Select` dropdown listando os perfis existentes (`profiles` state).
+```ts
+const visibleModules = modules.filter((m) => {
+  if (loading) return false;          // esconde tudo enquanto carrega
+  if (!hasPermissions) return true;   // sem perfil = mostra tudo (fallback)
+  return canView(m.url);              // filtra por permissão
+});
+```
 
-3. **Desabilitar botão "Aprovar"** enquanto nenhum perfil estiver selecionado para aquele usuário.
+- Enquanto `loading`, nenhum menu aparece (evita flash de menus indevidos)
+- Se o usuário não tem nenhuma permissão configurada (`!hasPermissions`), mostra tudo como fallback
+- Se tem permissões, mostra apenas os módulos com `can_view = true`
 
-4. **Atualizar `handleApproveUser`** para, além de aprovar e preencher `erp_user`, também inserir um registro na tabela `user_access` com o `profile_id` selecionado e `user_login` = email uppercase:
-   - `profiles.update({ approved: true, erp_user: email.toUpperCase() })`
-   - `user_access.insert({ user_login: email.toUpperCase(), profile_id: selectedProfileId })`
+### Alterar rotas em `src/App.tsx`
 
-### Resultado
-- Admin seleciona o perfil e clica "Aprovar" — o usuário já sai aprovado E com permissões funcionais
-- Elimina a necessidade de ir na aba "Usuários" depois da aprovação
+Adicionar proteção nas rotas individuais para que, mesmo acessando via URL, o usuário sem permissão seja redirecionado. Criar um componente `ProtectedRoute` genérico que verifica `canView(path)`.
 
