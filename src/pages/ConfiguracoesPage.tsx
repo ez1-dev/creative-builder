@@ -55,7 +55,7 @@ interface ApprovedUser {
   id: string;
   email: string | null;
   display_name: string | null;
-  erp_user: string;
+  erp_user: string | null;
 }
 
 export default function ConfiguracoesPage() {
@@ -66,6 +66,8 @@ export default function ConfiguracoesPage() {
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
   
   const [pendingProfileSelections, setPendingProfileSelections] = useState<Record<string, string>>({});
+  const [pendingErpUserInputs, setPendingErpUserInputs] = useState<Record<string, string>>({});
+  const [approvedErpEdits, setApprovedErpEdits] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // API config states
@@ -116,7 +118,7 @@ export default function ConfiguracoesPage() {
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
       supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
-      supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true).not('erp_user', 'is', null),
+      supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
@@ -139,7 +141,11 @@ export default function ConfiguracoesPage() {
       toast.error('Selecione um Perfil de Acesso antes de aprovar');
       return;
     }
-    const erpLogin = user.email.toUpperCase();
+    const erpLogin = (pendingErpUserInputs[userId] || user.email || '').toUpperCase().trim();
+    if (!erpLogin) {
+      toast.error('Informe o Usuário ERP');
+      return;
+    }
     const { error } = await supabase.from('profiles').update({ approved: true, erp_user: erpLogin } as any).eq('id', userId);
     if (error) {
       toast.error('Erro ao aprovar usuário');
@@ -152,6 +158,23 @@ export default function ConfiguracoesPage() {
       toast.success('Usuário aprovado e perfil atribuído');
     }
     setPendingProfileSelections(prev => { const n = { ...prev }; delete n[userId]; return n; });
+    setPendingErpUserInputs(prev => { const n = { ...prev }; delete n[userId]; return n; });
+    fetchData();
+  };
+
+  const handleSaveErpUser = async (userId: string) => {
+    const newErp = (approvedErpEdits[userId] || '').toUpperCase().trim();
+    if (!newErp) {
+      toast.error('Informe o Usuário ERP');
+      return;
+    }
+    const { error } = await supabase.from('profiles').update({ erp_user: newErp } as any).eq('id', userId);
+    if (error) {
+      toast.error('Erro ao salvar Usuário ERP');
+      return;
+    }
+    toast.success('Usuário ERP atualizado');
+    setApprovedErpEdits(prev => { const n = { ...prev }; delete n[userId]; return n; });
     fetchData();
   };
 
@@ -414,9 +437,9 @@ export default function ConfiguracoesPage() {
                         <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
                         <SelectContent>
                           {approvedUsers
-                            .filter(u => !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user.toUpperCase() && ua.profile_id === newUserProfileId))
+                            .filter(u => u.erp_user && !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user!.toUpperCase() && ua.profile_id === newUserProfileId))
                             .map(u => (
-                              <SelectItem key={u.id} value={u.erp_user}>
+                              <SelectItem key={u.id} value={u.erp_user!}>
                                 {u.display_name || u.email || u.erp_user} ({u.erp_user})
                               </SelectItem>
                             ))}
@@ -484,6 +507,7 @@ export default function ConfiguracoesPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Cadastro</TableHead>
+                    <TableHead>Usuário ERP</TableHead>
                     <TableHead>Perfil de Acesso</TableHead>
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
@@ -495,6 +519,14 @@ export default function ConfiguracoesPage() {
                       <TableCell>{u.display_name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-8 text-xs w-[180px]"
+                          placeholder="Login ERP"
+                          value={pendingErpUserInputs[u.id] ?? (u.email || '').toUpperCase()}
+                          onChange={(e) => setPendingErpUserInputs(prev => ({ ...prev, [u.id]: e.target.value }))}
+                        />
                       </TableCell>
                       <TableCell>
                         <Select value={pendingProfileSelections[u.id] || ''} onValueChange={(val) => setPendingProfileSelections(prev => ({ ...prev, [u.id]: val }))}>
@@ -520,8 +552,58 @@ export default function ConfiguracoesPage() {
                   ))}
                   {pendingUsers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         Nenhum usuário pendente de aprovação
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Usuários Aprovados — Usuário ERP</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Usuário ERP</TableHead>
+                    <TableHead className="w-24">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {approvedUsers.map(u => {
+                    const currentErp = approvedErpEdits[u.id] ?? (u.erp_user || '');
+                    const isDirty = approvedErpEdits[u.id] !== undefined && approvedErpEdits[u.id] !== (u.erp_user || '');
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium text-sm">{u.email || '—'}</TableCell>
+                        <TableCell className="text-sm">{u.display_name || '—'}</TableCell>
+                        <TableCell>
+                          <Input
+                            className="h-8 text-xs w-[200px]"
+                            value={currentErp}
+                            onChange={(e) => setApprovedErpEdits(prev => ({ ...prev, [u.id]: e.target.value }))}
+                            placeholder="Login ERP"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleSaveErpUser(u.id)} disabled={!isDirty}>
+                            Salvar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {approvedUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        Nenhum usuário aprovado
                       </TableCell>
                     </TableRow>
                   )}
