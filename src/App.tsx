@@ -23,10 +23,10 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
 });
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ path, children }: { path: string; children: React.ReactNode }) {
   const { canView, loading, hasPermissions } = useUserPermissions();
   if (loading) return null;
-  if (!hasPermissions || !canView('/configuracoes')) {
+  if (hasPermissions && !canView(path)) {
     return <Navigate to="/estoque" replace />;
   }
   return <>{children}</>;
@@ -43,16 +43,16 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/estoque" replace />} />
-              <Route path="/estoque" element={<EstoquePage />} />
-              <Route path="/onde-usa" element={<OndeUsaPage />} />
-              <Route path="/bom" element={<BomPage />} />
-              <Route path="/compras-produto" element={<ComprasProdutoPage />} />
-              <Route path="/painel-compras" element={<PainelComprasPage />} />
-              <Route path="/engenharia-producao" element={<EngenhariaProducaoPage />} />
-              <Route path="/auditoria-tributaria" element={<AuditoriaTributariaPage />} />
-              <Route path="/notas-recebimento" element={<NotasRecebimentoPage />} />
-              <Route path="/numero-serie" element={<NumeroSeriePage />} />
-              <Route path="/configuracoes" element={<AdminRoute><ConfiguracoesPage /></AdminRoute>} />
+              <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />
+              <Route path="/onde-usa" element={<ProtectedRoute path="/onde-usa"><OndeUsaPage /></ProtectedRoute>} />
+              <Route path="/bom" element={<ProtectedRoute path="/bom"><BomPage /></ProtectedRoute>} />
+              <Route path="/compras-produto" element={<ProtectedRoute path="/compras-produto"><ComprasProdutoPage /></ProtectedRoute>} />
+              <Route path="/painel-compras" element={<ProtectedRoute path="/painel-compras"><PainelComprasPage /></ProtectedRoute>} />
+              <Route path="/engenharia-producao" element={<ProtectedRoute path="/engenharia-producao"><EngenhariaProducaoPage /></ProtectedRoute>} />
+              <Route path="/auditoria-tributaria" element={<ProtectedRoute path="/auditoria-tributaria"><AuditoriaTributariaPage /></ProtectedRoute>} />
+              <Route path="/notas-recebimento" element={<ProtectedRoute path="/notas-recebimento"><NotasRecebimentoPage /></ProtectedRoute>} />
+              <Route path="/numero-serie" element={<ProtectedRoute path="/numero-serie"><NumeroSeriePage /></ProtectedRoute>} />
+              <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
