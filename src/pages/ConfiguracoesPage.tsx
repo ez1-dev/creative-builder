@@ -128,12 +128,18 @@ export default function ConfiguracoesPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleApproveUser = async (userId: string) => {
-    const { error } = await supabase.from('profiles').update({ approved: true } as any).eq('id', userId);
+    const erpLogin = pendingErpUsers[userId]?.trim();
+    if (!erpLogin) {
+      toast.error('Preencha o Login ERP antes de aprovar');
+      return;
+    }
+    const { error } = await supabase.from('profiles').update({ approved: true, erp_user: erpLogin.toUpperCase() } as any).eq('id', userId);
     if (error) {
       toast.error('Erro ao aprovar usuário');
       return;
     }
     toast.success('Usuário aprovado com sucesso');
+    setPendingErpUsers(prev => { const n = { ...prev }; delete n[userId]; return n; });
     fetchData();
   };
 
