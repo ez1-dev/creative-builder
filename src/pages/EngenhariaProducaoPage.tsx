@@ -90,6 +90,7 @@ export default function EngenhariaProducaoPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Engenharia x Produção"
         description="Acompanhamento de projetos: engenharia, produção e estoque"

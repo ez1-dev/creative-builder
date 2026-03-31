@@ -46,7 +46,7 @@ export default function BomPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const toggleCollapse = useCallback((index: number) => {
     setCollapsedRows(prev => {

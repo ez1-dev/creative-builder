@@ -72,6 +72,7 @@ export default function AuditoriaTributariaPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Auditoria Tributária"
         description="Auditoria de NCM, CST e situação tributária dos produtos"

@@ -54,6 +54,7 @@ export default function ComprasProdutoPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Compras / Custos do Produto"
         description="Consulte informações de compras, preços e OCs por produto"

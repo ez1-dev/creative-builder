@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

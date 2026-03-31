@@ -49,6 +49,7 @@ export default function OndeUsaPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Onde Usa"
         description="Consulte em quais modelos/estruturas um componente é utilizado"

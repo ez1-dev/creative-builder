@@ -49,6 +49,7 @@ export default function EstoquePage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Consulta de Estoque"
         description="Consulte saldos em estoque por produto, família, origem e depósito"
