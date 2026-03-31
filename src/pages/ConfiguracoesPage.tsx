@@ -51,10 +51,18 @@ interface UserAccess {
   created_at: string;
 }
 
+interface ApprovedUser {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  erp_user: string;
+}
+
 export default function ConfiguracoesPage() {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
+  const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
   const [loading, setLoading] = useState(true);
 
@@ -101,16 +109,18 @@ export default function ConfiguracoesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }] = await Promise.all([
+    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }] = await Promise.all([
       supabase.from('access_profiles').select('*').order('name'),
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
       supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
+      supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true).not('erp_user', 'is', null),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
     setUserAccess(ua || []);
     setPendingUsers(pending || []);
+    setApprovedUsers((approved as ApprovedUser[]) || []);
     setLoading(false);
   }, []);
 
@@ -380,8 +390,19 @@ export default function ConfiguracoesPage() {
                   </DialogHeader>
                   <div className="space-y-3">
                     <div>
-                      <Label>Login do Usuário (ERP)</Label>
-                      <Input value={newUserLogin} onChange={e => setNewUserLogin(e.target.value)} placeholder="Ex: JOAO.SILVA" />
+                      <Label>Usuário</Label>
+                      <Select value={newUserLogin} onValueChange={setNewUserLogin}>
+                        <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
+                        <SelectContent>
+                          {approvedUsers
+                            .filter(u => !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user.toUpperCase() && ua.profile_id === newUserProfileId))
+                            .map(u => (
+                              <SelectItem key={u.id} value={u.erp_user}>
+                                {u.display_name || u.email || u.erp_user} ({u.erp_user})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label>Perfil de Acesso</Label>
