@@ -26,6 +26,7 @@ const modules = [
   { title: 'Eng. x Produção', url: '/engenharia-producao', icon: Factory },
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
   { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
+  { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
 ];
 
 export function AppSidebar() {
