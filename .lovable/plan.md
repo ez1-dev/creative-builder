@@ -1,23 +1,25 @@
 
 
-# Simplificar aprovação: auto-preencher erp_user com email
+# Exigir Perfil de Acesso na Aprovação
 
 ## Problema
-O campo "Login ERP" na aprovação é confuso e desnecessário quando não há um ERP externo. Ele serve apenas como chave de ligação entre o usuário e a tabela de permissões.
+Hoje o admin aprova o usuário sem vincular a um Perfil de Acesso. O usuário fica aprovado mas sem permissões até que alguém vá na aba "Usuários" atribuir manualmente.
 
 ## Solução
 
-### Alterar `src/pages/ConfiguracoesPage.tsx`
+### Alterar a aba Aprovações em `src/pages/ConfiguracoesPage.tsx`
 
-1. **Remover o campo de input "Login ERP"** da seção de Aprovações
-2. **No `handleApproveUser`**, preencher `erp_user` automaticamente com o email do usuário (em uppercase, para compatibilidade com `.ilike`):
-   ```ts
-   .update({ approved: true, erp_user: userEmail.toUpperCase() })
-   ```
-3. **Remover o state `pendingErpUsers`** que não será mais necessário
-4. **Remover a condição de disabled** do botão Aprovar (voltará a funcionar com um clique)
+1. **Adicionar state** `pendingProfileSelections: Record<string, string>` para armazenar o perfil selecionado por usuário pendente.
+
+2. **Adicionar coluna "Perfil de Acesso"** na tabela de aprovações com um `Select` dropdown listando os perfis existentes (`profiles` state).
+
+3. **Desabilitar botão "Aprovar"** enquanto nenhum perfil estiver selecionado para aquele usuário.
+
+4. **Atualizar `handleApproveUser`** para, além de aprovar e preencher `erp_user`, também inserir um registro na tabela `user_access` com o `profile_id` selecionado e `user_login` = email uppercase:
+   - `profiles.update({ approved: true, erp_user: email.toUpperCase() })`
+   - `user_access.insert({ user_login: email.toUpperCase(), profile_id: selectedProfileId })`
 
 ### Resultado
-- Admin clica "Aprovar" e pronto — o `erp_user` é preenchido automaticamente com o email
-- O usuário aparecerá imediatamente no dropdown da aba Usuários para atribuição de perfil
+- Admin seleciona o perfil e clica "Aprovar" — o usuário já sai aprovado E com permissões funcionais
+- Elimina a necessidade de ir na aba "Usuários" depois da aprovação
 
