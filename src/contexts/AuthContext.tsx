@@ -32,6 +32,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data) {
       setDisplayName(data.display_name);
       setErpUser(data.erp_user);
+
+      // Check if user is admin
+      if (data.erp_user) {
+        const { data: access } = await supabase
+          .from('user_access')
+          .select('profile_id')
+          .ilike('user_login', data.erp_user)
+          .maybeSingle();
+        if (access) {
+          const { data: profile } = await supabase
+            .from('access_profiles')
+            .select('name')
+            .eq('id', access.profile_id)
+            .maybeSingle();
+          if (profile?.name === 'Administrador') {
+            localStorage.setItem('erp_is_admin', 'true');
+          } else {
+            localStorage.removeItem('erp_is_admin');
+          }
+        } else {
+          localStorage.removeItem('erp_is_admin');
+        }
+      }
     }
   }, []);
 
