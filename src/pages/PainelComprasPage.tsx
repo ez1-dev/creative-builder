@@ -56,7 +56,10 @@ export default function PainelComprasPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async (page = 1) => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const params: any = { ...filters, pagina: page, tamanho_pagina: 100 };
