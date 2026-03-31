@@ -57,7 +57,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Módulos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {modules.map((item) => (
+              {visibleModules.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink

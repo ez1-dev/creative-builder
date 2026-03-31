@@ -17,8 +17,18 @@ import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
 import NumeroSeriePage from "@/pages/NumeroSeriePage";
 import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
 import NotFound from "@/pages/NotFound";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 const queryClient = new QueryClient();
+
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { canView, loading, hasPermissions } = useUserPermissions();
+  if (loading) return null;
+  if (!hasPermissions || !canView('/configuracoes')) {
+    return <Navigate to="/estoque" replace />;
+  }
+  return <>{children}</>;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -40,7 +50,7 @@ const App = () => (
               <Route path="/auditoria-tributaria" element={<AuditoriaTributariaPage />} />
               <Route path="/notas-recebimento" element={<NotasRecebimentoPage />} />
               <Route path="/numero-serie" element={<NumeroSeriePage />} />
-              <Route path="/configuracoes" element={<ConfiguracoesPage />} />
+              <Route path="/configuracoes" element={<AdminRoute><ConfiguracoesPage /></AdminRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
