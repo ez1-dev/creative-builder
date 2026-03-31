@@ -73,8 +73,24 @@ export default function ConfiguracoesPage() {
   // API config states
   const [apiUrl, setApiUrl] = useState(getApiUrl());
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-  const [apiUser, setApiUser] = useState(localStorage.getItem('erp_api_user') || '');
-  const [apiPass, setApiPass] = useState(localStorage.getItem('erp_api_pass') || '');
+  const [apiUser, setApiUser] = useState('');
+  const [apiPass, setApiPass] = useState('');
+  const [apiCredentialsLoading, setApiCredentialsLoading] = useState(true);
+
+  // Carregar credenciais do banco
+  useEffect(() => {
+    const loadCredentials = async () => {
+      const { data } = await supabase
+        .from('app_settings')
+        .select('key, value')
+        .in('key', ['erp_api_user', 'erp_api_pass']);
+      const map = Object.fromEntries((data || []).map(s => [s.key, s.value]));
+      setApiUser(map['erp_api_user'] || '');
+      setApiPass(map['erp_api_pass'] || '');
+      setApiCredentialsLoading(false);
+    };
+    loadCredentials();
+  }, []);
 
   const checkApi = useCallback(async () => {
     setApiStatus('checking');
@@ -680,13 +696,20 @@ export default function ConfiguracoesPage() {
                     placeholder="Senha"
                   />
                 </div>
-                <Button onClick={() => {
+                <Button onClick={async () => {
                   if (!apiUser.trim() || !apiPass.trim()) {
                     toast.error('Preencha usuário e senha da API');
                     return;
                   }
-                  localStorage.setItem('erp_api_user', apiUser.trim());
-                  localStorage.setItem('erp_api_pass', apiPass.trim());
+                  const upserts = [
+                    { key: 'erp_api_user', value: apiUser.trim(), updated_at: new Date().toISOString() },
+                    { key: 'erp_api_pass', value: apiPass.trim(), updated_at: new Date().toISOString() },
+                  ];
+                  const { error } = await supabase.from('app_settings').upsert(upserts, { onConflict: 'key' });
+                  if (error) {
+                    toast.error('Erro ao salvar credenciais');
+                    return;
+                  }
                   toast.success('Credenciais da API salvas. Faça logout e login novamente para reconectar.');
                 }}>
                   Salvar Credenciais

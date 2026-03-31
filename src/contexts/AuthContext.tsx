@@ -40,22 +40,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setErpUser(data.erp_user);
         setApproved(data.approved ?? false);
 
-        if (data.erp_user) {
-          // Login automático na API ERP com credencial técnica única
-          const apiUser = localStorage.getItem('erp_api_user');
-          const apiPass = localStorage.getItem('erp_api_pass');
-          if (apiUser && apiPass) {
+          if (data.erp_user) {
+            // Login automático na API ERP com credenciais globais do banco
             try {
-              await api.login(apiUser, apiPass);
-              setErpConnected(true);
+              const { data: settings } = await supabase
+                .from('app_settings')
+                .select('key, value')
+                .in('key', ['erp_api_user', 'erp_api_pass']);
+              const settingsMap = Object.fromEntries((settings || []).map(s => [s.key, s.value]));
+              const apiUser = settingsMap['erp_api_user'];
+              const apiPass = settingsMap['erp_api_pass'];
+              if (apiUser && apiPass) {
+                await api.login(apiUser, apiPass);
+                setErpConnected(true);
+              } else {
+                console.warn('Credenciais da API ERP não configuradas no banco');
+                setErpConnected(false);
+              }
             } catch (e) {
               console.warn('Login automático na API ERP falhou:', e);
               setErpConnected(false);
             }
-          } else {
-            console.warn('Credenciais da API ERP não configuradas');
-            setErpConnected(false);
-          }
 
           const { data: access } = await supabase
             .from('user_access')
