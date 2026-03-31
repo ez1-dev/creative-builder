@@ -274,6 +274,11 @@ export default function NumeroSeriePage() {
             data={dados}
             loading={loading}
             emptyMessage="Nenhuma consulta realizada."
+            onRowClick={(row) => {
+              if (row.status !== 'INATIVO') {
+                setSelecionado(row.numero_serie);
+              }
+            }}
             rowClassName={(row) =>
               row.numero_serie === selecionado
                 ? 'bg-primary/10 hover:bg-primary/15'
