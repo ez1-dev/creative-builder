@@ -20,18 +20,6 @@ export default function LoginPage() {
     if (isAuthenticated) navigate('/estoque', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  const checkApi = async () => {
-    setApiStatus('checking');
-    try {
-      await fetch(getApiUrl(), { method: 'GET', signal: AbortSignal.timeout(5000), headers: { 'ngrok-skip-browser-warning': 'true' } });
-      setApiStatus('online');
-    } catch {
-      setApiStatus('offline');
-    }
-  };
-
-  useEffect(() => { checkApi(); }, []);
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !senha.trim()) {
@@ -113,7 +101,6 @@ export default function LoginPage() {
               {isSignup ? 'Já tem conta? Faça login' : 'Não tem conta? Cadastre-se'}
             </button>
           </div>
-
         </CardContent>
       </Card>
     </div>
