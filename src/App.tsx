@@ -23,10 +23,10 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
 });
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ path, children }: { path: string; children: React.ReactNode }) {
   const { canView, loading, hasPermissions } = useUserPermissions();
   if (loading) return null;
-  if (!hasPermissions || !canView('/configuracoes')) {
+  if (hasPermissions && !canView(path)) {
     return <Navigate to="/estoque" replace />;
   }
   return <>{children}</>;

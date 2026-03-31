@@ -38,10 +38,9 @@ export function AppSidebar() {
   const { canView, hasPermissions, loading } = useUserPermissions();
 
   const visibleModules = modules.filter((m) => {
-    if (m.url === '/configuracoes') {
-      return hasPermissions && canView('/configuracoes');
-    }
-    return true;
+    if (loading) return false;
+    if (!hasPermissions) return true;
+    return canView(m.url);
   });
 
   return (
