@@ -6,11 +6,15 @@ import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
 
 export default function AppLayout() {
-  const { isAuthenticated, usuario, logout } = useAuth();
+  const { isAuthenticated, user, displayName, loading, logout } = useAuth();
+
+  if (loading) return null;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  const label = displayName || user?.email || '';
 
   return (
     <SidebarProvider>
@@ -21,7 +25,7 @@ export default function AppLayout() {
             <SidebarTrigger className="ml-0" />
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground">
-                Olá, <strong className="text-foreground">{usuario}</strong>
+                Olá, <strong className="text-foreground">{label}</strong>
               </span>
               <Button size="sm" variant="ghost" onClick={logout} className="h-7 text-xs gap-1">
                 <LogOut className="h-3 w-3" />

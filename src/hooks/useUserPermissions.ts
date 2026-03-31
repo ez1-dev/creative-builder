@@ -10,24 +10,23 @@ interface ScreenPermission {
 }
 
 export function useUserPermissions() {
-  const { usuario } = useAuth();
+  const { erpUser } = useAuth();
   const [permissions, setPermissions] = useState<ScreenPermission[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!usuario) {
+    if (!erpUser) {
       setPermissions([]);
       setLoading(false);
       return;
     }
 
-    const fetch = async () => {
+    const fetchPerms = async () => {
       setLoading(true);
-      // Get user's profile
       const { data: access } = await supabase
         .from('user_access')
         .select('profile_id')
-        .ilike('user_login', usuario)
+        .ilike('user_login', erpUser)
         .maybeSingle();
 
       if (!access) {
@@ -36,7 +35,6 @@ export function useUserPermissions() {
         return;
       }
 
-      // Get screens for that profile
       const { data: screens } = await supabase
         .from('profile_screens')
         .select('screen_path, screen_name, can_view, can_edit')
@@ -46,8 +44,8 @@ export function useUserPermissions() {
       setLoading(false);
     };
 
-    fetch();
-  }, [usuario]);
+    fetchPerms();
+  }, [erpUser]);
 
   const canView = (path: string) => {
     const p = permissions.find((s) => s.screen_path === path);
