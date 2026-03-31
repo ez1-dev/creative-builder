@@ -10,9 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getApiUrl } from '@/lib/api';
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
@@ -55,6 +56,38 @@ export default function ConfiguracoesPage() {
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // API config states
+  const [apiUrl, setApiUrl] = useState(getApiUrl());
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  const checkApi = useCallback(async () => {
+    setApiStatus('checking');
+    try {
+      await fetch(getApiUrl(), { method: 'GET', signal: AbortSignal.timeout(5000), headers: { 'ngrok-skip-browser-warning': 'true' } });
+      setApiStatus('online');
+    } catch {
+      setApiStatus('offline');
+    }
+  }, []);
+
+  useEffect(() => { checkApi(); }, [checkApi]);
+
+  const handleSaveUrl = () => {
+    const trimmed = apiUrl.trim().replace(/\/+$/, '');
+    if (!trimmed) return;
+    localStorage.setItem('erp_api_url', trimmed);
+    setApiUrl(trimmed);
+    toast.success('URL da API atualizada');
+    checkApi();
+  };
+
+  const handleResetUrl = () => {
+    localStorage.removeItem('erp_api_url');
+    setApiUrl(getApiUrl());
+    toast.success('URL restaurada para o padrão');
+    checkApi();
+  };
 
   // Dialog states
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
@@ -177,6 +210,7 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
           <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users className="h-4 w-4" /> Usuários</TabsTrigger>
+          <TabsTrigger value="api" className="gap-1"><Wifi className="h-4 w-4" /> API</TabsTrigger>
         </TabsList>
 
         {/* === PERFIS === */}
@@ -366,6 +400,51 @@ export default function ConfiguracoesPage() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* === API === */}
+        <TabsContent value="api">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Configuração da API</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                {apiStatus === 'online' ? (
+                  <Badge variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-600 text-sm font-normal">
+                    <Wifi className="h-3.5 w-3.5" /> API Online
+                  </Badge>
+                ) : apiStatus === 'offline' ? (
+                  <Badge variant="destructive" className="gap-1 text-sm font-normal">
+                    <WifiOff className="h-3.5 w-3.5" /> API Offline
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="gap-1 text-sm font-normal">
+                    Verificando...
+                  </Badge>
+                )}
+                <Button variant="outline" size="sm" onClick={checkApi}>
+                  Verificar conexão
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="api-url">URL da API</Label>
+                <Input
+                  id="api-url"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="https://sua-api.ngrok.io"
+                />
+                <p className="text-xs text-muted-foreground">URL atual: {getApiUrl()}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleSaveUrl}>Salvar</Button>
+                <Button variant="outline" onClick={handleResetUrl}>Resetar para padrão</Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
