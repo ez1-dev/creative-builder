@@ -134,12 +134,24 @@ export default function ConfiguracoesPage() {
       toast.error('Usuário sem email cadastrado');
       return;
     }
-    const { error } = await supabase.from('profiles').update({ approved: true, erp_user: user.email.toUpperCase() } as any).eq('id', userId);
+    const selectedProfileId = pendingProfileSelections[userId];
+    if (!selectedProfileId) {
+      toast.error('Selecione um Perfil de Acesso antes de aprovar');
+      return;
+    }
+    const erpLogin = user.email.toUpperCase();
+    const { error } = await supabase.from('profiles').update({ approved: true, erp_user: erpLogin } as any).eq('id', userId);
     if (error) {
       toast.error('Erro ao aprovar usuário');
       return;
     }
-    toast.success('Usuário aprovado com sucesso');
+    const { error: accessError } = await supabase.from('user_access').insert({ user_login: erpLogin, profile_id: selectedProfileId });
+    if (accessError) {
+      toast.error('Usuário aprovado, mas erro ao vincular perfil');
+    } else {
+      toast.success('Usuário aprovado e perfil atribuído');
+    }
+    setPendingProfileSelections(prev => { const n = { ...prev }; delete n[userId]; return n; });
     fetchData();
   };
 
