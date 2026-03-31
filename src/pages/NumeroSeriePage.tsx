@@ -81,7 +81,10 @@ export default function NumeroSeriePage() {
   const [loading, setLoading] = useState(false);
   const [loadingReserva, setLoadingReserva] = useState(false);
 
+  const erpReady = useErpReady();
+
   const buscarContexto = useCallback(async () => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     const { numero_pedido, item_pedido, numero_op, codigo_produto } = filters;
     if (!numero_op && !numero_pedido) {
       // If product is filled, go straight to proximos

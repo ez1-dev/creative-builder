@@ -103,7 +103,7 @@ export default function NotasRecebimentoPage() {
         setLoading(false);
       }
     },
-    [filters],
+    [filters, erpReady],
   );
 
   const clearFilters = () =>
