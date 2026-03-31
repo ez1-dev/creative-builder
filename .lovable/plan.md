@@ -1,31 +1,24 @@
 
 
-# Corrigir erro "Sessão da API ERP expirada" para usuários sem `erp_user`
+# Adicionar campo "Usuário ERP" na aba Aprovações e gestão de usuários aprovados
 
-## Diagnóstico
+## Problema
+Ao aprovar um usuário, o sistema usa o email como `erp_user` automaticamente (linha 142: `user.email.toUpperCase()`), mas nem sempre o login ERP corresponde ao email. Não há como o admin configurar o `erp_user` correto — nem na aprovação, nem depois.
 
-O usuário `renatostank@gmail.com` tem `erp_user = NULL` no banco. Sem esse campo preenchido, o login automático na API ERP é ignorado, e qualquer consulta de dados falha com 401.
+## Solução
 
-Já o `renato.stank@unoesc.edu.br` tem `erp_user = RENATO.STANK@UNOESC.EDU.BR` — mas o login automático está falhando com "Login inválido" (visível nos logs do console). Provavelmente esse valor não é um usuário válido na API ERP externa.
+### 1. Aba Aprovações — campo editável de Usuário ERP na aprovação
+- Adicionar um campo `Input` "Usuário ERP" ao lado do seletor de Perfil de Acesso em cada linha de usuário pendente
+- Pré-preencher com o email em maiúsculo (comportamento atual), mas permitir edição
+- Usar o valor editado no `handleApproveUser` em vez de fixar `user.email.toUpperCase()`
+- State: `pendingErpUserInputs: Record<string, string>` similar ao `pendingProfileSelections`
 
-## Opções
+### 2. Aba Aprovações — seção de usuários já aprovados com edição de `erp_user`
+- Abaixo da tabela de pendentes, adicionar uma segunda tabela "Usuários Aprovados" listando todos os profiles com `approved = true`
+- Colunas: Email, Nome, Usuário ERP (editável via Input inline), botão Salvar
+- Buscar todos aprovados (não apenas os com `erp_user` preenchido — alterar a query da linha 119)
+- Permitir editar e salvar o `erp_user` de qualquer usuário aprovado
 
-Há duas abordagens possíveis:
-
-### Opção A — Corrigir os dados (recomendado se esses usuários devem ter acesso ao ERP)
-- Atribuir o `erp_user` correto para `renatostank@gmail.com` via Configurações → Aprovações
-- Corrigir o `erp_user` de `renato.stank@unoesc.edu.br` para um login válido na API ERP (ex: `RENATO` em vez de `RENATO.STANK@UNOESC.EDU.BR`)
-
-### Opção B — Melhorar o tratamento no código (recomendado como melhoria geral)
-Nas páginas de consulta (Estoque, Onde Usa, etc.), antes de chamar a API ERP, verificar se o usuário tem `erp_user` configurado. Se não tiver, exibir uma mensagem amigável como:
-
-> "Seu usuário ERP não está configurado. Solicite a um administrador que vincule seu usuário nas Configurações."
-
-**Alterações:**
-1. **`src/contexts/AuthContext.tsx`** — Expor um flag `erpConnected` (true se login ERP automático foi bem-sucedido)
-2. **Páginas de consulta** (EstoquePage, OndeUsaPage, etc.) — Verificar `erpConnected` ou `erpUser` antes de fazer chamadas à API, mostrando alerta informativo em vez de erro genérico
-
-## Recomendação
-
-Implementar **ambas**: corrigir os dados imediatos e adicionar a verificação no código para que futuros usuários sem `erp_user` vejam uma mensagem clara.
+### Arquivos alterados
+- `src/pages/ConfiguracoesPage.tsx` — toda a lógica e UI
 
