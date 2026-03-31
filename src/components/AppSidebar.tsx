@@ -35,6 +35,14 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const { canView, hasPermissions, loading } = useUserPermissions();
+
+  const visibleModules = modules.filter((m) => {
+    if (m.url === '/configuracoes') {
+      return hasPermissions && canView('/configuracoes');
+    }
+    return true;
+  });
 
   return (
     <Sidebar collapsible="icon">
