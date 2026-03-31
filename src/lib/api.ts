@@ -107,6 +107,13 @@ class ApiClient {
     return this.request<T>(url);
   }
 
+  async post<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
   getExportUrl(endpoint: string, params?: Record<string, any>): string {
     const searchParams = new URLSearchParams();
     const token = this.getToken();

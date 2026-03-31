@@ -17,7 +17,7 @@ const columns: Column<any>[] = [
   { key: 'numero_nf', header: 'NF' },
   { key: 'serie_nf', header: 'Série' },
   { key: 'situacao_nf', header: 'Situação', render: (v) => {
-    const map: Record<string, string> = { '1': 'Situação 1', '2': 'Situação 2', '3': 'Situação 3', '4': 'Situação 4', '5': 'Situação 5' };
+    const map: Record<string, string> = { '1': 'Normal', '2': 'Cancelada', '3': 'Devolvida', '4': 'Denegada', '5': 'Inutilizada' };
     return map[String(v)] || v || '-';
   }},
   { key: 'nome_fornecedor', header: 'Fornecedor' },
@@ -135,11 +135,11 @@ export default function NotasRecebimentoPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODAS">Todas</SelectItem>
-              <SelectItem value="1">Situação 1</SelectItem>
-              <SelectItem value="2">Situação 2</SelectItem>
-              <SelectItem value="3">Situação 3</SelectItem>
-              <SelectItem value="4">Situação 4</SelectItem>
-              <SelectItem value="5">Situação 5</SelectItem>
+              <SelectItem value="1">Normal</SelectItem>
+              <SelectItem value="2">Cancelada</SelectItem>
+              <SelectItem value="3">Devolvida</SelectItem>
+              <SelectItem value="4">Denegada</SelectItem>
+              <SelectItem value="5">Inutilizada</SelectItem>
             </SelectContent>
           </Select>
         </div>

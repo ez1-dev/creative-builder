@@ -14,6 +14,7 @@ import PainelComprasPage from "@/pages/PainelComprasPage";
 import EngenhariaProducaoPage from "@/pages/EngenhariaProducaoPage";
 import AuditoriaTributariaPage from "@/pages/AuditoriaTributariaPage";
 import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
+import NumeroSeriePage from "@/pages/NumeroSeriePage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/engenharia-producao" element={<EngenhariaProducaoPage />} />
               <Route path="/auditoria-tributaria" element={<AuditoriaTributariaPage />} />
               <Route path="/notas-recebimento" element={<NotasRecebimentoPage />} />
+              <Route path="/numero-serie" element={<NumeroSeriePage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
