@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [showConfig, setShowConfig] = useState(false);
   const [apiUrl, setApiUrl] = useState(getApiUrl());
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const isAdmin = localStorage.getItem('erp_is_admin') === 'true';
   const { login, signup, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
