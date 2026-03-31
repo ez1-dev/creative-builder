@@ -26,38 +26,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('display_name, erp_user, approved')
-      .eq('id', userId)
-      .maybeSingle();
-    if (data) {
-      setDisplayName(data.display_name);
-      setErpUser(data.erp_user);
-      setApproved(data.approved ?? false);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('display_name, erp_user, approved')
+        .eq('id', userId)
+        .maybeSingle();
+      if (data) {
+        setDisplayName(data.display_name);
+        setErpUser(data.erp_user);
+        setApproved(data.approved ?? false);
 
-      // Check if user is admin
-      if (data.erp_user) {
-        const { data: access } = await supabase
-          .from('user_access')
-          .select('profile_id')
-          .ilike('user_login', data.erp_user)
-          .maybeSingle();
-        if (access) {
-          const { data: profile } = await supabase
-            .from('access_profiles')
-            .select('name')
-            .eq('id', access.profile_id)
+        if (data.erp_user) {
+          const { data: access } = await supabase
+            .from('user_access')
+            .select('profile_id')
+            .ilike('user_login', data.erp_user)
             .maybeSingle();
-          if (profile?.name === 'Administrador') {
-            localStorage.setItem('erp_is_admin', 'true');
+          if (access) {
+            const { data: profile } = await supabase
+              .from('access_profiles')
+              .select('name')
+              .eq('id', access.profile_id)
+              .maybeSingle();
+            if (profile?.name === 'Administrador') {
+              localStorage.setItem('erp_is_admin', 'true');
+            } else {
+              localStorage.removeItem('erp_is_admin');
+            }
           } else {
             localStorage.removeItem('erp_is_admin');
           }
-        } else {
-          localStorage.removeItem('erp_is_admin');
         }
       }
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -66,13 +69,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        setTimeout(() => fetchProfile(session.user.id), 0);
+        fetchProfile(session.user.id);
       } else {
         setDisplayName(null);
         setErpUser(null);
         setApproved(false);
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -80,8 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
