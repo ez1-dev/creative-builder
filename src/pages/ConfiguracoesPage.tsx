@@ -158,6 +158,23 @@ export default function ConfiguracoesPage() {
       toast.success('Usuário aprovado e perfil atribuído');
     }
     setPendingProfileSelections(prev => { const n = { ...prev }; delete n[userId]; return n; });
+    setPendingErpUserInputs(prev => { const n = { ...prev }; delete n[userId]; return n; });
+    fetchData();
+  };
+
+  const handleSaveErpUser = async (userId: string) => {
+    const newErp = (approvedErpEdits[userId] || '').toUpperCase().trim();
+    if (!newErp) {
+      toast.error('Informe o Usuário ERP');
+      return;
+    }
+    const { error } = await supabase.from('profiles').update({ erp_user: newErp } as any).eq('id', userId);
+    if (error) {
+      toast.error('Erro ao salvar Usuário ERP');
+      return;
+    }
+    toast.success('Usuário ERP atualizado');
+    setApprovedErpEdits(prev => { const n = { ...prev }; delete n[userId]; return n; });
     fetchData();
   };
 
