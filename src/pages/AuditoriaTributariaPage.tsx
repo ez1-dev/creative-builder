@@ -61,7 +61,7 @@ export default function AuditoriaTributariaPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const clearFilters = () => setFilters({
     codpro: '', despro: '', codfam: '', codori: '', ncm: '', codstr: '', cst: '', tns: '',
