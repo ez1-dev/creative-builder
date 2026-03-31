@@ -1,36 +1,35 @@
 
 
-# Credencial Única da API ERP
+# Credenciais da API Compartilhadas via Banco de Dados
 
 ## Problema
-O sistema usa `erp_user` como login e senha na API ERP (`api.login(erp_user, erp_user)`). Mas a API ERP espera uma credencial técnica única, não o login individual de cada usuário. Isso causa "Conexão ERP indisponível" para todos.
+Hoje as credenciais da API ERP (`erp_api_user` e `erp_api_pass`) ficam em `localStorage`, ou seja, cada usuário precisa configurá-las manualmente no seu navegador. O correto é: o admin configura uma vez e todos os usuários usam automaticamente.
 
 ## Solução
 
-### 1. Armazenar credenciais da API na aba Configurações → API
-Na aba "API" que já existe, adicionar dois campos:
-- **Usuário da API** (ex: `admin`)
-- **Senha da API** (ex: `senha123`)
-- Botão "Salvar Credenciais"
-- Valores salvos em `localStorage` (`erp_api_user` e `erp_api_pass`)
+### 1. Criar tabela `app_settings` no banco de dados
+Tabela simples de chave/valor para armazenar configurações globais:
+- `key` (text, primary key): ex. `erp_api_user`, `erp_api_pass`, `erp_api_url`
+- `value` (text): o valor da configuração
+- RLS: leitura para todos os autenticados, escrita apenas para admins
 
-### 2. Alterar o login automático no AuthContext
-Em vez de `api.login(data.erp_user, data.erp_user)`, usar as credenciais salvas:
+### 2. Alterar `AuthContext.tsx`
+Em vez de ler de `localStorage`, buscar as credenciais da tabela `app_settings` no banco:
 ```
-const apiUser = localStorage.getItem('erp_api_user');
-const apiPass = localStorage.getItem('erp_api_pass');
-if (apiUser && apiPass) {
-  await api.login(apiUser, apiPass);
-}
+const { data } = await supabase.from('app_settings').select('key, value').in('key', ['erp_api_user', 'erp_api_pass']);
 ```
 
-### 3. Manter o `erp_user` para permissões
-O campo `erp_user` continua sendo usado para o sistema de permissões (tabela `user_access`), sidebar, etc. Apenas a autenticação na API ERP muda.
+### 3. Alterar `ConfiguracoesPage.tsx` (aba API)
+- Carregar e salvar credenciais no banco (`app_settings`) em vez de `localStorage`
+- Manter campos de Usuário da API e Senha da API, mas agora persistidos globalmente
+- A URL da API também pode migrar para o banco (opcional)
+
+### 4. Manter compatibilidade
+- Remover referências a `localStorage` para `erp_api_user` e `erp_api_pass`
+- Qualquer usuário autenticado lê as credenciais; só admin grava
 
 ## Arquivos alterados
-- `src/contexts/AuthContext.tsx` — login automático usa credenciais globais
-- `src/pages/ConfiguracoesPage.tsx` — campos de credencial na aba API
-
-## Observação
-As credenciais ficam em `localStorage` (como já é feito com a URL da API). Somente admins têm acesso à aba de configurações.
+- **Migration SQL**: criar tabela `app_settings` com RLS
+- `src/contexts/AuthContext.tsx`: buscar credenciais do banco
+- `src/pages/ConfiguracoesPage.tsx`: salvar/carregar credenciais do banco
 
