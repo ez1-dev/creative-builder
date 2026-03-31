@@ -390,8 +390,19 @@ export default function ConfiguracoesPage() {
                   </DialogHeader>
                   <div className="space-y-3">
                     <div>
-                      <Label>Login do Usuário (ERP)</Label>
-                      <Input value={newUserLogin} onChange={e => setNewUserLogin(e.target.value)} placeholder="Ex: JOAO.SILVA" />
+                      <Label>Usuário</Label>
+                      <Select value={newUserLogin} onValueChange={setNewUserLogin}>
+                        <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
+                        <SelectContent>
+                          {approvedUsers
+                            .filter(u => !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user.toUpperCase() && ua.profile_id === newUserProfileId))
+                            .map(u => (
+                              <SelectItem key={u.id} value={u.erp_user}>
+                                {u.display_name || u.email || u.erp_user} ({u.erp_user})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label>Perfil de Acesso</Label>
