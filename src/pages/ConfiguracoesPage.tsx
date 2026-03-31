@@ -141,7 +141,11 @@ export default function ConfiguracoesPage() {
       toast.error('Selecione um Perfil de Acesso antes de aprovar');
       return;
     }
-    const erpLogin = user.email.toUpperCase();
+    const erpLogin = (pendingErpUserInputs[userId] || user.email || '').toUpperCase().trim();
+    if (!erpLogin) {
+      toast.error('Informe o Usuário ERP');
+      return;
+    }
     const { error } = await supabase.from('profiles').update({ approved: true, erp_user: erpLogin } as any).eq('id', userId);
     if (error) {
       toast.error('Erro ao aprovar usuário');
