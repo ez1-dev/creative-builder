@@ -133,6 +133,7 @@ export default function NotasRecebimentoPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Notas Fiscais de Recebimento"
         description="Consulta analítica de NFs de entrada por item, projeto, centro de custo e transação"

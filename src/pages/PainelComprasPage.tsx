@@ -96,6 +96,7 @@ export default function PainelComprasPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Painel de Compras"
         description="Dashboard e detalhamento de ordens de compra"
