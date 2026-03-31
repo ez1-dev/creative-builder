@@ -1,42 +1,22 @@
 
 
-# Fix: Email não aparece na aprovação de usuários
+# Mostrar usuários aprovados na atribuição de perfil
 
 ## Problema
-O trigger `handle_new_user` salva o email usando `NEW.raw_user_meta_data->>'email'`, mas o signup não envia o email nos metadados — ele está disponível em `NEW.email`. Por isso, o campo `email` na tabela `profiles` fica `NULL`.
+Atualmente, o diálogo "Atribuir Perfil a Usuário" usa um campo de texto livre para digitar o login ERP. O ideal é mostrar uma lista dos usuários já aprovados para seleção.
 
 ## Solução
 
-### 1. Migração SQL
-Atualizar a função `handle_new_user` para usar `NEW.email` (que é o campo correto da tabela `auth.users`):
+### Alteração em `src/pages/ConfiguracoesPage.tsx`
 
-```sql
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  INSERT INTO public.profiles (id, email)
-  VALUES (NEW.id, NEW.email);
-  RETURN NEW;
-END;
-$$;
-```
+1. **Buscar usuários aprovados** — No `fetchData`, adicionar uma query para buscar perfis com `approved = true` e que tenham `erp_user` preenchido:
+   ```sql
+   profiles.select('id, email, display_name, erp_user').eq('approved', true).not('erp_user', 'is', null)
+   ```
 
-### 2. Corrigir registros existentes sem email
-Atualizar os perfis que já existem e estão com email NULL, buscando o email correto da tabela `auth.users`:
+2. **Novo state** — `approvedUsers` para armazenar a lista de usuários aprovados.
 
-```sql
-UPDATE public.profiles p
-SET email = u.email
-FROM auth.users u
-WHERE p.id = u.id AND p.email IS NULL;
-```
+3. **Substituir Input por Select** — No diálogo de atribuição, trocar o campo de texto "Login do Usuário (ERP)" por um `Select` que lista os usuários aprovados, mostrando `display_name` ou `email` como label e usando `erp_user` como valor.
 
-### Resultado
-- Novos cadastros terão o email salvo corretamente
-- Registros antigos sem email serão corrigidos
-- A tela de aprovações mostrará o email normalmente
+4. **Filtrar já atribuídos** — Opcionalmente, filtrar da lista os usuários que já possuem um perfil atribuído, para evitar duplicatas.
 
