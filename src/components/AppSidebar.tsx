@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import {
   Sidebar,
   SidebarContent,
@@ -34,6 +35,14 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const { canView, hasPermissions, loading } = useUserPermissions();
+
+  const visibleModules = modules.filter((m) => {
+    if (m.url === '/configuracoes') {
+      return hasPermissions && canView('/configuracoes');
+    }
+    return true;
+  });
 
   return (
     <Sidebar collapsible="icon">
@@ -48,7 +57,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Módulos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {modules.map((item) => (
+              {visibleModules.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <NavLink
