@@ -101,18 +101,40 @@ export default function ConfiguracoesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: p }, { data: ps }, { data: ua }] = await Promise.all([
+    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }] = await Promise.all([
       supabase.from('access_profiles').select('*').order('name'),
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
+      supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
     setUserAccess(ua || []);
+    setPendingUsers(pending || []);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleApproveUser = async (userId: string) => {
+    const { error } = await supabase.from('profiles').update({ approved: true } as any).eq('id', userId);
+    if (error) {
+      toast.error('Erro ao aprovar usuário');
+      return;
+    }
+    toast.success('Usuário aprovado com sucesso');
+    fetchData();
+  };
+
+  const handleRejectUser = async (userId: string) => {
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) {
+      toast.error('Erro ao rejeitar usuário');
+      return;
+    }
+    toast.success('Usuário rejeitado');
+    fetchData();
+  };
 
   // ---- Perfis ----
   const handleSaveProfile = async () => {
