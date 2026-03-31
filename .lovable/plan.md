@@ -1,24 +1,36 @@
 
 
-# Adicionar campo "Usuário ERP" na aba Aprovações e gestão de usuários aprovados
+# Credencial Única da API ERP
 
 ## Problema
-Ao aprovar um usuário, o sistema usa o email como `erp_user` automaticamente (linha 142: `user.email.toUpperCase()`), mas nem sempre o login ERP corresponde ao email. Não há como o admin configurar o `erp_user` correto — nem na aprovação, nem depois.
+O sistema usa `erp_user` como login e senha na API ERP (`api.login(erp_user, erp_user)`). Mas a API ERP espera uma credencial técnica única, não o login individual de cada usuário. Isso causa "Conexão ERP indisponível" para todos.
 
 ## Solução
 
-### 1. Aba Aprovações — campo editável de Usuário ERP na aprovação
-- Adicionar um campo `Input` "Usuário ERP" ao lado do seletor de Perfil de Acesso em cada linha de usuário pendente
-- Pré-preencher com o email em maiúsculo (comportamento atual), mas permitir edição
-- Usar o valor editado no `handleApproveUser` em vez de fixar `user.email.toUpperCase()`
-- State: `pendingErpUserInputs: Record<string, string>` similar ao `pendingProfileSelections`
+### 1. Armazenar credenciais da API na aba Configurações → API
+Na aba "API" que já existe, adicionar dois campos:
+- **Usuário da API** (ex: `admin`)
+- **Senha da API** (ex: `senha123`)
+- Botão "Salvar Credenciais"
+- Valores salvos em `localStorage` (`erp_api_user` e `erp_api_pass`)
 
-### 2. Aba Aprovações — seção de usuários já aprovados com edição de `erp_user`
-- Abaixo da tabela de pendentes, adicionar uma segunda tabela "Usuários Aprovados" listando todos os profiles com `approved = true`
-- Colunas: Email, Nome, Usuário ERP (editável via Input inline), botão Salvar
-- Buscar todos aprovados (não apenas os com `erp_user` preenchido — alterar a query da linha 119)
-- Permitir editar e salvar o `erp_user` de qualquer usuário aprovado
+### 2. Alterar o login automático no AuthContext
+Em vez de `api.login(data.erp_user, data.erp_user)`, usar as credenciais salvas:
+```
+const apiUser = localStorage.getItem('erp_api_user');
+const apiPass = localStorage.getItem('erp_api_pass');
+if (apiUser && apiPass) {
+  await api.login(apiUser, apiPass);
+}
+```
 
-### Arquivos alterados
-- `src/pages/ConfiguracoesPage.tsx` — toda a lógica e UI
+### 3. Manter o `erp_user` para permissões
+O campo `erp_user` continua sendo usado para o sistema de permissões (tabela `user_access`), sidebar, etc. Apenas a autenticação na API ERP muda.
+
+## Arquivos alterados
+- `src/contexts/AuthContext.tsx` — login automático usa credenciais globais
+- `src/pages/ConfiguracoesPage.tsx` — campos de credencial na aba API
+
+## Observação
+As credenciais ficam em `localStorage` (como já é feito com a URL da API). Somente admins têm acesso à aba de configurações.
 
