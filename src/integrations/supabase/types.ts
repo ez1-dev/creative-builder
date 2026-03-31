@@ -14,7 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      access_profiles: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profile_screens: {
+        Row: {
+          can_edit: boolean
+          can_view: boolean
+          id: string
+          profile_id: string
+          screen_name: string
+          screen_path: string
+        }
+        Insert: {
+          can_edit?: boolean
+          can_view?: boolean
+          id?: string
+          profile_id: string
+          screen_name: string
+          screen_path: string
+        }
+        Update: {
+          can_edit?: boolean
+          can_view?: boolean
+          id?: string
+          profile_id?: string
+          screen_name?: string
+          screen_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_screens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_access: {
+        Row: {
+          created_at: string
+          id: string
+          profile_id: string
+          user_login: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          profile_id: string
+          user_login: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          profile_id?: string
+          user_login?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_access_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
