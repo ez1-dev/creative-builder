@@ -118,7 +118,7 @@ export default function ConfiguracoesPage() {
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
       supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
-      supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true).not('erp_user', 'is', null),
+      supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
