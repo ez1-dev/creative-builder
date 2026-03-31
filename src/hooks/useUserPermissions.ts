@@ -27,7 +27,7 @@ export function useUserPermissions() {
       const { data: access } = await supabase
         .from('user_access')
         .select('profile_id')
-        .eq('user_login', usuario)
+        .ilike('user_login', usuario)
         .maybeSingle();
 
       if (!access) {
