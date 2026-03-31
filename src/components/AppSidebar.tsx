@@ -27,6 +27,7 @@ const modules = [
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
   { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
+  { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
 export function AppSidebar() {
