@@ -41,12 +41,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setApproved(data.approved ?? false);
 
         if (data.erp_user) {
-          // Login automático na API ERP
-          try {
-            await api.login(data.erp_user, data.erp_user);
-            setErpConnected(true);
-          } catch (e) {
-            console.warn('Login automático na API ERP falhou:', e);
+          // Login automático na API ERP com credencial técnica única
+          const apiUser = localStorage.getItem('erp_api_user');
+          const apiPass = localStorage.getItem('erp_api_pass');
+          if (apiUser && apiPass) {
+            try {
+              await api.login(apiUser, apiPass);
+              setErpConnected(true);
+            } catch (e) {
+              console.warn('Login automático na API ERP falhou:', e);
+              setErpConnected(false);
+            }
+          } else {
+            console.warn('Credenciais da API ERP não configuradas');
             setErpConnected(false);
           }
 
