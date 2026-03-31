@@ -98,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const logout = useCallback(async () => {
+    localStorage.removeItem('erp_is_admin');
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
