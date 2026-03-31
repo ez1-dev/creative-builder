@@ -1,33 +1,28 @@
 
 
-# Restringir Configuração de API ao Administrador na Tela de Login
+# Mover Configuração de API para a Página de Configurações
 
-## Problema
-Atualmente, todos os usuários veem o status da API, a URL e o botão "Configurar API" na tela de login. Isso deve ser visível apenas para administradores.
-
-## Abordagem
-Como na tela de login o usuário ainda não está autenticado, usaremos um flag em `localStorage` (`erp_is_admin`) que é setado quando um administrador faz login com sucesso. Na próxima vez que a tela de login for exibida (ex: após logout), o flag determina se a seção de API aparece.
+## Objetivo
+Remover a seção de configuração da API da tela de login e adicioná-la como uma nova aba na página de Configurações (`/configuracoes`).
 
 ## Alterações
 
-### 1. `src/contexts/AuthContext.tsx`
-- Após login bem-sucedido e carregamento do perfil, verificar se o `erp_user` do perfil tem um registro em `user_access` vinculado a um perfil com nome "Administrador"
-- Se sim, salvar `localStorage.setItem('erp_is_admin', 'true')`
-- No logout, remover o flag: `localStorage.removeItem('erp_is_admin')`
+### 1. `src/pages/ConfiguracoesPage.tsx`
+- Adicionar nova aba **"API"** (com ícone `Wifi`) ao `TabsList` existente
+- O conteúdo da aba terá:
+  - Status da API (badge Online/Offline/Verificando)
+  - URL atual da API exibida
+  - Campo para editar a URL com botões "Salvar" e "Resetar"
+- Reutilizar a mesma lógica de `checkApi`, `handleSaveUrl` e `handleResetUrl` que está no LoginPage
 
 ### 2. `src/pages/LoginPage.tsx`
-- Ler `localStorage.getItem('erp_is_admin') === 'true'` para determinar visibilidade
-- **Esconder** toda a seção de API (status badge, URL, botão "Configurar API" e o painel de config) quando o flag não estiver presente
-- Manter o `checkApi()` rodando internamente para que a API esteja configurada, mas sem exibir nada ao usuário comum
+- Remover toda a seção condicional `{isAdmin && (...)}` (linhas 142-195)
+- Remover imports não mais utilizados: `Settings`, `Wifi`, `WifiOff`, `Badge`
+- Remover estados: `showConfig`, `apiUrl`, `apiStatus`
+- Remover funções: `checkApi`, `handleSaveUrl`, `handleResetUrl`
+- Remover a variável `isAdmin`
+- Manter o `getApiUrl` import pois pode ser usado internamente, ou removê-lo se não for mais necessário
 
-### Fluxo
-```text
-Admin faz login → perfil carregado → flag 'erp_is_admin' salvo
-Admin faz logout → tela de login mostra seção de API
-Usuário comum faz login → sem flag → tela de login limpa (sem info de API)
-```
-
-## Detalhes Técnicos
-- O flag em localStorage é apenas para controle de UI na tela de login (não é segurança crítica, pois a configuração da URL da API não dá acesso a dados protegidos)
-- A verificação de admin usa a tabela `user_access` + `access_profiles` onde `name = 'Administrador'`
+### Resultado
+A tela de login fica limpa (apenas email/senha), e a configuração da API fica acessível apenas para administradores via Configurações, que já é uma rota protegida por `AdminRoute`.
 
