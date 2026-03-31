@@ -28,12 +28,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('display_name, erp_user')
+      .select('display_name, erp_user, approved')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
       setDisplayName(data.display_name);
       setErpUser(data.erp_user);
+      setApproved(data.approved ?? false);
 
       // Check if user is admin
       if (data.erp_user) {
