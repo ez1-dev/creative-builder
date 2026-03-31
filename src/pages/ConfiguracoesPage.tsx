@@ -64,7 +64,7 @@ export default function ConfiguracoesPage() {
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
-  const [pendingErpUsers, setPendingErpUsers] = useState<Record<string, string>>({});
+  
   const [loading, setLoading] = useState(true);
 
   // API config states
