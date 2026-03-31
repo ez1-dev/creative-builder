@@ -8,6 +8,7 @@ interface AuthContextType {
   session: Session | null;
   displayName: string | null;
   erpUser: string | null;
+  approved: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
@@ -21,17 +22,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [erpUser, setErpUser] = useState<string | null>(null);
+  const [approved, setApproved] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from('profiles')
-      .select('display_name, erp_user')
+      .select('display_name, erp_user, approved')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
       setDisplayName(data.display_name);
       setErpUser(data.erp_user);
+      setApproved(data.approved ?? false);
 
       // Check if user is admin
       if (data.erp_user) {
@@ -67,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setDisplayName(null);
         setErpUser(null);
+        setApproved(false);
       }
       setLoading(false);
     });
@@ -104,10 +108,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setDisplayName(null);
     setErpUser(null);
+    setApproved(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, approved, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

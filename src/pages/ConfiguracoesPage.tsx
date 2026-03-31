@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getApiUrl } from '@/lib/api';
@@ -55,6 +55,7 @@ export default function ConfiguracoesPage() {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
   const [loading, setLoading] = useState(true);
 
   // API config states
@@ -100,18 +101,40 @@ export default function ConfiguracoesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: p }, { data: ps }, { data: ua }] = await Promise.all([
+    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }] = await Promise.all([
       supabase.from('access_profiles').select('*').order('name'),
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
+      supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
     setUserAccess(ua || []);
+    setPendingUsers(pending || []);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleApproveUser = async (userId: string) => {
+    const { error } = await supabase.from('profiles').update({ approved: true } as any).eq('id', userId);
+    if (error) {
+      toast.error('Erro ao aprovar usuário');
+      return;
+    }
+    toast.success('Usuário aprovado com sucesso');
+    fetchData();
+  };
+
+  const handleRejectUser = async (userId: string) => {
+    const { error } = await supabase.from('profiles').delete().eq('id', userId);
+    if (error) {
+      toast.error('Erro ao rejeitar usuário');
+      return;
+    }
+    toast.success('Usuário rejeitado');
+    fetchData();
+  };
 
   // ---- Perfis ----
   const handleSaveProfile = async () => {
@@ -210,6 +233,10 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
           <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users className="h-4 w-4" /> Usuários</TabsTrigger>
+          <TabsTrigger value="approvals" className="gap-1">
+            <UserCheck className="h-4 w-4" /> Aprovações
+            {pendingUsers.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{pendingUsers.length}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="api" className="gap-1"><Wifi className="h-4 w-4" /> API</TabsTrigger>
         </TabsList>
 
@@ -404,7 +431,56 @@ export default function ConfiguracoesPage() {
           </Card>
         </TabsContent>
 
-        {/* === API === */}
+        {/* === APROVAÇÕES === */}
+        <TabsContent value="approvals">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Aprovação de Novos Usuários</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Cadastro</TableHead>
+                    <TableHead className="w-32">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingUsers.map(u => (
+                    <TableRow key={u.id}>
+                      <TableCell className="font-medium">{u.email || '—'}</TableCell>
+                      <TableCell>{u.display_name || '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleApproveUser(u.id)}>
+                            <UserCheck className="h-3.5 w-3.5" /> Aprovar
+                          </Button>
+                          <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => handleRejectUser(u.id)}>
+                            <UserX className="h-3.5 w-3.5" /> Rejeitar
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {pendingUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        Nenhum usuário pendente de aprovação
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
         <TabsContent value="api">
           <Card>
             <CardHeader className="pb-2">
