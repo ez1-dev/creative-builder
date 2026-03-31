@@ -1,17 +1,20 @@
 
 
-# Configurar "renato" como Administrador
+# Fix: Case mismatch on user_login query
 
-O perfil "Administrador" já existe no banco (id: `1ac1e556-5a9f-44a6-93fb-e8beb407637f`). Faltam dois passos:
+## Problem
+The `useUserPermissions` hook queries `user_access` with the `usuario` value from `AuthContext`, which stores it as `"RENATO"` (uppercase, as returned by the ERP API). However, the database record was inserted with `user_login = 'renato'` (lowercase). The query returns no results, so permissions are empty and "Configurações" is hidden.
 
-## 1. Vincular usuário "renato" ao perfil Administrador
-Inserir na tabela `user_access` o login "renato" apontando para o perfil Administrador.
+## Solution
+Two changes to make it robust:
 
-## 2. Criar permissões de telas para o perfil Administrador
-Inserir na tabela `profile_screens` as permissões de todas as telas do sistema (incluindo `/configuracoes`) com `can_view = true` e `can_edit = true`.
+### 1. Update the database record
+Run a migration to update the existing record to uppercase `RENATO`, matching what the ERP API returns.
 
-Telas a cadastrar:
-- `/estoque`, `/onde-usa`, `/bom`, `/compras-produto`, `/painel-compras`, `/engenharia-producao`, `/auditoria-tributaria`, `/notas-recebimento`, `/numero-serie`, `/configuracoes`
+### 2. Make the hook case-insensitive
+In `useUserPermissions.ts`, convert `usuario` to uppercase before querying (or use `.ilike`). This prevents future mismatches. The simplest approach: query with `user_login` compared case-insensitively using `.ilike('user_login', usuario)` instead of `.eq('user_login', usuario)`.
 
-Após isso, quando "renato" fizer login, o hook `useUserPermissions` encontrará suas permissões e o menu Configurações aparecerá no sidebar.
+## Files changed
+- `src/hooks/useUserPermissions.ts` — change `.eq('user_login', usuario)` to `.ilike('user_login', usuario)`
+- Database migration — update existing record: `UPDATE user_access SET user_login = UPPER(user_login);`
 
