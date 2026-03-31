@@ -1,45 +1,19 @@
 
 
-# Aprovação de Novos Usuários pelo Administrador
+# Fix: Race Condition Causing "Acesso Pendente" for Approved Users
 
-## Objetivo
-Novos usuários que se cadastram ficam com status "pendente" até que um administrador aprove o acesso. Enquanto não aprovados, não conseguem acessar o sistema.
+## Problem
+In `AuthContext.tsx`, `setLoading(false)` runs **before** `fetchProfile` completes. Since `approved` defaults to `false`, the layout renders the pending screen before the profile data arrives.
 
-## Alterações
+Two places cause this:
+1. **Line 69-75**: `fetchProfile` is called via `setTimeout` (deferred), but `setLoading(false)` runs immediately after on line 75
+2. **Line 81-84**: `fetchProfile` is called but not awaited before `setLoading(false)` on line 84
 
-### 1. Migração: adicionar coluna `approved` na tabela `profiles`
-- Adicionar coluna `approved boolean NOT NULL DEFAULT false` à tabela `profiles`
-- Atualizar perfis existentes para `approved = true` (para não bloquear quem já usa)
+## Fix — `src/contexts/AuthContext.tsx`
 
-### 2. `src/contexts/AuthContext.tsx`
-- Após login, consultar `profiles.approved` do usuário
-- Expor um novo campo `approved` no contexto
-- Se `approved = false`, o usuário fica autenticado mas bloqueado
+- In `onAuthStateChange`: do NOT set `setLoading(false)` when there's a user session until `fetchProfile` resolves. Call `fetchProfile` with `await` and set loading to false inside a `.then()` or after the await
+- In `getSession`: await `fetchProfile` before calling `setLoading(false)`
+- Remove the `setTimeout` wrapper around `fetchProfile` — it was likely added to avoid a Supabase deadlock warning, but we can handle that by keeping the `setTimeout` while still tracking when the profile is loaded (e.g., have `fetchProfile` set loading to false itself)
 
-### 3. `src/components/AppLayout.tsx`
-- Verificar `approved` do contexto
-- Se `approved === false`, exibir tela de "Acesso pendente — aguarde aprovação do administrador" em vez do conteúdo normal
-- Oferecer botão de logout
-
-### 4. `src/pages/LoginPage.tsx`
-- Após signup, exibir mensagem informando que o acesso depende de aprovação do administrador (além da confirmação de email)
-
-### 5. `src/pages/ConfiguracoesPage.tsx` — nova aba "Aprovações"
-- Adicionar aba com ícone `UserCheck` ao lado das abas existentes
-- Listar todos os perfis com `approved = false` (nome, email, data de cadastro)
-- Botões para **Aprovar** (atualiza `approved = true`) e **Rejeitar** (deleta o perfil/usuário)
-- Exibir contador de pendentes na aba (badge)
-
-## Fluxo
-```text
-Novo usuário se cadastra → confirma email → faz login
-→ vê tela "Acesso pendente de aprovação"
-→ Admin vai em Configurações > Aprovações
-→ Aprova o usuário → usuário recarrega e acessa normalmente
-```
-
-## Detalhes Técnicos
-- A coluna `approved` fica na tabela `profiles` que já existe
-- A verificação é feita no frontend (o RLS de `profiles` já permite leitura do próprio perfil)
-- A aprovação pelo admin usa a policy pública existente ou uma nova policy para admin atualizar qualquer perfil
+Concrete approach: have `fetchProfile` call `setLoading(false)` at the end, and remove the standalone `setLoading(false)` calls that happen before profile is loaded.
 
