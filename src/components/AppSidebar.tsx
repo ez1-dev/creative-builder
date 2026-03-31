@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import {
   Sidebar,
   SidebarContent,
