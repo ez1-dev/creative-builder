@@ -78,7 +78,7 @@ export default function EngenhariaProducaoPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const clearFilters = () => setFilters({
     unidade_negocio: 'TODAS', numero_projeto: '', numero_desenho: '', revisao: '',
