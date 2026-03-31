@@ -57,6 +57,38 @@ export default function ConfiguracoesPage() {
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // API config states
+  const [apiUrl, setApiUrl] = useState(getApiUrl());
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  const checkApi = useCallback(async () => {
+    setApiStatus('checking');
+    try {
+      await fetch(getApiUrl(), { method: 'GET', signal: AbortSignal.timeout(5000), headers: { 'ngrok-skip-browser-warning': 'true' } });
+      setApiStatus('online');
+    } catch {
+      setApiStatus('offline');
+    }
+  }, []);
+
+  useEffect(() => { checkApi(); }, [checkApi]);
+
+  const handleSaveUrl = () => {
+    const trimmed = apiUrl.trim().replace(/\/+$/, '');
+    if (!trimmed) return;
+    localStorage.setItem('erp_api_url', trimmed);
+    setApiUrl(trimmed);
+    toast.success('URL da API atualizada');
+    checkApi();
+  };
+
+  const handleResetUrl = () => {
+    localStorage.removeItem('erp_api_url');
+    setApiUrl(getApiUrl());
+    toast.success('URL restaurada para o padrão');
+    checkApi();
+  };
+
   // Dialog states
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
