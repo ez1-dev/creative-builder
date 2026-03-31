@@ -45,7 +45,7 @@ export default function OndeUsaPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   return (
     <div className="space-y-4 p-4">
