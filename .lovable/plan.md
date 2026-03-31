@@ -1,33 +1,23 @@
 
 
-# Fix: Usuário aprovado não aparece na aba Usuários
+# Simplificar aprovação: auto-preencher erp_user com email
 
 ## Problema
-O usuário `stank.renato@gmail.com` está aprovado, mas seu campo `erp_user` está vazio (`NULL`). O dropdown de atribuição de perfil filtra apenas usuários com `erp_user` preenchido, por isso ele não aparece.
-
-## Causa raiz
-Na tela de Aprovações, quando um admin aprova o usuário, o campo `erp_user` não é preenchido automaticamente. Se o admin não preencher manualmente, o usuário fica aprovado mas sem `erp_user`.
+O campo "Login ERP" na aprovação é confuso e desnecessário quando não há um ERP externo. Ele serve apenas como chave de ligação entre o usuário e a tabela de permissões.
 
 ## Solução
 
-### 1. Permitir atribuição sem `erp_user` — Alterar `ConfiguracoesPage.tsx`
+### Alterar `src/pages/ConfiguracoesPage.tsx`
 
-Atualizar a query de `approvedUsers` para buscar **todos** os usuários aprovados (não apenas os que têm `erp_user`):
-- Remover o filtro `.not('erp_user', 'is', null)`
-- Usar o `email` como identificador quando `erp_user` estiver vazio
-- No dropdown, mostrar `display_name || email` como label
-- Na atribuição (`handleAddUser`), usar `erp_user` se disponível, senão usar `email` como `user_login`
+1. **Remover o campo de input "Login ERP"** da seção de Aprovações
+2. **No `handleApproveUser`**, preencher `erp_user` automaticamente com o email do usuário (em uppercase, para compatibilidade com `.ilike`):
+   ```ts
+   .update({ approved: true, erp_user: userEmail.toUpperCase() })
+   ```
+3. **Remover o state `pendingErpUsers`** que não será mais necessário
+4. **Remover a condição de disabled** do botão Aprovar (voltará a funcionar com um clique)
 
-### 2. Alternativa: Exigir preenchimento de `erp_user` na aprovação
-
-Adicionar um campo obrigatório de `erp_user` na tela de aprovação, garantindo que todo usuário aprovado tenha esse campo preenchido. Isso manteria a lógica atual do dropdown intacta.
-
-**Recomendação**: A alternativa 2 é mais robusta, pois o campo `erp_user` é usado em todo o sistema de permissões (`useUserPermissions`, `is_admin`). Sem ele, o usuário aprovado não teria permissões funcionais mesmo com perfil atribuído.
-
-### Implementação recomendada (alternativa 2)
-
-No `ConfiguracoesPage.tsx`, na seção de Aprovações:
-- Adicionar um campo `Input` para `erp_user` ao lado do botão Aprovar
-- Torná-lo obrigatório antes de permitir a aprovação
-- Salvar o `erp_user` junto com `approved = true` no `handleApprove`
+### Resultado
+- Admin clica "Aprovar" e pronto — o `erp_user` é preenchido automaticamente com o email
+- O usuário aparecerá imediatamente no dropdown da aba Usuários para atribuição de perfil
 
