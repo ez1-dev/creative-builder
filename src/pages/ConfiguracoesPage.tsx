@@ -483,16 +483,8 @@ export default function ConfiguracoesPage() {
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
                       </TableCell>
                       <TableCell>
-                        <Input
-                          placeholder="Login ERP"
-                          className="h-7 text-xs w-32"
-                          value={pendingErpUsers[u.id] || ''}
-                          onChange={e => setPendingErpUsers(prev => ({ ...prev, [u.id]: e.target.value }))}
-                        />
-                      </TableCell>
-                      <TableCell>
                         <div className="flex gap-1">
-                          <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleApproveUser(u.id)} disabled={!pendingErpUsers[u.id]?.trim()}>
+                          <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => handleApproveUser(u.id)}>
                             <UserCheck className="h-3.5 w-3.5" /> Aprovar
                           </Button>
                           <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" onClick={() => handleRejectUser(u.id)}>
