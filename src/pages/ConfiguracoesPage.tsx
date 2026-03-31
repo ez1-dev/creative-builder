@@ -484,6 +484,7 @@ export default function ConfiguracoesPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Cadastro</TableHead>
+                    <TableHead>Perfil de Acesso</TableHead>
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -494,6 +495,16 @@ export default function ConfiguracoesPage() {
                       <TableCell>{u.display_name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Select value={pendingProfileSelections[u.id] || ''} onValueChange={(val) => setPendingProfileSelections(prev => ({ ...prev, [u.id]: val }))}>
+                          <SelectTrigger className="h-8 text-xs w-[180px]"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {profiles.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
