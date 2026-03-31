@@ -80,7 +80,7 @@ export default function PainelComprasPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const clearFilters = () => setFilters({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
