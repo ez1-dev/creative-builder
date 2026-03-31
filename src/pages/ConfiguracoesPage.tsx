@@ -233,6 +233,10 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
           <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users className="h-4 w-4" /> Usuários</TabsTrigger>
+          <TabsTrigger value="approvals" className="gap-1">
+            <UserCheck className="h-4 w-4" /> Aprovações
+            {pendingUsers.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{pendingUsers.length}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="api" className="gap-1"><Wifi className="h-4 w-4" /> API</TabsTrigger>
         </TabsList>
 
