@@ -1,22 +1,33 @@
 
 
-# Mostrar usuários aprovados na atribuição de perfil
+# Fix: Usuário aprovado não aparece na aba Usuários
 
 ## Problema
-Atualmente, o diálogo "Atribuir Perfil a Usuário" usa um campo de texto livre para digitar o login ERP. O ideal é mostrar uma lista dos usuários já aprovados para seleção.
+O usuário `stank.renato@gmail.com` está aprovado, mas seu campo `erp_user` está vazio (`NULL`). O dropdown de atribuição de perfil filtra apenas usuários com `erp_user` preenchido, por isso ele não aparece.
+
+## Causa raiz
+Na tela de Aprovações, quando um admin aprova o usuário, o campo `erp_user` não é preenchido automaticamente. Se o admin não preencher manualmente, o usuário fica aprovado mas sem `erp_user`.
 
 ## Solução
 
-### Alteração em `src/pages/ConfiguracoesPage.tsx`
+### 1. Permitir atribuição sem `erp_user` — Alterar `ConfiguracoesPage.tsx`
 
-1. **Buscar usuários aprovados** — No `fetchData`, adicionar uma query para buscar perfis com `approved = true` e que tenham `erp_user` preenchido:
-   ```sql
-   profiles.select('id, email, display_name, erp_user').eq('approved', true).not('erp_user', 'is', null)
-   ```
+Atualizar a query de `approvedUsers` para buscar **todos** os usuários aprovados (não apenas os que têm `erp_user`):
+- Remover o filtro `.not('erp_user', 'is', null)`
+- Usar o `email` como identificador quando `erp_user` estiver vazio
+- No dropdown, mostrar `display_name || email` como label
+- Na atribuição (`handleAddUser`), usar `erp_user` se disponível, senão usar `email` como `user_login`
 
-2. **Novo state** — `approvedUsers` para armazenar a lista de usuários aprovados.
+### 2. Alternativa: Exigir preenchimento de `erp_user` na aprovação
 
-3. **Substituir Input por Select** — No diálogo de atribuição, trocar o campo de texto "Login do Usuário (ERP)" por um `Select` que lista os usuários aprovados, mostrando `display_name` ou `email` como label e usando `erp_user` como valor.
+Adicionar um campo obrigatório de `erp_user` na tela de aprovação, garantindo que todo usuário aprovado tenha esse campo preenchido. Isso manteria a lógica atual do dropdown intacta.
 
-4. **Filtrar já atribuídos** — Opcionalmente, filtrar da lista os usuários que já possuem um perfil atribuído, para evitar duplicatas.
+**Recomendação**: A alternativa 2 é mais robusta, pois o campo `erp_user` é usado em todo o sistema de permissões (`useUserPermissions`, `is_admin`). Sem ele, o usuário aprovado não teria permissões funcionais mesmo com perfil atribuído.
+
+### Implementação recomendada (alternativa 2)
+
+No `ConfiguracoesPage.tsx`, na seção de Aprovações:
+- Adicionar um campo `Input` para `erp_user` ao lado do botão Aprovar
+- Torná-lo obrigatório antes de permitir a aprovação
+- Salvar o `erp_user` junto com `approved = true` no `handleApprove`
 
