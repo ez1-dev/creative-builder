@@ -51,10 +51,18 @@ interface UserAccess {
   created_at: string;
 }
 
+interface ApprovedUser {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+  erp_user: string;
+}
+
 export default function ConfiguracoesPage() {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
   const [userAccess, setUserAccess] = useState<UserAccess[]>([]);
+  const [approvedUsers, setApprovedUsers] = useState<ApprovedUser[]>([]);
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
   const [loading, setLoading] = useState(true);
 
