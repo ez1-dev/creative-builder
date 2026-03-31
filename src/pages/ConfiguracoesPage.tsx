@@ -437,9 +437,9 @@ export default function ConfiguracoesPage() {
                         <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
                         <SelectContent>
                           {approvedUsers
-                            .filter(u => !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user.toUpperCase() && ua.profile_id === newUserProfileId))
+                            .filter(u => u.erp_user && !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user!.toUpperCase() && ua.profile_id === newUserProfileId))
                             .map(u => (
-                              <SelectItem key={u.id} value={u.erp_user}>
+                              <SelectItem key={u.id} value={u.erp_user!}>
                                 {u.display_name || u.email || u.erp_user} ({u.erp_user})
                               </SelectItem>
                             ))}
