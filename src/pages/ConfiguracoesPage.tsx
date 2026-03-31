@@ -403,6 +403,51 @@ export default function ConfiguracoesPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* === API === */}
+        <TabsContent value="api">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Configuração da API</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                {apiStatus === 'online' ? (
+                  <Badge variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-600 text-sm font-normal">
+                    <Wifi className="h-3.5 w-3.5" /> API Online
+                  </Badge>
+                ) : apiStatus === 'offline' ? (
+                  <Badge variant="destructive" className="gap-1 text-sm font-normal">
+                    <WifiOff className="h-3.5 w-3.5" /> API Offline
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="gap-1 text-sm font-normal">
+                    Verificando...
+                  </Badge>
+                )}
+                <Button variant="outline" size="sm" onClick={checkApi}>
+                  Verificar conexão
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="api-url">URL da API</Label>
+                <Input
+                  id="api-url"
+                  value={apiUrl}
+                  onChange={(e) => setApiUrl(e.target.value)}
+                  placeholder="https://sua-api.ngrok.io"
+                />
+                <p className="text-xs text-muted-foreground">URL atual: {getApiUrl()}</p>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={handleSaveUrl}>Salvar</Button>
+                <Button variant="outline" onClick={handleResetUrl}>Resetar para padrão</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );

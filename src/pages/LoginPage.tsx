@@ -114,60 +114,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {isAdmin && (
-            <>
-              {/* API Status */}
-              <div className="mt-4 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1.5">
-                  {apiStatus === 'online' ? (
-                    <Badge variant="default" className="gap-1 bg-emerald-600 hover:bg-emerald-600 text-xs font-normal">
-                      <Wifi className="h-3 w-3" /> API Online
-                    </Badge>
-                  ) : apiStatus === 'offline' ? (
-                    <Badge variant="destructive" className="gap-1 text-xs font-normal">
-                      <WifiOff className="h-3 w-3" /> API Offline
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="gap-1 text-xs font-normal">
-                      Verificando...
-                    </Badge>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowConfig(!showConfig)}
-                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Settings className="h-3 w-3" /> Configurar API
-                </button>
-              </div>
-
-              <p className="mt-1.5 text-[10px] text-muted-foreground truncate" title={getApiUrl()}>
-                {getApiUrl()}
-              </p>
-
-              {showConfig && (
-                <div className="mt-3 space-y-2 rounded-md border p-3">
-                  <Label htmlFor="api-url" className="text-xs">URL da API</Label>
-                  <Input
-                    id="api-url"
-                    value={apiUrl}
-                    onChange={(e) => setApiUrl(e.target.value)}
-                    placeholder="https://sua-api.ngrok.io"
-                    className="text-xs h-8"
-                  />
-                  <div className="flex gap-2">
-                    <Button type="button" size="sm" className="text-xs h-7 flex-1" onClick={handleSaveUrl}>
-                      Salvar
-                    </Button>
-                    <Button type="button" size="sm" variant="outline" className="text-xs h-7" onClick={handleResetUrl}>
-                      Resetar
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
         </CardContent>
       </Card>
     </div>
