@@ -44,8 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Login automático na API ERP
           try {
             await api.login(data.erp_user, data.erp_user);
+            setErpConnected(true);
           } catch (e) {
             console.warn('Login automático na API ERP falhou:', e);
+            setErpConnected(false);
           }
 
           const { data: access } = await supabase
