@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { api, NotasRecebimentoResponse } from "@/lib/api";
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from "@/components/erp/PageHeader";
 import { FilterPanel } from "@/components/erp/FilterPanel";
 import { DataTable, Column } from "@/components/erp/DataTable";
@@ -79,8 +80,11 @@ export default function NotasRecebimentoPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(
     async (page = 1) => {
+      if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
       setLoading(true);
       try {
         const params: any = { ...filters, pagina: page, tamanho_pagina: 100 };
@@ -99,7 +103,7 @@ export default function NotasRecebimentoPage() {
         setLoading(false);
       }
     },
-    [filters],
+    [filters, erpReady],
   );
 
   const clearFilters = () =>
@@ -132,6 +136,7 @@ export default function NotasRecebimentoPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Notas Fiscais de Recebimento"
         description="Consulta analítica de NFs de entrada por item, projeto, centro de custo e transação"

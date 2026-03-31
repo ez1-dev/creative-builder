@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
@@ -35,7 +36,10 @@ export default function ComprasProdutoPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async (page = 1) => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const result = await api.get<PaginatedResponse<any>>('/api/compras-produto', { ...filters, pagina: page, tamanho_pagina: 100 });
@@ -46,10 +50,11 @@ export default function ComprasProdutoPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Compras / Custos do Produto"
         description="Consulte informações de compras, preços e OCs por produto"

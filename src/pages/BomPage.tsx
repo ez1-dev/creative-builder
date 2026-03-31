@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { api, BomResponse } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
@@ -30,7 +31,10 @@ export default function BomPage() {
   const [loading, setLoading] = useState(false);
   const [collapsedRows, setCollapsedRows] = useState<Set<number>>(new Set());
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async () => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     if (!filters.codmod.trim()) {
       toast.error('Informe o código do modelo');
       return;
@@ -45,7 +49,7 @@ export default function BomPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const toggleCollapse = useCallback((index: number) => {
     setCollapsedRows(prev => {
@@ -137,6 +141,7 @@ export default function BomPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Estrutura (BOM)"
         description="Consulte a estrutura / lista de materiais de um modelo"

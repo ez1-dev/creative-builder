@@ -9,6 +9,7 @@ interface AuthContextType {
   session: Session | null;
   displayName: string | null;
   erpUser: string | null;
+  erpConnected: boolean;
   approved: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -24,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [erpUser, setErpUser] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
+  const [erpConnected, setErpConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
@@ -42,8 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Login automático na API ERP
           try {
             await api.login(data.erp_user, data.erp_user);
+            setErpConnected(true);
           } catch (e) {
             console.warn('Login automático na API ERP falhou:', e);
+            setErpConnected(false);
           }
 
           const { data: access } = await supabase
@@ -81,6 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setDisplayName(null);
         setErpUser(null);
+        setErpConnected(false);
         setApproved(false);
         setLoading(false);
       }
@@ -120,11 +125,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     setDisplayName(null);
     setErpUser(null);
+    setErpConnected(false);
     setApproved(false);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, approved, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, erpConnected, approved, loading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

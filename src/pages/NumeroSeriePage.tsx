@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -80,7 +81,10 @@ export default function NumeroSeriePage() {
   const [loading, setLoading] = useState(false);
   const [loadingReserva, setLoadingReserva] = useState(false);
 
+  const erpReady = useErpReady();
+
   const buscarContexto = useCallback(async () => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     const { numero_pedido, item_pedido, numero_op, codigo_produto } = filters;
     if (!numero_op && !numero_pedido) {
       // If product is filled, go straight to proximos
@@ -201,6 +205,7 @@ export default function NumeroSeriePage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Reserva Nº de Série"
         description="Vincule e reserve números de série (GS) em pedidos e OPs"

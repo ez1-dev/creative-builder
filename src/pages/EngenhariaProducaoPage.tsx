@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api, EngenhariaResponse } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
@@ -63,7 +64,10 @@ export default function EngenhariaProducaoPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async (page = 1) => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const result = await api.get<EngenhariaResponse>('/api/engenharia-producao', { ...filters, pagina: page, tamanho_pagina: 100 });
@@ -74,7 +78,7 @@ export default function EngenhariaProducaoPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const clearFilters = () => setFilters({
     unidade_negocio: 'TODAS', numero_projeto: '', numero_desenho: '', revisao: '',
@@ -86,6 +90,7 @@ export default function EngenhariaProducaoPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Engenharia x Produção"
         description="Acompanhamento de projetos: engenharia, produção e estoque"

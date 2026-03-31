@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api, AuditoriaResponse } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
@@ -46,7 +47,10 @@ export default function AuditoriaTributariaPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async (page = 1) => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const result = await api.get<AuditoriaResponse>('/api/auditoria-tributaria', { ...filters, pagina: page, tamanho_pagina: 100 });
@@ -57,7 +61,7 @@ export default function AuditoriaTributariaPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const clearFilters = () => setFilters({
     codpro: '', despro: '', codfam: '', codori: '', ncm: '', codstr: '', cst: '', tns: '',
@@ -68,6 +72,7 @@ export default function AuditoriaTributariaPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Auditoria Tributária"
         description="Auditoria de NCM, CST e situação tributária dos produtos"

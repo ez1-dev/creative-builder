@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { api, PainelComprasResponse } from '@/lib/api';
+import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
@@ -55,7 +56,10 @@ export default function PainelComprasPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async (page = 1) => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const params: any = { ...filters, pagina: page, tamanho_pagina: 100 };
@@ -76,7 +80,7 @@ export default function PainelComprasPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, erpReady]);
 
   const clearFilters = () => setFilters({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
@@ -92,6 +96,7 @@ export default function PainelComprasPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Painel de Compras"
         description="Dashboard e detalhamento de ordens de compra"
