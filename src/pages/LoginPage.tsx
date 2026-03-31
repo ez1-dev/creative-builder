@@ -55,25 +55,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleSaveUrl = () => {
-    const trimmed = apiUrl.trim().replace(/\/+$/, '');
-    if (!trimmed) return;
-    localStorage.setItem('erp_api_url', trimmed);
-    setApiUrl(trimmed);
-    setShowConfig(false);
-    toast.success('URL da API atualizada');
-    checkApi();
-  };
-
-  const handleResetUrl = () => {
-    localStorage.removeItem('erp_api_url');
-    const defaultUrl = getApiUrl();
-    setApiUrl(defaultUrl);
-    setShowConfig(false);
-    toast.success('URL restaurada para o padrão');
-    checkApi();
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[hsl(215,70%,22%)] to-[hsl(215,60%,35%)]">
       <Card className="w-full max-w-sm shadow-2xl">
