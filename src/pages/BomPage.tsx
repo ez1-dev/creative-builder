@@ -31,7 +31,10 @@ export default function BomPage() {
   const [loading, setLoading] = useState(false);
   const [collapsedRows, setCollapsedRows] = useState<Set<number>>(new Set());
 
+  const erpReady = useErpReady();
+
   const search = useCallback(async () => {
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     if (!filters.codmod.trim()) {
       toast.error('Informe o código do modelo');
       return;
