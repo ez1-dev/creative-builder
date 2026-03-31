@@ -202,6 +202,7 @@ export default function NumeroSeriePage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Reserva Nº de Série"
         description="Vincule e reserve números de série (GS) em pedidos e OPs"

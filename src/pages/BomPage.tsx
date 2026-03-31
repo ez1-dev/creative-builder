@@ -141,6 +141,7 @@ export default function BomPage() {
 
   return (
     <div className="space-y-4 p-4">
+      <ErpConnectionAlert />
       <PageHeader
         title="Estrutura (BOM)"
         description="Consulte a estrutura / lista de materiais de um modelo"
