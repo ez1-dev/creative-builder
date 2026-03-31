@@ -66,6 +66,8 @@ export default function ConfiguracoesPage() {
   const [pendingUsers, setPendingUsers] = useState<Array<{ id: string; email: string | null; display_name: string | null; created_at: string | null }>>([]);
   
   const [pendingProfileSelections, setPendingProfileSelections] = useState<Record<string, string>>({});
+  const [pendingErpUserInputs, setPendingErpUserInputs] = useState<Record<string, string>>({});
+  const [approvedErpEdits, setApprovedErpEdits] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // API config states
