@@ -73,6 +73,8 @@ export default function ConfiguracoesPage() {
   // API config states
   const [apiUrl, setApiUrl] = useState(getApiUrl());
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [apiUser, setApiUser] = useState(localStorage.getItem('erp_api_user') || '');
+  const [apiPass, setApiPass] = useState(localStorage.getItem('erp_api_pass') || '');
 
   const checkApi = useCallback(async () => {
     setApiStatus('checking');
@@ -651,8 +653,44 @@ export default function ConfiguracoesPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={handleSaveUrl}>Salvar</Button>
+                <Button onClick={handleSaveUrl}>Salvar URL</Button>
                 <Button variant="outline" onClick={handleResetUrl}>Resetar para padrão</Button>
+              </div>
+
+              <hr className="my-4 border-border" />
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium">Credenciais da API</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="api-user">Usuário da API</Label>
+                  <Input
+                    id="api-user"
+                    value={apiUser}
+                    onChange={(e) => setApiUser(e.target.value)}
+                    placeholder="Ex: admin"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="api-pass">Senha da API</Label>
+                  <Input
+                    id="api-pass"
+                    type="password"
+                    value={apiPass}
+                    onChange={(e) => setApiPass(e.target.value)}
+                    placeholder="Senha"
+                  />
+                </div>
+                <Button onClick={() => {
+                  if (!apiUser.trim() || !apiPass.trim()) {
+                    toast.error('Preencha usuário e senha da API');
+                    return;
+                  }
+                  localStorage.setItem('erp_api_user', apiUser.trim());
+                  localStorage.setItem('erp_api_pass', apiPass.trim());
+                  toast.success('Credenciais da API salvas. Faça logout e login novamente para reconectar.');
+                }}>
+                  Salvar Credenciais
+                </Button>
               </div>
             </CardContent>
           </Card>
