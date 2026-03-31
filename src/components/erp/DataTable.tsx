@@ -24,6 +24,7 @@ export function DataTable<T extends Record<string, any>>({
   loading = false,
   emptyMessage = 'Nenhum registro encontrado.',
   rowClassName,
+  onRowClick,
 }: DataTableProps<T>) {
   if (loading) {
     return (
