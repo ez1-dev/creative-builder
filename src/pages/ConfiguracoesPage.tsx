@@ -55,7 +55,7 @@ interface ApprovedUser {
   id: string;
   email: string | null;
   display_name: string | null;
-  erp_user: string;
+  erp_user: string | null;
 }
 
 export default function ConfiguracoesPage() {
