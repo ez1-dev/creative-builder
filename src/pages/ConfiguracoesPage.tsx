@@ -507,6 +507,7 @@ export default function ConfiguracoesPage() {
                     <TableHead>Email</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Cadastro</TableHead>
+                    <TableHead>Usuário ERP</TableHead>
                     <TableHead>Perfil de Acesso</TableHead>
                     <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
@@ -518,6 +519,14 @@ export default function ConfiguracoesPage() {
                       <TableCell>{u.display_name || '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          className="h-8 text-xs w-[180px]"
+                          placeholder="Login ERP"
+                          value={pendingErpUserInputs[u.id] ?? (u.email || '').toUpperCase()}
+                          onChange={(e) => setPendingErpUserInputs(prev => ({ ...prev, [u.id]: e.target.value }))}
+                        />
                       </TableCell>
                       <TableCell>
                         <Select value={pendingProfileSelections[u.id] || ''} onValueChange={(val) => setPendingProfileSelections(prev => ({ ...prev, [u.id]: val }))}>
@@ -543,8 +552,58 @@ export default function ConfiguracoesPage() {
                   ))}
                   {pendingUsers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         Nenhum usuário pendente de aprovação
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Usuários Aprovados — Usuário ERP</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Usuário ERP</TableHead>
+                    <TableHead className="w-24">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {approvedUsers.map(u => {
+                    const currentErp = approvedErpEdits[u.id] ?? (u.erp_user || '');
+                    const isDirty = approvedErpEdits[u.id] !== undefined && approvedErpEdits[u.id] !== (u.erp_user || '');
+                    return (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium text-sm">{u.email || '—'}</TableCell>
+                        <TableCell className="text-sm">{u.display_name || '—'}</TableCell>
+                        <TableCell>
+                          <Input
+                            className="h-8 text-xs w-[200px]"
+                            value={currentErp}
+                            onChange={(e) => setApprovedErpEdits(prev => ({ ...prev, [u.id]: e.target.value }))}
+                            placeholder="Login ERP"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => handleSaveErpUser(u.id)} disabled={!isDirty}>
+                            Salvar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {approvedUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                        Nenhum usuário aprovado
                       </TableCell>
                     </TableRow>
                   )}
