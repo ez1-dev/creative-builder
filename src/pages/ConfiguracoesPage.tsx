@@ -105,17 +105,23 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => { checkApi(); }, [checkApi]);
 
-  const handleSaveUrl = () => {
+  const handleSaveUrl = async () => {
     const trimmed = apiUrl.trim().replace(/\/+$/, '');
     if (!trimmed) return;
-    localStorage.setItem('erp_api_url', trimmed);
+    const { error } = await supabase.from('app_settings').upsert({ key: 'erp_api_url', value: trimmed }, { onConflict: 'key' });
+    if (error) {
+      toast.error('Erro ao salvar URL da API');
+      return;
+    }
+    setApiBaseUrl(trimmed);
     setApiUrl(trimmed);
-    toast.success('URL da API atualizada');
+    toast.success('URL da API atualizada para todos os usuários');
     checkApi();
   };
 
-  const handleResetUrl = () => {
-    localStorage.removeItem('erp_api_url');
+  const handleResetUrl = async () => {
+    await supabase.from('app_settings').delete().eq('key', 'erp_api_url');
+    setApiBaseUrl('');
     setApiUrl(getApiUrl());
     toast.success('URL restaurada para o padrão');
     checkApi();
