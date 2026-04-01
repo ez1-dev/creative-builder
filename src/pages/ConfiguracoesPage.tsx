@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
@@ -71,7 +71,7 @@ export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(true);
 
   // API config states
-  const [apiUrl, setApiUrl] = useState(getApiUrl());
+  const [apiUrl, setApiUrl] = useState('');
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [apiUser, setApiUser] = useState('');
   const [apiPass, setApiPass] = useState('');
@@ -83,10 +83,11 @@ export default function ConfiguracoesPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('key, value')
-        .in('key', ['erp_api_user', 'erp_api_pass']);
+        .in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']);
       const map = Object.fromEntries((data || []).map(s => [s.key, s.value]));
       setApiUser(map['erp_api_user'] || '');
       setApiPass(map['erp_api_pass'] || '');
+      setApiUrl(map['erp_api_url'] || getApiUrl());
       setApiCredentialsLoading(false);
     };
     loadCredentials();
@@ -104,17 +105,23 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => { checkApi(); }, [checkApi]);
 
-  const handleSaveUrl = () => {
+  const handleSaveUrl = async () => {
     const trimmed = apiUrl.trim().replace(/\/+$/, '');
     if (!trimmed) return;
-    localStorage.setItem('erp_api_url', trimmed);
+    const { error } = await supabase.from('app_settings').upsert({ key: 'erp_api_url', value: trimmed }, { onConflict: 'key' });
+    if (error) {
+      toast.error('Erro ao salvar URL da API');
+      return;
+    }
+    setApiBaseUrl(trimmed);
     setApiUrl(trimmed);
-    toast.success('URL da API atualizada');
+    toast.success('URL da API atualizada para todos os usuários');
     checkApi();
   };
 
-  const handleResetUrl = () => {
-    localStorage.removeItem('erp_api_url');
+  const handleResetUrl = async () => {
+    await supabase.from('app_settings').delete().eq('key', 'erp_api_url');
+    setApiBaseUrl('');
     setApiUrl(getApiUrl());
     toast.success('URL restaurada para o padrão');
     checkApi();

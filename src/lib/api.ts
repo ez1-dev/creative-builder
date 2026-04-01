@@ -1,5 +1,11 @@
+let _apiBaseUrl: string | null = null;
+
 const getApiBaseUrl = () =>
-  localStorage.getItem('erp_api_url') || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  _apiBaseUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export const setApiBaseUrl = (url: string) => {
+  _apiBaseUrl = url;
+};
 
 export const getApiUrl = getApiBaseUrl;
 
