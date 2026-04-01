@@ -1,42 +1,22 @@
 
 
-# Reescrever Página Conciliação ERP x EDocs
+# Fix: Conciliação EDocs not appearing in menu
 
-A página já existe mas precisa ser completamente atualizada para usar o endpoint correto, filtros corretos e colunas corretas da API real.
+## Problem
+The menu item exists in the code (line 29 of AppSidebar.tsx). The issue is the **permissions system**: the `profile_screens` table needs a row for `/conciliacao-edocs` with `can_view = true` for your user profile. Without it, the permissions filter hides the menu item.
 
-## Alterações
+## Solution
+Insert the missing screen permission into the `profile_screens` table via a database migration.
 
-### 1. `src/pages/ConciliacaoEdocsPage.tsx` — Reescrever completo
+### Database migration
+Insert a row for `/conciliacao-edocs` for **all existing profiles** so every user profile can see the new page:
 
-**Endpoint:** `GET /api/notas-edocs-conciliacao` (antes era `/api/conciliacao-edocs`)
+```sql
+INSERT INTO public.profile_screens (profile_id, screen_path, screen_name, can_view, can_edit)
+SELECT id, '/conciliacao-edocs', 'Conciliação EDocs', true, true
+FROM public.access_profiles
+ON CONFLICT DO NOTHING;
+```
 
-**Filtros (todos os parâmetros da API):**
-- Tipo Nota (select: TODOS/ENTRADA/SAIDA)
-- Período inicial / final (date pickers)
-- Número NF, Série, Filial
-- Código Pessoa, Nome Pessoa, Número Lote
-- Situação ERP (input), Situação EDocs (input)
-- Status Conciliação (select: TODOS, OK, SEM_EDOCS, ERRO_EDOCS, DIVERGENCIA_SITUACAO, CHAVE_DIVERGENTE, NUMERO_DIVERGENTE, SERIE_DIVERGENTE)
-- Checkboxes: Somente divergências, Somente sem EDocs, Somente com erro
-
-**KPIs:** Total registros, OK, Sem EDocs, Com erro, Divergência situação
-
-**Colunas da tabela (19 colunas):**
-tipo_nota, codigo_empresa, codigo_filial, numero_nf, serie_nf, situacao_erp, situacao_edocs, status_conciliacao (badge), data_documento, numero_lote, codigo_pessoa, nome_pessoa, valor_liquido, valor_final, chave_nota, mensagem_edocs, id_requisicao_edocs, descricao_motivo_edocs, observacao_conciliacao
-
-**Badges de status:**
-- OK → verde (success)
-- SEM_EDOCS → laranja/warning
-- ERRO_EDOCS → vermelho (destructive)
-- DIVERGENCIA_SITUACAO → laranja/warning
-- CHAVE/NUMERO/SERIE_DIVERGENTE → amarelo (secondary/outline)
-
-**Exportação:** `GET /api/export/notas-edocs-conciliacao` com mesmos filtros
-
-### 2. `src/lib/api.ts` — Atualizar interface `ConciliacaoEdocsResponse`
-
-Atualizar o resumo para incluir `total_com_erro` e ajustar campos conforme API real. Manter a estrutura `PaginatedResponse` existente.
-
-### 3. Rota e sidebar — Sem alteração
-Já existem e estão corretos.
+This ensures every existing access profile gets visibility of the new page. No code changes needed — the sidebar and route already exist.
 
