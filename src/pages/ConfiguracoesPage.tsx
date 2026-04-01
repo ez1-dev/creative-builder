@@ -83,10 +83,11 @@ export default function ConfiguracoesPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('key, value')
-        .in('key', ['erp_api_user', 'erp_api_pass']);
+        .in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']);
       const map = Object.fromEntries((data || []).map(s => [s.key, s.value]));
       setApiUser(map['erp_api_user'] || '');
       setApiPass(map['erp_api_pass'] || '');
+      setApiUrl(map['erp_api_url'] || getApiUrl());
       setApiCredentialsLoading(false);
     };
     loadCredentials();
