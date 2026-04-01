@@ -13,6 +13,7 @@ import ComprasProdutoPage from "@/pages/ComprasProdutoPage";
 import PainelComprasPage from "@/pages/PainelComprasPage";
 import EngenhariaProducaoPage from "@/pages/EngenhariaProducaoPage";
 import AuditoriaTributariaPage from "@/pages/AuditoriaTributariaPage";
+import ConciliacaoEdocsPage from "@/pages/ConciliacaoEdocsPage";
 import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
 import NumeroSeriePage from "@/pages/NumeroSeriePage";
 import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
