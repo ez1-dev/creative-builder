@@ -213,8 +213,8 @@ export interface ConciliacaoEdocsResponse extends PaginatedResponse<any> {
     total_registros: number;
     total_ok: number;
     total_sem_edocs: number;
-    total_sem_erp: number;
-    total_divergentes: number;
+    total_com_erro: number;
+    total_divergencia_situacao: number;
   };
 }
 
