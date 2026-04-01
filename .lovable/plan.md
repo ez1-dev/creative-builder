@@ -1,43 +1,42 @@
 
 
-# Página de Conciliação ERP x EDocs
+# Reescrever Página Conciliação ERP x EDocs
 
-## Resumo
-Criar uma nova página de consulta seguindo o padrão da Auditoria Tributária, com filtros flexíveis, KPIs de resumo e tabela de dados para conciliação entre ERP e EDocs.
+A página já existe mas precisa ser completamente atualizada para usar o endpoint correto, filtros corretos e colunas corretas da API real.
 
-## Arquivos a criar/alterar
+## Alterações
 
-### 1. `src/lib/api.ts` — Adicionar interface de resposta
-- Adicionar `ConciliacaoEdocsResponse` com `resumo` (totais por status: ok, sem_edocs, sem_erp, divergente_valor, divergente_situacao) e `dados` paginados
+### 1. `src/pages/ConciliacaoEdocsPage.tsx` — Reescrever completo
 
-### 2. `src/pages/ConciliacaoEdocsPage.tsx` — Nova página
-**Filtros:**
-- Período (data inicial / data final)
-- Empresa, Filial, Fornecedor, CNPJ
-- Número NF, Série, Chave NF
-- Status Conciliação (select: Todos, OK, SEM_EDOCS, SEM_ERP, DIVERGENTE_VALOR, DIVERGENTE_SITUACAO)
+**Endpoint:** `GET /api/notas-edocs-conciliacao` (antes era `/api/conciliacao-edocs`)
 
-**KPIs:**
-- Total Registros, OK, Sem EDocs, Sem ERP, Divergentes
+**Filtros (todos os parâmetros da API):**
+- Tipo Nota (select: TODOS/ENTRADA/SAIDA)
+- Período inicial / final (date pickers)
+- Número NF, Série, Filial
+- Código Pessoa, Nome Pessoa, Número Lote
+- Situação ERP (input), Situação EDocs (input)
+- Status Conciliação (select: TODOS, OK, SEM_EDOCS, ERRO_EDOCS, DIVERGENCIA_SITUACAO, CHAVE_DIVERGENTE, NUMERO_DIVERGENTE, SERIE_DIVERGENTE)
+- Checkboxes: Somente divergências, Somente sem EDocs, Somente com erro
 
-**Colunas da tabela:**
-- Empresa, Filial, Número NF, Série, Fornecedor, CNPJ, Data Emissão, Data Entrada, Valor ERP, Valor EDocs, Situação ERP, Situação EDocs, Status Conciliação (com badges coloridos)
+**KPIs:** Total registros, OK, Sem EDocs, Com erro, Divergência situação
 
-**Endpoint:** `GET /api/conciliacao-edocs` com paginação (mesmo padrão das outras páginas)
+**Colunas da tabela (19 colunas):**
+tipo_nota, codigo_empresa, codigo_filial, numero_nf, serie_nf, situacao_erp, situacao_edocs, status_conciliacao (badge), data_documento, numero_lote, codigo_pessoa, nome_pessoa, valor_liquido, valor_final, chave_nota, mensagem_edocs, id_requisicao_edocs, descricao_motivo_edocs, observacao_conciliacao
 
 **Badges de status:**
-- OK → verde
+- OK → verde (success)
 - SEM_EDOCS → laranja/warning
-- SEM_ERP → laranja/warning
-- DIVERGENTE_VALOR → vermelho/destructive
-- DIVERGENTE_SITUACAO → vermelho/destructive
+- ERRO_EDOCS → vermelho (destructive)
+- DIVERGENCIA_SITUACAO → laranja/warning
+- CHAVE/NUMERO/SERIE_DIVERGENTE → amarelo (secondary/outline)
 
-### 3. `src/components/AppSidebar.tsx` — Adicionar item no menu
-- Novo módulo "Conciliação EDocs" com ícone `FileSearch` na lista de módulos
+**Exportação:** `GET /api/export/notas-edocs-conciliacao` com mesmos filtros
 
-### 4. `src/App.tsx` — Adicionar rota
-- Rota `/conciliacao-edocs` com `ProtectedRoute`
+### 2. `src/lib/api.ts` — Atualizar interface `ConciliacaoEdocsResponse`
 
-### 5. Exportação
-- Botões de export Excel e CSV seguindo o padrão existente
+Atualizar o resumo para incluir `total_com_erro` e ajustar campos conforme API real. Manter a estrutura `PaginatedResponse` existente.
+
+### 3. Rota e sidebar — Sem alteração
+Já existem e estão corretos.
 
