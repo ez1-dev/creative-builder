@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -22,29 +23,45 @@ import { toast } from 'sonner';
 
 const statusBadge = (status: string) => {
   switch (status) {
-    case 'OK': return <Badge className="bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-[10px]">OK</Badge>;
-    case 'SEM_EDOCS': return <Badge className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] text-[10px]">Sem EDocs</Badge>;
-    case 'SEM_ERP': return <Badge className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] text-[10px]">Sem ERP</Badge>;
-    case 'DIVERGENTE_VALOR': return <Badge className="bg-destructive text-destructive-foreground text-[10px]">Diverg. Valor</Badge>;
-    case 'DIVERGENTE_SITUACAO': return <Badge className="bg-destructive text-destructive-foreground text-[10px]">Diverg. Situação</Badge>;
-    default: return <Badge variant="secondary" className="text-[10px]">{status || '-'}</Badge>;
+    case 'OK':
+      return <Badge className="bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] text-[10px]">OK</Badge>;
+    case 'SEM_EDOCS':
+      return <Badge className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] text-[10px]">Sem EDocs</Badge>;
+    case 'ERRO_EDOCS':
+      return <Badge className="bg-destructive text-destructive-foreground text-[10px]">Erro EDocs</Badge>;
+    case 'DIVERGENCIA_SITUACAO':
+      return <Badge className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] text-[10px]">Diverg. Situação</Badge>;
+    case 'CHAVE_DIVERGENTE':
+      return <Badge variant="outline" className="text-[10px] border-[hsl(var(--warning))] text-[hsl(var(--warning))]">Chave Diverg.</Badge>;
+    case 'NUMERO_DIVERGENTE':
+      return <Badge variant="outline" className="text-[10px] border-[hsl(var(--warning))] text-[hsl(var(--warning))]">Nº Diverg.</Badge>;
+    case 'SERIE_DIVERGENTE':
+      return <Badge variant="outline" className="text-[10px] border-[hsl(var(--warning))] text-[hsl(var(--warning))]">Série Diverg.</Badge>;
+    default:
+      return <Badge variant="secondary" className="text-[10px]">{status || '-'}</Badge>;
   }
 };
 
 const columns: Column<any>[] = [
-  { key: 'empresa', header: 'Empresa' },
-  { key: 'filial', header: 'Filial' },
+  { key: 'tipo_nota', header: 'Tipo' },
+  { key: 'codigo_empresa', header: 'Empresa' },
+  { key: 'codigo_filial', header: 'Filial' },
   { key: 'numero_nf', header: 'Nº NF' },
-  { key: 'serie', header: 'Série' },
-  { key: 'fornecedor', header: 'Fornecedor' },
-  { key: 'cnpj', header: 'CNPJ' },
-  { key: 'data_emissao', header: 'Dt. Emissão' },
-  { key: 'data_entrada', header: 'Dt. Entrada' },
-  { key: 'valor_erp', header: 'Valor ERP', render: (v) => formatCurrency(v) },
-  { key: 'valor_edocs', header: 'Valor EDocs', render: (v) => formatCurrency(v) },
+  { key: 'serie_nf', header: 'Série' },
   { key: 'situacao_erp', header: 'Sit. ERP' },
   { key: 'situacao_edocs', header: 'Sit. EDocs' },
   { key: 'status_conciliacao', header: 'Status', render: (v) => statusBadge(v) },
+  { key: 'data_documento', header: 'Dt. Documento' },
+  { key: 'numero_lote', header: 'Lote' },
+  { key: 'codigo_pessoa', header: 'Cód. Pessoa' },
+  { key: 'nome_pessoa', header: 'Nome Pessoa' },
+  { key: 'valor_liquido', header: 'Vlr. Líquido', render: (v) => formatCurrency(v) },
+  { key: 'valor_final', header: 'Vlr. Final', render: (v) => formatCurrency(v) },
+  { key: 'chave_nota', header: 'Chave NF' },
+  { key: 'mensagem_edocs', header: 'Msg EDocs' },
+  { key: 'id_requisicao_edocs', header: 'ID Req. EDocs' },
+  { key: 'descricao_motivo_edocs', header: 'Motivo EDocs' },
+  { key: 'observacao_conciliacao', header: 'Observação' },
 ];
 
 function DateFilter({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
@@ -73,78 +90,135 @@ function DateFilter({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
+const initialFilters = {
+  tipo_nota: '',
+  data_ini: '',
+  data_fim: '',
+  numero_nf: '',
+  serie_nf: '',
+  codigo_filial: '',
+  codigo_pessoa: '',
+  nome_pessoa: '',
+  numero_lote: '',
+  situacao_erp: '',
+  situacao_edocs: '',
+  status_conciliacao: '',
+  somente_divergencia: false,
+  somente_sem_edocs: false,
+  somente_com_erro: false,
+};
+
 export default function ConciliacaoEdocsPage() {
-  const [filters, setFilters] = useState({
-    data_inicio: '', data_fim: '',
-    empresa: '', filial: '', fornecedor: '', cnpj: '',
-    numero_nf: '', serie: '', chave_nf: '',
-    status_conciliacao: '',
-  });
+  const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState<ConciliacaoEdocsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
   const erpReady = useErpReady();
 
+  const buildParams = (page = 1) => {
+    const params: Record<string, any> = { pagina: page, tamanho_pagina: 100 };
+    if (filters.tipo_nota && filters.tipo_nota !== 'TODOS') params.tipo_nota = filters.tipo_nota;
+    if (filters.data_ini) params.data_ini = filters.data_ini;
+    if (filters.data_fim) params.data_fim = filters.data_fim;
+    if (filters.numero_nf) params.numero_nf = filters.numero_nf;
+    if (filters.serie_nf) params.serie_nf = filters.serie_nf;
+    if (filters.codigo_filial) params.codigo_filial = filters.codigo_filial;
+    if (filters.codigo_pessoa) params.codigo_pessoa = filters.codigo_pessoa;
+    if (filters.nome_pessoa) params.nome_pessoa = filters.nome_pessoa;
+    if (filters.numero_lote) params.numero_lote = filters.numero_lote;
+    if (filters.situacao_erp) params.situacao_erp = filters.situacao_erp;
+    if (filters.situacao_edocs) params.situacao_edocs = filters.situacao_edocs;
+    if (filters.status_conciliacao && filters.status_conciliacao !== 'TODOS') params.status_conciliacao = filters.status_conciliacao;
+    if (filters.somente_divergencia) params.somente_divergencia = true;
+    if (filters.somente_sem_edocs) params.somente_sem_edocs = true;
+    if (filters.somente_com_erro) params.somente_com_erro = true;
+    return params;
+  };
+
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<ConciliacaoEdocsResponse>('/api/conciliacao-edocs', { ...filters, pagina: page, tamanho_pagina: 100 });
+      const result = await api.get<ConciliacaoEdocsResponse>('/api/notas-edocs-conciliacao', buildParams(page));
       setData(result);
       setPagina(page);
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || 'Erro ao consultar conciliação ERP x EDocs.');
     } finally {
       setLoading(false);
     }
   }, [filters, erpReady]);
 
-  const clearFilters = () => setFilters({
-    data_inicio: '', data_fim: '',
-    empresa: '', filial: '', fornecedor: '', cnpj: '',
-    numero_nf: '', serie: '', chave_nf: '',
-    status_conciliacao: '',
-  });
+  const clearFilters = () => setFilters(initialFilters);
 
   const resumo = data?.resumo;
+  const exportParams = buildParams(1);
+  delete exportParams.pagina;
+  delete exportParams.tamanho_pagina;
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
         title="Conciliação ERP x EDocs"
-        description="Comparação entre registros do ERP e documentos eletrônicos"
+        description="Comparação de situação entre ERP Senior e EDocs"
         actions={
-          <div className="flex gap-2">
-            <ExportButton endpoint="/api/export/conciliacao-edocs" params={{ ...filters, formato: 'xlsx' }} label="Excel" />
-            <ExportButton endpoint="/api/export/conciliacao-edocs-csv" params={filters} label="CSV" />
-          </div>
+          <ExportButton endpoint="/api/export/notas-edocs-conciliacao" params={{ ...exportParams, formato: 'xlsx' }} label="Exportar Excel" />
         }
       />
+
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
-        <DateFilter label="Data Início" value={filters.data_inicio} onChange={(v) => setFilters(f => ({ ...f, data_inicio: v }))} />
-        <DateFilter label="Data Fim" value={filters.data_fim} onChange={(v) => setFilters(f => ({ ...f, data_fim: v }))} />
-        <div><Label className="text-xs">Empresa</Label><Input value={filters.empresa} onChange={(e) => setFilters(f => ({ ...f, empresa: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Filial</Label><Input value={filters.filial} onChange={(e) => setFilters(f => ({ ...f, filial: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Fornecedor</Label><Input value={filters.fornecedor} onChange={(e) => setFilters(f => ({ ...f, fornecedor: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">CNPJ</Label><Input value={filters.cnpj} onChange={(e) => setFilters(f => ({ ...f, cnpj: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Nº NF</Label><Input value={filters.numero_nf} onChange={(e) => setFilters(f => ({ ...f, numero_nf: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Série</Label><Input value={filters.serie} onChange={(e) => setFilters(f => ({ ...f, serie: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Chave NF</Label><Input value={filters.chave_nf} onChange={(e) => setFilters(f => ({ ...f, chave_nf: e.target.value }))} className="h-8 text-xs" /></div>
         <div>
-          <Label className="text-xs">Status</Label>
-          <Select value={filters.status_conciliacao} onValueChange={(v) => setFilters(f => ({ ...f, status_conciliacao: v === 'TODOS' ? '' : v }))}>
+          <Label className="text-xs">Tipo Nota</Label>
+          <Select value={filters.tipo_nota || 'TODOS'} onValueChange={(v) => setFilters(f => ({ ...f, tipo_nota: v === 'TODOS' ? '' : v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="ENTRADA">Entrada</SelectItem>
+              <SelectItem value="SAIDA">Saída</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <DateFilter label="Período Inicial" value={filters.data_ini} onChange={(v) => setFilters(f => ({ ...f, data_ini: v }))} />
+        <DateFilter label="Período Final" value={filters.data_fim} onChange={(v) => setFilters(f => ({ ...f, data_fim: v }))} />
+        <div><Label className="text-xs">Nº NF</Label><Input value={filters.numero_nf} onChange={(e) => setFilters(f => ({ ...f, numero_nf: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Série</Label><Input value={filters.serie_nf} onChange={(e) => setFilters(f => ({ ...f, serie_nf: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Filial</Label><Input value={filters.codigo_filial} onChange={(e) => setFilters(f => ({ ...f, codigo_filial: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cód. Pessoa</Label><Input value={filters.codigo_pessoa} onChange={(e) => setFilters(f => ({ ...f, codigo_pessoa: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Nome Pessoa</Label><Input value={filters.nome_pessoa} onChange={(e) => setFilters(f => ({ ...f, nome_pessoa: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Nº Lote</Label><Input value={filters.numero_lote} onChange={(e) => setFilters(f => ({ ...f, numero_lote: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação ERP</Label><Input value={filters.situacao_erp} onChange={(e) => setFilters(f => ({ ...f, situacao_erp: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação EDocs</Label><Input value={filters.situacao_edocs} onChange={(e) => setFilters(f => ({ ...f, situacao_edocs: e.target.value }))} className="h-8 text-xs" /></div>
+        <div>
+          <Label className="text-xs">Status Conciliação</Label>
+          <Select value={filters.status_conciliacao || 'TODOS'} onValueChange={(v) => setFilters(f => ({ ...f, status_conciliacao: v === 'TODOS' ? '' : v }))}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todos</SelectItem>
               <SelectItem value="OK">OK</SelectItem>
               <SelectItem value="SEM_EDOCS">Sem EDocs</SelectItem>
-              <SelectItem value="SEM_ERP">Sem ERP</SelectItem>
-              <SelectItem value="DIVERGENTE_VALOR">Diverg. Valor</SelectItem>
-              <SelectItem value="DIVERGENTE_SITUACAO">Diverg. Situação</SelectItem>
+              <SelectItem value="ERRO_EDOCS">Erro EDocs</SelectItem>
+              <SelectItem value="DIVERGENCIA_SITUACAO">Diverg. Situação</SelectItem>
+              <SelectItem value="CHAVE_DIVERGENTE">Chave Divergente</SelectItem>
+              <SelectItem value="NUMERO_DIVERGENTE">Número Divergente</SelectItem>
+              <SelectItem value="SERIE_DIVERGENTE">Série Divergente</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="flex items-end gap-4 col-span-full">
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={filters.somente_divergencia} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_divergencia: !!v }))} />
+            Somente divergências
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={filters.somente_sem_edocs} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_sem_edocs: !!v }))} />
+            Somente sem EDocs
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <Checkbox checked={filters.somente_com_erro} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_com_erro: !!v }))} />
+            Somente com erro
+          </label>
         </div>
       </FilterPanel>
 
@@ -153,8 +227,8 @@ export default function ConciliacaoEdocsPage() {
           <KPICard title="Total Registros" value={resumo.total_registros} />
           <KPICard title="OK" value={resumo.total_ok} variant="success" />
           <KPICard title="Sem EDocs" value={resumo.total_sem_edocs} variant="warning" />
-          <KPICard title="Sem ERP" value={resumo.total_sem_erp} variant="warning" />
-          <KPICard title="Divergentes" value={resumo.total_divergentes} variant="destructive" />
+          <KPICard title="Com Erro" value={resumo.total_com_erro} variant="destructive" />
+          <KPICard title="Diverg. Situação" value={resumo.total_divergencia_situacao} variant="warning" />
         </div>
       )}
 
