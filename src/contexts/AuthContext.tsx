@@ -46,7 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const { data: settings } = await supabase
                 .from('app_settings')
                 .select('key, value')
-                .in('key', ['erp_api_user', 'erp_api_pass']);
+                .in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']);
               const settingsMap = Object.fromEntries((settings || []).map(s => [s.key, s.value]));
               const apiUser = settingsMap['erp_api_user'];
               const apiPass = settingsMap['erp_api_pass'];
