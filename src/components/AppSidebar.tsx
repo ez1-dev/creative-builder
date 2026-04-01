@@ -1,6 +1,6 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
-  Factory, FileCheck, LayoutDashboard, FileInput, Hash, Settings,
+  Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
