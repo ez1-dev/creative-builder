@@ -208,7 +208,24 @@ export interface NotasRecebimentoResponse extends PaginatedResponse<any> {
   };
 }
 
+export interface ConciliacaoEdocsResponse extends PaginatedResponse<any> {
+  resumo: {
+    total_registros: number;
+    total_ok: number;
+    total_sem_edocs: number;
+    total_sem_erp: number;
+    total_divergentes: number;
+  };
+}
+
 export interface AuditoriaResponse extends PaginatedResponse<any> {
+  resumo: {
+    total_registros: number;
+    total_ncm_vazio: number;
+    total_cst_vazio: number;
+    total_divergencias: number;
+  };
+}
   resumo: {
     total_registros: number;
     total_ncm_vazio: number;

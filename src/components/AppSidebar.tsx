@@ -26,6 +26,7 @@ const modules = [
   { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
   { title: 'Eng. x Produção', url: '/engenharia-producao', icon: Factory },
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
+  { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
   { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
