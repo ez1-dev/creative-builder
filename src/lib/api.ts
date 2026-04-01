@@ -226,10 +226,3 @@ export interface AuditoriaResponse extends PaginatedResponse<any> {
     total_divergencias: number;
   };
 }
-  resumo: {
-    total_registros: number;
-    total_ncm_vazio: number;
-    total_cst_vazio: number;
-    total_divergencias: number;
-  };
-}
