@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { getApiUrl } from '@/lib/api';
+import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
