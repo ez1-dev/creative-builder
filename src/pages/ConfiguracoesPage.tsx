@@ -71,7 +71,7 @@ export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(true);
 
   // API config states
-  const [apiUrl, setApiUrl] = useState(getApiUrl());
+  const [apiUrl, setApiUrl] = useState('');
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [apiUser, setApiUser] = useState('');
   const [apiPass, setApiPass] = useState('');
