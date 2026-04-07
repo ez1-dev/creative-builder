@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, Layers, Package } from 'lucide-react';
+import { useAiFilters } from '@/hooks/useAiFilters';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código', sticky: true, stickyWidth: 100 },
@@ -36,6 +37,8 @@ export default function EstoquePage() {
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
+
+  useAiFilters('estoque', setFilters, () => search(1));
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }

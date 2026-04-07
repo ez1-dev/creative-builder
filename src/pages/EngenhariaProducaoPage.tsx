@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { formatNumber, formatDate, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
+import { useAiFilters } from '@/hooks/useAiFilters';
 
 const statusColor = (s: string) => {
   switch (s) {

@@ -5,6 +5,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, Clock } from 'lucide-react';
 import { HeaderInfo } from '@/components/HeaderInfo';
+import { AiAssistantChat } from '@/components/erp/AiAssistantChat';
 import packageJson from '../../package.json';
 
 export default function AppLayout() {
@@ -63,6 +64,7 @@ export default function AppLayout() {
           <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
+          <AiAssistantChat />
           <footer className="border-t bg-card px-3 py-2 text-center text-xs text-muted-foreground">
             EZ ERP IA v{packageJson.version} · © {new Date().getFullYear()} Todos os direitos reservados.
           </footer>

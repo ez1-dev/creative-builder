@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, FolderTree, DollarSign, Receipt } from 'lucide-react';
+import { useAiFilters } from '@/hooks/useAiFilters';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código' },
