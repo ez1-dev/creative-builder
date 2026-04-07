@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, Clock } from 'lucide-react';
+import { HeaderInfo } from '@/components/HeaderInfo';
 import packageJson from '../../package.json';
 
 export default function AppLayout() {
@@ -45,7 +46,10 @@ export default function AppLayout() {
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <header className="h-11 flex items-center justify-between border-b bg-card px-3">
-            <SidebarTrigger className="ml-0" />
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="ml-0" />
+              <HeaderInfo />
+            </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground">
                 Olá, <strong className="text-foreground">{label}</strong>
