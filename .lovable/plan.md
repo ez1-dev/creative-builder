@@ -1,26 +1,32 @@
 
 
-# Renomear menus do sidebar
+# Adicionar rodapé com versão e direitos reservados
 
-## Alteração
-Atualizar os títulos no array `modules` em `src/components/AppSidebar.tsx`:
+## O que será feito
+Adicionar um **footer fixo** no layout principal com a versão do app e texto de direitos reservados, visível em todas as páginas.
 
-| Atual | Novo |
-|-------|------|
-| Estoque | Consulta de Estoques |
-| Onde Usa | Consulta Onde Usa |
-| Estrutura (BOM) | Estrutura BOM |
-| Compras / Custos | Consulta Compras/Custos |
-| Painel de Compras | Painel de Compras |
-| Eng. x Produção | Eng. x Produção |
-| Auditoria Tributária | Auditoria Tributária |
-| Conciliação EDocs | Conciliação EDocs |
-| NF Recebimento | Consulta NF Receb. |
-| Reserva Nº Série | Reserva Nº Série |
-| Configurações | Configurações |
+## Alterações
 
-## Arquivo afetado
-- `src/components/AppSidebar.tsx` — apenas o array `modules` (linhas 22-32)
+### 1. `package.json` — Atualizar versão
+- Alterar `"version": "0.0.0"` para `"1.0.0"` (ou versão desejada)
 
-Alguns nomes foram abreviados para caber bem no sidebar quando colapsado/expandido. Nomes que já são claros (Painel de Compras, Auditoria Tributária, etc.) permanecem iguais.
+### 2. `src/components/AppLayout.tsx` — Adicionar footer
+- Inserir um `<footer>` abaixo do `<main>`, dentro do flex column
+- Conteúdo: `EZ ERP IA v1.0.0 — © 2025 Todos os direitos reservados.`
+- Estilo: barra discreta com `text-xs text-muted-foreground`, borda superior, altura compacta
+- A versão será importada dinamicamente do `package.json` para facilitar atualização futura
+
+### Resultado visual
+```text
+┌─────────────────────────────────────────┐
+│ Header (Olá, usuário / Sair)            │
+├─────────────────────────────────────────┤
+│                                         │
+│            Conteúdo da página            │
+│                                         │
+├─────────────────────────────────────────┤
+│ EZ ERP IA v1.0.0 · © 2025 Todos os     │
+│ direitos reservados.                    │
+└─────────────────────────────────────────┘
+```
 
