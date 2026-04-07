@@ -53,6 +53,36 @@ export type Database = {
         }
         Relationships: []
       }
+      error_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          id: string
+          message: string
+          module: string
+          status_code: number | null
+          user_email: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message: string
+          module: string
+          status_code?: number | null
+          user_email?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          id?: string
+          message?: string
+          module?: string
+          status_code?: number | null
+          user_email?: string | null
+        }
+        Relationships: []
+      }
       profile_screens: {
         Row: {
           can_edit: boolean

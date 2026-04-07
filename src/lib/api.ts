@@ -1,3 +1,5 @@
+import { logError } from './errorLogger';
+
 let _apiBaseUrl: string | null = null;
 
 const getApiBaseUrl = () =>
@@ -68,12 +70,16 @@ class ApiClient {
     });
 
     if (response.status === 401) {
-      throw new Error('Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.');
+      const msg = 'Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.';
+      logError({ module: endpoint, message: msg, statusCode: 401 });
+      throw new Error(msg);
     }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-      throw new Error(error.detail || `Erro ${response.status}`);
+      const msg = error.detail || `Erro ${response.status}`;
+      logError({ module: endpoint, message: msg, statusCode: response.status, details: error });
+      throw new Error(msg);
     }
 
     return response.json();

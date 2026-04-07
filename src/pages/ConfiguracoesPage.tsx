@@ -10,10 +10,11 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
+import { formatDate } from '@/lib/format';
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
@@ -77,6 +78,12 @@ export default function ConfiguracoesPage() {
   const [apiPass, setApiPass] = useState('');
   const [apiCredentialsLoading, setApiCredentialsLoading] = useState(true);
 
+  // Logs states
+  const [errorLogs, setErrorLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsPeriod, setLogsPeriod] = useState('7d');
+  const [logsCount24h, setLogsCount24h] = useState(0);
+
   // Carregar credenciais do banco
   useEffect(() => {
     const loadCredentials = async () => {
@@ -104,6 +111,47 @@ export default function ConfiguracoesPage() {
   }, []);
 
   useEffect(() => { checkApi(); }, [checkApi]);
+
+  const fetchLogs = useCallback(async () => {
+    setLogsLoading(true);
+    const now = new Date();
+    let since: Date;
+    if (logsPeriod === '24h') {
+      since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    } else if (logsPeriod === '7d') {
+      since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else {
+      since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    const { data } = await supabase
+      .from('error_logs' as any)
+      .select('*')
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200);
+    setErrorLogs(data || []);
+    // Count 24h
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from('error_logs' as any)
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since24h);
+    setLogsCount24h(count || 0);
+    setLogsLoading(false);
+  }, [logsPeriod]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const handleClearOldLogs = async () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from('error_logs' as any).delete().lt('created_at', thirtyDaysAgo);
+    if (error) {
+      toast.error('Erro ao limpar logs');
+      return;
+    }
+    toast.success('Logs antigos removidos');
+    fetchLogs();
+  };
 
   const handleSaveUrl = async () => {
     const trimmed = apiUrl.trim().replace(/\/+$/, '');
@@ -315,8 +363,11 @@ export default function ConfiguracoesPage() {
             {pendingUsers.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{pendingUsers.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="api" className="gap-1"><Wifi className="h-4 w-4" /> API</TabsTrigger>
+          <TabsTrigger value="logs" className="gap-1">
+            <FileWarning className="h-4 w-4" /> Logs
+            {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
+          </TabsTrigger>
         </TabsList>
-
         {/* === PERFIS === */}
         <TabsContent value="profiles">
           <Card>
@@ -722,6 +773,79 @@ export default function ConfiguracoesPage() {
                   Salvar Credenciais
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* === LOGS === */}
+        <TabsContent value="logs">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base">Logs de Erros</CardTitle>
+              <div className="flex items-center gap-2">
+                <Select value={logsPeriod} onValueChange={setLogsPeriod}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24h">Últimas 24h</SelectItem>
+                    <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={fetchLogs} disabled={logsLoading}>
+                  Atualizar
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleClearOldLogs}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Limpar antigos
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {logsLoading ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">Carregando logs...</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[150px]">Data/Hora</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Módulo</TableHead>
+                      <TableHead className="w-[80px] text-center">Status</TableHead>
+                      <TableHead>Mensagem</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {errorLogs.map((log: any) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-xs">{log.user_email || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono">{log.module}</TableCell>
+                        <TableCell className="text-center">
+                          {log.status_code ? (
+                            <Badge variant={log.status_code >= 500 ? 'destructive' : 'secondary'} className="text-[10px]">
+                              {log.status_code}
+                            </Badge>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[300px] truncate" title={log.message}>
+                          {log.message}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {errorLogs.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          Nenhum erro registrado no período
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+              <p className="text-xs text-muted-foreground mt-3">
+                Exibindo {errorLogs.length} registro(s) · Erros nas últimas 24h: {logsCount24h}
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
