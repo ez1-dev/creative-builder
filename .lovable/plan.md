@@ -1,30 +1,34 @@
 
 
-# Corrigir KPIs do Painel de Compras que não aparecem
+# Corrigir exibição de localização no cabeçalho
 
-## Diagnóstico
-A página exibe os KPIs apenas quando `data.resumo` existe (linha 179: `{data && resumo && ...}`). Se a API retornar dados sem o campo `resumo`, os cards ficam invisíveis. A requisição GET retorna status 200, então os dados chegam — mas o `resumo` pode estar ausente ou com nome diferente na resposta.
+## Problema
+O fuso `America/Sao_Paulo` cobre SP, SC, PR, RS, MG, RJ, ES, GO, DF e outros estados. Por isso, quem está em Campos Novos (SC) vê "São Paulo, BR".
 
-## Solução
-Tornar os KPIs resilientes: quando `data.resumo` não existir, calcular os indicadores diretamente a partir de `data.dados` (igual já fazemos em Estoque, Onde Usa e Compras/Custos). Quando `resumo` existir, usá-lo como fonte principal.
+## Opções
 
-## Implementação — `src/pages/PainelComprasPage.tsx`
+### Opção A — Usar Geolocalização real (API do navegador)
+- Chamar `navigator.geolocation.getCurrentPosition()` para obter lat/lon
+- Usar uma API gratuita de geocoding reverso (ex: BigDataCloud, que não precisa de chave) para converter em cidade/estado
+- **Prós**: mostra a cidade correta (ex: "Campos Novos, SC")
+- **Contras**: pede permissão ao usuário; pode ser negada; depende de API externa
 
-1. Adicionar um `useMemo` que calcula um resumo fallback a partir de `data.dados` quando `data.resumo` é `null`/`undefined`:
-   - `total_ocs`: contagem distinta de `numero_oc`
-   - `valor_bruto_total`: soma de `valor_bruto` ou campo equivalente
-   - `valor_liquido_total`: soma de `valor_liquido`
-   - `valor_desconto_total`: soma de `valor_desconto_total`
-   - `total_fornecedores`: contagem distinta de `fantasia_fornecedor`
-   - `valor_pendente_total`: soma de `saldo_pendente * preco_unitario`
-   - `itens_pendentes`: contagem de itens com `saldo_pendente > 0`
-   - `itens_atrasados`: contagem de itens com `dias_atraso > 0`
-   - `total_linhas`: `dados.length`
+### Opção B — Remover localização ou mostrar apenas o fuso
+- Trocar "São Paulo, BR" por "Fuso: BRT (UTC−3)" ou simplesmente remover o campo
+- **Prós**: sem dependência externa, sem permissão
+- **Contras**: menos informativo
 
-2. Alterar a condição de renderização de `{data && resumo && (` para `{data && kpis && (` onde `kpis` é o resultado do `useMemo` que usa `data.resumo` se disponível, senão calcula do `dados`.
+## Recomendação
+**Opção A** com fallback: tentar geolocalização → se negada ou falhar, mostrar o fuso horário como fallback.
 
-3. Adicionar `console.log` temporário da resposta da API na função `search` para debug (pode ser removido depois), ou melhor, registrar no log de erros quando `resumo` vier vazio.
+## Implementação — `src/components/HeaderInfo.tsx`
 
-## Arquivo afetado
-- `src/pages/PainelComprasPage.tsx` — adicionar fallback de cálculo dos KPIs
+1. No `useEffect`, chamar `navigator.geolocation.getCurrentPosition`
+2. Com as coordenadas, fazer fetch para `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=X&longitude=Y&localityLanguage=pt`
+3. Extrair `city` e `principalSubdivisionCode` da resposta (ex: "Campos Novos, SC")
+4. Armazenar no state `location`; se falhar, manter o fallback atual baseado no fuso horário
+5. Adicionar estado de loading para evitar flash de "São Paulo" antes da resposta real
+
+### Arquivo afetado
+- `src/components/HeaderInfo.tsx`
 
