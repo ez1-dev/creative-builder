@@ -94,7 +94,7 @@ export function DataTable<T extends Record<string, any>>({
         </div>
       )}
       <div className="rounded-md border overflow-auto max-h-[60vh]">
-        <Table>
+        <table className="w-full caption-bottom text-sm">
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="table-header-bg hover:bg-transparent">
               {columns.map((col, colIndex) => {
