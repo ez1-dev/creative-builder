@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
 import { LogOut, Clock } from 'lucide-react';
+import packageJson from '../../package.json';
 
 export default function AppLayout() {
   const { isAuthenticated, user, displayName, approved, loading, logout } = useAuth();
@@ -58,6 +59,9 @@ export default function AppLayout() {
           <main className="flex-1 overflow-auto">
             <Outlet />
           </main>
+          <footer className="border-t bg-card px-3 py-2 text-center text-xs text-muted-foreground">
+            EZ ERP IA v{packageJson.version} · © {new Date().getFullYear()} Todos os direitos reservados.
+          </footer>
         </div>
       </div>
     </SidebarProvider>
