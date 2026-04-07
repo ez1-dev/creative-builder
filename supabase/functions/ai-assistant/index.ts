@@ -84,6 +84,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
+    const wantsStream = req.headers.get("accept") === "text/event-stream";
+
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
@@ -99,7 +101,7 @@ serve(async (req) => {
             ...messages,
           ],
           tools,
-          stream: true,
+          stream: wantsStream,
         }),
       }
     );
@@ -138,8 +140,16 @@ serve(async (req) => {
       );
     }
 
-    return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    if (wantsStream) {
+      return new Response(response.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+    // Non-streaming: return full JSON
+    const data = await response.json();
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("ai-assistant error:", e);
