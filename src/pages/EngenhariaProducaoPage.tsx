@@ -84,6 +84,7 @@ export default function EngenhariaProducaoPage() {
     }
   }, [filters, erpReady]);
 
+  useAiFilters('engenharia-producao', setFilters, () => search(1));
   const clearFilters = () => setFilters({
     unidade_negocio: 'TODAS', numero_projeto: '', numero_desenho: '', revisao: '',
     numero_op: '', origem: '', familia: '', data_entrega_ini: '', data_entrega_fim: '',

@@ -58,6 +58,7 @@ export default function ComprasProdutoPage() {
     }
   }, [filters, erpReady]);
 
+  useAiFilters('compras-produto', setFilters, () => search(1));
   const kpis = useMemo(() => {
     if (!data) return null;
     const dados = data.dados || [];
