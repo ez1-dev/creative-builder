@@ -19,15 +19,15 @@ import {
 } from '@/components/ui/sidebar';
 
 const modules = [
-  { title: 'Estoque', url: '/estoque', icon: Package },
-  { title: 'Onde Usa', url: '/onde-usa', icon: Search },
-  { title: 'Estrutura (BOM)', url: '/bom', icon: GitBranch },
-  { title: 'Compras / Custos', url: '/compras-produto', icon: ShoppingCart },
+  { title: 'Consulta de Estoques', url: '/estoque', icon: Package },
+  { title: 'Consulta Onde Usa', url: '/onde-usa', icon: Search },
+  { title: 'Estrutura BOM', url: '/bom', icon: GitBranch },
+  { title: 'Consulta Compras/Custos', url: '/compras-produto', icon: ShoppingCart },
   { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
   { title: 'Eng. x Produção', url: '/engenharia-producao', icon: Factory },
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
   { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
-  { title: 'NF Recebimento', url: '/notas-recebimento', icon: FileInput },
+  { title: 'Consulta NF Receb.', url: '/notas-recebimento', icon: FileInput },
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
