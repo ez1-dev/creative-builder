@@ -363,7 +363,10 @@ export default function ConfiguracoesPage() {
             {pendingUsers.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{pendingUsers.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="api" className="gap-1"><Wifi className="h-4 w-4" /> API</TabsTrigger>
-        </TabsList>
+          <TabsTrigger value="logs" className="gap-1">
+            <FileWarning className="h-4 w-4" /> Logs
+            {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
+          </TabsTrigger>
 
         {/* === PERFIS === */}
         <TabsContent value="profiles">
