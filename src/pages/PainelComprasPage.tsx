@@ -94,8 +94,43 @@ export default function PainelComprasPage() {
     agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
   });
 
-  const resumo = data?.resumo;
   const graficos = data?.graficos;
+
+  const kpis = useMemo(() => {
+    if (data?.resumo) return data.resumo;
+    if (!data?.dados || data.dados.length === 0) return null;
+    const dados = data.dados;
+    const uniqueOcs = new Set(dados.map((d: any) => d.numero_oc));
+    const uniqueFornecedores = new Set(dados.map((d: any) => d.fantasia_fornecedor).filter(Boolean));
+    const valorBruto = dados.reduce((s: number, d: any) => s + (d.valor_bruto || d.quantidade_pedida * d.preco_unitario || 0), 0);
+    const valorLiquido = dados.reduce((s: number, d: any) => s + (d.valor_liquido || 0), 0);
+    const valorDesconto = dados.reduce((s: number, d: any) => s + (d.valor_desconto_total || 0), 0);
+    const valorPendente = dados.reduce((s: number, d: any) => s + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)), 0);
+    const itensPendentes = dados.filter((d: any) => (d.saldo_pendente || 0) > 0).length;
+    const itensAtrasados = dados.filter((d: any) => (d.dias_atraso || 0) > 0).length;
+    const ocsAtrasadas = new Set(dados.filter((d: any) => (d.dias_atraso || 0) > 0).map((d: any) => d.numero_oc)).size;
+    const maiorAtraso = Math.max(0, ...dados.map((d: any) => d.dias_atraso || 0));
+    const itensProduto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
+    const itensServico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
+    const totalLinhas = dados.length;
+    return {
+      total_ocs: uniqueOcs.size,
+      valor_bruto_total: valorBruto,
+      valor_liquido_total: valorLiquido,
+      valor_desconto_total: valorDesconto,
+      total_fornecedores: uniqueFornecedores.size,
+      valor_pendente_total: valorPendente,
+      itens_pendentes: itensPendentes,
+      itens_atrasados: itensAtrasados,
+      ocs_atrasadas: ocsAtrasadas,
+      maior_atraso_dias: maiorAtraso,
+      ticket_medio_item: totalLinhas > 0 ? valorLiquido / totalLinhas : 0,
+      impostos_totais: dados.reduce((s: number, d: any) => s + (d.impostos || 0), 0),
+      total_linhas: totalLinhas,
+      itens_produto: itensProduto,
+      itens_servico: itensServico,
+    };
+  }, [data]);
 
   return (
     <div className="space-y-4 p-4">
