@@ -1,36 +1,40 @@
 
-# Corrigir fixação do cabeçalho das colunas Código, Descrição e Família
 
-## Problema identificado
-Hoje a rolagem vertical está sendo controlada no `<thead>` (`sticky top-0`), enquanto a rolagem horizontal das colunas fixas está sendo controlada em cada `<th>` (`sticky left`). Essa combinação em elementos diferentes não é robusta, então o cabeçalho dessas colunas não fica realmente “preso” no cruzamento topo + esquerda.
+# Aperfeiçoar busca rápida em todas as abas
 
-## Implementação
-1. **`src/components/erp/DataTable.tsx`**
-   - Remover o `sticky top-0` do `<TableHeader>`.
-   - Aplicar o comportamento de cabeçalho fixo diretamente em cada `<TableHead>`.
-   - Para colunas com `sticky: true`, aplicar no cabeçalho:
-     - `position: sticky`
-     - `top: 0`
-     - `left: <offset calculado>`
-     - `z-index` mais alto que o restante da tabela
-     - fundo opaco do cabeçalho
-   - Para colunas sticky no corpo, manter:
-     - `position: sticky`
-     - `left: <offset calculado>`
-     - fundo opaco
-   - Garantir largura consistente nas colunas sticky usando `width` + `minWidth` com `stickyWidth`, não só `minWidth`.
+## Estado atual
+Todas as páginas usam o `DataTable` com busca simples: um campo de texto que filtra todas as colunas por substring. Funciona, mas é básico.
 
-2. **`src/pages/EstoquePage.tsx`**
-   - Manter `sticky: true` em:
-     - Código
-     - Descrição
-     - Família
-   - Revisar `stickyWidth` dessas 3 colunas para casar com a largura real desejada.
+## Exemplos de melhorias possíveis
 
-## Resultado esperado
-- Ao rolar **verticalmente**, o cabeçalho continua visível no topo.
-- Ao rolar **horizontalmente**, os títulos **Código, Descrição e Família** continuam fixos à esquerda junto com suas células.
-- O “canto” da tabela (topo + esquerda) passa a funcionar corretamente.
+### 1. Busca por coluna específica
+Permitir filtrar por coluna individual clicando no cabeçalho ou com sintaxe tipo `codigo:ABC` no campo de busca.
 
-## Detalhe técnico
-A correção principal é concentrar o sticky do cabeçalho no próprio `<th>`, combinando `top` e `left` no mesmo elemento. Isso evita o conflito atual entre `<thead>` sticky e `<th>` sticky.
+### 2. Highlight nos resultados
+Destacar (amarelo) o texto encontrado nas células que correspondem à busca, facilitando localizar visualmente.
+
+### 3. Botão limpar no campo de busca
+Adicionar um "X" dentro do input para limpar a busca rapidamente, em vez de apagar manualmente.
+
+### 4. Debounce na digitação
+Adicionar delay de 300ms antes de filtrar, evitando travamentos em tabelas com muitos registros.
+
+### 5. Filtros por coluna no cabeçalho
+Adicionar mini-inputs ou dropdowns abaixo de cada cabeçalho de coluna, permitindo filtrar por valores específicos de cada campo simultaneamente.
+
+### 6. Ordenação clicável nas colunas
+Clicar no cabeçalho ordena ASC/DESC, com indicador visual (seta).
+
+### 7. Atalho de teclado
+`Ctrl+F` ou `Ctrl+K` foca automaticamente no campo de busca.
+
+## Recomendação
+Implementar na seguinte ordem de impacto:
+1. **Highlight** nos resultados + **botão limpar** (rápido, alto impacto visual)
+2. **Ordenação** clicável nas colunas (muito útil para análise)
+3. **Debounce** (performance)
+4. **Filtros por coluna** (mais complexo, mas poderoso)
+
+## Técnico
+Todas as melhorias seriam no componente `DataTable.tsx`, beneficiando automaticamente todas as 9+ páginas que o utilizam: Estoque, Compras, BOM, Onde Usa, Notas Recebimento, Número Série, Conciliação, Engenharia, Auditoria.
+
