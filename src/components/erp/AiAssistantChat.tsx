@@ -8,6 +8,7 @@ import { dispatchAiFilters } from '@/hooks/useAiFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -20,6 +21,7 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 export function AiAssistantChat() {
+  const { canUseAi } = useUserPermissions();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -27,6 +29,8 @@ export function AiAssistantChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  if (!canUseAi) return null;
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
