@@ -112,6 +112,47 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => { checkApi(); }, [checkApi]);
 
+  const fetchLogs = useCallback(async () => {
+    setLogsLoading(true);
+    const now = new Date();
+    let since: Date;
+    if (logsPeriod === '24h') {
+      since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    } else if (logsPeriod === '7d') {
+      since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    } else {
+      since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+    const { data } = await supabase
+      .from('error_logs' as any)
+      .select('*')
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200);
+    setErrorLogs(data || []);
+    // Count 24h
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    const { count } = await supabase
+      .from('error_logs' as any)
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since24h);
+    setLogsCount24h(count || 0);
+    setLogsLoading(false);
+  }, [logsPeriod]);
+
+  useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+  const handleClearOldLogs = async () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from('error_logs' as any).delete().lt('created_at', thirtyDaysAgo);
+    if (error) {
+      toast.error('Erro ao limpar logs');
+      return;
+    }
+    toast.success('Logs antigos removidos');
+    fetchLogs();
+  };
+
   const handleSaveUrl = async () => {
     const trimmed = apiUrl.trim().replace(/\/+$/, '');
     if (!trimmed) return;
