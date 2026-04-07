@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { api, PainelComprasResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -94,8 +94,43 @@ export default function PainelComprasPage() {
     agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
   });
 
-  const resumo = data?.resumo;
   const graficos = data?.graficos;
+
+  const kpis = useMemo(() => {
+    if (data?.resumo) return data.resumo;
+    if (!data?.dados || data.dados.length === 0) return null;
+    const dados = data.dados;
+    const uniqueOcs = new Set(dados.map((d: any) => d.numero_oc));
+    const uniqueFornecedores = new Set(dados.map((d: any) => d.fantasia_fornecedor).filter(Boolean));
+    const valorBruto = dados.reduce((s: number, d: any) => s + (d.valor_bruto || d.quantidade_pedida * d.preco_unitario || 0), 0);
+    const valorLiquido = dados.reduce((s: number, d: any) => s + (d.valor_liquido || 0), 0);
+    const valorDesconto = dados.reduce((s: number, d: any) => s + (d.valor_desconto_total || 0), 0);
+    const valorPendente = dados.reduce((s: number, d: any) => s + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)), 0);
+    const itensPendentes = dados.filter((d: any) => (d.saldo_pendente || 0) > 0).length;
+    const itensAtrasados = dados.filter((d: any) => (d.dias_atraso || 0) > 0).length;
+    const ocsAtrasadas = new Set(dados.filter((d: any) => (d.dias_atraso || 0) > 0).map((d: any) => d.numero_oc)).size;
+    const maiorAtraso = Math.max(0, ...dados.map((d: any) => d.dias_atraso || 0));
+    const itensProduto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
+    const itensServico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
+    const totalLinhas = dados.length;
+    return {
+      total_ocs: uniqueOcs.size,
+      valor_bruto_total: valorBruto,
+      valor_liquido_total: valorLiquido,
+      valor_desconto_total: valorDesconto,
+      total_fornecedores: uniqueFornecedores.size,
+      valor_pendente_total: valorPendente,
+      itens_pendentes: itensPendentes,
+      itens_atrasados: itensAtrasados,
+      ocs_atrasadas: ocsAtrasadas,
+      maior_atraso_dias: maiorAtraso,
+      ticket_medio_item: totalLinhas > 0 ? valorLiquido / totalLinhas : 0,
+      impostos_totais: dados.reduce((s: number, d: any) => s + (d.impostos || 0), 0),
+      total_linhas: totalLinhas,
+      itens_produto: itensProduto,
+      itens_servico: itensServico,
+    };
+  }, [data]);
 
   return (
     <div className="space-y-4 p-4">
@@ -176,38 +211,38 @@ export default function PainelComprasPage() {
         </div>
       </FilterPanel>
 
-      {data && resumo && (
+      {data && kpis && (
         <>
           <div>
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores Financeiros</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={0} title="Total OCs" value={resumo.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={graficos?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
-              <KPICard index={1} title="Valor Bruto" value={formatCurrency(resumo.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" />
-              <KPICard index={2} title="Desconto Total" value={formatCurrency(resumo.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" />
-              <KPICard index={3} title="Valor Líquido" value={formatCurrency(resumo.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(resumo.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(resumo.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(resumo.valor_liquido_total) }]} />
-              <KPICard index={4} title="Impostos Totais" value={formatCurrency(resumo.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} tooltip="Soma de IPI, ICMS, ISS e outros impostos" />
-              <KPICard index={5} title="Fornecedores" value={resumo.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de fornecedores distintos" />
+              <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={graficos?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
+              <KPICard index={1} title="Valor Bruto" value={formatCurrency(kpis.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" />
+              <KPICard index={2} title="Desconto Total" value={formatCurrency(kpis.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" />
+              <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(kpis.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(kpis.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(kpis.valor_liquido_total) }]} />
+              <KPICard index={4} title="Impostos Totais" value={formatCurrency(kpis.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} tooltip="Soma de IPI, ICMS, ISS e outros impostos" />
+              <KPICard index={5} title="Fornecedores" value={kpis.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de fornecedores distintos" />
             </div>
           </div>
 
           <div>
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores de Pendência</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={6} title="Valor Pendente" value={formatCurrency(resumo.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" />
-              <KPICard index={7} title="Itens Pendentes" value={resumo.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" />
-              <KPICard index={8} title="Itens Atrasados" value={resumo.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" />
-              <KPICard index={9} title="OCs Atrasadas" value={resumo.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" />
-              <KPICard index={10} title="Maior Atraso" value={`${resumo.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" />
-              <KPICard index={11} title="Ticket Médio/Item" value={formatCurrency(resumo.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
+              <KPICard index={6} title="Valor Pendente" value={formatCurrency(kpis.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" />
+              <KPICard index={7} title="Itens Pendentes" value={kpis.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" />
+              <KPICard index={8} title="Itens Atrasados" value={kpis.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" />
+              <KPICard index={9} title="OCs Atrasadas" value={kpis.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" />
+              <KPICard index={10} title="Maior Atraso" value={`${kpis.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" />
+              <KPICard index={11} title="Ticket Médio/Item" value={formatCurrency(kpis.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
             </div>
           </div>
 
           <div>
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contagem de Itens</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={12} title="Total Linhas" value={resumo.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" />
-              <KPICard index={13} title="Itens Produto" value={resumo.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={resumo.total_linhas ? [{ label: 'Produtos', value: `${resumo.itens_produto ?? 0} (${((resumo.itens_produto ?? 0) / resumo.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${resumo.itens_servico ?? 0} (${((resumo.itens_servico ?? 0) / resumo.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
-              <KPICard index={14} title="Itens Serviço" value={resumo.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" />
+              <KPICard index={12} title="Total Linhas" value={kpis.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" />
+              <KPICard index={13} title="Itens Produto" value={kpis.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={kpis.total_linhas ? [{ label: 'Produtos', value: `${kpis.itens_produto ?? 0} (${((kpis.itens_produto ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${kpis.itens_servico ?? 0} (${((kpis.itens_servico ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
+              <KPICard index={14} title="Itens Serviço" value={kpis.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" />
             </div>
           </div>
         </>
