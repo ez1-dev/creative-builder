@@ -14,9 +14,9 @@ import { toast } from 'sonner';
 import { Package } from 'lucide-react';
 
 const columns: Column<any>[] = [
-  { key: 'codigo', header: 'Código' },
-  { key: 'descricao', header: 'Descrição' },
-  { key: 'familia', header: 'Família' },
+  { key: 'codigo', header: 'Código', sticky: true, stickyWidth: 100 },
+  { key: 'descricao', header: 'Descrição', sticky: true, stickyWidth: 200 },
+  { key: 'familia', header: 'Família', sticky: true, stickyWidth: 100 },
   { key: 'origem', header: 'Origem' },
   { key: 'tipo_descricao', header: 'Tipo' },
   { key: 'unidade_medida', header: 'Unidade' },

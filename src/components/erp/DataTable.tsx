@@ -10,6 +10,8 @@ export interface Column<T> {
   render?: (value: any, row: T) => React.ReactNode;
   className?: string;
   align?: 'left' | 'center' | 'right';
+  sticky?: boolean;
+  stickyWidth?: number;
 }
 
 interface DataTableProps<T> {
@@ -32,6 +34,22 @@ export function DataTable<T extends Record<string, any>>({
   enableSearch = true,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
+
+  const stickyOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let accum = 0;
+    columns.forEach((col, i) => {
+      offsets.push(accum);
+      if (col.sticky) accum += (col.stickyWidth || 120);
+    });
+    return offsets;
+  }, [columns]);
+
+  const lastStickyIndex = useMemo(() => {
+    let last = -1;
+    columns.forEach((col, i) => { if (col.sticky) last = i; });
+    return last;
+  }, [columns]);
 
   const filteredData = useMemo(() => {
     if (!searchTerm.trim()) return data;
@@ -79,16 +97,26 @@ export function DataTable<T extends Record<string, any>>({
         <Table>
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="table-header-bg hover:bg-transparent">
-              {columns.map((col) => (
-                <TableHead
-                  key={col.key}
-                  className={`whitespace-nowrap text-xs font-semibold text-[hsl(var(--table-header-foreground))] ${
-                    col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                  } ${col.className || ''}`}
-                >
-                  {col.header}
-                </TableHead>
-              ))}
+              {columns.map((col, colIndex) => {
+                const stickyStyle = col.sticky ? {
+                  position: 'sticky' as const,
+                  left: stickyOffsets[colIndex],
+                  zIndex: 30,
+                  minWidth: col.stickyWidth || 120,
+                } : {};
+                const isLastSticky = colIndex === lastStickyIndex;
+                return (
+                  <TableHead
+                    key={col.key}
+                    style={stickyStyle}
+                    className={`whitespace-nowrap text-xs font-semibold text-[hsl(var(--table-header-foreground))] ${
+                      col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                    } ${col.className || ''} ${col.sticky ? 'bg-[hsl(var(--table-header))]' : ''} ${isLastSticky ? 'shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]' : ''}`}
+                  >
+                    {col.header}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -101,16 +129,26 @@ export function DataTable<T extends Record<string, any>>({
             ) : (
               filteredData.map((row, rowIndex) => (
                 <TableRow key={rowIndex} className={`${rowClassName ? rowClassName(row, rowIndex) : (rowIndex % 2 === 0 ? '' : 'table-stripe-bg')} ${onRowClick ? 'cursor-pointer' : ''}`} onClick={() => onRowClick?.(row, rowIndex)}>
-                  {columns.map((col) => (
-                    <TableCell
-                      key={col.key}
-                      className={`whitespace-nowrap text-xs ${
-                        col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                      } ${col.className || ''}`}
-                    >
-                      {col.render ? col.render(row[col.key], row) : row[col.key] ?? '-'}
-                    </TableCell>
-                  ))}
+                  {columns.map((col, colIndex) => {
+                    const stickyStyle = col.sticky ? {
+                      position: 'sticky' as const,
+                      left: stickyOffsets[colIndex],
+                      zIndex: 20,
+                      minWidth: col.stickyWidth || 120,
+                    } : {};
+                    const isLastSticky = colIndex === lastStickyIndex;
+                    return (
+                      <TableCell
+                        key={col.key}
+                        style={stickyStyle}
+                        className={`whitespace-nowrap text-xs ${
+                          col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                        } ${col.className || ''} ${col.sticky ? 'bg-background' : ''} ${isLastSticky ? 'shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]' : ''}`}
+                      >
+                        {col.render ? col.render(row[col.key], row) : row[col.key] ?? '-'}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             )}
