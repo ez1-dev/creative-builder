@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, FolderTree, DollarSign, Receipt } from 'lucide-react';
+import { useAiFilters } from '@/hooks/useAiFilters';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código' },
@@ -57,6 +58,7 @@ export default function ComprasProdutoPage() {
     }
   }, [filters, erpReady]);
 
+  useAiFilters('compras-produto', setFilters, () => search(1));
   const kpis = useMemo(() => {
     if (!data) return null;
     const dados = data.dados || [];

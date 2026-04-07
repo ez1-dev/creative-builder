@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, Box, Hash } from 'lucide-react';
+import { useAiFilters } from '@/hooks/useAiFilters';
 
 const columns: Column<any>[] = [
   { key: 'codigo_componente', header: 'Cód. Componente' },
@@ -49,6 +50,7 @@ export default function OndeUsaPage() {
     }
   }, [filters, erpReady]);
 
+  useAiFilters('onde-usa', setFilters, () => search(1));
   const kpis = useMemo(() => {
     if (!data) return null;
     const dados = data.dados || [];

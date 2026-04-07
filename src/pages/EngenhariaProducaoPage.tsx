@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { formatNumber, formatDate, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
+import { useAiFilters } from '@/hooks/useAiFilters';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -83,6 +84,7 @@ export default function EngenhariaProducaoPage() {
     }
   }, [filters, erpReady]);
 
+  useAiFilters('engenharia-producao', setFilters, () => search(1));
   const clearFilters = () => setFilters({
     unidade_negocio: 'TODAS', numero_projeto: '', numero_desenho: '', revisao: '',
     numero_op: '', origem: '', familia: '', data_entrega_ini: '', data_entrega_fim: '',
