@@ -1,40 +1,39 @@
 
 
-# Aperfeiçoar busca rápida em todas as abas
+# Combobox com lista e digitação para Família, Origem e Depósito
 
-## Estado atual
-Todas as páginas usam o `DataTable` com busca simples: um campo de texto que filtra todas as colunas por substring. Funciona, mas é básico.
+## O que será feito
+Substituir os campos de texto simples dos filtros **Família**, **Origem** (e opcionalmente **Depósito**) por um componente **Combobox** — um campo que permite tanto digitar livremente quanto selecionar de uma lista suspensa com busca.
 
-## Exemplos de melhorias possíveis
+## Como funciona
+1. Ao abrir a página de Estoque, o sistema busca as listas de famílias e origens disponíveis na API ERP (endpoints como `/api/familias` e `/api/origens`).
+2. O usuário pode clicar no campo e ver a lista completa, ou começar a digitar para filtrar as opções.
+3. Se o valor digitado não existir na lista, ele é aceito mesmo assim (digitação livre).
 
-### 1. Busca por coluna específica
-Permitir filtrar por coluna individual clicando no cabeçalho ou com sintaxe tipo `codigo:ABC` no campo de busca.
+## Implementação
 
-### 2. Highlight nos resultados
-Destacar (amarelo) o texto encontrado nas células que correspondem à busca, facilitando localizar visualmente.
+### 1. Criar componente `ComboboxFilter`
+- Novo arquivo `src/components/erp/ComboboxFilter.tsx`
+- Usa os componentes `Popover` + `Command` (já existem no projeto) para montar um combobox com busca
+- Props: `value`, `onChange`, `options` (lista de `{value, label}`), `placeholder`, `loading`
+- Permite digitação livre: se o texto não bater com nenhuma opção, o valor digitado é usado diretamente
+- Estilo compacto (`h-8 text-xs`) para combinar com os outros filtros
 
-### 3. Botão limpar no campo de busca
-Adicionar um "X" dentro do input para limpar a busca rapidamente, em vez de apagar manualmente.
+### 2. Atualizar `EstoquePage.tsx`
+- Ao montar a página (ou quando `erpReady` mudar), buscar listas:
+  - `api.get('/api/familias')` → lista de famílias
+  - `api.get('/api/origens')` → lista de origens
+- Substituir os `<Input>` de Família e Origem pelo novo `<ComboboxFilter>`
+- Manter os demais filtros (Código, Descrição, Depósito) como `<Input>` simples
 
-### 4. Debounce na digitação
-Adicionar delay de 300ms antes de filtrar, evitando travamentos em tabelas com muitos registros.
+### 3. Aplicar nas outras páginas
+- **PainelComprasPage**, **EngenhariaProducaoPage** e demais páginas que têm filtros de Família/Origem receberão o mesmo tratamento, reutilizando o `ComboboxFilter`.
 
-### 5. Filtros por coluna no cabeçalho
-Adicionar mini-inputs ou dropdowns abaixo de cada cabeçalho de coluna, permitindo filtrar por valores específicos de cada campo simultaneamente.
+## Dependência da API
+Se os endpoints `/api/familias` e `/api/origens` não existirem na API ERP, existem duas alternativas:
+- Extrair os valores únicos dos dados já carregados na tabela (após a primeira pesquisa)
+- Criar os endpoints na API ERP
 
-### 6. Ordenação clicável nas colunas
-Clicar no cabeçalho ordena ASC/DESC, com indicador visual (seta).
-
-### 7. Atalho de teclado
-`Ctrl+F` ou `Ctrl+K` foca automaticamente no campo de busca.
-
-## Recomendação
-Implementar na seguinte ordem de impacto:
-1. **Highlight** nos resultados + **botão limpar** (rápido, alto impacto visual)
-2. **Ordenação** clicável nas colunas (muito útil para análise)
-3. **Debounce** (performance)
-4. **Filtros por coluna** (mais complexo, mas poderoso)
-
-## Técnico
-Todas as melhorias seriam no componente `DataTable.tsx`, beneficiando automaticamente todas as 9+ páginas que o utilizam: Estoque, Compras, BOM, Onde Usa, Notas Recebimento, Número Série, Conciliação, Engenharia, Auditoria.
+## Resultado
+O usuário verá um dropdown com busca nos campos Família e Origem, podendo selecionar da lista ou digitar livremente.
 
