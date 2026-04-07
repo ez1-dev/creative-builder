@@ -1,0 +1,1 @@
+ALTER TABLE public.access_profiles ADD COLUMN ai_enabled boolean NOT NULL DEFAULT false;
