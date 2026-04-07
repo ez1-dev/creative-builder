@@ -490,6 +490,26 @@ export default function ConfiguracoesPage() {
                     </TableBody>
                   </Table>
                 </div>
+
+                <div className="mt-6 border-t pt-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+                    <Sparkles className="h-4 w-4 text-primary" /> Assistente IA
+                  </h3>
+                  <div className="flex flex-wrap gap-4">
+                    {profiles.map(p => (
+                      <div key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                        <span className="text-sm">{p.name}</span>
+                        <Switch
+                          checked={p.ai_enabled}
+                          onCheckedChange={async (checked) => {
+                            await supabase.from('access_profiles').update({ ai_enabled: checked } as any).eq('id', p.id);
+                            fetchData();
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
