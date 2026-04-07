@@ -1,31 +1,30 @@
 
 
-# Permissão de Acesso ao Assistente IA
+# Corrigir Erro 422 no Assistente IA
 
-## Visão Geral
+## Causa raiz
 
-Adicionar uma coluna `ai_enabled` na tabela `access_profiles` (perfis de acesso) para que o administrador controle quais perfis têm acesso ao Assistente IA. O chat só aparece para usuários cujo perfil tenha essa permissão ativada.
+A edge function `ai-assistant` funciona quando chamada diretamente (testei e retornou 200 com resposta válida). O erro 422 ocorre quando o SDK do Supabase (`supabase.functions.invoke`) envia a requisição com o token JWT do usuário, e a camada de relay do Supabase rejeita o token antes de chegar na function.
+
+Isso acontece porque a plataforma Lovable Cloud deploya edge functions com `verify_jwt = false` por padrão, mas em alguns casos o deploy pode não ter aplicado essa configuração corretamente.
+
+## Solução
+
+Adicionar explicitamente a configuração `verify_jwt = false` no `supabase/config.toml` para a function `ai-assistant`, garantindo que o relay não bloqueie a requisição.
 
 ## Mudanças
 
-### 1. Migração de banco de dados
-- Adicionar coluna `ai_enabled boolean NOT NULL DEFAULT false` na tabela `access_profiles`
+### 1. `supabase/config.toml`
+Adicionar bloco de configuração para a function:
 
-### 2. Hook `useUserPermissions.ts`
-- Buscar o campo `ai_enabled` do perfil do usuário (via `user_access` → `access_profiles`)
-- Expor uma propriedade `canUseAi: boolean` no retorno do hook
+```toml
+[functions.ai-assistant]
+verify_jwt = false
+```
 
-### 3. `AiAssistantChat.tsx`
-- Consumir `useUserPermissions()` e verificar `canUseAi`
-- Se `false`, não renderizar o botão flutuante nem o chat
-
-### 4. `ConfiguracoesPage.tsx` — Aba "Permissões por Tela"
-- Adicionar uma linha extra "Assistente IA" na matriz de permissões (ou um Switch na aba de Perfis)
-- O admin marca/desmarca `ai_enabled` por perfil usando um toggle
+### 2. Re-deploy da edge function
+Forçar o re-deploy da function para aplicar a configuração.
 
 ## Arquivos afetados
-1. **Migração SQL** — `ALTER TABLE access_profiles ADD COLUMN ai_enabled boolean NOT NULL DEFAULT false`
-2. **`src/hooks/useUserPermissions.ts`** — buscar `ai_enabled` e expor `canUseAi`
-3. **`src/components/erp/AiAssistantChat.tsx`** — condicionar renderização a `canUseAi`
-4. **`src/pages/ConfiguracoesPage.tsx`** — adicionar toggle de IA na matriz de permissões
+- `supabase/config.toml`
 
