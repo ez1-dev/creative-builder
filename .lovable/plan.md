@@ -1,44 +1,43 @@
 
 
-# Logs de Erros na página de Configurações
+# Adicionar KPI Cards nos módulos que ainda não possuem
+
+## Situação atual
+Páginas **com** KPI cards: Engenharia x Produção, Painel de Compras, Auditoria Tributária, Conciliação EDocs, Notas Recebimento, Estrutura BOM.
+
+Páginas **sem** KPI cards: **Estoque**, **Onde Usa**, **Compras/Custos**.
+
+(Número de Série tem fluxo diferente — não se aplica.)
 
 ## O que será feito
-Criar uma nova aba **"Logs"** na página de Configurações que captura e exibe erros da aplicação (erros de API ERP, erros de autenticação, erros JS) em uma tabela, permitindo diagnóstico rápido.
+Adicionar KPI cards calculados a partir dos dados retornados (`data.dados`) em cada página, já que a API retorna `total_registros` na paginação e os dados numéricos podem ser agregados no frontend.
 
-## Como funciona
-1. Um serviço global intercepta erros (chamadas à API ERP que falham, erros não tratados do JS) e os armazena numa tabela no banco de dados.
-2. Na aba "Logs" em Configurações, o administrador vê a lista de erros recentes com data/hora, usuário, módulo/página, mensagem de erro e status HTTP.
-3. Filtros por data, módulo e nível (erro/aviso) ajudam a encontrar problemas rapidamente.
+### 1. Consulta de Estoques (`EstoquePage.tsx`)
+Cards calculados dos dados carregados:
+| Card | Valor | Variante |
+|------|-------|----------|
+| Total Registros | `data.total_registros` | default |
+| Itens na Página | `dados.length` | info |
+| Saldo Total | soma de `saldo` dos itens visíveis | success |
 
-## Implementação
+### 2. Consulta Onde Usa (`OndeUsaPage.tsx`)
+| Card | Valor | Variante |
+|------|-------|----------|
+| Total Registros | `data.total_registros` | default |
+| Modelos Distintos | contagem única de `codigo_modelo` | info |
+| Qtd. Utilizada Total | soma de `quantidade_utilizada` | success |
 
-### 1. Criar tabela `error_logs` no banco
-- Colunas: `id`, `created_at`, `user_email`, `module` (página/endpoint), `message`, `status_code`, `details` (JSON opcional)
-- RLS: somente admins podem ler; insert aberto para `authenticated` (para o próprio app gravar)
+### 3. Consulta Compras/Custos (`ComprasProdutoPage.tsx`)
+| Card | Valor | Variante |
+|------|-------|----------|
+| Total Registros | `data.total_registros` | default |
+| Famílias | contagem única de `familia` | info |
+| Preço Médio (média) | média de `preco_medio` | success |
+| Último Preço NF (média) | média de `preco_nf_ultima_compra` | warning |
 
-### 2. Criar serviço `src/lib/errorLogger.ts`
-- Função `logError({ module, message, statusCode, details })` que insere na tabela `error_logs`
-- Busca o email do usuário logado via Supabase auth
-
-### 3. Integrar no `api.ts`
-- No método `request()`, quando uma chamada falha (catch ou response não ok), chamar `logError()` automaticamente com endpoint, status e mensagem de erro
-- Isso captura todos os erros de comunicação com a API ERP sem alterar cada página
-
-### 4. Nova aba "Logs" em `ConfiguracoesPage.tsx`
-- Ícone `FileWarning` + label "Logs"
-- Tabela com colunas: Data/Hora, Usuário, Módulo, Status, Mensagem
-- Filtro por período (últimas 24h, 7 dias, 30 dias)
-- Botão "Limpar logs antigos" (deleta registros > 30 dias)
-- Paginação simples (últimos 100 registros por padrão)
-- Badge no tab mostrando quantidade de erros nas últimas 24h
-
-### 5. Capturar erros JS globais (opcional)
-- Listener `window.onerror` e `window.onunhandledrejection` em `main.tsx` para gravar erros inesperados do frontend
-
-## Arquivos afetados
-- **Nova migração SQL** — tabela `error_logs` + RLS
-- **Novo** `src/lib/errorLogger.ts`
-- **Editado** `src/lib/api.ts` — interceptar erros
-- **Editado** `src/pages/ConfiguracoesPage.tsx` — nova aba Logs
-- **Editado** `src/main.tsx` — listener de erros globais
+## Detalhes técnicos
+- Importar `KPICard` e funções de formatação em cada página
+- Calcular os agregados com `useMemo` sobre `data.dados`
+- Exibir os cards em um grid responsivo (`grid-cols-2 md:grid-cols-3 lg:grid-cols-4`) entre os filtros e a tabela, seguindo o padrão visual já usado nas outras páginas
+- Usar animação escalonada com prop `index` nos KPICards
 
