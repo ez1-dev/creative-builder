@@ -1,24 +1,36 @@
 
+# Corrigir fixação do cabeçalho das colunas Código, Descrição e Família
 
-# Fixar cabeçalho da tabela ao rolar verticalmente
+## Problema identificado
+Hoje a rolagem vertical está sendo controlada no `<thead>` (`sticky top-0`), enquanto a rolagem horizontal das colunas fixas está sendo controlada em cada `<th>` (`sticky left`). Essa combinação em elementos diferentes não é robusta, então o cabeçalho dessas colunas não fica realmente “preso” no cruzamento topo + esquerda.
 
-## Problema
-O componente `Table` (em `table.tsx`) envolve a `<table>` dentro de um `<div>` com `overflow-auto`. Isso cria **dois containers de scroll aninhados**: o `div.max-h-[60vh].overflow-auto` do DataTable e o div interno do Table. O `sticky top-0` no `<thead>` não funciona porque o scroll real acontece no div externo, mas o thead está preso ao div interno que não tem altura limitada.
+## Implementação
+1. **`src/components/erp/DataTable.tsx`**
+   - Remover o `sticky top-0` do `<TableHeader>`.
+   - Aplicar o comportamento de cabeçalho fixo diretamente em cada `<TableHead>`.
+   - Para colunas com `sticky: true`, aplicar no cabeçalho:
+     - `position: sticky`
+     - `top: 0`
+     - `left: <offset calculado>`
+     - `z-index` mais alto que o restante da tabela
+     - fundo opaco do cabeçalho
+   - Para colunas sticky no corpo, manter:
+     - `position: sticky`
+     - `left: <offset calculado>`
+     - fundo opaco
+   - Garantir largura consistente nas colunas sticky usando `width` + `minWidth` com `stickyWidth`, não só `minWidth`.
 
-## Solução
+2. **`src/pages/EstoquePage.tsx`**
+   - Manter `sticky: true` em:
+     - Código
+     - Descrição
+     - Família
+   - Revisar `stickyWidth` dessas 3 colunas para casar com a largura real desejada.
 
-### 1. `src/components/erp/DataTable.tsx`
-- Remover o wrapper `<div className="overflow-auto">` que o componente `Table` adiciona internamente, passando a table diretamente
-- Alternativa mais limpa: usar `<table>` diretamente no div com `max-h-[60vh] overflow-auto`, sem o componente `Table` (que adiciona o wrapper problemático)
-- Ou: mover o `overflow-auto max-h-[60vh]` para ser controlado pelo próprio DataTable sem o div intermediário do Table
-
-**Abordagem escolhida**: No DataTable, substituir `<Table>` por uma `<table>` direta dentro do div com scroll, eliminando o wrapper duplo. Manter `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell` normalmente (esses não adicionam wrappers extras).
-
-### 2. Resultado
-- O cabeçalho (Código, Descrição, Família, etc.) ficará fixo no topo ao rolar verticalmente
-- As colunas sticky continuarão funcionando horizontalmente
-- O cabeçalho de colunas sticky terá `z-index: 30` (acima do header normal com `z-index: 10`)
+## Resultado esperado
+- Ao rolar **verticalmente**, o cabeçalho continua visível no topo.
+- Ao rolar **horizontalmente**, os títulos **Código, Descrição e Família** continuam fixos à esquerda junto com suas células.
+- O “canto” da tabela (topo + esquerda) passa a funcionar corretamente.
 
 ## Detalhe técnico
-O `position: sticky` só funciona em relação ao **ancestor scroll container mais próximo**. Com dois divs `overflow-auto` aninhados, o sticky se ancora ao div interno (sem altura limitada), tornando-o ineficaz.
-
+A correção principal é concentrar o sticky do cabeçalho no próprio `<th>`, combinando `top` e `left` no mesmo elemento. Isso evita o conflito atual entre `<thead>` sticky e `<th>` sticky.
