@@ -6,6 +6,8 @@ import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
+import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
+import { useErpOptions } from '@/hooks/useErpOptions';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +50,7 @@ export default function AuditoriaTributariaPage() {
   const [pagina, setPagina] = useState(1);
 
   const erpReady = useErpReady();
+  const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -86,8 +89,8 @@ export default function AuditoriaTributariaPage() {
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Código</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Descrição</Label><Input value={filters.despro} onChange={(e) => setFilters(f => ({ ...f, despro: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Família</Label><Input value={filters.codfam} onChange={(e) => setFilters(f => ({ ...f, codfam: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Origem</Label><Input value={filters.codori} onChange={(e) => setFilters(f => ({ ...f, codori: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.codfam} onChange={(v) => setFilters(f => ({ ...f, codfam: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
+        <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
         <div><Label className="text-xs">NCM</Label><Input value={filters.ncm} onChange={(e) => setFilters(f => ({ ...f, ncm: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Sit. Tributária</Label><Input value={filters.codstr} onChange={(e) => setFilters(f => ({ ...f, codstr: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">CST</Label><Input value={filters.cst} onChange={(e) => setFilters(f => ({ ...f, cst: e.target.value }))} className="h-8 text-xs" /></div>

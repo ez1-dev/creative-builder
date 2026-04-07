@@ -6,6 +6,8 @@ import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
+import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
+import { useErpOptions } from '@/hooks/useErpOptions';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -65,6 +67,7 @@ export default function EngenhariaProducaoPage() {
   const [pagina, setPagina] = useState(1);
 
   const erpReady = useErpReady();
+  const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -112,8 +115,8 @@ export default function EngenhariaProducaoPage() {
         <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">OP</Label><Input value={filters.numero_op} onChange={(e) => setFilters(f => ({ ...f, numero_op: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Origem</Label><Input value={filters.origem} onChange={(e) => setFilters(f => ({ ...f, origem: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Família</Label><Input value={filters.familia} onChange={(e) => setFilters(f => ({ ...f, familia: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem} onChange={(v) => setFilters(f => ({ ...f, origem: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
+        <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.familia} onChange={(v) => setFilters(f => ({ ...f, familia: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Entrega de</Label><Input type="date" value={filters.data_entrega_ini} onChange={(e) => setFilters(f => ({ ...f, data_entrega_ini: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Entrega até</Label><Input type="date" value={filters.data_entrega_fim} onChange={(e) => setFilters(f => ({ ...f, data_entrega_fim: e.target.value }))} className="h-8 text-xs" /></div>
         <div>
