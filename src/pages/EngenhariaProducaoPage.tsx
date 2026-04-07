@@ -67,7 +67,7 @@ export default function EngenhariaProducaoPage() {
   const [pagina, setPagina] = useState(1);
 
   const erpReady = useErpReady();
-  const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady);
+  const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
