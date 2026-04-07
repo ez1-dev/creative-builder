@@ -1,100 +1,36 @@
 
 
-# Assistente IA com Chat em Linguagem Natural para o ERP
+# Corrigir "Failed to fetch" no Assistente IA
 
-## Visão Geral
+## Causa raiz
 
-Criar um chat flutuante acessível de qualquer página que permite ao usuário fazer perguntas como "quais produtos da família 001 têm estoque?" e a IA traduz isso em filtros, navega para a página correta e executa a consulta automaticamente.
+O Preview do Lovable tem um proxy de fetch que intercepta requisições POST e pode quebrá-las, especialmente com streaming SSE. Isso é um problema conhecido da plataforma de preview.
 
-## Arquitetura
-
-```text
-┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
-│  Chat Widget │────▶│ Edge Function    │────▶│ Lovable AI   │
-│  (flutuante) │◀────│ /ai-assistant    │◀────│ Gateway      │
-└─────────────┘     └──────────────────┘     └──────────────┘
-       │
-       ▼
-  Aplica filtros na página correta e executa busca
+A URL atual usa `VITE_SUPABASE_URL` diretamente:
+```
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 ```
 
-## Implementação
+## Solução
 
-### 1. Edge Function `supabase/functions/ai-assistant/index.ts`
+Trocar o `fetch()` direto pelo `supabase.functions.invoke()` do SDK, que lida corretamente com o proxy do Preview. Como o SDK não suporta streaming nativamente com `invoke()`, vamos usar `invoke()` sem streaming (removendo `stream: true` da edge function quando chamada sem streaming header) **ou** manter streaming mas construir a URL usando `VITE_SUPABASE_PROJECT_ID` em vez de `VITE_SUPABASE_URL`.
 
-- Recebe a mensagem do usuário + contexto dos módulos disponíveis
-- Chama Lovable AI Gateway (`google/gemini-3-flash-preview`) com tool calling
-- Define uma tool `apply_erp_filters` com schema estruturado:
-  - `module`: qual página navegar (estoque, painel-compras, onde-usa, etc.)
-  - `filters`: objeto com os filtros específicos do módulo (codpro, despro, codfam, fornecedor, etc.)
-  - `explanation`: texto explicando o que está fazendo
-- Retorna a resposta da IA (texto + ação estruturada quando aplicável)
-- Trata erros 429/402 com mensagens claras
+A abordagem mais robusta: usar `supabase.functions.invoke()` sem streaming e processar a resposta completa de uma vez.
 
-### 2. Componente `src/components/erp/AiAssistantChat.tsx`
+## Mudanças
 
-- Botão flutuante no canto inferior direito (ícone de chat com IA)
-- Ao clicar, abre um painel de chat com:
-  - Histórico de mensagens (user/assistant) com markdown rendering via `react-markdown`
-  - Input de texto na parte inferior
-  - Streaming de resposta token a token
-- Quando a IA retorna uma ação `apply_erp_filters`:
-  - Navega para a rota do módulo indicado (`useNavigate`)
-  - Dispara um evento customizado `erp:apply-filters` com os filtros
-  - Mostra ao usuário: "Aplicando filtros em Consulta de Estoque..."
+### 1. `supabase/functions/ai-assistant/index.ts`
+- Detectar se o cliente quer streaming via header `Accept: text/event-stream`
+- Se não, retornar a resposta JSON completa (sem `stream: true` no body para o AI Gateway)
+- Manter streaming como opção para uso futuro
 
-### 3. Hook `src/hooks/useAiFilters.ts`
+### 2. `src/components/erp/AiAssistantChat.tsx`
+- Substituir `fetch()` por `supabase.functions.invoke('ai-assistant', { body: ... })`
+- Processar a resposta JSON completa em vez de streaming SSE
+- Importar o cliente Supabase de `@/integrations/supabase/client`
+- A resposta virá com o texto completo e possíveis tool calls de uma vez
 
-- Escuta o evento `erp:apply-filters` via `window.addEventListener`
-- Cada página (Estoque, Painel Compras, etc.) usa este hook
-- Quando recebe filtros, atualiza o state de filtros e dispara a busca automaticamente
-
-### 4. Integração nas páginas existentes
-
-- Adicionar `useAiFilters` em cada página que suporta filtros (EstoquePage, PainelComprasPage, OndeUsaPage, ComprasProdutoPage, etc.)
-- O hook recebe o setter de filtros e a função de busca como parâmetros
-
-### 5. Componente no layout — `src/components/AppLayout.tsx`
-
-- Adicionar `<AiAssistantChat />` dentro do layout para estar disponível em todas as páginas
-
-## Módulos suportados e seus filtros
-
-O system prompt da IA incluirá o mapeamento:
-
-| Módulo | Rota | Filtros disponíveis |
-|--------|------|-------------------|
-| Estoque | /estoque | codpro, despro, codfam, codori, coddep, somente_com_estoque |
-| Onde Usa | /onde-usa | codpro, despro |
-| Painel Compras | /painel-compras | codigo_item, descricao_item, fornecedor, numero_oc, situacao, tipo, familia, origem, data_inicio, data_fim |
-| Compras/Custos | /compras-produto | codpro, despro |
-| Eng. x Produção | /engenharia-producao | projeto, descricao |
-
-## Exemplos de interação
-
-- **Usuário**: "Quais itens da família 001 têm estoque?"
-  → IA navega para /estoque, aplica codfam=001, somente_com_estoque=true, executa busca
-
-- **Usuário**: "Mostre as OCs atrasadas do fornecedor ABC"
-  → IA navega para /painel-compras, aplica fornecedor=ABC, somente_atrasados=true, executa busca
-
-- **Usuário**: "Qual o saldo do produto 12345?"
-  → IA navega para /estoque, aplica codpro=12345, executa busca
-
-## Arquivos a criar/editar
-
-1. **Criar** `supabase/functions/ai-assistant/index.ts` — edge function com tool calling
-2. **Criar** `src/components/erp/AiAssistantChat.tsx` — widget de chat flutuante com streaming
-3. **Criar** `src/hooks/useAiFilters.ts` — hook para receber filtros da IA
-4. **Editar** `src/components/AppLayout.tsx` — adicionar o chat widget
-5. **Editar** páginas de consulta (EstoquePage, PainelComprasPage, OndeUsaPage, ComprasProdutoPage, EngenhariaProducaoPage) — integrar useAiFilters
-6. **Instalar** `react-markdown` para renderizar respostas da IA
-
-## Detalhes técnicos
-
-- Modelo: `google/gemini-3-flash-preview` (rápido, sem custo de API key)
-- Autenticação: LOVABLE_API_KEY já disponível nos secrets
-- Streaming SSE para resposta em tempo real
-- Tool calling para extrair filtros estruturados da resposta
-- Evento customizado do DOM para comunicação cross-componente sem prop drilling
+## Arquivos afetados
+- `supabase/functions/ai-assistant/index.ts`
+- `src/components/erp/AiAssistantChat.tsx`
 
