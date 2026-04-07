@@ -35,17 +35,17 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
 
   const cardContent = (
     <Card className={cn('transition-shadow hover:shadow-md', variantClasses[variant], hasDetails && 'cursor-pointer')}>
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
-              {tooltip && <Info className="h-3 w-3 text-muted-foreground/50" />}
+              <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">{title}</p>
+              {tooltip && <Info className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
             </div>
-            <p className="text-xl font-bold text-foreground">{value}</p>
-            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+            <p className="text-lg sm:text-xl font-bold text-foreground truncate">{value}</p>
+            {subtitle && <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{subtitle}</p>}
           </div>
-          {icon && <div className="text-muted-foreground">{icon}</div>}
+          {icon && <div className="text-muted-foreground shrink-0 [&>svg]:h-4 [&>svg]:w-4 sm:[&>svg]:h-5 sm:[&>svg]:w-5">{icon}</div>}
         </div>
       </CardContent>
     </Card>
