@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
@@ -34,6 +35,7 @@ interface AccessProfile {
   name: string;
   description: string | null;
   created_at: string;
+  ai_enabled: boolean;
 }
 
 interface ProfileScreen {
@@ -446,48 +448,70 @@ export default function ConfiguracoesPage() {
               {profiles.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">Crie um perfil primeiro na aba "Perfis de Acesso"</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[160px]">Tela</TableHead>
-                        {profiles.map(p => (
-                          <TableHead key={p.id} className="text-center min-w-[120px]">
-                            <div className="text-xs">{p.name}</div>
-                            <div className="flex justify-center gap-3 text-[10px] text-muted-foreground mt-1">
-                              <span>Ver</span><span>Editar</span>
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ALL_SCREENS.map(screen => (
-                        <TableRow key={screen.path}>
-                          <TableCell className="font-medium text-sm">{screen.name}</TableCell>
-                          {profiles.map(p => {
-                            const perm = getScreenPerm(p.id, screen.path);
-                            return (
-                              <TableCell key={p.id} className="text-center">
-                                <div className="flex justify-center gap-3">
-                                  <Checkbox
-                                    checked={perm?.can_view || false}
-                                    onCheckedChange={() => toggleScreen(p.id, screen.path, screen.name, 'can_view')}
-                                  />
-                                  <Checkbox
-                                    checked={perm?.can_edit || false}
-                                    onCheckedChange={() => toggleScreen(p.id, screen.path, screen.name, 'can_edit')}
-                                    disabled={!perm?.can_view}
-                                  />
-                                </div>
-                              </TableCell>
-                            );
-                          })}
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[160px]">Tela</TableHead>
+                          {profiles.map(p => (
+                            <TableHead key={p.id} className="text-center min-w-[120px]">
+                              <div className="text-xs">{p.name}</div>
+                              <div className="flex justify-center gap-3 text-[10px] text-muted-foreground mt-1">
+                                <span>Ver</span><span>Editar</span>
+                              </div>
+                            </TableHead>
+                          ))}
                         </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {ALL_SCREENS.map(screen => (
+                          <TableRow key={screen.path}>
+                            <TableCell className="font-medium text-sm">{screen.name}</TableCell>
+                            {profiles.map(p => {
+                              const perm = getScreenPerm(p.id, screen.path);
+                              return (
+                                <TableCell key={p.id} className="text-center">
+                                  <div className="flex justify-center gap-3">
+                                    <Checkbox
+                                      checked={perm?.can_view || false}
+                                      onCheckedChange={() => toggleScreen(p.id, screen.path, screen.name, 'can_view')}
+                                    />
+                                    <Checkbox
+                                      checked={perm?.can_edit || false}
+                                      onCheckedChange={() => toggleScreen(p.id, screen.path, screen.name, 'can_edit')}
+                                      disabled={!perm?.can_view}
+                                    />
+                                  </div>
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="mt-6 border-t pt-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
+                      <Sparkles className="h-4 w-4 text-primary" /> Assistente IA
+                    </h3>
+                    <div className="flex flex-wrap gap-4">
+                      {profiles.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                          <span className="text-sm">{p.name}</span>
+                          <Switch
+                            checked={p.ai_enabled}
+                            onCheckedChange={async (checked) => {
+                              await supabase.from('access_profiles').update({ ai_enabled: checked } as any).eq('id', p.id);
+                              fetchData();
+                            }}
+                          />
+                        </div>
                       ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

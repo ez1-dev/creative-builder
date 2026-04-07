@@ -12,11 +12,13 @@ interface ScreenPermission {
 export function useUserPermissions() {
   const { erpUser } = useAuth();
   const [permissions, setPermissions] = useState<ScreenPermission[]>([]);
+  const [canUseAi, setCanUseAi] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!erpUser) {
       setPermissions([]);
+      setCanUseAi(false);
       setLoading(false);
       return;
     }
@@ -31,16 +33,25 @@ export function useUserPermissions() {
 
       if (!access) {
         setPermissions([]);
+        setCanUseAi(false);
         setLoading(false);
         return;
       }
 
-      const { data: screens } = await supabase
-        .from('profile_screens')
-        .select('screen_path, screen_name, can_view, can_edit')
-        .eq('profile_id', access.profile_id);
+      const [{ data: screens }, { data: profile }] = await Promise.all([
+        supabase
+          .from('profile_screens')
+          .select('screen_path, screen_name, can_view, can_edit')
+          .eq('profile_id', access.profile_id),
+        supabase
+          .from('access_profiles')
+          .select('ai_enabled')
+          .eq('id', access.profile_id)
+          .maybeSingle(),
+      ]);
 
       setPermissions(screens ?? []);
+      setCanUseAi(profile?.ai_enabled ?? false);
       setLoading(false);
     };
 
@@ -59,5 +70,5 @@ export function useUserPermissions() {
 
   const hasPermissions = permissions.length > 0;
 
-  return { permissions, loading, canView, canEdit, hasPermissions };
+  return { permissions, loading, canView, canEdit, canUseAi, hasPermissions };
 }

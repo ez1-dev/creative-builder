@@ -8,6 +8,7 @@ import { dispatchAiFilters } from '@/hooks/useAiFilters';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -20,6 +21,7 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 export function AiAssistantChat() {
+  const { canUseAi } = useUserPermissions();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -84,7 +86,6 @@ export function AiAssistantChat() {
       const msg = choice.message;
       let assistantText = msg?.content || '';
 
-      // Handle tool calls
       if (msg?.tool_calls?.length) {
         for (const tc of msg.tool_calls) {
           if (tc.function?.name) {
@@ -117,6 +118,8 @@ export function AiAssistantChat() {
       setIsLoading(false);
     }
   }, [input, messages, isLoading, handleToolCall]);
+
+  if (!canUseAi) return null;
 
   return (
     <>

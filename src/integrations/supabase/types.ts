@@ -16,18 +16,21 @@ export type Database = {
     Tables: {
       access_profiles: {
         Row: {
+          ai_enabled: boolean
           created_at: string
           description: string | null
           id: string
           name: string
         }
         Insert: {
+          ai_enabled?: boolean
           created_at?: string
           description?: string | null
           id?: string
           name: string
         }
         Update: {
+          ai_enabled?: boolean
           created_at?: string
           description?: string | null
           id?: string
