@@ -30,8 +30,6 @@ export function AiAssistantChat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
-  if (!canUseAi) return null;
-
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
@@ -41,6 +39,8 @@ export function AiAssistantChat() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  if (!canUseAi) return null;
 
   const handleToolCall = useCallback(
     (name: string, args: any) => {
