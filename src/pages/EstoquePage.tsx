@@ -78,7 +78,7 @@ export default function EstoquePage() {
         </div>
       </FilterPanel>
       {kpis && (
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <KPICard title="Total Registros" value={formatNumber(kpis.totalRegistros, 0)} icon={<Database className="h-5 w-5" />} variant="default" index={0} tooltip="Total de registros encontrados na consulta" />
           <KPICard title="Itens na Página" value={formatNumber(kpis.itensPagina, 0)} icon={<Layers className="h-5 w-5" />} variant="info" index={1} tooltip="Quantidade de itens exibidos na página atual" />
           <KPICard title="Saldo Total" value={formatNumber(kpis.saldoTotal, 4)} icon={<Package className="h-5 w-5" />} variant="success" index={2} tooltip="Soma do saldo dos itens visíveis na página" />

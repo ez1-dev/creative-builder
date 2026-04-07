@@ -1,28 +1,34 @@
 
 
-# Tornar KPIs responsivos em todas as páginas
+# Corrigir exibição de localização no cabeçalho
 
 ## Problema
-Os KPIs usam `grid-cols-2 md:grid-cols-4 lg:grid-cols-6` em telas grandes, mas em telas pequenas (mobile) os cards ficam apertados com 2 colunas, e o texto dos valores pode truncar. O componente `KPICard` também tem tamanho de fonte fixo que não se adapta bem.
+O fuso `America/Sao_Paulo` cobre SP, SC, PR, RS, MG, RJ, ES, GO, DF e outros estados. Por isso, quem está em Campos Novos (SC) vê "São Paulo, BR".
 
-## Mudanças
+## Opções
 
-### 1. `src/components/erp/KPICard.tsx`
-- Tornar o texto do valor responsivo: `text-lg sm:text-xl` em vez de `text-xl` fixo
-- Reduzir padding em mobile: `p-3 sm:p-4`
-- Ícone menor em mobile: `h-4 w-4 sm:h-5 sm:w-5`
-- Garantir que textos longos (valores monetários) usem `truncate` para não quebrar layout
+### Opção A — Usar Geolocalização real (API do navegador)
+- Chamar `navigator.geolocation.getCurrentPosition()` para obter lat/lon
+- Usar uma API gratuita de geocoding reverso (ex: BigDataCloud, que não precisa de chave) para converter em cidade/estado
+- **Prós**: mostra a cidade correta (ex: "Campos Novos, SC")
+- **Contras**: pede permissão ao usuário; pode ser negada; depende de API externa
 
-### 2. `src/pages/PainelComprasPage.tsx`
-- Ajustar o grid das 3 seções de KPIs para melhor responsividade:
-  - `grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6`
-  - Isso garante 1 coluna em mobile estreito, 2 em mobile normal, 3 em tablet, 4 em laptop, 6 em desktop
+### Opção B — Remover localização ou mostrar apenas o fuso
+- Trocar "São Paulo, BR" por "Fuso: BRT (UTC−3)" ou simplesmente remover o campo
+- **Prós**: sem dependência externa, sem permissão
+- **Contras**: menos informativo
 
-### 3. Outras páginas com KPIs (OndeUsaPage, EstoquePage, etc.)
-- Aplicar o mesmo padrão de grid responsivo para consistência
+## Recomendação
+**Opção A** com fallback: tentar geolocalização → se negada ou falhar, mostrar o fuso horário como fallback.
 
-## Arquivos afetados
-- `src/components/erp/KPICard.tsx` — tipografia e padding responsivos
-- `src/pages/PainelComprasPage.tsx` — grid breakpoints
-- Demais páginas com KPIs — mesma correção de grid
+## Implementação — `src/components/HeaderInfo.tsx`
+
+1. No `useEffect`, chamar `navigator.geolocation.getCurrentPosition`
+2. Com as coordenadas, fazer fetch para `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=X&longitude=Y&localityLanguage=pt`
+3. Extrair `city` e `principalSubdivisionCode` da resposta (ex: "Campos Novos, SC")
+4. Armazenar no state `location`; se falhar, manter o fallback atual baseado no fuso horário
+5. Adicionar estado de loading para evitar flash de "São Paulo" antes da resposta real
+
+### Arquivo afetado
+- `src/components/HeaderInfo.tsx`
 

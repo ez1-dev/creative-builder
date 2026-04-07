@@ -71,7 +71,7 @@ export default function OndeUsaPage() {
         <div><Label className="text-xs">Cód. Modelo</Label><Input value={filters.codmod} onChange={(e) => setFilters(f => ({ ...f, codmod: e.target.value }))} placeholder="Código modelo" className="h-8 text-xs" /></div>
       </FilterPanel>
       {kpis && (
-        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <KPICard title="Total Registros" value={formatNumber(kpis.totalRegistros, 0)} icon={<Database className="h-5 w-5" />} variant="default" index={0} tooltip="Total de registros encontrados" />
           <KPICard title="Modelos Distintos" value={formatNumber(kpis.modelosDistintos, 0)} icon={<Box className="h-5 w-5" />} variant="info" index={1} tooltip="Quantidade de modelos únicos na página" />
           <KPICard title="Qtd. Utilizada Total" value={formatNumber(kpis.qtdTotal, 4)} icon={<Hash className="h-5 w-5" />} variant="success" index={2} tooltip="Soma da quantidade utilizada dos itens visíveis" />
