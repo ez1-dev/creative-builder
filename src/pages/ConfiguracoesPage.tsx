@@ -78,6 +78,12 @@ export default function ConfiguracoesPage() {
   const [apiPass, setApiPass] = useState('');
   const [apiCredentialsLoading, setApiCredentialsLoading] = useState(true);
 
+  // Logs states
+  const [errorLogs, setErrorLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsPeriod, setLogsPeriod] = useState('7d');
+  const [logsCount24h, setLogsCount24h] = useState(0);
+
   // Carregar credenciais do banco
   useEffect(() => {
     const loadCredentials = async () => {
