@@ -367,7 +367,7 @@ export default function ConfiguracoesPage() {
             <FileWarning className="h-4 w-4" /> Logs
             {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
           </TabsTrigger>
-
+        </TabsList>
         {/* === PERFIS === */}
         <TabsContent value="profiles">
           <Card>
