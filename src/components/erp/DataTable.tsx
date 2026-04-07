@@ -95,23 +95,28 @@ export function DataTable<T extends Record<string, any>>({
       )}
       <div className="rounded-md border overflow-auto max-h-[60vh]">
         <table className="w-full caption-bottom text-sm">
-          <TableHeader className="sticky top-0 z-10">
+          <TableHeader>
             <TableRow className="table-header-bg hover:bg-transparent">
               {columns.map((col, colIndex) => {
-                const stickyStyle = col.sticky ? {
-                  position: 'sticky' as const,
-                  left: stickyOffsets[colIndex],
-                  zIndex: 30,
-                  minWidth: col.stickyWidth || 120,
-                } : {};
+                const isSticky = col.sticky;
                 const isLastSticky = colIndex === lastStickyIndex;
+                const headerStyle: React.CSSProperties = {
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: isSticky ? 40 : 20,
+                  ...(isSticky ? {
+                    left: stickyOffsets[colIndex],
+                    width: col.stickyWidth || 120,
+                    minWidth: col.stickyWidth || 120,
+                  } : {}),
+                };
                 return (
                   <TableHead
                     key={col.key}
-                    style={stickyStyle}
-                    className={`whitespace-nowrap text-xs font-semibold text-[hsl(var(--table-header-foreground))] ${
+                    style={headerStyle}
+                    className={`whitespace-nowrap text-xs font-semibold text-[hsl(var(--table-header-foreground))] bg-[hsl(var(--table-header))] ${
                       col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                    } ${col.className || ''} ${col.sticky ? 'bg-[hsl(var(--table-header))]' : ''} ${isLastSticky ? 'shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]' : ''}`}
+                    } ${col.className || ''} ${isLastSticky ? 'shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]' : ''}`}
                   >
                     {col.header}
                   </TableHead>
