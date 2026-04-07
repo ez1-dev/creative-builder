@@ -776,7 +776,79 @@ export default function ConfiguracoesPage() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
+
+        {/* === LOGS === */}
+        <TabsContent value="logs">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-base">Logs de Erros</CardTitle>
+              <div className="flex items-center gap-2">
+                <Select value={logsPeriod} onValueChange={setLogsPeriod}>
+                  <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="24h">Últimas 24h</SelectItem>
+                    <SelectItem value="7d">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30d">Últimos 30 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={fetchLogs} disabled={logsLoading}>
+                  Atualizar
+                </Button>
+                <Button variant="destructive" size="sm" onClick={handleClearOldLogs}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Limpar antigos
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {logsLoading ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">Carregando logs...</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[150px]">Data/Hora</TableHead>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Módulo</TableHead>
+                      <TableHead className="w-[80px] text-center">Status</TableHead>
+                      <TableHead>Mensagem</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {errorLogs.map((log: any) => (
+                      <TableRow key={log.id}>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(log.created_at).toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-xs">{log.user_email || '—'}</TableCell>
+                        <TableCell className="text-xs font-mono">{log.module}</TableCell>
+                        <TableCell className="text-center">
+                          {log.status_code ? (
+                            <Badge variant={log.status_code >= 500 ? 'destructive' : 'secondary'} className="text-[10px]">
+                              {log.status_code}
+                            </Badge>
+                          ) : '—'}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[300px] truncate" title={log.message}>
+                          {log.message}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {errorLogs.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          Nenhum erro registrado no período
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+              <p className="text-xs text-muted-foreground mt-3">
+                Exibindo {errorLogs.length} registro(s) · Erros nas últimas 24h: {logsCount24h}
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
     </div>
   );
 }
