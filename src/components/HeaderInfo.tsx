@@ -18,7 +18,7 @@ const timezoneMap: Record<string, string> = {
   'America/Maceio': 'Maceió, BR',
 };
 
-function getLocationLabel(): string {
+function getTimezoneFallback(): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (timezoneMap[tz]) return timezoneMap[tz];
   const parts = tz.split('/');
@@ -27,12 +27,51 @@ function getLocationLabel(): string {
 
 export function HeaderInfo() {
   const [now, setNow] = useState(() => new Date());
-  const location = useMemo(getLocationLabel, []);
+  const [location, setLocation] = useState<string | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+  const timezoneFallback = useMemo(getTimezoneFallback, []);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setLocation(timezoneFallback);
+      setLocationLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=pt`
+          );
+          if (!res.ok) throw new Error('geocode failed');
+          const json = await res.json();
+          const city = json.city || json.locality || '';
+          const state = json.principalSubdivisionCode?.replace('BR-', '') || '';
+          if (city) {
+            setLocation(state ? `${city}, ${state}` : city);
+          } else {
+            setLocation(timezoneFallback);
+          }
+        } catch {
+          setLocation(timezoneFallback);
+        } finally {
+          setLocationLoading(false);
+        }
+      },
+      () => {
+        setLocation(timezoneFallback);
+        setLocationLoading(false);
+      },
+      { timeout: 5000, maximumAge: 600_000 }
+    );
+  }, [timezoneFallback]);
 
   const dateStr = now.toLocaleDateString('pt-BR', {
     weekday: 'short',
@@ -46,6 +85,8 @@ export function HeaderInfo() {
     minute: '2-digit',
   });
 
+  const displayLocation = location || timezoneFallback;
+
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground">
       <span className="flex items-center gap-1">
@@ -58,7 +99,7 @@ export function HeaderInfo() {
       </span>
       <span className="hidden sm:flex items-center gap-1">
         <MapPin className="h-3 w-3" />
-        {location}
+        {locationLoading ? '…' : displayLocation}
       </span>
     </div>
   );
