@@ -849,6 +849,7 @@ export default function ConfiguracoesPage() {
             </CardContent>
           </Card>
         </TabsContent>
+      </Tabs>
     </div>
   );
 }
