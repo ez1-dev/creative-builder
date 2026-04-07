@@ -13,7 +13,6 @@ import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, Box, Hash } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
-import { useAiFilters } from '@/hooks/useAiFilters';
 
 const columns: Column<any>[] = [
   { key: 'codigo_componente', header: 'Cód. Componente' },
