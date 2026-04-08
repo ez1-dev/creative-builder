@@ -69,7 +69,7 @@ export default function EstoquePage() {
         description="Consulte saldos em estoque por produto, família, origem e depósito"
         actions={<ExportButton endpoint="/api/export/estoque" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={() => setFilters({ codpro: '', despro: '', codfam: '', codori: '', coddep: '', somente_com_estoque: true })}>
+      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', codfam: '', codori: '', coddep: '', somente_com_estoque: true }); setData(null); setPagina(1); }}>
         <div><Label className="text-xs">Código</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Código do produto" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Descrição</Label><Input value={filters.despro} onChange={(e) => setFilters(f => ({ ...f, despro: e.target.value }))} placeholder="Descrição" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.codfam} onChange={(v) => setFilters(f => ({ ...f, codfam: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
