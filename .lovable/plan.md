@@ -1,42 +1,42 @@
 
 
-# Ajustes no Painel de Compras
+# Gráficos calculados localmente no Painel de Compras
 
-## Visão Geral
-
-Quatro ajustes no `PainelComprasPage.tsx`:
-
-1. **Checkbox "Mostrar valor total da OC"** — adicionar filtro toggle que envia `mostrar_valor_total_oc: true` para a API
-2. **Coluna "Valor Total OC" na lista detalhada** — exibir `valor_total_oc` (vinda da API) na tabela analítica, visível somente quando o toggle estiver ativo
-3. **Coluna "Valor Total OCs" na visão agrupada por fornecedor** — quando `agrupar_por_fornecedor` estiver ativo, exibir coluna com soma do valor total das OCs
-4. **Situação 4 (Liquidado) desliga "Somente pendentes"** — ao selecionar situação `4`, desmarcar automaticamente o checkbox `somente_pendentes`; ao voltar para "Todas", restaurar o padrão
+## Problema
+Os gráficos do Dashboard só aparecem quando a API retorna o campo `graficos`. Se a API não enviar, o dashboard fica vazio. Os gráficos solicitados já existem na estrutura, mas precisam de fallback local calculado a partir de `data.dados`.
 
 ## Mudanças
 
 ### `src/pages/PainelComprasPage.tsx`
 
-**Filtros (state + UI):**
-- Adicionar `mostrar_valor_total_oc: false` ao estado inicial de `filters`
-- Adicionar checkbox "Mostrar valor total da OC" no `FilterPanel`
-- No handler do `Select` de situação: quando `v === '4'`, setar `somente_pendentes: false`; quando voltar para outro valor, restaurar `somente_pendentes: true`
+**Novo `useMemo` para gerar dados de gráficos localmente** quando `data.graficos` não vier da API:
 
-**Colunas:**
-- Criar coluna condicional `{ key: 'valor_total_oc', header: 'Valor Total OC', align: 'right', render: formatCurrency }` — incluída no array `columns` apenas quando `mostrar_valor_total_oc === true`
-- Na visão agrupada (se existir lógica de agrupamento por fornecedor), adicionar coluna `valor_total_ocs`
+1. **Top Fornecedores** — agrupar por `fantasia_fornecedor`, somar `valor_liquido`, ordenar desc, top 10
+2. **Situação das OCs** — agrupar por `situacao_oc`, contar itens
+3. **Produtos x Serviços** — agrupar por `tipo_item`, contar itens (já existe como "Tipos de Item")
+4. **Top Famílias por valor líquido** — agrupar por `familia_item`, somar `valor_liquido`, ordenar desc, top 10
+5. **Top Origens por valor líquido** — agrupar por `origem_item`, somar `valor_liquido`, ordenar desc, top 10
+6. **Entregas por mês** — agrupar por mês de `data_entrega` (formato YYYY-MM), somar valor e contar itens
 
-**Parâmetros da API:**
-- Enviar `mostrar_valor_total_oc` na chamada `search()` para que o backend inclua o campo (prioridade: `VlrFin > VlrLiq > VlrOri`)
+**Lógica:**
+```ts
+const chartData = useMemo(() => {
+  if (graficos) return graficos; // API data takes priority
+  if (!data?.dados?.length) return null;
+  // compute all 6 chart datasets from data.dados
+  return { top_fornecedores, situacoes, tipos, familias, origens, entregas_por_mes };
+}, [data, graficos]);
+```
 
-**Lógica de situação × pendentes:**
-- Alterar o `onValueChange` do Select de Situação para:
-  ```ts
-  onValueChange={(v) => setFilters(f => ({
-    ...f,
-    situacao_oc: v,
-    somente_pendentes: v === '4' ? false : f.somente_pendentes,
-  }))}
-  ```
+**Atualizar títulos dos gráficos:**
+- "Top Famílias" → "Top Famílias por Valor Líquido"
+- "Origens" → "Top Origens por Valor Líquido"  
+- "Entregas por Mês" → "Entregas por Mês (Itens por mês de entrega)"
 
-## Arquivos afetados
-- `src/pages/PainelComprasPage.tsx` — todas as alterações acima
+**Atualizar gráfico de Origens** para usar `valor_liquido_total` em vez de `quantidade_itens` no eixo X.
+
+**Usar `chartData` em vez de `graficos`** na renderização dos gráficos.
+
+## Arquivo afetado
+- `src/pages/PainelComprasPage.tsx`
 
