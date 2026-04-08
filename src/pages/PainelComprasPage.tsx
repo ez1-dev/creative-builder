@@ -96,7 +96,7 @@ export default function PainelComprasPage() {
     origem_material: '', familia: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
-  });
+  }); setData(null); setPagina(1); };
 
   const columns = useMemo(() => {
     const cols = [...baseColumns];
