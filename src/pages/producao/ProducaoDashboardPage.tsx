@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useProducaoFilters } from '@/contexts/ProducaoFiltersContext';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -64,9 +65,8 @@ const CHART_COLORS = [
 ];
 
 export default function ProducaoDashboardPage() {
-  const [filters, setFilters] = useState({
-    numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '',
-  });
+  const { sharedFilters, setSharedFilters, clearSharedFilters } = useProducaoFilters();
+  const filters = sharedFilters;
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const erpReady = useErpReady();
@@ -81,8 +81,13 @@ export default function ProducaoDashboardPage() {
     finally { setLoading(false); }
   }, [filters, erpReady]);
 
-  useAiFilters('producao-dashboard', setFilters, () => search());
-  const clearFilters = () => { setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' }); setData(null); };
+  useAiFilters('producao-dashboard', (updater) => {
+    if (typeof updater === 'function') {
+      const result = updater(filters);
+      setSharedFilters(result as any);
+    }
+  }, () => search());
+  const clearFilters = () => { clearSharedFilters(); setData(null); };
   const clearResults = () => { setData(null); };
 
   const resumo = data?.resumo;
@@ -114,11 +119,11 @@ export default function ProducaoDashboardPage() {
         actions={<ExportButton endpoint="/api/export/producao-patio" params={filters} />}
       />
       <FilterPanel onSearch={search} onClear={clearFilters} onClearResults={clearResults}>
-        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
+         <div><Label className="text-xs">Projeto</Label><Input value={sharedFilters.numero_projeto} onChange={(e) => setSharedFilters({ numero_projeto: e.target.value })} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Revisão</Label><Input value={sharedFilters.revisao} onChange={(e) => setSharedFilters({ revisao: e.target.value })} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={sharedFilters.cliente} onChange={(e) => setSharedFilters({ cliente: e.target.value })} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={sharedFilters.cidade} onChange={(e) => setSharedFilters({ cidade: e.target.value })} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       {loading && <div className="text-center text-muted-foreground py-8">Carregando...</div>}
