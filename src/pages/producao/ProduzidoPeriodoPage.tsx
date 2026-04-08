@@ -148,12 +148,17 @@ export default function ProduzidoPeriodoPage() {
     setKpiTotals(null); setKpiLoading(false);
     consolidationIdRef.current++;
   };
+  const clearResults = () => {
+    setData(null); setPagina(1);
+    setKpiTotals(null); setKpiLoading(false);
+    consolidationIdRef.current++;
+  };
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader title="Produzido no Período" description="Itens produzidos por período" actions={<ExportButton endpoint="/api/export/producao-produzido" params={filters} />} />
-      <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
+      <FilterPanel onSearch={() => search(1)} onClear={clearFilters} onClearResults={clearResults}>
         <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
