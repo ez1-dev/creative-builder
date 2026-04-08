@@ -27,7 +27,7 @@ const situacaoLabel = (s: number) => {
   return map[s] || `Sit. ${s}`;
 };
 
-const columns: Column<any>[] = [
+const baseColumns: Column<any>[] = [
   { key: 'numero_oc', header: 'Nº OC' },
   { key: 'codigo_item', header: 'Item' },
   { key: 'descricao_item', header: 'Descrição' },
@@ -54,6 +54,7 @@ export default function PainelComprasPage() {
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
+    mostrar_valor_total_oc: false,
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -94,7 +95,20 @@ export default function PainelComprasPage() {
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
+    mostrar_valor_total_oc: false,
   });
+
+  const columns = useMemo(() => {
+    const cols = [...baseColumns];
+    if (filters.mostrar_valor_total_oc) {
+      // Insert "Valor Total OC" after "Vlr. Líquido" (index 13)
+      const insertIdx = cols.findIndex(c => c.key === 'situacao_oc');
+      const valorTotalCol: Column<any> = { key: 'valor_total_oc', header: 'Valor Total OC', align: 'right', render: (v) => formatCurrency(v) };
+      if (insertIdx >= 0) cols.splice(insertIdx, 0, valorTotalCol);
+      else cols.push(valorTotalCol);
+    }
+    return cols;
+  }, [filters.mostrar_valor_total_oc]);
 
   const graficos = data?.graficos;
 
@@ -158,7 +172,7 @@ export default function PainelComprasPage() {
         <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem_material} onChange={(v) => setFilters(f => ({ ...f, origem_material: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
         <div>
           <Label className="text-xs">Situação da OC</Label>
-          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v }))}>
+          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v, somente_pendentes: v === '4' ? false : f.somente_pendentes }))}>
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todas</SelectItem>
@@ -210,6 +224,10 @@ export default function PainelComprasPage() {
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="pendentes" checked={filters.somente_pendentes} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_pendentes: !!v }))} />
           <Label htmlFor="pendentes" className="text-xs">Somente pendentes</Label>
+        </div>
+        <div className="flex items-end gap-2 pb-1">
+          <Checkbox id="mostrarValorTotalOc" checked={filters.mostrar_valor_total_oc} onCheckedChange={(v) => setFilters(f => ({ ...f, mostrar_valor_total_oc: !!v }))} />
+          <Label htmlFor="mostrarValorTotalOc" className="text-xs">Mostrar valor total da OC</Label>
         </div>
       </FilterPanel>
 
