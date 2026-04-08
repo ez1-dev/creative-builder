@@ -72,16 +72,16 @@ export default function ProduzidoPeriodoPage() {
 
       {data && (() => {
         const dados = data.dados || [];
-        const totalRegistros = dados.length;
         const qtdProduzida = dados.reduce((s: number, r: any) => s + (Number(r.quantidade_produzida) || 0), 0);
         const pesoProduzido = dados.reduce((s: number, r: any) => s + (Number(r.peso_real) || 0), 0);
         const qtdEtiquetas = dados.reduce((s: number, r: any) => s + (Number(r.quantidade_etiquetas) || 0), 0);
+        const paginaSubtitle = `página ${pagina} de ${data.total_paginas}`;
         return (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(totalRegistros, 0)} subtitle="na página atual" icon={<Package className="h-5 w-5" />} index={0} />
-            <KPICard title="Qtd Produzida" value={formatNumber(qtdProduzida, 0)} subtitle="na página atual" icon={<Hash className="h-5 w-5" />} variant="info" index={1} />
-            <KPICard title="Peso Produzido" value={`${formatNumber(pesoProduzido, 1)} Kg`} subtitle="na página atual" icon={<Weight className="h-5 w-5" />} variant="success" index={2} />
-            <KPICard title="Qtd Etiquetas" value={formatNumber(qtdEtiquetas, 0)} subtitle="na página atual" icon={<Tags className="h-5 w-5" />} variant="warning" index={3} />
+            <KPICard title="Total Registros" value={formatNumber(data.total_registros, 0)} subtitle={`${dados.length} nesta página`} icon={<Package className="h-5 w-5" />} index={0} />
+            <KPICard title="Qtd Produzida" value={formatNumber(qtdProduzida, 0)} subtitle={paginaSubtitle} icon={<Hash className="h-5 w-5" />} variant="info" index={1} />
+            <KPICard title="Peso Produzido" value={`${formatNumber(pesoProduzido, 1)} Kg`} subtitle={paginaSubtitle} icon={<Weight className="h-5 w-5" />} variant="success" index={2} />
+            <KPICard title="Qtd Etiquetas" value={formatNumber(qtdEtiquetas, 0)} subtitle={paginaSubtitle} icon={<Tags className="h-5 w-5" />} variant="warning" index={3} />
           </div>
         );
       })()}
