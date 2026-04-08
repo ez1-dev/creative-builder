@@ -110,7 +110,76 @@ export default function PainelComprasPage() {
     return cols;
   }, [filters.mostrar_valor_total_oc]);
 
-  const graficos = data?.graficos;
+  const chartData = useMemo(() => {
+    if (data?.graficos) return data.graficos;
+    if (!data?.dados?.length) return null;
+    const dados = data.dados;
+
+    // Top Fornecedores by valor_liquido
+    const fornMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const key = d.fantasia_fornecedor || 'Desconhecido';
+      fornMap.set(key, (fornMap.get(key) || 0) + (d.valor_liquido || 0));
+    });
+    const top_fornecedores = [...fornMap.entries()]
+      .map(([fantasia_fornecedor, valor_liquido_total]) => ({ fantasia_fornecedor, valor_liquido_total }))
+      .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
+      .slice(0, 10);
+
+    // Situação das OCs
+    const sitMap = new Map<number, number>();
+    dados.forEach((d: any) => {
+      const s = d.situacao_oc ?? 0;
+      sitMap.set(s, (sitMap.get(s) || 0) + 1);
+    });
+    const situacoes = [...sitMap.entries()].map(([situacao_oc, quantidade_itens]) => ({ situacao_oc, quantidade_itens }));
+
+    // Produtos x Serviços
+    const tipoMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const t = d.tipo_item || 'Outros';
+      tipoMap.set(t, (tipoMap.get(t) || 0) + 1);
+    });
+    const tipos = [...tipoMap.entries()].map(([tipo_item, quantidade_itens]) => ({ tipo_item, quantidade_itens }));
+
+    // Top Famílias por valor líquido
+    const famMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const key = d.familia_item || 'Sem família';
+      famMap.set(key, (famMap.get(key) || 0) + (d.valor_liquido || 0));
+    });
+    const familias = [...famMap.entries()]
+      .map(([codigo_familia, valor_liquido_total]) => ({ codigo_familia, valor_liquido_total }))
+      .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
+      .slice(0, 10);
+
+    // Top Origens por valor líquido
+    const origMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const key = d.origem_item || 'Sem origem';
+      origMap.set(key, (origMap.get(key) || 0) + (d.valor_liquido || 0));
+    });
+    const origens = [...origMap.entries()]
+      .map(([origem, valor_liquido_total]) => ({ origem, valor_liquido_total }))
+      .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
+      .slice(0, 10);
+
+    // Entregas por mês
+    const mesMap = new Map<string, { valor: number; itens: number }>();
+    dados.forEach((d: any) => {
+      if (!d.data_entrega) return;
+      const periodo = String(d.data_entrega).substring(0, 7); // YYYY-MM
+      const cur = mesMap.get(periodo) || { valor: 0, itens: 0 };
+      cur.valor += d.valor_liquido || 0;
+      cur.itens += 1;
+      mesMap.set(periodo, cur);
+    });
+    const entregas_por_mes = [...mesMap.entries()]
+      .map(([periodo_entrega, v]) => ({ periodo_entrega, valor_pendente_total: v.valor, quantidade_itens: v.itens }))
+      .sort((a, b) => a.periodo_entrega.localeCompare(b.periodo_entrega));
+
+    return { top_fornecedores, situacoes, tipos, familias, origens, entregas_por_mes };
+  }, [data]);
 
   const kpis = useMemo(() => {
     if (data?.resumo) return data.resumo;
