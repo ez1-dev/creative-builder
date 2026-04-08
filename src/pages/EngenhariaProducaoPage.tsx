@@ -147,7 +147,7 @@ export default function EngenhariaProducaoPage() {
       )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.resumo.total_paginas} totalRegistros={data.resumo.total_registros} onPageChange={(p) => search(p)} />}
+      {data?.resumo && <PaginationControl pagina={pagina} totalPaginas={data.resumo.total_paginas} totalRegistros={data.resumo.total_registros} onPageChange={(p) => search(p)} />}
     </div>
   );
 }
