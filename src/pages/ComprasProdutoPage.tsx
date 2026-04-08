@@ -39,7 +39,7 @@ const columns: Column<any>[] = [
 ];
 
 export default function ComprasProdutoPage() {
-  const [filters, setFilters] = useState({ codpro: '', despro: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false, situacao: 'A' });
+  const [filters, setFilters] = useState({ codpro: '', despro: '', projeto: '', centro_custo: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false, situacao: 'A' });
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -82,9 +82,11 @@ export default function ComprasProdutoPage() {
         description="Consulte informações de compras, preços e OCs por produto"
         actions={<ExportButton endpoint="/api/export/compras-produto" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false, situacao: 'A' }); setData(null); setPagina(1); }}>
+      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', projeto: '', centro_custo: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false, situacao: 'A' }); setData(null); setPagina(1); }}>
         <div><Label className="text-xs">Código</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Código" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Descrição</Label><Input value={filters.despro} onChange={(e) => setFilters(f => ({ ...f, despro: e.target.value }))} placeholder="Descrição" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Projeto</Label><Input value={filters.projeto} onChange={(e) => setFilters(f => ({ ...f, projeto: e.target.value }))} placeholder="Projeto" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Centro de Custo</Label><Input value={filters.centro_custo} onChange={(e) => setFilters(f => ({ ...f, centro_custo: e.target.value }))} placeholder="Centro de Custo" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.codfam} onChange={(v) => setFilters(f => ({ ...f, codfam: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Derivação</Label><Input value={filters.codder} onChange={(e) => setFilters(f => ({ ...f, codder: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
