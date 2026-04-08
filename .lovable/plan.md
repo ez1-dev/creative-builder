@@ -1,26 +1,30 @@
 
 
-# Autocomplete no campo "Código Modelo" da página BOM
+# Adicionar filtro de Situação Cadastral (Ativo/Inativo) nas páginas de produto
 
-## O que muda para o usuário
-Ao digitar no campo "Código Modelo", o sistema buscará sugestões na API ERP em tempo real, mostrando uma lista suspensa com os códigos e descrições dos modelos que correspondem ao texto digitado.
+## O que muda
+Um novo filtro **"Situação"** será adicionado em todas as páginas que consultam cadastro de produto, permitindo filtrar entre produtos **Ativos**, **Inativos** ou **Todos**. Por padrão, o filtro virá como **"Ativo"**, mostrando apenas produtos ativos.
 
-## Implementação técnica
+## Páginas afetadas
 
-### 1. Criar endpoint de busca de modelos (verificar API)
-O sistema já usa a API ERP (`/api/bom`). Será necessário consumir um endpoint de busca de modelos (ex: `/api/modelos` ou `/api/produtos?tipo=modelo`) que aceite um parâmetro de busca parcial. Se o endpoint não existir na API ERP, o ComboboxFilter será usado com digitação livre (sem sugestões automáticas da API).
+1. **Estoque** (`EstoquePage.tsx`)
+2. **Compras / Custos do Produto** (`ComprasProdutoPage.tsx`)
+3. **Auditoria Tributária** (`AuditoriaTributariaPage.tsx`)
+4. **Estrutura BOM** (`BomPage.tsx`)
+5. **Onde Usa** (`OndeUsaPage.tsx`)
 
-### 2. Substituir `Input` por `ComboboxFilter` no campo Código Modelo (`src/pages/BomPage.tsx`)
-- Trocar o `<Input>` do campo "Código Modelo" pelo componente `ComboboxFilter` já existente no projeto
-- O `ComboboxFilter` já suporta digitação livre + seleção em dropdown
-- Criar um hook ou estado local que faça fetch debounced para buscar modelos conforme o usuário digita (ex: chamando `/api/modelos?search=XXX`)
-- Passar as opções retornadas como `options` do `ComboboxFilter`
+## Alterações em cada página
 
-### 3. Adicionar busca debounced de modelos
-- No `BomPage.tsx`, adicionar estado para `modeloOptions` e `modeloLoading`
-- Usar `useEffect` com debounce (300ms) no valor do filtro `codmod` para buscar sugestões via `api.get('/api/modelos', { search: codmod })`
-- Mapear o retorno para o formato `ComboboxOption[]` (`{ value, label }`)
+Para cada uma das 5 páginas:
 
-### Arquivos afetados
-- `src/pages/BomPage.tsx` — substituir Input por ComboboxFilter + lógica de busca debounced
+1. Adicionar `situacao: 'A'` ao estado inicial de filtros (`A` = Ativo, `I` = Inativo, `''` = Todos)
+2. Adicionar um `<Select>` com as opções: **Todos**, **Ativo**, **Inativo**
+3. Enviar o parâmetro `situacao` na chamada da API (ex: `situacao_cadastro=A`)
+4. Incluir `situacao` no `clearFilters`, resetando para `'A'` (padrão Ativo)
+
+## Detalhes técnicos
+
+- O componente `Select` do shadcn/ui já existe no projeto
+- O parâmetro enviado à API ERP será `situacao_cadastro` com valores `A`, `I` ou vazio (todos)
+- O filtro usará o mesmo layout compacto dos filtros existentes (`h-8 text-xs`)
 
