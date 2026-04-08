@@ -27,6 +27,8 @@ const columns: Column<any>[] = [
   { key: 'saldo', header: 'Saldo', align: 'right', render: (v) => formatNumber(v, 2) },
   { key: 'preco_medio', header: 'Preço Médio', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'data_preco_medio', header: 'Data Preço Médio', render: (v) => formatDate(v) },
+  { key: 'custo_calculado', header: 'Custo Calculado', align: 'right', render: (v) => formatCurrency(v) },
+  { key: 'data_custo_calculado', header: 'Data Custo Calc.', render: (v) => formatDate(v) },
   { key: 'numero_nf_ultima_compra', header: 'Última NF' },
   { key: 'fornecedor_ultima_compra', header: 'Fornecedor' },
   { key: 'preco_nf_ultima_compra', header: 'Preço NF', align: 'right', render: (v) => formatCurrency(v) },
