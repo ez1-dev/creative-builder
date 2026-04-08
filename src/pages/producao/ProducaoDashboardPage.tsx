@@ -17,7 +17,7 @@ import {
 } from 'recharts';
 
 interface DashboardResumo {
-  kg_engenharia: number;
+  kg_previsto_projeto: number;
   kg_produzido: number;
   kg_expedido: number;
   kg_patio: number;
@@ -39,9 +39,9 @@ interface TopProjetoPatio {
   kg_patio: number;
   kg_produzido: number;
   kg_expedido: number;
-  kg_engenharia: number;
-  status_patio: string;
-  cliente: string;
+  kg_previsto_projeto: number;
+  status_geral: string;
+  nome_cliente: string;
 }
 
 interface CargaPorMes {
@@ -60,6 +60,7 @@ const CHART_COLORS = [
   'hsl(var(--success, 142 76% 36%))',
   'hsl(var(--warning, 38 92% 50%))',
   'hsl(var(--destructive))',
+  'hsl(var(--muted-foreground))',
 ];
 
 export default function ProducaoDashboardPage() {
@@ -124,7 +125,7 @@ export default function ProducaoDashboardPage() {
       {resumo && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-            <KPICard title="Kg Engenharia" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" />
+            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_previsto_projeto, 0)} variant="info" />
             <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" />
             <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" />
             <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" />
