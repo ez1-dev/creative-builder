@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -28,6 +28,21 @@ const columns: Column<any>[] = [
   { key: 'cidade', header: 'Cidade' },
 ];
 
+interface KpiTotals {
+  totalRegistros: number;
+  qtdProduzida: number;
+  pesoProduzido: number;
+  qtdEtiquetas: number;
+}
+
+function sumPage(dados: any[]): Omit<KpiTotals, 'totalRegistros'> {
+  return {
+    qtdProduzida: dados.reduce((s, r) => s + (Number(r.quantidade_produzida) || 0), 0),
+    pesoProduzido: dados.reduce((s, r) => s + (Number(r.peso_real) || 0), 0),
+    qtdEtiquetas: dados.reduce((s, r) => s + (Number(r.quantidade_etiquetas) || 0), 0),
+  };
+}
+
 export default function ProduzidoPeriodoPage() {
   const [filters, setFilters] = useState({
     numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '',
@@ -38,6 +53,78 @@ export default function ProduzidoPeriodoPage() {
   const [pagina, setPagina] = useState(1);
   const erpReady = useErpReady();
 
+  // KPI consolidation state
+  const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
+  const [kpiLoading, setKpiLoading] = useState(false);
+  const consolidationIdRef = useRef(0);
+
+  const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<any>, currentFilters: typeof filters) => {
+    const id = ++consolidationIdRef.current;
+
+    // If API provides a resumo object, use it directly
+    const resultAny = firstResult as any;
+    if (resultAny.resumo) {
+      if (consolidationIdRef.current !== id) return;
+      setKpiTotals({
+        totalRegistros: resultAny.resumo.total_registros ?? firstResult.total_registros,
+        qtdProduzida: resultAny.resumo.quantidade_produzida ?? resultAny.resumo.qtd_produzida ?? 0,
+        pesoProduzido: resultAny.resumo.peso_real ?? resultAny.resumo.peso_produzido ?? 0,
+        qtdEtiquetas: resultAny.resumo.quantidade_etiquetas ?? resultAny.resumo.qtd_etiquetas ?? 0,
+      });
+      setKpiLoading(false);
+      return;
+    }
+
+    // Fallback: aggregate all pages client-side
+    const totalPages = firstResult.total_paginas;
+    if (totalPages <= 1) {
+      if (consolidationIdRef.current !== id) return;
+      const sums = sumPage(firstResult.dados || []);
+      setKpiTotals({ totalRegistros: firstResult.total_registros, ...sums });
+      setKpiLoading(false);
+      return;
+    }
+
+    setKpiLoading(true);
+    try {
+      // Start with page 1 sums
+      let totals = sumPage(firstResult.dados || []);
+
+      // Fetch remaining pages in parallel (batches of 5)
+      const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const BATCH_SIZE = 5;
+
+      for (let i = 0; i < remainingPages.length; i += BATCH_SIZE) {
+        if (consolidationIdRef.current !== id) return; // stale request
+        const batch = remainingPages.slice(i, i + BATCH_SIZE);
+        const results = await Promise.all(
+          batch.map(p =>
+            api.get<PaginatedResponse<any>>('/api/producao/produzido', {
+              ...currentFilters, pagina: p, tamanho_pagina: 100,
+            })
+          )
+        );
+        for (const r of results) {
+          const s = sumPage(r.dados || []);
+          totals.qtdProduzida += s.qtdProduzida;
+          totals.pesoProduzido += s.pesoProduzido;
+          totals.qtdEtiquetas += s.qtdEtiquetas;
+        }
+      }
+
+      if (consolidationIdRef.current !== id) return;
+      setKpiTotals({ totalRegistros: firstResult.total_registros, ...totals });
+    } catch {
+      if (consolidationIdRef.current !== id) return;
+      // On failure, show page 1 partial with warning
+      const sums = sumPage(firstResult.dados || []);
+      setKpiTotals({ totalRegistros: firstResult.total_registros, ...sums });
+      toast.warning('Não foi possível consolidar todos os KPIs. Valores parciais exibidos.');
+    } finally {
+      if (consolidationIdRef.current === id) setKpiLoading(false);
+    }
+  }, []);
+
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
@@ -45,14 +132,21 @@ export default function ProduzidoPeriodoPage() {
       const result = await api.get<PaginatedResponse<any>>('/api/producao/produzido', { ...filters, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
+
+      // Only consolidate KPIs when searching from page 1 (new filter)
+      if (page === 1) {
+        consolidateKpis(result, filters);
+      }
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, consolidateKpis]);
 
   useAiFilters('producao-produzido', setFilters, () => search(1));
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '', cliente: '', cidade: '', data_ini: '', data_fim: '' });
     setData(null); setPagina(1);
+    setKpiTotals(null); setKpiLoading(false);
+    consolidationIdRef.current++;
   };
 
   return (
@@ -70,21 +164,41 @@ export default function ProduzidoPeriodoPage() {
         <div><Label className="text-xs">Data até</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
-      {data && (() => {
-        const dados = data.dados || [];
-        const qtdProduzida = dados.reduce((s: number, r: any) => s + (Number(r.quantidade_produzida) || 0), 0);
-        const pesoProduzido = dados.reduce((s: number, r: any) => s + (Number(r.peso_real) || 0), 0);
-        const qtdEtiquetas = dados.reduce((s: number, r: any) => s + (Number(r.quantidade_etiquetas) || 0), 0);
-        const paginaSubtitle = `página ${pagina} de ${data.total_paginas}`;
-        return (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(data.total_registros, 0)} subtitle={`${dados.length} nesta página`} icon={<Package className="h-5 w-5" />} index={0} />
-            <KPICard title="Qtd Produzida" value={formatNumber(qtdProduzida, 0)} subtitle={paginaSubtitle} icon={<Hash className="h-5 w-5" />} variant="info" index={1} />
-            <KPICard title="Peso Produzido" value={`${formatNumber(pesoProduzido, 1)} Kg`} subtitle={paginaSubtitle} icon={<Weight className="h-5 w-5" />} variant="success" index={2} />
-            <KPICard title="Qtd Etiquetas" value={formatNumber(qtdEtiquetas, 0)} subtitle={paginaSubtitle} icon={<Tags className="h-5 w-5" />} variant="warning" index={3} />
-          </div>
-        );
-      })()}
+      {(data || kpiLoading) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <KPICard
+            title="Total Registros"
+            value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'}
+            subtitle={data ? `${(data.dados || []).length} nesta página` : undefined}
+            icon={<Package className="h-5 w-5" />}
+            index={0}
+          />
+          <KPICard
+            title="Qtd Produzida"
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdProduzida, 0) : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
+            icon={<Hash className="h-5 w-5" />}
+            variant="info"
+            index={1}
+          />
+          <KPICard
+            title="Peso Produzido"
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoProduzido, 1)} Kg` : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
+            icon={<Weight className="h-5 w-5" />}
+            variant="success"
+            index={2}
+          />
+          <KPICard
+            title="Qtd Etiquetas"
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdEtiquetas, 0) : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
+            icon={<Tags className="h-5 w-5" />}
+            variant="warning"
+            index={3}
+          />
+        </div>
+      )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
