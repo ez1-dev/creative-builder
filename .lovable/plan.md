@@ -1,92 +1,78 @@
 
 
-# Alinhar Frontend de Producao com a Query SQL Real
+# Corrigir Nomes de Campos para Usar os Nomes Reais da API
 
-## Analise da Query Mestra
+## Problema
+Na mudanca anterior, renomeamos os campos do frontend para alinhar com a query SQL. Porem, a API backend retorna os dados com nomes **diferentes** dos aliases SQL. O frontend agora referencia campos que nao existem na resposta, causando dados em branco.
 
-A query SQL retorna UMA linha por combinacao `(numero_projeto, numero_desenho, revisao)` com todos os campos de engenharia, producao, expedicao, patio, nao carregados e lead time consolidados. Os nomes dos campos JSON serao as versoes lowercase dos aliases SQL.
+## Evidencia (response body real capturado nos network requests)
 
-## Mapeamento SQL → JSON → Frontend Atual (Desalinhamentos)
+### Dashboard (`/api/producao/dashboard`)
+- `resumo.kg_engenharia` (nao `kg_previsto_projeto`)
+- `top_projetos_patio[].cliente` (nao `nome_cliente`)
+- `top_projetos_patio[].kg_engenharia` (nao `kg_previsto_projeto`)
+- `top_projetos_patio[].status_patio` (nao `status_geral`)
+- `top_projetos_patio[].perc_expedido` (nao `perc_expedido_sobre_previsto`)
 
-### Campos que o frontend usa com nomes ERRADOS:
+### Produzido (`/api/producao/produzido`)
+- `cliente` (nao `nome_cliente`) - funciona pois esta pagina nao foi alterada nas colunas
 
-| Campo SQL | JSON esperado | Frontend usa atualmente |
-|---|---|---|
-| KG_PREVISTO_PROJETO | kg_previsto_projeto | kg_engenharia |
-| KG_FABRICADO_CADASTRO | kg_fabricado_cadastro | kg_estrutura |
-| NOME_CLIENTE | nome_cliente | cliente |
-| PERC_PRODUZIDO_SOBRE_PREVISTO | perc_produzido_sobre_previsto | perc_atendimento_producao |
-| PERC_EXPEDIDO_SOBRE_PREVISTO | perc_expedido_sobre_previsto | perc_expedido |
-| PERC_EXPEDIDO_SOBRE_PRODUZIDO | perc_expedido_sobre_produzido | (nao usado) |
-| DATA_PRIMEIRA_ENTRADA_ESTOQUE | data_primeira_entrada_estoque | primeira_producao |
-| DATA_ULTIMA_ENTRADA_ESTOQUE | data_ultima_entrada_estoque | (nao usado) |
-| DIAS_LIBERACAO_ATE_PRODUCAO | dias_liberacao_ate_producao | dias_engenharia_ate_producao |
-| DIAS_TOTAL_LIBERACAO_ATE_EXPEDICAO | dias_total_liberacao_ate_expedicao | dias_total_ate_expedicao |
-| STATUS_GERAL | status_geral | status_fluxo / status_patio |
-| QTD_CODBAR_PRODUZIDOS | qtd_codbar_produzidos | (nao usado) |
-| QTD_CODBAR_EXPEDIDOS | qtd_codbar_expedidos | (nao usado) |
-| QTD_ITENS_NAO_CARREGADOS | qtd_itens_nao_carregados | (nao usado nas paginas certas) |
+### Expedido (`/api/producao/expedido`)
+- `cliente` (nao `nome_cliente`) - idem
 
-### Valores de STATUS_GERAL na query (vs frontend atual):
-- `AGUARDANDO PRODUÇÃO` (frontend: ok)
-- `EM PRODUÇÃO / SEM ENTRADA ESTOQUE` (frontend usa: `EM PRODUÇÃO`)
-- `PRODUZIDO / EM PÁTIO` (frontend usa: `EM PÁTIO`)
-- `EXPEDIÇÃO PARCIAL` (frontend usa: `PARCIALMENTE EXPEDIDO`)
-- `TOTALMENTE EXPEDIDO` (frontend usa: `EXPEDIDO`)
-- `SEM MOVIMENTO` (frontend nao trata)
+## Solucao
+Reverter os nomes dos campos no frontend para usar exatamente os nomes que a API retorna. Manter os status values atualizados apenas quando houver confirmacao de que a API os retorna (ex: `status_patio` no patio usa valores como "TOTALMENTE EXPEDIDO", "SEM PRODUCAO").
 
-### Campos novos disponiveis na query que o frontend nao exibe:
-- `kg_recebido_cadastro`, `kg_refugo_cadastro`
-- `qtd_prevista_op`, `qtd_utilizada_op`
-- `qtd_embalada`, `qtd_etiquetas` (no CTE produzido)
-- `qtd_codbar_produzidos`, `qtd_codbar_expedidos`
-- `data_ultima_entrada_estoque`, `data_ultima_expedicao`
-- `codigo_cliente`
+### Correcoes por arquivo:
 
-## Correcoes por Pagina
+**1. `src/pages/producao/ProducaoDashboardPage.tsx`**
+- Interface `DashboardResumo`: `kg_previsto_projeto` → `kg_engenharia`
+- Interface `TopProjetoPatio`: `kg_previsto_projeto` → `kg_engenharia`, `nome_cliente` → `cliente`, `status_geral` → `status_patio`
+- KPI "Kg Previsto": usar `resumo.kg_engenharia`
 
-### 1. Engenharia x Producao (`EngenhariaProducaoPage.tsx`)
-- `kg_engenharia` → `kg_previsto_projeto`
-- `kg_estrutura` → `kg_fabricado_cadastro` (renomear header para "Kg Fabricado")
-- `cliente` → `nome_cliente`
-- `perc_atendimento_producao` → `perc_produzido_sobre_previsto`
-- `perc_expedido` → `perc_expedido_sobre_previsto`
-- Remover coluna `familias` (nao existe na query)
-- `status_fluxo` → `status_geral`
-- Adicionar colunas uteis: `data_primeira_entrada_estoque`, `data_primeira_expedicao`, `qtd_cargas`
-- Atualizar statusColor com os valores reais
+**2. `src/pages/EngenhariaProducaoPage.tsx`**
+- Sem dados reais capturados para este endpoint. Usar nomes conservadores baseados no padrao da API:
+  - `nome_cliente` → `cliente`
+  - `kg_previsto_projeto` → `kg_engenharia`
+  - `kg_fabricado_cadastro` → `kg_estrutura`
+  - `status_geral` → `status_fluxo`
+  - `perc_produzido_sobre_previsto` → `perc_atendimento_producao`
+  - `perc_expedido_sobre_previsto` → `perc_expedido`
+  - `data_primeira_entrada_estoque` → `primeira_producao`
+  - `data_primeira_expedicao` → `primeira_expedicao`
+  - `qtd_cargas` → manter se a API retorna, senao remover
+- StatusColor: adicionar ambos os valores (antigos e novos) para robustez
 
-### 2. Saldo em Patio (`SaldoPatioPage.tsx`)
-- `kg_engenharia` → `kg_previsto_projeto` (header: "Kg Previsto")
-- `perc_expedido` → `perc_expedido_sobre_previsto`
-- `status_patio` → `status_geral`
-- `cliente` → `nome_cliente`
-- Adicionar `perc_produzido_sobre_previsto` e `perc_expedido_sobre_produzido`
-- Atualizar statusColor com os valores reais
-- KPIs client-side: ajustar para somar `kg_previsto_projeto` no lugar de `kg_engenharia`
+**3. `src/pages/producao/SaldoPatioPage.tsx`**
+- `nome_cliente` → `cliente`
+- `kg_previsto_projeto` → `kg_engenharia`
+- `status_geral` → `status_patio`
+- `perc_produzido_sobre_previsto` → `perc_atendimento_producao`
+- `perc_expedido_sobre_previsto` → `perc_expedido`
+- `perc_expedido_sobre_produzido` → remover (nao confirmado na API)
+- StatusColor: suportar ambos os conjuntos de valores
 
-### 3. Lead Time (`LeadTimeProducaoPage.tsx`)
-- `primeira_producao` → `data_primeira_entrada_estoque`
-- `primeira_expedicao` → `data_primeira_expedicao` (ok)
-- `dias_engenharia_ate_producao` → `dias_liberacao_ate_producao`
-- `dias_producao_ate_expedicao` → ok
-- `dias_total_ate_expedicao` → `dias_total_liberacao_ate_expedicao`
-- `status_fluxo` → `status_geral`
-- `cliente` → `nome_cliente`
-- Atualizar statusColor
+**4. `src/pages/producao/LeadTimeProducaoPage.tsx`**
+- `nome_cliente` → `cliente`
+- `data_primeira_entrada_estoque` → manter (ja existia antes como `data_primeira_entrada_estoque`)
+- `dias_liberacao_ate_producao` → `dias_liberacao_ate_producao` (verificar se API usa este nome)
+- `status_geral` → `status_fluxo` ou manter dual
+- StatusColor: suportar ambos
 
-### 4. Dashboard (`ProducaoDashboardPage.tsx`)
-- O dashboard agrega os dados. Assumindo que o backend faz SUM/COUNT sobre esta query, os nomes no `resumo` podem estar corretos no backend. Mas se o backend simplesmente retorna os mesmos nomes da query:
-  - `kg_engenharia` no resumo → deveria ser soma de `kg_previsto_projeto`
-  - Verificar se o backend transforma os nomes ou nao
-- Atualizar statusColor nos charts
+### Estrategia de StatusColor resiliente
+Em todos os `statusColor`, suportar AMBOS os conjuntos de valores para garantir que funcione independente do formato retornado:
+```
+case 'TOTALMENTE EXPEDIDO':
+case 'EXPEDIDO':
+  return '...success...'
+case 'EXPEDIÇÃO PARCIAL':
+case 'PARCIALMENTE EXPEDIDO':
+  return '...warning...'
+```
 
-### 5. Paginas de detalhe (Produzido, Expedido, Nao Carregados)
-- Estas paginas usam endpoints de DETALHE que provavelmente tem queries separadas (item-level, nao agrupado por projeto/desenho). A query mestra uploaded nao cobre esses detalhes. Manter como estao ate confirmar.
-
-## Arquivos Afetados
+## Arquivos afetados
+- `src/pages/producao/ProducaoDashboardPage.tsx`
 - `src/pages/EngenhariaProducaoPage.tsx`
 - `src/pages/producao/SaldoPatioPage.tsx`
 - `src/pages/producao/LeadTimeProducaoPage.tsx`
-- `src/pages/producao/ProducaoDashboardPage.tsx`
 
