@@ -110,7 +110,76 @@ export default function PainelComprasPage() {
     return cols;
   }, [filters.mostrar_valor_total_oc]);
 
-  const graficos = data?.graficos;
+  const chartData = useMemo(() => {
+    if (data?.graficos) return data.graficos;
+    if (!data?.dados?.length) return null;
+    const dados = data.dados;
+
+    // Top Fornecedores by valor_liquido
+    const fornMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const key = d.fantasia_fornecedor || 'Desconhecido';
+      fornMap.set(key, (fornMap.get(key) || 0) + (d.valor_liquido || 0));
+    });
+    const top_fornecedores = [...fornMap.entries()]
+      .map(([fantasia_fornecedor, valor_liquido_total]) => ({ fantasia_fornecedor, valor_liquido_total }))
+      .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
+      .slice(0, 10);
+
+    // Situação das OCs
+    const sitMap = new Map<number, number>();
+    dados.forEach((d: any) => {
+      const s = d.situacao_oc ?? 0;
+      sitMap.set(s, (sitMap.get(s) || 0) + 1);
+    });
+    const situacoes = [...sitMap.entries()].map(([situacao_oc, quantidade_itens]) => ({ situacao_oc, quantidade_itens }));
+
+    // Produtos x Serviços
+    const tipoMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const t = d.tipo_item || 'Outros';
+      tipoMap.set(t, (tipoMap.get(t) || 0) + 1);
+    });
+    const tipos = [...tipoMap.entries()].map(([tipo_item, quantidade_itens]) => ({ tipo_item, quantidade_itens }));
+
+    // Top Famílias por valor líquido
+    const famMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const key = d.familia_item || 'Sem família';
+      famMap.set(key, (famMap.get(key) || 0) + (d.valor_liquido || 0));
+    });
+    const familias = [...famMap.entries()]
+      .map(([codigo_familia, valor_liquido_total]) => ({ codigo_familia, valor_liquido_total }))
+      .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
+      .slice(0, 10);
+
+    // Top Origens por valor líquido
+    const origMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const key = d.origem_item || 'Sem origem';
+      origMap.set(key, (origMap.get(key) || 0) + (d.valor_liquido || 0));
+    });
+    const origens = [...origMap.entries()]
+      .map(([origem, valor_liquido_total]) => ({ origem, valor_liquido_total }))
+      .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
+      .slice(0, 10);
+
+    // Entregas por mês
+    const mesMap = new Map<string, { valor: number; itens: number }>();
+    dados.forEach((d: any) => {
+      if (!d.data_entrega) return;
+      const periodo = String(d.data_entrega).substring(0, 7); // YYYY-MM
+      const cur = mesMap.get(periodo) || { valor: 0, itens: 0 };
+      cur.valor += d.valor_liquido || 0;
+      cur.itens += 1;
+      mesMap.set(periodo, cur);
+    });
+    const entregas_por_mes = [...mesMap.entries()]
+      .map(([periodo_entrega, v]) => ({ periodo_entrega, valor_pendente_total: v.valor, quantidade_itens: v.itens }))
+      .sort((a, b) => a.periodo_entrega.localeCompare(b.periodo_entrega));
+
+    return { top_fornecedores, situacoes, tipos, familias, origens, entregas_por_mes };
+  }, [data]);
 
   const kpis = useMemo(() => {
     if (data?.resumo) return data.resumo;
@@ -236,7 +305,7 @@ export default function PainelComprasPage() {
           <div>
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores Financeiros</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={graficos?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
+              <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={chartData?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
               <KPICard index={1} title="Valor Bruto" value={formatCurrency(kpis.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" />
               <KPICard index={2} title="Desconto Total" value={formatCurrency(kpis.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" />
               <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(kpis.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(kpis.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(kpis.valor_liquido_total) }]} />
@@ -276,15 +345,15 @@ export default function PainelComprasPage() {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
-            {graficos && (
+            {chartData && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {graficos.top_fornecedores?.length > 0 && (
+                  {chartData.top_fornecedores?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.top_fornecedores} layout="vertical">
+                        <BarChart data={chartData.top_fornecedores} layout="vertical">
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -294,13 +363,13 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.situacoes?.length > 0 && (
+                  {chartData.situacoes?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Situação das OCs</h3>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={graficos.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                            {graficos.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          <Pie data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                            {chartData.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip />
                           <Legend />
@@ -309,13 +378,13 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.tipos?.length > 0 && (
+                  {chartData.tipos?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Tipos de Item</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Produtos x Serviços</h3>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={graficos.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
-                            {graficos.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          <Pie data={chartData.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
+                            {chartData.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip />
                           <Legend />
@@ -324,11 +393,11 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.entregas_por_mes?.length > 0 && (
+                  {chartData.entregas_por_mes?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Entregas por Mês</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Entregas por Mês (Itens por mês de entrega)</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.entregas_por_mes}>
+                        <BarChart data={chartData.entregas_por_mes}>
                           <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
                           <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -338,11 +407,11 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.familias?.length > 0 && (
+                  {chartData.familias?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top Famílias</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Top Famílias por Valor Líquido</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.familias} layout="vertical">
+                        <BarChart data={chartData.familias} layout="vertical">
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="codigo_familia" width={100} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -352,15 +421,15 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.origens?.length > 0 && (
+                  {chartData.origens?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Origens</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Top Origens por Valor Líquido</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.origens} layout="vertical">
-                          <XAxis type="number" className="text-xs" />
+                        <BarChart data={chartData.origens} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="origem" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Bar dataKey="quantidade_itens" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
