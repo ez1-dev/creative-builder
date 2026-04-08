@@ -67,7 +67,7 @@ export default function OndeUsaPage() {
         description="Consulte em quais modelos/estruturas um componente é utilizado"
         actions={<ExportButton endpoint="/api/export/onde-usa" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={() => setFilters({ codcmp: '', dercmp: '', codmod: '' })}>
+      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codcmp: '', dercmp: '', codmod: '' }); setData(null); setPagina(1); }}>
         <div><Label className="text-xs">Cód. Componente</Label><Input value={filters.codcmp} onChange={(e) => setFilters(f => ({ ...f, codcmp: e.target.value }))} placeholder="Código" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Der. Componente</Label><Input value={filters.dercmp} onChange={(e) => setFilters(f => ({ ...f, dercmp: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Cód. Modelo</Label><Input value={filters.codmod} onChange={(e) => setFilters(f => ({ ...f, codmod: e.target.value }))} placeholder="Código modelo" className="h-8 text-xs" /></div>
