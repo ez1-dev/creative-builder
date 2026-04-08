@@ -1,33 +1,29 @@
 
 
-# Adicionar botoes "Limpar Filtros" e "Limpar Resultados" nas paginas de Producao
+# Persistir filtros de Produção ao navegar entre páginas
 
-## O que muda
+## Problema
+Cada página de produção mantém seus filtros em `useState` local. Quando o usuário navega para outra página do módulo (ex: de Expedido para Pátio), os filtros são perdidos porque o componente é desmontado.
 
-Hoje o botao "Limpar" faz tudo junto: zera os filtros E remove os resultados/KPIs. A proposta e separar em dois botoes:
+## Solução
+Criar um **contexto React** (`ProducaoFiltersContext`) que armazena os filtros compartilhados entre todas as páginas de produção. Os filtros comuns (projeto, desenho, revisão, cliente, cidade) ficam no contexto; filtros exclusivos de cada página (data_ini, data_fim, codigo_produto, numero_carga, codigo_barras) continuam locais.
 
-- **Limpar Filtros** -- zera os campos de filtro, remove resultados e KPIs (comportamento atual)
-- **Limpar Resultados** -- remove apenas a tabela e os KPIs, mantendo os filtros preenchidos
+## Alterações
 
-## Alteracoes
+### 1. Novo arquivo: `src/contexts/ProducaoFiltersContext.tsx`
+- Context com estado para os filtros comuns: `numero_projeto`, `numero_desenho`, `revisao`, `cliente`, `cidade`
+- Funções `setSharedFilters` e `clearSharedFilters`
+- Provider que envolve as rotas de produção
 
-### 1. `FilterPanel.tsx`
-- Adicionar nova prop `onClearResults` (opcional, para nao quebrar outras telas fora de producao)
-- Renderizar dois botoes quando `onClearResults` for fornecido:
-  - "Limpar Filtros" (icone X) -- chama `onClear`
-  - "Limpar Resultados" (icone Eraser ou similar) -- chama `onClearResults`
-- Quando `onClearResults` nao for passado, manter apenas o botao "Limpar" atual
+### 2. `src/App.tsx`
+- Envolver as rotas `/producao/*` com o `ProducaoFiltersProvider`
 
-### 2. Paginas de producao (6 arquivos)
-- `ProduzidoPeriodoPage.tsx`
-- `ExpedidoObraPage.tsx`
-- `SaldoPatioPage.tsx`
-- `NaoCarregadosPage.tsx`
-- `ProducaoDashboardPage.tsx`
-- `LeadTimeProducaoPage.tsx`
+### 3. Páginas de produção (6 arquivos + EngenhariaProducaoPage)
+- Consumir `useProducaoFilters()` para os campos comuns
+- Mesclar com filtros locais (datas, código produto, carga, etc.) onde aplicável
+- `clearFilters` limpa tanto o contexto quanto os locais
+- `clearResults` continua limpando apenas dados/KPIs, sem tocar filtros
 
-Em cada uma:
-- Manter `clearFilters` existente (zera filtros + dados)
-- Criar `clearResults` que limpa apenas `data`, `pagina`, `kpiTotals`, `kpiLoading` sem tocar nos filtros
-- Passar ambas callbacks ao `FilterPanel`
+### Resultado
+Ao preencher "Projeto: 663" em Expedido e navegar para Pátio, o campo Projeto já estará preenchido com "663".
 
