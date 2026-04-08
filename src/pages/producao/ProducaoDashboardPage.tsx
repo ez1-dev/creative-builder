@@ -125,7 +125,7 @@ export default function ProducaoDashboardPage() {
       {resumo && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_previsto_projeto, 0)} variant="info" />
+            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" />
             <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" />
             <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" />
             <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" />
