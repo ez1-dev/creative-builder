@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -13,14 +13,16 @@ import { formatNumber, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { KPICard } from '@/components/erp/KPICard';
-import { Package, Weight, ArrowUpFromLine, Warehouse, Truck } from 'lucide-react';
+import { Package, ArrowUpFromLine, Warehouse, Truck } from 'lucide-react';
 
 const statusColor = (s: string) => {
   switch (s) {
     case 'TOTALMENTE EXPEDIDO': return 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]';
-    case 'PARCIALMENTE EXPEDIDO': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
-    case 'EM PÁTIO': return 'bg-destructive text-destructive-foreground';
-    case 'SEM PRODUÇÃO': return 'bg-muted text-muted-foreground';
+    case 'EXPEDIÇÃO PARCIAL': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
+    case 'PRODUZIDO / EM PÁTIO': return 'bg-destructive text-destructive-foreground';
+    case 'EM PRODUÇÃO / SEM ENTRADA ESTOQUE': return 'bg-primary text-primary-foreground';
+    case 'AGUARDANDO PRODUÇÃO': return 'bg-muted text-muted-foreground';
+    case 'SEM MOVIMENTO': return 'bg-muted text-muted-foreground';
     default: return 'bg-muted text-muted-foreground';
   }
 };
@@ -29,14 +31,16 @@ const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
   { key: 'numero_desenho', header: 'Desenho' },
   { key: 'revisao', header: 'Rev.' },
-  { key: 'cliente', header: 'Cliente' },
-  { key: 'kg_engenharia', header: 'Kg Engenharia', align: 'right', render: (v) => formatNumber(v, 1) },
+  { key: 'nome_cliente', header: 'Cliente' },
+  { key: 'kg_previsto_projeto', header: 'Kg Previsto', align: 'right', render: (v) => formatNumber(v, 1) },
   { key: 'kg_produzido', header: 'Kg Produzido', align: 'right', render: (v) => formatNumber(v, 1) },
   { key: 'kg_expedido', header: 'Kg Expedido', align: 'right', render: (v) => formatNumber(v, 1) },
   { key: 'kg_patio', header: 'Kg Pátio', align: 'right', render: (v) => formatNumber(v, 1) },
-  { key: 'perc_expedido', header: '% Expedido', align: 'right', render: (v) => formatPercent(v) },
+  { key: 'perc_produzido_sobre_previsto', header: '% Prod.', align: 'right', render: (v) => formatPercent(v) },
+  { key: 'perc_expedido_sobre_previsto', header: '% Expedido', align: 'right', render: (v) => formatPercent(v) },
+  { key: 'perc_expedido_sobre_produzido', header: '% Exp/Prod', align: 'right', render: (v) => formatPercent(v) },
   {
-    key: 'status_patio', header: 'Status',
+    key: 'status_geral', header: 'Status',
     render: (v) => <Badge className={`text-[10px] ${statusColor(v)}`}>{v}</Badge>,
   },
 ];
