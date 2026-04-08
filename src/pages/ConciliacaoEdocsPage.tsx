@@ -150,7 +150,7 @@ export default function ConciliacaoEdocsPage() {
     }
   }, [filters, erpReady]);
 
-  const clearFilters = () => setFilters(initialFilters);
+  const clearFilters = () => { setFilters(initialFilters); setData(null); setPagina(1); };
 
   const resumo = data?.resumo;
   const exportParams = buildParams(1);

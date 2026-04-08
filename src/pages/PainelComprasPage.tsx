@@ -88,7 +88,7 @@ export default function PainelComprasPage() {
   }, [filters, erpReady]);
 
   useAiFilters('painel-compras', setFilters, () => search(1));
-  const clearFilters = () => setFilters({
+  const clearFilters = () => { setFilters({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',

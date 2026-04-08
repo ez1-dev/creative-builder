@@ -66,10 +66,10 @@ export default function AuditoriaTributariaPage() {
     }
   }, [filters, erpReady]);
 
-  const clearFilters = () => setFilters({
+  const clearFilters = () => { setFilters({
     codpro: '', despro: '', codfam: '', codori: '', ncm: '', codstr: '', cst: '', tns: '',
     somente_divergencia: false, somente_ncm_vazio: false, somente_cst_vazio: false, somente_cclass: false,
-  });
+  }); setData(null); setPagina(1); };
 
   const resumo = data?.resumo;
 
