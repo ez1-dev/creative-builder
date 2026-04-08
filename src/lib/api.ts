@@ -180,20 +180,6 @@ export interface PainelComprasResponse extends PaginatedResponse<any> {
   };
 }
 
-export interface EngenhariaResponse extends PaginatedResponse<any> {
-  resumo: {
-    total_registros: number;
-    total_projetos: number;
-    total_paginas: number;
-    kg_engenharia_total: number;
-    kg_produzido_total: number;
-    kg_entrada_estoque_total: number;
-    projetos_atendidos_producao: number;
-    projetos_atendidos_estoque: number;
-    perc_atendimento_producao_total: number;
-    perc_atendimento_estoque_total: number;
-  };
-}
 
 export interface BomResponse {
   cabecalho: {
