@@ -88,7 +88,7 @@ export default function PainelComprasPage() {
   }, [filters, erpReady]);
 
   useAiFilters('painel-compras', setFilters, () => search(1));
-  const clearFilters = () => setFilters({
+  const clearFilters = () => { setFilters({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
@@ -96,7 +96,7 @@ export default function PainelComprasPage() {
     origem_material: '', familia: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
-  });
+  }); setData(null); setPagina(1); };
 
   const columns = useMemo(() => {
     const cols = [...baseColumns];

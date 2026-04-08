@@ -106,7 +106,7 @@ export default function NotasRecebimentoPage() {
     [filters, erpReady],
   );
 
-  const clearFilters = () =>
+  const clearFilters = () => {
     setFilters({
       fornecedor: "",
       numero_nf: "",
@@ -123,6 +123,9 @@ export default function NotasRecebimentoPage() {
       valor_max: "",
       situacao_nf: "",
     });
+    setData(null);
+    setPagina(1);
+  };
 
   // Always calculate KPIs from page data to respect active filters
   const dados = data?.dados || [];
