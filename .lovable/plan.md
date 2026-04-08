@@ -1,33 +1,27 @@
 
 
-# Cadastrar rotas do módulo Produção na tabela profile_screens
+# Incluir telas de Produção na matriz de permissões
 
 ## Problema
-As 7 páginas do módulo Produção foram criadas no código, mas não aparecem no sidebar nem são acessíveis porque o sistema de permissões (`useUserPermissions`) filtra rotas que não estão cadastradas na tabela `profile_screens`.
+O array `ALL_SCREENS` em `ConfiguracoesPage.tsx` (linha 20-31) lista apenas as telas originais e ainda referencia o caminho antigo `/engenharia-producao`. As 7 novas rotas de produção não aparecem na aba "Permissões por Tela".
 
 ## Solução
-Criar uma migration SQL que insere as 7 telas de produção na tabela `profile_screens` para **todos os perfis existentes** na tabela `access_profiles`, com `can_view = true` e `can_edit = true`.
+Atualizar o array `ALL_SCREENS` para:
+1. Remover a entrada antiga `{ path: '/engenharia-producao', name: 'Eng. x Produção' }`
+2. Adicionar as 7 novas telas de produção:
 
-### Migration SQL
-
-```sql
-INSERT INTO profile_screens (profile_id, screen_path, screen_name, can_view, can_edit)
-SELECT p.id, s.screen_path, s.screen_name, true, true
-FROM access_profiles p
-CROSS JOIN (VALUES
-  ('/producao/dashboard',       'Dashboard Produção'),
-  ('/producao/produzido',       'Produzido no Período'),
-  ('/producao/expedido',        'Expedido para Obra'),
-  ('/producao/patio',           'Saldo em Pátio'),
-  ('/producao/nao-carregados',  'Itens Não Carregados'),
-  ('/producao/leadtime',        'Lead Time Produção'),
-  ('/producao/engenharia',      'Engenharia x Produção')
-) AS s(screen_path, screen_name)
-ON CONFLICT DO NOTHING;
+```
+{ path: '/producao/dashboard',       name: 'Produção - Dashboard' },
+{ path: '/producao/produzido',       name: 'Produção - Produzido no Período' },
+{ path: '/producao/expedido',        name: 'Produção - Expedido para Obra' },
+{ path: '/producao/patio',           name: 'Produção - Saldo em Pátio' },
+{ path: '/producao/nao-carregados',  name: 'Produção - Não Carregados' },
+{ path: '/producao/leadtime',        name: 'Produção - Lead Time' },
+{ path: '/producao/engenharia',      name: 'Produção - Eng. x Produção' },
 ```
 
-Isso garante que todos os perfis de acesso existentes recebam visibilidade das novas telas automaticamente. Administradores poderão ajustar permissões individualmente depois via Configurações.
+## Arquivo afetado
+- `src/pages/ConfiguracoesPage.tsx` — apenas o array `ALL_SCREENS` (linhas 20-31)
 
-### Arquivos
-- Nenhuma alteração de código necessária, apenas a migration no banco
+Nenhuma migration necessária; as entradas em `profile_screens` já foram inseridas anteriormente.
 
