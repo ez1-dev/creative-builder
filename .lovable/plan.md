@@ -1,102 +1,64 @@
 
-## Objetivo
 
-Corrigir a tela **Dashboard Produção** para que ela não fique presa em “Carregando...” e exiba um estado claro quando a API não responder, responder vazia ou responder em formato diferente do esperado.
+# Correção de mapeamento de campos entre Frontend e API de Produção
 
-## Diagnóstico provável
+## Diagnóstico
 
-Pelo código atual, há dois pontos frágeis em `ProducaoDashboardPage.tsx`:
+Após analisar o código backend (`ajustado.txt`) e todas as páginas do frontend, identifiquei as seguintes divergências:
 
-1. A busca depende de **uma única chamada pesada** para `/api/producao/dashboard`.
-2. A tela **só renderiza conteúdo se `data.resumo` existir**. Se a API:
-   - demorar demais,
-   - retornar estrutura diferente,
-   - ou retornar sem `resumo`,
-   
-   o usuário fica vendo apenas loading ou uma área vazia, sem diagnóstico visível.
+### 1. LeadTimeProducaoPage — 3 colunas com nomes errados
 
-Além disso, o fluxo atual não tem:
-- timeout de requisição,
-- cancelamento da busca anterior,
-- estado explícito de “sem dados”,
-- estado explícito de “falha/timeout”.
+| Frontend (column key) | API retorna | Resultado |
+|---|---|---|
+| `data_primeira_entrada_estoque` | `primeira_producao` | Coluna vazia |
+| `data_primeira_expedicao` | `primeira_expedicao` | OK |
+| `dias_liberacao_ate_producao` | `dias_engenharia_ate_producao` | Coluna vazia |
+| `dias_total_liberacao_ate_expedicao` | `dias_total_ate_expedicao` | Coluna vazia |
+
+### 2. Produzido no Período — KPIs corretos agora
+
+A API agora retorna `resumo` com `quantidade_produzida`, `peso_real`, `quantidade_etiquetas`. O frontend já consome esses campos corretamente (linhas 68-72). **Problema anterior resolvido no backend.**
+
+Porém, o `resumo.peso_real` soma `SUM(base.peso_real)` onde `base.peso_real = REE.USU_PESREA`. Como cada etiqueta (ETQ) tem uma linha e a junção é ETQ→REE por `ITEREE`, se um REE tiver múltiplas ETQs, o peso será somado múltiplas vezes. Mas isso é o comportamento correto para esta granularidade (peso por etiqueta).
+
+### 3. Expedido para Obra — KPIs corretos agora
+
+A API retorna `resumo` com `quantidade_expedida`, `peso_real`, `quantidade_cargas`. O frontend mapeia:
+- `resumo.quantidade_expedida` → OK (linha 70 do ExpedidoObraPage usa fallback `qtd_expedida`, mas `quantidade_expedida` existe)
+- `resumo.peso_real` → OK (linha 71)
+- `resumo.quantidade_cargas` → **Problema**: o frontend procura `resumo.cargas_distintas` (linha 74) mas a API retorna `resumo.quantidade_cargas`
+
+### 4. Saldo em Pátio — Sem resumo na API
+
+A API usa `executar_paginado_sem_count` que não inclui `resumo`. O frontend faz fallback para consolidação client-side. **Funciona, mas é lento para muitas páginas.**
+
+### 5. Engenharia x Produção — 1 coluna inexistente
+
+A coluna `qtd_cargas` não é retornada pela API `/api/producao/engenharia-x-producao`. Essa coluna ficará sempre vazia.
+
+### 6. Dashboard — Compatível
+
+Os campos do `resumo` e `top_projetos_patio` estão alinhados entre API e frontend. O `top_projetos_patio` retorna `status_fluxo` em vez de `status_patio` mas os charts não usam esse campo, então não há impacto visual.
 
 ## Plano de implementação
 
-### 1. Tornar a chamada do dashboard resiliente
-- Adicionar controle de requisição no `search`:
-  - cancelar busca anterior ao pesquisar novamente,
-  - impedir que respostas antigas sobrescrevam a busca atual,
-  - encerrar loading corretamente em timeout/erro.
+### Arquivo 1: `src/pages/producao/LeadTimeProducaoPage.tsx`
+Corrigir 3 column keys:
+- `data_primeira_entrada_estoque` → `primeira_producao`
+- `dias_liberacao_ate_producao` → `dias_engenharia_ate_producao`
+- `dias_total_liberacao_ate_expedicao` → `dias_total_ate_expedicao`
 
-### 2. Normalizar a resposta da API antes de renderizar
-- Criar uma camada de normalização no `ProducaoDashboardPage` para aceitar:
-  - resposta com `resumo`,
-  - resposta parcial,
-  - arrays ausentes (`top_projetos_patio`, `cargas_por_mes`),
-  - valores nulos/undefined.
-- Garantir defaults seguros para evitar tela vazia.
+### Arquivo 2: `src/pages/producao/ExpedidoObraPage.tsx`
+Na função `consolidateKpis`, corrigir o mapeamento do resumo:
+- `resumo.cargas_distintas` → adicionar fallback para `resumo.quantidade_cargas`
 
-### 3. Melhorar estados visuais da página
-Separar claramente os cenários:
-- **loading**: consulta em andamento,
-- **error/timeout**: mostrar alerta com mensagem objetiva e ação de tentar novamente,
-- **empty**: filtros sem resultado,
-- **success**: KPIs e gráficos.
-
-Hoje a página só trata loading + sucesso parcial.
-
-### 4. Dar feedback útil ao usuário
-- Se a consulta exceder o tempo esperado, mostrar mensagem como:
-  - “A consulta do dashboard está demorando mais que o normal. Tente refinar os filtros.”
-- Se a API retornar sem `resumo`, mostrar:
-  - “O dashboard não recebeu dados consolidados para estes filtros.”
-
-### 5. Revisar consistência com o restante do módulo Produção
-- Aplicar o mesmo padrão de robustez já usado nas páginas paginadas:
-  - controle de corrida entre buscas,
-  - tratamento claro de erro,
-  - renderização resiliente.
-- Não alterar a lógica dos KPIs consolidados das outras páginas agora, apenas alinhar o comportamento do dashboard.
-
-## Detalhes técnicos
-
-### Arquivos principais
-- `src/pages/producao/ProducaoDashboardPage.tsx`
-- `src/lib/api.ts` (se o timeout/cancelamento for centralizado no client)
-
-### Ajustes técnicos previstos
-- Introduzir `AbortController` e/ou identificador de requisição ativa.
-- Criar helper de normalização, por exemplo:
-  - `normalizeDashboardData(result)`
-- Adicionar estados extras no componente:
-  - `error`
-  - `empty`
-  - possivelmente `requestStatus`
-- Renderizar fallback quando:
-  - `data` existe mas `resumo` não existe,
-  - `resumo` existe com todos os valores zerados,
-  - gráficos vierem vazios.
+### Arquivo 3: `src/pages/EngenhariaProducaoPage.tsx`
+Remover ou comentar a coluna `qtd_cargas` que não existe na API, ou deixar com valor vazio aceitável.
 
 ## Resultado esperado
 
-Ao pesquisar por `Projeto 663 / Desenho 4200`, a tela deverá:
-- parar de ficar indefinidamente em “Carregando...”,
-- informar claramente se houve timeout, erro ou ausência de dados,
-- renderizar os KPIs/gráficos quando a API retornar corretamente,
-- evitar sensação de travamento silencioso.
+- **Lead Time**: as 3 colunas que estavam vazias (1ª Produção, Dias Eng→Prod, Dias Total) passarão a exibir dados.
+- **Expedido para Obra**: o KPI "Cargas Distintas" mostrará o valor correto do resumo.
+- **Engenharia x Produção**: coluna "Cargas" não mostrará dados (API não retorna), mas ficará documentada.
+- **Produzido** e **Dashboard**: sem alterações necessárias, já estão compatíveis.
 
-## Validação
-
-### Cenários para validar
-1. Busca com retorno normal.
-2. Busca com filtros sem resultado.
-3. Busca lenta.
-4. Busca interrompida por nova pesquisa.
-5. Resposta sem `resumo`.
-6. Navegar para outra página durante loading sem deixar estado quebrado.
-
-### Critério de aceite
-- Nunca ficar preso em loading indefinidamente.
-- Sempre exibir um estado visível: sucesso, erro, timeout ou sem dados.
-- Dashboard continuar compatível com o contrato atual da API, mas mais tolerante a respostas incompletas.
