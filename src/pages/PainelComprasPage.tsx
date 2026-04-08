@@ -345,15 +345,15 @@ export default function PainelComprasPage() {
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
-            {graficos && (
+            {chartData && (
               <div>
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                  {graficos.top_fornecedores?.length > 0 && (
+                  {chartData.top_fornecedores?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.top_fornecedores} layout="vertical">
+                        <BarChart data={chartData.top_fornecedores} layout="vertical">
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -363,13 +363,13 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.situacoes?.length > 0 && (
+                  {chartData.situacoes?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Situação das OCs</h3>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={graficos.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                            {graficos.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          <Pie data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                            {chartData.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip />
                           <Legend />
@@ -378,13 +378,13 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.tipos?.length > 0 && (
+                  {chartData.tipos?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Tipos de Item</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Produtos x Serviços</h3>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={graficos.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
-                            {graficos.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          <Pie data={chartData.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
+                            {chartData.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip />
                           <Legend />
@@ -393,11 +393,11 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.entregas_por_mes?.length > 0 && (
+                  {chartData.entregas_por_mes?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Entregas por Mês</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Entregas por Mês (Itens por mês de entrega)</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.entregas_por_mes}>
+                        <BarChart data={chartData.entregas_por_mes}>
                           <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
                           <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -407,11 +407,11 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.familias?.length > 0 && (
+                  {chartData.familias?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Top Famílias</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Top Famílias por Valor Líquido</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.familias} layout="vertical">
+                        <BarChart data={chartData.familias} layout="vertical">
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="codigo_familia" width={100} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -421,15 +421,15 @@ export default function PainelComprasPage() {
                     </div>
                   )}
 
-                  {graficos.origens?.length > 0 && (
+                  {chartData.origens?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Origens</h3>
+                      <h3 className="mb-3 text-sm font-semibold">Top Origens por Valor Líquido</h3>
                       <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={graficos.origens} layout="vertical">
-                          <XAxis type="number" className="text-xs" />
+                        <BarChart data={chartData.origens} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="origem" width={100} className="text-xs" tick={{ fontSize: 10 }} />
-                          <Tooltip />
-                          <Bar dataKey="quantidade_itens" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
