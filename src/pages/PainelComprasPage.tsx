@@ -49,7 +49,7 @@ const baseColumns: Column<any>[] = [
 export default function PainelComprasPage() {
   const [filters, setFilters] = useState({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
-    numero_projeto: '', centro_custo: '', transacao: '',
+    numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
@@ -90,7 +90,7 @@ export default function PainelComprasPage() {
   useAiFilters('painel-compras', setFilters, () => search(1));
   const clearFilters = () => { setFilters({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
-    numero_projeto: '', centro_custo: '', transacao: '',
+    numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
     origem_material: '', familia: '', somente_pendentes: true,
@@ -227,6 +227,7 @@ export default function PainelComprasPage() {
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Código Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex: 001.001" /></div>
         <div><Label className="text-xs">Descrição Item</Label><Input value={filters.descricao_item} onChange={(e) => setFilters(f => ({ ...f, descricao_item: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Fornecedor</Label><Input value={filters.fornecedor} onChange={(e) => setFilters(f => ({ ...f, fornecedor: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Nº OC</Label><Input value={filters.numero_oc} onChange={(e) => setFilters(f => ({ ...f, numero_oc: e.target.value }))} className="h-8 text-xs" /></div>
