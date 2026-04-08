@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { api, BomResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -6,6 +6,7 @@ import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
+import { ComboboxFilter, ComboboxOption } from '@/components/erp/ComboboxFilter';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,33 @@ export default function BomPage() {
   const [data, setData] = useState<BomResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [collapsedRows, setCollapsedRows] = useState<Set<number>>(new Set());
+  const [modeloOptions, setModeloOptions] = useState<ComboboxOption[]>([]);
+  const [modeloLoading, setModeloLoading] = useState(false);
 
   const erpReady = useErpReady();
+
+  useEffect(() => {
+    if (!erpReady || filters.codmod.length < 2) {
+      setModeloOptions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setModeloLoading(true);
+      try {
+        const result = await api.get<any>('/api/modelos', { search: filters.codmod });
+        const items = Array.isArray(result) ? result : result?.dados || [];
+        setModeloOptions(items.map((m: any) => ({
+          value: m.codigo || m.codmod || String(m.value || ''),
+          label: m.descricao || m.label || '',
+        })));
+      } catch {
+        setModeloOptions([]);
+      } finally {
+        setModeloLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.codmod, erpReady]);
 
   const search = useCallback(async () => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -162,7 +188,7 @@ export default function BomPage() {
         }
       />
       <FilterPanel onSearch={search} onClear={() => { setFilters({ codmod: '', codder: '', max_nivel: '10' }); setData(null); setCollapsedRows(new Set()); }}>
-        <div><Label className="text-xs">Código Modelo *</Label><Input value={filters.codmod} onChange={(e) => setFilters(f => ({ ...f, codmod: e.target.value }))} placeholder="Código do modelo" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Código Modelo *</Label><ComboboxFilter value={filters.codmod} onChange={(v) => setFilters(f => ({ ...f, codmod: v }))} options={modeloOptions} loading={modeloLoading} placeholder="Digite o código..." className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Derivação</Label><Input value={filters.codder} onChange={(e) => setFilters(f => ({ ...f, codder: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Max. Nível</Label><Input type="number" value={filters.max_nivel} onChange={(e) => setFilters(f => ({ ...f, max_nivel: e.target.value }))} placeholder="10" className="h-8 text-xs" /></div>
       </FilterPanel>
