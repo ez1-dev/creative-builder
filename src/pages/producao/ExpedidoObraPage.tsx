@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { KPICard } from '@/components/erp/KPICard';
+import { Package, Weight, Hash, Truck } from 'lucide-react';
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
