@@ -14,7 +14,7 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, Weight, Hash, Tags } from 'lucide-react';
 import { useProducaoFilters } from '@/contexts/ProducaoFiltersContext';
-import { Package, Weight, Hash, Tags } from 'lucide-react';
+
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
