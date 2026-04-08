@@ -188,7 +188,7 @@ export default function BomPage() {
         }
       />
       <FilterPanel onSearch={search} onClear={() => { setFilters({ codmod: '', codder: '', max_nivel: '10' }); setData(null); setCollapsedRows(new Set()); }}>
-        <div><Label className="text-xs">Código Modelo *</Label><Input value={filters.codmod} onChange={(e) => setFilters(f => ({ ...f, codmod: e.target.value }))} placeholder="Código do modelo" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Código Modelo *</Label><ComboboxFilter value={filters.codmod} onChange={(v) => setFilters(f => ({ ...f, codmod: v }))} options={modeloOptions} loading={modeloLoading} placeholder="Digite o código..." className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Derivação</Label><Input value={filters.codder} onChange={(e) => setFilters(f => ({ ...f, codder: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Max. Nível</Label><Input type="number" value={filters.max_nivel} onChange={(e) => setFilters(f => ({ ...f, max_nivel: e.target.value }))} placeholder="10" className="h-8 text-xs" /></div>
       </FilterPanel>
