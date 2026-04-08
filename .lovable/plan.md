@@ -1,62 +1,102 @@
 
+## Objetivo
 
-# Análise: KPIs Expedido para Obra divergem da Query SQL
+Corrigir a tela **Dashboard Produção** para que ela não fique presa em “Carregando...” e exiba um estado claro quando a API não responder, responder vazia ou responder em formato diferente do esperado.
 
-## Diagnóstico
+## Diagnóstico provável
 
-Comparei a query SQL enviada com o código do frontend (`ExpedidoObraPage.tsx`). A lógica de consolidação do frontend está correta — soma todas as páginas em background. O problema está na **diferença entre o que a API retorna e o que a query SQL calcula**.
+Pelo código atual, há dois pontos frágeis em `ProducaoDashboardPage.tsx`:
 
-### Diferença de granularidade e fonte de dados
+1. A busca depende de **uma única chamada pesada** para `/api/producao/dashboard`.
+2. A tela **só renderiza conteúdo se `data.resumo` existir**. Se a API:
+   - demorar demais,
+   - retornar estrutura diferente,
+   - ou retornar sem `resumo`,
+   
+   o usuário fica vendo apenas loading ou uma área vazia, sem diagnóstico visível.
 
-| Aspecto | Query SQL (referência) | API `/api/producao/expedido` (frontend) |
-|---------|----------------------|----------------------------------------|
-| Granularidade | 1 linha por (projeto, desenho, revisão) | 1 linha por item/etiqueta/carga |
-| Campo peso | `KG_EXPEDIDO = SUM(ree.USU_PESREA)` | `peso_real` por linha |
-| Campo qtd | `QTD_CODBAR_EXPEDIDOS` (códigos de barras distintos) | `quantidade_expedida` por linha |
-| Cargas | `QTD_CARGAS = COUNT(DISTINCT USU_NUMCAR)` | `numero_carga` (contagem distinta no frontend) |
-| Filtro expedição | `USU_NUMCAR IS NOT NULL AND USU_DATCAR IS NOT NULL` | Depende do backend |
+Além disso, o fluxo atual não tem:
+- timeout de requisição,
+- cancelamento da busca anterior,
+- estado explícito de “sem dados”,
+- estado explícito de “falha/timeout”.
 
-### Causas prováveis da divergência
+## Plano de implementação
 
-1. **Duplicação de peso**: Se a API retorna múltiplas linhas para a mesma etiqueta (ex: uma por carga), o `SUM(peso_real)` no frontend contará o peso múltiplas vezes, enquanto a query SQL usa `SUM` agrupado por desenho com JOIN direto na tabela REE.
+### 1. Tornar a chamada do dashboard resiliente
+- Adicionar controle de requisição no `search`:
+  - cancelar busca anterior ao pesquisar novamente,
+  - impedir que respostas antigas sobrescrevam a busca atual,
+  - encerrar loading corretamente em timeout/erro.
 
-2. **Campo diferente**: A query usa `ree.USU_PESREA` (peso real da etiqueta). O campo `peso_real` na API pode mapear para outro campo ou já vir multiplicado/ajustado.
+### 2. Normalizar a resposta da API antes de renderizar
+- Criar uma camada de normalização no `ProducaoDashboardPage` para aceitar:
+  - resposta com `resumo`,
+  - resposta parcial,
+  - arrays ausentes (`top_projetos_patio`, `cargas_por_mes`),
+  - valores nulos/undefined.
+- Garantir defaults seguros para evitar tela vazia.
 
-3. **Filtros diferentes**: A query SQL filtra `NULLIF(USU_NUMCAR, '') IS NOT NULL AND USU_DATCAR IS NOT NULL`. Se a API não aplica esses mesmos filtros, incluirá itens não expedidos.
+### 3. Melhorar estados visuais da página
+Separar claramente os cenários:
+- **loading**: consulta em andamento,
+- **error/timeout**: mostrar alerta com mensagem objetiva e ação de tentar novamente,
+- **empty**: filtros sem resultado,
+- **success**: KPIs e gráficos.
 
-4. **`quantidade_expedida` vs `QTD_CODBAR_EXPEDIDOS`**: A query conta códigos de barras distintos (`COUNT(DISTINCT USU_CODBAR)`), enquanto o frontend soma um campo `quantidade_expedida` que pode ter valor diferente.
+Hoje a página só trata loading + sucesso parcial.
 
-## Recomendação
+### 4. Dar feedback útil ao usuário
+- Se a consulta exceder o tempo esperado, mostrar mensagem como:
+  - “A consulta do dashboard está demorando mais que o normal. Tente refinar os filtros.”
+- Se a API retornar sem `resumo`, mostrar:
+  - “O dashboard não recebeu dados consolidados para estes filtros.”
 
-O problema não está no frontend (a consolidação funciona). Está no **backend da API** — o endpoint `/api/producao/expedido` precisa ser ajustado para retornar dados consistentes com a query mestra, ou adicionar um objeto `resumo` com os totais pré-calculados.
+### 5. Revisar consistência com o restante do módulo Produção
+- Aplicar o mesmo padrão de robustez já usado nas páginas paginadas:
+  - controle de corrida entre buscas,
+  - tratamento claro de erro,
+  - renderização resiliente.
+- Não alterar a lógica dos KPIs consolidados das outras páginas agora, apenas alinhar o comportamento do dashboard.
 
-### Opção recomendada: Adicionar `resumo` no endpoint da API
+## Detalhes técnicos
 
-O endpoint `/api/producao/expedido` deveria retornar um campo `resumo` (como já fazem outros endpoints como Painel de Compras e Notas de Recebimento):
+### Arquivos principais
+- `src/pages/producao/ProducaoDashboardPage.tsx`
+- `src/lib/api.ts` (se o timeout/cancelamento for centralizado no client)
 
-```json
-{
-  "resumo": {
-    "total_registros": 233,
-    "quantidade_expedida": 1500,
-    "peso_expedido": 33720.5,
-    "cargas_distintas": 12
-  },
-  "dados": [...],
-  "total_paginas": 3
-}
-```
+### Ajustes técnicos previstos
+- Introduzir `AbortController` e/ou identificador de requisição ativa.
+- Criar helper de normalização, por exemplo:
+  - `normalizeDashboardData(result)`
+- Adicionar estados extras no componente:
+  - `error`
+  - `empty`
+  - possivelmente `requestStatus`
+- Renderizar fallback quando:
+  - `data` existe mas `resumo` não existe,
+  - `resumo` existe com todos os valores zerados,
+  - gráficos vierem vazios.
 
-O frontend **já está preparado** para consumir esse `resumo` (linhas 65-76 do `ExpedidoObraPage.tsx`). Basta o backend começar a retorná-lo.
+## Resultado esperado
 
-### Ação no backend (fora do Lovable)
+Ao pesquisar por `Projeto 663 / Desenho 4200`, a tela deverá:
+- parar de ficar indefinidamente em “Carregando...”,
+- informar claramente se houve timeout, erro ou ausência de dados,
+- renderizar os KPIs/gráficos quando a API retornar corretamente,
+- evitar sensação de travamento silencioso.
 
-Ajustar o endpoint Python/FastAPI do ERP para incluir o `resumo` usando a mesma lógica da query SQL enviada — especificamente a CTE `expedido` (linhas 229-263) que calcula `KG_EXPEDIDO = SUM(ree.USU_PESREA)`.
+## Validação
 
-### Sem alterações necessárias no frontend
+### Cenários para validar
+1. Busca com retorno normal.
+2. Busca com filtros sem resultado.
+3. Busca lenta.
+4. Busca interrompida por nova pesquisa.
+5. Resposta sem `resumo`.
+6. Navegar para outra página durante loading sem deixar estado quebrado.
 
-O código atual já:
-- Prioriza `resumo` da API se disponível (linhas 66-76)
-- Faz fallback para consolidação manual se não houver `resumo`
-- A consolidação manual é correta para os dados que recebe — o problema é que os dados individuais da API podem ter granularidade diferente da query
-
+### Critério de aceite
+- Nunca ficar preso em loading indefinidamente.
+- Sempre exibir um estado visível: sucesso, erro, timeout ou sem dados.
+- Dashboard continuar compatível com o contrato atual da API, mas mais tolerante a respostas incompletas.
