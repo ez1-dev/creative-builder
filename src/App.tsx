@@ -62,13 +62,15 @@ const App = () => (
               <Route path="/numero-serie" element={<ProtectedRoute path="/numero-serie"><NumeroSeriePage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
               {/* Produção */}
-              <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
-              <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
-              <Route path="/producao/expedido" element={<ProtectedRoute path="/producao/expedido"><ExpedidoObraPage /></ProtectedRoute>} />
-              <Route path="/producao/patio" element={<ProtectedRoute path="/producao/patio"><SaldoPatioPage /></ProtectedRoute>} />
-              <Route path="/producao/nao-carregados" element={<ProtectedRoute path="/producao/nao-carregados"><NaoCarregadosPage /></ProtectedRoute>} />
-              <Route path="/producao/leadtime" element={<ProtectedRoute path="/producao/leadtime"><LeadTimeProducaoPage /></ProtectedRoute>} />
-              <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
+              <Route element={<ProducaoFiltersProvider><Outlet /></ProducaoFiltersProvider>}>
+                <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
+                <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
+                <Route path="/producao/expedido" element={<ProtectedRoute path="/producao/expedido"><ExpedidoObraPage /></ProtectedRoute>} />
+                <Route path="/producao/patio" element={<ProtectedRoute path="/producao/patio"><SaldoPatioPage /></ProtectedRoute>} />
+                <Route path="/producao/nao-carregados" element={<ProtectedRoute path="/producao/nao-carregados"><NaoCarregadosPage /></ProtectedRoute>} />
+                <Route path="/producao/leadtime" element={<ProtectedRoute path="/producao/leadtime"><LeadTimeProducaoPage /></ProtectedRoute>} />
+                <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
+              </Route>
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
