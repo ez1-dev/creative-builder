@@ -15,10 +15,14 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 
 const statusColor = (s: string) => {
   switch (s) {
-    case 'TOTALMENTE EXPEDIDO': return 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]';
-    case 'EXPEDIÇÃO PARCIAL': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
-    case 'EM PRODUÇÃO / SEM ENTRADA ESTOQUE': return 'bg-primary text-primary-foreground';
-    case 'PRODUZIDO / EM PÁTIO': return 'bg-destructive text-destructive-foreground';
+    case 'TOTALMENTE EXPEDIDO':
+    case 'EXPEDIDO': return 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]';
+    case 'EXPEDIÇÃO PARCIAL':
+    case 'PARCIALMENTE EXPEDIDO': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
+    case 'EM PRODUÇÃO / SEM ENTRADA ESTOQUE':
+    case 'EM PRODUÇÃO': return 'bg-primary text-primary-foreground';
+    case 'PRODUZIDO / EM PÁTIO':
+    case 'EM PÁTIO': return 'bg-destructive text-destructive-foreground';
     case 'AGUARDANDO PRODUÇÃO': return 'bg-muted text-muted-foreground';
     case 'SEM MOVIMENTO': return 'bg-muted text-muted-foreground';
     default: return 'bg-muted text-muted-foreground';
@@ -29,7 +33,7 @@ const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
   { key: 'numero_desenho', header: 'Desenho' },
   { key: 'revisao', header: 'Rev.' },
-  { key: 'nome_cliente', header: 'Cliente' },
+  { key: 'cliente', header: 'Cliente' },
   { key: 'data_liberacao_engenharia', header: 'Liberação Eng.', render: (v) => formatDate(v) },
   { key: 'data_primeira_entrada_estoque', header: '1ª Produção', render: (v) => formatDate(v) },
   { key: 'data_primeira_expedicao', header: '1ª Expedição', render: (v) => formatDate(v) },
@@ -37,7 +41,7 @@ const columns: Column<any>[] = [
   { key: 'dias_producao_ate_expedicao', header: 'Dias Prod→Exp', align: 'right', render: (v) => v != null ? formatNumber(v, 0) : '—' },
   { key: 'dias_total_liberacao_ate_expedicao', header: 'Dias Total', align: 'right', render: (v) => v != null ? formatNumber(v, 0) : '—' },
   {
-    key: 'status_geral', header: 'Status',
+    key: 'status_fluxo', header: 'Status',
     render: (v) => <Badge className={`text-[10px] ${statusColor(v)}`}>{v}</Badge>,
   },
 ];
