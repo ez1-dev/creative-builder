@@ -16,10 +16,14 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 
 const statusColor = (s: string) => {
   switch (s) {
-    case 'TOTALMENTE EXPEDIDO': return 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]';
-    case 'EXPEDIÇÃO PARCIAL': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
-    case 'EM PRODUÇÃO / SEM ENTRADA ESTOQUE': return 'bg-primary text-primary-foreground';
-    case 'PRODUZIDO / EM PÁTIO': return 'bg-destructive text-destructive-foreground';
+    case 'TOTALMENTE EXPEDIDO':
+    case 'EXPEDIDO': return 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]';
+    case 'EXPEDIÇÃO PARCIAL':
+    case 'PARCIALMENTE EXPEDIDO': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
+    case 'EM PRODUÇÃO / SEM ENTRADA ESTOQUE':
+    case 'EM PRODUÇÃO': return 'bg-primary text-primary-foreground';
+    case 'PRODUZIDO / EM PÁTIO':
+    case 'EM PÁTIO': return 'bg-destructive text-destructive-foreground';
     case 'AGUARDANDO PRODUÇÃO': return 'bg-muted text-muted-foreground';
     case 'SEM MOVIMENTO': return 'bg-muted text-muted-foreground';
     default: return 'bg-muted text-muted-foreground';
@@ -31,15 +35,15 @@ const columns: Column<any>[] = [
   { key: 'numero_desenho', header: 'Desenho' },
   { key: 'revisao', header: 'Rev.' },
   { key: 'descricao_projeto', header: 'Descrição' },
-  { key: 'nome_cliente', header: 'Cliente' },
+  { key: 'cliente', header: 'Cliente' },
   { key: 'data_liberacao_engenharia', header: 'Liberação Eng.', render: (v) => formatDate(v) },
-  { key: 'kg_previsto_projeto', header: 'Kg Previsto', align: 'right', render: (v) => formatNumber(v, 1) },
-  { key: 'kg_fabricado_cadastro', header: 'Kg Fabricado', align: 'right', render: (v) => formatNumber(v, 1) },
+  { key: 'kg_engenharia', header: 'Kg Previsto', align: 'right', render: (v) => formatNumber(v, 1) },
+  { key: 'kg_estrutura', header: 'Kg Fabricado', align: 'right', render: (v) => formatNumber(v, 1) },
   { key: 'kg_produzido', header: 'Kg Prod.', align: 'right', render: (v) => formatNumber(v, 1) },
   { key: 'kg_expedido', header: 'Kg Expedido', align: 'right', render: (v) => formatNumber(v, 1) },
   { key: 'kg_patio', header: 'Kg Pátio', align: 'right', render: (v) => formatNumber(v, 1) },
   {
-    key: 'perc_produzido_sobre_previsto', header: '% Prod.', align: 'center',
+    key: 'perc_atendimento_producao', header: '% Prod.', align: 'center',
     render: (v) => (
       <div className="flex items-center gap-2 min-w-[100px]">
         <Progress value={Math.min(v || 0, 100)} className="h-2 flex-1" />
@@ -47,15 +51,15 @@ const columns: Column<any>[] = [
       </div>
     ),
   },
-  { key: 'perc_expedido_sobre_previsto', header: '% Expedido', align: 'right', render: (v) => formatPercent(v) },
+  { key: 'perc_expedido', header: '% Expedido', align: 'right', render: (v) => formatPercent(v) },
   { key: 'qtd_ops', header: 'Qtd OPs', align: 'right' },
   { key: 'ops', header: 'OPs' },
   { key: 'origens', header: 'Origens' },
-  { key: 'data_primeira_entrada_estoque', header: '1ª Produção', render: (v) => formatDate(v) },
-  { key: 'data_primeira_expedicao', header: '1ª Expedição', render: (v) => formatDate(v) },
+  { key: 'primeira_producao', header: '1ª Produção', render: (v) => formatDate(v) },
+  { key: 'primeira_expedicao', header: '1ª Expedição', render: (v) => formatDate(v) },
   { key: 'qtd_cargas', header: 'Cargas', align: 'right' },
   {
-    key: 'status_geral', header: 'Status',
+    key: 'status_fluxo', header: 'Status',
     render: (v) => <Badge className={`text-[10px] ${statusColor(v)}`}>{v}</Badge>,
   },
 ];
