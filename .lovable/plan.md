@@ -1,30 +1,42 @@
 
 
-# Corrigir Erro 422 no Assistente IA
+# Ajustes no Painel de Compras
 
-## Causa raiz
+## Visão Geral
 
-A edge function `ai-assistant` funciona quando chamada diretamente (testei e retornou 200 com resposta válida). O erro 422 ocorre quando o SDK do Supabase (`supabase.functions.invoke`) envia a requisição com o token JWT do usuário, e a camada de relay do Supabase rejeita o token antes de chegar na function.
+Quatro ajustes no `PainelComprasPage.tsx`:
 
-Isso acontece porque a plataforma Lovable Cloud deploya edge functions com `verify_jwt = false` por padrão, mas em alguns casos o deploy pode não ter aplicado essa configuração corretamente.
-
-## Solução
-
-Adicionar explicitamente a configuração `verify_jwt = false` no `supabase/config.toml` para a function `ai-assistant`, garantindo que o relay não bloqueie a requisição.
+1. **Checkbox "Mostrar valor total da OC"** — adicionar filtro toggle que envia `mostrar_valor_total_oc: true` para a API
+2. **Coluna "Valor Total OC" na lista detalhada** — exibir `valor_total_oc` (vinda da API) na tabela analítica, visível somente quando o toggle estiver ativo
+3. **Coluna "Valor Total OCs" na visão agrupada por fornecedor** — quando `agrupar_por_fornecedor` estiver ativo, exibir coluna com soma do valor total das OCs
+4. **Situação 4 (Liquidado) desliga "Somente pendentes"** — ao selecionar situação `4`, desmarcar automaticamente o checkbox `somente_pendentes`; ao voltar para "Todas", restaurar o padrão
 
 ## Mudanças
 
-### 1. `supabase/config.toml`
-Adicionar bloco de configuração para a function:
+### `src/pages/PainelComprasPage.tsx`
 
-```toml
-[functions.ai-assistant]
-verify_jwt = false
-```
+**Filtros (state + UI):**
+- Adicionar `mostrar_valor_total_oc: false` ao estado inicial de `filters`
+- Adicionar checkbox "Mostrar valor total da OC" no `FilterPanel`
+- No handler do `Select` de situação: quando `v === '4'`, setar `somente_pendentes: false`; quando voltar para outro valor, restaurar `somente_pendentes: true`
 
-### 2. Re-deploy da edge function
-Forçar o re-deploy da function para aplicar a configuração.
+**Colunas:**
+- Criar coluna condicional `{ key: 'valor_total_oc', header: 'Valor Total OC', align: 'right', render: formatCurrency }` — incluída no array `columns` apenas quando `mostrar_valor_total_oc === true`
+- Na visão agrupada (se existir lógica de agrupamento por fornecedor), adicionar coluna `valor_total_ocs`
+
+**Parâmetros da API:**
+- Enviar `mostrar_valor_total_oc` na chamada `search()` para que o backend inclua o campo (prioridade: `VlrFin > VlrLiq > VlrOri`)
+
+**Lógica de situação × pendentes:**
+- Alterar o `onValueChange` do Select de Situação para:
+  ```ts
+  onValueChange={(v) => setFilters(f => ({
+    ...f,
+    situacao_oc: v,
+    somente_pendentes: v === '4' ? false : f.somente_pendentes,
+  }))}
+  ```
 
 ## Arquivos afetados
-- `supabase/config.toml`
+- `src/pages/PainelComprasPage.tsx` — todas as alterações acima
 
