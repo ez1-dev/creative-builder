@@ -23,10 +23,17 @@ const ALL_SCREENS = [
   { path: '/bom', name: 'Estrutura (BOM)' },
   { path: '/compras-produto', name: 'Compras / Custos' },
   { path: '/painel-compras', name: 'Painel de Compras' },
-  { path: '/engenharia-producao', name: 'Eng. x Produção' },
   { path: '/auditoria-tributaria', name: 'Auditoria Tributária' },
+  { path: '/conciliacao-edocs', name: 'Conciliação EDocs' },
   { path: '/notas-recebimento', name: 'NF Recebimento' },
   { path: '/numero-serie', name: 'Reserva Nº Série' },
+  { path: '/producao/dashboard', name: 'Produção - Dashboard' },
+  { path: '/producao/produzido', name: 'Produção - Produzido no Período' },
+  { path: '/producao/expedido', name: 'Produção - Expedido para Obra' },
+  { path: '/producao/patio', name: 'Produção - Saldo em Pátio' },
+  { path: '/producao/nao-carregados', name: 'Produção - Não Carregados' },
+  { path: '/producao/leadtime', name: 'Produção - Lead Time' },
+  { path: '/producao/engenharia', name: 'Produção - Eng. x Produção' },
   { path: '/configuracoes', name: 'Configurações' },
 ];
 
