@@ -17,7 +17,7 @@ import {
 } from 'recharts';
 
 interface DashboardResumo {
-  kg_previsto_projeto: number;
+  kg_engenharia: number;
   kg_produzido: number;
   kg_expedido: number;
   kg_patio: number;
@@ -39,9 +39,9 @@ interface TopProjetoPatio {
   kg_patio: number;
   kg_produzido: number;
   kg_expedido: number;
-  kg_previsto_projeto: number;
-  status_geral: string;
-  nome_cliente: string;
+  kg_engenharia: number;
+  status_patio: string;
+  cliente: string;
 }
 
 interface CargaPorMes {
