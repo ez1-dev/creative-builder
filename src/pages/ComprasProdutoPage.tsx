@@ -12,6 +12,7 @@ import { useErpOptions } from '@/hooks/useErpOptions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, FolderTree, DollarSign, Receipt } from 'lucide-react';
@@ -38,7 +39,7 @@ const columns: Column<any>[] = [
 ];
 
 export default function ComprasProdutoPage() {
-  const [filters, setFilters] = useState({ codpro: '', despro: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false });
+  const [filters, setFilters] = useState({ codpro: '', despro: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false, situacao: 'A' });
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -50,7 +51,8 @@ export default function ComprasProdutoPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<PaginatedResponse<any>>('/api/compras-produto', { ...filters, pagina: page, tamanho_pagina: 100 });
+      const { situacao, ...rest } = filters;
+      const result = await api.get<PaginatedResponse<any>>('/api/compras-produto', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
     } catch (e: any) {
@@ -80,12 +82,13 @@ export default function ComprasProdutoPage() {
         description="Consulte informações de compras, preços e OCs por produto"
         actions={<ExportButton endpoint="/api/export/compras-produto" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false }); setData(null); setPagina(1); }}>
+      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', codfam: '', codori: '', codder: '', somente_com_oc_aberta: false, situacao: 'A' }); setData(null); setPagina(1); }}>
         <div><Label className="text-xs">Código</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Código" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Descrição</Label><Input value={filters.despro} onChange={(e) => setFilters(f => ({ ...f, despro: e.target.value }))} placeholder="Descrição" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.codfam} onChange={(v) => setFilters(f => ({ ...f, codfam: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Derivação</Label><Input value={filters.codder} onChange={(e) => setFilters(f => ({ ...f, codder: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação</Label><Select value={filters.situacao} onValueChange={(v) => setFilters(f => ({ ...f, situacao: v }))}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="A">Ativo</SelectItem><SelectItem value="I">Inativo</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="oc_aberta" checked={filters.somente_com_oc_aberta} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_com_oc_aberta: !!v }))} />
           <Label htmlFor="oc_aberta" className="text-xs">Somente com OC aberta</Label>
