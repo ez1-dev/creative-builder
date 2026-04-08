@@ -123,7 +123,7 @@ export default function ProducaoDashboardPage() {
         <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Revisão</Label><Input value={sharedFilters.revisao} onChange={(e) => setSharedFilters({ revisao: e.target.value })} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Cliente</Label><Input value={sharedFilters.cliente} onChange={(e) => setSharedFilters({ cliente: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={sharedFilters.cidade} onChange={(e) => setSharedFilters({ cidade: e.target.value })} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       {loading && <div className="text-center text-muted-foreground py-8">Carregando...</div>}
