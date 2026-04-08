@@ -76,15 +76,11 @@ export default function LeadTimeProducaoPage() {
     clearSharedFilters();
     setData(null); setPagina(1);
   };
-  const clearResults = () => {
-    setData(null); setPagina(1);
-  };
-
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader title="Lead Time Produção" description="Análise de lead time do fluxo produtivo" actions={<ExportButton endpoint="/api/export/producao-leadtime" params={filters} />} />
-      <FilterPanel onSearch={() => search(1)} onClear={clearFilters} onClearResults={clearResults}>
+      <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
          <div><Label className="text-xs">Projeto</Label><Input value={sharedFilters.numero_projeto} onChange={(e) => setSharedFilters({ numero_projeto: e.target.value })} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Revisão</Label><Input value={sharedFilters.revisao} onChange={(e) => setSharedFilters({ revisao: e.target.value })} className="h-8 text-xs" /></div>

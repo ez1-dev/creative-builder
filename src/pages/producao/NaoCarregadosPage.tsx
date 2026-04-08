@@ -57,15 +57,11 @@ export default function NaoCarregadosPage() {
     setLocalFilters({ codigo_barras: '' });
     setData(null); setPagina(1);
   };
-  const clearResults = () => {
-    setData(null); setPagina(1);
-  };
-
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader title="Itens Não Carregados" description="Itens produzidos ainda não expedidos" actions={<ExportButton endpoint="/api/export/producao-nao-carregados" params={filters} />} />
-      <FilterPanel onSearch={() => search(1)} onClear={clearFilters} onClearResults={clearResults}>
+      <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
          <div><Label className="text-xs">Projeto</Label><Input value={sharedFilters.numero_projeto} onChange={(e) => setSharedFilters({ numero_projeto: e.target.value })} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Código Barras</Label><Input value={localFilters.codigo_barras} onChange={(e) => setLocalFilters(f => ({ ...f, codigo_barras: e.target.value }))} className="h-8 text-xs" /></div>

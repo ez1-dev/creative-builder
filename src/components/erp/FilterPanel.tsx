@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronUp, Search, X, Eraser } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FilterPanelProps {
   children: React.ReactNode;
   onSearch: () => void;
   onClear: () => void;
-  onClearResults?: () => void;
   defaultOpen?: boolean;
 }
 
-export function FilterPanel({ children, onSearch, onClear, onClearResults, defaultOpen = true }: FilterPanelProps) {
+export function FilterPanel({ children, onSearch, onClear, defaultOpen = true }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -40,12 +39,6 @@ export function FilterPanel({ children, onSearch, onClear, onClearResults, defau
               <X className="mr-1 h-3 w-3" />
               Limpar Filtros
             </Button>
-            {onClearResults && (
-              <Button size="sm" variant="outline" onClick={onClearResults}>
-                <Eraser className="mr-1 h-3 w-3" />
-                Limpar Resultados
-              </Button>
-            )}
           </div>
         </div>
       </div>
