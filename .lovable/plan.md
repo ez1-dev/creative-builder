@@ -1,78 +1,23 @@
 
 
-# Corrigir Nomes de Campos para Usar os Nomes Reais da API
+# Corrigir KPIs da Pagina Produzido no Periodo - Totais por Pagina vs Total Geral
 
 ## Problema
-Na mudanca anterior, renomeamos os campos do frontend para alinhar com a query SQL. Porem, a API backend retorna os dados com nomes **diferentes** dos aliases SQL. O frontend agora referencia campos que nao existem na resposta, causando dados em branco.
-
-## Evidencia (response body real capturado nos network requests)
-
-### Dashboard (`/api/producao/dashboard`)
-- `resumo.kg_engenharia` (nao `kg_previsto_projeto`)
-- `top_projetos_patio[].cliente` (nao `nome_cliente`)
-- `top_projetos_patio[].kg_engenharia` (nao `kg_previsto_projeto`)
-- `top_projetos_patio[].status_patio` (nao `status_geral`)
-- `top_projetos_patio[].perc_expedido` (nao `perc_expedido_sobre_previsto`)
-
-### Produzido (`/api/producao/produzido`)
-- `cliente` (nao `nome_cliente`) - funciona pois esta pagina nao foi alterada nas colunas
-
-### Expedido (`/api/producao/expedido`)
-- `cliente` (nao `nome_cliente`) - idem
+Os KPIs (Total Registros, Qtd Produzida, Peso Produzido, Qtd Etiquetas) somam apenas os registros da pagina atual (100 de 233 itens). Para o projeto 663 desenho 4200, o peso da pagina 1 mostra ~3.693 Kg, mas o total real e ~33.720 Kg (233 itens em 3 paginas). O usuario espera ver os totais gerais da consulta.
 
 ## Solucao
-Reverter os nomes dos campos no frontend para usar exatamente os nomes que a API retorna. Manter os status values atualizados apenas quando houver confirmacao de que a API os retorna (ex: `status_patio` no patio usa valores como "TOTALMENTE EXPEDIDO", "SEM PRODUCAO").
+A API ja retorna `total_registros` no objeto de paginacao. Para os demais totais (peso, quantidade, etiquetas), a API nao retorna um `resumo`. Duas abordagens:
 
-### Correcoes por arquivo:
+**Abordagem escolhida**: Usar `total_registros` da API para o KPI de registros (mostrando o total geral, nao so da pagina). Para peso, quantidade e etiquetas, manter a soma da pagina atual mas deixar o subtitle claro dizendo "pagina X de Y" em vez de apenas "na pagina atual". Isso da contexto ao usuario de que esta vendo uma parcial.
 
-**1. `src/pages/producao/ProducaoDashboardPage.tsx`**
-- Interface `DashboardResumo`: `kg_previsto_projeto` → `kg_engenharia`
-- Interface `TopProjetoPatio`: `kg_previsto_projeto` → `kg_engenharia`, `nome_cliente` → `cliente`, `status_geral` → `status_patio`
-- KPI "Kg Previsto": usar `resumo.kg_engenharia`
+Adicionalmente, se o backend vier a adicionar um campo `resumo` (como em PainelCompras), o frontend ja estara preparado para usa-lo.
 
-**2. `src/pages/EngenhariaProducaoPage.tsx`**
-- Sem dados reais capturados para este endpoint. Usar nomes conservadores baseados no padrao da API:
-  - `nome_cliente` → `cliente`
-  - `kg_previsto_projeto` → `kg_engenharia`
-  - `kg_fabricado_cadastro` → `kg_estrutura`
-  - `status_geral` → `status_fluxo`
-  - `perc_produzido_sobre_previsto` → `perc_atendimento_producao`
-  - `perc_expedido_sobre_previsto` → `perc_expedido`
-  - `data_primeira_entrada_estoque` → `primeira_producao`
-  - `data_primeira_expedicao` → `primeira_expedicao`
-  - `qtd_cargas` → manter se a API retorna, senao remover
-- StatusColor: adicionar ambos os valores (antigos e novos) para robustez
+## Alteracoes em `src/pages/producao/ProduzidoPeriodoPage.tsx`
 
-**3. `src/pages/producao/SaldoPatioPage.tsx`**
-- `nome_cliente` → `cliente`
-- `kg_previsto_projeto` → `kg_engenharia`
-- `status_geral` → `status_patio`
-- `perc_produzido_sobre_previsto` → `perc_atendimento_producao`
-- `perc_expedido_sobre_previsto` → `perc_expedido`
-- `perc_expedido_sobre_produzido` → remover (nao confirmado na API)
-- StatusColor: suportar ambos os conjuntos de valores
+1. **KPI "Total Registros"**: Usar `data.total_registros` (total geral da API) em vez de `dados.length` (pagina atual)
+2. **Subtitles dos KPIs de soma**: Mudar de "na pagina atual" para `pagina ${pagina} de ${data.total_paginas}` para dar contexto
+3. **Subtitle do Total Registros**: Mudar para `${dados.length} nesta pagina` para mostrar ambos os valores
 
-**4. `src/pages/producao/LeadTimeProducaoPage.tsx`**
-- `nome_cliente` → `cliente`
-- `data_primeira_entrada_estoque` → manter (ja existia antes como `data_primeira_entrada_estoque`)
-- `dias_liberacao_ate_producao` → `dias_liberacao_ate_producao` (verificar se API usa este nome)
-- `status_geral` → `status_fluxo` ou manter dual
-- StatusColor: suportar ambos
-
-### Estrategia de StatusColor resiliente
-Em todos os `statusColor`, suportar AMBOS os conjuntos de valores para garantir que funcione independente do formato retornado:
-```
-case 'TOTALMENTE EXPEDIDO':
-case 'EXPEDIDO':
-  return '...success...'
-case 'EXPEDIÇÃO PARCIAL':
-case 'PARCIALMENTE EXPEDIDO':
-  return '...warning...'
-```
-
-## Arquivos afetados
-- `src/pages/producao/ProducaoDashboardPage.tsx`
-- `src/pages/EngenhariaProducaoPage.tsx`
-- `src/pages/producao/SaldoPatioPage.tsx`
-- `src/pages/producao/LeadTimeProducaoPage.tsx`
+## Arquivo afetado
+- `src/pages/producao/ProduzidoPeriodoPage.tsx`
 
