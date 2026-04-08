@@ -13,7 +13,7 @@ import { formatNumber, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { KPICard } from '@/components/erp/KPICard';
-import { Package, Weight, ArrowUpFromLine, Warehouse } from 'lucide-react';
+import { Package, Weight, ArrowUpFromLine, Warehouse, Truck } from 'lucide-react';
 
 const statusColor = (s: string) => {
   switch (s) {
