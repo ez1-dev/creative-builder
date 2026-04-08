@@ -83,6 +83,7 @@ export default function ProducaoDashboardPage() {
 
   useAiFilters('producao-dashboard', setFilters, () => search());
   const clearFilters = () => { setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' }); setData(null); };
+  const clearResults = () => { setData(null); };
 
   const resumo = data?.resumo;
 
@@ -112,7 +113,7 @@ export default function ProducaoDashboardPage() {
         description="Visão gerencial de produção, expedição e pátio"
         actions={<ExportButton endpoint="/api/export/producao-patio" params={filters} />}
       />
-      <FilterPanel onSearch={search} onClear={clearFilters}>
+      <FilterPanel onSearch={search} onClear={clearFilters} onClearResults={clearResults}>
         <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>

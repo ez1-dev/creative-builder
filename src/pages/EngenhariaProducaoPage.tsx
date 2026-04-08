@@ -93,6 +93,9 @@ export default function EngenhariaProducaoPage() {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
     setData(null); setPagina(1);
   };
+  const clearResults = () => {
+    setData(null); setPagina(1);
+  };
 
   return (
     <div className="space-y-4 p-4">
@@ -102,7 +105,7 @@ export default function EngenhariaProducaoPage() {
         description="Comparativo entre engenharia, produção, expedição e pátio"
         actions={<ExportButton endpoint="/api/export/producao-engenharia-x-producao" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
+      <FilterPanel onSearch={() => search(1)} onClear={clearFilters} onClearResults={clearResults}>
         <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
