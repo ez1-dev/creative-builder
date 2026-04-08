@@ -55,6 +55,10 @@ const columns: Column<any>[] = [
   },
   { key: 'ops', header: 'OPs' },
   { key: 'origens', header: 'Origens' },
+  { key: 'qtd_prevista_op', header: 'Qtd Prev. OP', align: 'right', render: (v) => formatNumber(v, 0) },
+  { key: 'qtd_utilizada_op', header: 'Qtd Util. OP', align: 'right', render: (v) => formatNumber(v, 0) },
+  { key: 'kg_refugo', header: 'Kg Refugo', align: 'right', render: (v) => formatNumber(v, 1) },
+  { key: 'kg_patio', header: 'Kg Pátio', align: 'right', render: (v) => formatNumber(v, 1) },
 ];
 
 export default function EngenhariaProducaoPage() {
