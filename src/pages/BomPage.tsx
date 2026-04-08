@@ -31,8 +31,33 @@ export default function BomPage() {
   const [data, setData] = useState<BomResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [collapsedRows, setCollapsedRows] = useState<Set<number>>(new Set());
+  const [modeloOptions, setModeloOptions] = useState<ComboboxOption[]>([]);
+  const [modeloLoading, setModeloLoading] = useState(false);
 
   const erpReady = useErpReady();
+
+  useEffect(() => {
+    if (!erpReady || filters.codmod.length < 2) {
+      setModeloOptions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setModeloLoading(true);
+      try {
+        const result = await api.get<any>('/api/modelos', { search: filters.codmod });
+        const items = Array.isArray(result) ? result : result?.dados || [];
+        setModeloOptions(items.map((m: any) => ({
+          value: m.codigo || m.codmod || String(m.value || ''),
+          label: m.descricao || m.label || '',
+        })));
+      } catch {
+        setModeloOptions([]);
+      } finally {
+        setModeloLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.codmod, erpReady]);
 
   const search = useCallback(async () => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
