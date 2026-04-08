@@ -1,52 +1,33 @@
 
 
-# Módulo Produção — Submenu no Sidebar com 7 sub-páginas
+# Cadastrar rotas do módulo Produção na tabela profile_screens
 
-## O que muda
-Um novo grupo **"Produção"** será adicionado ao sidebar, contendo 7 itens de menu separados, cada um com rota própria. O módulo existente "Eng. x Produção" será movido para dentro desse grupo.
+## Problema
+As 7 páginas do módulo Produção foram criadas no código, mas não aparecem no sidebar nem são acessíveis porque o sistema de permissões (`useUserPermissions`) filtra rotas que não estão cadastradas na tabela `profile_screens`.
 
-## Estrutura de rotas e endpoints
+## Solução
+Criar uma migration SQL que insere as 7 telas de produção na tabela `profile_screens` para **todos os perfis existentes** na tabela `access_profiles`, com `can_view = true` e `can_edit = true`.
 
-| Menu                    | Rota                          | Endpoint API                            |
-|-------------------------|-------------------------------|-----------------------------------------|
-| Dashboard Produção      | `/producao/dashboard`         | `/api/producao/dashboard`               |
-| Produzido no Período    | `/producao/produzido`         | `/api/producao/produzido`               |
-| Expedido para Obra      | `/producao/expedido`          | `/api/producao/expedido`                |
-| Saldo em Pátio          | `/producao/patio`             | `/api/producao/patio`                   |
-| Itens Não Carregados    | `/producao/nao-carregados`    | `/api/producao/nao-carregados`          |
-| Lead Time Produção      | `/producao/leadtime`          | `/api/producao/leadtime`                |
-| Engenharia x Produção   | `/producao/engenharia`        | `/api/producao/engenharia-x-producao`   |
+### Migration SQL
 
-## Implementação
+```sql
+INSERT INTO profile_screens (profile_id, screen_path, screen_name, can_view, can_edit)
+SELECT p.id, s.screen_path, s.screen_name, true, true
+FROM access_profiles p
+CROSS JOIN (VALUES
+  ('/producao/dashboard',       'Dashboard Produção'),
+  ('/producao/produzido',       'Produzido no Período'),
+  ('/producao/expedido',        'Expedido para Obra'),
+  ('/producao/patio',           'Saldo em Pátio'),
+  ('/producao/nao-carregados',  'Itens Não Carregados'),
+  ('/producao/leadtime',        'Lead Time Produção'),
+  ('/producao/engenharia',      'Engenharia x Produção')
+) AS s(screen_path, screen_name)
+ON CONFLICT DO NOTHING;
+```
 
-### 1. Sidebar — Grupo colapsável "Produção" (`AppSidebar.tsx`)
-- Substituir o item atual "Eng. x Produção" por um grupo "Produção" com os 7 sub-itens
-- Usar `SidebarGroup` com `defaultOpen` quando qualquer rota `/producao/*` estiver ativa
-- Ícone do grupo: `Factory`; sub-itens com ícones distintos (LayoutDashboard, Hammer, Truck, Warehouse, PackageX, Clock, GitCompare)
+Isso garante que todos os perfis de acesso existentes recebam visibilidade das novas telas automaticamente. Administradores poderão ajustar permissões individualmente depois via Configurações.
 
-### 2. Criar 6 novas páginas + migrar a existente
-Cada página seguirá o padrão já usado no projeto (FilterPanel + KPIs + DataTable + Pagination):
-
-- **`ProducaoDashboardPage.tsx`** — KPIs resumo geral + gráficos de visão consolidada
-- **`ProduzidoPeriodoPage.tsx`** — Filtros de período/projeto/desenho, tabela de itens produzidos com Kg
-- **`ExpedidoObraPage.tsx`** — Filtros de período/obra, tabela de expedições
-- **`SaldoPatioPage.tsx`** — Filtros de projeto/produto, tabela de saldo disponível em pátio
-- **`NaoCarregadosPage.tsx`** — Filtros de projeto, tabela de itens prontos não expedidos
-- **`LeadTimeProducaoPage.tsx`** — Filtros de período/projeto, tabela/gráfico de lead times
-- **`EngenhariaProducaoPage.tsx`** — Mover a página existente para a nova rota `/producao/engenharia`, apontar para o novo endpoint `/api/producao/engenharia-x-producao`
-
-### 3. Rotas (`App.tsx`)
-- Adicionar as 7 rotas `/producao/*` com `ProtectedRoute`
-- Remover a rota antiga `/engenharia-producao` (ou redirecionar para `/producao/engenharia`)
-
-### 4. Tipos da API (`lib/api.ts`)
-- Adicionar interfaces genéricas para as respostas de cada endpoint de produção (ex: `ProducaoDashboardResponse`, `ProduzidoResponse`, etc.)
-- Como os dados exatos dos endpoints ainda não foram documentados, as interfaces serão criadas com campos genéricos (`dados: any[]`, `resumo: Record<string, any>`) e poderão ser refinadas depois
-
-### Arquivos afetados
-- `src/components/AppSidebar.tsx` — grupo Produção com 7 sub-itens
-- `src/App.tsx` — 7 novas rotas protegidas
-- `src/lib/api.ts` — interfaces de resposta
-- 6 novos arquivos em `src/pages/producao/`
-- `src/pages/EngenhariaProducaoPage.tsx` — migração de endpoint
+### Arquivos
+- Nenhuma alteração de código necessária, apenas a migration no banco
 
