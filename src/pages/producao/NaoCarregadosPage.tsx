@@ -9,7 +9,8 @@ import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatNumber, formatDate } from '@/lib/format';
+import { Badge } from '@/components/ui/badge';
+import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 
@@ -17,19 +18,31 @@ interface NaoCarregadosResponse extends PaginatedResponse<any> {
   resumo: Record<string, any>;
 }
 
+const statusColor = (s: string) => {
+  switch (s?.toUpperCase()) {
+    case 'AGUARDANDO': return 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]';
+    case 'BLOQUEADO': return 'bg-destructive text-destructive-foreground';
+    default: return 'bg-muted text-muted-foreground';
+  }
+};
+
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
   { key: 'numero_desenho', header: 'Desenho' },
-  { key: 'descricao', header: 'Descrição' },
-  { key: 'quantidade', header: 'Qtd', align: 'right', render: (v) => formatNumber(v, 0) },
-  { key: 'peso_kg', header: 'Peso (Kg)', align: 'right', render: (v) => formatNumber(v, 1) },
-  { key: 'data_producao', header: 'Data Produção', render: (v) => formatDate(v) },
-  { key: 'dias_aguardando', header: 'Dias Aguard.', align: 'right' },
-  { key: 'motivo', header: 'Motivo' },
+  { key: 'revisao', header: 'Rev.' },
+  { key: 'qtd_itens_nao_carregados', header: 'Qtd Itens', align: 'right', render: (v) => formatNumber(v, 0) },
+  { key: 'qtd_codigos_barras', header: 'Qtd Cód. Barras', align: 'right', render: (v) => formatNumber(v, 0) },
+  { key: 'cliente', header: 'Cliente' },
+  {
+    key: 'status', header: 'Status',
+    render: (v) => <Badge className={`text-[10px] ${statusColor(v)}`}>{v || '-'}</Badge>,
+  },
 ];
 
 export default function NaoCarregadosPage() {
-  const [filters, setFilters] = useState({ projeto: '', desenho: '' });
+  const [filters, setFilters] = useState({
+    projeto: '', desenho: '', revisao: '', codigo_barras: '', cliente: '',
+  });
   const [data, setData] = useState<NaoCarregadosResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -47,17 +60,23 @@ export default function NaoCarregadosPage() {
   }, [filters, erpReady]);
 
   useAiFilters('producao-nao-carregados', setFilters, () => search(1));
-  const clearFilters = () => { setFilters({ projeto: '', desenho: '' }); setData(null); setPagina(1); };
+  const clearFilters = () => {
+    setFilters({ projeto: '', desenho: '', revisao: '', codigo_barras: '', cliente: '' });
+    setData(null); setPagina(1);
+  };
 
   const resumo = data?.resumo;
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
-      <PageHeader title="Itens Não Carregados" description="Itens prontos que ainda não foram expedidos" actions={<ExportButton endpoint="/api/export/producao/nao-carregados" params={filters} />} />
+      <PageHeader title="Itens Não Carregados" description="Itens prontos que ainda não foram expedidos" actions={<ExportButton endpoint="/api/export/producao-nao-carregados" params={filters} />} />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Projeto</Label><Input value={filters.projeto} onChange={(e) => setFilters(f => ({ ...f, projeto: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Desenho</Label><Input value={filters.desenho} onChange={(e) => setFilters(f => ({ ...f, desenho: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Código de Barras</Label><Input value={filters.codigo_barras} onChange={(e) => setFilters(f => ({ ...f, codigo_barras: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       {resumo && (

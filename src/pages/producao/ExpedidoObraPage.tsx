@@ -19,18 +19,24 @@ interface ExpedidoResponse extends PaginatedResponse<any> {
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
-  { key: 'obra', header: 'Obra' },
   { key: 'numero_desenho', header: 'Desenho' },
+  { key: 'revisao', header: 'Rev.' },
+  { key: 'produto', header: 'Produto' },
   { key: 'descricao', header: 'Descrição' },
-  { key: 'data_expedicao', header: 'Data Expedição', render: (v) => formatDate(v) },
-  { key: 'nota_fiscal', header: 'NF' },
-  { key: 'quantidade', header: 'Qtd', align: 'right', render: (v) => formatNumber(v, 0) },
-  { key: 'peso_kg', header: 'Peso (Kg)', align: 'right', render: (v) => formatNumber(v, 1) },
-  { key: 'transportadora', header: 'Transportadora' },
+  { key: 'quantidade', header: 'Qtd Expedida', align: 'right', render: (v) => formatNumber(v, 0) },
+  { key: 'peso_kg', header: 'Peso Expedido', align: 'right', render: (v) => formatNumber(v, 1) },
+  { key: 'numero_carga', header: 'Nº Carga' },
+  { key: 'qtd_cargas', header: 'Qtd Cargas', align: 'right', render: (v) => formatNumber(v, 0) },
+  { key: 'data_primeira_expedicao', header: 'Primeira Exped.', render: (v) => formatDate(v) },
+  { key: 'data_ultima_expedicao', header: 'Última Exped.', render: (v) => formatDate(v) },
+  { key: 'cliente', header: 'Cliente' },
 ];
 
 export default function ExpedidoObraPage() {
-  const [filters, setFilters] = useState({ projeto: '', obra: '', data_ini: '', data_fim: '' });
+  const [filters, setFilters] = useState({
+    projeto: '', desenho: '', revisao: '', carga: '', cliente: '', cidade: '', produto: '',
+    data_ini: '', data_fim: '',
+  });
   const [data, setData] = useState<ExpedidoResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -48,19 +54,27 @@ export default function ExpedidoObraPage() {
   }, [filters, erpReady]);
 
   useAiFilters('producao-expedido', setFilters, () => search(1));
-  const clearFilters = () => { setFilters({ projeto: '', obra: '', data_ini: '', data_fim: '' }); setData(null); setPagina(1); };
+  const clearFilters = () => {
+    setFilters({ projeto: '', desenho: '', revisao: '', carga: '', cliente: '', cidade: '', produto: '', data_ini: '', data_fim: '' });
+    setData(null); setPagina(1);
+  };
 
   const resumo = data?.resumo;
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
-      <PageHeader title="Expedido para Obra" description="Itens expedidos por obra/período" actions={<ExportButton endpoint="/api/export/producao/expedido" params={filters} />} />
+      <PageHeader title="Expedido para Obra" description="Itens expedidos por obra/período" actions={<ExportButton endpoint="/api/export/producao-expedido" params={filters} />} />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Projeto</Label><Input value={filters.projeto} onChange={(e) => setFilters(f => ({ ...f, projeto: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Obra</Label><Input value={filters.obra} onChange={(e) => setFilters(f => ({ ...f, obra: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Data início</Label><Input type="date" value={filters.data_ini} onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Data fim</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Desenho</Label><Input value={filters.desenho} onChange={(e) => setFilters(f => ({ ...f, desenho: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Carga</Label><Input value={filters.carga} onChange={(e) => setFilters(f => ({ ...f, carga: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Produto</Label><Input value={filters.produto} onChange={(e) => setFilters(f => ({ ...f, produto: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Data expedição de</Label><Input type="date" value={filters.data_ini} onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Data expedição até</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       {resumo && (
