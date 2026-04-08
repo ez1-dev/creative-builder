@@ -8,6 +8,7 @@ import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
 import { ComboboxFilter, ComboboxOption } from '@/components/erp/ComboboxFilter';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/format';
@@ -27,7 +28,7 @@ function getBomRowClassName(row: any) {
 }
 
 export default function BomPage() {
-  const [filters, setFilters] = useState({ codmod: '', codder: '', max_nivel: '10' });
+  const [filters, setFilters] = useState({ codmod: '', codder: '', max_nivel: '10', situacao: 'A' });
   const [data, setData] = useState<BomResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [collapsedRows, setCollapsedRows] = useState<Set<number>>(new Set());
@@ -68,7 +69,7 @@ export default function BomPage() {
     setLoading(true);
     setCollapsedRows(new Set());
     try {
-      const result = await api.get<BomResponse>('/api/bom', { codmod: filters.codmod, codder: filters.codder || undefined, max_nivel: parseInt(filters.max_nivel) || 10 });
+      const result = await api.get<BomResponse>('/api/bom', { codmod: filters.codmod, codder: filters.codder || undefined, max_nivel: parseInt(filters.max_nivel) || 10, situacao_cadastro: filters.situacao });
       setData(result);
     } catch (e: any) {
       toast.error(e.message);
@@ -187,10 +188,11 @@ export default function BomPage() {
           </div>
         }
       />
-      <FilterPanel onSearch={search} onClear={() => { setFilters({ codmod: '', codder: '', max_nivel: '10' }); setData(null); setCollapsedRows(new Set()); }}>
+      <FilterPanel onSearch={search} onClear={() => { setFilters({ codmod: '', codder: '', max_nivel: '10', situacao: 'A' }); setData(null); setCollapsedRows(new Set()); }}>
         <div><Label className="text-xs">Código Modelo *</Label><ComboboxFilter value={filters.codmod} onChange={(v) => setFilters(f => ({ ...f, codmod: v }))} options={modeloOptions} loading={modeloLoading} placeholder="Digite o código..." className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Derivação</Label><Input value={filters.codder} onChange={(e) => setFilters(f => ({ ...f, codder: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Max. Nível</Label><Input type="number" value={filters.max_nivel} onChange={(e) => setFilters(f => ({ ...f, max_nivel: e.target.value }))} placeholder="10" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação</Label><Select value={filters.situacao} onValueChange={(v) => setFilters(f => ({ ...f, situacao: v }))}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="A">Ativo</SelectItem><SelectItem value="I">Inativo</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></div>
       </FilterPanel>
       {data && (
         <>

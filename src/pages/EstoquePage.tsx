@@ -12,6 +12,7 @@ import { useErpOptions } from '@/hooks/useErpOptions';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, Layers, Package } from 'lucide-react';
@@ -30,7 +31,7 @@ const columns: Column<any>[] = [
 ];
 
 export default function EstoquePage() {
-  const [filters, setFilters] = useState({ codpro: '', despro: '', codfam: '', codori: '', coddep: '', somente_com_estoque: true });
+  const [filters, setFilters] = useState({ codpro: '', despro: '', codfam: '', codori: '', coddep: '', somente_com_estoque: true, situacao: 'A' });
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -44,7 +45,8 @@ export default function EstoquePage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...filters, pagina: page, tamanho_pagina: 100 });
+      const { situacao, ...rest } = filters;
+      const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
     } catch (e: any) {
@@ -69,12 +71,13 @@ export default function EstoquePage() {
         description="Consulte saldos em estoque por produto, família, origem e depósito"
         actions={<ExportButton endpoint="/api/export/estoque" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', codfam: '', codori: '', coddep: '', somente_com_estoque: true }); setData(null); setPagina(1); }}>
+      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codpro: '', despro: '', codfam: '', codori: '', coddep: '', somente_com_estoque: true, situacao: 'A' }); setData(null); setPagina(1); }}>
         <div><Label className="text-xs">Código</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Código do produto" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Descrição</Label><Input value={filters.despro} onChange={(e) => setFilters(f => ({ ...f, despro: e.target.value }))} placeholder="Descrição" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.codfam} onChange={(v) => setFilters(f => ({ ...f, codfam: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Depósito</Label><Input value={filters.coddep} onChange={(e) => setFilters(f => ({ ...f, coddep: e.target.value }))} placeholder="Depósito" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação</Label><Select value={filters.situacao} onValueChange={(v) => setFilters(f => ({ ...f, situacao: v }))}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="A">Ativo</SelectItem><SelectItem value="I">Inativo</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="somente_com_estoque" checked={filters.somente_com_estoque} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_com_estoque: !!v }))} />
           <Label htmlFor="somente_com_estoque" className="text-xs">Somente com estoque</Label>

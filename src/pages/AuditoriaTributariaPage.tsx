@@ -12,6 +12,7 @@ import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
@@ -43,7 +44,7 @@ const columns: Column<any>[] = [
 export default function AuditoriaTributariaPage() {
   const [filters, setFilters] = useState({
     codpro: '', despro: '', codfam: '', codori: '', ncm: '', codstr: '', cst: '', tns: '',
-    somente_divergencia: false, somente_ncm_vazio: false, somente_cst_vazio: false, somente_cclass: false,
+    somente_divergencia: false, somente_ncm_vazio: false, somente_cst_vazio: false, somente_cclass: false, situacao: 'A',
   });
   const [data, setData] = useState<AuditoriaResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,8 @@ export default function AuditoriaTributariaPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<AuditoriaResponse>('/api/auditoria-tributaria', { ...filters, pagina: page, tamanho_pagina: 100 });
+      const { situacao, ...rest } = filters;
+      const result = await api.get<AuditoriaResponse>('/api/auditoria-tributaria', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
     } catch (e: any) {
@@ -68,7 +70,7 @@ export default function AuditoriaTributariaPage() {
 
   const clearFilters = () => { setFilters({
     codpro: '', despro: '', codfam: '', codori: '', ncm: '', codstr: '', cst: '', tns: '',
-    somente_divergencia: false, somente_ncm_vazio: false, somente_cst_vazio: false, somente_cclass: false,
+    somente_divergencia: false, somente_ncm_vazio: false, somente_cst_vazio: false, somente_cclass: false, situacao: 'A',
   }); setData(null); setPagina(1); };
 
   const resumo = data?.resumo;
@@ -95,6 +97,7 @@ export default function AuditoriaTributariaPage() {
         <div><Label className="text-xs">Sit. Tributária</Label><Input value={filters.codstr} onChange={(e) => setFilters(f => ({ ...f, codstr: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">CST</Label><Input value={filters.cst} onChange={(e) => setFilters(f => ({ ...f, cst: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Transação</Label><Input value={filters.tns} onChange={(e) => setFilters(f => ({ ...f, tns: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação</Label><Select value={filters.situacao} onValueChange={(v) => setFilters(f => ({ ...f, situacao: v }))}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="A">Ativo</SelectItem><SelectItem value="I">Inativo</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></div>
         <div className="flex items-end gap-2 pb-1"><Checkbox id="diverg" checked={filters.somente_divergencia} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_divergencia: !!v }))} /><Label htmlFor="diverg" className="text-xs">Divergências</Label></div>
         <div className="flex items-end gap-2 pb-1"><Checkbox id="ncmv" checked={filters.somente_ncm_vazio} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_ncm_vazio: !!v }))} /><Label htmlFor="ncmv" className="text-xs">NCM vazio</Label></div>
         <div className="flex items-end gap-2 pb-1"><Checkbox id="cstv" checked={filters.somente_cst_vazio} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_cst_vazio: !!v }))} /><Label htmlFor="cstv" className="text-xs">CST vazio</Label></div>

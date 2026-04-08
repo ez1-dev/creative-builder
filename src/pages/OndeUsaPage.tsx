@@ -8,6 +8,7 @@ import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
@@ -29,7 +30,7 @@ const columns: Column<any>[] = [
 ];
 
 export default function OndeUsaPage() {
-  const [filters, setFilters] = useState({ codcmp: '', dercmp: '', codmod: '' });
+  const [filters, setFilters] = useState({ codcmp: '', dercmp: '', codmod: '', situacao: 'A' });
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -40,7 +41,8 @@ export default function OndeUsaPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<PaginatedResponse<any>>('/api/onde-usa', { ...filters, pagina: page, tamanho_pagina: 100 });
+      const { situacao, ...rest } = filters;
+      const result = await api.get<PaginatedResponse<any>>('/api/onde-usa', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
     } catch (e: any) {
@@ -67,10 +69,11 @@ export default function OndeUsaPage() {
         description="Consulte em quais modelos/estruturas um componente é utilizado"
         actions={<ExportButton endpoint="/api/export/onde-usa" params={filters} />}
       />
-      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codcmp: '', dercmp: '', codmod: '' }); setData(null); setPagina(1); }}>
+      <FilterPanel onSearch={() => search(1)} onClear={() => { setFilters({ codcmp: '', dercmp: '', codmod: '', situacao: 'A' }); setData(null); setPagina(1); }}>
         <div><Label className="text-xs">Cód. Componente</Label><Input value={filters.codcmp} onChange={(e) => setFilters(f => ({ ...f, codcmp: e.target.value }))} placeholder="Código" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Der. Componente</Label><Input value={filters.dercmp} onChange={(e) => setFilters(f => ({ ...f, dercmp: e.target.value }))} placeholder="Derivação" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Cód. Modelo</Label><Input value={filters.codmod} onChange={(e) => setFilters(f => ({ ...f, codmod: e.target.value }))} placeholder="Código modelo" className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Situação</Label><Select value={filters.situacao} onValueChange={(v) => setFilters(f => ({ ...f, situacao: v }))}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="A">Ativo</SelectItem><SelectItem value="I">Inativo</SelectItem><SelectItem value="all">Todos</SelectItem></SelectContent></Select></div>
       </FilterPanel>
       {kpis && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
