@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -12,6 +12,8 @@ import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { KPICard } from '@/components/erp/KPICard';
+import { Package, Weight, ArrowUpFromLine, Warehouse, Truck } from 'lucide-react';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -76,6 +78,22 @@ export default function SaldoPatioPage() {
         <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
+
+      {data && (() => {
+        const dados = data.dados || [];
+        const totalRegistros = dados.length;
+        const kgProduzido = dados.reduce((s: number, r: any) => s + (Number(r.kg_produzido) || 0), 0);
+        const kgExpedido = dados.reduce((s: number, r: any) => s + (Number(r.kg_expedido) || 0), 0);
+        const kgPatio = dados.reduce((s: number, r: any) => s + (Number(r.kg_patio) || 0), 0);
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KPICard title="Total Registros" value={formatNumber(totalRegistros, 0)} subtitle="na página atual" icon={<Package className="h-5 w-5" />} index={0} />
+            <KPICard title="Kg Produzido" value={`${formatNumber(kgProduzido, 1)} Kg`} subtitle="na página atual" icon={<ArrowUpFromLine className="h-5 w-5" />} variant="info" index={1} />
+            <KPICard title="Kg Expedido" value={`${formatNumber(kgExpedido, 1)} Kg`} subtitle="na página atual" icon={<Truck className="h-5 w-5" />} variant="success" index={2} />
+            <KPICard title="Kg em Pátio" value={`${formatNumber(kgPatio, 1)} Kg`} subtitle="na página atual" icon={<Warehouse className="h-5 w-5" />} variant="warning" index={3} />
+          </div>
+        );
+      })()}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
