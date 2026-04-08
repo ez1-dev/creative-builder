@@ -74,7 +74,7 @@ export default function EngenhariaProducaoPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<EngenhariaResponse>('/api/engenharia-producao', { ...filters, pagina: page, tamanho_pagina: 100 });
+      const result = await api.get<EngenhariaResponse>('/api/producao/engenharia-x-producao', { ...filters, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
     } catch (e: any) {

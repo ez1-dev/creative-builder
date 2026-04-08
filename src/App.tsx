@@ -17,6 +17,12 @@ import ConciliacaoEdocsPage from "@/pages/ConciliacaoEdocsPage";
 import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
 import NumeroSeriePage from "@/pages/NumeroSeriePage";
 import ConfiguracoesPage from "@/pages/ConfiguracoesPage";
+import ProducaoDashboardPage from "@/pages/producao/ProducaoDashboardPage";
+import ProduzidoPeriodoPage from "@/pages/producao/ProduzidoPeriodoPage";
+import ExpedidoObraPage from "@/pages/producao/ExpedidoObraPage";
+import SaldoPatioPage from "@/pages/producao/SaldoPatioPage";
+import NaoCarregadosPage from "@/pages/producao/NaoCarregadosPage";
+import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
 import NotFound from "@/pages/NotFound";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
@@ -49,12 +55,21 @@ const App = () => (
               <Route path="/bom" element={<ProtectedRoute path="/bom"><BomPage /></ProtectedRoute>} />
               <Route path="/compras-produto" element={<ProtectedRoute path="/compras-produto"><ComprasProdutoPage /></ProtectedRoute>} />
               <Route path="/painel-compras" element={<ProtectedRoute path="/painel-compras"><PainelComprasPage /></ProtectedRoute>} />
-              <Route path="/engenharia-producao" element={<ProtectedRoute path="/engenharia-producao"><EngenhariaProducaoPage /></ProtectedRoute>} />
               <Route path="/auditoria-tributaria" element={<ProtectedRoute path="/auditoria-tributaria"><AuditoriaTributariaPage /></ProtectedRoute>} />
               <Route path="/conciliacao-edocs" element={<ProtectedRoute path="/conciliacao-edocs"><ConciliacaoEdocsPage /></ProtectedRoute>} />
               <Route path="/notas-recebimento" element={<ProtectedRoute path="/notas-recebimento"><NotasRecebimentoPage /></ProtectedRoute>} />
               <Route path="/numero-serie" element={<ProtectedRoute path="/numero-serie"><NumeroSeriePage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
+              {/* Produção */}
+              <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
+              <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
+              <Route path="/producao/expedido" element={<ProtectedRoute path="/producao/expedido"><ExpedidoObraPage /></ProtectedRoute>} />
+              <Route path="/producao/patio" element={<ProtectedRoute path="/producao/patio"><SaldoPatioPage /></ProtectedRoute>} />
+              <Route path="/producao/nao-carregados" element={<ProtectedRoute path="/producao/nao-carregados"><NaoCarregadosPage /></ProtectedRoute>} />
+              <Route path="/producao/leadtime" element={<ProtectedRoute path="/producao/leadtime"><LeadTimeProducaoPage /></ProtectedRoute>} />
+              <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
+              {/* Redirect old route */}
+              <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
