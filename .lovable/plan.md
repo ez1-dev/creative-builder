@@ -1,23 +1,69 @@
 
+Objetivo: fazer os KPIs de "Produzido no Período" mostrarem o total consolidado do filtro, e não apenas os valores individuais da página atual.
 
-# Corrigir KPIs da Pagina Produzido no Periodo - Totais por Pagina vs Total Geral
+1. Diagnóstico
+- Hoje `src/pages/producao/ProduzidoPeriodoPage.tsx` soma `data.dados` diretamente:
+  - `quantidade_produzida`
+  - `peso_real`
+  - `quantidade_etiquetas`
+- Como `data.dados` contém só a página atual, os KPIs continuam parciais/individuais mesmo quando o filtro retorna várias páginas.
 
-## Problema
-Os KPIs (Total Registros, Qtd Produzida, Peso Produzido, Qtd Etiquetas) somam apenas os registros da pagina atual (100 de 233 itens). Para o projeto 663 desenho 4200, o peso da pagina 1 mostra ~3.693 Kg, mas o total real e ~33.720 Kg (233 itens em 3 paginas). O usuario espera ver os totais gerais da consulta.
+2. Implementação proposta
+- Manter a tabela paginada como está.
+- Separar os KPIs da lista visível:
+  - criar um estado de resumo consolidado, por exemplo `kpiTotals`
+  - criar um estado de carregamento separado, por exemplo `kpiLoading`
+- Ao buscar os dados com os filtros:
+  - usar a primeira resposta para descobrir `total_paginas`
+  - calcular os totais gerais de todas as páginas com os mesmos filtros
+  - somar:
+    - `quantidade_produzida`
+    - `peso_real`
+    - `quantidade_etiquetas`
+    - opcionalmente também `total_registros` a partir da própria API
+- Exibir os KPIs usando esse resumo consolidado, e não mais `dados.reduce(...)` da página atual.
 
-## Solucao
-A API ja retorna `total_registros` no objeto de paginacao. Para os demais totais (peso, quantidade, etiquetas), a API nao retorna um `resumo`. Duas abordagens:
+3. Estratégia de cálculo
+- Prioridade 1: se o endpoint passar a devolver um `resumo`, consumir esse objeto direto.
+- Prioridade 2: como hoje não há `resumo`, fazer agregação no frontend:
+  - buscar as páginas restantes com os mesmos filtros
+  - somar tudo em memória
+- Para evitar recálculo desnecessário:
+  - recalcular somente quando os filtros mudarem
+  - não recalcular ao trocar de página da tabela, se o filtro for o mesmo
 
-**Abordagem escolhida**: Usar `total_registros` da API para o KPI de registros (mostrando o total geral, nao so da pagina). Para peso, quantidade e etiquetas, manter a soma da pagina atual mas deixar o subtitle claro dizendo "pagina X de Y" em vez de apenas "na pagina atual". Isso da contexto ao usuario de que esta vendo uma parcial.
+4. Proteções importantes
+- Adicionar controle contra resposta antiga sobrescrever resposta nova:
+  - usar um `requestId`/sequência interna ou comparação de filtro serializado
+- Mostrar estado visual claro nos KPIs:
+  - enquanto consolida: “Calculando total...”
+  - depois: “Total geral do filtro”
+- Se a consolidação falhar:
+  - manter a tabela funcionando
+  - mostrar aviso de que os KPIs ficaram indisponíveis temporariamente, em vez de exibir parcial sem contexto
 
-Adicionalmente, se o backend vier a adicionar um campo `resumo` (como em PainelCompras), o frontend ja estara preparado para usa-lo.
-
-## Alteracoes em `src/pages/producao/ProduzidoPeriodoPage.tsx`
-
-1. **KPI "Total Registros"**: Usar `data.total_registros` (total geral da API) em vez de `dados.length` (pagina atual)
-2. **Subtitles dos KPIs de soma**: Mudar de "na pagina atual" para `pagina ${pagina} de ${data.total_paginas}` para dar contexto
-3. **Subtitle do Total Registros**: Mudar para `${dados.length} nesta pagina` para mostrar ambos os valores
-
-## Arquivo afetado
+5. Arquivo afetado
 - `src/pages/producao/ProduzidoPeriodoPage.tsx`
 
+6. Resultado esperado para o caso validado
+- Com projeto `663` e desenho `4200`, o KPI de peso deve refletir o total consolidado do filtro (na faixa de ~33.720 Kg, conforme sua extração), e não apenas o valor individual/parcial da página atual.
+
+Detalhes técnicos
+```text
+Fluxo desejado
+
+Buscar página 1
+  -> renderizar tabela
+  -> descobrir total_paginas
+  -> consolidar páginas 1..N
+  -> atualizar KPIs com total geral
+
+Tabela = página atual
+KPI = total geral do filtro
+```
+
+- Também vou remover a lógica atual baseada em:
+  - `const qtdProduzida = dados.reduce(...)`
+  - `const pesoProduzido = dados.reduce(...)`
+  - `const qtdEtiquetas = dados.reduce(...)`
+  para que ela deixe de alimentar os cards principais.
