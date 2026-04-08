@@ -25,6 +25,7 @@ import NaoCarregadosPage from "@/pages/producao/NaoCarregadosPage";
 import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
 import NotFound from "@/pages/NotFound";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ProducaoFiltersProvider } from "@/contexts/ProducaoFiltersContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
