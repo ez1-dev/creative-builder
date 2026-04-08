@@ -69,7 +69,7 @@ export default function ExpedidoObraPage() {
         totalRegistros: resultAny.resumo.total_registros ?? firstResult.total_registros,
         qtdExpedida: resultAny.resumo.quantidade_expedida ?? resultAny.resumo.qtd_expedida ?? 0,
         pesoExpedido: resultAny.resumo.peso_real ?? resultAny.resumo.peso_expedido ?? 0,
-        cargasDistintas: resultAny.resumo.cargas_distintas ?? 0,
+        cargasDistintas: resultAny.resumo.cargas_distintas ?? resultAny.resumo.quantidade_cargas ?? 0,
       });
       setKpiLoading(false);
       return;

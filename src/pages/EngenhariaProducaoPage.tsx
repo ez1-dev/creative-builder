@@ -57,7 +57,7 @@ const columns: Column<any>[] = [
   { key: 'origens', header: 'Origens' },
   { key: 'primeira_producao', header: '1ª Produção', render: (v) => formatDate(v) },
   { key: 'primeira_expedicao', header: '1ª Expedição', render: (v) => formatDate(v) },
-  { key: 'qtd_cargas', header: 'Cargas', align: 'right' },
+  { key: 'qtd_cargas', header: 'Cargas', align: 'right', render: (v) => v != null ? v : '—' },
   {
     key: 'status_fluxo', header: 'Status',
     render: (v) => <Badge className={`text-[10px] ${statusColor(v)}`}>{v}</Badge>,
