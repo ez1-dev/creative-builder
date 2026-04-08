@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
-import { useProducaoFilters } from '@/contexts/ProducaoFiltersContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, ArrowUpFromLine, Warehouse, Truck } from 'lucide-react';
 
@@ -65,8 +64,9 @@ function sumPage(dados: any[]) {
 }
 
 export default function SaldoPatioPage() {
-  const { sharedFilters, setSharedFilters, clearSharedFilters } = useProducaoFilters();
-  const filters = sharedFilters;
+  const [filters, setFilters] = useState({
+    numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '',
+  });
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -144,28 +144,24 @@ export default function SaldoPatioPage() {
     finally { setLoading(false); }
   }, [filters, erpReady, consolidateKpis]);
 
-  useAiFilters('producao-patio', (updater) => {
-    if (typeof updater === 'function') {
-      const result = updater(filters);
-      setSharedFilters(result as any);
-    }
-  }, () => search(1));
+  useAiFilters('producao-patio', setFilters, () => search(1));
   const clearFilters = () => {
-    clearSharedFilters();
+    setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
     setData(null); setPagina(1);
     setKpiTotals(null); setKpiLoading(false);
     consolidationIdRef.current++;
   };
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader title="Saldo em Pátio" description="Saldo entre produzido e expedido" actions={<ExportButton endpoint="/api/export/producao-patio" params={filters} />} />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
-         <div><Label className="text-xs">Projeto</Label><Input value={sharedFilters.numero_projeto} onChange={(e) => setSharedFilters({ numero_projeto: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Revisão</Label><Input value={sharedFilters.revisao} onChange={(e) => setSharedFilters({ revisao: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cliente</Label><Input value={sharedFilters.cliente} onChange={(e) => setSharedFilters({ cliente: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cidade</Label><Input value={sharedFilters.cidade} onChange={(e) => setSharedFilters({ cidade: e.target.value })} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       {(data || kpiLoading) && (

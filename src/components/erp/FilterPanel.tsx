@@ -37,7 +37,7 @@ export function FilterPanel({ children, onSearch, onClear, defaultOpen = true }:
             </Button>
             <Button size="sm" variant="outline" onClick={onClear}>
               <X className="mr-1 h-3 w-3" />
-              Limpar Filtros
+              Limpar
             </Button>
           </div>
         </div>

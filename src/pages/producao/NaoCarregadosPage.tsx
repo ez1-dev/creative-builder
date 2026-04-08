@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
-import { useProducaoFilters } from '@/contexts/ProducaoFiltersContext';
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
@@ -25,9 +24,9 @@ const columns: Column<any>[] = [
 ];
 
 export default function NaoCarregadosPage() {
-  const { sharedFilters, setSharedFilters, clearSharedFilters } = useProducaoFilters();
-  const [localFilters, setLocalFilters] = useState({ codigo_barras: '' });
-  const filters = { ...sharedFilters, ...localFilters };
+  const [filters, setFilters] = useState({
+    numero_projeto: '', numero_desenho: '', cliente: '', cidade: '', codigo_barras: '',
+  });
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -44,29 +43,22 @@ export default function NaoCarregadosPage() {
     finally { setLoading(false); }
   }, [filters, erpReady]);
 
-  useAiFilters('producao-nao-carregados', (updater) => {
-    if (typeof updater === 'function') {
-      const result = updater(filters);
-      const { codigo_barras, ...shared } = result;
-      setSharedFilters(shared as any);
-      setLocalFilters({ codigo_barras });
-    }
-  }, () => search(1));
+  useAiFilters('producao-nao-carregados', setFilters, () => search(1));
   const clearFilters = () => {
-    clearSharedFilters();
-    setLocalFilters({ codigo_barras: '' });
+    setFilters({ numero_projeto: '', numero_desenho: '', cliente: '', cidade: '', codigo_barras: '' });
     setData(null); setPagina(1);
   };
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader title="Itens Não Carregados" description="Itens produzidos ainda não expedidos" actions={<ExportButton endpoint="/api/export/producao-nao-carregados" params={filters} />} />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
-         <div><Label className="text-xs">Projeto</Label><Input value={sharedFilters.numero_projeto} onChange={(e) => setSharedFilters({ numero_projeto: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Código Barras</Label><Input value={localFilters.codigo_barras} onChange={(e) => setLocalFilters(f => ({ ...f, codigo_barras: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cliente</Label><Input value={sharedFilters.cliente} onChange={(e) => setSharedFilters({ cliente: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cidade</Label><Input value={sharedFilters.cidade} onChange={(e) => setSharedFilters({ cidade: e.target.value })} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Código Barras</Label><Input value={filters.codigo_barras} onChange={(e) => setFilters(f => ({ ...f, codigo_barras: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />

@@ -13,8 +13,6 @@ import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, Weight, Hash, Tags } from 'lucide-react';
-import { useProducaoFilters } from '@/contexts/ProducaoFiltersContext';
-
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
@@ -46,11 +44,10 @@ function sumPage(dados: any[]): Omit<KpiTotals, 'totalRegistros'> {
 }
 
 export default function ProduzidoPeriodoPage() {
-  const { sharedFilters, setSharedFilters, clearSharedFilters } = useProducaoFilters();
-  const [localFilters, setLocalFilters] = useState({
-    codigo_produto: '', data_ini: '', data_fim: '',
+  const [filters, setFilters] = useState({
+    numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '',
+    cliente: '', cidade: '', data_ini: '', data_fim: '',
   });
-  const filters = { ...sharedFilters, ...localFilters };
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -144,34 +141,27 @@ export default function ProduzidoPeriodoPage() {
     finally { setLoading(false); }
   }, [filters, erpReady, consolidateKpis]);
 
-  useAiFilters('producao-produzido', (updater) => {
-    if (typeof updater === 'function') {
-      const result = updater(filters);
-      const { codigo_produto, data_ini, data_fim, ...shared } = result;
-      setSharedFilters(shared as any);
-      setLocalFilters({ codigo_produto, data_ini, data_fim });
-    }
-  }, () => search(1));
+  useAiFilters('producao-produzido', setFilters, () => search(1));
   const clearFilters = () => {
-    clearSharedFilters();
-    setLocalFilters({ codigo_produto: '', data_ini: '', data_fim: '' });
+    setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '', cliente: '', cidade: '', data_ini: '', data_fim: '' });
     setData(null); setPagina(1);
     setKpiTotals(null); setKpiLoading(false);
     consolidationIdRef.current++;
   };
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader title="Produzido no Período" description="Itens produzidos por período" actions={<ExportButton endpoint="/api/export/producao-produzido" params={filters} />} />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
-         <div><Label className="text-xs">Projeto</Label><Input value={sharedFilters.numero_projeto} onChange={(e) => setSharedFilters({ numero_projeto: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Desenho</Label><Input value={sharedFilters.numero_desenho} onChange={(e) => setSharedFilters({ numero_desenho: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Revisão</Label><Input value={sharedFilters.revisao} onChange={(e) => setSharedFilters({ revisao: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Produto</Label><Input value={localFilters.codigo_produto} onChange={(e) => setLocalFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cliente</Label><Input value={sharedFilters.cliente} onChange={(e) => setSharedFilters({ cliente: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Cidade</Label><Input value={sharedFilters.cidade} onChange={(e) => setSharedFilters({ cidade: e.target.value })} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Data de</Label><Input type="date" value={localFilters.data_ini} onChange={(e) => setLocalFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Data até</Label><Input type="date" value={localFilters.data_fim} onChange={(e) => setLocalFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Desenho</Label><Input value={filters.numero_desenho} onChange={(e) => setFilters(f => ({ ...f, numero_desenho: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Revisão</Label><Input value={filters.revisao} onChange={(e) => setFilters(f => ({ ...f, revisao: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Data de</Label><Input type="date" value={filters.data_ini} onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Data até</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
       {(data || kpiLoading) && (

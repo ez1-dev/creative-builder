@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,7 +25,6 @@ import NaoCarregadosPage from "@/pages/producao/NaoCarregadosPage";
 import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
 import NotFound from "@/pages/NotFound";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
-import { ProducaoFiltersProvider } from "@/contexts/ProducaoFiltersContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -62,15 +61,13 @@ const App = () => (
               <Route path="/numero-serie" element={<ProtectedRoute path="/numero-serie"><NumeroSeriePage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
               {/* Produção */}
-              <Route element={<ProducaoFiltersProvider><Outlet /></ProducaoFiltersProvider>}>
-                <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
-                <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
-                <Route path="/producao/expedido" element={<ProtectedRoute path="/producao/expedido"><ExpedidoObraPage /></ProtectedRoute>} />
-                <Route path="/producao/patio" element={<ProtectedRoute path="/producao/patio"><SaldoPatioPage /></ProtectedRoute>} />
-                <Route path="/producao/nao-carregados" element={<ProtectedRoute path="/producao/nao-carregados"><NaoCarregadosPage /></ProtectedRoute>} />
-                <Route path="/producao/leadtime" element={<ProtectedRoute path="/producao/leadtime"><LeadTimeProducaoPage /></ProtectedRoute>} />
-                <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
-              </Route>
+              <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
+              <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
+              <Route path="/producao/expedido" element={<ProtectedRoute path="/producao/expedido"><ExpedidoObraPage /></ProtectedRoute>} />
+              <Route path="/producao/patio" element={<ProtectedRoute path="/producao/patio"><SaldoPatioPage /></ProtectedRoute>} />
+              <Route path="/producao/nao-carregados" element={<ProtectedRoute path="/producao/nao-carregados"><NaoCarregadosPage /></ProtectedRoute>} />
+              <Route path="/producao/leadtime" element={<ProtectedRoute path="/producao/leadtime"><LeadTimeProducaoPage /></ProtectedRoute>} />
+              <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
