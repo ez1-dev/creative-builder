@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -149,6 +149,33 @@ export default function ProduzidoPeriodoPage() {
     consolidationIdRef.current++;
   };
 
+  const drillDetails = useMemo(() => {
+    const dados = data?.dados || [];
+    if (!dados.length) return { clientes: [], projQtd: [], projPeso: [], projEtiq: [] };
+
+    const topByField = (field: string, format: (v: number) => string, top = 10) => {
+      const map: Record<string, number> = {};
+      for (const r of dados) {
+        const key = `Proj ${r.numero_projeto} / Des ${r.numero_desenho}`;
+        map[key] = (map[key] || 0) + (Number(r[field]) || 0);
+      }
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, top).map(([label, v]) => ({ label, value: format(v) }));
+    };
+
+    const clienteMap: Record<string, number> = {};
+    for (const r of dados) {
+      const c = r.cliente || 'N/A';
+      clienteMap[c] = (clienteMap[c] || 0) + 1;
+    }
+    const clientes = Object.entries(clienteMap).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([label, v]) => ({ label, value: `${v} reg.` }));
+
+    return {
+      clientes,
+      projQtd: topByField('quantidade_produzida', v => formatNumber(v, 0)),
+      projPeso: topByField('peso_real', v => `${formatNumber(v, 1)} Kg`),
+      projEtiq: topByField('quantidade_etiquetas', v => formatNumber(v, 0)),
+    };
+  }, [data]);
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
@@ -166,37 +193,10 @@ export default function ProduzidoPeriodoPage() {
 
       {(data || kpiLoading) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Registros"
-            value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'}
-            subtitle={data ? `${(data.dados || []).length} nesta página` : undefined}
-            icon={<Package className="h-5 w-5" />}
-            index={0}
-          />
-          <KPICard
-            title="Qtd Produzida"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdProduzida, 0) : '...'}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
-            icon={<Hash className="h-5 w-5" />}
-            variant="info"
-            index={1}
-          />
-          <KPICard
-            title="Peso Produzido"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoProduzido, 1)} Kg` : '...'}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
-            icon={<Weight className="h-5 w-5" />}
-            variant="success"
-            index={2}
-          />
-          <KPICard
-            title="Qtd Etiquetas"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdEtiquetas, 0) : '...'}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
-            icon={<Tags className="h-5 w-5" />}
-            variant="warning"
-            index={3}
-          />
+          <KPICard title="Total Registros" value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'} subtitle={data ? `${(data.dados || []).length} nesta página` : undefined} icon={<Package className="h-5 w-5" />} index={0} tooltip="Quantidade total de registros no filtro" details={drillDetails.clientes.length ? drillDetails.clientes : undefined} />
+          <KPICard title="Qtd Produzida" value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdProduzida, 0) : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Hash className="h-5 w-5" />} variant="info" index={1} tooltip="Top projetos por quantidade produzida" details={drillDetails.projQtd.length ? drillDetails.projQtd : undefined} />
+          <KPICard title="Peso Produzido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoProduzido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Weight className="h-5 w-5" />} variant="success" index={2} tooltip="Top projetos por peso produzido" details={drillDetails.projPeso.length ? drillDetails.projPeso : undefined} />
+          <KPICard title="Qtd Etiquetas" value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdEtiquetas, 0) : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Tags className="h-5 w-5" />} variant="warning" index={3} tooltip="Top projetos por quantidade de etiquetas" details={drillDetails.projEtiq.length ? drillDetails.projEtiq : undefined} />
         </div>
       )}
 
