@@ -217,6 +217,99 @@ export default function PainelComprasPage() {
     };
   }, [data]);
 
+  const drillDetails = useMemo(() => {
+    if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
+    const dados = data.dados;
+
+    const topFornByField = (field: string, top = 10) => {
+      const map = new Map<string, number>();
+      dados.forEach((d: any) => {
+        const key = d.fantasia_fornecedor || 'Desconhecido';
+        map.set(key, (map.get(key) || 0) + (d[field] || 0));
+      });
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, top)
+        .map(([label, val]) => ({ label: label.substring(0, 30), value: formatCurrency(val) }));
+    };
+
+    const topFornByCount = (filterFn: (d: any) => boolean, top = 10) => {
+      const map = new Map<string, number>();
+      dados.filter(filterFn).forEach((d: any) => {
+        const key = d.fantasia_fornecedor || 'Desconhecido';
+        map.set(key, (map.get(key) || 0) + 1);
+      });
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, top)
+        .map(([label, val]) => ({ label: label.substring(0, 30), value: `${val} itens` }));
+    };
+
+    const valorBruto = topFornByField('valor_bruto');
+    const desconto = topFornByField('valor_desconto_total');
+    const impostos = topFornByField('impostos');
+    const fornecedores = topFornByField('valor_liquido');
+    const valorPendente = (() => {
+      const map = new Map<string, number>();
+      dados.forEach((d: any) => {
+        const key = d.fantasia_fornecedor || 'Desconhecido';
+        map.set(key, (map.get(key) || 0) + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)));
+      });
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([label, val]) => ({ label: label.substring(0, 30), value: formatCurrency(val) }));
+    })();
+    const itensPendentes = topFornByCount((d: any) => (d.saldo_pendente || 0) > 0);
+    const itensAtrasados = dados
+      .filter((d: any) => (d.dias_atraso || 0) > 0)
+      .sort((a: any, b: any) => (b.dias_atraso || 0) - (a.dias_atraso || 0))
+      .slice(0, 10)
+      .map((d: any) => ({ label: `OC ${d.numero_oc} - ${(d.descricao_item || '').substring(0, 20)}`, value: `${d.dias_atraso} dias` }));
+    const ocsAtrasadas = (() => {
+      const map = new Map<number, number>();
+      dados.filter((d: any) => (d.dias_atraso || 0) > 0).forEach((d: any) => {
+        const oc = d.numero_oc;
+        map.set(oc, Math.max(map.get(oc) || 0, d.dias_atraso));
+      });
+      return [...map.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([oc, dias]) => ({ label: `OC ${oc}`, value: `${dias} dias` }));
+    })();
+    const maiorAtraso = dados
+      .filter((d: any) => (d.dias_atraso || 0) > 0)
+      .sort((a: any, b: any) => (b.dias_atraso || 0) - (a.dias_atraso || 0))
+      .slice(0, 5)
+      .map((d: any) => ({ label: `OC ${d.numero_oc} - ${(d.descricao_item || '').substring(0, 20)}`, value: `${d.dias_atraso} dias` }));
+    const totalLinhas = (() => {
+      const sitMap = new Map<string, number>();
+      dados.forEach((d: any) => {
+        const key = situacaoLabel(d.situacao_oc);
+        sitMap.set(key, (sitMap.get(key) || 0) + 1);
+      });
+      const produto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
+      const servico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
+      const result: { label: string; value: string }[] = [
+        { label: 'Produtos', value: String(produto) },
+        { label: 'Serviços', value: String(servico) },
+      ];
+      [...sitMap.entries()].sort((a, b) => b[1] - a[1]).forEach(([label, val]) => {
+        result.push({ label, value: String(val) });
+      });
+      return result;
+    })();
+    const total = dados.length;
+    const prod = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
+    const serv = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
+    const itensServico = total > 0 ? [
+      { label: 'Serviços', value: `${serv} (${(serv / total * 100).toFixed(1)}%)` },
+      { label: 'Produtos', value: `${prod} (${(prod / total * 100).toFixed(1)}%)` },
+    ] : undefined;
+
+    return { valorBruto, desconto, impostos, fornecedores, valorPendente, itensPendentes, itensAtrasados, ocsAtrasadas, maiorAtraso, totalLinhas, itensServico };
+  }, [data]);
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
