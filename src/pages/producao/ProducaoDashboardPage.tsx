@@ -235,10 +235,10 @@ export default function ProducaoDashboardPage() {
       {resumo && status === 'success' && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" />
-            <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" />
-            <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" />
-            <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" />
+            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" tooltip="Peso previsto em engenharia" details={buildProjectDetails(data!.top_projetos_patio, 'kg_engenharia')} />
+            <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" tooltip="Total produzido (entrada estoque)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_produzido')} />
+            <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" tooltip="Total expedido (romaneio)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_expedido')} />
+            <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" tooltip="Saldo em pátio (produzido − expedido)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_patio')} />
             <KPICard title="Qtd Cargas" value={resumo.quantidade_cargas} />
             <KPICard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="destructive" />
             <KPICard title="Aguardando Prod." value={resumo.projetos_aguardando_producao} />
