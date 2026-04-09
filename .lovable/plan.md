@@ -1,26 +1,28 @@
 
 
-# Drill-down nos KPIs do Dashboard de Produção
+# Drill-down nos KPIs de Status do Dashboard de Produção
 
-## Abordagem
+## Dados disponíveis
 
-Os dados de `top_projetos_patio` já retornados pela API contêm breakdown por projeto com `kg_produzido`, `kg_expedido`, `kg_patio` e `kg_engenharia`. Vamos usar esses dados para popular a prop `details` dos KPICards relevantes, sem nenhuma chamada extra à API.
+O array `top_projetos_patio` já contém o campo `status_patio` por projeto, que indica o status de cada projeto (ex: "EM PRODUÇÃO", "EXPEDIÇÃO PARCIAL", "TOTALMENTE EXPEDIDO", "AGUARDANDO PRODUÇÃO", etc.).
 
 ## Implementação
 
 ### Arquivo: `src/pages/producao/ProducaoDashboardPage.tsx`
 
-1. Criar uma função helper `buildProjectDetails` que recebe `top_projetos_patio` e uma chave de peso (`kg_produzido` | `kg_expedido` | `kg_patio` | `kg_engenharia`), ordena por valor decrescente, e retorna um array de `{ label, value }` com os top 10 projetos no formato `"Proj 663 / Des 4200 Rev B" → "1.533 Kg"`.
+1. Criar helper `buildStatusDetails(projetos, statusFilter)` que filtra `top_projetos_patio` pelo `status_patio` correspondente e retorna `{ label, value }[]` com o nome do projeto e o cliente.
 
-2. Adicionar `details` e `tooltip` nos seguintes KPICards:
-   - **Kg Previsto** → breakdown por `kg_engenharia`, tooltip "Peso previsto em engenharia"
-   - **Kg Produzido** → breakdown por `kg_produzido`, tooltip "Total produzido (entrada estoque)"
-   - **Kg Expedido** → breakdown por `kg_expedido`, tooltip "Total expedido (romaneio)"
-   - **Kg Pátio** → breakdown por `kg_patio`, tooltip "Saldo em pátio (produzido − expedido)"
+2. Mapear os status para cada KPI:
+   - **Aguardando Prod.** → `status_patio` contendo "AGUARDANDO"
+   - **Em Produção** → `status_patio` contendo "PRODUÇÃO" ou "SEM ENTRADA"
+   - **Parcial Expedido** → `status_patio` contendo "PARCIAL"
+   - **Total Expedidos** → `status_patio` contendo "TOTALMENTE EXPEDIDO"
 
-3. Filtrar itens com valor > 0 para não poluir o popover com linhas zeradas.
+3. Formato do drill-down: label = `"Proj {id} / Des {id} Rev {rev}"`, value = cliente (truncado a 25 chars). Top 15 projetos.
 
-### Resultado esperado
+4. Adicionar tooltips descritivos nos 4 KPIs de status.
 
-Ao clicar em qualquer um dos 4 KPIs de peso, um popover aparece listando os top projetos que compõem aquele total, com projeto/desenho/revisão e o peso correspondente formatado.
+## Resultado esperado
+
+Ao clicar em qualquer KPI de status, um popover lista os projetos naquele status com identificação e cliente.
 
