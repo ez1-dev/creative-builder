@@ -1,47 +1,36 @@
 
 
-# Drill-down nos KPIs das Páginas de Produção
+# Corrigir drill-down para usar dados consolidados (todas as páginas)
 
-## Escopo
+## Problema
 
-Três páginas de produção possuem KPIs sem drill-down. As páginas NaoCarregados, LeadTime e Engenharia x Produção não possuem KPIs, portanto ficam fora do escopo.
+Os KPI values são consolidados buscando todas as páginas em background, mas os drill-downs usam apenas `data.dados` (página atual). Isso causa inconsistencia: o KPI mostra o total geral, mas o drill-down mostra apenas os top da página visível.
 
-## Implementação
+## Solução
 
-### 1. ProduzidoPeriodoPage (4 KPIs)
+Acumular todos os registros de todas as páginas durante a consolidacao e usar esse dataset completo para gerar os drill-downs.
 
-Usar `data.dados` (página atual) para gerar drill-downs:
+## Implementacao
 
-- **Total Registros** — top 10 clientes por quantidade de registros
-- **Qtd Produzida** — top 10 projetos por `quantidade_produzida`
-- **Peso Produzido** — top 10 projetos por `peso_real`
-- **Qtd Etiquetas** — top 10 projetos por `quantidade_etiquetas`
+### Paginas afetadas
 
-Labels: `Proj {numero_projeto} / Des {numero_desenho}`, values formatados.
+1. **ProduzidoPeriodoPage** — 4 KPIs
+2. **ExpedidoObraPage** — 4 KPIs
+3. **SaldoPatioPage** — 4 KPIs
 
-### 2. ExpedidoObraPage (4 KPIs)
+O **PainelComprasPage** nao tem consolidacao multi-pagina (usa `data.resumo` do backend), entao o drill-down da pagina atual e adequado.
 
-Usar `data.dados` para:
+### Mudancas em cada pagina (mesmo padrao)
 
-- **Total Registros** — top 10 clientes por registros
-- **Qtd Expedida** — top 10 projetos por `quantidade_expedida`
-- **Peso Expedido** — top 10 projetos por `peso_real`
-- **Cargas Distintas** — top 10 cargas com motorista e placa
+1. Adicionar state `allDados` (`useState<any[]>([])`) para armazenar todos os registros consolidados
+2. No `consolidateKpis`, alem de somar os totais, concatenar `dados` de cada pagina no array `allDados`
+3. Alterar o `drillDetails` useMemo para usar `allDados` quando disponivel, com fallback para `data.dados`
+4. No `clearFilters`, resetar `allDados` para `[]`
+5. Adicionar indicador no subtitle do KPI: "Top da pagina" vs "Top geral do filtro" conforme o estado
 
-Labels para cargas: `Carga {numero_carga} - {motorista}`.
+### Limites de memoria
 
-### 3. SaldoPatioPage (4 KPIs)
-
-Usar `data.dados` para:
-
-- **Total Registros** — breakdown por `status_patio` (contagem por status)
-- **Kg Produzido** — top 10 projetos por `kg_produzido`
-- **Kg Expedido** — top 10 projetos por `kg_expedido`
-- **Kg em Pátio** — top 10 projetos por `kg_patio`
-
-### Padrão de helper
-
-Cada página terá um `useMemo` com helpers locais que agrupam/ordenam `data.dados` e retornam `{ label, value }[]` para a prop `details` do `KPICard`. Tooltips descritivos serão adicionados a todos os KPIs.
+Manter o limite existente de consolidacao (max ~50 paginas / 5.000 registros) para nao sobrecarregar o navegador. O `allDados` so armazenara os registros que ja sao buscados para consolidacao dos KPIs.
 
 ### Arquivos modificados
 - `src/pages/producao/ProduzidoPeriodoPage.tsx`
