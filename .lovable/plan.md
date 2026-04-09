@@ -1,28 +1,40 @@
 
 
-# Drill-down nos KPIs de Status do Dashboard de Produção
+# Drill-down nos KPIs do Painel de Compras
 
-## Dados disponíveis
+## KPIs que já possuem drill-down
+- **Total OCs** — breakdown por situação
+- **Valor Líquido** — bruto / desconto / líquido
+- **Itens Produto** — produtos vs serviços
 
-O array `top_projetos_patio` já contém o campo `status_patio` por projeto, que indica o status de cada projeto (ex: "EM PRODUÇÃO", "EXPEDIÇÃO PARCIAL", "TOTALMENTE EXPEDIDO", "AGUARDANDO PRODUÇÃO", etc.).
+## KPIs que receberão drill-down (usando `data.dados`)
+
+### Indicadores Financeiros
+1. **Valor Bruto** — top 10 fornecedores por valor bruto
+2. **Desconto Total** — top 10 fornecedores com maior desconto
+3. **Impostos Totais** — top 10 fornecedores por impostos
+4. **Fornecedores** — top 10 fornecedores por valor líquido
+
+### Indicadores de Pendência
+5. **Valor Pendente** — top 10 fornecedores por valor pendente
+6. **Itens Pendentes** — top 10 fornecedores por qtd de itens pendentes
+7. **Itens Atrasados** — top 10 itens com maior atraso (OC + item + dias)
+8. **OCs Atrasadas** — top 10 OCs atrasadas com maior atraso
+9. **Maior Atraso** — top 5 itens com maior atraso (OC + descrição + dias)
+
+### Contagem de Itens
+10. **Total Linhas** — breakdown por tipo (produto/serviço) e por situação
+11. **Itens Serviço** — espelho do drill de Itens Produto (produtos vs serviços com %)
 
 ## Implementação
 
-### Arquivo: `src/pages/producao/ProducaoDashboardPage.tsx`
+### Arquivo: `src/pages/PainelComprasPage.tsx`
 
-1. Criar helper `buildStatusDetails(projetos, statusFilter)` que filtra `top_projetos_patio` pelo `status_patio` correspondente e retorna `{ label, value }[]` com o nome do projeto e o cliente.
+Criar helpers dentro do `useMemo` de `kpis` (ou em um segundo `useMemo`) que agrupam `data.dados` por fornecedor/OC e retornam arrays `{ label, value }[]`:
 
-2. Mapear os status para cada KPI:
-   - **Aguardando Prod.** → `status_patio` contendo "AGUARDANDO"
-   - **Em Produção** → `status_patio` contendo "PRODUÇÃO" ou "SEM ENTRADA"
-   - **Parcial Expedido** → `status_patio` contendo "PARCIAL"
-   - **Total Expedidos** → `status_patio` contendo "TOTALMENTE EXPEDIDO"
+- `topFornByField(dados, field, top=10)` — agrupa por `fantasia_fornecedor`, soma o `field`, ordena desc, retorna top N com label=fornecedor, value=formatCurrency
+- `topAtrasados(dados, top=10)` — filtra `dias_atraso > 0`, ordena desc, retorna com label=`OC {nº} - {desc}`, value=`{dias} dias`
+- `topOcsAtrasadas(dados, top=10)` — agrupa por `numero_oc`, pega max `dias_atraso`, ordena desc
 
-3. Formato do drill-down: label = `"Proj {id} / Des {id} Rev {rev}"`, value = cliente (truncado a 25 chars). Top 15 projetos.
-
-4. Adicionar tooltips descritivos nos 4 KPIs de status.
-
-## Resultado esperado
-
-Ao clicar em qualquer KPI de status, um popover lista os projetos naquele status com identificação e cliente.
+Adicionar prop `details` nos 11 KPICards listados acima.
 
