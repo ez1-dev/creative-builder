@@ -152,6 +152,34 @@ export default function SaldoPatioPage() {
     consolidationIdRef.current++;
   };
 
+  const drillDetails = useMemo(() => {
+    const dados = data?.dados || [];
+    if (!dados.length) return { statusBreakdown: [], projProd: [], projExp: [], projPatio: [] };
+
+    const topByField = (field: string, format: (v: number) => string, top = 10) => {
+      const map: Record<string, number> = {};
+      for (const r of dados) {
+        const key = `Proj ${r.numero_projeto} / Des ${r.numero_desenho}`;
+        map[key] = (map[key] || 0) + (Number(r[field]) || 0);
+      }
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, top).map(([label, v]) => ({ label, value: format(v) }));
+    };
+
+    const statusMap: Record<string, number> = {};
+    for (const r of dados) {
+      const s = r.status_patio || 'N/A';
+      statusMap[s] = (statusMap[s] || 0) + 1;
+    }
+    const statusBreakdown = Object.entries(statusMap).sort((a, b) => b[1] - a[1]).map(([label, v]) => ({ label, value: `${v} reg.` }));
+
+    return {
+      statusBreakdown,
+      projProd: topByField('kg_produzido', v => `${formatNumber(v, 1)} Kg`),
+      projExp: topByField('kg_expedido', v => `${formatNumber(v, 1)} Kg`),
+      projPatio: topByField('kg_patio', v => `${formatNumber(v, 1)} Kg`),
+    };
+  }, [data]);
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
@@ -166,10 +194,10 @@ export default function SaldoPatioPage() {
 
       {(data || kpiLoading) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard title="Total Registros" value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'} subtitle={data ? `${(data.dados || []).length} nesta página` : undefined} icon={<Package className="h-5 w-5" />} index={0} />
-          <KPICard title="Kg Produzido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.kgProduzido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<ArrowUpFromLine className="h-5 w-5" />} variant="info" index={1} />
-          <KPICard title="Kg Expedido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.kgExpedido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Truck className="h-5 w-5" />} variant="success" index={2} />
-          <KPICard title="Kg em Pátio" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.kgPatio, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Warehouse className="h-5 w-5" />} variant="warning" index={3} />
+          <KPICard title="Total Registros" value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'} subtitle={data ? `${(data.dados || []).length} nesta página` : undefined} icon={<Package className="h-5 w-5" />} index={0} tooltip="Breakdown por status" details={drillDetails.statusBreakdown.length ? drillDetails.statusBreakdown : undefined} />
+          <KPICard title="Kg Produzido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.kgProduzido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<ArrowUpFromLine className="h-5 w-5" />} variant="info" index={1} tooltip="Top projetos por kg produzido" details={drillDetails.projProd.length ? drillDetails.projProd : undefined} />
+          <KPICard title="Kg Expedido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.kgExpedido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Truck className="h-5 w-5" />} variant="success" index={2} tooltip="Top projetos por kg expedido" details={drillDetails.projExp.length ? drillDetails.projExp : undefined} />
+          <KPICard title="Kg em Pátio" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.kgPatio, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Warehouse className="h-5 w-5" />} variant="warning" index={3} tooltip="Top projetos por kg em pátio" details={drillDetails.projPatio.length ? drillDetails.projPatio : undefined} />
         </div>
       )}
 

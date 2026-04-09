@@ -136,6 +136,43 @@ export default function ExpedidoObraPage() {
     consolidationIdRef.current++;
   };
 
+  const drillDetails = useMemo(() => {
+    const dados = data?.dados || [];
+    if (!dados.length) return { clientes: [], projQtd: [], projPeso: [], cargas: [] };
+
+    const topByField = (field: string, format: (v: number) => string, top = 10) => {
+      const map: Record<string, number> = {};
+      for (const r of dados) {
+        const key = `Proj ${r.numero_projeto} / Des ${r.numero_desenho}`;
+        map[key] = (map[key] || 0) + (Number(r[field]) || 0);
+      }
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, top).map(([label, v]) => ({ label, value: format(v) }));
+    };
+
+    const clienteMap: Record<string, number> = {};
+    for (const r of dados) {
+      const c = r.cliente || 'N/A';
+      clienteMap[c] = (clienteMap[c] || 0) + 1;
+    }
+    const clientes = Object.entries(clienteMap).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([label, v]) => ({ label, value: `${v} reg.` }));
+
+    const cargaMap: Record<string, { motorista: string; placa: string; count: number }> = {};
+    for (const r of dados) {
+      const nc = r.numero_carga;
+      if (!nc) continue;
+      if (!cargaMap[nc]) cargaMap[nc] = { motorista: r.motorista || '', placa: r.placa || '', count: 0 };
+      cargaMap[nc].count++;
+    }
+    const cargas = Object.entries(cargaMap).sort((a, b) => b[1].count - a[1].count).slice(0, 10).map(([nc, info]) => ({ label: `Carga ${nc} - ${info.motorista}`, value: `${info.count} itens` }));
+
+    return {
+      clientes,
+      projQtd: topByField('quantidade_expedida', v => formatNumber(v, 0)),
+      projPeso: topByField('peso_real', v => `${formatNumber(v, 1)} Kg`),
+      cargas,
+    };
+  }, [data]);
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
@@ -154,10 +191,10 @@ export default function ExpedidoObraPage() {
 
       {(data || kpiLoading) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard title="Total Registros" value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'} subtitle={data ? `${(data.dados || []).length} nesta página` : undefined} icon={<Package className="h-5 w-5" />} index={0} />
-          <KPICard title="Qtd Expedida" value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdExpedida, 0) : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Hash className="h-5 w-5" />} variant="info" index={1} />
-          <KPICard title="Peso Expedido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoExpedido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Weight className="h-5 w-5" />} variant="success" index={2} />
-          <KPICard title="Cargas Distintas" value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.cargasDistintas, 0) : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Truck className="h-5 w-5" />} variant="warning" index={3} />
+          <KPICard title="Total Registros" value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'} subtitle={data ? `${(data.dados || []).length} nesta página` : undefined} icon={<Package className="h-5 w-5" />} index={0} tooltip="Top clientes por quantidade de registros" details={drillDetails.clientes.length ? drillDetails.clientes : undefined} />
+          <KPICard title="Qtd Expedida" value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdExpedida, 0) : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Hash className="h-5 w-5" />} variant="info" index={1} tooltip="Top projetos por quantidade expedida" details={drillDetails.projQtd.length ? drillDetails.projQtd : undefined} />
+          <KPICard title="Peso Expedido" value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoExpedido, 1)} Kg` : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Weight className="h-5 w-5" />} variant="success" index={2} tooltip="Top projetos por peso expedido" details={drillDetails.projPeso.length ? drillDetails.projPeso : undefined} />
+          <KPICard title="Cargas Distintas" value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.cargasDistintas, 0) : '...'} subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'} icon={<Truck className="h-5 w-5" />} variant="warning" index={3} tooltip="Top cargas com motorista" details={drillDetails.cargas.length ? drillDetails.cargas : undefined} />
         </div>
       )}
 
