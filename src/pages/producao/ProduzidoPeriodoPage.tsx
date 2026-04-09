@@ -164,41 +164,7 @@ export default function ProduzidoPeriodoPage() {
         <div><Label className="text-xs">Data até</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
 
-      {(data || kpiLoading) && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Registros"
-            value={kpiTotals ? formatNumber(kpiTotals.totalRegistros, 0) : '...'}
-            subtitle={data ? `${(data.dados || []).length} nesta página` : undefined}
-            icon={<Package className="h-5 w-5" />}
-            index={0}
-          />
-          <KPICard
-            title="Qtd Produzida"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdProduzida, 0) : '...'}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
-            icon={<Hash className="h-5 w-5" />}
-            variant="info"
-            index={1}
-          />
-          <KPICard
-            title="Peso Produzido"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoProduzido, 1)} Kg` : '...'}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
-            icon={<Weight className="h-5 w-5" />}
-            variant="success"
-            index={2}
-          />
-          <KPICard
-            title="Qtd Etiquetas"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.qtdEtiquetas, 0) : '...'}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : 'Total geral do filtro'}
-            icon={<Tags className="h-5 w-5" />}
-            variant="warning"
-            index={3}
-          />
-        </div>
-      )}
+      {(data || kpiLoading) && <ProduzidoKPIs data={data} kpiTotals={kpiTotals} kpiLoading={kpiLoading} />}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
