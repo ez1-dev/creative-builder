@@ -97,6 +97,20 @@ function buildProjectDetails(
     }));
 }
 
+function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]) {
+  const upper = keywords.map(k => k.toUpperCase());
+  return projetos
+    .filter(p => {
+      const s = (p.status_patio ?? '').toUpperCase();
+      return upper.some(k => s.includes(k));
+    })
+    .slice(0, 15)
+    .map(p => ({
+      label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
+      value: (p.cliente ?? '').length > 25 ? (p.cliente ?? '').slice(0, 25) + '…' : (p.cliente ?? '-'),
+    }));
+}
+
 export default function ProducaoDashboardPage() {
   const [filters, setFilters] = useState({
     numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '',
@@ -241,12 +255,12 @@ export default function ProducaoDashboardPage() {
             <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" tooltip="Saldo em pátio (produzido − expedido)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_patio')} />
             <KPICard title="Qtd Cargas" value={resumo.quantidade_cargas} />
             <KPICard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="destructive" />
-            <KPICard title="Aguardando Prod." value={resumo.projetos_aguardando_producao} />
+            <KPICard title="Aguardando Prod." value={resumo.projetos_aguardando_producao} tooltip="Projetos aguardando início de produção" details={buildStatusDetails(data!.top_projetos_patio, 'AGUARDANDO')} />
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <KPICard title="Em Produção" value={resumo.projetos_em_producao} variant="info" />
-            <KPICard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning" />
-            <KPICard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success" />
+            <KPICard title="Em Produção" value={resumo.projetos_em_producao} variant="info" tooltip="Projetos em fase de produção ou sem entrada em estoque" details={buildStatusDetails(data!.top_projetos_patio, 'PRODUÇÃO', 'SEM ENTRADA')} />
+            <KPICard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning" tooltip="Projetos com expedição parcial" details={buildStatusDetails(data!.top_projetos_patio, 'PARCIAL')} />
+            <KPICard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success" tooltip="Projetos totalmente expedidos" details={buildStatusDetails(data!.top_projetos_patio, 'TOTALMENTE EXPEDIDO')} />
             <KPICard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
             <KPICard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
             <KPICard title="LT Total (dias)" value={resumo.leadtime_medio_total} />
