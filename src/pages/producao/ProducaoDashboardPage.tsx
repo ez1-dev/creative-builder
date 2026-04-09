@@ -83,6 +83,20 @@ function isResumoEmpty(r: DashboardResumo): boolean {
   return Object.values(r).every(v => v === 0 || v === null || v === undefined);
 }
 
+function buildProjectDetails(
+  projetos: TopProjetoPatio[],
+  key: keyof Pick<TopProjetoPatio, 'kg_produzido' | 'kg_expedido' | 'kg_patio' | 'kg_engenharia'>,
+) {
+  return projetos
+    .filter(p => (p[key] ?? 0) > 0)
+    .sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0))
+    .slice(0, 10)
+    .map(p => ({
+      label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
+      value: `${formatNumber(p[key], 0)} Kg`,
+    }));
+}
+
 export default function ProducaoDashboardPage() {
   const [filters, setFilters] = useState({
     numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '',
@@ -221,10 +235,10 @@ export default function ProducaoDashboardPage() {
       {resumo && status === 'success' && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" />
-            <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" />
-            <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" />
-            <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" />
+            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" tooltip="Peso previsto em engenharia" details={buildProjectDetails(data!.top_projetos_patio, 'kg_engenharia')} />
+            <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" tooltip="Total produzido (entrada estoque)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_produzido')} />
+            <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" tooltip="Total expedido (romaneio)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_expedido')} />
+            <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" tooltip="Saldo em pátio (produzido − expedido)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_patio')} />
             <KPICard title="Qtd Cargas" value={resumo.quantidade_cargas} />
             <KPICard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="destructive" />
             <KPICard title="Aguardando Prod." value={resumo.projetos_aguardando_producao} />
