@@ -1,40 +1,50 @@
 
 
-# Drill-down nos KPIs do Painel de Compras
+# Drill-down nos KPIs das Páginas de Produção
 
-## KPIs que já possuem drill-down
-- **Total OCs** — breakdown por situação
-- **Valor Líquido** — bruto / desconto / líquido
-- **Itens Produto** — produtos vs serviços
+## Escopo
 
-## KPIs que receberão drill-down (usando `data.dados`)
-
-### Indicadores Financeiros
-1. **Valor Bruto** — top 10 fornecedores por valor bruto
-2. **Desconto Total** — top 10 fornecedores com maior desconto
-3. **Impostos Totais** — top 10 fornecedores por impostos
-4. **Fornecedores** — top 10 fornecedores por valor líquido
-
-### Indicadores de Pendência
-5. **Valor Pendente** — top 10 fornecedores por valor pendente
-6. **Itens Pendentes** — top 10 fornecedores por qtd de itens pendentes
-7. **Itens Atrasados** — top 10 itens com maior atraso (OC + item + dias)
-8. **OCs Atrasadas** — top 10 OCs atrasadas com maior atraso
-9. **Maior Atraso** — top 5 itens com maior atraso (OC + descrição + dias)
-
-### Contagem de Itens
-10. **Total Linhas** — breakdown por tipo (produto/serviço) e por situação
-11. **Itens Serviço** — espelho do drill de Itens Produto (produtos vs serviços com %)
+Três páginas de produção possuem KPIs sem drill-down. As páginas NaoCarregados, LeadTime e Engenharia x Produção não possuem KPIs, portanto ficam fora do escopo.
 
 ## Implementação
 
-### Arquivo: `src/pages/PainelComprasPage.tsx`
+### 1. ProduzidoPeriodoPage (4 KPIs)
 
-Criar helpers dentro do `useMemo` de `kpis` (ou em um segundo `useMemo`) que agrupam `data.dados` por fornecedor/OC e retornam arrays `{ label, value }[]`:
+Usar `data.dados` (página atual) para gerar drill-downs:
 
-- `topFornByField(dados, field, top=10)` — agrupa por `fantasia_fornecedor`, soma o `field`, ordena desc, retorna top N com label=fornecedor, value=formatCurrency
-- `topAtrasados(dados, top=10)` — filtra `dias_atraso > 0`, ordena desc, retorna com label=`OC {nº} - {desc}`, value=`{dias} dias`
-- `topOcsAtrasadas(dados, top=10)` — agrupa por `numero_oc`, pega max `dias_atraso`, ordena desc
+- **Total Registros** — top 10 clientes por quantidade de registros
+- **Qtd Produzida** — top 10 projetos por `quantidade_produzida`
+- **Peso Produzido** — top 10 projetos por `peso_real`
+- **Qtd Etiquetas** — top 10 projetos por `quantidade_etiquetas`
 
-Adicionar prop `details` nos 11 KPICards listados acima.
+Labels: `Proj {numero_projeto} / Des {numero_desenho}`, values formatados.
+
+### 2. ExpedidoObraPage (4 KPIs)
+
+Usar `data.dados` para:
+
+- **Total Registros** — top 10 clientes por registros
+- **Qtd Expedida** — top 10 projetos por `quantidade_expedida`
+- **Peso Expedido** — top 10 projetos por `peso_real`
+- **Cargas Distintas** — top 10 cargas com motorista e placa
+
+Labels para cargas: `Carga {numero_carga} - {motorista}`.
+
+### 3. SaldoPatioPage (4 KPIs)
+
+Usar `data.dados` para:
+
+- **Total Registros** — breakdown por `status_patio` (contagem por status)
+- **Kg Produzido** — top 10 projetos por `kg_produzido`
+- **Kg Expedido** — top 10 projetos por `kg_expedido`
+- **Kg em Pátio** — top 10 projetos por `kg_patio`
+
+### Padrão de helper
+
+Cada página terá um `useMemo` com helpers locais que agrupam/ordenam `data.dados` e retornam `{ label, value }[]` para a prop `details` do `KPICard`. Tooltips descritivos serão adicionados a todos os KPIs.
+
+### Arquivos modificados
+- `src/pages/producao/ProduzidoPeriodoPage.tsx`
+- `src/pages/producao/ExpedidoObraPage.tsx`
+- `src/pages/producao/SaldoPatioPage.tsx`
 
