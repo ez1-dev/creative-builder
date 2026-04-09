@@ -57,11 +57,13 @@ export default function ExpedidoObraPage() {
 
   const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [allDados, setAllDados] = useState<any[]>([]);
   const consolidationIdRef = useRef(0);
 
   const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<any>, currentFilters: typeof filters) => {
     const id = ++consolidationIdRef.current;
 
+    const page1Dados = firstResult.dados || [];
     const resultAny = firstResult as any;
     if (resultAny.resumo) {
       if (consolidationIdRef.current !== id) return;
@@ -71,23 +73,27 @@ export default function ExpedidoObraPage() {
         pesoExpedido: resultAny.resumo.peso_real ?? resultAny.resumo.peso_expedido ?? 0,
         cargasDistintas: resultAny.resumo.cargas_distintas ?? resultAny.resumo.quantidade_cargas ?? 0,
       });
+      setAllDados(page1Dados);
       setKpiLoading(false);
       return;
     }
 
     const totalPages = firstResult.total_paginas;
-    const p1 = sumPage(firstResult.dados || []);
+    const p1 = sumPage(page1Dados);
     if (totalPages <= 1) {
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, qtdExpedida: p1.qtdExpedida, pesoExpedido: p1.pesoExpedido, cargasDistintas: p1.cargas.size });
+      setAllDados(page1Dados);
       setKpiLoading(false);
       return;
     }
 
     setKpiLoading(true);
+    setAllDados(page1Dados);
     try {
       let totals = { qtdExpedida: p1.qtdExpedida, pesoExpedido: p1.pesoExpedido };
       const allCargas = new Set(p1.cargas);
+      let accumulated = [...page1Dados];
       const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const BATCH_SIZE = 5;
 
@@ -98,15 +104,18 @@ export default function ExpedidoObraPage() {
           batch.map(p => api.get<PaginatedResponse<any>>('/api/producao/expedido', { ...currentFilters, pagina: p, tamanho_pagina: 100 }))
         );
         for (const r of results) {
-          const s = sumPage(r.dados || []);
+          const pageDados = r.dados || [];
+          const s = sumPage(pageDados);
           totals.qtdExpedida += s.qtdExpedida;
           totals.pesoExpedido += s.pesoExpedido;
           s.cargas.forEach(c => allCargas.add(c));
+          accumulated = accumulated.concat(pageDados);
         }
       }
 
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...totals, cargasDistintas: allCargas.size });
+      setAllDados(accumulated);
     } catch {
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, qtdExpedida: p1.qtdExpedida, pesoExpedido: p1.pesoExpedido, cargasDistintas: p1.cargas.size });
@@ -133,11 +142,12 @@ export default function ExpedidoObraPage() {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '', numero_carga: '', cliente: '', cidade: '', data_ini: '', data_fim: '' });
     setData(null); setPagina(1);
     setKpiTotals(null); setKpiLoading(false);
+    setAllDados([]);
     consolidationIdRef.current++;
   };
 
   const drillDetails = useMemo(() => {
-    const dados = data?.dados || [];
+    const dados = allDados.length > 0 ? allDados : (data?.dados || []);
     if (!dados.length) return { clientes: [], projQtd: [], projPeso: [], cargas: [] };
 
     const topByField = (field: string, format: (v: number) => string, top = 10) => {
@@ -171,7 +181,7 @@ export default function ExpedidoObraPage() {
       projPeso: topByField('peso_real', v => `${formatNumber(v, 1)} Kg`),
       cargas,
     };
-  }, [data]);
+  }, [data, allDados]);
 
   return (
     <div className="space-y-4 p-4">

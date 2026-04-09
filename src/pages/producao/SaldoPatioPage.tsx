@@ -74,11 +74,13 @@ export default function SaldoPatioPage() {
 
   const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [allDados, setAllDados] = useState<any[]>([]);
   const consolidationIdRef = useRef(0);
 
   const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<any>, currentFilters: typeof filters) => {
     const id = ++consolidationIdRef.current;
 
+    const page1Dados = firstResult.dados || [];
     const resultAny = firstResult as any;
     if (resultAny.resumo) {
       if (consolidationIdRef.current !== id) return;
@@ -88,22 +90,26 @@ export default function SaldoPatioPage() {
         kgExpedido: resultAny.resumo.kg_expedido ?? 0,
         kgPatio: resultAny.resumo.kg_patio ?? 0,
       });
+      setAllDados(page1Dados);
       setKpiLoading(false);
       return;
     }
 
     const totalPages = firstResult.total_paginas;
-    const p1 = sumPage(firstResult.dados || []);
+    const p1 = sumPage(page1Dados);
     if (totalPages <= 1) {
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...p1 });
+      setAllDados(page1Dados);
       setKpiLoading(false);
       return;
     }
 
     setKpiLoading(true);
+    setAllDados(page1Dados);
     try {
       let totals = { ...p1 };
+      let accumulated = [...page1Dados];
       const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const BATCH_SIZE = 5;
 
@@ -114,15 +120,18 @@ export default function SaldoPatioPage() {
           batch.map(p => api.get<PaginatedResponse<any>>('/api/producao/patio', { ...currentFilters, pagina: p, tamanho_pagina: 100 }))
         );
         for (const r of results) {
-          const s = sumPage(r.dados || []);
+          const pageDados = r.dados || [];
+          const s = sumPage(pageDados);
           totals.kgProduzido += s.kgProduzido;
           totals.kgExpedido += s.kgExpedido;
           totals.kgPatio += s.kgPatio;
+          accumulated = accumulated.concat(pageDados);
         }
       }
 
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...totals });
+      setAllDados(accumulated);
     } catch {
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...p1 });
@@ -149,11 +158,12 @@ export default function SaldoPatioPage() {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
     setData(null); setPagina(1);
     setKpiTotals(null); setKpiLoading(false);
+    setAllDados([]);
     consolidationIdRef.current++;
   };
 
   const drillDetails = useMemo(() => {
-    const dados = data?.dados || [];
+    const dados = allDados.length > 0 ? allDados : (data?.dados || []);
     if (!dados.length) return { statusBreakdown: [], projProd: [], projExp: [], projPatio: [] };
 
     const topByField = (field: string, format: (v: number) => string, top = 10) => {
@@ -178,7 +188,7 @@ export default function SaldoPatioPage() {
       projExp: topByField('kg_expedido', v => `${formatNumber(v, 1)} Kg`),
       projPatio: topByField('kg_patio', v => `${formatNumber(v, 1)} Kg`),
     };
-  }, [data]);
+  }, [data, allDados]);
 
   return (
     <div className="space-y-4 p-4">

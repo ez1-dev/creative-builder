@@ -56,12 +56,13 @@ export default function ProduzidoPeriodoPage() {
   // KPI consolidation state
   const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [allDados, setAllDados] = useState<any[]>([]);
   const consolidationIdRef = useRef(0);
 
   const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<any>, currentFilters: typeof filters) => {
     const id = ++consolidationIdRef.current;
 
-    // If API provides a resumo object, use it directly
+    const page1Dados = firstResult.dados || [];
     const resultAny = firstResult as any;
     if (resultAny.resumo) {
       if (consolidationIdRef.current !== id) return;
@@ -71,31 +72,31 @@ export default function ProduzidoPeriodoPage() {
         pesoProduzido: resultAny.resumo.peso_real ?? resultAny.resumo.peso_produzido ?? 0,
         qtdEtiquetas: resultAny.resumo.quantidade_etiquetas ?? resultAny.resumo.qtd_etiquetas ?? 0,
       });
+      setAllDados(page1Dados);
       setKpiLoading(false);
       return;
     }
 
-    // Fallback: aggregate all pages client-side
     const totalPages = firstResult.total_paginas;
     if (totalPages <= 1) {
       if (consolidationIdRef.current !== id) return;
-      const sums = sumPage(firstResult.dados || []);
+      const sums = sumPage(page1Dados);
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...sums });
+      setAllDados(page1Dados);
       setKpiLoading(false);
       return;
     }
 
     setKpiLoading(true);
+    setAllDados(page1Dados);
     try {
-      // Start with page 1 sums
-      let totals = sumPage(firstResult.dados || []);
-
-      // Fetch remaining pages in parallel (batches of 5)
+      let totals = sumPage(page1Dados);
+      let accumulated = [...page1Dados];
       const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const BATCH_SIZE = 5;
 
       for (let i = 0; i < remainingPages.length; i += BATCH_SIZE) {
-        if (consolidationIdRef.current !== id) return; // stale request
+        if (consolidationIdRef.current !== id) return;
         const batch = remainingPages.slice(i, i + BATCH_SIZE);
         const results = await Promise.all(
           batch.map(p =>
@@ -105,19 +106,21 @@ export default function ProduzidoPeriodoPage() {
           )
         );
         for (const r of results) {
-          const s = sumPage(r.dados || []);
+          const pageDados = r.dados || [];
+          const s = sumPage(pageDados);
           totals.qtdProduzida += s.qtdProduzida;
           totals.pesoProduzido += s.pesoProduzido;
           totals.qtdEtiquetas += s.qtdEtiquetas;
+          accumulated = accumulated.concat(pageDados);
         }
       }
 
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...totals });
+      setAllDados(accumulated);
     } catch {
       if (consolidationIdRef.current !== id) return;
-      // On failure, show page 1 partial with warning
-      const sums = sumPage(firstResult.dados || []);
+      const sums = sumPage(page1Dados);
       setKpiTotals({ totalRegistros: firstResult.total_registros, ...sums });
       toast.warning('Não foi possível consolidar todos os KPIs. Valores parciais exibidos.');
     } finally {
@@ -146,11 +149,12 @@ export default function ProduzidoPeriodoPage() {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '', cliente: '', cidade: '', data_ini: '', data_fim: '' });
     setData(null); setPagina(1);
     setKpiTotals(null); setKpiLoading(false);
+    setAllDados([]);
     consolidationIdRef.current++;
   };
 
   const drillDetails = useMemo(() => {
-    const dados = data?.dados || [];
+    const dados = allDados.length > 0 ? allDados : (data?.dados || []);
     if (!dados.length) return { clientes: [], projQtd: [], projPeso: [], projEtiq: [] };
 
     const topByField = (field: string, format: (v: number) => string, top = 10) => {
@@ -175,7 +179,7 @@ export default function ProduzidoPeriodoPage() {
       projPeso: topByField('peso_real', v => `${formatNumber(v, 1)} Kg`),
       projEtiq: topByField('quantidade_etiquetas', v => formatNumber(v, 0)),
     };
-  }, [data]);
+  }, [data, allDados]);
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
