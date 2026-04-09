@@ -149,6 +149,33 @@ export default function ProduzidoPeriodoPage() {
     consolidationIdRef.current++;
   };
 
+  const drillDetails = useMemo(() => {
+    const dados = data?.dados || [];
+    if (!dados.length) return { clientes: [], projQtd: [], projPeso: [], projEtiq: [] };
+
+    const topByField = (field: string, format: (v: number) => string, top = 10) => {
+      const map: Record<string, number> = {};
+      for (const r of dados) {
+        const key = `Proj ${r.numero_projeto} / Des ${r.numero_desenho}`;
+        map[key] = (map[key] || 0) + (Number(r[field]) || 0);
+      }
+      return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, top).map(([label, v]) => ({ label, value: format(v) }));
+    };
+
+    const clienteMap: Record<string, number> = {};
+    for (const r of dados) {
+      const c = r.cliente || 'N/A';
+      clienteMap[c] = (clienteMap[c] || 0) + 1;
+    }
+    const clientes = Object.entries(clienteMap).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([label, v]) => ({ label, value: `${v} reg.` }));
+
+    return {
+      clientes,
+      projQtd: topByField('quantidade_produzida', v => formatNumber(v, 0)),
+      projPeso: topByField('peso_real', v => `${formatNumber(v, 1)} Kg`),
+      projEtiq: topByField('quantidade_etiquetas', v => formatNumber(v, 0)),
+    };
+  }, [data]);
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
