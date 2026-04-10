@@ -232,6 +232,22 @@ export interface ContasPagarResponse extends PaginatedResponse<any> {
   };
 }
 
+export interface ContasReceberResponse extends PaginatedResponse<any> {
+  resumo?: {
+    total_titulos: number;
+    total_clientes: number;
+    valor_original_total: number;
+    valor_aberto_total: number;
+    valor_recebido_total: number;
+    titulos_vencidos: number;
+    valor_vencido_total: number;
+    valor_a_vencer_7d: number;
+    valor_a_vencer_30d: number;
+    ticket_medio: number;
+    maior_atraso_dias: number;
+  };
+}
+
 export interface AuditoriaResponse extends PaginatedResponse<any> {
   resumo: {
     total_registros: number;
