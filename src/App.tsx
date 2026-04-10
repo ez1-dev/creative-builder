@@ -25,20 +25,11 @@ import NaoCarregadosPage from "@/pages/producao/NaoCarregadosPage";
 import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
 import ContasPagarPage from "@/pages/ContasPagarPage";
 import NotFound from "@/pages/NotFound";
-import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
 });
-
-function ProtectedRoute({ path, children }: { path: string; children: React.ReactNode }) {
-  const { canView, loading, hasPermissions } = useUserPermissions();
-  if (loading) return null;
-  if (hasPermissions && !canView(path)) {
-    return <Navigate to="/estoque" replace />;
-  }
-  return <>{children}</>;
-}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
