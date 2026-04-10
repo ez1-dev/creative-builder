@@ -1,94 +1,61 @@
 
 
-# Módulo Contas a Pagar — Plano de Implementação
+# Módulo Contas a Receber — Plano de Implementação
 
 ## Resumo
 
-Criar a página frontend "Contas a Pagar" seguindo o mesmo padrão visual e técnico das páginas existentes (PainelComprasPage, NotasRecebimentoPage). A página consumirá 3 endpoints FastAPI que o usuário criará no backend: `/api/contas-pagar`, `/api/contas-pagar-dashboard` e `/api/export/contas-pagar`.
+Criar a página "Contas a Receber" espelhando o módulo Contas a Pagar, adaptando a terminologia de fornecedor→cliente e os endpoints para `/api/contas-receber`. Tabelas ERP: `E501TCR` (títulos), `E501MCR` (movimentos), `E085CLI` (clientes).
 
-O Lovable criará todo o frontend React + a especificação completa dos endpoints para colar no backend FastAPI.
+## Arquivos a criar/modificar
 
----
+### 1. Criar: `src/pages/ContasReceberPage.tsx`
 
-## 1. Arquivos a criar/modificar
+Cópia adaptada de `ContasPagarPage.tsx` com as seguintes mudanças:
+- Endpoint: `/api/contas-receber` (e export: `/api/export/contas-receber`)
+- Filtros: "Fornecedor" → "Cliente" (`cliente` em vez de `fornecedor`)
+- Checkbox "Somente cheques" → removido ou mantido conforme aplicável
+- Checkbox "Agrupar por fornecedor" → "Agrupar por cliente"
+- Colunas detalhadas: `codigo_cliente`, `nome_cliente`, `fantasia_cliente` (em vez de `_fornecedor`)
+- Colunas agrupadas: idem, agrupamento por cliente
+- KPIs: mesmos 11 indicadores, tooltip adaptado ("a receber" em vez de "a pagar")
+- PageHeader: título "Contas a Receber", descrição "Consulta analítica de títulos financeiros a receber"
 
-### Criar: `src/pages/ContasPagarPage.tsx`
-Página principal com:
-- **Filtros** no topo (FilterPanel): fornecedor, número título, tipo título, filial, status título (Select com PAGO/PARCIAL/VENCIDO/A_VENCER/EM_ABERTO), checkboxes (somente vencidos, somente saldo aberto, somente cheques), datas emissão ini/fim, datas vencimento ini/fim, datas pagamento ini/fim, valor mín/máx, checkbox agrupar por fornecedor
-- **11 KPIs** com KPICard: total títulos, total fornecedores, valor original, valor aberto, valor pago, qtd vencidos, valor vencido, valor a vencer 7d, valor a vencer 30d, ticket médio, maior atraso
-- **Tabs** alternando entre grid detalhada e grid agrupada por fornecedor
-- **Grid detalhada** (16 colunas): filial, tipo título, número título, código/nome/fantasia fornecedor, data emissão, data vencimento, último movimento, valor original, valor aberto, valor movimentado, valor pago, qtd movimentos, status título (com badge colorido), dias atraso
-- **Grid agrupada** (12 colunas): código/nome/fantasia fornecedor, qtd títulos, títulos aberto, títulos vencidos, valor original, valor aberto, valor pago, maior atraso, primeiro/último vencimento
-- **Paginação** e **Exportar Excel**
+### 2. Modificar: `src/lib/api.ts`
 
-### Criar: `src/lib/api.ts` (adicionar interface)
+Adicionar interface:
 ```typescript
-export interface ContasPagarResponse extends PaginatedResponse<any> {
-  resumo?: {
-    total_titulos: number;
-    total_fornecedores: number;
-    valor_original_total: number;
-    valor_aberto_total: number;
-    valor_pago_total: number;
-    titulos_vencidos: number;
-    valor_vencido_total: number;
-    valor_a_vencer_7d: number;
-    valor_a_vencer_30d: number;
-    ticket_medio: number;
-    maior_atraso_dias: number;
-  };
+export interface ContasReceberResponse extends PaginatedResponse<any> {
+  resumo?: { /* mesma estrutura do ContasPagarResponse */ };
 }
 ```
 
-### Modificar: `src/App.tsx`
-- Importar `ContasPagarPage`
-- Adicionar rota `/contas-pagar` com ProtectedRoute
+### 3. Modificar: `src/App.tsx`
 
-### Modificar: `src/components/AppSidebar.tsx`
-- Adicionar item "Contas a Pagar" no array `modules` com ícone `Wallet` (ou `Receipt`)
+- Importar `ContasReceberPage`
+- Adicionar rota: `/contas-receber` com `ProtectedRoute`
 
----
+### 4. Modificar: `src/components/AppSidebar.tsx`
 
-## 2. Padrões seguidos
+- Adicionar item `{ title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins }` logo após "Contas a Pagar"
 
-- Mesmo layout de FilterPanel + KPICard + DataTable + PaginationControl
-- ExportButton apontando para `/api/export/contas-pagar`
-- ComboboxFilter para campos com sugestões dinâmicas
-- Status renderizado com badges coloridos (verde=PAGO, amarelo=PARCIAL, vermelho=VENCIDO, azul=A_VENCER, cinza=EM_ABERTO)
-- KPIs calculados via `data.resumo` (API) com fallback `useMemo` nos dados brutos
-- Filtros limpos com botão "Limpar" (padrão existente)
+## Especificação backend (para colar no FastAPI)
 
----
+**Endpoints:**
+- `GET /api/contas-receber` — paginado, mesma lógica do contas-pagar
+- `GET /api/contas-receber-dashboard` — KPIs
+- `GET /api/export/contas-receber` — Excel
 
-## 3. Especificação dos endpoints FastAPI (para colar no backend)
+**SQL:**
+- Títulos: `E501TCR T` (VlrOri, VlrAbe, VctPro, CodTpt, NumTit, CodCli, DatEmi)
+- Movimentos: `E501MCR M` (join por CodEmp, CodFil, CodTpt, NumTit)
+- Cliente: `E085CLI C` (join por CodCli → NomCli, NomFan)
+- Status calculado igual ao contas-pagar (PAGO, PARCIAL, VENCIDO, A_VENCER, EM_ABERTO)
 
-Será entregue como comentário/documentação dentro do código ou separadamente:
-
-**GET /api/contas-pagar** — Consulta paginada de títulos
-- Query params: todos os filtros listados + `pagina`, `tamanho_pagina` (max 100), `agrupar_por_fornecedor`
-- SQL: CTE MOV (agregação E501MCP) + CTE BASE (E501TCP + E095FOR + MOV)
-- Joins conforme especificado (CodEmp, CodFil, CodTpt, NumTit)
-- Status calculado no SQL
-- Retorna `{ pagina, tamanho_pagina, total_registros, total_paginas, dados, resumo }`
-
-**GET /api/contas-pagar-dashboard** — KPIs e gráficos (mesmos filtros sem paginação)
-
-**GET /api/export/contas-pagar** — Excel via `_collect_paginated_data` + `_xlsx_response`
-
-Labels Excel:
+**Labels Excel:**
 ```
-filial, tipo_titulo, numero_titulo, codigo_fornecedor, nome_fornecedor,
-fantasia_fornecedor, data_emissao, data_vencimento, data_ultimo_movimento,
-valor_original, valor_aberto, valor_movimentado, valor_pago,
+filial, tipo_titulo, numero_titulo, codigo_cliente, nome_cliente,
+fantasia_cliente, data_emissao, data_vencimento, data_ultimo_movimento,
+valor_original, valor_aberto, valor_movimentado, valor_recebido,
 quantidade_movimentos, status_titulo, dias_atraso
 ```
-
----
-
-## Detalhes técnicos
-
-- A página chamará `api.get<ContasPagarResponse>('/api/contas-pagar', params)`
-- Checkbox "Agrupar por fornecedor" alterna entre duas definições de colunas (`columnsDetalhada` / `columnsAgrupada`)
-- Formatação via `formatCurrency`, `formatDate`, `formatNumber` existentes
-- Não será usado CodSnf em nenhum momento
 
