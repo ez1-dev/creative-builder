@@ -70,6 +70,38 @@ interface ApprovedUser {
   erp_user: string | null;
 }
 
+function getErrorExplanation(log: any): { explicacao: string; resolucao: string } {
+  const msg = (log.message || '').toLowerCase();
+  const mod = log.module || '';
+  const code = log.status_code;
+
+  if (mod === 'global/js-error') {
+    return { explicacao: 'Erro inesperado no navegador (JavaScript)', resolucao: 'Tente recarregar a página (Ctrl+Shift+R). Se persistir, reporte ao suporte.' };
+  }
+  if (mod === 'global/unhandled-rejection') {
+    return { explicacao: 'Uma operação assíncrona falhou inesperadamente', resolucao: 'Recarregue a página. Verifique sua conexão de internet.' };
+  }
+  if (code === 401) {
+    return { explicacao: 'Sessão da API ERP expirou ou credenciais inválidas', resolucao: 'Verifique as credenciais da API em Configurações > API e reconecte.' };
+  }
+  if (code === 403) {
+    return { explicacao: 'Acesso negado ao recurso solicitado', resolucao: 'Verifique as permissões do usuário no ERP.' };
+  }
+  if (code === 404) {
+    return { explicacao: 'Endpoint ou recurso não encontrado na API', resolucao: 'Verifique se a URL da API está correta em Configurações.' };
+  }
+  if (code && code >= 500) {
+    return { explicacao: 'Erro interno no servidor da API ERP', resolucao: 'O servidor ERP está com problemas. Tente novamente mais tarde.' };
+  }
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('failed to fetch')) {
+    return { explicacao: 'Falha de comunicação de rede', resolucao: 'Verifique sua conexão com a internet e se o servidor ERP está acessível.' };
+  }
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return { explicacao: 'A requisição demorou demais para responder', resolucao: 'O servidor pode estar sobrecarregado. Tente novamente em alguns minutos.' };
+  }
+  return { explicacao: 'Erro não categorizado', resolucao: 'Verifique os detalhes e, se necessário, contate o suporte técnico.' };
+}
+
 export default function ConfiguracoesPage() {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
