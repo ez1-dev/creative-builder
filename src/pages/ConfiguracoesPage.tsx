@@ -70,6 +70,38 @@ interface ApprovedUser {
   erp_user: string | null;
 }
 
+function getErrorExplanation(log: any): { explicacao: string; resolucao: string } {
+  const msg = (log.message || '').toLowerCase();
+  const mod = log.module || '';
+  const code = log.status_code;
+
+  if (mod === 'global/js-error') {
+    return { explicacao: 'Erro inesperado no navegador (JavaScript)', resolucao: 'Tente recarregar a página (Ctrl+Shift+R). Se persistir, reporte ao suporte.' };
+  }
+  if (mod === 'global/unhandled-rejection') {
+    return { explicacao: 'Uma operação assíncrona falhou inesperadamente', resolucao: 'Recarregue a página. Verifique sua conexão de internet.' };
+  }
+  if (code === 401) {
+    return { explicacao: 'Sessão da API ERP expirou ou credenciais inválidas', resolucao: 'Verifique as credenciais da API em Configurações > API e reconecte.' };
+  }
+  if (code === 403) {
+    return { explicacao: 'Acesso negado ao recurso solicitado', resolucao: 'Verifique as permissões do usuário no ERP.' };
+  }
+  if (code === 404) {
+    return { explicacao: 'Endpoint ou recurso não encontrado na API', resolucao: 'Verifique se a URL da API está correta em Configurações.' };
+  }
+  if (code && code >= 500) {
+    return { explicacao: 'Erro interno no servidor da API ERP', resolucao: 'O servidor ERP está com problemas. Tente novamente mais tarde.' };
+  }
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('failed to fetch')) {
+    return { explicacao: 'Falha de comunicação de rede', resolucao: 'Verifique sua conexão com a internet e se o servidor ERP está acessível.' };
+  }
+  if (msg.includes('timeout') || msg.includes('timed out')) {
+    return { explicacao: 'A requisição demorou demais para responder', resolucao: 'O servidor pode estar sobrecarregado. Tente novamente em alguns minutos.' };
+  }
+  return { explicacao: 'Erro não categorizado', resolucao: 'Verifique os detalhes e, se necessário, contate o suporte técnico.' };
+}
+
 export default function ConfiguracoesPage() {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
@@ -844,31 +876,42 @@ export default function ConfiguracoesPage() {
                       <TableHead>Módulo</TableHead>
                       <TableHead className="w-[80px] text-center">Status</TableHead>
                       <TableHead>Mensagem</TableHead>
+                      <TableHead className="w-[220px]">Explicação</TableHead>
+                      <TableHead className="w-[220px]">Como Resolver</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {errorLogs.map((log: any) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="text-xs">{log.user_email || '—'}</TableCell>
-                        <TableCell className="text-xs font-mono">{log.module}</TableCell>
-                        <TableCell className="text-center">
-                          {log.status_code ? (
-                            <Badge variant={log.status_code >= 500 ? 'destructive' : 'secondary'} className="text-[10px]">
-                              {log.status_code}
-                            </Badge>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs max-w-[300px] truncate" title={log.message}>
-                          {log.message}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {errorLogs.map((log: any) => {
+                      const explanation = getErrorExplanation(log);
+                      return (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-xs">{log.user_email || '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{log.module}</TableCell>
+                          <TableCell className="text-center">
+                            {log.status_code ? (
+                              <Badge variant={log.status_code >= 500 ? 'destructive' : 'secondary'} className="text-[10px]">
+                                {log.status_code}
+                              </Badge>
+                            ) : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[300px] truncate" title={log.message}>
+                            {log.message}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[220px] truncate" title={explanation.explicacao}>
+                            {explanation.explicacao}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[220px] truncate text-blue-600 dark:text-blue-400" title={explanation.resolucao}>
+                            {explanation.resolucao}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {errorLogs.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           Nenhum erro registrado no período
                         </TableCell>
                       </TableRow>
