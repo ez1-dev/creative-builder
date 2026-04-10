@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { api, NotasRecebimentoResponse } from "@/lib/api";
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from "@/components/erp/PageHeader";
@@ -7,6 +7,7 @@ import { DataTable, Column } from "@/components/erp/DataTable";
 import { PaginationControl } from "@/components/erp/PaginationControl";
 import { ExportButton } from "@/components/erp/ExportButton";
 import { KPICard } from "@/components/erp/KPICard";
+import { ComboboxFilter } from "@/components/erp/ComboboxFilter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,23 +60,29 @@ const columns: Column<any>[] = [
   { key: "numero_oc_origem", header: "OC Origem", render: (v) => (v && v !== 0 ? v : "-") },
 ];
 
+const initialFilters = {
+  fornecedor: "",
+  numero_nf: "",
+  serie_nf: "",
+  codigo_item: "",
+  descricao_item: "",
+  centro_custo: "",
+  numero_projeto: "",
+  transacao: "",
+  deposito: "",
+  numero_oc_origem: "",
+  data_emissao_ini: "",
+  data_emissao_fim: "",
+  data_recebimento_ini: "",
+  data_recebimento_fim: "",
+  tipo_item: "TODOS",
+  valor_min: "",
+  valor_max: "",
+  situacao_nf: "",
+};
+
 export default function NotasRecebimentoPage() {
-  const [filters, setFilters] = useState({
-    fornecedor: "",
-    numero_nf: "",
-    serie_nf: "",
-    codigo_item: "",
-    descricao_item: "",
-    centro_custo: "",
-    numero_projeto: "",
-    transacao: "",
-    data_recebimento_ini: "",
-    data_recebimento_fim: "",
-    tipo_item: "TODOS",
-    valor_min: "",
-    valor_max: "",
-    situacao_nf: "",
-  });
+  const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState<NotasRecebimentoResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -94,6 +101,10 @@ export default function NotasRecebimentoPage() {
         else delete params.valor_max;
         if (!params.tipo_item || params.tipo_item === "TODOS") delete params.tipo_item;
         if (!params.situacao_nf) delete params.situacao_nf;
+        if (!params.deposito) delete params.deposito;
+        if (!params.numero_oc_origem) delete params.numero_oc_origem;
+        if (!params.data_emissao_ini) delete params.data_emissao_ini;
+        if (!params.data_emissao_fim) delete params.data_emissao_fim;
         const result = await api.get<NotasRecebimentoResponse>("/api/notas-recebimento", params);
         setData(result);
         setPagina(page);
@@ -107,35 +118,44 @@ export default function NotasRecebimentoPage() {
   );
 
   const clearFilters = () => {
-    setFilters({
-      fornecedor: "",
-      numero_nf: "",
-      serie_nf: "",
-      codigo_item: "",
-      descricao_item: "",
-      centro_custo: "",
-      numero_projeto: "",
-      transacao: "",
-      data_recebimento_ini: "",
-      data_recebimento_fim: "",
-      tipo_item: "TODOS",
-      valor_min: "",
-      valor_max: "",
-      situacao_nf: "",
-    });
+    setFilters({ ...initialFilters });
     setData(null);
     setPagina(1);
   };
 
-  // Always calculate KPIs from page data to respect active filters
   const dados = data?.dados || [];
-  const totalNfs = new Set(dados.map((d) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`))
-    .size;
+
+  // Opções extraídas dos dados carregados para ComboboxFilter
+  const transacaoOptions = useMemo(() => {
+    const unique = [...new Set(dados.map((d) => d.transacao).filter(Boolean))].sort();
+    return unique.map((v) => ({ value: String(v), label: String(v) }));
+  }, [dados]);
+
+  const depositoOptions = useMemo(() => {
+    const unique = [...new Set(dados.map((d) => d.deposito).filter(Boolean))].sort();
+    return unique.map((v) => ({ value: String(v), label: String(v) }));
+  }, [dados]);
+
+  const centroCustoOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    dados.forEach((d) => {
+      if (d.codigo_centro_custo) {
+        map.set(String(d.codigo_centro_custo), d.descricao_centro_custo || String(d.codigo_centro_custo));
+      }
+    });
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([value, label]) => ({ value, label }));
+  }, [dados]);
+
+  const totalNfs = new Set(dados.map((d) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
   const totalItens = dados.length;
   const totalFornecedores = new Set(dados.map((d) => d.codigo_fornecedor)).size;
   const valorLiquidoTotal = dados.reduce((acc, d) => acc + Number(d.valor_liquido || 0), 0);
   const valorBrutoTotal = dados.reduce((acc, d) => acc + Number(d.valor_bruto || 0), 0);
   const qtdRecebidaTotal = dados.reduce((acc, d) => acc + Number(d.quantidade_recebida || 0), 0);
+
+  const set = (key: string, value: string) => setFilters((f) => ({ ...f, [key]: value }));
 
   return (
     <div className="space-y-4 p-4">
@@ -147,110 +167,19 @@ export default function NotasRecebimentoPage() {
       />
 
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
-        <div>
-          <Label className="text-xs">Fornecedor</Label>
-          <Input
-            value={filters.fornecedor}
-            onChange={(e) => setFilters((f) => ({ ...f, fornecedor: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
+        {/* Linha 1 — Dados da Nota */}
         <div>
           <Label className="text-xs">Número NF</Label>
-          <Input
-            value={filters.numero_nf}
-            onChange={(e) => setFilters((f) => ({ ...f, numero_nf: e.target.value }))}
-            className="h-8 text-xs"
-          />
+          <Input value={filters.numero_nf} onChange={(e) => set("numero_nf", e.target.value)} placeholder="Ex: 12345" className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Série</Label>
-          <Input
-            value={filters.serie_nf}
-            onChange={(e) => setFilters((f) => ({ ...f, serie_nf: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Código Item</Label>
-          <Input
-            value={filters.codigo_item}
-            onChange={(e) => setFilters((f) => ({ ...f, codigo_item: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Descrição Item</Label>
-          <Input
-            value={filters.descricao_item}
-            onChange={(e) => setFilters((f) => ({ ...f, descricao_item: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Centro de Custo</Label>
-          <Input
-            value={filters.centro_custo}
-            onChange={(e) => setFilters((f) => ({ ...f, centro_custo: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Projeto</Label>
-          <Input
-            value={filters.numero_projeto}
-            onChange={(e) => setFilters((f) => ({ ...f, numero_projeto: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Transação</Label>
-          <Input
-            value={filters.transacao}
-            onChange={(e) => setFilters((f) => ({ ...f, transacao: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Recebimento de</Label>
-          <Input
-            type="date"
-            value={filters.data_recebimento_ini}
-            onChange={(e) => setFilters((f) => ({ ...f, data_recebimento_ini: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Recebimento até</Label>
-          <Input
-            type="date"
-            value={filters.data_recebimento_fim}
-            onChange={(e) => setFilters((f) => ({ ...f, data_recebimento_fim: e.target.value }))}
-            className="h-8 text-xs"
-          />
-        </div>
-        <div>
-          <Label className="text-xs">Tipo Item</Label>
-          <Select value={filters.tipo_item} onValueChange={(v) => setFilters((f) => ({ ...f, tipo_item: v }))}>
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Todos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="PRODUTO">Produto</SelectItem>
-              <SelectItem value="SERVIÇO">Serviço</SelectItem>
-            </SelectContent>
-          </Select>
+          <Input value={filters.serie_nf} onChange={(e) => set("serie_nf", e.target.value)} placeholder="Ex: 1" className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Situação NF</Label>
-          <Select
-            value={filters.situacao_nf}
-            onValueChange={(v) => setFilters((f) => ({ ...f, situacao_nf: v === "TODAS" ? "" : v }))}
-          >
-            <SelectTrigger className="h-8 text-xs">
-              <SelectValue placeholder="Todas" />
-            </SelectTrigger>
+          <Select value={filters.situacao_nf} onValueChange={(v) => set("situacao_nf", v === "TODAS" ? "" : v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODAS">Todas</SelectItem>
               <SelectItem value="1">Normal</SelectItem>
@@ -262,84 +191,95 @@ export default function NotasRecebimentoPage() {
           </Select>
         </div>
         <div>
+          <Label className="text-xs">Fornecedor</Label>
+          <Input value={filters.fornecedor} onChange={(e) => set("fornecedor", e.target.value)} placeholder="Nome ou código" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">OC Origem</Label>
+          <Input value={filters.numero_oc_origem} onChange={(e) => set("numero_oc_origem", e.target.value)} placeholder="Nº da OC" className="h-8 text-xs" />
+        </div>
+
+        {/* Linha 2 — Dados do Item */}
+        <div>
+          <Label className="text-xs">Código Item</Label>
+          <Input value={filters.codigo_item} onChange={(e) => set("codigo_item", e.target.value)} placeholder="Ex: 001.0001" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Descrição Item</Label>
+          <Input value={filters.descricao_item} onChange={(e) => set("descricao_item", e.target.value)} placeholder="Buscar por descrição" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Tipo Item</Label>
+          <Select value={filters.tipo_item} onValueChange={(v) => set("tipo_item", v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="PRODUTO">Produto</SelectItem>
+              <SelectItem value="SERVIÇO">Serviço</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Transação</Label>
+          <ComboboxFilter value={filters.transacao} onChange={(v) => set("transacao", v)} options={transacaoOptions} placeholder="Código transação" />
+        </div>
+        <div>
+          <Label className="text-xs">Depósito</Label>
+          <ComboboxFilter value={filters.deposito} onChange={(v) => set("deposito", v)} options={depositoOptions} placeholder="Código depósito" />
+        </div>
+
+        {/* Linha 3 — Contexto */}
+        <div>
+          <Label className="text-xs">Centro de Custo</Label>
+          <ComboboxFilter value={filters.centro_custo} onChange={(v) => set("centro_custo", v)} options={centroCustoOptions} placeholder="Centro de custo" />
+        </div>
+        <div>
+          <Label className="text-xs">Projeto</Label>
+          <Input value={filters.numero_projeto} onChange={(e) => set("numero_projeto", e.target.value)} placeholder="Nº do projeto" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Emissão de</Label>
+          <Input type="date" value={filters.data_emissao_ini} onChange={(e) => set("data_emissao_ini", e.target.value)} className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Emissão até</Label>
+          <Input type="date" value={filters.data_emissao_fim} onChange={(e) => set("data_emissao_fim", e.target.value)} className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Recebimento de</Label>
+          <Input type="date" value={filters.data_recebimento_ini} onChange={(e) => set("data_recebimento_ini", e.target.value)} className="h-8 text-xs" />
+        </div>
+
+        {/* Linha 4 — Complementares */}
+        <div>
+          <Label className="text-xs">Recebimento até</Label>
+          <Input type="date" value={filters.data_recebimento_fim} onChange={(e) => set("data_recebimento_fim", e.target.value)} className="h-8 text-xs" />
+        </div>
+        <div>
           <Label className="text-xs">Valor Líq. Mín.</Label>
-          <Input
-            type="number"
-            value={filters.valor_min}
-            onChange={(e) => setFilters((f) => ({ ...f, valor_min: e.target.value }))}
-            className="h-8 text-xs"
-          />
+          <Input type="number" value={filters.valor_min} onChange={(e) => set("valor_min", e.target.value)} placeholder="0,00" className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Valor Líq. Máx.</Label>
-          <Input
-            type="number"
-            value={filters.valor_max}
-            onChange={(e) => setFilters((f) => ({ ...f, valor_max: e.target.value }))}
-            className="h-8 text-xs"
-          />
+          <Input type="number" value={filters.valor_max} onChange={(e) => set("valor_max", e.target.value)} placeholder="0,00" className="h-8 text-xs" />
         </div>
       </FilterPanel>
 
       {data && (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <KPICard
-              index={0}
-              title="NFs"
-              value={totalNfs}
-              icon={<FileText className="h-5 w-5" />}
-              tooltip="Notas fiscais distintas"
-            />
-            <KPICard
-              index={1}
-              title="Itens Recebidos"
-              value={totalItens}
-              icon={<Package className="h-5 w-5" />}
-              tooltip="Total de itens retornados"
-            />
-            <KPICard
-              index={2}
-              title="Fornecedores"
-              value={totalFornecedores}
-              icon={<Users className="h-5 w-5" />}
-              tooltip="Fornecedores distintos"
-            />
-            <KPICard
-              index={3}
-              title="Valor Líquido"
-              value={formatCurrency(valorLiquidoTotal)}
-              variant="info"
-              icon={<DollarSign className="h-5 w-5" />}
-              tooltip="Soma do valor líquido"
-            />
-            <KPICard
-              index={4}
-              title="Valor Bruto"
-              value={formatCurrency(valorBrutoTotal)}
-              variant="default"
-              icon={<TrendingUp className="h-5 w-5" />}
-              tooltip="Soma do valor bruto"
-            />
-            <KPICard
-              index={5}
-              title="Qtd. Recebida"
-              value={formatNumber(qtdRecebidaTotal, 2)}
-              variant="success"
-              icon={<Boxes className="h-5 w-5" />}
-              tooltip="Quantidade total recebida"
-            />
+            <KPICard index={0} title="NFs" value={totalNfs} icon={<FileText className="h-5 w-5" />} tooltip="Notas fiscais distintas" />
+            <KPICard index={1} title="Itens Recebidos" value={totalItens} icon={<Package className="h-5 w-5" />} tooltip="Total de itens retornados" />
+            <KPICard index={2} title="Fornecedores" value={totalFornecedores} icon={<Users className="h-5 w-5" />} tooltip="Fornecedores distintos" />
+            <KPICard index={3} title="Valor Líquido" value={formatCurrency(valorLiquidoTotal)} variant="info" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma do valor líquido" />
+            <KPICard index={4} title="Valor Bruto" value={formatCurrency(valorBrutoTotal)} variant="default" icon={<TrendingUp className="h-5 w-5" />} tooltip="Soma do valor bruto" />
+            <KPICard index={5} title="Qtd. Recebida" value={formatNumber(qtdRecebidaTotal, 2)} variant="success" icon={<Boxes className="h-5 w-5" />} tooltip="Quantidade total recebida" />
           </div>
 
           <DataTable columns={columns} data={dados} loading={loading} emptyMessage="Nenhuma nota fiscal encontrada." />
 
           {data.total_paginas > 1 && (
-            <PaginationControl
-              pagina={pagina}
-              totalPaginas={data.total_paginas}
-              totalRegistros={data.total_registros}
-              onPageChange={(p) => search(p)}
-            />
+            <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
           )}
         </>
       )}
