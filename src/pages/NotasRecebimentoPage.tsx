@@ -23,11 +23,14 @@ const columns: Column<any>[] = [
     header: "Situação",
     render: (v) => {
       const map: Record<string, string> = {
-        "1": "Recebido",
-        "2": "Cancelada",
-        "3": "Devolvida",
-        "4": "Denegada",
-        "5": "Inutilizada",
+        "1": "Digitada",
+        "2": "Fechada",
+        "3": "Cancelada",
+        "4": "Doc. Fiscal Emitido",
+        "5": "Aguard. Fechamento",
+        "6": "Aguard. Integração WMS",
+        "7": "Digitada Integração",
+        "8": "Agrupada",
       };
       return map[String(v)] || v || "-";
     },
@@ -182,11 +185,14 @@ export default function NotasRecebimentoPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODAS">Todas</SelectItem>
-              <SelectItem value="1">Normal</SelectItem>
-              <SelectItem value="2">Cancelada</SelectItem>
-              <SelectItem value="3">Devolvida</SelectItem>
-              <SelectItem value="4">Denegada</SelectItem>
-              <SelectItem value="5">Inutilizada</SelectItem>
+              <SelectItem value="1">Digitada</SelectItem>
+              <SelectItem value="2">Fechada</SelectItem>
+              <SelectItem value="3">Cancelada</SelectItem>
+              <SelectItem value="4">Doc. Fiscal Emitido</SelectItem>
+              <SelectItem value="5">Aguard. Fechamento</SelectItem>
+              <SelectItem value="6">Aguard. Integração WMS</SelectItem>
+              <SelectItem value="7">Digitada Integração</SelectItem>
+              <SelectItem value="8">Agrupada</SelectItem>
             </SelectContent>
           </Select>
         </div>
