@@ -26,6 +26,8 @@ const ALL_SCREENS = [
   { path: '/auditoria-tributaria', name: 'Auditoria Tributária' },
   { path: '/conciliacao-edocs', name: 'Conciliação EDocs' },
   { path: '/notas-recebimento', name: 'NF Recebimento' },
+  { path: '/contas-pagar', name: 'Contas a Pagar' },
+  { path: '/contas-receber', name: 'Contas a Receber' },
   { path: '/numero-serie', name: 'Reserva Nº Série' },
   { path: '/producao/dashboard', name: 'Produção - Dashboard' },
   { path: '/producao/produzido', name: 'Produção - Produzido no Período' },
