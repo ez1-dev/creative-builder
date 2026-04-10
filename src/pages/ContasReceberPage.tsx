@@ -175,8 +175,24 @@ export default function ContasReceberPage() {
       valor_recebido_total: valorRecebido,
       titulos_vencidos: vencidos.length,
       valor_vencido_total: vencidos.reduce((s: number, r: any) => s + (r.valor_aberto || 0), 0),
-      valor_a_vencer_7d: 0,
-      valor_a_vencer_30d: 0,
+      valor_a_vencer_7d: (() => {
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const em7d = new Date(hoje); em7d.setDate(hoje.getDate() + 7);
+        return d.filter((r: any) => {
+          if (!r.data_vencimento || r.status_titulo === 'PAGO') return false;
+          const venc = new Date(r.data_vencimento);
+          return venc >= hoje && venc <= em7d;
+        }).reduce((s: number, r: any) => s + (r.valor_aberto || 0), 0);
+      })(),
+      valor_a_vencer_30d: (() => {
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        const em30d = new Date(hoje); em30d.setDate(hoje.getDate() + 30);
+        return d.filter((r: any) => {
+          if (!r.data_vencimento || r.status_titulo === 'PAGO') return false;
+          const venc = new Date(r.data_vencimento);
+          return venc >= hoje && venc <= em30d;
+        }).reduce((s: number, r: any) => s + (r.valor_aberto || 0), 0);
+      })(),
       ticket_medio: d.length > 0 ? valorOriginal / d.length : 0,
       maior_atraso_dias: maiorAtraso,
     };
