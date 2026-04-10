@@ -844,31 +844,42 @@ export default function ConfiguracoesPage() {
                       <TableHead>Módulo</TableHead>
                       <TableHead className="w-[80px] text-center">Status</TableHead>
                       <TableHead>Mensagem</TableHead>
+                      <TableHead className="w-[220px]">Explicação</TableHead>
+                      <TableHead className="w-[220px]">Como Resolver</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {errorLogs.map((log: any) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(log.created_at).toLocaleString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="text-xs">{log.user_email || '—'}</TableCell>
-                        <TableCell className="text-xs font-mono">{log.module}</TableCell>
-                        <TableCell className="text-center">
-                          {log.status_code ? (
-                            <Badge variant={log.status_code >= 500 ? 'destructive' : 'secondary'} className="text-[10px]">
-                              {log.status_code}
-                            </Badge>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell className="text-xs max-w-[300px] truncate" title={log.message}>
-                          {log.message}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {errorLogs.map((log: any) => {
+                      const explanation = getErrorExplanation(log);
+                      return (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(log.created_at).toLocaleString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="text-xs">{log.user_email || '—'}</TableCell>
+                          <TableCell className="text-xs font-mono">{log.module}</TableCell>
+                          <TableCell className="text-center">
+                            {log.status_code ? (
+                              <Badge variant={log.status_code >= 500 ? 'destructive' : 'secondary'} className="text-[10px]">
+                                {log.status_code}
+                              </Badge>
+                            ) : '—'}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[300px] truncate" title={log.message}>
+                            {log.message}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[220px] truncate" title={explanation.explicacao}>
+                            {explanation.explicacao}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[220px] truncate text-blue-600 dark:text-blue-400" title={explanation.resolucao}>
+                            {explanation.resolucao}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                     {errorLogs.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           Nenhum erro registrado no período
                         </TableCell>
                       </TableRow>
