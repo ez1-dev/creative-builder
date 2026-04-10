@@ -24,8 +24,12 @@ import SaldoPatioPage from "@/pages/producao/SaldoPatioPage";
 import NaoCarregadosPage from "@/pages/producao/NaoCarregadosPage";
 import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
 import ContasPagarPage from "@/pages/ContasPagarPage";
+import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1 } },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
