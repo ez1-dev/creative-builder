@@ -1,61 +1,37 @@
 
 
-# Módulo Contas a Receber — Plano de Implementação
+# Fix: Contas a Pagar e Receber no menu e permissões
 
-## Resumo
+## Problema
+As rotas `/contas-pagar` e `/contas-receber` já existem no sidebar (`AppSidebar.tsx`) e no router (`App.tsx`), mas:
+1. **Não aparecem no menu** porque o usuário tem um perfil de acesso com permissões configuradas (`hasPermissions = true`), e essas rotas não existem na tabela `profile_screens` — logo `canView()` retorna `false` e o sidebar as oculta.
+2. **Não aparecem na tela de Permissões** porque o array `ALL_SCREENS` em `ConfiguracoesPage.tsx` não inclui essas duas rotas.
 
-Criar a página "Contas a Receber" espelhando o módulo Contas a Pagar, adaptando a terminologia de fornecedor→cliente e os endpoints para `/api/contas-receber`. Tabelas ERP: `E501TCR` (títulos), `E501MCR` (movimentos), `E085CLI` (clientes).
+## Solução
 
-## Arquivos a criar/modificar
-
-### 1. Criar: `src/pages/ContasReceberPage.tsx`
-
-Cópia adaptada de `ContasPagarPage.tsx` com as seguintes mudanças:
-- Endpoint: `/api/contas-receber` (e export: `/api/export/contas-receber`)
-- Filtros: "Fornecedor" → "Cliente" (`cliente` em vez de `fornecedor`)
-- Checkbox "Somente cheques" → removido ou mantido conforme aplicável
-- Checkbox "Agrupar por fornecedor" → "Agrupar por cliente"
-- Colunas detalhadas: `codigo_cliente`, `nome_cliente`, `fantasia_cliente` (em vez de `_fornecedor`)
-- Colunas agrupadas: idem, agrupamento por cliente
-- KPIs: mesmos 11 indicadores, tooltip adaptado ("a receber" em vez de "a pagar")
-- PageHeader: título "Contas a Receber", descrição "Consulta analítica de títulos financeiros a receber"
-
-### 2. Modificar: `src/lib/api.ts`
-
-Adicionar interface:
+### 1. Adicionar ao `ALL_SCREENS` em `ConfiguracoesPage.tsx`
+Inserir antes de `{ path: '/configuracoes', ... }`:
 ```typescript
-export interface ContasReceberResponse extends PaginatedResponse<any> {
-  resumo?: { /* mesma estrutura do ContasPagarResponse */ };
-}
+{ path: '/contas-pagar', name: 'Contas a Pagar' },
+{ path: '/contas-receber', name: 'Contas a Receber' },
 ```
 
-### 3. Modificar: `src/App.tsx`
+### 2. Inserir registros na tabela `profile_screens`
+Criar uma migração SQL que adicione as duas telas a **todos os perfis existentes** com `can_view = true` e `can_edit = false` (para que apareçam imediatamente no menu):
 
-- Importar `ContasReceberPage`
-- Adicionar rota: `/contas-receber` com `ProtectedRoute`
-
-### 4. Modificar: `src/components/AppSidebar.tsx`
-
-- Adicionar item `{ title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins }` logo após "Contas a Pagar"
-
-## Especificação backend (para colar no FastAPI)
-
-**Endpoints:**
-- `GET /api/contas-receber` — paginado, mesma lógica do contas-pagar
-- `GET /api/contas-receber-dashboard` — KPIs
-- `GET /api/export/contas-receber` — Excel
-
-**SQL:**
-- Títulos: `E501TCR T` (VlrOri, VlrAbe, VctPro, CodTpt, NumTit, CodCli, DatEmi)
-- Movimentos: `E501MCR M` (join por CodEmp, CodFil, CodTpt, NumTit)
-- Cliente: `E085CLI C` (join por CodCli → NomCli, NomFan)
-- Status calculado igual ao contas-pagar (PAGO, PARCIAL, VENCIDO, A_VENCER, EM_ABERTO)
-
-**Labels Excel:**
+```sql
+INSERT INTO profile_screens (profile_id, screen_path, screen_name, can_view, can_edit)
+SELECT p.id, s.screen_path, s.screen_name, true, false
+FROM access_profiles p
+CROSS JOIN (VALUES 
+  ('/contas-pagar', 'Contas a Pagar'),
+  ('/contas-receber', 'Contas a Receber')
+) AS s(screen_path, screen_name)
+WHERE NOT EXISTS (
+  SELECT 1 FROM profile_screens ps 
+  WHERE ps.profile_id = p.id AND ps.screen_path = s.screen_path
+);
 ```
-filial, tipo_titulo, numero_titulo, codigo_cliente, nome_cliente,
-fantasia_cliente, data_emissao, data_vencimento, data_ultimo_movimento,
-valor_original, valor_aberto, valor_movimentado, valor_recebido,
-quantidade_movimentos, status_titulo, dias_atraso
-```
+
+Isso resolve ambos os problemas: as telas passam a ser gerenciáveis em Configurações e visíveis no menu para perfis existentes.
 
