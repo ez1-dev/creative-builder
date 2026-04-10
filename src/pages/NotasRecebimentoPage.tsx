@@ -23,14 +23,14 @@ const columns: Column<any>[] = [
     header: "Situação",
     render: (v) => {
       const map: Record<string, string> = {
-        "1": "Digitada",
-        "2": "Fechada",
-        "3": "Cancelada",
-        "4": "Doc. Fiscal Emitido",
-        "5": "Aguard. Fechamento",
-        "6": "Aguard. Integração WMS",
-        "7": "Digitada Integração",
-        "8": "Agrupada",
+        "DIGITADA": "Digitada",
+        "FECHADA": "Fechada",
+        "CANCELADA": "Cancelada",
+        "DOC_FISCAL_EMITIDO": "Doc. Fiscal Emitido",
+        "AGUARD_FECHAMENTO": "Aguard. Fechamento",
+        "AGUARD_INTEGRACAO_WMS": "Aguard. Integração WMS",
+        "DIGITADA_INTEGRACAO": "Digitada Integração",
+        "AGRUPADA": "Agrupada",
       };
       return map[String(v)] || v || "-";
     },
@@ -185,14 +185,14 @@ export default function NotasRecebimentoPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODAS">Todas</SelectItem>
-              <SelectItem value="1">Digitada</SelectItem>
-              <SelectItem value="2">Fechada</SelectItem>
-              <SelectItem value="3">Cancelada</SelectItem>
-              <SelectItem value="4">Doc. Fiscal Emitido</SelectItem>
-              <SelectItem value="5">Aguard. Fechamento</SelectItem>
-              <SelectItem value="6">Aguard. Integração WMS</SelectItem>
-              <SelectItem value="7">Digitada Integração</SelectItem>
-              <SelectItem value="8">Agrupada</SelectItem>
+              <SelectItem value="DIGITADA">Digitada</SelectItem>
+              <SelectItem value="FECHADA">Fechada</SelectItem>
+              <SelectItem value="CANCELADA">Cancelada</SelectItem>
+              <SelectItem value="DOC_FISCAL_EMITIDO">Doc. Fiscal Emitido</SelectItem>
+              <SelectItem value="AGUARD_FECHAMENTO">Aguard. Fechamento</SelectItem>
+              <SelectItem value="AGUARD_INTEGRACAO_WMS">Aguard. Integração WMS</SelectItem>
+              <SelectItem value="DIGITADA_INTEGRACAO">Digitada Integração</SelectItem>
+              <SelectItem value="AGRUPADA">Agrupada</SelectItem>
             </SelectContent>
           </Select>
         </div>
