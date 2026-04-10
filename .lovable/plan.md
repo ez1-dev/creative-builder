@@ -1,44 +1,15 @@
 
 
-# Revisar Estruturação dos Filtros — Notas Fiscais de Recebimento
+# Corrigir chave da coluna "Última OC"
 
-## Problemas Atuais
+## Problema
 
-- Todos os filtros são `Input` simples, sem sugestões (ComboboxFilter)
-- Filtros sem agrupamento lógico — campos de NF, fornecedor, item, projeto e valores misturados
-- Campos como Transação, Centro de Custo e Depósito poderiam usar ComboboxFilter com opções extraídas dos dados carregados
-- Falta filtro de data de emissão (só tem recebimento)
-- Falta filtro por depósito (existe na coluna mas não nos filtros)
-- Falta filtro por OC Origem (existe na coluna mas não nos filtros)
-- Falta placeholder nos inputs para orientar o usuário
+A coluna "Última OC" está mapeada com a chave `numero_ultima_oc`, mas a API retorna o campo como `numero_oc_ultima`. Por isso a coluna aparece vazia (exibindo "-").
 
-## Mudanças Propostas
+## Correção
 
-### 1. Reorganizar ordem dos filtros por agrupamento lógico
+- **Arquivo**: `src/pages/ComprasProdutoPage.tsx`
+- Alterar `{ key: 'numero_ultima_oc', header: 'Última OC' }` para `{ key: 'numero_oc_ultima', header: 'Última OC' }`
 
-```text
-Linha 1: NF / Série / Situação NF / Fornecedor / OC Origem (dados da nota)
-Linha 2: Código Item / Descrição Item / Tipo Item / Transação / Depósito (dados do item)
-Linha 3: Centro Custo / Projeto / Emissão de / Emissão até / Recebimento de (contexto)
-Linha 4: Recebimento até / Valor Líq. Mín / Valor Líq. Máx (complementares)
-```
-
-### 2. Converter filtros para ComboboxFilter (com opções dos dados carregados)
-
-- **Transação** — extrair valores únicos de `data.dados` campo `transacao`
-- **Depósito** — extrair valores únicos de `data.dados` campo `deposito`
-- **Centro de Custo** — extrair de `codigo_centro_custo` + `descricao_centro_custo`
-
-Usar `useMemo` para gerar as opções a partir de `dados` (mesmo padrão do `useErpOptions` mas local).
-
-### 3. Adicionar filtros ausentes
-
-- **Data Emissão de/até** (`data_emissao_ini`, `data_emissao_fim`)
-- **Depósito** (`deposito`)
-- **OC Origem** (`numero_oc_origem`)
-
-### 4. Adicionar placeholders descritivos nos inputs
-
-### Arquivo modificado
-- `src/pages/NotasRecebimentoPage.tsx`
+Nota: os produtos listados na primeira página são do tipo "Produzido" e possuem `numero_oc_ultima: 0`. Para ver valores reais, será necessário buscar produtos comprados (com OC). O campo passará a exibir o número correto assim que a chave for corrigida.
 
