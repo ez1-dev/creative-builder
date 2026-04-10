@@ -1,15 +1,28 @@
 
 
-# Corrigir chave da coluna "Última OC"
+# Corrigir mapeamento de Situação NF — Notas Fiscais de Recebimento
 
 ## Problema
 
-A coluna "Última OC" está mapeada com a chave `numero_ultima_oc`, mas a API retorna o campo como `numero_oc_ultima`. Por isso a coluna aparece vazia (exibindo "-").
+O mapeamento atual (tanto no filtro quanto na coluna da tabela) usa valores incorretos do ERP. A documentação oficial do Senior (campo SitNfc) define 8 situações diferentes das que estão implementadas.
 
 ## Correção
 
-- **Arquivo**: `src/pages/ComprasProdutoPage.tsx`
-- Alterar `{ key: 'numero_ultima_oc', header: 'Última OC' }` para `{ key: 'numero_oc_ultima', header: 'Última OC' }`
+**Arquivo**: `src/pages/NotasRecebimentoPage.tsx`
 
-Nota: os produtos listados na primeira página são do tipo "Produzido" e possuem `numero_oc_ultima: 0`. Para ver valores reais, será necessário buscar produtos comprados (com OC). O campo passará a exibir o número correto assim que a chave for corrigida.
+### 1. Atualizar o render da coluna `situacao_nf` (linhas 25-31)
+
+Novo mapeamento:
+- 1 = Digitada
+- 2 = Fechada
+- 3 = Cancelada
+- 4 = Documento Fiscal Emitido (saída)
+- 5 = Aguardando Fechamento (pós-saída)
+- 6 = Aguardando Integração WMS
+- 7 = Digitada Integração
+- 8 = Agrupada
+
+### 2. Atualizar as opções do filtro Select (linhas 184-189)
+
+Substituir as 5 opções atuais pelas 8 opções corretas com os mesmos valores acima.
 
