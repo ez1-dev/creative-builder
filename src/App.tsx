@@ -23,6 +23,7 @@ import ExpedidoObraPage from "@/pages/producao/ExpedidoObraPage";
 import SaldoPatioPage from "@/pages/producao/SaldoPatioPage";
 import NaoCarregadosPage from "@/pages/producao/NaoCarregadosPage";
 import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
+import ContasPagarPage from "@/pages/ContasPagarPage";
 import NotFound from "@/pages/NotFound";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/conciliacao-edocs" element={<ProtectedRoute path="/conciliacao-edocs"><ConciliacaoEdocsPage /></ProtectedRoute>} />
               <Route path="/notas-recebimento" element={<ProtectedRoute path="/notas-recebimento"><NotasRecebimentoPage /></ProtectedRoute>} />
               <Route path="/numero-serie" element={<ProtectedRoute path="/numero-serie"><NumeroSeriePage /></ProtectedRoute>} />
+              <Route path="/contas-pagar" element={<ProtectedRoute path="/contas-pagar"><ContasPagarPage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
               {/* Produção */}
               <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
