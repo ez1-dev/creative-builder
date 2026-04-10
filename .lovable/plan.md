@@ -1,37 +1,47 @@
 
 
-# Fix: Contas a Pagar e Receber no menu e permissões
+# Fix: KPIs "A Vencer 7 dias" e "A Vencer 30 dias"
 
 ## Problema
-As rotas `/contas-pagar` e `/contas-receber` já existem no sidebar (`AppSidebar.tsx`) e no router (`App.tsx`), mas:
-1. **Não aparecem no menu** porque o usuário tem um perfil de acesso com permissões configuradas (`hasPermissions = true`), e essas rotas não existem na tabela `profile_screens` — logo `canView()` retorna `false` e o sidebar as oculta.
-2. **Não aparecem na tela de Permissões** porque o array `ALL_SCREENS` em `ConfiguracoesPage.tsx` não inclui essas duas rotas.
+Ambas as páginas (Contas a Pagar e Contas a Receber) hardcodam `valor_a_vencer_7d: 0` e `valor_a_vencer_30d: 0` no cálculo de fallback do frontend. Quando a API não retorna o objeto `resumo`, esses KPIs ficam zerados.
 
 ## Solução
+Calcular os valores filtrando os títulos com `status_titulo !== 'PAGO'` e `data_vencimento` dentro dos próximos 7 e 30 dias a partir de hoje.
 
-### 1. Adicionar ao `ALL_SCREENS` em `ConfiguracoesPage.tsx`
-Inserir antes de `{ path: '/configuracoes', ... }`:
+### Arquivos a modificar
+
+**1. `src/pages/ContasPagarPage.tsx`** (linhas ~178-181)
+
+Substituir:
 ```typescript
-{ path: '/contas-pagar', name: 'Contas a Pagar' },
-{ path: '/contas-receber', name: 'Contas a Receber' },
+valor_a_vencer_7d: 0,
+valor_a_vencer_30d: 0,
 ```
 
-### 2. Inserir registros na tabela `profile_screens`
-Criar uma migração SQL que adicione as duas telas a **todos os perfis existentes** com `can_view = true` e `can_edit = false` (para que apareçam imediatamente no menu):
+Por lógica que calcula com base na data de vencimento:
+```typescript
+const hoje = new Date();
+const em7d = new Date(); em7d.setDate(hoje.getDate() + 7);
+const em30d = new Date(); em30d.setDate(hoje.getDate() + 30);
 
-```sql
-INSERT INTO profile_screens (profile_id, screen_path, screen_name, can_view, can_edit)
-SELECT p.id, s.screen_path, s.screen_name, true, false
-FROM access_profiles p
-CROSS JOIN (VALUES 
-  ('/contas-pagar', 'Contas a Pagar'),
-  ('/contas-receber', 'Contas a Receber')
-) AS s(screen_path, screen_name)
-WHERE NOT EXISTS (
-  SELECT 1 FROM profile_screens ps 
-  WHERE ps.profile_id = p.id AND ps.screen_path = s.screen_path
-);
+const aVencer = d.filter((r: any) => {
+  if (!r.data_vencimento || r.status_titulo === 'PAGO') return false;
+  const venc = new Date(r.data_vencimento);
+  return venc >= hoje;
+});
+
+valor_a_vencer_7d: aVencer
+  .filter((r: any) => new Date(r.data_vencimento) <= em7d)
+  .reduce((s, r) => s + (r.valor_aberto || 0), 0),
+valor_a_vencer_30d: aVencer
+  .filter((r: any) => new Date(r.data_vencimento) <= em30d)
+  .reduce((s, r) => s + (r.valor_aberto || 0), 0),
 ```
 
-Isso resolve ambos os problemas: as telas passam a ser gerenciáveis em Configurações e visíveis no menu para perfis existentes.
+**2. `src/pages/ContasReceberPage.tsx`** (linhas ~178-179)
+
+Mesma correção aplicada ao contexto de Contas a Receber.
+
+## Resultado
+Os KPIs "A Vencer 7 dias" e "A Vencer 30 dias" passarão a mostrar os valores corretos calculados a partir dos dados retornados pela API, mesmo quando o backend não envia o objeto `resumo`.
 
