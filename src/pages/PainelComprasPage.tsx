@@ -43,6 +43,7 @@ const baseColumns: Column<any>[] = [
   { key: 'valor_desconto_total', header: 'Vlr. Desconto', align: 'right' as const, render: (v: any) => formatCurrency(v) },
   { key: 'valor_liquido', header: 'Vlr. Líquido', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'situacao_oc', header: 'Situação', render: (v) => situacaoLabel(v) },
+  { key: 'numero_nf', header: 'Nº NF', render: (v: any) => v || '-' },
   { key: 'dias_atraso', header: 'Dias Atraso', align: 'right', render: (v) => v > 0 ? <span className="text-destructive font-semibold">{v}</span> : '-' },
 ];
 
