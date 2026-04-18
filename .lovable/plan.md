@@ -1,48 +1,71 @@
 
-A request foi enviada com `centro_custo=663` e retornou 200 OK, mas o JSON de resposta **não contém** os campos `centro_custo` nem `projeto` nos registros — só vem `codigo_empresa`, `codigo_filial`, `tipo_titulo`, `numero_titulo`, `codigo_fornecedor`, `nome_fornecedor`, `fantasia_fornecedor`, datas, valores e status.
+## Plano: Modo Árvore de Rateio em Contas a Pagar e Receber
 
-Ou seja:
-- O frontend envia o filtro corretamente.
-- O backend aceita o parâmetro (não dá erro), mas **não está retornando as colunas `centro_custo` e `projeto` no SELECT do endpoint `/api/contas-pagar`** (provavelmente também `/api/contas-receber`).
-- Por isso a grid mostra "-" nessas colunas: o `render: (v) => v || '-'` recebe `undefined`.
+Adicionar um terceiro modo de visualização ("Árvore de rateio") nas telas de Contas a Pagar e Contas a Receber, exibindo cada título como linha pai e seus rateios (centro de custo / projeto) como linhas filhas expansíveis, no estilo da Estrutura Multinível (BOM).
 
-Adicionalmente, não dá para confirmar se o `WHERE centro_custo = 663` está sendo aplicado no SQL — o total retornado (`221.004` registros) é igual ao total geral, sugerindo que **o filtro também não está sendo aplicado no backend**.
+### 1. Camada de tipos e API (`src/lib/api.ts`)
 
-## Diagnóstico
+Adicionar tipos e helpers:
+- `LinhaArvoreFinanceira` com campos: `tipo_linha` ("TITULO" | "RATEIO"), `id_linha`, `codigo_pai`, `nivel`, `caminho`, `possui_filhos`, `descricao_resumida`, `numero_projeto`, `codigo_fase_projeto`, `codigo_centro_custo`, `descricao_centro_custo`, `percentual_rateio`, `valor_rateado`, `origem_rateio`, `status_titulo`, `data_vencimento`, e campos numéricos do título (`valor_original`, `valor_aberto`, `valor_vencido`).
+- `ContasArvoreResponse` com `dados: LinhaArvoreFinanceira[]`, `total_paginas`, `total_registros`, `resumo?`.
+- Endpoints novos consumidos via `api.get`:
+  - `GET /api/contas-receber-arvore`
+  - `GET /api/contas-pagar-arvore`
 
-| Item | Status |
-|---|---|
-| Frontend envia `centro_custo` / `projeto` | ✅ Confirmado na URL |
-| Backend retorna campos na resposta | ❌ Ausentes no JSON |
-| Backend filtra por esses campos no SQL | ❌ Provável que não (total = total geral) |
+### 2. Helpers de árvore (novo arquivo `src/lib/treeFinanceiro.ts`)
 
-## Causa raiz
+- `construirMapaFilhos(dados)` → `Map<string, Linha[]>` indexado por `codigo_pai`.
+- `getRaizesArvore(dados)` → linhas com `tipo_linha === "TITULO"` (ou `codigo_pai` nulo).
+- `flattenArvore(dados, expandidos: Set<string>)` → lista linear respeitando expansão.
+- `toggleNoArvore(estado: Set<string>, idLinha: string)` → novo Set imutável.
+- `calcularKpisArvore(dados)` → agrega só itens `TITULO` (qtd, valor original, aberto, vencido).
 
-O endpoint FastAPI `/api/contas-pagar` (e `/api/contas-receber`) precisa ser ajustado no **backend** para:
+### 3. Componente de árvore (novo `src/components/erp/FinanceiroTreeTable.tsx`)
 
-1. Adicionar `cod_ccu` (centro de custo) e `cod_prj` (projeto) ao `SELECT` da query SQL.
-2. Mapear esses campos no response como `centro_custo` e `projeto`.
-3. Adicionar cláusulas `WHERE` opcionais quando os parâmetros forem informados.
+Tabela leve baseada nos componentes `ui/table` já existentes, com:
+- Colunas: Estrutura, Projeto, Fase, CCU, Descrição CCU, % Rateio, Valor Rateado, Origem, Status, Vencimento.
+- Coluna "Estrutura": botão chevron (expandir/recolher) + indentação por `nivel * 16px` + label "Título" / "Rateio" + `descricao_resumida`.
+- Status renderizado como `Badge` (reusar mapa `statusVariant`/`statusLabel` de cada página, exportando para `src/lib/format.ts` ou duplicando local).
+- Datas via `formatDate`, valores via `formatCurrency`, percentual com 2 casas + "%".
+- Sem chamadas extras à API: expansão é só estado local.
 
-Como o backend FastAPI **não está neste repositório do Lovable**, não posso alterar o SQL daqui.
+### 4. Alterações em `src/pages/ContasReceberPage.tsx`
 
-## O que posso fazer no frontend
+- Adicionar ao `initialFilters`:
+  - `numero_projeto: ''` (renomear/duplicar do atual `projeto` para alinhar ao contrato — manter ambos enviados para retrocompatibilidade).
+  - `modo_arvore: false`.
+- Filtros já existentes de `centro_custo` e `projeto` continuam; passar a enviar também `numero_projeto` quando preenchido.
+- Novo checkbox **"Modo árvore de rateio"** com `id="modoArvoreContasRec"`.
+- IDs nos inputs: `numeroProjetoContasRec` (campo Projeto) e `centroCustoContasRec` (campo Centro de Custo).
+- Regra: se `modo_arvore && !agrupar_por_cliente`, chamar `/api/contas-receber-arvore`; senão manter fluxo atual.
+- Estado `expandidos` (Set<string>) só para o modo árvore.
+- KPIs: quando modo árvore ativo, calcular via `calcularKpisArvore` ignorando rateios.
+- Renderizar `FinanceiroTreeTable` no lugar de `DataTable` quando modo árvore ativo.
+- Desabilitar checkbox "Agrupar por cliente" quando "Modo árvore" estiver ligado (e vice-versa) para evitar combinação inválida.
 
-Nada resolve sozinho — sem o campo na resposta, a coluna ficará vazia. Mas posso:
+### 5. Alterações em `src/pages/ContasPagarPage.tsx`
 
-1. **Confirmar visualmente o problema** adicionando um aviso na UI quando `centro_custo`/`projeto` forem filtrados mas vierem vazios.
-2. **Documentar o contrato esperado** num arquivo `docs/api-contracts.md` para o time backend implementar.
+Mesmo conjunto de mudanças, com IDs:
+- `numeroProjetoContasPag`, `centroCustoContasPag`, `modoArvoreContasPag`.
+- Endpoint `/api/contas-pagar-arvore`.
+- Agrupamento por fornecedor mutuamente exclusivo com modo árvore.
 
-## Plano sugerido
+### 6. CSS mínimo (`src/index.css`)
 
-**Opção A — Documentar contrato para backend (recomendado)**
-Criar `docs/backend-contas-centro-custo-projeto.md` descrevendo:
-- Endpoints afetados: `/api/contas-pagar`, `/api/contas-receber`, `/api/export/contas-pagar`, `/api/export/contas-receber`
-- Parâmetros de query a aceitar: `centro_custo` (string), `projeto` (string)
-- Campos a incluir na resposta de cada item: `centro_custo`, `projeto`
-- Tabelas Senior prováveis: `E550CCU` (centros de custo) e `E085PRJ` (projetos), via joins com `E550MOV`/`E550NFC`
+Adicionar utilitárias:
+```css
+.tree-cell { display: flex; align-items: center; gap: 4px; }
+.tree-toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.tree-leaf { width: 18px; display: inline-block; }
+```
 
-**Opção B — Sem ação no frontend**
-Apenas comunicar ao time de backend o que precisa ser ajustado.
+### 7. Compatibilidade e não-regressão
 
-Recomendo a **Opção A** para deixar o contrato registrado no projeto.
+- Modos analítico e agrupado existentes permanecem intactos (mesmas rotas, mesmas colunas, mesmo `DataTable`).
+- `ExportButton` continua usando endpoints atuais (`/api/export/contas-pagar` e `/api/export/contas-receber`); modo árvore não exporta nesta entrega.
+- Autenticação, `ProtectedRoute`, sidebar e demais módulos não são tocados.
+- Documento `docs/backend-contas-centro-custo-projeto.md` é complementado mencionando os endpoints árvore.
+
+### Observação importante
+
+A tarefa pede "arquivo completo já ajustado". A implementação será dividida em múltiplos arquivos (helpers + componente + duas páginas) seguindo a arquitetura do projeto, em vez de inflar uma única página — mas o resultado funcional será exatamente o pedido.
