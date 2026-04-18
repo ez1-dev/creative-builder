@@ -74,3 +74,73 @@ Após o ajuste:
 Nenhuma alteração necessária no frontend — colunas, filtros e parâmetros já
 estão implementados em `src/pages/ContasPagarPage.tsx` e
 `src/pages/ContasReceberPage.tsx`.
+
+---
+
+## Endpoints árvore (`/api/contas-pagar-arvore` e `/api/contas-receber-arvore`)
+
+O frontend já consome estes endpoints quando o usuário marca **"Modo árvore
+de rateio"**. Cada item da resposta deve ter:
+
+- `tipo_linha`: `'TITULO'` (pai) ou `'RATEIO'` (filho)
+- `id_linha`: identificador único da linha
+- `codigo_pai`: `id_linha` do título (apenas em rateios)
+- `nivel`: 0 para título, 1+ para rateios
+- Campos comuns + para rateio: `codigo_centro_custo`, `descricao_centro_custo`,
+  `numero_projeto`, `codigo_fase_projeto`, `percentual_rateio`, `valor_rateado`,
+  `origem_rateio`.
+
+### Problema 1 — Erro SQL (`numero_nf` / `serie_nf` inválidos)
+
+```
+[42S22] Nome de coluna 'numero_nf' inválido.
+[42S22] Nome de coluna 'serie_nf' inválido.
+```
+
+Causa: o SELECT/WHERE da query árvore referencia `numero_nf` e `serie_nf` na
+tabela base (provavelmente `E550MOV`/título financeiro), que não possui esses
+campos. Eles existem em `E140NFV` (saída) / `E440NFC` (entrada).
+
+Correção esperada: **remover** essas colunas do SELECT/WHERE da query árvore,
+**ou** fazer JOIN com a tabela de NF correspondente usando a chave de
+movimento (`cod_emp`, `cod_fil`, `tip_tit`, `num_tit`).
+
+### Problema 2 — Centro de custo incorreto nos rateios
+
+Sintoma: linhas filhas (`tipo_linha = 'RATEIO'`) retornam
+`codigo_centro_custo` / `descricao_centro_custo` divergentes do ERP.
+
+Causa provável:
+1. JOIN com `E550CCU` sem filtro composto por empresa (`cod_emp`).
+2. Leitura do `cod_ccu` do **cabeçalho do título** em vez do `cod_ccu` da
+   **própria linha de rateio**.
+
+Correção esperada: ler `cod_ccu` da tabela de rateio (`E075RAT.cod_ccu` para
+pagar, `E550RAT.cod_ccu` para receber) e fazer JOIN composto:
+
+```sql
+-- Contas a Pagar (rateios)
+SELECT  rat.num_tit,
+        rat.cod_ccu,
+        ccu.nom_ccu  AS descricao_centro_custo,
+        rat.per_rat  AS percentual_rateio,
+        rat.val_rat  AS valor_rateado,
+        rat.cod_prj  AS numero_projeto
+FROM    e075rat rat
+LEFT JOIN e550ccu ccu
+       ON ccu.cod_emp = rat.cod_emp
+      AND ccu.cod_ccu = rat.cod_ccu
+WHERE   rat.cod_emp = :cod_emp
+  AND   rat.tip_tit = :tip_tit
+  AND   rat.num_tit = :num_tit;
+
+-- Contas a Receber (rateios) — análogo, usando E550RAT
+```
+
+### Validação após o ajuste
+
+1. Chamar `/api/contas-pagar-arvore` sem filtro de NF — não deve mais retornar
+   erro 207 do SQL Server.
+2. Para um título conhecido com 2+ rateios, conferir que cada linha filha
+   exibe o `codigo_centro_custo` correto conforme o cadastro do ERP.
+3. Soma de `percentual_rateio` por título = 100%.

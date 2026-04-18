@@ -105,8 +105,8 @@ export function FinanceiroTreeTable({
                 </TableCell>
                 <TableCell>{item.numero_projeto || '-'}</TableCell>
                 <TableCell>{item.codigo_fase_projeto || '-'}</TableCell>
-                <TableCell>{item.codigo_centro_custo || '-'}</TableCell>
-                <TableCell>{item.descricao_centro_custo || '-'}</TableCell>
+                <TableCell title={import.meta.env.DEV ? `id_linha=${item.id_linha} | codigo_pai=${item.codigo_pai ?? '-'} | cod_ccu=${item.codigo_centro_custo ?? '-'}` : undefined}>{item.codigo_centro_custo || '-'}</TableCell>
+                <TableCell title={import.meta.env.DEV ? `desc_ccu=${item.descricao_centro_custo ?? '-'}` : undefined}>{item.descricao_centro_custo || '-'}</TableCell>
                 <TableCell className="text-right">
                   {item.percentual_rateio != null
                     ? `${formatNumber(item.percentual_rateio, 2)}%`
