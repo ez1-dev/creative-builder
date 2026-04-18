@@ -159,6 +159,9 @@ export default function ContasReceberPage() {
         });
 
         if (modoArvoreAtivo) {
+          // Backend árvore não suporta filtros de NF (colunas numero_nf/serie_nf inexistentes em E550MOV)
+          delete params.numero_nf;
+          delete params.serie_nf;
           const result: any = await api.get('/api/contas-receber-arvore', params);
           const dados: LinhaArvoreFinanceira[] = result.dados || [];
           setArvoreData(dados);

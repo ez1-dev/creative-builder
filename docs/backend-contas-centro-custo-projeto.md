@@ -74,3 +74,69 @@ Após o ajuste:
 Nenhuma alteração necessária no frontend — colunas, filtros e parâmetros já
 estão implementados em `src/pages/ContasPagarPage.tsx` e
 `src/pages/ContasReceberPage.tsx`.
+
+---
+
+## Endpoints árvore (`/api/contas-pagar-arvore` e `/api/contas-receber-arvore`)
+
+### Erro atual observado
+
+```
+('42S22', "[Microsoft][ODBC Driver 17 for SQL Server][SQL Server]
+ Nome de coluna 'numero_nf' inválido. (207);
+ Nome de coluna 'serie_nf' inválido. (207);
+ Não foi possível preparar uma ou mais instruções. (8180)")
+```
+
+O SQL dos endpoints árvore referencia `numero_nf` e `serie_nf` diretamente
+na tabela base de movimentos financeiros (provavelmente `E550MOV`), onde
+essas colunas **não existem**.
+
+### Correção esperada no backend
+
+Opção 1 — remover `numero_nf` e `serie_nf` do `SELECT`/`WHERE` se não forem
+necessários para a árvore de rateio.
+
+Opção 2 — fazer `LEFT JOIN` com a tabela de NF correspondente:
+- Contas a Receber: `E140NFV` (NF de saída)
+- Contas a Pagar:   `E440NFC` (NF de entrada)
+
+usando a chave de movimento (`cod_emp`, `cod_fil`, `num_tit`, `tip_tit`,
+`cod_cli`/`cod_for`).
+
+### Mitigação aplicada no frontend
+
+Enquanto o SQL não é corrigido, o frontend **remove** os parâmetros
+`numero_nf` e `serie_nf` antes de chamar os endpoints árvore. Modos plano
+e agrupado continuam enviando esses filtros normalmente.
+
+### Contrato de resposta esperado
+
+Cada item de `dados[]`:
+
+```json
+{
+  "tipo_linha": "TITULO" | "RATEIO",
+  "id_linha": "string",
+  "codigo_pai": "string | null",
+  "nivel": 0,
+  "caminho": "string",
+  "possui_filhos": true,
+  "descricao_resumida": "string",
+  "numero_projeto": "string | null",
+  "codigo_fase_projeto": "string | null",
+  "codigo_centro_custo": "string | null",
+  "descricao_centro_custo": "string | null",
+  "percentual_rateio": 0.0,
+  "valor_rateado": 0.0,
+  "origem_rateio": "string | null",
+  "status_titulo": "string | null",
+  "data_vencimento": "YYYY-MM-DD | null",
+  "valor_original": 0.0,
+  "valor_aberto": 0.0,
+  "valor_vencido": 0.0
+}
+```
+
+Já consumido por `src/components/erp/FinanceiroTreeTable.tsx` via
+helpers em `src/lib/treeFinanceiro.ts`.
