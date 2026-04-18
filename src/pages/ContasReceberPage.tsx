@@ -7,12 +7,18 @@ import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
+import { FinanceiroTreeTable } from '@/components/erp/FinanceiroTreeTable';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
+import {
+  LinhaArvoreFinanceira,
+  calcularKpisArvore,
+  toggleNoArvore,
+} from '@/lib/treeFinanceiro';
 import { toast } from 'sonner';
 import {
   DollarSign, Users, FileText, AlertTriangle, Clock,
@@ -98,6 +104,7 @@ const initialFilters = {
   filial: '',
   centro_custo: '',
   projeto: '',
+  numero_projeto: '',
   status_titulo: '',
   somente_vencidos: false,
   somente_saldo_aberto: false,
@@ -110,15 +117,20 @@ const initialFilters = {
   valor_min: '',
   valor_max: '',
   agrupar_por_cliente: false,
+  modo_arvore: false,
 };
 
 export default function ContasReceberPage() {
   const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState<ContasReceberResponse | null>(null);
+  const [arvoreData, setArvoreData] = useState<LinhaArvoreFinanceira[] | null>(null);
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
   const erpReady = useErpReady();
+
+  const modoArvoreAtivo = filters.modo_arvore && !filters.agrupar_por_cliente;
 
   const search = useCallback(
     async (page = 1) => {
@@ -135,16 +147,38 @@ export default function ContasReceberPage() {
         if (!params.filial) delete params.filial;
         if (!params.centro_custo) delete params.centro_custo;
         if (!params.projeto) delete params.projeto;
+        if (!params.numero_projeto) delete params.numero_projeto;
         if (!params.cliente) delete params.cliente;
         if (!params.numero_titulo) delete params.numero_titulo;
         if (!params.somente_vencidos) delete params.somente_vencidos;
         if (!params.somente_saldo_aberto) delete params.somente_saldo_aberto;
         if (!params.agrupar_por_cliente) delete params.agrupar_por_cliente;
+        delete params.modo_arvore;
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
-        const result = await api.get<ContasReceberResponse>('/api/contas-receber', params);
-        setData(result);
+
+        if (modoArvoreAtivo) {
+          const result: any = await api.get('/api/contas-receber-arvore', params);
+          const dados: LinhaArvoreFinanceira[] = result.dados || [];
+          setArvoreData(dados);
+          (window as any).dadosContasReceberPagina = dados;
+          setData({
+            dados: [],
+            pagina: result.pagina ?? page,
+            tamanho_pagina: result.tamanho_pagina ?? dados.length,
+            total_registros: result.total_registros ?? dados.length,
+            total_paginas: result.total_paginas ?? 1,
+            resumo: result.resumo,
+          } as any);
+          // Auto-expandir raízes para facilitar visualização inicial
+          setExpandidos(new Set());
+        } else {
+          const result = await api.get<ContasReceberResponse>('/api/contas-receber', params);
+          setData(result);
+          setArvoreData(null);
+          (window as any).dadosContasReceberPagina = result.dados;
+        }
         setPagina(page);
       } catch (e: any) {
         toast.error(e.message);
@@ -152,8 +186,28 @@ export default function ContasReceberPage() {
         setLoading(false);
       }
     },
-    [filters, erpReady],
+    [filters, erpReady, modoArvoreAtivo],
   );
+
+  const clearFilters = () => {
+    setFilters({ ...initialFilters });
+    setData(null);
+    setArvoreData(null);
+    setExpandidos(new Set());
+    setPagina(1);
+  };
+
+  const set = (key: string, value: any) => setFilters((f) => {
+    const next = { ...f, [key]: value };
+    // Mutuamente exclusivos
+    if (key === 'modo_arvore' && value) next.agrupar_por_cliente = false;
+    if (key === 'agrupar_por_cliente' && value) next.modo_arvore = false;
+    return next;
+  });
+
+  const handleToggleArvore = (id: string) => {
+    setExpandidos((prev) => toggleNoArvore(prev, id));
+  };
 
   const clearFilters = () => {
     setFilters({ ...initialFilters });
