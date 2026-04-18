@@ -1,22 +1,16 @@
 
+Add supplier code column next to supplier name in NotasRecebimentoPage results grid.
 
-# Adicionar Nº NF na Lista Detalhada do Painel de Compras
+### Change in `src/pages/NotasRecebimentoPage.tsx`
 
-## Problema
-A lista detalhada do Painel de Compras não exibe o número da nota fiscal, informação relevante especialmente quando a situação da OC é 4 (Liquidado).
+Add a new column `codigo_fornecedor` immediately before the existing `nome_fornecedor` column in the `columns` array:
 
-## Solução
-Adicionar uma coluna "Nº NF" ao `baseColumns` no `src/pages/PainelComprasPage.tsx`. O campo provavelmente já vem da API como `numero_nf` ou similar. A coluna será posicionada após "Situação".
-
-### Alterações em `src/pages/PainelComprasPage.tsx`
-
-1. Adicionar coluna ao array `baseColumns` (após `situacao_oc`, antes de `dias_atraso`):
 ```typescript
-{ key: 'numero_nf', header: 'Nº NF', render: (v) => v || '-' },
+{ key: "codigo_fornecedor", header: "Cód. Fornecedor" },
+{ key: "nome_fornecedor", header: "Fornecedor" },
 ```
 
-2. Se o campo da API tiver nome diferente (ex: `numero_nota_fiscal`, `nf_entrada`), ajustar o `key` conforme o dado retornado. O render mostra `-` quando não houver NF associada.
+The field `codigo_fornecedor` is already returned by the API (it's used in KPI calculations: `new Set(dados.map((d) => d.codigo_fornecedor))`), so no backend changes are needed.
 
-### Resultado
-A coluna "Nº NF" aparecerá na lista detalhada, exibindo o número da nota fiscal quando disponível — especialmente útil para OCs com situação 4 (Liquidado).
-
+### Result
+The grid will display the supplier code right before the supplier name, making it easier to identify and reference suppliers.
