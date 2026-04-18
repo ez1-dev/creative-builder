@@ -44,6 +44,8 @@ const columnsDetalhada: Column<any>[] = [
   { key: 'codigo_cliente', header: 'Cód. Cliente' },
   { key: 'nome_cliente', header: 'Cliente' },
   { key: 'fantasia_cliente', header: 'Fantasia' },
+  { key: 'centro_custo', header: 'C. Custo', render: (v) => v || '-' },
+  { key: 'projeto', header: 'Projeto', render: (v) => v || '-' },
   { key: 'data_emissao', header: 'Emissão', render: (v) => formatDate(v) },
   { key: 'data_vencimento', header: 'Vencimento', render: (v) => formatDate(v) },
   { key: 'data_ultimo_movimento', header: 'Últ. Mov.', render: (v) => formatDate(v) },
@@ -94,6 +96,8 @@ const initialFilters = {
   numero_titulo: '',
   tipo_titulo: '',
   filial: '',
+  centro_custo: '',
+  projeto: '',
   status_titulo: '',
   somente_vencidos: false,
   somente_saldo_aberto: false,
@@ -129,6 +133,8 @@ export default function ContasReceberPage() {
         if (!params.status_titulo) delete params.status_titulo;
         if (!params.tipo_titulo) delete params.tipo_titulo;
         if (!params.filial) delete params.filial;
+        if (!params.centro_custo) delete params.centro_custo;
+        if (!params.projeto) delete params.projeto;
         if (!params.cliente) delete params.cliente;
         if (!params.numero_titulo) delete params.numero_titulo;
         if (!params.somente_vencidos) delete params.somente_vencidos;
@@ -227,6 +233,14 @@ export default function ContasReceberPage() {
         <div>
           <Label className="text-xs">Filial</Label>
           <Input value={filters.filial} onChange={(e) => set('filial', e.target.value)} placeholder="Cód. filial" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Centro de Custo</Label>
+          <Input value={filters.centro_custo} onChange={(e) => set('centro_custo', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Projeto</Label>
+          <Input value={filters.projeto} onChange={(e) => set('projeto', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Status</Label>
