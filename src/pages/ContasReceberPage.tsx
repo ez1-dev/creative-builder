@@ -282,12 +282,12 @@ export default function ContasReceberPage() {
           <Input value={filters.filial} onChange={(e) => set('filial', e.target.value)} placeholder="Cód. filial" className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Centro de Custo</Label>
-          <Input value={filters.centro_custo} onChange={(e) => set('centro_custo', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="centroCustoContasRec">Centro de Custo</Label>
+          <Input id="centroCustoContasRec" value={filters.centro_custo} onChange={(e) => set('centro_custo', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Projeto</Label>
-          <Input value={filters.projeto} onChange={(e) => set('projeto', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="numeroProjetoContasRec">Projeto</Label>
+          <Input id="numeroProjetoContasRec" value={filters.numero_projeto || filters.projeto} onChange={(e) => { set('numero_projeto', e.target.value); set('projeto', e.target.value); }} placeholder="Código ou nome" className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Status</Label>
@@ -350,8 +350,12 @@ export default function ContasReceberPage() {
           <Label htmlFor="cr_somente_saldo_aberto" className="text-xs">Somente saldo aberto</Label>
         </div>
         <div className="flex items-end gap-2 pb-1">
-          <Checkbox id="cr_agrupar_por_cliente" checked={filters.agrupar_por_cliente} onCheckedChange={(v) => set('agrupar_por_cliente', !!v)} />
+          <Checkbox id="cr_agrupar_por_cliente" checked={filters.agrupar_por_cliente} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_cliente', !!v)} />
           <Label htmlFor="cr_agrupar_por_cliente" className="text-xs">Agrupar por cliente</Label>
+        </div>
+        <div className="flex items-end gap-2 pb-1">
+          <Checkbox id="modoArvoreContasRec" checked={filters.modo_arvore} disabled={filters.agrupar_por_cliente} onCheckedChange={(v) => set('modo_arvore', !!v)} />
+          <Label htmlFor="modoArvoreContasRec" className="text-xs">Modo árvore de rateio</Label>
         </div>
       </FilterPanel>
 
@@ -384,14 +388,24 @@ export default function ContasReceberPage() {
 
       {data && (
         <>
-          <DataTable
-            columns={columns}
-            data={data.dados || []}
-            loading={loading}
-            emptyMessage="Nenhum título encontrado."
-          />
+          {modoArvoreAtivo && arvoreData ? (
+            <FinanceiroTreeTable
+              dados={arvoreData}
+              expandidos={expandidos}
+              onToggle={handleToggleArvore}
+              loading={loading}
+              emptyMessage="Nenhum título encontrado."
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={data.dados || []}
+              loading={loading}
+              emptyMessage="Nenhum título encontrado."
+            />
+          )}
 
-          {data.total_paginas > 1 && (
+          {!modoArvoreAtivo && data.total_paginas > 1 && (
             <PaginationControl
               pagina={pagina}
               totalPaginas={data.total_paginas}
