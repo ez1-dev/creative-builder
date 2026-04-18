@@ -7,12 +7,18 @@ import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
+import { FinanceiroTreeTable } from '@/components/erp/FinanceiroTreeTable';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
+import {
+  LinhaArvoreFinanceira,
+  calcularKpisArvore,
+  toggleNoArvore,
+} from '@/lib/treeFinanceiro';
 import { toast } from 'sonner';
 import {
   DollarSign, Users, FileText, AlertTriangle, Clock,
@@ -98,6 +104,7 @@ const initialFilters = {
   filial: '',
   centro_custo: '',
   projeto: '',
+  numero_projeto: '',
   status_titulo: '',
   somente_vencidos: false,
   somente_saldo_aberto: false,
@@ -111,15 +118,20 @@ const initialFilters = {
   valor_min: '',
   valor_max: '',
   agrupar_por_fornecedor: false,
+  modo_arvore: false,
 };
 
 export default function ContasPagarPage() {
   const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState<ContasPagarResponse | null>(null);
+  const [arvoreData, setArvoreData] = useState<LinhaArvoreFinanceira[] | null>(null);
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
 
   const erpReady = useErpReady();
+
+  const modoArvoreAtivo = filters.modo_arvore && !filters.agrupar_por_fornecedor;
 
   const search = useCallback(
     async (page = 1) => {
@@ -136,17 +148,38 @@ export default function ContasPagarPage() {
         if (!params.filial) delete params.filial;
         if (!params.centro_custo) delete params.centro_custo;
         if (!params.projeto) delete params.projeto;
+        if (!params.numero_projeto) delete params.numero_projeto;
         if (!params.fornecedor) delete params.fornecedor;
         if (!params.numero_titulo) delete params.numero_titulo;
         if (!params.somente_vencidos) delete params.somente_vencidos;
         if (!params.somente_saldo_aberto) delete params.somente_saldo_aberto;
         if (!params.somente_cheques) delete params.somente_cheques;
         if (!params.agrupar_por_fornecedor) delete params.agrupar_por_fornecedor;
+        delete params.modo_arvore;
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
-        const result = await api.get<ContasPagarResponse>('/api/contas-pagar', params);
-        setData(result);
+
+        if (modoArvoreAtivo) {
+          const result: any = await api.get('/api/contas-pagar-arvore', params);
+          const dados: LinhaArvoreFinanceira[] = result.dados || [];
+          setArvoreData(dados);
+          (window as any).dadosContasPagarPagina = dados;
+          setData({
+            dados: [],
+            pagina: result.pagina ?? page,
+            tamanho_pagina: result.tamanho_pagina ?? dados.length,
+            total_registros: result.total_registros ?? dados.length,
+            total_paginas: result.total_paginas ?? 1,
+            resumo: result.resumo,
+          } as any);
+          setExpandidos(new Set());
+        } else {
+          const result = await api.get<ContasPagarResponse>('/api/contas-pagar', params);
+          setData(result);
+          setArvoreData(null);
+          (window as any).dadosContasPagarPagina = result.dados;
+        }
         setPagina(page);
       } catch (e: any) {
         toast.error(e.message);
@@ -154,18 +187,45 @@ export default function ContasPagarPage() {
         setLoading(false);
       }
     },
-    [filters, erpReady],
+    [filters, erpReady, modoArvoreAtivo],
   );
 
   const clearFilters = () => {
     setFilters({ ...initialFilters });
     setData(null);
+    setArvoreData(null);
+    setExpandidos(new Set());
     setPagina(1);
   };
 
-  const set = (key: string, value: any) => setFilters((f) => ({ ...f, [key]: value }));
+  const set = (key: string, value: any) => setFilters((f) => {
+    const next = { ...f, [key]: value };
+    if (key === 'modo_arvore' && value) next.agrupar_por_fornecedor = false;
+    if (key === 'agrupar_por_fornecedor' && value) next.modo_arvore = false;
+    return next;
+  });
+
+  const handleToggleArvore = (id: string) => {
+    setExpandidos((prev) => toggleNoArvore(prev, id));
+  };
 
   const kpis = useMemo(() => {
+    if (modoArvoreAtivo && arvoreData) {
+      const k = calcularKpisArvore(arvoreData);
+      return {
+        total_titulos: k.total_titulos,
+        total_fornecedores: 0,
+        valor_original_total: k.valor_original_total,
+        valor_aberto_total: k.valor_aberto_total,
+        valor_pago_total: 0,
+        titulos_vencidos: k.titulos_vencidos,
+        valor_vencido_total: k.valor_vencido_total,
+        valor_a_vencer_7d: 0,
+        valor_a_vencer_30d: 0,
+        ticket_medio: k.total_titulos ? k.valor_original_total / k.total_titulos : 0,
+        maior_atraso_dias: 0,
+      };
+    }
     if (data?.resumo) return data.resumo;
     if (!data?.dados?.length) return null;
     const d = data.dados;
@@ -204,7 +264,7 @@ export default function ContasPagarPage() {
       ticket_medio: d.length > 0 ? valorOriginal / d.length : 0,
       maior_atraso_dias: maiorAtraso,
     };
-  }, [data]);
+  }, [data, modoArvoreAtivo, arvoreData]);
 
   const columns = filters.agrupar_por_fornecedor ? columnsAgrupada : columnsDetalhada;
   const exportParams = { ...filters };
@@ -237,12 +297,12 @@ export default function ContasPagarPage() {
           <Input value={filters.filial} onChange={(e) => set('filial', e.target.value)} placeholder="Cód. filial" className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Centro de Custo</Label>
-          <Input value={filters.centro_custo} onChange={(e) => set('centro_custo', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="centroCustoContasPag">Centro de Custo</Label>
+          <Input id="centroCustoContasPag" value={filters.centro_custo} onChange={(e) => set('centro_custo', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Projeto</Label>
-          <Input value={filters.projeto} onChange={(e) => set('projeto', e.target.value)} placeholder="Código ou nome" className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="numeroProjetoContasPag">Projeto</Label>
+          <Input id="numeroProjetoContasPag" value={filters.numero_projeto || filters.projeto} onChange={(e) => { set('numero_projeto', e.target.value); set('projeto', e.target.value); }} placeholder="Código ou nome" className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Status</Label>
@@ -309,8 +369,12 @@ export default function ContasPagarPage() {
           <Label htmlFor="somente_cheques" className="text-xs">Somente cheques</Label>
         </div>
         <div className="flex items-end gap-2 pb-1">
-          <Checkbox id="agrupar_por_fornecedor" checked={filters.agrupar_por_fornecedor} onCheckedChange={(v) => set('agrupar_por_fornecedor', !!v)} />
+          <Checkbox id="agrupar_por_fornecedor" checked={filters.agrupar_por_fornecedor} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_fornecedor', !!v)} />
           <Label htmlFor="agrupar_por_fornecedor" className="text-xs">Agrupar por fornecedor</Label>
+        </div>
+        <div className="flex items-end gap-2 pb-1">
+          <Checkbox id="modoArvoreContasPag" checked={filters.modo_arvore} disabled={filters.agrupar_por_fornecedor} onCheckedChange={(v) => set('modo_arvore', !!v)} />
+          <Label htmlFor="modoArvoreContasPag" className="text-xs">Modo árvore de rateio</Label>
         </div>
       </FilterPanel>
 
@@ -343,14 +407,24 @@ export default function ContasPagarPage() {
 
       {data && (
         <>
-          <DataTable
-            columns={columns}
-            data={data.dados || []}
-            loading={loading}
-            emptyMessage="Nenhum título encontrado."
-          />
+          {modoArvoreAtivo && arvoreData ? (
+            <FinanceiroTreeTable
+              dados={arvoreData}
+              expandidos={expandidos}
+              onToggle={handleToggleArvore}
+              loading={loading}
+              emptyMessage="Nenhum título encontrado."
+            />
+          ) : (
+            <DataTable
+              columns={columns}
+              data={data.dados || []}
+              loading={loading}
+              emptyMessage="Nenhum título encontrado."
+            />
+          )}
 
-          {data.total_paginas > 1 && (
+          {!modoArvoreAtivo && data.total_paginas > 1 && (
             <PaginationControl
               pagina={pagina}
               totalPaginas={data.total_paginas}

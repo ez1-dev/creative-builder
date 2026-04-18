@@ -119,4 +119,25 @@
   .table-stripe-bg {
     background-color: hsl(var(--table-stripe));
   }
+
+  .tree-cell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tree-toggle {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+  .tree-leaf {
+    width: 18px;
+    display: inline-block;
+  }
 }
