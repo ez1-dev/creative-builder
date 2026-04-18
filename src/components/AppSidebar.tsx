@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 const modules = [
   { title: 'Consulta de Estoques', url: '/estoque', icon: Package },
   { title: 'Consulta Onde Usa', url: '/onde-usa', icon: Search },
-  { title: 'Estrutura BOM', url: '/bom', icon: GitBranch },
+  { title: 'Estrutura Multinível', url: '/bom', icon: GitBranch },
   { title: 'Consulta Compras/Custos', url: '/compras-produto', icon: ShoppingCart },
   { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
