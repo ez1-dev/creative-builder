@@ -209,13 +209,6 @@ export default function ContasReceberPage() {
     setExpandidos((prev) => toggleNoArvore(prev, id));
   };
 
-  const clearFilters = () => {
-    setFilters({ ...initialFilters });
-    setData(null);
-    setPagina(1);
-  };
-
-  const set = (key: string, value: any) => setFilters((f) => ({ ...f, [key]: value }));
 
   const kpis = useMemo(() => {
     if (data?.resumo) return data.resumo;
