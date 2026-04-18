@@ -35,6 +35,7 @@ const columns: Column<any>[] = [
       return map[String(v)] || v || "-";
     },
   },
+  { key: "codigo_fornecedor", header: "Cód. Fornecedor" },
   { key: "nome_fornecedor", header: "Fornecedor" },
   { key: "data_emissao", header: "Emissão", render: (v) => formatDate(v) },
   { key: "data_recebimento", header: "Recebimento", render: (v) => formatDate(v) },
