@@ -1,8 +1,8 @@
 
+Renomear "Estrutura BOM" para "Estrutura Multinível" em dois locais:
 
-O usuário quer adicionar filtros por **Centro de Custo** e **Projeto** nas telas de Contas a Pagar e Contas a Receber.
+1. **`src/components/AppSidebar.tsx`** (linha 32): alterar título do menu de `'Estrutura BOM'` para `'Estrutura Multinível'`.
 
-Preciso verificar:
-1. Se a API já suporta esses filtros
-2. Se os dados retornam esses campos
-3. Como adicionar no frontend
+2. **`src/pages/BomPage.tsx`**: alterar `title="Estrutura (BOM)"` no `PageHeader` para `title="Estrutura Multinível"`.
+
+Sem alterações em rotas (`/bom`), nomes de arquivos ou endpoints — apenas o rótulo visível.
