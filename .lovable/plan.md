@@ -1,38 +1,48 @@
 
-Verificando se os filtros de centro de custo e projeto estão sendo enviados corretamente para a API.
+A request foi enviada com `centro_custo=663` e retornou 200 OK, mas o JSON de resposta **não contém** os campos `centro_custo` nem `projeto` nos registros — só vem `codigo_empresa`, `codigo_filial`, `tipo_titulo`, `numero_titulo`, `codigo_fornecedor`, `nome_fornecedor`, `fantasia_fornecedor`, datas, valores e status.
 
-Olhando o código atual de `ContasReceberPage.tsx` (visível no contexto):
+Ou seja:
+- O frontend envia o filtro corretamente.
+- O backend aceita o parâmetro (não dá erro), mas **não está retornando as colunas `centro_custo` e `projeto` no SELECT do endpoint `/api/contas-pagar`** (provavelmente também `/api/contas-receber`).
+- Por isso a grid mostra "-" nessas colunas: o `render: (v) => v || '-'` recebe `undefined`.
 
-```typescript
-const params: any = { ...filters, pagina: page, tamanho_pagina: 100 };
-...
-if (!params.centro_custo) delete params.centro_custo;
-if (!params.projeto) delete params.projeto;
-```
-
-Os parâmetros `centro_custo` e `projeto` estão incluídos via spread `...filters` e só são removidos quando vazios — ou seja, quando preenchidos, são enviados para `/api/contas-receber`. O mesmo padrão deve estar em `ContasPagarPage.tsx`.
-
-Preciso confirmar dois pontos:
-1. Se `ContasPagarPage.tsx` tem o mesmo tratamento.
-2. Se a API backend (`/api/contas-pagar` e `/api/contas-receber`) realmente aceita e aplica esses parâmetros como filtro SQL — isso depende do backend FastAPI, que não está no codebase do frontend.
+Adicionalmente, não dá para confirmar se o `WHERE centro_custo = 663` está sendo aplicado no SQL — o total retornado (`221.004` registros) é igual ao total geral, sugerindo que **o filtro também não está sendo aplicado no backend**.
 
 ## Diagnóstico
 
-**Frontend (confirmado)**: Os valores de `centro_custo` e `projeto` digitados nos campos de filtro são enviados como query params para a API quando preenchidos. Quando vazios, são omitidos da requisição.
+| Item | Status |
+|---|---|
+| Frontend envia `centro_custo` / `projeto` | ✅ Confirmado na URL |
+| Backend retorna campos na resposta | ❌ Ausentes no JSON |
+| Backend filtra por esses campos no SQL | ❌ Provável que não (total = total geral) |
 
-**Backend**: A aplicação efetiva do filtro depende do endpoint FastAPI no servidor ERP. Como o backend não está neste repositório, não consigo verificar diretamente se o SQL filtra por `cod_ccu` (centro de custo) e `cod_prj` (projeto).
+## Causa raiz
 
-## Como validar
+O endpoint FastAPI `/api/contas-pagar` (e `/api/contas-receber`) precisa ser ajustado no **backend** para:
 
-1. Abra Contas a Pagar (ou Receber), preencha **Centro de Custo** com um código conhecido e clique em Pesquisar.
-2. Abra o DevTools → aba Network → procure a chamada `/api/contas-pagar` e confirme que `centro_custo=XXX` aparece na query string.
-3. Verifique se os resultados retornados realmente correspondem ao centro de custo informado (coluna "C. Custo" da grid).
+1. Adicionar `cod_ccu` (centro de custo) e `cod_prj` (projeto) ao `SELECT` da query SQL.
+2. Mapear esses campos no response como `centro_custo` e `projeto`.
+3. Adicionar cláusulas `WHERE` opcionais quando os parâmetros forem informados.
 
-Se o parâmetro está na URL mas a grid retorna registros de outros centros, o ajuste necessário é no **backend FastAPI** (adicionar o `WHERE` correspondente na query SQL do endpoint).
+Como o backend FastAPI **não está neste repositório do Lovable**, não posso alterar o SQL daqui.
 
-## Próximo passo sugerido
+## O que posso fazer no frontend
 
-Se quiser, posso:
-- **Verificar o `ContasPagarPage.tsx`** para garantir que o envio dos parâmetros está idêntico ao de Receber.
-- **Adicionar log/toast de debug** mostrando os parâmetros enviados, para facilitar a validação.
-- **Documentar o contrato esperado** dos endpoints para o time backend ajustar caso o filtro não esteja sendo aplicado no SQL.
+Nada resolve sozinho — sem o campo na resposta, a coluna ficará vazia. Mas posso:
+
+1. **Confirmar visualmente o problema** adicionando um aviso na UI quando `centro_custo`/`projeto` forem filtrados mas vierem vazios.
+2. **Documentar o contrato esperado** num arquivo `docs/api-contracts.md` para o time backend implementar.
+
+## Plano sugerido
+
+**Opção A — Documentar contrato para backend (recomendado)**
+Criar `docs/backend-contas-centro-custo-projeto.md` descrevendo:
+- Endpoints afetados: `/api/contas-pagar`, `/api/contas-receber`, `/api/export/contas-pagar`, `/api/export/contas-receber`
+- Parâmetros de query a aceitar: `centro_custo` (string), `projeto` (string)
+- Campos a incluir na resposta de cada item: `centro_custo`, `projeto`
+- Tabelas Senior prováveis: `E550CCU` (centros de custo) e `E085PRJ` (projetos), via joins com `E550MOV`/`E550NFC`
+
+**Opção B — Sem ação no frontend**
+Apenas comunicar ao time de backend o que precisa ser ajustado.
+
+Recomendo a **Opção A** para deixar o contrato registrado no projeto.
