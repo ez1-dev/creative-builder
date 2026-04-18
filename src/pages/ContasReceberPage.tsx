@@ -211,6 +211,22 @@ export default function ContasReceberPage() {
 
 
   const kpis = useMemo(() => {
+    if (modoArvoreAtivo && arvoreData) {
+      const k = calcularKpisArvore(arvoreData);
+      return {
+        total_titulos: k.total_titulos,
+        total_clientes: 0,
+        valor_original_total: k.valor_original_total,
+        valor_aberto_total: k.valor_aberto_total,
+        valor_recebido_total: 0,
+        titulos_vencidos: k.titulos_vencidos,
+        valor_vencido_total: k.valor_vencido_total,
+        valor_a_vencer_7d: 0,
+        valor_a_vencer_30d: 0,
+        ticket_medio: k.total_titulos ? k.valor_original_total / k.total_titulos : 0,
+        maior_atraso_dias: 0,
+      };
+    }
     if (data?.resumo) return data.resumo;
     if (!data?.dados?.length) return null;
     const d = data.dados;
@@ -249,7 +265,7 @@ export default function ContasReceberPage() {
       ticket_medio: d.length > 0 ? valorOriginal / d.length : 0,
       maior_atraso_dias: maiorAtraso,
     };
-  }, [data]);
+  }, [data, modoArvoreAtivo, arvoreData]);
 
   const columns = filters.agrupar_por_cliente ? columnsAgrupada : columnsDetalhada;
   const exportParams = { ...filters };
