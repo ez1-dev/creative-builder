@@ -180,7 +180,7 @@ export default function EstoqueMinMaxPage() {
 
       {kpis && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <KPICard title="Abaixo do Mínimo" value={formatNumber(kpis.abaixo_minimo, 0)} icon={<AlertTriangle className="h-5 w-5" />} variant="danger" index={0} tooltip="Itens com saldo abaixo do estoque mínimo" />
+          <KPICard title="Abaixo do Mínimo" value={formatNumber(kpis.abaixo_minimo, 0)} icon={<AlertTriangle className="h-5 w-5" />} variant="destructive" index={0} tooltip="Itens com saldo abaixo do estoque mínimo" />
           <KPICard title="Acima do Máximo" value={formatNumber(kpis.acima_maximo, 0)} icon={<ArrowUpCircle className="h-5 w-5" />} variant="info" index={1} tooltip="Itens com saldo acima do estoque máximo" />
           <KPICard title="Sem Política" value={formatNumber(kpis.sem_politica, 0)} icon={<HelpCircle className="h-5 w-5" />} variant="default" index={2} tooltip="Itens sem mínimo/máximo definidos" />
           <KPICard title="Itens OK" value={formatNumber(kpis.ok, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="success" index={3} tooltip="Itens dentro da política de estoque" />
