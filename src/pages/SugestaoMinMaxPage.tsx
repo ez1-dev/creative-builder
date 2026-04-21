@@ -16,7 +16,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
-import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromLine, Save, Sparkles, Search, Wand2 } from 'lucide-react';
+import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromLine, Save, Sparkles, Search, Wand2, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+const MISSING_ENDPOINT_MSG: Record<string, string> = {
+  movimentacao: 'Endpoint /api/estoque/movimentacao ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
+  sugestao: 'Endpoint /api/estoque/sugestao-politica ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
+  salvar: 'Endpoint /api/estoque/politica/salvar ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
+};
+
+function is404(e: any): boolean {
+  if (e?.statusCode === 404) return true;
+  const msg = String(e?.message || '').toLowerCase();
+  return msg.includes('not found') || msg.includes('404');
+}
 
 type Status = 'SEM_POLITICA' | 'ABAIXO_MINIMO' | 'NO_MINIMO' | 'ACIMA_MAXIMO' | 'ENTRE_MIN_E_MAX';
 
