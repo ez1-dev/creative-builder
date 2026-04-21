@@ -257,12 +257,13 @@ export default function SugestaoMinMaxPage() {
   // Reativa botões automaticamente quando o usuário troca filtros
   useEffect(() => { setEndpointMissing(false); }, [filters]);
 
-  const disabledTitle = endpointMissing ? 'Backend ainda não publicado' : undefined;
+  const disabledTitle = endpointMissing && !demoMode ? 'Backend ainda não publicado — ative o modo demo' : undefined;
+  const buttonsBlocked = endpointMissing && !demoMode;
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
-      {endpointMissing && (
+      {endpointMissing && !demoMode && (
         <Alert className="border-[hsl(var(--warning))]/50 bg-[hsl(var(--warning))]/10">
           <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
           <AlertTitle>Backend pendente</AlertTitle>
@@ -271,7 +272,17 @@ export default function SugestaoMinMaxPage() {
             <code className="rounded bg-muted px-1">/api/estoque/movimentacao</code>,{' '}
             <code className="rounded bg-muted px-1">/api/estoque/sugestao-politica</code> e{' '}
             <code className="rounded bg-muted px-1">/api/estoque/politica/salvar</code>. Veja{' '}
-            <code className="rounded bg-muted px-1">docs/backend-sugestao-minmax.md</code>.
+            <code className="rounded bg-muted px-1">docs/backend-sugestao-minmax.md</code> ou ative o{' '}
+            <strong>modo demo</strong> abaixo para testar a UX e o fluxo de IA com dados de exemplo.
+          </AlertDescription>
+        </Alert>
+      )}
+      {demoMode && (
+        <Alert className="border-accent/50 bg-accent/10">
+          <Sparkles className="h-4 w-4 text-accent" />
+          <AlertTitle>Modo demo ativo</AlertTitle>
+          <AlertDescription className="text-xs">
+            Usando dados fictícios. Consultar/Gerar/Sugerir com IA funcionam normalmente. <strong>Salvar política</strong> está desabilitado (precisa do backend real).
           </AlertDescription>
         </Alert>
       )}
@@ -280,22 +291,31 @@ export default function SugestaoMinMaxPage() {
         description="Análise de movimentação histórica para sugerir política de reposição (mínimo, máximo, ponto de pedido)"
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => fetchMovimentacao(1)} disabled={loading || endpointMissing} title={disabledTitle}>
+            <div className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1">
+              <Switch id="demo-mode" checked={demoMode} onCheckedChange={setDemoMode} />
+              <Label htmlFor="demo-mode" className="cursor-pointer text-xs">Usar dados de exemplo</Label>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => fetchMovimentacao(1)} disabled={loading || buttonsBlocked} title={disabledTitle}>
               <Search className="mr-1 h-3 w-3" /> Consultar movimentação
             </Button>
-            <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading || endpointMissing} title={disabledTitle}>
+            <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading || buttonsBlocked} title={disabledTitle}>
               <Sparkles className="mr-1 h-3 w-3" /> Gerar sugestão
             </Button>
             <Button
               size="sm"
               onClick={sugerirComIa}
-              disabled={loading || !data?.dados?.length || endpointMissing}
+              disabled={loading || !data?.dados?.length}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
-              title={disabledTitle}
             >
               <Wand2 className="mr-1 h-3 w-3" /> Sugerir com IA
             </Button>
-            <Button size="sm" variant="secondary" onClick={salvarPolitica} disabled={saving || mode !== 'sugestao' || endpointMissing} title={disabledTitle}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={salvarPolitica}
+              disabled={saving || mode !== 'sugestao' || buttonsBlocked || demoMode}
+              title={demoMode ? 'Desabilitado no modo demo' : disabledTitle}
+            >
               <Save className="mr-1 h-3 w-3" /> {saving ? 'Salvando...' : 'Salvar política'}
             </Button>
             <ExportButton endpoint="/api/export/estoque/sugestao-politica" params={filters} />
