@@ -18,6 +18,8 @@ import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromLine, Save, Sparkles, Search, Wand2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { gerarDemoMovimentacao, gerarDemoSugestao } from '@/lib/demoMovimentacao';
 
 const MISSING_ENDPOINT_MSG: Record<string, string> = {
   movimentacao: 'Endpoint /api/estoque/movimentacao ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
@@ -102,11 +104,21 @@ export default function SugestaoMinMaxPage() {
   const [saving, setSaving] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [endpointMissing, setEndpointMissing] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
 
   const fetchMovimentacao = useCallback(async (page = 1) => {
+    if (demoMode) {
+      const result = gerarDemoMovimentacao();
+      setData(result as any);
+      setMode('movimentacao');
+      setPagina(1);
+      setEndpointMissing(false);
+      toast.success('Dados de exemplo carregados (modo demo).', { id: 'demo-mov' });
+      return;
+    }
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
@@ -130,6 +142,15 @@ export default function SugestaoMinMaxPage() {
   }, [filters, erpReady]);
 
   const fetchSugestao = useCallback(async (page = 1) => {
+    if (demoMode) {
+      const result = gerarDemoSugestao();
+      setData(result as any);
+      setMode('sugestao');
+      setPagina(1);
+      setEndpointMissing(false);
+      toast.success('Sugestão calculada com dados de exemplo (modo demo).', { id: 'demo-sug' });
+      return;
+    }
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
