@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { api, EstoqueMovimentacaoResponse, SugestaoPoliticaResponse } from '@/lib/api';
+import { supabase } from '@/integrations/supabase/client';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
@@ -15,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
-import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromLine, Save, Sparkles, Search } from 'lucide-react';
+import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromLine, Save, Sparkles, Search, Wand2 } from 'lucide-react';
 
 type Status = 'SEM_POLITICA' | 'ABAIXO_MINIMO' | 'NO_MINIMO' | 'ACIMA_MAXIMO' | 'ENTRE_MIN_E_MAX';
 
@@ -62,6 +63,13 @@ const columns: Column<any>[] = [
   { key: 'consumo_medio', header: 'Consumo Médio', align: 'right', render: (v) => formatNumber(v, 4) },
   { key: 'minimo_sugerido', header: 'Mín. Sugerido', align: 'right', render: (v) => formatNumber(v, 4) },
   { key: 'maximo_sugerido', header: 'Máx. Sugerido', align: 'right', render: (v) => formatNumber(v, 4) },
+  {
+    key: 'justificativa',
+    header: 'Justificativa IA',
+    render: (v: string) => v
+      ? <span className="block max-w-[280px] truncate text-xs text-muted-foreground" title={v}>{v}</span>
+      : <span className="text-xs text-muted-foreground">-</span>,
+  },
   {
     key: 'status',
     header: 'Status',
@@ -119,6 +127,27 @@ export default function SugestaoMinMaxPage() {
     }
   }, [filters, erpReady]);
 
+  const sugerirComIa = useCallback(async () => {
+    if (!data?.dados?.length) { toast.error('Consulte movimentação primeiro.'); return; }
+    setLoading(true);
+    const t = toast.loading('Analisando movimentação com IA...');
+    try {
+      const { data: result, error } = await supabase.functions.invoke('sugestao-minmax-ia', {
+        body: { movimentacoes: data.dados, filtros: filters },
+      });
+      if (error) throw new Error(error.message || 'Falha ao chamar IA.');
+      if ((result as any)?.error) throw new Error((result as any).error);
+      setData(result as SugestaoPoliticaResponse);
+      setMode('sugestao');
+      setPagina(1);
+      toast.success(`IA sugeriu política para ${(result as any)?.total_registros ?? 0} item(ns).`, { id: t });
+    } catch (e: any) {
+      toast.error(e.message || 'Erro ao gerar sugestão com IA.', { id: t });
+    } finally {
+      setLoading(false);
+    }
+  }, [data, filters]);
+
   const salvarPolitica = useCallback(async () => {
     if (!data?.dados?.length) { toast.error('Nada para salvar. Gere a sugestão primeiro.'); return; }
     if (mode !== 'sugestao') { toast.error('Gere a sugestão antes de salvar.'); return; }
@@ -135,7 +164,7 @@ export default function SugestaoMinMaxPage() {
         lote_compra: Number(r.lote_compra || 0),
         consumo_medio_mensal: Number(r.consumo_mensal ?? r.consumo_medio ?? 0),
         lead_time_dias: Number(r.lead_time_dias || 0),
-        obs: r.obs || 'Sugestão automática (movimentação histórica)',
+        obs: r.justificativa ? `Sugestão IA: ${r.justificativa}` : (r.obs || 'Sugestão automática (movimentação histórica)'),
       }));
       await api.post('/api/estoque/politica/salvar', { politicas });
       toast.success(`Política salva: ${politicas.length} item(ns).`);
@@ -184,6 +213,14 @@ export default function SugestaoMinMaxPage() {
             </Button>
             <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading}>
               <Sparkles className="mr-1 h-3 w-3" /> Gerar sugestão
+            </Button>
+            <Button
+              size="sm"
+              onClick={sugerirComIa}
+              disabled={loading || !data?.dados?.length}
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              <Wand2 className="mr-1 h-3 w-3" /> Sugerir com IA
             </Button>
             <Button size="sm" variant="secondary" onClick={salvarPolitica} disabled={saving || mode !== 'sugestao'}>
               <Save className="mr-1 h-3 w-3" /> {saving ? 'Salvando...' : 'Salvar política'}

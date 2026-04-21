@@ -270,7 +270,25 @@ export interface EstoqueMovimentacaoResponse extends PaginatedResponse<any> {
   };
 }
 
-export interface SugestaoPoliticaResponse extends PaginatedResponse<any> {
+export interface SugestaoPoliticaItem {
+  codemp?: number;
+  codpro?: string;
+  despro?: string;
+  codder?: string;
+  coddep?: string;
+  saldo_atual?: number;
+  consumo_medio?: number;
+  consumo_mensal?: number;
+  lead_time_dias?: number;
+  minimo_sugerido?: number;
+  maximo_sugerido?: number;
+  ponto_pedido?: number;
+  lote_compra?: number;
+  justificativa?: string;
+  [key: string]: any;
+}
+
+export interface SugestaoPoliticaResponse extends PaginatedResponse<SugestaoPoliticaItem> {
   resumo?: {
     saldo_atual_total: number;
     consumo_90d: number;
