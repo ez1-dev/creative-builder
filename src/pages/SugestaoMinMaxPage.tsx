@@ -18,6 +18,8 @@ import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromLine, Save, Sparkles, Search, Wand2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { gerarDemoMovimentacao, gerarDemoSugestao } from '@/lib/demoMovimentacao';
 
 const MISSING_ENDPOINT_MSG: Record<string, string> = {
   movimentacao: 'Endpoint /api/estoque/movimentacao ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
@@ -102,11 +104,21 @@ export default function SugestaoMinMaxPage() {
   const [saving, setSaving] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [endpointMissing, setEndpointMissing] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
 
   const fetchMovimentacao = useCallback(async (page = 1) => {
+    if (demoMode) {
+      const result = gerarDemoMovimentacao();
+      setData(result as any);
+      setMode('movimentacao');
+      setPagina(1);
+      setEndpointMissing(false);
+      toast.success('Dados de exemplo carregados (modo demo).', { id: 'demo-mov' });
+      return;
+    }
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
@@ -127,9 +139,18 @@ export default function SugestaoMinMaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, demoMode]);
 
   const fetchSugestao = useCallback(async (page = 1) => {
+    if (demoMode) {
+      const result = gerarDemoSugestao();
+      setData(result as any);
+      setMode('sugestao');
+      setPagina(1);
+      setEndpointMissing(false);
+      toast.success('Sugestão calculada com dados de exemplo (modo demo).', { id: 'demo-sug' });
+      return;
+    }
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
@@ -151,7 +172,7 @@ export default function SugestaoMinMaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, demoMode]);
 
   const sugerirComIa = useCallback(async () => {
     if (!data?.dados?.length) { toast.error('Consulte movimentação primeiro.', { id: 'ia-no-data' }); return; }
@@ -175,6 +196,7 @@ export default function SugestaoMinMaxPage() {
   }, [data, filters]);
 
   const salvarPolitica = useCallback(async () => {
+    if (demoMode) { toast.error('Salvar política está desabilitado no modo demo (precisa do POST real no ERP).', { id: 'salvar-demo' }); return; }
     if (!data?.dados?.length) { toast.error('Nada para salvar. Gere a sugestão primeiro.', { id: 'salvar-no-data' }); return; }
     if (mode !== 'sugestao') { toast.error('Gere a sugestão antes de salvar.', { id: 'salvar-mode' }); return; }
     setSaving(true);
@@ -205,7 +227,7 @@ export default function SugestaoMinMaxPage() {
     } finally {
       setSaving(false);
     }
-  }, [data, mode]);
+  }, [data, mode, demoMode]);
 
   const kpis = useMemo(() => {
     if (!data) return null;
@@ -235,12 +257,13 @@ export default function SugestaoMinMaxPage() {
   // Reativa botões automaticamente quando o usuário troca filtros
   useEffect(() => { setEndpointMissing(false); }, [filters]);
 
-  const disabledTitle = endpointMissing ? 'Backend ainda não publicado' : undefined;
+  const disabledTitle = endpointMissing && !demoMode ? 'Backend ainda não publicado — ative o modo demo' : undefined;
+  const buttonsBlocked = endpointMissing && !demoMode;
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
-      {endpointMissing && (
+      {endpointMissing && !demoMode && (
         <Alert className="border-[hsl(var(--warning))]/50 bg-[hsl(var(--warning))]/10">
           <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
           <AlertTitle>Backend pendente</AlertTitle>
@@ -249,7 +272,17 @@ export default function SugestaoMinMaxPage() {
             <code className="rounded bg-muted px-1">/api/estoque/movimentacao</code>,{' '}
             <code className="rounded bg-muted px-1">/api/estoque/sugestao-politica</code> e{' '}
             <code className="rounded bg-muted px-1">/api/estoque/politica/salvar</code>. Veja{' '}
-            <code className="rounded bg-muted px-1">docs/backend-sugestao-minmax.md</code>.
+            <code className="rounded bg-muted px-1">docs/backend-sugestao-minmax.md</code> ou ative o{' '}
+            <strong>modo demo</strong> abaixo para testar a UX e o fluxo de IA com dados de exemplo.
+          </AlertDescription>
+        </Alert>
+      )}
+      {demoMode && (
+        <Alert className="border-accent/50 bg-accent/10">
+          <Sparkles className="h-4 w-4 text-accent" />
+          <AlertTitle>Modo demo ativo</AlertTitle>
+          <AlertDescription className="text-xs">
+            Usando dados fictícios. Consultar/Gerar/Sugerir com IA funcionam normalmente. <strong>Salvar política</strong> está desabilitado (precisa do backend real).
           </AlertDescription>
         </Alert>
       )}
@@ -258,22 +291,31 @@ export default function SugestaoMinMaxPage() {
         description="Análise de movimentação histórica para sugerir política de reposição (mínimo, máximo, ponto de pedido)"
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => fetchMovimentacao(1)} disabled={loading || endpointMissing} title={disabledTitle}>
+            <div className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1">
+              <Switch id="demo-mode" checked={demoMode} onCheckedChange={setDemoMode} />
+              <Label htmlFor="demo-mode" className="cursor-pointer text-xs">Usar dados de exemplo</Label>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => fetchMovimentacao(1)} disabled={loading || buttonsBlocked} title={disabledTitle}>
               <Search className="mr-1 h-3 w-3" /> Consultar movimentação
             </Button>
-            <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading || endpointMissing} title={disabledTitle}>
+            <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading || buttonsBlocked} title={disabledTitle}>
               <Sparkles className="mr-1 h-3 w-3" /> Gerar sugestão
             </Button>
             <Button
               size="sm"
               onClick={sugerirComIa}
-              disabled={loading || !data?.dados?.length || endpointMissing}
+              disabled={loading || !data?.dados?.length}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
-              title={disabledTitle}
             >
               <Wand2 className="mr-1 h-3 w-3" /> Sugerir com IA
             </Button>
-            <Button size="sm" variant="secondary" onClick={salvarPolitica} disabled={saving || mode !== 'sugestao' || endpointMissing} title={disabledTitle}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={salvarPolitica}
+              disabled={saving || mode !== 'sugestao' || buttonsBlocked || demoMode}
+              title={demoMode ? 'Desabilitado no modo demo' : disabledTitle}
+            >
               <Save className="mr-1 h-3 w-3" /> {saving ? 'Salvando...' : 'Salvar política'}
             </Button>
             <ExportButton endpoint="/api/export/estoque/sugestao-politica" params={filters} />
