@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/format';
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
+  { path: '/estoque-min-max', name: 'Estoque Min/Max' },
   { path: '/onde-usa', name: 'Onde Usa' },
   { path: '/bom', name: 'Estrutura (BOM)' },
   { path: '/compras-produto', name: 'Compras / Custos' },
