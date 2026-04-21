@@ -232,6 +232,11 @@ export default function SugestaoMinMaxPage() {
     return acc;
   }, [data]);
 
+  // Reativa botões automaticamente quando o usuário troca filtros
+  useEffect(() => { setEndpointMissing(false); }, [filters]);
+
+  const disabledTitle = endpointMissing ? 'Backend ainda não publicado' : undefined;
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
