@@ -172,7 +172,7 @@ export default function SugestaoMinMaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, demoMode]);
 
   const sugerirComIa = useCallback(async () => {
     if (!data?.dados?.length) { toast.error('Consulte movimentação primeiro.', { id: 'ia-no-data' }); return; }
