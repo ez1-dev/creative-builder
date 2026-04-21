@@ -72,14 +72,19 @@ class ApiClient {
     if (response.status === 401) {
       const msg = 'Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.';
       logError({ module: endpoint, message: msg, statusCode: 401 });
-      throw new Error(msg);
+      const err: any = new Error(msg);
+      err.statusCode = 401;
+      throw err;
     }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
       const msg = error.detail || `Erro ${response.status}`;
       logError({ module: endpoint, message: msg, statusCode: response.status, details: error });
-      throw new Error(msg);
+      const err: any = new Error(msg);
+      err.statusCode = response.status;
+      err.details = error;
+      throw err;
     }
 
     return response.json();
