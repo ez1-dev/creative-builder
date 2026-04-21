@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { api, EstoqueMovimentacaoResponse, SugestaoPoliticaResponse } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
