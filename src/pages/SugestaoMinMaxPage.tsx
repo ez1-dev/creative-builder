@@ -139,7 +139,7 @@ export default function SugestaoMinMaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, demoMode]);
 
   const fetchSugestao = useCallback(async (page = 1) => {
     if (demoMode) {
