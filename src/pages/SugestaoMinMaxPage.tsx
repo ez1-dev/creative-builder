@@ -101,12 +101,13 @@ export default function SugestaoMinMaxPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [endpointMissing, setEndpointMissing] = useState(false);
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
 
   const fetchMovimentacao = useCallback(async (page = 1) => {
-    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+    if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
       const result = await api.get<EstoqueMovimentacaoResponse>('/api/estoque/movimentacao', {
@@ -115,15 +116,21 @@ export default function SugestaoMinMaxPage() {
       setData(result);
       setMode('movimentacao');
       setPagina(page);
+      setEndpointMissing(false);
     } catch (e: any) {
-      toast.error(e.message);
+      if (is404(e)) {
+        setEndpointMissing(true);
+        toast.error(MISSING_ENDPOINT_MSG.movimentacao, { id: 'missing-movimentacao', duration: 6000 });
+      } else {
+        toast.error(e.message, { id: 'err-movimentacao' });
+      }
     } finally {
       setLoading(false);
     }
   }, [filters, erpReady]);
 
   const fetchSugestao = useCallback(async (page = 1) => {
-    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+    if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
       const result = await api.get<SugestaoPoliticaResponse>('/api/estoque/sugestao-politica', {
@@ -132,16 +139,22 @@ export default function SugestaoMinMaxPage() {
       setData(result);
       setMode('sugestao');
       setPagina(page);
+      setEndpointMissing(false);
       toast.success('Sugestão gerada com base no histórico.');
     } catch (e: any) {
-      toast.error(e.message);
+      if (is404(e)) {
+        setEndpointMissing(true);
+        toast.error(MISSING_ENDPOINT_MSG.sugestao, { id: 'missing-sugestao', duration: 6000 });
+      } else {
+        toast.error(e.message, { id: 'err-sugestao' });
+      }
     } finally {
       setLoading(false);
     }
   }, [filters, erpReady]);
 
   const sugerirComIa = useCallback(async () => {
-    if (!data?.dados?.length) { toast.error('Consulte movimentação primeiro.'); return; }
+    if (!data?.dados?.length) { toast.error('Consulte movimentação primeiro.', { id: 'ia-no-data' }); return; }
     setLoading(true);
     const t = toast.loading('Analisando movimentação com IA...');
     try {
@@ -162,8 +175,8 @@ export default function SugestaoMinMaxPage() {
   }, [data, filters]);
 
   const salvarPolitica = useCallback(async () => {
-    if (!data?.dados?.length) { toast.error('Nada para salvar. Gere a sugestão primeiro.'); return; }
-    if (mode !== 'sugestao') { toast.error('Gere a sugestão antes de salvar.'); return; }
+    if (!data?.dados?.length) { toast.error('Nada para salvar. Gere a sugestão primeiro.', { id: 'salvar-no-data' }); return; }
+    if (mode !== 'sugestao') { toast.error('Gere a sugestão antes de salvar.', { id: 'salvar-mode' }); return; }
     setSaving(true);
     try {
       const politicas = data.dados.map((r: any) => ({
@@ -180,9 +193,15 @@ export default function SugestaoMinMaxPage() {
         obs: r.justificativa ? `Sugestão IA: ${r.justificativa}` : (r.obs || 'Sugestão automática (movimentação histórica)'),
       }));
       await api.post('/api/estoque/politica/salvar', { politicas });
+      setEndpointMissing(false);
       toast.success(`Política salva: ${politicas.length} item(ns).`);
     } catch (e: any) {
-      toast.error(e.message);
+      if (is404(e)) {
+        setEndpointMissing(true);
+        toast.error(MISSING_ENDPOINT_MSG.salvar, { id: 'missing-salvar', duration: 6000 });
+      } else {
+        toast.error(e.message, { id: 'err-salvar' });
+      }
     } finally {
       setSaving(false);
     }
