@@ -1,45 +1,57 @@
 
-## Status: aguardando backend
+## Não posso implementar — backend FastAPI está fora deste projeto
 
-A mensagem que você está vendo é o **comportamento correto** implementado na última iteração — não é um bug. A tela detectou o HTTP 404 do ERP em `GET /api/estoque/movimentacao` e mostrou o aviso para evitar a enxurrada de toasts "Not Found".
+O projeto Lovable atual é **somente o frontend React + Supabase Edge Functions**. O backend FastAPI do ERP (que serve `https://flakily-wanning-faye.ngrok-free.dev/api/...`) roda em outro repositório/servidor ao qual eu não tenho acesso de leitura nem de escrita.
 
-### O que está acontecendo (confirmado pelos logs de rede)
-```
-GET https://flakily-wanning-faye.ngrok-free.dev/api/estoque/movimentacao
-→ 404 {"detail":"Not Found"}
-```
-Login no ERP funciona (200), token JWT é válido, usuário `RENATO` autenticado. O único problema: os 3 endpoints novos **não existem ainda** no FastAPI.
+Não consigo:
+- Ler os arquivos atuais do FastAPI (rotas existentes, `validar_token`, `get_connection`, padrão do `/api/estoque`).
+- Criar/editar arquivos `.py` no backend.
+- Fazer deploy da nova rota.
 
-### O que falta para a tela funcionar
-Implementar no backend FastAPI (fora deste repo) os 3 endpoints conforme `docs/backend-sugestao-minmax.md`:
+O que posso entregar **dentro deste projeto** para você levar pronto ao backend:
 
-| Endpoint | Método | Função |
-|---|---|---|
-| `/api/estoque/movimentacao` | GET | Lista movimentação histórica (E210MVP + E210DLS) |
-| `/api/estoque/sugestao-politica` | GET | Calcula min/máx por fórmula |
-| `/api/estoque/politica/salvar` | POST | MERGE em `USU_EST_POLITICA` |
+### Entregável: `docs/backend-rota-movimentacao.md`
 
-E criar a tabela `USU_EST_POLITICA` (SQL completo no doc).
+Arquivo único com a implementação completa em Python/FastAPI, copy-paste, seguindo o padrão descrito por você (`Depends(validar_token)`, `get_connection()`, paginação `pagina`/`tamanho_pagina`/`total_registros`/`total_paginas`/`dados`).
 
-### Como prosseguir — escolha uma opção
+Conteúdo:
 
-**Opção A — Aguardar o backend**
-Nada a fazer no frontend. Assim que os endpoints subirem, a tela funciona automaticamente (banner some na primeira resposta 200).
+1. **Router completo** (`routers/estoque_movimentacao.py`) com:
+   - Assinatura `@router.get("/movimentacao")` + `Depends(validar_token)`.
+   - Query params: `codpro, despro, codfam, codori, codder, coddep, data_ini, data_fim, pagina=1, tamanho_pagina=100`.
+   - `cursor = get_connection().cursor()` no padrão do projeto.
+   - Bloco `try/finally` fechando cursor/conexão.
 
-**Opção B — Modo demo/mock no frontend**
-Adicionar um toggle "Usar dados de exemplo" na tela `/sugestao-min-max` que:
-- Gera ~30 linhas fictícias de movimentação (produtos, depósitos, datas, quantidades plausíveis).
-- Permite testar **Gerar sugestão** (cálculo local com as fórmulas do doc) e **Sugerir com IA** (edge function `sugestao-minmax-ia` já está pronta e roda 100% sem o backend ERP).
-- **Salvar política** fica desabilitado (precisa do POST real no ERP).
-- Útil para validar UX, fluxo IA e demonstrar para stakeholders enquanto o backend é implementado.
+2. **SQL T-SQL** (SQL Server / Senior) usando:
+   - `E210MVP` como base (campos prováveis: `CODEMP, CODFIL, CODPRO, CODDER, CODDEP, DATMOV, TIPMOV, CODTRA, QTDMOV, NUMDOC`).
+   - `LEFT JOIN E210EST` agregado por `(CODEMP, CODPRO, CODDER, CODDEP)` para `saldo_atual`.
+   - `LEFT JOIN E075PRO` para `DESPRO, CODFAM, CODORI, UNIMED`.
+   - Filtros opcionais com `(:param IS NULL OR campo = :param)` e `LIKE` para `codpro/despro`.
+   - Paginação `OFFSET/FETCH NEXT` + `COUNT(*) OVER()` para `total_registros`.
+   - Comentário de fallback se algum nome de campo divergir (ex.: `DATEMI` vs `DATMOV`, `QTD` vs `QTDMOV`) — instruções para ajustar mantendo a estrutura.
 
-**Opção C — Cálculo 100% no frontend usando outro endpoint já existente**
-Se algum endpoint atual do ERP já devolve movimentação por produto (ex.: algo equivalente em `/api/estoque/...` que esteja publicado), podemos apontar a tela para ele e fazer o agrupamento/cálculo no cliente. Requer você confirmar qual endpoint existe hoje.
+3. **Pydantic models** (`MovimentacaoItem`, `PaginatedMovimentacao`) com os mesmos campos consumidos pelo frontend (`src/pages/SugestaoMinMaxPage.tsx`): `codemp, codpro, codder, coddep, data_movimento, tipo_movimento, transacao, deposito, quantidade, documento, fornecedor, origem, saldo_atual, despro, codfam, codori, unimed`.
 
-**Opção D — Documentação para o time de backend**
-Gerar um arquivo `docs/backend-sugestao-minmax-checklist.md` resumido (1 página, em formato de checklist com SQL pronto, exemplos de request/response em JSON e curl) para acelerar a implementação no FastAPI.
+4. **Registro no `main.py`**: linha `app.include_router(estoque_movimentacao.router, prefix="/api/estoque", tags=["estoque"])`.
 
-### Recomendação
-**Opção B + Opção D** em paralelo: você desbloqueia a demonstração da tela (incluindo o fluxo IA, que é o diferencial) e entrega ao backend um checklist enxuto para implementar os 3 endpoints rapidamente.
+5. **Teste curl** pronto:
+   ```bash
+   curl -H "Authorization: Bearer $JWT" \
+     "$ERP/api/estoque/movimentacao?data_ini=2025-01-01&data_fim=2025-04-21&pagina=1&tamanho_pagina=100"
+   ```
 
-Me diga qual opção (A, B, C, D ou combinação) você prefere e eu sigo.
+6. **Checklist de validação** para o backend confirmar antes de subir (filtros, paginação, contagem total, campos retornados).
+
+### O que muda no frontend deste projeto
+
+**Nada.** A tela `/sugestao-min-max` já consome exatamente esse contrato — assim que o backend publicar a rota, o banner amarelo "Backend pendente" some sozinho na primeira resposta 200 e o fluxo Consultar → Gerar → Sugerir com IA → Salvar passa a operar com dados reais.
+
+### Caminho alternativo (se preferir)
+
+Se você quiser que eu implemente diretamente no FastAPI, preciso de uma das duas:
+- **Acesso ao repositório do backend** (ex.: subir os arquivos `.py` atuais como referência neste projeto, em `docs/backend-referencia/`, para eu replicar exatamente o padrão de `validar_token`, `get_connection` e a rota `/api/estoque` existente).
+- Ou **colar aqui no chat** o conteúdo de: o arquivo da rota `/api/estoque` atual + `validar_token` + `get_connection`. Com isso gero o `routers/estoque_movimentacao.py` 100% aderente ao seu padrão (não genérico).
+
+Confirma se prefere:
+- **(1)** Eu gerar agora `docs/backend-rota-movimentacao.md` com a implementação genérica seguindo as convenções FastAPI + Senior ERP descritas; **ou**
+- **(2)** Você cola o código da rota `/api/estoque` atual e eu gero a versão exata, idêntica ao padrão do seu projeto.
