@@ -8,6 +8,7 @@ import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
 import EstoquePage from "@/pages/EstoquePage";
 import EstoqueMinMaxPage from "@/pages/EstoqueMinMaxPage";
+import SugestaoMinMaxPage from "@/pages/SugestaoMinMaxPage";
 import OndeUsaPage from "@/pages/OndeUsaPage";
 import BomPage from "@/pages/BomPage";
 import ComprasProdutoPage from "@/pages/ComprasProdutoPage";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="/" element={<Navigate to="/estoque" replace />} />
               <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />
               <Route path="/estoque-min-max" element={<ProtectedRoute path="/estoque-min-max"><EstoqueMinMaxPage /></ProtectedRoute>} />
+              <Route path="/sugestao-min-max" element={<ProtectedRoute path="/sugestao-min-max"><SugestaoMinMaxPage /></ProtectedRoute>} />
               <Route path="/onde-usa" element={<ProtectedRoute path="/onde-usa"><OndeUsaPage /></ProtectedRoute>} />
               <Route path="/bom" element={<ProtectedRoute path="/bom"><BomPage /></ProtectedRoute>} />
               <Route path="/compras-produto" element={<ProtectedRoute path="/compras-produto"><ComprasProdutoPage /></ProtectedRoute>} />
