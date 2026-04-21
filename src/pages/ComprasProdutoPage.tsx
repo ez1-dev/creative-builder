@@ -33,6 +33,7 @@ const columns: Column<any>[] = [
   { key: 'numero_nf_ultima_compra', header: 'Última NF' },
   { key: 'fornecedor_ultima_compra', header: 'Fornecedor' },
   { key: 'preco_nf_ultima_compra', header: 'Preço NF', align: 'right', render: (v) => formatCurrency(v) },
+  { key: 'quantidade_nf_ultima_compra', header: 'Qtd. Última Compra', align: 'right', render: (v) => formatNumber(v, 2) },
   { key: 'data_entrada_nf_ultima_compra', header: 'Data Entrada', render: (v) => formatDate(v) },
   { key: 'numero_oc_ultima', header: 'Última OC' },
   { key: 'possui_oc_aberta', header: 'OC Aberta?' },
