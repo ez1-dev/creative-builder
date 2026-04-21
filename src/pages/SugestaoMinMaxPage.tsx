@@ -196,6 +196,7 @@ export default function SugestaoMinMaxPage() {
   }, [data, filters]);
 
   const salvarPolitica = useCallback(async () => {
+    if (demoMode) { toast.error('Salvar política está desabilitado no modo demo (precisa do POST real no ERP).', { id: 'salvar-demo' }); return; }
     if (!data?.dados?.length) { toast.error('Nada para salvar. Gere a sugestão primeiro.', { id: 'salvar-no-data' }); return; }
     if (mode !== 'sugestao') { toast.error('Gere a sugestão antes de salvar.', { id: 'salvar-mode' }); return; }
     setSaving(true);
@@ -226,7 +227,7 @@ export default function SugestaoMinMaxPage() {
     } finally {
       setSaving(false);
     }
-  }, [data, mode]);
+  }, [data, mode, demoMode]);
 
   const kpis = useMemo(() => {
     if (!data) return null;
