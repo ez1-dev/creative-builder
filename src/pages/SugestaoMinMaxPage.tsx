@@ -241,8 +241,8 @@ export default function SugestaoMinMaxPage() {
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       {endpointMissing && (
-        <Alert className="border-warning/50 bg-warning/10">
-          <AlertTriangle className="h-4 w-4 text-warning" />
+        <Alert className="border-[hsl(var(--warning))]/50 bg-[hsl(var(--warning))]/10">
+          <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
           <AlertTitle>Backend pendente</AlertTitle>
           <AlertDescription className="text-xs">
             Os endpoints de Sugestão Min/Max ainda não estão publicados no ERP. Esta tela ficará operacional assim que o backend implementar{' '}
