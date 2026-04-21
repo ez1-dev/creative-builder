@@ -1,35 +1,45 @@
 
-## "Not Found" repetido em /sugestao-min-max
+## Status: aguardando backend
 
-### Diagnóstico
-O backend FastAPI **ainda não publicou** os endpoints novos documentados em `docs/backend-sugestao-minmax.md`:
-- `GET /api/estoque/movimentacao`
-- `GET /api/estoque/sugestao-politica`
-- `POST /api/estoque/politica/salvar`
+A mensagem que você está vendo é o **comportamento correto** implementado na última iteração — não é um bug. A tela detectou o HTTP 404 do ERP em `GET /api/estoque/movimentacao` e mostrou o aviso para evitar a enxurrada de toasts "Not Found".
 
-A cada clique em **Consultar movimentação** / **Gerar sugestão** / **Salvar política**, o ERP responde HTTP 404 com `{detail: "Not Found"}` e o `ApiClient` dispara `toast.error("Not Found")`. No replay aparecem 5 toasts em ~1s porque o usuário clicou várias vezes seguidas (a resposta 404 é instantânea, então `disabled={loading}` libera o botão entre cliques).
+### O que está acontecendo (confirmado pelos logs de rede)
+```
+GET https://flakily-wanning-faye.ngrok-free.dev/api/estoque/movimentacao
+→ 404 {"detail":"Not Found"}
+```
+Login no ERP funciona (200), token JWT é válido, usuário `RENATO` autenticado. O único problema: os 3 endpoints novos **não existem ainda** no FastAPI.
 
-A IA (`Sugerir com IA`) também depende dos dados de movimentação, então não funciona enquanto o GET de movimentação devolver 404.
+### O que falta para a tela funcionar
+Implementar no backend FastAPI (fora deste repo) os 3 endpoints conforme `docs/backend-sugestao-minmax.md`:
 
-Não é bug de UI — é endpoint ausente. Mas dá para tornar o erro muito mais claro e evitar a enxurrada de toasts.
+| Endpoint | Método | Função |
+|---|---|---|
+| `/api/estoque/movimentacao` | GET | Lista movimentação histórica (E210MVP + E210DLS) |
+| `/api/estoque/sugestao-politica` | GET | Calcula min/máx por fórmula |
+| `/api/estoque/politica/salvar` | POST | MERGE em `USU_EST_POLITICA` |
 
-### Correção (frontend, sem tocar no backend)
+E criar a tabela `USU_EST_POLITICA` (SQL completo no doc).
 
-**1. `src/pages/SugestaoMinMaxPage.tsx`** — UX resiliente:
-- Detectar 404 em `fetchMovimentacao`/`fetchSugestao`/`salvarPolitica` (mensagem contém "Not Found" ou "404") e trocar o toast genérico por um aviso explicativo único:
-  > *"Endpoint `/api/estoque/movimentacao` ainda não publicado no ERP. Veja `docs/backend-sugestao-minmax.md` para implementar."*
-- Após receber 404 uma vez, marcar flag local `endpointMissing` e desabilitar os 4 botões (Consultar, Gerar, IA, Salvar) com tooltip "Backend ainda não publicado". Reativa ao trocar filtros (usuário pode tentar de novo).
-- `toast.error` sempre com `id` fixo por endpoint para evitar empilhar toasts duplicados quando o usuário insiste no clique.
+### Como prosseguir — escolha uma opção
 
-**2. `src/lib/api.ts`** — anexar `statusCode` na exceção lançada pelo `request()` (`err.statusCode = response.status`) para a página identificar 404 sem parsing frágil de string. Mantém compatibilidade com todas as outras telas (apenas adiciona campo no objeto Error).
+**Opção A — Aguardar o backend**
+Nada a fazer no frontend. Assim que os endpoints subirem, a tela funciona automaticamente (banner some na primeira resposta 200).
 
-**3. Banner informativo no topo da tela** (apenas quando `endpointMissing === true`):
-- Alert amarelo (`variant="default"` com cor warning) acima do `PageHeader`:
-  > *"Os endpoints de Sugestão Min/Max ainda não estão publicados no ERP. Esta tela ficará operacional assim que o backend implementar `/api/estoque/movimentacao`, `/api/estoque/sugestao-politica` e `/api/estoque/politica/salvar`."*
-- Mantém o padrão visual `gestao-erros-conexao-erp`.
+**Opção B — Modo demo/mock no frontend**
+Adicionar um toggle "Usar dados de exemplo" na tela `/sugestao-min-max` que:
+- Gera ~30 linhas fictícias de movimentação (produtos, depósitos, datas, quantidades plausíveis).
+- Permite testar **Gerar sugestão** (cálculo local com as fórmulas do doc) e **Sugerir com IA** (edge function `sugestao-minmax-ia` já está pronta e roda 100% sem o backend ERP).
+- **Salvar política** fica desabilitado (precisa do POST real no ERP).
+- Útil para validar UX, fluxo IA e demonstrar para stakeholders enquanto o backend é implementado.
 
-### O que NÃO muda
-Backend, autenticação, edge function `sugestao-minmax-ia`, sidebar, rotas, permissões, `EstoqueMinMaxPage`, demais páginas. Quando o backend publicar os 3 endpoints, a tela passa a funcionar imediatamente — o banner some sozinho na primeira resposta de sucesso.
+**Opção C — Cálculo 100% no frontend usando outro endpoint já existente**
+Se algum endpoint atual do ERP já devolve movimentação por produto (ex.: algo equivalente em `/api/estoque/...` que esteja publicado), podemos apontar a tela para ele e fazer o agrupamento/cálculo no cliente. Requer você confirmar qual endpoint existe hoje.
 
-### Observação
-Para a IA realmente sugerir políticas a partir de movimentação histórica, é obrigatório o endpoint `/api/estoque/movimentacao` retornar dados (a edge function `sugestao-minmax-ia` analisa o array de movimentações enviado pelo frontend). Documentação completa do contrato já está em `docs/backend-sugestao-minmax.md`.
+**Opção D — Documentação para o time de backend**
+Gerar um arquivo `docs/backend-sugestao-minmax-checklist.md` resumido (1 página, em formato de checklist com SQL pronto, exemplos de request/response em JSON e curl) para acelerar a implementação no FastAPI.
+
+### Recomendação
+**Opção B + Opção D** em paralelo: você desbloqueia a demonstração da tela (incluindo o fluxo IA, que é o diferencial) e entrega ao backend um checklist enxuto para implementar os 3 endpoints rapidamente.
+
+Me diga qual opção (A, B, C, D ou combinação) você prefere e eu sigo.
