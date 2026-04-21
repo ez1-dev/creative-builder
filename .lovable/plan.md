@@ -1,57 +1,83 @@
 
-## Não posso implementar — backend FastAPI está fora deste projeto
+## Alinhar contrato `/api/estoque/movimentacao` ao consumidor da tela
 
-O projeto Lovable atual é **somente o frontend React + Supabase Edge Functions**. O backend FastAPI do ERP (que serve `https://flakily-wanning-faye.ngrok-free.dev/api/...`) roda em outro repositório/servidor ao qual eu não tenho acesso de leitura nem de escrita.
+### Diagnóstico
+Comparei o que `src/pages/SugestaoMinMaxPage.tsx` consome (e o que `src/lib/demoMovimentacao.ts` produz no modo demo) com o SQL atual de `docs/backend-rota-movimentacao.md`. Há 3 divergências que quebram a tela ao trocar demo → backend real:
 
-Não consigo:
-- Ler os arquivos atuais do FastAPI (rotas existentes, `validar_token`, `get_connection`, padrão do `/api/estoque`).
-- Criar/editar arquivos `.py` no backend.
-- Fazer deploy da nova rota.
+| Campo no frontend (demo) | SQL atual no doc | Problema |
+|---|---|---|
+| `tipo_movimento: 'ENT' \| 'SAI'` | `MVP.TIPMOV` (devolve `'E'` / `'S'`) | Tela espera string de 3 letras; backend devolve 1 letra → filtros e badges quebram. |
+| `fornecedor: string \| null` | `NULL AS fornecedor` (TODO) | Sempre `null` no real, populado no demo → coluna sempre vazia em produção. |
+| `origem: string` | `NULL AS origem` | Idem. Tela mostra "—" sempre. |
+| `consumo_medio`, `minimo_sugerido`, `maximo_sugerido`, `lead_time_dias`, `status` | ausentes no SQL | Demo entrega; backend não. Tela depende deles para KPIs e badges de status. |
+| Resposta `resumo { saldo_atual_total, consumo_90d, consumo_180d, lead_time_medio_dias, minimo_sugerido_total, maximo_sugerido_total }` | ausente | Sem `resumo`, KPIs do topo ficam zerados. |
 
-O que posso entregar **dentro deste projeto** para você levar pronto ao backend:
+### Atualização única: `docs/backend-rota-movimentacao.md`
 
-### Entregável: `docs/backend-rota-movimentacao.md`
+Reescrever o documento para que o backend entregue **exatamente** o contrato que a tela já consome em modo demo. Sem mudanças no frontend.
 
-Arquivo único com a implementação completa em Python/FastAPI, copy-paste, seguindo o padrão descrito por você (`Depends(validar_token)`, `get_connection()`, paginação `pagina`/`tamanho_pagina`/`total_registros`/`total_paginas`/`dados`).
+#### 1. Mapeamento de campos (SELECT ajustado)
+- `CASE WHEN MVP.TIPMOV = 'E' THEN 'ENT' WHEN MVP.TIPMOV = 'S' THEN 'SAI' END AS tipo_movimento` — normaliza para `ENT`/`SAI`.
+- Manter `DATMOV → data_movimento`, `QTDMOV → quantidade`, `NUMDOC → documento` com nota explícita: se o dicionário do cliente usar `DATEMI`/`QTD`/`NUMDCT`, ajustar **somente o nome da coluna** preservando o alias.
+- `LEFT JOIN E140FOR FOR ON FOR.CODFOR = MVP.CODFOR` (quando `CODFOR` existir em `E210MVP`) → `FOR.NOMFOR AS fornecedor`. Se `E210MVP` não tiver fornecedor, deixar `NULL` mas documentar o JOIN alternativo via `E300NFE`/`E140FOR` em entradas.
+- `MVP.CODORI AS origem` (ou `'INT'` quando ausente).
 
-Conteúdo:
+#### 2. Campos calculados por item (subquery / CTE)
+Adicionar à query principal um bloco que calcule por `(CODEMP, CODPRO, CODDER, CODDEP)` em janela de 180 dias:
+- `consumo_medio` = `SUM(QTDMOV WHERE TIPMOV='S' AND últimos 180d) / 180.0`.
+- `lead_time_dias` = `AVG(DATEDIFF(day, data_pedido, data_entrada))` na E140IPC/E140NFE — fallback fixo de 15 se sem histórico.
+- `minimo_sugerido` = `consumo_medio * lead_time_dias + (consumo_medio * 0.5 * lead_time_dias)`.
+- `maximo_sugerido` = `minimo_sugerido + consumo_medio * 30`.
+- `status` = `CASE WHEN saldo_atual < minimo THEN 'ABAIXO_MINIMO' WHEN saldo_atual > maximo THEN 'ACIMA_MAXIMO' ELSE 'ENTRE_MIN_E_MAX' END`.
 
-1. **Router completo** (`routers/estoque_movimentacao.py`) com:
-   - Assinatura `@router.get("/movimentacao")` + `Depends(validar_token)`.
-   - Query params: `codpro, despro, codfam, codori, codder, coddep, data_ini, data_fim, pagina=1, tamanho_pagina=100`.
-   - `cursor = get_connection().cursor()` no padrão do projeto.
-   - Bloco `try/finally` fechando cursor/conexão.
+Implementar via CTE `agregados_produto` para evitar repetição na lista paginada.
 
-2. **SQL T-SQL** (SQL Server / Senior) usando:
-   - `E210MVP` como base (campos prováveis: `CODEMP, CODFIL, CODPRO, CODDER, CODDEP, DATMOV, TIPMOV, CODTRA, QTDMOV, NUMDOC`).
-   - `LEFT JOIN E210EST` agregado por `(CODEMP, CODPRO, CODDER, CODDEP)` para `saldo_atual`.
-   - `LEFT JOIN E075PRO` para `DESPRO, CODFAM, CODORI, UNIMED`.
-   - Filtros opcionais com `(:param IS NULL OR campo = :param)` e `LIKE` para `codpro/despro`.
-   - Paginação `OFFSET/FETCH NEXT` + `COUNT(*) OVER()` para `total_registros`.
-   - Comentário de fallback se algum nome de campo divergir (ex.: `DATEMI` vs `DATMOV`, `QTD` vs `QTDMOV`) — instruções para ajustar mantendo a estrutura.
+#### 3. Bloco `resumo` no response
+Após o `fetchall()`, executar segunda query agregada (sem paginação, mesmos filtros exceto `data_*`) e devolver:
+```json
+"resumo": {
+  "saldo_atual_total": 12345.0,
+  "consumo_90d": 0.0,
+  "consumo_180d": 0.0,
+  "lead_time_medio_dias": 0.0,
+  "minimo_sugerido_total": 0.0,
+  "maximo_sugerido_total": 0.0
+}
+```
+SQL pronto incluído no doc (SUM/AVG sobre a CTE `agregados_produto`).
 
-3. **Pydantic models** (`MovimentacaoItem`, `PaginatedMovimentacao`) com os mesmos campos consumidos pelo frontend (`src/pages/SugestaoMinMaxPage.tsx`): `codemp, codpro, codder, coddep, data_movimento, tipo_movimento, transacao, deposito, quantidade, documento, fornecedor, origem, saldo_atual, despro, codfam, codori, unimed`.
+#### 4. Atualizar `PaginatedMovimentacao` (Pydantic)
+```python
+class ResumoMovimentacao(BaseModel):
+    saldo_atual_total: float = 0
+    consumo_90d: float = 0
+    consumo_180d: float = 0
+    lead_time_medio_dias: float = 0
+    minimo_sugerido_total: float = 0
+    maximo_sugerido_total: float = 0
 
-4. **Registro no `main.py`**: linha `app.include_router(estoque_movimentacao.router, prefix="/api/estoque", tags=["estoque"])`.
+class PaginatedMovimentacao(BaseModel):
+    pagina: int
+    tamanho_pagina: int
+    total_registros: int
+    total_paginas: int
+    dados: List[MovimentacaoItem]
+    resumo: ResumoMovimentacao
+```
+E adicionar a `MovimentacaoItem` os campos: `consumo_medio`, `minimo_sugerido`, `maximo_sugerido`, `lead_time_dias`, `status`.
 
-5. **Teste curl** pronto:
-   ```bash
-   curl -H "Authorization: Bearer $JWT" \
-     "$ERP/api/estoque/movimentacao?data_ini=2025-01-01&data_fim=2025-04-21&pagina=1&tamanho_pagina=100"
-   ```
+#### 5. Tabela de equivalência demo ↔ backend
+Inserir no doc uma seção "Contrato canônico" com tabela lado-a-lado mostrando cada campo de `DemoMovimentacao` (em `src/lib/demoMovimentacao.ts`) e a expressão SQL correspondente — referência rápida para o dev backend validar campo a campo.
 
-6. **Checklist de validação** para o backend confirmar antes de subir (filtros, paginação, contagem total, campos retornados).
+#### 6. Checklist de validação ampliado
+- [ ] `tipo_movimento` retorna `'ENT'` ou `'SAI'` (nunca `'E'`/`'S'`).
+- [ ] `fornecedor` populado em entradas; `null` em saídas.
+- [ ] `consumo_medio`, `minimo_sugerido`, `maximo_sugerido`, `status` presentes em todas as linhas.
+- [ ] Bloco `resumo` retornado mesmo quando `dados` é vazio (todos zero).
+- [ ] Toggle "Usar dados de exemplo" desligado → tela renderiza KPIs e badges idênticos ao modo demo.
 
-### O que muda no frontend deste projeto
+### Frontend
+Nenhuma alteração. O contrato canônico é o que já está sendo consumido.
 
-**Nada.** A tela `/sugestao-min-max` já consome exatamente esse contrato — assim que o backend publicar a rota, o banner amarelo "Backend pendente" some sozinho na primeira resposta 200 e o fluxo Consultar → Gerar → Sugerir com IA → Salvar passa a operar com dados reais.
-
-### Caminho alternativo (se preferir)
-
-Se você quiser que eu implemente diretamente no FastAPI, preciso de uma das duas:
-- **Acesso ao repositório do backend** (ex.: subir os arquivos `.py` atuais como referência neste projeto, em `docs/backend-referencia/`, para eu replicar exatamente o padrão de `validar_token`, `get_connection` e a rota `/api/estoque` existente).
-- Ou **colar aqui no chat** o conteúdo de: o arquivo da rota `/api/estoque` atual + `validar_token` + `get_connection`. Com isso gero o `routers/estoque_movimentacao.py` 100% aderente ao seu padrão (não genérico).
-
-Confirma se prefere:
-- **(1)** Eu gerar agora `docs/backend-rota-movimentacao.md` com a implementação genérica seguindo as convenções FastAPI + Senior ERP descritas; **ou**
-- **(2)** Você cola o código da rota `/api/estoque` atual e eu gero a versão exata, idêntica ao padrão do seu projeto.
+### Arquivos
+- `docs/backend-rota-movimentacao.md` — reescrita completa com itens 1–6.
