@@ -259,6 +259,28 @@ export interface EstoqueMinMaxResponse extends PaginatedResponse<any> {
   };
 }
 
+export interface EstoqueMovimentacaoResponse extends PaginatedResponse<any> {
+  resumo?: {
+    saldo_atual_total: number;
+    consumo_90d: number;
+    consumo_180d: number;
+    lead_time_medio_dias: number;
+    minimo_sugerido_total: number;
+    maximo_sugerido_total: number;
+  };
+}
+
+export interface SugestaoPoliticaResponse extends PaginatedResponse<any> {
+  resumo?: {
+    saldo_atual_total: number;
+    consumo_90d: number;
+    consumo_180d: number;
+    lead_time_medio_dias: number;
+    minimo_sugerido_total: number;
+    maximo_sugerido_total: number;
+  };
+}
+
 export interface AuditoriaResponse extends PaginatedResponse<any> {
   resumo: {
     total_registros: number;
