@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils';
 
 const modules = [
   { title: 'Consulta de Estoques', url: '/estoque', icon: Package },
+  { title: 'Estoque Min/Max', url: '/estoque-min-max', icon: Gauge },
   { title: 'Consulta Onde Usa', url: '/onde-usa', icon: Search },
   { title: 'Estrutura Multinível', url: '/bom', icon: GitBranch },
   { title: 'Consulta Compras/Custos', url: '/compras-produto', icon: ShoppingCart },

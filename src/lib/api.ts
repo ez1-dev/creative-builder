@@ -248,6 +248,17 @@ export interface ContasReceberResponse extends PaginatedResponse<any> {
   };
 }
 
+export interface EstoqueMinMaxResponse extends PaginatedResponse<any> {
+  resumo?: {
+    abaixo_minimo: number;
+    acima_maximo: number;
+    sem_politica: number;
+    ok: number;
+    sugestao_minimo_total: number;
+    sugestao_maximo_total: number;
+  };
+}
+
 export interface AuditoriaResponse extends PaginatedResponse<any> {
   resumo: {
     total_registros: number;
