@@ -1,28 +1,23 @@
 
-O usuário relata que os centros de custo dos rateios não estão corretos no modo árvore.
+## Adicionar quantidade da última compra em Compras / Custos do Produto
 
-## Diagnóstico
+Adicionar uma nova coluna **"Qtd. Última Compra"** na tabela da tela `/compras-produto`, posicionada logo após **"Preço NF"** (preço da última nota fiscal de compra).
 
-O frontend apenas renderiza o que o backend retorna em `/api/contas-pagar-arvore` e `/api/contas-receber-arvore`. Os campos exibidos (`codigo_centro_custo`, `descricao_centro_custo`, `numero_projeto`, `percentual_rateio`, `valor_rateado`) vêm direto do JSON da API.
+### Alteração
 
-Se os centros de custo dos rateios estão errados, há duas causas possíveis — ambas no **backend FastAPI**, que não está neste repositório:
+**Arquivo:** `src/pages/ComprasProdutoPage.tsx`
 
-1. **JOIN incorreto** entre tabela de rateio (`E075RAT` / `E550RAT`) e cadastro de centro de custo (`E550CCU`) — possivelmente faltando filtro por empresa (`cod_emp`).
-2. **Tabela de origem errada** — usando `cod_ccu` do título (cabeçalho) em vez do `cod_ccu` específico de cada linha de rateio.
+Inserir na lista `columns`, entre `preco_nf_ultima_compra` e `data_entrada_nf_ultima_compra`:
 
-Não consigo corrigir SQL do backend daqui. O que posso fazer é:
+```ts
+{ key: 'quantidade_nf_ultima_compra', header: 'Qtd. Última Compra', align: 'right', render: (v) => formatNumber(v, 2) },
+```
 
-## Plano
+### Dependência do backend
 
-### 1. Atualizar `docs/backend-contas-centro-custo-projeto.md`
-Adicionar nova seção **"Rateios com centro de custo incorreto"** documentando para o time backend:
-- Sintoma: linhas filhas (`tipo_linha = 'RATEIO'`) retornando `codigo_centro_custo` / `descricao_centro_custo` divergentes do ERP.
-- Causa provável: JOIN sem `cod_emp` ou leitura do CCU do cabeçalho.
-- Correção esperada: ler `cod_ccu` da própria linha de rateio (`E075RAT.cod_ccu` para pagar, `E550RAT.cod_ccu` para receber) e fazer JOIN composto `(cod_emp, cod_ccu)` com `E550CCU`.
-- Pseudo-SQL de referência para cada endpoint.
+O endpoint `/api/compras-produto` precisa retornar o campo `quantidade_nf_ultima_compra` (quantidade do item na última NF de entrada — tabela `E440NFC`/itens). Se o backend ainda não expõe esse campo, a coluna aparecerá como `-` até o ajuste no FastAPI.
 
-### 2. Adicionar tooltip de debug no `FinanceiroTreeTable`
-Em modo dev, exibir `title` na célula CCU mostrando os campos brutos (`codigo_centro_custo`, `descricao_centro_custo`, `id_linha`, `codigo_pai`) para facilitar o cruzamento manual com o ERP.
+Caso o backend já retorne com outro nome (ex.: `qtd_nf_ultima_compra`, `quantidade_ultima_compra`), basta ajustar o `key`. Posso confirmar o nome exato após a primeira busca, se preferir.
 
 ### Sem alterações em
-Rotas, autenticação, modos plano/agrupado, exportação ou outros módulos.
+Filtros, KPIs, exportação, autenticação ou outros módulos.
