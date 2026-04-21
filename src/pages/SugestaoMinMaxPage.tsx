@@ -240,26 +240,40 @@ export default function SugestaoMinMaxPage() {
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
+      {endpointMissing && (
+        <Alert className="border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle>Backend pendente</AlertTitle>
+          <AlertDescription className="text-xs">
+            Os endpoints de Sugestão Min/Max ainda não estão publicados no ERP. Esta tela ficará operacional assim que o backend implementar{' '}
+            <code className="rounded bg-muted px-1">/api/estoque/movimentacao</code>,{' '}
+            <code className="rounded bg-muted px-1">/api/estoque/sugestao-politica</code> e{' '}
+            <code className="rounded bg-muted px-1">/api/estoque/politica/salvar</code>. Veja{' '}
+            <code className="rounded bg-muted px-1">docs/backend-sugestao-minmax.md</code>.
+          </AlertDescription>
+        </Alert>
+      )}
       <PageHeader
         title="Sugestão Min/Max"
         description="Análise de movimentação histórica para sugerir política de reposição (mínimo, máximo, ponto de pedido)"
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => fetchMovimentacao(1)} disabled={loading}>
+            <Button size="sm" variant="outline" onClick={() => fetchMovimentacao(1)} disabled={loading || endpointMissing} title={disabledTitle}>
               <Search className="mr-1 h-3 w-3" /> Consultar movimentação
             </Button>
-            <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading}>
+            <Button size="sm" onClick={() => fetchSugestao(1)} disabled={loading || endpointMissing} title={disabledTitle}>
               <Sparkles className="mr-1 h-3 w-3" /> Gerar sugestão
             </Button>
             <Button
               size="sm"
               onClick={sugerirComIa}
-              disabled={loading || !data?.dados?.length}
+              disabled={loading || !data?.dados?.length || endpointMissing}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
+              title={disabledTitle}
             >
               <Wand2 className="mr-1 h-3 w-3" /> Sugerir com IA
             </Button>
-            <Button size="sm" variant="secondary" onClick={salvarPolitica} disabled={saving || mode !== 'sugestao'}>
+            <Button size="sm" variant="secondary" onClick={salvarPolitica} disabled={saving || mode !== 'sugestao' || endpointMissing} title={disabledTitle}>
               <Save className="mr-1 h-3 w-3" /> {saving ? 'Salvando...' : 'Salvar política'}
             </Button>
             <ExportButton endpoint="/api/export/estoque/sugestao-politica" params={filters} />
@@ -268,7 +282,7 @@ export default function SugestaoMinMaxPage() {
       />
       <FilterPanel
         onSearch={() => (mode === 'sugestao' ? fetchSugestao(1) : fetchMovimentacao(1))}
-        onClear={() => { setFilters(initialFilters); setData(null); setPagina(1); }}
+        onClear={() => { setFilters(initialFilters); setData(null); setPagina(1); setEndpointMissing(false); }}
       >
         <div><Label className="text-xs">Código</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Código" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Descrição</Label><Input value={filters.despro} onChange={(e) => setFilters(f => ({ ...f, despro: e.target.value }))} placeholder="Descrição" className="h-8 text-xs" /></div>
