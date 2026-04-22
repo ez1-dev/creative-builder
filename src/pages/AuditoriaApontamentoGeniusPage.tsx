@@ -185,6 +185,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     setPagina(1);
     setEndpointMissing(false);
     setQuickFilter('');
+    setForcarDiagnostico(false);
   }, []);
 
   useEffect(() => { setEndpointMissing(false); }, [filters]);
