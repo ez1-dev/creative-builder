@@ -3,7 +3,7 @@
 Contrato a ser implementado pelo FastAPI do ERP para a tela `/auditoria-apontamento-genius`.
 
 ## Escopo
-Conferir apontamentos de produção da operação **GENIUS**, comparando início/fim e destacando:
+Conferir **apontamentos nativos de produção** da operação **GENIUS** — esta tela **não** consome a base consolidada de Engenharia x Produção. Os dados devem vir do fluxo nativo de apontamento, comparando início/fim e destacando:
 - Apontamento individual com horas apontadas > 8h.
 - Soma diária por operador > 8h.
 - Apontamentos sem hora de início ou sem hora de fim.
@@ -12,38 +12,71 @@ Conferir apontamentos de produção da operação **GENIUS**, comparando início
 ### Origens GENIUS (filtro fixo no backend)
 `110, 120, 130, 135, 140, 150, 205, 208, 210, 220, 230, 235, 240, 245, 250`
 
-O endpoint **deve sempre filtrar** `CODORI IN (...lista acima...)`. Mesmo que o cliente envie `codori` específica, ela só é aceita se pertencer a essa lista; caso contrário ignorar.
+A lista **começa em 110**. O endpoint **deve sempre filtrar** `CodOri IN (...lista acima...)`. Mesmo que o cliente envie `codori` específica, ela só é aceita se pertencer a essa lista; caso contrário ignorar.
+
+### Parâmetros nativos do fluxo de apontamento
+A consulta deve usar diretamente os campos nativos do apontamento de produção:
+
+| Campo nativo | Uso na tela |
+|---|---|
+| `CodOri` | Origem (filtro GENIUS começando em 110) |
+| `NumOrp` | Número da OP |
+| `CodEtg` | Estágio do roteiro |
+| `SeqRot` | Sequência do roteiro |
+| `DatMov` | **Data real do movimento** — usada nos filtros `data_ini`/`data_fim` |
+| `HorMov` | Hora real do movimento (compõe `hora_inicio`/`hora_fim`) |
+
+### Status nativos da OP (E900COP)
+A coluna `status_op` deve refletir o status real do cabeçalho da OP em `E900COP`:
+
+| Código | Significado | Agrupamento |
+|---|---|---|
+| `E` | Emitida | **Ativa** |
+| `L` | Liberada | **Ativa** |
+| `A` | Andamento | **Ativa** |
+| `F` | Finalizada | Finalizada |
+| `C` | Cancelada | Cancelada |
+
+- **OPs ativas** (`ops_em_andamento`) = `COUNT(DISTINCT NumOrp)` onde status ∈ {`E`, `L`, `A`}.
+- **OPs finalizadas** (`ops_finalizadas`) = `COUNT(DISTINCT NumOrp)` onde status = `F`.
+- **OPs canceladas** (opcional `ops_canceladas`) = `COUNT(DISTINCT NumOrp)` onde status = `C`.
+- Linhas sem status devem ser marcadas como `SEM_STATUS` no payload.
+
+O frontend aceita tanto os códigos de uma letra (`E/L/A/F/C`) quanto os agrupamentos legados (`EM_ANDAMENTO/FINALIZADO/CANCELADO`). Preferir os códigos nativos.
 
 ---
 
-## ⚠️ Nota de implementação atual (2026-04)
+## ⚠️ Bloco `debug` obrigatório enquanto a investigação estiver ativa
 
-A primeira implementação do backend foi feita sobre as tabelas de **chão de fábrica Senior**:
-`E900HOO` (horários de operação) + `E900COP` (cabeçalho de produção) + `E075PRO` (produtos) + `E099USU` (usuários) + `E906OPE` (operações/origens),
-**em vez** de `E660APO` originalmente sugerida abaixo. A tela funciona com qualquer das duas implementações desde que o contrato JSON seja respeitado.
+Enquanto a tela estiver retornando `dados: []` em produção, o endpoint **deve** retornar um bloco adicional `debug` com a SQL final montada e a contagem por etapa do filtro. Isso permite identificar onde os registros estão sendo eliminados sem afirmar incorretamente que não há apontamentos.
 
-### Variantes aceitas no `resumo`
-O frontend normaliza ambos os formatos de chave — pode ser entregue **com** ou **sem** o prefixo `total_`:
-
-| Sem prefixo (preferido) | Com prefixo `total_` (legado) |
-|---|---|
-| `sem_inicio` | `total_sem_inicio` |
-| `sem_fim` | `total_sem_fim` |
-| `fim_menor_inicio` | `total_fim_menor_inicio` |
-| `acima_8h` | `total_apontamento_maior_8h` + `total_operador_maior_8h_dia` (somados) |
-
-**Pendências para padronizar na próxima iteração:**
-- Renomear chaves para o formato sem prefixo `total_` (exceto `total_registros` e `total_discrepancias`).
-- Adicionar `ops_em_andamento`, `ops_finalizadas` (contagem distinta de `numop` por `status_op`).
-- Adicionar `operador_maior_total` (nome do operador com maior soma de horas no dia).
-
-### Investigação quando backend retorna `dados: []`
-Se a tela ficar vazia mesmo com 200 OK, rodar manualmente no banco do ERP:
-```sql
-SELECT TOP 50 * FROM E900HOO WHERE DATAPO BETWEEN '2026-03-01' AND '2026-04-30';
-SELECT DISTINCT CODORI FROM E906OPE;  -- conferir se origens GENIUS estão presentes
+```json
+"debug": {
+  "sql_final": "SELECT ... FROM <tabela_apontamento> ... WHERE DatMov BETWEEN ...",
+  "parametros": { "data_ini": "...", "data_fim": "...", "codori": "..." },
+  "etapas": [
+    { "nome": "movimentos_no_periodo (DatMov)", "quantidade": 1234 },
+    { "nome": "movimentos_em_origens_genius (CodOri IN ...)", "quantidade": 842 },
+    { "nome": "ops_validas (join E900COP)", "quantidade": 615 },
+    { "nome": "ops_por_status_E_L_A", "quantidade": 410 },
+    { "nome": "ops_por_status_F", "quantidade": 198 },
+    { "nome": "ops_por_status_C", "quantidade": 7 },
+    { "nome": "linhas_apos_filtros_opcionais", "quantidade": 612 },
+    { "nome": "linhas_finais_paginadas", "quantidade": 100 }
+  ],
+  "contagem_por_origem":    [{ "chave": "110", "quantidade": 320 }],
+  "contagem_por_status_op": [{ "chave": "E", "label": "Emitida", "quantidade": 12 }],
+  "contagem_por_op":        [{ "chave": "OP-12345", "quantidade": 18 }],
+  "apontamentos_por_op":    [{ "chave": "OP-12345", "quantidade": 18 }]
+}
 ```
-Provável causa: filtro `CODORI IN (...)` aplicado em coluna errada nessas tabelas, ou ausência de apontamentos no período.
+
+Antes de concluir “sem dados”, o backend deve obrigatoriamente retornar:
+1. `sql_final` montada com os parâmetros aplicados;
+2. quantidade de OPs GENIUS no período (`DatMov`);
+3. quantidade de apontamentos por OP;
+4. quantidade por status da OP (`E/L/A/F/C`);
+5. quantidade por origem (`CodOri`).
 
 ---
 
