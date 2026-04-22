@@ -753,6 +753,10 @@ export default function AuditoriaApontamentoGeniusPage() {
         </SheetContent>
       </Sheet>
     </div>
+  );
+}
+
+interface StatusOpGeniusCardProps {
   opsEmAndamento: number;
   opsFinalizadas: number;
   totalDiscrepancias: number;
