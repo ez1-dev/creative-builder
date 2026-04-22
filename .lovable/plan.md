@@ -1,55 +1,35 @@
 
 
-## Investigar por que `horas_apontadas` chega zerada do backend
+## Garantir colunas de auditoria visíveis na tabela
 
-### Diagnóstico
-A requisição `GET /api/auditoria-apontamento-genius` está retornando **221.569 linhas**, mas em **todas** os campos de apontamento vêm vazios:
-- `horas_apontadas: 0.0`
-- `hora_inicio: ""`, `hora_fim: ""`
-- `nome_usuario: ""`, `codigo_usuario: 0`
-- `data_apontamento: ""`
-- `total_sem_inicio: 221565` no resumo
+### Escopo
+Verificar e ajustar a definição de colunas da tabela em `src/pages/AuditoriaApontamentoGeniusPage.tsx` para que as colunas abaixo apareçam explicitamente, permitindo conferir visualmente os campos retornados pelo backend:
 
-Ou seja: a tela está mostrando exatamente o que o backend mandou. **O problema NÃO é frontend** — o `LEFT JOIN APONT` na SQL do endpoint não está casando nenhum registro de `E930MPR` com as OPs de `E900COP`.
+- `data_apontamento` — Data
+- `hora_inicio` — Hora Início
+- `hora_fim` — Hora Fim
+- `nome_usuario` — Operador
 
-### Hipóteses no SQL do backend
+### Ajustes
+**Arquivo único:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
 
-1. **Granularidade da chave de join está errada.** Hoje o JOIN é por `(CODEMP, CODORI, NUMORP, CODETG, SEQROT)`, mas a CTE `OPS` puxa `CODETG/SEQROT` da `E900OOP` com `LEFT JOIN` simples — sem garantir que o par retornado bate com o par real do apontamento em `E930MPR`. Resultado: cada OP devolve uma linha de roteiro arbitrária, que dificilmente coincide com alguma chave real de apontamento.
+1. Revisar o array `columns` do `DataTable`:
+   - garantir entrada para `data_apontamento` (formatada como data BR; vazio → "—");
+   - garantir `hora_inicio` e `hora_fim` (mostrar valor cru "HH:MM" ou "—" quando vazio, sem ocultar zeros);
+   - garantir `nome_usuario` (com fallback para `codigo_usuario` quando nome vier vazio, mostrando "— (cód: 0)");
+   - manter `horas_apontadas` já existente, exibindo `0,00` em vermelho quando zero para destacar o problema.
 
-2. **Campos errados em `E930MPR`.** No padrão Senior, apontamentos de produção podem usar `NUMETG` no lugar de `CODETG`, ou `OPESEQ` em vez de `SEQROT`. Pode também não existir `HORINI/HORFIM` no nome esperado (em algumas implantações é `HORINIO`/`HORFINA`).
+2. Posicionar essas colunas logo após `numero_op` / `origem`, antes das colunas de status, para facilitar conferência lado a lado.
 
-3. **Join com `E099USU`.** O SQL faz `U.CODUSU = M.USU_NUMCAD`. No Senior, `E099USU` chaveia por `NUMCAD`, não `CODUSU`. Isso por si não zera horas, mas zera operador.
+3. Atualizar o `enableSearch` da `DataTable` para considerar também `nome_usuario` e `data_apontamento` na busca rápida (já feito para `nome_usuario`; confirmar `data_apontamento`).
 
-4. **Cálculo de horas inválido.** `(horfim/100.0 - horini/100.0)` trata HHMM como decimal: 1730-0830 dá 9.0 (acidentalmente certo), mas 1015-0945 dá 0.7 em vez de 0.5. Precisa converter HHMM para minutos: `((horfim/100*60 + horfim%100) - (horini/100*60 + horini%100)) / 60.0`.
-
-### Ação proposta
-
-#### 1. Pedir ao backend a SQL corrigida
-A tela do frontend já consome os campos corretos. O ajuste necessário está **fora deste repositório**, na rota `/api/auditoria-apontamento-genius`. Encaminhar ao responsável pelo backend ERP:
-
-- **Refazer a CTE base como apontamento-driven** em vez de OP-driven. Partir de `E930MPR` filtrando por `DatMov` no período + `CodOri` GENIUS, e depois fazer `LEFT JOIN E900COP` para trazer status da OP.
-- **Validar nomes reais das colunas** em `E930MPR`: confirmar se são `CODETG`/`SEQROT`/`HORINI`/`HORFIM`/`USU_NUMCAD`/`DATMOV`. Se forem diferentes, ajustar.
-- **Corrigir cálculo de horas** para tratar HHMM:
-  ```sql
-  ((horfim/100)*60 + (horfim - (horfim/100)*100)) -
-  ((horini/100)*60 + (horini - (horini/100)*100)) ) / 60.0
-  ```
-- **Corrigir join de operador**: `U.NUMCAD = M.USU_NUMCAD` (não `U.CODUSU`).
-- **Reativar o bloco `debug`** da resposta com a SQL final montada e contagem por etapa, para que o card de diagnóstico do frontend (já implementado) volte a mostrar onde os apontamentos estão sendo filtrados/perdidos.
-
-#### 2. Ajuste mínimo no frontend (este repositório)
-Único arquivo: `src/pages/AuditoriaApontamentoGeniusPage.tsx`.
-
-- Quando `dados.length > 0` mas a coluna `horas_apontadas` for zero em **todos** os registros (ou `total_sem_inicio` ≈ `total_registros`), exibir um **alerta amarelo** acima da tabela:
-  > "O backend retornou OPs mas nenhum apontamento de produção foi vinculado. Verifique o JOIN com E930MPR (chaves CODETG/SEQROT/HORINI/HORFIM e cálculo de horas em HHMM)."
-- Adicionar um **botão "Ver Diagnóstico Técnico"** que renderiza o `DiagnosticoApontGeniusCard` mesmo sem `data.debug`, mostrando os parâmetros enviados e a contagem local por status (já calculada na tela).
-- Ordenar a tabela trazendo registros com `horas_apontadas > 0` primeiro, para o usuário ver imediatamente os poucos casos válidos quando existirem.
+4. Sem alterar lógica de fetch, filtros, KPIs, alerta amarelo de "todos zerados", botão de diagnóstico técnico ou ordenação por `horas_apontadas > 0`.
 
 ### Fora de escopo
-- Reescrever a SQL no backend (não está neste repositório).
-- Alterar contrato de `/api/auditoria-apontamento-genius`.
+- Backend / SQL.
+- Tipos em `src/lib/api.ts` (campos já existem no contrato).
+- Exportação Excel (já inclui esses campos).
 
 ### Resultado
-- O frontend ganha um aviso explícito quando o backend devolve OPs sem apontamento, transformando o sintoma silencioso atual ("coluna zerada") em um diagnóstico acionável.
-- Fica documentado e formalizado o ajuste necessário no backend para que `horas_apontadas` volte a vir preenchida.
+A tabela passa a exibir explicitamente Data, Hora Início, Hora Fim e Operador em todas as linhas, tornando óbvio quais registros vieram sem apontamento real do backend (todos os campos vazios) e quais têm dados parciais.
 
