@@ -205,7 +205,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
-      const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/auditoria-apontamento-genius', {
+      const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', {
         data_ini: filters.data_ini,
         data_fim: filters.data_fim,
         numero_op: filters.numop,
@@ -220,14 +220,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       });
       setData(result);
       setPagina(page);
-      setEndpointMissing(false);
     } catch (e: any) {
-      if (is404(e)) {
-        setEndpointMissing(true);
-        toast.error('Endpoint /api/auditoria-apontamento-genius ainda não publicado no ERP.', { id: 'missing-apont-genius', duration: 6000 });
-      } else {
-        toast.error(e.message, { id: 'err-apont-genius' });
-      }
+      toast.error(e.message, { id: 'err-apont-genius' });
     } finally {
       setLoading(false);
     }
@@ -237,7 +231,6 @@ export default function AuditoriaApontamentoGeniusPage() {
     setFilters(initialFilters);
     setData(null);
     setPagina(1);
-    setEndpointMissing(false);
     setQuickFilter('');
     setForcarDiagnostico(false);
     setOpSelecionada(null);
@@ -255,33 +248,31 @@ export default function AuditoriaApontamentoGeniusPage() {
   }, [opSelecionada, data]);
 
   const totaisApontamentosDaOp = useMemo(() => {
-    const totalHoras = apontamentosDaOp.reduce((acc, r) => acc + (Number(r.horas_apontadas) || 0), 0);
+    const totalHoras = apontamentosDaOp.reduce((acc, r) => acc + (Number(r.horas_realizadas) || 0), 0);
     const porStatus: Record<string, number> = {};
     for (const r of apontamentosDaOp) {
-      const k = String(r.status_apontamento ?? 'FECHADO').toUpperCase();
+      const k = String(r.status_movimento ?? 'FECHADO').toUpperCase();
       porStatus[k] = (porStatus[k] ?? 0) + 1;
     }
     const todosZerados = apontamentosDaOp.length > 0 && totalHoras === 0;
     return { totalHoras, porStatus, todosZerados };
   }, [apontamentosDaOp]);
 
-  useEffect(() => { setEndpointMissing(false); }, [filters]);
-
   const aplicarFiltroListaApontGenius = useMemo(() => {
     const rows = (data?.dados || []) as any[];
     const q = quickFilter.trim().toLowerCase();
     const filtered = !q ? rows : rows.filter((r) => {
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
-      const apontLabel = statusApontVariants[r.status_apontamento as StatusApont]?.label || r.status_apontamento || '';
+      const apontLabel = statusApontVariants[r.status_movimento as StatusApont]?.label || r.status_movimento || '';
       return [
-        r.nome_usuario, r.numero_op, r.codigo_produto, r.descricao_produto,
-        r.origem, r.turno, r.status_apontamento, r.status_op, opLabel, apontLabel,
+        r.nome_operador, r.numero_op, r.codigo_produto, r.descricao_produto,
+        r.origem, r.turno, r.status_movimento, r.status_op, opLabel, apontLabel,
       ].some((f) => String(f ?? '').toLowerCase().includes(q));
     });
-    // Ordenar: registros com horas_apontadas > 0 primeiro (casos válidos visíveis ao topo)
+    // Ordenar: registros com horas_realizadas > 0 primeiro
     return [...filtered].sort((a, b) => {
-      const ha = Number(a.horas_apontadas || 0) > 0 ? 1 : 0;
-      const hb = Number(b.horas_apontadas || 0) > 0 ? 1 : 0;
+      const ha = Number(a.horas_realizadas || 0) > 0 ? 1 : 0;
+      const hb = Number(b.horas_realizadas || 0) > 0 ? 1 : 0;
       return hb - ha;
     });
   }, [data, quickFilter]);
