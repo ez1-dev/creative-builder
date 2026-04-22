@@ -157,9 +157,15 @@ export default function AuditoriaApontamentoGeniusPage() {
     setLoading(true);
     try {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/auditoria-apontamento-genius', {
-        ...filters,
+        data_ini: filters.data_ini,
+        data_fim: filters.data_fim,
+        numero_op: filters.numop,
+        origem: filters.codori,
+        codigo_produto: filters.codpro,
+        operador: filters.operador,
+        status_op: filters.status_op || 'TODOS',
         somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-        somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
+        somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
         pagina: page,
         tamanho_pagina: 100,
       });
