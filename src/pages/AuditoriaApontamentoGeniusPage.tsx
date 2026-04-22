@@ -251,7 +251,30 @@ export default function AuditoriaApontamentoGeniusPage() {
     setEndpointMissing(false);
     setQuickFilter('');
     setForcarDiagnostico(false);
+    setOpSelecionada(null);
+    setDrawerAberto(false);
   }, []);
+
+  // Apontamentos vinculados à OP selecionada (mesmo numero_op + origem)
+  const apontamentosDaOp = useMemo(() => {
+    if (!opSelecionada) return [] as any[];
+    const rows = (data?.dados || []) as any[];
+    return rows.filter((r) =>
+      String(r.numero_op) === String(opSelecionada.numero_op) &&
+      String(r.origem) === String(opSelecionada.origem),
+    );
+  }, [opSelecionada, data]);
+
+  const totaisApontamentosDaOp = useMemo(() => {
+    const totalHoras = apontamentosDaOp.reduce((acc, r) => acc + (Number(r.horas_apontadas) || 0), 0);
+    const porStatus: Record<string, number> = {};
+    for (const r of apontamentosDaOp) {
+      const k = String(r.status_apontamento ?? 'FECHADO').toUpperCase();
+      porStatus[k] = (porStatus[k] ?? 0) + 1;
+    }
+    const todosZerados = apontamentosDaOp.length > 0 && totalHoras === 0;
+    return { totalHoras, porStatus, todosZerados };
+  }, [apontamentosDaOp]);
 
   useEffect(() => { setEndpointMissing(false); }, [filters]);
 
