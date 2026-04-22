@@ -107,70 +107,90 @@ function is404(e: any): boolean {
   return msg.includes('not found') || msg.includes('404');
 }
 
-const columns: Column<any>[] = [
-  { key: 'numero_op', header: 'OP', sticky: true, stickyWidth: 100 },
-  { key: 'origem', header: 'Origem' },
-  {
-    key: 'data_apontamento',
-    header: 'Data',
-    render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: 'hora_inicio',
-    header: 'Hora Início',
-    render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: 'hora_fim',
-    header: 'Hora Fim',
-    render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: 'nome_usuario',
-    header: 'Operador',
-    render: (v, row) => {
-      if (v && String(v).trim()) return v;
-      const cod = row?.codigo_usuario;
-      return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
+function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
+  return [
+    {
+      key: 'numero_op',
+      header: 'OP',
+      sticky: true,
+      stickyWidth: 100,
+      render: (v, row) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpClick(row);
+          }}
+          className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
+          title="Ver detalhes da OP e apontamentos"
+        >
+          {v ?? '—'}
+        </button>
+      ),
     },
-  },
-  { key: 'estagio', header: 'Estágio' },
-  { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
-  { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
-  { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
-  { key: 'turno', header: 'Turno' },
-  { key: 'codigo_produto', header: 'Produto' },
-  { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
-  {
-    key: 'horas_apontadas',
-    header: 'H. Apontadas',
-    align: 'right',
-    render: (v) => {
-      const n = Number(v) || 0;
-      if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
-      return formatNumber(n, 2);
+    { key: 'origem', header: 'Origem' },
+    {
+      key: 'data_apontamento',
+      header: 'Data',
+      render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
     },
-  },
-  { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
-  {
-    key: 'status_op',
-    header: 'Status OP',
-    render: (v: string) => {
-      const cfg = statusOpVariants[v];
-      if (!cfg) return <span className="text-muted-foreground">—</span>;
-      return <Badge className={cfg.className}>{cfg.label}</Badge>;
+    {
+      key: 'hora_inicio',
+      header: 'Hora Início',
+      render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
     },
-  },
-  {
-    key: 'status_apontamento',
-    header: 'Status Apont.',
-    render: (v: string) => {
-      const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
-      const cfg = statusApontVariants[key];
-      return <Badge className={cfg.className}>{cfg.label}</Badge>;
+    {
+      key: 'hora_fim',
+      header: 'Hora Fim',
+      render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
     },
-  },
-];
+    {
+      key: 'nome_usuario',
+      header: 'Operador',
+      render: (v, row) => {
+        if (v && String(v).trim()) return v;
+        const cod = row?.codigo_usuario;
+        return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
+      },
+    },
+    { key: 'estagio', header: 'Estágio' },
+    { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
+    { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
+    { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
+    { key: 'turno', header: 'Turno' },
+    { key: 'codigo_produto', header: 'Produto' },
+    { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
+    {
+      key: 'horas_apontadas',
+      header: 'H. Apontadas',
+      align: 'right',
+      render: (v) => {
+        const n = Number(v) || 0;
+        if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
+        return formatNumber(n, 2);
+      },
+    },
+    { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
+    {
+      key: 'status_op',
+      header: 'Status OP',
+      render: (v: string) => {
+        const cfg = statusOpVariants[v];
+        if (!cfg) return <span className="text-muted-foreground">—</span>;
+        return <Badge className={cfg.className}>{cfg.label}</Badge>;
+      },
+    },
+    {
+      key: 'status_apontamento',
+      header: 'Status Apont.',
+      render: (v: string) => {
+        const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
+        const cfg = statusApontVariants[key];
+        return <Badge className={cfg.className}>{cfg.label}</Badge>;
+      },
+    },
+  ];
+}
 
 export default function AuditoriaApontamentoGeniusPage() {
   const [filters, setFilters] = useState(initialFilters);
