@@ -272,10 +272,13 @@ export default function AuditoriaApontamentoGeniusPage() {
   }, [data]);
 
   const rowClassName = useCallback((row: any) => {
-    if (row.status === 'APONTAMENTO_MAIOR_8H' || row.status === 'OPERADOR_MAIOR_8H_DIA' || row.status === 'FIM_MENOR_INICIO') {
+    const sa = String(row.status_apontamento ?? '').toUpperCase();
+    const horas = Number(row.horas_apontadas || 0);
+    const totDia = Number(row.total_horas_dia_operador || 0);
+    if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
     }
-    if (row.status === 'SEM_INICIO' || row.status === 'SEM_FIM') {
+    if (sa === 'ABERTO' || sa === 'SEM_APONTAMENTO') {
       return 'bg-amber-500/5 hover:bg-amber-500/10';
     }
     return '';
