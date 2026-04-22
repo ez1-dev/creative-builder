@@ -252,6 +252,9 @@ Mesmos query params (sem `pagina`/`tamanho_pagina`). Retorna `.xlsx` via `Stream
 - [ ] Filtro `somente_acima_8h=1` mantém só `APONTAMENTO_MAIOR_8H` e `OPERADOR_MAIOR_8H_DIA`.
 - [ ] Paginação via `OFFSET/FETCH NEXT`; `total_paginas = ceil(total_registros / tamanho_pagina)`.
 - [ ] Exportação `.xlsx` respeita os mesmos filtros.
+- [ ] Campo `status_op` presente em 100% das linhas (`EM_ANDAMENTO` ou `FINALIZADO`), derivado de `E215OPE.SITPRO`.
+- [ ] Filtro `status_op` aceito (`EM_ANDAMENTO` / `FINALIZADO`) e aplicado no cabeçalho da OP.
+- [ ] `resumo.ops_em_andamento` e `resumo.ops_finalizadas` calculados como `COUNT(DISTINCT numop)` por status_op (consistentes com a contagem distinta de OPs no conjunto filtrado).
 
 ---
 
