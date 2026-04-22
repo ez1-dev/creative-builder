@@ -112,6 +112,7 @@ class ApontamentoGeniusItem(BaseModel):
     horas_alocadas: float = 0
     horas_apontadas: float = 0
     total_dia_operador: float = 0
+    status_op: Optional[str] = None  # 'EM_ANDAMENTO' | 'FINALIZADO'
     status: str = "OK"
 
 class ResumoApontGenius(BaseModel):
@@ -123,6 +124,8 @@ class ResumoApontGenius(BaseModel):
     acima_8h: int = 0
     maior_total_dia_operador: float = 0
     operador_maior_total: str = ""
+    ops_em_andamento: int = 0
+    ops_finalizadas: int = 0
 
 class PaginatedApontGenius(BaseModel):
     pagina: int
