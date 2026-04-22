@@ -157,9 +157,15 @@ export default function AuditoriaApontamentoGeniusPage() {
     setLoading(true);
     try {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/auditoria-apontamento-genius', {
-        ...filters,
+        data_ini: filters.data_ini,
+        data_fim: filters.data_fim,
+        numero_op: filters.numop,
+        origem: filters.codori,
+        codigo_produto: filters.codpro,
+        operador: filters.operador,
+        status_op: filters.status_op || 'TODOS',
         somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-        somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
+        somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
         pagina: page,
         tamanho_pagina: 100,
       });
@@ -287,21 +293,23 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const statusOpOptions = useMemo(
     () => [
-      { value: 'E', label: 'E — Emitida' },
-      { value: 'L', label: 'L — Liberada' },
-      { value: 'A', label: 'A — Andamento' },
-      { value: 'F', label: 'F — Finalizada' },
-      { value: 'C', label: 'C — Cancelada' },
-      { value: 'EM_ANDAMENTO', label: 'Ativas (E + L + A)' },
+      { value: 'EM_ANDAMENTO', label: 'Em andamento (E + L + A)' },
       { value: 'FINALIZADO', label: 'Finalizadas (F)' },
+      { value: 'SEM_STATUS', label: 'Sem status' },
     ],
     []
   );
 
   const exportParams = {
-    ...filters,
+    data_ini: filters.data_ini,
+    data_fim: filters.data_fim,
+    numero_op: filters.numop,
+    origem: filters.codori,
+    codigo_produto: filters.codpro,
+    operador: filters.operador,
+    status_op: filters.status_op || 'TODOS',
     somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-    somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
+    somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
   };
 
   return (
@@ -426,16 +434,27 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
-      {/* Painel de diagnóstico técnico — exibido quando há debug do backend OU quando dados vier vazio.
-          Substitui o antigo alerta "Sem registros para o período" para nunca afirmar incorretamente
-          que não há apontamentos sem antes mostrar o funil de filtragem. */}
-      {data && !loading && !endpointMissing && (data.debug || (data.dados?.length ?? 0) === 0) && (
+      {/* Painel de diagnóstico técnico — exibido APENAS quando o backend devolve o bloco `debug`.
+          O backend novo (E900COP + E930MPR) não envia debug em operação normal; ele só aparece
+          em modo investigação. Se o resultado vier vazio sem debug, mostramos um empty state amigável. */}
+      {data && !loading && !endpointMissing && data.debug && (
         <DiagnosticoApontGeniusCard
           debug={data.debug}
           totalRetornado={data.dados?.length ?? 0}
           filtros={filters}
           origensGenius={ORIGENS_GENIUS}
         />
+      )}
+
+      {data && !loading && !endpointMissing && !data.debug && (data.dados?.length ?? 0) === 0 && (
+        <Alert>
+          <FileQuestion className="h-4 w-4" />
+          <AlertTitle>Sem registros para os filtros aplicados</AlertTitle>
+          <AlertDescription className="text-xs">
+            Nenhum apontamento GENIUS encontrado no período {formatDate(filters.data_ini)} → {formatDate(filters.data_fim)}.
+            Ajuste o intervalo de datas, a origem (CodOri) ou o status da OP e tente novamente.
+          </AlertDescription>
+        </Alert>
       )}
 
 
