@@ -454,10 +454,42 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
-      {/* Painel de diagnóstico técnico — exibido APENAS quando o backend devolve o bloco `debug`.
-          O backend novo (E900COP + E930MPR) não envia debug em operação normal; ele só aparece
-          em modo investigação. Se o resultado vier vazio sem debug, mostramos um empty state amigável. */}
-      {data && !loading && !endpointMissing && data.debug && (
+      {/* Alerta crítico — backend devolveu OPs mas todos os apontamentos vieram zerados.
+          Indica falha no JOIN com E930MPR no backend (chaves CODETG/SEQROT/HORINI/HORFIM
+          ou cálculo de horas em HHMM). */}
+      {todosApontamentosZerados && !forcarDiagnostico && (
+        <Alert className="border-amber-500/50 bg-amber-500/10">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle>Apontamentos não vinculados — verificar backend</AlertTitle>
+          <AlertDescription className="text-xs space-y-2">
+            <p>
+              O backend retornou <strong>{formatNumber(data?.dados?.length ?? 0, 0)} OPs</strong> mas{' '}
+              <strong>nenhum apontamento de produção foi vinculado</strong> (todas as horas vieram zeradas
+              e quase todos os registros estão como "Sem início").
+            </p>
+            <p>
+              Provável causa: o <code>LEFT JOIN</code> com <code>E930MPR</code> no endpoint
+              <code> /api/auditoria-apontamento-genius</code> não está casando.
+              Verificar no backend: (1) chaves do JOIN (<code>CODETG/SEQROT/HORINI/HORFIM</code> em <code>E930MPR</code>),
+              (2) cálculo de horas em formato HHMM, (3) JOIN de operador (<code>U.NUMCAD = M.USU_NUMCAD</code>).
+              Detalhes em <code>docs/backend-auditoria-apontamento-genius.md</code>.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setForcarDiagnostico(true)}
+            >
+              Ver diagnóstico técnico
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Painel de diagnóstico técnico — exibido quando o backend devolve `debug`
+          OU quando o usuário clica em "Ver diagnóstico técnico". */}
+      {data && !loading && !endpointMissing && (data.debug || forcarDiagnostico) && (
         <DiagnosticoApontGeniusCard
           debug={data.debug}
           totalRetornado={data.dados?.length ?? 0}
