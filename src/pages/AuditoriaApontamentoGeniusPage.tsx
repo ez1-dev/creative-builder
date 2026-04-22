@@ -216,7 +216,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       SEM_STATUS: new Set<string>(),
     };
     for (const row of rows) {
-      const op = String(row.numop ?? '');
+      const op = String(row.numero_op ?? row.numop ?? '');
       if (!op) continue;
       const st = normalizarStatusOp(row.status_op);
       if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
@@ -237,8 +237,8 @@ export default function AuditoriaApontamentoGeniusPage() {
           ?? ((rAny.total_apontamento_maior_8h ?? 0) + (rAny.total_operador_maior_8h_dia ?? 0)),
         maior_total_dia_operador: rAny.maior_total_dia_operador ?? 0,
         operador_maior_total: rAny.operador_maior_total ?? '',
-        ops_em_andamento: rAny.ops_em_andamento ?? opsSet.EM_ANDAMENTO.size,
-        ops_finalizadas: rAny.ops_finalizadas ?? opsSet.FINALIZADO.size,
+        ops_em_andamento: rAny.ops_em_andamento ?? rAny.total_ops_andamento ?? opsSet.EM_ANDAMENTO.size,
+        ops_finalizadas: rAny.ops_finalizadas ?? rAny.total_ops_finalizadas ?? opsSet.FINALIZADO.size,
       };
     }
 
@@ -255,15 +255,17 @@ export default function AuditoriaApontamentoGeniusPage() {
       ops_finalizadas: opsSet.FINALIZADO.size,
     };
     for (const row of rows) {
-      if (row.status && row.status !== 'OK') acc.total_discrepancias++;
-      if (row.status === 'SEM_INICIO') acc.sem_inicio++;
-      if (row.status === 'SEM_FIM') acc.sem_fim++;
-      if (row.status === 'FIM_MENOR_INICIO') acc.fim_menor_inicio++;
-      if (row.status === 'APONTAMENTO_MAIOR_8H' || row.status === 'OPERADOR_MAIOR_8H_DIA') acc.acima_8h++;
-      const tot = Number(row.total_dia_operador || 0);
-      if (tot > acc.maior_total_dia_operador) {
-        acc.maior_total_dia_operador = tot;
-        acc.operador_maior_total = row.operador || '';
+      const sa = String(row.status_apontamento ?? '').toUpperCase();
+      if (sa && sa !== 'FECHADO') acc.total_discrepancias++;
+      if (sa === 'SEM_APONTAMENTO') acc.sem_inicio++;
+      if (sa === 'ABERTO') acc.sem_fim++;
+      if (sa === 'DIVERGENTE') acc.fim_menor_inicio++;
+      const horas = Number(row.horas_apontadas || 0);
+      const totDia = Number(row.total_horas_dia_operador || 0);
+      if (horas > 8 || totDia > 8) acc.acima_8h++;
+      if (totDia > acc.maior_total_dia_operador) {
+        acc.maior_total_dia_operador = totDia;
+        acc.operador_maior_total = row.nome_usuario || '';
       }
     }
     return acc;
