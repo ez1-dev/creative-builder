@@ -143,6 +143,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [pagina, setPagina] = useState(1);
   const [endpointMissing, setEndpointMissing] = useState(false);
   const [quickFilter, setQuickFilter] = useState('');
+  const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
 
   const erpReady = useErpReady();
 
