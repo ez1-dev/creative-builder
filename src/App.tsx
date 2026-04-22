@@ -15,6 +15,7 @@ import ComprasProdutoPage from "@/pages/ComprasProdutoPage";
 import PainelComprasPage from "@/pages/PainelComprasPage";
 import EngenhariaProducaoPage from "@/pages/EngenhariaProducaoPage";
 import AuditoriaTributariaPage from "@/pages/AuditoriaTributariaPage";
+import AuditoriaApontamentoGeniusPage from "@/pages/AuditoriaApontamentoGeniusPage";
 import ConciliacaoEdocsPage from "@/pages/ConciliacaoEdocsPage";
 import NotasRecebimentoPage from "@/pages/NotasRecebimentoPage";
 import NumeroSeriePage from "@/pages/NumeroSeriePage";
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/compras-produto" element={<ProtectedRoute path="/compras-produto"><ComprasProdutoPage /></ProtectedRoute>} />
               <Route path="/painel-compras" element={<ProtectedRoute path="/painel-compras"><PainelComprasPage /></ProtectedRoute>} />
               <Route path="/auditoria-tributaria" element={<ProtectedRoute path="/auditoria-tributaria"><AuditoriaTributariaPage /></ProtectedRoute>} />
+              <Route path="/auditoria-apontamento-genius" element={<ProtectedRoute path="/auditoria-apontamento-genius"><AuditoriaApontamentoGeniusPage /></ProtectedRoute>} />
               <Route path="/conciliacao-edocs" element={<ProtectedRoute path="/conciliacao-edocs"><ConciliacaoEdocsPage /></ProtectedRoute>} />
               <Route path="/notas-recebimento" element={<ProtectedRoute path="/notas-recebimento"><NotasRecebimentoPage /></ProtectedRoute>} />
               <Route path="/numero-serie" element={<ProtectedRoute path="/numero-serie"><NumeroSeriePage /></ProtectedRoute>} />
