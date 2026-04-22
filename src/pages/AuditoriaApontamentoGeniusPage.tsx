@@ -357,6 +357,18 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
+      {data && !loading && (data.dados?.length ?? 0) === 0 && !endpointMissing && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Sem registros para o período</AlertTitle>
+          <AlertDescription className="text-xs">
+            O backend respondeu com sucesso, porém não há apontamentos GENIUS lançados no ERP no intervalo selecionado.
+            Tente alargar o range de datas ou verifique no ERP se existem apontamentos nas origens GENIUS
+            ({ORIGENS_GENIUS.join(', ')}).
+          </AlertDescription>
+        </Alert>
+      )}
+
       <DataTable
         columns={columns}
         data={aplicarFiltroListaApontGenius}
