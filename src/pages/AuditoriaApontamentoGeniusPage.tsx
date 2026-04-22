@@ -22,7 +22,21 @@ import {
   Activity, CheckCircle2, CalendarRange,
 } from 'lucide-react';
 
+// Origens GENIUS — começa em 110 conforme regra ERP
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
+
+// Status nativos da OP (E900COP):
+//   L = Liberada, A = Andamento, F = Finalizada, C = Cancelada, E = Emitida (ativa)
+// OPs ativas (em andamento) = { E, L, A }
+const STATUS_OP_ATIVOS = new Set(['E', 'L', 'A', 'EM_ANDAMENTO']);
+const STATUS_OP_FINALIZADOS = new Set(['F', 'FINALIZADO']);
+const STATUS_OP_CANCELADOS = new Set(['C', 'CANCELADO']);
+
+function normalizarStatusOp(v: any): string {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (!s) return 'SEM_STATUS';
+  return s;
+}
 
 const today = new Date();
 const d30 = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -35,7 +49,7 @@ const initialFilters = {
   codori: '',
   codpro: '',
   operador: '',
-  status_op: '' as '' | 'EM_ANDAMENTO' | 'FINALIZADO',
+  status_op: '' as string,
   somente_discrepancia: false,
   somente_acima_8h: false,
 };
@@ -52,9 +66,17 @@ const statusVariants: Record<string, { label: string; className: string }> = {
   OPERADOR_MAIOR_8H_DIA: { label: 'Operador > 8h/dia', className: 'bg-red-700 text-white' },
 };
 
+// Mapeamento de status nativos da OP (E900COP) + agrupados legados
 const statusOpVariants: Record<string, { label: string; className: string }> = {
+  E:            { label: 'Emitida',      className: 'bg-sky-600 text-white' },
+  L:            { label: 'Liberada',     className: 'bg-blue-600 text-white' },
+  A:            { label: 'Andamento',    className: 'bg-indigo-600 text-white' },
+  F:            { label: 'Finalizada',   className: 'bg-slate-500 text-white' },
+  C:            { label: 'Cancelada',    className: 'bg-destructive text-destructive-foreground' },
   EM_ANDAMENTO: { label: 'Em andamento', className: 'bg-blue-600 text-white' },
-  FINALIZADO: { label: 'Finalizado', className: 'bg-slate-500 text-white' },
+  FINALIZADO:   { label: 'Finalizado',   className: 'bg-slate-500 text-white' },
+  CANCELADO:    { label: 'Cancelado',    className: 'bg-destructive text-destructive-foreground' },
+  SEM_STATUS:   { label: 'Sem status',   className: 'bg-muted text-muted-foreground' },
 };
 
 const statusApontVariants: Record<StatusApont, { label: string; className: string }> = {
@@ -186,13 +208,22 @@ export default function AuditoriaApontamentoGeniusPage() {
     const r = data.resumo;
     const rows = (data.dados || []) as any[];
 
-    // Fallback: agrega contando Set de numop por status_op
-    const opsSet = { EM_ANDAMENTO: new Set<string>(), FINALIZADO: new Set<string>() };
+    // Fallback: agrega contando Set de numop por status_op nativo (E900COP)
+    // Ativas = { E, L, A, EM_ANDAMENTO } | Finalizadas = { F, FINALIZADO } | Canceladas = { C, CANCELADO }
+    const opsSet = {
+      EM_ANDAMENTO: new Set<string>(),
+      FINALIZADO: new Set<string>(),
+      CANCELADO: new Set<string>(),
+      SEM_STATUS: new Set<string>(),
+    };
     for (const row of rows) {
       const op = String(row.numop ?? '');
       if (!op) continue;
-      if (row.status_op === 'EM_ANDAMENTO') opsSet.EM_ANDAMENTO.add(op);
-      else if (row.status_op === 'FINALIZADO') opsSet.FINALIZADO.add(op);
+      const st = normalizarStatusOp(row.status_op);
+      if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
+      else if (STATUS_OP_FINALIZADOS.has(st)) opsSet.FINALIZADO.add(op);
+      else if (STATUS_OP_CANCELADOS.has(st)) opsSet.CANCELADO.add(op);
+      else opsSet.SEM_STATUS.add(op);
     }
 
     if (r) {
@@ -256,8 +287,13 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const statusOpOptions = useMemo(
     () => [
-      { value: 'EM_ANDAMENTO', label: 'Em andamento' },
-      { value: 'FINALIZADO', label: 'Finalizado' },
+      { value: 'E', label: 'E — Emitida' },
+      { value: 'L', label: 'L — Liberada' },
+      { value: 'A', label: 'A — Andamento' },
+      { value: 'F', label: 'F — Finalizada' },
+      { value: 'C', label: 'C — Cancelada' },
+      { value: 'EM_ANDAMENTO', label: 'Ativas (E + L + A)' },
+      { value: 'FINALIZADO', label: 'Finalizadas (F)' },
     ],
     []
   );
@@ -390,17 +426,18 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
-      {data && !loading && (data.dados?.length ?? 0) === 0 && !endpointMissing && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Sem registros para o período</AlertTitle>
-          <AlertDescription className="text-xs">
-            O backend respondeu com sucesso, porém não há apontamentos GENIUS lançados no ERP no intervalo selecionado.
-            Tente alargar o range de datas ou verifique no ERP se existem apontamentos nas origens GENIUS
-            ({ORIGENS_GENIUS.join(', ')}).
-          </AlertDescription>
-        </Alert>
+      {/* Painel de diagnóstico técnico — exibido quando há debug do backend OU quando dados vier vazio.
+          Substitui o antigo alerta "Sem registros para o período" para nunca afirmar incorretamente
+          que não há apontamentos sem antes mostrar o funil de filtragem. */}
+      {data && !loading && !endpointMissing && (data.debug || (data.dados?.length ?? 0) === 0) && (
+        <DiagnosticoApontGeniusCard
+          debug={data.debug}
+          totalRetornado={data.dados?.length ?? 0}
+          filtros={filters}
+          origensGenius={ORIGENS_GENIUS}
+        />
       )}
+
 
       <DataTable
         columns={columns}
@@ -497,3 +534,151 @@ function StatusOpGeniusCard({
     </Card>
   );
 }
+
+// ─── Painel de diagnóstico técnico ────────────────────────────────────────
+interface DiagnosticoApontGeniusCardProps {
+  debug?: import('@/lib/api').AuditoriaApontGeniusDebug;
+  totalRetornado: number;
+  filtros: typeof initialFilters;
+  origensGenius: string[];
+}
+
+function DiagnosticoApontGeniusCard({
+  debug,
+  totalRetornado,
+  filtros,
+  origensGenius,
+}: DiagnosticoApontGeniusCardProps) {
+  const etapas = debug?.etapas ?? [];
+  const porOrigem = debug?.contagem_por_origem ?? [];
+  const porStatusOp = debug?.contagem_por_status_op ?? [];
+  const porOp = debug?.contagem_por_op ?? [];
+  const apontPorOp = debug?.apontamentos_por_op ?? [];
+
+  const semDebug = !debug;
+  const semDados = totalRetornado === 0;
+
+  return (
+    <Card className="border-l-4 border-l-amber-500 p-4 space-y-3">
+      <div className="flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold text-foreground">
+            Diagnóstico — Auditoria Apontamento Genius
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {semDados
+              ? 'O backend respondeu, mas a tela está sem linhas. Antes de assumir que não há apontamentos, valide o funil de filtragem abaixo.'
+              : 'Funil de filtragem retornado pelo backend.'}
+          </p>
+        </div>
+      </div>
+
+      {/* Parâmetros aplicados */}
+      <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+        <div className="text-xs font-semibold text-foreground uppercase tracking-wide">
+          Parâmetros enviados ao backend
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs">
+          <span><strong>data_ini (DatMov):</strong> {filtros.data_ini || '—'}</span>
+          <span><strong>data_fim (DatMov):</strong> {filtros.data_fim || '—'}</span>
+          <span><strong>codori (CodOri):</strong> {filtros.codori || `(qualquer GENIUS: ${origensGenius.join(', ')})`}</span>
+          <span><strong>numop (NumOrp):</strong> {filtros.numop || '—'}</span>
+          <span><strong>codpro:</strong> {filtros.codpro || '—'}</span>
+          <span><strong>operador:</strong> {filtros.operador || '—'}</span>
+          <span><strong>status_op (E900COP):</strong> {filtros.status_op || '(todos)'}</span>
+          <span><strong>somente_discrepancia:</strong> {filtros.somente_discrepancia ? '1' : '0'}</span>
+          <span><strong>somente_acima_8h:</strong> {filtros.somente_acima_8h ? '1' : '0'}</span>
+        </div>
+      </div>
+
+      {/* Etapas do funil */}
+      {etapas.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <div className="text-xs font-semibold text-foreground uppercase tracking-wide">
+            Funil de filtragem (contagem por etapa)
+          </div>
+          <ol className="text-xs space-y-1 list-decimal list-inside">
+            {etapas.map((e, i) => (
+              <li key={i}>
+                <span className="text-muted-foreground">{e.nome}:</span>{' '}
+                <span className="font-medium text-foreground">{formatNumber(e.quantidade, 0)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* Contagens auxiliares */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {porStatusOp.length > 0 && (
+          <ContagemBlock title="Por status da OP (E900COP)" items={porStatusOp} />
+        )}
+        {porOrigem.length > 0 && (
+          <ContagemBlock title="Por origem (CodOri)" items={porOrigem} />
+        )}
+        {porOp.length > 0 && (
+          <ContagemBlock title="OPs encontradas (top)" items={porOp.slice(0, 10)} />
+        )}
+        {apontPorOp.length > 0 && (
+          <ContagemBlock title="Apontamentos por OP (top)" items={apontPorOp.slice(0, 10)} />
+        )}
+      </div>
+
+      {/* SQL final */}
+      {debug?.sql_final && (
+        <details className="rounded-md border bg-muted/30 p-3" open={semDados}>
+          <summary className="text-xs font-semibold text-foreground uppercase tracking-wide cursor-pointer">
+            SQL final montada
+          </summary>
+          <pre className="mt-2 text-[11px] leading-tight overflow-x-auto whitespace-pre-wrap text-foreground/90">
+            {debug.sql_final}
+          </pre>
+        </details>
+      )}
+
+      {debug?.observacoes && debug.observacoes.length > 0 && (
+        <ul className="text-xs text-muted-foreground list-disc list-inside">
+          {debug.observacoes.map((o, i) => <li key={i}>{o}</li>)}
+        </ul>
+      )}
+
+      {semDebug && semDados && (
+        <Alert className="border-amber-500/50 bg-amber-500/5">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-xs">Backend não retornou bloco <code>debug</code></AlertTitle>
+          <AlertDescription className="text-xs">
+            Sem o bloco <code>debug</code> não é possível validar o funil. Solicite ao backend que retorne{' '}
+            <code>debug.sql_final</code>, <code>debug.etapas</code>,{' '}
+            <code>debug.contagem_por_origem</code> e <code>debug.contagem_por_status_op</code> conforme{' '}
+            <code>docs/backend-auditoria-apontamento-genius.md</code>. Enquanto isso, valide manualmente:{' '}
+            (1) quantas OPs GENIUS existem no período (DatMov), (2) quantos apontamentos por OP, (3) quantas por status (E/L/A/F/C), (4) quantas por origem ({origensGenius.join(', ')}).
+          </AlertDescription>
+        </Alert>
+      )}
+    </Card>
+  );
+}
+
+function ContagemBlock({
+  title,
+  items,
+}: {
+  title: string;
+  items: { chave: string; label?: string; quantidade: number }[];
+}) {
+  return (
+    <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+      <div className="text-xs font-semibold text-foreground uppercase tracking-wide">{title}</div>
+      <ul className="text-xs space-y-0.5">
+        {items.map((it, i) => (
+          <li key={i} className="flex justify-between gap-2">
+            <span className="text-muted-foreground truncate">{it.label || it.chave}</span>
+            <span className="font-medium text-foreground">{formatNumber(it.quantidade, 0)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+

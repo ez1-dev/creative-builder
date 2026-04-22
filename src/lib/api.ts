@@ -313,9 +313,33 @@ export interface AuditoriaResponse extends PaginatedResponse<any> {
   };
 }
 
-// Nota: cada item de `dados` pode opcionalmente incluir
-//   status_op?: 'EM_ANDAMENTO' | 'FINALIZADO'
-// derivado do cabeçalho da OP (E215OPE.SITPRO).
+// Nota: cada item de `dados` pode incluir status nativo da OP vindo de E900COP:
+//   status_op?: 'E' | 'L' | 'A' | 'F' | 'C' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO' | 'SEM_STATUS'
+// OPs ativas = conjunto { E, L, A }. Finalizadas = F. Canceladas = C.
+export type StatusOpNativo = 'E' | 'L' | 'A' | 'F' | 'C' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO' | 'SEM_STATUS';
+
+export interface AuditoriaApontGeniusEtapa {
+  nome: string;
+  quantidade: number;
+}
+
+export interface AuditoriaApontGeniusContagem {
+  chave: string;
+  label?: string;
+  quantidade: number;
+}
+
+export interface AuditoriaApontGeniusDebug {
+  sql_final?: string;
+  parametros?: Record<string, any>;
+  etapas?: AuditoriaApontGeniusEtapa[];
+  contagem_por_origem?: AuditoriaApontGeniusContagem[];
+  contagem_por_status_op?: AuditoriaApontGeniusContagem[];
+  contagem_por_op?: AuditoriaApontGeniusContagem[];
+  apontamentos_por_op?: AuditoriaApontGeniusContagem[];
+  observacoes?: string[];
+}
+
 export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<any> {
   resumo?: {
     total_registros: number;
@@ -328,5 +352,8 @@ export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<an
     operador_maior_total: string;
     ops_em_andamento: number;
     ops_finalizadas: number;
+    ops_canceladas?: number;
+    ops_sem_status?: number;
   };
+  debug?: AuditoriaApontGeniusDebug;
 }
