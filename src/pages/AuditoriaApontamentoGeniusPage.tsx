@@ -403,17 +403,6 @@ export default function AuditoriaApontamentoGeniusPage() {
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
-      {endpointMissing && (
-        <Alert className="border-[hsl(var(--warning))]/50 bg-[hsl(var(--warning))]/10">
-          <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
-          <AlertTitle>Backend pendente</AlertTitle>
-          <AlertDescription className="text-xs">
-            O backend desta auditoria ainda não está disponível. A tela ficará operacional assim que o ERP publicar{' '}
-            <code className="rounded bg-muted px-1">GET /api/auditoria-apontamento-genius</code>. Veja{' '}
-            <code className="rounded bg-muted px-1">docs/backend-auditoria-apontamento-genius.md</code> para o contrato esperado.
-          </AlertDescription>
-        </Alert>
-      )}
       <PageHeader
         title="Auditoria Apontamento Genius"
         description="Conferência de apontamentos da operação GENIUS — destaca apontamentos > 8h e totais diários > 8h por operador"
