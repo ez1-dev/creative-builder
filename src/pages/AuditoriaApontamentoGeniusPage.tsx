@@ -22,7 +22,21 @@ import {
   Activity, CheckCircle2, CalendarRange,
 } from 'lucide-react';
 
+// Origens GENIUS — começa em 110 conforme regra ERP
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
+
+// Status nativos da OP (E900COP):
+//   L = Liberada, A = Andamento, F = Finalizada, C = Cancelada, E = Emitida (ativa)
+// OPs ativas (em andamento) = { E, L, A }
+const STATUS_OP_ATIVOS = new Set(['E', 'L', 'A', 'EM_ANDAMENTO']);
+const STATUS_OP_FINALIZADOS = new Set(['F', 'FINALIZADO']);
+const STATUS_OP_CANCELADOS = new Set(['C', 'CANCELADO']);
+
+function normalizarStatusOp(v: any): string {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (!s) return 'SEM_STATUS';
+  return s;
+}
 
 const today = new Date();
 const d30 = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -35,7 +49,7 @@ const initialFilters = {
   codori: '',
   codpro: '',
   operador: '',
-  status_op: '' as '' | 'EM_ANDAMENTO' | 'FINALIZADO',
+  status_op: '' as string,
   somente_discrepancia: false,
   somente_acima_8h: false,
 };
@@ -52,9 +66,17 @@ const statusVariants: Record<string, { label: string; className: string }> = {
   OPERADOR_MAIOR_8H_DIA: { label: 'Operador > 8h/dia', className: 'bg-red-700 text-white' },
 };
 
+// Mapeamento de status nativos da OP (E900COP) + agrupados legados
 const statusOpVariants: Record<string, { label: string; className: string }> = {
+  E:            { label: 'Emitida',      className: 'bg-sky-600 text-white' },
+  L:            { label: 'Liberada',     className: 'bg-blue-600 text-white' },
+  A:            { label: 'Andamento',    className: 'bg-indigo-600 text-white' },
+  F:            { label: 'Finalizada',   className: 'bg-slate-500 text-white' },
+  C:            { label: 'Cancelada',    className: 'bg-destructive text-destructive-foreground' },
   EM_ANDAMENTO: { label: 'Em andamento', className: 'bg-blue-600 text-white' },
-  FINALIZADO: { label: 'Finalizado', className: 'bg-slate-500 text-white' },
+  FINALIZADO:   { label: 'Finalizado',   className: 'bg-slate-500 text-white' },
+  CANCELADO:    { label: 'Cancelado',    className: 'bg-destructive text-destructive-foreground' },
+  SEM_STATUS:   { label: 'Sem status',   className: 'bg-muted text-muted-foreground' },
 };
 
 const statusApontVariants: Record<StatusApont, { label: string; className: string }> = {
