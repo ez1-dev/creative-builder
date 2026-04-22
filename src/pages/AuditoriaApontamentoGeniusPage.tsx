@@ -101,12 +101,6 @@ function derivarStatusApont(row: any): StatusApont {
   return 'FECHADO';
 }
 
-function is404(e: any): boolean {
-  if (e?.statusCode === 404) return true;
-  const msg = String(e?.message || '').toLowerCase();
-  return msg.includes('not found') || msg.includes('404');
-}
-
 function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
   return [
     {
@@ -130,39 +124,34 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
     },
     { key: 'origem', header: 'Origem' },
     {
-      key: 'data_apontamento',
+      key: 'data_movimento',
       header: 'Data',
       render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
     },
     {
-      key: 'hora_inicio',
-      header: 'Hora Início',
+      key: 'hora_movimento',
+      header: 'Hora',
       render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
     },
     {
-      key: 'hora_fim',
-      header: 'Hora Fim',
-      render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: 'nome_usuario',
+      key: 'nome_operador',
       header: 'Operador',
       render: (v, row) => {
         if (v && String(v).trim()) return v;
-        const cod = row?.codigo_usuario;
+        const cod = row?.numcad;
         return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
       },
     },
     { key: 'estagio', header: 'Estágio' },
     { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
     { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
-    { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
+    { key: 'numcad', header: 'Numcad', align: 'right' },
     { key: 'turno', header: 'Turno' },
     { key: 'codigo_produto', header: 'Produto' },
     { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
     {
-      key: 'horas_apontadas',
-      header: 'H. Apontadas',
+      key: 'horas_realizadas',
+      header: 'H. Realizadas',
       align: 'right',
       render: (v) => {
         const n = Number(v) || 0;
@@ -181,8 +170,8 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
       },
     },
     {
-      key: 'status_apontamento',
-      header: 'Status Apont.',
+      key: 'status_movimento',
+      header: 'Status Mov.',
       render: (v: string) => {
         const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
         const cfg = statusApontVariants[key];
@@ -197,7 +186,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [data, setData] = useState<AuditoriaApontamentoGeniusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
-  const [endpointMissing, setEndpointMissing] = useState(false);
+  
   const [quickFilter, setQuickFilter] = useState('');
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
@@ -216,7 +205,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
-      const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/auditoria-apontamento-genius', {
+      const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', {
         data_ini: filters.data_ini,
         data_fim: filters.data_fim,
         numero_op: filters.numop,
@@ -231,14 +220,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       });
       setData(result);
       setPagina(page);
-      setEndpointMissing(false);
     } catch (e: any) {
-      if (is404(e)) {
-        setEndpointMissing(true);
-        toast.error('Endpoint /api/auditoria-apontamento-genius ainda não publicado no ERP.', { id: 'missing-apont-genius', duration: 6000 });
-      } else {
-        toast.error(e.message, { id: 'err-apont-genius' });
-      }
+      toast.error(e.message, { id: 'err-apont-genius' });
     } finally {
       setLoading(false);
     }
@@ -248,7 +231,6 @@ export default function AuditoriaApontamentoGeniusPage() {
     setFilters(initialFilters);
     setData(null);
     setPagina(1);
-    setEndpointMissing(false);
     setQuickFilter('');
     setForcarDiagnostico(false);
     setOpSelecionada(null);
@@ -266,33 +248,31 @@ export default function AuditoriaApontamentoGeniusPage() {
   }, [opSelecionada, data]);
 
   const totaisApontamentosDaOp = useMemo(() => {
-    const totalHoras = apontamentosDaOp.reduce((acc, r) => acc + (Number(r.horas_apontadas) || 0), 0);
+    const totalHoras = apontamentosDaOp.reduce((acc, r) => acc + (Number(r.horas_realizadas) || 0), 0);
     const porStatus: Record<string, number> = {};
     for (const r of apontamentosDaOp) {
-      const k = String(r.status_apontamento ?? 'FECHADO').toUpperCase();
+      const k = String(r.status_movimento ?? 'FECHADO').toUpperCase();
       porStatus[k] = (porStatus[k] ?? 0) + 1;
     }
     const todosZerados = apontamentosDaOp.length > 0 && totalHoras === 0;
     return { totalHoras, porStatus, todosZerados };
   }, [apontamentosDaOp]);
 
-  useEffect(() => { setEndpointMissing(false); }, [filters]);
-
   const aplicarFiltroListaApontGenius = useMemo(() => {
     const rows = (data?.dados || []) as any[];
     const q = quickFilter.trim().toLowerCase();
     const filtered = !q ? rows : rows.filter((r) => {
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
-      const apontLabel = statusApontVariants[r.status_apontamento as StatusApont]?.label || r.status_apontamento || '';
+      const apontLabel = statusApontVariants[r.status_movimento as StatusApont]?.label || r.status_movimento || '';
       return [
-        r.nome_usuario, r.numero_op, r.codigo_produto, r.descricao_produto,
-        r.origem, r.turno, r.status_apontamento, r.status_op, opLabel, apontLabel,
+        r.nome_operador, r.numero_op, r.codigo_produto, r.descricao_produto,
+        r.origem, r.turno, r.status_movimento, r.status_op, opLabel, apontLabel,
       ].some((f) => String(f ?? '').toLowerCase().includes(q));
     });
-    // Ordenar: registros com horas_apontadas > 0 primeiro (casos válidos visíveis ao topo)
+    // Ordenar: registros com horas_realizadas > 0 primeiro
     return [...filtered].sort((a, b) => {
-      const ha = Number(a.horas_apontadas || 0) > 0 ? 1 : 0;
-      const hb = Number(b.horas_apontadas || 0) > 0 ? 1 : 0;
+      const ha = Number(a.horas_realizadas || 0) > 0 ? 1 : 0;
+      const hb = Number(b.horas_realizadas || 0) > 0 ? 1 : 0;
       return hb - ha;
     });
   }, [data, quickFilter]);
@@ -303,7 +283,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     if (!data) return false;
     const rows = (data.dados || []) as any[];
     if (rows.length === 0) return false;
-    const algumComHora = rows.some((r) => Number(r.horas_apontadas || 0) > 0);
+    const algumComHora = rows.some((r) => Number(r.horas_realizadas || 0) > 0);
     if (algumComHora) return false;
     const r = data.resumo as any;
     const totalReg = r?.total_registros ?? rows.length;
@@ -365,25 +345,25 @@ export default function AuditoriaApontamentoGeniusPage() {
       ops_finalizadas: opsSet.FINALIZADO.size,
     };
     for (const row of rows) {
-      const sa = String(row.status_apontamento ?? '').toUpperCase();
+      const sa = String(row.status_movimento ?? '').toUpperCase();
       if (sa && sa !== 'FECHADO') acc.total_discrepancias++;
       if (sa === 'SEM_APONTAMENTO') acc.sem_inicio++;
       if (sa === 'ABERTO') acc.sem_fim++;
       if (sa === 'DIVERGENTE') acc.fim_menor_inicio++;
-      const horas = Number(row.horas_apontadas || 0);
+      const horas = Number(row.horas_realizadas || 0);
       const totDia = Number(row.total_horas_dia_operador || 0);
       if (horas > 8 || totDia > 8) acc.acima_8h++;
       if (totDia > acc.maior_total_dia_operador) {
         acc.maior_total_dia_operador = totDia;
-        acc.operador_maior_total = row.nome_usuario || '';
+        acc.operador_maior_total = row.nome_operador || '';
       }
     }
     return acc;
   }, [data]);
 
   const rowClassName = useCallback((row: any) => {
-    const sa = String(row.status_apontamento ?? '').toUpperCase();
-    const horas = Number(row.horas_apontadas || 0);
+    const sa = String(row.status_movimento ?? '').toUpperCase();
+    const horas = Number(row.horas_realizadas || 0);
     const totDia = Number(row.total_horas_dia_operador || 0);
     if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
@@ -423,23 +403,12 @@ export default function AuditoriaApontamentoGeniusPage() {
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
-      {endpointMissing && (
-        <Alert className="border-[hsl(var(--warning))]/50 bg-[hsl(var(--warning))]/10">
-          <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />
-          <AlertTitle>Backend pendente</AlertTitle>
-          <AlertDescription className="text-xs">
-            O backend desta auditoria ainda não está disponível. A tela ficará operacional assim que o ERP publicar{' '}
-            <code className="rounded bg-muted px-1">GET /api/auditoria-apontamento-genius</code>. Veja{' '}
-            <code className="rounded bg-muted px-1">docs/backend-auditoria-apontamento-genius.md</code> para o contrato esperado.
-          </AlertDescription>
-        </Alert>
-      )}
       <PageHeader
         title="Auditoria Apontamento Genius"
         description="Conferência de apontamentos da operação GENIUS — destaca apontamentos > 8h e totais diários > 8h por operador"
         actions={
           <div className="flex items-center gap-2">
-            <ExportButton endpoint="/api/export/auditoria-apontamento-genius" params={exportParams} />
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
       />
@@ -557,10 +526,9 @@ export default function AuditoriaApontamentoGeniusPage() {
             </p>
             <p>
               Provável causa: o <code>LEFT JOIN</code> com <code>E930MPR</code> no endpoint
-              <code> /api/auditoria-apontamento-genius</code> não está casando.
+              <code> /api/apontamentos-producao</code> não está casando.
               Verificar no backend: (1) chaves do JOIN (<code>CODETG/SEQROT/HORINI/HORFIM</code> em <code>E930MPR</code>),
               (2) cálculo de horas em formato HHMM, (3) JOIN de operador (<code>U.NUMCAD = M.USU_NUMCAD</code>).
-              Detalhes em <code>docs/backend-auditoria-apontamento-genius.md</code>.
             </p>
             <Button
               type="button"
@@ -577,7 +545,7 @@ export default function AuditoriaApontamentoGeniusPage() {
 
       {/* Painel de diagnóstico técnico — exibido quando o backend devolve `debug`
           OU quando o usuário clica em "Ver diagnóstico técnico". */}
-      {data && !loading && !endpointMissing && (data.debug || forcarDiagnostico) && (
+      {data && !loading && (data.debug || forcarDiagnostico) && (
         <DiagnosticoApontGeniusCard
           debug={data.debug}
           totalRetornado={data.dados?.length ?? 0}
@@ -586,7 +554,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         />
       )}
 
-      {data && !loading && !endpointMissing && !data.debug && (data.dados?.length ?? 0) === 0 && (
+      {data && !loading && !data.debug && (data.dados?.length ?? 0) === 0 && (
         <Alert>
           <FileQuestion className="h-4 w-4" />
           <AlertTitle>Sem registros para os filtros aplicados</AlertTitle>
@@ -603,7 +571,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         data={aplicarFiltroListaApontGenius}
         loading={loading}
         rowClassName={rowClassName}
-        emptyMessage={endpointMissing ? 'Backend ainda não publicado.' : 'Nenhum apontamento encontrado para os filtros.'}
+        emptyMessage="Nenhum apontamento encontrado para os filtros."
       />
 
       {data && data.total_paginas > 1 && (
@@ -680,8 +648,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                   <Alert className="border-amber-500/50 bg-amber-500/10 py-2">
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                     <AlertDescription className="text-xs">
-                      Todos os apontamentos desta OP vieram do backend com horas zeradas / campos
-                      vazios. Provável falha no JOIN com <code>E930MPR</code>.
+                      Apontamentos sem horas vinculadas — verifique o backend <code>/api/apontamentos-producao</code>.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -694,8 +661,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                       <thead className="bg-muted/50">
                         <tr className="text-left">
                           <th className="px-2 py-1 font-medium">Data</th>
-                          <th className="px-2 py-1 font-medium">Início</th>
-                          <th className="px-2 py-1 font-medium">Fim</th>
+                          <th className="px-2 py-1 font-medium">Hora</th>
                           <th className="px-2 py-1 font-medium text-right">Horas</th>
                           <th className="px-2 py-1 font-medium">Operador</th>
                           <th className="px-2 py-1 font-medium">Status</th>
@@ -703,23 +669,22 @@ export default function AuditoriaApontamentoGeniusPage() {
                       </thead>
                       <tbody>
                         {apontamentosDaOp.map((r, i) => {
-                          const horas = Number(r.horas_apontadas) || 0;
-                          const saKey = ((r.status_apontamento as StatusApont) in statusApontVariants
-                            ? r.status_apontamento
+                          const horas = Number(r.horas_realizadas) || 0;
+                          const saKey = ((r.status_movimento as StatusApont) in statusApontVariants
+                            ? r.status_movimento
                             : 'FECHADO') as StatusApont;
                           const saCfg = statusApontVariants[saKey];
                           return (
                             <tr key={i} className="border-t">
-                              <td className="px-2 py-1">{r.data_apontamento ? formatDate(r.data_apontamento) : <span className="text-muted-foreground">—</span>}</td>
-                              <td className="px-2 py-1">{r.hora_inicio || <span className="text-muted-foreground">—</span>}</td>
-                              <td className="px-2 py-1">{r.hora_fim || <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
                               <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
                                 {formatNumber(horas, 2)}
                               </td>
                               <td className="px-2 py-1">
-                                {r.nome_usuario && String(r.nome_usuario).trim()
-                                  ? r.nome_usuario
-                                  : <span className="text-muted-foreground">— (cód: {r.codigo_usuario ?? 0})</span>}
+                                {r.nome_operador && String(r.nome_operador).trim()
+                                  ? r.nome_operador
+                                  : <span className="text-muted-foreground">— (cód: {r.numcad ?? 0})</span>}
                               </td>
                               <td className="px-2 py-1">
                                 <Badge className={`${saCfg.className} text-[10px]`}>{saCfg.label}</Badge>
