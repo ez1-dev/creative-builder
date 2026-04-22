@@ -293,21 +293,23 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const statusOpOptions = useMemo(
     () => [
-      { value: 'E', label: 'E — Emitida' },
-      { value: 'L', label: 'L — Liberada' },
-      { value: 'A', label: 'A — Andamento' },
-      { value: 'F', label: 'F — Finalizada' },
-      { value: 'C', label: 'C — Cancelada' },
-      { value: 'EM_ANDAMENTO', label: 'Ativas (E + L + A)' },
+      { value: 'EM_ANDAMENTO', label: 'Em andamento (E + L + A)' },
       { value: 'FINALIZADO', label: 'Finalizadas (F)' },
+      { value: 'SEM_STATUS', label: 'Sem status' },
     ],
     []
   );
 
   const exportParams = {
-    ...filters,
+    data_ini: filters.data_ini,
+    data_fim: filters.data_fim,
+    numero_op: filters.numop,
+    origem: filters.codori,
+    codigo_produto: filters.codpro,
+    operador: filters.operador,
+    status_op: filters.status_op || 'TODOS',
     somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-    somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
+    somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
   };
 
   return (
