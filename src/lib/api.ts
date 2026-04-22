@@ -343,15 +343,24 @@ export interface AuditoriaApontGeniusDebug {
 export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<any> {
   resumo?: {
     total_registros: number;
+    // Contrato novo do backend (E900COP + E930MPR)
+    total_ops_andamento?: number;
+    total_ops_finalizadas?: number;
     total_discrepancias: number;
-    sem_inicio: number;
-    sem_fim: number;
-    fim_menor_inicio: number;
-    acima_8h: number;
+    total_sem_inicio?: number;
+    total_sem_fim?: number;
+    total_fim_menor_inicio?: number;
+    total_apontamento_maior_8h?: number;
+    total_operador_maior_8h_dia?: number;
     maior_total_dia_operador: number;
-    operador_maior_total: string;
-    ops_em_andamento: number;
-    ops_finalizadas: number;
+    // Aliases legados (mantidos para retrocompatibilidade)
+    sem_inicio?: number;
+    sem_fim?: number;
+    fim_menor_inicio?: number;
+    acima_8h?: number;
+    operador_maior_total?: string;
+    ops_em_andamento?: number;
+    ops_finalizadas?: number;
     ops_canceladas?: number;
     ops_sem_status?: number;
   };
