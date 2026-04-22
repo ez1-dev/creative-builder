@@ -193,12 +193,11 @@ export default function AuditoriaApontamentoGeniusPage() {
     const q = quickFilter.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => {
-      const derived = derivarStatusApont(r);
-      const derivedLabel = statusApontVariants[derived]?.label || '';
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
+      const apontLabel = statusApontVariants[r.status_apontamento as StatusApont]?.label || r.status_apontamento || '';
       return [
-        r.operador, r.numop, r.codpro, r.despro, r.codori, r.turno, r.status,
-        r.status_op, opLabel, derived, derivedLabel,
+        r.nome_usuario, r.numero_op, r.codigo_produto, r.descricao_produto,
+        r.origem, r.turno, r.status_apontamento, r.status_op, opLabel, apontLabel,
       ].some((f) => String(f ?? '').toLowerCase().includes(q));
     });
   }, [data, quickFilter]);
