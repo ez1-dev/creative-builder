@@ -30,6 +30,7 @@ O endpoint **deve sempre filtrar** `CODORI IN (...lista acima...)`. Mesmo que o 
 | `codori` | str | não | Origem (deve estar na lista GENIUS) |
 | `codpro` | str | não | Código produto (LIKE) |
 | `operador` | str | não | Nome/código operador (LIKE) |
+| `status_op` | str | não | `EM_ANDAMENTO` ou `FINALIZADO` (filtra cabeçalho da OP via `E215OPE.SITPRO`) |
 | `somente_discrepancia` | int (0/1) | não | Filtra `status != 'OK'` |
 | `somente_acima_8h` | int (0/1) | não | Filtra `APONTAMENTO_MAIOR_8H` ou `OPERADOR_MAIOR_8H_DIA` |
 | `pagina` | int | não | default 1 |
