@@ -208,13 +208,22 @@ export default function AuditoriaApontamentoGeniusPage() {
     const r = data.resumo;
     const rows = (data.dados || []) as any[];
 
-    // Fallback: agrega contando Set de numop por status_op
-    const opsSet = { EM_ANDAMENTO: new Set<string>(), FINALIZADO: new Set<string>() };
+    // Fallback: agrega contando Set de numop por status_op nativo (E900COP)
+    // Ativas = { E, L, A, EM_ANDAMENTO } | Finalizadas = { F, FINALIZADO } | Canceladas = { C, CANCELADO }
+    const opsSet = {
+      EM_ANDAMENTO: new Set<string>(),
+      FINALIZADO: new Set<string>(),
+      CANCELADO: new Set<string>(),
+      SEM_STATUS: new Set<string>(),
+    };
     for (const row of rows) {
       const op = String(row.numop ?? '');
       if (!op) continue;
-      if (row.status_op === 'EM_ANDAMENTO') opsSet.EM_ANDAMENTO.add(op);
-      else if (row.status_op === 'FINALIZADO') opsSet.FINALIZADO.add(op);
+      const st = normalizarStatusOp(row.status_op);
+      if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
+      else if (STATUS_OP_FINALIZADOS.has(st)) opsSet.FINALIZADO.add(op);
+      else if (STATUS_OP_CANCELADOS.has(st)) opsSet.CANCELADO.add(op);
+      else opsSet.SEM_STATUS.add(op);
     }
 
     if (r) {
