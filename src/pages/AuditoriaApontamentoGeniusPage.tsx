@@ -101,22 +101,21 @@ function is404(e: any): boolean {
 }
 
 const columns: Column<any>[] = [
-  { key: 'data', header: 'Data', sticky: true, stickyWidth: 100, render: (v) => v ? formatDate(v) : '-' },
-  { key: 'codori', header: 'Origem' },
-  { key: 'numop', header: 'OP' },
+  { key: 'data_apontamento', header: 'Data', sticky: true, stickyWidth: 100, render: (v) => v ? formatDate(v) : '-' },
+  { key: 'origem', header: 'Origem' },
+  { key: 'numero_op', header: 'OP' },
   { key: 'estagio', header: 'Estágio' },
-  { key: 'seq_roteiro', header: 'Seq. Rot.', align: 'right' },
+  { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
   { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
-  { key: 'usuario', header: 'Usuário' },
-  { key: 'operador', header: 'Operador' },
+  { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
+  { key: 'nome_usuario', header: 'Operador' },
   { key: 'turno', header: 'Turno' },
-  { key: 'codpro', header: 'Produto' },
-  { key: 'despro', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
+  { key: 'codigo_produto', header: 'Produto' },
+  { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
   { key: 'hora_inicio', header: 'Hora Início' },
   { key: 'hora_fim', header: 'Hora Fim' },
-  { key: 'horas_alocadas', header: 'H. Alocadas', align: 'right', render: (v) => formatNumber(v, 2) },
   { key: 'horas_apontadas', header: 'H. Apontadas', align: 'right', render: (v) => formatNumber(v, 2) },
-  { key: 'total_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
+  { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
   {
     key: 'status_op',
     header: 'Status OP',
@@ -127,17 +126,12 @@ const columns: Column<any>[] = [
     },
   },
   {
-    key: 'status',
+    key: 'status_apontamento',
     header: 'Status Apont.',
-    render: (v: Status, row: any) => {
-      const derived = derivarStatusApont(row);
-      const cfg = statusApontVariants[derived];
-      const granular = statusVariants[v]?.label || v || '';
-      return (
-        <Badge className={cfg.className} title={granular ? `Detalhe: ${granular}` : undefined}>
-          {cfg.label}
-        </Badge>
-      );
+    render: (v: string) => {
+      const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
+      const cfg = statusApontVariants[key];
+      return <Badge className={cfg.className}>{cfg.label}</Badge>;
     },
   },
 ];
@@ -199,12 +193,11 @@ export default function AuditoriaApontamentoGeniusPage() {
     const q = quickFilter.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((r) => {
-      const derived = derivarStatusApont(r);
-      const derivedLabel = statusApontVariants[derived]?.label || '';
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
+      const apontLabel = statusApontVariants[r.status_apontamento as StatusApont]?.label || r.status_apontamento || '';
       return [
-        r.operador, r.numop, r.codpro, r.despro, r.codori, r.turno, r.status,
-        r.status_op, opLabel, derived, derivedLabel,
+        r.nome_usuario, r.numero_op, r.codigo_produto, r.descricao_produto,
+        r.origem, r.turno, r.status_apontamento, r.status_op, opLabel, apontLabel,
       ].some((f) => String(f ?? '').toLowerCase().includes(q));
     });
   }, [data, quickFilter]);
@@ -223,7 +216,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       SEM_STATUS: new Set<string>(),
     };
     for (const row of rows) {
-      const op = String(row.numop ?? '');
+      const op = String(row.numero_op ?? row.numop ?? '');
       if (!op) continue;
       const st = normalizarStatusOp(row.status_op);
       if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
@@ -244,8 +237,8 @@ export default function AuditoriaApontamentoGeniusPage() {
           ?? ((rAny.total_apontamento_maior_8h ?? 0) + (rAny.total_operador_maior_8h_dia ?? 0)),
         maior_total_dia_operador: rAny.maior_total_dia_operador ?? 0,
         operador_maior_total: rAny.operador_maior_total ?? '',
-        ops_em_andamento: rAny.ops_em_andamento ?? opsSet.EM_ANDAMENTO.size,
-        ops_finalizadas: rAny.ops_finalizadas ?? opsSet.FINALIZADO.size,
+        ops_em_andamento: rAny.ops_em_andamento ?? rAny.total_ops_andamento ?? opsSet.EM_ANDAMENTO.size,
+        ops_finalizadas: rAny.ops_finalizadas ?? rAny.total_ops_finalizadas ?? opsSet.FINALIZADO.size,
       };
     }
 
@@ -262,25 +255,30 @@ export default function AuditoriaApontamentoGeniusPage() {
       ops_finalizadas: opsSet.FINALIZADO.size,
     };
     for (const row of rows) {
-      if (row.status && row.status !== 'OK') acc.total_discrepancias++;
-      if (row.status === 'SEM_INICIO') acc.sem_inicio++;
-      if (row.status === 'SEM_FIM') acc.sem_fim++;
-      if (row.status === 'FIM_MENOR_INICIO') acc.fim_menor_inicio++;
-      if (row.status === 'APONTAMENTO_MAIOR_8H' || row.status === 'OPERADOR_MAIOR_8H_DIA') acc.acima_8h++;
-      const tot = Number(row.total_dia_operador || 0);
-      if (tot > acc.maior_total_dia_operador) {
-        acc.maior_total_dia_operador = tot;
-        acc.operador_maior_total = row.operador || '';
+      const sa = String(row.status_apontamento ?? '').toUpperCase();
+      if (sa && sa !== 'FECHADO') acc.total_discrepancias++;
+      if (sa === 'SEM_APONTAMENTO') acc.sem_inicio++;
+      if (sa === 'ABERTO') acc.sem_fim++;
+      if (sa === 'DIVERGENTE') acc.fim_menor_inicio++;
+      const horas = Number(row.horas_apontadas || 0);
+      const totDia = Number(row.total_horas_dia_operador || 0);
+      if (horas > 8 || totDia > 8) acc.acima_8h++;
+      if (totDia > acc.maior_total_dia_operador) {
+        acc.maior_total_dia_operador = totDia;
+        acc.operador_maior_total = row.nome_usuario || '';
       }
     }
     return acc;
   }, [data]);
 
   const rowClassName = useCallback((row: any) => {
-    if (row.status === 'APONTAMENTO_MAIOR_8H' || row.status === 'OPERADOR_MAIOR_8H_DIA' || row.status === 'FIM_MENOR_INICIO') {
+    const sa = String(row.status_apontamento ?? '').toUpperCase();
+    const horas = Number(row.horas_apontadas || 0);
+    const totDia = Number(row.total_horas_dia_operador || 0);
+    if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
     }
-    if (row.status === 'SEM_INICIO' || row.status === 'SEM_FIM') {
+    if (sa === 'ABERTO' || sa === 'SEM_APONTAMENTO') {
       return 'bg-amber-500/5 hover:bg-amber-500/10';
     }
     return '';
