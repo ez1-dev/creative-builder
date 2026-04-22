@@ -614,11 +614,145 @@ export default function AuditoriaApontamentoGeniusPage() {
           onPageChange={(p) => buscarAuditoriaApontamentoGenius(p)}
         />
       )}
-    </div>
-  );
-}
 
-interface StatusOpGeniusCardProps {
+      <Sheet open={drawerAberto} onOpenChange={setDrawerAberto}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          {opSelecionada && (
+            <>
+              <SheetHeader className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <SheetTitle className="text-base">
+                    OP {opSelecionada.numero_op}
+                  </SheetTitle>
+                  <Badge variant="outline" className="text-xs">Origem {opSelecionada.origem ?? '—'}</Badge>
+                  {(() => {
+                    const cfg = statusOpVariants[opSelecionada.status_op];
+                    return cfg ? <Badge className={cfg.className}>{cfg.label}</Badge> : null;
+                  })()}
+                </div>
+                <SheetDescription className="text-xs">
+                  {opSelecionada.codigo_produto ? (
+                    <>
+                      <strong>{opSelecionada.codigo_produto}</strong>
+                      {opSelecionada.descricao_produto ? ` — ${opSelecionada.descricao_produto}` : ''}
+                    </>
+                  ) : '—'}
+                </SheetDescription>
+              </SheetHeader>
+
+              {/* Bloco: Dados da OP */}
+              <div className="mt-4 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                  Dados da OP
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span><strong>Número OP:</strong> {opSelecionada.numero_op ?? '—'}</span>
+                  <span><strong>Origem:</strong> {opSelecionada.origem ?? '—'}</span>
+                  <span><strong>Cód. produto:</strong> {opSelecionada.codigo_produto ?? '—'}</span>
+                  <span><strong>Status OP:</strong> {statusOpVariants[opSelecionada.status_op]?.label ?? opSelecionada.status_op ?? '—'}</span>
+                  {'quantidade' in (opSelecionada || {}) && (
+                    <span><strong>Quantidade:</strong> {formatNumber(Number(opSelecionada.quantidade) || 0, 2)}</span>
+                  )}
+                  {opSelecionada.data_inicio && (
+                    <span><strong>Data início:</strong> {formatDate(opSelecionada.data_inicio)}</span>
+                  )}
+                  {opSelecionada.data_fim && (
+                    <span><strong>Data fim:</strong> {formatDate(opSelecionada.data_fim)}</span>
+                  )}
+                  {opSelecionada.descricao_produto && (
+                    <span className="col-span-2"><strong>Descrição:</strong> {opSelecionada.descricao_produto}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bloco: Apontamentos vinculados */}
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                    Apontamentos vinculados
+                  </h4>
+                  <span className="text-xs text-muted-foreground">
+                    {apontamentosDaOp.length} apont. · {formatNumber(totaisApontamentosDaOp.totalHoras, 2)} h totais
+                  </span>
+                </div>
+
+                {totaisApontamentosDaOp.todosZerados && (
+                  <Alert className="border-amber-500/50 bg-amber-500/10 py-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-xs">
+                      Todos os apontamentos desta OP vieram do backend com horas zeradas / campos
+                      vazios. Provável falha no JOIN com <code>E930MPR</code>.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {apontamentosDaOp.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum apontamento vinculado.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left">
+                          <th className="px-2 py-1 font-medium">Data</th>
+                          <th className="px-2 py-1 font-medium">Início</th>
+                          <th className="px-2 py-1 font-medium">Fim</th>
+                          <th className="px-2 py-1 font-medium text-right">Horas</th>
+                          <th className="px-2 py-1 font-medium">Operador</th>
+                          <th className="px-2 py-1 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apontamentosDaOp.map((r, i) => {
+                          const horas = Number(r.horas_apontadas) || 0;
+                          const saKey = ((r.status_apontamento as StatusApont) in statusApontVariants
+                            ? r.status_apontamento
+                            : 'FECHADO') as StatusApont;
+                          const saCfg = statusApontVariants[saKey];
+                          return (
+                            <tr key={i} className="border-t">
+                              <td className="px-2 py-1">{r.data_apontamento ? formatDate(r.data_apontamento) : <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.hora_inicio || <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.hora_fim || <span className="text-muted-foreground">—</span>}</td>
+                              <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
+                                {formatNumber(horas, 2)}
+                              </td>
+                              <td className="px-2 py-1">
+                                {r.nome_usuario && String(r.nome_usuario).trim()
+                                  ? r.nome_usuario
+                                  : <span className="text-muted-foreground">— (cód: {r.codigo_usuario ?? 0})</span>}
+                              </td>
+                              <td className="px-2 py-1">
+                                <Badge className={`${saCfg.className} text-[10px]`}>{saCfg.label}</Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {Object.keys(totaisApontamentosDaOp.porStatus).length > 0 && (
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pt-1">
+                    {Object.entries(totaisApontamentosDaOp.porStatus).map(([k, n]) => {
+                      const cfg = statusApontVariants[k as StatusApont];
+                      return (
+                        <span key={k} className="flex items-center gap-1">
+                          <Badge className={`${cfg?.className ?? ''} text-[10px]`}>
+                            {cfg?.label ?? k}
+                          </Badge>
+                          <span>{n}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
   opsEmAndamento: number;
   opsFinalizadas: number;
   totalDiscrepancias: number;
