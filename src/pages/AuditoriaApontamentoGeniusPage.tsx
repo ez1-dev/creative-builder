@@ -143,6 +143,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [pagina, setPagina] = useState(1);
   const [endpointMissing, setEndpointMissing] = useState(false);
   const [quickFilter, setQuickFilter] = useState('');
+  const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
 
   const erpReady = useErpReady();
 
@@ -184,6 +185,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     setPagina(1);
     setEndpointMissing(false);
     setQuickFilter('');
+    setForcarDiagnostico(false);
   }, []);
 
   useEffect(() => { setEndpointMissing(false); }, [filters]);
@@ -191,8 +193,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const aplicarFiltroListaApontGenius = useMemo(() => {
     const rows = (data?.dados || []) as any[];
     const q = quickFilter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => {
+    const filtered = !q ? rows : rows.filter((r) => {
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
       const apontLabel = statusApontVariants[r.status_apontamento as StatusApont]?.label || r.status_apontamento || '';
       return [
@@ -200,7 +201,28 @@ export default function AuditoriaApontamentoGeniusPage() {
         r.origem, r.turno, r.status_apontamento, r.status_op, opLabel, apontLabel,
       ].some((f) => String(f ?? '').toLowerCase().includes(q));
     });
+    // Ordenar: registros com horas_apontadas > 0 primeiro (casos válidos visíveis ao topo)
+    return [...filtered].sort((a, b) => {
+      const ha = Number(a.horas_apontadas || 0) > 0 ? 1 : 0;
+      const hb = Number(b.horas_apontadas || 0) > 0 ? 1 : 0;
+      return hb - ha;
+    });
   }, [data, quickFilter]);
+
+  // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
+  // (sintoma do JOIN com E930MPR estar quebrado no backend).
+  const todosApontamentosZerados = useMemo(() => {
+    if (!data) return false;
+    const rows = (data.dados || []) as any[];
+    if (rows.length === 0) return false;
+    const algumComHora = rows.some((r) => Number(r.horas_apontadas || 0) > 0);
+    if (algumComHora) return false;
+    const r = data.resumo as any;
+    const totalReg = r?.total_registros ?? rows.length;
+    const semInicio = r?.total_sem_inicio ?? r?.sem_inicio ?? 0;
+    // Se ≥95% dos registros estão "sem início", o JOIN do apontamento falhou
+    return totalReg > 0 && semInicio / totalReg >= 0.95;
+  }, [data]);
 
   const atualizarKpisApontGenius = useMemo(() => {
     if (!data) return null;
@@ -432,10 +454,42 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
-      {/* Painel de diagnóstico técnico — exibido APENAS quando o backend devolve o bloco `debug`.
-          O backend novo (E900COP + E930MPR) não envia debug em operação normal; ele só aparece
-          em modo investigação. Se o resultado vier vazio sem debug, mostramos um empty state amigável. */}
-      {data && !loading && !endpointMissing && data.debug && (
+      {/* Alerta crítico — backend devolveu OPs mas todos os apontamentos vieram zerados.
+          Indica falha no JOIN com E930MPR no backend (chaves CODETG/SEQROT/HORINI/HORFIM
+          ou cálculo de horas em HHMM). */}
+      {todosApontamentosZerados && !forcarDiagnostico && (
+        <Alert className="border-amber-500/50 bg-amber-500/10">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle>Apontamentos não vinculados — verificar backend</AlertTitle>
+          <AlertDescription className="text-xs space-y-2">
+            <p>
+              O backend retornou <strong>{formatNumber(data?.dados?.length ?? 0, 0)} OPs</strong> mas{' '}
+              <strong>nenhum apontamento de produção foi vinculado</strong> (todas as horas vieram zeradas
+              e quase todos os registros estão como "Sem início").
+            </p>
+            <p>
+              Provável causa: o <code>LEFT JOIN</code> com <code>E930MPR</code> no endpoint
+              <code> /api/auditoria-apontamento-genius</code> não está casando.
+              Verificar no backend: (1) chaves do JOIN (<code>CODETG/SEQROT/HORINI/HORFIM</code> em <code>E930MPR</code>),
+              (2) cálculo de horas em formato HHMM, (3) JOIN de operador (<code>U.NUMCAD = M.USU_NUMCAD</code>).
+              Detalhes em <code>docs/backend-auditoria-apontamento-genius.md</code>.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setForcarDiagnostico(true)}
+            >
+              Ver diagnóstico técnico
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Painel de diagnóstico técnico — exibido quando o backend devolve `debug`
+          OU quando o usuário clica em "Ver diagnóstico técnico". */}
+      {data && !loading && !endpointMissing && (data.debug || forcarDiagnostico) && (
         <DiagnosticoApontGeniusCard
           debug={data.debug}
           totalRetornado={data.dados?.length ?? 0}
