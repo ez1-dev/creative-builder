@@ -16,9 +16,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
-  Activity, CheckCircle2,
+  Activity, CheckCircle2, CalendarRange,
 } from 'lucide-react';
 
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
@@ -296,6 +297,28 @@ export default function AuditoriaApontamentoGeniusPage() {
       >
         <div><Label className="text-xs">Data inicial</Label><Input type="date" value={filters.data_ini} onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Data final</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
+        <div className="flex flex-col justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            title="Preenche o intervalo dos últimos 12 meses"
+            onClick={() => {
+              const hoje = new Date();
+              const inicio = new Date();
+              inicio.setMonth(inicio.getMonth() - 12);
+              setFilters(f => ({
+                ...f,
+                data_ini: inicio.toISOString().slice(0, 10),
+                data_fim: hoje.toISOString().slice(0, 10),
+              }));
+            }}
+          >
+            <CalendarRange className="mr-1 h-3 w-3" />
+            Últimos 12 meses
+          </Button>
+        </div>
         <div><Label className="text-xs">Número da OP</Label><Input value={filters.numop} onChange={(e) => setFilters(f => ({ ...f, numop: e.target.value }))} placeholder="OP" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Origem (GENIUS)</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origensOptions} placeholder="Origem" /></div>
         <div><Label className="text-xs">Código produto</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Produto" className="h-8 text-xs" /></div>
