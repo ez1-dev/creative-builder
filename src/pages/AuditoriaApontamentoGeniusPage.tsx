@@ -186,7 +186,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [data, setData] = useState<AuditoriaApontamentoGeniusResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
-  const [endpointMissing, setEndpointMissing] = useState(false);
+  
   const [quickFilter, setQuickFilter] = useState('');
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
