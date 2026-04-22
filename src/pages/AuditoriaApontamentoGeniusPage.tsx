@@ -434,16 +434,27 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
-      {/* Painel de diagnóstico técnico — exibido quando há debug do backend OU quando dados vier vazio.
-          Substitui o antigo alerta "Sem registros para o período" para nunca afirmar incorretamente
-          que não há apontamentos sem antes mostrar o funil de filtragem. */}
-      {data && !loading && !endpointMissing && (data.debug || (data.dados?.length ?? 0) === 0) && (
+      {/* Painel de diagnóstico técnico — exibido APENAS quando o backend devolve o bloco `debug`.
+          O backend novo (E900COP + E930MPR) não envia debug em operação normal; ele só aparece
+          em modo investigação. Se o resultado vier vazio sem debug, mostramos um empty state amigável. */}
+      {data && !loading && !endpointMissing && data.debug && (
         <DiagnosticoApontGeniusCard
           debug={data.debug}
           totalRetornado={data.dados?.length ?? 0}
           filtros={filters}
           origensGenius={ORIGENS_GENIUS}
         />
+      )}
+
+      {data && !loading && !endpointMissing && !data.debug && (data.dados?.length ?? 0) === 0 && (
+        <Alert>
+          <FileQuestion className="h-4 w-4" />
+          <AlertTitle>Sem registros para os filtros aplicados</AlertTitle>
+          <AlertDescription className="text-xs">
+            Nenhum apontamento GENIUS encontrado no período {formatDate(filters.data_ini)} → {formatDate(filters.data_fim)}.
+            Ajuste o intervalo de datas, a origem (CodOri) ou o status da OP e tente novamente.
+          </AlertDescription>
+        </Alert>
       )}
 
 
