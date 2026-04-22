@@ -101,20 +101,49 @@ function is404(e: any): boolean {
 }
 
 const columns: Column<any>[] = [
-  { key: 'data_apontamento', header: 'Data', sticky: true, stickyWidth: 100, render: (v) => v ? formatDate(v) : '-' },
+  { key: 'numero_op', header: 'OP', sticky: true, stickyWidth: 100 },
   { key: 'origem', header: 'Origem' },
-  { key: 'numero_op', header: 'OP' },
+  {
+    key: 'data_apontamento',
+    header: 'Data',
+    render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
+  },
+  {
+    key: 'hora_inicio',
+    header: 'Hora Início',
+    render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
+  },
+  {
+    key: 'hora_fim',
+    header: 'Hora Fim',
+    render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
+  },
+  {
+    key: 'nome_usuario',
+    header: 'Operador',
+    render: (v, row) => {
+      if (v && String(v).trim()) return v;
+      const cod = row?.codigo_usuario;
+      return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
+    },
+  },
   { key: 'estagio', header: 'Estágio' },
   { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
   { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
   { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
-  { key: 'nome_usuario', header: 'Operador' },
   { key: 'turno', header: 'Turno' },
   { key: 'codigo_produto', header: 'Produto' },
   { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
-  { key: 'hora_inicio', header: 'Hora Início' },
-  { key: 'hora_fim', header: 'Hora Fim' },
-  { key: 'horas_apontadas', header: 'H. Apontadas', align: 'right', render: (v) => formatNumber(v, 2) },
+  {
+    key: 'horas_apontadas',
+    header: 'H. Apontadas',
+    align: 'right',
+    render: (v) => {
+      const n = Number(v) || 0;
+      if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
+      return formatNumber(n, 2);
+    },
+  },
   { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
   {
     key: 'status_op',
