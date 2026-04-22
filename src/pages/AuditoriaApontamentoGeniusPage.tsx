@@ -14,6 +14,13 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -100,70 +107,90 @@ function is404(e: any): boolean {
   return msg.includes('not found') || msg.includes('404');
 }
 
-const columns: Column<any>[] = [
-  { key: 'numero_op', header: 'OP', sticky: true, stickyWidth: 100 },
-  { key: 'origem', header: 'Origem' },
-  {
-    key: 'data_apontamento',
-    header: 'Data',
-    render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: 'hora_inicio',
-    header: 'Hora Início',
-    render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: 'hora_fim',
-    header: 'Hora Fim',
-    render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
-  },
-  {
-    key: 'nome_usuario',
-    header: 'Operador',
-    render: (v, row) => {
-      if (v && String(v).trim()) return v;
-      const cod = row?.codigo_usuario;
-      return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
+function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
+  return [
+    {
+      key: 'numero_op',
+      header: 'OP',
+      sticky: true,
+      stickyWidth: 100,
+      render: (v, row) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpClick(row);
+          }}
+          className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
+          title="Ver detalhes da OP e apontamentos"
+        >
+          {v ?? '—'}
+        </button>
+      ),
     },
-  },
-  { key: 'estagio', header: 'Estágio' },
-  { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
-  { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
-  { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
-  { key: 'turno', header: 'Turno' },
-  { key: 'codigo_produto', header: 'Produto' },
-  { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
-  {
-    key: 'horas_apontadas',
-    header: 'H. Apontadas',
-    align: 'right',
-    render: (v) => {
-      const n = Number(v) || 0;
-      if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
-      return formatNumber(n, 2);
+    { key: 'origem', header: 'Origem' },
+    {
+      key: 'data_apontamento',
+      header: 'Data',
+      render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
     },
-  },
-  { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
-  {
-    key: 'status_op',
-    header: 'Status OP',
-    render: (v: string) => {
-      const cfg = statusOpVariants[v];
-      if (!cfg) return <span className="text-muted-foreground">—</span>;
-      return <Badge className={cfg.className}>{cfg.label}</Badge>;
+    {
+      key: 'hora_inicio',
+      header: 'Hora Início',
+      render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
     },
-  },
-  {
-    key: 'status_apontamento',
-    header: 'Status Apont.',
-    render: (v: string) => {
-      const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
-      const cfg = statusApontVariants[key];
-      return <Badge className={cfg.className}>{cfg.label}</Badge>;
+    {
+      key: 'hora_fim',
+      header: 'Hora Fim',
+      render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
     },
-  },
-];
+    {
+      key: 'nome_usuario',
+      header: 'Operador',
+      render: (v, row) => {
+        if (v && String(v).trim()) return v;
+        const cod = row?.codigo_usuario;
+        return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
+      },
+    },
+    { key: 'estagio', header: 'Estágio' },
+    { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
+    { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
+    { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
+    { key: 'turno', header: 'Turno' },
+    { key: 'codigo_produto', header: 'Produto' },
+    { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
+    {
+      key: 'horas_apontadas',
+      header: 'H. Apontadas',
+      align: 'right',
+      render: (v) => {
+        const n = Number(v) || 0;
+        if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
+        return formatNumber(n, 2);
+      },
+    },
+    { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
+    {
+      key: 'status_op',
+      header: 'Status OP',
+      render: (v: string) => {
+        const cfg = statusOpVariants[v];
+        if (!cfg) return <span className="text-muted-foreground">—</span>;
+        return <Badge className={cfg.className}>{cfg.label}</Badge>;
+      },
+    },
+    {
+      key: 'status_apontamento',
+      header: 'Status Apont.',
+      render: (v: string) => {
+        const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
+        const cfg = statusApontVariants[key];
+        return <Badge className={cfg.className}>{cfg.label}</Badge>;
+      },
+    },
+  ];
+}
 
 export default function AuditoriaApontamentoGeniusPage() {
   const [filters, setFilters] = useState(initialFilters);
@@ -173,6 +200,15 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [endpointMissing, setEndpointMissing] = useState(false);
   const [quickFilter, setQuickFilter] = useState('');
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
+  const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
+  const [drawerAberto, setDrawerAberto] = useState(false);
+
+  const abrirDetalhesOp = useCallback((row: any) => {
+    setOpSelecionada(row);
+    setDrawerAberto(true);
+  }, []);
+
+  const columns = useMemo(() => buildColumns(abrirDetalhesOp), [abrirDetalhesOp]);
 
   const erpReady = useErpReady();
 
@@ -215,7 +251,30 @@ export default function AuditoriaApontamentoGeniusPage() {
     setEndpointMissing(false);
     setQuickFilter('');
     setForcarDiagnostico(false);
+    setOpSelecionada(null);
+    setDrawerAberto(false);
   }, []);
+
+  // Apontamentos vinculados à OP selecionada (mesmo numero_op + origem)
+  const apontamentosDaOp = useMemo(() => {
+    if (!opSelecionada) return [] as any[];
+    const rows = (data?.dados || []) as any[];
+    return rows.filter((r) =>
+      String(r.numero_op) === String(opSelecionada.numero_op) &&
+      String(r.origem) === String(opSelecionada.origem),
+    );
+  }, [opSelecionada, data]);
+
+  const totaisApontamentosDaOp = useMemo(() => {
+    const totalHoras = apontamentosDaOp.reduce((acc, r) => acc + (Number(r.horas_apontadas) || 0), 0);
+    const porStatus: Record<string, number> = {};
+    for (const r of apontamentosDaOp) {
+      const k = String(r.status_apontamento ?? 'FECHADO').toUpperCase();
+      porStatus[k] = (porStatus[k] ?? 0) + 1;
+    }
+    const todosZerados = apontamentosDaOp.length > 0 && totalHoras === 0;
+    return { totalHoras, porStatus, todosZerados };
+  }, [apontamentosDaOp]);
 
   useEffect(() => { setEndpointMissing(false); }, [filters]);
 
@@ -555,6 +614,144 @@ export default function AuditoriaApontamentoGeniusPage() {
           onPageChange={(p) => buscarAuditoriaApontamentoGenius(p)}
         />
       )}
+
+      <Sheet open={drawerAberto} onOpenChange={setDrawerAberto}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          {opSelecionada && (
+            <>
+              <SheetHeader className="space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <SheetTitle className="text-base">
+                    OP {opSelecionada.numero_op}
+                  </SheetTitle>
+                  <Badge variant="outline" className="text-xs">Origem {opSelecionada.origem ?? '—'}</Badge>
+                  {(() => {
+                    const cfg = statusOpVariants[opSelecionada.status_op];
+                    return cfg ? <Badge className={cfg.className}>{cfg.label}</Badge> : null;
+                  })()}
+                </div>
+                <SheetDescription className="text-xs">
+                  {opSelecionada.codigo_produto ? (
+                    <>
+                      <strong>{opSelecionada.codigo_produto}</strong>
+                      {opSelecionada.descricao_produto ? ` — ${opSelecionada.descricao_produto}` : ''}
+                    </>
+                  ) : '—'}
+                </SheetDescription>
+              </SheetHeader>
+
+              {/* Bloco: Dados da OP */}
+              <div className="mt-4 rounded-md border bg-muted/30 p-3 space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                  Dados da OP
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span><strong>Número OP:</strong> {opSelecionada.numero_op ?? '—'}</span>
+                  <span><strong>Origem:</strong> {opSelecionada.origem ?? '—'}</span>
+                  <span><strong>Cód. produto:</strong> {opSelecionada.codigo_produto ?? '—'}</span>
+                  <span><strong>Status OP:</strong> {statusOpVariants[opSelecionada.status_op]?.label ?? opSelecionada.status_op ?? '—'}</span>
+                  {'quantidade' in (opSelecionada || {}) && (
+                    <span><strong>Quantidade:</strong> {formatNumber(Number(opSelecionada.quantidade) || 0, 2)}</span>
+                  )}
+                  {opSelecionada.data_inicio && (
+                    <span><strong>Data início:</strong> {formatDate(opSelecionada.data_inicio)}</span>
+                  )}
+                  {opSelecionada.data_fim && (
+                    <span><strong>Data fim:</strong> {formatDate(opSelecionada.data_fim)}</span>
+                  )}
+                  {opSelecionada.descricao_produto && (
+                    <span className="col-span-2"><strong>Descrição:</strong> {opSelecionada.descricao_produto}</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bloco: Apontamentos vinculados */}
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-foreground">
+                    Apontamentos vinculados
+                  </h4>
+                  <span className="text-xs text-muted-foreground">
+                    {apontamentosDaOp.length} apont. · {formatNumber(totaisApontamentosDaOp.totalHoras, 2)} h totais
+                  </span>
+                </div>
+
+                {totaisApontamentosDaOp.todosZerados && (
+                  <Alert className="border-amber-500/50 bg-amber-500/10 py-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-xs">
+                      Todos os apontamentos desta OP vieram do backend com horas zeradas / campos
+                      vazios. Provável falha no JOIN com <code>E930MPR</code>.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {apontamentosDaOp.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhum apontamento vinculado.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-md border">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left">
+                          <th className="px-2 py-1 font-medium">Data</th>
+                          <th className="px-2 py-1 font-medium">Início</th>
+                          <th className="px-2 py-1 font-medium">Fim</th>
+                          <th className="px-2 py-1 font-medium text-right">Horas</th>
+                          <th className="px-2 py-1 font-medium">Operador</th>
+                          <th className="px-2 py-1 font-medium">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {apontamentosDaOp.map((r, i) => {
+                          const horas = Number(r.horas_apontadas) || 0;
+                          const saKey = ((r.status_apontamento as StatusApont) in statusApontVariants
+                            ? r.status_apontamento
+                            : 'FECHADO') as StatusApont;
+                          const saCfg = statusApontVariants[saKey];
+                          return (
+                            <tr key={i} className="border-t">
+                              <td className="px-2 py-1">{r.data_apontamento ? formatDate(r.data_apontamento) : <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.hora_inicio || <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.hora_fim || <span className="text-muted-foreground">—</span>}</td>
+                              <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
+                                {formatNumber(horas, 2)}
+                              </td>
+                              <td className="px-2 py-1">
+                                {r.nome_usuario && String(r.nome_usuario).trim()
+                                  ? r.nome_usuario
+                                  : <span className="text-muted-foreground">— (cód: {r.codigo_usuario ?? 0})</span>}
+                              </td>
+                              <td className="px-2 py-1">
+                                <Badge className={`${saCfg.className} text-[10px]`}>{saCfg.label}</Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {Object.keys(totaisApontamentosDaOp.porStatus).length > 0 && (
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground pt-1">
+                    {Object.entries(totaisApontamentosDaOp.porStatus).map(([k, n]) => {
+                      const cfg = statusApontVariants[k as StatusApont];
+                      return (
+                        <span key={k} className="flex items-center gap-1">
+                          <Badge className={`${cfg?.className ?? ''} text-[10px]`}>
+                            {cfg?.label ?? k}
+                          </Badge>
+                          <span>{n}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
