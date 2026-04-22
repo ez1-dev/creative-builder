@@ -320,24 +320,33 @@ export default function AuditoriaApontamentoGeniusPage() {
       </FilterPanel>
 
       {atualizarKpisApontGenius && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
-          <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} />
-          <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} />
-          <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} />
-          <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} />
-          <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} />
-          <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} />
-          <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} />
-          <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} />
-          <KPICard
-            title="Maior Total Dia"
-            value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
-            subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
-            icon={<UserCheck className="h-5 w-5" />}
-            variant="info"
-            index={8}
+        <>
+          <StatusOpGeniusCard
+            opsEmAndamento={atualizarKpisApontGenius.ops_em_andamento}
+            opsFinalizadas={atualizarKpisApontGenius.ops_finalizadas}
+            totalDiscrepancias={atualizarKpisApontGenius.total_discrepancias}
+            dataIni={filters.data_ini}
+            dataFim={filters.data_fim}
           />
-        </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
+            <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} />
+            <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} />
+            <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} />
+            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} />
+            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} />
+            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} />
+            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} />
+            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} />
+            <KPICard
+              title="Maior Total Dia"
+              value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
+              subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
+              icon={<UserCheck className="h-5 w-5" />}
+              variant="info"
+              index={8}
+            />
+          </div>
+        </>
       )}
 
       {data && (
