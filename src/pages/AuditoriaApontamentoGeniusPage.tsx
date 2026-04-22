@@ -194,10 +194,19 @@ export default function AuditoriaApontamentoGeniusPage() {
     }
 
     if (r) {
+      const rAny = r as any;
       return {
-        ...r,
-        ops_em_andamento: r.ops_em_andamento ?? opsSet.EM_ANDAMENTO.size,
-        ops_finalizadas: r.ops_finalizadas ?? opsSet.FINALIZADO.size,
+        total_registros: rAny.total_registros ?? rows.length,
+        total_discrepancias: rAny.total_discrepancias ?? 0,
+        sem_inicio: rAny.sem_inicio ?? rAny.total_sem_inicio ?? 0,
+        sem_fim: rAny.sem_fim ?? rAny.total_sem_fim ?? 0,
+        fim_menor_inicio: rAny.fim_menor_inicio ?? rAny.total_fim_menor_inicio ?? 0,
+        acima_8h: rAny.acima_8h
+          ?? ((rAny.total_apontamento_maior_8h ?? 0) + (rAny.total_operador_maior_8h_dia ?? 0)),
+        maior_total_dia_operador: rAny.maior_total_dia_operador ?? 0,
+        operador_maior_total: rAny.operador_maior_total ?? '',
+        ops_em_andamento: rAny.ops_em_andamento ?? opsSet.EM_ANDAMENTO.size,
+        ops_finalizadas: rAny.ops_finalizadas ?? opsSet.FINALIZADO.size,
       };
     }
 
@@ -346,6 +355,18 @@ export default function AuditoriaApontamentoGeniusPage() {
             </span>
           )}
         </div>
+      )}
+
+      {data && !loading && (data.dados?.length ?? 0) === 0 && !endpointMissing && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Sem registros para o período</AlertTitle>
+          <AlertDescription className="text-xs">
+            O backend respondeu com sucesso, porém não há apontamentos GENIUS lançados no ERP no intervalo selecionado.
+            Tente alargar o range de datas ou verifique no ERP se existem apontamentos nas origens GENIUS
+            ({ORIGENS_GENIUS.join(', ')}).
+          </AlertDescription>
+        </Alert>
       )}
 
       <DataTable
