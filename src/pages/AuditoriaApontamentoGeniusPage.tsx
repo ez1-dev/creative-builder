@@ -526,10 +526,9 @@ export default function AuditoriaApontamentoGeniusPage() {
             </p>
             <p>
               Provável causa: o <code>LEFT JOIN</code> com <code>E930MPR</code> no endpoint
-              <code> /api/auditoria-apontamento-genius</code> não está casando.
+              <code> /api/apontamentos-producao</code> não está casando.
               Verificar no backend: (1) chaves do JOIN (<code>CODETG/SEQROT/HORINI/HORFIM</code> em <code>E930MPR</code>),
               (2) cálculo de horas em formato HHMM, (3) JOIN de operador (<code>U.NUMCAD = M.USU_NUMCAD</code>).
-              Detalhes em <code>docs/backend-auditoria-apontamento-genius.md</code>.
             </p>
             <Button
               type="button"
