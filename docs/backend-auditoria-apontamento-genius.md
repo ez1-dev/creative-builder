@@ -61,9 +61,23 @@ O endpoint **deve sempre filtrar** `CODORI IN (...lista acima...)`. Mesmo que o 
       "horas_alocadas": 8.0,
       "horas_apontadas": 9.25,
       "total_dia_operador": 9.25,
+      "status_op": "EM_ANDAMENTO",
       "status": "APONTAMENTO_MAIOR_8H"
     }
   ],
+  "resumo": {
+    "total_registros": 1234,
+    "total_discrepancias": 87,
+    "sem_inicio": 5,
+    "sem_fim": 12,
+    "fim_menor_inicio": 2,
+    "acima_8h": 68,
+    "maior_total_dia_operador": 11.5,
+    "operador_maior_total": "OP-007",
+    "ops_em_andamento": 42,
+    "ops_finalizadas": 178
+  }
+}
   "resumo": {
     "total_registros": 1234,
     "total_discrepancias": 87,
