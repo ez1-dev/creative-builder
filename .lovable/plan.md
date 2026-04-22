@@ -1,83 +1,96 @@
 
-## Alinhar contrato `/api/estoque/movimentacao` ao consumidor da tela
+## Nova tela: Auditoria Apontamento Genius
 
-### Diagnóstico
-Comparei o que `src/pages/SugestaoMinMaxPage.tsx` consome (e o que `src/lib/demoMovimentacao.ts` produz no modo demo) com o SQL atual de `docs/backend-rota-movimentacao.md`. Há 3 divergências que quebram a tela ao trocar demo → backend real:
+### Escopo
+Página analítica `/auditoria-apontamento-genius` para conferir apontamentos de produção da operação **GENIUS** (origens 110, 120, 130, 135, 140, 150, 205, 208, 210, 220, 230, 235, 240, 245, 250), comparando início/fim e destacando apontamentos > 8h ou totais diários > 8h por operador.
 
-| Campo no frontend (demo) | SQL atual no doc | Problema |
-|---|---|---|
-| `tipo_movimento: 'ENT' \| 'SAI'` | `MVP.TIPMOV` (devolve `'E'` / `'S'`) | Tela espera string de 3 letras; backend devolve 1 letra → filtros e badges quebram. |
-| `fornecedor: string \| null` | `NULL AS fornecedor` (TODO) | Sempre `null` no real, populado no demo → coluna sempre vazia em produção. |
-| `origem: string` | `NULL AS origem` | Idem. Tela mostra "—" sempre. |
-| `consumo_medio`, `minimo_sugerido`, `maximo_sugerido`, `lead_time_dias`, `status` | ausentes no SQL | Demo entrega; backend não. Tela depende deles para KPIs e badges de status. |
-| Resposta `resumo { saldo_atual_total, consumo_90d, consumo_180d, lead_time_medio_dias, minimo_sugerido_total, maximo_sugerido_total }` | ausente | Sem `resumo`, KPIs do topo ficam zerados. |
+A página segue o **mesmo padrão visual** das demais telas analíticas do app (PageHeader + FilterPanel + KPIs + DataTable + PaginationControl + ExportButton), reaproveita autenticação Bearer existente (`api.get` em `src/lib/api.ts`), e integra-se ao menu/sidebar e ao sistema de permissões de rotas.
 
-### Atualização única: `docs/backend-rota-movimentacao.md`
+### Arquivos a criar/editar
 
-Reescrever o documento para que o backend entregue **exatamente** o contrato que a tela já consome em modo demo. Sem mudanças no frontend.
+**1. `src/pages/AuditoriaApontamentoGeniusPage.tsx` (novo)**
+- Filtros: `data_ini`, `data_fim`, `numop`, `codori` (Combobox limitado às origens GENIUS), `codpro`, `operador`, `somente_discrepancia` (Switch), `somente_acima_8h` (Switch).
+- Constante `ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250']`.
+- Estado: `filters`, `data`, `loading`, `pagina`, `endpointMissing`, `quickFilter` (filtro rápido local).
+- Funções (nomes pedidos pelo usuário, exportadas como handlers internos):
+  - `buscarAuditoriaApontamentoGenius(page)` → `api.get('/api/auditoria-apontamento-genius', {...filters, pagina, tamanho_pagina:100})`. Em 404 ativa `endpointMissing` e mostra Alert "Backend de Auditoria Apontamento Genius ainda não disponível" (mesmo padrão de `SugestaoMinMaxPage`).
+  - `exportarAuditoriaApontamentoGeniusExcel()` → reaproveita `<ExportButton endpoint="/api/export/auditoria-apontamento-genius" params={filters} />`.
+  - `limparTelaAuditoriaApontamentoGenius()` → reset de filtros e dados.
+  - `aplicarFiltroListaApontGenius(rows, q)` → busca local em operador/OP/produto/origem/turno/status (memo).
+  - `atualizarKpisApontGenius(rows, resumo)` → prioriza `data.resumo`; fallback agregando localmente.
+  - `renderTabelaApontGenius()` → render via `<DataTable columns={columns} ... />`.
 
-#### 1. Mapeamento de campos (SELECT ajustado)
-- `CASE WHEN MVP.TIPMOV = 'E' THEN 'ENT' WHEN MVP.TIPMOV = 'S' THEN 'SAI' END AS tipo_movimento` — normaliza para `ENT`/`SAI`.
-- Manter `DATMOV → data_movimento`, `QTDMOV → quantidade`, `NUMDOC → documento` com nota explícita: se o dicionário do cliente usar `DATEMI`/`QTD`/`NUMDCT`, ajustar **somente o nome da coluna** preservando o alias.
-- `LEFT JOIN E140FOR FOR ON FOR.CODFOR = MVP.CODFOR` (quando `CODFOR` existir em `E210MVP`) → `FOR.NOMFOR AS fornecedor`. Se `E210MVP` não tiver fornecedor, deixar `NULL` mas documentar o JOIN alternativo via `E300NFE`/`E140FOR` em entradas.
-- `MVP.CODORI AS origem` (ou `'INT'` quando ausente).
+**2. KPIs (7 cards no topo)**
+Total registros, Total discrepâncias, Sem início, Sem fim, Fim < Início, Acima de 8h, Maior total dia (operador). Usa `KPICard` com variantes `default`/`destructive`/`warning`/`info`.
 
-#### 2. Campos calculados por item (subquery / CTE)
-Adicionar à query principal um bloco que calcule por `(CODEMP, CODPRO, CODDER, CODDEP)` em janela de 180 dias:
-- `consumo_medio` = `SUM(QTDMOV WHERE TIPMOV='S' AND últimos 180d) / 180.0`.
-- `lead_time_dias` = `AVG(DATEDIFF(day, data_pedido, data_entrada))` na E140IPC/E140NFE — fallback fixo de 15 se sem histórico.
-- `minimo_sugerido` = `consumo_medio * lead_time_dias + (consumo_medio * 0.5 * lead_time_dias)`.
-- `maximo_sugerido` = `minimo_sugerido + consumo_medio * 30`.
-- `status` = `CASE WHEN saldo_atual < minimo THEN 'ABAIXO_MINIMO' WHEN saldo_atual > maximo THEN 'ACIMA_MAXIMO' ELSE 'ENTRE_MIN_E_MAX' END`.
+**3. Tabela (colunas)**
+Data, Origem, OP, Estágio, Seq. Roteiro, Seq. Apontamento, Usuário, Operador, Turno, Produto, Descrição, Hora início, Hora fim, Horas alocadas, Horas apontadas, Total dia operador, **Status** (Badge colorido).
 
-Implementar via CTE `agregados_produto` para evitar repetição na lista paginada.
+Mapa de status → cores (Tailwind/HSL do design system):
+| Status | Classe |
+|---|---|
+| `OK` | `bg-green-600 text-white` |
+| `SEM_INICIO` | `bg-amber-500 text-white` |
+| `SEM_FIM` | `bg-amber-500 text-white` |
+| `FIM_MENOR_INICIO` | `bg-destructive text-destructive-foreground` |
+| `APONTAMENTO_MAIOR_8H` | `bg-red-700 text-white` |
+| `OPERADOR_MAIOR_8H_DIA` | `bg-red-700 text-white` |
 
-#### 3. Bloco `resumo` no response
-Após o `fetchall()`, executar segunda query agregada (sem paginação, mesmos filtros exceto `data_*`) e devolver:
-```json
-"resumo": {
-  "saldo_atual_total": 12345.0,
-  "consumo_90d": 0.0,
-  "consumo_180d": 0.0,
-  "lead_time_medio_dias": 0.0,
-  "minimo_sugerido_total": 0.0,
-  "maximo_sugerido_total": 0.0
+Linha inteira recebe leve tint (`bg-destructive/5` ou `bg-amber-500/5`) quando status ≠ OK, para destacar discrepâncias.
+
+**4. Filtro rápido local**
+Input acima da tabela ("Pesquisar nesta página…" — debounce 300ms via mesmo padrão de `DataTable`/`useMemo`), filtra `enrichedData` por: operador, OP, produto, origem, turno, status. Resultado filtrado é o que vai para `<DataTable>`.
+
+**5. Estados**
+- Loading → `loading={loading}` no DataTable (skeleton já existente).
+- Empty → DataTable já renderiza "Nenhum registro" quando vazio.
+- Error/404 → `<Alert>` amarelo no topo: *"O backend desta auditoria ainda não está disponível. A tela ficará operacional assim que o ERP publicar `GET /api/auditoria-apontamento-genius`."* (mesmo componente Alert usado em SugestaoMinMaxPage).
+- Sem mocks. Sem toggle demo.
+
+**6. Tipo no `src/lib/api.ts` (editar)**
+Adicionar interface:
+```ts
+export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<any> {
+  resumo?: {
+    total_registros: number;
+    total_discrepancias: number;
+    sem_inicio: number;
+    sem_fim: number;
+    fim_menor_inicio: number;
+    acima_8h: number;
+    maior_total_dia_operador: number;
+    operador_maior_total: string;
+  };
 }
 ```
-SQL pronto incluído no doc (SUM/AVG sobre a CTE `agregados_produto`).
 
-#### 4. Atualizar `PaginatedMovimentacao` (Pydantic)
-```python
-class ResumoMovimentacao(BaseModel):
-    saldo_atual_total: float = 0
-    consumo_90d: float = 0
-    consumo_180d: float = 0
-    lead_time_medio_dias: float = 0
-    minimo_sugerido_total: float = 0
-    maximo_sugerido_total: float = 0
-
-class PaginatedMovimentacao(BaseModel):
-    pagina: int
-    tamanho_pagina: int
-    total_registros: int
-    total_paginas: int
-    dados: List[MovimentacaoItem]
-    resumo: ResumoMovimentacao
+**7. `src/App.tsx` (editar)**
+Importar página e adicionar rota dentro do `<AppLayout>`:
+```tsx
+<Route path="/auditoria-apontamento-genius" element={<ProtectedRoute path="/auditoria-apontamento-genius"><AuditoriaApontamentoGeniusPage /></ProtectedRoute>} />
 ```
-E adicionar a `MovimentacaoItem` os campos: `consumo_medio`, `minimo_sugerido`, `maximo_sugerido`, `lead_time_dias`, `status`.
 
-#### 5. Tabela de equivalência demo ↔ backend
-Inserir no doc uma seção "Contrato canônico" com tabela lado-a-lado mostrando cada campo de `DemoMovimentacao` (em `src/lib/demoMovimentacao.ts`) e a expressão SQL correspondente — referência rápida para o dev backend validar campo a campo.
+**8. `src/components/AppSidebar.tsx` (editar)**
+Adicionar entrada na lista `modules`:
+```ts
+{ title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck }
+```
+Posicionada logicamente após "Auditoria Tributária".
 
-#### 6. Checklist de validação ampliado
-- [ ] `tipo_movimento` retorna `'ENT'` ou `'SAI'` (nunca `'E'`/`'S'`).
-- [ ] `fornecedor` populado em entradas; `null` em saídas.
-- [ ] `consumo_medio`, `minimo_sugerido`, `maximo_sugerido`, `status` presentes em todas as linhas.
-- [ ] Bloco `resumo` retornado mesmo quando `dados` é vazio (todos zero).
-- [ ] Toggle "Usar dados de exemplo" desligado → tela renderiza KPIs e badges idênticos ao modo demo.
+**9. Documentação backend `docs/backend-auditoria-apontamento-genius.md` (novo)**
+Contrato completo para o time FastAPI implementar:
+- `GET /api/auditoria-apontamento-genius` — query params (`data_ini`, `data_fim`, `numop`, `codori`, `codpro`, `operador`, `somente_discrepancia`, `somente_acima_8h`, `pagina`, `tamanho_pagina`); response com `pagina/tamanho_pagina/total_registros/total_paginas/dados/resumo` exatamente como o frontend consome; tabelas-base sugeridas (E660APO/E660APP do Senior — apontamentos de produção); SQL exemplo com cálculo de `horas_apontadas = DATEDIFF(MINUTE, hora_inicio, hora_fim)/60.0`, `total_dia_operador = SUM() OVER (PARTITION BY operador, data)`, e CASE para `status`; filtro fixo de origens GENIUS (lista acima); pagination via `OFFSET/FETCH NEXT`.
+- `GET /api/export/auditoria-apontamento-genius` — mesmos filtros, retorna `.xlsx` (StreamingResponse).
+- Checklist de validação.
 
-### Frontend
-Nenhuma alteração. O contrato canônico é o que já está sendo consumido.
+### Permissões (importante)
+A rota `/auditoria-apontamento-genius` precisa ser cadastrada na tabela `profile_screens` (módulo de Configurações) para aparecer no menu para perfis sem `hasPermissions` total. Documentar isso no rodapé da nova tela como nota interna no commit. **Sem migração automática nesta tarefa** — admin cadastra via tela de Configurações existente.
 
-### Arquivos
-- `docs/backend-rota-movimentacao.md` — reescrita completa com itens 1–6.
+### Fora de escopo
+- Não alterar telas existentes além de App.tsx + AppSidebar.tsx + api.ts.
+- Não criar dados mockados.
+- Não implementar o backend FastAPI (somente documentação `docs/backend-auditoria-apontamento-genius.md`).
+- Sem refatoração de `DataTable`, `FilterPanel`, `ExportButton` ou helpers de auth.
+
+### Resultado esperado
+Item "Auditoria Apont. Genius" no menu lateral → tela com banner amarelo "Backend pendente" enquanto endpoint não existir; assim que o FastAPI publicar a rota, KPIs/tabela populam automaticamente, com destaques visuais para apontamentos > 8h e totais diários > 8h.
