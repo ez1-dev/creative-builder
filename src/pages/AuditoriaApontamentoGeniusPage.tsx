@@ -101,12 +101,6 @@ function derivarStatusApont(row: any): StatusApont {
   return 'FECHADO';
 }
 
-function is404(e: any): boolean {
-  if (e?.statusCode === 404) return true;
-  const msg = String(e?.message || '').toLowerCase();
-  return msg.includes('not found') || msg.includes('404');
-}
-
 function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
   return [
     {
@@ -130,39 +124,34 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
     },
     { key: 'origem', header: 'Origem' },
     {
-      key: 'data_apontamento',
+      key: 'data_movimento',
       header: 'Data',
       render: (v) => v ? formatDate(v) : <span className="text-muted-foreground">—</span>,
     },
     {
-      key: 'hora_inicio',
-      header: 'Hora Início',
+      key: 'hora_movimento',
+      header: 'Hora',
       render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
     },
     {
-      key: 'hora_fim',
-      header: 'Hora Fim',
-      render: (v) => v ? String(v) : <span className="text-muted-foreground">—</span>,
-    },
-    {
-      key: 'nome_usuario',
+      key: 'nome_operador',
       header: 'Operador',
       render: (v, row) => {
         if (v && String(v).trim()) return v;
-        const cod = row?.codigo_usuario;
+        const cod = row?.numcad;
         return <span className="text-muted-foreground">— (cód: {cod ?? 0})</span>;
       },
     },
     { key: 'estagio', header: 'Estágio' },
     { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
     { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
-    { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
+    { key: 'numcad', header: 'Numcad', align: 'right' },
     { key: 'turno', header: 'Turno' },
     { key: 'codigo_produto', header: 'Produto' },
     { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
     {
-      key: 'horas_apontadas',
-      header: 'H. Apontadas',
+      key: 'horas_realizadas',
+      header: 'H. Realizadas',
       align: 'right',
       render: (v) => {
         const n = Number(v) || 0;
@@ -181,8 +170,8 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
       },
     },
     {
-      key: 'status_apontamento',
-      header: 'Status Apont.',
+      key: 'status_movimento',
+      header: 'Status Mov.',
       render: (v: string) => {
         const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
         const cfg = statusApontVariants[key];
