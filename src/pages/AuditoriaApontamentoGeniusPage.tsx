@@ -662,8 +662,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                       <thead className="bg-muted/50">
                         <tr className="text-left">
                           <th className="px-2 py-1 font-medium">Data</th>
-                          <th className="px-2 py-1 font-medium">Início</th>
-                          <th className="px-2 py-1 font-medium">Fim</th>
+                          <th className="px-2 py-1 font-medium">Hora</th>
                           <th className="px-2 py-1 font-medium text-right">Horas</th>
                           <th className="px-2 py-1 font-medium">Operador</th>
                           <th className="px-2 py-1 font-medium">Status</th>
@@ -671,23 +670,22 @@ export default function AuditoriaApontamentoGeniusPage() {
                       </thead>
                       <tbody>
                         {apontamentosDaOp.map((r, i) => {
-                          const horas = Number(r.horas_apontadas) || 0;
-                          const saKey = ((r.status_apontamento as StatusApont) in statusApontVariants
-                            ? r.status_apontamento
+                          const horas = Number(r.horas_realizadas) || 0;
+                          const saKey = ((r.status_movimento as StatusApont) in statusApontVariants
+                            ? r.status_movimento
                             : 'FECHADO') as StatusApont;
                           const saCfg = statusApontVariants[saKey];
                           return (
                             <tr key={i} className="border-t">
-                              <td className="px-2 py-1">{r.data_apontamento ? formatDate(r.data_apontamento) : <span className="text-muted-foreground">—</span>}</td>
-                              <td className="px-2 py-1">{r.hora_inicio || <span className="text-muted-foreground">—</span>}</td>
-                              <td className="px-2 py-1">{r.hora_fim || <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
+                              <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
                               <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
                                 {formatNumber(horas, 2)}
                               </td>
                               <td className="px-2 py-1">
-                                {r.nome_usuario && String(r.nome_usuario).trim()
-                                  ? r.nome_usuario
-                                  : <span className="text-muted-foreground">— (cód: {r.codigo_usuario ?? 0})</span>}
+                                {r.nome_operador && String(r.nome_operador).trim()
+                                  ? r.nome_operador
+                                  : <span className="text-muted-foreground">— (cód: {r.numcad ?? 0})</span>}
                               </td>
                               <td className="px-2 py-1">
                                 <Badge className={`${saCfg.className} text-[10px]`}>{saCfg.label}</Badge>
