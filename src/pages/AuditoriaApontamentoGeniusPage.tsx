@@ -16,9 +16,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
-  Activity, CheckCircle2,
+  Activity, CheckCircle2, CalendarRange,
 } from 'lucide-react';
 
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
