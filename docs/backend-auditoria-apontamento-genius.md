@@ -16,6 +16,37 @@ O endpoint **deve sempre filtrar** `CODORI IN (...lista acima...)`. Mesmo que o 
 
 ---
 
+## ⚠️ Nota de implementação atual (2026-04)
+
+A primeira implementação do backend foi feita sobre as tabelas de **chão de fábrica Senior**:
+`E900HOO` (horários de operação) + `E900COP` (cabeçalho de produção) + `E075PRO` (produtos) + `E099USU` (usuários) + `E906OPE` (operações/origens),
+**em vez** de `E660APO` originalmente sugerida abaixo. A tela funciona com qualquer das duas implementações desde que o contrato JSON seja respeitado.
+
+### Variantes aceitas no `resumo`
+O frontend normaliza ambos os formatos de chave — pode ser entregue **com** ou **sem** o prefixo `total_`:
+
+| Sem prefixo (preferido) | Com prefixo `total_` (legado) |
+|---|---|
+| `sem_inicio` | `total_sem_inicio` |
+| `sem_fim` | `total_sem_fim` |
+| `fim_menor_inicio` | `total_fim_menor_inicio` |
+| `acima_8h` | `total_apontamento_maior_8h` + `total_operador_maior_8h_dia` (somados) |
+
+**Pendências para padronizar na próxima iteração:**
+- Renomear chaves para o formato sem prefixo `total_` (exceto `total_registros` e `total_discrepancias`).
+- Adicionar `ops_em_andamento`, `ops_finalizadas` (contagem distinta de `numop` por `status_op`).
+- Adicionar `operador_maior_total` (nome do operador com maior soma de horas no dia).
+
+### Investigação quando backend retorna `dados: []`
+Se a tela ficar vazia mesmo com 200 OK, rodar manualmente no banco do ERP:
+```sql
+SELECT TOP 50 * FROM E900HOO WHERE DATAPO BETWEEN '2026-03-01' AND '2026-04-30';
+SELECT DISTINCT CODORI FROM E906OPE;  -- conferir se origens GENIUS estão presentes
+```
+Provável causa: filtro `CODORI IN (...)` aplicado em coluna errada nessas tabelas, ou ausência de apontamentos no período.
+
+---
+
 ## 1. `GET /api/auditoria-apontamento-genius`
 
 ### Autenticação
