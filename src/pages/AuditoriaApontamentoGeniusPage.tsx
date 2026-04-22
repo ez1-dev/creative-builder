@@ -545,7 +545,7 @@ export default function AuditoriaApontamentoGeniusPage() {
 
       {/* Painel de diagnóstico técnico — exibido quando o backend devolve `debug`
           OU quando o usuário clica em "Ver diagnóstico técnico". */}
-      {data && !loading && !endpointMissing && (data.debug || forcarDiagnostico) && (
+      {data && !loading && (data.debug || forcarDiagnostico) && (
         <DiagnosticoApontGeniusCard
           debug={data.debug}
           totalRetornado={data.dados?.length ?? 0}
@@ -554,7 +554,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         />
       )}
 
-      {data && !loading && !endpointMissing && !data.debug && (data.dados?.length ?? 0) === 0 && (
+      {data && !loading && !data.debug && (data.dados?.length ?? 0) === 0 && (
         <Alert>
           <FileQuestion className="h-4 w-4" />
           <AlertTitle>Sem registros para os filtros aplicados</AlertTitle>
@@ -571,7 +571,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         data={aplicarFiltroListaApontGenius}
         loading={loading}
         rowClassName={rowClassName}
-        emptyMessage={endpointMissing ? 'Backend ainda não publicado.' : 'Nenhum apontamento encontrado para os filtros.'}
+        emptyMessage="Nenhum apontamento encontrado para os filtros."
       />
 
       {data && data.total_paginas > 1 && (
