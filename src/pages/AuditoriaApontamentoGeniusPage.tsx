@@ -408,7 +408,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         description="Conferência de apontamentos da operação GENIUS — destaca apontamentos > 8h e totais diários > 8h por operador"
         actions={
           <div className="flex items-center gap-2">
-            <ExportButton endpoint="/api/export/auditoria-apontamento-genius" params={exportParams} />
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
       />
