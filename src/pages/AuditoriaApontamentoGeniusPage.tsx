@@ -283,7 +283,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     if (!data) return false;
     const rows = (data.dados || []) as any[];
     if (rows.length === 0) return false;
-    const algumComHora = rows.some((r) => Number(r.horas_apontadas || 0) > 0);
+    const algumComHora = rows.some((r) => Number(r.horas_realizadas || 0) > 0);
     if (algumComHora) return false;
     const r = data.resumo as any;
     const totalReg = r?.total_registros ?? rows.length;
