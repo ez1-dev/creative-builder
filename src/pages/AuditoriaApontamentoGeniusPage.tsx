@@ -193,8 +193,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const aplicarFiltroListaApontGenius = useMemo(() => {
     const rows = (data?.dados || []) as any[];
     const q = quickFilter.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => {
+    const filtered = !q ? rows : rows.filter((r) => {
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
       const apontLabel = statusApontVariants[r.status_apontamento as StatusApont]?.label || r.status_apontamento || '';
       return [
@@ -202,7 +201,28 @@ export default function AuditoriaApontamentoGeniusPage() {
         r.origem, r.turno, r.status_apontamento, r.status_op, opLabel, apontLabel,
       ].some((f) => String(f ?? '').toLowerCase().includes(q));
     });
+    // Ordenar: registros com horas_apontadas > 0 primeiro (casos válidos visíveis ao topo)
+    return [...filtered].sort((a, b) => {
+      const ha = Number(a.horas_apontadas || 0) > 0 ? 1 : 0;
+      const hb = Number(b.horas_apontadas || 0) > 0 ? 1 : 0;
+      return hb - ha;
+    });
   }, [data, quickFilter]);
+
+  // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
+  // (sintoma do JOIN com E930MPR estar quebrado no backend).
+  const todosApontamentosZerados = useMemo(() => {
+    if (!data) return false;
+    const rows = (data.dados || []) as any[];
+    if (rows.length === 0) return false;
+    const algumComHora = rows.some((r) => Number(r.horas_apontadas || 0) > 0);
+    if (algumComHora) return false;
+    const r = data.resumo as any;
+    const totalReg = r?.total_registros ?? rows.length;
+    const semInicio = r?.total_sem_inicio ?? r?.sem_inicio ?? 0;
+    // Se ≥95% dos registros estão "sem início", o JOIN do apontamento falhou
+    return totalReg > 0 && semInicio / totalReg >= 0.95;
+  }, [data]);
 
   const atualizarKpisApontGenius = useMemo(() => {
     if (!data) return null;
