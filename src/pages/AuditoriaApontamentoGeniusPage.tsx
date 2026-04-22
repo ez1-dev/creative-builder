@@ -648,8 +648,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                   <Alert className="border-amber-500/50 bg-amber-500/10 py-2">
                     <AlertTriangle className="h-4 w-4 text-amber-600" />
                     <AlertDescription className="text-xs">
-                      Todos os apontamentos desta OP vieram do backend com horas zeradas / campos
-                      vazios. Provável falha no JOIN com <code>E930MPR</code>.
+                      Apontamentos sem horas vinculadas — verifique o backend <code>/api/apontamentos-producao</code>.
                     </AlertDescription>
                   </Alert>
                 )}
