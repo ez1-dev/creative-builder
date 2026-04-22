@@ -221,7 +221,9 @@ SELECT
   SUM(CASE WHEN status = 'SEM_INICIO' THEN 1 ELSE 0 END)        AS sem_inicio,
   SUM(CASE WHEN status = 'SEM_FIM'    THEN 1 ELSE 0 END)        AS sem_fim,
   SUM(CASE WHEN status = 'FIM_MENOR_INICIO' THEN 1 ELSE 0 END)  AS fim_menor_inicio,
-  SUM(CASE WHEN status IN ('APONTAMENTO_MAIOR_8H','OPERADOR_MAIOR_8H_DIA') THEN 1 ELSE 0 END) AS acima_8h
+  SUM(CASE WHEN status IN ('APONTAMENTO_MAIOR_8H','OPERADOR_MAIOR_8H_DIA') THEN 1 ELSE 0 END) AS acima_8h,
+  COUNT(DISTINCT CASE WHEN status_op = 'EM_ANDAMENTO' THEN numop END) AS ops_em_andamento,
+  COUNT(DISTINCT CASE WHEN status_op = 'FINALIZADO'   THEN numop END) AS ops_finalizadas
 FROM classificado;
 ```
 E mais uma query top-1 para `maior_total_dia_operador` / `operador_maior_total`:
