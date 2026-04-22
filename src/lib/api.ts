@@ -312,3 +312,16 @@ export interface AuditoriaResponse extends PaginatedResponse<any> {
     total_divergencias: number;
   };
 }
+
+export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<any> {
+  resumo?: {
+    total_registros: number;
+    total_discrepancias: number;
+    sem_inicio: number;
+    sem_fim: number;
+    fim_menor_inicio: number;
+    acima_8h: number;
+    maior_total_dia_operador: number;
+    operador_maior_total: string;
+  };
+}
