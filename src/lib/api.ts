@@ -313,6 +313,9 @@ export interface AuditoriaResponse extends PaginatedResponse<any> {
   };
 }
 
+// Nota: cada item de `dados` pode opcionalmente incluir
+//   status_op?: 'EM_ANDAMENTO' | 'FINALIZADO'
+// derivado do cabeçalho da OP (E215OPE.SITPRO).
 export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<any> {
   resumo?: {
     total_registros: number;
@@ -323,5 +326,7 @@ export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<an
     acima_8h: number;
     maior_total_dia_operador: number;
     operador_maior_total: string;
+    ops_em_andamento: number;
+    ops_finalizadas: number;
   };
 }
