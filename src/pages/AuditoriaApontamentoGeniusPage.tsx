@@ -426,17 +426,18 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       )}
 
-      {data && !loading && (data.dados?.length ?? 0) === 0 && !endpointMissing && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Sem registros para o período</AlertTitle>
-          <AlertDescription className="text-xs">
-            O backend respondeu com sucesso, porém não há apontamentos GENIUS lançados no ERP no intervalo selecionado.
-            Tente alargar o range de datas ou verifique no ERP se existem apontamentos nas origens GENIUS
-            ({ORIGENS_GENIUS.join(', ')}).
-          </AlertDescription>
-        </Alert>
+      {/* Painel de diagnóstico técnico — exibido quando há debug do backend OU quando dados vier vazio.
+          Substitui o antigo alerta "Sem registros para o período" para nunca afirmar incorretamente
+          que não há apontamentos sem antes mostrar o funil de filtragem. */}
+      {data && !loading && !endpointMissing && (data.debug || (data.dados?.length ?? 0) === 0) && (
+        <DiagnosticoApontGeniusCard
+          debug={data.debug}
+          totalRetornado={data.dados?.length ?? 0}
+          filtros={filters}
+          origensGenius={ORIGENS_GENIUS}
+        />
       )}
+
 
       <DataTable
         columns={columns}
