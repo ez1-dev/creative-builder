@@ -164,17 +164,24 @@ WITH base AS (
       WHEN APO.HORINI IS NULL OR APO.HORFIM IS NULL THEN 0
       WHEN APO.HORFIM < APO.HORINI THEN 0
       ELSE DATEDIFF(MINUTE, APO.HORINI, APO.HORFIM) / 60.0
-    END                                          AS horas_apontadas
+    END                                          AS horas_apontadas,
+    CASE
+      WHEN OPE.SITPRO IN (4, 9) THEN 'FINALIZADO'
+      ELSE 'EM_ANDAMENTO'
+    END                                          AS status_op
   FROM E660APO APO
   INNER JOIN E215OPE OPE ON OPE.NUMOPR = APO.NUMOPR
   LEFT  JOIN E075PRO PRO ON PRO.CODPRO = OPE.CODPRO
   WHERE APO.DATAPO BETWEEN :data_ini AND :data_fim
     AND OPE.CODORI IN ('110','120','130','135','140','150',
                        '205','208','210','220','230','235','240','245','250')
-    AND (:numop    IS NULL OR APO.NUMOPR  LIKE '%' + :numop + '%')
-    AND (:codori   IS NULL OR OPE.CODORI = :codori)
-    AND (:codpro   IS NULL OR OPE.CODPRO LIKE '%' + :codpro + '%')
-    AND (:operador IS NULL OR APO.CODOPER LIKE '%' + :operador + '%')
+    AND (:numop     IS NULL OR APO.NUMOPR  LIKE '%' + :numop + '%')
+    AND (:codori    IS NULL OR OPE.CODORI = :codori)
+    AND (:codpro    IS NULL OR OPE.CODPRO LIKE '%' + :codpro + '%')
+    AND (:operador  IS NULL OR APO.CODOPER LIKE '%' + :operador + '%')
+    AND (:status_op IS NULL
+         OR (:status_op = 'FINALIZADO'   AND OPE.SITPRO IN (4, 9))
+         OR (:status_op = 'EM_ANDAMENTO' AND OPE.SITPRO NOT IN (4, 9)))
 ),
 agg AS (
   SELECT
