@@ -101,22 +101,21 @@ function is404(e: any): boolean {
 }
 
 const columns: Column<any>[] = [
-  { key: 'data', header: 'Data', sticky: true, stickyWidth: 100, render: (v) => v ? formatDate(v) : '-' },
-  { key: 'codori', header: 'Origem' },
-  { key: 'numop', header: 'OP' },
+  { key: 'data_apontamento', header: 'Data', sticky: true, stickyWidth: 100, render: (v) => v ? formatDate(v) : '-' },
+  { key: 'origem', header: 'Origem' },
+  { key: 'numero_op', header: 'OP' },
   { key: 'estagio', header: 'Estágio' },
-  { key: 'seq_roteiro', header: 'Seq. Rot.', align: 'right' },
+  { key: 'seqrot', header: 'Seq. Rot.', align: 'right' },
   { key: 'seq_apontamento', header: 'Seq. Apont.', align: 'right' },
-  { key: 'usuario', header: 'Usuário' },
-  { key: 'operador', header: 'Operador' },
+  { key: 'codigo_usuario', header: 'Cód. Usuário', align: 'right' },
+  { key: 'nome_usuario', header: 'Operador' },
   { key: 'turno', header: 'Turno' },
-  { key: 'codpro', header: 'Produto' },
-  { key: 'despro', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
+  { key: 'codigo_produto', header: 'Produto' },
+  { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
   { key: 'hora_inicio', header: 'Hora Início' },
   { key: 'hora_fim', header: 'Hora Fim' },
-  { key: 'horas_alocadas', header: 'H. Alocadas', align: 'right', render: (v) => formatNumber(v, 2) },
   { key: 'horas_apontadas', header: 'H. Apontadas', align: 'right', render: (v) => formatNumber(v, 2) },
-  { key: 'total_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
+  { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
   {
     key: 'status_op',
     header: 'Status OP',
@@ -127,17 +126,12 @@ const columns: Column<any>[] = [
     },
   },
   {
-    key: 'status',
+    key: 'status_apontamento',
     header: 'Status Apont.',
-    render: (v: Status, row: any) => {
-      const derived = derivarStatusApont(row);
-      const cfg = statusApontVariants[derived];
-      const granular = statusVariants[v]?.label || v || '';
-      return (
-        <Badge className={cfg.className} title={granular ? `Detalhe: ${granular}` : undefined}>
-          {cfg.label}
-        </Badge>
-      );
+    render: (v: string) => {
+      const key = ((v as StatusApont) in statusApontVariants ? v : 'FECHADO') as StatusApont;
+      const cfg = statusApontVariants[key];
+      return <Badge className={cfg.className}>{cfg.label}</Badge>;
     },
   },
 ];
