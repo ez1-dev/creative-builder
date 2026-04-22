@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card } from '@/components/ui/card';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
@@ -319,24 +320,33 @@ export default function AuditoriaApontamentoGeniusPage() {
       </FilterPanel>
 
       {atualizarKpisApontGenius && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
-          <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} />
-          <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} />
-          <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} />
-          <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} />
-          <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} />
-          <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} />
-          <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} />
-          <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} />
-          <KPICard
-            title="Maior Total Dia"
-            value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
-            subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
-            icon={<UserCheck className="h-5 w-5" />}
-            variant="info"
-            index={8}
+        <>
+          <StatusOpGeniusCard
+            opsEmAndamento={atualizarKpisApontGenius.ops_em_andamento}
+            opsFinalizadas={atualizarKpisApontGenius.ops_finalizadas}
+            totalDiscrepancias={atualizarKpisApontGenius.total_discrepancias}
+            dataIni={filters.data_ini}
+            dataFim={filters.data_fim}
           />
-        </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
+            <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} />
+            <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} />
+            <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} />
+            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} />
+            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} />
+            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} />
+            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} />
+            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} />
+            <KPICard
+              title="Maior Total Dia"
+              value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
+              subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
+              icon={<UserCheck className="h-5 w-5" />}
+              variant="info"
+              index={8}
+            />
+          </div>
+        </>
       )}
 
       {data && (
@@ -386,5 +396,81 @@ export default function AuditoriaApontamentoGeniusPage() {
         />
       )}
     </div>
+  );
+}
+
+interface StatusOpGeniusCardProps {
+  opsEmAndamento: number;
+  opsFinalizadas: number;
+  totalDiscrepancias: number;
+  dataIni: string;
+  dataFim: string;
+}
+
+function StatusOpGeniusCard({
+  opsEmAndamento,
+  opsFinalizadas,
+  totalDiscrepancias,
+  dataIni,
+  dataFim,
+}: StatusOpGeniusCardProps) {
+  const totalOps = opsEmAndamento + opsFinalizadas;
+  if (totalOps === 0) return null;
+
+  const pctAndamento = (opsEmAndamento / totalOps) * 100;
+  const pctFinalizadas = 100 - pctAndamento;
+
+  return (
+    <Card className="border-l-4 border-l-blue-600 p-4 space-y-3">
+      <div className="flex items-baseline justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+            Status OP Genius
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Período {formatDate(dataIni)} → {formatDate(dataFim)}
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-foreground leading-none">
+            {formatNumber(totalOps, 0)}
+          </div>
+          <div className="text-xs text-muted-foreground">OPs ativas no período</div>
+        </div>
+      </div>
+
+      <div className="w-full h-3 rounded-full overflow-hidden bg-muted flex">
+        <div
+          className="h-full bg-blue-600 transition-all"
+          style={{ width: `${pctAndamento}%` }}
+          title={`Em andamento: ${pctAndamento.toFixed(1)}%`}
+        />
+        <div
+          className="h-full bg-slate-400 transition-all"
+          style={{ width: `${pctFinalizadas}%` }}
+          title={`Finalizadas: ${pctFinalizadas.toFixed(1)}%`}
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-blue-600" />
+          <span className="font-medium text-foreground">{formatNumber(opsEmAndamento, 0)}</span>
+          <span className="text-muted-foreground">em andamento ({pctAndamento.toFixed(0)}%)</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-400" />
+          <span className="font-medium text-foreground">{formatNumber(opsFinalizadas, 0)}</span>
+          <span className="text-muted-foreground">finalizadas ({pctFinalizadas.toFixed(0)}%)</span>
+        </span>
+        {totalDiscrepancias > 0 && (
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+            <span className="font-medium text-destructive">{formatNumber(totalDiscrepancias, 0)}</span>
+            <span className="text-muted-foreground">com discrepância</span>
+          </span>
+        )}
+      </div>
+    </Card>
   );
 }
