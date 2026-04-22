@@ -345,25 +345,25 @@ export default function AuditoriaApontamentoGeniusPage() {
       ops_finalizadas: opsSet.FINALIZADO.size,
     };
     for (const row of rows) {
-      const sa = String(row.status_apontamento ?? '').toUpperCase();
+      const sa = String(row.status_movimento ?? '').toUpperCase();
       if (sa && sa !== 'FECHADO') acc.total_discrepancias++;
       if (sa === 'SEM_APONTAMENTO') acc.sem_inicio++;
       if (sa === 'ABERTO') acc.sem_fim++;
       if (sa === 'DIVERGENTE') acc.fim_menor_inicio++;
-      const horas = Number(row.horas_apontadas || 0);
+      const horas = Number(row.horas_realizadas || 0);
       const totDia = Number(row.total_horas_dia_operador || 0);
       if (horas > 8 || totDia > 8) acc.acima_8h++;
       if (totDia > acc.maior_total_dia_operador) {
         acc.maior_total_dia_operador = totDia;
-        acc.operador_maior_total = row.nome_usuario || '';
+        acc.operador_maior_total = row.nome_operador || '';
       }
     }
     return acc;
   }, [data]);
 
   const rowClassName = useCallback((row: any) => {
-    const sa = String(row.status_apontamento ?? '').toUpperCase();
-    const horas = Number(row.horas_apontadas || 0);
+    const sa = String(row.status_movimento ?? '').toUpperCase();
+    const horas = Number(row.horas_realizadas || 0);
     const totDia = Number(row.total_horas_dia_operador || 0);
     if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
