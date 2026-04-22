@@ -200,6 +200,15 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [endpointMissing, setEndpointMissing] = useState(false);
   const [quickFilter, setQuickFilter] = useState('');
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
+  const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
+  const [drawerAberto, setDrawerAberto] = useState(false);
+
+  const abrirDetalhesOp = useCallback((row: any) => {
+    setOpSelecionada(row);
+    setDrawerAberto(true);
+  }, []);
+
+  const columns = useMemo(() => buildColumns(abrirDetalhesOp), [abrirDetalhesOp]);
 
   const erpReady = useErpReady();
 
