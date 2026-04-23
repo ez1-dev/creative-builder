@@ -701,14 +701,14 @@ export default function AuditoriaApontamentoGeniusPage() {
             </Alert>
           )}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} />
-            <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} />
-            <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} />
-            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} />
-            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} />
-            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} />
-            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} />
-            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} />
+            <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} details={kpiDrilldowns.totalRegistros.length ? kpiDrilldowns.totalRegistros : undefined} tooltip="Top da página atual" />
+            <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} details={kpiDrilldowns.opsAndamento.length ? kpiDrilldowns.opsAndamento : undefined} tooltip="Top da página atual" />
+            <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} details={kpiDrilldowns.opsFinalizadas.length ? kpiDrilldowns.opsFinalizadas : undefined} tooltip="Top da página atual" />
+            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} details={kpiDrilldowns.discrepancias.length ? kpiDrilldowns.discrepancias : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} details={kpiDrilldowns.semInicio.length ? kpiDrilldowns.semInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} details={kpiDrilldowns.semFim.length ? kpiDrilldowns.semFim : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} details={kpiDrilldowns.fimMenorInicio.length ? kpiDrilldowns.fimMenorInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
             <KPICard
               title="Maior Total Dia"
               value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
@@ -716,6 +716,8 @@ export default function AuditoriaApontamentoGeniusPage() {
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
               index={8}
+              details={kpiDrilldowns.maiorTotalDia.length ? kpiDrilldowns.maiorTotalDia : undefined}
+              tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined}
             />
           </div>
         </>
