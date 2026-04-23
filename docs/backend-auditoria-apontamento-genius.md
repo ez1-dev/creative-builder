@@ -376,9 +376,12 @@ Mesmos query params (sem `pagina`/`tamanho_pagina`). Retorna `.xlsx` via `Stream
 - [ ] Filtro `somente_acima_8h=1` mantém só `APONTAMENTO_MAIOR_8H` e `OPERADOR_MAIOR_8H_DIA`.
 - [ ] Paginação via `OFFSET/FETCH NEXT`; `total_paginas = ceil(total_registros / tamanho_pagina)`.
 - [ ] Exportação `.xlsx` respeita os mesmos filtros.
-- [ ] Campo `status_op` presente em 100% das linhas (`EM_ANDAMENTO` ou `FINALIZADO`), derivado de `E215OPE.SITPRO`.
-- [ ] Filtro `status_op` aceito (`EM_ANDAMENTO` / `FINALIZADO`) e aplicado no cabeçalho da OP.
+- [ ] Campo `status_op` presente em 100% das linhas, preferencialmente em código nativo (`E`/`L`/`A`/`F`/`C`), derivado de `E900COP`.
+- [ ] Filtro `status_op` aceito tanto em códigos nativos (`E`/`L`/`A`/`F`/`C`) quanto em agrupamentos legados (`EM_ANDAMENTO`/`FINALIZADO`/`CANCELADO`).
 - [ ] `resumo.ops_em_andamento` e `resumo.ops_finalizadas` calculados como `COUNT(DISTINCT numop)` por status_op (consistentes com a contagem distinta de OPs no conjunto filtrado).
+- [ ] `resumo` retorna os campos `total_*` (`total_sem_inicio`, `total_sem_fim`, `total_fim_menor_inicio`, `total_apontamento_maior_8h`, `total_operador_maior_8h_dia`, `total_ops_andamento`, `total_ops_finalizadas`) — preferidos pelo frontend, além dos legados.
+- [ ] `status_op` no item usa códigos nativos (`E`/`L`/`A`/`F`/`C`/`SEM_STATUS`) sempre que possível.
+- [ ] Bloco `debug` continua sendo retornado enquanto a investigação de resultados vazios estiver ativa (até confirmação explícita).
 
 ---
 
