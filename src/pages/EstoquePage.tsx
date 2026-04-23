@@ -17,6 +17,7 @@ import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, Layers, Package } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código', sticky: true, stickyWidth: 100 },
@@ -62,6 +63,20 @@ export default function EstoquePage() {
     const saldoTotal = dados.reduce((sum, item) => sum + (item.saldo || 0), 0);
     return { totalRegistros: data.total_registros, itensPagina: dados.length, saldoTotal };
   }, [data]);
+
+  useAiPageContext({
+    title: 'Consulta de Estoque',
+    module: 'estoque',
+    filters,
+    kpis: kpis
+      ? {
+          'Total Registros': formatNumber(kpis.totalRegistros, 0),
+          'Itens na Página': formatNumber(kpis.itensPagina, 0),
+          'Saldo Total': formatNumber(kpis.saldoTotal, 4),
+        }
+      : undefined,
+    summary: data ? `Página ${pagina} de ${data.total_paginas}, ${data.dados?.length || 0} itens visíveis.` : undefined,
+  });
 
   return (
     <div className="space-y-4 p-4">
