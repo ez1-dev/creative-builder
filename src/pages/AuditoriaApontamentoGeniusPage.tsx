@@ -1848,6 +1848,22 @@ export function KpiDeepSheet({
     return arr;
   }, [ops, somenteInconsist, busca, ordem]);
 
+  // Paginação client-side da tabela de OPs
+  const [paginaOps, setPaginaOps] = useState(1);
+  const [tamanhoPaginaOps, setTamanhoPaginaOps] = useState(20);
+  useEffect(() => {
+    setPaginaOps(1);
+    setOpExpandida(null);
+  }, [kind, somenteInconsist, busca, ordem, tamanhoPaginaOps, setOpExpandida]);
+  const totalPaginasOps = Math.max(1, Math.ceil(opsFiltradas.length / tamanhoPaginaOps));
+  const paginaAtual = Math.min(paginaOps, totalPaginasOps);
+  const opsPagina = useMemo(
+    () => opsFiltradas.slice((paginaAtual - 1) * tamanhoPaginaOps, paginaAtual * tamanhoPaginaOps),
+    [opsFiltradas, paginaAtual, tamanhoPaginaOps],
+  );
+  const inicioExibicao = opsFiltradas.length === 0 ? 0 : (paginaAtual - 1) * tamanhoPaginaOps + 1;
+  const fimExibicao = Math.min(paginaAtual * tamanhoPaginaOps, opsFiltradas.length);
+
   // Mini-KPIs do recorte
   const totaisStatus = useMemo(() => {
     let totalApt = 0, totalHoras = 0, totalInconsist = 0, opsComInconsist = 0;
@@ -1927,7 +1943,12 @@ export function KpiDeepSheet({
         </div>
 
         {/* Nível 2 — Tabela de OPs */}
-        <div className="mt-3 rounded-md border overflow-x-auto">
+        {opsFiltradas.length > 0 && (
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            Exibindo {inicioExibicao}–{fimExibicao} de {opsFiltradas.length} OP{opsFiltradas.length !== 1 ? 's' : ''}
+          </p>
+        )}
+        <div className="mt-1 rounded-md border overflow-x-auto">
           <table className="w-full text-xs">
             <thead className="bg-muted/50 text-left">
               <tr>
@@ -1946,7 +1967,7 @@ export function KpiDeepSheet({
               {opsFiltradas.length === 0 && (
                 <tr><td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">Nenhuma OP para os filtros.</td></tr>
               )}
-              {opsFiltradas.map((op) => {
+              {opsPagina.map((op) => {
                 const expandida = opExpandida === op.numero_op;
                 const temInconsist = op.inconsistencias > 0;
                 return (
@@ -1993,6 +2014,33 @@ export function KpiDeepSheet({
             </tbody>
           </table>
         </div>
+
+        {(opsFiltradas.length > 10 || opsFiltradas.length > tamanhoPaginaOps) && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            {opsFiltradas.length > 10 ? (
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Linhas por página</Label>
+                <Select value={String(tamanhoPaginaOps)} onValueChange={(v) => setTamanhoPaginaOps(Number(v))}>
+                  <SelectTrigger className="h-7 text-xs w-[80px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10" className="text-xs">10</SelectItem>
+                    <SelectItem value="20" className="text-xs">20</SelectItem>
+                    <SelectItem value="50" className="text-xs">50</SelectItem>
+                    <SelectItem value="100" className="text-xs">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : <span />}
+            {opsFiltradas.length > tamanhoPaginaOps && (
+              <PaginationControl
+                pagina={paginaAtual}
+                totalPaginas={totalPaginasOps}
+                totalRegistros={opsFiltradas.length}
+                onPageChange={setPaginaOps}
+              />
+            )}
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );
