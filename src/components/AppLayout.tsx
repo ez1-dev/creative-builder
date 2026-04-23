@@ -47,18 +47,20 @@ export default function AppLayout() {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-11 flex items-center justify-between border-b bg-card px-3">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="ml-0" />
-              <HeaderInfo />
+          <header className="h-11 flex items-center justify-between border-b bg-card px-3 gap-2">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <SidebarTrigger className="ml-0 shrink-0" />
+              <div className="min-w-0 overflow-hidden">
+                <HeaderInfo />
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 shrink-0 min-w-0">
+              <span className="hidden md:inline text-xs text-muted-foreground truncate max-w-[200px]" title={label}>
                 Olá, <strong className="text-foreground">{label}</strong>
               </span>
-              <Button size="sm" variant="ghost" onClick={logout} className="h-7 text-xs gap-1">
+              <Button size="sm" variant="ghost" onClick={logout} className="h-7 text-xs gap-1 shrink-0" title="Sair">
                 <LogOut className="h-3 w-3" />
-                Sair
+                <span className="hidden sm:inline">Sair</span>
               </Button>
             </div>
           </header>
