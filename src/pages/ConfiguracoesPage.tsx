@@ -981,6 +981,11 @@ export default function ConfiguracoesPage() {
           <DashboardUsoUsuarios />
         </TabsContent>
 
+        {/* === MINHAS PREFERÊNCIAS === */}
+        <TabsContent value="minhas-preferencias">
+          <MinhasPreferenciasSection />
+        </TabsContent>
+
         {/* === VERSÃO === */}
         <TabsContent value="versao">
           <VersionPanel />
