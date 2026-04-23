@@ -466,6 +466,11 @@ export default function AuditoriaApontamentoGeniusPage() {
         pagina: page,
         tamanho_pagina: 100,
       });
+      result.dados = (result.dados ?? []).map(normalizeRowApont);
+      if (import.meta.env.DEV && result.dados.length > 0) {
+        // eslint-disable-next-line no-console
+        console.debug('[AuditoriaApontGenius] 1ª linha normalizada:', result.dados[0]);
+      }
       setData(result);
       setPagina(page);
       setUltimaAtualizacao(new Date());
