@@ -881,6 +881,9 @@ export default function ConfiguracoesPage() {
               </div>
             </CardHeader>
             <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                Logs com mais de 7 dias são removidos automaticamente toda segunda-feira às 03:00.
+              </p>
               {logsLoading ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">Carregando logs...</p>
               ) : (
