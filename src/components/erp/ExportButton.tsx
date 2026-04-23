@@ -19,8 +19,12 @@ export function ExportButton({ endpoint, params, label = 'Exportar Excel', varia
     setLoading(true);
     try {
       const searchParams = new URLSearchParams();
+      const keepEmpty = new Set(keepEmptyKeys ?? []);
       const appendValue = (key: string, value: any) => {
-        if (value === null || value === undefined || value === '') return;
+        if (value === null || value === undefined || value === '') {
+          if (keepEmpty.has(key)) searchParams.append(key, '');
+          return;
+        }
         if (typeof value === 'boolean') {
           if (value) searchParams.append(key, 'true');
           return;
