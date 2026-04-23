@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bot, X, Send, Sparkles, HelpCircle } from 'lucide-react';
+import { Bot, X, Send, Sparkles, HelpCircle, Pin, PinOff, Minimize2, GripHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { dispatchAiFilters } from '@/hooks/useAiFilters';
@@ -13,6 +14,10 @@ import { useAiPageContextValue } from '@/contexts/AiPageContext';
 import { useUserSuggestions, type SearchSuggestion } from '@/hooks/useUserSuggestions';
 import { SearchSuggestions } from '@/components/erp/SearchSuggestions';
 import { executeQueryErpData } from '@/lib/aiQueryExecutor';
+import { useAiAssistantPrefs } from '@/hooks/useAiAssistantPrefs';
+import { useAiAutoOpen, recordAiClose } from '@/hooks/useAiAutoOpen';
+import { useAiPanelPlacement } from '@/hooks/useAiPanelPlacement';
+import { AiProactiveBanner } from '@/components/erp/AiProactiveBanner';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
