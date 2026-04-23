@@ -1,61 +1,68 @@
 
 
-## Filtro de intervalo por semana na Auditoria Apontamento Genius
+## Reorganização visual dos filtros da Auditoria Apontamento Genius
 
 ### Diagnóstico
-Hoje a tela `/auditoria-apontamento-genius` tem filtros de período baseados em `data_ini`/`data_fim` (datas avulsas) e provavelmente um atalho "Últimos 12 meses". O usuário quer um **atalho/seletor por semana** (ex.: "Esta semana", "Semana passada", e/ou navegação semana a semana) que preencha automaticamente `data_ini` (segunda) e `data_fim` (domingo) da semana escolhida.
+O `FilterPanel` atual joga tudo em um grid plano de 5 colunas: datas avulsas, botão "Últimos 12 meses", atalhos por semana, navegador semanal, 5 campos de texto/combobox e 2 switches. Resultado: linhas desalinhadas, "Últimos 12 meses" flutuando isolado, switches espremidos no fim, e o navegador semanal compete com os campos de busca pelo espaço.
 
-### Perguntas antes de implementar
-Preciso confirmar 2 coisas para acertar a UX:
+### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`, ~linhas 1108–1251)
 
-1. **Formato preferido do seletor de semana:**
-   - (a) Botões de atalho: `Esta semana` | `Semana passada` | `Últimas 4 semanas` (junto com os atalhos de mês existentes).
-   - (b) Navegador semanal: campo "Semana 17/2026 (20–26 abr)" com setas ◀ ▶ para avançar/voltar 1 semana.
-   - (c) Os dois combinados.
+Reagrupar o conteúdo do `FilterPanel` em **3 blocos verticais bem demarcados**, cada um com seu próprio título pequeno (`text-[11px] font-semibold uppercase text-muted-foreground`) e um `Separator` ou borda sutil entre eles. O `FilterPanel` passa a receber um único `<div className="space-y-3 col-span-full">` em vez de 10+ filhos soltos no grid.
 
-2. **Início da semana:**
-   - Segunda a domingo (padrão BR/ISO).
-   - Domingo a sábado.
+**Bloco 1 — Período**
+Linha única com 3 sub-áreas alinhadas:
+```
+[ Data inicial ] [ Data final ] | [ Últimos 12 meses ] | [ ◀  S17/2026 · 20/04 – 26/04  ▶  Hoje ]
+                                | [ Esta semana ] [ Sem. passada ] [ Últimas 4 sem. ]
+```
+- Esquerda: dois inputs `date` lado a lado (largura fixa `w-[140px]` cada).
+- Centro: botão "Últimos 12 meses" + linha com os 3 atalhos semanais (`flex flex-wrap gap-1`).
+- Direita: o navegador semanal em uma "pill" compacta (já existe, só muda a posição).
+- Tudo dentro de um `flex flex-wrap gap-x-4 gap-y-2 items-end`, garantindo que em telas estreitas ele quebre naturalmente.
 
-### Mudança planejada (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
+**Bloco 2 — Filtros de busca**
+Grid próprio `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3` com os 5 campos atuais na ordem mais usada:
+1. Número da OP
+2. Status da OP
+3. Origem (GENIUS)
+4. Código produto
+5. Operador
 
-**1. Helpers de semana (locais ao arquivo)**
-- `inicioSemana(date, startsOn)` → segunda (ou domingo) da semana da data.
-- `fimSemana(date, startsOn)` → domingo (ou sábado) da semana da data.
-- `numeroSemanaISO(date)` → "S17/2026" para exibição.
-- `addSemanas(date, n)` → desloca n semanas.
+Justificativa: "Status da OP" sobe para o segundo lugar porque é o filtro mais usado para recortar problemas; os outros seguem ordem alfabética/lógica de identificação.
 
-**2. Atalhos no `FilterPanel`**
-Adicionar ao lado dos atalhos de período existentes (após "Últimos 12 meses"):
-- `Esta semana` → `data_ini = inicioSemana(hoje)`, `data_fim = fimSemana(hoje)`.
-- `Semana passada` → semana de `hoje - 7 dias`.
-- `Últimas 4 semanas` → `data_ini = inicioSemana(hoje - 21d)`, `data_fim = fimSemana(hoje)`.
+**Bloco 3 — Opções rápidas (toggles)**
+Linha horizontal `flex flex-wrap gap-x-6 gap-y-2` com:
+- `Somente discrepância`
+- `Somente acima de 8h`
 
-Cada atalho dispara `setFilters({...})` + `buscar()` automaticamente (mesmo padrão dos atalhos de mês existentes, se houver).
-
-**3. (Opcional, se opção b/c) Navegador semanal**
-Linha extra no `FilterPanel` com:
-- `Button ◀` (semana anterior)
-- Label central: `Semana 17/2026 · 20/04 – 26/04`
-- `Button ▶` (próxima semana, desabilitado se semana > hoje)
-- `Button "Hoje"` (volta para semana atual)
-
-Cada clique ajusta `data_ini` / `data_fim` e dispara busca.
-
-**4. Sem mudança no backend**
-- Continua usando os mesmos parâmetros `data_ini` / `data_fim` no endpoint.
-- Apenas o frontend monta as datas corretas para uma semana.
+Cada switch + label num grupo `inline-flex items-center gap-2`, sem o `pt-5` artificial atual. Os botões `Pesquisar` / `Limpar` continuam onde já estão (no rodapé do `FilterPanel`).
 
 ### Detalhes técnicos
-- Usar `date-fns` (já presente no projeto) com `startOfWeek`, `endOfWeek`, `addWeeks`, `getISOWeek`, `getISOWeekYear`, `format`.
-- `weekStartsOn: 1` (segunda) por padrão, ajustável conforme resposta.
-- Sem novas dependências.
+- Usar `Separator` (`@/components/ui/separator`) entre blocos, ou simplesmente `border-t pt-3` no segundo e terceiro blocos.
+- Como o `FilterPanel` atual aplica um `grid` nos filhos, envolver todo o conteúdo em um único `<div className="col-span-full space-y-3">` — assim o grid externo não interfere e cada bloco controla seu próprio layout.
+- Preservar todos os handlers, estados e helpers existentes (`inicioSemana`, `fimSemana`, `addWeeks`, `labelSemana`, `toISODate`).
+- Sem mudança em nenhum filtro funcional, backend, KPIs ou paginação.
+- Acessibilidade: cada `<Label>` continua associado ao seu input via `htmlFor` onde já estiver (switches mantêm o vínculo).
+
+### Resultado visual esperado
+```text
+┌─ Filtros ──────────────────────────────────────────────────────────────────┐
+│ PERÍODO                                                                    │
+│ [Data inicial][Data final]  [Últimos 12 meses]   ◀ S17/2026·20–26 abr ▶ Hoje│
+│                             [Esta sem][Sem. passada][Últimas 4 sem]        │
+│ ──────────────────────────────────────────────────────────────────────────  │
+│ FILTROS DE BUSCA                                                           │
+│ [N. OP] [Status OP] [Origem] [Código produto] [Operador]                   │
+│ ──────────────────────────────────────────────────────────────────────────  │
+│ OPÇÕES RÁPIDAS                                                             │
+│ ⏻ Somente discrepância    ⏻ Somente acima de 8h                            │
+│                                                                            │
+│ [🔍 Pesquisar]  [✕ Limpar]                                                 │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Fora de escopo
-- Salvar preferência do usuário entre sessões.
-- Filtro por mês específico ou por trimestre.
-- Mudar a paginação ou KPIs.
-
-### Resultado
-Usuário consegue, em 1 clique, recortar a auditoria por semana (atual, anterior ou últimas 4) — ou navegar semana a semana com setas, dependendo da escolha. Os campos `data_ini`/`data_fim` continuam visíveis e editáveis manualmente.
+- Mudar comportamento de qualquer filtro.
+- Salvar preferências entre sessões.
+- Adicionar novos filtros.
 
