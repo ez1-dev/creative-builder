@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
   Activity, CheckCircle2, CalendarRange, Info, ChevronDown, ChevronRight, Search,
-  ExternalLink, Filter as FilterIcon, Copy,
+  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck,
 } from 'lucide-react';
 import { Card as UICard, CardContent as UICardContent } from '@/components/ui/card';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
