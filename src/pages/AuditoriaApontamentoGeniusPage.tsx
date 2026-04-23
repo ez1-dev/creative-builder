@@ -665,7 +665,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const atualizarKpisApontGenius = useMemo(() => {
     if (!data) return null;
     const r = data.resumo as any;
-    const rows = (data.dados || []) as any[];
+    const rows = dadosFiltradosPorStatusOp;
 
     // Fallback: agrega contando Set de numop por sitorp nativo (E900COP)
     const opsPorLetra: Record<string, Set<string>> = {
