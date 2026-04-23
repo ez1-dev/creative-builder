@@ -290,7 +290,7 @@ export function DashboardUsoUsuarios() {
       {/* Insights */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
         <InsightCard
-          icon={<Trophy className="h-4 w-4 text-amber-500" />}
+          icon={<Trophy className="h-4 w-4 text-primary" />}
           title="Usuário mais ativo"
           value={topUser ? topUser.user_email : '—'}
           hint={topUser ? `${formatDuration(topUser.totalSeconds)} • ${topUser.sessions} sessões` : 'Sem dados'}
@@ -302,7 +302,7 @@ export function DashboardUsoUsuarios() {
           hint={topModule ? `${topModule.eventos} eventos` : 'Sem dados'}
         />
         <InsightCard
-          icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+          icon={<TrendingUp className="h-4 w-4 text-primary" />}
           title="Horário de pico"
           value={peakHour.eventos > 0 ? `${peakHour.hora}:00` : '—'}
           hint={peakHour.eventos > 0 ? `${peakHour.eventos} eventos` : 'Sem dados'}
@@ -314,7 +314,7 @@ export function DashboardUsoUsuarios() {
           hint="Sem atividade recente"
         />
         <InsightCard
-          icon={<Download className="h-4 w-4 text-blue-500" />}
+          icon={<Download className="h-4 w-4 text-primary" />}
           title="Exportações"
           value={String(exportCount)}
           hint="Cliques em exportar"
