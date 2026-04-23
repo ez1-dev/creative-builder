@@ -843,7 +843,7 @@ export default function AuditoriaApontamentoGeniusPage() {
             <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
             <KPICard
               title="Maior Total Dia"
-              value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
+              value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
               subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
@@ -1422,7 +1422,7 @@ function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTud
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="font-medium">{op.apontamentos} apt · {formatNumber(op.total_horas, 1)}h</div>
+                        <div className="font-medium">{op.apontamentos} apt · {fmtMinHoras(op.total_horas, 1)}</div>
                         {inconsist && (
                           <div className="text-destructive">⚠ {op.inconsistencias}</div>
                         )}
@@ -1558,7 +1558,7 @@ function StatusOpDeepSheet({
           <MiniKpi label="Total OPs" value={formatNumber(ops.length, 0)} />
           <MiniKpi label="OPs c/ inconsistência" value={formatNumber(totaisStatus.opsComInconsist, 0)} destaque={totaisStatus.opsComInconsist > 0} />
           <MiniKpi label="Apontamentos" value={formatNumber(totaisStatus.totalApt, 0)} />
-          <MiniKpi label="Horas totais" value={`${formatNumber(totaisStatus.totalHoras, 2)} h`} />
+          <MiniKpi label="Tempo total (min · h)" value={fmtMinHoras(totaisStatus.totalHoras, 2)} />
           <MiniKpi label="Operadores únicos" value={formatNumber(totaisStatus.totalOperadores, 0)} />
           <MiniKpi
             label="Top origens"
@@ -1602,7 +1602,7 @@ function StatusOpDeepSheet({
                 <th className="px-2 py-1 font-medium">Produto</th>
                 <th className="px-2 py-1 font-medium">Origem</th>
                 <th className="px-2 py-1 font-medium text-right">Apt.</th>
-                <th className="px-2 py-1 font-medium text-right">Horas</th>
+                <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
                 <th className="px-2 py-1 font-medium text-right">Operadores</th>
                 <th className="px-2 py-1 font-medium">Último apont.</th>
                 <th className="px-2 py-1 font-medium">Inconsistências</th>
@@ -1629,7 +1629,7 @@ function StatusOpDeepSheet({
                       <td className="px-2 py-1 max-w-[220px] truncate" title={op.produto}>{op.produto}</td>
                       <td className="px-2 py-1">{op.origem || '—'}</td>
                       <td className="px-2 py-1 text-right">{op.apontamentos}</td>
-                      <td className="px-2 py-1 text-right">{formatNumber(op.total_horas, 2)}</td>
+                      <td className="px-2 py-1 text-right">{fmtMinHoras(op.total_horas, 2)}</td>
                       <td className="px-2 py-1 text-right">{op.operadores.size}</td>
                       <td className="px-2 py-1">{op.ultimo_apontamento ? formatDate(op.ultimo_apontamento) : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-2 py-1">
@@ -1745,16 +1745,16 @@ function OpLinhasInline({
               <th className="px-2 py-1 font-medium text-right">Seq Rot</th>
               <th className="px-2 py-1 font-medium text-right">Seq Apt</th>
               <th className="px-2 py-1 font-medium">Turno</th>
-              <th className="px-2 py-1 font-medium text-right">H. Real.</th>
-              <th className="px-2 py-1 font-medium text-right">Tot. Dia Op.</th>
+              <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
+              <th className="px-2 py-1 font-medium text-right">Tot. Dia (min · h)</th>
               <th className="px-2 py-1 font-medium">Status Mov.</th>
               <th className="px-2 py-1 font-medium">Sitorp</th>
             </tr>
           </thead>
           <tbody>
             {linhas.map((r, i) => {
-              const horas = Number(r.horas_realizadas) || 0;
-              const totDia = Number(r.total_horas_dia_operador) || 0;
+              const horas = minToHours(r.horas_realizadas);
+              const totDia = minToHours(r.total_horas_dia_operador);
               const sa = String(r.status_movimento ?? 'FECHADO').toUpperCase();
               const saCfg = statusApontVariants[(sa in statusApontVariants ? sa : 'FECHADO') as StatusApont];
               const inconsist = sa === 'DIVERGENTE' || sa === 'ABERTO' || sa === 'SEM_APONTAMENTO' || horas > 8 || totDia > 8;
@@ -1774,10 +1774,10 @@ function OpLinhasInline({
                   <td className="px-2 py-1 text-right">{r.seq_apontamento ?? '—'}</td>
                   <td className="px-2 py-1">{r.turno ?? '—'}</td>
                   <td className={cn('px-2 py-1 text-right', horas === 0 && 'text-destructive font-medium', horas > 8 && 'text-destructive font-bold')}>
-                    {formatNumber(horas, 2)}
+                    {fmtMinHoras(r.horas_realizadas)}
                   </td>
                   <td className={cn('px-2 py-1 text-right', totDia > 8 && 'text-destructive font-bold')}>
-                    {formatNumber(totDia, 2)}
+                    {fmtMinHoras(r.total_horas_dia_operador)}
                   </td>
                   <td className="px-2 py-1">
                     <Badge className={cn(saCfg?.className ?? '', 'text-[10px]')}>{saCfg?.label ?? sa}</Badge>
