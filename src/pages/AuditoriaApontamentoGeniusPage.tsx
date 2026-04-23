@@ -707,6 +707,22 @@ export default function AuditoriaApontamentoGeniusPage() {
     return { totalHoras, porStatus, todosZerados };
   }, [apontamentosDaOp]);
 
+  // Heurística: se a busca atual retornou exatamente 1 OP e o usuário filtrou
+  // por numop específico, abrir o detalhe automaticamente.
+  useEffect(() => {
+    if (drawerAberto || opSelecionada) return;
+    const rows = (data?.dados || []) as any[];
+    if (!rows.length) return;
+    if (!filters.numop?.trim()) return;
+    const opsUnicas = new Set(rows.map((r) => String(r.numero_op ?? '')));
+    opsUnicas.delete('');
+    if (opsUnicas.size !== 1) return;
+    const primeira = rows[0];
+    setOpSelecionada(primeira);
+    setDrawerAberto(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
   // Refiltro client-side por "Status da OP" — garante que letras nativas
   // (E/L/A/F/C) e SEM_STATUS sejam respeitadas mesmo quando o backend não
   // diferencia (aceita apenas EM_ANDAMENTO/FINALIZADO/TODOS).
