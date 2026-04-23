@@ -118,7 +118,7 @@ describe("KpiDeepSheet — toggle 'Só c/ inconsistência'", () => {
   describe("Drills neutros (toggle deve aparecer e funcionar)", () => {
     it("total: toggle visível, hint ausente, filtra ao ativar", async () => {
       const user = userEvent.setup();
-      const { container } = render(<Harness kind={{ kind: "total" }} />);
+      render(<Harness kind={{ kind: "total" }} />);
 
       const toggle = screen.getByLabelText(/Só c\/ inconsist/i);
       expect(toggle).toBeInTheDocument();
@@ -127,30 +127,28 @@ describe("KpiDeepSheet — toggle 'Só c/ inconsistência'", () => {
       ).toBeNull();
 
       // Inicial: as 2 OPs aparecem
-      expect(within(container).getByText("1001")).toBeInTheDocument();
-      expect(within(container).getByText("2002")).toBeInTheDocument();
+      expect(screen.getByText("1001")).toBeInTheDocument();
+      expect(screen.getByText("2002")).toBeInTheDocument();
 
       // Ativa o filtro -> só OP 1001 (com inconsistência) permanece
       await user.click(toggle);
-      expect(within(container).getByText("1001")).toBeInTheDocument();
-      expect(within(container).queryByText("2002")).toBeNull();
+      expect(screen.getByText("1001")).toBeInTheDocument();
+      expect(screen.queryByText("2002")).toBeNull();
     });
 
     it("status (A): toggle visível e filtra OPs sem inconsistência", async () => {
       const user = userEvent.setup();
-      const { container } = render(
-        <Harness kind={{ kind: "status", letra: "A" }} />,
-      );
+      render(<Harness kind={{ kind: "status", letra: "A" }} />);
 
       const toggle = screen.getByLabelText(/Só c\/ inconsist/i);
       expect(toggle).toBeInTheDocument();
 
-      expect(within(container).getByText("1001")).toBeInTheDocument();
-      expect(within(container).getByText("2002")).toBeInTheDocument();
+      expect(screen.getByText("1001")).toBeInTheDocument();
+      expect(screen.getByText("2002")).toBeInTheDocument();
 
       await user.click(toggle);
-      expect(within(container).getByText("1001")).toBeInTheDocument();
-      expect(within(container).queryByText("2002")).toBeNull();
+      expect(screen.getByText("1001")).toBeInTheDocument();
+      expect(screen.queryByText("2002")).toBeNull();
     });
 
     it.each(["emAndamento", "finalizadas", "maiorTotalDia"] as const)(
