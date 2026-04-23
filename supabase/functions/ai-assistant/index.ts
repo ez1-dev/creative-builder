@@ -482,7 +482,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, pageContext } = await req.json();
+    const { messages, pageContext, priorAssistant, toolResults } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -494,10 +494,58 @@ serve(async (req) => {
     );
     const systemPrompt = buildSystemPrompt(pageContext, userMemory);
 
-    const baseMessages = [
+    const baseMessages: any[] = [
       { role: "system", content: systemPrompt },
       ...messages,
     ];
+
+    // Continuation flow: client executed a client-side tool and is sending results back
+    if (Array.isArray(toolResults) && toolResults.length > 0 && priorAssistant) {
+      const assistantMsg = {
+        role: "assistant",
+        content: priorAssistant.content || "",
+        tool_calls: priorAssistant.tool_calls || [],
+      };
+      const toolMsgs = toolResults.map((tr: any) => ({
+        role: "tool",
+        tool_call_id: tr.tool_call_id,
+        name: tr.name,
+        content: typeof tr.result === "string" ? tr.result : JSON.stringify(tr.result),
+      }));
+      const followupMessages = [...baseMessages, assistantMsg, ...toolMsgs];
+      const followup = await callAiGateway(
+        {
+          model: "google/gemini-3-flash-preview",
+          messages: followupMessages,
+          tools,
+        },
+        LOVABLE_API_KEY,
+        wantsStream
+      );
+      if (!followup.ok) {
+        if (followup.status === 429 || followup.status === 402) {
+          return new Response(
+            JSON.stringify({ error: followup.status === 429 ? "Limite de requisições excedido." : "Créditos esgotados." }),
+            { status: followup.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const t = await followup.text();
+        console.error("AI gateway continuation error:", followup.status, t);
+        return new Response(JSON.stringify({ error: "Erro no serviço de IA (continuação)" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (wantsStream) {
+        return new Response(followup.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      }
+      const data = await followup.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // First pass: non-streaming to detect server-side tools (list_system_users)
     const firstResp = await callAiGateway(
