@@ -55,6 +55,15 @@ type OpAgg = {
   sitorp: string;
 };
 
+// ─── Helpers de tempo: backend devolve tempos em MINUTOS ───────────────────
+const minToHours = (m: number | null | undefined) => (Number(m) || 0) / 60;
+const fmtMinHoras = (m: number | null | undefined, dec = 2) => {
+  const min = Number(m) || 0;
+  return `${formatNumber(min, 0)} min · ${formatNumber(min / 60, dec)} h`;
+};
+const fmtHoras = (m: number | null | undefined, dec = 2) =>
+  `${formatNumber((Number(m) || 0) / 60, dec)} h`;
+
 const STATUS_LETRA_LABEL: Record<'E'|'L'|'A'|'F'|'C', string> = {
   E: 'Emitida', L: 'Liberada', A: 'Andamento', F: 'Finalizada', C: 'Cancelada',
 };
