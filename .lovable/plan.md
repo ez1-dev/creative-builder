@@ -1,53 +1,62 @@
 
 
-## Drill-down nos KPIs da Auditoria Apontamento Genius
+## Status reais das OPs (E/L/A/F/C) na Auditoria Apontamento Genius
 
-### Escopo
-Habilitar popover de detalhamento (`details`) nos 9 KPIs da tela `/auditoria-apontamento-genius`, agregando linhas relevantes da página atual. O `KPICard` já tem suporte nativo a `details` (Popover com até N itens) — basta alimentar.
+### Problema
+Hoje a tela só expõe dois agrupamentos de status de OP (`EM_ANDAMENTO` = E+L+A, `FINALIZADO` = F). O backend já retorna o status nativo da `E900COP` em duas chaves por linha:
+- `sitorp` — letra nativa: `E` (Emitida), `L` (Liberada), `A` (Andamento), `F` (Finalizada), `C` (Cancelada)
+- `status_op` — agrupamento legado
 
-### Mudanças
+A coluna "Status OP" da tabela já mapeia as 5 letras corretamente via `statusOpVariants`, mas filtro e KPIs não. O usuário quer ver e filtrar pelos status reais.
 
-**Arquivo único:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+### Mudanças (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-1. **Novo `useMemo` `kpiDrilldowns`** (após `atualizarKpisApontGenius`)
-   - Itera `data?.dados` e produz, para cada KPI, uma lista `{ label, value }` (até 15 itens, ordenada por relevância).
-   - Mapeamento KPI → conteúdo do popover:
+**1. Render da coluna "Status OP" — priorizar `sitorp`**
+- Em `buildColumns`, mudar a coluna `status_op` para ler `row.sitorp ?? v` antes de buscar em `statusOpVariants`. Garante que mesmo quando o backend manda `status_op = "EM_ANDAMENTO"` (agrupado) a tabela mostre o status real (Emitida/Liberada/Andamento) vindo de `sitorp`.
 
-| KPI | Label | Value |
-|---|---|---|
-| **Total Registros** | `Origem {origem}` | qtd registros (top 10 origens) |
-| **OPs em andamento** | `OP {numop}` | `{produto}` (top 15 OPs únicas com status ativo) |
-| **OPs finalizadas** | `OP {numop}` | `{produto}` (top 15 OPs únicas finalizadas) |
-| **Discrepâncias** | `OP {numop} · {operador}` | label do status (Aberto/Divergente/Alerta) |
-| **Sem Início** | `OP {numop} · {operador}` | `{data} {hora}` |
-| **Sem Fim** | `OP {numop} · {operador}` | `{data} {hora}` |
-| **Fim < Início** | `OP {numop} · {operador}` | `{horas_realizadas}h` |
-| **Acima de 8h** | `{operador}` | `{horas}h` (ordenado desc por horas; deduplica operador+OP) |
-| **Maior Total Dia** | `{operador}` | `{total_dia}h` (top 10 maiores totais do dia) |
+**2. Filtro "Status da OP" — 5 opções nativas + grupos**
+- Substituir `statusOpOptions` por:
+  ```
+  E  → Emitida
+  L  → Liberada
+  A  → Andamento
+  F  → Finalizada
+  C  → Cancelada
+  ──────────────
+  EM_ANDAMENTO → Em andamento (E + L + A)
+  FINALIZADO   → Finalizadas (F)
+  SEM_STATUS   → Sem status
+  ```
+- O backend continua aceitando os valores; basta enviar a letra/grupo selecionada em `status_op`. Confirmar com o backend que `E/L/A/F/C` é aceito — se não, o frontend traduz `E|L|A → EM_ANDAMENTO` e `F → FINALIZADO` antes de enviar (filtra localmente o detalhamento por `sitorp`).
 
-   - Para OPs únicas, deduplicar por `numero_op` mantendo a primeira ocorrência.
+**3. KPIs — substituir 2 cards por 5 cards de status real**
+- Trocar os cards atuais "OPs em andamento" e "OPs finalizadas" por 5 cards compactos, um por status nativo:
+  - **Emitidas (E)** — variant `info`
+  - **Liberadas (L)** — variant `info`
+  - **Em Andamento (A)** — variant `info`
+  - **Finalizadas (F)** — variant `default`
+  - **Canceladas (C)** — variant `destructive`
+- Cada card recebe `details` com `OP {numop} · {produto}` (top 15) das OPs únicas com aquele `sitorp`.
+- Grid passa de `lg:grid-cols-9` para `lg:grid-cols-12` (1 Total Registros + 5 status + 6 discrepância) — ou agrupar visualmente em duas linhas se preferir.
 
-2. **Passar `details` para cada `<KPICard>`** (linhas 588-603)
-   - Cada card recebe `details={kpiDrilldowns.totalRegistros}` etc.
-   - Manter mesmo cabeçalho/ícones/variantes atuais.
-   - Não passar `details` se a lista resultante for vazia (popover não abre — comportamento natural do componente).
+**4. Agregação local (`atualizarKpisApontGenius` + `kpiDrilldowns`)**
+- Trocar `opsSet` de 4 buckets fixos para um `Map<string, Set<string>>` indexado por `sitorp` (E/L/A/F/C/SEM_STATUS).
+- O resumo do backend tem `total_ops_andamento` e `total_ops_finalizadas` agrupados — usar como fallback agregado quando o detalhamento por letra não estiver no resumo. Quando os 5 valores vierem só do fallback local, manter o `discrepanciasParciais = true` (alerta já existente cobre).
+- `kpiDrilldowns` ganha um objeto `opsPorStatus: Record<'E'|'L'|'A'|'F'|'C', {label,value}[]>` deduplicado por `numero_op`.
 
-3. **Aviso de escopo no popover**
-   - Adicionar prop `tooltip` curta nos cards quando `discrepanciasParciais` for `true` para os 6 KPIs de discrepância: `"Detalhamento da página atual"`. Isso aparece no header do Popover (já suportado pelo `KPICard`).
-   - Para KPIs estruturais (`Total Registros`, `OPs em andamento/finalizadas`), tooltip fixa: `"Top da página atual"`.
-
-4. **Nada muda no `StatusOpGeniusCard`** (drill-down já existente lá, fora de escopo).
+**5. Drawer de detalhes**
+- Já mostra `status_op`. Trocar para `row.sitorp ?? row.status_op` para exibir o real.
 
 ### Comportamento resultante
-- Clique em qualquer KPI abre Popover com lista detalhada (até 15 itens) das linhas que contribuíram para o número.
-- Cursor vira pointer e card ganha hover (já implementado no `KPICard` quando `details` está presente).
-- Listas são derivadas da página atual carregada — coerente com o aviso de fallback existente.
+- Tabela mostra "Emitida", "Liberada", "Andamento", "Finalizada", "Cancelada" em vez de "Em andamento"/"Finalizado" genérico.
+- Filtro permite escolher status nativo (E/L/A/F/C) ou agrupamento legado.
+- Cinco KPIs separados por status real, cada um com drill-down das OPs daquele status.
 
 ### Fora de escopo
-- Buscar todas as páginas para drill-down global.
-- Modal de detalhe expandido (continua usando o Popover compacto existente).
+- Mudar backend.
+- Adicionar contagem global "Canceladas" no `resumo` (depende do backend; usado fallback local).
 - Drill-down navegando para tela filtrada.
 
 ### Resultado
-Usuário clica em qualquer KPI e vê imediatamente quais OPs/operadores/origens contribuíram para o número, sem precisar caçar na tabela.
+Usuário enxerga os 5 status reais da OP (E/L/A/F/C) em filtro, KPIs e tabela, sem perder os agrupamentos legados.
 
