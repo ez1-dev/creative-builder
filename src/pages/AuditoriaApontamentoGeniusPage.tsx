@@ -507,7 +507,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         origem: filters.codori,
         codigo_produto: filters.codpro,
         operador: filters.operador,
-        status_op: filters.status_op || 'TODOS',
+        status_op: mapStatusOpParaApi(filters.status_op),
         somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
         somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
         pagina: page,
