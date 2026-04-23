@@ -18,12 +18,30 @@ export function ExportButton({ endpoint, params, label = 'Exportar Excel', varia
     setLoading(true);
     try {
       const searchParams = new URLSearchParams();
-      if (params) {
-        Object.entries(params).forEach(([key, value]) => {
-          if (value !== null && value !== undefined && value !== '') {
-            searchParams.append(key, String(value));
+      const appendValue = (key: string, value: any) => {
+        if (value === null || value === undefined || value === '') return;
+        if (typeof value === 'boolean') {
+          if (value) searchParams.append(key, 'true');
+          return;
+        }
+        if (value instanceof Date) {
+          if (!isNaN(value.getTime())) {
+            searchParams.append(key, value.toISOString().slice(0, 10));
           }
-        });
+          return;
+        }
+        if (Array.isArray(value)) {
+          value.forEach((item) => appendValue(key, item));
+          return;
+        }
+        if (typeof value === 'object') {
+          // skip nested objects — backend won't validate them anyway
+          return;
+        }
+        searchParams.append(key, String(value));
+      };
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => appendValue(key, value));
       }
       const queryString = searchParams.toString();
       const url = `${getApiUrl()}${endpoint}${queryString ? `?${queryString}` : ''}`;
