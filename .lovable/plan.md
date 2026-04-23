@@ -1,143 +1,119 @@
 
 
-## Assistente IA com aprendizado e sugestões personalizadas por usuário
+## Permitir que o Assistente IA responda perguntas analíticas sobre dados do ERP
 
-### Objetivo
-Tornar o assistente **proativo e personalizado**: ele passa a memorizar as pesquisas e ações de cada usuário, aprende padrões (filtros frequentes, módulos mais usados, horários, combinações comuns) e oferece **sugestões inteligentes** para agilizar o trabalho do dia a dia.
+### Problema
+Quando o usuário pergunta **"qual produto tem mais em estoque hoje?"** (ou "top 5 fornecedores", "qual OC mais antiga em aberto", "produto mais comprado no mês"), o assistente diz "vou consultar..." mas **não tem como consultar de fato**. Ele só sabe:
+- Navegar e aplicar filtros (`apply_erp_filters`) — exige o usuário olhar a tela.
+- Ler `pageContext` — só funciona se o usuário já está na tela e fez busca.
+- Listar usuários do Cloud (`list_system_users`).
 
-### Diagnóstico atual
-- O assistente hoje é "stateless": cada conversa começa do zero, sem memória de pesquisas anteriores.
-- `user_activity` já registra `path`, `action` e `details` (filtros), mas **só é usado pelo Dashboard de Uso admin** — o próprio assistente não consulta esses dados.
-- Não há tabela de "favoritos", "buscas salvas" ou "preferências por usuário".
+Resultado: respostas vagas ou genéricas para perguntas analíticas reais.
 
-### Solução em 3 camadas
+### Causa raiz
+O ERP Senior é consultado via API local (FastAPI/ngrok) com **token por usuário no navegador**. A edge function não tem esse token, então não pode chamar a API direto. A solução é **executar a consulta no cliente** e devolver o resultado para a IA processar.
 
----
+### Solução: Tool client-side `query_erp_data` com loop de raciocínio
 
-#### 📦 Camada 1 — Histórico de buscas por usuário (memória curta, 30 dias)
+#### 1) Nova tool `query_erp_data` (declarada na edge function, executada no browser)
+A IA pede ao cliente para buscar dados, ordenar por um campo e devolver o top N. O cliente roda a chamada real ao ERP, e devolve o resultado para a IA formatar a resposta final.
 
-**Nova tabela `user_search_history`:**
-```sql
-- id uuid pk
-- user_id uuid (FK profiles)
-- module text          -- 'estoque', 'painel-compras', etc.
-- filters jsonb        -- { codigo: '001', situacao: 'A', ... }
-- result_count int     -- quantos registros retornou
-- created_at timestamptz
-```
-
-**Como popula:**
-- Hook `useSearchTracking(module)` chamado em cada página de consulta após `Pesquisar`.
-- Salva via `supabase.from('user_search_history').insert(...)` — leve, async, não bloqueia UI.
-- Cleanup automático >30 dias (trigger pg_cron diário).
-
-**RLS:** usuário só lê/insere o próprio histórico.
-
----
-
-#### 📦 Camada 2 — Preferências aprendidas (memória longa)
-
-**Nova tabela `user_preferences`:**
-```sql
-- user_id uuid pk
-- favorite_modules jsonb    -- top 5 módulos com contagem
-- frequent_filters jsonb    -- por módulo: filtros mais usados
-- preferred_period text     -- 'mes_atual', 'ultimos_30d', etc.
-- updated_at timestamptz
-```
-
-**Como popula:**
-- Edge function `recompute-user-preferences` roda **diariamente via pg_cron** para cada usuário ativo.
-- Agrega `user_search_history` + `user_activity` dos últimos 30 dias.
-- Calcula: top módulos, filtros recorrentes (>3 vezes), padrões temporais.
-- Custo: ~1 segundo por usuário ativo, fora do horário comercial.
-
----
-
-#### 📦 Camada 3 — Assistente proativo
-
-**3 novas capacidades no chat:**
-
-**A) Sugestões ao abrir o chat (sem prompt do usuário)**
-Quando o usuário abre o assistente em uma página, ele vê **chips clicáveis** com as 3 buscas mais frequentes naquele módulo:
-
-```
-💡 Sugestões para você:
-  [Família 001 ativos]   [Estoque crítico - Setor A]   [OCs vencidas - mês atual]
-```
-
-Clicar = aplica os filtros direto (reusa `dispatchAiFilters`).
-
-**B) Nova tool `recall_user_searches` na edge function**
-O modelo pode buscar o histórico do próprio usuário:
-- "O que pesquisei na semana passada?" → lista resumida
-- "Repita minha última busca de estoque" → aplica filtros idênticos
-- "Aquela consulta de OCs do projeto X" → busca por similaridade no histórico
-
-**C) Contexto enriquecido no system prompt**
-Junto com `pageContext`, a edge function passa:
+**Definição da tool:**
 ```ts
-userMemory: {
-  topModules: ['estoque', 'contas-pagar'],
-  frequentFilters: { estoque: { situacao: 'A', familia: '001' } },
-  recentSearches: [últimas 5 do mesmo módulo]
+{
+  name: "query_erp_data",
+  description: "Consulta dados reais do ERP (estoque, compras, NFs, etc.) e retorna top N ordenado. Use para perguntas analíticas como 'qual produto tem mais estoque?', 'top 5 fornecedores', 'OCs mais antigas'.",
+  parameters: {
+    module: enum [estoque, painel-compras, compras-produto, contas-pagar, contas-receber, notas-recebimento, engenharia-producao],
+    filters: object,           // mesmos filtros do módulo
+    order_by: string,          // campo para ordenar (ex: 'saldo', 'valor_total', 'data_emissao')
+    order_dir: 'asc' | 'desc', // default desc
+    top_n: number,             // default 10, máx 50
+    fields: string[]           // campos a devolver (reduz payload)
+  }
 }
 ```
 
-A IA usa isso para responder coisas como:
-> "Vi que você costuma filtrar família 001 com situação Ativo — quer aplicar esses filtros agora?"
+#### 2) Fluxo de execução (multi-turn no cliente)
+```text
+1. Usuário: "qual produto tem mais estoque hoje?"
+2. IA → tool_call: query_erp_data { module: 'estoque', filters: { somente_com_estoque: true, situacao: 'A' }, order_by: 'saldo', order_dir: 'desc', top_n: 10, fields: ['codigo','descricao','saldo','deposito'] }
+3. Cliente executa: api.get('/api/estoque', { ...filters, pagina: 1, tamanho_pagina: 200 })
+4. Cliente ordena por 'saldo' desc, pega top 10, projeta fields.
+5. Cliente reenvia conversa para edge function com tool_result anexo.
+6. IA formata resposta em markdown (tabela com top produtos).
+```
 
----
+O `AiAssistantChat.tsx` já tem `handleToolCall`. Precisa estender para suportar **tool client-side com retorno** (hoje só dispara navegação) — adicionar:
+- Quando recebe `query_erp_data`, executa a chamada à API.
+- Mostra "🔎 Consultando estoque..." como mensagem temporária.
+- Faz POST de continuação para a edge function com `tool_results: [{ name, args, result }]`.
+- Renderiza a resposta final da IA com o ranking.
 
-### Privacidade e segurança
-- **Cada usuário só vê seu próprio histórico/preferências** (RLS estrito por `auth.uid()`).
-- Admin **NÃO** acessa histórico individual via assistente (apenas agregados no Dashboard de Uso).
-- Botão **"Limpar meu histórico"** em Configurações → "Minha conta".
-- Nenhum dado sensível (CPF, valores monetários individuais) é salvo — apenas filtros e nomes de módulos.
+#### 3) Edge function: aceitar `tool_results` no body
+Quando o body inclui `tool_results`, a edge function:
+- Anexa as mensagens `tool` (com o JSON do resultado) à conversa.
+- Faz nova chamada ao Lovable AI Gateway (sem tools desta vez, ou com tools opcionais).
+- Faz stream da resposta de texto final.
 
----
+#### 4) Limites de segurança e custo
+- **Tamanho do payload ERP**: cliente busca no máximo 200 registros (1 página) — suficiente para ranking. Se precisar mais, IA usa filtros adicionais.
+- **Campos enviados de volta para a IA**: apenas os listados em `fields` (default: top 5 colunas + valor ordenado). Limita custo de tokens.
+- **Permissão de rota**: cliente valida via `useUserPermissions` se o usuário tem acesso ao módulo antes de executar (evita IA "consultar" tela proibida).
+- **Erros do ERP**: se 401/timeout, devolve `{ error: "..." }` para a IA, que responde "não consegui consultar agora".
 
-### Mudanças de UI
+#### 5) System prompt atualizado
+Acrescentar:
+> "Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, ordenação por saldo/valor/data), use a tool `query_erp_data`. Sempre inclua `order_by` e `top_n`. Após receber o resultado, formate em **tabela markdown** com no máximo 10 linhas e ofereça aplicar filtros via `apply_erp_filters` para drill-down. Se o `pageContext` já trouxer a resposta nos KPIs, prefira usar o contexto sem chamar a tool."
 
-**No `AiAssistantChat.tsx`:**
-- Quando `messages.length === 0`, renderizar bloco "Sugestões para você" com chips clicáveis (vindos de `user_preferences.frequent_filters[currentModule]`).
-- Adicionar comando rápido `/historico` que lista últimas 10 buscas.
-
-**Em `ConfiguracoesPage.tsx`:**
-- Nova aba/seção "Minhas preferências" mostrando:
-  - Módulos favoritos (top 5)
-  - Filtros mais usados
-  - Botão "Limpar histórico"
-
----
-
-### Arquivos novos
-- `src/hooks/useSearchTracking.ts` — registra busca após `Pesquisar`.
-- `src/hooks/useUserSuggestions.ts` — busca sugestões da `user_preferences`.
-- `src/components/erp/SearchSuggestions.tsx` — chips de sugestão no chat.
-- `supabase/functions/recompute-user-preferences/index.ts` — job de agregação diário.
+### Módulos suportados na primeira versão
+Mapeamento `module → endpoint API`:
+| Módulo | Endpoint | Campo padrão de ordenação |
+|---|---|---|
+| estoque | `/api/estoque` | saldo |
+| painel-compras | `/api/painel-compras` | valor_total |
+| compras-produto | `/api/compras-produto` | quantidade |
+| contas-pagar | `/api/contas-pagar` | valor_aberto |
+| contas-receber | `/api/contas-receber` | valor_aberto |
+| notas-recebimento | `/api/notas-recebimento` | valor_total |
+| engenharia-producao | `/api/engenharia-producao` | data_entrega |
 
 ### Arquivos alterados
-- `supabase/functions/ai-assistant/index.ts` — nova tool `recall_user_searches`, injeção de `userMemory` no system prompt.
-- `src/components/erp/AiAssistantChat.tsx` — bloco de sugestões iniciais, comando `/historico`.
-- Páginas de consulta (Estoque, Compras, etc.) — chamar `useSearchTracking(module)` após pesquisa bem-sucedida.
-- `src/pages/ConfiguracoesPage.tsx` — seção "Minhas preferências".
+- `supabase/functions/ai-assistant/index.ts`
+  - Declarar tool `query_erp_data`.
+  - Aceitar `tool_results` no body e fazer segundo passo (sem ferramentas) com stream da resposta final.
+  - Atualizar system prompt.
+- `src/components/erp/AiAssistantChat.tsx`
+  - Estender `handleToolCall` para tools client-side com retorno.
+  - Adicionar `executeQueryErpData(args)` que chama `api.get(endpoint, filters)`, ordena e projeta.
+  - Após executar, fazer 2ª request à edge function com `tool_results` e fazer streaming da resposta final.
+  - Mostrar indicador "🔎 Consultando ERP..." enquanto busca.
+- `src/lib/aiQueryExecutor.ts` *(novo)*
+  - Mapeamento `module → endpoint + campo padrão`.
+  - Função pura `rankRecords(records, order_by, dir, top_n, fields)`.
+  - Sanitização de filtros e validação.
 
-### Migrations
-- Criar `user_search_history` + RLS + cleanup function.
-- Criar `user_preferences` + RLS.
-- Agendar pg_cron diário às 03:00 para `recompute-user-preferences`.
+### Casos de teste manuais
+1. `/estoque` vazio → "qual produto tem mais estoque?" → IA chama `query_erp_data` → tabela top 10.
+2. Em qualquer rota → "top 5 fornecedores em ordens de compra abertas" → IA chama com `module=painel-compras, filters={somente_pendentes:true}, order_by=valor_total`.
+3. `/contas-pagar` com filtros aplicados → "qual o maior título?" → IA usa `pageContext` (sem chamar tool).
+4. Usuário sem permissão em compras-produto → IA recebe erro do cliente → responde "sem acesso a esse módulo".
+5. ERP 401 → IA responde "conexão ERP indisponível, verifique nas Configurações".
 
----
+### Fora de escopo
+- Agregações server-side (sum/avg) que exijam novos endpoints do backend ERP.
+- Cache de respostas (cada pergunta refaz a consulta).
+- Gráficos gerados pela IA (apenas tabelas markdown).
+- Cross-módulo ("compare estoque vs OCs em aberto") — futuro: tool sequencial.
 
-### Fora de escopo (futuro)
-- Recomendação preditiva ("usuários parecidos com você costumam buscar...") — exige modelo treinado.
-- Importar/exportar buscas favoritas.
-- Atalhos de teclado por busca salva.
+### Resultado
+Pergunta **"qual produto tem mais em estoque hoje?"** passa a responder com:
+> Os 10 produtos com maior saldo em estoque são:
+> | Código | Descrição | Saldo | Depósito |
+> |---|---|---|---|
+> | 12345 | Chapa Aço 3mm | 4.820,00 | DEP01 |
+> | ... |
+> Quer abrir a tela de estoque com esses filtros? *(botão chama `apply_erp_filters`)*
 
-### Resultado esperado
-- Usuário abre o assistente em **/estoque** e já vê suas 3 buscas mais frequentes para clicar.
-- Pergunta "qual filtro usei ontem em compras?" → assistente responde com filtros + botão para reaplicar.
-- Após 1 semana de uso, assistente sugere proativamente: *"Você consulta família 001 com situação Ativo quase todo dia. Quer que eu salve como busca padrão?"*
-- Tudo respeitando privacidade individual e sem expor dados de outros usuários.
+Funciona em **qualquer rota**, respeitando permissões e sem expor dados de outros usuários.
 
