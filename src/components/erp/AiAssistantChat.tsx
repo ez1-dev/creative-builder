@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Bot, X, Send, Sparkles, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useAiPageContextValue } from '@/contexts/AiPageContext';
+import { useUserSuggestions, type SearchSuggestion } from '@/hooks/useUserSuggestions';
+import { SearchSuggestions } from '@/components/erp/SearchSuggestions';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -26,6 +28,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant
 export function AiAssistantChat() {
   const { canUseAi } = useUserPermissions();
   const { context: pageContext } = useAiPageContextValue();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -33,6 +36,15 @@ export function AiAssistantChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Derive current module key from route or pageContext
+  const currentModule = useMemo(() => {
+    if (pageContext?.module) return pageContext.module;
+    const seg = location.pathname.split('/').filter(Boolean)[0];
+    return seg && MODULE_LABELS[seg] ? seg : seg || null;
+  }, [location.pathname, pageContext?.module]);
+
+  const { suggestions } = useUserSuggestions(currentModule, 3);
 
   // Ctrl+J / Cmd+J global shortcut
   useEffect(() => {
@@ -221,6 +233,21 @@ export function AiAssistantChat() {
     );
   }, [pageContext, sendMessage]);
 
+  const handlePickSuggestion = useCallback(
+    (s: SearchSuggestion) => {
+      if (!currentModule) return;
+      const label = MODULE_LABELS[currentModule] || currentModule;
+      toast.info(`Aplicando filtros sugeridos em ${label}...`);
+      // Ensure we are on the module page; useAiFilters listener triggers search
+      if (location.pathname !== `/${currentModule}`) {
+        navigate(`/${currentModule}`);
+      }
+      setTimeout(() => dispatchAiFilters(currentModule, s.filters), 250);
+      setOpen(false);
+    },
+    [currentModule, location.pathname, navigate]
+  );
+
   if (!canUseAi) return null;
 
   return (
@@ -271,12 +298,23 @@ export function AiAssistantChat() {
           <ScrollArea className="flex-1 min-h-0 max-h-[420px]" ref={scrollRef}>
             <div className="space-y-3 p-4">
               {messages.length === 0 && (
-                <div className="text-center text-xs text-muted-foreground py-8 space-y-2">
-                  <Sparkles className="mx-auto h-8 w-8 text-primary/40" />
-                  <p>Olá! Pergunte sobre seus dados do ERP.</p>
-                  <p className="text-[11px]">Ex: "Quais itens da família 001 têm estoque?"</p>
-                  <p className="text-[10px] text-muted-foreground/70">Atalho: <kbd className="rounded border px-1">Ctrl</kbd> + <kbd className="rounded border px-1">J</kbd></p>
-                </div>
+                <>
+                  <div className="text-center text-xs text-muted-foreground py-4 space-y-2">
+                    <Sparkles className="mx-auto h-8 w-8 text-primary/40" />
+                    <p>Olá! Pergunte sobre seus dados do ERP.</p>
+                    <p className="text-[11px]">Ex: "Quais itens da família 001 têm estoque?"</p>
+                    <p className="text-[10px] text-muted-foreground/70">
+                      Atalho: <kbd className="rounded border px-1">Ctrl</kbd> +{' '}
+                      <kbd className="rounded border px-1">J</kbd>
+                    </p>
+                  </div>
+                  {suggestions.length > 0 && (
+                    <SearchSuggestions
+                      suggestions={suggestions}
+                      onPick={handlePickSuggestion}
+                    />
+                  )}
+                </>
               )}
               {messages.map((msg, i) => (
                 <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>

@@ -10,9 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain } from 'lucide-react';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 import { DashboardUsoUsuarios } from '@/components/erp/DashboardUsoUsuarios';
+import { MinhasPreferenciasSection } from '@/components/erp/MinhasPreferenciasSection';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
@@ -449,6 +450,7 @@ export default function ConfiguracoesPage() {
           </TabsTrigger>
           <TabsTrigger value="monitoramento" className="gap-1"><Activity className="h-4 w-4" /> Monitoramento</TabsTrigger>
           <TabsTrigger value="dashboard-uso" className="gap-1"><BarChart3 className="h-4 w-4" /> Dashboard de Uso</TabsTrigger>
+          <TabsTrigger value="minhas-preferencias" className="gap-1"><Brain className="h-4 w-4" /> Minhas Preferências</TabsTrigger>
           <TabsTrigger value="versao" className="gap-1"><Rocket className="h-4 w-4" /> Versão</TabsTrigger>
         </TabsList>
         {/* === PERFIS === */}
@@ -977,6 +979,11 @@ export default function ConfiguracoesPage() {
         {/* === DASHBOARD DE USO === */}
         <TabsContent value="dashboard-uso">
           <DashboardUsoUsuarios />
+        </TabsContent>
+
+        {/* === MINHAS PREFERÊNCIAS === */}
+        <TabsContent value="minhas-preferencias">
+          <MinhasPreferenciasSection />
         </TabsContent>
 
         {/* === VERSÃO === */}

@@ -20,6 +20,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pi
 import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { useSearchTracking } from '@/hooks/useSearchTracking';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
@@ -65,6 +66,8 @@ export default function PainelComprasPage() {
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'familia_item', origemKey: 'origem_item' });
 
+  const trackSearch = useSearchTracking('painel-compras');
+
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
@@ -82,12 +85,13 @@ export default function PainelComprasPage() {
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
       setData(result);
       setPagina(page);
+      if (page === 1) trackSearch(filters, (result as any)?.total_registros);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, trackSearch]);
 
   useAiFilters('painel-compras', setFilters, () => search(1));
 

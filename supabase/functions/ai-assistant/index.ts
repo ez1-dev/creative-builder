@@ -11,6 +11,10 @@ const BASE_SYSTEM_PROMPT = `Você é o assistente inteligente do ERP EZ. Seu obj
 
 Quando o usuário fizer uma pergunta que pode ser respondida navegando para um módulo do ERP e aplicando filtros, use a tool "apply_erp_filters".
 
+Quando o usuário perguntar sobre o **histórico de pesquisas dele mesmo** ("o que pesquisei?", "qual filtro usei ontem?", "minha última busca de estoque", "repita a busca anterior"), use a tool "recall_user_searches". Esta tool consulta apenas as buscas do próprio usuário autenticado. Se houver uma busca relevante, sugira aplicá-la chamando a tool "apply_erp_filters" em seguida com os mesmos filtros.
+
+Se o CONTEXTO DA PÁGINA ATUAL incluir MEMÓRIA DO USUÁRIO (módulos preferidos, filtros frequentes, buscas recentes), use essas informações para personalizar respostas e sugestões. Por exemplo: se o usuário costuma filtrar família 001 com situação Ativo, ofereça aplicar esses filtros proativamente.
+
 Quando o usuário fizer uma pergunta sobre **usuários cadastrados, perfis de acesso, quem é admin, quem está pendente de aprovação ou quem tem acesso a determinada tela**, use a tool "list_system_users". Esses dados ficam no Lovable Cloud (não no ERP Senior). NUNCA mande o usuário consultar o ERP para esse tipo de informação. Apenas administradores podem usar esta tool — se o usuário não for admin, a edge function retornará erro e você deve responder de forma educada que essa informação é restrita a administradores.
 
 Quando o usuário fizer uma pergunta analítica sobre a tela atual (KPIs, totais, fornecedores, projetos visíveis), responda diretamente em texto, usando o CONTEXTO DA PÁGINA quando fornecido. Use markdown (tabelas, listas, negrito) para deixar a resposta clara.
@@ -113,33 +117,165 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "recall_user_searches",
+      description:
+        "Consulta o histórico de pesquisas do PRÓPRIO usuário autenticado nos últimos 30 dias. Use para responder 'o que pesquisei?', 'qual filtro usei?', 'minha última busca'. Pode filtrar por módulo.",
+      parameters: {
+        type: "object",
+        properties: {
+          module: {
+            type: "string",
+            description:
+              "Filtra por módulo (ex: 'estoque', 'painel-compras'). Omitir para buscar em todos.",
+          },
+          search: {
+            type: "string",
+            description:
+              "Texto a buscar dentro dos filtros salvos (ex: '001', 'fornecedor X').",
+          },
+          limit: {
+            type: "number",
+            description: "Máximo de registros (default 10, máximo 30).",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
-function buildSystemPrompt(pageContext: any): string {
-  if (!pageContext || typeof pageContext !== "object") return BASE_SYSTEM_PROMPT;
-  const lines: string[] = ["", "---", "CONTEXTO DA PÁGINA ATUAL:"];
-  if (pageContext.title) lines.push(`Tela: ${pageContext.title}`);
-  if (pageContext.route) lines.push(`Rota: ${pageContext.route}`);
-  if (pageContext.module) lines.push(`Módulo: ${pageContext.module}`);
-  if (pageContext.kpis && Object.keys(pageContext.kpis).length) {
-    lines.push("KPIs visíveis:");
-    for (const [k, v] of Object.entries(pageContext.kpis)) {
-      lines.push(`  - ${k}: ${v}`);
+function buildSystemPrompt(pageContext: any, userMemory: any): string {
+  let out = BASE_SYSTEM_PROMPT;
+  if (pageContext && typeof pageContext === "object") {
+    const lines: string[] = ["", "---", "CONTEXTO DA PÁGINA ATUAL:"];
+    if (pageContext.title) lines.push(`Tela: ${pageContext.title}`);
+    if (pageContext.route) lines.push(`Rota: ${pageContext.route}`);
+    if (pageContext.module) lines.push(`Módulo: ${pageContext.module}`);
+    if (pageContext.kpis && Object.keys(pageContext.kpis).length) {
+      lines.push("KPIs visíveis:");
+      for (const [k, v] of Object.entries(pageContext.kpis)) {
+        lines.push(`  - ${k}: ${v}`);
+      }
     }
+    if (pageContext.filters && Object.keys(pageContext.filters).length) {
+      const active = Object.entries(pageContext.filters).filter(
+        ([_, v]) => v !== "" && v !== null && v !== undefined && v !== false
+      );
+      if (active.length) {
+        lines.push("Filtros ativos:");
+        for (const [k, v] of active) lines.push(`  - ${k}: ${JSON.stringify(v)}`);
+      }
+    }
+    if (pageContext.summary) lines.push(`Resumo: ${pageContext.summary}`);
+    out += "\n" + lines.join("\n");
   }
-  if (pageContext.filters && Object.keys(pageContext.filters).length) {
-    const active = Object.entries(pageContext.filters).filter(
-      ([_, v]) => v !== "" && v !== null && v !== undefined && v !== false
+
+  if (userMemory && typeof userMemory === "object") {
+    const ml: string[] = ["", "---", "MEMÓRIA DO USUÁRIO (privada, somente este usuário):"];
+    if (userMemory.topModules?.length) {
+      ml.push(`Módulos mais usados: ${userMemory.topModules.join(", ")}`);
+    }
+    if (userMemory.frequentFilters && Object.keys(userMemory.frequentFilters).length) {
+      ml.push("Filtros frequentes:");
+      for (const [mod, f] of Object.entries(userMemory.frequentFilters)) {
+        ml.push(`  - ${mod}: ${JSON.stringify(f)}`);
+      }
+    }
+    if (userMemory.recentSearches?.length) {
+      ml.push("Buscas recentes:");
+      for (const s of userMemory.recentSearches.slice(0, 5)) {
+        ml.push(`  - ${s.module}: ${JSON.stringify(s.filters)}`);
+      }
+    }
+    if (ml.length > 3) out += "\n" + ml.join("\n");
+  }
+  return out;
+}
+
+async function loadUserMemory(
+  callerUserId: string | null,
+  currentModule: string | null
+) {
+  if (!callerUserId) return null;
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(supabaseUrl, serviceKey);
+
+    const [prefsRes, recentRes] = await Promise.all([
+      admin
+        .from("user_preferences")
+        .select("favorite_modules, frequent_filters")
+        .eq("user_id", callerUserId)
+        .maybeSingle(),
+      admin
+        .from("user_search_history")
+        .select("module, filters, created_at")
+        .eq("user_id", callerUserId)
+        .order("created_at", { ascending: false })
+        .limit(currentModule ? 30 : 10),
+    ]);
+
+    const prefs = prefsRes.data || {};
+    const recent = (recentRes.data || []).filter((r: any) =>
+      currentModule ? r.module === currentModule : true
     );
-    if (active.length) {
-      lines.push("Filtros ativos:");
-      for (const [k, v] of active) lines.push(`  - ${k}: ${JSON.stringify(v)}`);
-    }
+
+    const topModules = ((prefs as any).favorite_modules || [])
+      .map((m: any) => m.module)
+      .slice(0, 5);
+    const frequentFilters = (prefs as any).frequent_filters || {};
+
+    return {
+      topModules,
+      frequentFilters,
+      recentSearches: recent.slice(0, 5),
+    };
+  } catch (e) {
+    console.warn("loadUserMemory failed:", e);
+    return null;
   }
-  if (pageContext.summary) {
-    lines.push(`Resumo: ${pageContext.summary}`);
+}
+
+async function executeRecallUserSearches(
+  args: any,
+  callerUserId: string | null
+): Promise<{ ok: boolean; data?: any; error?: string }> {
+  if (!callerUserId) {
+    return { ok: false, error: "Usuário não autenticado." };
   }
-  return BASE_SYSTEM_PROMPT + "\n" + lines.join("\n");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  const limit = Math.min(Math.max(Number(args?.limit) || 10, 1), 30);
+  const moduleFilter = (args?.module || "").toString().trim();
+  const search = (args?.search || "").toString().trim().toLowerCase();
+
+  let q = admin
+    .from("user_search_history")
+    .select("module, filters, result_count, created_at")
+    .eq("user_id", callerUserId)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3);
+
+  if (moduleFilter) q = q.eq("module", moduleFilter);
+
+  const { data, error } = await q;
+  if (error) {
+    return { ok: false, error: "Erro ao consultar histórico." };
+  }
+  let rows = data || [];
+  if (search) {
+    rows = rows.filter((r) =>
+      JSON.stringify(r.filters || {}).toLowerCase().includes(search)
+    );
+  }
+  rows = rows.slice(0, limit);
+  return { ok: true, data: { count: rows.length, searches: rows } };
 }
 
 async function executeListSystemUsers(
@@ -298,8 +434,12 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const wantsStream = req.headers.get("accept") === "text/event-stream";
-    const systemPrompt = buildSystemPrompt(pageContext);
     const callerUserId = await getCallerUserId(req);
+    const userMemory = await loadUserMemory(
+      callerUserId,
+      pageContext?.module || null
+    );
+    const systemPrompt = buildSystemPrompt(pageContext, userMemory);
 
     const baseMessages = [
       { role: "system", content: systemPrompt },
@@ -346,13 +486,16 @@ serve(async (req) => {
     const choice = firstData.choices?.[0];
     const toolCalls = choice?.message?.tool_calls || [];
 
-    // Check for server-side tool: list_system_users
-    const serverToolCalls = toolCalls.filter(
-      (tc: any) => tc.function?.name === "list_system_users"
+    // Server-side tools (executed in this edge function)
+    const SERVER_TOOL_NAMES = new Set([
+      "list_system_users",
+      "recall_user_searches",
+    ]);
+    const serverToolCalls = toolCalls.filter((tc: any) =>
+      SERVER_TOOL_NAMES.has(tc.function?.name)
     );
 
     if (serverToolCalls.length > 0) {
-      // Execute server-side tools and feed results back to model
       const toolMessages: any[] = [];
       for (const tc of serverToolCalls) {
         let parsedArgs: any = {};
@@ -361,11 +504,15 @@ serve(async (req) => {
         } catch {
           parsedArgs = {};
         }
-        const result = await executeListSystemUsers(parsedArgs, callerUserId);
+        const name = tc.function.name;
+        const result =
+          name === "list_system_users"
+            ? await executeListSystemUsers(parsedArgs, callerUserId)
+            : await executeRecallUserSearches(parsedArgs, callerUserId);
         toolMessages.push({
           role: "tool",
           tool_call_id: tc.id,
-          name: "list_system_users",
+          name,
           content: JSON.stringify(result),
         });
       }
