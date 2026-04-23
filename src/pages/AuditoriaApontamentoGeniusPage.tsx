@@ -187,6 +187,18 @@ function normalizarStatusOp(v: any): string {
   return s;
 }
 
+// Mapeia o valor de "Status da OP" da UI para o que o backend aceita
+// Backend só conhece 'EM_ANDAMENTO' | 'FINALIZADO' | 'TODOS'.
+// Os demais (E/L/A/C/SEM_STATUS) são refiltrados no client.
+function mapStatusOpParaApi(v: string): string {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (!s) return 'TODOS';
+  if (s === 'F' || s === 'FINALIZADO') return 'FINALIZADO';
+  if (s === 'E' || s === 'L' || s === 'A' || s === 'EM_ANDAMENTO') return 'EM_ANDAMENTO';
+  // 'C' e 'SEM_STATUS' não têm chave dedicada no backend → buscar tudo
+  return 'TODOS';
+}
+
 function normSitorpRow(row: any): 'E'|'L'|'A'|'F'|'C'|'' {
   const real = String(row?.sitorp ?? '').trim().toUpperCase();
   if (real === 'E' || real === 'L' || real === 'A' || real === 'F' || real === 'C') return real;
