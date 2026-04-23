@@ -51,8 +51,7 @@ export function MonitoramentoUsuarios() {
 
   const fetchOnline = useCallback(async () => {
     const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-    const { data } = await supabase
-      .from('user_sessions')
+    const { data } = await (supabase.from('user_sessions' as any) as any)
       .select('*')
       .gte('last_seen_at', since)
       .order('last_seen_at', { ascending: false });
@@ -63,8 +62,7 @@ export function MonitoramentoUsuarios() {
     setLoading(true);
     const sinceMs = period === '24h' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
     const since = new Date(Date.now() - sinceMs).toISOString();
-    let q = supabase
-      .from('user_activity')
+    let q: any = (supabase.from('user_activity' as any) as any)
       .select('*')
       .gte('created_at', since)
       .order('created_at', { ascending: false })
