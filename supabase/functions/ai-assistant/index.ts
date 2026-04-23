@@ -486,13 +486,16 @@ serve(async (req) => {
     const choice = firstData.choices?.[0];
     const toolCalls = choice?.message?.tool_calls || [];
 
-    // Check for server-side tool: list_system_users
-    const serverToolCalls = toolCalls.filter(
-      (tc: any) => tc.function?.name === "list_system_users"
+    // Server-side tools (executed in this edge function)
+    const SERVER_TOOL_NAMES = new Set([
+      "list_system_users",
+      "recall_user_searches",
+    ]);
+    const serverToolCalls = toolCalls.filter((tc: any) =>
+      SERVER_TOOL_NAMES.has(tc.function?.name)
     );
 
     if (serverToolCalls.length > 0) {
-      // Execute server-side tools and feed results back to model
       const toolMessages: any[] = [];
       for (const tc of serverToolCalls) {
         let parsedArgs: any = {};
@@ -501,11 +504,15 @@ serve(async (req) => {
         } catch {
           parsedArgs = {};
         }
-        const result = await executeListSystemUsers(parsedArgs, callerUserId);
+        const name = tc.function.name;
+        const result =
+          name === "list_system_users"
+            ? await executeListSystemUsers(parsedArgs, callerUserId)
+            : await executeRecallUserSearches(parsedArgs, callerUserId);
         toolMessages.push({
           role: "tool",
           tool_call_id: tc.id,
-          name: "list_system_users",
+          name,
           content: JSON.stringify(result),
         });
       }
