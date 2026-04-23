@@ -40,6 +40,12 @@ interface ModuleConfig {
   availableFilters: string[];
   example?: string;
   countUnit?: CountUnit;
+  /**
+   * Mapeia nomes "humanos" que a IA pode pedir → nome real do campo no payload do backend.
+   * Aplicado a: distinct_field, sum_field, order_by, fields, e chaves de client_filters.
+   * Ex.: { fornecedor: 'fantasia_fornecedor', valor_liquido_total: 'valor_liquido' }
+   */
+  fieldAliases?: Record<string, string>;
 }
 
 const MODULE_MAP: Record<string, ModuleConfig> = {
@@ -56,13 +62,20 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
   },
   'painel-compras': {
     endpoint: '/api/painel-compras',
-    defaultOrderBy: 'valor_liquido_total',
-    defaultFields: ['numero_oc', 'fornecedor', 'codigo_item', 'descricao_item', 'valor_liquido_total', 'data_emissao'],
+    defaultOrderBy: 'valor_liquido',
+    defaultFields: ['numero_oc', 'fantasia_fornecedor', 'codigo_item', 'descricao_item', 'valor_liquido', 'data_emissao', 'data_entrega', 'dias_atraso'],
     permissionPath: '/painel-compras',
-    description: 'Ordens de compra (OCs) com valores e fornecedores. ATENÇÃO: 1 OC = N linhas (uma por item).',
+    description: 'Ordens de compra (OCs) com valores e fornecedores. ATENÇÃO: 1 OC = N linhas (uma por item). Campo de fornecedor é fantasia_fornecedor.',
     availableFilters: ['codigo_item', 'descricao_item', 'fornecedor', 'numero_oc', 'numero_projeto', 'centro_custo', 'somente_pendentes', 'data_emissao_ini', 'data_emissao_fim', 'situacao_oc', 'tipo_item'],
     example: '"quantas OCs em aberto?" → aggregate:"count_distinct", distinct_field:"numero_oc", filters:{somente_pendentes:true}',
     countUnit: { field: 'numero_oc', label: 'OCs' },
+    fieldAliases: {
+      fornecedor: 'fantasia_fornecedor',
+      nome_fornecedor: 'fantasia_fornecedor',
+      valor_liquido_total: 'valor_liquido',
+      valor: 'valor_liquido',
+      atraso: 'dias_atraso',
+    },
   },
   'compras-produto': {
     endpoint: '/api/compras-produto',
@@ -253,6 +266,23 @@ export function buildModulesCatalog(): string {
   return lines.join('\n');
 }
 
+function resolveField(cfg: ModuleConfig, name: string | undefined): string | undefined {
+  if (!name) return name;
+  return cfg.fieldAliases?.[name] || name;
+}
+
+function resolveClientFilters(
+  cfg: ModuleConfig,
+  cf?: Record<string, ClientFilterCond>
+): Record<string, ClientFilterCond> | undefined {
+  if (!cf) return cf;
+  const out: Record<string, ClientFilterCond> = {};
+  for (const [k, v] of Object.entries(cf)) {
+    out[resolveField(cfg, k)!] = v;
+  }
+  return out;
+}
+
 function applyClientFilters(records: any[], cf?: Record<string, ClientFilterCond>): any[] {
   if (!cf) return records;
   return records.filter((r) => {
@@ -383,7 +413,8 @@ async function executeAggregate(
     if (rows.length < AGG_PAGE_SIZE) break;
   }
 
-  const filtered = applyClientFilters(all, args.client_filters);
+  const resolvedCf = resolveClientFilters(cfg, args.client_filters);
+  const filtered = applyClientFilters(all, resolvedCf);
   const partial = totalRegistros > all.length;
 
   let value = 0;
@@ -392,7 +423,7 @@ async function executeAggregate(
   if (op === 'count') {
     value = hasClientFilters ? filtered.length : totalRegistros;
   } else if (op === 'count_distinct') {
-    field = args.distinct_field || cfg.countUnit?.field;
+    field = resolveField(cfg, args.distinct_field) || cfg.countUnit?.field;
     if (!field) {
       return { ok: false, error: 'count_distinct requer distinct_field (ou countUnit no módulo).' };
     }
@@ -403,7 +434,7 @@ async function executeAggregate(
     }
     value = set.size;
   } else if (op === 'sum' || op === 'avg') {
-    field = args.sum_field;
+    field = resolveField(cfg, args.sum_field);
     if (!field) {
       return { ok: false, error: `${op} requer sum_field.` };
     }
@@ -464,10 +495,11 @@ export async function executeQueryErpData(
     }
 
     // Regular top-N path
-    const orderBy = args.order_by || cfg.defaultOrderBy;
+    const orderBy = resolveField(cfg, args.order_by) || cfg.defaultOrderBy;
     const orderDir = args.order_dir === 'asc' ? 'asc' : 'desc';
     const topN = Math.max(1, Math.min(Number(args.top_n) || 10, 50));
-    const fields = args.fields?.length ? args.fields : cfg.defaultFields;
+    const requestedFields = args.fields?.length ? args.fields : cfg.defaultFields;
+    const fields = requestedFields.map((f) => resolveField(cfg, f) || f);
 
     const resp = await api.get<any>(cfg.endpoint, { ...params, pagina: 1, tamanho_pagina: 200 });
     const allRecords: any[] = Array.isArray(resp?.dados)
@@ -476,7 +508,7 @@ export async function executeQueryErpData(
         ? resp
         : [];
 
-    const filtered = applyClientFilters(allRecords, args.client_filters);
+    const filtered = applyClientFilters(allRecords, resolveClientFilters(cfg, args.client_filters));
     const ranked = rankRecords(filtered, orderBy, orderDir, topN, fields);
 
     return {

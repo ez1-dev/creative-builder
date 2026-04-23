@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const MODULES_CATALOG = `MÓDULOS DISPONÍVEIS PARA query_erp_data (use o nome exato em "module"). Cada módulo tem uma "unidade de contagem" — use-a em distinct_field para perguntas "quantos X?":
 - estoque: Saldos em estoque. campos: codpro, despro, saldo, coddep, codfam | filtros: codpro, despro, codfam, codori, coddep, somente_com_estoque | ord. padrão: saldo | unidade de contagem: codpro (produtos)
-- painel-compras: Ordens de compra (OCs). ATENÇÃO: 1 OC = N linhas (1 por item). campos: numero_oc, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: codigo_item, descricao_item, fornecedor, numero_oc, numero_projeto, somente_pendentes, situacao_oc, tipo_item | ord. padrão: valor_liquido_total | unidade de contagem: numero_oc (OCs) | ex: "quantas OCs em aberto?" → aggregate:"count_distinct", distinct_field:"numero_oc", filters:{somente_pendentes:true}, scope:"global"
+- painel-compras: Ordens de compra (OCs). ATENÇÃO: 1 OC = N linhas (1 por item). campos: numero_oc, fantasia_fornecedor, codigo_item, descricao_item, valor_liquido, data_emissao, data_entrega, dias_atraso | filtros: codigo_item, descricao_item, fornecedor, numero_oc, numero_projeto, somente_pendentes, situacao_oc, tipo_item | ord. padrão: valor_liquido | unidade de contagem: numero_oc (OCs) | aliases: fornecedor→fantasia_fornecedor, valor_liquido_total→valor_liquido | ex: "quantas OCs em aberto?" → aggregate:"count_distinct", distinct_field:"numero_oc", filters:{somente_pendentes:true}, scope:"global" | ex: "fornecedor com maior atraso?" → scope:"global", filters:{somente_pendentes:true}, client_filters:{dias_atraso:{gt:0}}, order_by:"dias_atraso", top_n:10, fields:["fantasia_fornecedor","numero_oc","descricao_item","dias_atraso","data_entrega"]
 - compras-produto: Compras/custos por produto. campos: codpro, despro, fornecedor, quantidade, valor_unitario, data_emissao | filtros: codpro, despro, codfam, codori, codder, somente_com_oc_aberta | ord. padrão: quantidade | unidade de contagem: codpro (produtos)
 - contas-pagar: Títulos a pagar. campos: numero_titulo, fornecedor, valor_original, valor_aberto, data_vencimento | filtros: fornecedor, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto | unidade de contagem: numero_titulo (títulos)
 - contas-receber: Títulos a receber. campos: numero_titulo, cliente, valor_original, valor_aberto, data_vencimento | filtros: cliente, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto | unidade de contagem: numero_titulo (títulos)
@@ -62,6 +62,13 @@ Após receber o resultado:
 - Sempre ofereça drill-down via apply_erp_filters quando relevante.
 
 ${MODULES_CATALOG}
+
+**EXEMPLOS DE PERGUNTAS GLOBAIS** (sempre usar query_erp_data com scope:"global", IGNORANDO filtros da tela):
+- "quantas ordens de compra temos em aberto?" → painel-compras / count_distinct numero_oc / filters:{somente_pendentes:true}
+- "qual o fornecedor com maior atraso?" → painel-compras / order_by:"dias_atraso" / client_filters:{dias_atraso:{gt:0}} / fields:["fantasia_fornecedor","numero_oc","dias_atraso"] — depois agregue por fantasia_fornecedor.
+- "quantos títulos vencidos?" → contas-pagar / count_distinct numero_titulo / filters:{somente_em_aberto:true}
+
+**FOLLOW-UP CURTO**: se o usuário responder apenas "sim", "pode", "quero", "faça", "ok" depois de você ter oferecido uma busca/consulta global, EXECUTE imediatamente a tool que você acabou de propor. NUNCA repita o contexto da tela. NUNCA pergunte de novo "deseja...?".
 
 Quando o usuário pedir uma resposta analítica exclusivamente sobre o que está visível ("resuma esta tela", "qual o KPI X aqui"), e o CONTEXTO DA PÁGINA já trouxer a informação nos KPIs/summary, responda direto em texto sem chamar tools. Em qualquer outro caso (pergunta global, contagem, soma), use query_erp_data.
 
@@ -534,13 +541,193 @@ async function getCallerUserId(req: Request): Promise<string | null> {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const client = createClient(supabaseUrl, anon);
-    const { data, error } = await client.auth.getClaims(token);
-    if (error || !data?.claims) return null;
-    return data.claims.sub as string;
+    // Try modern getClaims first; fall back to getUser for older SDK runtimes.
+    const anyAuth = client.auth as any;
+    if (typeof anyAuth.getClaims === "function") {
+      const { data, error } = await anyAuth.getClaims(token);
+      if (error || !data?.claims) return null;
+      return data.claims.sub as string;
+    }
+    const { data, error } = await client.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return data.user.id;
   } catch (e) {
     console.error("getCallerUserId error:", e);
     return null;
   }
+}
+
+// ============================================================
+// Intent resolver (determinístico)
+// ============================================================
+
+interface ResolvedIntent {
+  /** System note adicional injetada no prompt para forçar comportamento */
+  systemNote?: string;
+  /** Reescreve a última mensagem do usuário (ex: "sim" → ação pendente) */
+  rewrittenUserMessage?: string;
+}
+
+const SHORT_CONFIRMATIONS = new Set([
+  "sim", "s", "ok", "okay", "claro", "pode", "pode sim", "quero", "quero sim",
+  "faça", "faz", "faça sim", "manda", "manda ver", "vai", "yes", "y", "confirmo",
+  "confirma", "positivo", "perfeito", "isso", "isso mesmo", "exato",
+]);
+
+function normalize(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[?!.,;:]/g, "")
+    .trim();
+}
+
+function isShortConfirmation(text: string): boolean {
+  const n = normalize(text);
+  if (!n) return false;
+  if (n.length > 25) return false;
+  return SHORT_CONFIRMATIONS.has(n);
+}
+
+function lastAssistantOfferedGlobal(messages: any[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "assistant" && typeof m.content === "string") {
+      const c = m.content.toLowerCase();
+      return /(busca\s+global|consulta\s+global|todo\s+o\s+(erp|sistema)|todos\s+(os|as)\s+(fornecedores|registros|ocs|t[ií]tulos)|sem\s+(o\s+)?filtro|remover\s+(o\s+)?filtro|consulta\s+sem\s+filtro|globalmente)/i.test(
+        c
+      );
+    }
+    if (m.role === "user") return false;
+  }
+  return false;
+}
+
+function lastAssistantText(messages: any[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "assistant" && typeof m.content === "string") return m.content;
+  }
+  return "";
+}
+
+/**
+ * Detecta intenções analíticas globais de alta confiança e devolve
+ * um systemNote para forçar query_erp_data com os parâmetros certos.
+ */
+function detectGlobalAnalyticalIntent(
+  userText: string,
+  pageContext: any
+): string | null {
+  const n = normalize(userText);
+  if (!n) return null;
+
+  const isLocalScope = /(nesta\s+tela|nessa\s+tela|aqui|nos?\s+resultados\s+atuais|filtrad)/.test(
+    n
+  );
+  if (isLocalScope) return null;
+
+  // ---- painel-compras: contagem de OCs em aberto ----
+  if (
+    /(quant[ao]s?|numero\s+de|n[ºo°]\s*de|total\s+de)/.test(n) &&
+    /(ordens?\s+de\s+compra|ocs?)/.test(n) &&
+    /(em\s+aberto|abertas?|pendentes?|sem\s+liquidar|n[aã]o\s+liquidad|atrasad)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA (alta confiança): contagem global de Ordens de Compra em aberto.",
+      "OBRIGATÓRIO: chame a tool query_erp_data EXATAMENTE com:",
+      '{ "module": "painel-compras", "scope": "global", "aggregate": "count_distinct", "distinct_field": "numero_oc", "filters": { "somente_pendentes": true } }',
+      "NÃO use o contexto da página. NÃO use apply_erp_filters. NÃO responda em texto antes da tool.",
+    ].join("\n");
+  }
+
+  // ---- painel-compras: fornecedor com maior atraso ----
+  if (
+    /(fornecedor|fornecedores)/.test(n) &&
+    /(maior|maiores|mais|top|pior|piores)\s+(atras[oa]|atrasos?|dias|atrasad)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA (alta confiança): ranking global de fornecedor com maior atraso em OCs pendentes.",
+      "OBRIGATÓRIO: chame a tool query_erp_data EXATAMENTE com:",
+      '{ "module": "painel-compras", "scope": "global", "filters": { "somente_pendentes": true }, "client_filters": { "dias_atraso": { "gt": 0 } }, "order_by": "dias_atraso", "order_dir": "desc", "top_n": 10, "fields": ["fantasia_fornecedor", "numero_oc", "descricao_item", "dias_atraso", "data_entrega"] }',
+      "Após receber o resultado, agregue por fantasia_fornecedor e responda quem tem o MAIOR dias_atraso (e quantas OCs/itens). NÃO use o contexto da página.",
+    ].join("\n");
+  }
+
+  // ---- painel-compras: valor total das OCs em aberto ----
+  if (
+    /(valor|total|soma|montante)/.test(n) &&
+    /(ocs?|ordens?\s+de\s+compra)/.test(n) &&
+    /(em\s+aberto|pendentes?|abertas?)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA: valor total global das OCs em aberto.",
+      "OBRIGATÓRIO: chame query_erp_data com:",
+      '{ "module": "painel-compras", "scope": "global", "aggregate": "sum", "sum_field": "valor_liquido", "filters": { "somente_pendentes": true } }',
+      "NÃO use o contexto da página.",
+    ].join("\n");
+  }
+
+  // ---- contas-pagar: títulos vencidos / em aberto ----
+  if (
+    /(quant[ao]s?|numero\s+de|total\s+de)/.test(n) &&
+    /(titulos?|contas?\s+a\s+pagar)/.test(n) &&
+    /(vencid|em\s+aberto|abertos?|pendentes?)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA: contagem global de títulos a pagar.",
+      "OBRIGATÓRIO: chame query_erp_data com:",
+      '{ "module": "contas-pagar", "scope": "global", "aggregate": "count_distinct", "distinct_field": "numero_titulo", "filters": { "somente_em_aberto": true } }',
+    ].join("\n");
+  }
+
+  return null;
+}
+
+/**
+ * Resolvedor principal de intenção: aplica heurísticas determinísticas
+ * antes de chamar o modelo.
+ */
+function resolveIntent(messages: any[], pageContext: any): ResolvedIntent {
+  if (!Array.isArray(messages) || messages.length === 0) return {};
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  if (!lastUser || typeof lastUser.content !== "string") return {};
+
+  const userText = lastUser.content;
+
+  // Caso 1: confirmação curta após oferta de busca global
+  if (isShortConfirmation(userText) && lastAssistantOfferedGlobal(messages)) {
+    const prevAssistant = lastAssistantText(messages);
+    // Tenta inferir o domínio a partir da última fala do assistente
+    const lower = prevAssistant.toLowerCase();
+    let pendingAction = "Execute a busca/consulta global que você acabou de propor, ignorando os filtros da tela atual.";
+
+    if (/(ordens?\s+de\s+compra|ocs?).*(em\s+aberto|pendent|abert)/.test(lower)) {
+      pendingAction =
+        'Faça AGORA a busca global de Ordens de Compra em aberto chamando query_erp_data com {"module":"painel-compras","scope":"global","aggregate":"count_distinct","distinct_field":"numero_oc","filters":{"somente_pendentes":true}}. NÃO use o contexto da página.';
+    } else if (/(fornecedor).*(atras|maior|pior)/.test(lower)) {
+      pendingAction =
+        'Faça AGORA a consulta global do fornecedor com maior atraso chamando query_erp_data com {"module":"painel-compras","scope":"global","filters":{"somente_pendentes":true},"client_filters":{"dias_atraso":{"gt":0}},"order_by":"dias_atraso","order_dir":"desc","top_n":10,"fields":["fantasia_fornecedor","numero_oc","descricao_item","dias_atraso","data_entrega"]}. Agregue por fantasia_fornecedor no texto da resposta. NÃO use o contexto da página.';
+    } else if (/(t[ií]tulos?|contas?\s+a\s+pagar).*(vencid|em\s+aberto|aberto|pendent)/.test(lower)) {
+      pendingAction =
+        'Faça AGORA a busca global de títulos a pagar em aberto via query_erp_data com {"module":"contas-pagar","scope":"global","aggregate":"count_distinct","distinct_field":"numero_titulo","filters":{"somente_em_aberto":true}}.';
+    }
+
+    return {
+      rewrittenUserMessage: `(confirmação do usuário) ${pendingAction}`,
+      systemNote:
+        "FOLLOW-UP: o usuário acabou de confirmar (\"sim\") uma ação global pendente. Execute a tool indicada imediatamente, SEM voltar a perguntar e SEM responder com base no contexto da página.",
+    };
+  }
+
+  // Caso 2: pergunta analítica global de alta confiança
+  const note = detectGlobalAnalyticalIntent(userText, pageContext);
+  if (note) {
+    return { systemNote: note };
+  }
+
+  return {};
 }
 
 async function callAiGateway(
@@ -576,9 +763,32 @@ serve(async (req) => {
     );
     const systemPrompt = buildSystemPrompt(pageContext, userMemory);
 
+    // Determinist intent resolver: detects global analytical questions
+    // and short confirmations ("sim") so the model is forced to use the
+    // correct tool with global scope instead of relying on page context.
+    const isContinuation =
+      Array.isArray(toolResults) && toolResults.length > 0 && priorAssistant;
+    let effectiveMessages = messages;
+    let extraSystemNote: string | null = null;
+    if (!isContinuation) {
+      const intent = resolveIntent(messages, pageContext);
+      if (intent.systemNote) extraSystemNote = intent.systemNote;
+      if (intent.rewrittenUserMessage && Array.isArray(messages) && messages.length > 0) {
+        const rewritten = [...messages];
+        for (let i = rewritten.length - 1; i >= 0; i--) {
+          if (rewritten[i].role === "user") {
+            rewritten[i] = { ...rewritten[i], content: intent.rewrittenUserMessage };
+            break;
+          }
+        }
+        effectiveMessages = rewritten;
+      }
+    }
+
     const baseMessages: any[] = [
       { role: "system", content: systemPrompt },
-      ...messages,
+      ...(extraSystemNote ? [{ role: "system", content: extraSystemNote }] : []),
+      ...effectiveMessages,
     ];
 
     // Continuation flow: client executed a client-side tool and is sending results back
