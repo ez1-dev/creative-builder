@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3 } from 'lucide-react';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 import { DashboardUsoUsuarios } from '@/components/erp/DashboardUsoUsuarios';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
