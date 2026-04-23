@@ -979,6 +979,7 @@ export default function AuditoriaApontamentoGeniusPage() {
             <KpiDrillCard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} kind={{ kind: 'semFim' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semFim' }))} onVerTudo={abrirKpiDrill} />
             <KpiDrillCard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} kind={{ kind: 'fimMenorInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'fimMenorInicio' }))} onVerTudo={abrirKpiDrill} />
             <KpiDrillCard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} kind={{ kind: 'acima8h' }} ops={agregarPorOp(linhasDoKpi({ kind: 'acima8h' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Abaixo de 5 min" value={formatNumber((atualizarKpisApontGenius as any).abaixo_5min ?? 0, 0)} icon={<AlertTriangle className="h-5 w-5" />} variant="warning" index={11} kind={{ kind: 'abaixo5min' }} ops={agregarPorOp(linhasDoKpi({ kind: 'abaixo5min' }))} onVerTudo={abrirKpiDrill} tooltip="Apontamentos com tempo > 0 e < 5 minutos — possível erro de operação ou apontamento incorreto" />
             <KpiDrillCard
               title="Maior Total Dia"
               value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
