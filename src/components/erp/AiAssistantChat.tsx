@@ -28,6 +28,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant
 export function AiAssistantChat() {
   const { canUseAi } = useUserPermissions();
   const { context: pageContext } = useAiPageContextValue();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
@@ -35,6 +36,15 @@ export function AiAssistantChat() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  // Derive current module key from route or pageContext
+  const currentModule = useMemo(() => {
+    if (pageContext?.module) return pageContext.module;
+    const seg = location.pathname.split('/').filter(Boolean)[0];
+    return seg && MODULE_LABELS[seg] ? seg : seg || null;
+  }, [location.pathname, pageContext?.module]);
+
+  const { suggestions } = useUserSuggestions(currentModule, 3);
 
   // Ctrl+J / Cmd+J global shortcut
   useEffect(() => {
