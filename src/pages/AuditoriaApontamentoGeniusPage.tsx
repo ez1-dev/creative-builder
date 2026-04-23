@@ -233,6 +233,13 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
+  // Drill profundo nos cards de status real
+  const [statusOpDrillAberto, setStatusOpDrillAberto] = useState(false);
+  const [statusOpDrillLetra, setStatusOpDrillLetra] = useState<'E'|'L'|'A'|'F'|'C'|null>(null);
+  const [statusDrillSomenteInconsist, setStatusDrillSomenteInconsist] = useState(false);
+  const [statusDrillBusca, setStatusDrillBusca] = useState('');
+  const [statusDrillOrdem, setStatusDrillOrdem] = useState<'inconsist'|'horas'|'apt'|'op'>('inconsist');
+  const [opExpandidaNoDrill, setOpExpandidaNoDrill] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [intervaloRefresh, setIntervaloRefresh] = useState<30 | 60 | 120>(60);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
