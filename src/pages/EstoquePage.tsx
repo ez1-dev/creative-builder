@@ -42,6 +42,7 @@ export default function EstoquePage() {
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
 
   useAiFilters('estoque', setFilters, () => search(1));
+  const trackSearch = useSearchTracking('estoque');
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -51,12 +52,13 @@ export default function EstoquePage() {
       const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
+      if (page === 1) trackSearch(filters, result?.total_registros);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, trackSearch]);
 
   const kpis = useMemo(() => {
     if (!data) return null;
