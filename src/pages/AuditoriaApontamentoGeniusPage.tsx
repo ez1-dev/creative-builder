@@ -1442,7 +1442,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         setOpExpandida={setOpExpandidaNoDrill}
         discrepanciasParciais={!!atualizarKpisApontGenius?.discrepanciasParciais}
         totalRegistros={atualizarKpisApontGenius?.total_registros ?? 0}
-        paginaCarregada={data?.dados?.length ?? 0}
+        paginaCarregada={dadosFiltradosPorStatusOp.length}
         onAbrirDrawerOp={(row) => { setKpiDrillAberto(false); abrirDetalhesOp(row); }}
         onFiltrarGridPorOp={(numop) => {
           setFilters((f) => ({ ...f, numop }));
