@@ -1163,31 +1163,97 @@ export default function AuditoriaApontamentoGeniusPage() {
                     <table className="w-full text-xs">
                       <thead className="bg-muted/50">
                         <tr className="text-left">
-                          <th className="px-2 py-1 font-medium">Data</th>
-                          <th className="px-2 py-1 font-medium">Hora</th>
-                          <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
+                          <th className="px-2 py-1 font-medium">#</th>
+                          <th className="px-2 py-1 font-medium">Operação</th>
                           <th className="px-2 py-1 font-medium">Operador</th>
+                          <th className="px-2 py-1 font-medium">Centro</th>
+                          <th className="px-2 py-1 font-medium">Início (data + hora)</th>
+                          <th className="px-2 py-1 font-medium">Fim (data + hora)</th>
+                          <th className="px-2 py-1 font-medium text-right">Apontado (min · h)</th>
+                          <th className="px-2 py-1 font-medium text-right">Tot. Dia</th>
                           <th className="px-2 py-1 font-medium">Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {apontamentosDaOp.map((r, i) => {
-                          const horas = Number(r.horas_realizadas) || 0;
+                        {[...apontamentosDaOp].sort((a: any, b: any) => {
+                          const da = String(a.data_movimento ?? '');
+                          const db = String(b.data_movimento ?? '');
+                          if (da !== db) return da.localeCompare(db);
+                          const ha = String(a.hora_inicial ?? a.hora_movimento ?? '');
+                          const hb = String(b.hora_inicial ?? b.hora_movimento ?? '');
+                          return ha.localeCompare(hb);
+                        }).map((r: any, i: number) => {
+                          const minRaw = Number(r.horas_realizadas) || 0;
+                          const horas = minToHours(r.horas_realizadas);
+                          const totDia = minToHours(r.total_horas_dia_operador);
                           const saKey = ((r.status_movimento as StatusApont) in statusApontVariants
                             ? r.status_movimento
                             : 'FECHADO') as StatusApont;
                           const saCfg = statusApontVariants[saKey];
+
+                          const semInicio = !r.hora_inicial;
+                          const semFim = !r.hora_final;
+                          const fimMenor = !!(r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial));
+                          const abaixo5 = minRaw > 0 && minRaw < 5;
+                          const acima8h = horas > 8 || totDia > 8;
+                          const rowBg = acima8h
+                            ? 'bg-red-500/10'
+                            : (semInicio || semFim || fimMenor)
+                              ? 'bg-orange-500/10'
+                              : abaixo5
+                                ? 'bg-amber-500/10'
+                                : '';
+                          const dataFmt = r.data_movimento ? formatDate(r.data_movimento) : '—';
+
                           return (
-                            <tr key={i} className="border-t">
-                              <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
-                              <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
-                              <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
-                                {fmtMinHoras(horas)}
-                              </td>
+                            <tr key={i} className={cn('border-t align-top', rowBg)}>
+                              <td className="px-2 py-1 text-muted-foreground">{i + 1}</td>
+                              <td className="px-2 py-1">{r.estagio ?? r.operacao ?? '—'}</td>
                               <td className="px-2 py-1">
                                 {r.nome_operador && String(r.nome_operador).trim()
                                   ? r.nome_operador
                                   : <span className="text-muted-foreground">— (cód: {r.numcad ?? 0})</span>}
+                              </td>
+                              <td className="px-2 py-1">{r.centro_trabalho ?? r.codigo_centro_trabalho ?? '—'}</td>
+                              <td className="px-2 py-1">
+                                {semInicio ? (
+                                  <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem início</Badge>
+                                ) : (
+                                  <div className="leading-tight">
+                                    <div>{dataFmt}</div>
+                                    <div className="text-muted-foreground">{r.hora_inicial}</div>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-2 py-1">
+                                {semFim ? (
+                                  <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem fim</Badge>
+                                ) : fimMenor ? (
+                                  <div className="leading-tight">
+                                    <div>{dataFmt}</div>
+                                    <div className="text-muted-foreground">{r.hora_final}</div>
+                                    <Badge className="bg-orange-500/15 text-orange-700 border-orange-500/30 text-[10px] mt-0.5">Fim &lt; Início</Badge>
+                                  </div>
+                                ) : (
+                                  <div className="leading-tight">
+                                    <div>{dataFmt}</div>
+                                    <div className="text-muted-foreground">{r.hora_final}</div>
+                                  </div>
+                                )}
+                              </td>
+                              <td className={cn(
+                                'px-2 py-1 text-right tabular-nums',
+                                minRaw === 0 && 'text-destructive font-medium',
+                                abaixo5 && 'text-amber-700 font-semibold',
+                                horas > 8 && 'text-destructive font-bold',
+                              )}>
+                                {fmtMinHoras(r.horas_realizadas)}
+                              </td>
+                              <td className={cn(
+                                'px-2 py-1 text-right tabular-nums',
+                                totDia > 8 && 'text-destructive font-bold',
+                              )}>
+                                {fmtMinHoras(r.total_horas_dia_operador)}
                               </td>
                               <td className="px-2 py-1">
                                 <Badge className={`${saCfg.className} text-[10px]`}>{saCfg.label}</Badge>
@@ -1843,8 +1909,44 @@ function OpLinhasInline({
   onAbrirDrawerOp: (row: any) => void;
   onFiltrarGridPorOp: (numop: string) => void;
 }) {
-  const linhas = op.linhas;
+  // Ordenar por linha do tempo (data + hora inicial)
+  const linhas = useMemo(() => {
+    return [...op.linhas].sort((a, b) => {
+      const da = String(a.data_movimento ?? '');
+      const db = String(b.data_movimento ?? '');
+      if (da !== db) return da.localeCompare(db);
+      const ha = String(a.hora_inicial ?? a.hora_movimento ?? '');
+      const hb = String(b.hora_inicial ?? b.hora_movimento ?? '');
+      return ha.localeCompare(hb);
+    });
+  }, [op.linhas]);
+
   const primeira = linhas[0];
+
+  // Resumo da OP
+  const resumo = useMemo(() => {
+    let totalMin = 0;
+    let inconsist = 0;
+    const operadores = new Set<string>();
+    const centros = new Set<string>();
+    let dataMin: string | null = null;
+    let dataMax: string | null = null;
+    linhas.forEach((r: any) => {
+      const m = Number(r.horas_realizadas) || 0;
+      totalMin += m;
+      if (isLinhaDiscrepante(r) || (m > 0 && m < 5)) inconsist += 1;
+      const op2 = String(r.nome_operador ?? r.numcad ?? '').trim();
+      if (op2) operadores.add(op2);
+      const ct = String(r.centro_trabalho ?? r.codigo_centro_trabalho ?? r.estagio ?? '').trim();
+      if (ct) centros.add(ct);
+      const d = String(r.data_movimento ?? '');
+      if (d) {
+        if (!dataMin || d < dataMin) dataMin = d;
+        if (!dataMax || d > dataMax) dataMax = d;
+      }
+    });
+    return { totalMin, inconsist, operadores: operadores.size, centros: centros.size, dataMin, dataMax };
+  }, [linhas]);
 
   const copiarJson = useCallback(() => {
     try {
@@ -1894,49 +1996,124 @@ function OpLinhasInline({
         </div>
       </div>
 
+      {/* Resumo da OP */}
+      <div className="rounded-md border bg-muted/30 px-3 py-2 grid grid-cols-2 md:grid-cols-5 gap-x-4 gap-y-1 text-[11px]">
+        <div>
+          <div className="text-muted-foreground">Período</div>
+          <div className="font-medium">
+            {resumo.dataMin ? formatDate(resumo.dataMin) : '—'} → {resumo.dataMax ? formatDate(resumo.dataMax) : '—'}
+          </div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Total apontado</div>
+          <div className="font-medium">{fmtMinHoras(resumo.totalMin)}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Movimentos</div>
+          <div className="font-medium">{linhas.length}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Operadores · Centros</div>
+          <div className="font-medium">{resumo.operadores} · {resumo.centros}</div>
+        </div>
+        <div>
+          <div className="text-muted-foreground">Inconsistências</div>
+          <div className={cn('font-semibold', resumo.inconsist > 0 ? 'text-destructive' : 'text-emerald-600')}>
+            {resumo.inconsist}
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-md border overflow-x-auto bg-background">
         <table className="w-full text-[11px]">
           <thead className="bg-muted/40 text-left">
             <tr>
-              <th className="px-2 py-1 font-medium">Data</th>
-              <th className="px-2 py-1 font-medium">Hora</th>
-              <th className="px-2 py-1 font-medium">Operador (numcad)</th>
-              <th className="px-2 py-1 font-medium">Estágio</th>
-              <th className="px-2 py-1 font-medium text-right">Seq Rot</th>
-              <th className="px-2 py-1 font-medium text-right">Seq Apt</th>
-              <th className="px-2 py-1 font-medium">Turno</th>
-              <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
-              <th className="px-2 py-1 font-medium text-right">Tot. Dia (min · h)</th>
+              <th className="px-2 py-1 font-medium">#</th>
+              <th className="px-2 py-1 font-medium">Operação</th>
+              <th className="px-2 py-1 font-medium">Operador</th>
+              <th className="px-2 py-1 font-medium">Centro Trab.</th>
+              <th className="px-2 py-1 font-medium">Início (data + hora)</th>
+              <th className="px-2 py-1 font-medium">Fim (data + hora)</th>
+              <th className="px-2 py-1 font-medium text-right">Apontado (min · h)</th>
+              <th className="px-2 py-1 font-medium text-right">Total Dia Op.</th>
               <th className="px-2 py-1 font-medium">Status Mov.</th>
               <th className="px-2 py-1 font-medium">Sitorp</th>
             </tr>
           </thead>
           <tbody>
-            {linhas.map((r, i) => {
+            {linhas.map((r: any, i: number) => {
+              const minRaw = Number(r.horas_realizadas) || 0;
               const horas = minToHours(r.horas_realizadas);
               const totDia = minToHours(r.total_horas_dia_operador);
               const sa = String(r.status_movimento ?? 'FECHADO').toUpperCase();
               const saCfg = statusApontVariants[(sa in statusApontVariants ? sa : 'FECHADO') as StatusApont];
-              const inconsist = sa === 'DIVERGENTE' || sa === 'ABERTO' || sa === 'SEM_APONTAMENTO' || horas > 8 || totDia > 8;
               const realKey = String(r.sitorp ?? '').toUpperCase();
               const realCfg = realKey ? statusOpVariants[realKey] : null;
+
+              const semInicio = !r.hora_inicial;
+              const semFim = !r.hora_final;
+              const fimMenor = !!(r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial));
+              const abaixo5 = minRaw > 0 && minRaw < 5;
+              const acima8h = horas > 8 || totDia > 8;
+
+              const rowBg = acima8h
+                ? 'bg-red-500/10'
+                : (semInicio || semFim || fimMenor)
+                  ? 'bg-orange-500/10'
+                  : abaixo5
+                    ? 'bg-amber-500/10'
+                    : '';
+
+              const dataFmt = r.data_movimento ? formatDate(r.data_movimento) : '—';
+
               return (
-                <tr key={i} className={cn('border-t', inconsist && 'bg-destructive/5')}>
-                  <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
+                <tr key={i} className={cn('border-t align-top', rowBg)}>
+                  <td className="px-2 py-1 text-muted-foreground">{i + 1}</td>
+                  <td className="px-2 py-1">{r.estagio ?? r.operacao ?? '—'}</td>
                   <td className="px-2 py-1">
                     {r.nome_operador && String(r.nome_operador).trim()
                       ? <>{r.nome_operador} <span className="text-muted-foreground">({r.numcad ?? 0})</span></>
                       : <span className="text-muted-foreground">— ({r.numcad ?? 0})</span>}
                   </td>
-                  <td className="px-2 py-1">{r.estagio ?? '—'}</td>
-                  <td className="px-2 py-1 text-right">{r.seqrot ?? '—'}</td>
-                  <td className="px-2 py-1 text-right">{r.seq_apontamento ?? '—'}</td>
-                  <td className="px-2 py-1">{r.turno ?? '—'}</td>
-                  <td className={cn('px-2 py-1 text-right', horas === 0 && 'text-destructive font-medium', horas > 8 && 'text-destructive font-bold')}>
+                  <td className="px-2 py-1">{r.centro_trabalho ?? r.codigo_centro_trabalho ?? '—'}</td>
+                  <td className="px-2 py-1">
+                    {semInicio ? (
+                      <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem início</Badge>
+                    ) : (
+                      <div className="leading-tight">
+                        <div>{dataFmt}</div>
+                        <div className="text-muted-foreground">{r.hora_inicial}</div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-2 py-1">
+                    {semFim ? (
+                      <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem fim</Badge>
+                    ) : fimMenor ? (
+                      <div className="leading-tight">
+                        <div>{dataFmt}</div>
+                        <div className="text-muted-foreground">{r.hora_final}</div>
+                        <Badge className="bg-orange-500/15 text-orange-700 border-orange-500/30 text-[10px] mt-0.5">Fim &lt; Início</Badge>
+                      </div>
+                    ) : (
+                      <div className="leading-tight">
+                        <div>{dataFmt}</div>
+                        <div className="text-muted-foreground">{r.hora_final}</div>
+                      </div>
+                    )}
+                  </td>
+                  <td className={cn(
+                    'px-2 py-1 text-right tabular-nums',
+                    minRaw === 0 && 'text-destructive font-medium',
+                    abaixo5 && 'text-amber-700 font-semibold',
+                    horas > 8 && 'text-destructive font-bold',
+                  )}>
                     {fmtMinHoras(r.horas_realizadas)}
                   </td>
-                  <td className={cn('px-2 py-1 text-right', totDia > 8 && 'text-destructive font-bold')}>
+                  <td className={cn(
+                    'px-2 py-1 text-right tabular-nums',
+                    totDia > 8 && 'text-destructive font-bold',
+                  )}>
                     {fmtMinHoras(r.total_horas_dia_operador)}
                   </td>
                   <td className="px-2 py-1">
