@@ -1098,6 +1098,12 @@ export default function AuditoriaApontamentoGeniusPage() {
         </div>
       </FilterPanel>
 
+      {(filters.status_op === 'C' || filters.status_op === 'SEM_STATUS') && (
+        <p className="text-[11px] text-muted-foreground -mt-2">
+          Filtro "{filters.status_op === 'C' ? 'Cancelada' : 'Sem status'}" aplicado localmente sobre a página atual — paginar para ver mais.
+        </p>
+      )}
+
       {atualizarKpisApontGenius && (
         <>
           <StatusOpGeniusCard
