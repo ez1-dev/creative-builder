@@ -434,6 +434,122 @@ export default function AuditoriaApontamentoGeniusPage() {
     };
   }, [data]);
 
+  const kpiDrilldowns = useMemo(() => {
+    const empty = {
+      totalRegistros: [] as { label: string; value: string }[],
+      opsAndamento: [] as { label: string; value: string }[],
+      opsFinalizadas: [] as { label: string; value: string }[],
+      discrepancias: [] as { label: string; value: string }[],
+      semInicio: [] as { label: string; value: string }[],
+      semFim: [] as { label: string; value: string }[],
+      fimMenorInicio: [] as { label: string; value: string }[],
+      acima8h: [] as { label: string; value: string }[],
+      maiorTotalDia: [] as { label: string; value: string }[],
+    };
+    if (!data?.dados) return empty;
+    const rows = data.dados as any[];
+
+    // Total Registros: top 10 origens
+    const origemCount = new Map<string, number>();
+    // OPs únicas (por status)
+    const opsAtivasMap = new Map<string, string>();
+    const opsFinalMap = new Map<string, string>();
+    // Discrepâncias
+    const discrep: { label: string; value: string }[] = [];
+    const semInicio: { label: string; value: string }[] = [];
+    const semFim: { label: string; value: string }[] = [];
+    const fimMenorInicio: { label: string; value: string }[] = [];
+    const acima8hRaw: { label: string; value: string; horas: number; key: string }[] = [];
+    const maiorDiaRaw: { label: string; value: string; total: number; key: string }[] = [];
+    const acima8hSeen = new Set<string>();
+    const maiorDiaSeen = new Set<string>();
+
+    for (const row of rows) {
+      const numop = String(row.numero_op ?? row.numop ?? '').trim();
+      const operador = String(row.nome_operador ?? row.operador ?? '').trim();
+      const produto = String(row.descricao_produto ?? row.produto ?? row.codigo_produto ?? '').trim();
+      const origem = String(row.origem ?? row.codori ?? '').trim();
+
+      if (origem) origemCount.set(origem, (origemCount.get(origem) ?? 0) + 1);
+
+      const st = normalizarStatusOp(row.status_op);
+      if (numop) {
+        if (STATUS_OP_ATIVOS.has(st) && !opsAtivasMap.has(numop)) opsAtivasMap.set(numop, produto || '—');
+        else if (STATUS_OP_FINALIZADOS.has(st) && !opsFinalMap.has(numop)) opsFinalMap.set(numop, produto || '—');
+      }
+
+      const sa = String(row.status_movimento ?? '').toUpperCase();
+      const horas = Number(row.horas_realizadas || 0);
+      const totDia = Number(row.total_horas_dia_operador || 0);
+
+      const opOpStr = numop || operador ? `OP ${numop || '—'} · ${operador || '—'}` : '—';
+
+      if (sa && sa !== 'FECHADO') {
+        const variant = statusApontVariants[derivarStatusApont(row)];
+        discrep.push({ label: opOpStr, value: variant?.label ?? sa });
+      }
+      if (sa === 'SEM_APONTAMONTO' || sa === 'SEM_APONTAMENTO') {
+        const dt = formatDate(row.data_apontamento ?? row.data);
+        const hr = String(row.hora_inicio ?? row.hora ?? '').trim();
+        semInicio.push({ label: opOpStr, value: `${dt}${hr ? ' ' + hr : ''}` });
+      }
+      if (sa === 'ABERTO') {
+        const dt = formatDate(row.data_apontamento ?? row.data);
+        const hr = String(row.hora_inicio ?? row.hora ?? '').trim();
+        semFim.push({ label: opOpStr, value: `${dt}${hr ? ' ' + hr : ''}` });
+      }
+      if (sa === 'DIVERGENTE') {
+        fimMenorInicio.push({ label: opOpStr, value: `${formatNumber(horas, 2)}h` });
+      }
+      if (horas > 8 || totDia > 8) {
+        const key = `${operador}::${numop}`;
+        if (!acima8hSeen.has(key)) {
+          acima8hSeen.add(key);
+          const h = horas > 8 ? horas : totDia;
+          acima8hRaw.push({ label: operador || '—', value: `${formatNumber(h, 2)}h`, horas: h, key });
+        }
+      }
+      if (totDia > 0) {
+        const key = `${operador}::${formatDate(row.data_apontamento ?? row.data)}`;
+        if (!maiorDiaSeen.has(key)) {
+          maiorDiaSeen.add(key);
+          maiorDiaRaw.push({ label: operador || '—', value: `${formatNumber(totDia, 2)}h`, total: totDia, key });
+        }
+      }
+    }
+
+    const totalRegistros = Array.from(origemCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([o, c]) => ({ label: `Origem ${o}`, value: formatNumber(c, 0) }));
+
+    const opsAndamento = Array.from(opsAtivasMap.entries())
+      .slice(0, 15)
+      .map(([op, prod]) => ({ label: `OP ${op}`, value: prod }));
+
+    const opsFinalizadas = Array.from(opsFinalMap.entries())
+      .slice(0, 15)
+      .map(([op, prod]) => ({ label: `OP ${op}`, value: prod }));
+
+    const acima8h = acima8hRaw.sort((a, b) => b.horas - a.horas).slice(0, 15)
+      .map(({ label, value }) => ({ label, value }));
+
+    const maiorTotalDia = maiorDiaRaw.sort((a, b) => b.total - a.total).slice(0, 10)
+      .map(({ label, value }) => ({ label, value }));
+
+    return {
+      totalRegistros,
+      opsAndamento,
+      opsFinalizadas,
+      discrepancias: discrep.slice(0, 15),
+      semInicio: semInicio.slice(0, 15),
+      semFim: semFim.slice(0, 15),
+      fimMenorInicio: fimMenorInicio.slice(0, 15),
+      acima8h,
+      maiorTotalDia,
+    };
+  }, [data]);
+
   const rowClassName = useCallback((row: any) => {
     const sa = String(row.status_movimento ?? '').toUpperCase();
     const horas = Number(row.horas_realizadas || 0);
