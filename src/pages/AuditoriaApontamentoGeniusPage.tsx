@@ -55,6 +55,19 @@ type OpAgg = {
   sitorp: string;
 };
 
+// ─── Tipos de drill por KPI ────────────────────────────────────────────────
+type KpiDrillKind =
+  | { kind: 'status'; letra: 'E'|'L'|'A'|'F'|'C' }
+  | { kind: 'total' }
+  | { kind: 'discrepancias' }
+  | { kind: 'semInicio' }
+  | { kind: 'semFim' }
+  | { kind: 'fimMenorInicio' }
+  | { kind: 'acima8h' }
+  | { kind: 'maiorTotalDia' }
+  | { kind: 'emAndamento' }
+  | { kind: 'finalizadas' };
+
 // ─── Helpers de tempo: backend devolve tempos em MINUTOS ───────────────────
 const minToHours = (m: number | null | undefined) => (Number(m) || 0) / 60;
 const fmtMinHoras = (m: number | null | undefined, dec = 2) => {
@@ -78,6 +91,14 @@ const STATUS_LETRA_BORDER: Record<'E'|'L'|'A'|'F'|'C', string> = {
   C: 'border-l-destructive',
 };
 
+const KPI_VARIANT_BORDER: Record<'default'|'success'|'warning'|'destructive'|'info', string> = {
+  default: 'border-l-primary',
+  success: 'border-l-[hsl(var(--success))]',
+  warning: 'border-l-[hsl(var(--warning))]',
+  destructive: 'border-l-destructive',
+  info: 'border-l-[hsl(var(--info))]',
+};
+
 // Origens GENIUS — começa em 110 conforme regra ERP
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
 
@@ -92,6 +113,83 @@ function normalizarStatusOp(v: any): string {
   const s = String(v ?? '').trim().toUpperCase();
   if (!s) return 'SEM_STATUS';
   return s;
+}
+
+function normSitorpRow(row: any): 'E'|'L'|'A'|'F'|'C'|'' {
+  const real = String(row?.sitorp ?? '').trim().toUpperCase();
+  if (real === 'E' || real === 'L' || real === 'A' || real === 'F' || real === 'C') return real;
+  const st = normalizarStatusOp(row?.status_op);
+  if (STATUS_OP_FINALIZADOS.has(st)) return 'F';
+  if (STATUS_OP_CANCELADOS.has(st)) return 'C';
+  if (STATUS_OP_ATIVOS.has(st)) return 'A';
+  return '';
+}
+
+function isLinhaDiscrepante(row: any): boolean {
+  const sa = String(row?.status_movimento ?? '').toUpperCase();
+  if (sa && sa !== 'FECHADO') return true;
+  const horas = minToHours(row?.horas_realizadas);
+  const totDia = minToHours(row?.total_horas_dia_operador);
+  if (horas > 8 || totDia > 8) return true;
+  if (!row?.hora_inicial) return true;
+  if (!row?.hora_final) return true;
+  if (row?.hora_inicial && row?.hora_final && String(row.hora_final) < String(row.hora_inicial)) return true;
+  return false;
+}
+
+// Agrega linhas brutas em OpAgg[] (reutilizado pelo Sheet genérico)
+function agregarPorOp(linhas: any[]): OpAgg[] {
+  const map = new Map<string, OpAgg>();
+  for (const row of linhas) {
+    const numop = String(row.numero_op ?? row.numop ?? '').trim();
+    if (!numop) continue;
+    const operador = String(row.nome_operador ?? row.operador ?? '').trim();
+    const produto = String(row.descricao_produto ?? row.produto ?? row.codigo_produto ?? '').trim();
+    const origem = String(row.origem ?? row.codori ?? '').trim();
+    const letra = normSitorpRow(row) || '';
+
+    let agg = map.get(numop);
+    if (!agg) {
+      agg = {
+        numero_op: numop,
+        produto: produto || '—',
+        codigo_produto: String(row.codigo_produto ?? '').trim(),
+        origem,
+        apontamentos: 0,
+        total_horas: 0,
+        inconsistencias: 0,
+        sem_inicio: 0,
+        sem_fim: 0,
+        divergentes: 0,
+        acima_8h: 0,
+        operadores: new Set<string>(),
+        ultimo_apontamento: '',
+        linhas: [],
+        sitorp: letra,
+      };
+      map.set(numop, agg);
+    }
+    agg.apontamentos += 1;
+    agg.total_horas += Number(row.horas_realizadas || 0);
+    if (operador) agg.operadores.add(operador);
+    const dt = String(row.data_movimento ?? row.data_apontamento ?? row.data ?? '');
+    if (dt && dt > agg.ultimo_apontamento) agg.ultimo_apontamento = dt;
+    agg.linhas.push(row);
+
+    const sa = String(row.status_movimento ?? '').toUpperCase();
+    const horas = minToHours(row.horas_realizadas);
+    const totDia = minToHours(row.total_horas_dia_operador);
+    if (sa === 'SEM_APONTAMENTO' || !row.hora_inicial) agg.sem_inicio += 1;
+    if (sa === 'ABERTO' || !row.hora_final) agg.sem_fim += 1;
+    if (sa === 'DIVERGENTE' || (row.hora_inicial && row.hora_final && String(row.hora_final) < String(row.hora_inicial))) agg.divergentes += 1;
+    if (horas > 8 || totDia > 8) agg.acima_8h += 1;
+    agg.inconsistencias = agg.sem_inicio + agg.sem_fim + agg.divergentes + agg.acima_8h;
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (b.inconsistencias !== a.inconsistencias) return b.inconsistencias - a.inconsistencias;
+    if (b.total_horas !== a.total_horas) return b.total_horas - a.total_horas;
+    return a.numero_op.localeCompare(b.numero_op);
+  });
 }
 
 const today = new Date();
@@ -242,13 +340,23 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
-  // Drill profundo nos cards de status real
-  const [statusOpDrillAberto, setStatusOpDrillAberto] = useState(false);
-  const [statusOpDrillLetra, setStatusOpDrillLetra] = useState<'E'|'L'|'A'|'F'|'C'|null>(null);
+  // Drill profundo genérico — válido para todos os KPIs
+  const [kpiDrillAberto, setKpiDrillAberto] = useState(false);
+  const [kpiDrillKind, setKpiDrillKind] = useState<KpiDrillKind | null>(null);
   const [statusDrillSomenteInconsist, setStatusDrillSomenteInconsist] = useState(false);
   const [statusDrillBusca, setStatusDrillBusca] = useState('');
   const [statusDrillOrdem, setStatusDrillOrdem] = useState<'inconsist'|'horas'|'apt'|'op'>('inconsist');
   const [opExpandidaNoDrill, setOpExpandidaNoDrill] = useState<string | null>(null);
+
+  const abrirKpiDrill = useCallback((k: KpiDrillKind) => {
+    const isProblema = ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(k.kind);
+    setStatusDrillSomenteInconsist(isProblema);
+    setStatusDrillBusca('');
+    setOpExpandidaNoDrill(null);
+    setStatusDrillOrdem('inconsist');
+    setKpiDrillKind(k);
+    setKpiDrillAberto(true);
+  }, []);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [intervaloRefresh, setIntervaloRefresh] = useState<30 | 60 | 120>(60);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
@@ -687,6 +795,34 @@ export default function AuditoriaApontamentoGeniusPage() {
     return '';
   }, []);
 
+  // Maior total dia (em minutos) — usado pelo drill do KPI "Maior Total Dia"
+  const maxTotalDiaMin = useMemo(() => {
+    const rows = (data?.dados ?? []) as any[];
+    let max = 0;
+    for (const r of rows) {
+      const v = Number(r.total_horas_dia_operador || 0);
+      if (v > max) max = v;
+    }
+    return max;
+  }, [data]);
+
+  // Filtra linhas brutas conforme o KPI selecionado
+  const linhasDoKpi = useCallback((k: KpiDrillKind): any[] => {
+    const all = (data?.dados ?? []) as any[];
+    switch (k.kind) {
+      case 'total':           return all;
+      case 'status':          return all.filter((r) => normSitorpRow(r) === k.letra);
+      case 'emAndamento':     return all.filter((r) => ['E','L','A'].includes(normSitorpRow(r)));
+      case 'finalizadas':     return all.filter((r) => normSitorpRow(r) === 'F');
+      case 'semInicio':       return all.filter((r) => !r.hora_inicial || String(r.status_movimento ?? '').toUpperCase() === 'SEM_APONTAMENTO');
+      case 'semFim':          return all.filter((r) => !r.hora_final || String(r.status_movimento ?? '').toUpperCase() === 'ABERTO');
+      case 'fimMenorInicio':  return all.filter((r) => (r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial)) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
+      case 'acima8h':         return all.filter((r) => minToHours(r.horas_realizadas) > 8 || minToHours(r.total_horas_dia_operador) > 8);
+      case 'discrepancias':   return all.filter(isLinhaDiscrepante);
+      case 'maiorTotalDia':   return maxTotalDiaMin > 0 ? all.filter((r) => Number(r.total_horas_dia_operador || 0) === maxTotalDiaMin) : [];
+    }
+  }, [data, maxTotalDiaMin]);
+
   const origensOptions = useMemo(
     () => ORIGENS_GENIUS.map((o) => ({ value: o, label: o })),
     []
@@ -819,26 +955,27 @@ export default function AuditoriaApontamentoGeniusPage() {
             dataFim={filters.data_fim}
           />
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} details={kpiDrilldowns.totalRegistros.length ? kpiDrilldowns.totalRegistros : undefined} tooltip="Top da página atual" />
-            <StatusOpDrillCard letra="E" title="Emitidas (E)" value={atualizarKpisApontGenius.ops_emitidas} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.E} index={1} onVerTudo={() => { setStatusOpDrillLetra('E'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="L" title="Liberadas (L)" value={atualizarKpisApontGenius.ops_liberadas} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.L} index={2} onVerTudo={() => { setStatusOpDrillLetra('L'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="A" title="Em Andamento (A)" value={atualizarKpisApontGenius.ops_andamento} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.A} index={3} onVerTudo={() => { setStatusOpDrillLetra('A'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="F" title="Finalizadas (F)" value={atualizarKpisApontGenius.ops_finalizadas} icon={<CheckCircle2 className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.F} index={4} onVerTudo={() => { setStatusOpDrillLetra('F'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="C" title="Canceladas (C)" value={atualizarKpisApontGenius.ops_canceladas} icon={<AlertCircle className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.C} index={5} onVerTudo={() => { setStatusOpDrillLetra('C'); setStatusOpDrillAberto(true); }} />
-            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} details={kpiDrilldowns.discrepancias.length ? kpiDrilldowns.discrepancias : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} details={kpiDrilldowns.semInicio.length ? kpiDrilldowns.semInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} details={kpiDrilldowns.semFim.length ? kpiDrilldowns.semFim : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} details={kpiDrilldowns.fimMenorInicio.length ? kpiDrilldowns.fimMenorInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard
+            <KpiDrillCard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} kind={{ kind: 'total' }} ops={agregarPorOp(linhasDoKpi({ kind: 'total' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Emitidas (E)" value={formatNumber(atualizarKpisApontGenius.ops_emitidas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} kind={{ kind: 'status', letra: 'E' }} ops={kpiDrilldowns.opsPorStatus.E} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Liberadas (L)" value={formatNumber(atualizarKpisApontGenius.ops_liberadas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={2} kind={{ kind: 'status', letra: 'L' }} ops={kpiDrilldowns.opsPorStatus.L} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Em Andamento (A)" value={formatNumber(atualizarKpisApontGenius.ops_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={3} kind={{ kind: 'status', letra: 'A' }} ops={kpiDrilldowns.opsPorStatus.A} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Finalizadas (F)" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={4} kind={{ kind: 'status', letra: 'F' }} ops={kpiDrilldowns.opsPorStatus.F} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Canceladas (C)" value={formatNumber(atualizarKpisApontGenius.ops_canceladas, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={5} kind={{ kind: 'status', letra: 'C' }} ops={kpiDrilldowns.opsPorStatus.C} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} kind={{ kind: 'discrepancias' }} ops={agregarPorOp(linhasDoKpi({ kind: 'discrepancias' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} kind={{ kind: 'semInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semInicio' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} kind={{ kind: 'semFim' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semFim' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} kind={{ kind: 'fimMenorInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'fimMenorInicio' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} kind={{ kind: 'acima8h' }} ops={agregarPorOp(linhasDoKpi({ kind: 'acima8h' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard
               title="Maior Total Dia"
               value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
               subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
               index={11}
-              details={kpiDrilldowns.maiorTotalDia.length ? kpiDrilldowns.maiorTotalDia : undefined}
-              tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined}
+              kind={{ kind: 'maiorTotalDia' }}
+              ops={agregarPorOp(linhasDoKpi({ kind: 'maiorTotalDia' }))}
+              onVerTudo={abrirKpiDrill}
             />
           </div>
         </>
@@ -1070,11 +1207,11 @@ export default function AuditoriaApontamentoGeniusPage() {
         </SheetContent>
       </Sheet>
 
-      <StatusOpDeepSheet
-        open={statusOpDrillAberto}
-        onOpenChange={setStatusOpDrillAberto}
-        letra={statusOpDrillLetra}
-        ops={statusOpDrillLetra ? kpiDrilldowns.opsPorStatus[statusOpDrillLetra] : []}
+      <KpiDeepSheet
+        open={kpiDrillAberto}
+        onOpenChange={setKpiDrillAberto}
+        kind={kpiDrillKind}
+        linhas={kpiDrillKind ? linhasDoKpi(kpiDrillKind) : []}
         somenteInconsist={statusDrillSomenteInconsist}
         setSomenteInconsist={setStatusDrillSomenteInconsist}
         busca={statusDrillBusca}
@@ -1086,10 +1223,10 @@ export default function AuditoriaApontamentoGeniusPage() {
         discrepanciasParciais={!!atualizarKpisApontGenius?.discrepanciasParciais}
         totalRegistros={atualizarKpisApontGenius?.total_registros ?? 0}
         paginaCarregada={data?.dados?.length ?? 0}
-        onAbrirDrawerOp={(row) => { setStatusOpDrillAberto(false); abrirDetalhesOp(row); }}
+        onAbrirDrawerOp={(row) => { setKpiDrillAberto(false); abrirDetalhesOp(row); }}
         onFiltrarGridPorOp={(numop) => {
           setFilters((f) => ({ ...f, numop }));
-          setStatusOpDrillAberto(false);
+          setKpiDrillAberto(false);
           setTimeout(() => buscarRef.current?.(1), 0);
         }}
       />
@@ -1321,15 +1458,17 @@ function ContagemBlock({
 }
 
 
-// ─── Card de status real com drill profundo ────────────────────────────────
-interface StatusOpDrillCardProps {
-  letra: 'E'|'L'|'A'|'F'|'C';
+// ─── Card de KPI genérico com drill profundo ───────────────────────────────
+interface KpiDrillCardProps {
   title: string;
-  value: number;
+  value: string | number;
+  subtitle?: string;
   icon?: React.ReactNode;
+  variant?: 'default'|'success'|'warning'|'destructive'|'info';
   ops: OpAgg[];
   index?: number;
-  onVerTudo: () => void;
+  kind: KpiDrillKind;
+  onVerTudo: (k: KpiDrillKind) => void;
 }
 
 function shortStr(s: string, n: number) {
@@ -1337,9 +1476,8 @@ function shortStr(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
 
-function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTudo }: StatusOpDrillCardProps) {
-  const variant = STATUS_LETRA_VARIANT[letra];
-  const borderClass = STATUS_LETRA_BORDER[letra];
+function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, index = 0, kind, onVerTudo }: KpiDrillCardProps) {
+  const borderClass = kind.kind === 'status' ? STATUS_LETRA_BORDER[kind.letra] : KPI_VARIANT_BORDER[variant];
   const hasOps = ops.length > 0;
   const totalInconsist = ops.reduce((acc, o) => acc + (o.inconsistencias > 0 ? 1 : 0), 0);
   const top = ops.slice(0, 30);
@@ -1355,7 +1493,8 @@ function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTud
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
               <Info className="h-3 w-3 text-muted-foreground/50" />
             </div>
-            <p className="text-xl font-bold text-foreground">{formatNumber(value, 0)}</p>
+            <p className="text-xl font-bold text-foreground">{typeof value === 'number' ? formatNumber(value, 0) : value}</p>
+            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
             {totalInconsist > 0 && (
               <p className="text-xs text-destructive flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" /> {totalInconsist} c/ inconsistência
@@ -1427,7 +1566,7 @@ function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTud
                 variant="default"
                 size="sm"
                 className="w-full h-8 text-xs"
-                onClick={onVerTudo}
+                onClick={() => onVerTudo(kind)}
               >
                 Ver tudo · detalhamento completo →
               </Button>
@@ -1442,11 +1581,24 @@ function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTud
 }
 
 // ─── Sheet de drill profundo: 3 níveis (header + tabela OPs + accordion linhas)
-interface StatusOpDeepSheetProps {
+const KPI_TITLES: Record<KpiDrillKind['kind'], string> = {
+  status: 'Status da OP',
+  total: 'Total Registros',
+  discrepancias: 'Discrepâncias',
+  semInicio: 'Sem Início',
+  semFim: 'Sem Fim',
+  fimMenorInicio: 'Fim < Início',
+  acima8h: 'Acima de 8h',
+  maiorTotalDia: 'Maior Total Dia',
+  emAndamento: 'Em Andamento (E + L + A)',
+  finalizadas: 'Finalizadas (F)',
+};
+
+interface KpiDeepSheetProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  letra: 'E'|'L'|'A'|'F'|'C'|null;
-  ops: OpAgg[];
+  kind: KpiDrillKind | null;
+  linhas: any[];
   somenteInconsist: boolean;
   setSomenteInconsist: (v: boolean) => void;
   busca: string;
@@ -1462,17 +1614,20 @@ interface StatusOpDeepSheetProps {
   onFiltrarGridPorOp: (numop: string) => void;
 }
 
-function StatusOpDeepSheet({
-  open, onOpenChange, letra, ops,
+function KpiDeepSheet({
+  open, onOpenChange, kind, linhas,
   somenteInconsist, setSomenteInconsist,
   busca, setBusca,
   ordem, setOrdem,
   opExpandida, setOpExpandida,
   discrepanciasParciais, totalRegistros, paginaCarregada,
   onAbrirDrawerOp, onFiltrarGridPorOp,
-}: StatusOpDeepSheetProps) {
-  const label = letra ? STATUS_LETRA_LABEL[letra] : '';
-  const variantCfg = letra ? statusOpVariants[letra] : null;
+}: KpiDeepSheetProps) {
+  const ops = useMemo(() => agregarPorOp(linhas), [linhas]);
+  const titulo = kind ? (kind.kind === 'status' ? `${STATUS_LETRA_LABEL[kind.letra]} (${kind.letra})` : KPI_TITLES[kind.kind]) : '';
+  const variantCfg = kind?.kind === 'status' ? statusOpVariants[kind.letra] : null;
+  // Inconsistências por padrão para KPIs problemáticos
+  const isProblema = kind && ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(kind.kind);
 
   const opsFiltradas = useMemo(() => {
     let arr = ops;
@@ -1501,7 +1656,7 @@ function StatusOpDeepSheet({
     return arr;
   }, [ops, somenteInconsist, busca, ordem]);
 
-  // Mini-KPIs do status
+  // Mini-KPIs do recorte
   const totaisStatus = useMemo(() => {
     let totalApt = 0, totalHoras = 0, totalInconsist = 0, opsComInconsist = 0;
     const operadores = new Set<string>();
@@ -1523,11 +1678,12 @@ function StatusOpDeepSheet({
       <SheetContent side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
         <SheetHeader className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <SheetTitle className="text-base">Detalhes do Status</SheetTitle>
-            {variantCfg && <Badge className={variantCfg.className}>{variantCfg.label} ({letra})</Badge>}
+            <SheetTitle className="text-base">Detalhes · {titulo}</SheetTitle>
+            {variantCfg && <Badge className={variantCfg.className}>{variantCfg.label}</Badge>}
+            {isProblema && <Badge variant="destructive">Inconsistência</Badge>}
           </div>
           <SheetDescription className="text-xs">
-            {ops.length} OP{ops.length !== 1 ? 's' : ''} no status · página atual ({paginaCarregada} linhas
+            {ops.length} OP{ops.length !== 1 ? 's' : ''} · {linhas.length} apontamento{linhas.length !== 1 ? 's' : ''} · página atual ({paginaCarregada} linhas
             {totalRegistros > paginaCarregada ? ` de ${totalRegistros}` : ''})
           </SheetDescription>
         </SheetHeader>
