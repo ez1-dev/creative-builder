@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { api, AuditoriaApontamentoGeniusResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -2173,7 +2173,7 @@ interface KpiDeepSheetProps {
   onFiltrarGridPorOp: (numop: string) => void;
 }
 
-export function KpiDeepSheet({
+export const KpiDeepSheet = React.forwardRef<HTMLDivElement, KpiDeepSheetProps>(function KpiDeepSheet({
   open, onOpenChange, kind, linhas,
   somenteInconsist, setSomenteInconsist,
   busca, setBusca,
@@ -2181,7 +2181,7 @@ export function KpiDeepSheet({
   opExpandida, setOpExpandida,
   discrepanciasParciais, totalRegistros, paginaCarregada,
   onAbrirDrawerOp, onFiltrarGridPorOp,
-}: KpiDeepSheetProps) {
+}, ref) {
   const ops = useMemo(() => agregarPorOp(linhas), [linhas]);
   const titulo = kind ? (kind.kind === 'status' ? `${STATUS_LETRA_LABEL[kind.letra]} (${kind.letra})` : KPI_TITLES[kind.kind]) : '';
   const variantCfg = kind?.kind === 'status' ? statusOpVariants[kind.letra] : null;
@@ -2250,7 +2250,7 @@ export function KpiDeepSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
+      <SheetContent ref={ref} side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
         <SheetHeader className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <SheetTitle className="text-base">Detalhes · {titulo}</SheetTitle>
@@ -2411,7 +2411,8 @@ export function KpiDeepSheet({
       </SheetContent>
     </Sheet>
   );
-}
+});
+KpiDeepSheet.displayName = 'KpiDeepSheet';
 
 function MiniKpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
   return (
