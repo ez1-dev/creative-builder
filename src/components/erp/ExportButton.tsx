@@ -9,9 +9,10 @@ interface ExportButtonProps {
   params?: Record<string, any>;
   label?: string;
   variant?: 'default' | 'outline' | 'secondary';
+  keepEmptyKeys?: string[];
 }
 
-export function ExportButton({ endpoint, params, label = 'Exportar Excel', variant = 'outline' }: ExportButtonProps) {
+export function ExportButton({ endpoint, params, label = 'Exportar Excel', variant = 'outline', keepEmptyKeys }: ExportButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
