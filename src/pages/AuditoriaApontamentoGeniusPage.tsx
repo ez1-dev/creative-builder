@@ -974,7 +974,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       case 'discrepancias':   return all.filter(isLinhaDiscrepante);
       case 'maiorTotalDia':   return maxTotalDiaMin > 0 ? all.filter((r) => Number(r.total_horas_dia_operador || 0) === maxTotalDiaMin) : [];
     }
-  }, [data, maxTotalDiaMin]);
+  }, [data, dadosFiltradosPorStatusOp, maxTotalDiaMin]);
 
   const origensOptions = useMemo(
     () => ORIGENS_GENIUS.map((o) => ({ value: o, label: o })),
