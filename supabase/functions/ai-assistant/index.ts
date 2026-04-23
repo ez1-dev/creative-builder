@@ -146,6 +146,7 @@ const tools = [
         additionalProperties: false,
       },
     },
+  },
   {
     type: "function",
     function: {
