@@ -1,62 +1,105 @@
 
 
-## Status reais das OPs (E/L/A/F/C) na Auditoria Apontamento Genius
+## Drill-down profundo nos cards de Status real da OP (E/L/A/F/C)
 
-### Problema
-Hoje a tela só expõe dois agrupamentos de status de OP (`EM_ANDAMENTO` = E+L+A, `FINALIZADO` = F). O backend já retorna o status nativo da `E900COP` em duas chaves por linha:
-- `sitorp` — letra nativa: `E` (Emitida), `L` (Liberada), `A` (Andamento), `F` (Finalizada), `C` (Cancelada)
-- `status_op` — agrupamento legado
-
-A coluna "Status OP" da tabela já mapeia as 5 letras corretamente via `statusOpVariants`, mas filtro e KPIs não. O usuário quer ver e filtrar pelos status reais.
+### Escopo
+Hoje os 5 cards de status real (Emitidas/Liberadas/Andamento/Finalizadas/Canceladas) abrem um Popover com `OP {numop} → {produto}` (top 15). O usuário quer ir até o **último nível de informação**, focando em **OPs com inconsistência** dentro de cada status.
 
 ### Mudanças (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-**1. Render da coluna "Status OP" — priorizar `sitorp`**
-- Em `buildColumns`, mudar a coluna `status_op` para ler `row.sitorp ?? v` antes de buscar em `statusOpVariants`. Garante que mesmo quando o backend manda `status_op = "EM_ANDAMENTO"` (agrupado) a tabela mostre o status real (Emitida/Liberada/Andamento) vindo de `sitorp`.
+**1. Enriquecer agregação por status (`kpiDrilldowns.opsPorStatus`)**
 
-**2. Filtro "Status da OP" — 5 opções nativas + grupos**
-- Substituir `statusOpOptions` por:
-  ```
-  E  → Emitida
-  L  → Liberada
-  A  → Andamento
-  F  → Finalizada
-  C  → Cancelada
-  ──────────────
-  EM_ANDAMENTO → Em andamento (E + L + A)
-  FINALIZADO   → Finalizadas (F)
-  SEM_STATUS   → Sem status
-  ```
-- O backend continua aceitando os valores; basta enviar a letra/grupo selecionada em `status_op`. Confirmar com o backend que `E/L/A/F/C` é aceito — se não, o frontend traduz `E|L|A → EM_ANDAMENTO` e `F → FINALIZADO` antes de enviar (filtra localmente o detalhamento por `sitorp`).
+Substituir o `Map<numop, produto>` por um agregado completo por OP dentro de cada letra de `sitorp`:
 
-**3. KPIs — substituir 2 cards por 5 cards de status real**
-- Trocar os cards atuais "OPs em andamento" e "OPs finalizadas" por 5 cards compactos, um por status nativo:
-  - **Emitidas (E)** — variant `info`
-  - **Liberadas (L)** — variant `info`
-  - **Em Andamento (A)** — variant `info`
-  - **Finalizadas (F)** — variant `default`
-  - **Canceladas (C)** — variant `destructive`
-- Cada card recebe `details` com `OP {numop} · {produto}` (top 15) das OPs únicas com aquele `sitorp`.
-- Grid passa de `lg:grid-cols-9` para `lg:grid-cols-12` (1 Total Registros + 5 status + 6 discrepância) — ou agrupar visualmente em duas linhas se preferir.
+```ts
+type OpAgg = {
+  numero_op: string;
+  produto: string;            // descricao_produto || codigo_produto
+  codigo_produto: string;
+  origem: string;
+  apontamentos: number;       // total de linhas dessa OP
+  total_horas: number;        // soma horas_realizadas
+  inconsistencias: number;    // sem_inicio + sem_fim + divergente + acima_8h
+  sem_inicio: number;
+  sem_fim: number;
+  divergentes: number;
+  acima_8h: number;
+  operadores: Set<string>;
+  ultimo_apontamento: string; // data ISO mais recente
+  linhas: any[];              // todas as linhas brutas dessa OP (para nível mais profundo)
+  sitorp: string;
+};
+```
 
-**4. Agregação local (`atualizarKpisApontGenius` + `kpiDrilldowns`)**
-- Trocar `opsSet` de 4 buckets fixos para um `Map<string, Set<string>>` indexado por `sitorp` (E/L/A/F/C/SEM_STATUS).
-- O resumo do backend tem `total_ops_andamento` e `total_ops_finalizadas` agrupados — usar como fallback agregado quando o detalhamento por letra não estiver no resumo. Quando os 5 valores vierem só do fallback local, manter o `discrepanciasParciais = true` (alerta já existente cobre).
-- `kpiDrilldowns` ganha um objeto `opsPorStatus: Record<'E'|'L'|'A'|'F'|'C', {label,value}[]>` deduplicado por `numero_op`.
+Para cada `letra` ∈ {E,L,A,F,C} ordenar:
+1. `inconsistencias` desc
+2. `total_horas` desc
+3. `numero_op` asc
 
-**5. Drawer de detalhes**
-- Já mostra `status_op`. Trocar para `row.sitorp ?? row.status_op` para exibir o real.
+Top 30 OPs por status (em vez de 15) — quem tem inconsistência aparece primeiro.
+
+**2. Nova lista `details` rica nos 5 KPICards de status**
+
+`KPICard.details` aceita `{label, value}`. Manter compatibilidade mas mostrar mais informação:
+
+- `label`: `OP {numop} · {produto curto até 32 chars}` — com prefixo `⚠ ` se `inconsistencias > 0`.
+- `value`: `{apontamentos} apt · {total_horas}h` + `· ⚠{inconsistencias}` quando houver.
+
+Isso mantém o Popover compacto existente, mas já dá visão executiva.
+
+**3. Drill-down profundo: novo Sheet "Detalhes do Status"**
+
+Adicionar um segundo Sheet (`statusOpDrawerAberto`) que **substitui o popover** quando o usuário quer detalhe completo. Para isso:
+
+- Adicionar prop `onClick` opcional no `KPICard` (já tem `cursor-pointer` quando `details` existe). Ao clicar no card, em vez de abrir Popover, abrir o Sheet customizado, carregando o status correspondente.
+- Decisão UX: **manter popover** (clique simples = visão rápida) e adicionar **botão "Ver tudo →"** no rodapé do Popover que abre o Sheet. Isso preserva o padrão atual e adiciona o nível profundo só sob demanda.
+- Como o `KPICard` não expõe slot de footer no Popover, criar um novo componente local `StatusOpDrillCard` (wrapper sobre Card+Popover, copiando o estilo do `KPICard`) usado apenas nos 5 cards de status. Os outros 7 KPIs continuam usando `KPICard`.
+
+**4. Estrutura do Sheet "Detalhes do Status {label}"** (lateral, `side="right"`, `w-[920px] sm:max-w-[920px]`)
+
+Conteúdo em 3 níveis:
+
+**Nível 1 — Header com mini-KPIs do status**
+- Total de OPs, OPs com inconsistência, total de apontamentos, total de horas, operadores únicos, top 3 origens.
+
+**Nível 2 — Tabela de OPs (linha = OP única)**
+Colunas: `OP`, `Produto`, `Origem`, `Apontamentos`, `Horas`, `Operadores`, `Último apont.`, `Inconsistências (badges coloridos: SI/SF/DIV/>8h)`.
+- Linhas com inconsistência destacadas (`bg-destructive/5`).
+- Filtro local: `[Todas | Só com inconsistência]` (toggle).
+- Busca rápida por OP/produto/operador.
+- Ordenação por inconsistências desc default; clicável por coluna.
+- Click na linha → expande **Nível 3** inline (accordion).
+
+**Nível 3 — Apontamentos brutos da OP** (todos os `linhas` da OP)
+Tabela compacta: `Data`, `Hora`, `Operador (numcad)`, `Estágio`, `Seq Rot`, `Seq Apont`, `Turno`, `H. Realizadas`, `Total Dia Op.`, `Status Mov.`, `Status OP nativo (sitorp)`, com mesmo realce de cor da grid principal.
+- Botão "Abrir no drawer de OP" reutiliza `abrirDetalhesOp(linha)` existente para pular para o drawer já implementado de OP individual.
+- Botão "Copiar JSON" da OP (debug).
+- Botão "Filtrar grid principal por esta OP" → seta `filters.numop` e dispara busca.
+
+**5. Estado novo**
+```ts
+const [statusOpDrillAberto, setStatusOpDrillAberto] = useState(false);
+const [statusOpDrillLetra, setStatusOpDrillLetra] = useState<'E'|'L'|'A'|'F'|'C'|null>(null);
+const [statusDrillSomenteInconsist, setStatusDrillSomenteInconsist] = useState(false);
+const [statusDrillBusca, setStatusDrillBusca] = useState('');
+const [statusDrillOrdem, setStatusDrillOrdem] = useState<'inconsist'|'horas'|'apt'|'op'>('inconsist');
+const [opExpandidaNoDrill, setOpExpandidaNoDrill] = useState<string | null>(null);
+```
+
+**6. Aviso de escopo**
+Topo do Sheet: alerta `Info` quando `discrepanciasParciais === true` informando que detalhamento cobre apenas a página atual (N de M).
 
 ### Comportamento resultante
-- Tabela mostra "Emitida", "Liberada", "Andamento", "Finalizada", "Cancelada" em vez de "Em andamento"/"Finalizado" genérico.
-- Filtro permite escolher status nativo (E/L/A/F/C) ou agrupamento legado.
-- Cinco KPIs separados por status real, cada um com drill-down das OPs daquele status.
+
+- Click no card de status → Popover compacto (visão rápida) com top OPs marcadas com ⚠ se houver inconsistência + botão "Ver tudo →".
+- Click em "Ver tudo →" → Sheet lateral com mini-KPIs, tabela de OPs filtráveis e drill nível 3 (apontamentos brutos) expandível inline.
+- Possível pular do drill para o drawer de OP existente ou aplicar filtro da OP na grid principal.
 
 ### Fora de escopo
+- Buscar páginas adicionais para drill global (mantém escopo "página atual"); botão pode aparecer com tooltip "Carregue mais páginas para análise completa".
 - Mudar backend.
-- Adicionar contagem global "Canceladas" no `resumo` (depende do backend; usado fallback local).
-- Drill-down navegando para tela filtrada.
+- Persistir estado do drill entre buscas.
 
 ### Resultado
-Usuário enxerga os 5 status reais da OP (E/L/A/F/C) em filtro, KPIs e tabela, sem perder os agrupamentos legados.
+Os 5 cards de status real ganham drill-down em três níveis (resumo do status → OPs do status com inconsistência destacadas → apontamentos brutos da OP), permitindo investigar até a raiz sem sair da tela.
 
