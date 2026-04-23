@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
-  Activity, CheckCircle2, CalendarRange,
+  Activity, CheckCircle2, CalendarRange, Info,
 } from 'lucide-react';
 
 // Origens GENIUS — começa em 110 conforme regra ERP
