@@ -34,7 +34,7 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
   const hasDetails = details && details.length > 0;
 
   const cardContent = (
-    <Card className={cn('transition-shadow hover:shadow-md', variantClasses[variant], hasDetails && 'cursor-pointer')}>
+    <Card data-ai-avoid="kpi" className={cn('transition-shadow hover:shadow-md', variantClasses[variant], hasDetails && 'cursor-pointer')}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">

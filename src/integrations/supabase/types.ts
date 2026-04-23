@@ -212,6 +212,7 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          ai_assistant_prefs: Json
           favorite_modules: Json
           frequent_filters: Json
           preferred_period: string | null
@@ -219,6 +220,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_assistant_prefs?: Json
           favorite_modules?: Json
           frequent_filters?: Json
           preferred_period?: string | null
@@ -226,6 +228,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_assistant_prefs?: Json
           favorite_modules?: Json
           frequent_filters?: Json
           preferred_period?: string | null

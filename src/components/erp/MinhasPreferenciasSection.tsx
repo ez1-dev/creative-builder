@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,8 +15,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Trash2, Sparkles, History, Star } from 'lucide-react';
+import { Trash2, Sparkles, History, Star, Bot, RotateCcw } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserSuggestions';
+import { useAiAssistantPrefs } from '@/hooks/useAiAssistantPrefs';
 import { toast } from 'sonner';
 
 const MODULE_LABELS: Record<string, string> = {
@@ -42,6 +45,7 @@ function summarize(filters: Record<string, any>) {
 
 export function MinhasPreferenciasSection() {
   const { data, loading, clearHistory } = useUserPreferences();
+  const { prefs, setAutoOpenEnabled, resetPanelPositions } = useAiAssistantPrefs();
   const [clearing, setClearing] = useState(false);
 
   const handleClear = async () => {
@@ -159,6 +163,56 @@ export function MinhasPreferenciasSection() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Bot className="h-4 w-4 text-primary" />
+            Assistente IA
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="ai-auto-open" className="text-sm">
+                Permitir sugestões automáticas
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                O assistente pode abrir sozinho 1x por tela/dia (máx. 3 vezes ao dia) com
+                sugestões úteis. Respeita cooldown de 30 min após você fechar.
+              </p>
+            </div>
+            <Switch
+              id="ai-auto-open"
+              checked={prefs.auto_open_enabled}
+              onCheckedChange={(v) => {
+                setAutoOpenEnabled(v);
+                toast.success(v ? 'Sugestões automáticas ativadas.' : 'Sugestões automáticas desativadas.');
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t pt-4">
+            <div className="space-y-0.5">
+              <p className="text-sm">Posição e tamanho do painel</p>
+              <p className="text-xs text-muted-foreground">
+                Resetar a posição salva por tela. O assistente volta a escolher o melhor canto
+                automaticamente.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetPanelPositions();
+                toast.success('Posições do assistente resetadas.');
+              }}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              Resetar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
