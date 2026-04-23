@@ -1880,16 +1880,6 @@ function KpiDeepSheet({
           </SheetDescription>
         </SheetHeader>
 
-        {discrepanciasParciais && (
-          <Alert className="mt-3">
-            <Info className="h-4 w-4" />
-            <AlertTitle className="text-xs">Detalhamento da página atual</AlertTitle>
-            <AlertDescription className="text-xs">
-              Os valores cobrem apenas {paginaCarregada} de {totalRegistros} registros. Para análise completa, percorra as páginas.
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Nível 1 — Mini KPIs */}
         <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
           <MiniKpi label="Total OPs" value={formatNumber(ops.length, 0)} />
