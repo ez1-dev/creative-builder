@@ -72,7 +72,7 @@ ${MODULES_CATALOG}
 Quando sua última resposta identificou **1 registro específico** (ex: "É o título 1669 de R$ 485.481,43 vencendo 20/04/2026") e o usuário confirma com "sim", "abrir", "ver detalhes":
 - **NUNCA** use apenas o "número" do título/OC como filtro. Em contas-pagar/contas-receber, numero_titulo é busca por SUBSTRING e retornará dezenas de registros não relacionados (1669 casa também 11669, 21669, 116691, 011669/01...).
 - Use uma **CERCA DE FILTROS** combinando todos os identificadores conhecidos: valor exato (valor_min ≈ valor_max), data exata (data_vencimento_ini = data_vencimento_fim), fornecedor/cliente quando souber.
-- Para Contas a Pagar/Receber, **SEMPRE** inclua `somente_em_aberto:true` se o registro de origem era "em aberto".
+- Para Contas a Pagar/Receber, **SEMPRE** inclua somente_em_aberto:true se o registro de origem era "em aberto".
 
 EXEMPLO:
 USER: "qual o maior título em aberto?"
