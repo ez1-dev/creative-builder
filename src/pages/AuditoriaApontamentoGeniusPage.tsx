@@ -780,7 +780,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       maiorTotalDia: [] as { label: string; value: string }[],
     };
     if (!data?.dados) return empty;
-    const rows = data.dados as any[];
+    const rows = dadosFiltradosPorStatusOp;
 
     // Total Registros: top 10 origens
     const origemCount = new Map<string, number>();
