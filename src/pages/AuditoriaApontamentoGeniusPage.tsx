@@ -761,6 +761,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       discrepanciasParciais,
     };
   }, [data, dadosFiltradosPorStatusOp]);
+
+  const kpiDrilldowns = useMemo(() => {
     const empty = {
       totalRegistros: [] as { label: string; value: string }[],
       opsPorStatus: {
