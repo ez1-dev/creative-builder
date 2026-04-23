@@ -1571,11 +1571,24 @@ function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, 
 }
 
 // ─── Sheet de drill profundo: 3 níveis (header + tabela OPs + accordion linhas)
-interface StatusOpDeepSheetProps {
+const KPI_TITLES: Record<KpiDrillKind['kind'], string> = {
+  status: 'Status da OP',
+  total: 'Total Registros',
+  discrepancias: 'Discrepâncias',
+  semInicio: 'Sem Início',
+  semFim: 'Sem Fim',
+  fimMenorInicio: 'Fim < Início',
+  acima8h: 'Acima de 8h',
+  maiorTotalDia: 'Maior Total Dia',
+  emAndamento: 'Em Andamento (E + L + A)',
+  finalizadas: 'Finalizadas (F)',
+};
+
+interface KpiDeepSheetProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  letra: 'E'|'L'|'A'|'F'|'C'|null;
-  ops: OpAgg[];
+  kind: KpiDrillKind | null;
+  linhas: any[];
   somenteInconsist: boolean;
   setSomenteInconsist: (v: boolean) => void;
   busca: string;
@@ -1591,17 +1604,20 @@ interface StatusOpDeepSheetProps {
   onFiltrarGridPorOp: (numop: string) => void;
 }
 
-function StatusOpDeepSheet({
-  open, onOpenChange, letra, ops,
+function KpiDeepSheet({
+  open, onOpenChange, kind, linhas,
   somenteInconsist, setSomenteInconsist,
   busca, setBusca,
   ordem, setOrdem,
   opExpandida, setOpExpandida,
   discrepanciasParciais, totalRegistros, paginaCarregada,
   onAbrirDrawerOp, onFiltrarGridPorOp,
-}: StatusOpDeepSheetProps) {
-  const label = letra ? STATUS_LETRA_LABEL[letra] : '';
-  const variantCfg = letra ? statusOpVariants[letra] : null;
+}: KpiDeepSheetProps) {
+  const ops = useMemo(() => agregarPorOp(linhas), [linhas]);
+  const titulo = kind ? (kind.kind === 'status' ? `${STATUS_LETRA_LABEL[kind.letra]} (${kind.letra})` : KPI_TITLES[kind.kind]) : '';
+  const variantCfg = kind?.kind === 'status' ? statusOpVariants[kind.letra] : null;
+  // Inconsistências por padrão para KPIs problemáticos
+  const isProblema = kind && ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(kind.kind);
 
   const opsFiltradas = useMemo(() => {
     let arr = ops;
@@ -1630,7 +1646,7 @@ function StatusOpDeepSheet({
     return arr;
   }, [ops, somenteInconsist, busca, ordem]);
 
-  // Mini-KPIs do status
+  // Mini-KPIs do recorte
   const totaisStatus = useMemo(() => {
     let totalApt = 0, totalHoras = 0, totalInconsist = 0, opsComInconsist = 0;
     const operadores = new Set<string>();
@@ -1652,11 +1668,12 @@ function StatusOpDeepSheet({
       <SheetContent side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
         <SheetHeader className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <SheetTitle className="text-base">Detalhes do Status</SheetTitle>
-            {variantCfg && <Badge className={variantCfg.className}>{variantCfg.label} ({letra})</Badge>}
+            <SheetTitle className="text-base">Detalhes · {titulo}</SheetTitle>
+            {variantCfg && <Badge className={variantCfg.className}>{variantCfg.label}</Badge>}
+            {isProblema && <Badge variant="destructive">Inconsistência</Badge>}
           </div>
           <SheetDescription className="text-xs">
-            {ops.length} OP{ops.length !== 1 ? 's' : ''} no status · página atual ({paginaCarregada} linhas
+            {ops.length} OP{ops.length !== 1 ? 's' : ''} · {linhas.length} apontamento{linhas.length !== 1 ? 's' : ''} · página atual ({paginaCarregada} linhas
             {totalRegistros > paginaCarregada ? ` de ${totalRegistros}` : ''})
           </SheetDescription>
         </SheetHeader>
