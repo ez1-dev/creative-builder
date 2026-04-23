@@ -164,8 +164,10 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
     {
       key: 'status_op',
       header: 'Status OP',
-      render: (v: string) => {
-        const cfg = statusOpVariants[v];
+      render: (v: string, row: any) => {
+        const real = String(row?.sitorp ?? '').trim().toUpperCase();
+        const key = real || String(v ?? '').toUpperCase();
+        const cfg = statusOpVariants[key];
         if (!cfg) return <span className="text-muted-foreground">—</span>;
         return <Badge className={cfg.className}>{cfg.label}</Badge>;
       },
@@ -359,11 +361,13 @@ export default function AuditoriaApontamentoGeniusPage() {
     const r = data.resumo as any;
     const rows = (data.dados || []) as any[];
 
-    // Fallback: agrega contando Set de numop por status_op nativo (E900COP)
-    const opsSet = {
-      EM_ANDAMENTO: new Set<string>(),
-      FINALIZADO: new Set<string>(),
-      CANCELADO: new Set<string>(),
+    // Fallback: agrega contando Set de numop por sitorp nativo (E900COP)
+    const opsPorLetra: Record<string, Set<string>> = {
+      E: new Set<string>(),
+      L: new Set<string>(),
+      A: new Set<string>(),
+      F: new Set<string>(),
+      C: new Set<string>(),
       SEM_STATUS: new Set<string>(),
     };
 
@@ -379,11 +383,17 @@ export default function AuditoriaApontamentoGeniusPage() {
     for (const row of rows) {
       const op = String(row.numero_op ?? row.numop ?? '');
       if (op) {
-        const st = normalizarStatusOp(row.status_op);
-        if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
-        else if (STATUS_OP_FINALIZADOS.has(st)) opsSet.FINALIZADO.add(op);
-        else if (STATUS_OP_CANCELADOS.has(st)) opsSet.CANCELADO.add(op);
-        else opsSet.SEM_STATUS.add(op);
+        const real = String(row.sitorp ?? '').trim().toUpperCase();
+        if (real && opsPorLetra[real]) {
+          opsPorLetra[real].add(op);
+        } else {
+          // fallback pelo agrupado legado
+          const st = normalizarStatusOp(row.status_op);
+          if (STATUS_OP_FINALIZADOS.has(st)) opsPorLetra.F.add(op);
+          else if (STATUS_OP_CANCELADOS.has(st)) opsPorLetra.C.add(op);
+          else if (STATUS_OP_ATIVOS.has(st)) opsPorLetra.A.add(op);
+          else opsPorLetra.SEM_STATUS.add(op);
+        }
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
@@ -419,6 +429,9 @@ export default function AuditoriaApontamentoGeniusPage() {
     const discrepanciasParciais =
       !backendTrouxeDiscrepancias && rows.length > 0 && rows.length < totalRegistros;
 
+    const totalEmAndamentoBackend = r?.ops_em_andamento ?? r?.total_ops_andamento;
+    const totalFinalizadasBackend = r?.ops_finalizadas ?? r?.total_ops_finalizadas;
+
     return {
       total_registros: totalRegistros,
       total_discrepancias: r?.total_discrepancias ?? localDiscrepancias,
@@ -428,8 +441,12 @@ export default function AuditoriaApontamentoGeniusPage() {
       acima_8h: acimaBackend ?? localAcima8h,
       maior_total_dia_operador: r?.maior_total_dia_operador ?? localMaiorDia,
       operador_maior_total: r?.operador_maior_total ?? localOperadorMaior,
-      ops_em_andamento: r?.ops_em_andamento ?? r?.total_ops_andamento ?? opsSet.EM_ANDAMENTO.size,
-      ops_finalizadas: r?.ops_finalizadas ?? r?.total_ops_finalizadas ?? opsSet.FINALIZADO.size,
+      ops_em_andamento: totalEmAndamentoBackend ?? (opsPorLetra.E.size + opsPorLetra.L.size + opsPorLetra.A.size),
+      ops_finalizadas: totalFinalizadasBackend ?? opsPorLetra.F.size,
+      ops_emitidas: opsPorLetra.E.size,
+      ops_liberadas: opsPorLetra.L.size,
+      ops_andamento: opsPorLetra.A.size,
+      ops_canceladas: opsPorLetra.C.size,
       discrepanciasParciais,
     };
   }, [data]);
@@ -437,8 +454,13 @@ export default function AuditoriaApontamentoGeniusPage() {
   const kpiDrilldowns = useMemo(() => {
     const empty = {
       totalRegistros: [] as { label: string; value: string }[],
-      opsAndamento: [] as { label: string; value: string }[],
-      opsFinalizadas: [] as { label: string; value: string }[],
+      opsPorStatus: {
+        E: [] as { label: string; value: string }[],
+        L: [] as { label: string; value: string }[],
+        A: [] as { label: string; value: string }[],
+        F: [] as { label: string; value: string }[],
+        C: [] as { label: string; value: string }[],
+      },
       discrepancias: [] as { label: string; value: string }[],
       semInicio: [] as { label: string; value: string }[],
       semFim: [] as { label: string; value: string }[],
@@ -451,9 +473,14 @@ export default function AuditoriaApontamentoGeniusPage() {
 
     // Total Registros: top 10 origens
     const origemCount = new Map<string, number>();
-    // OPs únicas (por status)
-    const opsAtivasMap = new Map<string, string>();
-    const opsFinalMap = new Map<string, string>();
+    // OPs únicas por sitorp nativo
+    const opsByLetra: Record<string, Map<string, string>> = {
+      E: new Map(),
+      L: new Map(),
+      A: new Map(),
+      F: new Map(),
+      C: new Map(),
+    };
     // Discrepâncias
     const discrep: { label: string; value: string }[] = [];
     const semInicio: { label: string; value: string }[] = [];
@@ -472,10 +499,16 @@ export default function AuditoriaApontamentoGeniusPage() {
 
       if (origem) origemCount.set(origem, (origemCount.get(origem) ?? 0) + 1);
 
-      const st = normalizarStatusOp(row.status_op);
-      if (numop) {
-        if (STATUS_OP_ATIVOS.has(st) && !opsAtivasMap.has(numop)) opsAtivasMap.set(numop, produto || '—');
-        else if (STATUS_OP_FINALIZADOS.has(st) && !opsFinalMap.has(numop)) opsFinalMap.set(numop, produto || '—');
+      const real = String(row.sitorp ?? '').trim().toUpperCase();
+      let letra = real && opsByLetra[real] ? real : '';
+      if (!letra) {
+        const st = normalizarStatusOp(row.status_op);
+        if (STATUS_OP_FINALIZADOS.has(st)) letra = 'F';
+        else if (STATUS_OP_CANCELADOS.has(st)) letra = 'C';
+        else if (STATUS_OP_ATIVOS.has(st)) letra = 'A';
+      }
+      if (numop && letra && !opsByLetra[letra].has(numop)) {
+        opsByLetra[letra].set(numop, produto || '—');
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
@@ -523,13 +556,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       .slice(0, 10)
       .map(([o, c]) => ({ label: `Origem ${o}`, value: formatNumber(c, 0) }));
 
-    const opsAndamento = Array.from(opsAtivasMap.entries())
-      .slice(0, 15)
-      .map(([op, prod]) => ({ label: `OP ${op}`, value: prod }));
-
-    const opsFinalizadas = Array.from(opsFinalMap.entries())
-      .slice(0, 15)
-      .map(([op, prod]) => ({ label: `OP ${op}`, value: prod }));
+    const toList = (m: Map<string, string>) =>
+      Array.from(m.entries()).slice(0, 15).map(([op, prod]) => ({ label: `OP ${op}`, value: prod }));
 
     const acima8h = acima8hRaw.sort((a, b) => b.horas - a.horas).slice(0, 15)
       .map(({ label, value }) => ({ label, value }));
@@ -539,8 +567,13 @@ export default function AuditoriaApontamentoGeniusPage() {
 
     return {
       totalRegistros,
-      opsAndamento,
-      opsFinalizadas,
+      opsPorStatus: {
+        E: toList(opsByLetra.E),
+        L: toList(opsByLetra.L),
+        A: toList(opsByLetra.A),
+        F: toList(opsByLetra.F),
+        C: toList(opsByLetra.C),
+      },
       discrepancias: discrep.slice(0, 15),
       semInicio: semInicio.slice(0, 15),
       semFim: semFim.slice(0, 15),
@@ -570,6 +603,11 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const statusOpOptions = useMemo(
     () => [
+      { value: 'E', label: 'Emitida (E)' },
+      { value: 'L', label: 'Liberada (L)' },
+      { value: 'A', label: 'Andamento (A)' },
+      { value: 'F', label: 'Finalizada (F)' },
+      { value: 'C', label: 'Cancelada (C)' },
       { value: 'EM_ANDAMENTO', label: 'Em andamento (E + L + A)' },
       { value: 'FINALIZADO', label: 'Finalizadas (F)' },
       { value: 'SEM_STATUS', label: 'Sem status' },
@@ -700,22 +738,25 @@ export default function AuditoriaApontamentoGeniusPage() {
               </AlertDescription>
             </Alert>
           )}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-4">
             <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} details={kpiDrilldowns.totalRegistros.length ? kpiDrilldowns.totalRegistros : undefined} tooltip="Top da página atual" />
-            <KPICard title="OPs em andamento" value={formatNumber(atualizarKpisApontGenius.ops_em_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} details={kpiDrilldowns.opsAndamento.length ? kpiDrilldowns.opsAndamento : undefined} tooltip="Top da página atual" />
-            <KPICard title="OPs finalizadas" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={2} details={kpiDrilldowns.opsFinalizadas.length ? kpiDrilldowns.opsFinalizadas : undefined} tooltip="Top da página atual" />
-            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={3} details={kpiDrilldowns.discrepancias.length ? kpiDrilldowns.discrepancias : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={4} details={kpiDrilldowns.semInicio.length ? kpiDrilldowns.semInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={5} details={kpiDrilldowns.semFim.length ? kpiDrilldowns.semFim : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={6} details={kpiDrilldowns.fimMenorInicio.length ? kpiDrilldowns.fimMenorInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={7} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Emitidas (E)" value={formatNumber(atualizarKpisApontGenius.ops_emitidas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} details={kpiDrilldowns.opsPorStatus.E.length ? kpiDrilldowns.opsPorStatus.E : undefined} tooltip="OPs únicas (página atual)" />
+            <KPICard title="Liberadas (L)" value={formatNumber(atualizarKpisApontGenius.ops_liberadas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={2} details={kpiDrilldowns.opsPorStatus.L.length ? kpiDrilldowns.opsPorStatus.L : undefined} tooltip="OPs únicas (página atual)" />
+            <KPICard title="Em Andamento (A)" value={formatNumber(atualizarKpisApontGenius.ops_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={3} details={kpiDrilldowns.opsPorStatus.A.length ? kpiDrilldowns.opsPorStatus.A : undefined} tooltip="OPs únicas (página atual)" />
+            <KPICard title="Finalizadas (F)" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={4} details={kpiDrilldowns.opsPorStatus.F.length ? kpiDrilldowns.opsPorStatus.F : undefined} tooltip="OPs únicas (página atual)" />
+            <KPICard title="Canceladas (C)" value={formatNumber(atualizarKpisApontGenius.ops_canceladas, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={5} details={kpiDrilldowns.opsPorStatus.C.length ? kpiDrilldowns.opsPorStatus.C : undefined} tooltip="OPs únicas (página atual)" />
+            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} details={kpiDrilldowns.discrepancias.length ? kpiDrilldowns.discrepancias : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} details={kpiDrilldowns.semInicio.length ? kpiDrilldowns.semInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} details={kpiDrilldowns.semFim.length ? kpiDrilldowns.semFim : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} details={kpiDrilldowns.fimMenorInicio.length ? kpiDrilldowns.fimMenorInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
+            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
             <KPICard
               title="Maior Total Dia"
               value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
               subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
-              index={8}
+              index={11}
               details={kpiDrilldowns.maiorTotalDia.length ? kpiDrilldowns.maiorTotalDia : undefined}
               tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined}
             />
@@ -824,7 +865,8 @@ export default function AuditoriaApontamentoGeniusPage() {
                   </SheetTitle>
                   <Badge variant="outline" className="text-xs">Origem {opSelecionada.origem ?? '—'}</Badge>
                   {(() => {
-                    const cfg = statusOpVariants[opSelecionada.status_op];
+                    const key = String(opSelecionada.sitorp ?? opSelecionada.status_op ?? '').toUpperCase();
+                    const cfg = statusOpVariants[key];
                     return cfg ? <Badge className={cfg.className}>{cfg.label}</Badge> : null;
                   })()}
                 </div>
@@ -847,7 +889,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                   <span><strong>Número OP:</strong> {opSelecionada.numero_op ?? '—'}</span>
                   <span><strong>Origem:</strong> {opSelecionada.origem ?? '—'}</span>
                   <span><strong>Cód. produto:</strong> {opSelecionada.codigo_produto ?? '—'}</span>
-                  <span><strong>Status OP:</strong> {statusOpVariants[opSelecionada.status_op]?.label ?? opSelecionada.status_op ?? '—'}</span>
+                  <span><strong>Status OP:</strong> {(() => { const k = String(opSelecionada.sitorp ?? opSelecionada.status_op ?? '').toUpperCase(); return statusOpVariants[k]?.label ?? k ?? '—'; })()}</span>
                   {'quantidade' in (opSelecionada || {}) && (
                     <span><strong>Quantidade:</strong> {formatNumber(Number(opSelecionada.quantidade) || 0, 2)}</span>
                   )}
