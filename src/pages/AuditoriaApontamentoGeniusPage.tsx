@@ -1105,6 +1105,13 @@ export default function AuditoriaApontamentoGeniusPage() {
       )}
 
       {atualizarKpisApontGenius && (
+        <AlertaAcima8hCard
+          quantidade={Number(atualizarKpisApontGenius.acima_8h ?? 0)}
+          onClick={() => abrirKpiDrill({ kind: 'acima8h' })}
+        />
+      )}
+
+      {atualizarKpisApontGenius && (
         <>
           <StatusOpGeniusCard
             opsEmAndamento={atualizarKpisApontGenius.ops_em_andamento}
