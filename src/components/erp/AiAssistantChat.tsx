@@ -584,6 +584,4 @@ export function AiAssistantChat() {
     </>
   );
 }
-    </>
-  );
-}
+
