@@ -187,6 +187,18 @@ function normalizarStatusOp(v: any): string {
   return s;
 }
 
+// Mapeia o valor de "Status da OP" da UI para o que o backend aceita
+// Backend só conhece 'EM_ANDAMENTO' | 'FINALIZADO' | 'TODOS'.
+// Os demais (E/L/A/C/SEM_STATUS) são refiltrados no client.
+function mapStatusOpParaApi(v: string): string {
+  const s = String(v ?? '').trim().toUpperCase();
+  if (!s) return 'TODOS';
+  if (s === 'F' || s === 'FINALIZADO') return 'FINALIZADO';
+  if (s === 'E' || s === 'L' || s === 'A' || s === 'EM_ANDAMENTO') return 'EM_ANDAMENTO';
+  // 'C' e 'SEM_STATUS' não têm chave dedicada no backend → buscar tudo
+  return 'TODOS';
+}
+
 function normSitorpRow(row: any): 'E'|'L'|'A'|'F'|'C'|'' {
   const real = String(row?.sitorp ?? '').trim().toUpperCase();
   if (real === 'E' || real === 'L' || real === 'A' || real === 'F' || real === 'C') return real;
@@ -495,7 +507,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         origem: filters.codori,
         codigo_produto: filters.codpro,
         operador: filters.operador,
-        status_op: filters.status_op || 'TODOS',
+        status_op: mapStatusOpParaApi(filters.status_op),
         somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
         somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
         pagina: page,
@@ -599,8 +611,25 @@ export default function AuditoriaApontamentoGeniusPage() {
     return { totalHoras, porStatus, todosZerados };
   }, [apontamentosDaOp]);
 
-  const aplicarFiltroListaApontGenius = useMemo(() => {
+  // Refiltro client-side por "Status da OP" — garante que letras nativas
+  // (E/L/A/F/C) e SEM_STATUS sejam respeitadas mesmo quando o backend não
+  // diferencia (aceita apenas EM_ANDAMENTO/FINALIZADO/TODOS).
+  const dadosFiltradosPorStatusOp = useMemo(() => {
     const rows = (data?.dados || []) as any[];
+    const sel = String(filters.status_op ?? '').trim().toUpperCase();
+    if (!sel) return rows;
+    return rows.filter((row) => {
+      const letra = normSitorpRow(row);
+      if (sel === 'E' || sel === 'L' || sel === 'A' || sel === 'F' || sel === 'C') return letra === sel;
+      if (sel === 'EM_ANDAMENTO') return letra === 'E' || letra === 'L' || letra === 'A';
+      if (sel === 'FINALIZADO') return letra === 'F';
+      if (sel === 'SEM_STATUS') return letra === '';
+      return true;
+    });
+  }, [data, filters.status_op]);
+
+  const aplicarFiltroListaApontGenius = useMemo(() => {
+    const rows = dadosFiltradosPorStatusOp;
     const q = quickFilter.trim().toLowerCase();
     const filtered = !q ? rows : rows.filter((r) => {
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
@@ -616,7 +645,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       const hb = Number(b.horas_realizadas || 0) > 0 ? 1 : 0;
       return hb - ha;
     });
-  }, [data, quickFilter]);
+  }, [dadosFiltradosPorStatusOp, quickFilter]);
 
   // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
   // (sintoma do JOIN com E930MPR estar quebrado no backend).
@@ -636,7 +665,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const atualizarKpisApontGenius = useMemo(() => {
     if (!data) return null;
     const r = data.resumo as any;
-    const rows = (data.dados || []) as any[];
+    const rows = dadosFiltradosPorStatusOp;
 
     // Fallback: agrega contando Set de numop por sitorp nativo (E900COP)
     const opsPorLetra: Record<string, Set<string>> = {
@@ -731,7 +760,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       ops_canceladas: opsPorLetra.C.size,
       discrepanciasParciais,
     };
-  }, [data]);
+  }, [data, dadosFiltradosPorStatusOp]);
 
   const kpiDrilldowns = useMemo(() => {
     const empty = {
@@ -751,7 +780,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       maiorTotalDia: [] as { label: string; value: string }[],
     };
     if (!data?.dados) return empty;
-    const rows = data.dados as any[];
+    const rows = dadosFiltradosPorStatusOp;
 
     // Total Registros: top 10 origens
     const origemCount = new Map<string, number>();
@@ -899,7 +928,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       acima8h,
       maiorTotalDia,
     };
-  }, [data]);
+  }, [data, dadosFiltradosPorStatusOp]);
 
   const rowClassName = useCallback((row: any) => {
     const sa = String(row.status_movimento ?? '').toUpperCase();
@@ -931,7 +960,7 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   // Filtra linhas brutas conforme o KPI selecionado
   const linhasDoKpi = useCallback((k: KpiDrillKind): any[] => {
-    const all = (data?.dados ?? []) as any[];
+    const all = dadosFiltradosPorStatusOp;
     switch (k.kind) {
       case 'total':           return all;
       case 'status':          return all.filter((r) => normSitorpRow(r) === k.letra);
@@ -945,7 +974,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       case 'discrepancias':   return all.filter(isLinhaDiscrepante);
       case 'maiorTotalDia':   return maxTotalDiaMin > 0 ? all.filter((r) => Number(r.total_horas_dia_operador || 0) === maxTotalDiaMin) : [];
     }
-  }, [data, maxTotalDiaMin]);
+  }, [data, dadosFiltradosPorStatusOp, maxTotalDiaMin]);
 
   const origensOptions = useMemo(
     () => ORIGENS_GENIUS.map((o) => ({ value: o, label: o })),
@@ -973,7 +1002,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     origem: filters.codori,
     codigo_produto: filters.codpro,
     operador: filters.operador,
-    status_op: filters.status_op || 'TODOS',
+    status_op: mapStatusOpParaApi(filters.status_op),
     somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
     somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
   };
@@ -1068,6 +1097,12 @@ export default function AuditoriaApontamentoGeniusPage() {
           <Label htmlFor="somente-8h" className="cursor-pointer text-xs">Somente acima de 8h</Label>
         </div>
       </FilterPanel>
+
+      {(filters.status_op === 'C' || filters.status_op === 'SEM_STATUS') && (
+        <p className="text-[11px] text-muted-foreground -mt-2">
+          Filtro "{filters.status_op === 'C' ? 'Cancelada' : 'Sem status'}" aplicado localmente sobre a página atual — paginar para ver mais.
+        </p>
+      )}
 
       {atualizarKpisApontGenius && (
         <>
@@ -1413,7 +1448,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         setOpExpandida={setOpExpandidaNoDrill}
         discrepanciasParciais={!!atualizarKpisApontGenius?.discrepanciasParciais}
         totalRegistros={atualizarKpisApontGenius?.total_registros ?? 0}
-        paginaCarregada={data?.dados?.length ?? 0}
+        paginaCarregada={dadosFiltradosPorStatusOp.length}
         onAbrirDrawerOp={(row) => { setKpiDrillAberto(false); abrirDetalhesOp(row); }}
         onFiltrarGridPorOp={(numop) => {
           setFilters((f) => ({ ...f, numop }));
