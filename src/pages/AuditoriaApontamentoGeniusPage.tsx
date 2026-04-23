@@ -27,8 +27,47 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
-  Activity, CheckCircle2, CalendarRange, Info,
+  Activity, CheckCircle2, CalendarRange, Info, ChevronDown, ChevronRight, Search,
+  ExternalLink, Filter as FilterIcon, Copy,
 } from 'lucide-react';
+import { Card as UICard, CardContent as UICardContent } from '@/components/ui/card';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
+
+// ─── Tipo agregado por OP usado no drill profundo dos cards de status ──────
+type OpAgg = {
+  numero_op: string;
+  produto: string;
+  codigo_produto: string;
+  origem: string;
+  apontamentos: number;
+  total_horas: number;
+  inconsistencias: number;
+  sem_inicio: number;
+  sem_fim: number;
+  divergentes: number;
+  acima_8h: number;
+  operadores: Set<string>;
+  ultimo_apontamento: string;
+  linhas: any[];
+  sitorp: string;
+};
+
+const STATUS_LETRA_LABEL: Record<'E'|'L'|'A'|'F'|'C', string> = {
+  E: 'Emitida', L: 'Liberada', A: 'Andamento', F: 'Finalizada', C: 'Cancelada',
+};
+const STATUS_LETRA_VARIANT: Record<'E'|'L'|'A'|'F'|'C', 'default'|'success'|'warning'|'destructive'|'info'> = {
+  E: 'info', L: 'info', A: 'info', F: 'default', C: 'destructive',
+};
+const STATUS_LETRA_BORDER: Record<'E'|'L'|'A'|'F'|'C', string> = {
+  E: 'border-l-[hsl(var(--info))]',
+  L: 'border-l-[hsl(var(--info))]',
+  A: 'border-l-[hsl(var(--info))]',
+  F: 'border-l-primary',
+  C: 'border-l-destructive',
+};
 
 // Origens GENIUS — começa em 110 conforme regra ERP
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
