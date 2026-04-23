@@ -1,39 +1,53 @@
 
 
-## Fallback local para KPIs de discrepância
+## Drill-down nos KPIs da Auditoria Apontamento Genius
 
-### Problema
-Quando o backend retorna `resumo` mas sem os campos de discrepância (`total_discrepancias`, `sem_inicio`, `sem_fim`, `fim_menor_inicio`, `acima_8h`, `maior_total_dia_operador`), os KPIs aparecem como 0. Hoje a agregação local só roda quando `resumo` é totalmente ausente.
+### Escopo
+Habilitar popover de detalhamento (`details`) nos 9 KPIs da tela `/auditoria-apontamento-genius`, agregando linhas relevantes da página atual. O `KPICard` já tem suporte nativo a `details` (Popover com até N itens) — basta alimentar.
 
 ### Mudanças
 
 **Arquivo único:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
 
-1. **Refatorar `atualizarKpisApontGenius` (linhas 357-424)**
-   - Sempre executar o loop de agregação local sobre `data.dados` (página atual) — extrair os contadores de discrepância para variáveis (`localDiscrepancias`, `localSemInicio`, `localSemFim`, `localFimMenorInicio`, `localAcima8h`, `localMaiorDia`, `localOperadorMaior`).
-   - Para cada KPI de discrepância no retorno, usar `r?.campo ?? localXxx` (em vez de `?? 0`). Contagens "estruturais" (`total_registros`, `ops_em_andamento`, `ops_finalizadas`) seguem priorizando o resumo.
-   - Acrescentar flag `discrepanciasParciais: boolean` no objeto retornado: `true` quando o backend não enviou nenhum campo de discrepância no `resumo` E o fallback local foi aplicado E a resposta é paginada (i.e., `rows.length < total_registros`).
+1. **Novo `useMemo` `kpiDrilldowns`** (após `atualizarKpisApontGenius`)
+   - Itera `data?.dados` e produz, para cada KPI, uma lista `{ label, value }` (até 15 itens, ordenada por relevância).
+   - Mapeamento KPI → conteúdo do popover:
 
-2. **Aviso visual**
-   - Logo acima do grid de KPIs (antes do `<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9">` na linha 565), renderizar um `Alert` (variante default, ícone `Info` do `lucide-react`) condicional a `atualizarKpisApontGenius.discrepanciasParciais`:
-     > **KPIs de discrepância calculados sobre a página atual.** O backend não enviou totais consolidados; valores de "Discrepâncias", "Sem Início", "Sem Fim", "Fim < Início", "Acima de 8h" e "Maior Total Dia" refletem apenas as N linhas exibidas.
-   - Usar componentes existentes: `Alert`, `AlertDescription` de `@/components/ui/alert`.
+| KPI | Label | Value |
+|---|---|---|
+| **Total Registros** | `Origem {origem}` | qtd registros (top 10 origens) |
+| **OPs em andamento** | `OP {numop}` | `{produto}` (top 15 OPs únicas com status ativo) |
+| **OPs finalizadas** | `OP {numop}` | `{produto}` (top 15 OPs únicas finalizadas) |
+| **Discrepâncias** | `OP {numop} · {operador}` | label do status (Aberto/Divergente/Alerta) |
+| **Sem Início** | `OP {numop} · {operador}` | `{data} {hora}` |
+| **Sem Fim** | `OP {numop} · {operador}` | `{data} {hora}` |
+| **Fim < Início** | `OP {numop} · {operador}` | `{horas_realizadas}h` |
+| **Acima de 8h** | `{operador}` | `{horas}h` (ordenado desc por horas; deduplica operador+OP) |
+| **Maior Total Dia** | `{operador}` | `{total_dia}h` (top 10 maiores totais do dia) |
 
-3. **Sem outras mudanças** — KPIs estruturais, layout, cores e ordenação permanecem.
+   - Para OPs únicas, deduplicar por `numero_op` mantendo a primeira ocorrência.
+
+2. **Passar `details` para cada `<KPICard>`** (linhas 588-603)
+   - Cada card recebe `details={kpiDrilldowns.totalRegistros}` etc.
+   - Manter mesmo cabeçalho/ícones/variantes atuais.
+   - Não passar `details` se a lista resultante for vazia (popover não abre — comportamento natural do componente).
+
+3. **Aviso de escopo no popover**
+   - Adicionar prop `tooltip` curta nos cards quando `discrepanciasParciais` for `true` para os 6 KPIs de discrepância: `"Detalhamento da página atual"`. Isso aparece no header do Popover (já suportado pelo `KPICard`).
+   - Para KPIs estruturais (`Total Registros`, `OPs em andamento/finalizadas`), tooltip fixa: `"Top da página atual"`.
+
+4. **Nada muda no `StatusOpGeniusCard`** (drill-down já existente lá, fora de escopo).
 
 ### Comportamento resultante
-
-| Cenário | KPIs discrepância | Aviso |
-|---|---|---|
-| Backend manda `total_discrepancias` etc | Valores do backend | Não aparece |
-| Backend manda `resumo` sem campos de discrepância | Agregado da página atual | **Aparece** |
-| Backend não manda `resumo` | Agregado da página atual | **Aparece** |
+- Clique em qualquer KPI abre Popover com lista detalhada (até 15 itens) das linhas que contribuíram para o número.
+- Cursor vira pointer e card ganha hover (já implementado no `KPICard` quando `details` está presente).
+- Listas são derivadas da página atual carregada — coerente com o aviso de fallback existente.
 
 ### Fora de escopo
-- Buscar todas as páginas para agregar globalmente.
-- Mudar backend.
-- Persistência ou novos filtros.
+- Buscar todas as páginas para drill-down global.
+- Modal de detalhe expandido (continua usando o Popover compacto existente).
+- Drill-down navegando para tela filtrada.
 
 ### Resultado
-KPIs de discrepância deixam de ficar zerados quando o resumo do backend é incompleto, com aviso claro de que o cálculo é parcial.
+Usuário clica em qualquer KPI e vê imediatamente quais OPs/operadores/origens contribuíram para o número, sem precisar caçar na tabela.
 
