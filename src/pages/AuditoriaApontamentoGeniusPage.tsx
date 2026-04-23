@@ -197,6 +197,41 @@ function normSitorpRow(row: any): 'E'|'L'|'A'|'F'|'C'|'' {
   return '';
 }
 
+function horaParaMinutos(v: any): number | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    if (v >= 0 && v < 24) return Math.round(v * 60);
+    if (Number.isInteger(v) && v >= 0 && v <= 2359) {
+      const h = Math.floor(v / 100), m = v % 100;
+      if (h < 24 && m < 60) return h * 60 + m;
+    }
+    if (v >= 0 && v < 24 * 60) return Math.round(v);
+    return null;
+  }
+  const s = String(v).trim().toLowerCase().replace('h', ':').replace(/\s+/g, '');
+  if (!s) return null;
+  const m1 = s.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (m1) {
+    const h = +m1[1], m = +m1[2];
+    if (h < 24 && m < 60) return h * 60 + m;
+  }
+  const m2 = s.match(/^(\d{3,4})$/);
+  if (m2) {
+    const n = +m2[1], h = Math.floor(n / 100), m = n % 100;
+    if (h < 24 && m < 60) return h * 60 + m;
+  }
+  const f = Number(s);
+  if (Number.isFinite(f) && f >= 0 && f < 24) return Math.round(f * 60);
+  return null;
+}
+
+function isFimMenorInicio(row: any): boolean {
+  const ini = horaParaMinutos(row?.hora_inicial);
+  const fim = horaParaMinutos(row?.hora_final);
+  if (ini == null || fim == null) return false;
+  return fim < ini;
+}
+
 function isLinhaDiscrepante(row: any): boolean {
   const sa = String(row?.status_movimento ?? '').toUpperCase();
   if (sa && sa !== 'FECHADO') return true;
@@ -205,7 +240,7 @@ function isLinhaDiscrepante(row: any): boolean {
   if (horas > 8 || totDia > 8) return true;
   if (!row?.hora_inicial) return true;
   if (!row?.hora_final) return true;
-  if (row?.hora_inicial && row?.hora_final && String(row.hora_final) < String(row.hora_inicial)) return true;
+  if (isFimMenorInicio(row)) return true;
   const min = Number(row?.horas_realizadas) || 0;
   if (min > 0 && min < 5) return true;
   return false;
