@@ -456,8 +456,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       if (sa === 'SEM_APONTAMENTO') localSemInicio++;
       if (sa === 'ABERTO') localSemFim++;
       if (sa === 'DIVERGENTE') localFimMenorInicio++;
-      const horas = Number(row.horas_realizadas || 0);
-      const totDia = Number(row.total_horas_dia_operador || 0);
+      const horas = minToHours(row.horas_realizadas);
+      const totDia = minToHours(row.total_horas_dia_operador);
       if (horas > 8 || totDia > 8) localAcima8h++;
       if (totDia > localMaiorDia) {
         localMaiorDia = totDia;
