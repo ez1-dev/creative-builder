@@ -1918,10 +1918,12 @@ function KpiDeepSheet({
               <SelectItem value="op" className="text-xs">OP (asc)</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-2">
-            <Switch id="somente-inconsist-drill" checked={somenteInconsist} onCheckedChange={setSomenteInconsist} />
-            <Label htmlFor="somente-inconsist-drill" className="text-xs cursor-pointer">Só c/ inconsistência</Label>
-          </div>
+          {!isProblema && (
+            <div className="flex items-center gap-2">
+              <Switch id="somente-inconsist-drill" checked={somenteInconsist} onCheckedChange={setSomenteInconsist} />
+              <Label htmlFor="somente-inconsist-drill" className="text-xs cursor-pointer">Só c/ inconsistência</Label>
+            </div>
+          )}
         </div>
 
         {/* Nível 2 — Tabela de OPs */}
