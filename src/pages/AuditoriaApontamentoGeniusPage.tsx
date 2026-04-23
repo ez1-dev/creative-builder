@@ -494,11 +494,11 @@ export default function AuditoriaApontamentoGeniusPage() {
     const empty = {
       totalRegistros: [] as { label: string; value: string }[],
       opsPorStatus: {
-        E: [] as { label: string; value: string }[],
-        L: [] as { label: string; value: string }[],
-        A: [] as { label: string; value: string }[],
-        F: [] as { label: string; value: string }[],
-        C: [] as { label: string; value: string }[],
+        E: [] as OpAgg[],
+        L: [] as OpAgg[],
+        A: [] as OpAgg[],
+        F: [] as OpAgg[],
+        C: [] as OpAgg[],
       },
       discrepancias: [] as { label: string; value: string }[],
       semInicio: [] as { label: string; value: string }[],
@@ -512,13 +512,9 @@ export default function AuditoriaApontamentoGeniusPage() {
 
     // Total Registros: top 10 origens
     const origemCount = new Map<string, number>();
-    // OPs únicas por sitorp nativo
-    const opsByLetra: Record<string, Map<string, string>> = {
-      E: new Map(),
-      L: new Map(),
-      A: new Map(),
-      F: new Map(),
-      C: new Map(),
+    // OPs únicas por sitorp nativo — agregação completa
+    const opsByLetra: Record<'E'|'L'|'A'|'F'|'C', Map<string, OpAgg>> = {
+      E: new Map(), L: new Map(), A: new Map(), F: new Map(), C: new Map(),
     };
     // Discrepâncias
     const discrep: { label: string; value: string }[] = [];
@@ -539,15 +535,50 @@ export default function AuditoriaApontamentoGeniusPage() {
       if (origem) origemCount.set(origem, (origemCount.get(origem) ?? 0) + 1);
 
       const real = String(row.sitorp ?? '').trim().toUpperCase();
-      let letra = real && opsByLetra[real] ? real : '';
+      let letra: 'E'|'L'|'A'|'F'|'C'|'' = (real === 'E' || real === 'L' || real === 'A' || real === 'F' || real === 'C') ? real : '';
       if (!letra) {
         const st = normalizarStatusOp(row.status_op);
         if (STATUS_OP_FINALIZADOS.has(st)) letra = 'F';
         else if (STATUS_OP_CANCELADOS.has(st)) letra = 'C';
         else if (STATUS_OP_ATIVOS.has(st)) letra = 'A';
       }
-      if (numop && letra && !opsByLetra[letra].has(numop)) {
-        opsByLetra[letra].set(numop, produto || '—');
+      if (numop && letra) {
+        let agg = opsByLetra[letra].get(numop);
+        if (!agg) {
+          agg = {
+            numero_op: numop,
+            produto: produto || '—',
+            codigo_produto: String(row.codigo_produto ?? '').trim(),
+            origem,
+            apontamentos: 0,
+            total_horas: 0,
+            inconsistencias: 0,
+            sem_inicio: 0,
+            sem_fim: 0,
+            divergentes: 0,
+            acima_8h: 0,
+            operadores: new Set<string>(),
+            ultimo_apontamento: '',
+            linhas: [],
+            sitorp: letra,
+          };
+          opsByLetra[letra].set(numop, agg);
+        }
+        agg.apontamentos += 1;
+        agg.total_horas += Number(row.horas_realizadas || 0);
+        if (operador) agg.operadores.add(operador);
+        const dt = String(row.data_movimento ?? row.data_apontamento ?? row.data ?? '');
+        if (dt && dt > agg.ultimo_apontamento) agg.ultimo_apontamento = dt;
+        agg.linhas.push(row);
+
+        const sa = String(row.status_movimento ?? '').toUpperCase();
+        const horas = Number(row.horas_realizadas || 0);
+        const totDia = Number(row.total_horas_dia_operador || 0);
+        if (sa === 'SEM_APONTAMENTO') agg.sem_inicio += 1;
+        if (sa === 'ABERTO') agg.sem_fim += 1;
+        if (sa === 'DIVERGENTE') agg.divergentes += 1;
+        if (horas > 8 || totDia > 8) agg.acima_8h += 1;
+        agg.inconsistencias = agg.sem_inicio + agg.sem_fim + agg.divergentes + agg.acima_8h;
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
@@ -595,8 +626,13 @@ export default function AuditoriaApontamentoGeniusPage() {
       .slice(0, 10)
       .map(([o, c]) => ({ label: `Origem ${o}`, value: formatNumber(c, 0) }));
 
-    const toList = (m: Map<string, string>) =>
-      Array.from(m.entries()).slice(0, 15).map(([op, prod]) => ({ label: `OP ${op}`, value: prod }));
+    // Ordenar OPs por status: inconsistencias desc → horas desc → numop asc; top 30
+    const ordenarOps = (m: Map<string, OpAgg>): OpAgg[] =>
+      Array.from(m.values()).sort((a, b) => {
+        if (b.inconsistencias !== a.inconsistencias) return b.inconsistencias - a.inconsistencias;
+        if (b.total_horas !== a.total_horas) return b.total_horas - a.total_horas;
+        return a.numero_op.localeCompare(b.numero_op);
+      });
 
     const acima8h = acima8hRaw.sort((a, b) => b.horas - a.horas).slice(0, 15)
       .map(({ label, value }) => ({ label, value }));
@@ -607,11 +643,11 @@ export default function AuditoriaApontamentoGeniusPage() {
     return {
       totalRegistros,
       opsPorStatus: {
-        E: toList(opsByLetra.E),
-        L: toList(opsByLetra.L),
-        A: toList(opsByLetra.A),
-        F: toList(opsByLetra.F),
-        C: toList(opsByLetra.C),
+        E: ordenarOps(opsByLetra.E),
+        L: ordenarOps(opsByLetra.L),
+        A: ordenarOps(opsByLetra.A),
+        F: ordenarOps(opsByLetra.F),
+        C: ordenarOps(opsByLetra.C),
       },
       discrepancias: discrep.slice(0, 15),
       semInicio: semInicio.slice(0, 15),
