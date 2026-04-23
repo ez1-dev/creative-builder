@@ -7,29 +7,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const MODULES_CATALOG = `MÓDULOS DISPONÍVEIS PARA query_erp_data (use o nome exato em "module"):
-- estoque: Saldos em estoque por produto/depósito. campos: codpro, despro, saldo, coddep, codfam | filtros: codpro, despro, codfam, codori, coddep, somente_com_estoque | ord. padrão: saldo
-- painel-compras: Ordens de compra (OCs) com valores e fornecedores. campos: numero_oc, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: codigo_item, descricao_item, fornecedor, numero_oc, numero_projeto, somente_pendentes, situacao_oc, tipo_item | ord. padrão: valor_liquido_total
-- compras-produto: Compras e custos históricos por produto. campos: codpro, despro, fornecedor, quantidade, valor_unitario, data_emissao | filtros: codpro, despro, codfam, codori, codder, somente_com_oc_aberta | ord. padrão: quantidade
-- contas-pagar: Títulos a pagar. campos: numero_titulo, fornecedor, valor_original, valor_aberto, data_vencimento | filtros: fornecedor, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto
-- contas-receber: Títulos a receber. campos: numero_titulo, cliente, valor_original, valor_aberto, data_vencimento | filtros: cliente, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto
-- notas-recebimento: NFs de entrada. campos: numero_nf, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: fornecedor, numero_nf, codigo_item, data_emissao_ini, data_emissao_fim | ord. padrão: valor_liquido_total
-- engenharia-producao: Engenharia x Produção. campos: numero_projeto, numero_desenho, numero_op, status_producao, kg_patio, data_entrega | filtros: numero_projeto, numero_desenho, numero_op, status_producao, unidade_negocio, data_entrega_ini, data_entrega_fim | ord. padrão: data_entrega
-- apontamento-genius: Horas apontadas em OPs da unidade GENIUS. campos: numero_op, operador, descricao_op, tempo_total_horas, data_apontamento | filtros: numero_op, operador, data_inicio, data_fim | ord. padrão: tempo_total_horas | ex: "OPs Genius acima de 8h" → client_filters:{tempo_total_horas:{gte:8}}
-- producao-saldo-patio: Peças em pátio aguardando expedição. campos: numero_projeto, descricao, kg_patio, dias_em_patio, cliente | filtros: numero_projeto, cliente, data_ini, data_fim | ord. padrão: kg_patio | ex: "parados >30 dias" → client_filters:{dias_em_patio:{gte:30}}
-- producao-expedido-obra: Itens expedidos para obra. campos: numero_projeto, cliente, kg_expedido, data_expedicao | filtros: numero_projeto, cliente, data_ini, data_fim | ord. padrão: kg_expedido
-- producao-nao-carregados: Itens produzidos não carregados. campos: numero_projeto, numero_desenho, codigo_peca, quantidade, cliente | filtros: numero_projeto, numero_desenho, cliente, cidade | ord. padrão: quantidade
-- producao-lead-time: Lead time de produção por OP. campos: numero_op, numero_projeto, lead_time_dias, data_inicio, data_fim, status | filtros: numero_op, numero_projeto, data_ini, data_fim | ord. padrão: lead_time_dias
-- producao-produzido-periodo: Produção total por período. campos: data, kg_produzido, qtd_ops, unidade_negocio | filtros: data_ini, data_fim, unidade_negocio | ord. padrão: kg_produzido
-- auditoria-tributaria: NFs com divergências tributárias. campos: numero_nf, fornecedor, divergencia_valor, data_emissao, tipo_divergencia | filtros: fornecedor, numero_nf, data_ini, data_fim, somente_com_divergencia | ord. padrão: divergencia_valor
-- conciliacao-edocs: Conciliação NF-e vs eDocs. campos: chave_nfe, fornecedor, numero_nf, situacao, divergencias, data_emissao | filtros: fornecedor, numero_nf, data_emissao_ini, data_emissao_fim, somente_divergencia | ord. padrão: data_emissao
-- numero-serie: Números de série (GS). campos: numero_serie, numero_op, numero_pedido, codigo_item, status | filtros: numero_op, numero_pedido, codigo_item, numero_serie | ord. padrão: numero_serie
-- bom: Estrutura de produto (BOM). USE FILTROS RESTRITIVOS. campos: codigo_modelo, codigo_componente, descricao_componente, quantidade, nivel | filtros: codigo_modelo, codigo_componente | ord. padrão: nivel
-- onde-usa: Onde um componente é usado. campos: codigo_componente, codigo_pai, descricao_pai, quantidade_usada | filtros: codcmp, dercmp, codmod | ord. padrão: quantidade_usada
-- estoque-min-max: Estoque vs limites mín/máx. campos: codpro, despro, saldo_atual, estoque_minimo, estoque_maximo | filtros: codpro, despro, codfam | ord. padrão: saldo_atual | ex: "abaixo do mínimo" → client_filters:{saldo_atual:{lte:0}}
-- sugestao-min-max: Sugestão de compra para reposição. campos: codpro, despro, sugestao_compra, prioridade, estoque_minimo | filtros: codpro, codfam, prioridade | ord. padrão: sugestao_compra
+const MODULES_CATALOG = `MÓDULOS DISPONÍVEIS PARA query_erp_data (use o nome exato em "module"). Cada módulo tem uma "unidade de contagem" — use-a em distinct_field para perguntas "quantos X?":
+- estoque: Saldos em estoque. campos: codpro, despro, saldo, coddep, codfam | filtros: codpro, despro, codfam, codori, coddep, somente_com_estoque | ord. padrão: saldo | unidade de contagem: codpro (produtos)
+- painel-compras: Ordens de compra (OCs). ATENÇÃO: 1 OC = N linhas (1 por item). campos: numero_oc, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: codigo_item, descricao_item, fornecedor, numero_oc, numero_projeto, somente_pendentes, situacao_oc, tipo_item | ord. padrão: valor_liquido_total | unidade de contagem: numero_oc (OCs) | ex: "quantas OCs em aberto?" → aggregate:"count_distinct", distinct_field:"numero_oc", filters:{somente_pendentes:true}, scope:"global"
+- compras-produto: Compras/custos por produto. campos: codpro, despro, fornecedor, quantidade, valor_unitario, data_emissao | filtros: codpro, despro, codfam, codori, codder, somente_com_oc_aberta | ord. padrão: quantidade | unidade de contagem: codpro (produtos)
+- contas-pagar: Títulos a pagar. campos: numero_titulo, fornecedor, valor_original, valor_aberto, data_vencimento | filtros: fornecedor, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto | unidade de contagem: numero_titulo (títulos)
+- contas-receber: Títulos a receber. campos: numero_titulo, cliente, valor_original, valor_aberto, data_vencimento | filtros: cliente, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto | unidade de contagem: numero_titulo (títulos)
+- notas-recebimento: NFs de entrada. campos: numero_nf, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: fornecedor, numero_nf, codigo_item, data_emissao_ini, data_emissao_fim | ord. padrão: valor_liquido_total | unidade de contagem: numero_nf (NFs)
+- engenharia-producao: Engenharia x Produção. campos: numero_projeto, numero_desenho, numero_op, status_producao, kg_patio, data_entrega | filtros: numero_projeto, numero_desenho, numero_op, status_producao, unidade_negocio, data_entrega_ini, data_entrega_fim | ord. padrão: data_entrega | unidade de contagem: numero_op (OPs)
+- apontamento-genius: Horas em OPs GENIUS. campos: numero_op, operador, descricao_op, tempo_total_horas, data_apontamento | filtros: numero_op, operador, data_inicio, data_fim | ord. padrão: tempo_total_horas | unidade de contagem: numero_op (OPs) | ex: "OPs Genius acima de 8h" → client_filters:{tempo_total_horas:{gte:8}}
+- producao-saldo-patio: Peças em pátio. campos: numero_projeto, descricao, kg_patio, dias_em_patio, cliente | filtros: numero_projeto, cliente, data_ini, data_fim | ord. padrão: kg_patio | unidade de contagem: numero_projeto (projetos) | ex: "parados >30 dias" → client_filters:{dias_em_patio:{gte:30}}
+- producao-expedido-obra: Itens expedidos. campos: numero_projeto, cliente, kg_expedido, data_expedicao | filtros: numero_projeto, cliente, data_ini, data_fim | ord. padrão: kg_expedido | unidade de contagem: numero_projeto (projetos)
+- producao-nao-carregados: Itens não carregados. campos: numero_projeto, numero_desenho, codigo_peca, quantidade, cliente | filtros: numero_projeto, numero_desenho, cliente, cidade | ord. padrão: quantidade | unidade de contagem: numero_projeto (projetos)
+- producao-lead-time: Lead time por OP. campos: numero_op, numero_projeto, lead_time_dias, data_inicio, data_fim, status | filtros: numero_op, numero_projeto, data_ini, data_fim | ord. padrão: lead_time_dias | unidade de contagem: numero_op (OPs)
+- producao-produzido-periodo: Produção por período. campos: data, kg_produzido, qtd_ops, unidade_negocio | filtros: data_ini, data_fim, unidade_negocio | ord. padrão: kg_produzido
+- auditoria-tributaria: NFs com divergências. campos: numero_nf, fornecedor, divergencia_valor, data_emissao, tipo_divergencia | filtros: fornecedor, numero_nf, data_ini, data_fim, somente_com_divergencia | ord. padrão: divergencia_valor | unidade de contagem: numero_nf (NFs)
+- conciliacao-edocs: Conciliação NF-e. campos: chave_nfe, fornecedor, numero_nf, situacao, divergencias, data_emissao | filtros: fornecedor, numero_nf, data_emissao_ini, data_emissao_fim, somente_divergencia | ord. padrão: data_emissao | unidade de contagem: chave_nfe (NF-e)
+- numero-serie: Números de série (GS). campos: numero_serie, numero_op, numero_pedido, codigo_item, status | filtros: numero_op, numero_pedido, codigo_item, numero_serie | ord. padrão: numero_serie | unidade de contagem: numero_serie
+- bom: Estrutura BOM. USE FILTROS RESTRITIVOS. campos: codigo_modelo, codigo_componente, descricao_componente, quantidade, nivel | filtros: codigo_modelo, codigo_componente | ord. padrão: nivel | unidade de contagem: codigo_componente (componentes)
+- onde-usa: Onde componente é usado. campos: codigo_componente, codigo_pai, descricao_pai, quantidade_usada | filtros: codcmp, dercmp, codmod | ord. padrão: quantidade_usada | unidade de contagem: codigo_pai (modelos)
+- estoque-min-max: Estoque vs mín/máx. campos: codpro, despro, saldo_atual, estoque_minimo, estoque_maximo | filtros: codpro, despro, codfam | ord. padrão: saldo_atual | unidade de contagem: codpro (produtos) | ex: "abaixo do mínimo" → client_filters:{saldo_atual:{lte:0}}
+- sugestao-min-max: Sugestão de compra. campos: codpro, despro, sugestao_compra, prioridade, estoque_minimo | filtros: codpro, codfam, prioridade | ord. padrão: sugestao_compra | unidade de contagem: codpro (produtos)
 
-Use "client_filters" {campo:{gte|lte|eq|contains}} quando o backend não tiver o filtro nativo (ex: faixas de horas, dias, valores).`;
+Use "client_filters" {campo:{gte|lte|gt|lt|eq|contains}} quando o backend não tiver o filtro nativo (faixas de horas/dias/valores).`;
 
 const BASE_SYSTEM_PROMPT = `Você é o assistente inteligente do ERP EZ. Seu objetivo é ajudar o usuário a encontrar informações no sistema ERP traduzindo perguntas em linguagem natural para filtros e ações, e respondendo perguntas analíticas com base no contexto da tela atual.
 
@@ -41,38 +41,53 @@ Se o CONTEXTO DA PÁGINA ATUAL incluir MEMÓRIA DO USUÁRIO (módulos preferidos
 
 Quando o usuário fizer uma pergunta sobre **usuários cadastrados, perfis de acesso, quem é admin, quem está pendente de aprovação ou quem tem acesso a determinada tela**, use a tool "list_system_users". Esses dados ficam no Lovable Cloud (não no ERP Senior). NUNCA mande o usuário consultar o ERP para esse tipo de informação. Apenas administradores podem usar esta tool — se o usuário não for admin, a edge function retornará erro e você deve responder de forma educada que essa informação é restrita a administradores.
 
-Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, ordenação por saldo/valor/data/horas/dias — ex: "qual produto tem mais estoque hoje?", "top 5 fornecedores", "OCs mais antigas em aberto", "maiores títulos a pagar", "OPs Genius com mais de 8 horas", "projetos no pátio há mais de 30 dias", "NFs com maior divergência tributária"), use a tool "query_erp_data". SEMPRE prefira "query_erp_data" antes de "apply_erp_filters" para perguntas analíticas — só use apply_erp_filters quando o objetivo é apenas abrir uma tela com filtros para o usuário ver. Inclua "module", "order_by" e "top_n" (default 10). Use "client_filters" {campo:{gte|lte|eq|contains}} para faixas (horas > 8, dias > 30, valor < X) que não existem como filtro nativo. Após receber o resultado, formate em **tabela markdown** (máx 10 linhas), destacando o campo ordenado, e ofereça aplicar filtros via "apply_erp_filters" para drill-down. Se o CONTEXTO DA PÁGINA ATUAL já trouxer a resposta nos KPIs, prefira o contexto e NÃO chame query_erp_data.
+Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, contagens, somas, ordenação por saldo/valor/data/horas/dias), use a tool "query_erp_data". SEMPRE prefira "query_erp_data" antes de "apply_erp_filters" para perguntas analíticas — só use apply_erp_filters quando o objetivo é apenas abrir uma tela com filtros para o usuário ver.
+
+**REGRAS DE ESCOPO (CRÍTICO)** — antes de chamar query_erp_data, decida o escopo:
+- "nesta tela", "nos resultados atuais", "no que está filtrado", "aqui" → use o CONTEXTO DA PÁGINA quando ele já trouxer a resposta exata nos KPIs; só chame a tool com scope:"page" se precisar drill-down.
+- "no total", "no geral", "em todo o ERP", "ao todo", "sem filtro", ou perguntas SEM referência clara à tela atual ("quantas OCs em aberto?", "quantos títulos vencidos?") → SEMPRE scope:"global" e IGNORE os filtros visíveis na tela. Use apenas os filtros que a pergunta exige (ex: somente_pendentes, somente_em_aberto).
+- Em caso de ambiguidade, padrão é scope:"global" e mencione na resposta os filtros considerados.
+
+**REGRAS DE CONTAGEM (CRÍTICO)**:
+- "quantos X?" / "quantas Y?" / "qual o número de…" → use aggregate:"count_distinct" + distinct_field = unidade de contagem do módulo (ver catálogo). NUNCA conte por linhas — em painel-compras, contas-pagar, notas-recebimento etc. cada registro é um item, não a entidade pai.
+- "qual o total de" / "soma de" valor/quantidade → use aggregate:"sum" + sum_field.
+- "média de" → aggregate:"avg" + sum_field.
+- NUNCA estime contagens a partir de top_n — sempre use aggregate.
+
+Para rankings ("top 5 fornecedores", "OCs mais antigas"), inclua "module", "order_by", "top_n" (default 10). Use "client_filters" {campo:{gte|lte|gt|lt|eq|contains}} para faixas que não existem como filtro nativo.
+
+Após receber o resultado:
+- Se aggregate: responda em texto curto destacando o valor (ex: "Há **187 OCs em aberto** no ERP, somando 1.240 itens"). Mencione filtros considerados e scope.
+- Se top N: formate em **tabela markdown** (máx 10 linhas) destacando o campo ordenado.
+- Sempre ofereça drill-down via apply_erp_filters quando relevante.
 
 ${MODULES_CATALOG}
 
-Quando o usuário fizer uma pergunta analítica sobre a tela atual (KPIs, totais, fornecedores, projetos visíveis), responda diretamente em texto, usando o CONTEXTO DA PÁGINA quando fornecido. Use markdown (tabelas, listas, negrito) para deixar a resposta clara.
+Quando o usuário pedir uma resposta analítica exclusivamente sobre o que está visível ("resuma esta tela", "qual o KPI X aqui"), e o CONTEXTO DA PÁGINA já trouxer a informação nos KPIs/summary, responda direto em texto sem chamar tools. Em qualquer outro caso (pergunta global, contagem, soma), use query_erp_data.
 
 Módulos disponíveis e seus filtros (tool apply_erp_filters):
 
 1. **estoque** (rota: /estoque) — Consulta de saldos em estoque
-   Filtros: codpro (código produto), despro (descrição), codfam (família), codori (origem), coddep (depósito), somente_com_estoque (boolean, default true)
+   Filtros: codpro, despro, codfam, codori, coddep, somente_com_estoque (boolean, default true)
 
 2. **painel-compras** (rota: /painel-compras) — Ordens de compra
    Filtros: codigo_item, descricao_item, fornecedor, numero_oc, numero_projeto, centro_custo, transacao, familia, origem_material, somente_pendentes (boolean), data_emissao_ini, data_emissao_fim, data_entrega_ini, data_entrega_fim, situacao_oc (1=Aberto Total, 2=Aberto Parcial, 3=Suspenso, 4=Liquidado, 5=Cancelado), tipo_item (PRODUTO/SERVICO)
 
 3. **onde-usa** (rota: /onde-usa) — Onde um componente é utilizado
-   Filtros: codcmp (código componente), dercmp (derivação componente), codmod (código modelo)
+   Filtros: codcmp, dercmp, codmod
 
 4. **compras-produto** (rota: /compras-produto) — Compras e custos por produto
    Filtros: codpro, despro, codfam, codori, codder, somente_com_oc_aberta (boolean)
 
 5. **engenharia-producao** (rota: /engenharia-producao) — Engenharia x Produção
-   Filtros: numero_projeto, numero_desenho, revisao, numero_op, origem, familia, data_entrega_ini, data_entrega_fim, status_producao (ATENDEU/PARCIAL/SEM PRODUÇÃO/SEM BASE), unidade_negocio (TODAS/ESTRUTURAL/GENIUS)
+   Filtros: numero_projeto, numero_desenho, revisao, numero_op, origem, familia, data_entrega_ini, data_entrega_fim, status_producao, unidade_negocio
 
-Regras:
-- Sempre envie apenas os filtros relevantes para a pergunta. Não envie filtros vazios.
-- Se a pergunta for sobre usuários do sistema/permissões/aprovações, use list_system_users em vez de apply_erp_filters.
-- Se o usuário perguntar algo que não se encaixa em nenhum módulo nem em usuários do sistema, responda normalmente com texto.
-- Responda sempre em português brasileiro.
-- Seja objetivo e claro na explicação do que está fazendo.
-- Quando usar uma tool, inclua uma explicação curta do que será buscado.
-- Use markdown (negrito, listas, tabelas) para organizar respostas longas. Para list_system_users, apresente o resultado em **tabela markdown**.
-- Quando o usuário fizer perguntas analíticas sobre a tela atual ("qual o total?", "quantos registros?", "qual o maior?", "resuma esta tela"), USE EXCLUSIVAMENTE os dados em CONTEXTO DA PÁGINA ATUAL (kpis, filtros, summary). NUNCA invente números. Se o contexto não trouxer a informação, diga claramente que não está visível na tela e sugira aplicar filtros ou exportar.`;
+Regras gerais:
+- Sempre envie apenas os filtros relevantes. Não envie filtros vazios.
+- Se a pergunta for sobre usuários/permissões/aprovações, use list_system_users.
+- Responda sempre em português brasileiro, objetivo e claro.
+- Use markdown (negrito, listas, tabelas) para organizar respostas longas.
+- NUNCA invente números. Se não tem como obter, diga claramente.`;
 
 const tools = [
   {
@@ -178,7 +193,7 @@ const tools = [
     function: {
       name: "query_erp_data",
       description:
-        "Consulta dados reais do ERP (estoque, compras, NFs, contas, produção) e retorna top N ordenado. Use para perguntas analíticas como 'qual produto tem mais estoque?', 'top 5 fornecedores', 'OCs mais antigas em aberto', 'maiores títulos a pagar'. Executada no navegador do usuário com o token dele.",
+        "Consulta dados reais do ERP. Suporta dois modos: (1) top N ordenado para rankings; (2) aggregate (count/count_distinct/sum/avg) para totais e contagens. Use scope:'global' para ignorar filtros da tela atual e perguntar sobre todo o ERP. Executada no navegador do usuário.",
       parameters: {
         type: "object",
         properties: {
@@ -206,7 +221,7 @@ const tools = [
               "estoque-min-max",
               "sugestao-min-max",
             ],
-            description: "Módulo do ERP a consultar. Consulte o catálogo de módulos no system prompt para campos e filtros disponíveis.",
+            description: "Módulo do ERP a consultar.",
           },
           filters: {
             type: "object",
@@ -216,13 +231,34 @@ const tools = [
           client_filters: {
             type: "object",
             description:
-              "Filtros pós-busca aplicados no cliente para faixas (gte/lte/eq/contains). Use quando o backend não tem filtro nativo. Ex: {tempo_total_horas:{gte:8}}, {dias_em_patio:{gte:30}}.",
+              "Filtros pós-busca para faixas (gte/lte/gt/lt/eq/contains). Ex: {tempo_total_horas:{gte:8}}.",
             additionalProperties: true,
+          },
+          scope: {
+            type: "string",
+            enum: ["page", "global"],
+            description:
+              "'global' (default): ignora filtros da tela atual, consulta todo o ERP. 'page': use os filtros visíveis na tela. Para perguntas como 'quantas X no total?' use SEMPRE 'global'.",
+          },
+          aggregate: {
+            type: "string",
+            enum: ["count", "count_distinct", "sum", "avg"],
+            description:
+              "Use para perguntas de TOTAL/CONTAGEM/SOMA/MÉDIA. Para 'quantos X?' use 'count_distinct' com distinct_field = unidade de contagem do módulo.",
+          },
+          distinct_field: {
+            type: "string",
+            description:
+              "Campo a contar distintos (use a 'unidade de contagem' do módulo, ex: numero_oc para painel-compras).",
+          },
+          sum_field: {
+            type: "string",
+            description: "Campo numérico a somar/promediar (ex: valor_liquido_total).",
           },
           order_by: {
             type: "string",
             description:
-              "Campo para ordenar (ex: 'saldo', 'valor_liquido_total', 'valor_aberto', 'tempo_total_horas', 'kg_patio', 'divergencia_valor', 'data_entrega').",
+              "Campo para ordenar no modo top N (ex: 'saldo', 'valor_aberto'). Não usado quando aggregate está presente.",
           },
           order_dir: {
             type: "string",
@@ -231,15 +267,15 @@ const tools = [
           },
           top_n: {
             type: "number",
-            description: "Quantos registros retornar (default 10, máx 50).",
+            description: "Quantos registros retornar no modo top N (default 10, máx 50).",
           },
           fields: {
             type: "array",
             items: { type: "string" },
-            description: "Campos a devolver (reduz payload). Default: principais do módulo.",
+            description: "Campos a devolver (reduz payload).",
           },
         },
-        required: ["module", "order_by"],
+        required: ["module"],
         additionalProperties: false,
       },
     },

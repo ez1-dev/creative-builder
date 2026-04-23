@@ -3,9 +3,13 @@ import { api } from './api';
 export interface ClientFilterCond {
   gte?: number | string;
   lte?: number | string;
+  gt?: number | string;
+  lt?: number | string;
   eq?: number | string | boolean;
   contains?: string;
 }
+
+export type AggregateOp = 'count' | 'count_distinct' | 'sum' | 'avg';
 
 export interface QueryErpArgs {
   module: string;
@@ -15,6 +19,15 @@ export interface QueryErpArgs {
   order_dir?: 'asc' | 'desc';
   top_n?: number;
   fields?: string[];
+  aggregate?: AggregateOp;
+  distinct_field?: string;
+  sum_field?: string;
+  scope?: 'page' | 'global';
+}
+
+interface CountUnit {
+  field: string;
+  label: string;
 }
 
 interface ModuleConfig {
@@ -26,6 +39,7 @@ interface ModuleConfig {
   description: string;
   availableFilters: string[];
   example?: string;
+  countUnit?: CountUnit;
 }
 
 const MODULE_MAP: Record<string, ModuleConfig> = {
@@ -38,15 +52,17 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     description: 'Consulta de saldos em estoque por produto/depósito.',
     availableFilters: ['codpro', 'despro', 'codfam', 'codori', 'coddep', 'somente_com_estoque'],
     example: '"qual produto tem mais estoque?" → order_by:"saldo", top_n:10',
+    countUnit: { field: 'codpro', label: 'produtos' },
   },
   'painel-compras': {
     endpoint: '/api/painel-compras',
     defaultOrderBy: 'valor_liquido_total',
     defaultFields: ['numero_oc', 'fornecedor', 'codigo_item', 'descricao_item', 'valor_liquido_total', 'data_emissao'],
     permissionPath: '/painel-compras',
-    description: 'Ordens de compra (OCs) com valores e fornecedores.',
+    description: 'Ordens de compra (OCs) com valores e fornecedores. ATENÇÃO: 1 OC = N linhas (uma por item).',
     availableFilters: ['codigo_item', 'descricao_item', 'fornecedor', 'numero_oc', 'numero_projeto', 'centro_custo', 'somente_pendentes', 'data_emissao_ini', 'data_emissao_fim', 'situacao_oc', 'tipo_item'],
-    example: '"top 5 fornecedores em OCs abertas" → filters:{somente_pendentes:true}, order_by:"valor_liquido_total"',
+    example: '"quantas OCs em aberto?" → aggregate:"count_distinct", distinct_field:"numero_oc", filters:{somente_pendentes:true}',
+    countUnit: { field: 'numero_oc', label: 'OCs' },
   },
   'compras-produto': {
     endpoint: '/api/compras-produto',
@@ -55,6 +71,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/compras-produto',
     description: 'Compras e custos históricos por produto.',
     availableFilters: ['codpro', 'despro', 'codfam', 'codori', 'codder', 'somente_com_oc_aberta'],
+    countUnit: { field: 'codpro', label: 'produtos' },
   },
   'contas-pagar': {
     endpoint: '/api/contas-pagar',
@@ -64,6 +81,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     description: 'Títulos a pagar (contas a pagar).',
     availableFilters: ['fornecedor', 'numero_titulo', 'data_vencimento_ini', 'data_vencimento_fim', 'somente_em_aberto'],
     example: '"maior título em aberto" → order_by:"valor_aberto"',
+    countUnit: { field: 'numero_titulo', label: 'títulos' },
   },
   'contas-receber': {
     endpoint: '/api/contas-receber',
@@ -72,6 +90,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/contas-receber',
     description: 'Títulos a receber (contas a receber).',
     availableFilters: ['cliente', 'numero_titulo', 'data_vencimento_ini', 'data_vencimento_fim', 'somente_em_aberto'],
+    countUnit: { field: 'numero_titulo', label: 'títulos' },
   },
   'notas-recebimento': {
     endpoint: '/api/notas-recebimento',
@@ -80,6 +99,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/notas-recebimento',
     description: 'Notas fiscais de entrada (recebimento).',
     availableFilters: ['fornecedor', 'numero_nf', 'codigo_item', 'data_emissao_ini', 'data_emissao_fim'],
+    countUnit: { field: 'numero_nf', label: 'NFs' },
   },
   'engenharia-producao': {
     endpoint: '/api/producao/engenharia-x-producao',
@@ -88,6 +108,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/engenharia-producao',
     description: 'Cruzamento Engenharia x Produção por projeto/desenho/OP.',
     availableFilters: ['numero_projeto', 'numero_desenho', 'revisao', 'numero_op', 'origem', 'familia', 'data_entrega_ini', 'data_entrega_fim', 'status_producao', 'unidade_negocio'],
+    countUnit: { field: 'numero_op', label: 'OPs' },
   },
   'apontamento-genius': {
     endpoint: '/api/auditoria-apontamento-genius',
@@ -97,6 +118,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     description: 'Apontamento de horas em ordens de produção da unidade GENIUS.',
     availableFilters: ['numero_op', 'operador', 'data_inicio', 'data_fim'],
     example: '"OPs Genius acima de 8 horas" → client_filters:{tempo_total_horas:{gte:8}}, order_by:"tempo_total_horas"',
+    countUnit: { field: 'numero_op', label: 'OPs' },
   },
   'producao-saldo-patio': {
     endpoint: '/api/producao/saldo-patio',
@@ -106,6 +128,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     description: 'Peças produzidas aguardando expedição (saldo em pátio).',
     availableFilters: ['numero_projeto', 'cliente', 'data_ini', 'data_fim'],
     example: '"projetos parados há mais de 30 dias no pátio" → client_filters:{dias_em_patio:{gte:30}}',
+    countUnit: { field: 'numero_projeto', label: 'projetos' },
   },
   'producao-expedido-obra': {
     endpoint: '/api/producao/expedido-obra',
@@ -114,6 +137,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/expedido-obra',
     description: 'Itens expedidos para obra por projeto.',
     availableFilters: ['numero_projeto', 'cliente', 'data_ini', 'data_fim'],
+    countUnit: { field: 'numero_projeto', label: 'projetos' },
   },
   'producao-nao-carregados': {
     endpoint: '/api/producao/nao-carregados',
@@ -122,6 +146,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/producao-nao-carregados',
     description: 'Itens produzidos ainda não carregados/expedidos.',
     availableFilters: ['numero_projeto', 'numero_desenho', 'cliente', 'cidade', 'codigo_barras'],
+    countUnit: { field: 'numero_projeto', label: 'projetos' },
   },
   'producao-lead-time': {
     endpoint: '/api/producao/lead-time',
@@ -130,6 +155,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/lead-time-producao',
     description: 'Lead time (dias) de produção por OP.',
     availableFilters: ['numero_op', 'numero_projeto', 'data_ini', 'data_fim'],
+    countUnit: { field: 'numero_op', label: 'OPs' },
   },
   'producao-produzido-periodo': {
     endpoint: '/api/producao/produzido-periodo',
@@ -146,6 +172,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/auditoria-tributaria',
     description: 'Auditoria de notas fiscais com divergências tributárias.',
     availableFilters: ['fornecedor', 'numero_nf', 'data_ini', 'data_fim', 'somente_com_divergencia'],
+    countUnit: { field: 'numero_nf', label: 'NFs' },
   },
   'conciliacao-edocs': {
     endpoint: '/api/notas-edocs-conciliacao',
@@ -154,6 +181,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/conciliacao-edocs',
     description: 'Conciliação de NF-e (eDocs) com divergências de situação/valor.',
     availableFilters: ['fornecedor', 'numero_nf', 'data_emissao_ini', 'data_emissao_fim', 'somente_divergencia'],
+    countUnit: { field: 'chave_nfe', label: 'NF-e' },
   },
   'numero-serie': {
     endpoint: '/api/numero-serie',
@@ -162,6 +190,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/numero-serie',
     description: 'Reserva e consulta de números de série (GS).',
     availableFilters: ['numero_op', 'numero_pedido', 'codigo_item', 'numero_serie'],
+    countUnit: { field: 'numero_serie', label: 'números de série' },
   },
   bom: {
     endpoint: '/api/bom',
@@ -170,6 +199,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/bom',
     description: 'Estrutura de produto (BOM). USE FILTROS RESTRITIVOS — pode ter milhares de linhas.',
     availableFilters: ['codigo_modelo', 'codigo_componente'],
+    countUnit: { field: 'codigo_componente', label: 'componentes' },
   },
   'onde-usa': {
     endpoint: '/api/onde-usa',
@@ -178,6 +208,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/onde-usa',
     description: 'Onde determinado componente é utilizado.',
     availableFilters: ['codcmp', 'dercmp', 'codmod'],
+    countUnit: { field: 'codigo_pai', label: 'modelos' },
   },
   'estoque-min-max': {
     endpoint: '/api/estoque-min-max',
@@ -187,6 +218,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     description: 'Estoque vs limites mín/máx por produto.',
     availableFilters: ['codpro', 'despro', 'codfam'],
     example: '"produtos abaixo do mínimo" → client_filters:{saldo_atual:{lte:0}} (ou comparar com estoque_minimo no resultado)',
+    countUnit: { field: 'codpro', label: 'produtos' },
   },
   'sugestao-min-max': {
     endpoint: '/api/sugestao-min-max',
@@ -195,6 +227,7 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
     permissionPath: '/sugestao-min-max',
     description: 'Sugestão de compra para reposição mín/máx.',
     availableFilters: ['codpro', 'codfam', 'prioridade'],
+    countUnit: { field: 'codpro', label: 'produtos' },
   },
 };
 
@@ -211,10 +244,12 @@ export function buildModulesCatalog(): string {
     lines.push(`  campos principais: ${cfg.defaultFields.join(', ')}`);
     lines.push(`  filtros: ${cfg.availableFilters.join(', ')}`);
     lines.push(`  ordenação padrão: ${cfg.defaultOrderBy}`);
+    if (cfg.countUnit) lines.push(`  unidade de contagem: ${cfg.countUnit.field} (${cfg.countUnit.label})`);
     if (cfg.example) lines.push(`  ex: ${cfg.example}`);
   }
   lines.push('');
-  lines.push('Use "client_filters" {campo:{gte|lte|eq|contains}} quando o backend não tiver o filtro nativo (ex: faixas de horas, dias, valores).');
+  lines.push('Use "client_filters" {campo:{gte|lte|gt|lt|eq|contains}} quando o backend não tiver o filtro nativo.');
+  lines.push('Para CONTAGENS use aggregate:"count_distinct" + distinct_field (use o campo de "unidade de contagem" do módulo). Para SOMAS use aggregate:"sum" + sum_field.');
   return lines.join('\n');
 }
 
@@ -231,6 +266,14 @@ function applyClientFilters(records: any[], cf?: Record<string, ClientFilterCond
       if (cond.lte != null) {
         const target = typeof cond.lte === 'number' ? cond.lte : parseFloat(String(cond.lte));
         if (isNaN(num) || num > target) return false;
+      }
+      if (cond.gt != null) {
+        const target = typeof cond.gt === 'number' ? cond.gt : parseFloat(String(cond.gt));
+        if (isNaN(num) || num <= target) return false;
+      }
+      if (cond.lt != null) {
+        const target = typeof cond.lt === 'number' ? cond.lt : parseFloat(String(cond.lt));
+        if (isNaN(num) || num >= target) return false;
       }
       if (cond.eq != null) {
         if (raw !== cond.eq && String(raw) !== String(cond.eq)) return false;
@@ -274,10 +317,17 @@ export function rankRecords(
   });
 }
 
+function toNumber(raw: any): number {
+  if (typeof raw === 'number') return raw;
+  if (raw == null) return NaN;
+  return parseFloat(String(raw).replace(/\./g, '').replace(',', '.'));
+}
+
 export interface QueryErpResult {
   ok: boolean;
   module?: string;
   endpoint?: string;
+  scope?: 'page' | 'global';
   total_returned?: number;
   total_in_dataset?: number;
   total_after_client_filters?: number;
@@ -285,7 +335,105 @@ export interface QueryErpResult {
   order_dir?: 'asc' | 'desc';
   top_n?: number;
   records?: any[];
+  // Aggregate results
+  aggregate?: AggregateOp;
+  field?: string;
+  value?: number;
+  total_lines_scanned?: number;
+  partial?: boolean;
   error?: string;
+}
+
+const MAX_AGG_PAGES = 5;
+const AGG_PAGE_SIZE = 200;
+
+async function executeAggregate(
+  cfg: ModuleConfig,
+  args: QueryErpArgs,
+  baseParams: Record<string, any>
+): Promise<QueryErpResult> {
+  const op = args.aggregate as AggregateOp;
+  const hasClientFilters = !!(args.client_filters && Object.keys(args.client_filters).length);
+
+  // Fast path: simple count without client filters → 1 request, read total_registros
+  if (op === 'count' && !hasClientFilters) {
+    const params = { ...baseParams, pagina: 1, tamanho_pagina: 1 };
+    const resp = await api.get<any>(cfg.endpoint, params);
+    const total = resp?.total_registros ?? (Array.isArray(resp?.dados) ? resp.dados.length : Array.isArray(resp) ? resp.length : 0);
+    return {
+      ok: true,
+      module: args.module,
+      endpoint: cfg.endpoint,
+      scope: args.scope || 'global',
+      aggregate: 'count',
+      value: total,
+      total_lines_scanned: total,
+    };
+  }
+
+  // Otherwise paginate up to MAX_AGG_PAGES
+  const all: any[] = [];
+  let totalRegistros = 0;
+  for (let page = 1; page <= MAX_AGG_PAGES; page++) {
+    const params = { ...baseParams, pagina: page, tamanho_pagina: AGG_PAGE_SIZE };
+    const resp = await api.get<any>(cfg.endpoint, params);
+    const rows: any[] = Array.isArray(resp?.dados) ? resp.dados : Array.isArray(resp) ? resp : [];
+    if (page === 1) totalRegistros = resp?.total_registros ?? rows.length;
+    all.push(...rows);
+    if (rows.length < AGG_PAGE_SIZE) break;
+  }
+
+  const filtered = applyClientFilters(all, args.client_filters);
+  const partial = totalRegistros > all.length;
+
+  let value = 0;
+  let field: string | undefined;
+
+  if (op === 'count') {
+    value = hasClientFilters ? filtered.length : totalRegistros;
+  } else if (op === 'count_distinct') {
+    field = args.distinct_field || cfg.countUnit?.field;
+    if (!field) {
+      return { ok: false, error: 'count_distinct requer distinct_field (ou countUnit no módulo).' };
+    }
+    const set = new Set<string>();
+    for (const r of filtered) {
+      const v = r?.[field];
+      if (v != null && v !== '') set.add(String(v));
+    }
+    value = set.size;
+  } else if (op === 'sum' || op === 'avg') {
+    field = args.sum_field;
+    if (!field) {
+      return { ok: false, error: `${op} requer sum_field.` };
+    }
+    let sum = 0;
+    let n = 0;
+    for (const r of filtered) {
+      const num = toNumber(r?.[field]);
+      if (!isNaN(num)) {
+        sum += num;
+        n++;
+      }
+    }
+    value = op === 'sum' ? sum : n > 0 ? sum / n : 0;
+  } else {
+    return { ok: false, error: `Operação aggregate inválida: ${op}` };
+  }
+
+  return {
+    ok: true,
+    module: args.module,
+    endpoint: cfg.endpoint,
+    scope: args.scope || 'global',
+    aggregate: op,
+    field,
+    value,
+    total_lines_scanned: all.length,
+    total_in_dataset: totalRegistros,
+    total_after_client_filters: filtered.length,
+    partial,
+  };
 }
 
 export async function executeQueryErpData(
@@ -301,20 +449,27 @@ export async function executeQueryErpData(
     return { ok: false, error: `Sem permissão para consultar o módulo ${args.module}.` };
   }
 
-  const orderBy = args.order_by || cfg.defaultOrderBy;
-  const orderDir = args.order_dir === 'asc' ? 'asc' : 'desc';
-  const topN = Math.max(1, Math.min(Number(args.top_n) || 10, 50));
-  const fields = args.fields?.length ? args.fields : cfg.defaultFields;
+  const scope: 'page' | 'global' = args.scope === 'page' ? 'page' : 'global';
 
+  // For global scope, do NOT inherit page filters — only baseParams + explicit args.filters
   const params: Record<string, any> = {
     ...(cfg.baseParams || {}),
     ...(args.filters || {}),
-    pagina: 1,
-    tamanho_pagina: 200,
   };
 
   try {
-    const resp = await api.get<any>(cfg.endpoint, params);
+    // Aggregate path
+    if (args.aggregate) {
+      return await executeAggregate(cfg, { ...args, scope }, params);
+    }
+
+    // Regular top-N path
+    const orderBy = args.order_by || cfg.defaultOrderBy;
+    const orderDir = args.order_dir === 'asc' ? 'asc' : 'desc';
+    const topN = Math.max(1, Math.min(Number(args.top_n) || 10, 50));
+    const fields = args.fields?.length ? args.fields : cfg.defaultFields;
+
+    const resp = await api.get<any>(cfg.endpoint, { ...params, pagina: 1, tamanho_pagina: 200 });
     const allRecords: any[] = Array.isArray(resp?.dados)
       ? resp.dados
       : Array.isArray(resp)
@@ -328,6 +483,7 @@ export async function executeQueryErpData(
       ok: true,
       module: args.module,
       endpoint: cfg.endpoint,
+      scope,
       total_returned: ranked.length,
       total_in_dataset: resp?.total_registros ?? allRecords.length,
       total_after_client_filters: filtered.length,
