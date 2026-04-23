@@ -399,7 +399,7 @@ export default function ConfiguracoesPage() {
 
   const getProfileName = (profileId: string) => profiles.find(p => p.id === profileId)?.name || '—';
 
-  if (loading) {
+  if (loading && profiles.length === 0) {
     return (
       <div className="p-6 space-y-4">
         <PageHeader title="Configurações" description="Gerenciamento de acessos e permissões" />
@@ -412,7 +412,7 @@ export default function ConfiguracoesPage() {
     <div className="p-6 space-y-4">
       <PageHeader title="Configurações" description="Gerenciamento de perfis de acesso, permissões por tela e atribuição de usuários" />
 
-      <Tabs defaultValue="profiles" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
           <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
