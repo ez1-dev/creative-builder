@@ -1,119 +1,135 @@
 
 
-## Permitir que o Assistente IA responda perguntas analíticas sobre dados do ERP
+## Expandir `query_erp_data` para cobrir todo o ERP (incluindo Apontamento Genius)
 
 ### Problema
-Quando o usuário pergunta **"qual produto tem mais em estoque hoje?"** (ou "top 5 fornecedores", "qual OC mais antiga em aberto", "produto mais comprado no mês"), o assistente diz "vou consultar..." mas **não tem como consultar de fato**. Ele só sabe:
-- Navegar e aplicar filtros (`apply_erp_filters`) — exige o usuário olhar a tela.
-- Ler `pageContext` — só funciona se o usuário já está na tela e fez busca.
-- Listar usuários do Cloud (`list_system_users`).
+A tool `query_erp_data` hoje cobre apenas 7 módulos (estoque, painel-compras, compras-produto, contas-pagar, contas-receber, notas-recebimento, engenharia-producao). Quando o usuário pergunta:
+- "tem ordem de produção acima de 8 horas?" → IA não encontra módulo `apontamento-genius` no mapa, cai em `engenharia-producao` e responde genérico.
+- "saldo em pátio do projeto X?" → falta `producao-saldo-patio`.
+- "auditoria tributária com divergência?" → falta `auditoria-tributaria`.
 
-Resultado: respostas vagas ou genéricas para perguntas analíticas reais.
+A IA não tem como filtrar/analisar campos como `horas_apontadas`, `tempo_total`, `kg_patio` em telas que existem mas não estão registradas.
 
 ### Causa raiz
-O ERP Senior é consultado via API local (FastAPI/ngrok) com **token por usuário no navegador**. A edge function não tem esse token, então não pode chamar a API direto. A solução é **executar a consulta no cliente** e devolver o resultado para a IA processar.
+O `MODULE_MAP` em `src/lib/aiQueryExecutor.ts` está incompleto e não reflete todas as rotas analíticas do app. Além disso, a IA não conhece **quais campos** cada módulo tem — então não sabe usar `order_by: 'horas_apontadas'` ou aplicar `filters: { horas_min: 8 }`.
 
-### Solução: Tool client-side `query_erp_data` com loop de raciocínio
+### Solução
 
-#### 1) Nova tool `query_erp_data` (declarada na edge function, executada no browser)
-A IA pede ao cliente para buscar dados, ordenar por um campo e devolver o top N. O cliente roda a chamada real ao ERP, e devolve o resultado para a IA formatar a resposta final.
+#### 1) Mapear TODOS os módulos analíticos no `aiQueryExecutor.ts`
 
-**Definição da tool:**
+Adicionar entradas para cobrir todo o ERP:
+
+| Módulo | Endpoint | Ordenação padrão | Campos principais |
+|---|---|---|---|
+| `estoque` ✅ existe | `/api/estoque` | saldo | codpro, despro, saldo, coddep |
+| `painel-compras` ✅ | `/api/painel-compras` | valor_liquido_total | numero_oc, fornecedor, valor_liquido_total |
+| `compras-produto` ✅ | `/api/compras-produto` | quantidade | codpro, despro, fornecedor, quantidade |
+| `contas-pagar` ✅ | `/api/contas-pagar` | valor_aberto | numero_titulo, fornecedor, valor_aberto |
+| `contas-receber` ✅ | `/api/contas-receber` | valor_aberto | numero_titulo, cliente, valor_aberto |
+| `notas-recebimento` ✅ | `/api/notas-recebimento` | valor_liquido_total | numero_nf, fornecedor, valor_liquido_total |
+| `engenharia-producao` ✅ | `/api/producao/engenharia-x-producao` | data_liberacao_engenharia | numero_projeto, kg_patio, status_geral |
+| **`apontamento-genius`** 🆕 | `/api/auditoria-apontamento-genius` | tempo_total_horas | numero_op, operador, tempo_total_horas, descricao_op |
+| **`producao-saldo-patio`** 🆕 | `/api/producao/saldo-patio` | kg_patio | numero_projeto, descricao, kg_patio, dias_em_patio |
+| **`producao-expedido-obra`** 🆕 | `/api/producao/expedido-obra` | kg_expedido | numero_projeto, cliente, kg_expedido, data_expedicao |
+| **`producao-nao-carregados`** 🆕 | `/api/producao/nao-carregados` | dias_aguardando | numero_op, projeto, dias_aguardando |
+| **`producao-lead-time`** 🆕 | `/api/producao/lead-time` | lead_time_dias | numero_op, lead_time_dias, status |
+| **`producao-produzido-periodo`** 🆕 | `/api/producao/produzido-periodo` | kg_produzido | data, kg_produzido, qtd_ops |
+| **`auditoria-tributaria`** 🆕 | `/api/auditoria-tributaria` | divergencia_valor | numero_nf, fornecedor, divergencia_valor |
+| **`conciliacao-edocs`** 🆕 | `/api/notas-edocs-conciliacao` | divergencias | chave_nfe, situacao, divergencias |
+| **`numero-serie`** 🆕 | `/api/numero-serie` | numero_serie | numero_serie, numero_op, status |
+| **`bom`** 🆕 | `/api/bom` | nivel | codigo_modelo, codigo_componente, quantidade, nivel |
+| **`onde-usa`** 🆕 | `/api/onde-usa` | quantidade_usada | codigo_componente, codigo_pai, quantidade_usada |
+| **`estoque-min-max`** 🆕 | `/api/estoque-min-max` | saldo_atual | codpro, saldo_atual, estoque_minimo, estoque_maximo |
+| **`sugestao-min-max`** 🆕 | `/api/sugestao-min-max` | sugestao_compra | codpro, sugestao_compra, prioridade |
+
+Cada módulo recebe:
+- `endpoint`: rota real do FastAPI (verificada no código de cada page).
+- `defaultOrderBy`: campo numérico/data mais relevante para ranking.
+- `defaultFields`: 5–7 campos principais (reduz tokens).
+- `permissionPath`: rota usada em `useUserPermissions.canViewPath()`.
+- `baseParams` (opcional): ex. `{ somente_com_estoque: true }`.
+
+#### 2) Enriquecer descrição da tool com **dicionário de campos**
+
+Hoje a IA chuta `order_by`. Vamos passar no `system prompt` (ou na própria descrição da tool) um **resumo de cada módulo + campos disponíveis**:
+
+```
+MÓDULOS ERP DISPONÍVEIS (use em query_erp_data.module):
+- apontamento-genius: ordens de produção da unidade GENIUS com tempo apontado
+  campos: numero_op, operador, descricao_op, tempo_total_horas, data_apontamento, status
+  filtros: numero_op, operador, data_inicio, data_fim, horas_min, horas_max
+  exemplo: "OPs com mais de 8 horas" → filters:{horas_min:8}, order_by:'tempo_total_horas'
+- producao-saldo-patio: peças produzidas aguardando expedição
+  campos: numero_projeto, descricao, kg_patio, dias_em_patio, cliente
+  ...
+```
+
+Esse bloco é construído dinamicamente a partir do `MODULE_MAP` (cada entrada ganha `description` + `availableFilters` + `examplePrompt`) e injetado no `systemPrompt` na edge function.
+
+#### 3) Suporte a filtros derivados no cliente
+
+Para perguntas tipo "OPs acima de 8 horas" quando o backend não tem o filtro `horas_min`, o cliente aplica **filtro pós-busca** antes do ranking:
+
 ```ts
-{
-  name: "query_erp_data",
-  description: "Consulta dados reais do ERP (estoque, compras, NFs, etc.) e retorna top N ordenado. Use para perguntas analíticas como 'qual produto tem mais estoque?', 'top 5 fornecedores', 'OCs mais antigas'.",
-  parameters: {
-    module: enum [estoque, painel-compras, compras-produto, contas-pagar, contas-receber, notas-recebimento, engenharia-producao],
-    filters: object,           // mesmos filtros do módulo
-    order_by: string,          // campo para ordenar (ex: 'saldo', 'valor_total', 'data_emissao')
-    order_dir: 'asc' | 'desc', // default desc
-    top_n: number,             // default 10, máx 50
-    fields: string[]           // campos a devolver (reduz payload)
-  }
+// aiQueryExecutor.ts - novo bloco
+if (args.client_filters) {
+  records = records.filter(r => {
+    for (const [field, cond] of Object.entries(args.client_filters)) {
+      if (cond.gte != null && !(r[field] >= cond.gte)) return false;
+      if (cond.lte != null && !(r[field] <= cond.lte)) return false;
+      if (cond.eq != null && r[field] !== cond.eq) return false;
+    }
+    return true;
+  });
 }
 ```
 
-#### 2) Fluxo de execução (multi-turn no cliente)
-```text
-1. Usuário: "qual produto tem mais estoque hoje?"
-2. IA → tool_call: query_erp_data { module: 'estoque', filters: { somente_com_estoque: true, situacao: 'A' }, order_by: 'saldo', order_dir: 'desc', top_n: 10, fields: ['codigo','descricao','saldo','deposito'] }
-3. Cliente executa: api.get('/api/estoque', { ...filters, pagina: 1, tamanho_pagina: 200 })
-4. Cliente ordena por 'saldo' desc, pega top 10, projeta fields.
-5. Cliente reenvia conversa para edge function com tool_result anexo.
-6. IA formata resposta em markdown (tabela com top produtos).
-```
+Tool ganha parâmetro opcional `client_filters: { campo: { gte?, lte?, eq? } }`.
 
-O `AiAssistantChat.tsx` já tem `handleToolCall`. Precisa estender para suportar **tool client-side com retorno** (hoje só dispara navegação) — adicionar:
-- Quando recebe `query_erp_data`, executa a chamada à API.
-- Mostra "🔎 Consultando estoque..." como mensagem temporária.
-- Faz POST de continuação para a edge function com `tool_results: [{ name, args, result }]`.
-- Renderiza a resposta final da IA com o ranking.
+#### 4) Validação de permissão por módulo
+Já existe (`canViewPath`). Atualizar `permissionPath` de cada novo módulo para bater com o registrado em `profile_screens` (ex.: `/auditoria-apontamento-genius`, `/saldo-patio`, etc.).
 
-#### 3) Edge function: aceitar `tool_results` no body
-Quando o body inclui `tool_results`, a edge function:
-- Anexa as mensagens `tool` (com o JSON do resultado) à conversa.
-- Faz nova chamada ao Lovable AI Gateway (sem tools desta vez, ou com tools opcionais).
-- Faz stream da resposta de texto final.
-
-#### 4) Limites de segurança e custo
-- **Tamanho do payload ERP**: cliente busca no máximo 200 registros (1 página) — suficiente para ranking. Se precisar mais, IA usa filtros adicionais.
-- **Campos enviados de volta para a IA**: apenas os listados em `fields` (default: top 5 colunas + valor ordenado). Limita custo de tokens.
-- **Permissão de rota**: cliente valida via `useUserPermissions` se o usuário tem acesso ao módulo antes de executar (evita IA "consultar" tela proibida).
-- **Erros do ERP**: se 401/timeout, devolve `{ error: "..." }` para a IA, que responde "não consegui consultar agora".
-
-#### 5) System prompt atualizado
-Acrescentar:
-> "Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, ordenação por saldo/valor/data), use a tool `query_erp_data`. Sempre inclua `order_by` e `top_n`. Após receber o resultado, formate em **tabela markdown** com no máximo 10 linhas e ofereça aplicar filtros via `apply_erp_filters` para drill-down. Se o `pageContext` já trouxer a resposta nos KPIs, prefira usar o contexto sem chamar a tool."
-
-### Módulos suportados na primeira versão
-Mapeamento `module → endpoint API`:
-| Módulo | Endpoint | Campo padrão de ordenação |
-|---|---|---|
-| estoque | `/api/estoque` | saldo |
-| painel-compras | `/api/painel-compras` | valor_total |
-| compras-produto | `/api/compras-produto` | quantidade |
-| contas-pagar | `/api/contas-pagar` | valor_aberto |
-| contas-receber | `/api/contas-receber` | valor_aberto |
-| notas-recebimento | `/api/notas-recebimento` | valor_total |
-| engenharia-producao | `/api/engenharia-producao` | data_entrega |
+#### 5) Tratamento de paginação grande
+Alguns módulos (BOM, onde-usa) podem ter milhares de linhas. Limitar `tamanho_pagina: 200` segue valendo, mas a tool documenta na descrição: *"Sempre inclua filtros restritivos para módulos amplos (BOM, onde-usa, conciliacao-edocs)."*
 
 ### Arquivos alterados
-- `supabase/functions/ai-assistant/index.ts`
-  - Declarar tool `query_erp_data`.
-  - Aceitar `tool_results` no body e fazer segundo passo (sem ferramentas) com stream da resposta final.
-  - Atualizar system prompt.
-- `src/components/erp/AiAssistantChat.tsx`
-  - Estender `handleToolCall` para tools client-side com retorno.
-  - Adicionar `executeQueryErpData(args)` que chama `api.get(endpoint, filters)`, ordena e projeta.
-  - Após executar, fazer 2ª request à edge function com `tool_results` e fazer streaming da resposta final.
-  - Mostrar indicador "🔎 Consultando ERP..." enquanto busca.
-- `src/lib/aiQueryExecutor.ts` *(novo)*
-  - Mapeamento `module → endpoint + campo padrão`.
-  - Função pura `rankRecords(records, order_by, dir, top_n, fields)`.
-  - Sanitização de filtros e validação.
 
-### Casos de teste manuais
-1. `/estoque` vazio → "qual produto tem mais estoque?" → IA chama `query_erp_data` → tabela top 10.
-2. Em qualquer rota → "top 5 fornecedores em ordens de compra abertas" → IA chama com `module=painel-compras, filters={somente_pendentes:true}, order_by=valor_total`.
-3. `/contas-pagar` com filtros aplicados → "qual o maior título?" → IA usa `pageContext` (sem chamar tool).
-4. Usuário sem permissão em compras-produto → IA recebe erro do cliente → responde "sem acesso a esse módulo".
-5. ERP 401 → IA responde "conexão ERP indisponível, verifique nas Configurações".
+- `src/lib/aiQueryExecutor.ts`
+  - Expandir `MODULE_MAP` com os 13 novos módulos.
+  - Adicionar `description`, `availableFilters`, `examples` em cada entrada.
+  - Suportar `client_filters` (gte/lte/eq) aplicados antes do ranking.
+  - Exportar helper `buildModulesCatalog()` que serializa o mapa para o prompt.
+
+- `supabase/functions/ai-assistant/index.ts`
+  - Atualizar parameter `module` da tool `query_erp_data`: enum com todos os módulos novos.
+  - Adicionar parameter `client_filters` (object).
+  - Injetar **catálogo de módulos** no system prompt (gerado via `buildModulesCatalog`).
+  - Reforçar instrução: "Antes de chamar `apply_erp_filters` para perguntas analíticas, sempre tente `query_erp_data` para responder com dados reais."
+
+- `src/components/erp/AiAssistantChat.tsx`
+  - Passar `client_filters` adiante para `executeQueryErpData`.
+
+### Casos de teste
+
+1. `/auditoria-apontamento-genius` → "tem OP acima de 8 horas?" → IA chama `query_erp_data` `{module:'apontamento-genius', client_filters:{tempo_total_horas:{gte:8}}, order_by:'tempo_total_horas', top_n:10}` → tabela com OPs.
+2. Qualquer rota → "saldo em pátio acima de 30 dias" → `module:'producao-saldo-patio', client_filters:{dias_em_patio:{gte:30}}`.
+3. "qual NF tem maior divergência tributária?" → `module:'auditoria-tributaria', order_by:'divergencia_valor'`.
+4. "produtos abaixo do mínimo no estoque" → `module:'estoque-min-max', client_filters:{saldo_atual:{lte:0}}` cruzando com `estoque_minimo`.
+5. Sem permissão para `/numero-serie` → IA recebe erro e responde "sem acesso".
 
 ### Fora de escopo
-- Agregações server-side (sum/avg) que exijam novos endpoints do backend ERP.
-- Cache de respostas (cada pergunta refaz a consulta).
-- Gráficos gerados pela IA (apenas tabelas markdown).
-- Cross-módulo ("compare estoque vs OCs em aberto") — futuro: tool sequencial.
+- Cross-módulo agregado (ex.: "compare horas Genius vs kg expedido") — exige tool sequencial; futuro.
+- Edição/escrita via IA.
+- Geração de gráficos.
 
 ### Resultado
-Pergunta **"qual produto tem mais em estoque hoje?"** passa a responder com:
-> Os 10 produtos com maior saldo em estoque são:
-> | Código | Descrição | Saldo | Depósito |
+Pergunta **"tem ordem de produção acima de 8 horas?"** passa a responder:
+> Encontrei 12 ordens de produção com mais de 8 horas apontadas:
+> | OP | Operador | Descrição | Horas |
 > |---|---|---|---|
-> | 12345 | Chapa Aço 3mm | 4.820,00 | DEP01 |
+> | 45821 | José Silva | Solda Estrutura A | 12,5 |
 > | ... |
-> Quer abrir a tela de estoque com esses filtros? *(botão chama `apply_erp_filters`)*
+> Quer abrir a tela com esses filtros aplicados?
 
-Funciona em **qualquer rota**, respeitando permissões e sem expor dados de outros usuários.
+Funciona em **todas as 20 telas analíticas do ERP**, respeitando permissões e sem expor dados de outros usuários.
 
