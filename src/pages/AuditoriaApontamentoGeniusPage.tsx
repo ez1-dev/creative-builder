@@ -1806,7 +1806,7 @@ interface KpiDeepSheetProps {
   onFiltrarGridPorOp: (numop: string) => void;
 }
 
-function KpiDeepSheet({
+export function KpiDeepSheet({
   open, onOpenChange, kind, linhas,
   somenteInconsist, setSomenteInconsist,
   busca, setBusca,
