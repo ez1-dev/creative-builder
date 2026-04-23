@@ -68,7 +68,19 @@ ${MODULES_CATALOG}
 - "qual o fornecedor com maior atraso?" → painel-compras / order_by:"dias_atraso" / client_filters:{dias_atraso:{gt:0}} / fields:["fantasia_fornecedor","numero_oc","dias_atraso"] — depois agregue por fantasia_fornecedor.
 - "quantos títulos vencidos?" → contas-pagar / count_distinct numero_titulo / filters:{somente_em_aberto:true}
 
-**FOLLOW-UP CURTO**: se o usuário responder apenas "sim", "pode", "quero", "faça", "ok" depois de você ter oferecido uma busca/consulta global, EXECUTE imediatamente a tool que você acabou de propor. NUNCA repita o contexto da tela. NUNCA pergunte de novo "deseja...?".
+**DRILL-DOWN ("ver detalhes deste título/OC/projeto") — REGRA CRÍTICA**:
+Quando sua última resposta identificou **1 registro específico** (ex: "É o título 1669 de R$ 485.481,43 vencendo 20/04/2026") e o usuário confirma com "sim", "abrir", "ver detalhes":
+- **NUNCA** use apenas o "número" do título/OC como filtro. Em contas-pagar/contas-receber, numero_titulo é busca por SUBSTRING e retornará dezenas de registros não relacionados (1669 casa também 11669, 21669, 116691, 011669/01...).
+- Use uma **CERCA DE FILTROS** combinando todos os identificadores conhecidos: valor exato (valor_min ≈ valor_max), data exata (data_vencimento_ini = data_vencimento_fim), fornecedor/cliente quando souber.
+- Para Contas a Pagar/Receber, **SEMPRE** inclua `somente_em_aberto:true` se o registro de origem era "em aberto".
+
+EXEMPLO:
+USER: "qual o maior título em aberto?"
+ASSISTANT: "É R$ 485.481,43 vencendo 20/04/2026 (título 1669). Abrir?"
+USER: "sim"
+→ apply_erp_filters({ module:"contas-pagar", filters:{ valor_min:485481.43, valor_max:485481.44, data_vencimento_ini:"2026-04-20", data_vencimento_fim:"2026-04-20", somente_em_aberto:true }})
+
+**FOLLOW-UP CURTO**: se o usuário responder apenas "sim", "pode", "quero", "faça", "ok" depois de você ter oferecido uma busca/consulta global OU uma navegação para drill-down, EXECUTE imediatamente a tool que você acabou de propor. NUNCA repita o contexto da tela. NUNCA pergunte de novo "deseja...?".
 
 Quando o usuário pedir uma resposta analítica exclusivamente sobre o que está visível ("resuma esta tela", "qual o KPI X aqui"), e o CONTEXTO DA PÁGINA já trouxer a informação nos KPIs/summary, responda direto em texto sem chamar tools. Em qualquer outro caso (pergunta global, contagem, soma), use query_erp_data.
 
@@ -696,29 +708,66 @@ function resolveIntent(messages: any[], pageContext: any): ResolvedIntent {
 
   const userText = lastUser.content;
 
-  // Caso 1: confirmação curta após oferta de busca global
-  if (isShortConfirmation(userText) && lastAssistantOfferedGlobal(messages)) {
+  // Caso 1: confirmação curta após oferta de busca global OU drill-down de registro único
+  if (isShortConfirmation(userText)) {
     const prevAssistant = lastAssistantText(messages);
-    // Tenta inferir o domínio a partir da última fala do assistente
     const lower = prevAssistant.toLowerCase();
-    let pendingAction = "Execute a busca/consulta global que você acabou de propor, ignorando os filtros da tela atual.";
 
-    if (/(ordens?\s+de\s+compra|ocs?).*(em\s+aberto|pendent|abert)/.test(lower)) {
-      pendingAction =
-        'Faça AGORA a busca global de Ordens de Compra em aberto chamando query_erp_data com {"module":"painel-compras","scope":"global","aggregate":"count_distinct","distinct_field":"numero_oc","filters":{"somente_pendentes":true}}. NÃO use o contexto da página.';
-    } else if (/(fornecedor).*(atras|maior|pior)/.test(lower)) {
-      pendingAction =
-        'Faça AGORA a consulta global do fornecedor com maior atraso chamando query_erp_data com {"module":"painel-compras","scope":"global","filters":{"somente_pendentes":true},"client_filters":{"dias_atraso":{"gt":0}},"order_by":"dias_atraso","order_dir":"desc","top_n":10,"fields":["fantasia_fornecedor","numero_oc","descricao_item","dias_atraso","data_entrega"]}. Agregue por fantasia_fornecedor no texto da resposta. NÃO use o contexto da página.';
-    } else if (/(t[ií]tulos?|contas?\s+a\s+pagar).*(vencid|em\s+aberto|aberto|pendent)/.test(lower)) {
-      pendingAction =
-        'Faça AGORA a busca global de títulos a pagar em aberto via query_erp_data com {"module":"contas-pagar","scope":"global","aggregate":"count_distinct","distinct_field":"numero_titulo","filters":{"somente_em_aberto":true}}.';
+    // 1a) Drill-down: a última fala identificou 1 título com valor + vencimento (contas-pagar/receber)
+    // Regex: "R$ 485.481,43" e "20/04/2026"
+    const valorMatch = prevAssistant.match(/R\$\s*([\d.]+,\d{2})/);
+    const dataMatch = prevAssistant.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const tituloMatch = prevAssistant.match(/t[ií]tulo\s+(?:n[º°]?\s*)?([\w/\\\-*.]+)/i);
+    const mencionaContasPagar = /(contas?\s+a\s+pagar|t[ií]tulo\s+a\s+pagar|t[ií]tulos?\s+a\s+pagar)/i.test(prevAssistant);
+    const mencionaContasReceber = /(contas?\s+a\s+receber|t[ií]tulo\s+a\s+receber|t[ií]tulos?\s+a\s+receber)/i.test(prevAssistant);
+    const mencionaAbrirNavegar = /(abrir|navegar|ir\s+para|levar|ver\s+detalhes|abro|levo)/i.test(lower);
+    const mencionaEmAberto = /(em\s+aberto|saldo\s+aberto|aberto)/i.test(lower);
+
+    if (valorMatch && dataMatch && (mencionaContasPagar || mencionaContasReceber) && mencionaAbrirNavegar) {
+      const valorNum = parseFloat(valorMatch[1].replace(/\./g, "").replace(",", "."));
+      const valorMin = (valorNum - 0.01).toFixed(2);
+      const valorMax = (valorNum + 0.01).toFixed(2);
+      const isoDate = `${dataMatch[3]}-${dataMatch[2]}-${dataMatch[1]}`;
+      const moduloAlvo = mencionaContasReceber ? "contas-receber" : "contas-pagar";
+      const numeroTitulo = tituloMatch ? tituloMatch[1] : null;
+
+      const filtersJson: any = {
+        valor_min: parseFloat(valorMin),
+        valor_max: parseFloat(valorMax),
+        data_vencimento_ini: isoDate,
+        data_vencimento_fim: isoDate,
+      };
+      if (mencionaEmAberto) filtersJson.somente_em_aberto = true;
+
+      const pendingAction = `Faça AGORA a NAVEGAÇÃO de drill-down chamando apply_erp_filters com {"module":"${moduloAlvo}","filters":${JSON.stringify(filtersJson)},"explanation":"Abrindo o título de R$ ${valorMatch[1]} com vencimento ${dataMatch[0]}${numeroTitulo ? ` (nº ${numeroTitulo})` : ""}."}. NÃO use apenas numero_titulo (busca por substring traz dezenas de títulos não relacionados). Use a CERCA DE FILTROS valor_min/valor_max + data exata + somente_em_aberto:true para abrir EXATAMENTE 1 linha.`;
+      return {
+        rewrittenUserMessage: `(confirmação do usuário) ${pendingAction}`,
+        systemNote:
+          "FOLLOW-UP DRILL-DOWN: o usuário acabou de confirmar abrir um título específico. Use cerca de filtros (valor + data exata + somente_em_aberto), NUNCA apenas numero_titulo.",
+      };
     }
 
-    return {
-      rewrittenUserMessage: `(confirmação do usuário) ${pendingAction}`,
-      systemNote:
-        "FOLLOW-UP: o usuário acabou de confirmar (\"sim\") uma ação global pendente. Execute a tool indicada imediatamente, SEM voltar a perguntar e SEM responder com base no contexto da página.",
-    };
+    // 1b) Confirmação após oferta de busca global
+    if (lastAssistantOfferedGlobal(messages)) {
+      let pendingAction = "Execute a busca/consulta global que você acabou de propor, ignorando os filtros da tela atual.";
+
+      if (/(ordens?\s+de\s+compra|ocs?).*(em\s+aberto|pendent|abert)/.test(lower)) {
+        pendingAction =
+          'Faça AGORA a busca global de Ordens de Compra em aberto chamando query_erp_data com {"module":"painel-compras","scope":"global","aggregate":"count_distinct","distinct_field":"numero_oc","filters":{"somente_pendentes":true}}. NÃO use o contexto da página.';
+      } else if (/(fornecedor).*(atras|maior|pior)/.test(lower)) {
+        pendingAction =
+          'Faça AGORA a consulta global do fornecedor com maior atraso chamando query_erp_data com {"module":"painel-compras","scope":"global","filters":{"somente_pendentes":true},"client_filters":{"dias_atraso":{"gt":0}},"order_by":"dias_atraso","order_dir":"desc","top_n":10,"fields":["fantasia_fornecedor","numero_oc","descricao_item","dias_atraso","data_entrega"]}. Agregue por fantasia_fornecedor no texto da resposta. NÃO use o contexto da página.';
+      } else if (/(t[ií]tulos?|contas?\s+a\s+pagar).*(vencid|em\s+aberto|aberto|pendent)/.test(lower)) {
+        pendingAction =
+          'Faça AGORA a busca global de títulos a pagar em aberto via query_erp_data com {"module":"contas-pagar","scope":"global","aggregate":"count_distinct","distinct_field":"numero_titulo","filters":{"somente_em_aberto":true}}.';
+      }
+
+      return {
+        rewrittenUserMessage: `(confirmação do usuário) ${pendingAction}`,
+        systemNote:
+          "FOLLOW-UP: o usuário acabou de confirmar (\"sim\") uma ação global pendente. Execute a tool indicada imediatamente, SEM voltar a perguntar e SEM responder com base no contexto da página.",
+      };
+    }
   }
 
   // Caso 2: pergunta analítica global de alta confiança
