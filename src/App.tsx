@@ -31,6 +31,7 @@ import ContasReceberPage from "@/pages/ContasReceberPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
+import { AiPageContextProvider } from "@/contexts/AiPageContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -44,6 +45,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <UserTrackingProvider>
+          <AiPageContextProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<AppLayout />}>
@@ -76,6 +78,7 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AiPageContextProvider>
           </UserTrackingProvider>
         </AuthProvider>
       </BrowserRouter>
