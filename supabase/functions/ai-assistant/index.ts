@@ -534,13 +534,193 @@ async function getCallerUserId(req: Request): Promise<string | null> {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
     const client = createClient(supabaseUrl, anon);
-    const { data, error } = await client.auth.getClaims(token);
-    if (error || !data?.claims) return null;
-    return data.claims.sub as string;
+    // Try modern getClaims first; fall back to getUser for older SDK runtimes.
+    const anyAuth = client.auth as any;
+    if (typeof anyAuth.getClaims === "function") {
+      const { data, error } = await anyAuth.getClaims(token);
+      if (error || !data?.claims) return null;
+      return data.claims.sub as string;
+    }
+    const { data, error } = await client.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return data.user.id;
   } catch (e) {
     console.error("getCallerUserId error:", e);
     return null;
   }
+}
+
+// ============================================================
+// Intent resolver (determinístico)
+// ============================================================
+
+interface ResolvedIntent {
+  /** System note adicional injetada no prompt para forçar comportamento */
+  systemNote?: string;
+  /** Reescreve a última mensagem do usuário (ex: "sim" → ação pendente) */
+  rewrittenUserMessage?: string;
+}
+
+const SHORT_CONFIRMATIONS = new Set([
+  "sim", "s", "ok", "okay", "claro", "pode", "pode sim", "quero", "quero sim",
+  "faça", "faz", "faça sim", "manda", "manda ver", "vai", "yes", "y", "confirmo",
+  "confirma", "positivo", "perfeito", "isso", "isso mesmo", "exato",
+]);
+
+function normalize(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[?!.,;:]/g, "")
+    .trim();
+}
+
+function isShortConfirmation(text: string): boolean {
+  const n = normalize(text);
+  if (!n) return false;
+  if (n.length > 25) return false;
+  return SHORT_CONFIRMATIONS.has(n);
+}
+
+function lastAssistantOfferedGlobal(messages: any[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "assistant" && typeof m.content === "string") {
+      const c = m.content.toLowerCase();
+      return /(busca\s+global|consulta\s+global|todo\s+o\s+(erp|sistema)|todos\s+(os|as)\s+(fornecedores|registros|ocs|t[ií]tulos)|sem\s+(o\s+)?filtro|remover\s+(o\s+)?filtro|consulta\s+sem\s+filtro|globalmente)/i.test(
+        c
+      );
+    }
+    if (m.role === "user") return false;
+  }
+  return false;
+}
+
+function lastAssistantText(messages: any[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role === "assistant" && typeof m.content === "string") return m.content;
+  }
+  return "";
+}
+
+/**
+ * Detecta intenções analíticas globais de alta confiança e devolve
+ * um systemNote para forçar query_erp_data com os parâmetros certos.
+ */
+function detectGlobalAnalyticalIntent(
+  userText: string,
+  pageContext: any
+): string | null {
+  const n = normalize(userText);
+  if (!n) return null;
+
+  const isLocalScope = /(nesta\s+tela|nessa\s+tela|aqui|nos?\s+resultados\s+atuais|filtrad)/.test(
+    n
+  );
+  if (isLocalScope) return null;
+
+  // ---- painel-compras: contagem de OCs em aberto ----
+  if (
+    /(quant[ao]s?|numero\s+de|n[ºo°]\s*de|total\s+de)/.test(n) &&
+    /(ordens?\s+de\s+compra|ocs?)/.test(n) &&
+    /(em\s+aberto|abertas?|pendentes?|sem\s+liquidar|n[aã]o\s+liquidad|atrasad)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA (alta confiança): contagem global de Ordens de Compra em aberto.",
+      "OBRIGATÓRIO: chame a tool query_erp_data EXATAMENTE com:",
+      '{ "module": "painel-compras", "scope": "global", "aggregate": "count_distinct", "distinct_field": "numero_oc", "filters": { "somente_pendentes": true } }',
+      "NÃO use o contexto da página. NÃO use apply_erp_filters. NÃO responda em texto antes da tool.",
+    ].join("\n");
+  }
+
+  // ---- painel-compras: fornecedor com maior atraso ----
+  if (
+    /(fornecedor|fornecedores)/.test(n) &&
+    /(maior|maiores|mais|top|pior|piores)\s+(atras[oa]|atrasos?|dias|atrasad)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA (alta confiança): ranking global de fornecedor com maior atraso em OCs pendentes.",
+      "OBRIGATÓRIO: chame a tool query_erp_data EXATAMENTE com:",
+      '{ "module": "painel-compras", "scope": "global", "filters": { "somente_pendentes": true }, "client_filters": { "dias_atraso": { "gt": 0 } }, "order_by": "dias_atraso", "order_dir": "desc", "top_n": 10, "fields": ["fantasia_fornecedor", "numero_oc", "descricao_item", "dias_atraso", "data_entrega"] }',
+      "Após receber o resultado, agregue por fantasia_fornecedor e responda quem tem o MAIOR dias_atraso (e quantas OCs/itens). NÃO use o contexto da página.",
+    ].join("\n");
+  }
+
+  // ---- painel-compras: valor total das OCs em aberto ----
+  if (
+    /(valor|total|soma|montante)/.test(n) &&
+    /(ocs?|ordens?\s+de\s+compra)/.test(n) &&
+    /(em\s+aberto|pendentes?|abertas?)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA: valor total global das OCs em aberto.",
+      "OBRIGATÓRIO: chame query_erp_data com:",
+      '{ "module": "painel-compras", "scope": "global", "aggregate": "sum", "sum_field": "valor_liquido", "filters": { "somente_pendentes": true } }',
+      "NÃO use o contexto da página.",
+    ].join("\n");
+  }
+
+  // ---- contas-pagar: títulos vencidos / em aberto ----
+  if (
+    /(quant[ao]s?|numero\s+de|total\s+de)/.test(n) &&
+    /(titulos?|contas?\s+a\s+pagar)/.test(n) &&
+    /(vencid|em\s+aberto|abertos?|pendentes?)/.test(n)
+  ) {
+    return [
+      "INTENÇÃO DETECTADA: contagem global de títulos a pagar.",
+      "OBRIGATÓRIO: chame query_erp_data com:",
+      '{ "module": "contas-pagar", "scope": "global", "aggregate": "count_distinct", "distinct_field": "numero_titulo", "filters": { "somente_em_aberto": true } }',
+    ].join("\n");
+  }
+
+  return null;
+}
+
+/**
+ * Resolvedor principal de intenção: aplica heurísticas determinísticas
+ * antes de chamar o modelo.
+ */
+function resolveIntent(messages: any[], pageContext: any): ResolvedIntent {
+  if (!Array.isArray(messages) || messages.length === 0) return {};
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  if (!lastUser || typeof lastUser.content !== "string") return {};
+
+  const userText = lastUser.content;
+
+  // Caso 1: confirmação curta após oferta de busca global
+  if (isShortConfirmation(userText) && lastAssistantOfferedGlobal(messages)) {
+    const prevAssistant = lastAssistantText(messages);
+    // Tenta inferir o domínio a partir da última fala do assistente
+    const lower = prevAssistant.toLowerCase();
+    let pendingAction = "Execute a busca/consulta global que você acabou de propor, ignorando os filtros da tela atual.";
+
+    if (/(ordens?\s+de\s+compra|ocs?).*(em\s+aberto|pendent|abert)/.test(lower)) {
+      pendingAction =
+        'Faça AGORA a busca global de Ordens de Compra em aberto chamando query_erp_data com {"module":"painel-compras","scope":"global","aggregate":"count_distinct","distinct_field":"numero_oc","filters":{"somente_pendentes":true}}. NÃO use o contexto da página.';
+    } else if (/(fornecedor).*(atras|maior|pior)/.test(lower)) {
+      pendingAction =
+        'Faça AGORA a consulta global do fornecedor com maior atraso chamando query_erp_data com {"module":"painel-compras","scope":"global","filters":{"somente_pendentes":true},"client_filters":{"dias_atraso":{"gt":0}},"order_by":"dias_atraso","order_dir":"desc","top_n":10,"fields":["fantasia_fornecedor","numero_oc","descricao_item","dias_atraso","data_entrega"]}. Agregue por fantasia_fornecedor no texto da resposta. NÃO use o contexto da página.';
+    } else if (/(t[ií]tulos?|contas?\s+a\s+pagar).*(vencid|em\s+aberto|aberto|pendent)/.test(lower)) {
+      pendingAction =
+        'Faça AGORA a busca global de títulos a pagar em aberto via query_erp_data com {"module":"contas-pagar","scope":"global","aggregate":"count_distinct","distinct_field":"numero_titulo","filters":{"somente_em_aberto":true}}.';
+    }
+
+    return {
+      rewrittenUserMessage: `(confirmação do usuário) ${pendingAction}`,
+      systemNote:
+        "FOLLOW-UP: o usuário acabou de confirmar (\"sim\") uma ação global pendente. Execute a tool indicada imediatamente, SEM voltar a perguntar e SEM responder com base no contexto da página.",
+    };
+  }
+
+  // Caso 2: pergunta analítica global de alta confiança
+  const note = detectGlobalAnalyticalIntent(userText, pageContext);
+  if (note) {
+    return { systemNote: note };
+  }
+
+  return {};
 }
 
 async function callAiGateway(
