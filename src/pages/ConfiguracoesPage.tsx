@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket } from 'lucide-react';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
@@ -428,6 +428,7 @@ export default function ConfiguracoesPage() {
             {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="monitoramento" className="gap-1"><Activity className="h-4 w-4" /> Monitoramento</TabsTrigger>
+          <TabsTrigger value="versao" className="gap-1"><Rocket className="h-4 w-4" /> Versão</TabsTrigger>
         </TabsList>
         {/* === PERFIS === */}
         <TabsContent value="profiles">
@@ -951,7 +952,106 @@ export default function ConfiguracoesPage() {
         <TabsContent value="monitoramento">
           <MonitoramentoUsuarios />
         </TabsContent>
+
+        {/* === VERSÃO === */}
+        <TabsContent value="versao">
+          <VersionPanel />
+        </TabsContent>
       </Tabs>
     </div>
   );
 }
+
+function VersionPanel() {
+  const currentVersion = (import.meta.env.VITE_APP_VERSION as string) || '0.0.0';
+  const [dbVersion, setDbVersion] = useState<string>('');
+  const [newVersion, setNewVersion] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'app_version')
+      .maybeSingle();
+    const v = (data?.value as string) || '';
+    setDbVersion(v);
+    setNewVersion(v || currentVersion);
+    setLoading(false);
+  }, [currentVersion]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handlePublish = async () => {
+    const v = newVersion.trim();
+    if (!v) {
+      toast.error('Informe o número da versão');
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'app_version', value: v }, { onConflict: 'key' });
+    setSaving(false);
+    if (error) {
+      toast.error('Erro ao publicar versão');
+      return;
+    }
+    toast.success('Versão publicada. Usuários receberão o aviso em até 60s.');
+    setDbVersion(v);
+  };
+
+  const mismatch = dbVersion && dbVersion !== currentVersion;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Rocket className="h-4 w-4" /> Versão do Sistema
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Após publicar uma nova versão do app, atualize aqui o número da versão para que todos
+          os usuários conectados sejam forçados a recarregar e carregar a versão mais recente.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="rounded-md border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">Versão carregada (este navegador)</div>
+            <div className="text-lg font-semibold mt-1">v{currentVersion}</div>
+          </div>
+          <div className="rounded-md border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">Versão publicada (banco)</div>
+            <div className="text-lg font-semibold mt-1 flex items-center gap-2">
+              {loading ? '...' : dbVersion ? `v${dbVersion}` : '—'}
+              {mismatch && <Badge variant="destructive" className="text-[10px]">divergente</Badge>}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Publicar nova versão</Label>
+          <div className="flex gap-2">
+            <Input
+              value={newVersion}
+              onChange={(e) => setNewVersion(e.target.value)}
+              placeholder="Ex: 1.0.1"
+              className="max-w-[200px]"
+            />
+            <Button onClick={handlePublish} disabled={saving} className="gap-2">
+              <Rocket className="h-4 w-4" />
+              {saving ? 'Publicando...' : 'Publicar nova versão'}
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Use o mesmo número que está no <code>package.json</code> do deploy mais recente.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
