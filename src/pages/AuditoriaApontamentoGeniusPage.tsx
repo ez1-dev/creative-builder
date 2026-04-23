@@ -1878,6 +1878,11 @@ function KpiDeepSheet({
             {ops.length} OP{ops.length !== 1 ? 's' : ''} · {linhas.length} apontamento{linhas.length !== 1 ? 's' : ''} · página atual ({paginaCarregada} linhas
             {totalRegistros > paginaCarregada ? ` de ${totalRegistros}` : ''})
           </SheetDescription>
+          {isProblema && (
+            <p className="text-[11px] text-muted-foreground">
+              Recorte já contém apenas linhas com inconsistência deste tipo.
+            </p>
+          )}
         </SheetHeader>
 
         {/* Nível 1 — Mini KPIs */}
