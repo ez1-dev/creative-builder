@@ -55,6 +55,19 @@ type OpAgg = {
   sitorp: string;
 };
 
+// ─── Tipos de drill por KPI ────────────────────────────────────────────────
+type KpiDrillKind =
+  | { kind: 'status'; letra: 'E'|'L'|'A'|'F'|'C' }
+  | { kind: 'total' }
+  | { kind: 'discrepancias' }
+  | { kind: 'semInicio' }
+  | { kind: 'semFim' }
+  | { kind: 'fimMenorInicio' }
+  | { kind: 'acima8h' }
+  | { kind: 'maiorTotalDia' }
+  | { kind: 'emAndamento' }
+  | { kind: 'finalizadas' };
+
 // ─── Helpers de tempo: backend devolve tempos em MINUTOS ───────────────────
 const minToHours = (m: number | null | undefined) => (Number(m) || 0) / 60;
 const fmtMinHoras = (m: number | null | undefined, dec = 2) => {
@@ -78,6 +91,14 @@ const STATUS_LETRA_BORDER: Record<'E'|'L'|'A'|'F'|'C', string> = {
   C: 'border-l-destructive',
 };
 
+const KPI_VARIANT_BORDER: Record<'default'|'success'|'warning'|'destructive'|'info', string> = {
+  default: 'border-l-primary',
+  success: 'border-l-[hsl(var(--success))]',
+  warning: 'border-l-[hsl(var(--warning))]',
+  destructive: 'border-l-destructive',
+  info: 'border-l-[hsl(var(--info))]',
+};
+
 // Origens GENIUS — começa em 110 conforme regra ERP
 const ORIGENS_GENIUS = ['110','120','130','135','140','150','205','208','210','220','230','235','240','245','250'];
 
@@ -92,6 +113,83 @@ function normalizarStatusOp(v: any): string {
   const s = String(v ?? '').trim().toUpperCase();
   if (!s) return 'SEM_STATUS';
   return s;
+}
+
+function normSitorpRow(row: any): 'E'|'L'|'A'|'F'|'C'|'' {
+  const real = String(row?.sitorp ?? '').trim().toUpperCase();
+  if (real === 'E' || real === 'L' || real === 'A' || real === 'F' || real === 'C') return real;
+  const st = normalizarStatusOp(row?.status_op);
+  if (STATUS_OP_FINALIZADOS.has(st)) return 'F';
+  if (STATUS_OP_CANCELADOS.has(st)) return 'C';
+  if (STATUS_OP_ATIVOS.has(st)) return 'A';
+  return '';
+}
+
+function isLinhaDiscrepante(row: any): boolean {
+  const sa = String(row?.status_movimento ?? '').toUpperCase();
+  if (sa && sa !== 'FECHADO') return true;
+  const horas = minToHours(row?.horas_realizadas);
+  const totDia = minToHours(row?.total_horas_dia_operador);
+  if (horas > 8 || totDia > 8) return true;
+  if (!row?.hora_inicial) return true;
+  if (!row?.hora_final) return true;
+  if (row?.hora_inicial && row?.hora_final && String(row.hora_final) < String(row.hora_inicial)) return true;
+  return false;
+}
+
+// Agrega linhas brutas em OpAgg[] (reutilizado pelo Sheet genérico)
+function agregarPorOp(linhas: any[]): OpAgg[] {
+  const map = new Map<string, OpAgg>();
+  for (const row of linhas) {
+    const numop = String(row.numero_op ?? row.numop ?? '').trim();
+    if (!numop) continue;
+    const operador = String(row.nome_operador ?? row.operador ?? '').trim();
+    const produto = String(row.descricao_produto ?? row.produto ?? row.codigo_produto ?? '').trim();
+    const origem = String(row.origem ?? row.codori ?? '').trim();
+    const letra = normSitorpRow(row) || '';
+
+    let agg = map.get(numop);
+    if (!agg) {
+      agg = {
+        numero_op: numop,
+        produto: produto || '—',
+        codigo_produto: String(row.codigo_produto ?? '').trim(),
+        origem,
+        apontamentos: 0,
+        total_horas: 0,
+        inconsistencias: 0,
+        sem_inicio: 0,
+        sem_fim: 0,
+        divergentes: 0,
+        acima_8h: 0,
+        operadores: new Set<string>(),
+        ultimo_apontamento: '',
+        linhas: [],
+        sitorp: letra,
+      };
+      map.set(numop, agg);
+    }
+    agg.apontamentos += 1;
+    agg.total_horas += Number(row.horas_realizadas || 0);
+    if (operador) agg.operadores.add(operador);
+    const dt = String(row.data_movimento ?? row.data_apontamento ?? row.data ?? '');
+    if (dt && dt > agg.ultimo_apontamento) agg.ultimo_apontamento = dt;
+    agg.linhas.push(row);
+
+    const sa = String(row.status_movimento ?? '').toUpperCase();
+    const horas = minToHours(row.horas_realizadas);
+    const totDia = minToHours(row.total_horas_dia_operador);
+    if (sa === 'SEM_APONTAMENTO' || !row.hora_inicial) agg.sem_inicio += 1;
+    if (sa === 'ABERTO' || !row.hora_final) agg.sem_fim += 1;
+    if (sa === 'DIVERGENTE' || (row.hora_inicial && row.hora_final && String(row.hora_final) < String(row.hora_inicial))) agg.divergentes += 1;
+    if (horas > 8 || totDia > 8) agg.acima_8h += 1;
+    agg.inconsistencias = agg.sem_inicio + agg.sem_fim + agg.divergentes + agg.acima_8h;
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (b.inconsistencias !== a.inconsistencias) return b.inconsistencias - a.inconsistencias;
+    if (b.total_horas !== a.total_horas) return b.total_horas - a.total_horas;
+    return a.numero_op.localeCompare(b.numero_op);
+  });
 }
 
 const today = new Date();
