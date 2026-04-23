@@ -79,7 +79,23 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-      const msg = error.detail || `Erro ${response.status}`;
+      let msg: string;
+      const detail = (error as any)?.detail;
+      if (Array.isArray(detail)) {
+        msg = detail
+          .map((d: any) => {
+            if (!d || typeof d !== 'object') return String(d);
+            const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'query' && x !== 'body').join('.') : '';
+            return loc ? `${loc}: ${d.msg ?? 'erro'}` : String(d.msg ?? JSON.stringify(d));
+          })
+          .join('; ');
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      } else if (detail && typeof detail === 'object') {
+        msg = JSON.stringify(detail);
+      } else {
+        msg = `Erro ${response.status}`;
+      }
       logError({ module: endpoint, message: msg, statusCode: response.status, details: error });
       const err: any = new Error(msg);
       err.statusCode = response.status;
