@@ -62,13 +62,20 @@ const MODULE_MAP: Record<string, ModuleConfig> = {
   },
   'painel-compras': {
     endpoint: '/api/painel-compras',
-    defaultOrderBy: 'valor_liquido_total',
-    defaultFields: ['numero_oc', 'fornecedor', 'codigo_item', 'descricao_item', 'valor_liquido_total', 'data_emissao'],
+    defaultOrderBy: 'valor_liquido',
+    defaultFields: ['numero_oc', 'fantasia_fornecedor', 'codigo_item', 'descricao_item', 'valor_liquido', 'data_emissao', 'data_entrega', 'dias_atraso'],
     permissionPath: '/painel-compras',
-    description: 'Ordens de compra (OCs) com valores e fornecedores. ATENÇÃO: 1 OC = N linhas (uma por item).',
+    description: 'Ordens de compra (OCs) com valores e fornecedores. ATENÇÃO: 1 OC = N linhas (uma por item). Campo de fornecedor é fantasia_fornecedor.',
     availableFilters: ['codigo_item', 'descricao_item', 'fornecedor', 'numero_oc', 'numero_projeto', 'centro_custo', 'somente_pendentes', 'data_emissao_ini', 'data_emissao_fim', 'situacao_oc', 'tipo_item'],
     example: '"quantas OCs em aberto?" → aggregate:"count_distinct", distinct_field:"numero_oc", filters:{somente_pendentes:true}',
     countUnit: { field: 'numero_oc', label: 'OCs' },
+    fieldAliases: {
+      fornecedor: 'fantasia_fornecedor',
+      nome_fornecedor: 'fantasia_fornecedor',
+      valor_liquido_total: 'valor_liquido',
+      valor: 'valor_liquido',
+      atraso: 'dias_atraso',
+    },
   },
   'compras-produto': {
     endpoint: '/api/compras-produto',
