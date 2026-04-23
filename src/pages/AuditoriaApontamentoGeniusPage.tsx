@@ -64,6 +64,7 @@ type KpiDrillKind =
   | { kind: 'semFim' }
   | { kind: 'fimMenorInicio' }
   | { kind: 'acima8h' }
+  | { kind: 'abaixo5min' }
   | { kind: 'maiorTotalDia' }
   | { kind: 'emAndamento' }
   | { kind: 'finalizadas' };
