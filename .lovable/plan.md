@@ -1,43 +1,32 @@
 
 
-## Corrigir warnings de ref no KpiDeepSheet (Auditoria Apontamento Genius)
+## Não há `[object Object]` real para corrigir
 
-### Diagnóstico
-A mensagem `[object Object],[object Object]` que você colou é uma explicação genérica de IA — **não está acontecendo na tela**. O que existe de fato no console hoje, na rota `/auditoria-apontamento-genius`, são dois warnings de React:
+### Verificação feita agora
+- **Console do preview**: 0 ocorrências de `[object Object]`.
+- **Runtime errors**: nenhum.
+- **Busca no código-fonte** (`src/**/*.{ts,tsx}`) pela string `[object Object]`: 0 resultados.
+- **Tela `/auditoria-apontamento-genius`** (a única candidata, por ter arrays `apontamentos`): já renderiza tudo de forma estruturada — `apontamentos` é usado apenas como **contador numérico** (`agg.apontamentos += 1`) e `apontamentosDaOp` é iterado com `.map()` célula a célula no drawer da OP. Não há `{apontamentos}` ou `{row.detalhes}` cru em JSX.
 
-```
-Warning: Function components cannot be given refs.
-  Check the render method of `AuditoriaApontamentoGeniusPage`.
-  → KpiDeepSheet
-Warning: Function components cannot be given refs.
-  Check the render method of `KpiDeepSheet`.
-  → Dialog (Radix Sheet)
-```
+Ou seja: o texto que você colou descreve um problema **hipotético** que não existe no projeto hoje. Se eu aplicar o "fix" sugerido (criar `renderValor()`, trocar `setDados(response)` por `setDados(response.data)`, etc.) eu vou **introduzir mudanças sem necessidade** e potencialmente quebrar o consumo atual da API, que já usa `api.get<T>(...)` tipado e retorna o objeto certo.
 
-Causa: `KpiDeepSheet` é declarado como `export function KpiDeepSheet(...)` (sem `forwardRef`) e é usado dentro de um contexto onde algum ancestral (Radix Tooltip/Sheet/Provider) tenta encaminhar uma ref para ele. O segundo warning é a propagação do mesmo problema para o `Dialog` interno do `Sheet`.
+### O que eu preciso de você para agir
+Me confirme **um** destes:
 
-Não quebra a tela, mas suja o console e atrapalha debug real.
+1. **Você está vendo `[object Object]` em algum lugar específico da UI agora.**
+   → Me diga **qual rota** e **qual coluna/área da tela**, ou anexe um screenshot. Eu vou direto naquele componente.
 
-### Correção
+2. **Você está vendo no console do navegador** (não na tela).
+   → Abra o DevTools (F12) → aba Console → me cole o **stack trace** completo do warning, com o nome do componente.
 
-**Arquivo:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+3. **Era só um exemplo genérico que outra IA te mandou** e não está acontecendo de fato.
+   → Então não há nada a fazer. Posso seguir para o próximo item da sua lista (ex.: continuar a integração do detalhe por movimento da OP 1005 / origem 110, que ficou aprovada anteriormente mas depende do backend retornar os campos `data_inicial/hora_inicial/data_final/hora_final`).
 
-1. Trocar a assinatura de `KpiDeepSheet` para usar `React.forwardRef`:
-   - De: `export function KpiDeepSheet({ ...props }: KpiDeepSheetProps) { ... }`
-   - Para: `export const KpiDeepSheet = React.forwardRef<HTMLDivElement, KpiDeepSheetProps>(({ ...props }, ref) => { ... });` + `KpiDeepSheet.displayName = 'KpiDeepSheet';`
-2. Encaminhar a `ref` para o nó raiz interno do componente (provavelmente o `<Sheet>` envolve um `SheetContent` — passar o ref para um `<div ref={ref}>` que envolve o conteúdo, ou diretamente para `SheetContent` se aceitar).
-3. Verificar se há outros componentes-função no mesmo arquivo recebendo ref implícito (ex.: subcomponentes usados dentro de `Tooltip`/`Popover`) e aplicar o mesmo padrão se necessário.
-
-### Validação
-- Recarregar `/auditoria-apontamento-genius`.
-- Console deve ficar limpo dos dois warnings de `forwardRef`.
-- Abrir um KPI (clicar num card) → o `Sheet` do drill-down deve continuar abrindo normalmente, com filtros, busca, ordenação e drawer de OP funcionando como antes.
-
-### Fora de escopo
-- Mudanças visuais ou de comportamento.
-- Refatorar outros componentes-função do projeto.
-- Qualquer ajuste em backend ou em dados (a API e o render dos dados estão corretos — não há `[object Object]` real na UI).
+### Por que não vou aplicar o "fix preventivo"
+- Adicionar um `renderValor()` defensivo em colunas que hoje renderizam string/número correto **não corrige nada** e suja o código.
+- Trocar `setDados(response)` por `setDados(response.data)` **quebraria** o fluxo atual: `api.get` já desempacota o JSON; o que vai pra `setData` é o objeto `{ dados, resumo, total_registros, debug }` — exatamente o que o resto da página espera.
+- Mudanças "por garantia" sem reproduzir o problema violam a regra de só editar o que tem causa identificada.
 
 ### Resultado
-Os warnings de ref desaparecem do console, sem alterar nenhum comportamento visível da tela.
+Aguardo sua confirmação (qual das 3 opções acima) antes de mexer em qualquer arquivo.
 
