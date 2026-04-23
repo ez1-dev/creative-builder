@@ -760,9 +760,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       ops_canceladas: opsPorLetra.C.size,
       discrepanciasParciais,
     };
-  }, [data]);
-
-  const kpiDrilldowns = useMemo(() => {
+  }, [data, dadosFiltradosPorStatusOp]);
     const empty = {
       totalRegistros: [] as { label: string; value: string }[],
       opsPorStatus: {
