@@ -1749,6 +1749,9 @@ function StatusOpGeniusCard({
 
   const pctAndamento = (opsEmAndamento / totalOps) * 100;
   const pctFinalizadas = 100 - pctAndamento;
+  const pctDiscrepancias = Math.min(100, (totalDiscrepancias / totalOps) * 100);
+
+  const ariaLabel = `Distribuição: ${opsEmAndamento} em andamento, ${opsFinalizadas} finalizadas, ${totalDiscrepancias} com discrepância de um total de ${totalOps} OPs`;
 
   return (
     <Card className="border-l-4 border-l-blue-600 p-4 space-y-3">
@@ -1765,21 +1768,37 @@ function StatusOpGeniusCard({
           <div className="text-2xl font-bold text-foreground leading-none">
             {formatNumber(totalOps, 0)}
           </div>
-          <div className="text-xs text-muted-foreground">OPs ativas no período</div>
+          <div className="text-xs text-muted-foreground">OPs no período</div>
+          <div className="text-[11px] text-muted-foreground">
+            ({formatNumber(opsEmAndamento, 0)} ativas + {formatNumber(opsFinalizadas, 0)} finalizadas)
+          </div>
         </div>
       </div>
 
-      <div className="w-full h-3 rounded-full overflow-hidden bg-muted flex">
-        <div
-          className="h-full bg-blue-600 transition-all"
-          style={{ width: `${pctAndamento}%` }}
-          title={`Em andamento: ${pctAndamento.toFixed(1)}%`}
-        />
-        <div
-          className="h-full bg-slate-400 transition-all"
-          style={{ width: `${pctFinalizadas}%` }}
-          title={`Finalizadas: ${pctFinalizadas.toFixed(1)}%`}
-        />
+      <div
+        className="relative w-full h-3 rounded-full overflow-hidden bg-muted"
+        role="img"
+        aria-label={ariaLabel}
+      >
+        <div className="absolute inset-0 flex">
+          <div
+            className="h-full bg-blue-600 transition-all"
+            style={{ width: `${pctAndamento}%` }}
+            title={`Em andamento: ${formatNumber(opsEmAndamento, 0)} (${pctAndamento.toFixed(1)}%)`}
+          />
+          <div
+            className="h-full bg-slate-400 transition-all"
+            style={{ width: `${pctFinalizadas}%` }}
+            title={`Finalizadas: ${formatNumber(opsFinalizadas, 0)} (${pctFinalizadas.toFixed(1)}%)`}
+          />
+        </div>
+        {totalDiscrepancias > 0 && (
+          <div
+            className="absolute bottom-0 left-0 h-1 border-t border-dashed border-destructive bg-destructive/40"
+            style={{ width: `${pctDiscrepancias}%` }}
+            title={`${formatNumber(totalDiscrepancias, 0)} com discrepância (${pctDiscrepancias.toFixed(1)}%)`}
+          />
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
@@ -1797,7 +1816,9 @@ function StatusOpGeniusCard({
           <span className="flex items-center gap-2">
             <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
             <span className="font-medium text-destructive">{formatNumber(totalDiscrepancias, 0)}</span>
-            <span className="text-muted-foreground">com discrepância</span>
+            <span className="text-muted-foreground">
+              com discrepância ({pctDiscrepancias.toFixed(0)}%)
+            </span>
           </span>
         )}
       </div>
