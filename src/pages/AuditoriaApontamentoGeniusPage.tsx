@@ -2250,7 +2250,7 @@ export const KpiDeepSheet = React.forwardRef<HTMLDivElement, KpiDeepSheetProps>(
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
+      <SheetContent ref={ref} side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
         <SheetHeader className="space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <SheetTitle className="text-base">Detalhes · {titulo}</SheetTitle>
