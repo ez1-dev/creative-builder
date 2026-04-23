@@ -55,6 +55,15 @@ type OpAgg = {
   sitorp: string;
 };
 
+// ─── Helpers de tempo: backend devolve tempos em MINUTOS ───────────────────
+const minToHours = (m: number | null | undefined) => (Number(m) || 0) / 60;
+const fmtMinHoras = (m: number | null | undefined, dec = 2) => {
+  const min = Number(m) || 0;
+  return `${formatNumber(min, 0)} min · ${formatNumber(min / 60, dec)} h`;
+};
+const fmtHoras = (m: number | null | undefined, dec = 2) =>
+  `${formatNumber((Number(m) || 0) / 60, dec)} h`;
+
 const STATUS_LETRA_LABEL: Record<'E'|'L'|'A'|'F'|'C', string> = {
   E: 'Emitida', L: 'Liberada', A: 'Andamento', F: 'Finalizada', C: 'Cancelada',
 };
@@ -191,15 +200,15 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
     { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
     {
       key: 'horas_realizadas',
-      header: 'H. Realizadas',
+      header: 'Tempo (min · h)',
       align: 'right',
       render: (v) => {
         const n = Number(v) || 0;
-        if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
-        return formatNumber(n, 2);
+        if (n === 0) return <span className="text-destructive font-medium">{fmtMinHoras(0)}</span>;
+        return fmtMinHoras(n);
       },
     },
-    { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
+    { key: 'total_horas_dia_operador', header: 'Total Dia Op. (min · h)', align: 'right', render: (v) => fmtMinHoras(v) },
     {
       key: 'status_op',
       header: 'Status OP',
@@ -447,8 +456,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       if (sa === 'SEM_APONTAMENTO') localSemInicio++;
       if (sa === 'ABERTO') localSemFim++;
       if (sa === 'DIVERGENTE') localFimMenorInicio++;
-      const horas = Number(row.horas_realizadas || 0);
-      const totDia = Number(row.total_horas_dia_operador || 0);
+      const horas = minToHours(row.horas_realizadas);
+      const totDia = minToHours(row.total_horas_dia_operador);
       if (horas > 8 || totDia > 8) localAcima8h++;
       if (totDia > localMaiorDia) {
         localMaiorDia = totDia;
@@ -579,8 +588,8 @@ export default function AuditoriaApontamentoGeniusPage() {
         agg.linhas.push(row);
 
         const sa = String(row.status_movimento ?? '').toUpperCase();
-        const horas = Number(row.horas_realizadas || 0);
-        const totDia = Number(row.total_horas_dia_operador || 0);
+        const horas = minToHours(row.horas_realizadas);
+        const totDia = minToHours(row.total_horas_dia_operador);
         if (sa === 'SEM_APONTAMENTO') agg.sem_inicio += 1;
         if (sa === 'ABERTO') agg.sem_fim += 1;
         if (sa === 'DIVERGENTE') agg.divergentes += 1;
@@ -589,8 +598,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
-      const horas = Number(row.horas_realizadas || 0);
-      const totDia = Number(row.total_horas_dia_operador || 0);
+      const horas = minToHours(row.horas_realizadas);
+      const totDia = minToHours(row.total_horas_dia_operador);
 
       const opOpStr = numop || operador ? `OP ${numop || '—'} · ${operador || '—'}` : '—';
 
@@ -609,21 +618,21 @@ export default function AuditoriaApontamentoGeniusPage() {
         semFim.push({ label: opOpStr, value: `${dt}${hr ? ' ' + hr : ''}` });
       }
       if (sa === 'DIVERGENTE') {
-        fimMenorInicio.push({ label: opOpStr, value: `${formatNumber(horas, 2)}h` });
+        fimMenorInicio.push({ label: opOpStr, value: fmtMinHoras(row.horas_realizadas, 2) });
       }
       if (horas > 8 || totDia > 8) {
         const key = `${operador}::${numop}`;
         if (!acima8hSeen.has(key)) {
           acima8hSeen.add(key);
-          const h = horas > 8 ? horas : totDia;
-          acima8hRaw.push({ label: operador || '—', value: `${formatNumber(h, 2)}h`, horas: h, key });
+          const minutos = horas > 8 ? Number(row.horas_realizadas || 0) : Number(row.total_horas_dia_operador || 0);
+          acima8hRaw.push({ label: operador || '—', value: fmtMinHoras(minutos, 2), horas: horas > 8 ? horas : totDia, key });
         }
       }
       if (totDia > 0) {
         const key = `${operador}::${formatDate(row.data_apontamento ?? row.data)}`;
         if (!maiorDiaSeen.has(key)) {
           maiorDiaSeen.add(key);
-          maiorDiaRaw.push({ label: operador || '—', value: `${formatNumber(totDia, 2)}h`, total: totDia, key });
+          maiorDiaRaw.push({ label: operador || '—', value: fmtMinHoras(row.total_horas_dia_operador, 2), total: totDia, key });
         }
       }
     }
@@ -667,8 +676,8 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const rowClassName = useCallback((row: any) => {
     const sa = String(row.status_movimento ?? '').toUpperCase();
-    const horas = Number(row.horas_realizadas || 0);
-    const totDia = Number(row.total_horas_dia_operador || 0);
+    const horas = minToHours(row.horas_realizadas);
+    const totDia = minToHours(row.total_horas_dia_operador);
     if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
     }
@@ -834,7 +843,7 @@ export default function AuditoriaApontamentoGeniusPage() {
             <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
             <KPICard
               title="Maior Total Dia"
-              value={`${formatNumber(atualizarKpisApontGenius.maior_total_dia_operador, 2)} h`}
+              value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
               subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
@@ -1016,7 +1025,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                         <tr className="text-left">
                           <th className="px-2 py-1 font-medium">Data</th>
                           <th className="px-2 py-1 font-medium">Hora</th>
-                          <th className="px-2 py-1 font-medium text-right">Horas</th>
+                          <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
                           <th className="px-2 py-1 font-medium">Operador</th>
                           <th className="px-2 py-1 font-medium">Status</th>
                         </tr>
@@ -1033,7 +1042,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                               <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
                               <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
                               <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
-                                {formatNumber(horas, 2)}
+                                {fmtMinHoras(horas)}
                               </td>
                               <td className="px-2 py-1">
                                 {r.nome_operador && String(r.nome_operador).trim()
@@ -1413,7 +1422,7 @@ function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTud
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="font-medium">{op.apontamentos} apt · {formatNumber(op.total_horas, 1)}h</div>
+                        <div className="font-medium">{op.apontamentos} apt · {fmtMinHoras(op.total_horas, 1)}</div>
                         {inconsist && (
                           <div className="text-destructive">⚠ {op.inconsistencias}</div>
                         )}
@@ -1549,7 +1558,7 @@ function StatusOpDeepSheet({
           <MiniKpi label="Total OPs" value={formatNumber(ops.length, 0)} />
           <MiniKpi label="OPs c/ inconsistência" value={formatNumber(totaisStatus.opsComInconsist, 0)} destaque={totaisStatus.opsComInconsist > 0} />
           <MiniKpi label="Apontamentos" value={formatNumber(totaisStatus.totalApt, 0)} />
-          <MiniKpi label="Horas totais" value={`${formatNumber(totaisStatus.totalHoras, 2)} h`} />
+          <MiniKpi label="Tempo total (min · h)" value={fmtMinHoras(totaisStatus.totalHoras, 2)} />
           <MiniKpi label="Operadores únicos" value={formatNumber(totaisStatus.totalOperadores, 0)} />
           <MiniKpi
             label="Top origens"
@@ -1593,7 +1602,7 @@ function StatusOpDeepSheet({
                 <th className="px-2 py-1 font-medium">Produto</th>
                 <th className="px-2 py-1 font-medium">Origem</th>
                 <th className="px-2 py-1 font-medium text-right">Apt.</th>
-                <th className="px-2 py-1 font-medium text-right">Horas</th>
+                <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
                 <th className="px-2 py-1 font-medium text-right">Operadores</th>
                 <th className="px-2 py-1 font-medium">Último apont.</th>
                 <th className="px-2 py-1 font-medium">Inconsistências</th>
@@ -1620,7 +1629,7 @@ function StatusOpDeepSheet({
                       <td className="px-2 py-1 max-w-[220px] truncate" title={op.produto}>{op.produto}</td>
                       <td className="px-2 py-1">{op.origem || '—'}</td>
                       <td className="px-2 py-1 text-right">{op.apontamentos}</td>
-                      <td className="px-2 py-1 text-right">{formatNumber(op.total_horas, 2)}</td>
+                      <td className="px-2 py-1 text-right">{fmtMinHoras(op.total_horas, 2)}</td>
                       <td className="px-2 py-1 text-right">{op.operadores.size}</td>
                       <td className="px-2 py-1">{op.ultimo_apontamento ? formatDate(op.ultimo_apontamento) : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-2 py-1">
@@ -1736,16 +1745,16 @@ function OpLinhasInline({
               <th className="px-2 py-1 font-medium text-right">Seq Rot</th>
               <th className="px-2 py-1 font-medium text-right">Seq Apt</th>
               <th className="px-2 py-1 font-medium">Turno</th>
-              <th className="px-2 py-1 font-medium text-right">H. Real.</th>
-              <th className="px-2 py-1 font-medium text-right">Tot. Dia Op.</th>
+              <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
+              <th className="px-2 py-1 font-medium text-right">Tot. Dia (min · h)</th>
               <th className="px-2 py-1 font-medium">Status Mov.</th>
               <th className="px-2 py-1 font-medium">Sitorp</th>
             </tr>
           </thead>
           <tbody>
             {linhas.map((r, i) => {
-              const horas = Number(r.horas_realizadas) || 0;
-              const totDia = Number(r.total_horas_dia_operador) || 0;
+              const horas = minToHours(r.horas_realizadas);
+              const totDia = minToHours(r.total_horas_dia_operador);
               const sa = String(r.status_movimento ?? 'FECHADO').toUpperCase();
               const saCfg = statusApontVariants[(sa in statusApontVariants ? sa : 'FECHADO') as StatusApont];
               const inconsist = sa === 'DIVERGENTE' || sa === 'ABERTO' || sa === 'SEM_APONTAMENTO' || horas > 8 || totDia > 8;
@@ -1765,10 +1774,10 @@ function OpLinhasInline({
                   <td className="px-2 py-1 text-right">{r.seq_apontamento ?? '—'}</td>
                   <td className="px-2 py-1">{r.turno ?? '—'}</td>
                   <td className={cn('px-2 py-1 text-right', horas === 0 && 'text-destructive font-medium', horas > 8 && 'text-destructive font-bold')}>
-                    {formatNumber(horas, 2)}
+                    {fmtMinHoras(r.horas_realizadas)}
                   </td>
                   <td className={cn('px-2 py-1 text-right', totDia > 8 && 'text-destructive font-bold')}>
-                    {formatNumber(totDia, 2)}
+                    {fmtMinHoras(r.total_horas_dia_operador)}
                   </td>
                   <td className="px-2 py-1">
                     <Badge className={cn(saCfg?.className ?? '', 'text-[10px]')}>{saCfg?.label ?? sa}</Badge>
