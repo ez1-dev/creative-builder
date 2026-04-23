@@ -1,114 +1,126 @@
 
 
-## Assistente IA com abertura automática, sugestões proativas e posicionamento inteligente
+## Corrigir respostas de "totais agregados" do Assistente IA (ex.: "quantas OCs em aberto?")
 
-### Objetivo
-Tornar o assistente **proativo**: ele se abre sozinho em momentos certos com sugestões úteis, e se posiciona automaticamente no canto da tela que **não cobre os dados** que o usuário está olhando (KPIs, tabelas, filtros).
+### Problema
+Pergunta: **"quantas ordens de compra temos em aberto?"** (intenção: total geral do ERP)
 
-### Como vai funcionar
+Resposta atual: *"Com base nos filtros aplicados na tela atual (OC 40701, somente_pendentes), temos 13 itens em aberto."*
 
-#### 1) Abertura automática inteligente (com regras de não-incômodo)
+A IA está respondendo com base no **CONTEXTO DA PÁGINA** (que tem filtros locais) em vez de fazer uma consulta global. Além disso, mesmo se chamasse `query_erp_data`, ela retornaria **linhas de OC** (cada item) em vez de **OCs distintas**, e o `top_n` máximo de 50 mascara o total real.
 
-O assistente abre sozinho quando:
-- **Primeira visita do dia em uma tela**: 1 vez por dia por rota (controlado em `localStorage`).
-- **Tela com filtros vazios há mais de 8 segundos** + usuário inativo (sem digitar/clicar): sugere "Quer que eu aplique os filtros que você usa nesta tela?".
-- **Padrão detectado pelo histórico** (`useUserSuggestions`): se o usuário tem 3+ buscas frequentes salvas para a rota, abre uma vez sugerindo aplicar.
-- **Após erro de carregamento ou tela vazia** (0 resultados): sugere ajuda contextual ("Sem dados para esses filtros. Quer ver os top 10 do mês?").
+### Causas raiz
 
-Regras de **não incômodo** (críticas):
-- **Cooldown global**: nunca reabre sozinho em menos de 30 min após o usuário fechar.
-- **Limite diário**: máximo 3 aberturas automáticas por dia, em telas distintas.
-- **Respeitar fechamento explícito**: se o usuário fecha com X, "snooze" daquela rota por 24h.
-- **Toggle de preferência** em `Configurações → Minhas Preferências`: "Permitir sugestões automáticas do Assistente IA" (default: ligado). Persistido em `user_preferences`.
-- Nunca abre durante digitação em input/textarea ou enquanto modal/drawer está aberto.
-- Nunca abre se `canUseAi === false`.
+1. **Prompt enviesado para o contexto da página**: a regra atual diz *"Quando o usuário fizer uma pergunta analítica sobre a tela atual, responda diretamente em texto, usando o CONTEXTO DA PÁGINA"*. A IA aplica isso a perguntas globais ("quantas OCs no total?") porque não há critério para diferenciar **escopo local vs global**.
 
-#### 2) Modo proativo: sugestões na abertura
-Quando abre sozinho, o painel exibe um **banner pré-preenchido** acima do input:
+2. **`query_erp_data` não retorna agregados**: a tool foi desenhada para "top N ordenado". Para perguntas de **contagem** (`COUNT DISTINCT numero_oc`), ela:
+   - Devolve no máximo 50 registros.
+   - Reporta `total_in_dataset` = linhas (não OCs únicas).
+   - Não tem modo "só me dê o total".
 
+3. **Não há `count_only` / `aggregate`**: hoje qualquer pergunta tipo "quantos X?" precisa que a IA invente uma estimativa a partir dos top N.
+
+4. **Painel de Compras tem 1 OC = N linhas**: o backend retorna 1 linha por item da OC. "13 itens" da OC 40701 ≠ "13 OCs". A tool precisa saber agrupar por chave (`numero_oc`).
+
+### Solução
+
+#### 1) Adicionar modo agregado em `query_erp_data`
+
+Novos parâmetros opcionais na tool (em `aiQueryExecutor.ts` e na definição da edge function):
+
+- **`aggregate`**: `'count' | 'count_distinct' | 'sum' | 'avg'` (default: nenhum → comportamento atual de top N).
+- **`distinct_field`**: campo para `count_distinct` (ex.: `numero_oc`).
+- **`sum_field`**: campo para `sum`/`avg` (ex.: `valor_liquido`).
+- **`scope`**: `'page' | 'global'` (default: `global`). Se `page`, herda os filtros da `pageContext.filters`. Se `global`, ignora filtros da página e usa apenas os filtros explicitados pela IA.
+
+Quando `aggregate` está presente:
+- Cliente faz a paginação completa (até teto de 50 páginas × 200 = 10k linhas) ou, melhor, chama o endpoint com `tamanho_pagina=1` e lê `total_registros` do envelope para `count`.
+- Para `count_distinct`, busca campo `distinct_field` em todas as páginas (limita a 5 páginas para segurança) e conta valores únicos.
+- Retorna `{ aggregate: 'count_distinct', field: 'numero_oc', value: 187, total_lines_scanned: 1240 }`.
+
+#### 2) Ajustar `MODULE_MAP` com `aggregate_hints`
+
+Cada módulo ganha `aggregateHints` declarando como contar a "unidade de negócio":
+
+```ts
+'painel-compras': {
+  ...,
+  countUnit: { field: 'numero_oc', label: 'OCs' },
+  // "quantas OCs em aberto?" → aggregate:'count_distinct', distinct_field:'numero_oc', filters:{somente_pendentes:true}
+},
+'contas-pagar': { countUnit: { field: 'numero_titulo', label: 'títulos' } },
+'estoque': { countUnit: { field: 'codpro', label: 'produtos' } },
+// etc.
 ```
-✨ Olá! Notei que você costuma consultar:
-  [ Família 001 + Situação Ativo ]   [ Saldo > 0 ]   [ Top 10 estoque ]
-  
-  Ou pergunte: "qual produto tem mais estoque hoje?"
+
+E o catálogo no system prompt passa a incluir essa info:
+```
+- painel-compras: ... | unidade de contagem: numero_oc (OCs)
 ```
 
-Cada chip aplica os filtros (`apply_erp_filters`) ou dispara `query_erp_data` direto. Reaproveita `SearchSuggestions` + adiciona 1–2 perguntas analíticas sugeridas conforme o módulo (ex.: estoque → "qual produto tem mais saldo?", contas-pagar → "qual o maior título em aberto?").
+#### 3) Atualizar regras do system prompt
 
-#### 3) Posicionamento adaptativo (anti-oclusão)
+Adicionar regras explícitas sobre **escopo** e **contagem**:
 
-Hoje o painel é fixo no canto **inferior-direito**. Vai virar **flutuante e arrastável**, com **auto-posicionamento inteligente**:
+> **Escopo das perguntas analíticas**:
+> - Se a pergunta usar palavras como "no total", "no geral", "em todo o ERP", "sem filtro" → `scope:'global'` (ignore o CONTEXTO DA PÁGINA).
+> - Se a pergunta começar com "nesta tela", "nos resultados atuais", "no que está filtrado" → use o CONTEXTO DA PÁGINA.
+> - **Ambíguo (caso padrão para "quantos/quantas X?")**: assume `scope:'global'` e mencione na resposta os filtros aplicados ("Considerando todas as OCs em aberto do ERP, temos 187 OCs").
+>
+> **Contagens**:
+> - "quantos X?" / "quantas Y?" → use `query_erp_data` com `aggregate:'count_distinct'` e `distinct_field` da `countUnit` do módulo (ver catálogo).
+> - NUNCA estime contagens a partir de `top_n`. Sempre use `aggregate`.
+> - "qual o total/soma de X?" → `aggregate:'sum'`, `sum_field`.
 
-**Algoritmo de posição automática** (executa ao abrir e quando a viewport ou o conteúdo principal muda):
-1. Mede o `<main>` e identifica regiões "sensíveis" via seletores conhecidos: `[data-ai-avoid]`, `.kpi-card`, `table`, `[role="grid"]`, `.recharts-wrapper`.
-2. Divide a tela em 4 quadrantes (TL, TR, BL, BR) e calcula a área coberta de regiões sensíveis em cada um.
-3. Escolhe o quadrante **com menor cobertura sensível** que tenha espaço suficiente (mín. 380×520 px).
-4. Se nenhum quadrante for "limpo" (tela cheia de dados), posiciona em **modo lateral compacto** (largura 320, altura full, ancorado à direita) com botão "minimizar para bolha".
-5. Em viewports < 768px (mobile): vira **bottom sheet** (drawer inferior) — sempre.
+Também relaxar a regra de "use o contexto da página": só vale quando o usuário menciona claramente "nesta tela" ou os KPIs visíveis já contêm a resposta exata.
 
-**Controles do usuário**:
-- Botão **"📌 Fixar posição"** salva o quadrante escolhido para a rota (`user_preferences.ai_panel_position[rota]`).
-- Cabeçalho do painel é **arrastável** (drag handle); ao soltar, salva a posição manual.
-- Botão **"⤢ Minimizar"** colapsa para bolha flutuante (mantém o canto escolhido).
-- Resize handle no canto oposto à âncora, dimensões persistidas.
+#### 4) Aproveitar `total_registros` do backend (otimização)
 
-**Z-index e transparência**:
-- Painel com `box-shadow` forte e `backdrop-blur`, mas opaco (sem confundir leitura).
-- Quando o mouse fica fora por 4s + tela tem scroll ativo, painel reduz opacidade para 85% (volta a 100% no hover).
+Para `aggregate:'count'` simples, basta fazer 1 request `tamanho_pagina=1` e ler `resp.total_registros`. Sem percorrer páginas. Implementar como fast path em `executeQueryErpData`.
 
-#### 4) Marcação de áreas sensíveis (mínima nas páginas)
-Para o algoritmo funcionar bem sem listar seletor por seletor, adicionamos atributo `data-ai-avoid` em 3 wrappers genéricos em **`PageHeader`, `KPICard` e `DataTable`** (uma única alteração nos 3 componentes base já cobre todas as 20 telas).
+Para `count_distinct`, percorrer até 5 páginas de 200 (1000 registros) e devolver com flag `partial: true` se `total_registros > 1000`, para a IA poder dizer "ao menos 187 OCs distintas (amostra)".
 
-### Arquivos alterados / criados
+#### 5) Testes manuais
 
-**Criados:**
-- `src/hooks/useAiAutoOpen.ts` — regras de quando abrir sozinho (cooldown, snooze, limite diário, preferência).
-- `src/hooks/useAiPanelPlacement.ts` — algoritmo de quadrantes + persistência da posição/tamanho por rota.
-- `src/components/erp/AiProactiveBanner.tsx` — banner com chips de sugestões iniciais (recente + analíticas).
+1. `/painel-compras` filtrado por OC 40701 → "quantas OCs em aberto?" → IA chama `aggregate:'count_distinct', distinct_field:'numero_oc', filters:{somente_pendentes:true}, scope:'global'` → resposta: "Há **187 OCs em aberto** no ERP (1.240 itens). Quer abrir a tela com esse filtro?".
+2. Mesma tela → "quantas OCs nessa tela?" → usa contexto da página (13 linhas / N OCs distintas se houver no contexto).
+3. `/contas-pagar` → "quantos títulos vencidos?" → `count_distinct` por `numero_titulo` com filtro `data_vencimento_fim<hoje, somente_em_aberto:true`.
+4. `/estoque` → "quantos produtos com saldo > 0?" → `count_distinct` `codpro` + `client_filters:{saldo:{gt:0}}`.
+5. `/painel-compras` → "qual o valor total das OCs em aberto?" → `aggregate:'sum', sum_field:'valor_liquido', filters:{somente_pendentes:true}` → "R$ 4.820.150,00".
+6. Sem permissão → erro educado mantido.
 
-**Editados:**
-- `src/components/erp/AiAssistantChat.tsx`
-  - Substituir posição fixa por wrapper `<DraggableResizable>` controlado por `useAiPanelPlacement`.
-  - Integrar `useAiAutoOpen` para abrir sozinho conforme regras.
-  - Renderizar `AiProactiveBanner` no topo quando aberto sem mensagens ainda.
-  - Adicionar botões: minimizar, fixar posição, fechar (com snooze 24h).
-- `src/components/erp/PageHeader.tsx`, `src/components/erp/KPICard.tsx`, `src/components/erp/DataTable.tsx`
-  - Adicionar `data-ai-avoid` no wrapper raiz.
-- `src/components/erp/MinhasPreferenciasSection.tsx`
-  - Toggle "Permitir sugestões automáticas do Assistente IA".
-  - Botão "Resetar posição/tamanho do Assistente".
-- `supabase/migrations/*` (nova migration)
-  - Adicionar coluna `ai_assistant_prefs jsonb default '{}'::jsonb` em `user_preferences` (armazena: `auto_open_enabled`, `panel_position_by_route`, `panel_size`, `snoozed_routes`, `last_auto_open_dates`).
+### Arquivos alterados
 
-### Estados persistidos
+- **`src/lib/aiQueryExecutor.ts`**:
+  - Adicionar `aggregate`, `distinct_field`, `sum_field`, `scope` em `QueryErpArgs`.
+  - Adicionar `countUnit` em cada `ModuleConfig`.
+  - Implementar `executeAggregate()` (count via `total_registros`, count_distinct/sum/avg paginando até 5×200).
+  - Atualizar `buildModulesCatalog()` para incluir `unidade de contagem`.
 
-| Chave | Local | Conteúdo |
-|---|---|---|
-| `ai:last_close_at` | localStorage | timestamp do último fechamento (cooldown 30min) |
-| `ai:auto_opens_today` | localStorage | `{ date, count, routes[] }` |
-| `ai:snoozed_until[rota]` | localStorage | timestamp para liberar abertura naquela rota |
-| `user_preferences.ai_assistant_prefs` | Supabase | toggle, posição/tamanho por rota, posição fixada |
+- **`supabase/functions/ai-assistant/index.ts`**:
+  - Adicionar parâmetros `aggregate`, `distinct_field`, `sum_field`, `scope` na tool `query_erp_data`.
+  - Atualizar `BASE_SYSTEM_PROMPT` com as regras de escopo/contagem.
+  - Tornar a regra "use contexto da página" mais restrita (apenas quando o usuário diz "nesta tela" ou os KPIs já trazem a resposta).
 
-### Casos de teste manuais
-1. Login → abrir `/estoque` pela 1ª vez no dia → assistente abre sozinho com 3 chips de sugestão.
-2. Fechar com X → navegar para `/contas-pagar` em 5 min → não abre sozinho (cooldown).
-3. Esperar 31 min → abrir nova rota → abre se ainda não atingiu limite de 3/dia.
-4. Desligar toggle em Preferências → nunca mais abre sozinho (só no clique no botão flutuante).
-5. Tela cheia de KPIs + tabela: painel posiciona no quadrante com menor cobertura; se todos cheios, vira lateral direita.
-6. Arrastar painel para outro canto → recarregar página → painel volta na posição salva para a rota.
-7. Mobile (< 768px) → vira bottom sheet, sem drag.
-8. `canUseAi === false` → nenhuma abertura automática.
-9. Tela com 0 resultados após filtro → assistente abre sugerindo "ver top 10 do mês".
+- **`src/components/erp/AiAssistantChat.tsx`**:
+  - Repassar os novos campos para `executeQueryErpData`.
+  - Quando `result.scope === 'global'`, exibir badge "Resultado global (ignora filtros da tela)".
 
 ### Fora de escopo
-- IA "interromper" durante digitação em formulários (nunca faz isso).
-- Notificações push fora do app.
-- Sugestões cross-tela ("vai para compras agora") sem comando do usuário.
-- Animação de mascote/avatar — mantém ícone Bot atual.
+
+- Cross-módulo agregado.
+- GROUP BY (top fornecedor por OC count) — usa o `top_n` existente.
+- Filtros de data relativos ("últimos 30 dias") — futuro.
 
 ### Resultado
-- Assistente **vira parceiro proativo**: aparece quando ajuda, some quando atrapalha.
-- **Nunca cobre KPIs/tabelas** sem o usuário pedir — escolhe sozinho o canto livre.
-- Usuário tem **controle total**: pode desligar, fixar posição, arrastar, redimensionar.
-- Limites rígidos garantem que **não vire incômodo** (cooldown, snooze, limite diário, respeito ao fechamento).
+
+Pergunta **"quantas ordens de compra temos em aberto?"** passa a responder:
+
+> 📊 No ERP existem **187 ordens de compra em aberto** (somando 1.240 itens).
+>
+> *Considerei o filtro padrão `somente_pendentes=true` em todo o ERP, ignorando os filtros desta tela.*
+>
+> Quer que eu abra o Painel de Compras com esse filtro? *(botão)*
+
+E perguntas de soma, contagem, e por escopo (página vs global) passam a funcionar de forma consistente em todos os 20 módulos.
 
