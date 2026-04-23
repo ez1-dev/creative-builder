@@ -28,8 +28,21 @@ import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
   Activity, CheckCircle2, CalendarRange, Info, ChevronDown, ChevronRight, Search,
-  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck,
+  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck, ChevronLeft, CalendarDays,
 } from 'lucide-react';
+import { startOfWeek, endOfWeek, addWeeks, getISOWeek, getISOWeekYear, format as formatDateFns } from 'date-fns';
+
+// ─── Helpers de semana (ISO: segunda → domingo) ───────────────────────────
+function inicioSemana(d: Date): Date { return startOfWeek(d, { weekStartsOn: 1 }); }
+function fimSemana(d: Date): Date { return endOfWeek(d, { weekStartsOn: 1 }); }
+function toISODate(d: Date): string { return formatDateFns(d, 'yyyy-MM-dd'); }
+function labelSemana(d: Date): string {
+  const ini = inicioSemana(d);
+  const fim = fimSemana(d);
+  const w = getISOWeek(d);
+  const y = getISOWeekYear(d);
+  return `S${String(w).padStart(2, '0')}/${y} · ${formatDateFns(ini, 'dd/MM')} – ${formatDateFns(fim, 'dd/MM')}`;
+}
 import { Card as UICard, CardContent as UICardContent } from '@/components/ui/card';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
@@ -1098,7 +1111,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       >
         <div><Label className="text-xs">Data inicial</Label><Input type="date" value={filters.data_ini} onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Data final</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
-        <div className="flex flex-col justify-end">
+        <div className="flex flex-col justify-end gap-1">
           <Button
             type="button"
             variant="outline"
@@ -1119,6 +1132,100 @@ export default function AuditoriaApontamentoGeniusPage() {
             <CalendarRange className="mr-1 h-3 w-3" />
             Últimos 12 meses
           </Button>
+        </div>
+        <div className="flex flex-col justify-end gap-1 sm:col-span-2 lg:col-span-2 xl:col-span-2">
+          <Label className="text-xs">Atalhos por semana (seg–dom)</Label>
+          <div className="flex flex-wrap items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              title="Semana atual (segunda a domingo)"
+              onClick={() => {
+                const hoje = new Date();
+                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(hoje)), data_fim: toISODate(fimSemana(hoje)) }));
+              }}
+            >
+              <CalendarDays className="mr-1 h-3 w-3" />
+              Esta semana
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              title="Semana anterior"
+              onClick={() => {
+                const ref = addWeeks(new Date(), -1);
+                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
+              }}
+            >
+              Semana passada
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              title="Últimas 4 semanas (incluindo a atual)"
+              onClick={() => {
+                const hoje = new Date();
+                const ini = inicioSemana(addWeeks(hoje, -3));
+                setFilters(f => ({ ...f, data_ini: toISODate(ini), data_fim: toISODate(fimSemana(hoje)) }));
+              }}
+            >
+              Últimas 4 semanas
+            </Button>
+          </div>
+          <div className="flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Semana anterior"
+              onClick={() => {
+                const ref = filters.data_ini ? addWeeks(new Date(filters.data_ini + 'T12:00:00'), -1) : addWeeks(new Date(), -1);
+                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
+              }}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="flex-1 text-center text-xs font-medium tabular-nums">
+              {filters.data_ini ? labelSemana(new Date(filters.data_ini + 'T12:00:00')) : labelSemana(new Date())}
+            </span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Próxima semana"
+              disabled={(() => {
+                const ref = filters.data_ini ? new Date(filters.data_ini + 'T12:00:00') : new Date();
+                return inicioSemana(addWeeks(ref, 1)) > new Date();
+              })()}
+              onClick={() => {
+                const ref = filters.data_ini ? addWeeks(new Date(filters.data_ini + 'T12:00:00'), 1) : addWeeks(new Date(), 1);
+                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              title="Voltar para a semana atual"
+              onClick={() => {
+                const hoje = new Date();
+                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(hoje)), data_fim: toISODate(fimSemana(hoje)) }));
+              }}
+            >
+              Hoje
+            </Button>
+          </div>
         </div>
         <div><Label className="text-xs">Número da OP</Label><Input value={filters.numop} onChange={(e) => setFilters(f => ({ ...f, numop: e.target.value }))} placeholder="OP" className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Origem (GENIUS)</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origensOptions} placeholder="Origem" /></div>
