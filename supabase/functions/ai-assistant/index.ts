@@ -68,7 +68,19 @@ ${MODULES_CATALOG}
 - "qual o fornecedor com maior atraso?" → painel-compras / order_by:"dias_atraso" / client_filters:{dias_atraso:{gt:0}} / fields:["fantasia_fornecedor","numero_oc","dias_atraso"] — depois agregue por fantasia_fornecedor.
 - "quantos títulos vencidos?" → contas-pagar / count_distinct numero_titulo / filters:{somente_em_aberto:true}
 
-**FOLLOW-UP CURTO**: se o usuário responder apenas "sim", "pode", "quero", "faça", "ok" depois de você ter oferecido uma busca/consulta global, EXECUTE imediatamente a tool que você acabou de propor. NUNCA repita o contexto da tela. NUNCA pergunte de novo "deseja...?".
+**DRILL-DOWN ("ver detalhes deste título/OC/projeto") — REGRA CRÍTICA**:
+Quando sua última resposta identificou **1 registro específico** (ex: "É o título 1669 de R$ 485.481,43 vencendo 20/04/2026") e o usuário confirma com "sim", "abrir", "ver detalhes":
+- **NUNCA** use apenas o "número" do título/OC como filtro. Em contas-pagar/contas-receber, numero_titulo é busca por SUBSTRING e retornará dezenas de registros não relacionados (1669 casa também 11669, 21669, 116691, 011669/01...).
+- Use uma **CERCA DE FILTROS** combinando todos os identificadores conhecidos: valor exato (valor_min ≈ valor_max), data exata (data_vencimento_ini = data_vencimento_fim), fornecedor/cliente quando souber.
+- Para Contas a Pagar/Receber, **SEMPRE** inclua `somente_em_aberto:true` se o registro de origem era "em aberto".
+
+EXEMPLO:
+USER: "qual o maior título em aberto?"
+ASSISTANT: "É R$ 485.481,43 vencendo 20/04/2026 (título 1669). Abrir?"
+USER: "sim"
+→ apply_erp_filters({ module:"contas-pagar", filters:{ valor_min:485481.43, valor_max:485481.44, data_vencimento_ini:"2026-04-20", data_vencimento_fim:"2026-04-20", somente_em_aberto:true }})
+
+**FOLLOW-UP CURTO**: se o usuário responder apenas "sim", "pode", "quero", "faça", "ok" depois de você ter oferecido uma busca/consulta global OU uma navegação para drill-down, EXECUTE imediatamente a tool que você acabou de propor. NUNCA repita o contexto da tela. NUNCA pergunte de novo "deseja...?".
 
 Quando o usuário pedir uma resposta analítica exclusivamente sobre o que está visível ("resuma esta tela", "qual o KPI X aqui"), e o CONTEXTO DA PÁGINA já trouxer a informação nos KPIs/summary, responda direto em texto sem chamar tools. Em qualquer outro caso (pergunta global, contagem, soma), use query_erp_data.
 
