@@ -27,7 +27,7 @@ const MODULE_LABELS: Record<string, string> = {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
 export function AiAssistantChat() {
-  const { canUseAi } = useUserPermissions();
+  const { canUseAi, canView, hasPermissions } = useUserPermissions();
   const { context: pageContext } = useAiPageContextValue();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -84,6 +84,81 @@ export function AiAssistantChat() {
     [navigate]
   );
 
+  const streamFromBody = useCallback(
+    async (
+      body: any,
+      assistantSoFarRef: { value: string },
+      upsertAssistant: (next: string) => void,
+      toolCallsAccum: Record<number, { id?: string; name?: string; args: string }>
+    ) => {
+      const resp = await fetch(CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (resp.status === 429) {
+        toast.error('Limite de requisições excedido. Aguarde alguns segundos.');
+        throw new Error('rate_limited');
+      }
+      if (resp.status === 402) {
+        toast.error('Créditos de IA esgotados. Adicione créditos no workspace.');
+        throw new Error('no_credits');
+      }
+      if (!resp.ok || !resp.body) throw new Error('Falha ao iniciar stream');
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = '';
+      let streamDone = false;
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') {
+            streamDone = true;
+            break;
+          }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const delta = parsed.choices?.[0]?.delta;
+            if (delta?.content) {
+              assistantSoFarRef.value += delta.content;
+              upsertAssistant(assistantSoFarRef.value);
+            }
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                const idx = tc.index ?? 0;
+                if (!toolCallsAccum[idx]) toolCallsAccum[idx] = { args: '' };
+                if (tc.id) toolCallsAccum[idx].id = tc.id;
+                if (tc.function?.name) toolCallsAccum[idx].name = tc.function.name;
+                if (tc.function?.arguments) toolCallsAccum[idx].args += tc.function.arguments;
+              }
+            }
+          } catch {
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+    },
+    []
+  );
+
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading) return;
@@ -94,107 +169,108 @@ export function AiAssistantChat() {
       setInput('');
       setIsLoading(true);
 
-      // Insert empty assistant placeholder for streaming
-      let assistantSoFar = '';
-      const toolCallsAccum: Record<number, { name?: string; args: string }> = {};
-
+      const assistantSoFarRef = { value: '' };
       const upsertAssistant = (next: string) => {
-        assistantSoFar = next;
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last?.role === 'assistant') {
             return prev.map((m, i) =>
-              i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
+              i === prev.length - 1 ? { ...m, content: next } : m
             );
           }
-          return [...prev, { role: 'assistant', content: assistantSoFar }];
+          return [...prev, { role: 'assistant', content: next }];
         });
       };
 
       try {
-        const resp = await fetch(CHAT_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'text/event-stream',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
+        const toolCallsAccum: Record<number, { id?: string; name?: string; args: string }> = {};
+        await streamFromBody(
+          {
             messages: allMessages.map((m) => ({ role: m.role, content: m.content })),
             pageContext,
-          }),
-        });
+          },
+          assistantSoFarRef,
+          upsertAssistant,
+          toolCallsAccum
+        );
 
-        if (resp.status === 429) {
-          toast.error('Limite de requisições excedido. Aguarde alguns segundos.');
-          throw new Error('rate_limited');
-        }
-        if (resp.status === 402) {
-          toast.error('Créditos de IA esgotados. Adicione créditos no workspace.');
-          throw new Error('no_credits');
-        }
-        if (!resp.ok || !resp.body) throw new Error('Falha ao iniciar stream');
-
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let textBuffer = '';
-        let streamDone = false;
-
-        while (!streamDone) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          textBuffer += decoder.decode(value, { stream: true });
-
-          let newlineIndex: number;
-          while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-            let line = textBuffer.slice(0, newlineIndex);
-            textBuffer = textBuffer.slice(newlineIndex + 1);
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (line.startsWith(':') || line.trim() === '') continue;
-            if (!line.startsWith('data: ')) continue;
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === '[DONE]') {
-              streamDone = true;
-              break;
-            }
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const delta = parsed.choices?.[0]?.delta;
-              if (delta?.content) upsertAssistant(assistantSoFar + delta.content);
-              if (delta?.tool_calls) {
-                for (const tc of delta.tool_calls) {
-                  const idx = tc.index ?? 0;
-                  if (!toolCallsAccum[idx]) toolCallsAccum[idx] = { args: '' };
-                  if (tc.function?.name) toolCallsAccum[idx].name = tc.function.name;
-                  if (tc.function?.arguments) toolCallsAccum[idx].args += tc.function.arguments;
-                }
-              }
-            } catch {
-              textBuffer = line + '\n' + textBuffer;
-              break;
-            }
-          }
-        }
-
-        // Process accumulated tool calls
         const toolCalls = Object.values(toolCallsAccum).filter((t) => t.name);
-        if (toolCalls.length) {
-          for (const tc of toolCalls) {
-            try {
-              const args = JSON.parse(tc.args);
-              const result = handleToolCall(tc.name!, args);
-              if (result) {
-                upsertAssistant(
-                  assistantSoFar ? `${assistantSoFar}\n\n${result}` : result
-                );
-              }
-            } catch {
-              // ignore
-            }
+        if (toolCalls.length === 0) {
+          if (!assistantSoFarRef.value) {
+            upsertAssistant('Desculpe, não consegui processar sua pergunta.');
           }
-          if (!assistantSoFar) upsertAssistant('Pronto! Os filtros foram aplicados.');
-        } else if (!assistantSoFar) {
-          upsertAssistant('Desculpe, não consegui processar sua pergunta.');
+          return;
+        }
+
+        // Separate client-side tools (query_erp_data) from navigation tools (apply_erp_filters)
+        const clientToolResults: Array<{ tool_call_id: string; name: string; result: any }> = [];
+        const navigationCalls: Array<{ name: string; args: any }> = [];
+
+        for (const tc of toolCalls) {
+          let args: any = {};
+          try {
+            args = JSON.parse(tc.args);
+          } catch {
+            args = {};
+          }
+          if (tc.name === 'query_erp_data') {
+            const tempMsg = `🔎 Consultando ERP (${args.module || '...'})...`;
+            upsertAssistant(assistantSoFarRef.value ? `${assistantSoFarRef.value}\n\n${tempMsg}` : tempMsg);
+            const result = await executeQueryErpData(args, canView, hasPermissions);
+            clientToolResults.push({
+              tool_call_id: tc.id || `call_${Math.random().toString(36).slice(2)}`,
+              name: tc.name,
+              result,
+            });
+          } else if (tc.name === 'apply_erp_filters') {
+            navigationCalls.push({ name: tc.name, args });
+          }
+        }
+
+        // If we have client tool results, send them back to the AI for final formatting
+        if (clientToolResults.length > 0) {
+          // Reset assistant content (will be replaced by streamed final response)
+          assistantSoFarRef.value = '';
+          upsertAssistant('');
+
+          const priorAssistant = {
+            content: '',
+            tool_calls: toolCalls
+              .filter((t) => t.name === 'query_erp_data')
+              .map((t) => ({
+                id: t.id,
+                type: 'function',
+                function: { name: t.name, arguments: t.args },
+              })),
+          };
+
+          const followupAccum: Record<number, { id?: string; name?: string; args: string }> = {};
+          await streamFromBody(
+            {
+              messages: allMessages.map((m) => ({ role: m.role, content: m.content })),
+              pageContext,
+              priorAssistant,
+              toolResults: clientToolResults,
+            },
+            assistantSoFarRef,
+            upsertAssistant,
+            followupAccum
+          );
+
+          if (!assistantSoFarRef.value) {
+            upsertAssistant('Não consegui formatar a resposta. Tente reformular.');
+          }
+        }
+
+        // Execute navigation tool calls (after rendering analytical answer)
+        for (const nav of navigationCalls) {
+          const result = handleToolCall(nav.name, nav.args);
+          if (result) {
+            assistantSoFarRef.value = assistantSoFarRef.value
+              ? `${assistantSoFarRef.value}\n\n${result}`
+              : result;
+            upsertAssistant(assistantSoFarRef.value);
+          }
         }
       } catch (e: any) {
         if (e.message !== 'rate_limited' && e.message !== 'no_credits') {
@@ -221,7 +297,7 @@ export function AiAssistantChat() {
         setIsLoading(false);
       }
     },
-    [input, messages, isLoading, handleToolCall, pageContext]
+    [input, messages, isLoading, handleToolCall, pageContext, streamFromBody, canView, hasPermissions]
   );
 
   const handleExplainPage = useCallback(() => {
