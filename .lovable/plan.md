@@ -1,67 +1,67 @@
 
 
-## Garantir filtro "Status da OP" funcionando (E / L / A / F / C / agrupados / Sem status)
+## Card de alerta piscante para OPs acima de 8h
 
 ### Diagnóstico
-Na tela `/auditoria-apontamento-genius` o `ComboboxFilter` "Status da OP" oferece 8 valores: `E`, `L`, `A`, `F`, `C`, `EM_ANDAMENTO`, `FINALIZADO`, `SEM_STATUS` (linhas 955–967). Esse valor é enviado direto ao backend em `status_op` (linhas 498 e 976).
+Hoje a tela `/auditoria-apontamento-genius` já calcula `kpis.acima8h` (quantidade de apontamentos acima de 8h) e exibe em um `KPICard` neutro junto com os demais KPIs. O usuário quer **destacar visualmente** esse indicador como um **alerta piscante**, para chamar atenção imediata quando houver OPs nessa condição.
 
-Porém o contrato documentado em `docs/backend-auditoria-apontamento-genius.md` só prevê dois valores aceitos pelo backend: `EM_ANDAMENTO` e `FINALIZADO`. Quando o usuário escolhe **Liberada (L)**, **Emitida (E)**, **Andamento (A)**, **Cancelada (C)** ou **Sem status**, o backend tende a **ignorar** o parâmetro (cláusula SQL cai no `OR :status_op IS NULL`) e devolve **todas** as OPs ativas. Como não há refiltragem client-side, a tela mostra registros que não correspondem ao filtro escolhido.
+### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx` + 1 keyframe em `tailwind.config.ts` / `src/index.css`)
 
-Sintoma relatado: ao selecionar **Liberada**, a consulta retorna OPs de outros status.
+**1. Novo componente local `AlertaAcima8hCard`** (definido no próprio arquivo da página, logo acima de `AuditoriaApontamentoGeniusPage`):
+- Recebe props: `quantidade: number`, `onClick: () => void` (abre o drill `acima8h` já existente).
+- Renderização condicional:
+  - Se `quantidade === 0` → renderiza um card **verde discreto** com ícone `ShieldCheck` e texto "Sem apontamentos acima de 8h" (sem piscar).
+  - Se `quantidade > 0` → renderiza card **vermelho destacado**:
+    - Borda grossa `border-2 border-destructive`
+    - Fundo `bg-destructive/10`
+    - Ícone `AlertTriangle` grande (28px) à esquerda, com `animate-pulse-alert` (piscando)
+    - Texto principal: `{quantidade} apontamento(s) acima de 8h` em `text-2xl font-bold text-destructive`
+    - Subtítulo: `Clique para ver detalhes` em `text-xs`
+    - Halo externo via `shadow-[0_0_0_4px_hsl(var(--destructive)/0.15)]` com pulsação suave
+    - `cursor-pointer` + `onClick` chamando `setKpiDrill({ kind: 'acima8h' })` (mesmo handler já usado pelo KPICard atual)
+- Acessibilidade: `role="button"`, `aria-label="Alerta: apontamentos acima de 8 horas"`, `tabIndex={0}` e handler de `Enter`.
 
-### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
+**2. Posicionamento no layout**
+- Inserir o `AlertaAcima8hCard` **acima do grid de KPIs** (logo abaixo do `FilterPanel` / aviso de status), ocupando a largura total (`w-full`). Assim o alerta fica em destaque máximo e não se "perde" entre os 8 KPIs.
+- Manter o `KPICard` "Acima de 8h" existente no grid (informativo, sem piscar) — o novo card é o destaque visual; o KPICard continua para consistência do painel.
 
-**1. Mapear o valor enviado ao backend para o que ele aceita (sem mudar a UI)**
+**3. Animação de pulso (piscar)**
+Adicionar em `tailwind.config.ts` dentro de `keyframes` e `animation`:
+```ts
+keyframes: {
+  'pulse-alert': {
+    '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+    '50%':      { opacity: '0.55', transform: 'scale(1.06)' },
+  },
+  'glow-alert': {
+    '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--destructive) / 0.45)' },
+    '50%':      { boxShadow: '0 0 0 12px hsl(var(--destructive) / 0)' },
+  },
+},
+animation: {
+  'pulse-alert': 'pulse-alert 1.2s ease-in-out infinite',
+  'glow-alert':  'glow-alert 1.6s ease-out infinite',
+},
+```
+- Aplicar `animate-pulse-alert` no ícone e `animate-glow-alert` no card externo.
+- Respeitar `prefers-reduced-motion`: envolver ambas animações com `motion-reduce:animate-none` nas classes do JSX, evitando piscar para usuários sensíveis.
 
-Criar helper `mapStatusOpParaApi(v)`:
-- `''` → `'TODOS'`
-- `'F'` ou `'FINALIZADO'` → `'FINALIZADO'`
-- `'E'`, `'L'`, `'A'`, `'EM_ANDAMENTO'` → `'EM_ANDAMENTO'`
-- `'C'` → `'TODOS'` (backend não tem chave dedicada; refiltrar no client)
-- `'SEM_STATUS'` → `'TODOS'` (refiltrar no client)
-
-Aplicar nos dois pontos que enviam `status_op`:
-- `buscarAuditoriaApontamentoGenius` (linha 498)
-- `exportParams` (linha 976)
-
-**2. Refiltro client-side de garantia por letra exata / agrupamento**
-
-Criar `useMemo` `dadosFiltradosPorStatusOp` que aplica em cima de `data?.dados` o filtro pela seleção real do usuário (`filters.status_op`), comparando contra `getOpStatusLetra(row)` (helper já existente nas linhas ~190–198). Regras:
-- `''` → não filtra.
-- `'E'`/`'L'`/`'A'`/`'F'`/`'C'` → mantém apenas linhas cuja letra coincide.
-- `'EM_ANDAMENTO'` → mantém `E`, `L`, `A`.
-- `'FINALIZADO'` → mantém `F`.
-- `'SEM_STATUS'` → mantém linhas onde `getOpStatusLetra` retorna `''`.
-
-Substituir o uso de `data?.dados` por esse array filtrado nos consumidores que renderizam grid e calculam KPIs:
-- `aplicarFiltroListaApontGenius` (linha 602): trocar `data?.dados || []` por `dadosFiltradosPorStatusOp`.
-- `atualizarKpisApontGenius` (linha 636): idem para `rows` (mantendo `r = data.resumo` apenas para fallback de números globais).
-- `linhasDoKpi` (linha ~933+): idem na fonte `all`.
-- Qualquer outro `data.dados` usado nas agregações de OPs por letra (linhas 661–675, ~781–788) deve usar o array refiltrado para refletir corretamente o recorte.
-
-**3. Indicador visual no rodapé do `FilterPanel`**
-
-Quando `filters.status_op` for `'C'` ou `'SEM_STATUS'`, exibir um pequeno texto `text-[11px] text-muted-foreground` dentro do `FilterPanel`: "Filtro aplicado localmente sobre a página atual — paginar para ver mais."  
-Justificativa: o backend devolve TODOS, então a paginação cobre o universo total; o refiltro só restringe o que é exibido por página. Não é ideal, mas evita confusão.
-
-**4. Atualizar contadores de "página atual" para refletirem o refiltro**
-
-`paginaCarregada` usado nos KPIs deve passar a ser `dadosFiltradosPorStatusOp.length` (em vez de `data.dados.length`) para que o aviso "X de Y" continue coerente.
+**4. Comportamento**
+- Clique no card → abre o `KpiDeepSheet` com `kind: 'acima8h'` (mesmo drill já existente, com paginação implementada anteriormente).
+- Quantidade exibida usa exatamente `kpis.acima8h` para se manter coerente com o KPI já calculado.
+- Quando `kpis.acima8h === 0`, o card verde aparece estático (sem animação) confirmando "tudo certo".
 
 ### Detalhes técnicos
-- Sem mudanças em backend, contrato ou migrations.
-- Helper `getOpStatusLetra` já existe no arquivo (~linha 190) — apenas reutilizar.
-- Refiltro é puro `Array.filter` em memória, sem custo perceptível.
-- Mantém compatibilidade caso o backend passe a aceitar letras nativas (a função client continua válida e converge).
+- Sem novas dependências; usa Tailwind + lucide-react (`AlertTriangle`, `ShieldCheck`) já presentes.
+- Sem mudança na lógica de cálculo, filtros, paginação ou drill.
+- Acessibilidade: foco visível e suporte a teclado garantidos via `tabIndex` + handler de tecla.
+- Reduced motion respeitado.
 
 ### Fora de escopo
-- Mudar o backend para aceitar `E/L/A/C/SEM_STATUS` (será rastreado em doc separada se necessário).
-- Alterar o `ComboboxFilter` ou as opções exibidas.
-- Mexer em outros filtros (`somente_discrepancia`, `somente_acima_8h`, datas, etc.).
+- Som de alerta / notificação push.
+- Persistir "marcado como visto" / dismiss.
+- Replicar o padrão em outras telas (pode ser feito depois se desejado).
 
 ### Resultado
-- Selecionar **Liberada (L)** passa a exibir apenas OPs com `sitorp = 'L'` no grid e nos KPIs.
-- O mesmo vale para `E`, `A`, `C` e `SEM_STATUS` — antes ignorados pelo backend.
-- `EM_ANDAMENTO` e `FINALIZADO` continuam funcionando como hoje (agora reforçados pelo client-side).
-- Aviso opcional informa quando o filtro é client-side, evitando interpretação errada da paginação.
+Quando houver apontamentos acima de 8h, um card vermelho largo, com ícone e borda piscando suavemente, aparece logo acima dos KPIs. Clicar abre o detalhamento dessas OPs. Quando não houver, um card verde discreto confirma que está tudo dentro do limite.
 
