@@ -182,6 +182,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_error_logs: { Args: never; Returns: undefined }
       is_admin: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
