@@ -1155,7 +1155,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 </span>
               )}
             </div>
-            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} keepEmptyKeys={['numorp', 'codori']} />
           </div>
         }
       />
