@@ -826,6 +826,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       case 'semFim':          return all.filter((r) => !r.hora_final || String(r.status_movimento ?? '').toUpperCase() === 'ABERTO');
       case 'fimMenorInicio':  return all.filter((r) => (r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial)) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
       case 'acima8h':         return all.filter((r) => minToHours(r.horas_realizadas) > 8 || minToHours(r.total_horas_dia_operador) > 8);
+      case 'abaixo5min':      return all.filter((r) => { const m = Number(r.horas_realizadas) || 0; return m > 0 && m < 5; });
       case 'discrepancias':   return all.filter(isLinhaDiscrepante);
       case 'maiorTotalDia':   return maxTotalDiaMin > 0 ? all.filter((r) => Number(r.total_horas_dia_operador || 0) === maxTotalDiaMin) : [];
     }
