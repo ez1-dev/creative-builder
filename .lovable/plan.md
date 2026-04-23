@@ -1,54 +1,81 @@
 
 
-## Verificação do botão "Atualizar agora" no modal de update
+## Diagnóstico: modal não some após atualização e novo deploy não dispara
 
-### Diagnóstico do código atual
-Revisei `src/components/UpdateNotifier.tsx` e `src/components/ui/dialog.tsx`:
+### Sintomas observados (logs)
+- `app_settings.app_version = "1.0.1"` (banco)
+- Polling continua retornando `1.0.1` a cada 60s
+- Modal aparece, usuário clica "Atualizar agora", página recarrega, mas o **modal volta a aparecer** (ou nunca some)
+- `CURRENT_VERSION = import.meta.env.VITE_APP_VERSION || '0.0.0'`
 
-- O `<Button>` "Atualizar agora" já está envolvido em uma `<div>` (correção aplicada na rodada anterior), então não é mais filho direto de `DialogContent` e não é afetado pelo seletor `[&>button]:hidden`.
-- O botão "X" do shadcn (`<DialogPrimitive.Close>`) tem `className="absolute right-4 top-4..."` e **é** filho direto de `DialogContent` → continua oculto corretamente.
-- O session replay confirma o fluxo funcionando: modal apareceu (v1.0.1), usuário clicou "Atualizar agora", botão virou "Atualizando..." com spinner, página recarregou.
+### Causa raiz
+**`VITE_APP_VERSION` não está definido em lugar nenhum.** Não existe `.env` com essa variável, não há `define` no `vite.config.ts`, e o `package.json` (que tem a versão real) não é lido em runtime no browser. Resultado:
 
-### Pontos de atenção encontrados (responsividade)
+- `CURRENT_VERSION` sempre vale `'0.0.0'`
+- Banco tem `'1.0.1'` → `'0.0.0' !== '1.0.1'` → modal abre **sempre**
+- Após o reload, `CURRENT_VERSION` continua `'0.0.0'` → modal abre **de novo**, em loop
 
-1. **`sm:max-w-md` + largura `w-full`**: em viewports < 640px (mobile), o `DialogContent` ocupa 100% da largura sem padding lateral. Como o `translate-x-[-50%]` é aplicado, o modal pode encostar nas bordas em telas muito estreitas (320–375px). O botão em si aparece (`w-full`), mas o modal fica colado nas laterais.
+E o `AppLayout` mostra `v{packageJson.version}` no rodapé (lê o `package.json` direto via import) → o rodapé mostra a versão certa, mas o `UpdateNotifier` não.
 
-2. **Badges de versão**: a linha `Atual: v1.0.0 → Nova: v1.0.1` usa `flex items-center justify-center gap-3`. Em telas muito estreitas (320px) com versões longas (ex.: `1.0.10-beta.1`), pode quebrar layout — mas com versões curtas (atual) está ok.
+Sobre "não sai caixa de nova versão" para deploys novos: como o app está em `id-preview--*.lovableproject.com` (modo dev do Vite, sem hash no bundle — o `index.html` mostra `/src/main.tsx?t=...`), o `checkBundleHash` **nunca casa** o regex `/assets/index-[hash].js` e fica silencioso. Em produção (publicado) funcionaria, mas em preview não.
 
-3. **Z-index e overlay**: `z-50` no overlay e content — sem conflito com sidebar (`z-40` no shadcn) ou outros elementos.
+### Correção (1 arquivo)
 
-### Plano de verificação
+**`src/components/UpdateNotifier.tsx`**:
 
-Como estou em modo plano (read-only), não posso executar o browser. Após aprovação, vou em modo default:
+1. **Trocar a fonte da versão atual** — usar `package.json` diretamente, igual ao `AppLayout`:
+   ```ts
+   import packageJson from '../../package.json';
+   const CURRENT_VERSION = packageJson.version;
+   ```
+   Remove a dependência de `VITE_APP_VERSION`. Agora `CURRENT_VERSION` será `"1.0.0"` (ou o que estiver no `package.json`) de verdade.
 
-1. **Abrir o preview** em `/configuracoes` (admin já logado).
-2. **Forçar exibição do modal** alterando temporariamente `app_settings.app_version` para um valor diferente do atual via SQL, ou simulando via dev tools.
-3. **Capturar screenshots** em 4 viewports representativos:
-   - Desktop: 1920×1080
-   - Laptop: 1366×768
-   - Tablet: 768×1024
-   - Mobile: 375×812
-   - Mobile pequeno: 320×568
-4. **Validar em cada um** que:
-   - O modal aparece centralizado
-   - O botão "Atualizar agora" está visível, clicável e com largura adequada
-   - O ícone de download e os badges de versão renderizam sem overflow
-   - O botão "X" (fechar) NÃO aparece (modal bloqueante)
-   - ESC e clique fora não fecham o modal
-5. **Testar em rotas variadas** (`/`, `/estoque`, `/contas-pagar`, `/producao/dashboard`) para confirmar que o `UpdateNotifier` aparece globalmente (está em `AppLayout`, então cobre todas as rotas autenticadas).
+2. **Persistir versão "já vista" em `localStorage`** para quebrar o loop:
+   - Chave: `app:last_seen_version`
+   - Após reload bem-sucedido, gravar `localStorage.setItem('app:last_seen_version', remote)` ANTES do reload
+   - No `checkVersion`, comparar `remote !== CURRENT_VERSION` **E** `remote !== localStorage.getItem('app:last_seen_version')`
+   - Isso garante: se o usuário já clicou "Atualizar agora" para a versão `1.0.1`, mas o `package.json` do bundle ainda é `1.0.0` (porque o admin não bumpou no código), o modal não fica reabrindo eternamente
 
-### Correções condicionais (se algo aparecer)
+3. **Mesmo tratamento para `checkBundleHash`**:
+   - Salvar `app:last_seen_bundle` no localStorage antes do reload
+   - Comparar contra ele na próxima checagem
 
-Se nas screenshots eu detectar:
-- **Modal colado nas bordas em mobile** → adicionar `mx-4` ou ajustar `max-w-[calc(100%-2rem)]` no `DialogContent` do `UpdateNotifier`.
-- **Badges quebrando** → trocar `flex-row` por `flex-wrap` ou empilhar em mobile com `flex-col sm:flex-row`.
-- **Botão pequeno demais em mobile** → garantir `min-h-11` (44px touch target).
+4. **Em modo dev (preview Lovable)**, o regex de hash não casa — mantém comportamento silencioso, sem warning.
 
-Caso esteja tudo ok, apenas confirmar com print por viewport e nenhum ajuste de código será necessário.
+### Pseudocódigo da lógica de comparação
 
-### Arquivos potencialmente alterados (só se preciso)
-- `src/components/UpdateNotifier.tsx` — apenas classes Tailwind responsivas.
+```ts
+const lastSeenVersion = localStorage.getItem('app:last_seen_version');
+if (remote !== CURRENT_VERSION && remote !== lastSeenVersion) {
+  setLatestVersion(remote);
+  setShow(true);
+}
+
+const handleRefresh = async () => {
+  if (latestVersion && !latestVersion.startsWith('novo')) {
+    localStorage.setItem('app:last_seen_version', latestVersion);
+  }
+  if (lastBundleRef.current) {
+    localStorage.setItem('app:last_seen_bundle', lastBundleRef.current);
+  }
+  // ... limpar caches + reload
+};
+```
+
+E na inicialização do `checkBundleHash`, ler `localStorage.getItem('app:last_seen_bundle')` como baseline em vez de `null`.
+
+### Como o admin "publica" uma nova versão (fluxo correto)
+1. Bumpar `version` no `package.json` (ex.: `1.0.0` → `1.0.1`)
+2. Publicar o app (Lovable Publish)
+3. Atualizar `app_settings.app_version` na tela de Configurações para o mesmo valor `1.0.1`
+4. Usuários online verão o modal em até 60s, clicam "Atualizar", recarregam com `package.json = 1.0.1` → comparação `1.0.1 === 1.0.1` → modal não reaparece ✅
+
+### Fora de escopo
+- Bump automático do `package.json` no deploy (continua manual).
+- Trigger no banco para sincronizar `app_version` automaticamente.
 
 ### Resultado
-Relatório com prints do modal em 5 viewports + lista do que está ok e do que foi ajustado (se houver). Se tudo estiver correto, nenhum código muda — apenas confirmação visual.
+- Modal aparece **somente quando** a versão remota for diferente da versão real do bundle (lida do `package.json`).
+- Após "Atualizar agora", o modal não reabre em loop, mesmo se a versão real do bundle ainda não estiver alinhada.
+- Em produção publicada, o `checkBundleHash` continua como fallback automático.
 
