@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Database, Layers, Package } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { useSearchTracking } from '@/hooks/useSearchTracking';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código', sticky: true, stickyWidth: 100 },
