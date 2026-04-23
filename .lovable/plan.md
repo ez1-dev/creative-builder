@@ -1,67 +1,46 @@
 
 
-## Verificação do contrato backend — Auditoria Apontamento Genius
+## Corrigir erro 422 ao exportar Excel no Painel de Compras
 
-### Status atual da documentação `docs/backend-auditoria-apontamento-genius.md`
+### Diagnóstico
+O endpoint `/api/export/painel-compras` retorna **422 (Unprocessable Entity)** quando o `ExportButton` envia os filtros do Painel de Compras como query params. 422 no FastAPI significa que algum parâmetro não passou na validação Pydantic do backend (tipo errado ou valor não aceito).
 
-A documentação está **completa e alinhada** com o que o frontend espera. Resumo do que está documentado:
+Causa provável (a confirmar inspecionando `PainelComprasPage.tsx` antes de aplicar o fix):
+- O `ExportButton` serializa **todos** os filtros do estado via `String(value)`. Filtros boolean (ex.: `somente_em_aberto`, `incluir_servicos`) viram a string `"true"`/`"false"`, e o backend espera `bool` real ou os literais `1/0`.
+- Filtros do tipo array (ex.: lista de status, múltiplos fornecedores) são serializados como `"a,b,c"` em vez de repetir a chave (`?status=a&status=b`), formato exigido pelo FastAPI para `List[str]`.
+- Datas no formato `dd/MM/yyyy` quando o backend espera `yyyy-MM-dd` (ou vice-versa).
+- Campos numéricos (ex.: `tamanho_pagina`, valores mínimos) chegando como string vazia `""` em vez de serem omitidos.
 
-**1) Origens GENIUS fixas (filtro obrigatório)**
-`110, 120, 130, 135, 140, 150, 205, 208, 210, 220, 230, 235, 240, 245, 250` — backend deve sempre filtrar mesmo quando `codori` não vier.
+### Plano de correção
 
-**2) Status nativos da OP (E900COP)**
-`E/L/A` = ativa · `F` = finalizada · `C` = cancelada · `SEM_STATUS` quando faltar.
+**1) Inspecionar o estado real**
+- Abrir `src/pages/PainelComprasPage.tsx` e listar exatamente quais campos compõem `filters` (tipos: string, boolean, array, número, data).
+- Cruzar com o contrato do backend (procurar em `docs/` se houver `.md` do painel-compras; senão, inferir pelos filtros que o `GET /api/painel-compras` aceita hoje sem 422).
 
-**3) Bloco `debug` obrigatório enquanto resultados vierem vazios**
-Inclui `sql_final`, `parametros`, `etapas[]` (movimentos no período → origens GENIUS → join E900COP → por status), `contagem_por_origem`, `contagem_por_status_op`, `contagem_por_op`, `apontamentos_por_op`.
+**2) Tornar o `ExportButton` tolerante a tipos**
+Editar `src/components/erp/ExportButton.tsx` para serializar `params` corretamente:
+- `boolean` → enviar **só quando `true`**, como `"true"` (mesma convenção que o GET de listagem usa hoje); se for `false`, **omitir** a chave.
+- `Array` → fazer `searchParams.append(key, item)` para cada item (gera `?k=a&k=b`).
+- `string ""`, `null`, `undefined` → omitir.
+- `number` / `Date` → manter `String(value)`.
+- Datas que sejam `Date` → converter para ISO `yyyy-MM-dd` antes.
 
-**4) Endpoint `GET /api/auditoria-apontamento-genius`**
-Query params, response JSON com `dados[]` + `resumo` + status enum (OK / SEM_INICIO / SEM_FIM / FIM_MENOR_INICIO / APONTAMENTO_MAIOR_8H / OPERADOR_MAIOR_8H_DIA), modelos Pydantic e SQL exemplo (T-SQL Senior usando E660APO + E215OPE + E075PRO).
+**3) Alinhar payload de export ao payload da listagem**
+No Painel de Compras, em vez de passar `filters` cru para `<ExportButton params={filters} />`, passar o **mesmo objeto que é enviado para `api.get('/api/painel-compras', payload)`** (já normalizado pela página). Isso garante 1:1 entre busca e export.
 
-**5) Endpoint `GET /api/export/auditoria-apontamento-genius`** — XLSX com mesmos filtros.
-
-**6) Campos opcionais "Movtos. O.P./O.S." (já documentados na última iteração)**
-`derivacao`, `equipamento`, `qtde_primeira_qualidade`, `qtde_refugo`, `qtde_inspecao`, `tempo_bruto_min`, `tempo_liquido_min`, `centro_recurso`, `data_inicial`/`hora_inicial`, `data_final`/`hora_final` — frontend mostra `—` quando ausentes.
-
-### Inconsistências/lacunas detectadas que precisam de pequena correção no doc
-
-Comparando o doc com o que o frontend já consome em `src/lib/api.ts` (`AuditoriaApontamentoGeniusResponse.resumo`):
-
-1. **Falta documentar campos novos do `resumo`** que o frontend já lê:
-   - `total_ops_andamento` / `total_ops_finalizadas` (alias novos para `ops_em_andamento` / `ops_finalizadas`)
-   - `total_sem_inicio` / `total_sem_fim` / `total_fim_menor_inicio`
-   - `total_apontamento_maior_8h` / `total_operador_maior_8h_dia`
-   - `ops_canceladas` / `ops_sem_status`
-   
-   Hoje o doc só lista os nomes antigos (`sem_inicio`, `acima_8h`, etc.). Manter ambos como aceitos, mas marcar os `total_*` como preferidos.
-
-2. **Status `status_op` no item**: o doc mostra exemplo só com `EM_ANDAMENTO`/`FINALIZADO`, mas o frontend (e o próprio doc na seção "Status nativos") aceita também `E/L/A/F/C/SEM_STATUS`. Atualizar exemplo JSON e o `Pydantic` para refletir o enum nativo como preferido.
-
-3. **Filtro `status_op`**: o doc aceita só `EM_ANDAMENTO`/`FINALIZADO`. Adicionar valores nativos `E`, `L`, `A`, `F`, `C` como aceitos no query param.
-
-4. **Bloco "Campos opcionais Movtos. O.P./O.S."**: já está, mas falta acrescentar `seq_roteiro` como preferido sobre `seqrot` e citar fallbacks que o frontend faz (`equipamento ?? codigo_equipamento`, `centro_recurso ?? cod_recurso ?? codigo_centro_trabalho`).
-
-### Ações a aplicar (somente no `.md` — sem mudança de código frontend)
-
-Editar `docs/backend-auditoria-apontamento-genius.md`:
-
-- **Seção `### Response`** — atualizar exemplo JSON do item para usar `status_op: "A"` e adicionar bloco `resumo` completo com os campos `total_*` novos, mantendo os legados como aliases.
-- **Seção `### Pydantic`** — atualizar `ApontamentoGeniusItem.status_op` para aceitar `E/L/A/F/C/SEM_STATUS` e estender `ResumoApontGenius` com os campos `total_ops_andamento`, `total_ops_finalizadas`, `total_sem_inicio`, `total_sem_fim`, `total_fim_menor_inicio`, `total_apontamento_maior_8h`, `total_operador_maior_8h_dia`, `ops_canceladas`, `ops_sem_status`.
-- **Seção `### Query params`** — incluir na descrição do `status_op` que aceita também `E/L/A/F/C`.
-- **Seção `### Campos opcionais — formato ERP "Movtos. O.P./O.S."`** — adicionar nota com a tabela de fallbacks que o frontend aplica em `normalizeRowApont` (para o backend saber que pode mandar qualquer um dos nomes).
-- **Seção `### Checklist de validação`** — adicionar 3 itens:
-  - [ ] `resumo` retorna os campos `total_*` (preferidos) além dos legados.
-  - [ ] `status_op` no item usa códigos nativos (`E/L/A/F/C`) quando possível.
-  - [ ] Bloco `debug` continua sendo retornado enquanto a investigação estiver ativa (até confirmação explícita de que pode ser removido).
+**4) Validar**
+- Reproduzir o cenário exato (mesmos filtros do print do usuário, viewport 1568×790, rota `/painel-compras`).
+- Confirmar `200` + download do `.xlsx`.
+- Testar 3 combinações: (a) sem filtros, (b) com booleano marcado, (c) com filtro de período preenchido.
 
 ### Arquivos alterados
-- `docs/backend-auditoria-apontamento-genius.md` (única alteração — o frontend já está pronto para receber os campos atualizados)
+- `src/components/erp/ExportButton.tsx` — serialização robusta de booleans, arrays, datas e vazios.
+- `src/pages/PainelComprasPage.tsx` — passar o mesmo `payload` normalizado da consulta para o `ExportButton` (em vez de `filters` cru), se o diff entre eles for a causa.
 
 ### Fora de escopo
-- Mudar código do frontend (já está alinhado e tolerante a payloads parciais).
-- Implementar o backend em si — o doc é apenas o contrato.
-- Remover o bloco `debug` (deve permanecer até a investigação dos resultados vazios concluir).
+- Mudar o backend (não temos acesso; apenas adaptamos o frontend ao contrato).
+- Alterar outros `ExportButton` de outras telas — o fix no componente é genérico e beneficia todas, sem precisar editar página por página.
 
 ### Resultado
-A documentação backend passa a refletir exatamente os campos que o frontend já consome (incluindo os aliases `total_*` do `resumo`, status nativo da OP em uma letra, e fallbacks dos campos opcionais de "Movtos. O.P./O.S."), eliminando ambiguidade para quem for implementar o endpoint no FastAPI.
+Exportar Excel no Painel de Compras volta a funcionar com qualquer combinação de filtros, e o componente `ExportButton` passa a tratar corretamente boolean/array/data/vazio em todas as telas que o usam.
 
