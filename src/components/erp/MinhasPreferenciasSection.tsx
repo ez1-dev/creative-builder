@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,8 +15,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Trash2, Sparkles, History, Star } from 'lucide-react';
+import { Trash2, Sparkles, History, Star, Bot, RotateCcw } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserSuggestions';
+import { useAiAssistantPrefs } from '@/hooks/useAiAssistantPrefs';
 import { toast } from 'sonner';
 
 const MODULE_LABELS: Record<string, string> = {
@@ -42,6 +45,7 @@ function summarize(filters: Record<string, any>) {
 
 export function MinhasPreferenciasSection() {
   const { data, loading, clearHistory } = useUserPreferences();
+  const { prefs, setAutoOpenEnabled, resetPanelPositions } = useAiAssistantPrefs();
   const [clearing, setClearing] = useState(false);
 
   const handleClear = async () => {
