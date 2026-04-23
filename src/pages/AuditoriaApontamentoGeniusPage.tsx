@@ -606,11 +606,9 @@ export default function AuditoriaApontamentoGeniusPage() {
         status_op: mapStatusOpParaApi(filters.status_op),
         somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
         somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
-      }, { keepEmpty: ['numorp', 'codori'] } as any);
-      // (parêntese de fechamento removido logo abaixo - antigo)
         pagina: page,
         tamanho_pagina: 100,
-      });
+      }, { keepEmpty: ['numorp', 'codori'] });
       result.dados = (result.dados ?? []).map(normalizeRowApont);
       if (import.meta.env.DEV && result.dados.length > 0) {
         // eslint-disable-next-line no-console
