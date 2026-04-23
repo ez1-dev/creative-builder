@@ -1,68 +1,36 @@
 
 
-## Reorganização visual dos filtros da Auditoria Apontamento Genius
+## Cadastrar "Auditoria Apont. Genius" em Permissões por Tela
 
 ### Diagnóstico
-O `FilterPanel` atual joga tudo em um grid plano de 5 colunas: datas avulsas, botão "Últimos 12 meses", atalhos por semana, navegador semanal, 5 campos de texto/combobox e 2 switches. Resultado: linhas desalinhadas, "Últimos 12 meses" flutuando isolado, switches espremidos no fim, e o navegador semanal compete com os campos de busca pelo espaço.
+Na tela `/configuracoes`, a constante `ALL_SCREENS` (linhas 20–42 de `src/pages/ConfiguracoesPage.tsx`) lista todas as telas que aparecem na matriz "Permissões por Tela" de cada perfil. A entrada **`/auditoria-apontamento-genius`** está faltando — por isso administradores não conseguem liberar/bloquear essa tela por perfil. Hoje, qualquer perfil com permissões configuradas acaba **sem acesso** a ela (a regra `canView` retorna `false` quando o path não está em `profile_screens`).
 
-### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`, ~linhas 1108–1251)
+A rota já existe em `App.tsx`, está protegida por `ProtectedRoute` e aparece no `AppSidebar`, então só falta registrá-la na matriz.
 
-Reagrupar o conteúdo do `FilterPanel` em **3 blocos verticais bem demarcados**, cada um com seu próprio título pequeno (`text-[11px] font-semibold uppercase text-muted-foreground`) e um `Separator` ou borda sutil entre eles. O `FilterPanel` passa a receber um único `<div className="space-y-3 col-span-full">` em vez de 10+ filhos soltos no grid.
+### Mudança (arquivo único: `src/pages/ConfiguracoesPage.tsx`)
 
-**Bloco 1 — Período**
-Linha única com 3 sub-áreas alinhadas:
+Adicionar uma linha em `ALL_SCREENS`, logo após "Auditoria Tributária" (linha 28), mantendo o agrupamento lógico:
+
+```ts
+{ path: '/auditoria-tributaria', name: 'Auditoria Tributária' },
+{ path: '/auditoria-apontamento-genius', name: 'Auditoria Apont. Genius' },
+{ path: '/conciliacao-edocs', name: 'Conciliação EDocs' },
 ```
-[ Data inicial ] [ Data final ] | [ Últimos 12 meses ] | [ ◀  S17/2026 · 20/04 – 26/04  ▶  Hoje ]
-                                | [ Esta semana ] [ Sem. passada ] [ Últimas 4 sem. ]
-```
-- Esquerda: dois inputs `date` lado a lado (largura fixa `w-[140px]` cada).
-- Centro: botão "Últimos 12 meses" + linha com os 3 atalhos semanais (`flex flex-wrap gap-1`).
-- Direita: o navegador semanal em uma "pill" compacta (já existe, só muda a posição).
-- Tudo dentro de um `flex flex-wrap gap-x-4 gap-y-2 items-end`, garantindo que em telas estreitas ele quebre naturalmente.
 
-**Bloco 2 — Filtros de busca**
-Grid próprio `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3` com os 5 campos atuais na ordem mais usada:
-1. Número da OP
-2. Status da OP
-3. Origem (GENIUS)
-4. Código produto
-5. Operador
-
-Justificativa: "Status da OP" sobe para o segundo lugar porque é o filtro mais usado para recortar problemas; os outros seguem ordem alfabética/lógica de identificação.
-
-**Bloco 3 — Opções rápidas (toggles)**
-Linha horizontal `flex flex-wrap gap-x-6 gap-y-2` com:
-- `Somente discrepância`
-- `Somente acima de 8h`
-
-Cada switch + label num grupo `inline-flex items-center gap-2`, sem o `pt-5` artificial atual. Os botões `Pesquisar` / `Limpar` continuam onde já estão (no rodapé do `FilterPanel`).
+### Pós-implementação (ação do administrador)
+Depois do deploy, o admin precisa abrir **Configurações → Permissões por Tela**, para cada perfil que deva acessar a auditoria, marcar **Visualizar** (e **Editar**, se aplicável) na nova linha "Auditoria Apont. Genius". Sem isso, perfis existentes continuarão sem ver a tela.
 
 ### Detalhes técnicos
-- Usar `Separator` (`@/components/ui/separator`) entre blocos, ou simplesmente `border-t pt-3` no segundo e terceiro blocos.
-- Como o `FilterPanel` atual aplica um `grid` nos filhos, envolver todo o conteúdo em um único `<div className="col-span-full space-y-3">` — assim o grid externo não interfere e cada bloco controla seu próprio layout.
-- Preservar todos os handlers, estados e helpers existentes (`inicioSemana`, `fimSemana`, `addWeeks`, `labelSemana`, `toISODate`).
-- Sem mudança em nenhum filtro funcional, backend, KPIs ou paginação.
-- Acessibilidade: cada `<Label>` continua associado ao seu input via `htmlFor` onde já estiver (switches mantêm o vínculo).
-
-### Resultado visual esperado
-```text
-┌─ Filtros ──────────────────────────────────────────────────────────────────┐
-│ PERÍODO                                                                    │
-│ [Data inicial][Data final]  [Últimos 12 meses]   ◀ S17/2026·20–26 abr ▶ Hoje│
-│                             [Esta sem][Sem. passada][Últimas 4 sem]        │
-│ ──────────────────────────────────────────────────────────────────────────  │
-│ FILTROS DE BUSCA                                                           │
-│ [N. OP] [Status OP] [Origem] [Código produto] [Operador]                   │
-│ ──────────────────────────────────────────────────────────────────────────  │
-│ OPÇÕES RÁPIDAS                                                             │
-│ ⏻ Somente discrepância    ⏻ Somente acima de 8h                            │
-│                                                                            │
-│ [🔍 Pesquisar]  [✕ Limpar]                                                 │
-└────────────────────────────────────────────────────────────────────────────┘
-```
+- Mudança puramente declarativa em uma constante.
+- Sem migração de banco: a permissão é criada/atualizada sob demanda em `profile_screens` quando o admin marca os toggles (já existe a lógica `toggleScreen` nas linhas 340–358).
+- `useUserPermissions` já lê dinamicamente o que estiver em `profile_screens`, então passa a respeitar a nova tela automaticamente.
+- Sem mudança em rotas, sidebar, RLS ou qualquer outro arquivo.
 
 ### Fora de escopo
-- Mudar comportamento de qualquer filtro.
-- Salvar preferências entre sessões.
-- Adicionar novos filtros.
+- Conceder a permissão automaticamente a perfis existentes (deve ser feito manualmente pelo admin, para preservar o controle).
+- Reorganizar a ordem das demais telas.
+- Adicionar agrupamento visual por categoria na matriz.
+
+### Resultado
+A linha "Auditoria Apont. Genius" passa a aparecer na matriz de Permissões por Tela de cada perfil em Configurações, permitindo liberar/bloquear o acesso da mesma forma que as demais telas.
 
