@@ -35,7 +35,8 @@ Regras:
 - Responda sempre em português brasileiro.
 - Seja objetivo e claro na explicação do que está fazendo.
 - Quando usar a tool, inclua uma explicação curta do que será buscado.
-- Use markdown (negrito, listas, tabelas) para organizar respostas longas.`;
+- Use markdown (negrito, listas, tabelas) para organizar respostas longas.
+- Quando o usuário fizer perguntas analíticas sobre a tela atual ("qual o total?", "quantos registros?", "qual o maior?", "resuma esta tela"), USE EXCLUSIVAMENTE os dados em CONTEXTO DA PÁGINA ATUAL (kpis, filtros, summary). NUNCA invente números. Se o contexto não trouxer a informação, diga claramente que não está visível na tela e sugira aplicar filtros ou exportar.
 
 const tools = [
   {
