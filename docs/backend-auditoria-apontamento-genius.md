@@ -125,21 +125,35 @@ Antes de concluir “sem dados”, o backend deve obrigatoriamente retornar:
       "horas_alocadas": 8.0,
       "horas_apontadas": 9.25,
       "total_dia_operador": 9.25,
-      "status_op": "EM_ANDAMENTO",
+      "status_op": "A",
       "status": "APONTAMENTO_MAIOR_8H"
     }
   ],
   "resumo": {
     "total_registros": 1234,
     "total_discrepancias": 87,
+
+    "// Campos preferidos (total_*) — frontend prioriza estes": "",
+    "total_sem_inicio": 5,
+    "total_sem_fim": 12,
+    "total_fim_menor_inicio": 2,
+    "total_apontamento_maior_8h": 60,
+    "total_operador_maior_8h_dia": 8,
+    "total_ops_andamento": 42,
+    "total_ops_finalizadas": 178,
+
+    "// Aliases legados — backend pode enviar ambos": "",
     "sem_inicio": 5,
     "sem_fim": 12,
     "fim_menor_inicio": 2,
     "acima_8h": 68,
-    "maior_total_dia_operador": 11.5,
-    "operador_maior_total": "OP-007",
     "ops_em_andamento": 42,
-    "ops_finalizadas": 178
+    "ops_finalizadas": 178,
+    "ops_canceladas": 7,
+    "ops_sem_status": 0,
+
+    "maior_total_dia_operador": 11.5,
+    "operador_maior_total": "OP-007"
   }
 }
 ```
