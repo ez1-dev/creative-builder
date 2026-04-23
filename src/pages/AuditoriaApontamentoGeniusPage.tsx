@@ -794,8 +794,12 @@ export default function AuditoriaApontamentoGeniusPage() {
     const sa = String(row.status_movimento ?? '').toUpperCase();
     const horas = minToHours(row.horas_realizadas);
     const totDia = minToHours(row.total_horas_dia_operador);
+    const minRaw = Number(row.horas_realizadas) || 0;
     if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
+    }
+    if (minRaw > 0 && minRaw < 5) {
+      return 'bg-amber-500/10 hover:bg-amber-500/20';
     }
     if (sa === 'ABERTO' || sa === 'SEM_APONTAMENTO') {
       return 'bg-amber-500/5 hover:bg-amber-500/10';
