@@ -298,12 +298,23 @@ export function AiAssistantChat() {
           <ScrollArea className="flex-1 min-h-0 max-h-[420px]" ref={scrollRef}>
             <div className="space-y-3 p-4">
               {messages.length === 0 && (
-                <div className="text-center text-xs text-muted-foreground py-8 space-y-2">
-                  <Sparkles className="mx-auto h-8 w-8 text-primary/40" />
-                  <p>Olá! Pergunte sobre seus dados do ERP.</p>
-                  <p className="text-[11px]">Ex: "Quais itens da família 001 têm estoque?"</p>
-                  <p className="text-[10px] text-muted-foreground/70">Atalho: <kbd className="rounded border px-1">Ctrl</kbd> + <kbd className="rounded border px-1">J</kbd></p>
-                </div>
+                <>
+                  <div className="text-center text-xs text-muted-foreground py-4 space-y-2">
+                    <Sparkles className="mx-auto h-8 w-8 text-primary/40" />
+                    <p>Olá! Pergunte sobre seus dados do ERP.</p>
+                    <p className="text-[11px]">Ex: "Quais itens da família 001 têm estoque?"</p>
+                    <p className="text-[10px] text-muted-foreground/70">
+                      Atalho: <kbd className="rounded border px-1">Ctrl</kbd> +{' '}
+                      <kbd className="rounded border px-1">J</kbd>
+                    </p>
+                  </div>
+                  {suggestions.length > 0 && (
+                    <SearchSuggestions
+                      suggestions={suggestions}
+                      onPick={handlePickSuggestion}
+                    />
+                  )}
+                </>
               )}
               {messages.map((msg, i) => (
                 <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
