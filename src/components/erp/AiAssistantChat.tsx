@@ -345,13 +345,212 @@ export function AiAssistantChat() {
     [currentModule, location.pathname, navigate]
   );
 
+  const handleClose = useCallback(() => {
+    recordAiClose(location.pathname, true);
+    setOpen(false);
+    setMinimized(false);
+  }, [location.pathname]);
+
+  // Drag handler for desktop panel header
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const onHeaderMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (placement.isMobile || !placement.position) return;
+      // Avoid dragging when clicking buttons
+      const target = e.target as HTMLElement;
+      if (target.closest('button')) return;
+      dragRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: placement.position.x,
+        origY: placement.position.y,
+      };
+      e.preventDefault();
+    },
+    [placement.isMobile, placement.position]
+  );
+
+  useEffect(() => {
+    if (placement.isMobile) return;
+    const onMove = (e: MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      placement.updatePosition({
+        x: d.origX + (e.clientX - d.startX),
+        y: d.origY + (e.clientY - d.startY),
+      });
+    };
+    const onUp = () => {
+      dragRef.current = null;
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [placement]);
+
   if (!canUseAi) return null;
+
+  const moduleLabel = currentModule ? MODULE_LABELS[currentModule] : undefined;
+
+  const headerContent = (
+    <>
+      <div
+        onMouseDown={onHeaderMouseDown}
+        className={cn(
+          'flex items-center justify-between border-b px-4 py-3',
+          !placement.isMobile && 'cursor-move select-none'
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {!placement.isMobile && <GripHorizontal className="h-3.5 w-3.5 text-muted-foreground/60" />}
+          <Bot className="h-5 w-5 text-primary" />
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold leading-tight">Assistente IA</span>
+            {pageContext?.title && (
+              <span className="text-[10px] text-muted-foreground leading-tight">
+                Contexto: {pageContext.title}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
+          {pageContext && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleExplainPage}
+              disabled={isLoading}
+              title="Explique esta página"
+            >
+              <HelpCircle className="h-4 w-4" />
+            </Button>
+          )}
+          {!placement.isMobile && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={placement.togglePinned}
+                title={placement.pinned ? 'Desafixar posição' : 'Fixar posição nesta tela'}
+              >
+                {placement.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setMinimized(true)}
+                title="Minimizar"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={handleClose}
+            title="Fechar (Ctrl+J)"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 min-h-0" ref={scrollRef}>
+        <div className="space-y-3 p-4">
+          {messages.length === 0 && (
+            <>
+              <div className="text-center text-xs text-muted-foreground py-2 space-y-1">
+                <Sparkles className="mx-auto h-7 w-7 text-primary/40" />
+                <p>Pergunte sobre seus dados do ERP.</p>
+                <p className="text-[10px] text-muted-foreground/70">
+                  Atalho: <kbd className="rounded border px-1">Ctrl</kbd> +{' '}
+                  <kbd className="rounded border px-1">J</kbd>
+                </p>
+              </div>
+              <AiProactiveBanner
+                moduleKey={currentModule}
+                moduleLabel={moduleLabel}
+                filterSuggestions={suggestions}
+                onPickFilter={handlePickSuggestion}
+                onPickPrompt={(p) => sendMessage(p)}
+              />
+              {suggestions.length === 0 && (
+                <SearchSuggestions suggestions={suggestions} onPick={handlePickSuggestion} />
+              )}
+            </>
+          )}
+          {messages.map((msg, i) => (
+            <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+              <div
+                className={cn(
+                  'max-w-[85%] rounded-lg px-3 py-2 text-sm break-words',
+                  msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+                )}
+              >
+                {msg.role === 'assistant' ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:my-1 [&>ol]:my-1 [&_table]:my-1 [&_table]:text-xs">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content || '…'}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.content
+                )}
+              </div>
+            </div>
+          ))}
+          {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      <div className="border-t p-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage(input);
+          }}
+          className="flex gap-2"
+        >
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Pergunte algo... (Ctrl+J)"
+            className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            disabled={isLoading}
+          />
+          <Button type="submit" size="icon" className="h-9 w-9 shrink-0" disabled={isLoading || !input.trim()}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
+    </>
+  );
 
   return (
     <>
-      {!open && (
+      {(!open || minimized) && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            setMinimized(false);
+          }}
           className="fixed bottom-5 right-5 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-all hover:scale-105"
           title="Assistente IA (Ctrl+J)"
         >
@@ -359,115 +558,32 @@ export function AiAssistantChat() {
         </button>
       )}
 
-      {open && (
-        <div className="fixed bottom-5 right-5 z-50 flex w-[380px] max-h-[560px] flex-col rounded-xl border bg-card shadow-2xl">
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-primary" />
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold leading-tight">Assistente IA</span>
-                {pageContext?.title && (
-                  <span className="text-[10px] text-muted-foreground leading-tight">
-                    Contexto: {pageContext.title}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-1">
-              {pageContext && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={handleExplainPage}
-                  disabled={isLoading}
-                  title="Explique esta página"
-                >
-                  <HelpCircle className="h-4 w-4" />
-                </Button>
-              )}
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setOpen(false)} title="Fechar (Ctrl+J)">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+      {/* Mobile: bottom sheet */}
+      {open && !minimized && placement.isMobile && (
+        <Sheet open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
+          <SheetContent side="bottom" className="h-[85vh] p-0 flex flex-col">
+            {headerContent}
+          </SheetContent>
+        </Sheet>
+      )}
 
-          <ScrollArea className="flex-1 min-h-0 max-h-[420px]" ref={scrollRef}>
-            <div className="space-y-3 p-4">
-              {messages.length === 0 && (
-                <>
-                  <div className="text-center text-xs text-muted-foreground py-4 space-y-2">
-                    <Sparkles className="mx-auto h-8 w-8 text-primary/40" />
-                    <p>Olá! Pergunte sobre seus dados do ERP.</p>
-                    <p className="text-[11px]">Ex: "Quais itens da família 001 têm estoque?"</p>
-                    <p className="text-[10px] text-muted-foreground/70">
-                      Atalho: <kbd className="rounded border px-1">Ctrl</kbd> +{' '}
-                      <kbd className="rounded border px-1">J</kbd>
-                    </p>
-                  </div>
-                  {suggestions.length > 0 && (
-                    <SearchSuggestions
-                      suggestions={suggestions}
-                      onPick={handlePickSuggestion}
-                    />
-                  )}
-                </>
-              )}
-              {messages.map((msg, i) => (
-                <div key={i} className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
-                  <div
-                    className={cn(
-                      'max-w-[85%] rounded-lg px-3 py-2 text-sm break-words',
-                      msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
-                    )}
-                  >
-                    {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:m-0 [&>ul]:my-1 [&>ol]:my-1 [&_table]:my-1 [&_table]:text-xs">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content || '…'}
-                        </ReactMarkdown>
-                      </div>
-                    ) : (
-                      msg.content
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.3s]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:-0.15s]" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          <div className="border-t p-3">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendMessage(input);
-              }}
-              className="flex gap-2"
-            >
-              <input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Pergunte algo... (Ctrl+J)"
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                disabled={isLoading}
-              />
-              <Button type="submit" size="icon" className="h-9 w-9 shrink-0" disabled={isLoading || !input.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
-          </div>
+      {/* Desktop: floating draggable panel */}
+      {open && !minimized && !placement.isMobile && placement.position && (
+        <div
+          className="fixed z-50 flex flex-col rounded-xl border bg-card shadow-2xl backdrop-blur-sm"
+          style={{
+            left: placement.position.x,
+            top: placement.position.y,
+            width: placement.position.w,
+            height: placement.position.h,
+          }}
+        >
+          {headerContent}
         </div>
       )}
+    </>
+  );
+}
     </>
   );
 }
