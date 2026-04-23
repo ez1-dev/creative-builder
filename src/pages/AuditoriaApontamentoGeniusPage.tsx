@@ -588,8 +588,8 @@ export default function AuditoriaApontamentoGeniusPage() {
         agg.linhas.push(row);
 
         const sa = String(row.status_movimento ?? '').toUpperCase();
-        const horas = Number(row.horas_realizadas || 0);
-        const totDia = Number(row.total_horas_dia_operador || 0);
+        const horas = minToHours(row.horas_realizadas);
+        const totDia = minToHours(row.total_horas_dia_operador);
         if (sa === 'SEM_APONTAMENTO') agg.sem_inicio += 1;
         if (sa === 'ABERTO') agg.sem_fim += 1;
         if (sa === 'DIVERGENTE') agg.divergentes += 1;
