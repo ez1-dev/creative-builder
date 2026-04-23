@@ -543,6 +543,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     let localSemFim = 0;
     let localFimMenorInicio = 0;
     let localAcima8h = 0;
+    let localAbaixo5min = 0;
     let localMaiorDia = 0;
     let localOperadorMaior = '';
 
@@ -563,13 +564,16 @@ export default function AuditoriaApontamentoGeniusPage() {
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
-      if (sa && sa !== 'FECHADO') localDiscrepancias++;
+      const minRaw = Number(row.horas_realizadas) || 0;
+      const horas = minToHours(row.horas_realizadas);
+      const totDia = minToHours(row.total_horas_dia_operador);
+      const abaixo5 = minRaw > 0 && minRaw < 5;
+      if ((sa && sa !== 'FECHADO') || abaixo5) localDiscrepancias++;
       if (sa === 'SEM_APONTAMENTO') localSemInicio++;
       if (sa === 'ABERTO') localSemFim++;
       if (sa === 'DIVERGENTE') localFimMenorInicio++;
-      const horas = minToHours(row.horas_realizadas);
-      const totDia = minToHours(row.total_horas_dia_operador);
       if (horas > 8 || totDia > 8) localAcima8h++;
+      if (abaixo5) localAbaixo5min++;
       if (totDia > localMaiorDia) {
         localMaiorDia = totDia;
         localOperadorMaior = row.nome_operador || '';
@@ -605,6 +609,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       sem_fim: r?.sem_fim ?? r?.total_sem_fim ?? localSemFim,
       fim_menor_inicio: r?.fim_menor_inicio ?? r?.total_fim_menor_inicio ?? localFimMenorInicio,
       acima_8h: acimaBackend ?? localAcima8h,
+      abaixo_5min: r?.abaixo_5min ?? r?.total_abaixo_5min ?? localAbaixo5min,
       maior_total_dia_operador: r?.maior_total_dia_operador ?? localMaiorDia,
       operador_maior_total: r?.operador_maior_total ?? localOperadorMaior,
       ops_em_andamento: totalEmAndamentoBackend ?? (opsPorLetra.E.size + opsPorLetra.L.size + opsPorLetra.A.size),
