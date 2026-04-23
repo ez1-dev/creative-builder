@@ -917,26 +917,27 @@ export default function AuditoriaApontamentoGeniusPage() {
             dataFim={filters.data_fim}
           />
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} details={kpiDrilldowns.totalRegistros.length ? kpiDrilldowns.totalRegistros : undefined} tooltip="Top da página atual" />
-            <StatusOpDrillCard letra="E" title="Emitidas (E)" value={atualizarKpisApontGenius.ops_emitidas} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.E} index={1} onVerTudo={() => { setStatusOpDrillLetra('E'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="L" title="Liberadas (L)" value={atualizarKpisApontGenius.ops_liberadas} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.L} index={2} onVerTudo={() => { setStatusOpDrillLetra('L'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="A" title="Em Andamento (A)" value={atualizarKpisApontGenius.ops_andamento} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.A} index={3} onVerTudo={() => { setStatusOpDrillLetra('A'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="F" title="Finalizadas (F)" value={atualizarKpisApontGenius.ops_finalizadas} icon={<CheckCircle2 className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.F} index={4} onVerTudo={() => { setStatusOpDrillLetra('F'); setStatusOpDrillAberto(true); }} />
-            <StatusOpDrillCard letra="C" title="Canceladas (C)" value={atualizarKpisApontGenius.ops_canceladas} icon={<AlertCircle className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.C} index={5} onVerTudo={() => { setStatusOpDrillLetra('C'); setStatusOpDrillAberto(true); }} />
-            <KPICard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} details={kpiDrilldowns.discrepancias.length ? kpiDrilldowns.discrepancias : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} details={kpiDrilldowns.semInicio.length ? kpiDrilldowns.semInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} details={kpiDrilldowns.semFim.length ? kpiDrilldowns.semFim : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} details={kpiDrilldowns.fimMenorInicio.length ? kpiDrilldowns.fimMenorInicio : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} details={kpiDrilldowns.acima8h.length ? kpiDrilldowns.acima8h : undefined} tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined} />
-            <KPICard
+            <KpiDrillCard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} kind={{ kind: 'total' }} ops={agregarPorOp(linhasDoKpi({ kind: 'total' }))} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Emitidas (E)" value={formatNumber(atualizarKpisApontGenius.ops_emitidas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} kind={{ kind: 'status', letra: 'E' }} ops={kpiDrilldowns.opsPorStatus.E} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Liberadas (L)" value={formatNumber(atualizarKpisApontGenius.ops_liberadas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={2} kind={{ kind: 'status', letra: 'L' }} ops={kpiDrilldowns.opsPorStatus.L} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Em Andamento (A)" value={formatNumber(atualizarKpisApontGenius.ops_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={3} kind={{ kind: 'status', letra: 'A' }} ops={kpiDrilldowns.opsPorStatus.A} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Finalizadas (F)" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={4} kind={{ kind: 'status', letra: 'F' }} ops={kpiDrilldowns.opsPorStatus.F} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Canceladas (C)" value={formatNumber(atualizarKpisApontGenius.ops_canceladas, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={5} kind={{ kind: 'status', letra: 'C' }} ops={kpiDrilldowns.opsPorStatus.C} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} kind={{ kind: 'discrepancias' }} ops={agregarPorOp(linhasDoKpi({ kind: 'discrepancias' }))} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} kind={{ kind: 'semInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semInicio' }))} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} kind={{ kind: 'semFim' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semFim' }))} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} kind={{ kind: 'fimMenorInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'fimMenorInicio' }))} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} kind={{ kind: 'acima8h' }} ops={agregarPorOp(linhasDoKpi({ kind: 'acima8h' }))} onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }} />
+            <KpiDrillCard
               title="Maior Total Dia"
               value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
               subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
               index={11}
-              details={kpiDrilldowns.maiorTotalDia.length ? kpiDrilldowns.maiorTotalDia : undefined}
-              tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined}
+              kind={{ kind: 'maiorTotalDia' }}
+              ops={agregarPorOp(linhasDoKpi({ kind: 'maiorTotalDia' }))}
+              onVerTudo={(k) => { setKpiDrillKind(k); setKpiDrillAberto(true); }}
             />
           </div>
         </>
