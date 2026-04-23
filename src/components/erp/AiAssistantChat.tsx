@@ -233,6 +233,21 @@ export function AiAssistantChat() {
     );
   }, [pageContext, sendMessage]);
 
+  const handlePickSuggestion = useCallback(
+    (s: SearchSuggestion) => {
+      if (!currentModule) return;
+      const label = MODULE_LABELS[currentModule] || currentModule;
+      toast.info(`Aplicando filtros sugeridos em ${label}...`);
+      // Ensure we are on the module page; useAiFilters listener triggers search
+      if (location.pathname !== `/${currentModule}`) {
+        navigate(`/${currentModule}`);
+      }
+      setTimeout(() => dispatchAiFilters(currentModule, s.filters), 250);
+      setOpen(false);
+    },
+    [currentModule, location.pathname, navigate]
+  );
+
   if (!canUseAi) return null;
 
   return (
