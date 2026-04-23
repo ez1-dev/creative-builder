@@ -960,7 +960,7 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   // Filtra linhas brutas conforme o KPI selecionado
   const linhasDoKpi = useCallback((k: KpiDrillKind): any[] => {
-    const all = (data?.dados ?? []) as any[];
+    const all = dadosFiltradosPorStatusOp;
     switch (k.kind) {
       case 'total':           return all;
       case 'status':          return all.filter((r) => normSitorpRow(r) === k.letra);
