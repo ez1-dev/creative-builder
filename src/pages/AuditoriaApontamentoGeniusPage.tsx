@@ -1448,15 +1448,17 @@ function ContagemBlock({
 }
 
 
-// ─── Card de status real com drill profundo ────────────────────────────────
-interface StatusOpDrillCardProps {
-  letra: 'E'|'L'|'A'|'F'|'C';
+// ─── Card de KPI genérico com drill profundo ───────────────────────────────
+interface KpiDrillCardProps {
   title: string;
-  value: number;
+  value: string | number;
+  subtitle?: string;
   icon?: React.ReactNode;
+  variant?: 'default'|'success'|'warning'|'destructive'|'info';
   ops: OpAgg[];
   index?: number;
-  onVerTudo: () => void;
+  kind: KpiDrillKind;
+  onVerTudo: (k: KpiDrillKind) => void;
 }
 
 function shortStr(s: string, n: number) {
@@ -1464,9 +1466,8 @@ function shortStr(s: string, n: number) {
   return s.length > n ? s.slice(0, n - 1) + '…' : s;
 }
 
-function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTudo }: StatusOpDrillCardProps) {
-  const variant = STATUS_LETRA_VARIANT[letra];
-  const borderClass = STATUS_LETRA_BORDER[letra];
+function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, index = 0, kind, onVerTudo }: KpiDrillCardProps) {
+  const borderClass = kind.kind === 'status' ? STATUS_LETRA_BORDER[kind.letra] : KPI_VARIANT_BORDER[variant];
   const hasOps = ops.length > 0;
   const totalInconsist = ops.reduce((acc, o) => acc + (o.inconsistencias > 0 ? 1 : 0), 0);
   const top = ops.slice(0, 30);
