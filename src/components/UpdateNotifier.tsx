@@ -141,10 +141,12 @@ export function UpdateNotifier() {
           <Badge className="text-xs">Nova: {latestVersion?.startsWith('novo') ? latestVersion : `v${latestVersion}`}</Badge>
         </div>
 
-        <Button onClick={handleRefresh} disabled={refreshing} className="w-full gap-2">
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? 'Atualizando...' : 'Atualizar agora'}
-        </Button>
+        <div>
+          <Button onClick={handleRefresh} disabled={refreshing} className="w-full gap-2">
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Atualizando...' : 'Atualizar agora'}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
