@@ -164,8 +164,10 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
     {
       key: 'status_op',
       header: 'Status OP',
-      render: (v: string) => {
-        const cfg = statusOpVariants[v];
+      render: (v: string, row: any) => {
+        const real = String(row?.sitorp ?? '').trim().toUpperCase();
+        const key = real || String(v ?? '').toUpperCase();
+        const cfg = statusOpVariants[key];
         if (!cfg) return <span className="text-muted-foreground">—</span>;
         return <Badge className={cfg.className}>{cfg.label}</Badge>;
       },
