@@ -1603,6 +1603,7 @@ const KPI_TITLES: Record<KpiDrillKind['kind'], string> = {
   semFim: 'Sem Fim',
   fimMenorInicio: 'Fim < Início',
   acima8h: 'Acima de 8h',
+  abaixo5min: 'Abaixo de 5 min',
   maiorTotalDia: 'Maior Total Dia',
   emAndamento: 'Em Andamento (E + L + A)',
   finalizadas: 'Finalizadas (F)',
