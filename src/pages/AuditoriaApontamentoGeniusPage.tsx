@@ -284,7 +284,18 @@ export default function AuditoriaApontamentoGeniusPage() {
     setForcarDiagnostico(false);
     setOpSelecionada(null);
     setDrawerAberto(false);
+    setUltimaAtualizacao(null);
   }, []);
+
+  const tempoDesdeAtualizacao = useMemo(() => {
+    if (!ultimaAtualizacao) return null;
+    const diffMs = agora.getTime() - ultimaAtualizacao.getTime();
+    const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+    if (diffSec < 5) return 'agora';
+    if (diffSec < 60) return `há ${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    return `há ${diffMin} min`;
+  }, [agora, ultimaAtualizacao]);
 
   // Apontamentos vinculados à OP selecionada (mesmo numero_op + origem)
   const apontamentosDaOp = useMemo(() => {
