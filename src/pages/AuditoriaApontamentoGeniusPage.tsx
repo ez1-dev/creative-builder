@@ -1071,6 +1071,30 @@ export default function AuditoriaApontamentoGeniusPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <StatusOpDeepSheet
+        open={statusOpDrillAberto}
+        onOpenChange={setStatusOpDrillAberto}
+        letra={statusOpDrillLetra}
+        ops={statusOpDrillLetra ? kpiDrilldowns.opsPorStatus[statusOpDrillLetra] : []}
+        somenteInconsist={statusDrillSomenteInconsist}
+        setSomenteInconsist={setStatusDrillSomenteInconsist}
+        busca={statusDrillBusca}
+        setBusca={setStatusDrillBusca}
+        ordem={statusDrillOrdem}
+        setOrdem={setStatusDrillOrdem}
+        opExpandida={opExpandidaNoDrill}
+        setOpExpandida={setOpExpandidaNoDrill}
+        discrepanciasParciais={!!atualizarKpisApontGenius?.discrepanciasParciais}
+        totalRegistros={atualizarKpisApontGenius?.total_registros ?? 0}
+        paginaCarregada={data?.dados?.length ?? 0}
+        onAbrirDrawerOp={(row) => { setStatusOpDrillAberto(false); abrirDetalhesOp(row); }}
+        onFiltrarGridPorOp={(numop) => {
+          setFilters((f) => ({ ...f, numop }));
+          setStatusOpDrillAberto(false);
+          setTimeout(() => buscarRef.current?.(1), 0);
+        }}
+      />
     </div>
   );
 }
