@@ -939,7 +939,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       case 'finalizadas':     return all.filter((r) => normSitorpRow(r) === 'F');
       case 'semInicio':       return all.filter((r) => !r.hora_inicial || String(r.status_movimento ?? '').toUpperCase() === 'SEM_APONTAMENTO');
       case 'semFim':          return all.filter((r) => !r.hora_final || String(r.status_movimento ?? '').toUpperCase() === 'ABERTO');
-      case 'fimMenorInicio':  return all.filter((r) => (r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial)) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
+      case 'fimMenorInicio':  return all.filter((r) => isFimMenorInicio(r) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
       case 'acima8h':         return all.filter((r) => minToHours(r.horas_realizadas) > 8 || minToHours(r.total_horas_dia_operador) > 8);
       case 'abaixo5min':      return all.filter((r) => { const m = Number(r.horas_realizadas) || 0; return m > 0 && m < 5; });
       case 'discrepancias':   return all.filter(isLinhaDiscrepante);
