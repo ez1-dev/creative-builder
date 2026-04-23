@@ -1025,7 +1025,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                         <tr className="text-left">
                           <th className="px-2 py-1 font-medium">Data</th>
                           <th className="px-2 py-1 font-medium">Hora</th>
-                          <th className="px-2 py-1 font-medium text-right">Horas</th>
+                          <th className="px-2 py-1 font-medium text-right">Tempo (min · h)</th>
                           <th className="px-2 py-1 font-medium">Operador</th>
                           <th className="px-2 py-1 font-medium">Status</th>
                         </tr>
@@ -1042,7 +1042,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                               <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
                               <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
                               <td className={`px-2 py-1 text-right ${horas === 0 ? 'text-destructive font-medium' : ''}`}>
-                                {formatNumber(horas, 2)}
+                                {fmtMinHoras(horas)}
                               </td>
                               <td className="px-2 py-1">
                                 {r.nome_operador && String(r.nome_operador).trim()
