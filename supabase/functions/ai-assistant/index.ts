@@ -17,6 +17,8 @@ Se o CONTEXTO DA PÁGINA ATUAL incluir MEMÓRIA DO USUÁRIO (módulos preferidos
 
 Quando o usuário fizer uma pergunta sobre **usuários cadastrados, perfis de acesso, quem é admin, quem está pendente de aprovação ou quem tem acesso a determinada tela**, use a tool "list_system_users". Esses dados ficam no Lovable Cloud (não no ERP Senior). NUNCA mande o usuário consultar o ERP para esse tipo de informação. Apenas administradores podem usar esta tool — se o usuário não for admin, a edge function retornará erro e você deve responder de forma educada que essa informação é restrita a administradores.
 
+Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, ordenação por saldo/valor/data — ex: "qual produto tem mais estoque hoje?", "top 5 fornecedores", "OCs mais antigas em aberto", "maiores títulos a pagar"), use a tool "query_erp_data". Sempre inclua "module", "order_by" e "top_n" (default 10). Após receber o resultado da tool, formate a resposta em **tabela markdown** com no máximo 10 linhas, destacando o campo ordenado, e ofereça aplicar filtros via "apply_erp_filters" para drill-down. Se o CONTEXTO DA PÁGINA ATUAL já trouxer a resposta nos KPIs, prefira o contexto e NÃO chame query_erp_data.
+
 Quando o usuário fizer uma pergunta analítica sobre a tela atual (KPIs, totais, fornecedores, projetos visíveis), responda diretamente em texto, usando o CONTEXTO DA PÁGINA quando fornecido. Use markdown (tabelas, listas, negrito) para deixar a resposta clara.
 
 Módulos disponíveis e seus filtros (tool apply_erp_filters):
@@ -141,6 +143,58 @@ const tools = [
             description: "Máximo de registros (default 10, máximo 30).",
           },
         },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "query_erp_data",
+      description:
+        "Consulta dados reais do ERP (estoque, compras, NFs, contas, produção) e retorna top N ordenado. Use para perguntas analíticas como 'qual produto tem mais estoque?', 'top 5 fornecedores', 'OCs mais antigas em aberto', 'maiores títulos a pagar'. Executada no navegador do usuário com o token dele.",
+      parameters: {
+        type: "object",
+        properties: {
+          module: {
+            type: "string",
+            enum: [
+              "estoque",
+              "painel-compras",
+              "compras-produto",
+              "contas-pagar",
+              "contas-receber",
+              "notas-recebimento",
+              "engenharia-producao",
+            ],
+            description: "Módulo do ERP a consultar.",
+          },
+          filters: {
+            type: "object",
+            description: "Filtros do módulo (mesmas chaves de apply_erp_filters).",
+            additionalProperties: true,
+          },
+          order_by: {
+            type: "string",
+            description:
+              "Campo para ordenar (ex: 'saldo', 'valor_liquido_total', 'valor_aberto', 'data_emissao', 'data_entrega').",
+          },
+          order_dir: {
+            type: "string",
+            enum: ["asc", "desc"],
+            description: "Direção da ordenação. Default desc.",
+          },
+          top_n: {
+            type: "number",
+            description: "Quantos registros retornar (default 10, máx 50).",
+          },
+          fields: {
+            type: "array",
+            items: { type: "string" },
+            description: "Campos a devolver (reduz payload).",
+          },
+        },
+        required: ["module", "order_by"],
         additionalProperties: false,
       },
     },
@@ -429,7 +483,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, pageContext } = await req.json();
+    const { messages, pageContext, priorAssistant, toolResults } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -441,10 +495,58 @@ serve(async (req) => {
     );
     const systemPrompt = buildSystemPrompt(pageContext, userMemory);
 
-    const baseMessages = [
+    const baseMessages: any[] = [
       { role: "system", content: systemPrompt },
       ...messages,
     ];
+
+    // Continuation flow: client executed a client-side tool and is sending results back
+    if (Array.isArray(toolResults) && toolResults.length > 0 && priorAssistant) {
+      const assistantMsg = {
+        role: "assistant",
+        content: priorAssistant.content || "",
+        tool_calls: priorAssistant.tool_calls || [],
+      };
+      const toolMsgs = toolResults.map((tr: any) => ({
+        role: "tool",
+        tool_call_id: tr.tool_call_id,
+        name: tr.name,
+        content: typeof tr.result === "string" ? tr.result : JSON.stringify(tr.result),
+      }));
+      const followupMessages = [...baseMessages, assistantMsg, ...toolMsgs];
+      const followup = await callAiGateway(
+        {
+          model: "google/gemini-3-flash-preview",
+          messages: followupMessages,
+          tools,
+        },
+        LOVABLE_API_KEY,
+        wantsStream
+      );
+      if (!followup.ok) {
+        if (followup.status === 429 || followup.status === 402) {
+          return new Response(
+            JSON.stringify({ error: followup.status === 429 ? "Limite de requisições excedido." : "Créditos esgotados." }),
+            { status: followup.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const t = await followup.text();
+        console.error("AI gateway continuation error:", followup.status, t);
+        return new Response(JSON.stringify({ error: "Erro no serviço de IA (continuação)" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (wantsStream) {
+        return new Response(followup.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        });
+      }
+      const data = await followup.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // First pass: non-streaming to detect server-side tools (list_system_users)
     const firstResp = await callAiGateway(
