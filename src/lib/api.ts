@@ -124,12 +124,20 @@ class ApiClient {
     return data;
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+  async get<T>(
+    endpoint: string,
+    params?: Record<string, any>,
+    options?: { keepEmpty?: string[] },
+  ): Promise<T> {
     const searchParams = new URLSearchParams();
+    const keepEmpty = new Set(options?.keepEmpty ?? []);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
+        const isEmpty = value === null || value === undefined || value === '';
+        if (!isEmpty) {
           searchParams.append(key, String(value));
+        } else if (keepEmpty.has(key)) {
+          searchParams.append(key, '');
         }
       });
     }
