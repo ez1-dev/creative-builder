@@ -175,6 +175,19 @@ mostra `—` sem quebrar o render.
 | `centro_recurso` | string | Código do Centro de Recurso (C.R.) |
 | `data_inicial` / `hora_inicial` | string | Data/hora de início do movimento |
 | `data_final` / `hora_final` | string | Data/hora de fim do movimento |
+| `seq_roteiro` | number | Sequência do roteiro (preferido sobre `seqrot`) |
+
+#### Fallbacks aplicados pelo frontend (`normalizeRowApont`)
+O backend pode mandar qualquer um dos nomes abaixo — o frontend escolhe o primeiro disponível:
+
+| Campo final | Ordem de fallback |
+|---|---|
+| `equipamento` | `equipamento` ?? `codigo_equipamento` |
+| `centro_recurso` | `centro_recurso` ?? `cod_recurso` ?? `codigo_centro_trabalho` |
+| `qtde_primeira_qualidade` | `qtde_primeira_qualidade` ?? `quantidade` ?? `qtde` |
+| `tempo_bruto_min` | `tempo_bruto_min` ?? `horas_realizadas` (em min) |
+| `tempo_liquido_min` | `tempo_liquido_min` ?? `tempo_bruto_min` ?? `horas_realizadas` |
+| `seq_roteiro` | `seq_roteiro` ?? `seqrot` |
 
 
 ### Status possíveis
