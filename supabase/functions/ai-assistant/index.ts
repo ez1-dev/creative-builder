@@ -147,31 +147,135 @@ const tools = [
   },
 ];
 
-function buildSystemPrompt(pageContext: any): string {
-  if (!pageContext || typeof pageContext !== "object") return BASE_SYSTEM_PROMPT;
-  const lines: string[] = ["", "---", "CONTEXTO DA PÁGINA ATUAL:"];
-  if (pageContext.title) lines.push(`Tela: ${pageContext.title}`);
-  if (pageContext.route) lines.push(`Rota: ${pageContext.route}`);
-  if (pageContext.module) lines.push(`Módulo: ${pageContext.module}`);
-  if (pageContext.kpis && Object.keys(pageContext.kpis).length) {
-    lines.push("KPIs visíveis:");
-    for (const [k, v] of Object.entries(pageContext.kpis)) {
-      lines.push(`  - ${k}: ${v}`);
+function buildSystemPrompt(pageContext: any, userMemory: any): string {
+  let out = BASE_SYSTEM_PROMPT;
+  if (pageContext && typeof pageContext === "object") {
+    const lines: string[] = ["", "---", "CONTEXTO DA PÁGINA ATUAL:"];
+    if (pageContext.title) lines.push(`Tela: ${pageContext.title}`);
+    if (pageContext.route) lines.push(`Rota: ${pageContext.route}`);
+    if (pageContext.module) lines.push(`Módulo: ${pageContext.module}`);
+    if (pageContext.kpis && Object.keys(pageContext.kpis).length) {
+      lines.push("KPIs visíveis:");
+      for (const [k, v] of Object.entries(pageContext.kpis)) {
+        lines.push(`  - ${k}: ${v}`);
+      }
     }
+    if (pageContext.filters && Object.keys(pageContext.filters).length) {
+      const active = Object.entries(pageContext.filters).filter(
+        ([_, v]) => v !== "" && v !== null && v !== undefined && v !== false
+      );
+      if (active.length) {
+        lines.push("Filtros ativos:");
+        for (const [k, v] of active) lines.push(`  - ${k}: ${JSON.stringify(v)}`);
+      }
+    }
+    if (pageContext.summary) lines.push(`Resumo: ${pageContext.summary}`);
+    out += "\n" + lines.join("\n");
   }
-  if (pageContext.filters && Object.keys(pageContext.filters).length) {
-    const active = Object.entries(pageContext.filters).filter(
-      ([_, v]) => v !== "" && v !== null && v !== undefined && v !== false
+
+  if (userMemory && typeof userMemory === "object") {
+    const ml: string[] = ["", "---", "MEMÓRIA DO USUÁRIO (privada, somente este usuário):"];
+    if (userMemory.topModules?.length) {
+      ml.push(`Módulos mais usados: ${userMemory.topModules.join(", ")}`);
+    }
+    if (userMemory.frequentFilters && Object.keys(userMemory.frequentFilters).length) {
+      ml.push("Filtros frequentes:");
+      for (const [mod, f] of Object.entries(userMemory.frequentFilters)) {
+        ml.push(`  - ${mod}: ${JSON.stringify(f)}`);
+      }
+    }
+    if (userMemory.recentSearches?.length) {
+      ml.push("Buscas recentes:");
+      for (const s of userMemory.recentSearches.slice(0, 5)) {
+        ml.push(`  - ${s.module}: ${JSON.stringify(s.filters)}`);
+      }
+    }
+    if (ml.length > 3) out += "\n" + ml.join("\n");
+  }
+  return out;
+}
+
+async function loadUserMemory(
+  callerUserId: string | null,
+  currentModule: string | null
+) {
+  if (!callerUserId) return null;
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const admin = createClient(supabaseUrl, serviceKey);
+
+    const [prefsRes, recentRes] = await Promise.all([
+      admin
+        .from("user_preferences")
+        .select("favorite_modules, frequent_filters")
+        .eq("user_id", callerUserId)
+        .maybeSingle(),
+      admin
+        .from("user_search_history")
+        .select("module, filters, created_at")
+        .eq("user_id", callerUserId)
+        .order("created_at", { ascending: false })
+        .limit(currentModule ? 30 : 10),
+    ]);
+
+    const prefs = prefsRes.data || {};
+    const recent = (recentRes.data || []).filter((r: any) =>
+      currentModule ? r.module === currentModule : true
     );
-    if (active.length) {
-      lines.push("Filtros ativos:");
-      for (const [k, v] of active) lines.push(`  - ${k}: ${JSON.stringify(v)}`);
-    }
+
+    const topModules = ((prefs as any).favorite_modules || [])
+      .map((m: any) => m.module)
+      .slice(0, 5);
+    const frequentFilters = (prefs as any).frequent_filters || {};
+
+    return {
+      topModules,
+      frequentFilters,
+      recentSearches: recent.slice(0, 5),
+    };
+  } catch (e) {
+    console.warn("loadUserMemory failed:", e);
+    return null;
   }
-  if (pageContext.summary) {
-    lines.push(`Resumo: ${pageContext.summary}`);
+}
+
+async function executeRecallUserSearches(
+  args: any,
+  callerUserId: string | null
+): Promise<{ ok: boolean; data?: any; error?: string }> {
+  if (!callerUserId) {
+    return { ok: false, error: "Usuário não autenticado." };
   }
-  return BASE_SYSTEM_PROMPT + "\n" + lines.join("\n");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  const limit = Math.min(Math.max(Number(args?.limit) || 10, 1), 30);
+  const moduleFilter = (args?.module || "").toString().trim();
+  const search = (args?.search || "").toString().trim().toLowerCase();
+
+  let q = admin
+    .from("user_search_history")
+    .select("module, filters, result_count, created_at")
+    .eq("user_id", callerUserId)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3);
+
+  if (moduleFilter) q = q.eq("module", moduleFilter);
+
+  const { data, error } = await q;
+  if (error) {
+    return { ok: false, error: "Erro ao consultar histórico." };
+  }
+  let rows = data || [];
+  if (search) {
+    rows = rows.filter((r) =>
+      JSON.stringify(r.filters || {}).toLowerCase().includes(search)
+    );
+  }
+  rows = rows.slice(0, limit);
+  return { ok: true, data: { count: rows.length, searches: rows } };
 }
 
 async function executeListSystemUsers(
