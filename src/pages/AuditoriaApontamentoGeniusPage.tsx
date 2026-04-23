@@ -598,8 +598,8 @@ export default function AuditoriaApontamentoGeniusPage() {
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
-      const horas = Number(row.horas_realizadas || 0);
-      const totDia = Number(row.total_horas_dia_operador || 0);
+      const horas = minToHours(row.horas_realizadas);
+      const totDia = minToHours(row.total_horas_dia_operador);
 
       const opOpStr = numop || operador ? `OP ${numop || '—'} · ${operador || '—'}` : '—';
 
@@ -618,14 +618,14 @@ export default function AuditoriaApontamentoGeniusPage() {
         semFim.push({ label: opOpStr, value: `${dt}${hr ? ' ' + hr : ''}` });
       }
       if (sa === 'DIVERGENTE') {
-        fimMenorInicio.push({ label: opOpStr, value: `${formatNumber(horas, 2)}h` });
+        fimMenorInicio.push({ label: opOpStr, value: fmtMinHoras(row.horas_realizadas, 2) });
       }
       if (horas > 8 || totDia > 8) {
         const key = `${operador}::${numop}`;
         if (!acima8hSeen.has(key)) {
           acima8hSeen.add(key);
-          const h = horas > 8 ? horas : totDia;
-          acima8hRaw.push({ label: operador || '—', value: `${formatNumber(h, 2)}h`, horas: h, key });
+          const minutos = horas > 8 ? Number(row.horas_realizadas || 0) : Number(row.total_horas_dia_operador || 0);
+          acima8hRaw.push({ label: operador || '—', value: fmtMinHoras(minutos, 2), horas: horas > 8 ? horas : totDia, key });
         }
       }
       if (totDia > 0) {
