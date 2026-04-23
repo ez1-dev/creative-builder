@@ -1,81 +1,100 @@
 
 
-## Diagnóstico: modal não some após atualização e novo deploy não dispara
+## Melhorias para o Assistente IA em todas as páginas
 
-### Sintomas observados (logs)
-- `app_settings.app_version = "1.0.1"` (banco)
-- Polling continua retornando `1.0.1` a cada 60s
-- Modal aparece, usuário clica "Atualizar agora", página recarrega, mas o **modal volta a aparecer** (ou nunca some)
-- `CURRENT_VERSION = import.meta.env.VITE_APP_VERSION || '0.0.0'`
+### Diagnóstico atual
+Revisei `src/components/erp/AiAssistantChat.tsx`, `supabase/functions/ai-assistant/index.ts` e `src/hooks/useAiFilters.ts`. O assistente hoje:
+- É um botão flutuante global no `AppLayout` (aparece em todas as rotas autenticadas, ok).
+- Faz tool-calling para aplicar filtros no contexto da rota atual via `useAiFilters`.
+- Usa Lovable AI Gateway (Gemini) com histórico curto.
+- Renderiza respostas em texto plano (sem markdown).
+- Não tem memória entre sessões / não persiste conversas.
+- Não conhece o conteúdo dinâmico da tela (KPIs, totais, registros visíveis).
+- Sem indicador de "digitando", sem streaming.
+- Acesso controlado por `ai_enabled` (ok).
 
-### Causa raiz
-**`VITE_APP_VERSION` não está definido em lugar nenhum.** Não existe `.env` com essa variável, não há `define` no `vite.config.ts`, e o `package.json` (que tem a versão real) não é lido em runtime no browser. Resultado:
+### Melhorias propostas (priorizadas)
 
-- `CURRENT_VERSION` sempre vale `'0.0.0'`
-- Banco tem `'1.0.1'` → `'0.0.0' !== '1.0.1'` → modal abre **sempre**
-- Após o reload, `CURRENT_VERSION` continua `'0.0.0'` → modal abre **de novo**, em loop
+**1. Contextualização por página (alto impacto)**
+- Cada página registra um "contexto" no assistente (rota, KPIs visíveis, filtros ativos, totais agregados, top N linhas).
+- Assistente recebe esse contexto no `system prompt` → respostas tipo *"Qual fornecedor concentra mais valor a pagar este mês?"* funcionam em qualquer tela.
+- Implementação: hook `useAiPageContext({ title, kpis, filters, summary })` + Provider que armazena o contexto atual; edge function injeta no prompt.
 
-E o `AppLayout` mostra `v{packageJson.version}` no rodapé (lê o `package.json` direto via import) → o rodapé mostra a versão certa, mas o `UpdateNotifier` não.
+**2. Streaming de respostas (UX)**
+- Migrar `ai-assistant` para SSE (já documentado em useful-context).
+- Texto aparece token-a-token; reduz percepção de latência.
 
-Sobre "não sai caixa de nova versão" para deploys novos: como o app está em `id-preview--*.lovableproject.com` (modo dev do Vite, sem hash no bundle — o `index.html` mostra `/src/main.tsx?t=...`), o `checkBundleHash` **nunca casa** o regex `/assets/index-[hash].js` e fica silencioso. Em produção (publicado) funcionaria, mas em preview não.
+**3. Renderização markdown + tabelas**
+- Adicionar `react-markdown` + `remark-gfm` no balão do assistente.
+- Permite tabelas, listas, código, links → resposta sobre KPIs vira tabela legível.
 
-### Correção (1 arquivo)
+**4. Histórico persistente por usuário**
+- Tabela `ai_conversations` + `ai_messages` (RLS por `user_id`).
+- Sidebar do chat lista conversas anteriores; "Nova conversa" cria thread.
+- Permite continuar de onde parou ao trocar de rota.
 
-**`src/components/UpdateNotifier.tsx`**:
+**5. Ações rápidas contextuais (chips)**
+- Acima do input, 3-5 sugestões dinâmicas geradas a partir da rota atual:
+  - Em `/contas-pagar`: "Top 10 fornecedores vencidos", "Resumo por mês".
+  - Em `/estoque-min-max`: "Itens críticos", "Sugerir compras urgentes".
+- Implementação: tabela `ai_quick_actions(route, label, prompt)` ou mapa estático no front.
 
-1. **Trocar a fonte da versão atual** — usar `package.json` diretamente, igual ao `AppLayout`:
-   ```ts
-   import packageJson from '../../package.json';
-   const CURRENT_VERSION = packageJson.version;
-   ```
-   Remove a dependência de `VITE_APP_VERSION`. Agora `CURRENT_VERSION` será `"1.0.0"` (ou o que estiver no `package.json`) de verdade.
+**6. Mais ferramentas (tool calling) globais**
+- `navigate_to(route)` — abrir outra tela.
+- `export_current_view()` — disparar o `ExportButton` da página atual.
+- `explain_kpi(kpi_id)` — explicar o cálculo do KPI clicado.
+- `summarize_table()` — gerar resumo executivo da tabela visível.
 
-2. **Persistir versão "já vista" em `localStorage`** para quebrar o loop:
-   - Chave: `app:last_seen_version`
-   - Após reload bem-sucedido, gravar `localStorage.setItem('app:last_seen_version', remote)` ANTES do reload
-   - No `checkVersion`, comparar `remote !== CURRENT_VERSION` **E** `remote !== localStorage.getItem('app:last_seen_version')`
-   - Isso garante: se o usuário já clicou "Atualizar agora" para a versão `1.0.1`, mas o `package.json` do bundle ainda é `1.0.0` (porque o admin não bumpou no código), o modal não fica reabrindo eternamente
+**7. Voice input (opcional)**
+- Botão de microfone usando Web Speech API → transcreve fala para texto no input.
+- Útil para uso em chão de fábrica/tablet.
 
-3. **Mesmo tratamento para `checkBundleHash`**:
-   - Salvar `app:last_seen_bundle` no localStorage antes do reload
-   - Comparar contra ele na próxima checagem
+**8. Atalho de teclado global**
+- `Ctrl+J` (ou `Cmd+J`) abre/fecha o chat de qualquer página.
+- Ícone do botão flutuante mostra a dica em tooltip.
 
-4. **Em modo dev (preview Lovable)**, o regex de hash não casa — mantém comportamento silencioso, sem warning.
+**9. Indicadores visuais**
+- "Digitando..." com 3 pontos animados durante a resposta.
+- Badge de "novo" quando o assistente termina enquanto o chat está fechado.
+- Contador de mensagens não lidas no botão flutuante.
 
-### Pseudocódigo da lógica de comparação
+**10. Feedback por mensagem (👍/👎)**
+- Botões discretos em cada resposta do assistente.
+- Salva em `ai_message_feedback(message_id, rating, user_id)` para futuras melhorias de prompt.
 
-```ts
-const lastSeenVersion = localStorage.getItem('app:last_seen_version');
-if (remote !== CURRENT_VERSION && remote !== lastSeenVersion) {
-  setLatestVersion(remote);
-  setShow(true);
-}
+**11. Limites e custos visíveis**
+- Mostrar erros 402 (sem créditos) e 429 (rate limit) com toast claro + link para a tela de Configurações/Workspace.
+- Já parcialmente tratado, mas precisa UX consistente.
 
-const handleRefresh = async () => {
-  if (latestVersion && !latestVersion.startsWith('novo')) {
-    localStorage.setItem('app:last_seen_version', latestVersion);
-  }
-  if (lastBundleRef.current) {
-    localStorage.setItem('app:last_seen_bundle', lastBundleRef.current);
-  }
-  // ... limpar caches + reload
-};
-```
+**12. Modo "explicar esta tela"**
+- Botão único "Explique esta página" → IA descreve o que a tela faz, principais filtros e como interpretar os KPIs.
+- Ótimo para onboarding de novos usuários.
 
-E na inicialização do `checkBundleHash`, ler `localStorage.getItem('app:last_seen_bundle')` como baseline em vez de `null`.
+### Escopo sugerido para a primeira entrega
+Para evitar inflar uma rodada só, proponho começar pelo **pacote 1** (impacto rápido):
 
-### Como o admin "publica" uma nova versão (fluxo correto)
-1. Bumpar `version` no `package.json` (ex.: `1.0.0` → `1.0.1`)
-2. Publicar o app (Lovable Publish)
-3. Atualizar `app_settings.app_version` na tela de Configurações para o mesmo valor `1.0.1`
-4. Usuários online verão o modal em até 60s, clicam "Atualizar", recarregam com `package.json = 1.0.1` → comparação `1.0.1 === 1.0.1` → modal não reaparece ✅
+1. Contextualização por página (`useAiPageContext`)
+2. Renderização markdown
+3. Streaming SSE
+4. Indicador "digitando"
+5. Atalho `Ctrl+J`
+6. Modo "Explique esta página"
 
-### Fora de escopo
-- Bump automático do `package.json` no deploy (continua manual).
-- Trigger no banco para sincronizar `app_version` automaticamente.
+E deixar para um pacote 2 (futuro):
+- Histórico persistente
+- Feedback 👍/👎
+- Voice input
+- Quick actions dinâmicas
+- Tools `navigate_to` / `export_current_view`
 
-### Resultado
-- Modal aparece **somente quando** a versão remota for diferente da versão real do bundle (lida do `package.json`).
-- Após "Atualizar agora", o modal não reabre em loop, mesmo se a versão real do bundle ainda não estiver alinhada.
-- Em produção publicada, o `checkBundleHash` continua como fallback automático.
+### Arquivos que serão alterados/criados (pacote 1)
+- `src/components/erp/AiAssistantChat.tsx` — markdown, streaming, indicador, atalho, "explique esta página".
+- `src/contexts/AiPageContextProvider.tsx` *(novo)* — armazena contexto da rota atual.
+- `src/hooks/useAiPageContext.ts` *(novo)* — registra contexto a partir de cada página.
+- `src/App.tsx` — envolver com `AiPageContextProvider`.
+- `supabase/functions/ai-assistant/index.ts` — aceitar `pageContext` no body, retornar SSE.
+- Páginas principais (`EstoquePage`, `ContasPagarPage`, etc.) — chamar `useAiPageContext({ title, kpis, filters, summary })`.
+- `package.json` — adicionar `react-markdown` + `remark-gfm`.
+
+### Perguntas antes de implementar
 
