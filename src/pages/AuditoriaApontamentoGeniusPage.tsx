@@ -632,7 +632,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         const key = `${operador}::${formatDate(row.data_apontamento ?? row.data)}`;
         if (!maiorDiaSeen.has(key)) {
           maiorDiaSeen.add(key);
-          maiorDiaRaw.push({ label: operador || '—', value: `${formatNumber(totDia, 2)}h`, total: totDia, key });
+          maiorDiaRaw.push({ label: operador || '—', value: fmtMinHoras(row.total_horas_dia_operador, 2), total: totDia, key });
         }
       }
     }
