@@ -1304,7 +1304,7 @@ export default function AuditoriaApontamentoGeniusPage() {
 
                           const semInicio = !r.hora_inicial;
                           const semFim = !r.hora_final;
-                          const fimMenor = !!(r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial));
+                          const fimMenor = isFimMenorInicio(r);
                           const abaixo5 = minRaw > 0 && minRaw < 5;
                           const acima8h = horas > 8 || totDia > 8;
                           const rowBg = acima8h
