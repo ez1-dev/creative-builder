@@ -166,6 +166,56 @@ export function MinhasPreferenciasSection() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Bot className="h-4 w-4 text-primary" />
+            Assistente IA
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label htmlFor="ai-auto-open" className="text-sm">
+                Permitir sugestões automáticas
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                O assistente pode abrir sozinho 1x por tela/dia (máx. 3 vezes ao dia) com
+                sugestões úteis. Respeita cooldown de 30 min após você fechar.
+              </p>
+            </div>
+            <Switch
+              id="ai-auto-open"
+              checked={prefs.auto_open_enabled}
+              onCheckedChange={(v) => {
+                setAutoOpenEnabled(v);
+                toast.success(v ? 'Sugestões automáticas ativadas.' : 'Sugestões automáticas desativadas.');
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t pt-4">
+            <div className="space-y-0.5">
+              <p className="text-sm">Posição e tamanho do painel</p>
+              <p className="text-xs text-muted-foreground">
+                Resetar a posição salva por tela. O assistente volta a escolher o melhor canto
+                automaticamente.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetPanelPositions();
+                toast.success('Posições do assistente resetadas.');
+              }}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              Resetar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Privacidade</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
