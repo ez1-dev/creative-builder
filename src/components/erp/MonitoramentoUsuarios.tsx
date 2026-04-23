@@ -112,7 +112,7 @@ export function MonitoramentoUsuarios() {
 
   const handleClear = async () => {
     if (!confirm('Apagar TODO o histórico de atividade? Esta ação não pode ser desfeita.')) return;
-    const { error } = await supabase.from('user_activity').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { error } = await (supabase.from('user_activity' as any) as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (error) { toast.error('Erro ao limpar histórico'); return; }
     toast.success('Histórico limpo');
     fetchActivity();
