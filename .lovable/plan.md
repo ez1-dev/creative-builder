@@ -1,34 +1,48 @@
 
 
-## Corrigir filtro "Só c/ inconsistência" no drill de KPI
+## Testes do toggle "Só c/ inconsistência" no `KpiDeepSheet`
 
-### Diagnóstico
-No `KpiDeepSheet`, quando o usuário abre o drill de um KPI de problema (`Acima de 8h`, `Sem Início`, `Sem Fim`, `Fim < Início`, `Abaixo 5 min`, `Discrepâncias`), as linhas (`linhas`) já chegam **pré-filtradas** apenas com apontamentos problemáticos (vide `linhasDoKpi` em `AuditoriaApontamentoGeniusPage.tsx`, linhas 933–948).
+### Objetivo
+Garantir, via Vitest + Testing Library, que:
+1. O toggle **fica oculto** quando `kind.kind` é de problema (`discrepancias`, `semInicio`, `semFim`, `fimMenorInicio`, `acima8h`, `abaixo5min`).
+2. O toggle **aparece e funciona** em drills neutros (`total`, `status`, `emAndamento`, `finalizadas`, `maiorTotalDia`) — alternar `setSomenteInconsist` filtra a lista de OPs (some quem tem `inconsistencias === 0`).
+3. O hint "Recorte já contém apenas linhas com inconsistência deste tipo." aparece somente nos drills de problema.
 
-Como consequência, ao agrupar essas linhas em OPs (`groupOpsFromRows`), **toda OP** resultante já tem `inconsistencias > 0`. O toggle "Só c/ inconsistência" então não tem nada a remover — alternar liga/desliga não muda a lista, dando a sensação de filtro quebrado.
+### Mudanças
 
-Para drills "não-problema" (`Total`, `Em andamento`, `Finalizadas`, `Status`, `Maior Total Dia`), as linhas vêm cruas e a OP pode ter inconsistencias = 0; nesses casos o toggle funciona corretamente.
+**1. `src/pages/AuditoriaApontamentoGeniusPage.tsx`**
+- Adicionar `export` nomeado a `KpiDeepSheet` (continua sendo usado internamente como hoje). Sem mudança de comportamento.
 
-### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
+**2. Novo arquivo `src/pages/__tests__/KpiDeepSheet.test.tsx`**
+- Importa `KpiDeepSheet` e renderiza dentro de `<TooltipProvider>` (caso necessário).
+- Mocks mínimos: `linhas` com 2 OPs distintas — uma com inconsistência (`hora_inicial` vazia → `semInicio`) e uma totalmente consistente — para validar o filtro nos casos neutros.
+- Helper `renderSheet(kind, somenteInconsist=false)` que monta o componente com props controladas via `useState` wrapper para testar o toggle real.
+- Casos de teste:
+  - **Drill de problema (`acima8h`)**: 
+    - `queryByLabelText(/Só c\/ inconsist/i)` → `null`
+    - `getByText(/Recorte já contém apenas linhas/i)` → presente
+  - **Drill de problema (`semInicio`)**: idem (mesmas duas asserções).
+  - **Drill neutro (`total`)**:
+    - Toggle visível (`getByLabelText(/Só c\/ inconsist/i)`).
+    - Hint ausente.
+    - Inicialmente exibe as 2 OPs; após `userEvent.click(toggle)`, exibe apenas a OP com `inconsistencias > 0`.
+  - **Drill neutro (`status` letra `A`)**: toggle visível e funcional (mesma asserção de filtragem).
 
-**1. Esconder o toggle quando o drill já é de um KPI de problema**
+### Detalhes técnicos
+- Usar `@testing-library/react` (`render`, `screen`, `within`) e `@testing-library/user-event`.
+- Stub de props não essenciais (`onAbrirDrawerOp`, `onFiltrarGridPorOp`, `setBusca`, `setOrdem`, `setOpExpandida`) com `vi.fn()`.
+- Para identificar as OPs renderizadas, usar `numero_op` único nas linhas mock e procurar por texto.
+- `discrepanciasParciais=false`, `totalRegistros=2`, `paginaCarregada=2`.
+- Não há necessidade de mockar `supabase` ou `react-router` porque `KpiDeepSheet` é puro/UI.
 
-No bloco da Toolbar do `KpiDeepSheet` (linhas ~1916–1919), envolver o `<div>` do Switch + Label com `{!isProblema && ( ... )}`. A variável `isProblema` já existe (linha 1822).
-
-**2. Forçar o estado para `false` quando o drill é de problema**
-
-No `useEffect` de inicialização do drill (`abrirKpiDrill`, linha ~460), continuar setando `setStatusDrillSomenteInconsist(isProblema)` apenas para que o estado não interfira — porém como o toggle some, o valor é irrelevante. Deixar como está.
-
-**3. (Opcional, mas recomendado) Pequeno hint visual**
-
-Logo abaixo da `SheetDescription` (linha ~1877), adicionar — somente quando `isProblema` — um texto `text-[11px] text-muted-foreground`: "Recorte já contém apenas linhas com inconsistência deste tipo." Isso explica por que o toggle não aparece.
+### Como rodar
+`npx vitest run src/pages/__tests__/KpiDeepSheet.test.tsx`
 
 ### Fora de escopo
-- Mudar a lógica de `linhasDoKpi` ou de `groupOpsFromRows`.
-- Alterar comportamento do toggle nos drills `total` / `status` / `emAndamento` / `finalizadas` / `maiorTotalDia` (já funcionam).
-- Ajustes em outras telas.
+- Testes E2E (Playwright).
+- Testes de outras partes da página (`OpLinhasInline`, drawer, KPIs).
+- Refatorar `KpiDeepSheet` para arquivo separado.
 
 ### Resultado
-- Em drills de KPIs de problema, o toggle "Só c/ inconsistência" deixa de aparecer (não é aplicável) e exibimos uma frase curta indicando que o recorte já está filtrado.
-- Em drills "neutros" (Total/Status/Em andamento/Finalizadas/Maior Total Dia), o toggle continua aparecendo e funcionando como antes.
+Suite cobre as duas regras críticas do toggle (oculto em problema, funcional em neutro), prevenindo regressões futuras.
 
