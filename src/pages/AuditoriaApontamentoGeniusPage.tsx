@@ -64,6 +64,7 @@ type KpiDrillKind =
   | { kind: 'semFim' }
   | { kind: 'fimMenorInicio' }
   | { kind: 'acima8h' }
+  | { kind: 'abaixo5min' }
   | { kind: 'maiorTotalDia' }
   | { kind: 'emAndamento' }
   | { kind: 'finalizadas' };
@@ -134,6 +135,8 @@ function isLinhaDiscrepante(row: any): boolean {
   if (!row?.hora_inicial) return true;
   if (!row?.hora_final) return true;
   if (row?.hora_inicial && row?.hora_final && String(row.hora_final) < String(row.hora_inicial)) return true;
+  const min = Number(row?.horas_realizadas) || 0;
+  if (min > 0 && min < 5) return true;
   return false;
 }
 
@@ -349,7 +352,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [opExpandidaNoDrill, setOpExpandidaNoDrill] = useState<string | null>(null);
 
   const abrirKpiDrill = useCallback((k: KpiDrillKind) => {
-    const isProblema = ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(k.kind);
+    const isProblema = ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h','abaixo5min'].includes(k.kind);
     setStatusDrillSomenteInconsist(isProblema);
     setStatusDrillBusca('');
     setOpExpandidaNoDrill(null);
@@ -540,6 +543,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     let localSemFim = 0;
     let localFimMenorInicio = 0;
     let localAcima8h = 0;
+    let localAbaixo5min = 0;
     let localMaiorDia = 0;
     let localOperadorMaior = '';
 
@@ -560,13 +564,16 @@ export default function AuditoriaApontamentoGeniusPage() {
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
-      if (sa && sa !== 'FECHADO') localDiscrepancias++;
+      const minRaw = Number(row.horas_realizadas) || 0;
+      const horas = minToHours(row.horas_realizadas);
+      const totDia = minToHours(row.total_horas_dia_operador);
+      const abaixo5 = minRaw > 0 && minRaw < 5;
+      if ((sa && sa !== 'FECHADO') || abaixo5) localDiscrepancias++;
       if (sa === 'SEM_APONTAMENTO') localSemInicio++;
       if (sa === 'ABERTO') localSemFim++;
       if (sa === 'DIVERGENTE') localFimMenorInicio++;
-      const horas = minToHours(row.horas_realizadas);
-      const totDia = minToHours(row.total_horas_dia_operador);
       if (horas > 8 || totDia > 8) localAcima8h++;
+      if (abaixo5) localAbaixo5min++;
       if (totDia > localMaiorDia) {
         localMaiorDia = totDia;
         localOperadorMaior = row.nome_operador || '';
@@ -602,6 +609,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       sem_fim: r?.sem_fim ?? r?.total_sem_fim ?? localSemFim,
       fim_menor_inicio: r?.fim_menor_inicio ?? r?.total_fim_menor_inicio ?? localFimMenorInicio,
       acima_8h: acimaBackend ?? localAcima8h,
+      abaixo_5min: r?.abaixo_5min ?? r?.total_abaixo_5min ?? localAbaixo5min,
       maior_total_dia_operador: r?.maior_total_dia_operador ?? localMaiorDia,
       operador_maior_total: r?.operador_maior_total ?? localOperadorMaior,
       ops_em_andamento: totalEmAndamentoBackend ?? (opsPorLetra.E.size + opsPorLetra.L.size + opsPorLetra.A.size),
@@ -786,8 +794,12 @@ export default function AuditoriaApontamentoGeniusPage() {
     const sa = String(row.status_movimento ?? '').toUpperCase();
     const horas = minToHours(row.horas_realizadas);
     const totDia = minToHours(row.total_horas_dia_operador);
+    const minRaw = Number(row.horas_realizadas) || 0;
     if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
+    }
+    if (minRaw > 0 && minRaw < 5) {
+      return 'bg-amber-500/10 hover:bg-amber-500/20';
     }
     if (sa === 'ABERTO' || sa === 'SEM_APONTAMENTO') {
       return 'bg-amber-500/5 hover:bg-amber-500/10';
@@ -818,6 +830,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       case 'semFim':          return all.filter((r) => !r.hora_final || String(r.status_movimento ?? '').toUpperCase() === 'ABERTO');
       case 'fimMenorInicio':  return all.filter((r) => (r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial)) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
       case 'acima8h':         return all.filter((r) => minToHours(r.horas_realizadas) > 8 || minToHours(r.total_horas_dia_operador) > 8);
+      case 'abaixo5min':      return all.filter((r) => { const m = Number(r.horas_realizadas) || 0; return m > 0 && m < 5; });
       case 'discrepancias':   return all.filter(isLinhaDiscrepante);
       case 'maiorTotalDia':   return maxTotalDiaMin > 0 ? all.filter((r) => Number(r.total_horas_dia_operador || 0) === maxTotalDiaMin) : [];
     }
@@ -966,6 +979,7 @@ export default function AuditoriaApontamentoGeniusPage() {
             <KpiDrillCard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} kind={{ kind: 'semFim' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semFim' }))} onVerTudo={abrirKpiDrill} />
             <KpiDrillCard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} kind={{ kind: 'fimMenorInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'fimMenorInicio' }))} onVerTudo={abrirKpiDrill} />
             <KpiDrillCard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} kind={{ kind: 'acima8h' }} ops={agregarPorOp(linhasDoKpi({ kind: 'acima8h' }))} onVerTudo={abrirKpiDrill} />
+            <KpiDrillCard title="Abaixo de 5 min" value={formatNumber((atualizarKpisApontGenius as any).abaixo_5min ?? 0, 0)} icon={<AlertTriangle className="h-5 w-5" />} variant="warning" index={11} kind={{ kind: 'abaixo5min' }} ops={agregarPorOp(linhasDoKpi({ kind: 'abaixo5min' }))} onVerTudo={abrirKpiDrill} />
             <KpiDrillCard
               title="Maior Total Dia"
               value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
@@ -1589,6 +1603,7 @@ const KPI_TITLES: Record<KpiDrillKind['kind'], string> = {
   semFim: 'Sem Fim',
   fimMenorInicio: 'Fim < Início',
   acima8h: 'Acima de 8h',
+  abaixo5min: 'Abaixo de 5 min',
   maiorTotalDia: 'Maior Total Dia',
   emAndamento: 'Em Andamento (E + L + A)',
   finalizadas: 'Finalizadas (F)',
@@ -1627,7 +1642,7 @@ function KpiDeepSheet({
   const titulo = kind ? (kind.kind === 'status' ? `${STATUS_LETRA_LABEL[kind.letra]} (${kind.letra})` : KPI_TITLES[kind.kind]) : '';
   const variantCfg = kind?.kind === 'status' ? statusOpVariants[kind.letra] : null;
   // Inconsistências por padrão para KPIs problemáticos
-  const isProblema = kind && ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(kind.kind);
+  const isProblema = kind && ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h','abaixo5min'].includes(kind.kind);
 
   const opsFiltradas = useMemo(() => {
     let arr = ops;
