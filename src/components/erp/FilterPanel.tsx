@@ -25,12 +25,12 @@ export function FilterPanel({ children, onSearch, onClear, defaultOpen = true }:
         </span>
         {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
-      <div className={cn('overflow-hidden transition-all', isOpen ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0')}>
+      <div className={cn('transition-all', isOpen ? 'opacity-100' : 'max-h-0 overflow-hidden opacity-0')}>
         <div className="border-t px-4 py-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {children}
           </div>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" onClick={onSearch}>
               <Search className="mr-1 h-3 w-3" />
               Pesquisar
