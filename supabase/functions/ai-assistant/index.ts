@@ -434,8 +434,12 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const wantsStream = req.headers.get("accept") === "text/event-stream";
-    const systemPrompt = buildSystemPrompt(pageContext);
     const callerUserId = await getCallerUserId(req);
+    const userMemory = await loadUserMemory(
+      callerUserId,
+      pageContext?.module || null
+    );
+    const systemPrompt = buildSystemPrompt(pageContext, userMemory);
 
     const baseMessages = [
       { role: "system", content: systemPrompt },
