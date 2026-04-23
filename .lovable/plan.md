@@ -1,100 +1,115 @@
 
 
-## Melhorias para o Assistente IA em todas as páginas
+## Adicionar contexto automático da rota atual em todas as páginas
 
-### Diagnóstico atual
-Revisei `src/components/erp/AiAssistantChat.tsx`, `supabase/functions/ai-assistant/index.ts` e `src/hooks/useAiFilters.ts`. O assistente hoje:
-- É um botão flutuante global no `AppLayout` (aparece em todas as rotas autenticadas, ok).
-- Faz tool-calling para aplicar filtros no contexto da rota atual via `useAiFilters`.
-- Usa Lovable AI Gateway (Gemini) com histórico curto.
-- Renderiza respostas em texto plano (sem markdown).
-- Não tem memória entre sessões / não persiste conversas.
-- Não conhece o conteúdo dinâmico da tela (KPIs, totais, registros visíveis).
-- Sem indicador de "digitando", sem streaming.
-- Acesso controlado por `ai_enabled` (ok).
+### Estado atual
+A infraestrutura já existe e funciona:
+- `AiPageContextProvider` + `useAiPageContext` hook (já criados).
+- Edge function `ai-assistant` já injeta `pageContext` no system prompt.
+- `EstoquePage` é a única que registra contexto hoje.
 
-### Melhorias propostas (priorizadas)
+Falta: **chamar `useAiPageContext` nas demais páginas** para que o assistente "veja" KPIs, filtros e resumos em qualquer rota que o usuário acessar.
 
-**1. Contextualização por página (alto impacto)**
-- Cada página registra um "contexto" no assistente (rota, KPIs visíveis, filtros ativos, totais agregados, top N linhas).
-- Assistente recebe esse contexto no `system prompt` → respostas tipo *"Qual fornecedor concentra mais valor a pagar este mês?"* funcionam em qualquer tela.
-- Implementação: hook `useAiPageContext({ title, kpis, filters, summary })` + Provider que armazena o contexto atual; edge function injeta no prompt.
+### Páginas-alvo (todas com filtros/KPIs)
+Mapeei as páginas em `src/pages/` que devem registrar contexto:
 
-**2. Streaming de respostas (UX)**
-- Migrar `ai-assistant` para SSE (já documentado em useful-context).
-- Texto aparece token-a-token; reduz percepção de latência.
+| Página | Module key | Contexto a registrar |
+|---|---|---|
+| `PainelComprasPage` | `painel-compras` | filtros, KPIs (Total OCs, Valor Aberto, Pendentes), top fornecedor |
+| `ComprasProdutoPage` | `compras-produto` | filtros, total registros, último custo médio |
+| `OndeUsaPage` | `onde-usa` | filtros (codcmp, dercmp), nº de modelos encontrados |
+| `EngenhariaProducaoPage` | `engenharia-producao` | filtros, KPIs (Atendeu/Parcial/Sem produção), unidade de negócio |
+| `EstoqueMinMaxPage` | `estoque` | filtros, qtd críticos, qtd acima do max |
+| `SugestaoMinMaxPage` | `estoque` | filtros, total sugestões, valor estimado |
+| `ContasPagarPage` | (sem tool) | filtros, total aberto, vencidos, top fornecedor |
+| `ContasReceberPage` | (sem tool) | filtros, total a receber, vencidos, top cliente |
+| `NotasRecebimentoPage` | (sem tool) | filtros, qtd notas, valor total |
+| `ConciliacaoEdocsPage` | (sem tool) | filtros, qtd divergências |
+| `AuditoriaTributariaPage` | (sem tool) | filtros, qtd inconsistências |
+| `AuditoriaApontamentoGeniusPage` | (sem tool) | filtros, qtd apontamentos divergentes |
+| `BomPage` | (sem tool) | modelo selecionado, nº componentes |
+| `NumeroSeriePage` | (sem tool) | OP/Pedido, nº reservas |
+| `producao/ProducaoDashboardPage` | (sem tool) | filtros, KPIs do dashboard |
+| `producao/ExpedidoObraPage` | (sem tool) | filtros, total expedido |
+| `producao/LeadTimeProducaoPage` | (sem tool) | filtros, lead time médio |
+| `producao/ProduzidoPeriodoPage` | (sem tool) | filtros, qtd produzida |
+| `producao/SaldoPatioPage` | (sem tool) | filtros, qtd em pátio |
+| `producao/NaoCarregadosPage` | (sem tool) | filtros, qtd itens não carregados |
+| `ConfiguracoesPage` | — | só título e aba ativa |
+| `Index` | — | só título "Página inicial" |
 
-**3. Renderização markdown + tabelas**
-- Adicionar `react-markdown` + `remark-gfm` no balão do assistente.
-- Permite tabelas, listas, código, links → resposta sobre KPIs vira tabela legível.
+### Padrão de implementação (uniforme)
 
-**4. Histórico persistente por usuário**
-- Tabela `ai_conversations` + `ai_messages` (RLS por `user_id`).
-- Sidebar do chat lista conversas anteriores; "Nova conversa" cria thread.
-- Permite continuar de onde parou ao trocar de rota.
+Em cada página, adicionar logo após o `useState` dos filtros/data:
 
-**5. Ações rápidas contextuais (chips)**
-- Acima do input, 3-5 sugestões dinâmicas geradas a partir da rota atual:
-  - Em `/contas-pagar`: "Top 10 fornecedores vencidos", "Resumo por mês".
-  - Em `/estoque-min-max`: "Itens críticos", "Sugerir compras urgentes".
-- Implementação: tabela `ai_quick_actions(route, label, prompt)` ou mapa estático no front.
+```tsx
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
-**6. Mais ferramentas (tool calling) globais**
-- `navigate_to(route)` — abrir outra tela.
-- `export_current_view()` — disparar o `ExportButton` da página atual.
-- `explain_kpi(kpi_id)` — explicar o cálculo do KPI clicado.
-- `summarize_table()` — gerar resumo executivo da tabela visível.
+useAiPageContext({
+  title: 'Painel de Compras',
+  module: 'painel-compras', // omitir se não houver tool
+  filters,
+  kpis: data?.resumo ? {
+    'Total OCs': data.resumo.total_ocs,
+    'Valor Aberto': formatCurrency(data.resumo.valor_aberto),
+    'Pendentes': data.resumo.pendentes,
+  } : undefined,
+  summary: data
+    ? `${data.total_registros} registros exibidos${
+        data.dados?.[0] ? `; primeiro: ${data.dados[0].fornecedor}` : ''
+      }`
+    : undefined,
+});
+```
 
-**7. Voice input (opcional)**
-- Botão de microfone usando Web Speech API → transcreve fala para texto no input.
-- Útil para uso em chão de fábrica/tablet.
+### Regras
+1. **Sempre passar `title`** (igual ao `PageHeader`).
+2. **Passar `module`** apenas quando existir no enum da edge function (estoque, painel-compras, onde-usa, compras-produto, engenharia-producao). Para as demais, omitir → o assistente responde via texto/markdown sem tool.
+3. **`filters`** sempre é o objeto de state local — o hook serializa.
+4. **`kpis`** só quando há `data?.resumo` (guard). Valores formatados (com R$, %, etc.).
+5. **`summary`** texto curto (1 linha) com nº de registros + primeira linha relevante (fornecedor, projeto, item).
+6. **Não registrar dados sensíveis** (CPF/CNPJ completo, valores individuais de cada cliente). Apenas agregados.
+7. **Páginas sem dados carregados** (estado inicial) registram só `title + filters` para que o assistente saiba onde está.
 
-**8. Atalho de teclado global**
-- `Ctrl+J` (ou `Cmd+J`) abre/fecha o chat de qualquer página.
-- Ícone do botão flutuante mostra a dica em tooltip.
+### Ajuste opcional na edge function
+O `BASE_SYSTEM_PROMPT` já fala dos 5 módulos com tool. Vou adicionar uma frase orientando o modelo a **usar `pageContext.summary` e `pageContext.kpis`** quando o usuário fizer perguntas analíticas tipo "qual o total?", "quantos registros?", "qual o maior?" — sem inventar números.
 
-**9. Indicadores visuais**
-- "Digitando..." com 3 pontos animados durante a resposta.
-- Badge de "novo" quando o assistente termina enquanto o chat está fechado.
-- Contador de mensagens não lidas no botão flutuante.
+### Arquivos a alterar (~21 arquivos, edits pequenos)
+- `src/pages/PainelComprasPage.tsx`
+- `src/pages/ComprasProdutoPage.tsx`
+- `src/pages/OndeUsaPage.tsx`
+- `src/pages/EngenhariaProducaoPage.tsx`
+- `src/pages/EstoqueMinMaxPage.tsx`
+- `src/pages/SugestaoMinMaxPage.tsx`
+- `src/pages/ContasPagarPage.tsx`
+- `src/pages/ContasReceberPage.tsx`
+- `src/pages/NotasRecebimentoPage.tsx`
+- `src/pages/ConciliacaoEdocsPage.tsx`
+- `src/pages/AuditoriaTributariaPage.tsx`
+- `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+- `src/pages/BomPage.tsx`
+- `src/pages/NumeroSeriePage.tsx`
+- `src/pages/producao/ProducaoDashboardPage.tsx`
+- `src/pages/producao/ExpedidoObraPage.tsx`
+- `src/pages/producao/LeadTimeProducaoPage.tsx`
+- `src/pages/producao/ProduzidoPeriodoPage.tsx`
+- `src/pages/producao/SaldoPatioPage.tsx`
+- `src/pages/producao/NaoCarregadosPage.tsx`
+- `src/pages/ConfiguracoesPage.tsx`
+- `src/pages/Index.tsx`
+- `supabase/functions/ai-assistant/index.ts` — pequeno ajuste no prompt para reforçar uso do `summary/kpis`
 
-**10. Feedback por mensagem (👍/👎)**
-- Botões discretos em cada resposta do assistente.
-- Salva em `ai_message_feedback(message_id, rating, user_id)` para futuras melhorias de prompt.
+### Fora de escopo
+- Persistência das conversas (pacote 2).
+- Quick actions dinâmicas (pacote 2).
+- Captura de top-N linhas da tabela (atual: só `summary` agregado).
 
-**11. Limites e custos visíveis**
-- Mostrar erros 402 (sem créditos) e 429 (rate limit) com toast claro + link para a tela de Configurações/Workspace.
-- Já parcialmente tratado, mas precisa UX consistente.
+### Resultado esperado
+O usuário pode perguntar em **qualquer página** coisas como:
+- "Qual o valor total em aberto nesta tela?" → resposta usa `kpis['Valor Aberto']`.
+- "Quantos registros foram filtrados?" → resposta usa `summary`.
+- "Resuma esta tela." → assistente descreve título, filtros ativos e KPIs.
+- "Mostre apenas vencidos." → continua usando `apply_erp_filters` quando o módulo tem tool.
 
-**12. Modo "explicar esta tela"**
-- Botão único "Explique esta página" → IA descreve o que a tela faz, principais filtros e como interpretar os KPIs.
-- Ótimo para onboarding de novos usuários.
-
-### Escopo sugerido para a primeira entrega
-Para evitar inflar uma rodada só, proponho começar pelo **pacote 1** (impacto rápido):
-
-1. Contextualização por página (`useAiPageContext`)
-2. Renderização markdown
-3. Streaming SSE
-4. Indicador "digitando"
-5. Atalho `Ctrl+J`
-6. Modo "Explique esta página"
-
-E deixar para um pacote 2 (futuro):
-- Histórico persistente
-- Feedback 👍/👎
-- Voice input
-- Quick actions dinâmicas
-- Tools `navigate_to` / `export_current_view`
-
-### Arquivos que serão alterados/criados (pacote 1)
-- `src/components/erp/AiAssistantChat.tsx` — markdown, streaming, indicador, atalho, "explique esta página".
-- `src/contexts/AiPageContextProvider.tsx` *(novo)* — armazena contexto da rota atual.
-- `src/hooks/useAiPageContext.ts` *(novo)* — registra contexto a partir de cada página.
-- `src/App.tsx` — envolver com `AiPageContextProvider`.
-- `supabase/functions/ai-assistant/index.ts` — aceitar `pageContext` no body, retornar SSE.
-- Páginas principais (`EstoquePage`, `ContasPagarPage`, etc.) — chamar `useAiPageContext({ title, kpis, filters, summary })`.
-- `package.json` — adicionar `react-markdown` + `remark-gfm`.
-
-### Perguntas antes de implementar
+Tudo respeitando as permissões já existentes (`ai_enabled` por perfil + acesso por rota).
 
