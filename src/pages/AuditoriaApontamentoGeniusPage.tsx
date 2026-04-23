@@ -865,7 +865,8 @@ export default function AuditoriaApontamentoGeniusPage() {
                   </SheetTitle>
                   <Badge variant="outline" className="text-xs">Origem {opSelecionada.origem ?? '—'}</Badge>
                   {(() => {
-                    const cfg = statusOpVariants[opSelecionada.status_op];
+                    const key = String(opSelecionada.sitorp ?? opSelecionada.status_op ?? '').toUpperCase();
+                    const cfg = statusOpVariants[key];
                     return cfg ? <Badge className={cfg.className}>{cfg.label}</Badge> : null;
                   })()}
                 </div>
