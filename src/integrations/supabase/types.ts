@@ -177,12 +177,73 @@ export type Database = {
           },
         ]
       }
+      user_activity: {
+        Row: {
+          action: string | null
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          path: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          path?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          path?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          current_path: string | null
+          display_name: string | null
+          last_seen_at: string
+          user_agent: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          current_path?: string | null
+          display_name?: string | null
+          last_seen_at?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          current_path?: string | null
+          display_name?: string | null
+          last_seen_at?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       cleanup_old_error_logs: { Args: never; Returns: undefined }
+      cleanup_old_user_activity: { Args: never; Returns: undefined }
       is_admin: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
