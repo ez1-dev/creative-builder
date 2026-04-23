@@ -1,32 +1,33 @@
+## Apontar Assistente IA ao endpoint novo de Apontamento Genius
 
+### Diagnóstico (verificado agora no código)
 
-## Não há `[object Object]` real para corrigir
+**Já está correto na página `AuditoriaApontamentoGeniusPage.tsx`:**
+- Listagem chama `GET /api/apontamentos-producao` (linha 599).
+- Exportação chama `GET /api/export/apontamentos-producao` (linha 1158).
+- Normalizador `normalizeRowApont` (linhas 58–143) já produz os campos novos exigidos: `status_movimento`, `horas_realizadas` (em minutos), `data_movimento`, `data_inicio`/`hora_inicio`, `data_final`/`hora_final`, `nome_operador`, `numcad`.
+- As menções a `status_apontamento` / `horas_apontadas` / `data_apontamento` no arquivo são **apenas fallbacks de leitura** dentro do próprio normalizador — comportamento desejado para tolerar payloads antigos sem quebrar.
 
-### Verificação feita agora
-- **Console do preview**: 0 ocorrências de `[object Object]`.
-- **Runtime errors**: nenhum.
-- **Busca no código-fonte** (`src/**/*.{ts,tsx}`) pela string `[object Object]`: 0 resultados.
-- **Tela `/auditoria-apontamento-genius`** (a única candidata, por ter arrays `apontamentos`): já renderiza tudo de forma estruturada — `apontamentos` é usado apenas como **contador numérico** (`agg.apontamentos += 1`) e `apontamentosDaOp` é iterado com `.map()` célula a célula no drawer da OP. Não há `{apontamentos}` ou `{row.detalhes}` cru em JSX.
+**Único ponto realmente desatualizado:** `src/lib/aiQueryExecutor.ts` (linhas 127–134) registra a rota lógica `apontamento-genius` do Assistente IA apontando para o endpoint **antigo** `/api/auditoria-apontamento-genius` e com campos antigos no `defaultFields` (`tempo_total_horas`, `descricao_op`, `data_apontamento`). Isso faz com que perguntas em linguagem natural ao Assistente IA sobre apontamento Genius caiam no endpoint inexistente.
 
-Ou seja: o texto que você colou descreve um problema **hipotético** que não existe no projeto hoje. Se eu aplicar o "fix" sugerido (criar `renderValor()`, trocar `setDados(response)` por `setDados(response.data)`, etc.) eu vou **introduzir mudanças sem necessidade** e potencialmente quebrar o consumo atual da API, que já usa `api.get<T>(...)` tipado e retorna o objeto certo.
+### Correção
 
-### O que eu preciso de você para agir
-Me confirme **um** destes:
+**Arquivo:** `src/lib/aiQueryExecutor.ts` (somente o bloco `apontamento-genius`)
 
-1. **Você está vendo `[object Object]` em algum lugar específico da UI agora.**
-   → Me diga **qual rota** e **qual coluna/área da tela**, ou anexe um screenshot. Eu vou direto naquele componente.
+- `endpoint`: `/api/auditoria-apontamento-genius` → `/api/apontamentos-producao`
+- `defaultOrderBy`: `tempo_total_horas` → `data_movimento`
+- `defaultFields`: `['numero_op', 'operador', 'descricao_op', 'tempo_total_horas', 'data_apontamento']` → `['numero_op', 'nome_operador', 'numcad', 'descricao_produto', 'horas_realizadas', 'data_movimento', 'status_movimento']`
+- `availableFilters`: `['numero_op', 'operador', 'data_inicio', 'data_fim']` → `['numop', 'operador', 'codpro', 'codori', 'status_op', 'data_ini', 'data_fim', 'somente_discrepancia', 'somente_acima_8h']` (alinhado ao contrato do endpoint novo).
+- `permissionPath` e `description`: mantém.
 
-2. **Você está vendo no console do navegador** (não na tela).
-   → Abra o DevTools (F12) → aba Console → me cole o **stack trace** completo do warning, com o nome do componente.
+### O que NÃO mexer (intencionalmente)
+- **Rotas de UI** `'/auditoria-apontamento-genius'` em `App.tsx`, `AppSidebar.tsx`, `ConfiguracoesPage.tsx`, `userUsageMetrics.ts`: são **URLs da SPA**, não endpoints da API. Mudar a URL da página quebraria permissões cadastradas no banco (`profile_screens`) e bookmarks dos usuários.
+- **Fallbacks de leitura** dentro de `normalizeRowApont` (`r.status ?? r.status_apontamento`, `r.horas_apontadas`, `r.data_apontamento`): mantidos por robustez — só são usados se o campo novo vier ausente.
+- Documentação `docs/backend-auditoria-apontamento-genius.md`: descreve o contrato; sem alteração nesta tarefa (o título do doc é histórico).
 
-3. **Era só um exemplo genérico que outra IA te mandou** e não está acontecendo de fato.
-   → Então não há nada a fazer. Posso seguir para o próximo item da sua lista (ex.: continuar a integração do detalhe por movimento da OP 1005 / origem 110, que ficou aprovada anteriormente mas depende do backend retornar os campos `data_inicial/hora_inicial/data_final/hora_final`).
-
-### Por que não vou aplicar o "fix preventivo"
-- Adicionar um `renderValor()` defensivo em colunas que hoje renderizam string/número correto **não corrige nada** e suja o código.
-- Trocar `setDados(response)` por `setDados(response.data)` **quebraria** o fluxo atual: `api.get` já desempacota o JSON; o que vai pra `setData` é o objeto `{ dados, resumo, total_registros, debug }` — exatamente o que o resto da página espera.
-- Mudanças "por garantia" sem reproduzir o problema violam a regra de só editar o que tem causa identificada.
+### Validação após a aplicação
+1. Recarregar `/auditoria-apontamento-genius` → grid carrega normalmente (já estava OK).
+2. No Assistente IA, perguntar algo como “mostra os apontamentos Genius com mais de 8h dos últimos 30 dias” → a chamada deve sair para `/api/apontamentos-producao` (verificável pela aba Network), não mais 404 em `/api/auditoria-apontamento-genius`.
 
 ### Resultado
-Aguardo sua confirmação (qual das 3 opções acima) antes de mexer em qualquer arquivo.
-
+Toda a integração de Apontamento Genius (tela + Assistente IA) passa a usar exclusivamente o endpoint novo `/api/apontamentos-producao` e o contrato de campos novos. Sem fallback dizendo que o backend não existe, sem renomear rotas de UI.
