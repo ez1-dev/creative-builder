@@ -1483,7 +1483,8 @@ function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, 
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
               <Info className="h-3 w-3 text-muted-foreground/50" />
             </div>
-            <p className="text-xl font-bold text-foreground">{formatNumber(value, 0)}</p>
+            <p className="text-xl font-bold text-foreground">{typeof value === 'number' ? formatNumber(value, 0) : value}</p>
+            {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
             {totalInconsist > 0 && (
               <p className="text-xs text-destructive flex items-center gap-1">
                 <AlertTriangle className="h-3 w-3" /> {totalInconsist} c/ inconsistência
@@ -1555,7 +1556,7 @@ function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, 
                 variant="default"
                 size="sm"
                 className="w-full h-8 text-xs"
-                onClick={onVerTudo}
+                onClick={() => onVerTudo(kind)}
               >
                 Ver tudo · detalhamento completo →
               </Button>
