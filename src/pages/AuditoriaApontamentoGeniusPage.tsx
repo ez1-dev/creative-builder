@@ -645,7 +645,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       const hb = Number(b.horas_realizadas || 0) > 0 ? 1 : 0;
       return hb - ha;
     });
-  }, [data, quickFilter]);
+  }, [dadosFiltradosPorStatusOp, quickFilter]);
 
   // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
   // (sintoma do JOIN com E930MPR estar quebrado no backend).
