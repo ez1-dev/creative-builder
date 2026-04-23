@@ -117,6 +117,34 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "recall_user_searches",
+      description:
+        "Consulta o histórico de pesquisas do PRÓPRIO usuário autenticado nos últimos 30 dias. Use para responder 'o que pesquisei?', 'qual filtro usei?', 'minha última busca'. Pode filtrar por módulo.",
+      parameters: {
+        type: "object",
+        properties: {
+          module: {
+            type: "string",
+            description:
+              "Filtra por módulo (ex: 'estoque', 'painel-compras'). Omitir para buscar em todos.",
+          },
+          search: {
+            type: "string",
+            description:
+              "Texto a buscar dentro dos filtros salvos (ex: '001', 'fornecedor X').",
+          },
+          limit: {
+            type: "number",
+            description: "Máximo de registros (default 10, máximo 30).",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 function buildSystemPrompt(pageContext: any): string {
