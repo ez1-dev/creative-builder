@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import {
   Sheet,
   SheetContent,
@@ -1109,144 +1110,236 @@ export default function AuditoriaApontamentoGeniusPage() {
         onSearch={() => buscarAuditoriaApontamentoGenius(1)}
         onClear={limparTelaAuditoriaApontamentoGenius}
       >
-        <div><Label className="text-xs">Data inicial</Label><Input type="date" value={filters.data_ini} onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Data final</Label><Input type="date" value={filters.data_fim} onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" /></div>
-        <div className="flex flex-col justify-end gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs"
-            title="Preenche o intervalo dos últimos 12 meses"
-            onClick={() => {
-              const hoje = new Date();
-              const inicio = new Date();
-              inicio.setMonth(inicio.getMonth() - 12);
-              setFilters(f => ({
-                ...f,
-                data_ini: inicio.toISOString().slice(0, 10),
-                data_fim: hoje.toISOString().slice(0, 10),
-              }));
-            }}
-          >
-            <CalendarRange className="mr-1 h-3 w-3" />
-            Últimos 12 meses
-          </Button>
-        </div>
-        <div className="flex flex-col justify-end gap-1 sm:col-span-2 lg:col-span-2 xl:col-span-2">
-          <Label className="text-xs">Atalhos por semana (seg–dom)</Label>
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              title="Semana atual (segunda a domingo)"
-              onClick={() => {
-                const hoje = new Date();
-                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(hoje)), data_fim: toISODate(fimSemana(hoje)) }));
-              }}
-            >
-              <CalendarDays className="mr-1 h-3 w-3" />
-              Esta semana
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              title="Semana anterior"
-              onClick={() => {
-                const ref = addWeeks(new Date(), -1);
-                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
-              }}
-            >
-              Semana passada
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              title="Últimas 4 semanas (incluindo a atual)"
-              onClick={() => {
-                const hoje = new Date();
-                const ini = inicioSemana(addWeeks(hoje, -3));
-                setFilters(f => ({ ...f, data_ini: toISODate(ini), data_fim: toISODate(fimSemana(hoje)) }));
-              }}
-            >
-              Últimas 4 semanas
-            </Button>
+        <div className="col-span-full space-y-3">
+          {/* ===== Bloco 1 — Período ===== */}
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Período
+            </div>
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+              {/* Datas avulsas */}
+              <div className="flex items-end gap-2">
+                <div>
+                  <Label className="text-xs">Data inicial</Label>
+                  <Input
+                    type="date"
+                    value={filters.data_ini}
+                    onChange={(e) => setFilters(f => ({ ...f, data_ini: e.target.value }))}
+                    className="h-8 w-[140px] text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Data final</Label>
+                  <Input
+                    type="date"
+                    value={filters.data_fim}
+                    onChange={(e) => setFilters(f => ({ ...f, data_fim: e.target.value }))}
+                    className="h-8 w-[140px] text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Atalhos de período */}
+              <div className="flex flex-col gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  title="Preenche o intervalo dos últimos 12 meses"
+                  onClick={() => {
+                    const hoje = new Date();
+                    const inicio = new Date();
+                    inicio.setMonth(inicio.getMonth() - 12);
+                    setFilters(f => ({
+                      ...f,
+                      data_ini: inicio.toISOString().slice(0, 10),
+                      data_fim: hoje.toISOString().slice(0, 10),
+                    }));
+                  }}
+                >
+                  <CalendarRange className="mr-1 h-3 w-3" />
+                  Últimos 12 meses
+                </Button>
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    title="Semana atual (segunda a domingo)"
+                    onClick={() => {
+                      const hoje = new Date();
+                      setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(hoje)), data_fim: toISODate(fimSemana(hoje)) }));
+                    }}
+                  >
+                    <CalendarDays className="mr-1 h-3 w-3" />
+                    Esta semana
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    title="Semana anterior"
+                    onClick={() => {
+                      const ref = addWeeks(new Date(), -1);
+                      setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
+                    }}
+                  >
+                    Sem. passada
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    title="Últimas 4 semanas (incluindo a atual)"
+                    onClick={() => {
+                      const hoje = new Date();
+                      const ini = inicioSemana(addWeeks(hoje, -3));
+                      setFilters(f => ({ ...f, data_ini: toISODate(ini), data_fim: toISODate(fimSemana(hoje)) }));
+                    }}
+                  >
+                    Últimas 4 sem.
+                  </Button>
+                </div>
+              </div>
+
+              {/* Navegador semanal */}
+              <div className="flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title="Semana anterior"
+                  onClick={() => {
+                    const ref = filters.data_ini ? addWeeks(new Date(filters.data_ini + 'T12:00:00'), -1) : addWeeks(new Date(), -1);
+                    setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
+                  }}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[180px] text-center text-xs font-medium tabular-nums">
+                  {filters.data_ini ? labelSemana(new Date(filters.data_ini + 'T12:00:00')) : labelSemana(new Date())}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  title="Próxima semana"
+                  disabled={(() => {
+                    const ref = filters.data_ini ? new Date(filters.data_ini + 'T12:00:00') : new Date();
+                    return inicioSemana(addWeeks(ref, 1)) > new Date();
+                  })()}
+                  onClick={() => {
+                    const ref = filters.data_ini ? addWeeks(new Date(filters.data_ini + 'T12:00:00'), 1) : addWeeks(new Date(), 1);
+                    setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  title="Voltar para a semana atual"
+                  onClick={() => {
+                    const hoje = new Date();
+                    setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(hoje)), data_fim: toISODate(fimSemana(hoje)) }));
+                  }}
+                >
+                  Hoje
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title="Semana anterior"
-              onClick={() => {
-                const ref = filters.data_ini ? addWeeks(new Date(filters.data_ini + 'T12:00:00'), -1) : addWeeks(new Date(), -1);
-                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
-              }}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="flex-1 text-center text-xs font-medium tabular-nums">
-              {filters.data_ini ? labelSemana(new Date(filters.data_ini + 'T12:00:00')) : labelSemana(new Date())}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              title="Próxima semana"
-              disabled={(() => {
-                const ref = filters.data_ini ? new Date(filters.data_ini + 'T12:00:00') : new Date();
-                return inicioSemana(addWeeks(ref, 1)) > new Date();
-              })()}
-              onClick={() => {
-                const ref = filters.data_ini ? addWeeks(new Date(filters.data_ini + 'T12:00:00'), 1) : addWeeks(new Date(), 1);
-                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(ref)), data_fim: toISODate(fimSemana(ref)) }));
-              }}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              title="Voltar para a semana atual"
-              onClick={() => {
-                const hoje = new Date();
-                setFilters(f => ({ ...f, data_ini: toISODate(inicioSemana(hoje)), data_fim: toISODate(fimSemana(hoje)) }));
-              }}
-            >
-              Hoje
-            </Button>
+
+          <Separator />
+
+          {/* ===== Bloco 2 — Filtros de busca ===== */}
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Filtros de busca
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+              <div>
+                <Label className="text-xs">Número da OP</Label>
+                <Input
+                  value={filters.numop}
+                  onChange={(e) => setFilters(f => ({ ...f, numop: e.target.value }))}
+                  placeholder="OP"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Status da OP</Label>
+                <ComboboxFilter
+                  value={filters.status_op}
+                  onChange={(v) => setFilters(f => ({ ...f, status_op: (v as '' | 'EM_ANDAMENTO' | 'FINALIZADO') }))}
+                  options={statusOpOptions}
+                  placeholder="Status OP"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Origem (GENIUS)</Label>
+                <ComboboxFilter
+                  value={filters.codori}
+                  onChange={(v) => setFilters(f => ({ ...f, codori: v }))}
+                  options={origensOptions}
+                  placeholder="Origem"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Código produto</Label>
+                <Input
+                  value={filters.codpro}
+                  onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))}
+                  placeholder="Produto"
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Operador</Label>
+                <Input
+                  value={filters.operador}
+                  onChange={(e) => setFilters(f => ({ ...f, operador: e.target.value }))}
+                  placeholder="Operador"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        <div><Label className="text-xs">Número da OP</Label><Input value={filters.numop} onChange={(e) => setFilters(f => ({ ...f, numop: e.target.value }))} placeholder="OP" className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Origem (GENIUS)</Label><ComboboxFilter value={filters.codori} onChange={(v) => setFilters(f => ({ ...f, codori: v }))} options={origensOptions} placeholder="Origem" /></div>
-        <div><Label className="text-xs">Código produto</Label><Input value={filters.codpro} onChange={(e) => setFilters(f => ({ ...f, codpro: e.target.value }))} placeholder="Produto" className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Operador</Label><Input value={filters.operador} onChange={(e) => setFilters(f => ({ ...f, operador: e.target.value }))} placeholder="Operador" className="h-8 text-xs" /></div>
-        <div>
-          <Label className="text-xs">Status da OP</Label>
-          <ComboboxFilter
-            value={filters.status_op}
-            onChange={(v) => setFilters(f => ({ ...f, status_op: (v as '' | 'EM_ANDAMENTO' | 'FINALIZADO') }))}
-            options={statusOpOptions}
-            placeholder="Status OP"
-          />
-        </div>
-        <div className="flex items-center gap-2 pt-5">
-          <Switch id="somente-discrep" checked={filters.somente_discrepancia} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_discrepancia: v }))} />
-          <Label htmlFor="somente-discrep" className="cursor-pointer text-xs">Somente discrepância</Label>
-        </div>
-        <div className="flex items-center gap-2 pt-5">
-          <Switch id="somente-8h" checked={filters.somente_acima_8h} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_acima_8h: v }))} />
-          <Label htmlFor="somente-8h" className="cursor-pointer text-xs">Somente acima de 8h</Label>
+
+          <Separator />
+
+          {/* ===== Bloco 3 — Opções rápidas ===== */}
+          <div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Opções rápidas
+            </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+              <div className="inline-flex items-center gap-2">
+                <Switch
+                  id="somente-discrep"
+                  checked={filters.somente_discrepancia}
+                  onCheckedChange={(v) => setFilters(f => ({ ...f, somente_discrepancia: v }))}
+                />
+                <Label htmlFor="somente-discrep" className="cursor-pointer text-xs">Somente discrepância</Label>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <Switch
+                  id="somente-8h"
+                  checked={filters.somente_acima_8h}
+                  onCheckedChange={(v) => setFilters(f => ({ ...f, somente_acima_8h: v }))}
+                />
+                <Label htmlFor="somente-8h" className="cursor-pointer text-xs">Somente acima de 8h</Label>
+              </div>
+            </div>
+          </div>
         </div>
       </FilterPanel>
 
