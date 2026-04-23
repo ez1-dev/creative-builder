@@ -30,6 +30,7 @@ import ContasPagarPage from "@/pages/ContasPagarPage";
 import ContasReceberPage from "@/pages/ContasReceberPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { UserTrackingProvider } from "@/components/UserTrackingProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -42,6 +43,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <UserTrackingProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route element={<AppLayout />}>
@@ -74,6 +76,7 @@ const App = () => (
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </UserTrackingProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

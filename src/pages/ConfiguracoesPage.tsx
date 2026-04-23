@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity } from 'lucide-react';
+import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -426,6 +427,7 @@ export default function ConfiguracoesPage() {
             <FileWarning className="h-4 w-4" /> Logs
             {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="monitoramento" className="gap-1"><Activity className="h-4 w-4" /> Monitoramento</TabsTrigger>
         </TabsList>
         {/* === PERFIS === */}
         <TabsContent value="profiles">
@@ -943,6 +945,11 @@ export default function ConfiguracoesPage() {
               </p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* === MONITORAMENTO === */}
+        <TabsContent value="monitoramento">
+          <MonitoramentoUsuarios />
         </TabsContent>
       </Tabs>
     </div>
