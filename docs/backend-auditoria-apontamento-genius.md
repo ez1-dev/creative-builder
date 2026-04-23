@@ -144,6 +144,25 @@ Antes de concluir “sem dados”, o backend deve obrigatoriamente retornar:
 }
 ```
 
+### Campos opcionais — formato ERP "Movtos. O.P./O.S."
+Para a visão de detalhe por movimento (Sheet "Apontamentos vinculados") o frontend
+consome estes campos opcionais. Quando o backend não enviar, a célula correspondente
+mostra `—` sem quebrar o render.
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `derivacao` | string | Código de derivação do produto |
+| `equipamento` | string | Código do equipamento utilizado |
+| `qtde_primeira_qualidade` | number | Qtde 1ª qualidade apontada (fallback: `quantidade`) |
+| `qtde_refugo` | number | Qtde refugo |
+| `qtde_inspecao` | number | Qtde em inspeção |
+| `tempo_bruto_min` | number | Tempo bruto **em minutos** (fallback: `horas_realizadas`) |
+| `tempo_liquido_min` | number | Tempo líquido em minutos (fallback: `tempo_bruto_min`) |
+| `centro_recurso` | string | Código do Centro de Recurso (C.R.) |
+| `data_inicial` / `hora_inicial` | string | Data/hora de início do movimento |
+| `data_final` / `hora_final` | string | Data/hora de fim do movimento |
+
+
 ### Status possíveis
 - `OK`
 - `SEM_INICIO` — `hora_inicio` nula/vazia
