@@ -12,6 +12,7 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useAiPageContextValue } from '@/contexts/AiPageContext';
 import { useUserSuggestions, type SearchSuggestion } from '@/hooks/useUserSuggestions';
 import { SearchSuggestions } from '@/components/erp/SearchSuggestions';
+import { executeQueryErpData } from '@/lib/aiQueryExecutor';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
