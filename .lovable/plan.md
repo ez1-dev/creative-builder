@@ -1,98 +1,99 @@
 
 
-## Corrigir filtro de "ver detalhes do título" do Assistente IA
+## Auditoria de responsividade em todas as telas
 
-### Problema
-Fluxo:
-1. Usuário: "qual o maior valor em aberto no Contas a Pagar?"
-2. IA: "É o título **1669** com R$ 485.481,43. Quer ir para a tela?"
-3. Usuário: "sim"
-4. IA navega para `/contas-pagar` aplicando `numero_titulo: "1669"` → tela mostra **dezenas de títulos antigos pagos** (1669, 11669, 21669, 116691, 011669/01...) porque o backend faz **busca por substring**, não por igualdade.
+### Objetivo
+Verificar e corrigir o comportamento responsivo do app em todos os tamanhos de tela (desktop grande, laptop, tablet, mobile) e em todos os módulos, garantindo que ao minimizar/maximizar a janela nada quebre, sobreponha ou fique cortado.
 
-Resultado: o usuário pediu "este título" e recebeu uma lista enorme de títulos não relacionados.
+### Escopo da auditoria
 
-### Causas raiz
+**Telas a auditar (todas as rotas do app):**
+- Login, Dashboard (Index)
+- Painel de Compras, Compras Produto, Notas Recebimento, Conciliação eDocs
+- Contas a Pagar, Contas a Receber, Auditoria Tributária
+- Estoque, Estoque Min/Max, Sugestão Min/Max
+- BOM, Onde Usa, Engenharia Produção, Número Série
+- Auditoria Apontamento Genius
+- Produção (Dashboard, Lead Time, Não Carregados, Expedido Obra, Produzido Período, Saldo Pátio)
+- Configurações
 
-1. **Filtro `numero_titulo` é LIKE no backend**: passar "1669" casa qualquer string que contenha "1669". O ERP Senior usa chaves compostas (`tipo_titulo + numero_titulo + parcela + fornecedor`), então só `numero_titulo` nunca identifica um título único.
+**Breakpoints a validar:**
+- 1920x1080 (desktop grande)
+- 1536x864 (laptop padrão)
+- 1366x768 (laptop pequeno)
+- 1024x768 (tablet landscape)
+- 820x1180 (tablet portrait)
+- 414x896 (mobile grande)
+- 375x812 (mobile padrão)
 
-2. **Faltou `somente_saldo_aberto: true`**: o usuário pediu o "maior em aberto" → ao navegar, a IA precisa preservar esse filtro, senão aparecem os pagos.
+### Pontos críticos conhecidos a verificar
 
-3. **A IA não capturou as outras chaves do título** (tipo_titulo `RET`, fornecedor `1669` SECRETARIA RECEITA FEDERAL, parcela `4`, vencimento 20/04/2026) na resposta original — só citou "1669" como rótulo amigável.
+1. **AppLayout / Sidebar** — colapso automático em <768px, hambúrguer funcional, header não quebra com nome longo do usuário
+2. **Painéis de filtros** (`FilterPanel`) — wrapping correto dos campos em larguras pequenas, sem overflow horizontal
+3. **DataTable** — scroll horizontal com sticky columns (já implementado), mas validar em mobile se os dados continuam legíveis
+4. **KPICards** (grid de KPIs) — re-flow de 4 colunas → 2 → 1 conforme largura
+5. **Charts** (Recharts em ProducaoDashboard, etc.) — `ResponsiveContainer` realmente responde, sem altura fixa quebrando
+6. **AiAssistantChat** — painel flutuante com `useAiPanelPlacement` deve virar drawer/full-screen em mobile (já há `isMobile` no hook)
+7. **Modais/Sheets/Dialogs** — não estouram a viewport em telas pequenas
+8. **Tabs/Submenus** — overflow com scroll horizontal quando muitas abas
+9. **PageHeader** — título + ações não colidem em larguras estreitas
+10. **FinanceiroTreeTable** — indentação da árvore em mobile
 
-4. **Catálogo do módulo não avisa a IA** de que `numero_titulo` é busca parcial e que para identificar 1 título único é preciso combinar com fornecedor + vencimento (ou usar valor mínimo/máximo + intervalo de vencimento como cerca).
+### Plano de execução
 
-### Solução
+#### Fase 1 — Inspeção automatizada (browser)
+Para cada combinação rota × breakpoint:
+1. `browser--navigate_to_sandbox` na rota com `width`/`height` do breakpoint
+2. `browser--screenshot` para inspeção visual
+3. `browser--read_console_logs` para capturar warnings de layout
+4. Registrar problemas em uma tabela (rota, breakpoint, problema, severidade)
 
-#### 1) Atualizar `MODULE_MAP['contas-pagar']` e `['contas-receber']` em `src/lib/aiQueryExecutor.ts`
+Priorização (não testar 20 rotas × 7 breakpoints = 140 combinações; usar amostragem inteligente):
+- **Alta prioridade**: rotas mais usadas (Painel Compras, Contas Pagar, Estoque, Produção Dashboard, Auditoria Genius) em **375px, 768px, 1366px, 1920px**
+- **Média**: demais rotas em **375px e 1366px**
+- **Baixa**: Configurações, NotFound em **1366px** apenas
 
-Documentar no `description` e adicionar `defaultFields` mais ricos (incluir `tipo_titulo`, `nome_fornecedor`, `parcela`, `status_titulo`):
+Total estimado: ~40 combinações.
 
-```ts
-'contas-pagar': {
-  ...,
-  defaultFields: ['tipo_titulo', 'numero_titulo', 'parcela', 'nome_fornecedor', 
-                  'valor_aberto', 'valor_original', 'data_vencimento', 'status_titulo'],
-  description: 'Títulos a pagar. ATENÇÃO: numero_titulo é busca por SUBSTRING — não identifica título único. Para localizar 1 título específico, combine com fornecedor + intervalo estreito de data_vencimento + valor_min/valor_max.',
-  availableFilters: [..., 'valor_min', 'valor_max', 'somente_saldo_aberto', 'somente_vencidos', 'tipo_titulo'],
-  example: '"abrir o título de R$ 485.481 com vencimento 20/04/2026" → filters:{valor_min:485481, valor_max:485482, data_vencimento_ini:"2026-04-20", data_vencimento_fim:"2026-04-20", somente_saldo_aberto:true}',
-},
-```
+#### Fase 2 — Catalogação de problemas
+Agrupar achados por tipo:
+- **A. Overflow horizontal** (scroll lateral indesejado no `<body>`)
+- **B. Sobreposição** (elementos em cima de outros)
+- **C. Texto/conteúdo cortado** (truncate sem tooltip, overflow:hidden engolindo info)
+- **D. Componente inutilizável em mobile** (botões pequenos demais, modais > viewport)
+- **E. Quebra de grid/flex** (cards empilhando errado)
+- **F. Charts com altura colapsada** (0px height)
 
-(Mesma atualização para `contas-receber` com `nome_cliente`.)
+#### Fase 3 — Correções
+Para cada problema, aplicar a correção mínima:
+- Trocar `grid-cols-4` por `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` quando faltar
+- Adicionar `overflow-x-auto` em containers de tabelas/tabs que estiverem sem
+- Trocar `Dialog` por `Drawer` em mobile quando o conteúdo for grande (usando `useIsMobile`)
+- Adicionar `min-w-0` em flex children que estão estourando
+- Adicionar `truncate` + `title` em textos longos no header
+- Garantir `ResponsiveContainer` com `min-h-[Xpx]` em wrappers de chart
+- Wrapping (`flex-wrap`) em barras de ações do `PageHeader`
 
-#### 2) Reforçar regras no system prompt (`supabase/functions/ai-assistant/index.ts`)
+#### Fase 4 — Re-validação
+Após correções, re-testar as combinações que tinham problema para confirmar o fix, e fazer um spot-check em 3-4 outras rotas para garantir que nada regrediu.
 
-Adicionar no `BASE_SYSTEM_PROMPT` regra específica para **navegação de drill-down**:
-
-> **Drill-down ("ver detalhes deste título/OC/projeto")**:
-> Quando a última resposta do assistente identificou **1 registro específico** e o usuário confirma com "sim", "abrir", "ver detalhes":
-> - **NÃO** use apenas o "número" como filtro — vários sistemas (incl. Contas a Pagar) fazem busca por substring e retornarão dezenas de registros não relacionados.
-> - Use uma **cerca de filtros** combinando todos os identificadores conhecidos do registro: data exata, valor exato (`valor_min` = `valor_max` = valor do registro), fornecedor/cliente, tipo do título, e sempre `somente_saldo_aberto:true` se o contexto era "em aberto".
-> - Para Contas a Pagar/Receber, **sempre** inclua `somente_saldo_aberto:true` quando o registro de origem era "em aberto".
-
-Também incluir exemplo:
-```
-USER: "qual o maior título em aberto?"  
-ASSISTANT: "É R$ 485.481,43 vencendo 20/04/2026 (título 1669). Abrir?"  
-USER: "sim"  
-→ apply_erp_filters({ module:"contas-pagar", filters:{
-    valor_min:485481.43, valor_max:485481.44,
-    data_vencimento_ini:"2026-04-20", data_vencimento_fim:"2026-04-20",
-    somente_saldo_aberto:true
-  }})
-```
-
-#### 3) Resolvedor de confirmação curta — preservar resultado anterior
-
-Em `supabase/functions/ai-assistant/index.ts`, no resolvedor de "sim" já existente, adicionar um **memorando estruturado**: quando uma resposta anterior do assistente apresenta 1 registro específico (extraível via regex de "R$ X com vencimento DD/MM/YYYY"), injetar no contexto da próxima mensagem do usuário um snippet:
-
-> Contexto pendente: usuário acabou de confirmar abrir o registro `{valor: 485481.43, data_vencimento: "2026-04-20", numero_titulo: "1669"}` em `contas-pagar`. Use cerca de filtros valor_min/valor_max + data exata + somente_saldo_aberto:true.
-
-Isso reduz a chance do modelo cair de novo em "só passa o número".
-
-#### 4) Hardening client-side em `AiAssistantChat.handleToolCall`
-
-Em `src/components/erp/AiAssistantChat.tsx`, quando o tool `apply_erp_filters` chega com `module` em `['contas-pagar','contas-receber']` e o `filters` contém apenas `numero_titulo` (sem valor_min/data) — **avisar via toast** "Filtro amplo aplicado — pode trazer títulos similares" e, opcionalmente, **forçar `somente_saldo_aberto:true`** se a conversa anterior mencionar "em aberto" (heurística simples no histórico local).
-
-Nota: hardening client-side é só rede de segurança; o fix principal é o prompt + catálogo.
-
-### Testes manuais
-
-1. `/contas-pagar` → "qual o maior título em aberto?" → IA responde com valor + vencimento.
-2. "sim, abrir" → tela navega filtrando por `valor_min=valor_max + data_vencimento_ini=data_vencimento_fim + somente_saldo_aberto:true` → **1 linha** correspondente ao título de R$ 485.481,43.
-3. "qual o segundo maior?" → IA usa `aggregate` ou top_n=2 e oferece o seguinte.
-4. "abrir título 1669" (digitado direto) → IA pergunta: "Existem vários títulos contendo '1669'. Você quer todos os títulos com substring '1669', ou um específico? (informe valor ou vencimento)"
-
-### Arquivos alterados
-
-- **`src/lib/aiQueryExecutor.ts`**: enriquecer `defaultFields`, `availableFilters`, `description` e `example` de `contas-pagar` e `contas-receber`.
-- **`supabase/functions/ai-assistant/index.ts`**: nova regra de drill-down no `BASE_SYSTEM_PROMPT`; ampliar resolvedor de confirmação curta para extrair valor/data citados na última resposta e injetar como contexto.
-- **`src/components/erp/AiAssistantChat.tsx`** (opcional, hardening): toast informativo e injeção de `somente_saldo_aberto:true` quando heurística confirmar contexto "em aberto".
+### Entregáveis
+1. **Relatório de auditoria** (no chat) listando por rota:
+   - ✅ OK em todos breakpoints, ou
+   - ⚠️ Problemas encontrados + severidade + correção aplicada
+2. **Código corrigido** nos arquivos com problema (esperado: 5-15 arquivos, principalmente pages, FilterPanel, PageHeader, AppLayout)
+3. **Screenshots de antes/depois** dos casos mais críticos
 
 ### Fora de escopo
-- Mudar comportamento LIKE do backend para igualdade exata em `numero_titulo`.
-- Criar endpoint novo `/api/contas-pagar/{id}` para drill-down direto.
+- Redesign visual (mudança de paleta, tipografia, espaçamentos por gosto)
+- Reescrever DataTable ou Sidebar do zero
+- Otimização de performance (foco aqui é só layout)
+- PWA / orientação landscape em mobile (se já funciona, mantém)
 
-### Resultado
-Quando o usuário confirma "sim, abrir este título", a tela mostra **exatamente o título identificado** (1 linha), preservando o estado "em aberto" da conversa, sem trazer dezenas de títulos antigos pagos com substring coincidente.
+### Riscos
+- Algumas correções de grid podem afetar a densidade visual em desktop — quando houver tradeoff, priorizar **não quebrar mobile** mantendo desktop "bom o suficiente".
+- Charts com tooltip podem se comportar mal em touch — se aparecer, aplicar fix pontual sem refatorar Recharts.
+
+### Estimativa
+~40 inspeções + ~10 arquivos editados. Trabalho concentrado em uma rodada de exploração + uma rodada de patches + uma rodada de re-validação visual.
 
