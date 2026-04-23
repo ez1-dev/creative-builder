@@ -2173,7 +2173,7 @@ interface KpiDeepSheetProps {
   onFiltrarGridPorOp: (numop: string) => void;
 }
 
-export function KpiDeepSheet({
+export const KpiDeepSheet = React.forwardRef<HTMLDivElement, KpiDeepSheetProps>(function KpiDeepSheet({
   open, onOpenChange, kind, linhas,
   somenteInconsist, setSomenteInconsist,
   busca, setBusca,
@@ -2181,7 +2181,7 @@ export function KpiDeepSheet({
   opExpandida, setOpExpandida,
   discrepanciasParciais, totalRegistros, paginaCarregada,
   onAbrirDrawerOp, onFiltrarGridPorOp,
-}: KpiDeepSheetProps) {
+}, ref) {
   const ops = useMemo(() => agregarPorOp(linhas), [linhas]);
   const titulo = kind ? (kind.kind === 'status' ? `${STATUS_LETRA_LABEL[kind.letra]} (${kind.letra})` : KPI_TITLES[kind.kind]) : '';
   const variantCfg = kind?.kind === 'status' ? statusOpVariants[kind.letra] : null;
