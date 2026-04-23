@@ -266,6 +266,23 @@ export function buildModulesCatalog(): string {
   return lines.join('\n');
 }
 
+function resolveField(cfg: ModuleConfig, name: string | undefined): string | undefined {
+  if (!name) return name;
+  return cfg.fieldAliases?.[name] || name;
+}
+
+function resolveClientFilters(
+  cfg: ModuleConfig,
+  cf?: Record<string, ClientFilterCond>
+): Record<string, ClientFilterCond> | undefined {
+  if (!cf) return cf;
+  const out: Record<string, ClientFilterCond> = {};
+  for (const [k, v] of Object.entries(cf)) {
+    out[resolveField(cfg, k)!] = v;
+  }
+  return out;
+}
+
 function applyClientFilters(records: any[], cf?: Record<string, ClientFilterCond>): any[] {
   if (!cf) return records;
   return records.filter((r) => {
