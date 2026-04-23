@@ -10,26 +10,46 @@ const CURRENT_VERSION = packageJson.version;
 const POLL_INTERVAL_MS = 60_000;
 const LS_LAST_VERSION = 'app:last_seen_version';
 const LS_LAST_BUNDLE = 'app:last_seen_bundle';
+const LS_LAST_RELOAD = 'app:last_reload_at';
+const RELOAD_COOLDOWN_MS = 30_000;
+
+function safeGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSet(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignora
+  }
+}
 
 export function UpdateNotifier() {
   const [show, setShow] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<number | null>(null);
-  const lastBundleRef = useRef<string | null>(null);
+  const cooldownUntilRef = useRef<number>(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    // Inicializa baseline do bundle a partir do localStorage (se houver)
-    try {
-      const storedBundle = localStorage.getItem(LS_LAST_BUNDLE);
-      if (storedBundle) lastBundleRef.current = storedBundle;
-    } catch {
-      // ignora
+    // Cooldown pós-reload: evita loops
+    const lastReloadStr = safeGet(LS_LAST_RELOAD);
+    const lastReload = lastReloadStr ? Number(lastReloadStr) : 0;
+    if (lastReload && Date.now() - lastReload < RELOAD_COOLDOWN_MS) {
+      cooldownUntilRef.current = lastReload + RELOAD_COOLDOWN_MS;
     }
 
+    const inCooldown = () => Date.now() < cooldownUntilRef.current;
+
     const checkVersion = async () => {
+      if (inCooldown()) return;
       try {
         const { data, error } = await supabase
           .from('app_settings')
@@ -38,13 +58,10 @@ export function UpdateNotifier() {
           .maybeSingle();
         if (cancelled || error || !data?.value) return;
         const remote = String(data.value).trim();
-        let lastSeen: string | null = null;
-        try {
-          lastSeen = localStorage.getItem(LS_LAST_VERSION);
-        } catch {
-          // ignora
-        }
+        const lastSeen = safeGet(LS_LAST_VERSION);
         if (remote && remote !== CURRENT_VERSION && remote !== lastSeen) {
+          // Persiste imediatamente para evitar loop pós-reload
+          safeSet(LS_LAST_VERSION, remote);
           setLatestVersion(remote);
           setShow(true);
         }
@@ -54,20 +71,25 @@ export function UpdateNotifier() {
     };
 
     const checkBundleHash = async () => {
+      if (inCooldown()) return;
       try {
         const res = await fetch('/index.html', { cache: 'no-store' });
         if (!res.ok) return;
         const html = await res.text();
-        // Procura o bundle principal: <script type="module" src="/assets/index-XXXX.js">
         const match = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
-        if (!match) return; // em dev (sem hash) não casa — ok
+        if (!match) return; // dev sem hash
         const currentBundle = match[1];
         if (cancelled) return;
-        if (lastBundleRef.current === null) {
-          lastBundleRef.current = currentBundle;
+
+        const stored = safeGet(LS_LAST_BUNDLE);
+        if (!stored) {
+          // Primeira vez: estabelece baseline e não alerta
+          safeSet(LS_LAST_BUNDLE, currentBundle);
           return;
         }
-        if (lastBundleRef.current !== currentBundle) {
+        if (stored !== currentBundle) {
+          // Persiste IMEDIATAMENTE o novo hash para que o pós-reload não dispare de novo
+          safeSet(LS_LAST_BUNDLE, currentBundle);
           setLatestVersion((prev) => prev ?? 'novo build');
           setShow(true);
         }
@@ -81,16 +103,22 @@ export function UpdateNotifier() {
       checkBundleHash();
     };
 
-    runChecks();
-    intervalRef.current = window.setInterval(runChecks, POLL_INTERVAL_MS);
+    // Se em cooldown, agenda primeira execução após o cooldown expirar
+    const remainingCooldown = Math.max(0, cooldownUntilRef.current - Date.now());
+    const initialTimer = window.setTimeout(() => {
+      runChecks();
+      intervalRef.current = window.setInterval(runChecks, POLL_INTERVAL_MS);
+    }, remainingCooldown);
 
-    // Listener inerte de Service Worker — só ativa se algum SW for registrado no futuro.
+    // Listener inerte de Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then((reg) => {
         if (!reg || cancelled) return;
         reg.addEventListener('updatefound', () => {
+          if (inCooldown()) return;
           const newWorker = reg.installing;
           newWorker?.addEventListener('statechange', () => {
+            if (inCooldown()) return;
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               setLatestVersion((prev) => prev ?? 'novo build');
               setShow(true);
@@ -98,6 +126,7 @@ export function UpdateNotifier() {
           });
         });
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (inCooldown()) return;
           window.location.reload();
         });
       }).catch(() => {
@@ -107,19 +136,28 @@ export function UpdateNotifier() {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initialTimer);
       if (intervalRef.current) window.clearInterval(intervalRef.current);
     };
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Persiste versão/bundle "já vistos" para quebrar loop pós-reload
+    // Marca cooldown pós-reload
+    safeSet(LS_LAST_RELOAD, String(Date.now()));
+    // Sempre persiste versão atual como baseline para impedir re-disparo
+    if (latestVersion && !latestVersion.startsWith('novo')) {
+      safeSet(LS_LAST_VERSION, latestVersion);
+    } else {
+      safeSet(LS_LAST_VERSION, CURRENT_VERSION);
+    }
+    // Re-lê o bundle atual e persiste (garante baseline correto pós-reload)
     try {
-      if (latestVersion && !latestVersion.startsWith('novo')) {
-        localStorage.setItem(LS_LAST_VERSION, latestVersion);
-      }
-      if (lastBundleRef.current) {
-        localStorage.setItem(LS_LAST_BUNDLE, lastBundleRef.current);
+      const res = await fetch('/index.html', { cache: 'no-store' });
+      if (res.ok) {
+        const html = await res.text();
+        const match = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+        if (match) safeSet(LS_LAST_BUNDLE, match[1]);
       }
     } catch {
       // ignora
@@ -138,7 +176,7 @@ export function UpdateNotifier() {
         await Promise.all(keys.map((k) => caches.delete(k)));
       }
     } catch {
-      // ignora falha de cache
+      // ignora
     }
     window.location.reload();
   };
