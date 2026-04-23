@@ -340,9 +340,9 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
-  // Drill profundo nos cards de status real
-  const [statusOpDrillAberto, setStatusOpDrillAberto] = useState(false);
-  const [statusOpDrillLetra, setStatusOpDrillLetra] = useState<'E'|'L'|'A'|'F'|'C'|null>(null);
+  // Drill profundo genérico — válido para todos os KPIs
+  const [kpiDrillAberto, setKpiDrillAberto] = useState(false);
+  const [kpiDrillKind, setKpiDrillKind] = useState<KpiDrillKind | null>(null);
   const [statusDrillSomenteInconsist, setStatusDrillSomenteInconsist] = useState(false);
   const [statusDrillBusca, setStatusDrillBusca] = useState('');
   const [statusDrillOrdem, setStatusDrillOrdem] = useState<'inconsist'|'horas'|'apt'|'op'>('inconsist');
