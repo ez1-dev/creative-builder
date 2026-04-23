@@ -1,46 +1,43 @@
 
 
-## Corrigir erro 422 ao exportar Excel no Painel de Compras
+## Corrigir warnings de ref no KpiDeepSheet (Auditoria Apontamento Genius)
 
 ### Diagnóstico
-O endpoint `/api/export/painel-compras` retorna **422 (Unprocessable Entity)** quando o `ExportButton` envia os filtros do Painel de Compras como query params. 422 no FastAPI significa que algum parâmetro não passou na validação Pydantic do backend (tipo errado ou valor não aceito).
+A mensagem `[object Object],[object Object]` que você colou é uma explicação genérica de IA — **não está acontecendo na tela**. O que existe de fato no console hoje, na rota `/auditoria-apontamento-genius`, são dois warnings de React:
 
-Causa provável (a confirmar inspecionando `PainelComprasPage.tsx` antes de aplicar o fix):
-- O `ExportButton` serializa **todos** os filtros do estado via `String(value)`. Filtros boolean (ex.: `somente_em_aberto`, `incluir_servicos`) viram a string `"true"`/`"false"`, e o backend espera `bool` real ou os literais `1/0`.
-- Filtros do tipo array (ex.: lista de status, múltiplos fornecedores) são serializados como `"a,b,c"` em vez de repetir a chave (`?status=a&status=b`), formato exigido pelo FastAPI para `List[str]`.
-- Datas no formato `dd/MM/yyyy` quando o backend espera `yyyy-MM-dd` (ou vice-versa).
-- Campos numéricos (ex.: `tamanho_pagina`, valores mínimos) chegando como string vazia `""` em vez de serem omitidos.
+```
+Warning: Function components cannot be given refs.
+  Check the render method of `AuditoriaApontamentoGeniusPage`.
+  → KpiDeepSheet
+Warning: Function components cannot be given refs.
+  Check the render method of `KpiDeepSheet`.
+  → Dialog (Radix Sheet)
+```
 
-### Plano de correção
+Causa: `KpiDeepSheet` é declarado como `export function KpiDeepSheet(...)` (sem `forwardRef`) e é usado dentro de um contexto onde algum ancestral (Radix Tooltip/Sheet/Provider) tenta encaminhar uma ref para ele. O segundo warning é a propagação do mesmo problema para o `Dialog` interno do `Sheet`.
 
-**1) Inspecionar o estado real**
-- Abrir `src/pages/PainelComprasPage.tsx` e listar exatamente quais campos compõem `filters` (tipos: string, boolean, array, número, data).
-- Cruzar com o contrato do backend (procurar em `docs/` se houver `.md` do painel-compras; senão, inferir pelos filtros que o `GET /api/painel-compras` aceita hoje sem 422).
+Não quebra a tela, mas suja o console e atrapalha debug real.
 
-**2) Tornar o `ExportButton` tolerante a tipos**
-Editar `src/components/erp/ExportButton.tsx` para serializar `params` corretamente:
-- `boolean` → enviar **só quando `true`**, como `"true"` (mesma convenção que o GET de listagem usa hoje); se for `false`, **omitir** a chave.
-- `Array` → fazer `searchParams.append(key, item)` para cada item (gera `?k=a&k=b`).
-- `string ""`, `null`, `undefined` → omitir.
-- `number` / `Date` → manter `String(value)`.
-- Datas que sejam `Date` → converter para ISO `yyyy-MM-dd` antes.
+### Correção
 
-**3) Alinhar payload de export ao payload da listagem**
-No Painel de Compras, em vez de passar `filters` cru para `<ExportButton params={filters} />`, passar o **mesmo objeto que é enviado para `api.get('/api/painel-compras', payload)`** (já normalizado pela página). Isso garante 1:1 entre busca e export.
+**Arquivo:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
 
-**4) Validar**
-- Reproduzir o cenário exato (mesmos filtros do print do usuário, viewport 1568×790, rota `/painel-compras`).
-- Confirmar `200` + download do `.xlsx`.
-- Testar 3 combinações: (a) sem filtros, (b) com booleano marcado, (c) com filtro de período preenchido.
+1. Trocar a assinatura de `KpiDeepSheet` para usar `React.forwardRef`:
+   - De: `export function KpiDeepSheet({ ...props }: KpiDeepSheetProps) { ... }`
+   - Para: `export const KpiDeepSheet = React.forwardRef<HTMLDivElement, KpiDeepSheetProps>(({ ...props }, ref) => { ... });` + `KpiDeepSheet.displayName = 'KpiDeepSheet';`
+2. Encaminhar a `ref` para o nó raiz interno do componente (provavelmente o `<Sheet>` envolve um `SheetContent` — passar o ref para um `<div ref={ref}>` que envolve o conteúdo, ou diretamente para `SheetContent` se aceitar).
+3. Verificar se há outros componentes-função no mesmo arquivo recebendo ref implícito (ex.: subcomponentes usados dentro de `Tooltip`/`Popover`) e aplicar o mesmo padrão se necessário.
 
-### Arquivos alterados
-- `src/components/erp/ExportButton.tsx` — serialização robusta de booleans, arrays, datas e vazios.
-- `src/pages/PainelComprasPage.tsx` — passar o mesmo `payload` normalizado da consulta para o `ExportButton` (em vez de `filters` cru), se o diff entre eles for a causa.
+### Validação
+- Recarregar `/auditoria-apontamento-genius`.
+- Console deve ficar limpo dos dois warnings de `forwardRef`.
+- Abrir um KPI (clicar num card) → o `Sheet` do drill-down deve continuar abrindo normalmente, com filtros, busca, ordenação e drawer de OP funcionando como antes.
 
 ### Fora de escopo
-- Mudar o backend (não temos acesso; apenas adaptamos o frontend ao contrato).
-- Alterar outros `ExportButton` de outras telas — o fix no componente é genérico e beneficia todas, sem precisar editar página por página.
+- Mudanças visuais ou de comportamento.
+- Refatorar outros componentes-função do projeto.
+- Qualquer ajuste em backend ou em dados (a API e o render dos dados estão corretos — não há `[object Object]` real na UI).
 
 ### Resultado
-Exportar Excel no Painel de Compras volta a funcionar com qualquer combinação de filtros, e o componente `ExportButton` passa a tratar corretamente boolean/array/data/vazio em todas as telas que o usam.
+Os warnings de ref desaparecem do console, sem alterar nenhum comportamento visível da tela.
 
