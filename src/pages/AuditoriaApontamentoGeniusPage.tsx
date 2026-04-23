@@ -356,71 +356,82 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const atualizarKpisApontGenius = useMemo(() => {
     if (!data) return null;
-    const r = data.resumo;
+    const r = data.resumo as any;
     const rows = (data.dados || []) as any[];
 
     // Fallback: agrega contando Set de numop por status_op nativo (E900COP)
-    // Ativas = { E, L, A, EM_ANDAMENTO } | Finalizadas = { F, FINALIZADO } | Canceladas = { C, CANCELADO }
     const opsSet = {
       EM_ANDAMENTO: new Set<string>(),
       FINALIZADO: new Set<string>(),
       CANCELADO: new Set<string>(),
       SEM_STATUS: new Set<string>(),
     };
+
+    // Agregação local de discrepâncias (sempre executa, sobre a página atual)
+    let localDiscrepancias = 0;
+    let localSemInicio = 0;
+    let localSemFim = 0;
+    let localFimMenorInicio = 0;
+    let localAcima8h = 0;
+    let localMaiorDia = 0;
+    let localOperadorMaior = '';
+
     for (const row of rows) {
       const op = String(row.numero_op ?? row.numop ?? '');
-      if (!op) continue;
-      const st = normalizarStatusOp(row.status_op);
-      if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
-      else if (STATUS_OP_FINALIZADOS.has(st)) opsSet.FINALIZADO.add(op);
-      else if (STATUS_OP_CANCELADOS.has(st)) opsSet.CANCELADO.add(op);
-      else opsSet.SEM_STATUS.add(op);
-    }
+      if (op) {
+        const st = normalizarStatusOp(row.status_op);
+        if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
+        else if (STATUS_OP_FINALIZADOS.has(st)) opsSet.FINALIZADO.add(op);
+        else if (STATUS_OP_CANCELADOS.has(st)) opsSet.CANCELADO.add(op);
+        else opsSet.SEM_STATUS.add(op);
+      }
 
-    if (r) {
-      const rAny = r as any;
-      return {
-        total_registros: rAny.total_registros ?? rows.length,
-        total_discrepancias: rAny.total_discrepancias ?? 0,
-        sem_inicio: rAny.sem_inicio ?? rAny.total_sem_inicio ?? 0,
-        sem_fim: rAny.sem_fim ?? rAny.total_sem_fim ?? 0,
-        fim_menor_inicio: rAny.fim_menor_inicio ?? rAny.total_fim_menor_inicio ?? 0,
-        acima_8h: rAny.acima_8h
-          ?? ((rAny.total_apontamento_maior_8h ?? 0) + (rAny.total_operador_maior_8h_dia ?? 0)),
-        maior_total_dia_operador: rAny.maior_total_dia_operador ?? 0,
-        operador_maior_total: rAny.operador_maior_total ?? '',
-        ops_em_andamento: rAny.ops_em_andamento ?? rAny.total_ops_andamento ?? opsSet.EM_ANDAMENTO.size,
-        ops_finalizadas: rAny.ops_finalizadas ?? rAny.total_ops_finalizadas ?? opsSet.FINALIZADO.size,
-      };
-    }
-
-    const acc = {
-      total_registros: rows.length,
-      total_discrepancias: 0,
-      sem_inicio: 0,
-      sem_fim: 0,
-      fim_menor_inicio: 0,
-      acima_8h: 0,
-      maior_total_dia_operador: 0,
-      operador_maior_total: '',
-      ops_em_andamento: opsSet.EM_ANDAMENTO.size,
-      ops_finalizadas: opsSet.FINALIZADO.size,
-    };
-    for (const row of rows) {
       const sa = String(row.status_movimento ?? '').toUpperCase();
-      if (sa && sa !== 'FECHADO') acc.total_discrepancias++;
-      if (sa === 'SEM_APONTAMENTO') acc.sem_inicio++;
-      if (sa === 'ABERTO') acc.sem_fim++;
-      if (sa === 'DIVERGENTE') acc.fim_menor_inicio++;
+      if (sa && sa !== 'FECHADO') localDiscrepancias++;
+      if (sa === 'SEM_APONTAMENTO') localSemInicio++;
+      if (sa === 'ABERTO') localSemFim++;
+      if (sa === 'DIVERGENTE') localFimMenorInicio++;
       const horas = Number(row.horas_realizadas || 0);
       const totDia = Number(row.total_horas_dia_operador || 0);
-      if (horas > 8 || totDia > 8) acc.acima_8h++;
-      if (totDia > acc.maior_total_dia_operador) {
-        acc.maior_total_dia_operador = totDia;
-        acc.operador_maior_total = row.nome_operador || '';
+      if (horas > 8 || totDia > 8) localAcima8h++;
+      if (totDia > localMaiorDia) {
+        localMaiorDia = totDia;
+        localOperadorMaior = row.nome_operador || '';
       }
     }
-    return acc;
+
+    // Detecta se backend mandou algum campo de discrepância no resumo
+    const backendTrouxeDiscrepancias = !!r && (
+      r.total_discrepancias != null ||
+      r.sem_inicio != null || r.total_sem_inicio != null ||
+      r.sem_fim != null || r.total_sem_fim != null ||
+      r.fim_menor_inicio != null || r.total_fim_menor_inicio != null ||
+      r.acima_8h != null || r.total_apontamento_maior_8h != null || r.total_operador_maior_8h_dia != null ||
+      r.maior_total_dia_operador != null
+    );
+
+    const totalRegistros = r?.total_registros ?? rows.length;
+    const acimaBackend = r?.acima_8h
+      ?? ((r?.total_apontamento_maior_8h != null || r?.total_operador_maior_8h_dia != null)
+            ? ((r?.total_apontamento_maior_8h ?? 0) + (r?.total_operador_maior_8h_dia ?? 0))
+            : undefined);
+
+    const discrepanciasParciais =
+      !backendTrouxeDiscrepancias && rows.length > 0 && rows.length < totalRegistros;
+
+    return {
+      total_registros: totalRegistros,
+      total_discrepancias: r?.total_discrepancias ?? localDiscrepancias,
+      sem_inicio: r?.sem_inicio ?? r?.total_sem_inicio ?? localSemInicio,
+      sem_fim: r?.sem_fim ?? r?.total_sem_fim ?? localSemFim,
+      fim_menor_inicio: r?.fim_menor_inicio ?? r?.total_fim_menor_inicio ?? localFimMenorInicio,
+      acima_8h: acimaBackend ?? localAcima8h,
+      maior_total_dia_operador: r?.maior_total_dia_operador ?? localMaiorDia,
+      operador_maior_total: r?.operador_maior_total ?? localOperadorMaior,
+      ops_em_andamento: r?.ops_em_andamento ?? r?.total_ops_andamento ?? opsSet.EM_ANDAMENTO.size,
+      ops_finalizadas: r?.ops_finalizadas ?? r?.total_ops_finalizadas ?? opsSet.FINALIZADO.size,
+      discrepanciasParciais,
+    };
   }, [data]);
 
   const rowClassName = useCallback((row: any) => {
