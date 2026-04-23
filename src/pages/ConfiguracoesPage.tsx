@@ -116,6 +116,7 @@ export default function ConfiguracoesPage() {
   const [pendingErpUserInputs, setPendingErpUserInputs] = useState<Record<string, string>>({});
   const [approvedErpEdits, setApprovedErpEdits] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('profiles');
 
   // API config states
   const [apiUrl, setApiUrl] = useState('');
@@ -342,21 +343,33 @@ export default function ConfiguracoesPage() {
     const existing = profileScreens.find(ps => ps.profile_id === profileId && ps.screen_path === screenPath);
     if (existing) {
       const newVal = !existing[field];
-      // If disabling view, also disable edit
       const updates = field === 'can_view' && !newVal
         ? { can_view: false, can_edit: false }
         : { [field]: newVal };
-      await supabase.from('profile_screens').update(updates).eq('id', existing.id);
+      const { error } = await supabase.from('profile_screens').update(updates).eq('id', existing.id);
+      if (error) {
+        toast.error('Erro ao atualizar permissão');
+        return;
+      }
+      setProfileScreens(prev => prev.map(ps =>
+        ps.id === existing.id ? { ...ps, ...updates } as ProfileScreen : ps
+      ));
+      toast.success('Permissão atualizada');
     } else {
-      await supabase.from('profile_screens').insert({
+      const { data: inserted, error } = await supabase.from('profile_screens').insert({
         profile_id: profileId,
         screen_path: screenPath,
         screen_name: screenName,
         can_view: field === 'can_view',
         can_edit: field === 'can_edit',
-      });
+      }).select().single();
+      if (error) {
+        toast.error('Erro ao atualizar permissão');
+        return;
+      }
+      if (inserted) setProfileScreens(prev => [...prev, inserted as ProfileScreen]);
+      toast.success('Permissão atualizada');
     }
-    fetchData();
   };
 
   const getScreenPerm = (profileId: string, screenPath: string) => {
@@ -386,7 +399,7 @@ export default function ConfiguracoesPage() {
 
   const getProfileName = (profileId: string) => profiles.find(p => p.id === profileId)?.name || '—';
 
-  if (loading) {
+  if (loading && profiles.length === 0) {
     return (
       <div className="p-6 space-y-4">
         <PageHeader title="Configurações" description="Gerenciamento de acessos e permissões" />
@@ -399,7 +412,7 @@ export default function ConfiguracoesPage() {
     <div className="p-6 space-y-4">
       <PageHeader title="Configurações" description="Gerenciamento de perfis de acesso, permissões por tela e atribuição de usuários" />
 
-      <Tabs defaultValue="profiles" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
           <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
