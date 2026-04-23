@@ -222,20 +222,34 @@ class ApontamentoGeniusItem(BaseModel):
     horas_alocadas: float = 0
     horas_apontadas: float = 0
     total_dia_operador: float = 0
-    status_op: Optional[str] = None  # 'EM_ANDAMENTO' | 'FINALIZADO'
+    status_op: Optional[str] = None  # 'E'|'L'|'A'|'F'|'C'|'SEM_STATUS' (preferido) ou 'EM_ANDAMENTO'|'FINALIZADO'|'CANCELADO' (legado)
     status: str = "OK"
 
 class ResumoApontGenius(BaseModel):
     total_registros: int = 0
     total_discrepancias: int = 0
+
+    # Campos preferidos (total_*) — frontend prioriza estes
+    total_sem_inicio: int = 0
+    total_sem_fim: int = 0
+    total_fim_menor_inicio: int = 0
+    total_apontamento_maior_8h: int = 0
+    total_operador_maior_8h_dia: int = 0
+    total_ops_andamento: int = 0
+    total_ops_finalizadas: int = 0
+
+    # Aliases legados — manter para compatibilidade
     sem_inicio: int = 0
     sem_fim: int = 0
     fim_menor_inicio: int = 0
     acima_8h: int = 0
-    maior_total_dia_operador: float = 0
-    operador_maior_total: str = ""
     ops_em_andamento: int = 0
     ops_finalizadas: int = 0
+    ops_canceladas: int = 0
+    ops_sem_status: int = 0
+
+    maior_total_dia_operador: float = 0
+    operador_maior_total: str = ""
 
 class PaginatedApontGenius(BaseModel):
     pagina: int
