@@ -28,8 +28,21 @@ import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
   Activity, CheckCircle2, CalendarRange, Info, ChevronDown, ChevronRight, Search,
-  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck,
+  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck, ChevronLeft, CalendarDays,
 } from 'lucide-react';
+import { startOfWeek, endOfWeek, addWeeks, getISOWeek, getISOWeekYear, format as formatDateFns } from 'date-fns';
+
+// ─── Helpers de semana (ISO: segunda → domingo) ───────────────────────────
+function inicioSemana(d: Date): Date { return startOfWeek(d, { weekStartsOn: 1 }); }
+function fimSemana(d: Date): Date { return endOfWeek(d, { weekStartsOn: 1 }); }
+function toISODate(d: Date): string { return formatDateFns(d, 'yyyy-MM-dd'); }
+function labelSemana(d: Date): string {
+  const ini = inicioSemana(d);
+  const fim = fimSemana(d);
+  const w = getISOWeek(d);
+  const y = getISOWeekYear(d);
+  return `S${String(w).padStart(2, '0')}/${y} · ${formatDateFns(ini, 'dd/MM')} – ${formatDateFns(fim, 'dd/MM')}`;
+}
 import { Card as UICard, CardContent as UICardContent } from '@/components/ui/card';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
