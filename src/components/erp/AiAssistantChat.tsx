@@ -36,12 +36,15 @@ export function AiAssistantChat() {
   const { context: pageContext } = useAiPageContextValue();
   const location = useLocation();
   const [open, setOpen] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { prefs } = useAiAssistantPrefs();
+  const placement = useAiPanelPlacement(open && !minimized);
 
   // Derive current module key from route or pageContext
   const currentModule = useMemo(() => {
@@ -51,6 +54,18 @@ export function AiAssistantChat() {
   }, [location.pathname, pageContext?.module]);
 
   const { suggestions } = useUserSuggestions(currentModule, 3);
+
+  // Auto-open: triggered when on a route with suggestions and respecting non-annoyance rules
+  useAiAutoOpen({
+    enabled: prefs.auto_open_enabled,
+    canUseAi,
+    isOpen: open,
+    hasSuggestions: suggestions.length > 0,
+    onAutoOpen: useCallback(() => {
+      setOpen(true);
+      setMinimized(false);
+    }, []),
+  });
 
   // Ctrl+J / Cmd+J global shortcut
   useEffect(() => {
