@@ -6,9 +6,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `Você é o assistente inteligente do ERP EZ. Seu objetivo é ajudar o usuário a encontrar informações no sistema ERP traduzindo perguntas em linguagem natural para filtros e ações.
+const BASE_SYSTEM_PROMPT = `Você é o assistente inteligente do ERP EZ. Seu objetivo é ajudar o usuário a encontrar informações no sistema ERP traduzindo perguntas em linguagem natural para filtros e ações, e respondendo perguntas analíticas com base no contexto da tela atual.
 
 Quando o usuário fizer uma pergunta que pode ser respondida navegando para um módulo do ERP e aplicando filtros, use a tool "apply_erp_filters".
+
+Quando o usuário fizer uma pergunta analítica sobre a tela atual (KPIs, totais, fornecedores, projetos visíveis), responda diretamente em texto, usando o CONTEXTO DA PÁGINA quando fornecido. Use markdown (tabelas, listas, negrito) para deixar a resposta clara.
 
 Módulos disponíveis e seus filtros:
 
@@ -32,7 +34,8 @@ Regras:
 - Se o usuário perguntar algo que não se encaixa em nenhum módulo, responda normalmente com texto.
 - Responda sempre em português brasileiro.
 - Seja objetivo e claro na explicação do que está fazendo.
-- Quando usar a tool, inclua uma explicação curta do que será buscado.`;
+- Quando usar a tool, inclua uma explicação curta do que será buscado.
+- Use markdown (negrito, listas, tabelas) para organizar respostas longas.`;
 
 const tools = [
   {
@@ -74,17 +77,45 @@ const tools = [
   },
 ];
 
+function buildSystemPrompt(pageContext: any): string {
+  if (!pageContext || typeof pageContext !== "object") return BASE_SYSTEM_PROMPT;
+  const lines: string[] = ["", "---", "CONTEXTO DA PÁGINA ATUAL:"];
+  if (pageContext.title) lines.push(`Tela: ${pageContext.title}`);
+  if (pageContext.route) lines.push(`Rota: ${pageContext.route}`);
+  if (pageContext.module) lines.push(`Módulo: ${pageContext.module}`);
+  if (pageContext.kpis && Object.keys(pageContext.kpis).length) {
+    lines.push("KPIs visíveis:");
+    for (const [k, v] of Object.entries(pageContext.kpis)) {
+      lines.push(`  - ${k}: ${v}`);
+    }
+  }
+  if (pageContext.filters && Object.keys(pageContext.filters).length) {
+    const active = Object.entries(pageContext.filters).filter(
+      ([_, v]) => v !== "" && v !== null && v !== undefined && v !== false
+    );
+    if (active.length) {
+      lines.push("Filtros ativos:");
+      for (const [k, v] of active) lines.push(`  - ${k}: ${JSON.stringify(v)}`);
+    }
+  }
+  if (pageContext.summary) {
+    lines.push(`Resumo: ${pageContext.summary}`);
+  }
+  return BASE_SYSTEM_PROMPT + "\n" + lines.join("\n");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, pageContext } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const wantsStream = req.headers.get("accept") === "text/event-stream";
+    const systemPrompt = buildSystemPrompt(pageContext);
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -97,7 +128,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: systemPrompt },
             ...messages,
           ],
           tools,
@@ -146,7 +177,6 @@ serve(async (req) => {
       });
     }
 
-    // Non-streaming: return full JSON
     const data = await response.json();
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
