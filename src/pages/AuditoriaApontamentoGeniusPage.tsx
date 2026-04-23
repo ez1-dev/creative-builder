@@ -889,7 +889,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                   <span><strong>Número OP:</strong> {opSelecionada.numero_op ?? '—'}</span>
                   <span><strong>Origem:</strong> {opSelecionada.origem ?? '—'}</span>
                   <span><strong>Cód. produto:</strong> {opSelecionada.codigo_produto ?? '—'}</span>
-                  <span><strong>Status OP:</strong> {statusOpVariants[opSelecionada.status_op]?.label ?? opSelecionada.status_op ?? '—'}</span>
+                  <span><strong>Status OP:</strong> {(() => { const k = String(opSelecionada.sitorp ?? opSelecionada.status_op ?? '').toUpperCase(); return statusOpVariants[k]?.label ?? k ?? '—'; })()}</span>
                   {'quantidade' in (opSelecionada || {}) && (
                     <span><strong>Quantidade:</strong> {formatNumber(Number(opSelecionada.quantidade) || 0, 2)}</span>
                   )}
