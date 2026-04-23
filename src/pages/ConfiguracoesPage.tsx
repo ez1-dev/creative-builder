@@ -343,21 +343,33 @@ export default function ConfiguracoesPage() {
     const existing = profileScreens.find(ps => ps.profile_id === profileId && ps.screen_path === screenPath);
     if (existing) {
       const newVal = !existing[field];
-      // If disabling view, also disable edit
       const updates = field === 'can_view' && !newVal
         ? { can_view: false, can_edit: false }
         : { [field]: newVal };
-      await supabase.from('profile_screens').update(updates).eq('id', existing.id);
+      const { error } = await supabase.from('profile_screens').update(updates).eq('id', existing.id);
+      if (error) {
+        toast.error('Erro ao atualizar permissão');
+        return;
+      }
+      setProfileScreens(prev => prev.map(ps =>
+        ps.id === existing.id ? { ...ps, ...updates } as ProfileScreen : ps
+      ));
+      toast.success('Permissão atualizada');
     } else {
-      await supabase.from('profile_screens').insert({
+      const { data: inserted, error } = await supabase.from('profile_screens').insert({
         profile_id: profileId,
         screen_path: screenPath,
         screen_name: screenName,
         can_view: field === 'can_view',
         can_edit: field === 'can_edit',
-      });
+      }).select().single();
+      if (error) {
+        toast.error('Erro ao atualizar permissão');
+        return;
+      }
+      if (inserted) setProfileScreens(prev => [...prev, inserted as ProfileScreen]);
+      toast.success('Permissão atualizada');
     }
-    fetchData();
   };
 
   const getScreenPerm = (profileId: string, screenPath: string) => {
