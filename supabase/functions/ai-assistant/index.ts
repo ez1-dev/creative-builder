@@ -756,9 +756,32 @@ serve(async (req) => {
     );
     const systemPrompt = buildSystemPrompt(pageContext, userMemory);
 
+    // Determinist intent resolver: detects global analytical questions
+    // and short confirmations ("sim") so the model is forced to use the
+    // correct tool with global scope instead of relying on page context.
+    const isContinuation =
+      Array.isArray(toolResults) && toolResults.length > 0 && priorAssistant;
+    let effectiveMessages = messages;
+    let extraSystemNote: string | null = null;
+    if (!isContinuation) {
+      const intent = resolveIntent(messages, pageContext);
+      if (intent.systemNote) extraSystemNote = intent.systemNote;
+      if (intent.rewrittenUserMessage && Array.isArray(messages) && messages.length > 0) {
+        const rewritten = [...messages];
+        for (let i = rewritten.length - 1; i >= 0; i--) {
+          if (rewritten[i].role === "user") {
+            rewritten[i] = { ...rewritten[i], content: intent.rewrittenUserMessage };
+            break;
+          }
+        }
+        effectiveMessages = rewritten;
+      }
+    }
+
     const baseMessages: any[] = [
       { role: "system", content: systemPrompt },
-      ...messages,
+      ...(extraSystemNote ? [{ role: "system", content: extraSystemNote }] : []),
+      ...effectiveMessages,
     ];
 
     // Continuation flow: client executed a client-side tool and is sending results back
