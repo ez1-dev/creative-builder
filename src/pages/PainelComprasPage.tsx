@@ -332,13 +332,27 @@ export default function PainelComprasPage() {
     return { valorBruto, desconto, impostos, fornecedores, valorPendente, itensPendentes, itensAtrasados, ocsAtrasadas, maiorAtraso, totalLinhas, itensServico };
   }, [data]);
 
+  const exportParams = useMemo(() => {
+    const p: any = { ...filters };
+    if (p.valor_min) p.valor_min = parseFloat(p.valor_min);
+    else delete p.valor_min;
+    if (p.valor_max) p.valor_max = parseFloat(p.valor_max);
+    else delete p.valor_max;
+    if (!p.situacao_oc || p.situacao_oc === 'TODOS') delete p.situacao_oc;
+    if (!p.tipo_item || p.tipo_item === 'TODOS') delete p.tipo_item;
+    if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
+    if (!p.codigo_motivo_oc || p.codigo_motivo_oc === 'TODOS') delete p.codigo_motivo_oc;
+    if (!p.observacao_oc) delete p.observacao_oc;
+    return p;
+  }, [filters]);
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
         title="Painel de Compras"
         description="Dashboard e detalhamento de ordens de compra"
-        actions={<ExportButton endpoint="/api/export/painel-compras" params={filters} />}
+        actions={<ExportButton endpoint="/api/export/painel-compras" params={exportParams} />}
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
