@@ -24,13 +24,13 @@ export async function trackPageView(path: string) {
   try {
     const info = await getCurrentUserInfo();
     if (!info) return;
-    await supabase.from('user_activity').insert({
+    await (supabase.from('user_activity') as any).insert({
       user_id: info.id,
       user_email: info.email,
       event_type: 'page_view',
       path,
     });
-    await supabase.from('user_sessions').upsert({
+    await (supabase.from('user_sessions') as any).upsert({
       user_id: info.id,
       user_email: info.email,
       display_name: info.displayName,
@@ -45,7 +45,7 @@ export async function trackAction(action: string, details?: Record<string, unkno
   try {
     const info = await getCurrentUserInfo();
     if (!info) return;
-    await supabase.from('user_activity').insert({
+    await (supabase.from('user_activity') as any).insert({
       user_id: info.id,
       user_email: info.email,
       event_type: 'action',
@@ -62,7 +62,7 @@ export function startHeartbeat() {
     try {
       const info = await getCurrentUserInfo();
       if (!info) return;
-      await supabase.from('user_sessions').upsert({
+      await (supabase.from('user_sessions') as any).upsert({
         user_id: info.id,
         user_email: info.email,
         display_name: info.displayName,
