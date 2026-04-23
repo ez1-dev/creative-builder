@@ -1,115 +1,100 @@
 
 
-## Adicionar contexto automático da rota atual em todas as páginas
+## Dashboard de Uso & Engajamento de Usuários
 
-### Estado atual
-A infraestrutura já existe e funciona:
-- `AiPageContextProvider` + `useAiPageContext` hook (já criados).
-- Edge function `ai-assistant` já injeta `pageContext` no system prompt.
-- `EstoquePage` é a única que registra contexto hoje.
+### Objetivo
+Criar uma nova aba "Dashboard de Uso" dentro de **Configurações** (admin-only) com visão analítica de **horas de uso, engajamento, módulos mais acessados e padrões de comportamento**, complementando o atual "Monitoramento" (que mostra só online/histórico bruto).
 
-Falta: **chamar `useAiPageContext` nas demais páginas** para que o assistente "veja" KPIs, filtros e resumos em qualquer rota que o usuário acessar.
+### Diagnóstico
+- Já existe `user_activity` (eventos `page_view` / `action`) e `user_sessions` (heartbeat de 60s).
+- `MonitoramentoUsuarios.tsx` já mostra online + tabela. Falta visão **agregada e gráfica**.
+- Retenção atual: 7 dias para `user_activity`. Suficiente para análises semanais.
+- O heartbeat permite **estimar tempo de uso**: cada 2 `page_view`/heartbeats consecutivos do mesmo usuário em janela de 5min = 1 sessão; somando o tempo entre eventos (capado em 5min de ociosidade) → horas de uso.
 
-### Páginas-alvo (todas com filtros/KPIs)
-Mapeei as páginas em `src/pages/` que devem registrar contexto:
+### Métricas que o dashboard vai mostrar
 
-| Página | Module key | Contexto a registrar |
-|---|---|---|
-| `PainelComprasPage` | `painel-compras` | filtros, KPIs (Total OCs, Valor Aberto, Pendentes), top fornecedor |
-| `ComprasProdutoPage` | `compras-produto` | filtros, total registros, último custo médio |
-| `OndeUsaPage` | `onde-usa` | filtros (codcmp, dercmp), nº de modelos encontrados |
-| `EngenhariaProducaoPage` | `engenharia-producao` | filtros, KPIs (Atendeu/Parcial/Sem produção), unidade de negócio |
-| `EstoqueMinMaxPage` | `estoque` | filtros, qtd críticos, qtd acima do max |
-| `SugestaoMinMaxPage` | `estoque` | filtros, total sugestões, valor estimado |
-| `ContasPagarPage` | (sem tool) | filtros, total aberto, vencidos, top fornecedor |
-| `ContasReceberPage` | (sem tool) | filtros, total a receber, vencidos, top cliente |
-| `NotasRecebimentoPage` | (sem tool) | filtros, qtd notas, valor total |
-| `ConciliacaoEdocsPage` | (sem tool) | filtros, qtd divergências |
-| `AuditoriaTributariaPage` | (sem tool) | filtros, qtd inconsistências |
-| `AuditoriaApontamentoGeniusPage` | (sem tool) | filtros, qtd apontamentos divergentes |
-| `BomPage` | (sem tool) | modelo selecionado, nº componentes |
-| `NumeroSeriePage` | (sem tool) | OP/Pedido, nº reservas |
-| `producao/ProducaoDashboardPage` | (sem tool) | filtros, KPIs do dashboard |
-| `producao/ExpedidoObraPage` | (sem tool) | filtros, total expedido |
-| `producao/LeadTimeProducaoPage` | (sem tool) | filtros, lead time médio |
-| `producao/ProduzidoPeriodoPage` | (sem tool) | filtros, qtd produzida |
-| `producao/SaldoPatioPage` | (sem tool) | filtros, qtd em pátio |
-| `producao/NaoCarregadosPage` | (sem tool) | filtros, qtd itens não carregados |
-| `ConfiguracoesPage` | — | só título e aba ativa |
-| `Index` | — | só título "Página inicial" |
+**KPIs topo (período selecionável: 24h / 7d):**
+1. **Usuários ativos únicos** (DAU/WAU)
+2. **Total de horas de uso estimadas**
+3. **Sessões realizadas** (gap >5min = nova sessão)
+4. **Tempo médio por sessão** (min)
+5. **Páginas/sessão** (engajamento)
+6. **Ações executadas** (cliques em export, IA, filtros, etc.)
 
-### Padrão de implementação (uniforme)
+**Gráficos (recharts, já no projeto):**
+1. **Horas de uso por usuário** — bar chart horizontal (top 15)
+2. **Atividade por hora do dia** — line chart 0–23h (heatmap-like, mostra horários de pico)
+3. **Atividade por dia da semana** — bar chart (7d)
+4. **Módulos mais utilizados** — donut/pie (agrupar `path` por raiz: `/estoque`, `/contas-pagar`, `/producao/*`, etc.)
+5. **Linha do tempo de acessos** — line chart por dia (últimos 7d)
+6. **Engajamento por usuário** — tabela com: usuário, sessões, horas, páginas, ações, última atividade, módulo favorito
 
-Em cada página, adicionar logo após o `useState` dos filtros/data:
+**Insights automáticos (cards):**
+- Usuário mais ativo da semana
+- Módulo mais usado da empresa
+- Horário de pico de uso
+- Usuários inativos há >3 dias (alerta)
+- Total de exportações Excel (proxy de "consumo de relatórios")
 
-```tsx
-import { useAiPageContext } from '@/hooks/useAiPageContext';
+### Como calcular "horas de uso" (algoritmo)
+```text
+1. Ordenar eventos do usuário por timestamp.
+2. Para cada par consecutivo (e1, e2):
+   gap = e2.created_at - e1.created_at
+   se gap <= 5min  → soma gap ao tempo de uso
+   se gap >  5min  → ignora (usuário ficou ocioso ou saiu)
+3. Soma final = horas de uso estimadas no período.
+4. Sessão = bloco contínuo onde nenhum gap > 5min.
+```
+Cálculo client-side em memória sobre o resultado da query (até 5000 linhas/período).
 
-useAiPageContext({
-  title: 'Painel de Compras',
-  module: 'painel-compras', // omitir se não houver tool
-  filters,
-  kpis: data?.resumo ? {
-    'Total OCs': data.resumo.total_ocs,
-    'Valor Aberto': formatCurrency(data.resumo.valor_aberto),
-    'Pendentes': data.resumo.pendentes,
-  } : undefined,
-  summary: data
-    ? `${data.total_registros} registros exibidos${
-        data.dados?.[0] ? `; primeiro: ${data.dados[0].fornecedor}` : ''
-      }`
-    : undefined,
-});
+### Estrutura de arquivos
+
+**Novo:**
+- `src/components/erp/DashboardUsoUsuarios.tsx` — dashboard completo (KPIs + 6 gráficos + tabela de engajamento + insights).
+- `src/lib/userUsageMetrics.ts` — funções puras: `estimateSessions()`, `aggregateByHour()`, `aggregateByModule()`, `topUsersByHours()` (testáveis).
+
+**Alterado:**
+- `src/pages/ConfiguracoesPage.tsx` — adicionar nova aba **"Dashboard de Uso"** ao lado de "Monitoramento" (admin only, mesmo guard).
+- `src/hooks/useAiPageContext.ts` — registrar contexto da nova aba (`title`, KPIs, top usuário) para o assistente IA conseguir responder perguntas tipo "quem usou mais essa semana?".
+
+### Layout (1777px viewport)
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Período: [24h ▾] [7d ▾]   [Atualizar]                       │
+├─────────────────────────────────────────────────────────────┤
+│ KPI │ KPI │ KPI │ KPI │ KPI │ KPI    (6 cards em linha)     │
+├─────────────────────────────────────────────────────────────┤
+│ Horas por usuário (bar)    │ Módulos mais usados (donut)   │
+├─────────────────────────────┼───────────────────────────────┤
+│ Atividade por hora (line)  │ Atividade por dia sem (bar)   │
+├─────────────────────────────┴───────────────────────────────┤
+│ Linha do tempo — acessos por dia (line, full width)         │
+├─────────────────────────────────────────────────────────────┤
+│ Insights: 3 cards com destaque automático                   │
+├─────────────────────────────────────────────────────────────┤
+│ Tabela: Engajamento por usuário (sortable)                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Regras
-1. **Sempre passar `title`** (igual ao `PageHeader`).
-2. **Passar `module`** apenas quando existir no enum da edge function (estoque, painel-compras, onde-usa, compras-produto, engenharia-producao). Para as demais, omitir → o assistente responde via texto/markdown sem tool.
-3. **`filters`** sempre é o objeto de state local — o hook serializa.
-4. **`kpis`** só quando há `data?.resumo` (guard). Valores formatados (com R$, %, etc.).
-5. **`summary`** texto curto (1 linha) com nº de registros + primeira linha relevante (fornecedor, projeto, item).
-6. **Não registrar dados sensíveis** (CPF/CNPJ completo, valores individuais de cada cliente). Apenas agregados.
-7. **Páginas sem dados carregados** (estado inicial) registram só `title + filters` para que o assistente saiba onde está.
+### Filtros do dashboard
+- **Período**: 24h, 7d (limite atual de retenção)
+- **Usuário**: dropdown (filtra todos os charts)
+- **Módulo**: dropdown (filtra para drill-down)
+- **Exportar Excel**: botão para baixar o engajamento da tabela
 
-### Ajuste opcional na edge function
-O `BASE_SYSTEM_PROMPT` já fala dos 5 módulos com tool. Vou adicionar uma frase orientando o modelo a **usar `pageContext.summary` e `pageContext.kpis`** quando o usuário fizer perguntas analíticas tipo "qual o total?", "quantos registros?", "qual o maior?" — sem inventar números.
+### Acesso & Segurança
+- Aba visível apenas para admins (mesma checagem `is_admin` já usada em "Monitoramento").
+- Usa as RLS existentes — admin lê `user_activity` e `user_sessions`.
+- Sem novas tabelas; sem migrations.
 
-### Arquivos a alterar (~21 arquivos, edits pequenos)
-- `src/pages/PainelComprasPage.tsx`
-- `src/pages/ComprasProdutoPage.tsx`
-- `src/pages/OndeUsaPage.tsx`
-- `src/pages/EngenhariaProducaoPage.tsx`
-- `src/pages/EstoqueMinMaxPage.tsx`
-- `src/pages/SugestaoMinMaxPage.tsx`
-- `src/pages/ContasPagarPage.tsx`
-- `src/pages/ContasReceberPage.tsx`
-- `src/pages/NotasRecebimentoPage.tsx`
-- `src/pages/ConciliacaoEdocsPage.tsx`
-- `src/pages/AuditoriaTributariaPage.tsx`
-- `src/pages/AuditoriaApontamentoGeniusPage.tsx`
-- `src/pages/BomPage.tsx`
-- `src/pages/NumeroSeriePage.tsx`
-- `src/pages/producao/ProducaoDashboardPage.tsx`
-- `src/pages/producao/ExpedidoObraPage.tsx`
-- `src/pages/producao/LeadTimeProducaoPage.tsx`
-- `src/pages/producao/ProduzidoPeriodoPage.tsx`
-- `src/pages/producao/SaldoPatioPage.tsx`
-- `src/pages/producao/NaoCarregadosPage.tsx`
-- `src/pages/ConfiguracoesPage.tsx`
-- `src/pages/Index.tsx`
-- `supabase/functions/ai-assistant/index.ts` — pequeno ajuste no prompt para reforçar uso do `summary/kpis`
+### Fora de escopo (futuro)
+- Retenção >7 dias (exigiria mudar `cleanup_old_user_activity` + custos de armazenamento).
+- Tracking granular de tempo em foco da aba (Page Visibility API) — hoje o heartbeat de 60s é suficiente.
+- Comparativo período vs período anterior.
+- Export PDF do dashboard.
 
-### Fora de escopo
-- Persistência das conversas (pacote 2).
-- Quick actions dinâmicas (pacote 2).
-- Captura de top-N linhas da tabela (atual: só `summary` agregado).
-
-### Resultado esperado
-O usuário pode perguntar em **qualquer página** coisas como:
-- "Qual o valor total em aberto nesta tela?" → resposta usa `kpis['Valor Aberto']`.
-- "Quantos registros foram filtrados?" → resposta usa `summary`.
-- "Resuma esta tela." → assistente descreve título, filtros ativos e KPIs.
-- "Mostre apenas vencidos." → continua usando `apply_erp_filters` quando o módulo tem tool.
-
-Tudo respeitando as permissões já existentes (`ai_enabled` por perfil + acesso por rota).
+### Resultado
+Admin abre **Configurações → Dashboard de Uso** e vê instantaneamente: quem usa mais o sistema (horas), quais módulos são prioridade, horários de pico, usuários inativos e engajamento individual — tudo com gráficos interativos e exportável.
 
