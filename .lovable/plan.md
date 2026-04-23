@@ -1,126 +1,142 @@
 
-
-## Corrigir respostas de "totais agregados" do Assistente IA (ex.: "quantas OCs em aberto?")
+## Corrigir o entendimento do Assistente IA para perguntas globais e confirmações curtas
 
 ### Problema
-Pergunta: **"quantas ordens de compra temos em aberto?"** (intenção: total geral do ERP)
+Mesmo após a melhoria anterior, o assistente ainda está errando em dois cenários críticos:
 
-Resposta atual: *"Com base nos filtros aplicados na tela atual (OC 40701, somente_pendentes), temos 13 itens em aberto."*
+1. **Perguntas globais** como:
+   - “quantas ordens de compra temos em aberto?”
+   - “qual o fornecedor com maior atraso?”
+   
+   Ele continua priorizando o **contexto filtrado da tela atual** (ex.: OC 40701) em vez de consultar o ERP inteiro.
 
-A IA está respondendo com base no **CONTEXTO DA PÁGINA** (que tem filtros locais) em vez de fazer uma consulta global. Além disso, mesmo se chamasse `query_erp_data`, ela retornaria **linhas de OC** (cada item) em vez de **OCs distintas**, e o `top_n` máximo de 50 mascara o total real.
+2. **Confirmações curtas** como:
+   - “sim”
+   
+   Depois de oferecer uma “busca global”, o assistente não reutiliza corretamente a intenção pendente e acaba respondendo de forma genérica ou repetindo o contexto local.
 
 ### Causas raiz
+1. **A lógica atual ainda depende demais do modelo obedecer o prompt**.  
+   As regras de `scope:"global"` existem, mas não há uma camada determinística que force `query_erp_data` quando a intenção é claramente analítica/global.
 
-1. **Prompt enviesado para o contexto da página**: a regra atual diz *"Quando o usuário fizer uma pergunta analítica sobre a tela atual, responda diretamente em texto, usando o CONTEXTO DA PÁGINA"*. A IA aplica isso a perguntas globais ("quantas OCs no total?") porque não há critério para diferenciar **escopo local vs global**.
+2. **O fluxo de continuação com “sim” não resolve a intenção anterior**.  
+   O histórico é enviado ao modelo, mas não existe um resolvedor explícito para transformar “sim” em “faça a busca global que você acabou de propor”.
 
-2. **`query_erp_data` não retorna agregados**: a tool foi desenhada para "top N ordenado". Para perguntas de **contagem** (`COUNT DISTINCT numero_oc`), ela:
-   - Devolve no máximo 50 registros.
-   - Reporta `total_in_dataset` = linhas (não OCs únicas).
-   - Não tem modo "só me dê o total".
-
-3. **Não há `count_only` / `aggregate`**: hoje qualquer pergunta tipo "quantos X?" precisa que a IA invente uma estimativa a partir dos top N.
-
-4. **Painel de Compras tem 1 OC = N linhas**: o backend retorna 1 linha por item da OC. "13 itens" da OC 40701 ≠ "13 OCs". A tool precisa saber agrupar por chave (`numero_oc`).
+3. **O catálogo/campos do módulo `painel-compras` não está alinhado com o payload real**.  
+   No código do módulo, o dado de fornecedor aparece como `fantasia_fornecedor`, mas o catálogo/configuração da IA usa `fornecedor`. Isso atrapalha respostas como “qual o fornecedor com maior atraso?”.
 
 ### Solução
 
-#### 1) Adicionar modo agregado em `query_erp_data`
+#### 1) Adicionar um resolvedor determinístico de intenção antes do modelo
+No `supabase/functions/ai-assistant/index.ts`, criar uma etapa anterior à chamada do gateway de IA para analisar a última mensagem do usuário e decidir se ela é um caso de:
 
-Novos parâmetros opcionais na tool (em `aiQueryExecutor.ts` e na definição da edge function):
+- **pergunta analítica global**
+- **drill-down da tela atual**
+- **confirmação curta de uma ação pendente** (“sim”, “pode”, “quero”, “faça”)
 
-- **`aggregate`**: `'count' | 'count_distinct' | 'sum' | 'avg'` (default: nenhum → comportamento atual de top N).
-- **`distinct_field`**: campo para `count_distinct` (ex.: `numero_oc`).
-- **`sum_field`**: campo para `sum`/`avg` (ex.: `valor_liquido`).
-- **`scope`**: `'page' | 'global'` (default: `global`). Se `page`, herda os filtros da `pageContext.filters`. Se `global`, ignora filtros da página e usa apenas os filtros explicitados pela IA.
+Essa etapa gera uma intenção normalizada, por exemplo:
 
-Quando `aggregate` está presente:
-- Cliente faz a paginação completa (até teto de 50 páginas × 200 = 10k linhas) ou, melhor, chama o endpoint com `tamanho_pagina=1` e lê `total_registros` do envelope para `count`.
-- Para `count_distinct`, busca campo `distinct_field` em todas as páginas (limita a 5 páginas para segurança) e conta valores únicos.
-- Retorna `{ aggregate: 'count_distinct', field: 'numero_oc', value: 187, total_lines_scanned: 1240 }`.
+- `intent = global_count_open_purchase_orders`
+- `intent = global_top_supplier_by_delay`
+- `intent = confirm_previous_global_query`
 
-#### 2) Ajustar `MODULE_MAP` com `aggregate_hints`
+#### 2) Forçar `query_erp_data` nos casos analíticos de alta confiança
+Quando a intenção normalizada for analítica e clara, a edge function deve **forçar o uso da tool `query_erp_data`**, em vez de deixar o modelo decidir livremente entre responder com texto ou usar o contexto da página.
 
-Cada módulo ganha `aggregateHints` declarando como contar a "unidade de negócio":
+Casos a cobrir imediatamente:
+- “quantas ordens de compra temos em aberto?”
+  - `module: "painel-compras"`
+  - `scope: "global"`
+  - `aggregate: "count_distinct"`
+  - `distinct_field: "numero_oc"`
+  - `filters: { somente_pendentes: true }`
 
-```ts
-'painel-compras': {
-  ...,
-  countUnit: { field: 'numero_oc', label: 'OCs' },
-  // "quantas OCs em aberto?" → aggregate:'count_distinct', distinct_field:'numero_oc', filters:{somente_pendentes:true}
-},
-'contas-pagar': { countUnit: { field: 'numero_titulo', label: 'títulos' } },
-'estoque': { countUnit: { field: 'codpro', label: 'produtos' } },
-// etc.
-```
+- “qual o fornecedor com maior atraso?”
+  - `module: "painel-compras"`
+  - `scope: "global"`
+  - `filters: { somente_pendentes: true }`
+  - `client_filters: { dias_atraso: { gt: 0 } }`
+  - `order_by: "dias_atraso"`
+  - `fields: ["fantasia_fornecedor", "numero_oc", "descricao_item", "dias_atraso", "data_entrega"]`
+  - `top_n: 10`
 
-E o catálogo no system prompt passa a incluir essa info:
-```
-- painel-compras: ... | unidade de contagem: numero_oc (OCs)
-```
+#### 3) Resolver confirmações curtas (“sim”) com base na última oferta do assistente
+Na mesma edge function, adicionar um resolvedor de follow-up:
 
-#### 3) Atualizar regras do system prompt
+- Se a última mensagem do usuário for apenas uma confirmação curta
+- E a última resposta do assistente tiver oferecido algo como:
+  - “posso fazer uma busca global”
+  - “posso consultar no ERP inteiro”
+  - “deseja remover os filtros da tela?”
+  
+Então a mensagem efetiva enviada ao modelo passa a ser a ação pendente explícita, por exemplo:
+- “Faça a busca global de ordens de compra em aberto”
+- “Consulte globalmente o fornecedor com maior atraso em OCs pendentes”
 
-Adicionar regras explícitas sobre **escopo** e **contagem**:
+Isso evita que um simples “sim” perca o contexto.
 
-> **Escopo das perguntas analíticas**:
-> - Se a pergunta usar palavras como "no total", "no geral", "em todo o ERP", "sem filtro" → `scope:'global'` (ignore o CONTEXTO DA PÁGINA).
-> - Se a pergunta começar com "nesta tela", "nos resultados atuais", "no que está filtrado" → use o CONTEXTO DA PÁGINA.
-> - **Ambíguo (caso padrão para "quantos/quantas X?")**: assume `scope:'global'` e mencione na resposta os filtros aplicados ("Considerando todas as OCs em aberto do ERP, temos 187 OCs").
->
-> **Contagens**:
-> - "quantos X?" / "quantas Y?" → use `query_erp_data` com `aggregate:'count_distinct'` e `distinct_field` da `countUnit` do módulo (ver catálogo).
-> - NUNCA estime contagens a partir de `top_n`. Sempre use `aggregate`.
-> - "qual o total/soma de X?" → `aggregate:'sum'`, `sum_field`.
+#### 4) Corrigir o mapeamento de campos do `painel-compras`
+No `src/lib/aiQueryExecutor.ts`, alinhar o módulo `painel-compras` com o payload real da API:
 
-Também relaxar a regra de "use o contexto da página": só vale quando o usuário menciona claramente "nesta tela" ou os KPIs visíveis já contêm a resposta exata.
+- usar `fantasia_fornecedor` como campo de fornecedor exibido
+- revisar campos padrão usados nas respostas analíticas
+- revisar campos numéricos reais (`valor_liquido` vs `valor_liquido_total`, se aplicável)
+- manter filtros nativos do backend como estão, mas separar claramente:
+  - **nome do filtro enviado**
+  - **nome do campo retornado**
 
-#### 4) Aproveitar `total_registros` do backend (otimização)
+#### 5) Adicionar aliases de campos para a IA
+Ainda em `src/lib/aiQueryExecutor.ts`, criar uma camada de aliases por módulo para que a IA possa pedir nomes mais naturais e o executor normalize para o campo real.
 
-Para `aggregate:'count'` simples, basta fazer 1 request `tamanho_pagina=1` e ler `resp.total_registros`. Sem percorrer páginas. Implementar como fast path em `executeQueryErpData`.
+Exemplo no `painel-compras`:
+- `fornecedor` → `fantasia_fornecedor`
+- `valor_liquido_total` → campo real retornado na linha, se diferente
+- outros aliases relevantes de negócio
 
-Para `count_distinct`, percorrer até 5 páginas de 200 (1000 registros) e devolver com flag `partial: true` se `total_registros > 1000`, para a IA poder dizer "ao menos 187 OCs distintas (amostra)".
+Isso reduz falhas quando o modelo usar o nome “humano” e o dataset tiver outro nome técnico.
 
-#### 5) Testes manuais
+#### 6) Reforçar o prompt com exemplos de follow-up e ranking global
+No `supabase/functions/ai-assistant/index.ts`, complementar o prompt com exemplos explícitos:
 
-1. `/painel-compras` filtrado por OC 40701 → "quantas OCs em aberto?" → IA chama `aggregate:'count_distinct', distinct_field:'numero_oc', filters:{somente_pendentes:true}, scope:'global'` → resposta: "Há **187 OCs em aberto** no ERP (1.240 itens). Quer abrir a tela com esse filtro?".
-2. Mesma tela → "quantas OCs nessa tela?" → usa contexto da página (13 linhas / N OCs distintas se houver no contexto).
-3. `/contas-pagar` → "quantos títulos vencidos?" → `count_distinct` por `numero_titulo` com filtro `data_vencimento_fim<hoje, somente_em_aberto:true`.
-4. `/estoque` → "quantos produtos com saldo > 0?" → `count_distinct` `codpro` + `client_filters:{saldo:{gt:0}}`.
-5. `/painel-compras` → "qual o valor total das OCs em aberto?" → `aggregate:'sum', sum_field:'valor_liquido', filters:{somente_pendentes:true}` → "R$ 4.820.150,00".
-6. Sem permissão → erro educado mantido.
+- “quantas ordens de compra temos em aberto?” → global
+- “qual o fornecedor com maior atraso?” → global
+- “sim” após oferta de busca global → executar a busca global pendente, não responder com contexto da tela
 
-### Arquivos alterados
+### Arquivos a alterar
+- `supabase/functions/ai-assistant/index.ts`
+  - resolvedor de intenção
+  - resolvedor de confirmação curta
+  - forcing de `query_erp_data` em casos analíticos claros
+  - exemplos adicionais no prompt
 
-- **`src/lib/aiQueryExecutor.ts`**:
-  - Adicionar `aggregate`, `distinct_field`, `sum_field`, `scope` em `QueryErpArgs`.
-  - Adicionar `countUnit` em cada `ModuleConfig`.
-  - Implementar `executeAggregate()` (count via `total_registros`, count_distinct/sum/avg paginando até 5×200).
-  - Atualizar `buildModulesCatalog()` para incluir `unidade de contagem`.
+- `src/lib/aiQueryExecutor.ts`
+  - alinhar `painel-compras` ao payload real
+  - adicionar aliases de campos
+  - garantir que ordenação/campos retornados usem nomes corretos
 
-- **`supabase/functions/ai-assistant/index.ts`**:
-  - Adicionar parâmetros `aggregate`, `distinct_field`, `sum_field`, `scope` na tool `query_erp_data`.
-  - Atualizar `BASE_SYSTEM_PROMPT` com as regras de escopo/contagem.
-  - Tornar a regra "use contexto da página" mais restrita (apenas quando o usuário diz "nesta tela" ou os KPIs já trazem a resposta).
+### Testes manuais
+1. Em `/painel-compras` com OC 40701 filtrada:
+   - “quantas ordens de compra temos em aberto?”
+   - esperado: resposta global, ignorando a OC da tela
 
-- **`src/components/erp/AiAssistantChat.tsx`**:
-  - Repassar os novos campos para `executeQueryErpData`.
-  - Quando `result.scope === 'global'`, exibir badge "Resultado global (ignora filtros da tela)".
+2. Na mesma tela:
+   - “qual o fornecedor com maior atraso?”
+   - esperado: trazer fornecedor real do ERP global, não “verificar no detalhamento da OC 40701”
 
-### Fora de escopo
+3. Fluxo em duas etapas:
+   - IA: “posso fazer a consulta global, deseja?”
+   - usuário: “sim”
+   - esperado: executar a consulta global pendente corretamente
 
-- Cross-módulo agregado.
-- GROUP BY (top fornecedor por OC count) — usa o `top_n` existente.
-- Filtros de data relativos ("últimos 30 dias") — futuro.
+4. Pergunta explicitamente local:
+   - “quantas OCs nesta tela?”
+   - esperado: aí sim usar o contexto local/filtrado
 
-### Resultado
-
-Pergunta **"quantas ordens de compra temos em aberto?"** passa a responder:
-
-> 📊 No ERP existem **187 ordens de compra em aberto** (somando 1.240 itens).
->
-> *Considerei o filtro padrão `somente_pendentes=true` em todo o ERP, ignorando os filtros desta tela.*
->
-> Quer que eu abra o Painel de Compras com esse filtro? *(botão)*
-
-E perguntas de soma, contagem, e por escopo (página vs global) passam a funcionar de forma consistente em todos os 20 módulos.
-
+### Resultado esperado
+O assistente deixa de “achar que tudo é sobre a tela atual” e passa a:
+- interpretar perguntas analíticas como **globais por padrão**
+- usar `query_erp_data` de forma obrigatória nos casos claros
+- entender confirmações curtas como continuação da intenção anterior
+- responder corretamente perguntas como:
+  - “quantas ordens de compra temos em aberto?”
+  - “qual o fornecedor com maior atraso?”
