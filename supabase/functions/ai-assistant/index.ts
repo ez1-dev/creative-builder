@@ -7,6 +7,30 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MODULES_CATALOG = `MÓDULOS DISPONÍVEIS PARA query_erp_data (use o nome exato em "module"):
+- estoque: Saldos em estoque por produto/depósito. campos: codpro, despro, saldo, coddep, codfam | filtros: codpro, despro, codfam, codori, coddep, somente_com_estoque | ord. padrão: saldo
+- painel-compras: Ordens de compra (OCs) com valores e fornecedores. campos: numero_oc, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: codigo_item, descricao_item, fornecedor, numero_oc, numero_projeto, somente_pendentes, situacao_oc, tipo_item | ord. padrão: valor_liquido_total
+- compras-produto: Compras e custos históricos por produto. campos: codpro, despro, fornecedor, quantidade, valor_unitario, data_emissao | filtros: codpro, despro, codfam, codori, codder, somente_com_oc_aberta | ord. padrão: quantidade
+- contas-pagar: Títulos a pagar. campos: numero_titulo, fornecedor, valor_original, valor_aberto, data_vencimento | filtros: fornecedor, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto
+- contas-receber: Títulos a receber. campos: numero_titulo, cliente, valor_original, valor_aberto, data_vencimento | filtros: cliente, numero_titulo, data_vencimento_ini, data_vencimento_fim, somente_em_aberto | ord. padrão: valor_aberto
+- notas-recebimento: NFs de entrada. campos: numero_nf, fornecedor, codigo_item, descricao_item, valor_liquido_total, data_emissao | filtros: fornecedor, numero_nf, codigo_item, data_emissao_ini, data_emissao_fim | ord. padrão: valor_liquido_total
+- engenharia-producao: Engenharia x Produção. campos: numero_projeto, numero_desenho, numero_op, status_producao, kg_patio, data_entrega | filtros: numero_projeto, numero_desenho, numero_op, status_producao, unidade_negocio, data_entrega_ini, data_entrega_fim | ord. padrão: data_entrega
+- apontamento-genius: Horas apontadas em OPs da unidade GENIUS. campos: numero_op, operador, descricao_op, tempo_total_horas, data_apontamento | filtros: numero_op, operador, data_inicio, data_fim | ord. padrão: tempo_total_horas | ex: "OPs Genius acima de 8h" → client_filters:{tempo_total_horas:{gte:8}}
+- producao-saldo-patio: Peças em pátio aguardando expedição. campos: numero_projeto, descricao, kg_patio, dias_em_patio, cliente | filtros: numero_projeto, cliente, data_ini, data_fim | ord. padrão: kg_patio | ex: "parados >30 dias" → client_filters:{dias_em_patio:{gte:30}}
+- producao-expedido-obra: Itens expedidos para obra. campos: numero_projeto, cliente, kg_expedido, data_expedicao | filtros: numero_projeto, cliente, data_ini, data_fim | ord. padrão: kg_expedido
+- producao-nao-carregados: Itens produzidos não carregados. campos: numero_projeto, numero_desenho, codigo_peca, quantidade, cliente | filtros: numero_projeto, numero_desenho, cliente, cidade | ord. padrão: quantidade
+- producao-lead-time: Lead time de produção por OP. campos: numero_op, numero_projeto, lead_time_dias, data_inicio, data_fim, status | filtros: numero_op, numero_projeto, data_ini, data_fim | ord. padrão: lead_time_dias
+- producao-produzido-periodo: Produção total por período. campos: data, kg_produzido, qtd_ops, unidade_negocio | filtros: data_ini, data_fim, unidade_negocio | ord. padrão: kg_produzido
+- auditoria-tributaria: NFs com divergências tributárias. campos: numero_nf, fornecedor, divergencia_valor, data_emissao, tipo_divergencia | filtros: fornecedor, numero_nf, data_ini, data_fim, somente_com_divergencia | ord. padrão: divergencia_valor
+- conciliacao-edocs: Conciliação NF-e vs eDocs. campos: chave_nfe, fornecedor, numero_nf, situacao, divergencias, data_emissao | filtros: fornecedor, numero_nf, data_emissao_ini, data_emissao_fim, somente_divergencia | ord. padrão: data_emissao
+- numero-serie: Números de série (GS). campos: numero_serie, numero_op, numero_pedido, codigo_item, status | filtros: numero_op, numero_pedido, codigo_item, numero_serie | ord. padrão: numero_serie
+- bom: Estrutura de produto (BOM). USE FILTROS RESTRITIVOS. campos: codigo_modelo, codigo_componente, descricao_componente, quantidade, nivel | filtros: codigo_modelo, codigo_componente | ord. padrão: nivel
+- onde-usa: Onde um componente é usado. campos: codigo_componente, codigo_pai, descricao_pai, quantidade_usada | filtros: codcmp, dercmp, codmod | ord. padrão: quantidade_usada
+- estoque-min-max: Estoque vs limites mín/máx. campos: codpro, despro, saldo_atual, estoque_minimo, estoque_maximo | filtros: codpro, despro, codfam | ord. padrão: saldo_atual | ex: "abaixo do mínimo" → client_filters:{saldo_atual:{lte:0}}
+- sugestao-min-max: Sugestão de compra para reposição. campos: codpro, despro, sugestao_compra, prioridade, estoque_minimo | filtros: codpro, codfam, prioridade | ord. padrão: sugestao_compra
+
+Use "client_filters" {campo:{gte|lte|eq|contains}} quando o backend não tiver o filtro nativo (ex: faixas de horas, dias, valores).`;
+
 const BASE_SYSTEM_PROMPT = `Você é o assistente inteligente do ERP EZ. Seu objetivo é ajudar o usuário a encontrar informações no sistema ERP traduzindo perguntas em linguagem natural para filtros e ações, e respondendo perguntas analíticas com base no contexto da tela atual.
 
 Quando o usuário fizer uma pergunta que pode ser respondida navegando para um módulo do ERP e aplicando filtros, use a tool "apply_erp_filters".
@@ -17,7 +41,9 @@ Se o CONTEXTO DA PÁGINA ATUAL incluir MEMÓRIA DO USUÁRIO (módulos preferidos
 
 Quando o usuário fizer uma pergunta sobre **usuários cadastrados, perfis de acesso, quem é admin, quem está pendente de aprovação ou quem tem acesso a determinada tela**, use a tool "list_system_users". Esses dados ficam no Lovable Cloud (não no ERP Senior). NUNCA mande o usuário consultar o ERP para esse tipo de informação. Apenas administradores podem usar esta tool — se o usuário não for admin, a edge function retornará erro e você deve responder de forma educada que essa informação é restrita a administradores.
 
-Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, ordenação por saldo/valor/data — ex: "qual produto tem mais estoque hoje?", "top 5 fornecedores", "OCs mais antigas em aberto", "maiores títulos a pagar"), use a tool "query_erp_data". Sempre inclua "module", "order_by" e "top_n" (default 10). Após receber o resultado da tool, formate a resposta em **tabela markdown** com no máximo 10 linhas, destacando o campo ordenado, e ofereça aplicar filtros via "apply_erp_filters" para drill-down. Se o CONTEXTO DA PÁGINA ATUAL já trouxer a resposta nos KPIs, prefira o contexto e NÃO chame query_erp_data.
+Para perguntas analíticas que exigem **dados reais do ERP** (rankings, totais agregados, top N, ordenação por saldo/valor/data/horas/dias — ex: "qual produto tem mais estoque hoje?", "top 5 fornecedores", "OCs mais antigas em aberto", "maiores títulos a pagar", "OPs Genius com mais de 8 horas", "projetos no pátio há mais de 30 dias", "NFs com maior divergência tributária"), use a tool "query_erp_data". SEMPRE prefira "query_erp_data" antes de "apply_erp_filters" para perguntas analíticas — só use apply_erp_filters quando o objetivo é apenas abrir uma tela com filtros para o usuário ver. Inclua "module", "order_by" e "top_n" (default 10). Use "client_filters" {campo:{gte|lte|eq|contains}} para faixas (horas > 8, dias > 30, valor < X) que não existem como filtro nativo. Após receber o resultado, formate em **tabela markdown** (máx 10 linhas), destacando o campo ordenado, e ofereça aplicar filtros via "apply_erp_filters" para drill-down. Se o CONTEXTO DA PÁGINA ATUAL já trouxer a resposta nos KPIs, prefira o contexto e NÃO chame query_erp_data.
+
+${MODULES_CATALOG}
 
 Quando o usuário fizer uma pergunta analítica sobre a tela atual (KPIs, totais, fornecedores, projetos visíveis), responda diretamente em texto, usando o CONTEXTO DA PÁGINA quando fornecido. Use markdown (tabelas, listas, negrito) para deixar a resposta clara.
 
@@ -166,18 +192,37 @@ const tools = [
               "contas-receber",
               "notas-recebimento",
               "engenharia-producao",
+              "apontamento-genius",
+              "producao-saldo-patio",
+              "producao-expedido-obra",
+              "producao-nao-carregados",
+              "producao-lead-time",
+              "producao-produzido-periodo",
+              "auditoria-tributaria",
+              "conciliacao-edocs",
+              "numero-serie",
+              "bom",
+              "onde-usa",
+              "estoque-min-max",
+              "sugestao-min-max",
             ],
-            description: "Módulo do ERP a consultar.",
+            description: "Módulo do ERP a consultar. Consulte o catálogo de módulos no system prompt para campos e filtros disponíveis.",
           },
           filters: {
             type: "object",
-            description: "Filtros do módulo (mesmas chaves de apply_erp_filters).",
+            description: "Filtros nativos do módulo (enviados ao backend).",
+            additionalProperties: true,
+          },
+          client_filters: {
+            type: "object",
+            description:
+              "Filtros pós-busca aplicados no cliente para faixas (gte/lte/eq/contains). Use quando o backend não tem filtro nativo. Ex: {tempo_total_horas:{gte:8}}, {dias_em_patio:{gte:30}}.",
             additionalProperties: true,
           },
           order_by: {
             type: "string",
             description:
-              "Campo para ordenar (ex: 'saldo', 'valor_liquido_total', 'valor_aberto', 'data_emissao', 'data_entrega').",
+              "Campo para ordenar (ex: 'saldo', 'valor_liquido_total', 'valor_aberto', 'tempo_total_horas', 'kg_patio', 'divergencia_valor', 'data_entrega').",
           },
           order_dir: {
             type: "string",
@@ -191,7 +236,7 @@ const tools = [
           fields: {
             type: "array",
             items: { type: "string" },
-            description: "Campos a devolver (reduz payload).",
+            description: "Campos a devolver (reduz payload). Default: principais do módulo.",
           },
         },
         required: ["module", "order_by"],
