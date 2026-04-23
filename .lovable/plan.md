@@ -1,86 +1,91 @@
 
 
-## Corrigir nomes de campos: dados de Início/Fim e horas não aparecem
+## Corrigir comparação "Fim < Início" para formatos heterogêneos
 
 ### Diagnóstico
-A tela `/auditoria-apontamento-genius` lê os campos `hora_inicial`, `hora_final`, `data_movimento`, `horas_realizadas` e `total_horas_dia_operador`, mas o backend documentado em `docs/backend-auditoria-apontamento-genius.md` retorna:
+A comparação atual usa `String(r.hora_final) < String(r.hora_inicial)` em 4 pontos:
+- `isLinhaDiscrepante` (linha 208)
+- `atualizarKpisApontGenius` (linha 258)
+- `linhasDoKpi` case `fimMenorInicio` (linha 907)
+- Render do `OpLinhasInline` e do drawer (linhas 1272 e 2131)
 
-| Backend (atual) | Código (esperando) |
-|---|---|
-| `data` | `data_movimento` |
-| `hora_inicio` | `hora_inicial` |
-| `hora_fim` | `hora_final` |
-| `horas_apontadas` | `horas_realizadas` |
-| `total_dia_operador` | `total_horas_dia_operador` |
-| `operador` | `nome_operador` / `numcad` |
-| `status` | `status_movimento` |
-| `status_op` | `sitorp` |
-
-Como nenhuma camada de normalização existe entre `api.get(...)` e o componente, **todos** os valores caem em `undefined`. Isso explica:
-- Início e Fim mostrando vazio / "Sem início" / "Sem fim" para todas as linhas;
-- Horas apontadas zeradas;
-- KPIs de discrepância contando linhas erradas.
+Falha quando os campos vêm em formatos diferentes:
+- `"9:00"` vs `"10:00"` → `"9:00" > "10:00"` lexicograficamente (falso positivo)
+- `"08:30:00"` vs `"08:30"` → diferentes mas mesmo horário
+- Número (`830`, `8.5`) vs string (`"08:30"`)
+- `"08h30"`, `"0830"`, espaços, `null`/`""`
 
 ### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-**1. Adicionar normalizador único `normalizeRowApont(raw)`**
+**1. Função utilitária `horaParaMinutos(v): number | null`**
 
-Função que recebe o item bruto da API e devolve um `RowApont` com os nomes que o resto da página já usa, fazendo fallback para os nomes antigos (caso o backend mude no futuro):
+Converte qualquer formato comum em **minutos desde 00:00**, devolvendo `null` quando inválido:
 
 ```ts
-function normalizeRowApont(r: any): RowApont {
-  const horasApontadas = r.horas_apontadas ?? r.horas_realizadas ?? 0;
-  return {
-    ...r,
-    data_movimento:            r.data_movimento ?? r.data ?? r.data_apontamento ?? null,
-    hora_inicial:              r.hora_inicial ?? r.hora_inicio ?? null,
-    hora_final:                r.hora_final ?? r.hora_fim ?? null,
-    // backend devolve em HORAS (decimal); a página trata em MINUTOS — converter:
-    horas_realizadas:          typeof horasApontadas === 'number' && r.horas_apontadas != null
-                                  ? Math.round(horasApontadas * 60)
-                                  : (r.horas_realizadas ?? 0),
-    total_horas_dia_operador:  r.total_horas_dia_operador
-                                  ?? (r.total_dia_operador != null ? Math.round(Number(r.total_dia_operador) * 60) : 0),
-    nome_operador:             r.nome_operador ?? r.operador ?? '',
-    numcad:                    r.numcad ?? r.codigo_operador ?? r.operador ?? '',
-    status_movimento:          r.status_movimento ?? r.status ?? 'FECHADO',
-    sitorp:                    r.sitorp ?? r.status_op ?? '',
-    centro_trabalho:           r.centro_trabalho ?? r.codigo_centro_trabalho ?? r.estagio ?? '',
-    estagio:                   r.estagio ?? r.operacao ?? '',
-    numero_op:                 r.numero_op ?? r.numop ?? '',
-    codigo_produto:            r.codigo_produto ?? r.codpro ?? '',
-    descricao_produto:         r.descricao_produto ?? r.despro ?? '',
-    origem:                    r.origem ?? r.codori ?? '',
-  };
+function horaParaMinutos(v: any): number | null {
+  if (v == null || v === '') return null;
+
+  // Número: heurística — pode ser HHMM (830), horas decimais (8.5) ou minutos
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    if (v >= 0 && v < 24) return Math.round(v * 60);              // horas decimais
+    if (Number.isInteger(v) && v >= 0 && v <= 2359) {              // HHMM
+      const h = Math.floor(v / 100), m = v % 100;
+      if (h < 24 && m < 60) return h * 60 + m;
+    }
+    if (v >= 0 && v < 24 * 60) return Math.round(v);               // minutos
+    return null;
+  }
+
+  const s = String(v).trim().toLowerCase().replace('h', ':').replace(/\s+/g, '');
+  if (!s) return null;
+
+  // "HH:MM" ou "HH:MM:SS"
+  const m1 = s.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (m1) {
+    const h = +m1[1], m = +m1[2];
+    if (h < 24 && m < 60) return h * 60 + m;
+  }
+  // "HHMM" / "HMM" sem separador
+  const m2 = s.match(/^(\d{3,4})$/);
+  if (m2) {
+    const n = +m2[1], h = Math.floor(n / 100), m = n % 100;
+    if (h < 24 && m < 60) return h * 60 + m;
+  }
+  // Decimal "8.5"
+  const f = Number(s);
+  if (Number.isFinite(f) && f >= 0 && f < 24) return Math.round(f * 60);
+
+  return null;
 }
 ```
 
-**Observação importante sobre unidade**: o doc do backend mostra `horas_apontadas: 9.25` (decimal em **horas**). A página inteira trata como **minutos** (regras `> 480`, `< 5`, `minToHours`). A normalização converte horas→minutos no momento da leitura, mantendo o resto do código intacto.
+**2. Função `isFimMenorInicio(row): boolean`**
 
-**2. Aplicar a normalização logo após o `api.get(...)`**
+Centraliza a regra. Compara somente quando ambos parseiam para um inteiro válido:
 
-Em `loadData` (linha ~385):
 ```ts
-const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', { ... });
-result.dados = (result.dados ?? []).map(normalizeRowApont);
-setData(result);
+function isFimMenorInicio(row: any): boolean {
+  const ini = horaParaMinutos(row?.hora_inicial);
+  const fim = horaParaMinutos(row?.hora_final);
+  if (ini == null || fim == null) return false;
+  return fim < ini;
+}
 ```
 
-Com isso, todos os pontos da tela (KPIs, tabela principal, drill genérico, `OpLinhasInline`, drawer da OP, sumário, exportação para clipboard etc.) passam a ler campos preenchidos sem alterações adicionais.
+**3. Substituir os 4 pontos**
 
-**3. Sanity-check pós-normalização**
-
-Adicionar (apenas em DEV) um `console.debug` resumindo a primeira linha normalizada para o usuário poder confirmar pelo console que `data_movimento`, `hora_inicial`, `hora_final` e `horas_realizadas` chegaram preenchidos.
+Trocar todas as comparações `String(r.hora_final) < String(r.hora_inicial)` por `isFimMenorInicio(r)`:
+- linha 208 (`isLinhaDiscrepante`)
+- linha 258 (`atualizarKpisApontGenius`)
+- linha 907 (`linhasDoKpi` → `fimMenorInicio`)
+- linhas 1272 e 2131 (`fimMenor` no `OpLinhasInline` e drawer)
 
 ### Fora de escopo
-- Renomear todas as referências internas para `data` / `hora_inicio` / `hora_fim` (mudaria 200+ linhas; a normalização resolve com 1 função).
-- Alterar contrato do backend ou exportação `.xlsx`.
-- Mudar a regra de unidades (a página continua trabalhando em minutos internamente).
+- Tratar fusos horários ou dia seguinte (turno noturno virando o dia) — caso futuro precise, adicionar campo de data fim.
+- Alterar contrato do backend.
+- Modificar o normalizador `normalizeRowApont` para já gravar minutos (manter valores originais para exibição).
 
 ### Resultado
-Após aplicar o normalizador:
-- Coluna **Início (data + hora)** e **Fim (data + hora)** do `OpLinhasInline` e do drawer da OP mostram corretamente data + hora;
-- Coluna **Apontado (min · h)** mostra valores corretos;
-- Cards "Sem Início", "Sem Fim", "Fim < Início", "Acima de 8h", "Abaixo de 5 min" deixam de contar linhas erradas;
-- Resumo da OP mostra período e total apontado consistentes.
+- Badge "Fim < Início", KPI e drill-down passam a comparar **minutos numéricos**, ignorando diferenças de formato (`"9:00"` vs `"10:00"`, `"08:30:00"` vs `"08:30"`, números `830`/`8.5`, etc.).
+- Falsos positivos por comparação lexicográfica desaparecem; valores inválidos ou vazios não acionam o badge.
 
