@@ -253,6 +253,24 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Register AI page context with user counts (admin sees this tab)
+  const adminProfile = profiles.find(p => p.name === 'Administrador');
+  const adminLogins = new Set(
+    userAccess.filter(ua => ua.profile_id === adminProfile?.id).map(ua => ua.user_login.toUpperCase())
+  );
+  const adminCount = approvedUsers.filter(u => u.erp_user && adminLogins.has(u.erp_user.toUpperCase())).length;
+  useAiPageContext({
+    title: 'Configurações',
+    module: 'configuracoes',
+    kpis: {
+      'Usuários aprovados': approvedUsers.length,
+      'Usuários pendentes': pendingUsers.length,
+      'Administradores': adminCount,
+      'Perfis de acesso': profiles.length,
+    },
+    summary: `${approvedUsers.length + pendingUsers.length} usuários cadastrados (${approvedUsers.length} aprovados, ${pendingUsers.length} pendentes). ${profiles.length} perfis de acesso configurados. Para listar usuários por nome/perfil, use a tool list_system_users.`,
+  });
+
   const handleApproveUser = async (userId: string) => {
     const user = pendingUsers.find(u => u.id === userId);
     if (!user?.email) {
