@@ -1642,7 +1642,7 @@ function KpiDeepSheet({
   const titulo = kind ? (kind.kind === 'status' ? `${STATUS_LETRA_LABEL[kind.letra]} (${kind.letra})` : KPI_TITLES[kind.kind]) : '';
   const variantCfg = kind?.kind === 'status' ? statusOpVariants[kind.letra] : null;
   // Inconsistências por padrão para KPIs problemáticos
-  const isProblema = kind && ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(kind.kind);
+  const isProblema = kind && ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h','abaixo5min'].includes(kind.kind);
 
   const opsFiltradas = useMemo(() => {
     let arr = ops;
