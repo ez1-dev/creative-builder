@@ -146,6 +146,57 @@ const tools = [
         additionalProperties: false,
       },
     },
+  {
+    type: "function",
+    function: {
+      name: "query_erp_data",
+      description:
+        "Consulta dados reais do ERP (estoque, compras, NFs, contas, produção) e retorna top N ordenado. Use para perguntas analíticas como 'qual produto tem mais estoque?', 'top 5 fornecedores', 'OCs mais antigas em aberto', 'maiores títulos a pagar'. Executada no navegador do usuário com o token dele.",
+      parameters: {
+        type: "object",
+        properties: {
+          module: {
+            type: "string",
+            enum: [
+              "estoque",
+              "painel-compras",
+              "compras-produto",
+              "contas-pagar",
+              "contas-receber",
+              "notas-recebimento",
+              "engenharia-producao",
+            ],
+            description: "Módulo do ERP a consultar.",
+          },
+          filters: {
+            type: "object",
+            description: "Filtros do módulo (mesmas chaves de apply_erp_filters).",
+            additionalProperties: true,
+          },
+          order_by: {
+            type: "string",
+            description:
+              "Campo para ordenar (ex: 'saldo', 'valor_liquido_total', 'valor_aberto', 'data_emissao', 'data_entrega').",
+          },
+          order_dir: {
+            type: "string",
+            enum: ["asc", "desc"],
+            description: "Direção da ordenação. Default desc.",
+          },
+          top_n: {
+            type: "number",
+            description: "Quantos registros retornar (default 10, máx 50).",
+          },
+          fields: {
+            type: "array",
+            items: { type: "string" },
+            description: "Campos a devolver (reduz payload).",
+          },
+        },
+        required: ["module", "order_by"],
+        additionalProperties: false,
+      },
+    },
   },
 ];
 
