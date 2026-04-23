@@ -467,7 +467,22 @@ export default function AuditoriaApontamentoGeniusPage() {
         title="Auditoria Apontamento Genius"
         description="Conferência de apontamentos da operação GENIUS — destaca apontamentos > 8h e totais diários > 8h por operador"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-refresh-apont"
+                checked={autoRefresh}
+                onCheckedChange={setAutoRefresh}
+              />
+              <Label htmlFor="auto-refresh-apont" className="text-xs cursor-pointer">
+                Auto-atualizar (1 min)
+              </Label>
+              {tempoDesdeAtualizacao && (
+                <span className="text-xs text-muted-foreground">
+                  · Atualizado {tempoDesdeAtualizacao}
+                </span>
+              )}
+            </div>
             <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
