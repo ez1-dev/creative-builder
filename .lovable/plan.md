@@ -1,115 +1,62 @@
 
 
-## Drill-down até o último nível em TODOS os KPIs da Auditoria Apontamento Genius
+## Novo KPI: OPs com apontamentos abaixo de 5 minutos
 
-### Diagnóstico
-Hoje só os 5 cards de status real (E/L/A/F/C) têm drill profundo (Sheet com OPs → apontamentos brutos). Os demais 7 KPIs (`Total Apontamentos`, `Discrepâncias`, `Sem Início`, `Sem Fim`, `Fim < Início`, `Acima de 8h`, `Maior Total Dia`, além de `Em Andamento` e `Finalizadas`) abrem apenas Popover compacto com top 15 itens (`label/value`), sem chegar ao registro bruto.
-
-O usuário quer o mesmo padrão de drill profundo (Sheet lateral com tabela de OPs filtráveis + accordion com apontamentos brutos) em **todos os KPIs**.
+### Objetivo
+Adicionar um card de KPI na tela `/auditoria-apontamento-genius` que destaca apontamentos com tempo realizado **> 0 e < 5 minutos** (apontamentos suspeitos de "bater ponto" ou erro de operação), com drill-down até o último nível, seguindo o mesmo padrão dos demais KPIs.
 
 ### Mudanças (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-**1. Generalizar o `StatusOpDrillCard` → `KpiDrillCard`**
-
-Renomear/expandir o componente atual para aceitar qualquer KPI, não só status real:
-
+**1. Novo status de discrepância**
+Adicionar `'APONTAMENTO_MENOR_5MIN'` ao conjunto de status de classificação (junto com `APONTAMENTO_MAIOR_8H`, `SEM_INICIO`, etc.). Regra:
 ```ts
-type KpiDrillKind =
-  | { kind: 'status'; letra: 'E'|'L'|'A'|'F'|'C' }
-  | { kind: 'total' }
-  | { kind: 'discrepancias' }
-  | { kind: 'semInicio' }
-  | { kind: 'semFim' }
-  | { kind: 'fimMenorInicio' }
-  | { kind: 'acima8h' }
-  | { kind: 'maiorTotalDia' }
-  | { kind: 'emAndamento' }       // E+L+A
-  | { kind: 'finalizadas' };      // F
+const min = Number(row.horas_realizadas) || 0;
+if (min > 0 && min < 5) status = 'APONTAMENTO_MENOR_5MIN';
+```
+Prioridade: abaixo de `FIM_MENOR_INICIO`/`SEM_INICIO`/`SEM_FIM`/`APONTAMENTO_MAIOR_8H` e acima de `OPERADOR_MAIOR_8H_DIA`.
+
+**2. Atualizar `atualizarKpisApontGenius`**
+- Novo contador `abaixo5min` no objeto de KPIs.
+- Incluir essa condição no cálculo de `total_discrepancias` (passa a contar também `> 0 && < 5min`).
+- Incluir em `isLinhaDiscrepante(r)` para que o KPI "Discrepâncias" e o drill genérico considerem essas linhas.
+
+**3. Novo `KpiDrillKind`**
+Adicionar `{ kind: 'abaixo5min' }` ao type union.
+
+**4. `linhasDoKpi`**
+```ts
+case 'abaixo5min':
+  return all.filter(r => {
+    const m = Number(r.horas_realizadas) || 0;
+    return m > 0 && m < 5;
+  });
 ```
 
-Cada card recebe `drill={kind: ...}` + título + valor + variant. Mantém Popover (top 30) + botão "Ver tudo →".
+**5. Novo card na grid de KPIs**
+Inserir um `KpiDrillCard` ao lado dos cards de discrepância:
+- título: `Abaixo de 5 min`
+- valor: `kpis.abaixo5min`
+- variant: `warning` (ou `destructive` se quiser alarmar mais)
+- ícone: `AlertTriangle`
+- tooltip: "Apontamentos com tempo > 0 e < 5 minutos — possível erro de operação ou apontamento incorreto"
+- drill: `{ kind: 'abaixo5min' }`
+- pré-filtro `statusDrillSomenteInconsist=true` ao abrir (mesma lógica já aplicada para `semInicio`/`acima8h`).
 
-**2. Função única `linhasDoKpi(kind): RowApont[]`**
+**6. Visual de destaque na tabela principal**
+- `rowClassName`: linhas com `APONTAMENTO_MENOR_5MIN` ganham fundo amarelo claro (mesmo tom do `acima8h` ou um tom distinto warning).
+- Badge de status na coluna "Status" ganha label "Abaixo de 5 min" com cor `warning`.
 
-Centraliza a regra de filtragem das linhas brutas de `data.dados` por KPI:
+**7. Mini-KPIs do `KpiDeepSheet`**
+O contador "Linhas com inconsistência" do header já cobre via `isLinhaDiscrepante`. Sem mudança adicional.
 
-```ts
-const linhasDoKpi = (k: KpiDrillKind): RowApont[] => {
-  const all = data?.dados ?? [];
-  switch (k.kind) {
-    case 'total':            return all;
-    case 'status':           return all.filter(r => normSitorp(r) === k.letra);
-    case 'emAndamento':      return all.filter(r => ['E','L','A'].includes(normSitorp(r)));
-    case 'finalizadas':      return all.filter(r => normSitorp(r) === 'F');
-    case 'semInicio':        return all.filter(r => !r.hora_inicial);
-    case 'semFim':           return all.filter(r => !r.hora_final);
-    case 'fimMenorInicio':   return all.filter(r => r.hora_inicial && r.hora_final && r.hora_final < r.hora_inicial);
-    case 'acima8h':          return all.filter(r => minToHours(r.horas_realizadas) > 8 || minToHours(r.total_horas_dia_operador) > 8);
-    case 'discrepancias':    return all.filter(isLinhaDiscrepante); // união das 4 regras
-    case 'maiorTotalDia':    return all.filter(r => Number(r.total_horas_dia_operador||0) === maxTotalDiaMin); // top operador-dia
-  }
-};
-```
-
-Adicionar helper `isLinhaDiscrepante(r)` reutilizando a mesma lógica do `atualizarKpisApontGenius`.
-
-**3. Agregar essas linhas no formato `OpAgg[]` reusando função existente**
-
-Extrair da `kpiDrilldowns` a parte que constrói `OpAgg` em uma função pura:
-
-```ts
-const agregarPorOp = (linhas: RowApont[]): OpAgg[] => { ...mesma lógica de hoje... };
-```
-
-E reutilizar tanto na agregação por status (já existente) quanto no novo Sheet genérico.
-
-**4. Generalizar `StatusOpDeepSheet` → `KpiDeepSheet`**
-
-Mesmo Sheet de 920px, mas parametrizado:
-
-- Props: `aberto`, `onOpenChange`, `titulo`, `subtitulo`, `linhas: RowApont[]`, `corVariant`.
-- Header: mini-KPIs calculados sobre `linhas` (nº linhas, OPs únicas, OPs c/ inconsistência, soma min/h, operadores únicos, top 3 origens, top 3 status nativos).
-- Tabela nível 2 (OPs únicas via `agregarPorOp`): mesmas colunas e filtros (`Só com inconsistência`, busca, ordenação) — funciona igual para todos os KPIs.
-- Accordion nível 3 (`OpLinhasInline`): inalterado, já mostra apontamentos brutos com botões "Filtrar grid" / "Abrir drawer OP".
-- Quando o KPI é `semInicio`/`semFim`/`fimMenorInicio`/`acima8h`, **pré-aplicar** `statusDrillSomenteInconsist=true` por padrão e marcar a regra correspondente em destaque visual nos badges da tabela.
-
-**5. Estado**
-
-Substituir os 2 estados atuais por um par genérico:
-
-```ts
-const [kpiDrillAberto, setKpiDrillAberto] = useState(false);
-const [kpiDrillKind, setKpiDrillKind] = useState<KpiDrillKind | null>(null);
-```
-
-Manter `statusDrillBusca`, `statusDrillSomenteInconsist`, `statusDrillOrdem`, `opExpandidaNoDrill` (compartilhados pelo Sheet).
-
-**6. Substituir os `KPICard` da grid principal**
-
-Trocar cada um dos 9 KPIs do topo por `KpiDrillCard` com seu `drill={...}`. Continuam usando o mesmo visual/variant. Popover compacto continua mostrando os top 30 itens via `agregarPorOp(linhasDoKpi(kind)).slice(0,30)` já formatados como `OP {numop} · {produto curto}` / `{apt} apt · {min·h}` com prefixo ⚠ quando há inconsistência.
-
-**7. KPI especial "Maior Total Dia"**
-
-Em vez de `OpAgg` por OP, o nível 2 é uma **tabela operador-dia** ordenada por `total_horas_dia_operador` desc. Cada linha expande para os apontamentos daquele operador naquele dia (já é um caso de `OpLinhasInline` filtrado por `numcad+data`). Tratamento dedicado dentro do Sheet quando `kind === 'maiorTotalDia'`.
-
-**8. Aviso de escopo**
-
-Mantém o alerta atual dentro do Sheet (`discrepanciasParciais`) — alerta amarelo da página principal continua removido (decisão anterior).
-
-### Comportamento resultante
-
-- Todos os 9 KPIs ganham:
-  - Popover rápido com top 30 OPs (com ⚠ destacando inconsistências).
-  - Botão "Ver tudo →" abre Sheet lateral (920px).
-  - Sheet mostra mini-KPIs do recorte + tabela de OPs únicas filtráveis + accordion com **apontamentos brutos** (último nível).
-- KPI "Maior Total Dia" abre tabela operador-dia → drill nos apontamentos daquele dia.
-- Reuso máximo: 1 Sheet, 1 função de agregação, 1 função de filtragem por kind.
+**8. Resumo do backend**
+Se `data.resumo.abaixo_5min` existir no payload, usar como source-of-truth (pattern dos demais campos). Caso contrário, usar fallback local (que é o caso atual). Sem mudança no backend nesta tarefa — só consumir se vier.
 
 ### Fora de escopo
-- Buscar páginas adicionais do backend para drill global (continua escopo "página atual").
-- Mudar backend / exportação.
-- Persistir estado do drill entre buscas.
+- Mudar backend / contrato `docs/backend-auditoria-apontamento-genius.md` (pode ser feito em tarefa separada).
+- Filtro dedicado `somente_abaixo_5min` na query — usuário usa o drill do card.
+- Exportação Excel filtrada por essa regra.
 
 ### Resultado
-Todos os cards de KPI da tela `/auditoria-apontamento-genius` chegam ao último nível de informação (apontamento bruto), com o mesmo padrão de UX já validado nos cards de status real.
+Novo card amarelo "Abaixo de 5 min" no topo, contando apontamentos suspeitos de tempo mínimo, com drill de 3 níveis (popover top 30 → Sheet com OPs → apontamentos brutos) idêntico aos demais KPIs. Linhas correspondentes ganham destaque na tabela principal.
 
