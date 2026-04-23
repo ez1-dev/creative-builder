@@ -68,13 +68,13 @@ export function getModuleConfig(module: string): ModuleConfig | null {
   return MODULE_MAP[module] || null;
 }
 
-export function rankRecords<T extends Record<string, any>>(
-  records: T[],
+export function rankRecords(
+  records: any[],
   orderBy: string,
   dir: 'asc' | 'desc',
   topN: number,
   fields: string[]
-): Partial<T>[] {
+): Record<string, any>[] {
   const sign = dir === 'asc' ? 1 : -1;
   const sorted = [...records].sort((a, b) => {
     const av = a?.[orderBy];
@@ -85,7 +85,6 @@ export function rankRecords<T extends Record<string, any>>(
     if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * sign;
     const as = String(av);
     const bs = String(bv);
-    // try numeric
     const an = parseFloat(as.replace(/\./g, '').replace(',', '.'));
     const bn = parseFloat(bs.replace(/\./g, '').replace(',', '.'));
     if (!isNaN(an) && !isNaN(bn)) return (an - bn) * sign;
