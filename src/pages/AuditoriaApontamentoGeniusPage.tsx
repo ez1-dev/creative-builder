@@ -676,8 +676,8 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const rowClassName = useCallback((row: any) => {
     const sa = String(row.status_movimento ?? '').toUpperCase();
-    const horas = Number(row.horas_realizadas || 0);
-    const totDia = Number(row.total_horas_dia_operador || 0);
+    const horas = minToHours(row.horas_realizadas);
+    const totDia = minToHours(row.total_horas_dia_operador);
     if (sa === 'DIVERGENTE' || horas > 8 || totDia > 8) {
       return 'bg-destructive/5 hover:bg-destructive/10';
     }
