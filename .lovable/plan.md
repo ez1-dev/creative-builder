@@ -1,58 +1,86 @@
 
 
-## Detalhamento de movimentos da OP com data/hora início e fim + horas apontadas
+## Corrigir nomes de campos: dados de Início/Fim e horas não aparecem
 
 ### Diagnóstico
-Hoje, ao clicar numa OP dentro do `KpiDeepSheet` (ou no drawer de OP), o accordion `OpLinhasInline` lista os apontamentos brutos, mas não exibe de forma clara, por linha de movimento:
-- **Data início** + **Hora início**
-- **Data fim** + **Hora fim**
-- **Tempo apontado** (em min e h)
+A tela `/auditoria-apontamento-genius` lê os campos `hora_inicial`, `hora_final`, `data_movimento`, `horas_realizadas` e `total_horas_dia_operador`, mas o backend documentado em `docs/backend-auditoria-apontamento-genius.md` retorna:
 
-A informação existe nos campos `data_inicial`, `hora_inicial`, `data_final`, `hora_final`, `horas_realizadas` (em minutos) já presentes em `RowApont`, mas a tabela atual exibe colunas resumidas e não destaca o par data+hora de início/fim.
+| Backend (atual) | Código (esperando) |
+|---|---|
+| `data` | `data_movimento` |
+| `hora_inicio` | `hora_inicial` |
+| `hora_fim` | `hora_final` |
+| `horas_apontadas` | `horas_realizadas` |
+| `total_dia_operador` | `total_horas_dia_operador` |
+| `operador` | `nome_operador` / `numcad` |
+| `status` | `status_movimento` |
+| `status_op` | `sitorp` |
 
-### Mudanças (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
+Como nenhuma camada de normalização existe entre `api.get(...)` e o componente, **todos** os valores caem em `undefined`. Isso explica:
+- Início e Fim mostrando vazio / "Sem início" / "Sem fim" para todas as linhas;
+- Horas apontadas zeradas;
+- KPIs de discrepância contando linhas erradas.
 
-**1. Reformatar o componente `OpLinhasInline`**
+### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-Substituir/expandir as colunas atuais para deixar explícito o ciclo do movimento. Nova ordem de colunas:
+**1. Adicionar normalizador único `normalizeRowApont(raw)`**
 
-| # | Operação | Operador | Centro Trab. | **Início (data + hora)** | **Fim (data + hora)** | **Apontado (min · h)** | Total Dia Op. | Status | Ações |
-|---|----------|----------|--------------|--------------------------|-----------------------|------------------------|---------------|--------|-------|
+Função que recebe o item bruto da API e devolve um `RowApont` com os nomes que o resto da página já usa, fazendo fallback para os nomes antigos (caso o backend mude no futuro):
 
-- **Início**: renderizar `formatDate(data_inicial)` + `hora_inicial` em duas linhas (data em cima, hora abaixo em `text-xs text-muted-foreground`). Se faltar `hora_inicial`, mostrar badge `Sem início` em vermelho.
-- **Fim**: idem para `data_final` + `hora_final`. Se faltar `hora_final`, badge `Sem fim`. Se `hora_final < hora_inicial` (mesmo dia), badge `Fim < Início`.
-- **Apontado**: `{horas_realizadas} min · {minToHours(horas_realizadas).toFixed(2)} h`. Destaque amarelo quando `> 0 && < 5` (regra do KPI novo) e destaque vermelho quando `> 480` (>8h).
-- **Total Dia Op.**: `{total_horas_dia_operador} min · {h} h`, destaque vermelho se `> 480`.
+```ts
+function normalizeRowApont(r: any): RowApont {
+  const horasApontadas = r.horas_apontadas ?? r.horas_realizadas ?? 0;
+  return {
+    ...r,
+    data_movimento:            r.data_movimento ?? r.data ?? r.data_apontamento ?? null,
+    hora_inicial:              r.hora_inicial ?? r.hora_inicio ?? null,
+    hora_final:                r.hora_final ?? r.hora_fim ?? null,
+    // backend devolve em HORAS (decimal); a página trata em MINUTOS — converter:
+    horas_realizadas:          typeof horasApontadas === 'number' && r.horas_apontadas != null
+                                  ? Math.round(horasApontadas * 60)
+                                  : (r.horas_realizadas ?? 0),
+    total_horas_dia_operador:  r.total_horas_dia_operador
+                                  ?? (r.total_dia_operador != null ? Math.round(Number(r.total_dia_operador) * 60) : 0),
+    nome_operador:             r.nome_operador ?? r.operador ?? '',
+    numcad:                    r.numcad ?? r.codigo_operador ?? r.operador ?? '',
+    status_movimento:          r.status_movimento ?? r.status ?? 'FECHADO',
+    sitorp:                    r.sitorp ?? r.status_op ?? '',
+    centro_trabalho:           r.centro_trabalho ?? r.codigo_centro_trabalho ?? r.estagio ?? '',
+    estagio:                   r.estagio ?? r.operacao ?? '',
+    numero_op:                 r.numero_op ?? r.numop ?? '',
+    codigo_produto:            r.codigo_produto ?? r.codpro ?? '',
+    descricao_produto:         r.descricao_produto ?? r.despro ?? '',
+    origem:                    r.origem ?? r.codori ?? '',
+  };
+}
+```
 
-**2. Linha-resumo no topo do accordion expandido**
+**Observação importante sobre unidade**: o doc do backend mostra `horas_apontadas: 9.25` (decimal em **horas**). A página inteira trata como **minutos** (regras `> 480`, `< 5`, `minToHours`). A normalização converte horas→minutos no momento da leitura, mantendo o resto do código intacto.
 
-Acima da tabela de movimentos, adicionar um bloco compacto com o resumo da OP:
-- Período coberto: `menor(data_inicial)` → `maior(data_final ?? data_inicial)`
-- Total apontado da OP: soma de `horas_realizadas` em min e h
-- Nº de movimentos / nº de operadores únicos / nº de centros de trabalho únicos
-- Quantidade de movimentos com inconsistência (qualquer regra)
+**2. Aplicar a normalização logo após o `api.get(...)`**
 
-**3. Ordenação default dos movimentos**
+Em `loadData` (linha ~385):
+```ts
+const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', { ... });
+result.dados = (result.dados ?? []).map(normalizeRowApont);
+setData(result);
+```
 
-Ordenar por `data_inicial` asc + `hora_inicial` asc para o usuário ver a linha do tempo da OP. Manter possibilidade de clicar nos cabeçalhos para reordenar (já suportado pelo `DataTable` se for o caso; senão, ordenar manualmente no array antes de renderizar).
+Com isso, todos os pontos da tela (KPIs, tabela principal, drill genérico, `OpLinhasInline`, drawer da OP, sumário, exportação para clipboard etc.) passam a ler campos preenchidos sem alterações adicionais.
 
-**4. Mesmas mudanças no drawer "Abrir drawer OP"**
+**3. Sanity-check pós-normalização**
 
-O drawer dedicado de OP (acionado pelo botão "Abrir drawer OP") usa o mesmo dataset — aplicar exatamente a mesma estrutura de colunas e bloco-resumo para manter consistência.
-
-**5. Realce visual por status**
-
-Cada `<tr>` de movimento ganha `rowClassName` com fundo:
-- `bg-amber-500/10` quando `> 0 && < 5min`
-- `bg-red-500/10` quando `> 8h` (apontamento ou total dia)
-- `bg-orange-500/10` quando `Sem início` / `Sem fim` / `Fim < Início`
-- Sem cor quando consistente
+Adicionar (apenas em DEV) um `console.debug` resumindo a primeira linha normalizada para o usuário poder confirmar pelo console que `data_movimento`, `hora_inicial`, `hora_final` e `horas_realizadas` chegaram preenchidos.
 
 ### Fora de escopo
-- Adicionar gráfico Gantt da OP.
-- Mudar contrato de backend.
-- Persistir ordenação preferida do usuário.
+- Renomear todas as referências internas para `data` / `hora_inicio` / `hora_fim` (mudaria 200+ linhas; a normalização resolve com 1 função).
+- Alterar contrato do backend ou exportação `.xlsx`.
+- Mudar a regra de unidades (a página continua trabalhando em minutos internamente).
 
 ### Resultado
-Ao expandir/abrir uma OP a partir de qualquer KPI ou da tabela principal, o usuário vê a linha do tempo dos movimentos com **data e hora de início**, **data e hora de fim** e **tempo apontado** (min e h) por linha, mais um cabeçalho-resumo da OP, com destaques visuais de inconsistência.
+Após aplicar o normalizador:
+- Coluna **Início (data + hora)** e **Fim (data + hora)** do `OpLinhasInline` e do drawer da OP mostram corretamente data + hora;
+- Coluna **Apontado (min · h)** mostra valores corretos;
+- Cards "Sem Início", "Sem Fim", "Fim < Início", "Acima de 8h", "Abaixo de 5 min" deixam de contar linhas erradas;
+- Resumo da OP mostra período e total apontado consistentes.
 
