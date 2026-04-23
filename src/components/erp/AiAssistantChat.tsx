@@ -92,8 +92,29 @@ export function AiAssistantChat() {
   const handleToolCall = useCallback(
     (name: string, args: any) => {
       if (name === 'apply_erp_filters') {
-        const { module, filters, explanation } = args;
+        const { module, filters: rawFilters, explanation } = args;
+        const filters = { ...(rawFilters || {}) };
         const label = MODULE_LABELS[module] || module;
+
+        // Hardening: drill-down em contas-pagar/receber não pode usar APENAS numero_titulo
+        // (busca por substring no backend → traz dezenas de títulos não relacionados).
+        if (module === 'contas-pagar' || module === 'contas-receber') {
+          const keys = Object.keys(filters);
+          const hasFence = ['valor_min', 'valor_max', 'data_vencimento_ini', 'data_vencimento_fim']
+            .some((k) => filters[k] !== undefined && filters[k] !== null && filters[k] !== '');
+          const onlyNumero = keys.length > 0 && keys.every((k) => k === 'numero_titulo' || k === 'somente_em_aberto');
+
+          if (filters.numero_titulo && !hasFence && onlyNumero) {
+            toast.warning('Filtro amplo aplicado — pode trazer títulos similares (substring).');
+          }
+
+          // Heurística: se a conversa recente menciona "em aberto", força o filtro
+          const recentText = messages.slice(-6).map((m) => m.content).join(' ').toLowerCase();
+          if (/em\s+aberto|saldo\s+aberto/.test(recentText) && filters.somente_em_aberto === undefined) {
+            filters.somente_em_aberto = true;
+          }
+        }
+
         toast.info(`Aplicando filtros em ${label}...`);
         navigate(`/${module}`);
         setTimeout(() => dispatchAiFilters(module, filters), 300);
@@ -101,7 +122,7 @@ export function AiAssistantChat() {
       }
       return null;
     },
-    [navigate]
+    [navigate, messages]
   );
 
   const streamFromBody = useCallback(
