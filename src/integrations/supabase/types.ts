@@ -210,6 +210,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          favorite_modules: Json
+          frequent_filters: Json
+          preferred_period: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          favorite_modules?: Json
+          frequent_filters?: Json
+          preferred_period?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          favorite_modules?: Json
+          frequent_filters?: Json
+          preferred_period?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_search_history: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          module: string
+          result_count: number | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          module: string
+          result_count?: number | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          module?: string
+          result_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_sessions: {
         Row: {
           current_path: string | null
@@ -243,6 +294,7 @@ export type Database = {
     }
     Functions: {
       cleanup_old_error_logs: { Args: never; Returns: undefined }
+      cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
       is_admin: { Args: { _uid: string }; Returns: boolean }
     }
