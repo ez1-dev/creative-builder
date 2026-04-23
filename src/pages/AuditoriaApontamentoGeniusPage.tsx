@@ -36,6 +36,77 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
+// ─── Normalizador do payload da API /api/apontamentos-producao ─────────────
+// O backend pode variar nomes de campos entre versões. Esta função garante
+// que o restante da página leia sempre os mesmos nomes (data_movimento,
+// hora_inicial, hora_final, horas_realizadas em MINUTOS, etc.).
+function normalizeRowApont(r: any): any {
+  if (!r || typeof r !== 'object') return r;
+
+  // Datas: descartar placeholders 1900-xx-xx do ERP Senior
+  const isPlaceholderDate = (v: any) =>
+    typeof v === 'string' && /^1[89]\d{2}-/.test(v);
+  const pickDate = (...vals: any[]) => {
+    for (const v of vals) {
+      if (v && !isPlaceholderDate(v)) return v;
+    }
+    return null;
+  };
+
+  // Horas: descartar strings vazias / "00:00" inválidas
+  const pickHora = (...vals: any[]) => {
+    for (const v of vals) {
+      if (v != null && String(v).trim() !== '') return String(v).trim();
+    }
+    return null;
+  };
+
+  const dataMov = pickDate(r.data_movimento, r.data, r.data_apontamento);
+  const dataIni = pickDate(r.data_inicio, r.data_inicial) ?? dataMov;
+  const dataFim = pickDate(r.data_fim, r.data_final) ?? dataMov;
+
+  const horaIni = pickHora(r.hora_inicial, r.hora_inicio, r.hora_movimento);
+  const horaFim = pickHora(r.hora_final, r.hora_fim);
+
+  // Horas: backend pode mandar em decimal (horas) ou já em minutos.
+  // Heurística: se vier o campo `horas_apontadas` é decimal-horas; se vier
+  // `horas_realizadas` assumimos minutos (já é o que a API atual entrega).
+  let horasMin = 0;
+  if (r.horas_apontadas != null) {
+    horasMin = Math.round(Number(r.horas_apontadas) * 60);
+  } else if (r.horas_realizadas != null) {
+    horasMin = Number(r.horas_realizadas) || 0;
+  }
+
+  let totDiaMin = 0;
+  if (r.total_horas_dia_operador != null) {
+    totDiaMin = Number(r.total_horas_dia_operador) || 0;
+  } else if (r.total_dia_operador != null) {
+    totDiaMin = Math.round(Number(r.total_dia_operador) * 60);
+  }
+
+  return {
+    ...r,
+    data_movimento: dataMov,
+    data_inicial: dataIni,
+    data_final: dataFim,
+    hora_inicial: horaIni,
+    hora_final: horaFim,
+    horas_realizadas: horasMin,
+    total_horas_dia_operador: totDiaMin,
+    nome_operador: r.nome_operador ?? r.operador ?? '',
+    numcad: r.numcad ?? r.codigo_operador ?? '',
+    status_movimento: r.status_movimento ?? r.status ?? '',
+    sitorp: r.sitorp ?? r.status_op ?? '',
+    centro_trabalho: r.centro_trabalho ?? r.codigo_centro_trabalho ?? r.estagio ?? '',
+    estagio: r.estagio ?? r.operacao ?? r.codigo_operacao ?? '',
+    numero_op: r.numero_op ?? r.numop ?? '',
+    codigo_produto: r.codigo_produto ?? r.codpro ?? '',
+    descricao_produto: r.descricao_produto ?? r.despro ?? '',
+    origem: r.origem ?? r.codori ?? '',
+  };
+}
+
 // ─── Tipo agregado por OP usado no drill profundo dos cards de status ──────
 type OpAgg = {
   numero_op: string;
@@ -395,6 +466,11 @@ export default function AuditoriaApontamentoGeniusPage() {
         pagina: page,
         tamanho_pagina: 100,
       });
+      result.dados = (result.dados ?? []).map(normalizeRowApont);
+      if (import.meta.env.DEV && result.dados.length > 0) {
+        // eslint-disable-next-line no-console
+        console.debug('[AuditoriaApontGenius] 1ª linha normalizada:', result.dados[0]);
+      }
       setData(result);
       setPagina(page);
       setUltimaAtualizacao(new Date());
