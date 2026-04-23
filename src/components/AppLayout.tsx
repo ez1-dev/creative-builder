@@ -50,7 +50,7 @@ export default function AppLayout() {
           <header className="h-11 flex items-center justify-between border-b bg-card px-3 gap-2">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <SidebarTrigger className="ml-0 shrink-0" />
-              <div className="min-w-0 hidden xs:block sm:block">
+              <div className="min-w-0 overflow-hidden">
                 <HeaderInfo />
               </div>
             </div>
