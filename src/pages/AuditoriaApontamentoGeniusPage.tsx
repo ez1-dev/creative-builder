@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { api, AuditoriaApontamentoGeniusResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -191,6 +191,13 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+  const [agora, setAgora] = useState<Date>(new Date());
+
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
+  const buscarRef = useRef<(page?: number) => Promise<void>>();
 
   const abrirDetalhesOp = useCallback((row: any) => {
     setOpSelecionada(row);
@@ -220,12 +227,54 @@ export default function AuditoriaApontamentoGeniusPage() {
       });
       setData(result);
       setPagina(page);
+      setUltimaAtualizacao(new Date());
     } catch (e: any) {
       toast.error(e.message, { id: 'err-apont-genius' });
     } finally {
       setLoading(false);
     }
   }, [filters, erpReady]);
+
+  // Mantém ref atualizada da função de busca para uso no intervalo
+  useEffect(() => {
+    buscarRef.current = buscarAuditoriaApontamentoGenius;
+  }, [buscarAuditoriaApontamentoGenius]);
+
+  // Auto-refresh a cada 60s quando ligado
+  useEffect(() => {
+    if (!autoRefresh) return;
+    // Dispara imediatamente se ainda não houver dados
+    if (!data && !loadingRef.current && !document.hidden) {
+      buscarRef.current?.(1);
+    }
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      if (loadingRef.current) return;
+      buscarRef.current?.(pagina);
+    }, 60_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh]);
+
+  // Tick local para recomputar "há Xs"
+  useEffect(() => {
+    if (!ultimaAtualizacao) return;
+    const id = window.setInterval(() => setAgora(new Date()), 5_000);
+    return () => window.clearInterval(id);
+  }, [ultimaAtualizacao]);
+
+  // Ao voltar a ficar visível, força refresh se passou >60s
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const onVis = () => {
+      if (document.hidden) return;
+      if (loadingRef.current) return;
+      const idade = ultimaAtualizacao ? Date.now() - ultimaAtualizacao.getTime() : Infinity;
+      if (idade > 60_000) buscarRef.current?.(pagina);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [autoRefresh, ultimaAtualizacao, pagina]);
 
   const limparTelaAuditoriaApontamentoGenius = useCallback(() => {
     setFilters(initialFilters);
@@ -235,7 +284,18 @@ export default function AuditoriaApontamentoGeniusPage() {
     setForcarDiagnostico(false);
     setOpSelecionada(null);
     setDrawerAberto(false);
+    setUltimaAtualizacao(null);
   }, []);
+
+  const tempoDesdeAtualizacao = useMemo(() => {
+    if (!ultimaAtualizacao) return null;
+    const diffMs = agora.getTime() - ultimaAtualizacao.getTime();
+    const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+    if (diffSec < 5) return 'agora';
+    if (diffSec < 60) return `há ${diffSec}s`;
+    const diffMin = Math.floor(diffSec / 60);
+    return `há ${diffMin} min`;
+  }, [agora, ultimaAtualizacao]);
 
   // Apontamentos vinculados à OP selecionada (mesmo numero_op + origem)
   const apontamentosDaOp = useMemo(() => {
@@ -407,7 +467,22 @@ export default function AuditoriaApontamentoGeniusPage() {
         title="Auditoria Apontamento Genius"
         description="Conferência de apontamentos da operação GENIUS — destaca apontamentos > 8h e totais diários > 8h por operador"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Switch
+                id="auto-refresh-apont"
+                checked={autoRefresh}
+                onCheckedChange={setAutoRefresh}
+              />
+              <Label htmlFor="auto-refresh-apont" className="text-xs cursor-pointer">
+                Auto-atualizar (1 min)
+              </Label>
+              {tempoDesdeAtualizacao && (
+                <span className="text-xs text-muted-foreground">
+                  · Atualizado {tempoDesdeAtualizacao}
+                </span>
+              )}
+            </div>
             <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
