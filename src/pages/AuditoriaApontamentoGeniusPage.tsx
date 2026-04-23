@@ -2411,7 +2411,8 @@ export const KpiDeepSheet = React.forwardRef<HTMLDivElement, KpiDeepSheetProps>(
       </SheetContent>
     </Sheet>
   );
-}
+});
+KpiDeepSheet.displayName = 'KpiDeepSheet';
 
 function MiniKpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
   return (
