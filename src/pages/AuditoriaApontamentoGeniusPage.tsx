@@ -197,6 +197,41 @@ function normSitorpRow(row: any): 'E'|'L'|'A'|'F'|'C'|'' {
   return '';
 }
 
+function horaParaMinutos(v: any): number | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    if (v >= 0 && v < 24) return Math.round(v * 60);
+    if (Number.isInteger(v) && v >= 0 && v <= 2359) {
+      const h = Math.floor(v / 100), m = v % 100;
+      if (h < 24 && m < 60) return h * 60 + m;
+    }
+    if (v >= 0 && v < 24 * 60) return Math.round(v);
+    return null;
+  }
+  const s = String(v).trim().toLowerCase().replace('h', ':').replace(/\s+/g, '');
+  if (!s) return null;
+  const m1 = s.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (m1) {
+    const h = +m1[1], m = +m1[2];
+    if (h < 24 && m < 60) return h * 60 + m;
+  }
+  const m2 = s.match(/^(\d{3,4})$/);
+  if (m2) {
+    const n = +m2[1], h = Math.floor(n / 100), m = n % 100;
+    if (h < 24 && m < 60) return h * 60 + m;
+  }
+  const f = Number(s);
+  if (Number.isFinite(f) && f >= 0 && f < 24) return Math.round(f * 60);
+  return null;
+}
+
+function isFimMenorInicio(row: any): boolean {
+  const ini = horaParaMinutos(row?.hora_inicial);
+  const fim = horaParaMinutos(row?.hora_final);
+  if (ini == null || fim == null) return false;
+  return fim < ini;
+}
+
 function isLinhaDiscrepante(row: any): boolean {
   const sa = String(row?.status_movimento ?? '').toUpperCase();
   if (sa && sa !== 'FECHADO') return true;
@@ -205,7 +240,7 @@ function isLinhaDiscrepante(row: any): boolean {
   if (horas > 8 || totDia > 8) return true;
   if (!row?.hora_inicial) return true;
   if (!row?.hora_final) return true;
-  if (row?.hora_inicial && row?.hora_final && String(row.hora_final) < String(row.hora_inicial)) return true;
+  if (isFimMenorInicio(row)) return true;
   const min = Number(row?.horas_realizadas) || 0;
   if (min > 0 && min < 5) return true;
   return false;
@@ -255,7 +290,7 @@ function agregarPorOp(linhas: any[]): OpAgg[] {
     const totDia = minToHours(row.total_horas_dia_operador);
     if (sa === 'SEM_APONTAMENTO' || !row.hora_inicial) agg.sem_inicio += 1;
     if (sa === 'ABERTO' || !row.hora_final) agg.sem_fim += 1;
-    if (sa === 'DIVERGENTE' || (row.hora_inicial && row.hora_final && String(row.hora_final) < String(row.hora_inicial))) agg.divergentes += 1;
+    if (sa === 'DIVERGENTE' || isFimMenorInicio(row)) agg.divergentes += 1;
     if (horas > 8 || totDia > 8) agg.acima_8h += 1;
     agg.inconsistencias = agg.sem_inicio + agg.sem_fim + agg.divergentes + agg.acima_8h;
   }
@@ -904,7 +939,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       case 'finalizadas':     return all.filter((r) => normSitorpRow(r) === 'F');
       case 'semInicio':       return all.filter((r) => !r.hora_inicial || String(r.status_movimento ?? '').toUpperCase() === 'SEM_APONTAMENTO');
       case 'semFim':          return all.filter((r) => !r.hora_final || String(r.status_movimento ?? '').toUpperCase() === 'ABERTO');
-      case 'fimMenorInicio':  return all.filter((r) => (r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial)) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
+      case 'fimMenorInicio':  return all.filter((r) => isFimMenorInicio(r) || String(r.status_movimento ?? '').toUpperCase() === 'DIVERGENTE');
       case 'acima8h':         return all.filter((r) => minToHours(r.horas_realizadas) > 8 || minToHours(r.total_horas_dia_operador) > 8);
       case 'abaixo5min':      return all.filter((r) => { const m = Number(r.horas_realizadas) || 0; return m > 0 && m < 5; });
       case 'discrepancias':   return all.filter(isLinhaDiscrepante);
@@ -1269,7 +1304,7 @@ export default function AuditoriaApontamentoGeniusPage() {
 
                           const semInicio = !r.hora_inicial;
                           const semFim = !r.hora_final;
-                          const fimMenor = !!(r.hora_inicial && r.hora_final && String(r.hora_final) < String(r.hora_inicial));
+                          const fimMenor = isFimMenorInicio(r);
                           const abaixo5 = minRaw > 0 && minRaw < 5;
                           const acima8h = horas > 8 || totDia > 8;
                           const rowBg = acima8h
