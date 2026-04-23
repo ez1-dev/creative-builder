@@ -1,96 +1,143 @@
 
 
-## Permitir que o Assistente IA responda sobre usuários do sistema
+## Assistente IA com aprendizado e sugestões personalizadas por usuário
 
-### Problema
-Pergunta "quais os usuários que têm acesso ao sistema" caiu em rota sem contexto (ou em rota cujo `pageContext` não tem dados de usuários). A IA não tem acesso às tabelas `profiles`, `user_access`, `access_profiles` e respondeu genericamente apontando para o ERP — o que é incorreto, pois esses dados estão no Lovable Cloud.
+### Objetivo
+Tornar o assistente **proativo e personalizado**: ele passa a memorizar as pesquisas e ações de cada usuário, aprende padrões (filtros frequentes, módulos mais usados, horários, combinações comuns) e oferece **sugestões inteligentes** para agilizar o trabalho do dia a dia.
 
-### Causa raiz
-1. A edge function `ai-assistant` só conhece os 5 módulos operacionais (estoque, compras, etc.) via tool `apply_erp_filters`.
-2. Não existe tool para consultar **dados administrativos** (usuários cadastrados, perfis, permissões).
-3. O `pageContext` só carrega o que a página atual fornece — `/configuracoes` aba "Usuários" não está registrando lista de usuários no contexto.
+### Diagnóstico atual
+- O assistente hoje é "stateless": cada conversa começa do zero, sem memória de pesquisas anteriores.
+- `user_activity` já registra `path`, `action` e `details` (filtros), mas **só é usado pelo Dashboard de Uso admin** — o próprio assistente não consulta esses dados.
+- Não há tabela de "favoritos", "buscas salvas" ou "preferências por usuário".
 
-### Solução proposta
+### Solução em 3 camadas
 
-**1. Nova tool `list_system_users` na edge function**
-- Aceita filtros opcionais: `approved` (true/false), `profile_name` (Administrador, etc.), `search` (nome/email).
-- Edge function executa query no Supabase com **service role** unindo `profiles` + `user_access` + `access_profiles`.
-- Retorna lista resumida: `display_name`, `email`, `erp_user`, `approved`, `profile_name`, `last_seen_at` (de `user_sessions`).
-- **Restrição de segurança**: tool só pode ser executada se o usuário chamador for **admin** (validado via `is_admin(auth.uid())` na edge function antes de rodar a query).
+---
 
-**2. Atualizar o system prompt**
-- Adicionar bloco descrevendo a nova capacidade:
-  > "Para perguntas sobre usuários cadastrados, perfis de acesso, quem é admin, quem está pendente de aprovação ou quem tem acesso a determinada tela, use a tool `list_system_users`. Apenas administradores podem usar esta tool — se o usuário não for admin, responda que essa informação é restrita."
-- Reforçar: NUNCA mandar o usuário "consultar no ERP Senior" para dados que estão no Lovable Cloud.
+#### 📦 Camada 1 — Histórico de buscas por usuário (memória curta, 30 dias)
 
-**3. Validação de admin na edge function**
-- Ler o JWT do header `Authorization`.
-- Chamar `supabase.rpc('is_admin', { _uid: user.id })`.
-- Se não for admin e a tool `list_system_users` for invocada → retornar erro tratado: "Acesso restrito a administradores."
+**Nova tabela `user_search_history`:**
+```sql
+- id uuid pk
+- user_id uuid (FK profiles)
+- module text          -- 'estoque', 'painel-compras', etc.
+- filters jsonb        -- { codigo: '001', situacao: 'A', ... }
+- result_count int     -- quantos registros retornou
+- created_at timestamptz
+```
 
-**4. Registrar contexto na aba "Usuários" de Configurações (bonus)**
-- Quando admin estiver em `/configuracoes` aba Usuários, registrar via `useAiPageContext`:
-  - `summary`: "X usuários cadastrados (Y aprovados, Z pendentes)"
-  - `kpis`: { 'Total': X, 'Aprovados': Y, 'Pendentes': Z, 'Admins': N }
-- Permite respostas instantâneas sem precisar chamar a tool.
+**Como popula:**
+- Hook `useSearchTracking(module)` chamado em cada página de consulta após `Pesquisar`.
+- Salva via `supabase.from('user_search_history').insert(...)` — leve, async, não bloqueia UI.
+- Cleanup automático >30 dias (trigger pg_cron diário).
 
-### Detalhes técnicos
+**RLS:** usuário só lê/insere o próprio histórico.
 
-**Tool definition (edge function):**
+---
+
+#### 📦 Camada 2 — Preferências aprendidas (memória longa)
+
+**Nova tabela `user_preferences`:**
+```sql
+- user_id uuid pk
+- favorite_modules jsonb    -- top 5 módulos com contagem
+- frequent_filters jsonb    -- por módulo: filtros mais usados
+- preferred_period text     -- 'mes_atual', 'ultimos_30d', etc.
+- updated_at timestamptz
+```
+
+**Como popula:**
+- Edge function `recompute-user-preferences` roda **diariamente via pg_cron** para cada usuário ativo.
+- Agrega `user_search_history` + `user_activity` dos últimos 30 dias.
+- Calcula: top módulos, filtros recorrentes (>3 vezes), padrões temporais.
+- Custo: ~1 segundo por usuário ativo, fora do horário comercial.
+
+---
+
+#### 📦 Camada 3 — Assistente proativo
+
+**3 novas capacidades no chat:**
+
+**A) Sugestões ao abrir o chat (sem prompt do usuário)**
+Quando o usuário abre o assistente em uma página, ele vê **chips clicáveis** com as 3 buscas mais frequentes naquele módulo:
+
+```
+💡 Sugestões para você:
+  [Família 001 ativos]   [Estoque crítico - Setor A]   [OCs vencidas - mês atual]
+```
+
+Clicar = aplica os filtros direto (reusa `dispatchAiFilters`).
+
+**B) Nova tool `recall_user_searches` na edge function**
+O modelo pode buscar o histórico do próprio usuário:
+- "O que pesquisei na semana passada?" → lista resumida
+- "Repita minha última busca de estoque" → aplica filtros idênticos
+- "Aquela consulta de OCs do projeto X" → busca por similaridade no histórico
+
+**C) Contexto enriquecido no system prompt**
+Junto com `pageContext`, a edge function passa:
 ```ts
-{
-  type: "function",
-  function: {
-    name: "list_system_users",
-    description: "Lista usuários cadastrados no sistema (Lovable Cloud). Apenas admins podem usar.",
-    parameters: {
-      type: "object",
-      properties: {
-        approved: { type: "boolean", description: "true=aprovados, false=pendentes, omitir=todos" },
-        profile_name: { type: "string", description: "Filtrar por perfil (ex: Administrador)" },
-        search: { type: "string", description: "Buscar por nome/email/erp_user" },
-        limit: { type: "number", description: "Máximo de registros (default 50)" }
-      }
-    }
-  }
+userMemory: {
+  topModules: ['estoque', 'contas-pagar'],
+  frequentFilters: { estoque: { situacao: 'A', familia: '001' } },
+  recentSearches: [últimas 5 do mesmo módulo]
 }
 ```
 
-**Query usada:**
-```sql
-SELECT p.display_name, p.email, p.erp_user, p.approved,
-       ap.name AS profile_name, s.last_seen_at
-FROM profiles p
-LEFT JOIN user_access ua ON UPPER(ua.user_login) = UPPER(p.erp_user)
-LEFT JOIN access_profiles ap ON ap.id = ua.profile_id
-LEFT JOIN user_sessions s ON s.user_id = p.id
-WHERE (filters...)
-ORDER BY p.display_name
-LIMIT :limit;
-```
+A IA usa isso para responder coisas como:
+> "Vi que você costuma filtrar família 001 com situação Ativo — quer aplicar esses filtros agora?"
 
-**Fluxo de resposta:**
-1. Usuário (admin) pergunta "quem tem acesso?"
-2. IA chama `list_system_users` com filtros opcionais.
-3. Edge function valida admin → executa query → devolve JSON.
-4. IA formata em **tabela markdown** no chat.
+---
+
+### Privacidade e segurança
+- **Cada usuário só vê seu próprio histórico/preferências** (RLS estrito por `auth.uid()`).
+- Admin **NÃO** acessa histórico individual via assistente (apenas agregados no Dashboard de Uso).
+- Botão **"Limpar meu histórico"** em Configurações → "Minha conta".
+- Nenhum dado sensível (CPF, valores monetários individuais) é salvo — apenas filtros e nomes de módulos.
+
+---
+
+### Mudanças de UI
+
+**No `AiAssistantChat.tsx`:**
+- Quando `messages.length === 0`, renderizar bloco "Sugestões para você" com chips clicáveis (vindos de `user_preferences.frequent_filters[currentModule]`).
+- Adicionar comando rápido `/historico` que lista últimas 10 buscas.
+
+**Em `ConfiguracoesPage.tsx`:**
+- Nova aba/seção "Minhas preferências" mostrando:
+  - Módulos favoritos (top 5)
+  - Filtros mais usados
+  - Botão "Limpar histórico"
+
+---
+
+### Arquivos novos
+- `src/hooks/useSearchTracking.ts` — registra busca após `Pesquisar`.
+- `src/hooks/useUserSuggestions.ts` — busca sugestões da `user_preferences`.
+- `src/components/erp/SearchSuggestions.tsx` — chips de sugestão no chat.
+- `supabase/functions/recompute-user-preferences/index.ts` — job de agregação diário.
 
 ### Arquivos alterados
-- `supabase/functions/ai-assistant/index.ts` — nova tool, validação de admin, query.
-- `src/components/erp/AiAssistantChat.tsx` — tratar tool result `list_system_users` (renderizar tabela retornada pela IA, não navegar).
-- `src/pages/ConfiguracoesPage.tsx` — registrar `useAiPageContext` com KPIs de usuários quando aba "Usuários" estiver ativa.
+- `supabase/functions/ai-assistant/index.ts` — nova tool `recall_user_searches`, injeção de `userMemory` no system prompt.
+- `src/components/erp/AiAssistantChat.tsx` — bloco de sugestões iniciais, comando `/historico`.
+- Páginas de consulta (Estoque, Compras, etc.) — chamar `useSearchTracking(module)` após pesquisa bem-sucedida.
+- `src/pages/ConfiguracoesPage.tsx` — seção "Minhas preferências".
 
-### Fora de escopo
-- Editar/aprovar usuários via IA (apenas leitura).
-- Auditoria de quem acessou o quê (já existe no Dashboard de Uso).
-- Tools para `error_logs` ou `app_settings` (futuro pacote).
+### Migrations
+- Criar `user_search_history` + RLS + cleanup function.
+- Criar `user_preferences` + RLS.
+- Agendar pg_cron diário às 03:00 para `recompute-user-preferences`.
 
-### Resultado
-Admin pode perguntar:
-- "Quem tem acesso ao sistema?" → tabela com todos os usuários.
-- "Quais usuários estão pendentes de aprovação?" → lista filtrada.
-- "Quem são os administradores?" → lista de admins.
-- "O usuário João está aprovado?" → busca específica.
+---
 
-Usuário comum recebe resposta clara: "Essa consulta é restrita a administradores."
+### Fora de escopo (futuro)
+- Recomendação preditiva ("usuários parecidos com você costumam buscar...") — exige modelo treinado.
+- Importar/exportar buscas favoritas.
+- Atalhos de teclado por busca salva.
+
+### Resultado esperado
+- Usuário abre o assistente em **/estoque** e já vê suas 3 buscas mais frequentes para clicar.
+- Pergunta "qual filtro usei ontem em compras?" → assistente responde com filtros + botão para reaplicar.
+- Após 1 semana de uso, assistente sugere proativamente: *"Você consulta família 001 com situação Ativo quase todo dia. Quer que eu salve como busca padrão?"*
+- Tudo respeitando privacidade individual e sem expor dados de outros usuários.
 
