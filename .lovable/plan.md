@@ -1,29 +1,54 @@
 
 
-## Corrigir botão "Atualizar agora" oculto no modal de update
+## Verificação do botão "Atualizar agora" no modal de update
 
-### Diagnóstico
-O `DialogContent` usa `className="sm:max-w-md [&>button]:hidden"`. O seletor `[&>button]:hidden` foi pensado para ocultar o botão "X" de fechar (filho direto do `DialogContent`), mas como o botão **"Atualizar agora"** também é filho `<button>` direto do mesmo container, ele acaba sendo escondido junto. Resultado: o modal abre (a versão `1.0.1` no banco difere da `1.0.0` carregada), mas o usuário não vê o botão de ação.
+### Diagnóstico do código atual
+Revisei `src/components/UpdateNotifier.tsx` e `src/components/ui/dialog.tsx`:
 
-### Correção (1 arquivo, 2 linhas)
+- O `<Button>` "Atualizar agora" já está envolvido em uma `<div>` (correção aplicada na rodada anterior), então não é mais filho direto de `DialogContent` e não é afetado pelo seletor `[&>button]:hidden`.
+- O botão "X" do shadcn (`<DialogPrimitive.Close>`) tem `className="absolute right-4 top-4..."` e **é** filho direto de `DialogContent` → continua oculto corretamente.
+- O session replay confirma o fluxo funcionando: modal apareceu (v1.0.1), usuário clicou "Atualizar agora", botão virou "Atualizando..." com spinner, página recarregou.
 
-Em `src/components/UpdateNotifier.tsx`:
+### Pontos de atenção encontrados (responsividade)
 
-1. **Trocar o seletor que esconde o "X"**: usar `[&>button.absolute]:hidden` (o botão de fechar do shadcn tem `className` começando com `absolute right-4 top-4`), ou envolver o `<Button>` "Atualizar agora" em uma `<div>` para que ele não seja mais filho direto.
+1. **`sm:max-w-md` + largura `w-full`**: em viewports < 640px (mobile), o `DialogContent` ocupa 100% da largura sem padding lateral. Como o `translate-x-[-50%]` é aplicado, o modal pode encostar nas bordas em telas muito estreitas (320–375px). O botão em si aparece (`w-full`), mas o modal fica colado nas laterais.
 
-Solução escolhida — **envolver em `<div>`** (mais robusta, não depende de classes internas do shadcn):
+2. **Badges de versão**: a linha `Atual: v1.0.0 → Nova: v1.0.1` usa `flex items-center justify-center gap-3`. Em telas muito estreitas (320px) com versões longas (ex.: `1.0.10-beta.1`), pode quebrar layout — mas com versões curtas (atual) está ok.
 
-```tsx
-<div>
-  <Button onClick={handleRefresh} disabled={refreshing} className="w-full gap-2">
-    <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-    {refreshing ? 'Atualizando...' : 'Atualizar agora'}
-  </Button>
-</div>
-```
+3. **Z-index e overlay**: `z-50` no overlay e content — sem conflito com sidebar (`z-40` no shadcn) ou outros elementos.
 
-Assim o `[&>button]:hidden` continua escondendo só o "X" do shadcn (que permanece filho direto), e o nosso botão volta a aparecer.
+### Plano de verificação
+
+Como estou em modo plano (read-only), não posso executar o browser. Após aprovação, vou em modo default:
+
+1. **Abrir o preview** em `/configuracoes` (admin já logado).
+2. **Forçar exibição do modal** alterando temporariamente `app_settings.app_version` para um valor diferente do atual via SQL, ou simulando via dev tools.
+3. **Capturar screenshots** em 4 viewports representativos:
+   - Desktop: 1920×1080
+   - Laptop: 1366×768
+   - Tablet: 768×1024
+   - Mobile: 375×812
+   - Mobile pequeno: 320×568
+4. **Validar em cada um** que:
+   - O modal aparece centralizado
+   - O botão "Atualizar agora" está visível, clicável e com largura adequada
+   - O ícone de download e os badges de versão renderizam sem overflow
+   - O botão "X" (fechar) NÃO aparece (modal bloqueante)
+   - ESC e clique fora não fecham o modal
+5. **Testar em rotas variadas** (`/`, `/estoque`, `/contas-pagar`, `/producao/dashboard`) para confirmar que o `UpdateNotifier` aparece globalmente (está em `AppLayout`, então cobre todas as rotas autenticadas).
+
+### Correções condicionais (se algo aparecer)
+
+Se nas screenshots eu detectar:
+- **Modal colado nas bordas em mobile** → adicionar `mx-4` ou ajustar `max-w-[calc(100%-2rem)]` no `DialogContent` do `UpdateNotifier`.
+- **Badges quebrando** → trocar `flex-row` por `flex-wrap` ou empilhar em mobile com `flex-col sm:flex-row`.
+- **Botão pequeno demais em mobile** → garantir `min-h-11` (44px touch target).
+
+Caso esteja tudo ok, apenas confirmar com print por viewport e nenhum ajuste de código será necessário.
+
+### Arquivos potencialmente alterados (só se preciso)
+- `src/components/UpdateNotifier.tsx` — apenas classes Tailwind responsivas.
 
 ### Resultado
-Modal de "Nova versão disponível" passa a exibir corretamente o botão **"Atualizar agora"**, permitindo ao usuário recarregar e aplicar a atualização.
+Relatório com prints do modal em 5 viewports + lista do que está ok e do que foi ajustado (se houver). Se tudo estiver correto, nenhum código muda — apenas confirmação visual.
 
