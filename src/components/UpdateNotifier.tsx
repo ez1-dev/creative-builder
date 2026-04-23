@@ -13,6 +13,7 @@ export function UpdateNotifier() {
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<number | null>(null);
+  const lastBundleRef = useRef<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,8 +36,57 @@ export function UpdateNotifier() {
       }
     };
 
-    checkVersion();
-    intervalRef.current = window.setInterval(checkVersion, POLL_INTERVAL_MS);
+    const checkBundleHash = async () => {
+      try {
+        const res = await fetch('/index.html', { cache: 'no-store' });
+        if (!res.ok) return;
+        const html = await res.text();
+        // Procura o bundle principal: <script type="module" src="/assets/index-XXXX.js">
+        const match = html.match(/src="(\/assets\/index-[^"]+\.js)"/);
+        if (!match) return; // em dev (sem hash) não casa — ok
+        const currentBundle = match[1];
+        if (cancelled) return;
+        if (lastBundleRef.current === null) {
+          lastBundleRef.current = currentBundle;
+          return;
+        }
+        if (lastBundleRef.current !== currentBundle) {
+          setLatestVersion((prev) => prev ?? 'novo build');
+          setShow(true);
+        }
+      } catch {
+        // silencioso
+      }
+    };
+
+    const runChecks = () => {
+      checkVersion();
+      checkBundleHash();
+    };
+
+    runChecks();
+    intervalRef.current = window.setInterval(runChecks, POLL_INTERVAL_MS);
+
+    // Listener inerte de Service Worker — só ativa se algum SW for registrado no futuro.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (!reg || cancelled) return;
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker?.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              setLatestVersion((prev) => prev ?? 'novo build');
+              setShow(true);
+            }
+          });
+        });
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload();
+        });
+      }).catch(() => {
+        // silencioso
+      });
+    }
 
     return () => {
       cancelled = true;
@@ -46,6 +96,14 @@ export function UpdateNotifier() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        reg?.waiting?.postMessage({ type: 'SKIP_WAITING' });
+      }
+    } catch {
+      // ignora
+    }
     try {
       if ('caches' in window) {
         const keys = await caches.keys();
@@ -80,7 +138,7 @@ export function UpdateNotifier() {
             Atual: v{CURRENT_VERSION}
           </Badge>
           <span className="text-muted-foreground">→</span>
-          <Badge className="text-xs">Nova: v{latestVersion}</Badge>
+          <Badge className="text-xs">Nova: {latestVersion?.startsWith('novo') ? latestVersion : `v${latestVersion}`}</Badge>
         </div>
 
         <Button onClick={handleRefresh} disabled={refreshing} className="w-full gap-2">
