@@ -135,6 +135,8 @@ function isLinhaDiscrepante(row: any): boolean {
   if (!row?.hora_inicial) return true;
   if (!row?.hora_final) return true;
   if (row?.hora_inicial && row?.hora_final && String(row.hora_final) < String(row.hora_inicial)) return true;
+  const min = Number(row?.horas_realizadas) || 0;
+  if (min > 0 && min < 5) return true;
   return false;
 }
 
