@@ -1848,6 +1848,22 @@ export function KpiDeepSheet({
     return arr;
   }, [ops, somenteInconsist, busca, ordem]);
 
+  // Paginação client-side da tabela de OPs
+  const [paginaOps, setPaginaOps] = useState(1);
+  const [tamanhoPaginaOps, setTamanhoPaginaOps] = useState(20);
+  useEffect(() => {
+    setPaginaOps(1);
+    setOpExpandida(null);
+  }, [kind, somenteInconsist, busca, ordem, tamanhoPaginaOps, setOpExpandida]);
+  const totalPaginasOps = Math.max(1, Math.ceil(opsFiltradas.length / tamanhoPaginaOps));
+  const paginaAtual = Math.min(paginaOps, totalPaginasOps);
+  const opsPagina = useMemo(
+    () => opsFiltradas.slice((paginaAtual - 1) * tamanhoPaginaOps, paginaAtual * tamanhoPaginaOps),
+    [opsFiltradas, paginaAtual, tamanhoPaginaOps],
+  );
+  const inicioExibicao = opsFiltradas.length === 0 ? 0 : (paginaAtual - 1) * tamanhoPaginaOps + 1;
+  const fimExibicao = Math.min(paginaAtual * tamanhoPaginaOps, opsFiltradas.length);
+
   // Mini-KPIs do recorte
   const totaisStatus = useMemo(() => {
     let totalApt = 0, totalHoras = 0, totalInconsist = 0, opsComInconsist = 0;
