@@ -451,6 +451,51 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
   ];
 }
 
+function AlertaAcima8hCard({ quantidade, onClick }: { quantidade: number; onClick: () => void }) {
+  if (quantidade === 0) {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border-2 border-[hsl(var(--success))]/40 bg-[hsl(var(--success))]/10 px-4 py-3 w-full">
+        <ShieldCheck className="h-6 w-6 text-[hsl(var(--success))] shrink-0" />
+        <div className="flex flex-col">
+          <p className="text-sm font-semibold text-[hsl(var(--success))]">Sem apontamentos acima de 8h</p>
+          <p className="text-xs text-muted-foreground">Tudo dentro do limite no recorte atual.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Alerta: apontamentos acima de 8 horas"
+      onClick={onClick}
+      onKeyDown={handleKey}
+      className="group relative flex items-center gap-4 rounded-lg border-2 border-destructive bg-destructive/10 px-5 py-4 w-full cursor-pointer animate-glow-alert motion-reduce:animate-none transition-colors hover:bg-destructive/15 focus:outline-none focus:ring-2 focus:ring-destructive focus:ring-offset-2"
+    >
+      <div className="flex items-center justify-center rounded-full bg-destructive/15 p-2 animate-pulse-alert motion-reduce:animate-none">
+        <AlertTriangle className="h-7 w-7 text-destructive" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-2xl font-bold text-destructive leading-tight">
+          {quantidade.toLocaleString('pt-BR')} apontamento{quantidade > 1 ? 's' : ''} acima de 8h
+        </p>
+        <p className="text-xs text-destructive/80 mt-0.5">
+          Clique para ver detalhes — requer atenção imediata.
+        </p>
+      </div>
+      <ChevronRight className="h-5 w-5 text-destructive shrink-0 group-hover:translate-x-1 transition-transform" />
+    </div>
+  );
+}
+
 export default function AuditoriaApontamentoGeniusPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState<AuditoriaApontamentoGeniusResponse | null>(null);
