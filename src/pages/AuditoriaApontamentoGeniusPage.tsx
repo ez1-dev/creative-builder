@@ -1322,3 +1322,466 @@ function ContagemBlock({
   );
 }
 
+
+// ─── Card de status real com drill profundo ────────────────────────────────
+interface StatusOpDrillCardProps {
+  letra: 'E'|'L'|'A'|'F'|'C';
+  title: string;
+  value: number;
+  icon?: React.ReactNode;
+  ops: OpAgg[];
+  index?: number;
+  onVerTudo: () => void;
+}
+
+function shortStr(s: string, n: number) {
+  if (!s) return '—';
+  return s.length > n ? s.slice(0, n - 1) + '…' : s;
+}
+
+function StatusOpDrillCard({ letra, title, value, icon, ops, index = 0, onVerTudo }: StatusOpDrillCardProps) {
+  const variant = STATUS_LETRA_VARIANT[letra];
+  const borderClass = STATUS_LETRA_BORDER[letra];
+  const hasOps = ops.length > 0;
+  const totalInconsist = ops.reduce((acc, o) => acc + (o.inconsistencias > 0 ? 1 : 0), 0);
+  const top = ops.slice(0, 30);
+
+  const tooltipText = `OPs únicas (página atual)${totalInconsist > 0 ? ` · ${totalInconsist} com inconsistência` : ''}`;
+
+  const cardInner = (
+    <UICard className={cn('transition-shadow hover:shadow-md border-l-4', borderClass, hasOps && 'cursor-pointer')}>
+      <UICardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+              <Info className="h-3 w-3 text-muted-foreground/50" />
+            </div>
+            <p className="text-xl font-bold text-foreground">{formatNumber(value, 0)}</p>
+            {totalInconsist > 0 && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> {totalInconsist} c/ inconsistência
+              </p>
+            )}
+          </div>
+          {icon && <div className="text-muted-foreground">{icon}</div>}
+        </div>
+      </UICardContent>
+    </UICard>
+  );
+
+  const wrapped = (
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>{cardInner}</TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-xs">{tooltipText}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
+    >
+      {hasOps ? (
+        <Popover>
+          <PopoverTrigger asChild>
+            <div>{wrapped}</div>
+          </PopoverTrigger>
+          <PopoverContent className="w-96 p-0" side="bottom" align="start">
+            <div className="border-b px-4 py-2">
+              <p className="text-sm font-semibold">{title}</p>
+              <p className="text-xs text-muted-foreground">
+                {ops.length} OP{ops.length !== 1 ? 's' : ''} (página atual) · top {top.length}
+              </p>
+            </div>
+            <div className="divide-y max-h-[420px] overflow-y-auto">
+              {top.map((op) => {
+                const inconsist = op.inconsistencias > 0;
+                return (
+                  <div key={op.numero_op} className={cn('px-4 py-2 text-xs', inconsist && 'bg-destructive/5')}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-foreground flex items-center gap-1">
+                          {inconsist && <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />}
+                          OP {op.numero_op}
+                        </div>
+                        <div className="text-muted-foreground truncate" title={op.produto}>
+                          {shortStr(op.produto, 36)}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="font-medium">{op.apontamentos} apt · {formatNumber(op.total_horas, 1)}h</div>
+                        {inconsist && (
+                          <div className="text-destructive">⚠ {op.inconsistencias}</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t p-2">
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="w-full h-8 text-xs"
+                onClick={onVerTudo}
+              >
+                Ver tudo · detalhamento completo →
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        wrapped
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Sheet de drill profundo: 3 níveis (header + tabela OPs + accordion linhas)
+interface StatusOpDeepSheetProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  letra: 'E'|'L'|'A'|'F'|'C'|null;
+  ops: OpAgg[];
+  somenteInconsist: boolean;
+  setSomenteInconsist: (v: boolean) => void;
+  busca: string;
+  setBusca: (v: string) => void;
+  ordem: 'inconsist'|'horas'|'apt'|'op';
+  setOrdem: (v: 'inconsist'|'horas'|'apt'|'op') => void;
+  opExpandida: string | null;
+  setOpExpandida: (v: string | null) => void;
+  discrepanciasParciais: boolean;
+  totalRegistros: number;
+  paginaCarregada: number;
+  onAbrirDrawerOp: (row: any) => void;
+  onFiltrarGridPorOp: (numop: string) => void;
+}
+
+function StatusOpDeepSheet({
+  open, onOpenChange, letra, ops,
+  somenteInconsist, setSomenteInconsist,
+  busca, setBusca,
+  ordem, setOrdem,
+  opExpandida, setOpExpandida,
+  discrepanciasParciais, totalRegistros, paginaCarregada,
+  onAbrirDrawerOp, onFiltrarGridPorOp,
+}: StatusOpDeepSheetProps) {
+  const label = letra ? STATUS_LETRA_LABEL[letra] : '';
+  const variantCfg = letra ? statusOpVariants[letra] : null;
+
+  const opsFiltradas = useMemo(() => {
+    let arr = ops;
+    if (somenteInconsist) arr = arr.filter((o) => o.inconsistencias > 0);
+    const q = busca.trim().toLowerCase();
+    if (q) {
+      arr = arr.filter((o) => {
+        if (o.numero_op.toLowerCase().includes(q)) return true;
+        if (o.produto.toLowerCase().includes(q)) return true;
+        if (o.codigo_produto.toLowerCase().includes(q)) return true;
+        for (const op of o.operadores) if (op.toLowerCase().includes(q)) return true;
+        return false;
+      });
+    }
+    arr = [...arr].sort((a, b) => {
+      switch (ordem) {
+        case 'horas': return b.total_horas - a.total_horas;
+        case 'apt': return b.apontamentos - a.apontamentos;
+        case 'op': return a.numero_op.localeCompare(b.numero_op);
+        case 'inconsist':
+        default:
+          if (b.inconsistencias !== a.inconsistencias) return b.inconsistencias - a.inconsistencias;
+          return b.total_horas - a.total_horas;
+      }
+    });
+    return arr;
+  }, [ops, somenteInconsist, busca, ordem]);
+
+  // Mini-KPIs do status
+  const totaisStatus = useMemo(() => {
+    let totalApt = 0, totalHoras = 0, totalInconsist = 0, opsComInconsist = 0;
+    const operadores = new Set<string>();
+    const origens = new Map<string, number>();
+    for (const o of ops) {
+      totalApt += o.apontamentos;
+      totalHoras += o.total_horas;
+      totalInconsist += o.inconsistencias;
+      if (o.inconsistencias > 0) opsComInconsist++;
+      o.operadores.forEach((op) => operadores.add(op));
+      if (o.origem) origens.set(o.origem, (origens.get(o.origem) ?? 0) + o.apontamentos);
+    }
+    const topOrigens = Array.from(origens.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return { totalApt, totalHoras, totalInconsist, opsComInconsist, totalOperadores: operadores.size, topOrigens };
+  }, [ops]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-[920px] overflow-y-auto">
+        <SheetHeader className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <SheetTitle className="text-base">Detalhes do Status</SheetTitle>
+            {variantCfg && <Badge className={variantCfg.className}>{variantCfg.label} ({letra})</Badge>}
+          </div>
+          <SheetDescription className="text-xs">
+            {ops.length} OP{ops.length !== 1 ? 's' : ''} no status · página atual ({paginaCarregada} linhas
+            {totalRegistros > paginaCarregada ? ` de ${totalRegistros}` : ''})
+          </SheetDescription>
+        </SheetHeader>
+
+        {discrepanciasParciais && (
+          <Alert className="mt-3">
+            <Info className="h-4 w-4" />
+            <AlertTitle className="text-xs">Detalhamento da página atual</AlertTitle>
+            <AlertDescription className="text-xs">
+              Os valores cobrem apenas {paginaCarregada} de {totalRegistros} registros. Para análise completa, percorra as páginas.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Nível 1 — Mini KPIs */}
+        <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+          <MiniKpi label="Total OPs" value={formatNumber(ops.length, 0)} />
+          <MiniKpi label="OPs c/ inconsistência" value={formatNumber(totaisStatus.opsComInconsist, 0)} destaque={totaisStatus.opsComInconsist > 0} />
+          <MiniKpi label="Apontamentos" value={formatNumber(totaisStatus.totalApt, 0)} />
+          <MiniKpi label="Horas totais" value={`${formatNumber(totaisStatus.totalHoras, 2)} h`} />
+          <MiniKpi label="Operadores únicos" value={formatNumber(totaisStatus.totalOperadores, 0)} />
+          <MiniKpi
+            label="Top origens"
+            value={totaisStatus.topOrigens.length ? totaisStatus.topOrigens.map(([o, n]) => `${o} (${n})`).join(', ') : '—'}
+          />
+        </div>
+
+        {/* Toolbar */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar OP, produto, operador…"
+              className="h-8 text-xs pl-7"
+            />
+          </div>
+          <Select value={ordem} onValueChange={(v) => setOrdem(v as any)}>
+            <SelectTrigger className="h-8 text-xs w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inconsist" className="text-xs">Inconsistências (desc)</SelectItem>
+              <SelectItem value="horas" className="text-xs">Horas (desc)</SelectItem>
+              <SelectItem value="apt" className="text-xs">Apontamentos (desc)</SelectItem>
+              <SelectItem value="op" className="text-xs">OP (asc)</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <Switch id="somente-inconsist-drill" checked={somenteInconsist} onCheckedChange={setSomenteInconsist} />
+            <Label htmlFor="somente-inconsist-drill" className="text-xs cursor-pointer">Só c/ inconsistência</Label>
+          </div>
+        </div>
+
+        {/* Nível 2 — Tabela de OPs */}
+        <div className="mt-3 rounded-md border overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead className="bg-muted/50 text-left">
+              <tr>
+                <th className="px-2 py-1 font-medium w-6"></th>
+                <th className="px-2 py-1 font-medium">OP</th>
+                <th className="px-2 py-1 font-medium">Produto</th>
+                <th className="px-2 py-1 font-medium">Origem</th>
+                <th className="px-2 py-1 font-medium text-right">Apt.</th>
+                <th className="px-2 py-1 font-medium text-right">Horas</th>
+                <th className="px-2 py-1 font-medium text-right">Operadores</th>
+                <th className="px-2 py-1 font-medium">Último apont.</th>
+                <th className="px-2 py-1 font-medium">Inconsistências</th>
+              </tr>
+            </thead>
+            <tbody>
+              {opsFiltradas.length === 0 && (
+                <tr><td colSpan={9} className="px-3 py-4 text-center text-muted-foreground">Nenhuma OP para os filtros.</td></tr>
+              )}
+              {opsFiltradas.map((op) => {
+                const expandida = opExpandida === op.numero_op;
+                const temInconsist = op.inconsistencias > 0;
+                return (
+                  <>
+                    <tr
+                      key={op.numero_op}
+                      className={cn('border-t cursor-pointer hover:bg-muted/40', temInconsist && 'bg-destructive/5')}
+                      onClick={() => setOpExpandida(expandida ? null : op.numero_op)}
+                    >
+                      <td className="px-2 py-1">
+                        {expandida ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      </td>
+                      <td className="px-2 py-1 font-medium">{op.numero_op}</td>
+                      <td className="px-2 py-1 max-w-[220px] truncate" title={op.produto}>{op.produto}</td>
+                      <td className="px-2 py-1">{op.origem || '—'}</td>
+                      <td className="px-2 py-1 text-right">{op.apontamentos}</td>
+                      <td className="px-2 py-1 text-right">{formatNumber(op.total_horas, 2)}</td>
+                      <td className="px-2 py-1 text-right">{op.operadores.size}</td>
+                      <td className="px-2 py-1">{op.ultimo_apontamento ? formatDate(op.ultimo_apontamento) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-2 py-1">
+                        <div className="flex flex-wrap gap-1">
+                          {op.sem_inicio > 0 && <Badge className="bg-amber-500 text-white text-[10px]">SI {op.sem_inicio}</Badge>}
+                          {op.sem_fim > 0 && <Badge className="bg-amber-500 text-white text-[10px]">SF {op.sem_fim}</Badge>}
+                          {op.divergentes > 0 && <Badge className="bg-destructive text-destructive-foreground text-[10px]">DIV {op.divergentes}</Badge>}
+                          {op.acima_8h > 0 && <Badge className="bg-red-700 text-white text-[10px]">&gt;8h {op.acima_8h}</Badge>}
+                          {!temInconsist && <span className="text-muted-foreground">—</span>}
+                        </div>
+                      </td>
+                    </tr>
+                    {expandida && (
+                      <tr key={`${op.numero_op}-exp`} className="border-t bg-muted/30">
+                        <td colSpan={9} className="px-3 py-3">
+                          <OpLinhasInline
+                            op={op}
+                            onAbrirDrawerOp={onAbrirDrawerOp}
+                            onFiltrarGridPorOp={onFiltrarGridPorOp}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function MiniKpi({ label, value, destaque }: { label: string; value: string; destaque?: boolean }) {
+  return (
+    <div className={cn('rounded-md border p-2 bg-muted/30', destaque && 'border-destructive/40 bg-destructive/5')}>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('text-sm font-semibold text-foreground', destaque && 'text-destructive')}>{value}</div>
+    </div>
+  );
+}
+
+// ─── Nível 3: tabela de apontamentos brutos da OP ──────────────────────────
+function OpLinhasInline({
+  op,
+  onAbrirDrawerOp,
+  onFiltrarGridPorOp,
+}: {
+  op: OpAgg;
+  onAbrirDrawerOp: (row: any) => void;
+  onFiltrarGridPorOp: (numop: string) => void;
+}) {
+  const linhas = op.linhas;
+  const primeira = linhas[0];
+
+  const copiarJson = useCallback(() => {
+    try {
+      navigator.clipboard.writeText(JSON.stringify(linhas, null, 2));
+      toast.success(`JSON da OP ${op.numero_op} copiado`);
+    } catch {
+      toast.error('Falha ao copiar JSON');
+    }
+  }, [linhas, op.numero_op]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="text-xs font-semibold text-foreground">
+          Apontamentos brutos · OP {op.numero_op} ({linhas.length} linha{linhas.length !== 1 ? 's' : ''})
+        </div>
+        <div className="flex flex-wrap gap-1 ml-auto">
+          {primeira && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => onAbrirDrawerOp(primeira)}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" /> Abrir no drawer da OP
+            </Button>
+          )}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => onFiltrarGridPorOp(op.numero_op)}
+          >
+            <FilterIcon className="h-3 w-3 mr-1" /> Filtrar grid principal
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs"
+            onClick={copiarJson}
+          >
+            <Copy className="h-3 w-3 mr-1" /> Copiar JSON
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-md border overflow-x-auto bg-background">
+        <table className="w-full text-[11px]">
+          <thead className="bg-muted/40 text-left">
+            <tr>
+              <th className="px-2 py-1 font-medium">Data</th>
+              <th className="px-2 py-1 font-medium">Hora</th>
+              <th className="px-2 py-1 font-medium">Operador (numcad)</th>
+              <th className="px-2 py-1 font-medium">Estágio</th>
+              <th className="px-2 py-1 font-medium text-right">Seq Rot</th>
+              <th className="px-2 py-1 font-medium text-right">Seq Apt</th>
+              <th className="px-2 py-1 font-medium">Turno</th>
+              <th className="px-2 py-1 font-medium text-right">H. Real.</th>
+              <th className="px-2 py-1 font-medium text-right">Tot. Dia Op.</th>
+              <th className="px-2 py-1 font-medium">Status Mov.</th>
+              <th className="px-2 py-1 font-medium">Sitorp</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((r, i) => {
+              const horas = Number(r.horas_realizadas) || 0;
+              const totDia = Number(r.total_horas_dia_operador) || 0;
+              const sa = String(r.status_movimento ?? 'FECHADO').toUpperCase();
+              const saCfg = statusApontVariants[(sa in statusApontVariants ? sa : 'FECHADO') as StatusApont];
+              const inconsist = sa === 'DIVERGENTE' || sa === 'ABERTO' || sa === 'SEM_APONTAMENTO' || horas > 8 || totDia > 8;
+              const realKey = String(r.sitorp ?? '').toUpperCase();
+              const realCfg = realKey ? statusOpVariants[realKey] : null;
+              return (
+                <tr key={i} className={cn('border-t', inconsist && 'bg-destructive/5')}>
+                  <td className="px-2 py-1">{r.data_movimento ? formatDate(r.data_movimento) : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-2 py-1">{r.hora_movimento || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="px-2 py-1">
+                    {r.nome_operador && String(r.nome_operador).trim()
+                      ? <>{r.nome_operador} <span className="text-muted-foreground">({r.numcad ?? 0})</span></>
+                      : <span className="text-muted-foreground">— ({r.numcad ?? 0})</span>}
+                  </td>
+                  <td className="px-2 py-1">{r.estagio ?? '—'}</td>
+                  <td className="px-2 py-1 text-right">{r.seqrot ?? '—'}</td>
+                  <td className="px-2 py-1 text-right">{r.seq_apontamento ?? '—'}</td>
+                  <td className="px-2 py-1">{r.turno ?? '—'}</td>
+                  <td className={cn('px-2 py-1 text-right', horas === 0 && 'text-destructive font-medium', horas > 8 && 'text-destructive font-bold')}>
+                    {formatNumber(horas, 2)}
+                  </td>
+                  <td className={cn('px-2 py-1 text-right', totDia > 8 && 'text-destructive font-bold')}>
+                    {formatNumber(totDia, 2)}
+                  </td>
+                  <td className="px-2 py-1">
+                    <Badge className={cn(saCfg?.className ?? '', 'text-[10px]')}>{saCfg?.label ?? sa}</Badge>
+                  </td>
+                  <td className="px-2 py-1">
+                    {realCfg ? <Badge className={cn(realCfg.className, 'text-[10px]')}>{realCfg.label}</Badge> : <span className="text-muted-foreground">—</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
