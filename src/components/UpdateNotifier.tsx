@@ -118,7 +118,7 @@ export function UpdateNotifier() {
   return (
     <Dialog open={show}>
       <DialogContent
-        className="sm:max-w-md [&>button]:hidden"
+        className="w-[calc(100%-2rem)] max-w-[calc(100%-2rem)] sm:max-w-md [&>button.absolute]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -133,7 +133,7 @@ export function UpdateNotifier() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-center gap-3 py-2">
+        <div className="flex flex-wrap items-center justify-center gap-2 py-2">
           <Badge variant="outline" className="text-xs">
             Atual: v{CURRENT_VERSION}
           </Badge>
@@ -142,7 +142,7 @@ export function UpdateNotifier() {
         </div>
 
         <div>
-          <Button onClick={handleRefresh} disabled={refreshing} className="w-full gap-2">
+          <Button onClick={handleRefresh} disabled={refreshing} className="w-full gap-2 min-h-11">
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing ? 'Atualizando...' : 'Atualizar agora'}
           </Button>
