@@ -756,7 +756,7 @@ export default function AuditoriaApontamentoGeniusPage() {
               subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
               icon={<UserCheck className="h-5 w-5" />}
               variant="info"
-              index={8}
+              index={11}
               details={kpiDrilldowns.maiorTotalDia.length ? kpiDrilldowns.maiorTotalDia : undefined}
               tooltip={atualizarKpisApontGenius.discrepanciasParciais ? 'Detalhamento da página atual' : undefined}
             />
