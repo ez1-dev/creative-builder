@@ -227,12 +227,54 @@ export default function AuditoriaApontamentoGeniusPage() {
       });
       setData(result);
       setPagina(page);
+      setUltimaAtualizacao(new Date());
     } catch (e: any) {
       toast.error(e.message, { id: 'err-apont-genius' });
     } finally {
       setLoading(false);
     }
   }, [filters, erpReady]);
+
+  // Mantém ref atualizada da função de busca para uso no intervalo
+  useEffect(() => {
+    buscarRef.current = buscarAuditoriaApontamentoGenius;
+  }, [buscarAuditoriaApontamentoGenius]);
+
+  // Auto-refresh a cada 60s quando ligado
+  useEffect(() => {
+    if (!autoRefresh) return;
+    // Dispara imediatamente se ainda não houver dados
+    if (!data && !loadingRef.current && !document.hidden) {
+      buscarRef.current?.(1);
+    }
+    const id = window.setInterval(() => {
+      if (document.hidden) return;
+      if (loadingRef.current) return;
+      buscarRef.current?.(pagina);
+    }, 60_000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRefresh]);
+
+  // Tick local para recomputar "há Xs"
+  useEffect(() => {
+    if (!ultimaAtualizacao) return;
+    const id = window.setInterval(() => setAgora(new Date()), 5_000);
+    return () => window.clearInterval(id);
+  }, [ultimaAtualizacao]);
+
+  // Ao voltar a ficar visível, força refresh se passou >60s
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const onVis = () => {
+      if (document.hidden) return;
+      if (loadingRef.current) return;
+      const idade = ultimaAtualizacao ? Date.now() - ultimaAtualizacao.getTime() : Infinity;
+      if (idade > 60_000) buscarRef.current?.(pagina);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [autoRefresh, ultimaAtualizacao, pagina]);
 
   const limparTelaAuditoriaApontamentoGenius = useCallback(() => {
     setFilters(initialFilters);
