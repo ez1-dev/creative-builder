@@ -24,22 +24,20 @@ export async function trackPageView(path: string) {
   try {
     const info = await getCurrentUserInfo();
     if (!info) return;
-    await Promise.all([
-      supabase.from('user_activity').insert({
-        user_id: info.id,
-        user_email: info.email,
-        event_type: 'page_view',
-        path,
-      }),
-      supabase.from('user_sessions').upsert({
-        user_id: info.id,
-        user_email: info.email,
-        display_name: info.displayName,
-        last_seen_at: new Date().toISOString(),
-        current_path: path,
-        user_agent: navigator.userAgent,
-      }, { onConflict: 'user_id' }),
-    ]);
+    await supabase.from('user_activity').insert({
+      user_id: info.id,
+      user_email: info.email,
+      event_type: 'page_view',
+      path,
+    });
+    await supabase.from('user_sessions').upsert({
+      user_id: info.id,
+      user_email: info.email,
+      display_name: info.displayName,
+      last_seen_at: new Date().toISOString(),
+      current_path: path,
+      user_agent: navigator.userAgent,
+    }, { onConflict: 'user_id' });
   } catch { /* fire-and-forget */ }
 }
 

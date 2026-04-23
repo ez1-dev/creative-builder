@@ -129,7 +129,7 @@ export function MonitoramentoUsuarios() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <Activity className="h-4 w-4 text-emerald-600" /> Online agora
+            <Activity className="h-4 w-4 text-primary" /> Online agora
             <Badge variant="secondary">{online.length}</Badge>
           </CardTitle>
           <Button variant="outline" size="sm" onClick={fetchOnline}>
