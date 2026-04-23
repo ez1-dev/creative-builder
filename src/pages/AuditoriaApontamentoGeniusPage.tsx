@@ -24,6 +24,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { formatNumber, formatDate } from '@/lib/format';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {

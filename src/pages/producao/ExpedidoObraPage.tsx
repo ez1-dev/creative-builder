@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, Weight, Hash, Truck } from 'lucide-react';
 
@@ -138,6 +139,21 @@ export default function ExpedidoObraPage() {
   }, [filters, erpReady, consolidateKpis]);
 
   useAiFilters('producao-expedido', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Expedido para Obra',
+    filters,
+    kpis: kpiTotals ? {
+      'Total Registros': formatNumber(kpiTotals.totalRegistros, 0),
+      'Qtd Expedida': formatNumber(kpiTotals.qtdExpedida, 0),
+      'Peso Expedido (Kg)': formatNumber(kpiTotals.pesoExpedido, 1),
+      'Cargas Distintas': formatNumber(kpiTotals.cargasDistintas, 0),
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} expedições; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '', numero_carga: '', cliente: '', cidade: '', data_ini: '', data_fim: '' });
     setData(null); setPagina(1);

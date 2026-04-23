@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { formatNumber, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, Weight, Hash, Tags } from 'lucide-react';
 
@@ -145,6 +146,21 @@ export default function ProduzidoPeriodoPage() {
   }, [filters, erpReady, consolidateKpis]);
 
   useAiFilters('producao-produzido', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Produzido no Período',
+    filters,
+    kpis: kpiTotals ? {
+      'Total Registros': formatNumber(kpiTotals.totalRegistros, 0),
+      'Qtd Produzida': formatNumber(kpiTotals.qtdProduzida, 0),
+      'Peso Produzido (Kg)': formatNumber(kpiTotals.pesoProduzido, 1),
+      'Qtd Etiquetas': formatNumber(kpiTotals.qtdEtiquetas, 0),
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} produções; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', codigo_produto: '', cliente: '', cidade: '', data_ini: '', data_fim: '' });
     setData(null); setPagina(1);

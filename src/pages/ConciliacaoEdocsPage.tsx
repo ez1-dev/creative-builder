@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const statusBadge = (status: string) => {
   switch (status) {
@@ -156,6 +157,22 @@ export default function ConciliacaoEdocsPage() {
   const exportParams = buildParams(1);
   delete exportParams.pagina;
   delete exportParams.tamanho_pagina;
+
+  useAiPageContext({
+    title: 'Conciliação ERP x EDocs',
+    filters,
+    kpis: resumo ? {
+      'Total Registros': resumo.total_registros,
+      'OK': resumo.total_ok,
+      'Sem EDocs': resumo.total_sem_edocs,
+      'Com Erro': resumo.total_com_erro,
+      'Diverg. Situação': resumo.total_divergencia_situacao,
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} notas conciliadas; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
 
   return (
     <div className="space-y-4 p-4">

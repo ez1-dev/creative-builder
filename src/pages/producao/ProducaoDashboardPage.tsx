@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { AlertTriangle, Clock, SearchX, RefreshCw } from 'lucide-react';
 import { DashboardCharts } from './components/DashboardCharts';
 
@@ -179,6 +180,26 @@ export default function ProducaoDashboardPage() {
   }, [filters, erpReady]);
 
   useAiFilters('producao-dashboard', setFilters, () => search());
+
+  const resumoCtx = data?.resumo;
+  useAiPageContext({
+    title: 'Dashboard Produção',
+    filters,
+    kpis: resumoCtx ? {
+      'Kg Previsto': formatNumber(resumoCtx.kg_engenharia, 0),
+      'Kg Produzido': formatNumber(resumoCtx.kg_produzido, 0),
+      'Kg Expedido': formatNumber(resumoCtx.kg_expedido, 0),
+      'Kg Pátio': formatNumber(resumoCtx.kg_patio, 0),
+      'Qtd Cargas': resumoCtx.quantidade_cargas,
+      'Itens Não Carregados': resumoCtx.itens_nao_carregados,
+      'Em Produção': resumoCtx.projetos_em_producao,
+      'LT Total (dias)': resumoCtx.leadtime_medio_total,
+    } : undefined,
+    summary: status === 'success'
+      ? `Dashboard carregado; ${(data?.top_projetos_patio || []).length} projetos no top pátio`
+      : status === 'loading' ? 'Carregando dashboard...' : undefined,
+  });
+
   const clearFilters = () => {
     abortRef.current?.abort();
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });

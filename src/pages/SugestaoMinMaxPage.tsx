@@ -20,6 +20,7 @@ import { Package, TrendingDown, TrendingUp, Clock, ArrowDownToLine, ArrowUpFromL
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { gerarDemoMovimentacao, gerarDemoSugestao } from '@/lib/demoMovimentacao';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const MISSING_ENDPOINT_MSG: Record<string, string> = {
   movimentacao: 'Endpoint /api/estoque/movimentacao ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
@@ -253,6 +254,23 @@ export default function SugestaoMinMaxPage() {
     acc.lead_time_medio_dias = ltCount ? ltSum / ltCount : 0;
     return acc;
   }, [data]);
+
+  useAiPageContext({
+    title: 'Sugestão Min/Max',
+    module: 'estoque',
+    filters: { ...filters, modo: mode, demo: demoMode },
+    kpis: kpis ? {
+      'Saldo Atual': formatNumber(kpis.saldo_atual_total, 2),
+      'Consumo 90d': formatNumber(kpis.consumo_90d, 2),
+      'Consumo 180d': formatNumber(kpis.consumo_180d, 2),
+      'Lead Time Médio (d)': formatNumber(kpis.lead_time_medio_dias, 1),
+      'Mínimo Sugerido': formatNumber(kpis.minimo_sugerido_total, 2),
+      'Máximo Sugerido': formatNumber(kpis.maximo_sugerido_total, 2),
+    } : undefined,
+    summary: data
+      ? `${data.total_registros ?? data.dados?.length ?? 0} itens em modo "${mode}"`
+      : undefined,
+  });
 
   // Reativa botões automaticamente quando o usuário troca filtros
   useEffect(() => { setEndpointMissing(false); }, [filters]);

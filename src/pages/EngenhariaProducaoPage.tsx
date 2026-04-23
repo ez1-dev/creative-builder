@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import { formatNumber, formatDate, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -89,6 +90,16 @@ export default function EngenhariaProducaoPage() {
   }, [filters, erpReady]);
 
   useAiFilters('engenharia-producao', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Engenharia x Produção',
+    module: 'engenharia-producao',
+    filters,
+    summary: data
+      ? `${data.total_registros} projetos comparados; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
     setData(null); setPagina(1);

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
@@ -44,6 +45,15 @@ export default function NaoCarregadosPage() {
   }, [filters, erpReady]);
 
   useAiFilters('producao-nao-carregados', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Itens Não Carregados',
+    filters,
+    summary: data
+      ? `${data.total_registros} itens pendentes; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', cliente: '', cidade: '', codigo_barras: '' });
     setData(null); setPagina(1);

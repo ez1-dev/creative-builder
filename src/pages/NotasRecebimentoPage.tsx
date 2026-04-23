@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { formatNumber, formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { FileText, Package, Users, DollarSign, TrendingUp, Boxes } from "lucide-react";
+import { useAiPageContext } from "@/hooks/useAiPageContext";
 
 const columns: Column<any>[] = [
   { key: "numero_nf", header: "NF" },
@@ -160,6 +161,23 @@ export default function NotasRecebimentoPage() {
   const qtdRecebidaTotal = dados.reduce((acc, d) => acc + Number(d.quantidade_recebida || 0), 0);
 
   const set = (key: string, value: string) => setFilters((f) => ({ ...f, [key]: value }));
+
+  useAiPageContext({
+    title: 'Notas Fiscais de Recebimento',
+    filters,
+    kpis: data ? {
+      'NFs distintas': totalNfs,
+      'Itens Recebidos': totalItens,
+      'Fornecedores': totalFornecedores,
+      'Valor Líquido': formatCurrency(valorLiquidoTotal),
+      'Valor Bruto': formatCurrency(valorBrutoTotal),
+      'Qtd. Recebida': formatNumber(qtdRecebidaTotal, 2),
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} itens; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
 
   return (
     <div className="space-y-4 p-4">
