@@ -193,7 +193,7 @@ const tools = [
     function: {
       name: "query_erp_data",
       description:
-        "Consulta dados reais do ERP (estoque, compras, NFs, contas, produção) e retorna top N ordenado. Use para perguntas analíticas como 'qual produto tem mais estoque?', 'top 5 fornecedores', 'OCs mais antigas em aberto', 'maiores títulos a pagar'. Executada no navegador do usuário com o token dele.",
+        "Consulta dados reais do ERP. Suporta dois modos: (1) top N ordenado para rankings; (2) aggregate (count/count_distinct/sum/avg) para totais e contagens. Use scope:'global' para ignorar filtros da tela atual e perguntar sobre todo o ERP. Executada no navegador do usuário.",
       parameters: {
         type: "object",
         properties: {
@@ -221,7 +221,7 @@ const tools = [
               "estoque-min-max",
               "sugestao-min-max",
             ],
-            description: "Módulo do ERP a consultar. Consulte o catálogo de módulos no system prompt para campos e filtros disponíveis.",
+            description: "Módulo do ERP a consultar.",
           },
           filters: {
             type: "object",
@@ -231,13 +231,34 @@ const tools = [
           client_filters: {
             type: "object",
             description:
-              "Filtros pós-busca aplicados no cliente para faixas (gte/lte/eq/contains). Use quando o backend não tem filtro nativo. Ex: {tempo_total_horas:{gte:8}}, {dias_em_patio:{gte:30}}.",
+              "Filtros pós-busca para faixas (gte/lte/gt/lt/eq/contains). Ex: {tempo_total_horas:{gte:8}}.",
             additionalProperties: true,
+          },
+          scope: {
+            type: "string",
+            enum: ["page", "global"],
+            description:
+              "'global' (default): ignora filtros da tela atual, consulta todo o ERP. 'page': use os filtros visíveis na tela. Para perguntas como 'quantas X no total?' use SEMPRE 'global'.",
+          },
+          aggregate: {
+            type: "string",
+            enum: ["count", "count_distinct", "sum", "avg"],
+            description:
+              "Use para perguntas de TOTAL/CONTAGEM/SOMA/MÉDIA. Para 'quantos X?' use 'count_distinct' com distinct_field = unidade de contagem do módulo.",
+          },
+          distinct_field: {
+            type: "string",
+            description:
+              "Campo a contar distintos (use a 'unidade de contagem' do módulo, ex: numero_oc para painel-compras).",
+          },
+          sum_field: {
+            type: "string",
+            description: "Campo numérico a somar/promediar (ex: valor_liquido_total).",
           },
           order_by: {
             type: "string",
             description:
-              "Campo para ordenar (ex: 'saldo', 'valor_liquido_total', 'valor_aberto', 'tempo_total_horas', 'kg_patio', 'divergencia_valor', 'data_entrega').",
+              "Campo para ordenar no modo top N (ex: 'saldo', 'valor_aberto'). Não usado quando aggregate está presente.",
           },
           order_dir: {
             type: "string",
@@ -246,15 +267,15 @@ const tools = [
           },
           top_n: {
             type: "number",
-            description: "Quantos registros retornar (default 10, máx 50).",
+            description: "Quantos registros retornar no modo top N (default 10, máx 50).",
           },
           fields: {
             type: "array",
             items: { type: "string" },
-            description: "Campos a devolver (reduz payload). Default: principais do módulo.",
+            description: "Campos a devolver (reduz payload).",
           },
         },
-        required: ["module", "order_by"],
+        required: ["module"],
         additionalProperties: false,
       },
     },
