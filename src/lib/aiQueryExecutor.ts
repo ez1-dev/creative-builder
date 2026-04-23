@@ -40,6 +40,12 @@ interface ModuleConfig {
   availableFilters: string[];
   example?: string;
   countUnit?: CountUnit;
+  /**
+   * Mapeia nomes "humanos" que a IA pode pedir → nome real do campo no payload do backend.
+   * Aplicado a: distinct_field, sum_field, order_by, fields, e chaves de client_filters.
+   * Ex.: { fornecedor: 'fantasia_fornecedor', valor_liquido_total: 'valor_liquido' }
+   */
+  fieldAliases?: Record<string, string>;
 }
 
 const MODULE_MAP: Record<string, ModuleConfig> = {
