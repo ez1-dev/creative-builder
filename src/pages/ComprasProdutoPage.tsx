@@ -17,6 +17,7 @@ import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { Database, FolderTree, DollarSign, Receipt } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código' },
@@ -65,6 +66,16 @@ export default function ComprasProdutoPage() {
   }, [filters, erpReady]);
 
   useAiFilters('compras-produto', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Compras / Custos do Produto',
+    module: 'compras-produto',
+    filters,
+    summary: data
+      ? `${data.total_registros} produtos; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const kpis = useMemo(() => {
     if (!data) return null;
     const dados = data.dados || [];

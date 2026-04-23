@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { AlertTriangle, GitBranch, ChevronDown, ChevronRight, Expand, Shrink } from 'lucide-react';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const levelColors: Record<number, string> = {
   1: 'bg-green-100',
@@ -36,6 +37,21 @@ export default function BomPage() {
   const [modeloLoading, setModeloLoading] = useState(false);
 
   const erpReady = useErpReady();
+
+  useAiPageContext({
+    title: 'Estrutura Multinível (BOM)',
+    filters,
+    kpis: data ? {
+      'Modelo': data.cabecalho?.codigo_modelo ?? '-',
+      'Total Itens': data.total_itens,
+      'Níveis': data.total_niveis,
+      'Modelos Filhos': data.total_modelos_filhos,
+    } : undefined,
+    summary: data
+      ? `Estrutura de ${data.cabecalho?.descricao_modelo ?? data.cabecalho?.codigo_modelo}; ${data.total_itens} componentes em ${data.total_niveis} níveis`
+      : undefined,
+  });
+
 
   useEffect(() => {
     if (!erpReady || filters.codmod.length < 2) {

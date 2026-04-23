@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const statusBadge = (status: string) => {
   switch (status) {
@@ -74,6 +75,21 @@ export default function AuditoriaTributariaPage() {
   }); setData(null); setPagina(1); };
 
   const resumo = data?.resumo;
+
+  useAiPageContext({
+    title: 'Auditoria Tributária',
+    filters,
+    kpis: resumo ? {
+      'Total Produtos': resumo.total_registros,
+      'NCM Vazio': resumo.total_ncm_vazio,
+      'CST Vazio': resumo.total_cst_vazio,
+      'Divergências': resumo.total_divergencias,
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} produtos auditados; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
 
   return (
     <div className="space-y-4 p-4">

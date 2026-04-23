@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatNumber, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, ArrowUpFromLine, Warehouse, Truck } from 'lucide-react';
 
@@ -154,6 +155,21 @@ export default function SaldoPatioPage() {
   }, [filters, erpReady, consolidateKpis]);
 
   useAiFilters('producao-patio', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Saldo em Pátio',
+    filters,
+    kpis: kpiTotals ? {
+      'Total Registros': formatNumber(kpiTotals.totalRegistros, 0),
+      'Kg Produzido': formatNumber(kpiTotals.kgProduzido, 1),
+      'Kg Expedido': formatNumber(kpiTotals.kgExpedido, 1),
+      'Kg em Pátio': formatNumber(kpiTotals.kgPatio, 1),
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} projetos no pátio; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
     setData(null); setPagina(1);

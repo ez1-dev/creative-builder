@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
@@ -89,6 +90,22 @@ export default function PainelComprasPage() {
   }, [filters, erpReady]);
 
   useAiFilters('painel-compras', setFilters, () => search(1));
+
+  useAiPageContext({
+    title: 'Painel de Compras',
+    module: 'painel-compras',
+    filters,
+    kpis: data && (data as any).resumo ? {
+      'Total OCs': (data as any).resumo.total_ocs ?? '-',
+      'Valor Líquido': formatCurrency((data as any).resumo.valor_liquido_total ?? 0),
+      'Valor Pendente': formatCurrency((data as any).resumo.valor_pendente_total ?? 0),
+      'Itens Atrasados': (data as any).resumo.itens_atrasados ?? 0,
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} linhas de OC; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
   const clearFilters = () => { setFilters({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',

@@ -24,6 +24,7 @@ import {
   DollarSign, Users, FileText, AlertTriangle, Clock,
   TrendingUp, Calendar, Receipt, CreditCard, Landmark,
 } from 'lucide-react';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 /* ─── Status helpers ─── */
 const statusLabel: Record<string, string> = {
@@ -265,6 +266,25 @@ export default function ContasPagarPage() {
       maior_atraso_dias: maiorAtraso,
     };
   }, [data, modoArvoreAtivo, arvoreData]);
+
+  useAiPageContext({
+    title: 'Contas a Pagar',
+    filters,
+    kpis: kpis ? {
+      'Total Títulos': kpis.total_titulos,
+      'Valor Original': formatCurrency(kpis.valor_original_total),
+      'Valor Aberto': formatCurrency(kpis.valor_aberto_total),
+      'Vencidos': kpis.titulos_vencidos,
+      'Valor Vencido': formatCurrency(kpis.valor_vencido_total),
+      'A Vencer 7d': formatCurrency(kpis.valor_a_vencer_7d ?? 0),
+      'A Vencer 30d': formatCurrency(kpis.valor_a_vencer_30d ?? 0),
+      'Maior Atraso (dias)': kpis.maior_atraso_dias ?? 0,
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} títulos; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
 
   const columns = filters.agrupar_por_fornecedor ? columnsAgrupada : columnsDetalhada;
   const exportParams = { ...filters };

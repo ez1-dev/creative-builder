@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowUpCircle, HelpCircle, CheckCircle2, TrendingDown, TrendingUp } from 'lucide-react';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 type Status = 'SEM_POLITICA' | 'ABAIXO_MINIMO' | 'NO_MINIMO' | 'ACIMA_MAXIMO' | 'ENTRE_MIN_E_MAX';
 
@@ -134,6 +135,23 @@ export default function EstoqueMinMaxPage() {
     }
     return acc;
   }, [data, enrichedData]);
+
+  useAiPageContext({
+    title: 'Estoque Min/Max',
+    module: 'estoque',
+    filters,
+    kpis: kpis ? {
+      'Abaixo do Mínimo': kpis.abaixo_minimo,
+      'Acima do Máximo': kpis.acima_maximo,
+      'Sem Política': kpis.sem_politica,
+      'Itens OK': kpis.ok,
+      'Sugestão p/ Mínimo': formatNumber(kpis.sugestao_minimo_total, 2),
+    } : undefined,
+    summary: data
+      ? `${data.total_registros} itens analisados; página ${pagina}/${data.total_paginas}`
+      : undefined,
+  });
+
 
   return (
     <div className="space-y-4 p-4">

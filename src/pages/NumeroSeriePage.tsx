@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Search, Hash, Link2, Eraser, Radio } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 
 interface ContextoNumeroSerie {
   codigo_empresa: number;
@@ -82,6 +83,22 @@ export default function NumeroSeriePage() {
   const [loadingReserva, setLoadingReserva] = useState(false);
 
   const erpReady = useErpReady();
+
+  useAiPageContext({
+    title: 'Reserva Nº de Série',
+    filters,
+    kpis: contexto ? {
+      'Pedido': contexto.numero_pedido,
+      'Item': contexto.item_pedido,
+      'OP': contexto.numero_op || '-',
+      'Produto': contexto.codigo_produto,
+      'Série Atual': contexto.numero_serie_atual || '-',
+    } : undefined,
+    summary: dados.length
+      ? `${dados.length} números de série listados${selecionado ? `; selecionado: ${selecionado}` : ''}`
+      : undefined,
+  });
+
 
   const buscarContexto = useCallback(async () => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }

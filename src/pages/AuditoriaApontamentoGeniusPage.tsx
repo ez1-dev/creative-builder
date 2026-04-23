@@ -24,6 +24,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { formatNumber, formatDate } from '@/lib/format';
+import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -554,6 +555,22 @@ export default function AuditoriaApontamentoGeniusPage() {
   const columns = useMemo(() => buildColumns(abrirDetalhesOp), [abrirDetalhesOp]);
 
   const erpReady = useErpReady();
+
+  useAiPageContext({
+    title: 'Auditoria Apontamento Genius',
+    filters,
+    kpis: data?.resumo ? {
+      'Total Apontamentos': (data.resumo as any).total_apontamentos ?? data.total_registros ?? 0,
+      'Discrepâncias': (data.resumo as any).total_discrepancias ?? 0,
+      'Sem Início': (data.resumo as any).total_sem_inicio ?? 0,
+      'Sem Fim': (data.resumo as any).total_sem_fim ?? 0,
+      'Acima 8h': (data.resumo as any).total_acima_8h ?? 0,
+    } : undefined,
+    summary: data
+      ? `${data.total_registros ?? (data.dados?.length ?? 0)} apontamentos analisados; página ${pagina}`
+      : undefined,
+  });
+
 
   const buscarAuditoriaApontamentoGenius = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
