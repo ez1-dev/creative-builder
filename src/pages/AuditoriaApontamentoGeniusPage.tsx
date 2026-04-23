@@ -200,15 +200,15 @@ function buildColumns(onOpClick: (row: any) => void): Column<any>[] {
     { key: 'descricao_produto', header: 'Descrição', render: (v) => <span className="block max-w-[260px] truncate" title={v}>{v || '-'}</span> },
     {
       key: 'horas_realizadas',
-      header: 'H. Realizadas',
+      header: 'Tempo (min · h)',
       align: 'right',
       render: (v) => {
         const n = Number(v) || 0;
-        if (n === 0) return <span className="text-destructive font-medium">{formatNumber(0, 2)}</span>;
-        return formatNumber(n, 2);
+        if (n === 0) return <span className="text-destructive font-medium">{fmtMinHoras(0)}</span>;
+        return fmtMinHoras(n);
       },
     },
-    { key: 'total_horas_dia_operador', header: 'Total Dia Operador', align: 'right', render: (v) => formatNumber(v, 2) },
+    { key: 'total_horas_dia_operador', header: 'Total Dia Op. (min · h)', align: 'right', render: (v) => fmtMinHoras(v) },
     {
       key: 'status_op',
       header: 'Status OP',
