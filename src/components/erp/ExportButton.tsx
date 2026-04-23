@@ -9,17 +9,22 @@ interface ExportButtonProps {
   params?: Record<string, any>;
   label?: string;
   variant?: 'default' | 'outline' | 'secondary';
+  keepEmptyKeys?: string[];
 }
 
-export function ExportButton({ endpoint, params, label = 'Exportar Excel', variant = 'outline' }: ExportButtonProps) {
+export function ExportButton({ endpoint, params, label = 'Exportar Excel', variant = 'outline', keepEmptyKeys }: ExportButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
     setLoading(true);
     try {
       const searchParams = new URLSearchParams();
+      const keepEmpty = new Set(keepEmptyKeys ?? []);
       const appendValue = (key: string, value: any) => {
-        if (value === null || value === undefined || value === '') return;
+        if (value === null || value === undefined || value === '') {
+          if (keepEmpty.has(key)) searchParams.append(key, '');
+          return;
+        }
         if (typeof value === 'boolean') {
           if (value) searchParams.append(key, 'true');
           return;

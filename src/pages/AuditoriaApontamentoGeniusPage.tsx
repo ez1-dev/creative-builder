@@ -599,16 +599,16 @@ export default function AuditoriaApontamentoGeniusPage() {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', {
         data_ini: filters.data_ini,
         data_fim: filters.data_fim,
-        numero_op: filters.numop,
-        origem: filters.codori,
-        codigo_produto: filters.codpro,
+        numorp: filters.numop ?? '',
+        codori: filters.codori ?? '',
+        codpro: filters.codpro,
         operador: filters.operador,
         status_op: mapStatusOpParaApi(filters.status_op),
         somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-        somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
+        somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
         pagina: page,
         tamanho_pagina: 100,
-      });
+      }, { keepEmpty: ['numorp', 'codori'] });
       result.dados = (result.dados ?? []).map(normalizeRowApont);
       if (import.meta.env.DEV && result.dados.length > 0) {
         // eslint-disable-next-line no-console
@@ -1110,13 +1110,13 @@ export default function AuditoriaApontamentoGeniusPage() {
   const exportParams = {
     data_ini: filters.data_ini,
     data_fim: filters.data_fim,
-    numero_op: filters.numop,
-    origem: filters.codori,
-    codigo_produto: filters.codpro,
+    numorp: filters.numop ?? '',
+    codori: filters.codori ?? '',
+    codpro: filters.codpro,
     operador: filters.operador,
     status_op: mapStatusOpParaApi(filters.status_op),
     somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-    somente_maior_8h: filters.somente_acima_8h ? 1 : 0,
+    somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
   };
 
   return (
@@ -1155,7 +1155,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 </span>
               )}
             </div>
-            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} keepEmptyKeys={['numorp', 'codori']} />
           </div>
         }
       />

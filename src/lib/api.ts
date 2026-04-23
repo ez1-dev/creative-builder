@@ -79,7 +79,23 @@ class ApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
-      const msg = error.detail || `Erro ${response.status}`;
+      let msg: string;
+      const detail = (error as any)?.detail;
+      if (Array.isArray(detail)) {
+        msg = detail
+          .map((d: any) => {
+            if (!d || typeof d !== 'object') return String(d);
+            const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'query' && x !== 'body').join('.') : '';
+            return loc ? `${loc}: ${d.msg ?? 'erro'}` : String(d.msg ?? JSON.stringify(d));
+          })
+          .join('; ');
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      } else if (detail && typeof detail === 'object') {
+        msg = JSON.stringify(detail);
+      } else {
+        msg = `Erro ${response.status}`;
+      }
       logError({ module: endpoint, message: msg, statusCode: response.status, details: error });
       const err: any = new Error(msg);
       err.statusCode = response.status;
@@ -108,12 +124,20 @@ class ApiClient {
     return data;
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+  async get<T>(
+    endpoint: string,
+    params?: Record<string, any>,
+    options?: { keepEmpty?: string[] },
+  ): Promise<T> {
     const searchParams = new URLSearchParams();
+    const keepEmpty = new Set(options?.keepEmpty ?? []);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
+        const isEmpty = value === null || value === undefined || value === '';
+        if (!isEmpty) {
           searchParams.append(key, String(value));
+        } else if (keepEmpty.has(key)) {
+          searchParams.append(key, '');
         }
       });
     }
