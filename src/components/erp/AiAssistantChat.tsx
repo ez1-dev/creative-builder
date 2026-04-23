@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Bot, X, Send, Sparkles, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useAiPageContextValue } from '@/contexts/AiPageContext';
+import { useUserSuggestions, type SearchSuggestion } from '@/hooks/useUserSuggestions';
+import { SearchSuggestions } from '@/components/erp/SearchSuggestions';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
