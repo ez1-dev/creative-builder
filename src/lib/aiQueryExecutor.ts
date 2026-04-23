@@ -495,10 +495,11 @@ export async function executeQueryErpData(
     }
 
     // Regular top-N path
-    const orderBy = args.order_by || cfg.defaultOrderBy;
+    const orderBy = resolveField(cfg, args.order_by) || cfg.defaultOrderBy;
     const orderDir = args.order_dir === 'asc' ? 'asc' : 'desc';
     const topN = Math.max(1, Math.min(Number(args.top_n) || 10, 50));
-    const fields = args.fields?.length ? args.fields : cfg.defaultFields;
+    const requestedFields = args.fields?.length ? args.fields : cfg.defaultFields;
+    const fields = requestedFields.map((f) => resolveField(cfg, f) || f);
 
     const resp = await api.get<any>(cfg.endpoint, { ...params, pagina: 1, tamanho_pagina: 200 });
     const allRecords: any[] = Array.isArray(resp?.dados)
@@ -507,7 +508,7 @@ export async function executeQueryErpData(
         ? resp
         : [];
 
-    const filtered = applyClientFilters(allRecords, args.client_filters);
+    const filtered = applyClientFilters(allRecords, resolveClientFilters(cfg, args.client_filters));
     const ranked = rankRecords(filtered, orderBy, orderDir, topN, fields);
 
     return {
