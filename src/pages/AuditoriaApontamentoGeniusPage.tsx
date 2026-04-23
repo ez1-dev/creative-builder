@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import {
@@ -192,6 +193,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [intervaloRefresh, setIntervaloRefresh] = useState<30 | 60 | 120>(60);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
   const [agora, setAgora] = useState<Date>(new Date());
 
@@ -240,7 +242,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     buscarRef.current = buscarAuditoriaApontamentoGenius;
   }, [buscarAuditoriaApontamentoGenius]);
 
-  // Auto-refresh a cada 60s quando ligado
+  // Auto-refresh no intervalo selecionado quando ligado
   useEffect(() => {
     if (!autoRefresh) return;
     // Dispara imediatamente se ainda não houver dados
@@ -251,10 +253,10 @@ export default function AuditoriaApontamentoGeniusPage() {
       if (document.hidden) return;
       if (loadingRef.current) return;
       buscarRef.current?.(pagina);
-    }, 60_000);
+    }, intervaloRefresh * 1000);
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoRefresh]);
+  }, [autoRefresh, intervaloRefresh]);
 
   // Tick local para recomputar "há Xs"
   useEffect(() => {
@@ -270,11 +272,11 @@ export default function AuditoriaApontamentoGeniusPage() {
       if (document.hidden) return;
       if (loadingRef.current) return;
       const idade = ultimaAtualizacao ? Date.now() - ultimaAtualizacao.getTime() : Infinity;
-      if (idade > 60_000) buscarRef.current?.(pagina);
+      if (idade > intervaloRefresh * 1000) buscarRef.current?.(pagina);
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [autoRefresh, ultimaAtualizacao, pagina]);
+  }, [autoRefresh, ultimaAtualizacao, pagina, intervaloRefresh]);
 
   const limparTelaAuditoriaApontamentoGenius = useCallback(() => {
     setFilters(initialFilters);
@@ -475,8 +477,21 @@ export default function AuditoriaApontamentoGeniusPage() {
                 onCheckedChange={setAutoRefresh}
               />
               <Label htmlFor="auto-refresh-apont" className="text-xs cursor-pointer">
-                Auto-atualizar (1 min)
+                Auto-atualizar
               </Label>
+              <Select
+                value={String(intervaloRefresh)}
+                onValueChange={(v) => setIntervaloRefresh(Number(v) as 30 | 60 | 120)}
+              >
+                <SelectTrigger className={`h-8 w-[88px] text-xs ${!autoRefresh ? 'opacity-60' : ''}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30" className="text-xs">30s</SelectItem>
+                  <SelectItem value="60" className="text-xs">1 min</SelectItem>
+                  <SelectItem value="120" className="text-xs">2 min</SelectItem>
+                </SelectContent>
+              </Select>
               {tempoDesdeAtualizacao && (
                 <span className="text-xs text-muted-foreground">
                   · Atualizado {tempoDesdeAtualizacao}
