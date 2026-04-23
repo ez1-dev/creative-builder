@@ -1,99 +1,97 @@
 
 
-## Auditoria de responsividade em todas as telas
+## Detalhar apontamentos de início/fim no padrão ERP (aba Movtos. O.P./O.S.)
 
 ### Objetivo
-Verificar e corrigir o comportamento responsivo do app em todos os tamanhos de tela (desktop grande, laptop, tablet, mobile) e em todos os módulos, garantindo que ao minimizar/maximizar a janela nada quebre, sobreponha ou fique cortado.
+Adicionar à tela `/auditoria-apontamento-genius` um modo de **detalhe por movimento** (linha por apontamento bruto, como na aba "Movtos. O.P./O.S." do ERP Senior), exibindo no exemplo a OP **1005 / origem 110** com o registro:
 
-### Escopo da auditoria
+```
+Estágio  Oper.  Seq.Rot  Produto    Deriv  Equip  Operador            Qtde 1ª Qual  Data Início  H.Início  Data Fim   H.Fim  Tempo Bruto  Tempo Líq.  C.R.
+2000     2100   10       110001333  U      2.941  ANDRE VALDECI CARV  24,00         06/03/2026   07:40     06/04/2026 08:09  13.349 min   13.349 min  2100
+```
 
-**Telas a auditar (todas as rotas do app):**
-- Login, Dashboard (Index)
-- Painel de Compras, Compras Produto, Notas Recebimento, Conciliação eDocs
-- Contas a Pagar, Contas a Receber, Auditoria Tributária
-- Estoque, Estoque Min/Max, Sugestão Min/Max
-- BOM, Onde Usa, Engenharia Produção, Número Série
-- Auditoria Apontamento Genius
-- Produção (Dashboard, Lead Time, Não Carregados, Expedido Obra, Produzido Período, Saldo Pátio)
-- Configurações
+### Como será apresentado
 
-**Breakpoints a validar:**
-- 1920x1080 (desktop grande)
-- 1536x864 (laptop padrão)
-- 1366x768 (laptop pequeno)
-- 1024x768 (tablet landscape)
-- 820x1180 (tablet portrait)
-- 414x896 (mobile grande)
-- 375x812 (mobile padrão)
+**1) Drill-down "Detalhar apontamentos da OP"**
+Na DataTable principal (agregada por OP), adicionar um botão de ação por linha → **"Ver movimentos"** (ícone `ListChecks`) que abre um `Sheet` lateral (já usado no projeto) com a grade de movimentos brutos daquela OP, no formato da imagem.
 
-### Pontos críticos conhecidos a verificar
+**2) Nova grade "Movimentos da OP" dentro do Sheet**
+Colunas (na ordem do ERP):
+- O.P./O.S. (`numero_op`)
+- Estágio (`estagio` / `centro_trabalho`)
+- Oper. (`codigo_operacao` / `operacao`)
+- Seq.Rot (`seq_roteiro`)
+- Produto/Serviço (`codigo_produto`)
+- Derivação (`derivacao`) — se backend enviar
+- Equipamento (`equipamento` / `codigo_equipamento`) — se backend enviar
+- Operador (`numcad`)
+- Nome Operador (`nome_operador`)
+- Qtde 1ª Qual. (`qtde_primeira_qualidade` ou `quantidade`)
+- Qtde Refug. (`qtde_refugo`)
+- Qtde Inspec. (`qtde_inspecao`)
+- Qtde 1ª/2ª/3ª Qual. Inic. — se vierem
+- **Data Início** (`data_inicial`)
+- **H.Início** (`hora_inicial`)
+- **Data Fim** (`data_final`)
+- **H.Fim** (`hora_final`)
+- **Tempo Bruto (min.)** (`tempo_bruto_min` ou `horas_realizadas` em min)
+- **Tempo Líq. (min.)** (`tempo_liquido_min` — fallback igual ao bruto)
+- C.R. / Centro de Recurso (`centro_recurso` / `cod_recurso`)
+- Status (badge: OK / SEM_INICIO / SEM_FIM / FIM<INI / >8h)
 
-1. **AppLayout / Sidebar** — colapso automático em <768px, hambúrguer funcional, header não quebra com nome longo do usuário
-2. **Painéis de filtros** (`FilterPanel`) — wrapping correto dos campos em larguras pequenas, sem overflow horizontal
-3. **DataTable** — scroll horizontal com sticky columns (já implementado), mas validar em mobile se os dados continuam legíveis
-4. **KPICards** (grid de KPIs) — re-flow de 4 colunas → 2 → 1 conforme largura
-5. **Charts** (Recharts em ProducaoDashboard, etc.) — `ResponsiveContainer` realmente responde, sem altura fixa quebrando
-6. **AiAssistantChat** — painel flutuante com `useAiPanelPlacement` deve virar drawer/full-screen em mobile (já há `isMobile` no hook)
-7. **Modais/Sheets/Dialogs** — não estouram a viewport em telas pequenas
-8. **Tabs/Submenus** — overflow com scroll horizontal quando muitas abas
-9. **PageHeader** — título + ações não colidem em larguras estreitas
-10. **FinanceiroTreeTable** — indentação da árvore em mobile
+Cada coluna com `truncate + title` para não estourar; tabela com `overflow-x-auto` (padrão do `DataTable`).
 
-### Plano de execução
+**3) Acesso direto via filtros**
+Acrescentar dois pontos de entrada para o detalhe:
+- Botão **"Ver movimentos"** em cada linha agregada da grade principal.
+- Quando o usuário filtrar `numop=1005` + `codori=110` + um período curto e o resultado tiver **só 1 OP**, a tela já abre o Sheet automaticamente nessa OP (atalho).
 
-#### Fase 1 — Inspeção automatizada (browser)
-Para cada combinação rota × breakpoint:
-1. `browser--navigate_to_sandbox` na rota com `width`/`height` do breakpoint
-2. `browser--screenshot` para inspeção visual
-3. `browser--read_console_logs` para capturar warnings de layout
-4. Registrar problemas em uma tabela (rota, breakpoint, problema, severidade)
+**4) Preenchimento dos dados**
+Os movimentos brutos já vêm hoje em `dados[]` (cada linha do payload `/api/apontamentos-producao` é um movimento). O agregado por OP é feito no front. Vamos manter o agregado como visão padrão e usar as **mesmas linhas brutas filtradas pela OP escolhida** para popular o detalhe — **sem nova chamada à API**.
 
-Priorização (não testar 20 rotas × 7 breakpoints = 140 combinações; usar amostragem inteligente):
-- **Alta prioridade**: rotas mais usadas (Painel Compras, Contas Pagar, Estoque, Produção Dashboard, Auditoria Genius) em **375px, 768px, 1366px, 1920px**
-- **Média**: demais rotas em **375px e 1366px**
-- **Baixa**: Configurações, NotFound em **1366px** apenas
+Mapeamento de campos novos (com fallback nulo se backend não enviar ainda):
+- `derivacao` ← `r.derivacao`
+- `equipamento` ← `r.equipamento ?? r.codigo_equipamento`
+- `qtde_primeira_qualidade` ← `r.qtde_primeira_qualidade ?? r.quantidade ?? r.qtde`
+- `qtde_refugo` ← `r.qtde_refugo`
+- `qtde_inspecao` ← `r.qtde_inspecao`
+- `tempo_bruto_min` ← `r.tempo_bruto_min ?? r.horas_realizadas` (já em min)
+- `tempo_liquido_min` ← `r.tempo_liquido_min ?? r.tempo_bruto_min ?? r.horas_realizadas`
+- `centro_recurso` ← `r.centro_recurso ?? r.cod_recurso ?? r.codigo_centro_trabalho`
+- `seq_roteiro` ← `r.seq_roteiro ?? r.seqrot`
 
-Total estimado: ~40 combinações.
+Esses fallbacks vão para o normalizador `normalizeRowApont`. Onde o backend não enviar, a célula mostra `—` (sem quebrar).
 
-#### Fase 2 — Catalogação de problemas
-Agrupar achados por tipo:
-- **A. Overflow horizontal** (scroll lateral indesejado no `<body>`)
-- **B. Sobreposição** (elementos em cima de outros)
-- **C. Texto/conteúdo cortado** (truncate sem tooltip, overflow:hidden engolindo info)
-- **D. Componente inutilizável em mobile** (botões pequenos demais, modais > viewport)
-- **E. Quebra de grid/flex** (cards empilhando errado)
-- **F. Charts com altura colapsada** (0px height)
+**5) Documentação para o backend**
+Atualizar `docs/backend-auditoria-apontamento-genius.md` adicionando ao schema do item:
+- `derivacao` (string)
+- `equipamento` (string)
+- `qtde_primeira_qualidade` / `qtde_refugo` / `qtde_inspecao` (number)
+- `tempo_bruto_min` / `tempo_liquido_min` (number, em minutos)
+- `centro_recurso` (string)
 
-#### Fase 3 — Correções
-Para cada problema, aplicar a correção mínima:
-- Trocar `grid-cols-4` por `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` quando faltar
-- Adicionar `overflow-x-auto` em containers de tabelas/tabs que estiverem sem
-- Trocar `Dialog` por `Drawer` em mobile quando o conteúdo for grande (usando `useIsMobile`)
-- Adicionar `min-w-0` em flex children que estão estourando
-- Adicionar `truncate` + `title` em textos longos no header
-- Garantir `ResponsiveContainer` com `min-h-[Xpx]` em wrappers de chart
-- Wrapping (`flex-wrap`) em barras de ações do `PageHeader`
+Com nota: "campos opcionais, frontend exibe '—' quando ausentes".
 
-#### Fase 4 — Re-validação
-Após correções, re-testar as combinações que tinham problema para confirmar o fix, e fazer um spot-check em 3-4 outras rotas para garantir que nada regrediu.
+### Arquivos alterados
+- `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+  - estender `normalizeRowApont` com novos campos
+  - novo `Sheet` "Movimentos da OP {numop}" com `DataTable` no formato Movtos. O.P./O.S.
+  - botão "Ver movimentos" em cada linha agregada
+  - heurística: se filtro retornar 1 OP, abrir o Sheet automaticamente
+- `docs/backend-auditoria-apontamento-genius.md`
+  - documentar campos opcionais novos no payload
 
-### Entregáveis
-1. **Relatório de auditoria** (no chat) listando por rota:
-   - ✅ OK em todos breakpoints, ou
-   - ⚠️ Problemas encontrados + severidade + correção aplicada
-2. **Código corrigido** nos arquivos com problema (esperado: 5-15 arquivos, principalmente pages, FilterPanel, PageHeader, AppLayout)
-3. **Screenshots de antes/depois** dos casos mais críticos
+### Casos de teste
+1. Filtrar `codori=110` + `numop=1005` + período cobrindo 06/03/2026 → 06/04/2026 → grade agregada mostra 1 OP → Sheet abre automaticamente com 1 linha: estágio 2000, operador 2100, ANDRE VALDECI CARV..., 06/03/2026 07:40 → 06/04/2026 08:09, 13.349 min.
+2. Em outras OPs com vários apontamentos → botão "Ver movimentos" abre Sheet com N linhas detalhadas.
+3. Backend sem os campos novos → colunas mostram `—`, sem quebrar render.
+4. Apontamento `SEM_INICIO` / `SEM_FIM` → célula da hora vazia, badge de status na última coluna em vermelho.
 
 ### Fora de escopo
-- Redesign visual (mudança de paleta, tipografia, espaçamentos por gosto)
-- Reescrever DataTable ou Sidebar do zero
-- Otimização de performance (foco aqui é só layout)
-- PWA / orientação landscape em mobile (se já funciona, mantém)
+- Edição de apontamentos (tela é só consulta).
+- Exportação Excel da nova grade (pode ser adicionada depois se solicitado).
+- Calcular `tempo_liquido` no front quando não vier — assumimos que o backend já faz isso (igual ao ERP).
 
-### Riscos
-- Algumas correções de grid podem afetar a densidade visual em desktop — quando houver tradeoff, priorizar **não quebrar mobile** mantendo desktop "bom o suficiente".
-- Charts com tooltip podem se comportar mal em touch — se aparecer, aplicar fix pontual sem refatorar Recharts.
-
-### Estimativa
-~40 inspeções + ~10 arquivos editados. Trabalho concentrado em uma rodada de exploração + uma rodada de patches + uma rodada de re-validação visual.
+### Resultado
+O usuário consegue, a partir da tela analítica de auditoria, ver **cada movimento individual** de uma OP no mesmo formato da aba "Movtos. O.P./O.S." do Senior, com data/hora de início e fim explícitos e tempos em minutos — replicando o que aparece na imagem para a OP 1005 / origem 110.
 
