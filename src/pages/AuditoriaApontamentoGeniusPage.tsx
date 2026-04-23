@@ -352,7 +352,7 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [opExpandidaNoDrill, setOpExpandidaNoDrill] = useState<string | null>(null);
 
   const abrirKpiDrill = useCallback((k: KpiDrillKind) => {
-    const isProblema = ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(k.kind);
+    const isProblema = ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h','abaixo5min'].includes(k.kind);
     setStatusDrillSomenteInconsist(isProblema);
     setStatusDrillBusca('');
     setOpExpandidaNoDrill(null);
