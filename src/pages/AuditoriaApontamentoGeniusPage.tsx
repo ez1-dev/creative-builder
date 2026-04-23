@@ -191,6 +191,13 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [forcarDiagnostico, setForcarDiagnostico] = useState(false);
   const [opSelecionada, setOpSelecionada] = useState<any | null>(null);
   const [drawerAberto, setDrawerAberto] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
+  const [agora, setAgora] = useState<Date>(new Date());
+
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
+  const buscarRef = useRef<(page?: number) => Promise<void>>();
 
   const abrirDetalhesOp = useCallback((row: any) => {
     setOpSelecionada(row);
