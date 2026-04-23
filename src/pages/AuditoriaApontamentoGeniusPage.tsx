@@ -928,9 +928,7 @@ export default function AuditoriaApontamentoGeniusPage() {
       acima8h,
       maiorTotalDia,
     };
-  }, [data]);
-
-  const rowClassName = useCallback((row: any) => {
+  }, [data, dadosFiltradosPorStatusOp]);
     const sa = String(row.status_movimento ?? '').toUpperCase();
     const horas = minToHours(row.horas_realizadas);
     const totDia = minToHours(row.total_horas_dia_operador);
