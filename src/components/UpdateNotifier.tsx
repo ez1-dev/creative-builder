@@ -4,9 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import packageJson from '../../package.json';
 
-const CURRENT_VERSION = (import.meta.env.VITE_APP_VERSION as string) || '0.0.0';
+const CURRENT_VERSION = packageJson.version;
 const POLL_INTERVAL_MS = 60_000;
+const LS_LAST_VERSION = 'app:last_seen_version';
+const LS_LAST_BUNDLE = 'app:last_seen_bundle';
 
 export function UpdateNotifier() {
   const [show, setShow] = useState(false);
@@ -18,6 +21,14 @@ export function UpdateNotifier() {
   useEffect(() => {
     let cancelled = false;
 
+    // Inicializa baseline do bundle a partir do localStorage (se houver)
+    try {
+      const storedBundle = localStorage.getItem(LS_LAST_BUNDLE);
+      if (storedBundle) lastBundleRef.current = storedBundle;
+    } catch {
+      // ignora
+    }
+
     const checkVersion = async () => {
       try {
         const { data, error } = await supabase
@@ -27,7 +38,13 @@ export function UpdateNotifier() {
           .maybeSingle();
         if (cancelled || error || !data?.value) return;
         const remote = String(data.value).trim();
-        if (remote && remote !== CURRENT_VERSION) {
+        let lastSeen: string | null = null;
+        try {
+          lastSeen = localStorage.getItem(LS_LAST_VERSION);
+        } catch {
+          // ignora
+        }
+        if (remote && remote !== CURRENT_VERSION && remote !== lastSeen) {
           setLatestVersion(remote);
           setShow(true);
         }
@@ -96,6 +113,17 @@ export function UpdateNotifier() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    // Persiste versão/bundle "já vistos" para quebrar loop pós-reload
+    try {
+      if (latestVersion && !latestVersion.startsWith('novo')) {
+        localStorage.setItem(LS_LAST_VERSION, latestVersion);
+      }
+      if (lastBundleRef.current) {
+        localStorage.setItem(LS_LAST_BUNDLE, lastBundleRef.current);
+      }
+    } catch {
+      // ignora
+    }
     try {
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
