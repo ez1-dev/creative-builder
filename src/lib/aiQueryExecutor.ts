@@ -413,7 +413,8 @@ async function executeAggregate(
     if (rows.length < AGG_PAGE_SIZE) break;
   }
 
-  const filtered = applyClientFilters(all, args.client_filters);
+  const resolvedCf = resolveClientFilters(cfg, args.client_filters);
+  const filtered = applyClientFilters(all, resolvedCf);
   const partial = totalRegistros > all.length;
 
   let value = 0;
@@ -422,7 +423,7 @@ async function executeAggregate(
   if (op === 'count') {
     value = hasClientFilters ? filtered.length : totalRegistros;
   } else if (op === 'count_distinct') {
-    field = args.distinct_field || cfg.countUnit?.field;
+    field = resolveField(cfg, args.distinct_field) || cfg.countUnit?.field;
     if (!field) {
       return { ok: false, error: 'count_distinct requer distinct_field (ou countUnit no módulo).' };
     }
@@ -433,7 +434,7 @@ async function executeAggregate(
     }
     value = set.size;
   } else if (op === 'sum' || op === 'avg') {
-    field = args.sum_field;
+    field = resolveField(cfg, args.sum_field);
     if (!field) {
       return { ok: false, error: `${op} requer sum_field.` };
     }
