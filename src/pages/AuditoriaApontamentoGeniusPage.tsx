@@ -572,6 +572,11 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const statusOpOptions = useMemo(
     () => [
+      { value: 'E', label: 'Emitida (E)' },
+      { value: 'L', label: 'Liberada (L)' },
+      { value: 'A', label: 'Andamento (A)' },
+      { value: 'F', label: 'Finalizada (F)' },
+      { value: 'C', label: 'Cancelada (C)' },
       { value: 'EM_ANDAMENTO', label: 'Em andamento (E + L + A)' },
       { value: 'FINALIZADO', label: 'Finalizadas (F)' },
       { value: 'SEM_STATUS', label: 'Sem status' },
