@@ -290,7 +290,7 @@ function agregarPorOp(linhas: any[]): OpAgg[] {
     const totDia = minToHours(row.total_horas_dia_operador);
     if (sa === 'SEM_APONTAMENTO' || !row.hora_inicial) agg.sem_inicio += 1;
     if (sa === 'ABERTO' || !row.hora_final) agg.sem_fim += 1;
-    if (sa === 'DIVERGENTE' || (row.hora_inicial && row.hora_final && String(row.hora_final) < String(row.hora_inicial))) agg.divergentes += 1;
+    if (sa === 'DIVERGENTE' || isFimMenorInicio(row)) agg.divergentes += 1;
     if (horas > 8 || totDia > 8) agg.acima_8h += 1;
     agg.inconsistencias = agg.sem_inicio + agg.sem_fim + agg.divergentes + agg.acima_8h;
   }
