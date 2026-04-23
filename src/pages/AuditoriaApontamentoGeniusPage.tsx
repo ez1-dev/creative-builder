@@ -1595,24 +1595,34 @@ export default function AuditoriaApontamentoGeniusPage() {
                   <p className="text-xs text-muted-foreground">Nenhum apontamento vinculado.</p>
                 ) : (
                   <div className="overflow-x-auto rounded-md border">
-                    <table className="w-full text-xs">
+                    <table className="w-full text-xs whitespace-nowrap">
                       <thead className="bg-muted/50">
                         <tr className="text-left">
                           <th className="px-2 py-1 font-medium">#</th>
-                          <th className="px-2 py-1 font-medium">Operação</th>
+                          <th className="px-2 py-1 font-medium">Estágio</th>
+                          <th className="px-2 py-1 font-medium">Oper.</th>
+                          <th className="px-2 py-1 font-medium text-right">Seq.Rot</th>
+                          <th className="px-2 py-1 font-medium">Produto</th>
+                          <th className="px-2 py-1 font-medium">Deriv.</th>
+                          <th className="px-2 py-1 font-medium">Equip.</th>
                           <th className="px-2 py-1 font-medium">Operador</th>
-                          <th className="px-2 py-1 font-medium">Centro</th>
-                          <th className="px-2 py-1 font-medium">Início (data + hora)</th>
-                          <th className="px-2 py-1 font-medium">Fim (data + hora)</th>
-                          <th className="px-2 py-1 font-medium text-right">Apontado (min · h)</th>
-                          <th className="px-2 py-1 font-medium text-right">Tot. Dia</th>
+                          <th className="px-2 py-1 font-medium text-right">Qtde 1ª Qual.</th>
+                          <th className="px-2 py-1 font-medium text-right">Qtde Refug.</th>
+                          <th className="px-2 py-1 font-medium text-right">Qtde Inspec.</th>
+                          <th className="px-2 py-1 font-medium">Data Início</th>
+                          <th className="px-2 py-1 font-medium">H.Início</th>
+                          <th className="px-2 py-1 font-medium">Data Fim</th>
+                          <th className="px-2 py-1 font-medium">H.Fim</th>
+                          <th className="px-2 py-1 font-medium text-right">T. Bruto (min)</th>
+                          <th className="px-2 py-1 font-medium text-right">T. Líq. (min)</th>
+                          <th className="px-2 py-1 font-medium">C.R.</th>
                           <th className="px-2 py-1 font-medium">Status</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[...apontamentosDaOp].sort((a: any, b: any) => {
-                          const da = String(a.data_movimento ?? '');
-                          const db = String(b.data_movimento ?? '');
+                          const da = String(a.data_inicial ?? a.data_movimento ?? '');
+                          const db = String(b.data_inicial ?? b.data_movimento ?? '');
                           if (da !== db) return da.localeCompare(db);
                           const ha = String(a.hora_inicial ?? a.hora_movimento ?? '');
                           const hb = String(b.hora_inicial ?? b.hora_movimento ?? '');
@@ -1632,64 +1642,60 @@ export default function AuditoriaApontamentoGeniusPage() {
                           const abaixo5 = minRaw > 0 && minRaw < 5;
                           const acima8h = horas > 8 || totDia > 8;
                           const rowBg = acima8h
-                            ? 'bg-red-500/10'
+                            ? 'bg-destructive/10'
                             : (semInicio || semFim || fimMenor)
                               ? 'bg-orange-500/10'
                               : abaixo5
                                 ? 'bg-amber-500/10'
                                 : '';
-                          const dataFmt = r.data_movimento ? formatDate(r.data_movimento) : '—';
+                          const dataIniFmt = r.data_inicial ? formatDate(r.data_inicial) : (r.data_movimento ? formatDate(r.data_movimento) : '—');
+                          const dataFimFmt = r.data_final ? formatDate(r.data_final) : (r.data_movimento ? formatDate(r.data_movimento) : '—');
+                          const dash = <span className="text-muted-foreground">—</span>;
 
                           return (
                             <tr key={i} className={cn('border-t align-top', rowBg)}>
                               <td className="px-2 py-1 text-muted-foreground">{i + 1}</td>
-                              <td className="px-2 py-1">{r.estagio ?? r.operacao ?? '—'}</td>
-                              <td className="px-2 py-1">
+                              <td className="px-2 py-1">{r.estagio ?? dash}</td>
+                              <td className="px-2 py-1">{r.codigo_operacao ?? r.operacao ?? dash}</td>
+                              <td className="px-2 py-1 text-right tabular-nums">{r.seq_roteiro ?? dash}</td>
+                              <td className="px-2 py-1" title={r.descricao_produto ?? ''}>
+                                {r.codigo_produto ?? dash}
+                              </td>
+                              <td className="px-2 py-1">{r.derivacao ?? dash}</td>
+                              <td className="px-2 py-1">{r.equipamento ?? dash}</td>
+                              <td className="px-2 py-1 max-w-[180px] truncate" title={r.nome_operador ?? ''}>
                                 {r.nome_operador && String(r.nome_operador).trim()
                                   ? r.nome_operador
                                   : <span className="text-muted-foreground">— (cód: {r.numcad ?? 0})</span>}
                               </td>
-                              <td className="px-2 py-1">{r.centro_trabalho ?? r.codigo_centro_trabalho ?? '—'}</td>
-                              <td className="px-2 py-1">
-                                {semInicio ? (
-                                  <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem início</Badge>
-                                ) : (
-                                  <div className="leading-tight">
-                                    <div>{dataFmt}</div>
-                                    <div className="text-muted-foreground">{r.hora_inicial}</div>
-                                  </div>
+                              <td className="px-2 py-1 text-right tabular-nums">
+                                {r.qtde_primeira_qualidade != null ? formatNumber(Number(r.qtde_primeira_qualidade), 2) : dash}
+                              </td>
+                              <td className="px-2 py-1 text-right tabular-nums">
+                                {r.qtde_refugo != null ? formatNumber(Number(r.qtde_refugo), 2) : dash}
+                              </td>
+                              <td className="px-2 py-1 text-right tabular-nums">
+                                {r.qtde_inspecao != null ? formatNumber(Number(r.qtde_inspecao), 2) : dash}
+                              </td>
+                              <td className="px-2 py-1">{semInicio ? <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem início</Badge> : dataIniFmt}</td>
+                              <td className="px-2 py-1 text-muted-foreground">{r.hora_inicial ?? dash}</td>
+                              <td className="px-2 py-1">{semFim ? <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem fim</Badge> : dataFimFmt}</td>
+                              <td className="px-2 py-1 text-muted-foreground">
+                                {r.hora_final ?? dash}
+                                {fimMenor && (
+                                  <Badge className="bg-orange-500/15 text-orange-700 border-orange-500/30 text-[10px] ml-1">F&lt;I</Badge>
                                 )}
                               </td>
-                              <td className="px-2 py-1">
-                                {semFim ? (
-                                  <Badge className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">Sem fim</Badge>
-                                ) : fimMenor ? (
-                                  <div className="leading-tight">
-                                    <div>{dataFmt}</div>
-                                    <div className="text-muted-foreground">{r.hora_final}</div>
-                                    <Badge className="bg-orange-500/15 text-orange-700 border-orange-500/30 text-[10px] mt-0.5">Fim &lt; Início</Badge>
-                                  </div>
-                                ) : (
-                                  <div className="leading-tight">
-                                    <div>{dataFmt}</div>
-                                    <div className="text-muted-foreground">{r.hora_final}</div>
-                                  </div>
-                                )}
-                              </td>
-                              <td className={cn(
-                                'px-2 py-1 text-right tabular-nums',
-                                minRaw === 0 && 'text-destructive font-medium',
-                                abaixo5 && 'text-amber-700 font-semibold',
+                              <td className={cn('px-2 py-1 text-right tabular-nums',
                                 horas > 8 && 'text-destructive font-bold',
+                                abaixo5 && 'text-amber-700 font-semibold',
                               )}>
-                                {fmtMinHoras(r.horas_realizadas)}
+                                {formatNumber(Number(r.tempo_bruto_min) || 0, 0)}
                               </td>
-                              <td className={cn(
-                                'px-2 py-1 text-right tabular-nums',
-                                totDia > 8 && 'text-destructive font-bold',
-                              )}>
-                                {fmtMinHoras(r.total_horas_dia_operador)}
+                              <td className="px-2 py-1 text-right tabular-nums">
+                                {formatNumber(Number(r.tempo_liquido_min) || 0, 0)}
                               </td>
+                              <td className="px-2 py-1">{r.centro_recurso ?? dash}</td>
                               <td className="px-2 py-1">
                                 <Badge className={`${saCfg.className} text-[10px]`}>{saCfg.label}</Badge>
                               </td>
