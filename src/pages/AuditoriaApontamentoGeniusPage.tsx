@@ -100,6 +100,14 @@ function normalizeRowApont(r: any): any {
     totDiaMin = Math.round(Number(r.total_dia_operador) * 60);
   }
 
+  // Campos extras opcionais (formato ERP "Movtos. O.P./O.S.")
+  const tempoBrutoMin =
+    r.tempo_bruto_min != null ? Number(r.tempo_bruto_min) :
+    horasMin || 0;
+  const tempoLiquidoMin =
+    r.tempo_liquido_min != null ? Number(r.tempo_liquido_min) :
+    tempoBrutoMin;
+
   return {
     ...r,
     data_movimento: dataMov,
@@ -115,10 +123,22 @@ function normalizeRowApont(r: any): any {
     sitorp: r.sitorp ?? r.status_op ?? '',
     centro_trabalho: r.centro_trabalho ?? r.codigo_centro_trabalho ?? r.estagio ?? '',
     estagio: r.estagio ?? r.operacao ?? r.codigo_operacao ?? '',
+    codigo_operacao: r.codigo_operacao ?? r.operacao ?? r.estagio ?? '',
+    seq_roteiro: r.seq_roteiro ?? r.seqrot ?? null,
     numero_op: r.numero_op ?? r.numop ?? '',
     codigo_produto: r.codigo_produto ?? r.codpro ?? '',
     descricao_produto: r.descricao_produto ?? r.despro ?? '',
     origem: r.origem ?? r.codori ?? '',
+    derivacao: r.derivacao ?? null,
+    equipamento: r.equipamento ?? r.codigo_equipamento ?? null,
+    qtde_primeira_qualidade:
+      r.qtde_primeira_qualidade ?? r.quantidade ?? r.qtde ?? null,
+    qtde_refugo: r.qtde_refugo ?? null,
+    qtde_inspecao: r.qtde_inspecao ?? null,
+    tempo_bruto_min: tempoBrutoMin,
+    tempo_liquido_min: tempoLiquidoMin,
+    centro_recurso:
+      r.centro_recurso ?? r.cod_recurso ?? r.codigo_centro_trabalho ?? null,
   };
 }
 
