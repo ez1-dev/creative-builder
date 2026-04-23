@@ -1,69 +1,114 @@
 
 
-## Corrigir loop infinito do popup "Nova versão disponível"
+## Assistente IA com abertura automática, sugestões proativas e posicionamento inteligente
 
-### Problema
-O popup "Nova versão disponível" aparece, o usuário clica em **Atualizar agora**, a página recarrega — mas o popup volta imediatamente, criando um loop que impede o uso do app (PWA e navegador comum).
+### Objetivo
+Tornar o assistente **proativo**: ele se abre sozinho em momentos certos com sugestões úteis, e se posiciona automaticamente no canto da tela que **não cobre os dados** que o usuário está olhando (KPIs, tabelas, filtros).
 
-### Causa raiz
-No `src/components/UpdateNotifier.tsx` há **duas verificações** rodando em paralelo:
+### Como vai funcionar
 
-1. **`checkVersion`** — compara `app_settings.app_version` (Supabase) com `CURRENT_VERSION` do `package.json`. Persiste em `localStorage` (`app:last_seen_version`) ao clicar em atualizar → **funciona OK**.
+#### 1) Abertura automática inteligente (com regras de não-incômodo)
 
-2. **`checkBundleHash`** — busca `/index.html`, extrai o hash do bundle (`/assets/index-XXXX.js`) e compara com `lastBundleRef.current` (memória RAM). 
+O assistente abre sozinho quando:
+- **Primeira visita do dia em uma tela**: 1 vez por dia por rota (controlado em `localStorage`).
+- **Tela com filtros vazios há mais de 8 segundos** + usuário inativo (sem digitar/clicar): sugere "Quer que eu aplique os filtros que você usa nesta tela?".
+- **Padrão detectado pelo histórico** (`useUserSuggestions`): se o usuário tem 3+ buscas frequentes salvas para a rota, abre uma vez sugerindo aplicar.
+- **Após erro de carregamento ou tela vazia** (0 resultados): sugere ajuda contextual ("Sem dados para esses filtros. Quer ver os top 10 do mês?").
 
-**O bug está em (2)**:
-- Após o `window.location.reload()`, `lastBundleRef.current` volta a `null` (não há persistência em `localStorage` do bundle no momento da inicialização efetiva).
-- Olhando o código atual: `handleRefresh` até **tenta** salvar `lastBundleRef.current` em `LS_LAST_BUNDLE`, mas nesse momento `lastBundleRef.current` ainda contém o bundle **antigo** (foi setado no primeiro `checkBundleHash` antes de detectar mudança). Quando o `checkBundleHash` posterior detecta o **novo** bundle e dispara o popup, esse novo hash **nunca é salvo** antes do reload.
-- Resultado pós-reload: `lastBundleRef` lê do localStorage o hash **antigo**; primeira chamada de `checkBundleHash` enxerga o novo hash do HTML e **dispara o popup de novo** → loop infinito.
+Regras de **não incômodo** (críticas):
+- **Cooldown global**: nunca reabre sozinho em menos de 30 min após o usuário fechar.
+- **Limite diário**: máximo 3 aberturas automáticas por dia, em telas distintas.
+- **Respeitar fechamento explícito**: se o usuário fecha com X, "snooze" daquela rota por 24h.
+- **Toggle de preferência** em `Configurações → Minhas Preferências`: "Permitir sugestões automáticas do Assistente IA" (default: ligado). Persistido em `user_preferences`.
+- Nunca abre durante digitação em input/textarea ou enquanto modal/drawer está aberto.
+- Nunca abre se `canUseAi === false`.
 
-Adicionalmente, no popup atual, `latestVersion` fica como string `"novo build"` (não numérica), e o `handleRefresh` só salva `LS_LAST_VERSION` quando `!latestVersion.startsWith('novo')` — ou seja, no caso "novo build" nem a versão é persistida, agravando o loop.
+#### 2) Modo proativo: sugestões na abertura
+Quando abre sozinho, o painel exibe um **banner pré-preenchido** acima do input:
 
-### Solução
+```
+✨ Olá! Notei que você costuma consultar:
+  [ Família 001 + Situação Ativo ]   [ Saldo > 0 ]   [ Top 10 estoque ]
+  
+  Ou pergunte: "qual produto tem mais estoque hoje?"
+```
 
-**Reescrever a lógica de detecção/persistência do bundle** em `src/components/UpdateNotifier.tsx`:
+Cada chip aplica os filtros (`apply_erp_filters`) ou dispara `query_erp_data` direto. Reaproveita `SearchSuggestions` + adiciona 1–2 perguntas analíticas sugeridas conforme o módulo (ex.: estoque → "qual produto tem mais saldo?", contas-pagar → "qual o maior título em aberto?").
 
-1. **Persistir o bundle detectado IMEDIATAMENTE quando o popup é mostrado**, não no clique em "Atualizar":
-   - No momento em que `checkBundleHash` detecta diferença e vai mostrar o popup, gravar o **novo hash** em `localStorage` (LS_LAST_BUNDLE) **antes** de `setShow(true)`.
-   - Assim, após o reload, `lastBundleRef` lê o hash novo do localStorage, compara com o atual (igual) e **não dispara mais o popup**.
+#### 3) Posicionamento adaptativo (anti-oclusão)
 
-2. **Fazer a inicialização ler o bundle atual e comparar com o salvo de forma idempotente**:
-   - Ao montar o componente, primeiro chama `checkBundleHash` que: busca `/index.html`, extrai hash atual; se `localStorage` já tem um hash igual → não faz nada; se diferente → mostra popup e persiste o novo.
-   - Eliminar a lógica de "primeira execução grava baseline e não alerta" (ela mascara o estado inconsistente).
+Hoje o painel é fixo no canto **inferior-direito**. Vai virar **flutuante e arrastável**, com **auto-posicionamento inteligente**:
 
-3. **Persistir versão também quando for "novo build"**:
-   - Em `handleRefresh`, salvar `LS_LAST_VERSION = CURRENT_VERSION` (não a string "novo build"), garantindo que `checkVersion` use a versão atual como baseline.
-   - Quando `latestVersion` vier do Supabase com número real, salvar essa string.
+**Algoritmo de posição automática** (executa ao abrir e quando a viewport ou o conteúdo principal muda):
+1. Mede o `<main>` e identifica regiões "sensíveis" via seletores conhecidos: `[data-ai-avoid]`, `.kpi-card`, `table`, `[role="grid"]`, `.recharts-wrapper`.
+2. Divide a tela em 4 quadrantes (TL, TR, BL, BR) e calcula a área coberta de regiões sensíveis em cada um.
+3. Escolhe o quadrante **com menor cobertura sensível** que tenha espaço suficiente (mín. 380×520 px).
+4. Se nenhum quadrante for "limpo" (tela cheia de dados), posiciona em **modo lateral compacto** (largura 320, altura full, ancorado à direita) com botão "minimizar para bolha".
+5. Em viewports < 768px (mobile): vira **bottom sheet** (drawer inferior) — sempre.
 
-4. **Adicionar guard de "já reloadei recentemente"** para impedir loop em qualquer cenário residual:
-   - Salvar `app:last_reload_at` (timestamp) em `handleRefresh`.
-   - Na montagem, se `Date.now() - last_reload_at < 30s`, **suprimir o popup** por 30 segundos (cooldown), independentemente do que `checkBundleHash` ou `checkVersion` retornarem. Isso é um cinto de segurança contra qualquer loop futuro.
+**Controles do usuário**:
+- Botão **"📌 Fixar posição"** salva o quadrante escolhido para a rota (`user_preferences.ai_panel_position[rota]`).
+- Cabeçalho do painel é **arrastável** (drag handle); ao soltar, salva a posição manual.
+- Botão **"⤢ Minimizar"** colapsa para bolha flutuante (mantém o canto escolhido).
+- Resize handle no canto oposto à âncora, dimensões persistidas.
 
-5. **Tratar dev vs produção**:
-   - Em dev (Vite), `/index.html` não tem hash → match falha → ok, já é tratado.
-   - Em preview Lovable (iframe), o popup deve continuar funcionando, mas o cooldown evita travamentos.
+**Z-index e transparência**:
+- Painel com `box-shadow` forte e `backdrop-blur`, mas opaco (sem confundir leitura).
+- Quando o mouse fica fora por 4s + tela tem scroll ativo, painel reduz opacidade para 85% (volta a 100% no hover).
 
-### Mudanças (apenas 1 arquivo)
+#### 4) Marcação de áreas sensíveis (mínima nas páginas)
+Para o algoritmo funcionar bem sem listar seletor por seletor, adicionamos atributo `data-ai-avoid` em 3 wrappers genéricos em **`PageHeader`, `KPICard` e `DataTable`** (uma única alteração nos 3 componentes base já cobre todas as 20 telas).
 
-`src/components/UpdateNotifier.tsx`:
-- Adicionar constante `LS_LAST_RELOAD = 'app:last_reload_at'` e `RELOAD_COOLDOWN_MS = 30_000`.
-- No `useEffect` de montagem, antes de qualquer check: ler `LS_LAST_RELOAD`; se dentro do cooldown, agendar próxima verificação só após o cooldown expirar.
-- Em `checkBundleHash`: simplificar para sempre comparar contra `localStorage.getItem(LS_LAST_BUNDLE)`; se diferente, **gravar imediatamente o novo hash** e mostrar popup.
-- Em `checkVersion`: idem — gravar `LS_LAST_VERSION = remote` antes de mostrar popup.
-- Em `handleRefresh`: gravar `LS_LAST_RELOAD = Date.now()`, sempre persistir versão atual mesmo em "novo build", manter limpeza de caches.
+### Arquivos alterados / criados
+
+**Criados:**
+- `src/hooks/useAiAutoOpen.ts` — regras de quando abrir sozinho (cooldown, snooze, limite diário, preferência).
+- `src/hooks/useAiPanelPlacement.ts` — algoritmo de quadrantes + persistência da posição/tamanho por rota.
+- `src/components/erp/AiProactiveBanner.tsx` — banner com chips de sugestões iniciais (recente + analíticas).
+
+**Editados:**
+- `src/components/erp/AiAssistantChat.tsx`
+  - Substituir posição fixa por wrapper `<DraggableResizable>` controlado por `useAiPanelPlacement`.
+  - Integrar `useAiAutoOpen` para abrir sozinho conforme regras.
+  - Renderizar `AiProactiveBanner` no topo quando aberto sem mensagens ainda.
+  - Adicionar botões: minimizar, fixar posição, fechar (com snooze 24h).
+- `src/components/erp/PageHeader.tsx`, `src/components/erp/KPICard.tsx`, `src/components/erp/DataTable.tsx`
+  - Adicionar `data-ai-avoid` no wrapper raiz.
+- `src/components/erp/MinhasPreferenciasSection.tsx`
+  - Toggle "Permitir sugestões automáticas do Assistente IA".
+  - Botão "Resetar posição/tamanho do Assistente".
+- `supabase/migrations/*` (nova migration)
+  - Adicionar coluna `ai_assistant_prefs jsonb default '{}'::jsonb` em `user_preferences` (armazena: `auto_open_enabled`, `panel_position_by_route`, `panel_size`, `snoozed_routes`, `last_auto_open_dates`).
+
+### Estados persistidos
+
+| Chave | Local | Conteúdo |
+|---|---|---|
+| `ai:last_close_at` | localStorage | timestamp do último fechamento (cooldown 30min) |
+| `ai:auto_opens_today` | localStorage | `{ date, count, routes[] }` |
+| `ai:snoozed_until[rota]` | localStorage | timestamp para liberar abertura naquela rota |
+| `user_preferences.ai_assistant_prefs` | Supabase | toggle, posição/tamanho por rota, posição fixada |
 
 ### Casos de teste manuais
-1. Popup aparece → clicar "Atualizar agora" → reload → popup **não volta**.
-2. Aguardar 1 min e fazer um deploy real → popup aparece novamente uma vez.
-3. Recarregar manualmente (F5) dentro de 30s pós-update → popup não aparece (cooldown).
-4. Em PWA instalado → mesmo comportamento, sem loop.
-5. Em dev local (`/index.html` sem hash) → nenhum popup espúrio.
+1. Login → abrir `/estoque` pela 1ª vez no dia → assistente abre sozinho com 3 chips de sugestão.
+2. Fechar com X → navegar para `/contas-pagar` em 5 min → não abre sozinho (cooldown).
+3. Esperar 31 min → abrir nova rota → abre se ainda não atingiu limite de 3/dia.
+4. Desligar toggle em Preferências → nunca mais abre sozinho (só no clique no botão flutuante).
+5. Tela cheia de KPIs + tabela: painel posiciona no quadrante com menor cobertura; se todos cheios, vira lateral direita.
+6. Arrastar painel para outro canto → recarregar página → painel volta na posição salva para a rota.
+7. Mobile (< 768px) → vira bottom sheet, sem drag.
+8. `canUseAi === false` → nenhuma abertura automática.
+9. Tela com 0 resultados após filtro → assistente abre sugerindo "ver top 10 do mês".
 
 ### Fora de escopo
-- Mudanças no Service Worker (não há SW registrado hoje).
-- Estratégia de cache do build (mantida).
-- Mudança no fluxo de `app_settings.app_version` no Supabase.
+- IA "interromper" durante digitação em formulários (nunca faz isso).
+- Notificações push fora do app.
+- Sugestões cross-tela ("vai para compras agora") sem comando do usuário.
+- Animação de mascote/avatar — mantém ícone Bot atual.
 
 ### Resultado
-O popup aparece **uma única vez por nova versão**, o reload limpa o estado, e o cooldown garante que nenhum bug residual cause loop. Usuários (web e PWA) voltam a usar o app normalmente após clicar em "Atualizar agora".
+- Assistente **vira parceiro proativo**: aparece quando ajuda, some quando atrapalha.
+- **Nunca cobre KPIs/tabelas** sem o usuário pedir — escolhe sozinho o canto livre.
+- Usuário tem **controle total**: pode desligar, fixar posição, arrastar, redimensionar.
+- Limites rígidos garantem que **não vire incômodo** (cooldown, snooze, limite diário, respeito ao fechamento).
 
