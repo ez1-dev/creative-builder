@@ -1,62 +1,58 @@
 
 
-## Novo KPI: OPs com apontamentos abaixo de 5 minutos
+## Detalhamento de movimentos da OP com data/hora início e fim + horas apontadas
 
-### Objetivo
-Adicionar um card de KPI na tela `/auditoria-apontamento-genius` que destaca apontamentos com tempo realizado **> 0 e < 5 minutos** (apontamentos suspeitos de "bater ponto" ou erro de operação), com drill-down até o último nível, seguindo o mesmo padrão dos demais KPIs.
+### Diagnóstico
+Hoje, ao clicar numa OP dentro do `KpiDeepSheet` (ou no drawer de OP), o accordion `OpLinhasInline` lista os apontamentos brutos, mas não exibe de forma clara, por linha de movimento:
+- **Data início** + **Hora início**
+- **Data fim** + **Hora fim**
+- **Tempo apontado** (em min e h)
+
+A informação existe nos campos `data_inicial`, `hora_inicial`, `data_final`, `hora_final`, `horas_realizadas` (em minutos) já presentes em `RowApont`, mas a tabela atual exibe colunas resumidas e não destaca o par data+hora de início/fim.
 
 ### Mudanças (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-**1. Novo status de discrepância**
-Adicionar `'APONTAMENTO_MENOR_5MIN'` ao conjunto de status de classificação (junto com `APONTAMENTO_MAIOR_8H`, `SEM_INICIO`, etc.). Regra:
-```ts
-const min = Number(row.horas_realizadas) || 0;
-if (min > 0 && min < 5) status = 'APONTAMENTO_MENOR_5MIN';
-```
-Prioridade: abaixo de `FIM_MENOR_INICIO`/`SEM_INICIO`/`SEM_FIM`/`APONTAMENTO_MAIOR_8H` e acima de `OPERADOR_MAIOR_8H_DIA`.
+**1. Reformatar o componente `OpLinhasInline`**
 
-**2. Atualizar `atualizarKpisApontGenius`**
-- Novo contador `abaixo5min` no objeto de KPIs.
-- Incluir essa condição no cálculo de `total_discrepancias` (passa a contar também `> 0 && < 5min`).
-- Incluir em `isLinhaDiscrepante(r)` para que o KPI "Discrepâncias" e o drill genérico considerem essas linhas.
+Substituir/expandir as colunas atuais para deixar explícito o ciclo do movimento. Nova ordem de colunas:
 
-**3. Novo `KpiDrillKind`**
-Adicionar `{ kind: 'abaixo5min' }` ao type union.
+| # | Operação | Operador | Centro Trab. | **Início (data + hora)** | **Fim (data + hora)** | **Apontado (min · h)** | Total Dia Op. | Status | Ações |
+|---|----------|----------|--------------|--------------------------|-----------------------|------------------------|---------------|--------|-------|
 
-**4. `linhasDoKpi`**
-```ts
-case 'abaixo5min':
-  return all.filter(r => {
-    const m = Number(r.horas_realizadas) || 0;
-    return m > 0 && m < 5;
-  });
-```
+- **Início**: renderizar `formatDate(data_inicial)` + `hora_inicial` em duas linhas (data em cima, hora abaixo em `text-xs text-muted-foreground`). Se faltar `hora_inicial`, mostrar badge `Sem início` em vermelho.
+- **Fim**: idem para `data_final` + `hora_final`. Se faltar `hora_final`, badge `Sem fim`. Se `hora_final < hora_inicial` (mesmo dia), badge `Fim < Início`.
+- **Apontado**: `{horas_realizadas} min · {minToHours(horas_realizadas).toFixed(2)} h`. Destaque amarelo quando `> 0 && < 5` (regra do KPI novo) e destaque vermelho quando `> 480` (>8h).
+- **Total Dia Op.**: `{total_horas_dia_operador} min · {h} h`, destaque vermelho se `> 480`.
 
-**5. Novo card na grid de KPIs**
-Inserir um `KpiDrillCard` ao lado dos cards de discrepância:
-- título: `Abaixo de 5 min`
-- valor: `kpis.abaixo5min`
-- variant: `warning` (ou `destructive` se quiser alarmar mais)
-- ícone: `AlertTriangle`
-- tooltip: "Apontamentos com tempo > 0 e < 5 minutos — possível erro de operação ou apontamento incorreto"
-- drill: `{ kind: 'abaixo5min' }`
-- pré-filtro `statusDrillSomenteInconsist=true` ao abrir (mesma lógica já aplicada para `semInicio`/`acima8h`).
+**2. Linha-resumo no topo do accordion expandido**
 
-**6. Visual de destaque na tabela principal**
-- `rowClassName`: linhas com `APONTAMENTO_MENOR_5MIN` ganham fundo amarelo claro (mesmo tom do `acima8h` ou um tom distinto warning).
-- Badge de status na coluna "Status" ganha label "Abaixo de 5 min" com cor `warning`.
+Acima da tabela de movimentos, adicionar um bloco compacto com o resumo da OP:
+- Período coberto: `menor(data_inicial)` → `maior(data_final ?? data_inicial)`
+- Total apontado da OP: soma de `horas_realizadas` em min e h
+- Nº de movimentos / nº de operadores únicos / nº de centros de trabalho únicos
+- Quantidade de movimentos com inconsistência (qualquer regra)
 
-**7. Mini-KPIs do `KpiDeepSheet`**
-O contador "Linhas com inconsistência" do header já cobre via `isLinhaDiscrepante`. Sem mudança adicional.
+**3. Ordenação default dos movimentos**
 
-**8. Resumo do backend**
-Se `data.resumo.abaixo_5min` existir no payload, usar como source-of-truth (pattern dos demais campos). Caso contrário, usar fallback local (que é o caso atual). Sem mudança no backend nesta tarefa — só consumir se vier.
+Ordenar por `data_inicial` asc + `hora_inicial` asc para o usuário ver a linha do tempo da OP. Manter possibilidade de clicar nos cabeçalhos para reordenar (já suportado pelo `DataTable` se for o caso; senão, ordenar manualmente no array antes de renderizar).
+
+**4. Mesmas mudanças no drawer "Abrir drawer OP"**
+
+O drawer dedicado de OP (acionado pelo botão "Abrir drawer OP") usa o mesmo dataset — aplicar exatamente a mesma estrutura de colunas e bloco-resumo para manter consistência.
+
+**5. Realce visual por status**
+
+Cada `<tr>` de movimento ganha `rowClassName` com fundo:
+- `bg-amber-500/10` quando `> 0 && < 5min`
+- `bg-red-500/10` quando `> 8h` (apontamento ou total dia)
+- `bg-orange-500/10` quando `Sem início` / `Sem fim` / `Fim < Início`
+- Sem cor quando consistente
 
 ### Fora de escopo
-- Mudar backend / contrato `docs/backend-auditoria-apontamento-genius.md` (pode ser feito em tarefa separada).
-- Filtro dedicado `somente_abaixo_5min` na query — usuário usa o drill do card.
-- Exportação Excel filtrada por essa regra.
+- Adicionar gráfico Gantt da OP.
+- Mudar contrato de backend.
+- Persistir ordenação preferida do usuário.
 
 ### Resultado
-Novo card amarelo "Abaixo de 5 min" no topo, contando apontamentos suspeitos de tempo mínimo, com drill de 3 níveis (popover top 30 → Sheet com OPs → apontamentos brutos) idêntico aos demais KPIs. Linhas correspondentes ganham destaque na tabela principal.
+Ao expandir/abrir uma OP a partir de qualquer KPI ou da tabela principal, o usuário vê a linha do tempo dos movimentos com **data e hora de início**, **data e hora de fim** e **tempo apontado** (min e h) por linha, mais um cabeçalho-resumo da OP, com destaques visuais de inconsistência.
 
