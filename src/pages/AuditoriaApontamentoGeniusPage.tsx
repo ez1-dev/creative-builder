@@ -818,17 +818,6 @@ export default function AuditoriaApontamentoGeniusPage() {
             dataIni={filters.data_ini}
             dataFim={filters.data_fim}
           />
-          {atualizarKpisApontGenius.discrepanciasParciais && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertTitle>KPIs de discrepância calculados sobre a página atual</AlertTitle>
-              <AlertDescription>
-                O backend não enviou totais consolidados; os valores de "Discrepâncias", "Sem Início", "Sem Fim",
-                "Fim &lt; Início", "Acima de 8h" e "Maior Total Dia" refletem apenas as {data?.dados?.length ?? 0} linhas exibidas
-                (de {atualizarKpisApontGenius.total_registros} no total).
-              </AlertDescription>
-            </Alert>
-          )}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-4">
             <KPICard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} details={kpiDrilldowns.totalRegistros.length ? kpiDrilldowns.totalRegistros : undefined} tooltip="Top da página atual" />
             <StatusOpDrillCard letra="E" title="Emitidas (E)" value={atualizarKpisApontGenius.ops_emitidas} icon={<Activity className="h-5 w-5" />} ops={kpiDrilldowns.opsPorStatus.E} index={1} onVerTudo={() => { setStatusOpDrillLetra('E'); setStatusOpDrillAberto(true); }} />
