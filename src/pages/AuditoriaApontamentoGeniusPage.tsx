@@ -611,8 +611,25 @@ export default function AuditoriaApontamentoGeniusPage() {
     return { totalHoras, porStatus, todosZerados };
   }, [apontamentosDaOp]);
 
-  const aplicarFiltroListaApontGenius = useMemo(() => {
+  // Refiltro client-side por "Status da OP" — garante que letras nativas
+  // (E/L/A/F/C) e SEM_STATUS sejam respeitadas mesmo quando o backend não
+  // diferencia (aceita apenas EM_ANDAMENTO/FINALIZADO/TODOS).
+  const dadosFiltradosPorStatusOp = useMemo(() => {
     const rows = (data?.dados || []) as any[];
+    const sel = String(filters.status_op ?? '').trim().toUpperCase();
+    if (!sel) return rows;
+    return rows.filter((row) => {
+      const letra = normSitorpRow(row);
+      if (sel === 'E' || sel === 'L' || sel === 'A' || sel === 'F' || sel === 'C') return letra === sel;
+      if (sel === 'EM_ANDAMENTO') return letra === 'E' || letra === 'L' || letra === 'A';
+      if (sel === 'FINALIZADO') return letra === 'F';
+      if (sel === 'SEM_STATUS') return letra === '';
+      return true;
+    });
+  }, [data, filters.status_op]);
+
+  const aplicarFiltroListaApontGenius = useMemo(() => {
+    const rows = dadosFiltradosPorStatusOp;
     const q = quickFilter.trim().toLowerCase();
     const filtered = !q ? rows : rows.filter((r) => {
       const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
