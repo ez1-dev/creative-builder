@@ -1,51 +1,67 @@
 
 
-## Paginação no drill "Ver tudo · detalhamento completo"
+## Garantir filtro "Status da OP" funcionando (E / L / A / F / C / agrupados / Sem status)
 
 ### Diagnóstico
-No `KpiDeepSheet` (`src/pages/AuditoriaApontamentoGeniusPage.tsx`, ~linhas 1929–2000), a tabela de OPs renderiza **todas** as OPs de `opsFiltradas` de uma vez. Quando o recorte tem dezenas/centenas de OPs, fica difícil navegar e o sheet vira um scroll longo.
+Na tela `/auditoria-apontamento-genius` o `ComboboxFilter` "Status da OP" oferece 8 valores: `E`, `L`, `A`, `F`, `C`, `EM_ANDAMENTO`, `FINALIZADO`, `SEM_STATUS` (linhas 955–967). Esse valor é enviado direto ao backend em `status_op` (linhas 498 e 976).
+
+Porém o contrato documentado em `docs/backend-auditoria-apontamento-genius.md` só prevê dois valores aceitos pelo backend: `EM_ANDAMENTO` e `FINALIZADO`. Quando o usuário escolhe **Liberada (L)**, **Emitida (E)**, **Andamento (A)**, **Cancelada (C)** ou **Sem status**, o backend tende a **ignorar** o parâmetro (cláusula SQL cai no `OR :status_op IS NULL`) e devolve **todas** as OPs ativas. Como não há refiltragem client-side, a tela mostra registros que não correspondem ao filtro escolhido.
+
+Sintoma relatado: ao selecionar **Liberada**, a consulta retorna OPs de outros status.
 
 ### Mudança (arquivo único: `src/pages/AuditoriaApontamentoGeniusPage.tsx`)
 
-**1. Estado de paginação interno ao `KpiDeepSheet`**
-- Adicionar `const [paginaOps, setPaginaOps] = useState(1);`
-- Adicionar `const [tamanhoPaginaOps, setTamanhoPaginaOps] = useState(20);`
-- Opções de tamanho: `10 | 20 | 50 | 100`.
+**1. Mapear o valor enviado ao backend para o que ele aceita (sem mudar a UI)**
 
-**2. Reset de página quando o recorte muda**
-- `useEffect(() => { setPaginaOps(1); setOpExpandida(null); }, [kind, somenteInconsist, busca, ordem, tamanhoPaginaOps]);`
-- Garante que ao trocar filtro/ordem/KPI/tamanho, voltamos para página 1.
+Criar helper `mapStatusOpParaApi(v)`:
+- `''` → `'TODOS'`
+- `'F'` ou `'FINALIZADO'` → `'FINALIZADO'`
+- `'E'`, `'L'`, `'A'`, `'EM_ANDAMENTO'` → `'EM_ANDAMENTO'`
+- `'C'` → `'TODOS'` (backend não tem chave dedicada; refiltrar no client)
+- `'SEM_STATUS'` → `'TODOS'` (refiltrar no client)
 
-**3. Slice da lista**
-- `const totalPaginasOps = Math.max(1, Math.ceil(opsFiltradas.length / tamanhoPaginaOps));`
-- `const paginaAtual = Math.min(paginaOps, totalPaginasOps);`
-- `const opsPagina = opsFiltradas.slice((paginaAtual - 1) * tamanhoPaginaOps, paginaAtual * tamanhoPaginaOps);`
-- Trocar `opsFiltradas.map(...)` pela iteração sobre `opsPagina` no `<tbody>`.
-- Manter a linha de "Nenhuma OP para os filtros" usando `opsFiltradas.length === 0`.
+Aplicar nos dois pontos que enviam `status_op`:
+- `buscarAuditoriaApontamentoGenius` (linha 498)
+- `exportParams` (linha 976)
 
-**4. Rodapé de paginação abaixo da tabela**
-- Reaproveitar o componente já existente `PaginationControl` (`src/components/erp/PaginationControl.tsx`) — mesmo padrão visual usado em outras telas.
-- Layout do rodapé:
-  - Esquerda: `Select` "Linhas por página" (`10 / 20 / 50 / 100`).
-  - Direita: `<PaginationControl pagina={paginaAtual} totalPaginas={totalPaginasOps} totalRegistros={opsFiltradas.length} onPageChange={setPaginaOps} />`
-- Só renderizar quando `opsFiltradas.length > tamanhoPaginaOps` (esconder se cabe tudo em 1 página); o select de tamanho aparece quando `opsFiltradas.length > 10`.
+**2. Refiltro client-side de garantia por letra exata / agrupamento**
 
-**5. Atualizar contador no header do sheet (cosmético)**
-- Manter `SheetDescription` como está; opcionalmente adicionar texto auxiliar logo acima da tabela: `"Exibindo X–Y de Z OPs"` com `text-[11px] text-muted-foreground`.
+Criar `useMemo` `dadosFiltradosPorStatusOp` que aplica em cima de `data?.dados` o filtro pela seleção real do usuário (`filters.status_op`), comparando contra `getOpStatusLetra(row)` (helper já existente nas linhas ~190–198). Regras:
+- `''` → não filtra.
+- `'E'`/`'L'`/`'A'`/`'F'`/`'C'` → mantém apenas linhas cuja letra coincide.
+- `'EM_ANDAMENTO'` → mantém `E`, `L`, `A`.
+- `'FINALIZADO'` → mantém `F`.
+- `'SEM_STATUS'` → mantém linhas onde `getOpStatusLetra` retorna `''`.
+
+Substituir o uso de `data?.dados` por esse array filtrado nos consumidores que renderizam grid e calculam KPIs:
+- `aplicarFiltroListaApontGenius` (linha 602): trocar `data?.dados || []` por `dadosFiltradosPorStatusOp`.
+- `atualizarKpisApontGenius` (linha 636): idem para `rows` (mantendo `r = data.resumo` apenas para fallback de números globais).
+- `linhasDoKpi` (linha ~933+): idem na fonte `all`.
+- Qualquer outro `data.dados` usado nas agregações de OPs por letra (linhas 661–675, ~781–788) deve usar o array refiltrado para refletir corretamente o recorte.
+
+**3. Indicador visual no rodapé do `FilterPanel`**
+
+Quando `filters.status_op` for `'C'` ou `'SEM_STATUS'`, exibir um pequeno texto `text-[11px] text-muted-foreground` dentro do `FilterPanel`: "Filtro aplicado localmente sobre a página atual — paginar para ver mais."  
+Justificativa: o backend devolve TODOS, então a paginação cobre o universo total; o refiltro só restringe o que é exibido por página. Não é ideal, mas evita confusão.
+
+**4. Atualizar contadores de "página atual" para refletirem o refiltro**
+
+`paginaCarregada` usado nos KPIs deve passar a ser `dadosFiltradosPorStatusOp.length` (em vez de `data.dados.length`) para que o aviso "X de Y" continue coerente.
 
 ### Detalhes técnicos
-- `useState`/`useEffect`/`useMemo` já estão importados no arquivo.
-- `PaginationControl` e `Select` já são usados em outras partes (sem novos imports além de `PaginationControl`).
-- Não muda a lógica de `agregarPorOp`, filtros, ordenação, drill de linhas (`OpLinhasInline`), nem o toggle "Só c/ inconsistência".
-- Continua respeitando o estado atual de `opExpandida`; ao mudar de página, fechamos a expansão (no reset acima) para evitar acordeão "fantasma" fora da página visível.
+- Sem mudanças em backend, contrato ou migrations.
+- Helper `getOpStatusLetra` já existe no arquivo (~linha 190) — apenas reutilizar.
+- Refiltro é puro `Array.filter` em memória, sem custo perceptível.
+- Mantém compatibilidade caso o backend passe a aceitar letras nativas (a função client continua válida e converge).
 
 ### Fora de escopo
-- Paginação server-side (continua sendo client-side sobre o recorte já carregado).
-- Mudar paginação da tabela principal da página.
-- Persistir tamanho de página entre sessões.
+- Mudar o backend para aceitar `E/L/A/C/SEM_STATUS` (será rastreado em doc separada se necessário).
+- Alterar o `ComboboxFilter` ou as opções exibidas.
+- Mexer em outros filtros (`somente_discrepancia`, `somente_acima_8h`, datas, etc.).
 
 ### Resultado
-- A tabela de OPs do drill passa a ser paginada (20 por padrão, configurável 10/20/50/100).
-- Controles de página aparecem quando há mais de uma página; navegação rápida via `<< < > >>`.
-- Sheet fica enxuto mesmo em recortes com centenas de OPs; busca, ordenação, filtros e expansão por OP continuam funcionando.
+- Selecionar **Liberada (L)** passa a exibir apenas OPs com `sitorp = 'L'` no grid e nos KPIs.
+- O mesmo vale para `E`, `A`, `C` e `SEM_STATUS` — antes ignorados pelo backend.
+- `EM_ANDAMENTO` e `FINALIZADO` continuam funcionando como hoje (agora reforçados pelo client-side).
+- Aviso opcional informa quando o filtro é client-side, evitando interpretação errada da paginação.
 
