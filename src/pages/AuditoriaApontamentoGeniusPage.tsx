@@ -347,6 +347,16 @@ export default function AuditoriaApontamentoGeniusPage() {
   const [statusDrillBusca, setStatusDrillBusca] = useState('');
   const [statusDrillOrdem, setStatusDrillOrdem] = useState<'inconsist'|'horas'|'apt'|'op'>('inconsist');
   const [opExpandidaNoDrill, setOpExpandidaNoDrill] = useState<string | null>(null);
+
+  const abrirKpiDrill = useCallback((k: KpiDrillKind) => {
+    const isProblema = ['discrepancias','semInicio','semFim','fimMenorInicio','acima8h'].includes(k.kind);
+    setStatusDrillSomenteInconsist(isProblema);
+    setStatusDrillBusca('');
+    setOpExpandidaNoDrill(null);
+    setStatusDrillOrdem('inconsist');
+    setKpiDrillKind(k);
+    setKpiDrillAberto(true);
+  }, []);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [intervaloRefresh, setIntervaloRefresh] = useState<30 | 60 | 120>(60);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState<Date | null>(null);
