@@ -361,11 +361,13 @@ export default function AuditoriaApontamentoGeniusPage() {
     const r = data.resumo as any;
     const rows = (data.dados || []) as any[];
 
-    // Fallback: agrega contando Set de numop por status_op nativo (E900COP)
-    const opsSet = {
-      EM_ANDAMENTO: new Set<string>(),
-      FINALIZADO: new Set<string>(),
-      CANCELADO: new Set<string>(),
+    // Fallback: agrega contando Set de numop por sitorp nativo (E900COP)
+    const opsPorLetra: Record<string, Set<string>> = {
+      E: new Set<string>(),
+      L: new Set<string>(),
+      A: new Set<string>(),
+      F: new Set<string>(),
+      C: new Set<string>(),
       SEM_STATUS: new Set<string>(),
     };
 
@@ -381,11 +383,17 @@ export default function AuditoriaApontamentoGeniusPage() {
     for (const row of rows) {
       const op = String(row.numero_op ?? row.numop ?? '');
       if (op) {
-        const st = normalizarStatusOp(row.status_op);
-        if (STATUS_OP_ATIVOS.has(st)) opsSet.EM_ANDAMENTO.add(op);
-        else if (STATUS_OP_FINALIZADOS.has(st)) opsSet.FINALIZADO.add(op);
-        else if (STATUS_OP_CANCELADOS.has(st)) opsSet.CANCELADO.add(op);
-        else opsSet.SEM_STATUS.add(op);
+        const real = String(row.sitorp ?? '').trim().toUpperCase();
+        if (real && opsPorLetra[real]) {
+          opsPorLetra[real].add(op);
+        } else {
+          // fallback pelo agrupado legado
+          const st = normalizarStatusOp(row.status_op);
+          if (STATUS_OP_FINALIZADOS.has(st)) opsPorLetra.F.add(op);
+          else if (STATUS_OP_CANCELADOS.has(st)) opsPorLetra.C.add(op);
+          else if (STATUS_OP_ATIVOS.has(st)) opsPorLetra.A.add(op);
+          else opsPorLetra.SEM_STATUS.add(op);
+        }
       }
 
       const sa = String(row.status_movimento ?? '').toUpperCase();
@@ -421,6 +429,9 @@ export default function AuditoriaApontamentoGeniusPage() {
     const discrepanciasParciais =
       !backendTrouxeDiscrepancias && rows.length > 0 && rows.length < totalRegistros;
 
+    const totalEmAndamentoBackend = r?.ops_em_andamento ?? r?.total_ops_andamento;
+    const totalFinalizadasBackend = r?.ops_finalizadas ?? r?.total_ops_finalizadas;
+
     return {
       total_registros: totalRegistros,
       total_discrepancias: r?.total_discrepancias ?? localDiscrepancias,
@@ -430,8 +441,12 @@ export default function AuditoriaApontamentoGeniusPage() {
       acima_8h: acimaBackend ?? localAcima8h,
       maior_total_dia_operador: r?.maior_total_dia_operador ?? localMaiorDia,
       operador_maior_total: r?.operador_maior_total ?? localOperadorMaior,
-      ops_em_andamento: r?.ops_em_andamento ?? r?.total_ops_andamento ?? opsSet.EM_ANDAMENTO.size,
-      ops_finalizadas: r?.ops_finalizadas ?? r?.total_ops_finalizadas ?? opsSet.FINALIZADO.size,
+      ops_em_andamento: totalEmAndamentoBackend ?? (opsPorLetra.E.size + opsPorLetra.L.size + opsPorLetra.A.size),
+      ops_finalizadas: totalFinalizadasBackend ?? opsPorLetra.F.size,
+      ops_emitidas: opsPorLetra.E.size,
+      ops_liberadas: opsPorLetra.L.size,
+      ops_andamento: opsPorLetra.A.size,
+      ops_canceladas: opsPorLetra.C.size,
       discrepanciasParciais,
     };
   }, [data]);
