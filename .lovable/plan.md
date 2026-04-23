@@ -1,142 +1,70 @@
 
-## Corrigir o entendimento do Assistente IA para perguntas globais e confirmações curtas
+
+## Corrigir incoerência do card "Status OP Genius"
 
 ### Problema
-Mesmo após a melhoria anterior, o assistente ainda está errando em dois cenários críticos:
+No card "Status OP Genius" da tela `/auditoria-apontamento-genius`:
 
-1. **Perguntas globais** como:
-   - “quantas ordens de compra temos em aberto?”
-   - “qual o fornecedor com maior atraso?”
-   
-   Ele continua priorizando o **contexto filtrado da tela atual** (ex.: OC 40701) em vez de consultar o ERP inteiro.
+```
+Status OP Genius        1.390
+Período 22/04/2025      OPs ativas no período
+→ 22/04/2026
 
-2. **Confirmações curtas** como:
-   - “sim”
-   
-   Depois de oferecer uma “busca global”, o assistente não reutiliza corretamente a intenção pendente e acaba respondendo de forma genérica ou repetindo o contexto local.
+[barra azul 26%][barra cinza 74%]
 
-### Causas raiz
-1. **A lógica atual ainda depende demais do modelo obedecer o prompt**.  
-   As regras de `scope:"global"` existem, mas não há uma camada determinística que force `query_erp_data` quando a intenção é claramente analítica/global.
+● 368 em andamento (26%)   ● 1.022 finalizadas (74%)   ⚠ 100 com discrepância
+```
 
-2. **O fluxo de continuação com “sim” não resolve a intenção anterior**.  
-   O histórico é enviado ao modelo, mas não existe um resolvedor explícito para transformar “sim” em “faça a busca global que você acabou de propor”.
+Dois problemas:
 
-3. **O catálogo/campos do módulo `painel-compras` não está alinhado com o payload real**.  
-   No código do módulo, o dado de fornecedor aparece como `fantasia_fornecedor`, mas o catálogo/configuração da IA usa `fornecedor`. Isso atrapalha respostas como “qual o fornecedor com maior atraso?”.
+1. **Rótulo do número grande está errado**: 1.390 é apresentado como "OPs ativas no período", mas o cálculo é `opsEmAndamento + opsFinalizadas` — inclui finalizadas. Pelo padrão da própria página (`STATUS_OP_ATIVOS = {E, L, A}` vs `STATUS_OP_FINALIZADOS = {F}`), "ativas" são apenas as **368 em andamento**, não as 1.390.
+
+2. **Barra não reflete "discrepâncias"**: a barra tem só dois segmentos (andamento + finalizadas) e ignora as 100 com discrepância. O usuário vê o número de discrepância no rodapé sem nenhum correspondente visual na barra.
 
 ### Solução
 
-#### 1) Adicionar um resolvedor determinístico de intenção antes do modelo
-No `supabase/functions/ai-assistant/index.ts`, criar uma etapa anterior à chamada do gateway de IA para analisar a última mensagem do usuário e decidir se ela é um caso de:
+**Arquivo único alterado:** `src/pages/AuditoriaApontamentoGeniusPage.tsx` — componente `StatusOpGeniusCard` (linhas 1732–1806).
 
-- **pergunta analítica global**
-- **drill-down da tela atual**
-- **confirmação curta de uma ação pendente** (“sim”, “pode”, “quero”, “faça”)
+#### 1) Corrigir o rótulo do total
+Trocar `"OPs ativas no período"` por `"OPs no período"` (já que o número soma ativas + finalizadas).
+Reservar a palavra "ativas" para o segmento azul (368), que é o que de fato representa "em andamento / ativas".
 
-Essa etapa gera uma intenção normalizada, por exemplo:
+Layout final do cabeçalho:
+```
+Status OP Genius                    1.390
+Período 22/04/2025 → 22/04/2026     OPs no período
+                                    (368 ativas + 1.022 finalizadas)
+```
 
-- `intent = global_count_open_purchase_orders`
-- `intent = global_top_supplier_by_delay`
-- `intent = confirm_previous_global_query`
+#### 2) Tornar a barra fiel ao que está sendo exibido
+A barra continua segmentada por status (andamento vs finalizadas), porque é a divisão principal. A discrepância **vira um marcador sobreposto** (faixa vermelha tracejada na parte inferior da barra) proporcional ao % de discrepâncias sobre o total, com tooltip "100 OPs com discrepância (7%)".
 
-#### 2) Forçar `query_erp_data` nos casos analíticos de alta confiança
-Quando a intenção normalizada for analítica e clara, a edge function deve **forçar o uso da tool `query_erp_data`**, em vez de deixar o modelo decidir livremente entre responder com texto ou usar o contexto da página.
+Estrutura visual:
+```
+[████████ andamento 26% ████████][░░░░░ finalizadas 74% ░░░░░]
+[ ▓▓▓▓ discrepâncias (faixa vermelha tracejada cobrindo 7% à esquerda) ▓▓▓▓ ]
+```
 
-Casos a cobrir imediatamente:
-- “quantas ordens de compra temos em aberto?”
-  - `module: "painel-compras"`
-  - `scope: "global"`
-  - `aggregate: "count_distinct"`
-  - `distinct_field: "numero_oc"`
-  - `filters: { somente_pendentes: true }`
+Isso mantém a barra coerente com os 3 valores listados embaixo (andamento, finalizadas, discrepância) sem quebrar a leitura principal.
 
-- “qual o fornecedor com maior atraso?”
-  - `module: "painel-compras"`
-  - `scope: "global"`
-  - `filters: { somente_pendentes: true }`
-  - `client_filters: { dias_atraso: { gt: 0 } }`
-  - `order_by: "dias_atraso"`
-  - `fields: ["fantasia_fornecedor", "numero_oc", "descricao_item", "dias_atraso", "data_entrega"]`
-  - `top_n: 10`
+#### 3) Tooltips e acessibilidade
+- Tooltip nos segmentos com valor absoluto + %.
+- `aria-label` no container da barra: "Distribuição: 368 em andamento, 1.022 finalizadas, 100 com discrepância de um total de 1.390 OPs".
 
-#### 3) Resolver confirmações curtas (“sim”) com base na última oferta do assistente
-Na mesma edge function, adicionar um resolvedor de follow-up:
+#### 4) Validação visual
+- Caso `totalDiscrepancias === 0`, não renderizar a faixa de discrepância (manter só os 2 segmentos).
+- Caso `opsEmAndamento === 0` ou `opsFinalizadas === 0`, a barra continua mostrando 100% do segmento existente (sem divisão por zero — já tratado pelo guard `totalOps === 0` que retorna null).
 
-- Se a última mensagem do usuário for apenas uma confirmação curta
-- E a última resposta do assistente tiver oferecido algo como:
-  - “posso fazer uma busca global”
-  - “posso consultar no ERP inteiro”
-  - “deseja remover os filtros da tela?”
-  
-Então a mensagem efetiva enviada ao modelo passa a ser a ação pendente explícita, por exemplo:
-- “Faça a busca global de ordens de compra em aberto”
-- “Consulte globalmente o fornecedor com maior atraso em OCs pendentes”
+### Casos de teste manuais
+1. Tela atual (368 / 1.022 / 100) → cabeçalho mostra **1.390 OPs no período** com subtítulo "(368 ativas + 1.022 finalizadas)"; barra com 2 segmentos + faixa vermelha tracejada cobrindo ~7%.
+2. Filtrar `status_op = FINALIZADO` → barra fica 100% cinza, número grande = total finalizadas, sem rótulo enganoso de "ativas".
+3. Período sem discrepância → faixa vermelha some, barra continua com 2 cores.
+4. Hover na barra → tooltips com valores absolutos e %.
 
-Isso evita que um simples “sim” perca o contexto.
+### Fora de escopo
+- Recalcular agregados no backend (os números 368/1.022/100 vêm do `resumo` da API e estão corretos — só o **rótulo** estava errado).
+- Mudar cores da paleta global.
 
-#### 4) Corrigir o mapeamento de campos do `painel-compras`
-No `src/lib/aiQueryExecutor.ts`, alinhar o módulo `painel-compras` com o payload real da API:
+### Resultado
+O card passa a representar fielmente o que o usuário lê: o número grande deixa de ser chamado de "ativas" (já que inclui finalizadas), e a barra ganha o terceiro indicador (discrepância) que hoje aparece só no rodapé.
 
-- usar `fantasia_fornecedor` como campo de fornecedor exibido
-- revisar campos padrão usados nas respostas analíticas
-- revisar campos numéricos reais (`valor_liquido` vs `valor_liquido_total`, se aplicável)
-- manter filtros nativos do backend como estão, mas separar claramente:
-  - **nome do filtro enviado**
-  - **nome do campo retornado**
-
-#### 5) Adicionar aliases de campos para a IA
-Ainda em `src/lib/aiQueryExecutor.ts`, criar uma camada de aliases por módulo para que a IA possa pedir nomes mais naturais e o executor normalize para o campo real.
-
-Exemplo no `painel-compras`:
-- `fornecedor` → `fantasia_fornecedor`
-- `valor_liquido_total` → campo real retornado na linha, se diferente
-- outros aliases relevantes de negócio
-
-Isso reduz falhas quando o modelo usar o nome “humano” e o dataset tiver outro nome técnico.
-
-#### 6) Reforçar o prompt com exemplos de follow-up e ranking global
-No `supabase/functions/ai-assistant/index.ts`, complementar o prompt com exemplos explícitos:
-
-- “quantas ordens de compra temos em aberto?” → global
-- “qual o fornecedor com maior atraso?” → global
-- “sim” após oferta de busca global → executar a busca global pendente, não responder com contexto da tela
-
-### Arquivos a alterar
-- `supabase/functions/ai-assistant/index.ts`
-  - resolvedor de intenção
-  - resolvedor de confirmação curta
-  - forcing de `query_erp_data` em casos analíticos claros
-  - exemplos adicionais no prompt
-
-- `src/lib/aiQueryExecutor.ts`
-  - alinhar `painel-compras` ao payload real
-  - adicionar aliases de campos
-  - garantir que ordenação/campos retornados usem nomes corretos
-
-### Testes manuais
-1. Em `/painel-compras` com OC 40701 filtrada:
-   - “quantas ordens de compra temos em aberto?”
-   - esperado: resposta global, ignorando a OC da tela
-
-2. Na mesma tela:
-   - “qual o fornecedor com maior atraso?”
-   - esperado: trazer fornecedor real do ERP global, não “verificar no detalhamento da OC 40701”
-
-3. Fluxo em duas etapas:
-   - IA: “posso fazer a consulta global, deseja?”
-   - usuário: “sim”
-   - esperado: executar a consulta global pendente corretamente
-
-4. Pergunta explicitamente local:
-   - “quantas OCs nesta tela?”
-   - esperado: aí sim usar o contexto local/filtrado
-
-### Resultado esperado
-O assistente deixa de “achar que tudo é sobre a tela atual” e passa a:
-- interpretar perguntas analíticas como **globais por padrão**
-- usar `query_erp_data` de forma obrigatória nos casos claros
-- entender confirmações curtas como continuação da intenção anterior
-- responder corretamente perguntas como:
-  - “quantas ordens de compra temos em aberto?”
-  - “qual o fornecedor com maior atraso?”
