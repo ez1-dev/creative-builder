@@ -1,23 +1,31 @@
 
 
-## Exibir horas e minutos no Resumo por Operador
+## Separar Horas e Minutos em colunas distintas
 
 ### O que muda
-Na coluna "Horas" do card "Operadores no período" em `src/pages/AuditoriaApontamentoGeniusPage.tsx`, trocar a exibição decimal (ex.: `12,50`) pelo formato `12h 30min`.
+No card "Operadores no período" em `src/pages/AuditoriaApontamentoGeniusPage.tsx`, substituir a coluna única "Horas (h/min)" por **duas colunas independentes**:
+
+- **Horas** → parte inteira da conversão (ex.: `12`)
+- **Minutos** → minutos restantes da conversão (ex.: `30`)
+
+Exemplo: `12,5h` decimal → coluna Horas = `12`, coluna Minutos = `30`.
 
 ### Implementação
-- Criar helper local `formatHorasMin(totalHoras: number)` que converte o decimal em horas inteiras + minutos:
+- No `useMemo` `operadoresAgg`, derivar dois novos campos por operador a partir de `total_horas`:
   ```ts
-  const h = Math.floor(totalHoras);
-  const m = Math.round((totalHoras - h) * 60);
-  return `${h}h ${String(m).padStart(2,'0')}min`;
+  const totalMin = Math.round(total_horas * 60);
+  horas_int = Math.floor(totalMin / 60);
+  minutos_resto = totalMin % 60;
   ```
-- Renomear o cabeçalho da coluna para "Horas (h/min)".
-- Aplicar o mesmo formato no rodapé/resumo de total de horas do card.
-- Manter o valor numérico bruto no objeto `operadoresAgg` para preservar a ordenação por maior carga horária.
+- Substituir a definição da coluna `total_horas` no `DataTable` por duas colunas:
+  - `{ key: 'horas_int', header: 'Horas', align: 'right' }`
+  - `{ key: 'minutos_resto', header: 'Minutos', align: 'right' }`
+- Manter `total_horas` no objeto (oculto) só para ordenação default decrescente.
+- No header do card, manter o total geral no formato `Xh YYmin` (já implementado) — sem mudança ali.
 
 ### Validação
-- Após pesquisar, a coluna mostra valores como `12h 30min` em vez de `12,50`.
-- Total geral no header do card também aparece em `Xh YYmin`.
-- Ordenação por horas continua correta (decrescente).
+- Card mostra colunas separadas: Código | Operador | OPs | **Horas** | **Minutos** | Apontamentos.
+- Operador com 12,5h decimais aparece como Horas=`12` e Minutos=`30`.
+- Ordenação por Horas (clique no header) ordena pelos valores numéricos corretamente.
+- Total geral no topo do card permanece em `Xh YYmin`.
 
