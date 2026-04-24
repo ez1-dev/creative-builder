@@ -91,6 +91,7 @@ interface Filters {
   pedido: string;
   nf: string;
   somente_com_revenda: boolean;
+  somente_genius: boolean;
 }
 
 const initialFilters = (): Filters => ({
@@ -105,6 +106,7 @@ const initialFilters = (): Filters => ({
   pedido: '',
   nf: '',
   somente_com_revenda: false,
+  somente_genius: true,
 });
 
 function buildParams(f: Filters, extras?: Record<string, any>) {
@@ -121,6 +123,7 @@ function buildParams(f: Filters, extras?: Record<string, any>) {
   if (f.origem && f.origem !== 'Todas') params.origem = f.origem;
   if (f.tipo_movimento && f.tipo_movimento !== 'TODOS') params.tipo_movimento = f.tipo_movimento;
   if (f.somente_com_revenda) params.somente_com_revenda = true;
+  if (f.somente_genius) params.somente_genius = true;
   if (extras) Object.assign(params, extras);
   return params;
 }
@@ -663,6 +666,14 @@ export default function FaturamentoGeniusPage() {
             onCheckedChange={(c) => update('somente_com_revenda', c)}
           />
           <Label htmlFor="somente-com-revenda" className="text-xs cursor-pointer">Somente com revenda</Label>
+        </div>
+        <div className="flex items-center gap-2 pt-5">
+          <Switch
+            id="somente-genius"
+            checked={filters.somente_genius}
+            onCheckedChange={(c) => update('somente_genius', c)}
+          />
+          <Label htmlFor="somente-genius" className="text-xs cursor-pointer">Somente revendas Genius</Label>
         </div>
       </FilterPanel>
 
