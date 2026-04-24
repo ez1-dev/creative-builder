@@ -40,6 +40,7 @@ export function ComboboxFilter({ value, onChange, options, placeholder = 'Seleci
   const handleInputChange = (search: string) => {
     setInputValue(search);
     onChange(search);
+    if (!open) setOpen(true);
   };
 
   const displayLabel = value
@@ -87,7 +88,7 @@ export function ComboboxFilter({ value, onChange, options, placeholder = 'Seleci
               </CommandEmpty>
             ) : (
               <CommandGroup>
-                {filtered.slice(0, 50).map((option) => (
+                {filtered.slice(0, 200).map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
