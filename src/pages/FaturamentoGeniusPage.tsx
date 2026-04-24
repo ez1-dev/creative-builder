@@ -41,6 +41,7 @@ import {
   Package,
   Loader2,
   RefreshCw,
+  Search,
 } from 'lucide-react';
 
 const fmtBRL = (v: number | null | undefined) => {
