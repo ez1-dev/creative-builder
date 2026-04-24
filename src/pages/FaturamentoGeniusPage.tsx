@@ -1074,7 +1074,7 @@ function ValidacaoGeniusPanel({ dashboard, detalhe, filtroRevendaAtivo, onAplica
   const [enabled, setEnabled] = useState(false);
 
   const linhasComparacao = useMemo(() => {
-    if (!enabled) return [];
+    if (!enabled) return { porAnomes: [] as Array<{ anomes: string; target: GeniusTarget; computed: any }>, total: null as null | { target: GeniusTarget; computed: any } };
     // Filtra linhas detalhe apenas da revenda GENIUS
     const linhasGenius: any[] = (detalhe?.dados || []).filter((r: any) =>
       String(r.revenda || '').toUpperCase().trim() === 'GENIUS'
@@ -1082,10 +1082,14 @@ function ValidacaoGeniusPanel({ dashboard, detalhe, filtroRevendaAtivo, onAplica
 
     // Agrupa por anomes_emissao
     const porMes = new Map<string, any>();
+    // Agregados de período inteiro (com contagens distintas globais)
+    const nfsPeriodo = new Set<string>();
+    const clientesPeriodo = new Set<string>();
+    let fatTot = 0, devTot = 0, impTot = 0, qtdTot = 0;
+
     linhasGenius.forEach((r) => {
       const am = String(r.anomes_emissao || '').slice(0, 6);
-      if (!am) return;
-      if (!porMes.has(am)) {
+      if (!porMes.has(am) && am) {
         porMes.set(am, {
           anomes: am,
           fat: 0,
@@ -1096,35 +1100,69 @@ function ValidacaoGeniusPanel({ dashboard, detalhe, filtroRevendaAtivo, onAplica
           clientes: new Set<string>(),
         });
       }
-      const acc = porMes.get(am)!;
-      acc.fat += Number(r.valor_total) || 0;
-      acc.dev += Number(r.valor_devolucao) || 0;
-      acc.impostos += -((Number(r.valor_icms) || 0) + (Number(r.valor_ipi) || 0) + (Number(r.valor_pis) || 0) + (Number(r.valor_cofins) || 0));
-      acc.qtd += Number(r.quantidade) || 0;
-      acc.nfs.add(`${r.empresa}-${r.filial}-${r.numero_nf}-${r.serie_nf}`);
-      acc.clientes.add(String(r.cliente || ''));
+      const fat = Number(r.valor_total) || 0;
+      const dev = Number(r.valor_devolucao) || 0;
+      const imp = -((Number(r.valor_icms) || 0) + (Number(r.valor_ipi) || 0) + (Number(r.valor_pis) || 0) + (Number(r.valor_cofins) || 0));
+      const qtd = Number(r.quantidade) || 0;
+      const nfKey = `${r.empresa}-${r.filial}-${r.numero_nf}-${r.serie_nf}`;
+      const cliKey = String(r.cliente || '');
+
+      if (am) {
+        const acc = porMes.get(am)!;
+        acc.fat += fat;
+        acc.dev += dev;
+        acc.impostos += imp;
+        acc.qtd += qtd;
+        acc.nfs.add(nfKey);
+        acc.clientes.add(cliKey);
+      }
+
+      fatTot += fat;
+      devTot += dev;
+      impTot += imp;
+      qtdTot += qtd;
+      nfsPeriodo.add(nfKey);
+      clientesPeriodo.add(cliKey);
     });
 
     const totalFat = Array.from(porMes.values()).reduce((s, m) => s + m.fat, 0);
 
-    // Monta linhas: target × computado
-    return Object.entries(GENIUS_TARGETS).map(([anomes, target]) => {
-      const m = porMes.get(anomes);
-      const computed = m ? {
-        fat: m.fat,
-        pct_rep: totalFat > 0 ? (m.fat / totalFat) * 100 : 0,
-        dev: m.dev,
-        pct_dev: m.fat > 0 ? (m.dev / m.fat) * 100 : 0,
-        impostos: m.impostos,
-        fat_liq: m.fat - m.dev - Math.abs(m.impostos),
-        qtd: m.qtd,
-        preco_medio: m.qtd > 0 ? m.fat / m.qtd : 0,
-        n_vendas: m.nfs.size,
-        n_clientes: m.clientes.size,
-        ticket_medio: m.nfs.size > 0 ? m.fat / m.nfs.size : 0,
-      } : null;
-      return { anomes, target, computed };
-    });
+    // Linhas mensais: target × computado
+    const porAnomes = Object.entries(GENIUS_TARGETS)
+      .filter(([k]) => k !== 'TOTAL')
+      .map(([anomes, target]) => {
+        const m = porMes.get(anomes);
+        const computed = m ? {
+          fat: m.fat,
+          pct_rep: totalFat > 0 ? (m.fat / totalFat) * 100 : 0,
+          dev: m.dev,
+          pct_dev: m.fat > 0 ? (m.dev / m.fat) * 100 : 0,
+          impostos: m.impostos,
+          fat_liq: m.fat - m.dev - Math.abs(m.impostos),
+          qtd: m.qtd,
+          preco_medio: m.qtd > 0 ? m.fat / m.qtd : 0,
+          n_vendas: m.nfs.size,
+          n_clientes: m.clientes.size,
+          ticket_medio: m.nfs.size > 0 ? m.fat / m.nfs.size : 0,
+        } : null;
+        return { anomes, target, computed };
+      });
+
+    const totalComputed = {
+      fat: fatTot,
+      pct_rep: 100,
+      dev: devTot,
+      pct_dev: fatTot > 0 ? (devTot / fatTot) * 100 : 0,
+      impostos: impTot,
+      fat_liq: fatTot - devTot - Math.abs(impTot),
+      qtd: qtdTot,
+      preco_medio: qtdTot > 0 ? fatTot / qtdTot : 0,
+      n_vendas: nfsPeriodo.size,
+      n_clientes: clientesPeriodo.size,
+      ticket_medio: nfsPeriodo.size > 0 ? fatTot / nfsPeriodo.size : 0,
+    };
+
+    return { porAnomes, total: { target: GENIUS_TARGETS.TOTAL, computed: totalComputed } };
   }, [enabled, detalhe]);
 
   const statusCor = (esp: number, real: number | null | undefined): string => {
