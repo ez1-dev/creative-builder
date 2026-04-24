@@ -1364,7 +1364,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 />
               </div>
               <div>
-                <Label className="text-xs">Origem (GENIUS) <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Origem (GENIUS)</Label>
                 <ComboboxFilter
                   value={filters.codori}
                   onChange={(v) => setFilters(f => ({ ...f, codori: v }))}
