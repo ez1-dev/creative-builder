@@ -384,7 +384,15 @@ export default function FaturamentoGeniusPage() {
         </div>
       </FilterPanel>
 
-      {error && !loading && (
+      {backendIndisponivel && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Backend indisponível</AlertTitle>
+          <AlertDescription>{MSG_404}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && !loading && !backendIndisponivel && (
         <Card className="border-destructive/40">
           <CardContent className="p-3 text-xs text-destructive">{error}</CardContent>
         </Card>
