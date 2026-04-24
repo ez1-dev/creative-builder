@@ -1629,7 +1629,8 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono' },
                   { key: 'nome_operador', header: 'Operador', align: 'left' },
                   { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'total_horas', header: 'Horas (h/min)', align: 'right', render: (v) => formatHorasMin(Number(v) || 0) },
+                  { key: 'horas_int', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 0) },
+                  { key: 'minutos_resto', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
                 ]}
                 data={operadoresAgg}
