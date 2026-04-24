@@ -1060,6 +1060,7 @@ const GENIUS_TARGETS: Record<string, GeniusTarget> = {
   '202602': { fat: 125245, pct_rep: 15.77, dev: 1826, pct_dev: 1.46, impostos: -24627, fat_liq: 91276,  qtd: 2451, preco_medio: 51, n_vendas: 25, n_clientes: 16, ticket_medio: 5010 },
   '202603': { fat: 191603, pct_rep: 24.13, dev: 821,  pct_dev: 0.43, impostos: -27370, fat_liq: 161674, qtd: 2768, preco_medio: 69, n_vendas: 25, n_clientes: 14, ticket_medio: 7664 },
   '202604': { fat: 98959,  pct_rep: 12.46, dev: 2114, pct_dev: 2.14, impostos: -19436, fat_liq: 75299,  qtd: 2213, preco_medio: 45, n_vendas: 25, n_clientes: 10, ticket_medio: 3958 },
+  'TOTAL':  { fat: 794052, pct_rep: 100,   dev: 8879, pct_dev: 1.12, impostos: -120598, fat_liq: 653862, qtd: 11430, preco_medio: 69, n_vendas: 98, n_clientes: 34, ticket_medio: 8103 },
 };
 
 interface ValidacaoGeniusPanelProps {
