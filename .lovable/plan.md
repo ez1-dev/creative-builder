@@ -1,44 +1,39 @@
 
 
-## Ajustes na página Faturamento Genius
+## Tratamento de 404 e confirmação de endpoints — Faturamento Genius
 
-A página já está renderizando em `/faturamento-genius`. Este plano apenas alinha o que existe ao layout solicitado e corrige o warning do React no console.
+### 1. Mensagem amigável para 404
+No `consultar()` e em `atualizarComercial()` de `src/pages/FaturamentoGeniusPage.tsx`, detectar `err.statusCode === 404` (já exposto pelo `api.ts`) e:
+- Exibir `toast.error` com a mensagem:  
+  *"Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI."*
+- Renderizar um banner inline (`Alert` destrutivo leve) acima dos KPIs com a mesma mensagem enquanto `dashboard` estiver vazio por causa do 404 — assim o usuário entende por que não há dados.
+- Estado novo: `backendIndisponivel: boolean`, setado em `true` no catch de 404 e resetado em `true→false` em qualquer resposta OK.
 
-### 1. Corrigir warning de ref no Select
-Console mostra: *"Function components cannot be given refs"* apontando para `Select` dentro de `FaturamentoGeniusPage`. Causa: provavelmente um `<SelectTrigger>` está envolvido em um wrapper customizado sem `forwardRef` (ou um `Label`/`div` recebendo ref). Corrigir removendo qualquer `ref` indevido nos `Select` e garantindo que o `SelectTrigger` seja filho direto do `Select`.
+Demais erros (500, 401, etc.) continuam tratados como já estão (`ErpConnectionAlert` para 401, `toast.error` para o restante).
 
-### 2. Garantir presença de todos os filtros do escopo
-Conferir e adicionar (se faltar) no `FilterPanel`:
-- Ano/Mês inicial e final (Input YYYYMM)
-- Revenda, Cliente, Representante, Produto, Pedido, NF (Input)
-- Origem (Select: Todas, MÁQUINAS, PEÇAS, SERVIÇOS, META, LANCTO MANUAL)
-- Tipo movimento (Select: TODOS, PRODUTOS, SERVIÇOS, DEVOLUÇÃO, FATURAMENTO MAN)
-- Switch "Somente com revenda"
+### 2. Confirmação dos endpoints
+Auditoria confirma que a página já chama exatamente:
+- `GET /api/faturamento-genius-dashboard` (em `consultar`)
+- `GET /api/faturamento-genius` (em `consultar` e paginação)
+- `GET /api/export/faturamento-genius` (via `<ExportButton endpoint="...">`)
+- `POST /api/faturamento-genius/atualizar` (em `atualizarComercial`)
 
-### 3. Botões no header
-No `PageHeader actions` garantir os 3 botões na ordem:
-`[Consultar] [Exportar Excel] [Atualizar Comercial]`
-- Consultar dispara `consultar()` (mesmo do FilterPanel)
-- Exportar usa `<ExportButton>` existente
-- Atualizar Comercial abre `AlertDialog` de confirmação
+Nenhuma alteração necessária — apenas validar que os paths estão idênticos no código após o ajuste.
 
-### 4. Ordem das seções
-Validar layout vertical:
-1. Cards de KPIs (Valores + Volume via `KpiGroup`)
-2. Tabela por Revenda
-3. Tabela por Origem
-4. Tabela por Mês
-5. Detalhe (NF/Pedido/Produto) com paginação
-6. Nota técnica em rodapé
+### 3 e 4. Base URL via `VITE_API_BASE_URL` com fallback `window.location.origin`
+Hoje `src/lib/api.ts` usa `VITE_API_URL` com fallback `'http://localhost:8000'`. Para atender ao requisito **sem quebrar outras páginas**:
+- Ajustar `getApiBaseUrl()` em `src/lib/api.ts` para a ordem: `_apiBaseUrl` → `import.meta.env.VITE_API_BASE_URL` → `import.meta.env.VITE_API_URL` → `window.location.origin` (e só cair em `'http://localhost:8000'` se `window` não existir, ex.: SSR/teste).
+- Isso preserva o comportamento atual de quem já usa `VITE_API_URL` e adiciona o suporte ao novo nome solicitado, com o fallback correto para `window.location.origin`.
 
-### 5. Permissão de acesso
-Item já foi inserido em `profile_screens` para todos os perfis na migration anterior. Confirmar que o usuário fez reload — caso ainda não apareça no menu, orientar logout/login para recarregar permissões.
+### 5. Nota técnica preservada
+A nota de rodapé (`"A revenda vem de VM_FATURAMENTO.CD_REV_PEDIDO. Para produtos, a origem é E120IPD.USU_REVPED; serviços/devoluções podem aparecer como OUTROS conforme a view atual."`) **permanece inalterada** ao final da página.
 
 ### Arquivos afetados
-- `src/pages/FaturamentoGeniusPage.tsx` — corrigir Selects (warning), garantir todos os filtros, ordem dos botões e seções.
+- `src/pages/FaturamentoGeniusPage.tsx` — tratar 404 (toast + banner) e estado `backendIndisponivel`.
+- `src/lib/api.ts` — ajustar resolução do base URL (acrescentar `VITE_API_BASE_URL` e fallback `window.location.origin`).
 
 ### Garantias
-- Sem alterações em outras páginas, na API ou em cálculos.
-- Nenhum dado mockado.
-- Token continua via `api` (Bearer no localStorage).
+- Lógica de filtros, paginação, KPIs, tabelas, exportação e atualização comercial **não muda**.
+- Nenhuma outra página é afetada (mudança em `api.ts` é aditiva e mantém `VITE_API_URL` como prioridade legada).
+- Sem dados mockados; sem alteração no backend.
 
