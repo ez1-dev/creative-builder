@@ -2,8 +2,13 @@ import { logError } from './errorLogger';
 
 let _apiBaseUrl: string | null = null;
 
-const getApiBaseUrl = () =>
-  _apiBaseUrl || import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const getApiBaseUrl = () => {
+  if (_apiBaseUrl) return _apiBaseUrl;
+  const envBase = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+  if (envBase) return envBase;
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return 'http://localhost:8000';
+};
 
 export const setApiBaseUrl = (url: string) => {
   _apiBaseUrl = url;

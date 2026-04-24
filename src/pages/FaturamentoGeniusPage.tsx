@@ -7,6 +7,8 @@ import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { ErpConnectionAlert } from '@/components/erp/ErpConnectionAlert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -128,8 +130,11 @@ export default function FaturamentoGeniusPage() {
   const [dashboard, setDashboard] = useState<any | null>(null);
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [backendIndisponivel, setBackendIndisponivel] = useState(false);
 
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
+
+  const MSG_404 = 'Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI.';
 
   const consultar = async (page = 1) => {
     setLoading(true);
@@ -142,10 +147,17 @@ export default function FaturamentoGeniusPage() {
       ]);
       setDashboard(dash);
       setDetalhe(det);
+      setBackendIndisponivel(false);
     } catch (err: any) {
-      setError(err?.message || 'Erro ao consultar');
-      if (err?.statusCode !== 401) {
-        toast.error(err?.message || 'Erro ao consultar faturamento');
+      if (err?.statusCode === 404) {
+        setBackendIndisponivel(true);
+        setError(MSG_404);
+        toast.error(MSG_404);
+      } else {
+        setError(err?.message || 'Erro ao consultar');
+        if (err?.statusCode !== 401) {
+          toast.error(err?.message || 'Erro ao consultar faturamento');
+        }
       }
     } finally {
       setLoading(false);
@@ -170,6 +182,7 @@ export default function FaturamentoGeniusPage() {
     setDashboard(null);
     setDetalhe(null);
     setError(null);
+    setBackendIndisponivel(false);
   };
 
   const atualizarComercial = async () => {
@@ -179,10 +192,16 @@ export default function FaturamentoGeniusPage() {
         anomes_ini: filters.anomes_ini,
         anomes_fim: filters.anomes_fim,
       });
+      setBackendIndisponivel(false);
       toast.success('Atualização comercial concluída');
       await consultar(1);
     } catch (err: any) {
-      toast.error(err?.message || 'Falha ao atualizar comercial');
+      if (err?.statusCode === 404) {
+        setBackendIndisponivel(true);
+        toast.error(MSG_404);
+      } else {
+        toast.error(err?.message || 'Falha ao atualizar comercial');
+      }
     } finally {
       setUpdating(false);
     }
@@ -365,7 +384,15 @@ export default function FaturamentoGeniusPage() {
         </div>
       </FilterPanel>
 
-      {error && !loading && (
+      {backendIndisponivel && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Backend indisponível</AlertTitle>
+          <AlertDescription>{MSG_404}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && !loading && !backendIndisponivel && (
         <Card className="border-destructive/40">
           <CardContent className="p-3 text-xs text-destructive">{error}</CardContent>
         </Card>
