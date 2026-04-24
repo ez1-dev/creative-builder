@@ -25,28 +25,28 @@ describe('ExportButton — contrato Genius (preserva keys vazias)', () => {
     vi.restoreAllMocks();
   });
 
-  it('inclui numorp= e codori= vazios na URL exportada', async () => {
+  it('omite numorp/codori vazios e usa apenas nomes do contrato novo', async () => {
     render(
       <ExportButton
         endpoint="/api/export/apontamentos-producao"
         params={{
           data_ini: '2025-01-01',
           data_fim: '2025-01-31',
-          numorp: '',
-          codori: '',
+          numorp: undefined,
+          codori: undefined,
           codpro: 'ABC',
           somente_acima_8h: 0,
           somente_discrepancia: 1,
         }}
-        keepEmptyKeys={['numorp', 'codori']}
       />,
     );
     fireEvent.click(screen.getByRole('button'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const url = String(fetchMock.mock.calls[0][0]);
     expect(url).toContain('/api/export/apontamentos-producao');
-    expect(url).toMatch(/[?&]numorp=(&|$)/);
-    expect(url).toMatch(/[?&]codori=(&|$)/);
+    // numorp/codori vazios NÃO devem aparecer na URL
+    expect(url).not.toMatch(/[?&]numorp=/);
+    expect(url).not.toMatch(/[?&]codori=/);
     expect(url).toContain('codpro=ABC');
     expect(url).toContain('somente_acima_8h=0');
     expect(url).toContain('somente_discrepancia=1');
