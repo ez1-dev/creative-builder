@@ -8,6 +8,7 @@ import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 import { useErpOptions } from '@/hooks/useErpOptions';
+import { useFornecedores } from '@/hooks/useFornecedores';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
