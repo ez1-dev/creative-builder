@@ -632,19 +632,11 @@ export default function AuditoriaApontamentoGeniusPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
-      const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', {
-        data_ini: filters.data_ini,
-        data_fim: filters.data_fim,
-        numorp: filters.numop ?? '',
-        codori: filters.codori ?? '',
-        codpro: filters.codpro,
-        operador: filters.operador,
-        status_op: mapStatusOpParaApi(filters.status_op),
-        somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-        somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
-        pagina: page,
-        tamanho_pagina: 100,
-      }, { keepEmpty: ['numorp', 'codori'] });
+      const result = await api.get<AuditoriaApontamentoGeniusResponse>(
+        '/api/apontamentos-producao',
+        buildAuditoriaListParams(filters, page, 100),
+        { keepEmpty: [...AUDITORIA_KEEP_EMPTY] },
+      );
       result.dados = (result.dados ?? []).map(normalizeRowApont);
       if (import.meta.env.DEV && result.dados.length > 0) {
         // eslint-disable-next-line no-console
@@ -1143,17 +1135,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     []
   );
 
-  const exportParams = {
-    data_ini: filters.data_ini,
-    data_fim: filters.data_fim,
-    numorp: filters.numop ?? '',
-    codori: filters.codori ?? '',
-    codpro: filters.codpro,
-    operador: filters.operador,
-    status_op: mapStatusOpParaApi(filters.status_op),
-    somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-    somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
-  };
+  const exportParams = buildAuditoriaExportParams(filters);
 
   return (
     <div className="space-y-4 p-4">
