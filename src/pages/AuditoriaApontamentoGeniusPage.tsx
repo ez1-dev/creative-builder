@@ -857,8 +857,38 @@ export default function AuditoriaApontamentoGeniusPage() {
     const m = totalMin % 60;
     return `${h}h ${String(m).padStart(2, '0')}min`;
   };
+  // Fonte completa para o agregado de operadores: usa o dataset full
+  // quando disponível, senão cai para a página atual já filtrada.
+  const linhasParaOperadores = useMemo(() => {
+    if (!operadoresFullData) return aplicarFiltroListaApontGenius;
+    const sel = String(filters.status_op ?? '').trim().toUpperCase();
+    const q = quickFilter.trim().toLowerCase();
+    let rows = operadoresFullData;
+    if (sel) {
+      rows = rows.filter((row) => {
+        const letra = normSitorpRow(row);
+        if (sel === 'E' || sel === 'L' || sel === 'A' || sel === 'F' || sel === 'C') return letra === sel;
+        if (sel === 'EM_ANDAMENTO') return letra === 'E' || letra === 'L' || letra === 'A';
+        if (sel === 'FINALIZADO') return letra === 'F';
+        if (sel === 'SEM_STATUS') return letra === '';
+        return true;
+      });
+    }
+    if (q) {
+      rows = rows.filter((r) => {
+        const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
+        const apontLabel = statusApontVariants[r.status_movimento as StatusApont]?.label || r.status_movimento || '';
+        return [
+          r.nome_operador, r.numero_op, r.codigo_produto, r.descricao_produto,
+          r.origem, r.turno, r.status_movimento, r.status_op, opLabel, apontLabel,
+        ].some((f) => String(f ?? '').toLowerCase().includes(q));
+      });
+    }
+    return rows;
+  }, [operadoresFullData, aplicarFiltroListaApontGenius, filters.status_op, quickFilter]);
+
   const operadoresAgg = useMemo(() => {
-    const rows = aplicarFiltroListaApontGenius;
+    const rows = linhasParaOperadores;
     const map = new Map<string, {
       numcad: string;
       nome_operador: string;
@@ -894,7 +924,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         };
       })
       .sort((a, b) => b.total_horas - a.total_horas);
-  }, [aplicarFiltroListaApontGenius]);
+  }, [linhasParaOperadores]);
 
   const [operadoresAbertos, setOperadoresAbertos] = useState(false);
   const OPERADORES_POR_PAGINA = 10;
