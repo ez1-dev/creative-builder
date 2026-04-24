@@ -1360,7 +1360,7 @@ export default function AuditoriaApontamentoGeniusPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               <div>
-                <Label className="text-xs">Número da OP</Label>
+                <Label className="text-xs">Número da OP <span className="text-destructive">*</span></Label>
                 <Input
                   value={filters.numop}
                   onChange={(e) => setFilters(f => ({ ...f, numop: e.target.value }))}
