@@ -637,6 +637,10 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const buscarAuditoriaApontamentoGenius = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
+    if (toIntOrUndef(filters.numop) === undefined || toIntOrUndef(filters.codori) === undefined) {
+      toast.error('Informe OP e Origem (ambos numéricos) para consultar.', { id: 'auditoria-genius-required' });
+      return;
+    }
     setLoading(true);
     try {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>(
