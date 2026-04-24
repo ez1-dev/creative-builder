@@ -8,6 +8,8 @@ import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 import { KPICard } from '@/components/erp/KPICard';
+import { KpiGroup } from '@/components/erp/KpiGroup';
+import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -1589,30 +1591,38 @@ export default function AuditoriaApontamentoGeniusPage() {
             dataIni={filters.data_ini}
             dataFim={filters.data_fim}
           />
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-4">
-            <KpiDrillCard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} kind={{ kind: 'total' }} ops={agregarPorOp(linhasDoKpi({ kind: 'total' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Emitidas (E)" value={formatNumber(atualizarKpisApontGenius.ops_emitidas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} kind={{ kind: 'status', letra: 'E' }} ops={kpiDrilldowns.opsPorStatus.E} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Liberadas (L)" value={formatNumber(atualizarKpisApontGenius.ops_liberadas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={2} kind={{ kind: 'status', letra: 'L' }} ops={kpiDrilldowns.opsPorStatus.L} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Em Andamento (A)" value={formatNumber(atualizarKpisApontGenius.ops_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={3} kind={{ kind: 'status', letra: 'A' }} ops={kpiDrilldowns.opsPorStatus.A} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Finalizadas (F)" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="default" index={4} kind={{ kind: 'status', letra: 'F' }} ops={kpiDrilldowns.opsPorStatus.F} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Canceladas (C)" value={formatNumber(atualizarKpisApontGenius.ops_canceladas, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={5} kind={{ kind: 'status', letra: 'C' }} ops={kpiDrilldowns.opsPorStatus.C} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} kind={{ kind: 'discrepancias' }} ops={agregarPorOp(linhasDoKpi({ kind: 'discrepancias' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} kind={{ kind: 'semInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semInicio' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} kind={{ kind: 'semFim' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semFim' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} kind={{ kind: 'fimMenorInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'fimMenorInicio' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} kind={{ kind: 'acima8h' }} ops={agregarPorOp(linhasDoKpi({ kind: 'acima8h' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard title="Abaixo de 5 min" value={formatNumber((atualizarKpisApontGenius as any).abaixo_5min ?? 0, 0)} icon={<AlertTriangle className="h-5 w-5" />} variant="warning" index={11} kind={{ kind: 'abaixo5min' }} ops={agregarPorOp(linhasDoKpi({ kind: 'abaixo5min' }))} onVerTudo={abrirKpiDrill} />
-            <KpiDrillCard
-              title="Maior Total Dia"
-              value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
-              subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
-              icon={<UserCheck className="h-5 w-5" />}
-              variant="info"
-              index={11}
-              kind={{ kind: 'maiorTotalDia' }}
-              ops={agregarPorOp(linhasDoKpi({ kind: 'maiorTotalDia' }))}
-              onVerTudo={abrirKpiDrill}
-            />
+          <div className="space-y-4">
+            <KpiGroup title="Volume" tone="volume" icon={<ListChecks className="h-3.5 w-3.5" />}>
+              <KpiDrillCard title="Total Registros" value={formatNumber(atualizarKpisApontGenius.total_registros, 0)} icon={<ListChecks className="h-5 w-5" />} variant="default" index={0} kind={{ kind: 'total' }} ops={agregarPorOp(linhasDoKpi({ kind: 'total' }))} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Emitidas (E)" value={formatNumber(atualizarKpisApontGenius.ops_emitidas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={1} kind={{ kind: 'status', letra: 'E' }} ops={kpiDrilldowns.opsPorStatus.E} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Liberadas (L)" value={formatNumber(atualizarKpisApontGenius.ops_liberadas, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={2} kind={{ kind: 'status', letra: 'L' }} ops={kpiDrilldowns.opsPorStatus.L} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Em Andamento (A)" value={formatNumber(atualizarKpisApontGenius.ops_andamento, 0)} icon={<Activity className="h-5 w-5" />} variant="info" index={3} kind={{ kind: 'status', letra: 'A' }} ops={kpiDrilldowns.opsPorStatus.A} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Finalizadas (F)" value={formatNumber(atualizarKpisApontGenius.ops_finalizadas, 0)} icon={<CheckCircle2 className="h-5 w-5" />} variant="success" index={4} kind={{ kind: 'status', letra: 'F' }} ops={kpiDrilldowns.opsPorStatus.F} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Canceladas (C)" value={formatNumber(atualizarKpisApontGenius.ops_canceladas, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={5} kind={{ kind: 'status', letra: 'C' }} ops={kpiDrilldowns.opsPorStatus.C} onVerTudo={abrirKpiDrill} />
+            </KpiGroup>
+
+            <KpiGroup title="Saúde dos dados" tone="saude" icon={<ShieldCheck className="h-3.5 w-3.5" />}>
+              <KpiDrillCard title="Discrepâncias" value={formatNumber(atualizarKpisApontGenius.total_discrepancias, 0)} icon={<AlertCircle className="h-5 w-5" />} variant="destructive" index={6} kind={{ kind: 'discrepancias' }} ops={agregarPorOp(linhasDoKpi({ kind: 'discrepancias' }))} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Sem Início" value={formatNumber(atualizarKpisApontGenius.sem_inicio, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={7} kind={{ kind: 'semInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semInicio' }))} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Sem Fim" value={formatNumber(atualizarKpisApontGenius.sem_fim, 0)} icon={<FileQuestion className="h-5 w-5" />} variant="warning" index={8} kind={{ kind: 'semFim' }} ops={agregarPorOp(linhasDoKpi({ kind: 'semFim' }))} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Fim < Início" value={formatNumber(atualizarKpisApontGenius.fim_menor_inicio, 0)} icon={<Timer className="h-5 w-5" />} variant="destructive" index={9} kind={{ kind: 'fimMenorInicio' }} ops={agregarPorOp(linhasDoKpi({ kind: 'fimMenorInicio' }))} onVerTudo={abrirKpiDrill} />
+            </KpiGroup>
+
+            <KpiGroup title="Carga horária" tone="carga" icon={<Clock className="h-3.5 w-3.5" />}>
+              <KpiDrillCard title="Acima de 8h" value={formatNumber(atualizarKpisApontGenius.acima_8h, 0)} icon={<Clock className="h-5 w-5" />} variant="destructive" index={10} kind={{ kind: 'acima8h' }} ops={agregarPorOp(linhasDoKpi({ kind: 'acima8h' }))} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard title="Abaixo de 5 min" value={formatNumber((atualizarKpisApontGenius as any).abaixo_5min ?? 0, 0)} icon={<AlertTriangle className="h-5 w-5" />} variant="warning" index={11} kind={{ kind: 'abaixo5min' }} ops={agregarPorOp(linhasDoKpi({ kind: 'abaixo5min' }))} onVerTudo={abrirKpiDrill} />
+              <KpiDrillCard
+                title="Maior Total Dia"
+                value={fmtMinHoras(atualizarKpisApontGenius.maior_total_dia_operador, 2)}
+                subtitle={atualizarKpisApontGenius.operador_maior_total || undefined}
+                icon={<UserCheck className="h-5 w-5" />}
+                variant="info"
+                index={11}
+                kind={{ kind: 'maiorTotalDia' }}
+                ops={agregarPorOp(linhasDoKpi({ kind: 'maiorTotalDia' }))}
+                onVerTudo={abrirKpiDrill}
+              />
+            </KpiGroup>
           </div>
         </>
       )}
@@ -1735,22 +1745,57 @@ export default function AuditoriaApontamentoGeniusPage() {
                   </AlertDescription>
                 </Alert>
               )}
-              <DataTable
-                columns={[
-                  { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono' },
-                  { key: 'nome_operador', header: 'Operador', align: 'left' },
-                  { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'horas_int', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'minutos_total', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
-                ]}
-                data={operadoresPaginados}
-                onRowClick={(row: any) => {
-                  setFilters((f) => ({ ...f, operador: row.nome_operador }));
-                  setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
-                }}
-                emptyMessage="Sem operadores nos resultados atuais."
-              />
+              {(() => {
+                const maxHoras = Math.max(...operadoresAgg.map((o: any) => o.total_horas || 0), 1);
+                return (
+                  <DataTable
+                    columns={[
+                      { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono tabular-nums' },
+                      { key: 'nome_operador', header: 'Operador', align: 'left' },
+                      { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => <span className="tabular-nums">{formatNumber(v, 0)}</span> },
+                      {
+                        key: 'carga',
+                        header: 'Carga',
+                        align: 'left',
+                        render: (_v, row: any) => {
+                          const pct = Math.min(100, Math.round(((row.total_horas || 0) / maxHoras) * 100));
+                          return (
+                            <div className="flex items-center gap-2 min-w-[120px]">
+                              <Progress value={pct} className="h-1.5 flex-1" />
+                              <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{pct}%</span>
+                            </div>
+                          );
+                        },
+                      },
+                      {
+                        key: 'horas_int',
+                        header: 'Horas',
+                        align: 'right',
+                        render: (v, row: any) => {
+                          const h = Number(row.total_horas || 0);
+                          const tone =
+                            h > 10 ? 'bg-destructive/15 text-destructive border-destructive/30'
+                            : h > 8 ? 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30'
+                            : 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))] border-[hsl(var(--success))]/30';
+                          return (
+                            <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold tabular-nums', tone)}>
+                              {formatNumber(v, 0)}h
+                            </span>
+                          );
+                        },
+                      },
+                      { key: 'minutos_total', header: 'Minutos', align: 'right', render: (v) => <span className="tabular-nums">{formatNumber(v, 0)}</span> },
+                      { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => <span className="tabular-nums">{formatNumber(v, 0)}</span> },
+                    ]}
+                    data={operadoresPaginados}
+                    onRowClick={(row: any) => {
+                      setFilters((f) => ({ ...f, operador: row.nome_operador }));
+                      setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
+                    }}
+                    emptyMessage="Sem operadores nos resultados atuais."
+                  />
+                );
+              })()}
               {totalPaginasOp > 1 && (
                 <PaginationControl
                   pagina={paginaOperadores}
