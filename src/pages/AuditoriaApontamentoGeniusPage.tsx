@@ -842,6 +842,14 @@ export default function AuditoriaApontamentoGeniusPage() {
   }, [aplicarFiltroListaApontGenius]);
 
   const [operadoresAbertos, setOperadoresAbertos] = useState(false);
+  const OPERADORES_POR_PAGINA = 10;
+  const [paginaOperadores, setPaginaOperadores] = useState(1);
+  const totalPaginasOp = Math.max(1, Math.ceil(operadoresAgg.length / OPERADORES_POR_PAGINA));
+  const operadoresPaginados = useMemo(() => {
+    const inicio = (paginaOperadores - 1) * OPERADORES_POR_PAGINA;
+    return operadoresAgg.slice(inicio, inicio + OPERADORES_POR_PAGINA);
+  }, [operadoresAgg, paginaOperadores]);
+  useEffect(() => { setPaginaOperadores(1); }, [operadoresAgg.length]);
 
   // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
   // (sintoma do JOIN com E930MPR estar quebrado no backend).
@@ -1633,13 +1641,21 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'minutos_resto', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
                 ]}
-                data={operadoresAgg}
+                data={operadoresPaginados}
                 onRowClick={(row: any) => {
                   setFilters((f) => ({ ...f, operador: row.nome_operador }));
                   setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
                 }}
                 emptyMessage="Sem operadores nos resultados atuais."
               />
+              {totalPaginasOp > 1 && (
+                <PaginationControl
+                  pagina={paginaOperadores}
+                  totalPaginas={totalPaginasOp}
+                  totalRegistros={operadoresAgg.length}
+                  onPageChange={setPaginaOperadores}
+                />
+              )}
             </div>
           )}
         </Card>
