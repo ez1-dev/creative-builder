@@ -18,10 +18,10 @@ const baseFilters = {
 };
 
 describe('Auditoria Genius — contrato de params (listagem)', () => {
-  it('inclui numorp e codori (mesmo vazios) e usa nomes do backend novo', () => {
+  it('omite numorp/codori quando vazios e usa nomes do backend novo', () => {
     const p = buildAuditoriaListParams(baseFilters, 1, 100);
-    expect(p).toHaveProperty('numorp', '');
-    expect(p).toHaveProperty('codori', '');
+    expect(p.numorp).toBeUndefined();
+    expect(p.codori).toBeUndefined();
     expect(p).toHaveProperty('codpro', '');
     expect(p).toHaveProperty('somente_acima_8h', 0);
     // chaves legadas NÃO devem existir
@@ -31,22 +31,24 @@ describe('Auditoria Genius — contrato de params (listagem)', () => {
     expect(p).not.toHaveProperty('somente_maior_8h');
   });
 
-  it('mapeia numop → numorp e converte booleans para 0/1', () => {
+  it('mapeia numop → numorp como inteiro e converte booleans para 0/1', () => {
     const p = buildAuditoriaListParams(
       { ...baseFilters, numop: '12345', codori: '110', somente_acima_8h: true, somente_discrepancia: true },
       2,
       50,
     );
-    expect(p.numorp).toBe('12345');
-    expect(p.codori).toBe('110');
+    expect(p.numorp).toBe(12345);
+    expect(p.codori).toBe(110);
+    expect(typeof p.numorp).toBe('number');
+    expect(typeof p.codori).toBe('number');
     expect(p.somente_acima_8h).toBe(1);
     expect(p.somente_discrepancia).toBe(1);
     expect(p.pagina).toBe(2);
     expect(p.tamanho_pagina).toBe(50);
   });
 
-  it('AUDITORIA_KEEP_EMPTY contém numorp e codori', () => {
-    expect([...AUDITORIA_KEEP_EMPTY]).toEqual(expect.arrayContaining(['numorp', 'codori']));
+  it('AUDITORIA_KEEP_EMPTY é vazio (backend novo trata numorp/codori como opcionais)', () => {
+    expect([...AUDITORIA_KEEP_EMPTY]).toEqual([]);
   });
 });
 

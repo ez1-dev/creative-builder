@@ -365,9 +365,16 @@ const initialFilters = {
 };
 
 // ─── Contrato do backend /api/apontamentos-producao ────────────────────────
-// Chaves que o backend valida como obrigatórias (mesmo vazias precisam ir
-// na query string). Usadas tanto na busca quanto na exportação.
-export const AUDITORIA_KEEP_EMPTY = ['numorp', 'codori'] as const;
+// Backend novo: numorp e codori são inteiros opcionais. Não devem mais
+// ser enviados como string vazia. Mantemos a constante exportada (vazia)
+// para compatibilidade com imports existentes.
+export const AUDITORIA_KEEP_EMPTY = [] as const;
+
+const toIntOrUndef = (v: unknown): number | undefined => {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
 
 export type AuditoriaFilters = typeof initialFilters;
 
@@ -381,8 +388,8 @@ export function buildAuditoriaListParams(
   return {
     data_ini: filters.data_ini,
     data_fim: filters.data_fim,
-    numorp: filters.numop ?? '',
-    codori: filters.codori ?? '',
+    numorp: toIntOrUndef(filters.numop),
+    codori: toIntOrUndef(filters.codori),
     codpro: filters.codpro,
     operador: filters.operador,
     status_op: mapStatusOpParaApi(filters.status_op),
@@ -635,7 +642,6 @@ export default function AuditoriaApontamentoGeniusPage() {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>(
         '/api/apontamentos-producao',
         buildAuditoriaListParams(filters, page, 100),
-        { keepEmpty: [...AUDITORIA_KEEP_EMPTY] },
       );
       result.dados = (result.dados ?? []).map(normalizeRowApont);
       if (import.meta.env.DEV && result.dados.length > 0) {
@@ -1173,7 +1179,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 </span>
               )}
             </div>
-            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} keepEmptyKeys={['numorp', 'codori']} />
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
       />
