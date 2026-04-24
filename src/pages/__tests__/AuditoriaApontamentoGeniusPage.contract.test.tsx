@@ -79,3 +79,64 @@ describe('Auditoria Genius — paridade listagem × exportação', () => {
     }
   });
 });
+
+describe('Auditoria Genius — busca ampla sem OP/Origem', () => {
+  it('com OP/Origem vazios + demais filtros preenchidos: omite numorp/codori e mantém o resto', () => {
+    const filters = {
+      ...baseFilters,
+      numop: '',
+      codori: '',
+      codpro: 'PRD-9',
+      operador: 'MARIA',
+      status_op: 'F',
+      somente_discrepancia: true,
+      somente_acima_8h: false,
+    };
+    const p = buildAuditoriaListParams(filters, 1, 100);
+    expect(p.numorp).toBeUndefined();
+    expect(p.codori).toBeUndefined();
+    expect(p.data_ini).toBe('2025-01-01');
+    expect(p.data_fim).toBe('2025-01-31');
+    expect(p.codpro).toBe('PRD-9');
+    expect(p.operador).toBe('MARIA');
+    expect(p.status_op).toBe('FINALIZADO');
+    expect(p.somente_discrepancia).toBe(1);
+    expect(p.somente_acima_8h).toBe(0);
+    expect(p.pagina).toBe(1);
+    expect(p.tamanho_pagina).toBe(100);
+  });
+
+  it('export com OP/Origem vazios espelha listagem (sem paginação)', () => {
+    const filters = {
+      ...baseFilters,
+      numop: '',
+      codori: '',
+      codpro: 'PRD-9',
+      operador: 'MARIA',
+      status_op: 'F',
+    };
+    const exp = buildAuditoriaExportParams(filters);
+    expect(exp.numorp).toBeUndefined();
+    expect(exp.codori).toBeUndefined();
+    expect(exp).not.toHaveProperty('pagina');
+    expect(exp).not.toHaveProperty('tamanho_pagina');
+    expect(exp.codpro).toBe('PRD-9');
+    expect(exp.operador).toBe('MARIA');
+    expect(exp.status_op).toBe('FINALIZADO');
+  });
+
+  it('só datas (todos os outros vazios): request mínimo com flags 0/0 e paginação', () => {
+    const p = buildAuditoriaListParams(baseFilters, 1, 100);
+    expect(p.numorp).toBeUndefined();
+    expect(p.codori).toBeUndefined();
+    expect(p.codpro).toBe('');
+    expect(p.operador).toBe('');
+    expect(p.status_op).toBe('TODOS');
+    expect(p.somente_discrepancia).toBe(0);
+    expect(p.somente_acima_8h).toBe(0);
+    expect(p.data_ini).toBe('2025-01-01');
+    expect(p.data_fim).toBe('2025-01-31');
+    expect(p.pagina).toBe(1);
+    expect(p.tamanho_pagina).toBe(100);
+  });
+});
