@@ -30,8 +30,9 @@ import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
   Activity, CheckCircle2, CalendarRange, Info, ChevronDown, ChevronRight, Search,
-  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck, ChevronLeft, CalendarDays,
+  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck, ChevronLeft, CalendarDays, Loader2,
 } from 'lucide-react';
+import { logError } from '@/lib/errorLogger';
 import { startOfWeek, endOfWeek, addWeeks, getISOWeek, getISOWeekYear, format as formatDateFns } from 'date-fns';
 
 // ─── Helpers de semana (ISO: segunda → domingo) ───────────────────────────
