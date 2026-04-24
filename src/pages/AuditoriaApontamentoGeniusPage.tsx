@@ -1751,16 +1751,57 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'nome_operador', header: 'Operador', align: 'left' },
                   { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'horas_int', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'minutos_total', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
-                ]}
-                data={operadoresPaginados}
-                onRowClick={(row: any) => {
-                  setFilters((f) => ({ ...f, operador: row.nome_operador }));
-                  setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
-                }}
-                emptyMessage="Sem operadores nos resultados atuais."
-              />
+              {(() => {
+                const maxHoras = Math.max(...operadoresAgg.map((o: any) => o.total_horas || 0), 1);
+                return (
+                  <DataTable
+                    columns={[
+                      { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono tabular-nums' },
+                      { key: 'nome_operador', header: 'Operador', align: 'left' },
+                      { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => <span className="tabular-nums">{formatNumber(v, 0)}</span> },
+                      {
+                        key: 'carga',
+                        header: 'Carga',
+                        align: 'left',
+                        render: (_v, row: any) => {
+                          const pct = Math.min(100, Math.round(((row.total_horas || 0) / maxHoras) * 100));
+                          return (
+                            <div className="flex items-center gap-2 min-w-[120px]">
+                              <Progress value={pct} className="h-1.5 flex-1" />
+                              <span className="text-[11px] tabular-nums text-muted-foreground w-9 text-right">{pct}%</span>
+                            </div>
+                          );
+                        },
+                      },
+                      {
+                        key: 'horas_int',
+                        header: 'Horas',
+                        align: 'right',
+                        render: (v, row: any) => {
+                          const h = Number(row.total_horas || 0);
+                          const tone =
+                            h > 10 ? 'bg-destructive/15 text-destructive border-destructive/30'
+                            : h > 8 ? 'bg-[hsl(var(--warning))]/15 text-[hsl(var(--warning))] border-[hsl(var(--warning))]/30'
+                            : 'bg-[hsl(var(--success))]/15 text-[hsl(var(--success))] border-[hsl(var(--success))]/30';
+                          return (
+                            <span className={cn('inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold tabular-nums', tone)}>
+                              {formatNumber(v, 0)}h
+                            </span>
+                          );
+                        },
+                      },
+                      { key: 'minutos_total', header: 'Minutos', align: 'right', render: (v) => <span className="tabular-nums">{formatNumber(v, 0)}</span> },
+                      { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => <span className="tabular-nums">{formatNumber(v, 0)}</span> },
+                    ]}
+                    data={operadoresPaginados}
+                    onRowClick={(row: any) => {
+                      setFilters((f) => ({ ...f, operador: row.nome_operador }));
+                      setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
+                    }}
+                    emptyMessage="Sem operadores nos resultados atuais."
+                  />
+                );
+              })()}
               {totalPaginasOp > 1 && (
                 <PaginationControl
                   pagina={paginaOperadores}
