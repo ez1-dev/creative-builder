@@ -1584,6 +1584,55 @@ export default function AuditoriaApontamentoGeniusPage() {
       )}
 
 
+      {/* Resumo por Operador — agregado dos resultados visíveis */}
+      {data && !loading && operadoresAgg.length > 0 && (
+        <Card className="overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setOperadoresAbertos((v) => !v)}
+            className="w-full flex items-center justify-between gap-2 px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2">
+              {operadoresAbertos ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <UserCheck className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">Operadores no período</span>
+              <Badge variant="secondary" className="text-xs">{operadoresAgg.length}</Badge>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span>Total: <strong className="text-foreground">{formatNumber(operadoresAgg.reduce((s, o) => s + o.total_horas, 0), 2)} h</strong></span>
+              <span>OPs únicas: <strong className="text-foreground">{new Set(aplicarFiltroListaApontGenius.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
+            </div>
+          </button>
+          {operadoresAbertos && (
+            <div className="border-t p-3 space-y-2">
+              {data.total_paginas > 1 && (
+                <Alert className="py-2">
+                  <Info className="h-3.5 w-3.5" />
+                  <AlertDescription className="text-xs">
+                    Agregado da página atual ({pagina} de {data.total_paginas}). Use Exportar para visão completa.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <DataTable
+                columns={[
+                  { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono' },
+                  { key: 'nome_operador', header: 'Operador', align: 'left' },
+                  { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
+                  { key: 'total_horas', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 2) },
+                  { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
+                ]}
+                data={operadoresAgg}
+                onRowClick={(row: any) => {
+                  setFilters((f) => ({ ...f, operador: row.nome_operador }));
+                  setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
+                }}
+                emptyMessage="Sem operadores nos resultados atuais."
+              />
+            </div>
+          )}
+        </Card>
+      )}
+
       <DataTable
         columns={columns}
         data={aplicarFiltroListaApontGenius}
