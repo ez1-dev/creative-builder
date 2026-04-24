@@ -713,7 +713,57 @@ export default function AuditoriaApontamentoGeniusPage() {
     setOpSelecionada(null);
     setDrawerAberto(false);
     setUltimaAtualizacao(null);
+    setOperadoresFullData(null);
+    setOperadoresFullTruncado(false);
   }, []);
+
+  // Carrega dataset completo (todas as páginas) para alimentar o agregado
+  // de "Operadores no período", independentemente da paginação principal.
+  useEffect(() => {
+    if (!data) { setOperadoresFullData(null); setOperadoresFullTruncado(false); return; }
+    const totalRegistros = data.total_registros ?? data.dados?.length ?? 0;
+    // Se cabe em 1 página (≤100), reusa o que já temos.
+    if (totalRegistros <= (data.dados?.length ?? 0)) {
+      setOperadoresFullData((data.dados ?? []).map(normalizeRowApont));
+      setOperadoresFullTruncado(false);
+      return;
+    }
+    let cancelado = false;
+    const TAMANHO = 5000;
+    const MAX_PAGS = 3; // até 15k registros
+    (async () => {
+      setLoadingOperadores(true);
+      try {
+        const consolidado: any[] = [];
+        let truncado = false;
+        for (let p = 1; p <= MAX_PAGS; p++) {
+          const res = await api.get<AuditoriaApontamentoGeniusResponse>(
+            '/api/apontamentos-producao',
+            buildAuditoriaListParams(filters, p, TAMANHO),
+          );
+          const linhas = (res.dados ?? []).map(normalizeRowApont);
+          consolidado.push(...linhas);
+          const totalPag = res.total_paginas ?? 1;
+          if (p >= totalPag) break;
+          if (p === MAX_PAGS && totalPag > MAX_PAGS) { truncado = true; break; }
+        }
+        if (!cancelado) {
+          setOperadoresFullData(consolidado);
+          setOperadoresFullTruncado(truncado);
+        }
+      } catch (e: any) {
+        if (!cancelado) {
+          setOperadoresFullData(null);
+          setOperadoresFullTruncado(false);
+          logError({ module: '/api/apontamentos-producao (full operadores)', message: e?.message ?? 'Falha ao carregar agregado completo de operadores', statusCode: e?.statusCode });
+        }
+      } finally {
+        if (!cancelado) setLoadingOperadores(false);
+      }
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const tempoDesdeAtualizacao = useMemo(() => {
     if (!ultimaAtualizacao) return null;
