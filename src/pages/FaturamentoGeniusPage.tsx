@@ -91,6 +91,7 @@ interface Filters {
   pedido: string;
   nf: string;
   somente_com_revenda: boolean;
+  somente_genius: boolean;
 }
 
 const initialFilters = (): Filters => ({
@@ -105,6 +106,7 @@ const initialFilters = (): Filters => ({
   pedido: '',
   nf: '',
   somente_com_revenda: false,
+  somente_genius: true,
 });
 
 function buildParams(f: Filters, extras?: Record<string, any>) {
