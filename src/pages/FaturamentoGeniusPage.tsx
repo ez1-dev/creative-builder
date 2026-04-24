@@ -179,11 +179,17 @@ export default function FaturamentoGeniusPage() {
       setDashboard(dash);
       setDetalhe(det);
       setBackendIndisponivel(false);
+      setFonteIndisponivel(false);
+      setAvisoAtualizacao(null);
     } catch (err: any) {
       if (err?.statusCode === 404) {
         setBackendIndisponivel(true);
         setError(MSG_404);
         toast.error(MSG_404);
+      } else if (isSqlObjectError(err)) {
+        setFonteIndisponivel(true);
+        setError(MSG_FONTE);
+        toast.error(MSG_FONTE);
       } else {
         setError(err?.message || 'Erro ao consultar');
         if (err?.statusCode !== 401) {
@@ -214,22 +220,37 @@ export default function FaturamentoGeniusPage() {
     setDetalhe(null);
     setError(null);
     setBackendIndisponivel(false);
+    setFonteIndisponivel(false);
+    setAvisoAtualizacao(null);
   };
 
   const atualizarComercial = async () => {
     setUpdating(true);
     try {
-      await api.post('/api/faturamento-genius/atualizar', {
+      const resp = await api.post<any>('/api/faturamento-genius/atualizar', {
         anomes_ini: filters.anomes_ini,
         anomes_fim: filters.anomes_fim,
       });
       setBackendIndisponivel(false);
-      toast.success('Atualização comercial concluída');
-      await consultar(1);
+      setFonteIndisponivel(false);
+      const respMsg = resp?.message ?? resp?.detail;
+      if (resp?.aplicavel === false || isNotApplicableMessage(respMsg)) {
+        const msg = (respMsg && String(respMsg)) || 'Atualização comercial não se aplica neste ambiente.';
+        setAvisoAtualizacao(msg);
+        toast.info(msg);
+      } else {
+        setAvisoAtualizacao(null);
+        toast.success('Atualização comercial concluída');
+        await consultar(1);
+      }
     } catch (err: any) {
       if (err?.statusCode === 404) {
         setBackendIndisponivel(true);
         toast.error(MSG_404);
+      } else if (isSqlObjectError(err)) {
+        setFonteIndisponivel(true);
+        setError(MSG_FONTE);
+        toast.error(MSG_FONTE);
       } else {
         toast.error(err?.message || 'Falha ao atualizar comercial');
       }
