@@ -41,6 +41,7 @@ import {
   Package,
   Loader2,
   RefreshCw,
+  Search,
 } from 'lucide-react';
 
 const fmtBRL = (v: number | null | undefined) => {
@@ -267,6 +268,15 @@ export default function FaturamentoGeniusPage() {
         description="Análise de faturamento por revenda, origem, cliente, pedido e nota fiscal"
         actions={
           <>
+            <Button size="sm" onClick={() => consultar(1)} disabled={loading}>
+              {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Search className="mr-1 h-3 w-3" />}
+              Consultar
+            </Button>
+            <ExportButton
+              endpoint="/api/export/faturamento-genius"
+              params={buildParams(filters)}
+              label="Exportar Excel"
+            />
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button size="sm" variant="outline" disabled={updating}>
@@ -288,11 +298,6 @@ export default function FaturamentoGeniusPage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <ExportButton
-              endpoint="/api/export/faturamento-genius"
-              params={buildParams(filters)}
-              label="Exportar Excel"
-            />
           </>
         }
       />
