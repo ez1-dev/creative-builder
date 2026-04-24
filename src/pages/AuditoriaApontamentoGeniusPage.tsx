@@ -637,10 +637,6 @@ export default function AuditoriaApontamentoGeniusPage() {
 
   const buscarAuditoriaApontamentoGenius = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
-    if (toIntOrUndef(filters.numop) === undefined || toIntOrUndef(filters.codori) === undefined) {
-      toast.error('Informe OP e Origem (ambos numéricos) para consultar.', { id: 'auditoria-genius-required' });
-      return;
-    }
     setLoading(true);
     try {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>(
@@ -1185,17 +1181,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 </span>
               )}
             </div>
-            <span
-              onClickCapture={(e) => {
-                if (!obrigatoriosPreenchidos) {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  toast.error('Informe OP e Origem (ambos numéricos) para exportar.', { id: 'auditoria-genius-export-required' });
-                }
-              }}
-            >
-              <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
-            </span>
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
       />
@@ -1360,7 +1346,7 @@ export default function AuditoriaApontamentoGeniusPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
               <div>
-                <Label className="text-xs">Número da OP <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Número da OP</Label>
                 <Input
                   value={filters.numop}
                   onChange={(e) => setFilters(f => ({ ...f, numop: e.target.value }))}
@@ -1378,7 +1364,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 />
               </div>
               <div>
-                <Label className="text-xs">Origem (GENIUS) <span className="text-destructive">*</span></Label>
+                <Label className="text-xs">Origem (GENIUS)</Label>
                 <ComboboxFilter
                   value={filters.codori}
                   onChange={(v) => setFilters(f => ({ ...f, codori: v }))}
