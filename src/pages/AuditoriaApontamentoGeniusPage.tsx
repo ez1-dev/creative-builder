@@ -1146,6 +1146,8 @@ export default function AuditoriaApontamentoGeniusPage() {
   );
 
   const exportParams = buildAuditoriaExportParams(filters);
+  const obrigatoriosPreenchidos =
+    toIntOrUndef(filters.numop) !== undefined && toIntOrUndef(filters.codori) !== undefined;
 
   return (
     <div className="space-y-4 p-4">
