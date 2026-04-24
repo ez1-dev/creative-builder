@@ -1,24 +1,35 @@
 
 
-## Adicionar busca por fornecedor no Painel de Compras
+## Trazer fornecedores do ERP no filtro do Painel de Compras
+
+### Situação atual
+Hoje a lista do combobox "Fornecedor" vem só dos resultados já carregados na tela (`data?.dados` → `fantasia_fornecedor`). Isso limita a busca: se o fornecedor não está na página atual, ele não aparece.
 
 ### O que muda
 
-**`src/pages/PainelComprasPage.tsx`**
-- Substituir o `<Input>` atual do filtro "Fornecedor" pelo componente `ComboboxFilter` (já existe no projeto, com ícone de busca/lupa nativo via `ChevronsUpDown` + campo de busca interno).
-- Popular as opções a partir dos fornecedores presentes em `data.dados` (campo do fornecedor retornado pela API), montando lista única ordenada.
-- Manter compatibilidade: o usuário pode digitar livremente um termo (busca parcial) ou escolher um fornecedor da lista. O valor segue indo no mesmo parâmetro de filtro atual.
+**1. Novo hook `src/hooks/useFornecedores.ts`**
+- Carrega lista completa de fornecedores do ERP via `api.get('/api/fornecedores')` quando `erpReady === true`.
+- Mapeia para `{ value: fantasia/nome, label: 'codigo - nome' }` (ajusto conforme campos reais retornados — provavelmente `codcli`/`nomcli`/`fantasia` ou `codigo`/`razao_social`/`fantasia`).
+- Mescla com fornecedores presentes em `data.dados` (mesmo padrão do `useErpOptions`) para garantir que nada some caso o endpoint não exista.
+- Trata 404/erro silenciosamente: se backend não tiver endpoint, mantém só os derivados dos resultados.
+- Retorna `{ fornecedores, loading }`.
 
-### Como fica
-- Campo "Fornecedor" passa a ter dropdown com lupa/seta, busca incremental dentro da lista e opção "Usar '<texto>'" quando o usuário digita algo que não está nas sugestões (comportamento padrão do `ComboboxFilter`).
-- Sem mudança de contrato com o backend — mesmo parâmetro, mesmo formato.
+**2. `src/pages/PainelComprasPage.tsx`**
+- Substituir o `useMemo` local de `fornecedoresOptions` pela chamada do novo hook.
+- Passar `loading` para o `ComboboxFilter` (lupa vira spinner enquanto carrega).
+- Mantém comportamento de digitar texto livre (busca parcial pelo backend continua funcionando porque o `value` enviado segue sendo string).
 
-### Detalhe técnico
-- Reaproveitar padrão já usado em `ComprasProdutoPage` (família/origem via `ComboboxFilter` + extração de únicos do `data.dados`).
-- Antes de codar, vou conferir em `PainelComprasPage.tsx` o nome exato do campo do fornecedor no filtro e na resposta (ex.: `fornecedor`, `nome_fornecedor`, `cod_fornecedor`) para mapear value/label corretamente.
-- Se houver endpoint dedicado tipo `/api/fornecedores`, uso ele como fonte primária e mesclo com os fornecedores da página atual (mesmo padrão do `useErpOptions`). Caso não exista, fica só com os derivados de `data.dados`.
+### Detalhes técnicos
+- Antes de codar, vou checar se já existe rota `/api/fornecedores` (ou similar) sendo consumida em outras telas, e qual o formato dos campos. Se houver padrão na base, sigo o mesmo.
+- Cache simples no hook (state) por sessão — uma chamada só ao montar o app a primeira vez que `erpReady` vira true.
+- Sem mudança no contrato com a API de busca: o filtro continua mandando `fornecedor=<texto>` igual hoje.
 
 ### Validação
-- Abrir `/painel-compras`, clicar no campo Fornecedor → dropdown abre com lista, lupa/seta visível, busca filtra a lista, seleção aplica o filtro e Pesquisar funciona normalmente.
-- Digitar texto livre que não está na lista → opção "Usar '<texto>'" aparece e aplica como filtro de busca parcial.
+- Abrir `/painel-compras`, abrir o combobox Fornecedor → mostra spinner brevemente, depois lista todos os fornecedores do ERP ordenados.
+- Digitar parte do nome → filtra na lista local (rápido, sem ir ao backend).
+- Selecionar um fornecedor e Pesquisar → request normal com `fornecedor=...`.
+- Se o endpoint não existir/falhar → cai no comportamento anterior (só fornecedores dos resultados), sem erro visível.
+
+### Risco
+- Se o backend não tiver endpoint `/api/fornecedores`, precisarei criar (fora do Lovable, no FastAPI). Nesse caso aviso e mantenho o fallback funcionando enquanto isso.
 
