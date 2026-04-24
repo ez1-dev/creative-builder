@@ -796,6 +796,12 @@ export default function AuditoriaApontamentoGeniusPage() {
   // ─── Resumo por Operador ─────────────────────────────────────────────────
   // Agrega as linhas já filtradas (status OP + filtro rápido) por operador.
   // Aggregação client-side sobre a página atual de data.dados.
+  const formatHorasMin = (totalHoras: number): string => {
+    const totalMin = Math.round((Number(totalHoras) || 0) * 60);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}h ${String(m).padStart(2, '0')}min`;
+  };
   const operadoresAgg = useMemo(() => {
     const rows = aplicarFiltroListaApontGenius;
     const map = new Map<string, {
