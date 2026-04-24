@@ -796,6 +796,12 @@ export default function AuditoriaApontamentoGeniusPage() {
   // ─── Resumo por Operador ─────────────────────────────────────────────────
   // Agrega as linhas já filtradas (status OP + filtro rápido) por operador.
   // Aggregação client-side sobre a página atual de data.dados.
+  const formatHorasMin = (totalHoras: number): string => {
+    const totalMin = Math.round((Number(totalHoras) || 0) * 60);
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+    return `${h}h ${String(m).padStart(2, '0')}min`;
+  };
   const operadoresAgg = useMemo(() => {
     const rows = aplicarFiltroListaApontGenius;
     const map = new Map<string, {
@@ -1599,7 +1605,7 @@ export default function AuditoriaApontamentoGeniusPage() {
               <Badge variant="secondary" className="text-xs">{operadoresAgg.length}</Badge>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>Total: <strong className="text-foreground">{formatNumber(operadoresAgg.reduce((s, o) => s + o.total_horas, 0), 2)} h</strong></span>
+              <span>Total: <strong className="text-foreground">{formatHorasMin(operadoresAgg.reduce((s, o) => s + o.total_horas, 0))}</strong></span>
               <span>OPs únicas: <strong className="text-foreground">{new Set(aplicarFiltroListaApontGenius.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
             </div>
           </button>
@@ -1618,7 +1624,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono' },
                   { key: 'nome_operador', header: 'Operador', align: 'left' },
                   { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'total_horas', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 2) },
+                  { key: 'total_horas', header: 'Horas (h/min)', align: 'right', render: (v) => formatHorasMin(Number(v) || 0) },
                   { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
                 ]}
                 data={operadoresAgg}
