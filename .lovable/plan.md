@@ -1,39 +1,53 @@
 
 
-## Paginação no card "Operadores no período"
+## Resumo por Operador cobrindo TODO o período filtrado
 
-### Situação atual
-O card mostra o aviso "Agregado da página atual (1 de 15). Use Exportar para visão completa." mas o agregado é feito só sobre `data.dados` (página atual da tabela principal). Não há como navegar entre páginas dentro do próprio card — o usuário depende da paginação da tabela principal.
+### Problema
+Hoje o card "Operadores no período" agrega apenas `data.dados` (página atual da tabela principal, ~100 registros). Se a busca tem 15 páginas, **só os operadores presentes na página visível aparecem**, e suas horas/OPs ficam subestimadas. O aviso "Agregado da página atual (1 de 15)" reflete isso.
 
-### O que muda
-Adicionar paginação **interna** ao card "Operadores no período" em `src/pages/AuditoriaApontamentoGeniusPage.tsx`, permitindo navegar pela lista de operadores agregados sem mexer na tabela principal.
+### Objetivo
+Fazer o card mostrar **todos os operadores do período filtrado**, com horas e OPs totais corretas, independentemente da paginação da tabela principal.
+
+### Estratégia
+Disparar uma **segunda requisição** ao backend (mesmos filtros da pesquisa, mas com `tamanho_pagina` grande) só para alimentar o agregado de operadores. A tabela principal continua paginada normalmente.
 
 ### Implementação
 
 **`src/pages/AuditoriaApontamentoGeniusPage.tsx`**
-- Novo estado local: `const [paginaOperadores, setPaginaOperadores] = useState(1)` e constante `OPERADORES_POR_PAGINA = 10`.
-- Derivar `operadoresPaginados` via `useMemo` a partir de `operadoresAgg`:
-  ```ts
-  const totalPaginasOp = Math.ceil(operadoresAgg.length / OPERADORES_POR_PAGINA);
-  const inicio = (paginaOperadores - 1) * OPERADORES_POR_PAGINA;
-  const operadoresPaginados = operadoresAgg.slice(inicio, inicio + OPERADORES_POR_PAGINA);
-  ```
-- Passar `operadoresPaginados` (em vez de `operadoresAgg`) para o `DataTable`.
-- Adicionar `<PaginationControl>` (já existe em `src/components/erp/PaginationControl.tsx`) abaixo do `DataTable` do card, usando:
-  - `pagina={paginaOperadores}`
-  - `totalPaginas={totalPaginasOp}`
-  - `totalRegistros={operadoresAgg.length}`
-  - `onPageChange={setPaginaOperadores}`
-- Reset automático: `useEffect` que zera `paginaOperadores` para `1` quando `operadoresAgg.length` mudar (novo filtro/pesquisa).
-- Esconder o controle quando `totalPaginasOp <= 1`.
 
-### Detalhe sobre o aviso existente
-O aviso "Agregado da página atual (1 de 15)" continua igual — refere-se à paginação da **tabela principal** de apontamentos (que vem do backend). A nova paginação é só dentro do card de operadores e opera sobre o agregado já calculado.
+1. Novo estado:
+   ```ts
+   const [operadoresFullData, setOperadoresFullData] = useState<any[] | null>(null);
+   const [loadingOperadores, setLoadingOperadores] = useState(false);
+   ```
+
+2. Novo `useEffect` que dispara quando `data` muda (ou seja, após cada Pesquisar bem-sucedido):
+   - Reusa `buildAuditoriaListParams(filters, 1, 5000)` (mesmo helper já exportado).
+   - Chama `api.get('/api/apontamentos-producao', params)` com tamanho_pagina alto (ex.: 5000).
+   - Se `total_registros > 5000`, faz loop paginando até consolidar todos.
+   - Salva o array completo em `operadoresFullData`.
+   - Em caso de erro, faz fallback silencioso para `data.dados` (comportamento atual) e loga via `errorLogger`.
+
+3. Ajustar o `useMemo` `operadoresAgg`:
+   - Fonte passa a ser `operadoresFullData ?? aplicarFiltroListaApontGenius`.
+   - Aplica os mesmos filtros locais (`statusOp`, `quickFilter`) sobre o dataset completo para manter consistência visual.
+
+4. UI do card:
+   - Remover/ajustar o aviso "Agregado da página atual (X de Y)" — quando `operadoresFullData` estiver carregado, mostrar "Agregado de todos os N apontamentos do período".
+   - Enquanto `loadingOperadores=true`, exibir um pequeno spinner inline no header do card e desabilitar a paginação interna.
+
+5. Reset: quando o usuário clica Limpar ou muda filtros antes de Pesquisar, zerar `operadoresFullData` para evitar dados obsoletos.
+
+### Detalhes técnicos
+- Limite de 5000 por chamada protege a UI; se necessário, paginar até 3 páginas (15k registros) — suficiente para janelas de período típicas. Acima disso, manter o aviso e sugerir Exportar.
+- Sem mudança de contrato no backend.
+- Reaproveita os helpers `buildAuditoriaListParams` e `formatHorasMin` já existentes.
+- A paginação interna do card (10 por página) continua igual.
 
 ### Validação
-- Após pesquisar com muitos operadores, o card mostra 10 operadores por vez + controle de paginação no rodapé com "Página 1 de N (X registros)".
-- Botões ‹‹ ‹ › ›› navegam corretamente.
-- Mudar filtro e pesquisar de novo → card volta para página 1 automaticamente.
-- Se houver ≤10 operadores, controle de paginação não aparece.
-- Ordenação por colunas (clique no header) continua funcionando dentro da página atual.
+- Pesquisar período com 15 páginas (1500 registros) → card mostra todos os operadores do período, horas batendo com a soma real.
+- Trocar página da tabela principal → lista de operadores NÃO muda (continua sendo total do período).
+- Mudar filtro de status/quickFilter → operadores recalculam coerentemente sobre o dataset completo.
+- Header do card mostra "Agregado de N apontamentos do período" em vez de "página atual".
+- Spinner aparece no card enquanto a busca completa carrega; tabela principal já é utilizável antes.
 
