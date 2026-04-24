@@ -1,39 +1,48 @@
 
 
-## Tratamento de 404 e confirmação de endpoints — Faturamento Genius
+## Ajustes pontuais — Faturamento Genius
 
-### 1. Mensagem amigável para 404
-No `consultar()` e em `atualizarComercial()` de `src/pages/FaturamentoGeniusPage.tsx`, detectar `err.statusCode === 404` (já exposto pelo `api.ts`) e:
-- Exibir `toast.error` com a mensagem:  
-  *"Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI."*
-- Renderizar um banner inline (`Alert` destrutivo leve) acima dos KPIs com a mesma mensagem enquanto `dashboard` estiver vazio por causa do 404 — assim o usuário entende por que não há dados.
-- Estado novo: `backendIndisponivel: boolean`, setado em `true` no catch de 404 e resetado em `true→false` em qualquer resposta OK.
+Apenas refinamentos na página existente. Sem alterar endpoints, sem SQL no frontend, sem nomes de tabela/schema usados para montar consulta (apenas como texto informativo permitido pelo enunciado).
 
-Demais erros (500, 401, etc.) continuam tratados como já estão (`ErpConnectionAlert` para 401, `toast.error` para o restante).
+### Arquivo afetado
+`src/pages/FaturamentoGeniusPage.tsx`
 
-### 2. Confirmação dos endpoints
-Auditoria confirma que a página já chama exatamente:
-- `GET /api/faturamento-genius-dashboard` (em `consultar`)
-- `GET /api/faturamento-genius` (em `consultar` e paginação)
-- `GET /api/export/faturamento-genius` (via `<ExportButton endpoint="...">`)
-- `POST /api/faturamento-genius/atualizar` (em `atualizarComercial`)
+### Mudanças
 
-Nenhuma alteração necessária — apenas validar que os paths estão idênticos no código após o ajuste.
+**1. Atualizar nota técnica do rodapé (linhas 482-485)**  
+Substituir o parágrafo atual pelo novo texto:
+> *"A revenda vem do campo CD_REV_PEDIDO retornado pelo backend. No ERP Genius, a origem provável é a view USU_VMBRUTANFE, e para produtos a revenda nasce do pedido/item, especialmente E120IPD.USU_REVPED. Serviços/devoluções podem aparecer como OUTROS conforme a origem da view."*
 
-### 3 e 4. Base URL via `VITE_API_BASE_URL` com fallback `window.location.origin`
-Hoje `src/lib/api.ts` usa `VITE_API_URL` com fallback `'http://localhost:8000'`. Para atender ao requisito **sem quebrar outras páginas**:
-- Ajustar `getApiBaseUrl()` em `src/lib/api.ts` para a ordem: `_apiBaseUrl` → `import.meta.env.VITE_API_BASE_URL` → `import.meta.env.VITE_API_URL` → `window.location.origin` (e só cair em `'http://localhost:8000'` se `window` não existir, ex.: SSR/teste).
-- Isso preserva o comportamento atual de quem já usa `VITE_API_URL` e adiciona o suporte ao novo nome solicitado, com o fallback correto para `window.location.origin`.
+**2. "Atualizar Comercial" — tratar resposta de "não aplicável" como aviso**  
+No `atualizarComercial()`:
+- Após `await api.post(...)`, capturar o retorno (`const resp = await api.post<any>(...)`).
+- Se `resp?.aplicavel === false` **ou** `resp?.message`/`resp?.detail` contiver termos como `não se aplica`, `nao se aplica`, `not applicable`, `indisponível neste ambiente`: exibir `toast.info(mensagem)` (warning, não erro), **não** chamar `consultar(1)` automaticamente, e armazenar a mensagem em novo estado `avisoAtualizacao` que renderiza um `Alert` neutro (sem `variant="destructive"`) acima dos KPIs com título "Atualização comercial não aplicável".
+- Caso contrário, manter comportamento atual (`toast.success` + `consultar(1)`).
+- Resetar `avisoAtualizacao` em nova consulta bem-sucedida e em `limpar()`.
 
-### 5. Nota técnica preservada
-A nota de rodapé (`"A revenda vem de VM_FATURAMENTO.CD_REV_PEDIDO. Para produtos, a origem é E120IPD.USU_REVPED; serviços/devoluções podem aparecer como OUTROS conforme a view atual."`) **permanece inalterada** ao final da página.
+**3. Tratar erro SQL "objeto inválido" como caso específico**  
+Adicionar novo estado `fonteIndisponivel: boolean` e nova constante:
+```
+MSG_FONTE = 'Fonte de faturamento não localizada no banco. Verifique no backend se o objeto configurado existe, por exemplo dbo.USU_VMBRUTANFE.'
+```
+No `catch` de `consultar()` e `atualizarComercial()`, **antes** dos demais ramos:
+- Detectar erro SQL examinando `err?.message`, `err?.details` e `err?.statusCode`. Considerar match quando a string contiver `42S02`, `Nome de objeto`, `Invalid object name` ou `objeto` + `inválido` (case-insensitive).
+- Setar `fonteIndisponivel = true`, `error = MSG_FONTE`, `toast.error(MSG_FONTE)`.
+- Renderizar `Alert variant="destructive"` com `AlertTriangle`, título "Fonte de faturamento indisponível" e descrição `MSG_FONTE`, posicionado junto ao banner de `backendIndisponivel`. Resetar em consulta OK e em `limpar()`.
 
-### Arquivos afetados
-- `src/pages/FaturamentoGeniusPage.tsx` — tratar 404 (toast + banner) e estado `backendIndisponivel`.
-- `src/lib/api.ts` — ajustar resolução do base URL (acrescentar `VITE_API_BASE_URL` e fallback `window.location.origin`).
+**4. Ordem de prioridade dos banners (de cima para baixo)**  
+1. `backendIndisponivel` (404)  
+2. `fonteIndisponivel` (erro SQL de objeto)  
+3. `avisoAtualizacao` (info)  
+4. `error` genérico (mantido como hoje)
+
+### O que NÃO muda
+- Endpoints (`GET /api/faturamento-genius-dashboard`, `GET /api/faturamento-genius`, `GET /api/export/faturamento-genius`, `POST /api/faturamento-genius/atualizar`).
+- Filtros, paginação, KPIs, tabelas, exportação, Switch "Somente com revenda".
+- Página continua consumindo apenas a API; nenhum SQL é montado no frontend; nenhum nome de tabela/schema é usado para construir consulta (somente como texto informativo nas mensagens, conforme solicitado).
 
 ### Garantias
-- Lógica de filtros, paginação, KPIs, tabelas, exportação e atualização comercial **não muda**.
-- Nenhuma outra página é afetada (mudança em `api.ts` é aditiva e mantém `VITE_API_URL` como prioridade legada).
-- Sem dados mockados; sem alteração no backend.
+- Sem alteração em outras páginas, em `api.ts` ou em qualquer migration.
+- Sem dados mockados.
+- Tratamento de 401 (`ErpConnectionAlert`) e 404 (banner existente) preservados.
 
