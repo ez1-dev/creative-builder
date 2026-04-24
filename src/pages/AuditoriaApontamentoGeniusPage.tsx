@@ -826,13 +826,18 @@ export default function AuditoriaApontamentoGeniusPage() {
       agg.apontamentos += 1;
     }
     return Array.from(map.values())
-      .map((a) => ({
-        numcad: a.numcad,
-        nome_operador: a.nome_operador,
-        ops_count: a.ops.size,
-        total_horas: a.total_min / 60,
-        apontamentos: a.apontamentos,
-      }))
+      .map((a) => {
+        const totalMin = Math.round(a.total_min);
+        return {
+          numcad: a.numcad,
+          nome_operador: a.nome_operador,
+          ops_count: a.ops.size,
+          total_horas: a.total_min / 60,
+          horas_int: Math.floor(totalMin / 60),
+          minutos_resto: totalMin % 60,
+          apontamentos: a.apontamentos,
+        };
+      })
       .sort((a, b) => b.total_horas - a.total_horas);
   }, [aplicarFiltroListaApontGenius]);
 
