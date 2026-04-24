@@ -182,6 +182,7 @@ export default function FaturamentoGeniusPage() {
     setDashboard(null);
     setDetalhe(null);
     setError(null);
+    setBackendIndisponivel(false);
   };
 
   const atualizarComercial = async () => {
@@ -191,10 +192,16 @@ export default function FaturamentoGeniusPage() {
         anomes_ini: filters.anomes_ini,
         anomes_fim: filters.anomes_fim,
       });
+      setBackendIndisponivel(false);
       toast.success('Atualização comercial concluída');
       await consultar(1);
     } catch (err: any) {
-      toast.error(err?.message || 'Falha ao atualizar comercial');
+      if (err?.statusCode === 404) {
+        setBackendIndisponivel(true);
+        toast.error(MSG_404);
+      } else {
+        toast.error(err?.message || 'Falha ao atualizar comercial');
+      }
     } finally {
       setUpdating(false);
     }
