@@ -912,14 +912,16 @@ export default function AuditoriaApontamentoGeniusPage() {
     }
     return Array.from(map.values())
       .map((a) => {
-        const totalMin = Math.round(a.total_min);
+        // a.total_min na verdade acumula horas_realizadas (em horas decimais)
+        const totalHoras = a.total_min;
+        const totalMin = Math.round(totalHoras * 60);
         return {
           numcad: a.numcad,
           nome_operador: a.nome_operador,
           ops_count: a.ops.size,
-          total_horas: a.total_min / 60,
+          total_horas: totalHoras,
           horas_int: Math.floor(totalMin / 60),
-          minutos_resto: totalMin % 60,
+          minutos_total: totalMin,
           apontamentos: a.apontamentos,
         };
       })
@@ -1739,7 +1741,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'nome_operador', header: 'Operador', align: 'left' },
                   { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'horas_int', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'minutos_resto', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
+                  { key: 'minutos_total', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
                 ]}
                 data={operadoresPaginados}
