@@ -611,6 +611,10 @@ export default function AuditoriaApontamentoGeniusPage() {
   loadingRef.current = loading;
   const buscarRef = useRef<(page?: number) => Promise<void>>();
 
+  const [operadoresFullData, setOperadoresFullData] = useState<any[] | null>(null);
+  const [loadingOperadores, setLoadingOperadores] = useState(false);
+  const [operadoresFullTruncado, setOperadoresFullTruncado] = useState(false);
+
   const abrirDetalhesOp = useCallback((row: any) => {
     setOpSelecionada(row);
     setDrawerAberto(true);
