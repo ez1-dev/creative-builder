@@ -1,38 +1,84 @@
 
 
-## Adicionar testes — busca sem OP/Origem retorna todos os apontamentos
+## Backend ainda exige numorp/codori — correção fora do Lovable
 
-### Objetivo
-Garantir, via testes automatizados, que ao clicar Pesquisar com OP e Origem vazios:
-- O request sai sem `numorp` e sem `codori` na URL.
-- Os demais filtros (`data_ini`, `data_fim`, `codpro`, `operador`, `status_op`, `somente_discrepancia`, `somente_acima_8h`) são enviados normalmente.
-- A resposta do backend (mockada) com todos os apontamentos é refletida na tela.
+### Diagnóstico
+O erro `numorp: Field required; codori: Field required` é resposta **422 do FastAPI**, não erro do frontend. Significa que o backend ainda declara esses dois parâmetros como obrigatórios na rota `/api/apontamentos-producao`.
 
-### Arquivos
+O frontend deste projeto já está 100% correto:
+- `buildAuditoriaListParams` omite `numorp`/`codori` quando vazios (testado em `AuditoriaApontamentoGeniusPage.contract.test.tsx`).
+- `api.get` não inclui chaves `undefined` na URL (testado em `api.test.ts` e `AuditoriaApontamentoGeniusPage.search.test.tsx`).
+- UI sem asterisco, sem bloqueio de submit, sem guard no export.
 
-**1) `src/pages/__tests__/AuditoriaApontamentoGeniusPage.contract.test.tsx`** (estender)
+**Não há nada para corrigir no Lovable.** A correção é no seu repositório FastAPI (fora deste projeto).
 
-Adicionar bloco `describe('busca ampla sem OP/Origem')` com casos:
-- `buildAuditoriaListParams` com OP e Origem vazios + datas/produto/operador/status preenchidos → params contém `data_ini`, `data_fim`, `codpro`, `operador`, `status_op` e NÃO contém `numorp`/`codori`.
-- `buildAuditoriaExportParams` com mesma entrada → idem, sem `pagina`/`tamanho_pagina`.
-- Caso com somente datas (todos os outros vazios) → request mínimo viável, só `data_ini`/`data_fim` + flags 0/0 + paginação.
+### O que você precisa fazer no backend FastAPI
 
-**2) `src/pages/__tests__/AuditoriaApontamentoGeniusPage.search.test.tsx`** (novo)
+Em **ambas** as rotas (`/api/apontamentos-producao` e `/api/export/apontamentos-producao`), trocar a assinatura para:
 
-Teste de integração leve com `@testing-library/react`:
-- Mock de `global.fetch` retornando `{ dados: [...3 apontamentos...], resumo: {...}, total: 3, pagina: 1, tamanho_pagina: 100 }`.
-- Renderiza `<AuditoriaApontamentoGeniusPage />` envolvido em `MemoryRouter` + `QueryClientProvider` + `AuthContext` mock + `AiPageContext` mock conforme padrão do projeto (ver `KpiDeepSheet.test.tsx` para referência).
-- Mantém OP e Origem vazios, mantém datas default, clica no botão "Pesquisar".
-- Verifica que `fetch` foi chamado com URL contendo `/api/apontamentos-producao`, `data_ini=`, `data_fim=` e SEM `numorp=`/`codori=`.
-- Verifica que as 3 linhas mockadas aparecem na tabela (`screen.findAllByRole('row')` ou checagem por número de OP retornado).
+```python
+from typing import Optional
 
-**3) Sem mudanças** em `src/lib/__tests__/api.test.ts` e `src/components/erp/__tests__/ExportButton.test.tsx` — já cobrem omissão de chaves vazias.
+@app.get('/api/apontamentos-producao')
+def consultar_apontamentos_producao(
+    data_ini: Optional[str] = None,
+    data_fim: Optional[str] = None,
+    numorp: Optional[int] = None,      # <-- era obrigatório, agora opcional
+    codori: Optional[int] = None,      # <-- era obrigatório, agora opcional
+    codpro: Optional[str] = None,
+    operador: Optional[str] = None,
+    status_op: Optional[str] = None,
+    somente_discrepancia: int = 0,
+    somente_acima_8h: int = 0,
+    pagina: int = 1,
+    tamanho_pagina: int = 100,
+    usuario=Depends(validar_token),
+):
+    where_parts = []
+    params_where = []
 
-### Validação
-`npx vitest run` → todos os testes passam (incluindo os novos).
+    if data_ini:
+        where_parts.append("BASE.data_movimento >= ?")
+        params_where.append(data_ini)
+    if data_fim:
+        where_parts.append("BASE.data_movimento <= ?")
+        params_where.append(data_fim)
+    if numorp is not None:                        # <-- só filtra se veio
+        where_parts.append("BASE.numero_op = ?")
+        params_where.append(numorp)
+    if codori is not None:                        # <-- só filtra se veio
+        where_parts.append("BASE.origem = ?")
+        params_where.append(codori)
+    if codpro:
+        where_parts.append("BASE.codigo_produto LIKE ?")
+        params_where.append(f"%{codpro}%")
+    if operador:
+        where_parts.append("BASE.nome_operador LIKE ?")
+        params_where.append(f"%{operador}%")
+    if status_op and status_op != 'TODOS':
+        where_parts.append("BASE.status_movimento = ?")
+        params_where.append(status_op)
+    # ... resto da lógica
+```
 
-### Detalhe técnico
-- O teste de integração precisa inspecionar os providers usados em `App.tsx` para o wrapper. Se `KpiDeepSheet.test.tsx` já tem um helper de render, reusá-lo. Caso contrário, criar wrapper inline mínimo (Router + QueryClient).
-- Se a página usar hooks que tocam Supabase no mount (ex.: `useAiPageContext`), mockar via `vi.mock('@/contexts/AiPageContext', ...)` retornando no-op.
-- Mock de fetch deve casar tanto a chamada de listagem quanto qualquer chamada paralela de sugestões/opções (responder `{ dados: [] }` como fallback genérico).
+Repetir o mesmo padrão em `/api/export/apontamentos-producao`.
+
+**Pontos críticos:**
+1. `Optional[int] = None` — sem `= None` o FastAPI continua exigindo.
+2. Usar `if numorp is not None` no SQL (não `if numorp`, porque `0` seria falso).
+3. Reiniciar o serviço FastAPI depois do deploy.
+
+### Como confirmar que funcionou
+Após subir o backend:
+1. Abrir `/auditoria-apontamento-genius`, deixar OP e Origem vazios, clicar Pesquisar → request sem `numorp`/`codori` na URL → **200 OK** com todos os apontamentos do período (não mais 422).
+2. Preencher só OP `12345` → request com `numorp=12345` → 200 OK filtrado.
+3. Exportar com vazios → Excel completo.
+
+### Por que o Lovable não pode resolver isso
+- `Field required` é validação **server-side** do Pydantic/FastAPI, gerada antes de o handler rodar.
+- Não existe ajuste no frontend (omitir, mandar `null`, mandar string vazia, mandar `0`) que faça o FastAPI aceitar — qualquer coisa diferente de "parâmetro ausente sendo opcional na assinatura" volta 422.
+- Lovable só edita o código deste projeto (React/TypeScript). O FastAPI vive no seu servidor/repo separado.
+
+### Se quer evitar o 422 visível na tela enquanto o backend não muda
+Posso adicionar tratamento extra no frontend para detectar especificamente esse 422 e exibir uma mensagem amigável tipo "Backend ainda não suporta busca sem OP/Origem — preencha ambos para consultar". Mas isso é paliativo, não corrige o problema. Se quiser esse paliativo, peça explicitamente.
 
