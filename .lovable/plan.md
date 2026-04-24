@@ -1,110 +1,84 @@
+## Problema
 
-## Objetivo
+Na tela `/faturamento-genius`, com toggle "Incluir OUTROS" desligado (visão somente Genius), os cards de Volume Financeiro divergem do relatório oficial Genius (Jan–Abr/2026: Fat. 794.052, Dev. 8.879, Impostos -120.598, Fat.Líq. 653.862, Margem real ≈ Fat.Líq − Custo).
 
-Adicionar uma linha **TOTAL** (Esperado vs API) ao final da tabela do painel **Validação Genius (QA)** em `/faturamento-genius`, com os agregados do período corrigidos:
+A causa é que `computeKpis` (linha ~241 de `FaturamentoGeniusPage.tsx`) faz somas linha-a-linha do detalhe sem aplicar as convenções da visão Genius:
 
-- **Fat., Dev., Impostos, Fat. Líq., Qtd, Nº Vendas** = soma simples dos meses
-- **% Rep (Total)** = `100,00%` (fixo, é o todo)
-- **% Dev. (Total)** = `sum(dev) / sum(fat) * 100` (ponderado, não média de %)
-- **Preço Médio (Total)** = `sum(fat) / sum(qtd)` (ponderado)
-- **Ticket Médio (Total)** = `sum(fat) / sum(n_vendas)` (ponderado, com NFs distintas no período inteiro)
-- **Nº Vendas (Total)** = `COUNT DISTINCT` de NFs em todo o período (não soma dos meses, evita duplicidade entre meses, embora na prática seja igual)
-- **Nº Clientes (Total)** = `COUNT DISTINCT` de clientes em **todo o período** (não a soma dos `n_clientes` mensais — um cliente que compra em 3 meses conta 1 vez)
+- **Valor Total** mostrado como soma bruta de `valor_total`, sem deduzir devolução nem impostos. Na visão Genius, esse card deve representar o **Faturamento (R$)** = soma de `valor_total` (que já é o faturamento bruto da operação, sem devolução) — precisa bater **794.052**.
+- **Margem Bruta** = `valor_total − valor_custo`. Ignora devolução e impostos, inflando a margem. O correto é `Fat.Líq − Custo`, onde `Fat.Líq = valor_total − devolução − |impostos|` (mesma fórmula já validada na linha TOTAL da tabela QA).
+- **Margem %** = `margem_bruta / valor_total`. Deveria ser `margem_bruta_corrigida / fat_liq` (ou ao menos `/ (valor_total − devolução)`) para refletir a margem real Genius.
+- **Custo / Comissão**: revisar se o backend está incluindo linhas de devolução com sinal já invertido — se sim, a soma está correta; se não, precisamos descontar a parcela referente à devolução para evitar superestimar custo/comissão atribuídos ao faturamento líquido.
 
-## Valores esperados (referência do relatório oficial)
+## O que vai mudar
 
-| Campo | Valor |
-|---|---|
-| Fat. | 794.052 |
-| % Rep | 100,00% |
-| Dev. | 8.879 |
-| % Dev. | 1,12% |
-| Impostos | -120.598 |
-| Fat. Líq. | 653.862 |
-| Qtd | 11.430 |
-| Preço Médio | ~69 (794.052 / 11.430 = 69,47) |
-| Nº Vendas | 98 |
-| Nº Clientes | 34 (distintos no período) |
-| Ticket Médio | ~8.103 (794.052 / 98) |
+Arquivo único: `src/pages/FaturamentoGeniusPage.tsx`, função `computeKpis` (linhas ~241-265) e os cards (linhas ~726-732).
 
-## Alterações em código
-
-Arquivo único: `src/pages/FaturamentoGeniusPage.tsx` — componente `ValidacaoGeniusPanel`.
-
-### 1. Adicionar entrada TOTAL em `GENIUS_TARGETS`
-
-Acrescentar uma chave especial `'TOTAL'` ao objeto `GENIUS_TARGETS` (linhas ~1059-1062) com os valores oficiais agregados acima.
-
-### 2. Calcular o TOTAL agregado a partir de `linhasGenius`
-
-Dentro do `useMemo` que produz `linhasComparacao` (linhas ~1082-1127), após montar `porMes`, computar um objeto `totalComputed` rodando uma única passada sobre `linhasGenius` (não sobre `porMes`) para garantir contagens distintas corretas:
+### 1. Reescrever `computeKpis` para refletir a visão Genius
 
 ```ts
-const nfsPeriodo = new Set<string>();
-const clientesPeriodo = new Set<string>();
-let fatTot = 0, devTot = 0, impTot = 0, qtdTot = 0;
+function computeKpis(rows: any[]) {
+  let valor_total = 0, valor_bruto = 0, valor_devolucao = 0;
+  let valor_custo = 0, valor_comissao = 0, valor_impostos = 0;
+  // ... contagens distintas (mantidas)
 
-linhasGenius.forEach((r) => {
-  fatTot  += Number(r.valor_total)     || 0;
-  devTot  += Number(r.valor_devolucao) || 0;
-  impTot  += -((Number(r.valor_icms)||0)+(Number(r.valor_ipi)||0)+(Number(r.valor_pis)||0)+(Number(r.valor_cofins)||0));
-  qtdTot  += Number(r.quantidade)      || 0;
-  nfsPeriodo.add(`${r.empresa}-${r.filial}-${r.numero_nf}-${r.serie_nf}`);
-  clientesPeriodo.add(String(r.cliente || ''));
-});
+  for (const r of rows) {
+    valor_total      += Number(r.valor_total ?? 0);
+    valor_bruto      += Number(r.valor_bruto ?? 0);
+    valor_devolucao  += Number(r.valor_devolucao ?? 0);
+    valor_custo      += Number(r.valor_custo ?? 0);
+    valor_comissao   += Number(r.valor_comissao ?? 0);
+    valor_impostos   += (Number(r.valor_icms ?? 0) + Number(r.valor_ipi ?? 0)
+                       + Number(r.valor_pis ?? 0)  + Number(r.valor_cofins ?? 0));
+    // ... sets distintos
+  }
 
-const totalComputed = {
-  fat: fatTot,
-  pct_rep: 100,                                   // sempre 100% para o total
-  dev: devTot,
-  pct_dev: fatTot > 0 ? (devTot / fatTot) * 100 : 0,
-  impostos: impTot,
-  fat_liq: fatTot - devTot - Math.abs(impTot),
-  qtd: qtdTot,
-  preco_medio: qtdTot > 0 ? fatTot / qtdTot : 0,  // ponderado, não média
-  n_vendas: nfsPeriodo.size,                      // distintas no período
-  n_clientes: clientesPeriodo.size,               // distintas no período
-  ticket_medio: nfsPeriodo.size > 0 ? fatTot / nfsPeriodo.size : 0,
-};
+  const fat_liquido     = valor_total - valor_devolucao - valor_impostos;
+  const margem_bruta    = fat_liquido - valor_custo;          // antes: valor_total - valor_custo
+  const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
+
+  return {
+    valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
+    valor_impostos, fat_liquido,
+    margem_bruta, margem_percentual,
+    // ... contagens
+  };
+}
 ```
 
-Retornar do `useMemo` `{ porAnomes: [...], total: { target: GENIUS_TARGETS.TOTAL, computed: totalComputed } }`.
+### 2. Adicionar 2 cards novos (Impostos e Fat. Líquido) e ajustar tooltips
 
-### 3. Renderizar a linha TOTAL no `<tbody>`
+Atualizar a linha de cards de Volume Financeiro (linhas ~726-732) para:
 
-Após o `.map` das linhas mensais (linhas ~1213-1231), acrescentar duas linhas com cabeçalho destacado (`bg-amber-100/40 font-semibold border-t-2`):
+| Card | Valor | Esperado Jan–Abr/26 |
+|---|---|---|
+| Faturamento (Valor Total) | `kpis.valor_total` | 794.052 |
+| Devolução | `kpis.valor_devolucao` | 8.879 |
+| Impostos | `kpis.valor_impostos` (novo) | 120.598 |
+| Fat. Líquido | `kpis.fat_liquido` (novo) | 653.862 |
+| Custo | `kpis.valor_custo` | (do ERP) |
+| Comissão | `kpis.valor_comissao` | (do ERP) |
+| Margem Bruta | `kpis.margem_bruta` (corrigida) | Fat.Líq − Custo |
+| Margem % | `kpis.margem_percentual` (corrigida) | Margem / Fat.Líq |
 
-```tsx
-<tr className="border-t-2 border-amber-400 bg-amber-100/30">
-  <td rowSpan={2} className="p-2 font-bold align-top">TOTAL<div className="text-[10px] text-muted-foreground">Jan–Abr/2026</div></td>
-  <td className="p-2 text-muted-foreground font-semibold">Esperado</td>
-  {campos.map((c) => (
-    <td key={c.key} className="p-2 text-right tabular-nums font-semibold">{fmtCmp(total.target[c.key], c.dec)}{c.suf || ''}</td>
-  ))}
-</tr>
-<tr className="bg-amber-100/20">
-  <td className="p-2 text-muted-foreground font-semibold">API</td>
-  {campos.map((c) => (
-    <td key={c.key} className={`p-2 text-right tabular-nums font-semibold ${statusCor(total.target[c.key], total.computed[c.key])}`}>
-      {fmtCmp(total.computed[c.key], c.dec)}{c.suf || ''}
-    </td>
-  ))}
-</tr>
-```
+Tooltips em cada card explicando a fórmula, para ficar claro o que cada número representa.
 
-### 4. Nota de rodapé
+### 3. Atualizar o tipo `KpisGenius`
 
-Acrescentar uma linha em `text-[10px] text-muted-foreground`:
+Adicionar `valor_impostos: number` e `fat_liquido: number`.
 
-> "Total: Nº Clientes e Nº Vendas usam contagem distinta no período (um cliente/NF aparece 1 vez, mesmo se em vários meses). Preço Médio e Ticket Médio são ponderados por Fat./Qtd e Fat./Nº Vendas."
+### 4. Sem mudanças em backend
 
-## Resultado
+Toda a correção é client-side, recalculando a partir do detalhe já filtrado (sem OUTROS). A tabela QA de validação continua existindo e servirá para confirmar que os cards passaram a bater com o oficial.
 
-A tabela QA passa a ter, ao final, uma linha TOTAL bem destacada com Esperado vs API. As fórmulas eliminam os bugs:
+## Resultado esperado
 
-- `Preço Médio` deixa de espelhar o último mês → vira `~69,47`
-- `Nº Clientes` deixa de ser soma (66) ou último mês → vira `34` (distintos no período)
-- `% Rep` deixa de ficar vazio → vira `100,00%`
-- `Ticket Médio` passa a usar agregação correta (`~8.103`)
+Após a mudança, com toggle "Incluir OUTROS" desligado e período Jan–Abr/2026, os cards mostram:
 
-Sem mudanças em backend ou em outras tabelas da página.
+- Faturamento ≈ R$ 794.052
+- Devolução ≈ R$ 8.879
+- Impostos ≈ R$ 120.598
+- Fat. Líquido ≈ R$ 653.862
+- Margem Bruta = Fat.Líq − Custo (real, não inflada)
+- Margem % = Margem / Fat.Líq
+
+Bate com a linha TOTAL da tabela QA Validação Genius já presente na página.
