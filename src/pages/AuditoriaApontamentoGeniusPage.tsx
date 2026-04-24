@@ -842,6 +842,14 @@ export default function AuditoriaApontamentoGeniusPage() {
   }, [aplicarFiltroListaApontGenius]);
 
   const [operadoresAbertos, setOperadoresAbertos] = useState(false);
+  const OPERADORES_POR_PAGINA = 10;
+  const [paginaOperadores, setPaginaOperadores] = useState(1);
+  const totalPaginasOp = Math.max(1, Math.ceil(operadoresAgg.length / OPERADORES_POR_PAGINA));
+  const operadoresPaginados = useMemo(() => {
+    const inicio = (paginaOperadores - 1) * OPERADORES_POR_PAGINA;
+    return operadoresAgg.slice(inicio, inicio + OPERADORES_POR_PAGINA);
+  }, [operadoresAgg, paginaOperadores]);
+  useEffect(() => { setPaginaOperadores(1); }, [operadoresAgg.length]);
 
   // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
   // (sintoma do JOIN com E930MPR estar quebrado no backend).
