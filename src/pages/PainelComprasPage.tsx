@@ -65,19 +65,7 @@ export default function PainelComprasPage() {
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'familia_item', origemKey: 'origem_item' });
-
-  const fornecedoresOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const opts: { value: string; label: string }[] = [];
-    (data?.dados || []).forEach((d: any) => {
-      const name = d.fantasia_fornecedor;
-      if (name && !seen.has(name)) {
-        seen.add(name);
-        opts.push({ value: name, label: name });
-      }
-    });
-    return opts.sort((a, b) => a.label.localeCompare(b.label));
-  }, [data]);
+  const { fornecedores: fornecedoresOptions, loading: fornecedoresLoading } = useFornecedores(erpReady, data?.dados);
 
   const trackSearch = useSearchTracking('painel-compras');
 
