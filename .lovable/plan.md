@@ -1,88 +1,100 @@
 
 
-## Modernização visual da página Auditoria Apontamento Genius
+## Nova página: Faturamento Genius
 
-Foco: tornar a página mais clara, hierárquica e operacional para o time de PCP, sem mudar regras de negócio nem dados.
+### Objetivo
+Criar painel completo de faturamento da Genius em `/faturamento-genius`, consumindo os 4 endpoints já existentes no backend, sem alterar páginas atuais.
 
-### O que muda visualmente
+### Arquivos
 
-**1. Header executivo (sticky)**
-- Cabeçalho compacto fixo no topo ao rolar, com:
-  - Título + breadcrumb leve ("Produção › Auditoria Genius").
-  - Chips do período ativo (ex.: `01/04 → 24/04`, `Origem: 200`, `Status: Todos`) — clicáveis para limpar.
-  - Bloco de status: ícone verde/amarelo/vermelho + "Atualizado há 2 min" + Auto-refresh + Exportar.
-- Resultado: o usuário sempre vê qual recorte está olhando.
+**Novo:** `src/pages/FaturamentoGeniusPage.tsx`  
+**Editado:** `src/App.tsx` (rota), `src/components/AppSidebar.tsx` (menu), `src/lib/api.ts` (tipagens — opcional, pode ficar `any`).
 
-**2. Filtros — painel lateral colapsável (Sheet)**
-- Trocar o `FilterPanel` longo por um botão "Filtros (3)" que abre um `Sheet` lateral à direita.
-- Atalhos de período viram **chips horizontais** (Hoje, Ontem, Esta semana, Sem. anterior, Mês, 12 meses) sempre visíveis acima da área de KPIs — sem precisar abrir filtros.
-- Switch "Somente acima de 8h" também vira chip-toggle visível.
-- Badge no botão Filtros mostra quantos filtros estão ativos.
+### Rota e menu
+- `App.tsx`: nova `<Route path="/faturamento-genius" element={<ProtectedRoute path="/faturamento-genius"><FaturamentoGeniusPage /></ProtectedRoute>} />`.
+- `AppSidebar.tsx`: novo item `{ title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt }` (ícone `Receipt` do `lucide-react`), inserido logo após "Auditoria Apont. Genius".
 
-**3. KPIs reorganizados em 3 grupos visuais**
-Hoje há 12 KPIs misturados. Reagrupar em 3 faixas com título sutil:
+### Estrutura da página
+Reaproveita os componentes já existentes do projeto — `PageHeader`, `FilterPanel`, `KPICard`, `KpiGroup`, `DataTable`, `PaginationControl`, `ExportButton`, `ErpConnectionAlert`, `Card`, `Badge`, `Select`, `Switch`, `Input`, `Label`, `Button`, `toast` (sonner), `formatNumber`/`formatDate` de `@/lib/format`.
+
+**Uso da camada `api`:**
+- `api.get('/api/faturamento-genius-dashboard', filtros)` e `api.get('/api/faturamento-genius', { ...filtros, pagina, tamanho_pagina: 100 })` — já injetam `Authorization: Bearer <token>` lendo `erp_token` do localStorage e usam `VITE_API_URL` (equivalente ao base URL pedido).
+- `api.post('/api/faturamento-genius/atualizar', { anomes_ini, anomes_fim })`.
+- Exportação via `<ExportButton endpoint="/api/export/faturamento-genius" params={filtros} />` (já adiciona token via header; backend aceita).
+
+### Filtros (estado único `filters`)
+| Campo | Tipo | Default |
+|---|---|---|
+| `anomes_ini` | Input texto YYYYMM | mês atual |
+| `anomes_fim` | Input texto YYYYMM | mês atual |
+| `revenda` | Input | vazio |
+| `origem` | Select | "Todas" / `MÁQUINAS` / `PEÇAS` / `SERVIÇOS` / `META` / `LANCTO MANUAL` |
+| `tipo_movimento` | Select | "TODOS" / `PRODUTOS` / `SERVIÇOS` / `DEVOLUÇÃO` / `FATURAMENTO MAN` |
+| `cliente`, `representante`, `produto`, `pedido`, `nf` | Input | vazio |
+| `somente_com_revenda` | Switch | false |
+
+Botão **Pesquisar** dispara `consultar()`, **Limpar** zera filtros e estados.
+
+### Fluxo `consultar()`
+1. `setLoading(true)` → `Promise.all([apiGetDashboard, apiGetDetalhe(pagina=1)])`.
+2. Salva `dashboard` e `detalhe` em estado.
+3. `catch` → `toast.error(err.message)`; usa `<ErpConnectionAlert>` para 401.
+
+### Layout (top → bottom)
 ```text
-Volume:        [Total] [Emitidas] [Liberadas] [Andamento] [Finalizadas] [Canceladas]
-Saúde dados:   [Discrepâncias] [Sem início] [Sem fim] [Fim<Início]
-Carga horária: [Acima 8h] [Abaixo 5min] [Maior total/dia]
-```
-- KPIs com cor discreta na lateral esquerda (border-l-4) por categoria: azul=volume, âmbar=saúde, vermelho=horas.
-- Tamanho menor (h-20), tipografia mais leve, número grande à direita, ícone à esquerda.
-- Card "Status OP Genius" e "Alerta >8h" entram como faixa-resumo no topo dos KPIs (1 linha colorida estilo "banner de saúde").
-
-**4. Resumo por Operador — visual de card moderno**
-- Header do card com avatar circular do ícone, título + total geral em destaque (`128h 45min`) e botão "Expandir/Recolher".
-- Tabela ganha:
-  - Coluna **Carga** com mini-barra horizontal (% relativo ao operador com mais horas) — leitura rápida de quem mais apontou.
-  - Linhas com hover azul claro + cursor pointer (já clicável).
-  - Badge colorido na coluna Horas: verde ≤8h/dia médio, âmbar 8–10h, vermelho >10h.
-
-**5. Tabela principal**
-- Toolbar acima da tabela: filtro rápido (já existe) + contador "X de Y" + botão "Densidade" (compacta/confortável) + "Colunas" (mostrar/ocultar).
-- Linhas com discrepâncias ganham faixa colorida na primeira coluna (4px) ao invés de fundo inteiro — menos ruído.
-- Skeleton loading mais elegante (animação shimmer já existe).
-
-**6. Estados vazios e alertas**
-- Empty state ilustrado com ícone grande + CTA "Ajustar filtros".
-- Alertas de erro/diagnóstico em accordion fechado por padrão (não dominam a tela).
-
-**7. Tema visual**
-- Espaçamentos consistentes (gap-4 em tudo).
-- Bordas arredondadas `rounded-lg` em todos cards.
-- Sombras sutis `shadow-sm` em vez de bordas pesadas.
-- Cores semânticas via tokens HSL já existentes (sem hardcode).
-- Tipografia: títulos `font-semibold tracking-tight`, números tabulares (`tabular-nums`) para alinhar dígitos.
-
-### Layout final (esquemático)
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ Auditoria Genius   [chips período]   ● Online · Export  │ ← sticky
-├─────────────────────────────────────────────────────────┤
-│ [Hoje][Sem.][Mês][12m]  [Filtros (3)]  [□ >8h]          │
-├─────────────────────────────────────────────────────────┤
-│ ⚠ 12 apontamentos acima de 8h · Ver detalhes →          │ ← banner
-├─────────────────────────────────────────────────────────┤
-│ Volume       │ KPI KPI KPI KPI KPI KPI                  │
-│ Saúde dados  │ KPI KPI KPI KPI                          │
-│ Carga horária│ KPI KPI KPI                              │
-├─────────────────────────────────────────────────────────┤
-│ 👤 Operadores no período · 128h 45min · 42 OPs   [▼]    │
-│   Cód  Nome     OPs  Carga ▓▓▓▓░ 80%   Horas  Min  Apt │
-├─────────────────────────────────────────────────────────┤
-│ [🔍 buscar]  120 de 1500   [Densidade] [Colunas]        │
-│ Tabela principal de apontamentos…                       │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ PageHeader: "Faturamento Genius"                           │
+│ Subtítulo + ações: [Atualizar Comercial] [Exportar Excel]  │
+├────────────────────────────────────────────────────────────┤
+│ FilterPanel (com todos os campos acima)                    │
+├────────────────────────────────────────────────────────────┤
+│ KpiGroup "Valores"  [Total][Bruto][Devolução][Custo]       │
+│                     [Comissão][Margem Bruta][Margem %]     │
+│ KpiGroup "Volume"   [Notas][Pedidos][Clientes][Revendas]   │
+│                     [Produtos]                             │
+├────────────────────────────────────────────────────────────┤
+│ Card "Faturamento por Revenda" — DataTable                 │
+│ Card "Faturamento por Origem"  — DataTable                 │
+│ Card "Faturamento por Mês"     — DataTable                 │
+├────────────────────────────────────────────────────────────┤
+│ Card "Detalhe do Faturamento" — DataTable + Paginação      │
+├────────────────────────────────────────────────────────────┤
+│ <p> nota técnica em texto pequeno (muted) </p>             │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### Arquivos afetados
-- `src/pages/AuditoriaApontamentoGeniusPage.tsx` (reorganização de JSX e classes; lógica intacta).
-- Novo: `src/components/erp/PeriodChips.tsx` (chips de atalho reutilizáveis).
-- Novo: `src/components/erp/KpiGroup.tsx` (wrapper visual para grupos de KPIs).
-- Pequenos ajustes em `KPICard.tsx` (variante compacta com border-l-4).
+### Cards (KPIs)
+Lendo `dashboard.kpis`:
+- **Valores** (`KpiGroup tone="volume"`): `valor_total`, `valor_bruto`, `valor_devolucao`, `valor_custo`, `valor_comissao`, `margem_bruta`, `margem_percentual` (formatado `%`, vermelho se `<0` via `tone="destructive"`).
+- **Volume** (`KpiGroup tone="saude"`): `quantidade_notas`, `quantidade_pedidos`, `quantidade_clientes`, `quantidade_revendas`, `quantidade_produtos`.
+- Formatação: `formatCurrency` (criar helper local `fmtBRL`) e `formatNumber(n,0)`.
+
+### Tabelas resumo
+- **Por Revenda** (`dashboard.por_revenda`): colunas conforme spec; coluna `revenda` recebe `<Badge variant="secondary">` quando valor for `OUTROS` ou `LANCTO MANUAL`.
+- **Por Origem** (`dashboard.por_origem`).
+- **Por Mês** (`dashboard.por_mes`) — `anomes` formatado `MM/YYYY`.
+
+Todas usam `DataTable` com `align: 'right'` em colunas numéricas e renderização em BRL/pt-BR.
+
+### Tabela detalhe + paginação
+- Fonte: `detalhe.dados`. Colunas: lista completa da spec (data_emissao formatada, demais via `formatNumber`/BRL).
+- `<PaginationControl pagina={detalhe.pagina} totalPaginas={detalhe.total_paginas} totalRegistros={detalhe.total_registros} onPageChange={(p) => recarregarDetalhe(p)} />`.
+- `recarregarDetalhe(p)` mantém filtros e chama `api.get('/api/faturamento-genius', {...filtros, pagina: p, tamanho_pagina: 100})`.
+
+### Exportação
+`<ExportButton endpoint="/api/export/faturamento-genius" params={filtros} label="Exportar Excel" />` — já abre/baixa com Authorization header.
+
+### Atualizar Comercial
+Botão `<Button variant="outline">Atualizar Comercial</Button>` → abre `AlertDialog` (shadcn) com texto pedido. Confirmar → `api.post('/api/faturamento-genius/atualizar', { anomes_ini, anomes_fim })` → `toast.success('Atualização concluída')` → re-executa `consultar()`. Loader inline no botão durante a chamada.
+
+### Nota técnica
+Rodapé pequeno (`text-xs text-muted-foreground`):  
+*"A revenda vem de VM_FATURAMENTO.CD_REV_PEDIDO. Para produtos, a origem é E120IPD.USU_REVPED; serviços/devoluções podem aparecer como OUTROS conforme a view atual."*
 
 ### Garantias
-- Nenhuma alteração em chamadas de API, parâmetros, agregações ou cálculos de horas/minutos.
-- Filtros, paginação, drill-down, auto-refresh e exportação continuam funcionando idênticos.
-- Responsivo: mobile mostra KPIs em 2 colunas e filtros em Sheet full-screen.
+- Nenhuma página existente é modificada (apenas `App.tsx` recebe rota nova e `AppSidebar.tsx` recebe item novo).
+- Sem dados mockados; sem alteração no backend.
+- Token reutilizado do `localStorage` via `api` (que já cobre o requisito Bearer).
+- Responsivo: KPIs em grid 2/4/6 colunas; filtros em grid 1→5 colunas.
+- Erros tratados com `toast.error` + `ErpConnectionAlert` para 401.
 
