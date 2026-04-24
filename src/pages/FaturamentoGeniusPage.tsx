@@ -131,10 +131,41 @@ export default function FaturamentoGeniusPage() {
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [backendIndisponivel, setBackendIndisponivel] = useState(false);
+  const [fonteIndisponivel, setFonteIndisponivel] = useState(false);
+  const [avisoAtualizacao, setAvisoAtualizacao] = useState<string | null>(null);
 
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
   const MSG_404 = 'Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI.';
+  const MSG_FONTE = 'Fonte de faturamento não localizada no banco. Verifique no backend se o objeto configurado existe, por exemplo dbo.USU_VMBRUTANFE.';
+
+  const isSqlObjectError = (err: any): boolean => {
+    const parts: string[] = [];
+    if (err?.message) parts.push(String(err.message));
+    if (err?.details) {
+      try { parts.push(typeof err.details === 'string' ? err.details : JSON.stringify(err.details)); } catch { /* ignore */ }
+    }
+    const haystack = parts.join(' ').toLowerCase();
+    if (!haystack) return false;
+    if (haystack.includes('42s02')) return true;
+    if (haystack.includes('nome de objeto')) return true;
+    if (haystack.includes('invalid object name')) return true;
+    if (haystack.includes('objeto') && haystack.includes('inválido')) return true;
+    if (haystack.includes('objeto') && haystack.includes('invalido')) return true;
+    return false;
+  };
+
+  const isNotApplicableMessage = (msg: any): boolean => {
+    if (!msg) return false;
+    const s = String(msg).toLowerCase();
+    return (
+      s.includes('não se aplica') ||
+      s.includes('nao se aplica') ||
+      s.includes('not applicable') ||
+      s.includes('indisponível neste ambiente') ||
+      s.includes('indisponivel neste ambiente')
+    );
+  };
 
   const consultar = async (page = 1) => {
     setLoading(true);
@@ -148,11 +179,17 @@ export default function FaturamentoGeniusPage() {
       setDashboard(dash);
       setDetalhe(det);
       setBackendIndisponivel(false);
+      setFonteIndisponivel(false);
+      setAvisoAtualizacao(null);
     } catch (err: any) {
       if (err?.statusCode === 404) {
         setBackendIndisponivel(true);
         setError(MSG_404);
         toast.error(MSG_404);
+      } else if (isSqlObjectError(err)) {
+        setFonteIndisponivel(true);
+        setError(MSG_FONTE);
+        toast.error(MSG_FONTE);
       } else {
         setError(err?.message || 'Erro ao consultar');
         if (err?.statusCode !== 401) {
@@ -183,22 +220,37 @@ export default function FaturamentoGeniusPage() {
     setDetalhe(null);
     setError(null);
     setBackendIndisponivel(false);
+    setFonteIndisponivel(false);
+    setAvisoAtualizacao(null);
   };
 
   const atualizarComercial = async () => {
     setUpdating(true);
     try {
-      await api.post('/api/faturamento-genius/atualizar', {
+      const resp = await api.post<any>('/api/faturamento-genius/atualizar', {
         anomes_ini: filters.anomes_ini,
         anomes_fim: filters.anomes_fim,
       });
       setBackendIndisponivel(false);
-      toast.success('Atualização comercial concluída');
-      await consultar(1);
+      setFonteIndisponivel(false);
+      const respMsg = resp?.message ?? resp?.detail;
+      if (resp?.aplicavel === false || isNotApplicableMessage(respMsg)) {
+        const msg = (respMsg && String(respMsg)) || 'Atualização comercial não se aplica neste ambiente.';
+        setAvisoAtualizacao(msg);
+        toast.info(msg);
+      } else {
+        setAvisoAtualizacao(null);
+        toast.success('Atualização comercial concluída');
+        await consultar(1);
+      }
     } catch (err: any) {
       if (err?.statusCode === 404) {
         setBackendIndisponivel(true);
         toast.error(MSG_404);
+      } else if (isSqlObjectError(err)) {
+        setFonteIndisponivel(true);
+        setError(MSG_FONTE);
+        toast.error(MSG_FONTE);
       } else {
         toast.error(err?.message || 'Falha ao atualizar comercial');
       }
@@ -392,7 +444,23 @@ export default function FaturamentoGeniusPage() {
         </Alert>
       )}
 
-      {error && !loading && !backendIndisponivel && (
+      {fonteIndisponivel && !backendIndisponivel && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Fonte de faturamento indisponível</AlertTitle>
+          <AlertDescription>{MSG_FONTE}</AlertDescription>
+        </Alert>
+      )}
+
+      {avisoAtualizacao && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Atualização comercial não aplicável</AlertTitle>
+          <AlertDescription>{avisoAtualizacao}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && !loading && !backendIndisponivel && !fonteIndisponivel && (
         <Card className="border-destructive/40">
           <CardContent className="p-3 text-xs text-destructive">{error}</CardContent>
         </Card>
@@ -480,8 +548,9 @@ export default function FaturamentoGeniusPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        A revenda vem de VM_FATURAMENTO.CD_REV_PEDIDO. Para produtos, a origem é E120IPD.USU_REVPED;
-        serviços/devoluções podem aparecer como OUTROS conforme a view atual.
+        A revenda vem do campo CD_REV_PEDIDO retornado pelo backend. No ERP Genius, a origem provável é a view
+        USU_VMBRUTANFE, e para produtos a revenda nasce do pedido/item, especialmente E120IPD.USU_REVPED.
+        Serviços/devoluções podem aparecer como OUTROS conforme a origem da view.
       </p>
     </div>
   );
