@@ -444,7 +444,23 @@ export default function FaturamentoGeniusPage() {
         </Alert>
       )}
 
-      {error && !loading && !backendIndisponivel && (
+      {fonteIndisponivel && !backendIndisponivel && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Fonte de faturamento indisponível</AlertTitle>
+          <AlertDescription>{MSG_FONTE}</AlertDescription>
+        </Alert>
+      )}
+
+      {avisoAtualizacao && (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Atualização comercial não aplicável</AlertTitle>
+          <AlertDescription>{avisoAtualizacao}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && !loading && !backendIndisponivel && !fonteIndisponivel && (
         <Card className="border-destructive/40">
           <CardContent className="p-3 text-xs text-destructive">{error}</CardContent>
         </Card>
