@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { KPICard } from '@/components/erp/KPICard';
@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +29,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { api } from '@/lib/api';
-import { formatNumber, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import {
   DollarSign,
@@ -44,6 +45,8 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const fmtBRL = (v: number | null | undefined) => {
@@ -104,7 +107,6 @@ const initialFilters = (): Filters => ({
   somente_com_revenda: false,
 });
 
-// Build params for API (omit "Todas"/"TODOS" sentinels, send booleans as expected)
 function buildParams(f: Filters, extras?: Record<string, any>) {
   const params: Record<string, any> = {
     anomes_ini: f.anomes_ini,
@@ -123,6 +125,155 @@ function buildParams(f: Filters, extras?: Record<string, any>) {
   return params;
 }
 
+// ===== Drill-down types & helpers =====
+type DrillDim = 'revenda' | 'anomes' | 'cliente' | 'produto' | 'detalhe';
+
+interface DrillKpiDef {
+  key: string;
+  title: string;
+  metric: 'valor_total' | 'valor_bruto' | 'valor_devolucao' | 'valor_custo' | 'valor_comissao' | 'margem_bruta' | 'margem_percentual' | 'count_notas' | 'count_pedidos' | 'count_clientes' | 'count_revendas' | 'count_produtos';
+  dims: DrillDim[]; // ordem dos níveis até o detalhe
+  format: 'brl' | 'num' | 'pct';
+}
+
+const DRILL_DEFS: Record<string, DrillKpiDef> = {
+  valor_total: { key: 'valor_total', title: 'Valor Total', metric: 'valor_total', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'brl' },
+  valor_bruto: { key: 'valor_bruto', title: 'Valor Bruto', metric: 'valor_bruto', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'brl' },
+  valor_devolucao: { key: 'valor_devolucao', title: 'Devolução', metric: 'valor_devolucao', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'brl' },
+  valor_custo: { key: 'valor_custo', title: 'Custo', metric: 'valor_custo', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'brl' },
+  valor_comissao: { key: 'valor_comissao', title: 'Comissão', metric: 'valor_comissao', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'brl' },
+  margem_bruta: { key: 'margem_bruta', title: 'Margem Bruta', metric: 'margem_bruta', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'brl' },
+  margem_percentual: { key: 'margem_percentual', title: 'Margem %', metric: 'margem_percentual', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'pct' },
+  quantidade_notas: { key: 'quantidade_notas', title: 'Notas', metric: 'count_notas', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'num' },
+  quantidade_pedidos: { key: 'quantidade_pedidos', title: 'Pedidos', metric: 'count_pedidos', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'num' },
+  quantidade_clientes: { key: 'quantidade_clientes', title: 'Clientes', metric: 'count_clientes', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'num' },
+  quantidade_revendas: { key: 'quantidade_revendas', title: 'Revendas', metric: 'count_revendas', dims: ['revenda', 'anomes', 'cliente', 'detalhe'], format: 'num' },
+  quantidade_produtos: { key: 'quantidade_produtos', title: 'Produtos', metric: 'count_produtos', dims: ['revenda', 'produto', 'cliente', 'detalhe'], format: 'num' },
+};
+
+const DIM_LABEL: Record<DrillDim, string> = {
+  revenda: 'Revenda',
+  anomes: 'Mês',
+  cliente: 'Cliente',
+  produto: 'Produto',
+  detalhe: 'Detalhe',
+};
+
+const getDimValue = (row: any, dim: DrillDim): string => {
+  switch (dim) {
+    case 'revenda': return row.revenda ?? '(sem revenda)';
+    case 'anomes': {
+      // tenta anomes ou data_emissao
+      if (row.anomes) return String(row.anomes);
+      if (row.data_emissao) {
+        const d = new Date(row.data_emissao);
+        if (!isNaN(d.getTime())) return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+      return '(sem mês)';
+    }
+    case 'cliente': return row.cliente ?? '(sem cliente)';
+    case 'produto': return row.produto ?? '(sem produto)';
+    default: return '-';
+  }
+};
+
+const formatDimValue = (dim: DrillDim, value: string): string => {
+  if (dim === 'anomes') return fmtAnomes(value);
+  return value;
+};
+
+interface AggregatedRow {
+  key: string;
+  label: string;
+  valor_total: number;
+  valor_bruto: number;
+  valor_devolucao: number;
+  valor_custo: number;
+  valor_comissao: number;
+  margem_bruta: number;
+  margem_percentual: number;
+  notas: Set<string>;
+  pedidos: Set<string>;
+  clientes: Set<string>;
+  revendas: Set<string>;
+  produtos: Set<string>;
+  linhas: number;
+}
+
+function aggregateBy(rows: any[], dim: DrillDim): AggregatedRow[] {
+  const map = new Map<string, AggregatedRow>();
+  for (const r of rows) {
+    const value = getDimValue(r, dim);
+    let agg = map.get(value);
+    if (!agg) {
+      agg = {
+        key: value,
+        label: formatDimValue(dim, value),
+        valor_total: 0, valor_bruto: 0, valor_devolucao: 0, valor_custo: 0, valor_comissao: 0,
+        margem_bruta: 0, margem_percentual: 0,
+        notas: new Set(), pedidos: new Set(), clientes: new Set(), revendas: new Set(), produtos: new Set(),
+        linhas: 0,
+      };
+      map.set(value, agg);
+    }
+    agg.valor_total += Number(r.valor_total ?? 0);
+    agg.valor_bruto += Number(r.valor_bruto ?? 0);
+    agg.valor_devolucao += Number(r.valor_devolucao ?? 0);
+    agg.valor_custo += Number(r.valor_custo ?? 0);
+    agg.valor_comissao += Number(r.valor_comissao ?? 0);
+    if (r.numero_nf != null) agg.notas.add(`${r.serie_nf ?? ''}-${r.numero_nf}`);
+    if (r.pedido != null && r.pedido !== '') agg.pedidos.add(String(r.pedido));
+    if (r.cliente) agg.clientes.add(String(r.cliente));
+    if (r.revenda) agg.revendas.add(String(r.revenda));
+    if (r.produto) agg.produtos.add(String(r.produto));
+    agg.linhas += 1;
+  }
+  for (const a of map.values()) {
+    a.margem_bruta = a.valor_total - a.valor_custo;
+    a.margem_percentual = a.valor_total > 0 ? (a.margem_bruta / a.valor_total) * 100 : 0;
+  }
+  return Array.from(map.values()).sort((a, b) => b.valor_total - a.valor_total);
+}
+
+function computeKpis(rows: any[]) {
+  let valor_total = 0, valor_bruto = 0, valor_devolucao = 0, valor_custo = 0, valor_comissao = 0;
+  const notas = new Set<string>();
+  const pedidos = new Set<string>();
+  const clientes = new Set<string>();
+  const revendas = new Set<string>();
+  const produtos = new Set<string>();
+  for (const r of rows) {
+    valor_total += Number(r.valor_total ?? 0);
+    valor_bruto += Number(r.valor_bruto ?? 0);
+    valor_devolucao += Number(r.valor_devolucao ?? 0);
+    valor_custo += Number(r.valor_custo ?? 0);
+    valor_comissao += Number(r.valor_comissao ?? 0);
+    if (r.numero_nf != null) notas.add(`${r.serie_nf ?? ''}-${r.numero_nf}`);
+    if (r.pedido != null && r.pedido !== '') pedidos.add(String(r.pedido));
+    if (r.cliente) clientes.add(String(r.cliente));
+    if (r.revenda) revendas.add(String(r.revenda));
+    if (r.produto) produtos.add(String(r.produto));
+  }
+  const margem_bruta = valor_total - valor_custo;
+  const margem_percentual = valor_total > 0 ? (margem_bruta / valor_total) * 100 : 0;
+  return {
+    valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
+    margem_bruta, margem_percentual,
+    quantidade_notas: notas.size,
+    quantidade_pedidos: pedidos.size,
+    quantidade_clientes: clientes.size,
+    quantidade_revendas: revendas.size,
+    quantidade_produtos: produtos.size,
+  };
+}
+
+interface DrillStep { dim: DrillDim; key: string; label: string; }
+interface DrillState {
+  open: boolean;
+  kpiKey: string;
+  path: DrillStep[];
+}
+
 export default function FaturamentoGeniusPage() {
   const [filters, setFilters] = useState<Filters>(initialFilters());
   const [loading, setLoading] = useState(false);
@@ -133,6 +284,8 @@ export default function FaturamentoGeniusPage() {
   const [backendIndisponivel, setBackendIndisponivel] = useState(false);
   const [fonteIndisponivel, setFonteIndisponivel] = useState(false);
   const [avisoAtualizacao, setAvisoAtualizacao] = useState<string | null>(null);
+  const [incluirOutros, setIncluirOutros] = useState(false);
+  const [drill, setDrill] = useState<DrillState | null>(null);
 
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
@@ -259,8 +412,61 @@ export default function FaturamentoGeniusPage() {
     }
   };
 
-  const kpis = dashboard?.kpis || {};
+  // ===== Aplicação do filtro OUTROS sobre os dados detalhados =====
+  const rawRows: any[] = detalhe?.dados || [];
+  const filteredRows = useMemo(
+    () => (incluirOutros ? rawRows : rawRows.filter((r) => r.revenda !== 'OUTROS')),
+    [rawRows, incluirOutros],
+  );
+  const hiddenOutrosCount = rawRows.length - filteredRows.length;
+
+  // KPIs locais (recalculados a partir do detalhe filtrado).
+  const kpis = useMemo(() => {
+    if (!incluirOutros && filteredRows.length > 0) return computeKpis(filteredRows);
+    // se incluir OUTROS e o backend já devolve dashboard.kpis, usa ele para preservar totais agregados de toda a base
+    return dashboard?.kpis || computeKpis(filteredRows);
+  }, [filteredRows, dashboard, incluirOutros]);
   const margemPct = Number(kpis.margem_percentual ?? 0);
+
+  // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável.
+  const porRevenda = useMemo(() => {
+    const base = dashboard?.por_revenda || [];
+    if (incluirOutros) return base;
+    return base.filter((r: any) => r.revenda !== 'OUTROS');
+  }, [dashboard, incluirOutros]);
+
+  const porOrigem = useMemo(() => {
+    if (incluirOutros) return dashboard?.por_origem || [];
+    // recompor por origem a partir do detalhe filtrado
+    const map = new Map<string, any>();
+    for (const r of filteredRows) {
+      const k = r.origem ?? '-';
+      const cur = map.get(k) || { origem: k, quantidade_notas: new Set(), valor_total: 0, valor_devolucao: 0, valor_custo: 0 };
+      if (r.numero_nf != null) cur.quantidade_notas.add(`${r.serie_nf ?? ''}-${r.numero_nf}`);
+      cur.valor_total += Number(r.valor_total ?? 0);
+      cur.valor_devolucao += Number(r.valor_devolucao ?? 0);
+      cur.valor_custo += Number(r.valor_custo ?? 0);
+      map.set(k, cur);
+    }
+    return Array.from(map.values()).map((x) => ({ ...x, quantidade_notas: x.quantidade_notas.size }));
+  }, [dashboard, filteredRows, incluirOutros]);
+
+  const porMes = useMemo(() => {
+    if (incluirOutros) return dashboard?.por_mes || [];
+    const map = new Map<string, any>();
+    for (const r of filteredRows) {
+      const k = getDimValue(r, 'anomes');
+      const cur = map.get(k) || { anomes: k, quantidade_notas: new Set(), valor_total: 0, valor_devolucao: 0, valor_custo: 0 };
+      if (r.numero_nf != null) cur.quantidade_notas.add(`${r.serie_nf ?? ''}-${r.numero_nf}`);
+      cur.valor_total += Number(r.valor_total ?? 0);
+      cur.valor_devolucao += Number(r.valor_devolucao ?? 0);
+      cur.valor_custo += Number(r.valor_custo ?? 0);
+      map.set(k, cur);
+    }
+    return Array.from(map.values())
+      .map((x) => ({ ...x, quantidade_notas: x.quantidade_notas.size }))
+      .sort((a, b) => String(a.anomes).localeCompare(String(b.anomes)));
+  }, [dashboard, filteredRows, incluirOutros]);
 
   // ===== Tables (summary) =====
   const colsRevenda: Column<any>[] = [
@@ -331,6 +537,30 @@ export default function FaturamentoGeniusPage() {
     { key: 'valor_cofins', header: 'COFINS', align: 'right', render: (v) => fmtBRL(v) },
     { key: 'valor_frete', header: 'Frete', align: 'right', render: (v) => fmtBRL(v) },
   ];
+
+  // ===== Drill helpers =====
+  const openDrill = (kpiKey: string) => {
+    if (!DRILL_DEFS[kpiKey]) return;
+    setDrill({ open: true, kpiKey, path: [] });
+  };
+  const closeDrill = () => setDrill(null);
+  const popDrill = () => setDrill((d) => (d ? { ...d, path: d.path.slice(0, -1) } : d));
+  const pushDrill = (step: DrillStep) =>
+    setDrill((d) => (d ? { ...d, path: [...d.path, step] } : d));
+
+  // Renderiza KPI clicável
+  const KpiClickable = ({ kpiKey, children }: { kpiKey: string; children: React.ReactNode }) => (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => openDrill(kpiKey)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrill(kpiKey); } }}
+      className="cursor-pointer outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+      title="Clique para detalhar"
+    >
+      {children}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -468,22 +698,35 @@ export default function FaturamentoGeniusPage() {
 
       {dashboard && (
         <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
+            <div className="text-xs text-muted-foreground">
+              {incluirOutros
+                ? <>Exibindo <span className="font-medium text-foreground">todas</span> as linhas (inclusive OUTROS).</>
+                : <>Linhas com revenda <span className="font-medium text-foreground">OUTROS</span> estão ocultas. {hiddenOutrosCount > 0 && <Badge variant="secondary" className="ml-2 text-[10px]">{fmtNum(hiddenOutrosCount)} ocultas nesta página</Badge>}</>
+              }
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch id="incluir-outros" checked={incluirOutros} onCheckedChange={setIncluirOutros} />
+              <Label htmlFor="incluir-outros" className="text-xs cursor-pointer">Incluir OUTROS</Label>
+            </div>
+          </div>
+
           <KpiGroup title="Valores" tone="volume" icon={<DollarSign className="h-3.5 w-3.5" />}>
-            <KPICard title="Valor Total" value={fmtBRL(kpis.valor_total)} icon={<DollarSign className="h-4 w-4" />} variant="success" index={0} />
-            <KPICard title="Valor Bruto" value={fmtBRL(kpis.valor_bruto)} icon={<Receipt className="h-4 w-4" />} index={1} />
-            <KPICard title="Devolução" value={fmtBRL(kpis.valor_devolucao)} icon={<TrendingDown className="h-4 w-4" />} variant="warning" index={2} />
-            <KPICard title="Custo" value={fmtBRL(kpis.valor_custo)} icon={<Wallet className="h-4 w-4" />} index={3} />
-            <KPICard title="Comissão" value={fmtBRL(kpis.valor_comissao)} icon={<Wallet className="h-4 w-4" />} index={4} />
-            <KPICard title="Margem Bruta" value={fmtBRL(kpis.margem_bruta)} icon={<DollarSign className="h-4 w-4" />} variant={Number(kpis.margem_bruta ?? 0) < 0 ? 'destructive' : 'success'} index={5} />
-            <KPICard title="Margem %" value={fmtPct(kpis.margem_percentual)} icon={<Percent className="h-4 w-4" />} variant={margemPct < 0 ? 'destructive' : 'success'} index={6} />
+            <KpiClickable kpiKey="valor_total"><KPICard title="Valor Total" value={fmtBRL(kpis.valor_total)} icon={<DollarSign className="h-4 w-4" />} variant="success" index={0} /></KpiClickable>
+            <KpiClickable kpiKey="valor_bruto"><KPICard title="Valor Bruto" value={fmtBRL(kpis.valor_bruto)} icon={<Receipt className="h-4 w-4" />} index={1} /></KpiClickable>
+            <KpiClickable kpiKey="valor_devolucao"><KPICard title="Devolução" value={fmtBRL(kpis.valor_devolucao)} icon={<TrendingDown className="h-4 w-4" />} variant="warning" index={2} /></KpiClickable>
+            <KpiClickable kpiKey="valor_custo"><KPICard title="Custo" value={fmtBRL(kpis.valor_custo)} icon={<Wallet className="h-4 w-4" />} index={3} /></KpiClickable>
+            <KpiClickable kpiKey="valor_comissao"><KPICard title="Comissão" value={fmtBRL(kpis.valor_comissao)} icon={<Wallet className="h-4 w-4" />} index={4} /></KpiClickable>
+            <KpiClickable kpiKey="margem_bruta"><KPICard title="Margem Bruta" value={fmtBRL(kpis.margem_bruta)} icon={<DollarSign className="h-4 w-4" />} variant={Number(kpis.margem_bruta ?? 0) < 0 ? 'destructive' : 'success'} index={5} /></KpiClickable>
+            <KpiClickable kpiKey="margem_percentual"><KPICard title="Margem %" value={fmtPct(kpis.margem_percentual)} icon={<Percent className="h-4 w-4" />} variant={margemPct < 0 ? 'destructive' : 'success'} index={6} /></KpiClickable>
           </KpiGroup>
 
           <KpiGroup title="Volume" tone="saude" icon={<FileText className="h-3.5 w-3.5" />}>
-            <KPICard title="Notas" value={fmtNum(kpis.quantidade_notas)} icon={<FileText className="h-4 w-4" />} index={0} />
-            <KPICard title="Pedidos" value={fmtNum(kpis.quantidade_pedidos)} icon={<ShoppingBag className="h-4 w-4" />} index={1} />
-            <KPICard title="Clientes" value={fmtNum(kpis.quantidade_clientes)} icon={<Users className="h-4 w-4" />} index={2} />
-            <KPICard title="Revendas" value={fmtNum(kpis.quantidade_revendas)} icon={<Store className="h-4 w-4" />} index={3} />
-            <KPICard title="Produtos" value={fmtNum(kpis.quantidade_produtos)} icon={<Package className="h-4 w-4" />} index={4} />
+            <KpiClickable kpiKey="quantidade_notas"><KPICard title="Notas" value={fmtNum(kpis.quantidade_notas)} icon={<FileText className="h-4 w-4" />} index={0} /></KpiClickable>
+            <KpiClickable kpiKey="quantidade_pedidos"><KPICard title="Pedidos" value={fmtNum(kpis.quantidade_pedidos)} icon={<ShoppingBag className="h-4 w-4" />} index={1} /></KpiClickable>
+            <KpiClickable kpiKey="quantidade_clientes"><KPICard title="Clientes" value={fmtNum(kpis.quantidade_clientes)} icon={<Users className="h-4 w-4" />} index={2} /></KpiClickable>
+            <KpiClickable kpiKey="quantidade_revendas"><KPICard title="Revendas" value={fmtNum(kpis.quantidade_revendas)} icon={<Store className="h-4 w-4" />} index={3} /></KpiClickable>
+            <KpiClickable kpiKey="quantidade_produtos"><KPICard title="Produtos" value={fmtNum(kpis.quantidade_produtos)} icon={<Package className="h-4 w-4" />} index={4} /></KpiClickable>
           </KpiGroup>
 
           <Card>
@@ -491,7 +734,7 @@ export default function FaturamentoGeniusPage() {
               <CardTitle className="text-sm font-semibold tracking-tight">Faturamento por Revenda</CardTitle>
             </CardHeader>
             <CardContent>
-              <DataTable columns={colsRevenda} data={dashboard.por_revenda || []} emptyMessage="Sem dados por revenda." />
+              <DataTable columns={colsRevenda} data={porRevenda} emptyMessage="Sem dados por revenda." />
             </CardContent>
           </Card>
 
@@ -500,7 +743,7 @@ export default function FaturamentoGeniusPage() {
               <CardTitle className="text-sm font-semibold tracking-tight">Faturamento por Origem</CardTitle>
             </CardHeader>
             <CardContent>
-              <DataTable columns={colsOrigem} data={dashboard.por_origem || []} emptyMessage="Sem dados por origem." />
+              <DataTable columns={colsOrigem} data={porOrigem} emptyMessage="Sem dados por origem." />
             </CardContent>
           </Card>
 
@@ -509,7 +752,7 @@ export default function FaturamentoGeniusPage() {
               <CardTitle className="text-sm font-semibold tracking-tight">Faturamento por Mês</CardTitle>
             </CardHeader>
             <CardContent>
-              <DataTable columns={colsMes} data={dashboard.por_mes || []} emptyMessage="Sem dados por mês." />
+              <DataTable columns={colsMes} data={porMes} emptyMessage="Sem dados por mês." />
             </CardContent>
           </Card>
         </div>
@@ -523,7 +766,7 @@ export default function FaturamentoGeniusPage() {
           <CardContent className="space-y-2">
             <DataTable
               columns={colsDetalhe}
-              data={detalhe.dados || []}
+              data={filteredRows}
               loading={loading}
               emptyMessage="Sem registros para os filtros aplicados."
             />
@@ -548,10 +791,226 @@ export default function FaturamentoGeniusPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        A revenda vem do campo CD_REV_PEDIDO retornado pelo backend. No ERP Genius, a origem provável é a view
-        USU_VMBRUTANFE, e para produtos a revenda nasce do pedido/item, especialmente E120IPD.USU_REVPED.
-        Serviços/devoluções podem aparecer como OUTROS conforme a origem da view.
+        A revenda vem do campo CD_REV_PEDIDO retornado pelo backend (origem em E120IPD.USU_REVPED). Linhas
+        classificadas como <span className="font-medium">OUTROS</span> (sem revenda no pedido — geralmente serviços,
+        devoluções ou faturamentos manuais) ficam <span className="font-medium">ocultas por padrão</span> e podem ser
+        exibidas pelo Switch acima. Clique em qualquer KPI para detalhar até o último nível.
       </p>
+
+      <DrillSheet
+        state={drill}
+        rows={filteredRows}
+        onClose={closeDrill}
+        onBack={popDrill}
+        onPush={pushDrill}
+        totalPaginas={detalhe?.total_paginas ?? 0}
+        colsDetalhe={colsDetalhe}
+      />
     </div>
   );
+}
+
+// =====================================================================
+// Drill Sheet Component
+// =====================================================================
+interface DrillSheetProps {
+  state: DrillState | null;
+  rows: any[];
+  onClose: () => void;
+  onBack: () => void;
+  onPush: (step: DrillStep) => void;
+  totalPaginas: number;
+  colsDetalhe: Column<any>[];
+}
+
+function DrillSheet({ state, rows, onClose, onBack, onPush, totalPaginas, colsDetalhe }: DrillSheetProps) {
+  const def = state ? DRILL_DEFS[state.kpiKey] : null;
+
+  const filteredRows = useMemo(() => {
+    if (!state || !def) return [];
+    let r = rows;
+    for (let i = 0; i < state.path.length; i++) {
+      const step = state.path[i];
+      r = r.filter((row) => getDimValue(row, step.dim) === step.key);
+    }
+    return r;
+  }, [rows, state, def]);
+
+  if (!state || !def) return null;
+
+  const currentLevel = state.path.length; // 0 = nível 1
+  const currentDim: DrillDim | null = currentLevel < def.dims.length ? def.dims[currentLevel] : null;
+  const isDetalhe = currentDim === 'detalhe' || currentDim === null;
+
+  const subKpis = computeKpis(filteredRows);
+
+  const formatMetric = (v: number) => {
+    if (def.format === 'brl') return fmtBRL(v);
+    if (def.format === 'pct') return fmtPct(v);
+    return fmtNum(v);
+  };
+
+  const getMetricValue = (k: any): number => {
+    switch (def.metric) {
+      case 'valor_total': return k.valor_total;
+      case 'valor_bruto': return k.valor_bruto;
+      case 'valor_devolucao': return k.valor_devolucao;
+      case 'valor_custo': return k.valor_custo;
+      case 'valor_comissao': return k.valor_comissao;
+      case 'margem_bruta': return k.margem_bruta;
+      case 'margem_percentual': return k.margem_percentual;
+      case 'count_notas': return k.notas?.size ?? k.quantidade_notas ?? 0;
+      case 'count_pedidos': return k.pedidos?.size ?? k.quantidade_pedidos ?? 0;
+      case 'count_clientes': return k.clientes?.size ?? k.quantidade_clientes ?? 0;
+      case 'count_revendas': return k.revendas?.size ?? k.quantidade_revendas ?? 0;
+      case 'count_produtos': return k.produtos?.size ?? k.quantidade_produtos ?? 0;
+      default: return 0;
+    }
+  };
+
+  // métrica do recorte atual (para destacar no topo)
+  const currentMetricValue = (() => {
+    const k = subKpis;
+    switch (def.metric) {
+      case 'count_notas': return k.quantidade_notas;
+      case 'count_pedidos': return k.quantidade_pedidos;
+      case 'count_clientes': return k.quantidade_clientes;
+      case 'count_revendas': return k.quantidade_revendas;
+      case 'count_produtos': return k.quantidade_produtos;
+      default: return getMetricValue(k);
+    }
+  })();
+
+  return (
+    <Sheet open={state.open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle className="text-base">Detalhamento — {def.title}</SheetTitle>
+        </SheetHeader>
+
+        {/* Breadcrumb */}
+        <div className="mt-3 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">{def.title}</span>
+          {state.path.map((s, i) => (
+            <span key={i} className="flex items-center gap-1">
+              <ChevronRight className="h-3 w-3" />
+              <span>
+                <span className="text-muted-foreground">{DIM_LABEL[s.dim]}:</span>{' '}
+                <span className="font-medium text-foreground">{s.label}</span>
+              </span>
+            </span>
+          ))}
+        </div>
+
+        {/* Sub-KPIs */}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="rounded-md border bg-card p-2">
+            <p className="text-[10px] uppercase text-muted-foreground">{def.title}</p>
+            <p className="text-sm font-bold">{formatMetric(currentMetricValue)}</p>
+          </div>
+          <div className="rounded-md border bg-card p-2">
+            <p className="text-[10px] uppercase text-muted-foreground">Notas</p>
+            <p className="text-sm font-bold">{fmtNum(subKpis.quantidade_notas)}</p>
+          </div>
+          <div className="rounded-md border bg-card p-2">
+            <p className="text-[10px] uppercase text-muted-foreground">Clientes</p>
+            <p className="text-sm font-bold">{fmtNum(subKpis.quantidade_clientes)}</p>
+          </div>
+          <div className="rounded-md border bg-card p-2">
+            <p className="text-[10px] uppercase text-muted-foreground">Linhas</p>
+            <p className="text-sm font-bold">{fmtNum(filteredRows.length)}</p>
+          </div>
+        </div>
+
+        {/* Ações */}
+        <div className="mt-4 flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={onBack} disabled={state.path.length === 0}>
+            <ChevronLeft className="mr-1 h-3 w-3" /> Voltar
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>Fechar</Button>
+          {currentDim && !isDetalhe && (
+            <span className="ml-auto text-[10px] uppercase tracking-wider text-muted-foreground">
+              Próximo nível: {DIM_LABEL[currentDim]}
+            </span>
+          )}
+        </div>
+
+        {totalPaginas > 1 && (
+          <Alert className="mt-3">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Drill-down opera sobre os <span className="font-medium">100 registros da página atual</span> do detalhe
+              (total de {totalPaginas} páginas). Para uma visão completa do período, use <span className="font-medium">Exportar Excel</span>.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Conteúdo */}
+        <div className="mt-4">
+          {isDetalhe ? (
+            <DataTable
+              columns={colsDetalhe}
+              data={filteredRows}
+              emptyMessage="Sem registros neste recorte."
+            />
+          ) : (
+            <DrillLevelTable
+              dim={currentDim!}
+              rows={filteredRows}
+              metric={def.metric}
+              metricLabel={def.title}
+              format={def.format}
+              getMetric={getMetricValue}
+              onSelect={(step) => onPush(step)}
+            />
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+interface DrillLevelTableProps {
+  dim: DrillDim;
+  rows: any[];
+  metric: DrillKpiDef['metric'];
+  metricLabel: string;
+  format: DrillKpiDef['format'];
+  getMetric: (agg: AggregatedRow) => number;
+  onSelect: (step: DrillStep) => void;
+}
+
+function DrillLevelTable({ dim, rows, metricLabel, format, getMetric, onSelect }: DrillLevelTableProps) {
+  const data = useMemo(() => aggregateBy(rows, dim), [rows, dim]);
+  const total = useMemo(() => data.reduce((s, r) => s + getMetric(r), 0), [data, getMetric]);
+
+  const formatMetric = (v: number) => {
+    if (format === 'brl') return fmtBRL(v);
+    if (format === 'pct') return fmtPct(v);
+    return fmtNum(v);
+  };
+
+  const cols: Column<AggregatedRow>[] = [
+    {
+      key: 'label',
+      header: DIM_LABEL[dim],
+      render: (v, row) => (
+        <button
+          type="button"
+          className="text-left font-medium text-primary hover:underline"
+          onClick={() => onSelect({ dim, key: row.key, label: row.label })}
+          title="Clique para detalhar"
+        >
+          {v ?? '-'}
+        </button>
+      ),
+    },
+    { key: 'metric', header: metricLabel, align: 'right', render: (_v, row) => <span className="font-semibold tabular-nums">{formatMetric(getMetric(row))}</span> },
+    { key: 'pct', header: '% do total', align: 'right', render: (_v, row) => total > 0 ? fmtPct((getMetric(row) / total) * 100) : '-' },
+    { key: 'notas', header: 'Notas', align: 'right', render: (_v, row) => fmtNum(row.notas.size) },
+    { key: 'clientes', header: 'Clientes', align: 'right', render: (_v, row) => fmtNum(row.clientes.size) },
+    { key: 'linhas', header: 'Linhas', align: 'right', render: (_v, row) => fmtNum(row.linhas) },
+  ];
+
+  return <DataTable columns={cols as any} data={data as any} emptyMessage="Sem dados neste recorte." />;
 }
