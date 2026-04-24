@@ -1,31 +1,39 @@
 
 
-## Separar Horas e Minutos em colunas distintas
+## Paginação no card "Operadores no período"
+
+### Situação atual
+O card mostra o aviso "Agregado da página atual (1 de 15). Use Exportar para visão completa." mas o agregado é feito só sobre `data.dados` (página atual da tabela principal). Não há como navegar entre páginas dentro do próprio card — o usuário depende da paginação da tabela principal.
 
 ### O que muda
-No card "Operadores no período" em `src/pages/AuditoriaApontamentoGeniusPage.tsx`, substituir a coluna única "Horas (h/min)" por **duas colunas independentes**:
-
-- **Horas** → parte inteira da conversão (ex.: `12`)
-- **Minutos** → minutos restantes da conversão (ex.: `30`)
-
-Exemplo: `12,5h` decimal → coluna Horas = `12`, coluna Minutos = `30`.
+Adicionar paginação **interna** ao card "Operadores no período" em `src/pages/AuditoriaApontamentoGeniusPage.tsx`, permitindo navegar pela lista de operadores agregados sem mexer na tabela principal.
 
 ### Implementação
-- No `useMemo` `operadoresAgg`, derivar dois novos campos por operador a partir de `total_horas`:
+
+**`src/pages/AuditoriaApontamentoGeniusPage.tsx`**
+- Novo estado local: `const [paginaOperadores, setPaginaOperadores] = useState(1)` e constante `OPERADORES_POR_PAGINA = 10`.
+- Derivar `operadoresPaginados` via `useMemo` a partir de `operadoresAgg`:
   ```ts
-  const totalMin = Math.round(total_horas * 60);
-  horas_int = Math.floor(totalMin / 60);
-  minutos_resto = totalMin % 60;
+  const totalPaginasOp = Math.ceil(operadoresAgg.length / OPERADORES_POR_PAGINA);
+  const inicio = (paginaOperadores - 1) * OPERADORES_POR_PAGINA;
+  const operadoresPaginados = operadoresAgg.slice(inicio, inicio + OPERADORES_POR_PAGINA);
   ```
-- Substituir a definição da coluna `total_horas` no `DataTable` por duas colunas:
-  - `{ key: 'horas_int', header: 'Horas', align: 'right' }`
-  - `{ key: 'minutos_resto', header: 'Minutos', align: 'right' }`
-- Manter `total_horas` no objeto (oculto) só para ordenação default decrescente.
-- No header do card, manter o total geral no formato `Xh YYmin` (já implementado) — sem mudança ali.
+- Passar `operadoresPaginados` (em vez de `operadoresAgg`) para o `DataTable`.
+- Adicionar `<PaginationControl>` (já existe em `src/components/erp/PaginationControl.tsx`) abaixo do `DataTable` do card, usando:
+  - `pagina={paginaOperadores}`
+  - `totalPaginas={totalPaginasOp}`
+  - `totalRegistros={operadoresAgg.length}`
+  - `onPageChange={setPaginaOperadores}`
+- Reset automático: `useEffect` que zera `paginaOperadores` para `1` quando `operadoresAgg.length` mudar (novo filtro/pesquisa).
+- Esconder o controle quando `totalPaginasOp <= 1`.
+
+### Detalhe sobre o aviso existente
+O aviso "Agregado da página atual (1 de 15)" continua igual — refere-se à paginação da **tabela principal** de apontamentos (que vem do backend). A nova paginação é só dentro do card de operadores e opera sobre o agregado já calculado.
 
 ### Validação
-- Card mostra colunas separadas: Código | Operador | OPs | **Horas** | **Minutos** | Apontamentos.
-- Operador com 12,5h decimais aparece como Horas=`12` e Minutos=`30`.
-- Ordenação por Horas (clique no header) ordena pelos valores numéricos corretamente.
-- Total geral no topo do card permanece em `Xh YYmin`.
+- Após pesquisar com muitos operadores, o card mostra 10 operadores por vez + controle de paginação no rodapé com "Página 1 de N (X registros)".
+- Botões ‹‹ ‹ › ›› navegam corretamente.
+- Mudar filtro e pesquisar de novo → card volta para página 1 automaticamente.
+- Se houver ≤10 operadores, controle de paginação não aparece.
+- Ordenação por colunas (clique no header) continua funcionando dentro da página atual.
 
