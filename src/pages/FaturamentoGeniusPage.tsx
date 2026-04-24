@@ -131,10 +131,41 @@ export default function FaturamentoGeniusPage() {
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [backendIndisponivel, setBackendIndisponivel] = useState(false);
+  const [fonteIndisponivel, setFonteIndisponivel] = useState(false);
+  const [avisoAtualizacao, setAvisoAtualizacao] = useState<string | null>(null);
 
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
   const MSG_404 = 'Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI.';
+  const MSG_FONTE = 'Fonte de faturamento não localizada no banco. Verifique no backend se o objeto configurado existe, por exemplo dbo.USU_VMBRUTANFE.';
+
+  const isSqlObjectError = (err: any): boolean => {
+    const parts: string[] = [];
+    if (err?.message) parts.push(String(err.message));
+    if (err?.details) {
+      try { parts.push(typeof err.details === 'string' ? err.details : JSON.stringify(err.details)); } catch { /* ignore */ }
+    }
+    const haystack = parts.join(' ').toLowerCase();
+    if (!haystack) return false;
+    if (haystack.includes('42s02')) return true;
+    if (haystack.includes('nome de objeto')) return true;
+    if (haystack.includes('invalid object name')) return true;
+    if (haystack.includes('objeto') && haystack.includes('inválido')) return true;
+    if (haystack.includes('objeto') && haystack.includes('invalido')) return true;
+    return false;
+  };
+
+  const isNotApplicableMessage = (msg: any): boolean => {
+    if (!msg) return false;
+    const s = String(msg).toLowerCase();
+    return (
+      s.includes('não se aplica') ||
+      s.includes('nao se aplica') ||
+      s.includes('not applicable') ||
+      s.includes('indisponível neste ambiente') ||
+      s.includes('indisponivel neste ambiente')
+    );
+  };
 
   const consultar = async (page = 1) => {
     setLoading(true);
