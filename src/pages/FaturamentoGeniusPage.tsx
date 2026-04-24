@@ -729,13 +729,14 @@ export default function FaturamentoGeniusPage() {
           </div>
 
           <KpiGroup title="Valores" tone="volume" icon={<DollarSign className="h-3.5 w-3.5" />}>
-            <KpiClickable kpiKey="valor_total"><KPICard title="Valor Total" value={fmtBRL(kpis.valor_total)} icon={<DollarSign className="h-4 w-4" />} variant="success" index={0} /></KpiClickable>
-            <KpiClickable kpiKey="valor_bruto"><KPICard title="Valor Bruto" value={fmtBRL(kpis.valor_bruto)} icon={<Receipt className="h-4 w-4" />} index={1} /></KpiClickable>
-            <KpiClickable kpiKey="valor_devolucao"><KPICard title="Devolução" value={fmtBRL(kpis.valor_devolucao)} icon={<TrendingDown className="h-4 w-4" />} variant="warning" index={2} /></KpiClickable>
-            <KpiClickable kpiKey="valor_custo"><KPICard title="Custo" value={fmtBRL(kpis.valor_custo)} icon={<Wallet className="h-4 w-4" />} index={3} /></KpiClickable>
-            <KpiClickable kpiKey="valor_comissao"><KPICard title="Comissão" value={fmtBRL(kpis.valor_comissao)} icon={<Wallet className="h-4 w-4" />} index={4} /></KpiClickable>
-            <KpiClickable kpiKey="margem_bruta"><KPICard title="Margem Bruta" value={fmtBRL(kpis.margem_bruta)} icon={<DollarSign className="h-4 w-4" />} variant={Number(kpis.margem_bruta ?? 0) < 0 ? 'destructive' : 'success'} index={5} /></KpiClickable>
-            <KpiClickable kpiKey="margem_percentual"><KPICard title="Margem %" value={fmtPct(kpis.margem_percentual)} icon={<Percent className="h-4 w-4" />} variant={margemPct < 0 ? 'destructive' : 'success'} index={6} /></KpiClickable>
+            <KpiClickable kpiKey="valor_total"><KPICard title="Faturamento" value={fmtBRL(kpis.valor_total)} icon={<DollarSign className="h-4 w-4" />} variant="success" tooltip="Soma de Valor Total das notas (faturamento bruto antes de devoluções e impostos)." index={0} /></KpiClickable>
+            <KpiClickable kpiKey="valor_devolucao"><KPICard title="Devolução" value={fmtBRL(kpis.valor_devolucao)} icon={<TrendingDown className="h-4 w-4" />} variant="warning" tooltip="Soma de Valor Devolução." index={1} /></KpiClickable>
+            <KPICard title="Impostos" value={fmtBRL(kpis.valor_impostos)} icon={<Receipt className="h-4 w-4" />} variant="warning" tooltip="ICMS + IPI + PIS + COFINS." index={2} />
+            <KPICard title="Fat. Líquido" value={fmtBRL(kpis.fat_liquido)} icon={<DollarSign className="h-4 w-4" />} variant="success" tooltip="Faturamento − Devolução − Impostos." index={3} />
+            <KpiClickable kpiKey="valor_custo"><KPICard title="Custo" value={fmtBRL(kpis.valor_custo)} icon={<Wallet className="h-4 w-4" />} tooltip="Soma de Valor Custo." index={4} /></KpiClickable>
+            <KpiClickable kpiKey="valor_comissao"><KPICard title="Comissão" value={fmtBRL(kpis.valor_comissao)} icon={<Wallet className="h-4 w-4" />} tooltip="Soma de Valor Comissão." index={5} /></KpiClickable>
+            <KpiClickable kpiKey="margem_bruta"><KPICard title="Margem Bruta" value={fmtBRL(kpis.margem_bruta)} icon={<DollarSign className="h-4 w-4" />} variant={Number(kpis.margem_bruta ?? 0) < 0 ? 'destructive' : 'success'} tooltip="Fat. Líquido − Custo." index={6} /></KpiClickable>
+            <KpiClickable kpiKey="margem_percentual"><KPICard title="Margem %" value={fmtPct(kpis.margem_percentual)} icon={<Percent className="h-4 w-4" />} variant={margemPct < 0 ? 'destructive' : 'success'} tooltip="Margem Bruta / Fat. Líquido." index={7} /></KpiClickable>
           </KpiGroup>
 
           <KpiGroup title="Volume" tone="saude" icon={<FileText className="h-3.5 w-3.5" />}>
