@@ -755,6 +755,16 @@ export default function FaturamentoGeniusPage() {
               <DataTable columns={colsMes} data={porMes} emptyMessage="Sem dados por mês." />
             </CardContent>
           </Card>
+
+          <ValidacaoGeniusPanel
+            dashboard={dashboard}
+            detalhe={detalhe}
+            filtroRevendaAtivo={(filters.revenda || '').toUpperCase().includes('GENIUS')}
+            onAplicarFiltroGenius={() => {
+              update('revenda', 'GENIUS');
+              setTimeout(() => consultar(1), 0);
+            }}
+          />
         </div>
       )}
 
@@ -1013,4 +1023,210 @@ function DrillLevelTable({ dim, rows, metricLabel, format, getMetric, onSelect }
   ];
 
   return <DataTable columns={cols as any} data={data as any} emptyMessage="Sem dados neste recorte." />;
+}
+
+// ============================================================
+// Painel de Validação Genius
+// Compara KPIs por mês retornados pelo backend com targets oficiais
+// ============================================================
+
+interface GeniusTarget {
+  fat: number;
+  pct_rep: number;
+  dev: number;
+  pct_dev: number;
+  impostos: number; // negativo
+  fat_liq: number;
+  qtd: number;
+  preco_medio: number;
+  n_vendas: number;
+  n_clientes: number;
+  ticket_medio: number;
+}
+
+const GENIUS_TARGETS: Record<string, GeniusTarget> = {
+  '202601': { fat: 378245, pct_rep: 47.63, dev: 4119, pct_dev: 1.09, impostos: -49165, fat_liq: 325613, qtd: 3998, preco_medio: 95, n_vendas: 23, n_clientes: 16, ticket_medio: 16445 },
+  '202602': { fat: 125245, pct_rep: 15.77, dev: 1826, pct_dev: 1.46, impostos: -24627, fat_liq: 91276,  qtd: 2451, preco_medio: 51, n_vendas: 25, n_clientes: 16, ticket_medio: 5010 },
+  '202603': { fat: 191603, pct_rep: 24.13, dev: 821,  pct_dev: 0.43, impostos: -27370, fat_liq: 161674, qtd: 2768, preco_medio: 69, n_vendas: 25, n_clientes: 14, ticket_medio: 7664 },
+  '202604': { fat: 98959,  pct_rep: 12.46, dev: 2114, pct_dev: 2.14, impostos: -19436, fat_liq: 75299,  qtd: 2213, preco_medio: 45, n_vendas: 25, n_clientes: 10, ticket_medio: 3958 },
+};
+
+interface ValidacaoGeniusPanelProps {
+  dashboard: any;
+  detalhe: any;
+  filtroRevendaAtivo: boolean;
+  onAplicarFiltroGenius: () => void;
+}
+
+function ValidacaoGeniusPanel({ dashboard, detalhe, filtroRevendaAtivo, onAplicarFiltroGenius }: ValidacaoGeniusPanelProps) {
+  const [enabled, setEnabled] = useState(false);
+
+  const linhasComparacao = useMemo(() => {
+    if (!enabled) return [];
+    // Filtra linhas detalhe apenas da revenda GENIUS
+    const linhasGenius: any[] = (detalhe?.dados || []).filter((r: any) =>
+      String(r.revenda || '').toUpperCase().trim() === 'GENIUS'
+    );
+
+    // Agrupa por anomes_emissao
+    const porMes = new Map<string, any>();
+    linhasGenius.forEach((r) => {
+      const am = String(r.anomes_emissao || '').slice(0, 6);
+      if (!am) return;
+      if (!porMes.has(am)) {
+        porMes.set(am, {
+          anomes: am,
+          fat: 0,
+          dev: 0,
+          impostos: 0,
+          qtd: 0,
+          nfs: new Set<string>(),
+          clientes: new Set<string>(),
+        });
+      }
+      const acc = porMes.get(am)!;
+      acc.fat += Number(r.valor_total) || 0;
+      acc.dev += Number(r.valor_devolucao) || 0;
+      acc.impostos += -((Number(r.valor_icms) || 0) + (Number(r.valor_ipi) || 0) + (Number(r.valor_pis) || 0) + (Number(r.valor_cofins) || 0));
+      acc.qtd += Number(r.quantidade) || 0;
+      acc.nfs.add(`${r.empresa}-${r.filial}-${r.numero_nf}-${r.serie_nf}`);
+      acc.clientes.add(String(r.cliente || ''));
+    });
+
+    const totalFat = Array.from(porMes.values()).reduce((s, m) => s + m.fat, 0);
+
+    // Monta linhas: target × computado
+    return Object.entries(GENIUS_TARGETS).map(([anomes, target]) => {
+      const m = porMes.get(anomes);
+      const computed = m ? {
+        fat: m.fat,
+        pct_rep: totalFat > 0 ? (m.fat / totalFat) * 100 : 0,
+        dev: m.dev,
+        pct_dev: m.fat > 0 ? (m.dev / m.fat) * 100 : 0,
+        impostos: m.impostos,
+        fat_liq: m.fat - m.dev - Math.abs(m.impostos),
+        qtd: m.qtd,
+        preco_medio: m.qtd > 0 ? m.fat / m.qtd : 0,
+        n_vendas: m.nfs.size,
+        n_clientes: m.clientes.size,
+        ticket_medio: m.nfs.size > 0 ? m.fat / m.nfs.size : 0,
+      } : null;
+      return { anomes, target, computed };
+    });
+  }, [enabled, detalhe]);
+
+  const statusCor = (esp: number, real: number | null | undefined): string => {
+    if (real === null || real === undefined) return 'text-muted-foreground';
+    const diff = Math.abs(real - esp);
+    const pct = esp !== 0 ? diff / Math.abs(esp) : (real === 0 ? 0 : 1);
+    if (diff <= 1) return 'text-success';
+    if (pct <= 0.01) return 'text-success';
+    if (pct <= 0.05) return 'text-warning';
+    return 'text-destructive';
+  };
+
+  const fmtCmp = (v: number | null | undefined, dec = 0) =>
+    v === null || v === undefined ? '-' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+
+  const campos: Array<{ key: keyof GeniusTarget; label: string; dec: number; suf?: string }> = [
+    { key: 'fat', label: 'Fat. (R$)', dec: 0 },
+    { key: 'pct_rep', label: '% Rep', dec: 2, suf: '%' },
+    { key: 'dev', label: 'Dev. (R$)', dec: 0 },
+    { key: 'pct_dev', label: '% Dev.', dec: 2, suf: '%' },
+    { key: 'impostos', label: 'Impostos', dec: 0 },
+    { key: 'fat_liq', label: 'Fat. Líq.', dec: 0 },
+    { key: 'qtd', label: 'Qtd', dec: 0 },
+    { key: 'preco_medio', label: 'Preço Médio', dec: 0 },
+    { key: 'n_vendas', label: 'Nº Vendas', dec: 0 },
+    { key: 'n_clientes', label: 'Nº Clientes', dec: 0 },
+    { key: 'ticket_medio', label: 'Ticket Médio', dec: 0 },
+  ];
+
+  const mesNome = (am: string) => {
+    const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const m = parseInt(am.slice(4, 6), 10);
+    return meses[m - 1] || am;
+  };
+
+  return (
+    <Card className="border-amber-300/40 bg-amber-50/30 dark:bg-amber-950/10">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <CardTitle className="text-sm font-semibold tracking-tight">Validação Genius (QA)</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Compara os valores retornados pela API com os valores oficiais do relatório Genius (Jan–Abr/2026, revenda GENIUS).
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {enabled && !filtroRevendaAtivo && (
+              <Button size="sm" variant="outline" onClick={onAplicarFiltroGenius}>
+                Aplicar filtro revenda=GENIUS
+              </Button>
+            )}
+            <div className="flex items-center gap-2">
+              <Switch id="modo-validacao" checked={enabled} onCheckedChange={setEnabled} />
+              <Label htmlFor="modo-validacao" className="text-xs cursor-pointer">Modo validação</Label>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      {enabled && (
+        <CardContent className="space-y-3">
+          {!filtroRevendaAtivo && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-xs">Filtro recomendado</AlertTitle>
+              <AlertDescription className="text-xs">
+                Para comparação válida, defina o filtro <span className="font-mono">revenda = GENIUS</span> e o período <span className="font-mono">202601 → 202604</span>.
+              </AlertDescription>
+            </Alert>
+          )}
+          {detalhe?.total_paginas > 1 && (
+            <div className="text-[11px] text-amber-700 dark:text-amber-400">
+              ⚠ Detalhe paginado ({detalhe.total_paginas} páginas). Os valores computados refletem só a página atual — para validação completa, ajuste o período para um único mês.
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-2 font-semibold">Mês</th>
+                  <th className="text-left p-2 font-semibold">Origem</th>
+                  {campos.map((c) => (
+                    <th key={c.key} className="text-right p-2 font-semibold whitespace-nowrap">{c.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {linhasComparacao.map(({ anomes, target, computed }) => (
+                  <>
+                    <tr key={`${anomes}-esp`} className="border-b">
+                      <td rowSpan={2} className="p-2 font-medium align-top">{mesNome(anomes)}<div className="text-[10px] text-muted-foreground">{anomes}</div></td>
+                      <td className="p-2 text-muted-foreground">Esperado</td>
+                      {campos.map((c) => (
+                        <td key={c.key} className="p-2 text-right tabular-nums">{fmtCmp(target[c.key], c.dec)}{c.suf || ''}</td>
+                      ))}
+                    </tr>
+                    <tr key={`${anomes}-real`} className="border-b bg-muted/20">
+                      <td className="p-2 text-muted-foreground">API</td>
+                      {campos.map((c) => (
+                        <td key={c.key} className={`p-2 text-right tabular-nums font-medium ${statusCor(target[c.key], computed?.[c.key] ?? null)}`}>
+                          {fmtCmp(computed?.[c.key] ?? null, c.dec)}{computed && c.suf ? c.suf : ''}
+                        </td>
+                      ))}
+                    </tr>
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="text-[10px] text-muted-foreground space-y-0.5">
+            <div>Cores: <span className="text-success">verde</span> = diferença ≤ 1 ou ≤ 1%, <span className="text-warning">amarelo</span> = ≤ 5%, <span className="text-destructive">vermelho</span> = &gt; 5%.</div>
+            <div>Os valores "API" são calculados a partir de <span className="font-mono">detalhe.dados</span> filtrado por <span className="font-mono">revenda='GENIUS'</span>, agrupados por <span className="font-mono">anomes_emissao</span>.</div>
+          </div>
+        </CardContent>
+      )}
+    </Card>
+  );
 }
