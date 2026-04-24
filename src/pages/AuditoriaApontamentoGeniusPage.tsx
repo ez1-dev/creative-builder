@@ -30,8 +30,9 @@ import { Button } from '@/components/ui/button';
 import {
   AlertTriangle, AlertCircle, Clock, UserCheck, ListChecks, FileQuestion, Timer,
   Activity, CheckCircle2, CalendarRange, Info, ChevronDown, ChevronRight, Search,
-  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck, ChevronLeft, CalendarDays,
+  ExternalLink, Filter as FilterIcon, Copy, ShieldCheck, ChevronLeft, CalendarDays, Loader2,
 } from 'lucide-react';
+import { logError } from '@/lib/errorLogger';
 import { startOfWeek, endOfWeek, addWeeks, getISOWeek, getISOWeekYear, format as formatDateFns } from 'date-fns';
 
 // ─── Helpers de semana (ISO: segunda → domingo) ───────────────────────────
@@ -610,6 +611,10 @@ export default function AuditoriaApontamentoGeniusPage() {
   loadingRef.current = loading;
   const buscarRef = useRef<(page?: number) => Promise<void>>();
 
+  const [operadoresFullData, setOperadoresFullData] = useState<any[] | null>(null);
+  const [loadingOperadores, setLoadingOperadores] = useState(false);
+  const [operadoresFullTruncado, setOperadoresFullTruncado] = useState(false);
+
   const abrirDetalhesOp = useCallback((row: any) => {
     setOpSelecionada(row);
     setDrawerAberto(true);
@@ -708,7 +713,57 @@ export default function AuditoriaApontamentoGeniusPage() {
     setOpSelecionada(null);
     setDrawerAberto(false);
     setUltimaAtualizacao(null);
+    setOperadoresFullData(null);
+    setOperadoresFullTruncado(false);
   }, []);
+
+  // Carrega dataset completo (todas as páginas) para alimentar o agregado
+  // de "Operadores no período", independentemente da paginação principal.
+  useEffect(() => {
+    if (!data) { setOperadoresFullData(null); setOperadoresFullTruncado(false); return; }
+    const totalRegistros = data.total_registros ?? data.dados?.length ?? 0;
+    // Se cabe em 1 página (≤100), reusa o que já temos.
+    if (totalRegistros <= (data.dados?.length ?? 0)) {
+      setOperadoresFullData((data.dados ?? []).map(normalizeRowApont));
+      setOperadoresFullTruncado(false);
+      return;
+    }
+    let cancelado = false;
+    const TAMANHO = 5000;
+    const MAX_PAGS = 3; // até 15k registros
+    (async () => {
+      setLoadingOperadores(true);
+      try {
+        const consolidado: any[] = [];
+        let truncado = false;
+        for (let p = 1; p <= MAX_PAGS; p++) {
+          const res = await api.get<AuditoriaApontamentoGeniusResponse>(
+            '/api/apontamentos-producao',
+            buildAuditoriaListParams(filters, p, TAMANHO),
+          );
+          const linhas = (res.dados ?? []).map(normalizeRowApont);
+          consolidado.push(...linhas);
+          const totalPag = res.total_paginas ?? 1;
+          if (p >= totalPag) break;
+          if (p === MAX_PAGS && totalPag > MAX_PAGS) { truncado = true; break; }
+        }
+        if (!cancelado) {
+          setOperadoresFullData(consolidado);
+          setOperadoresFullTruncado(truncado);
+        }
+      } catch (e: any) {
+        if (!cancelado) {
+          setOperadoresFullData(null);
+          setOperadoresFullTruncado(false);
+          logError({ module: '/api/apontamentos-producao (full operadores)', message: e?.message ?? 'Falha ao carregar agregado completo de operadores', statusCode: e?.statusCode });
+        }
+      } finally {
+        if (!cancelado) setLoadingOperadores(false);
+      }
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const tempoDesdeAtualizacao = useMemo(() => {
     if (!ultimaAtualizacao) return null;
@@ -802,8 +857,38 @@ export default function AuditoriaApontamentoGeniusPage() {
     const m = totalMin % 60;
     return `${h}h ${String(m).padStart(2, '0')}min`;
   };
+  // Fonte completa para o agregado de operadores: usa o dataset full
+  // quando disponível, senão cai para a página atual já filtrada.
+  const linhasParaOperadores = useMemo(() => {
+    if (!operadoresFullData) return aplicarFiltroListaApontGenius;
+    const sel = String(filters.status_op ?? '').trim().toUpperCase();
+    const q = quickFilter.trim().toLowerCase();
+    let rows = operadoresFullData;
+    if (sel) {
+      rows = rows.filter((row) => {
+        const letra = normSitorpRow(row);
+        if (sel === 'E' || sel === 'L' || sel === 'A' || sel === 'F' || sel === 'C') return letra === sel;
+        if (sel === 'EM_ANDAMENTO') return letra === 'E' || letra === 'L' || letra === 'A';
+        if (sel === 'FINALIZADO') return letra === 'F';
+        if (sel === 'SEM_STATUS') return letra === '';
+        return true;
+      });
+    }
+    if (q) {
+      rows = rows.filter((r) => {
+        const opLabel = statusOpVariants[r.status_op]?.label || r.status_op || '';
+        const apontLabel = statusApontVariants[r.status_movimento as StatusApont]?.label || r.status_movimento || '';
+        return [
+          r.nome_operador, r.numero_op, r.codigo_produto, r.descricao_produto,
+          r.origem, r.turno, r.status_movimento, r.status_op, opLabel, apontLabel,
+        ].some((f) => String(f ?? '').toLowerCase().includes(q));
+      });
+    }
+    return rows;
+  }, [operadoresFullData, aplicarFiltroListaApontGenius, filters.status_op, quickFilter]);
+
   const operadoresAgg = useMemo(() => {
-    const rows = aplicarFiltroListaApontGenius;
+    const rows = linhasParaOperadores;
     const map = new Map<string, {
       numcad: string;
       nome_operador: string;
@@ -839,7 +924,7 @@ export default function AuditoriaApontamentoGeniusPage() {
         };
       })
       .sort((a, b) => b.total_horas - a.total_horas);
-  }, [aplicarFiltroListaApontGenius]);
+  }, [linhasParaOperadores]);
 
   const [operadoresAbertos, setOperadoresAbertos] = useState(false);
   const OPERADORES_POR_PAGINA = 10;
@@ -1616,19 +1701,35 @@ export default function AuditoriaApontamentoGeniusPage() {
               <UserCheck className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold">Operadores no período</span>
               <Badge variant="secondary" className="text-xs">{operadoresAgg.length}</Badge>
+              {loadingOperadores && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  carregando período completo…
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>Total: <strong className="text-foreground">{formatHorasMin(operadoresAgg.reduce((s, o) => s + o.total_horas, 0))}</strong></span>
-              <span>OPs únicas: <strong className="text-foreground">{new Set(aplicarFiltroListaApontGenius.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
+              <span>OPs únicas: <strong className="text-foreground">{new Set(linhasParaOperadores.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
             </div>
           </button>
           {operadoresAbertos && (
             <div className="border-t p-3 space-y-2">
-              {data.total_paginas > 1 && (
+              {operadoresFullData && !loadingOperadores ? (
                 <Alert className="py-2">
                   <Info className="h-3.5 w-3.5" />
                   <AlertDescription className="text-xs">
-                    Agregado da página atual ({pagina} de {data.total_paginas}). Use Exportar para visão completa.
+                    Agregado de todos os {formatNumber(linhasParaOperadores.length, 0)} apontamentos do período
+                    {operadoresFullTruncado && ' (truncado em 15.000 — use Exportar para visão completa)'}.
+                  </AlertDescription>
+                </Alert>
+              ) : data.total_paginas > 1 && (
+                <Alert className="py-2">
+                  <Info className="h-3.5 w-3.5" />
+                  <AlertDescription className="text-xs">
+                    {loadingOperadores
+                      ? `Carregando agregado completo do período (${data.total_paginas} páginas)…`
+                      : `Agregado da página atual (${pagina} de ${data.total_paginas}). Use Exportar para visão completa.`}
                   </AlertDescription>
                 </Alert>
               )}
