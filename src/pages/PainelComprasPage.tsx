@@ -66,6 +66,19 @@ export default function PainelComprasPage() {
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'familia_item', origemKey: 'origem_item' });
 
+  const fornecedoresOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    (data?.dados || []).forEach((d: any) => {
+      const name = d.fantasia_fornecedor;
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        opts.push({ value: name, label: name });
+      }
+    });
+    return opts.sort((a, b) => a.label.localeCompare(b.label));
+  }, [data]);
+
   const trackSearch = useSearchTracking('painel-compras');
 
   const search = useCallback(async (page = 1) => {
@@ -358,7 +371,7 @@ export default function PainelComprasPage() {
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Código Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex: 001.001" /></div>
         <div><Label className="text-xs">Descrição Item</Label><Input value={filters.descricao_item} onChange={(e) => setFilters(f => ({ ...f, descricao_item: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Fornecedor</Label><Input value={filters.fornecedor} onChange={(e) => setFilters(f => ({ ...f, fornecedor: e.target.value }))} className="h-8 text-xs" /></div>
+        <div><Label className="text-xs">Fornecedor</Label><ComboboxFilter value={filters.fornecedor} onChange={(v) => setFilters(f => ({ ...f, fornecedor: v }))} options={fornecedoresOptions} placeholder="Buscar fornecedor..." /></div>
         <div><Label className="text-xs">Nº OC</Label><Input value={filters.numero_oc} onChange={(e) => setFilters(f => ({ ...f, numero_oc: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Centro Custo</Label><Input value={filters.centro_custo} onChange={(e) => setFilters(f => ({ ...f, centro_custo: e.target.value }))} className="h-8 text-xs" /></div>
