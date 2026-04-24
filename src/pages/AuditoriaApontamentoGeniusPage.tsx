@@ -1701,19 +1701,35 @@ export default function AuditoriaApontamentoGeniusPage() {
               <UserCheck className="h-4 w-4 text-primary" />
               <span className="text-sm font-semibold">Operadores no período</span>
               <Badge variant="secondary" className="text-xs">{operadoresAgg.length}</Badge>
+              {loadingOperadores && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  carregando período completo…
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>Total: <strong className="text-foreground">{formatHorasMin(operadoresAgg.reduce((s, o) => s + o.total_horas, 0))}</strong></span>
-              <span>OPs únicas: <strong className="text-foreground">{new Set(aplicarFiltroListaApontGenius.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
+              <span>OPs únicas: <strong className="text-foreground">{new Set(linhasParaOperadores.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
             </div>
           </button>
           {operadoresAbertos && (
             <div className="border-t p-3 space-y-2">
-              {data.total_paginas > 1 && (
+              {operadoresFullData && !loadingOperadores ? (
                 <Alert className="py-2">
                   <Info className="h-3.5 w-3.5" />
                   <AlertDescription className="text-xs">
-                    Agregado da página atual ({pagina} de {data.total_paginas}). Use Exportar para visão completa.
+                    Agregado de todos os {formatNumber(linhasParaOperadores.length, 0)} apontamentos do período
+                    {operadoresFullTruncado && ' (truncado em 15.000 — use Exportar para visão completa)'}.
+                  </AlertDescription>
+                </Alert>
+              ) : data.total_paginas > 1 && (
+                <Alert className="py-2">
+                  <Info className="h-3.5 w-3.5" />
+                  <AlertDescription className="text-xs">
+                    {loadingOperadores
+                      ? `Carregando agregado completo do período (${data.total_paginas} páginas)…`
+                      : `Agregado da página atual (${pagina} de ${data.total_paginas}). Use Exportar para visão completa.`}
                   </AlertDescription>
                 </Alert>
               )}
