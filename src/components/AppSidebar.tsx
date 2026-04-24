@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -31,6 +31,7 @@ const modules = [
   { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
   { title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck },
+  { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
   { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
   { title: 'Consulta NF Receb.', url: '/notas-recebimento', icon: FileInput },
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
