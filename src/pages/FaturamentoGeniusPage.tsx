@@ -7,6 +7,8 @@ import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { ErpConnectionAlert } from '@/components/erp/ErpConnectionAlert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
