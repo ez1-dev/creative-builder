@@ -1,117 +1,53 @@
 
-## Corrigir a Auditoria Apontamento Genius no backend novo e eliminar o erro real `[object Object],[object Object]`
 
-### Diagnóstico confirmado
-A rota atual `/auditoria-apontamento-genius` já chama o endpoint novo `/api/apontamentos-producao`, mas está enviando **query params com nomes errados** para o backend real.
+## Testes automatizados — contrato da Auditoria Genius
 
-Hoje a tela monta a busca com:
-- `numero_op`
-- `origem`
-- `codigo_produto`
-- `somente_maior_8h`
+Garantir, via Vitest, que a Auditoria Apontamento Genius:
+1. sempre envia `numorp` e `codori` na URL (mesmo vazios);
+2. usa o builder do `ApiClient.get` com `keepEmpty: ['numorp','codori']`;
+3. mantém **paridade exata** dos params entre listagem (`/api/apontamentos-producao`) e exportação (`/api/export/apontamentos-producao`).
 
-Mas o backend que está respondendo no preview valida:
-- `numorp`
-- `codori`
-- `codpro`
-- `somente_acima_8h`
+### Arquivos novos
 
-Resultado atual no preview:
-```text
-422 Unprocessable Entity
-detail:
-- query.numorp: Field required
-- query.codori: Field required
-```
+#### 1) `src/lib/__tests__/api.test.ts`
+Testa o `ApiClient` isoladamente (mock global de `fetch`), travando o comportamento que sustenta o contrato Genius:
 
-O texto `[object Object],[object Object]` é o efeito colateral disso no frontend: o `api.ts` recebe `detail` como array de objetos do FastAPI e transforma isso em string sem formatar.
+- `get()` **omite** chaves vazias por padrão.
+- `get()` com `{ keepEmpty: ['numorp','codori'] }` **inclui** essas chaves vazias na query string (`numorp=&codori=`).
+- `get()` mantém valores `0` (ex.: `somente_acima_8h: 0`) na URL — proteção contra falsy bug.
+- Em resposta 422 com `detail` array (FastAPI), a mensagem do `Error` lançado é **string legível** (`numorp: Field required; codori: Field required`) e nunca contém `[object Object]`.
 
-### O que ajustar
+#### 2) `src/components/erp/__tests__/ExportButton.test.tsx`
+- Mocka `fetch` retornando um Blob.
+- Renderiza `<ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} keepEmptyKeys={['numorp','codori']} />` com `numorp` e `codori` vazios.
+- Clica no botão e verifica que a URL chamada contém `numorp=` e `codori=` (preservados vazios) e os demais params com nomes corretos.
 
-#### 1) Alinhar a busca da página ao contrato real do backend
-**Arquivo:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+#### 3) `src/pages/__tests__/AuditoriaApontamentoGeniusPage.contract.test.tsx`
+Teste de contrato leve (sem renderizar a página inteira). Em vez de montar a UI gigante, testa o **builder de params** extraindo a lógica:
 
-Trocar o payload da listagem para usar os nomes corretos do backend novo:
-- `numorp: filters.numop`
-- `codori: filters.codori`
-- `codpro: filters.codpro`
-- `operador: filters.operador`
-- `status_op: mapStatusOpParaApi(filters.status_op)`
-- `somente_discrepancia: filters.somente_discrepancia ? 1 : 0`
-- `somente_acima_8h: filters.somente_acima_8h ? 1 : 0`
+- Importa um helper novo `buildAuditoriaParams(filters)` (ver passo 4).
+- Verifica que para um `filters` com `numop=''` e `codori=''`:
+  - chaves obrigatórias presentes: `numorp`, `codori` (string vazia).
+  - chaves renomeadas corretamente: `numorp` (não `numero_op`), `codori` (não `origem`), `codpro` (não `codigo_produto`), `somente_acima_8h` (não `somente_maior_8h`).
+- Verifica **igualdade de chaves e valores** entre `buildAuditoriaParams(filters)` e `buildAuditoriaExportParams(filters)` (exceto `pagina`/`tamanho_pagina` que só existem na listagem).
 
-Remover os aliases errados desta chamada:
-- `numero_op`
-- `origem`
-- `codigo_produto`
-- `somente_maior_8h`
+#### 4) Pequena refatoração em `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+Para tornar o contrato testável sem montar a página:
 
-#### 2) Garantir envio dos campos obrigatórios que o backend exige mesmo vazios
-O backend atual está tratando `numorp` e `codori` como obrigatórios na query. Hoje o helper `api.get()` remove campos vazios, então eles nem chegam na URL.
+- Extrair os dois objetos literais existentes (`api.get(...)` payload e `exportParams`) para duas funções puras exportadas no topo do arquivo:
+  - `export function buildAuditoriaListParams(filters, pagina, tamanho_pagina)`
+  - `export function buildAuditoriaExportParams(filters)`
+- Substituir os literais inline por chamadas a essas funções. Comportamento idêntico ao atual.
+- Exportar também a constante `AUDITORIA_KEEP_EMPTY = ['numorp','codori'] as const` e usá-la nos dois pontos (busca + ExportButton).
 
-**Arquivos:**
-- `src/lib/api.ts`
-- `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+### Como rodar
+`npx vitest run` (já configurado em `vitest.config.ts`).
 
-Implementar uma forma segura de preservar chaves vazias **apenas nessa integração**, sem mudar o comportamento de todas as outras telas. Exemplo de abordagem:
-- adicionar opção no `api.get()` para manter algumas chaves vazias, ou
-- montar a query desta página com helper local específico.
+### Fora de escopo
+- Não testar UI completa (sheets, drawers, tabelas).
+- Não tocar no backend.
+- Sem mudanças visuais.
 
-Aplicar isso para pelo menos:
-- `numorp`
-- `codori`
+### Resultado
+Qualquer regressão futura que renomeie um param, esqueça `numorp`/`codori`, ou desincronize listagem × exportação **quebra os testes** antes de chegar ao usuário.
 
-Objetivo: a URL da auditoria sempre sair com esses campos presentes, porque o backend atual valida presença e não apenas valor.
-
-#### 3) Corrigir a exportação da mesma tela para o mesmo contrato
-**Arquivo:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
-**Possível apoio em:** `src/components/erp/ExportButton.tsx`
-
-O `ExportButton` dessa tela também está montando params com nomes errados. Ajustar `exportParams` para usar o mesmo builder da busca:
-- `numorp`
-- `codori`
-- `codpro`
-- `operador`
-- `status_op`
-- `somente_discrepancia`
-- `somente_acima_8h`
-
-Também preservar `numorp` e `codori` na exportação, para não reproduzir o mesmo 422 em `/api/export/apontamentos-producao`.
-
-#### 4) Formatar corretamente erros estruturados do backend
-**Arquivo:** `src/lib/api.ts`
-
-Quando o backend devolver:
-```json
-{
-  "detail": [
-    { "loc": ["query","numorp"], "msg": "Field required" },
-    { "loc": ["query","codori"], "msg": "Field required" }
-  ]
-}
-```
-
-formatar isso para mensagem legível, por exemplo:
-```text
-numorp: Field required; codori: Field required
-```
-
-Assim o frontend para de mostrar `[object Object],[object Object]` quando houver erro real de validação.
-
-### O que não muda
-- A rota da SPA continua `/auditoria-apontamento-genius`.
-- A grid continua usando o contrato novo de colunas já preparado (`status_movimento`, `horas_realizadas`, `data_movimento`, `hora_movimento`, `data_inicio`, `hora_inicio`, `nome_operador`, `numcad`).
-- Não adicionar fallback dizendo que “o backend não existe”.
-
-### Validação
-1. Abrir `/auditoria-apontamento-genius`.
-2. Fazer consulta sem preencher OP e com/sem origem.
-3. Confirmar no network que a requisição sai para:
-   - `/api/apontamentos-producao?...&numorp=...&codori=...`
-4. Confirmar que não há mais 422 por falta de `numorp`/`codori`.
-5. Confirmar que a tabela carrega com o endpoint novo.
-6. Testar **Exportar Excel** e verificar que `/api/export/apontamentos-producao` recebe os mesmos params corretos.
-7. Se o backend ainda devolver erro, a mensagem exibida deve ficar legível e nunca mais como `[object Object],[object Object]`.
-
-### Resultado esperado
-A aba **Auditoria Apontamento Genius** fica de fato integrada ao backend novo já implementado, usando os nomes de parâmetros que o backend real exige, e o erro visível `[object Object],[object Object]` desaparece porque o 422 deixa de ser provocado — e, se houver outra validação real, ela passa a ser mostrada em texto legível.
