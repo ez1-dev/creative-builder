@@ -1,53 +1,65 @@
 
 
-## Testes automatizados — contrato da Auditoria Genius
+## Corrigir tipos de `numorp` (e `codori`) para o contrato novo do backend
 
-Garantir, via Vitest, que a Auditoria Apontamento Genius:
-1. sempre envia `numorp` e `codori` na URL (mesmo vazios);
-2. usa o builder do `ApiClient.get` com `keepEmpty: ['numorp','codori']`;
-3. mantém **paridade exata** dos params entre listagem (`/api/apontamentos-producao`) e exportação (`/api/export/apontamentos-producao`).
+### Diagnóstico
+O backend agora valida:
+```
+numorp: Input should be a valid integer, unable to parse string as an integer
+```
 
-### Arquivos novos
+Ou seja: `numorp` mudou de obrigatório-string para **inteiro opcional**. Hoje a página envia `numorp=""` (string vazia) sempre, por causa do `AUDITORIA_KEEP_EMPTY`. O backend tenta converter `""` para int e quebra com 422.
 
-#### 1) `src/lib/__tests__/api.test.ts`
-Testa o `ApiClient` isoladamente (mock global de `fetch`), travando o comportamento que sustenta o contrato Genius:
+`codori` provavelmente seguiu o mesmo caminho (campo numérico do ERP). Vou tratar os dois com a mesma regra.
 
-- `get()` **omite** chaves vazias por padrão.
-- `get()` com `{ keepEmpty: ['numorp','codori'] }` **inclui** essas chaves vazias na query string (`numorp=&codori=`).
-- `get()` mantém valores `0` (ex.: `somente_acima_8h: 0`) na URL — proteção contra falsy bug.
-- Em resposta 422 com `detail` array (FastAPI), a mensagem do `Error` lançado é **string legível** (`numorp: Field required; codori: Field required`) e nunca contém `[object Object]`.
+### O que muda
 
-#### 2) `src/components/erp/__tests__/ExportButton.test.tsx`
-- Mocka `fetch` retornando um Blob.
-- Renderiza `<ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} keepEmptyKeys={['numorp','codori']} />` com `numorp` e `codori` vazios.
-- Clica no botão e verifica que a URL chamada contém `numorp=` e `codori=` (preservados vazios) e os demais params com nomes corretos.
+**Arquivo:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
 
-#### 3) `src/pages/__tests__/AuditoriaApontamentoGeniusPage.contract.test.tsx`
-Teste de contrato leve (sem renderizar a página inteira). Em vez de montar a UI gigante, testa o **builder de params** extraindo a lógica:
+1. Em `buildAuditoriaListParams`:
+   - `numorp`: enviar `Number(filters.numop)` quando `filters.numop` for string não-vazia e numérica; caso contrário, **omitir** (`undefined`) — não mandar string vazia.
+   - `codori`: mesma regra — enviar como número se numérico, senão omitir.
+2. Remover `AUDITORIA_KEEP_EMPTY` da chamada `api.get(...)` e do `<ExportButton ... keepEmptyKeys={...}/>`. Esses campos agora são opcionais no backend; não precisam mais aparecer vazios na URL.
+3. Manter `AUDITORIA_KEEP_EMPTY` exportado como `[] as const` (ou removê-lo) — decidir pela remoção é mais limpo, mas quebra os testes existentes; vou **mantê-lo exportado como array vazio** para não quebrar import nos testes e ajustar a asserção do teste.
 
-- Importa um helper novo `buildAuditoriaParams(filters)` (ver passo 4).
-- Verifica que para um `filters` com `numop=''` e `codori=''`:
-  - chaves obrigatórias presentes: `numorp`, `codori` (string vazia).
-  - chaves renomeadas corretamente: `numorp` (não `numero_op`), `codori` (não `origem`), `codpro` (não `codigo_produto`), `somente_acima_8h` (não `somente_maior_8h`).
-- Verifica **igualdade de chaves e valores** entre `buildAuditoriaParams(filters)` e `buildAuditoriaExportParams(filters)` (exceto `pagina`/`tamanho_pagina` que só existem na listagem).
+**Arquivo:** `src/pages/__tests__/AuditoriaApontamentoGeniusPage.contract.test.tsx`
 
-#### 4) Pequena refatoração em `src/pages/AuditoriaApontamentoGeniusPage.tsx`
-Para tornar o contrato testável sem montar a página:
+- Ajustar os testes que travavam o contrato antigo:
+  - Trocar `expect(p).toHaveProperty('numorp', '')` por: quando `numop=''`, `numorp` **não deve estar presente** (ou ser `undefined`).
+  - Trocar a asserção de `numop: '12345'` para esperar `numorp: 12345` (número, não string).
+  - Idem para `codori`.
+  - Asserção de `AUDITORIA_KEEP_EMPTY`: passar a esperar array vazio.
+- Manter o teste de paridade listagem × exportação intacto (continua válido).
 
-- Extrair os dois objetos literais existentes (`api.get(...)` payload e `exportParams`) para duas funções puras exportadas no topo do arquivo:
-  - `export function buildAuditoriaListParams(filters, pagina, tamanho_pagina)`
-  - `export function buildAuditoriaExportParams(filters)`
-- Substituir os literais inline por chamadas a essas funções. Comportamento idêntico ao atual.
-- Exportar também a constante `AUDITORIA_KEEP_EMPTY = ['numorp','codori'] as const` e usá-la nos dois pontos (busca + ExportButton).
+**Arquivo:** `src/lib/api.ts`
+- Sem mudança de comportamento. O helper `get()` já omite `undefined`/`""` por padrão, que é exatamente o que precisamos.
 
-### Como rodar
-`npx vitest run` (já configurado em `vitest.config.ts`).
+**Arquivo:** `src/components/erp/__tests__/ExportButton.test.tsx`
+- Ajustar para refletir que `numorp`/`codori` vazios **não** devem aparecer mais na URL (remover a asserção que exigia `numorp=` vazio na query).
+
+### Helper utilitário
+Adicionar no topo do arquivo da página:
+```ts
+const toIntOrUndef = (v: unknown) => {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+```
+Usar em `numorp` e `codori`.
+
+### Validação manual
+1. Abrir `/auditoria-apontamento-genius` sem preencher OP nem origem → request sai sem `numorp` e sem `codori` na URL → 200 OK.
+2. Preencher OP `12345` → URL contém `numorp=12345` (sem aspas, inteiro) → 200 OK.
+3. Preencher origem `110` → URL contém `codori=110` → 200 OK.
+4. Exportar Excel com filtros vazios e com OP preenchida → mesmo comportamento.
+5. Vitest (`npx vitest run`) passa todos os testes ajustados.
 
 ### Fora de escopo
-- Não testar UI completa (sheets, drawers, tabelas).
-- Não tocar no backend.
-- Sem mudanças visuais.
+- Backend (já está correto, é o frontend que precisa se adequar).
+- UI/visual.
+- Outras telas.
 
 ### Resultado
-Qualquer regressão futura que renomeie um param, esqueça `numorp`/`codori`, ou desincronize listagem × exportação **quebra os testes** antes de chegar ao usuário.
+O 422 `unable to parse string as an integer` desaparece. A integração da Auditoria Genius com `/api/apontamentos-producao` e `/api/export/apontamentos-producao` passa a respeitar os tipos do contrato novo.
 
