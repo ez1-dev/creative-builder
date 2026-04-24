@@ -130,8 +130,11 @@ export default function FaturamentoGeniusPage() {
   const [dashboard, setDashboard] = useState<any | null>(null);
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [backendIndisponivel, setBackendIndisponivel] = useState(false);
 
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
+
+  const MSG_404 = 'Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI.';
 
   const consultar = async (page = 1) => {
     setLoading(true);
