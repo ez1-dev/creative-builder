@@ -123,6 +123,7 @@ function buildParams(f: Filters, extras?: Record<string, any>) {
   if (f.origem && f.origem !== 'Todas') params.origem = f.origem;
   if (f.tipo_movimento && f.tipo_movimento !== 'TODOS') params.tipo_movimento = f.tipo_movimento;
   if (f.somente_com_revenda) params.somente_com_revenda = true;
+  if (f.somente_genius) params.somente_genius = true;
   if (extras) Object.assign(params, extras);
   return params;
 }
