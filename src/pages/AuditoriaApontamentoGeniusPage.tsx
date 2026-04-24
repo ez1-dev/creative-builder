@@ -1605,7 +1605,7 @@ export default function AuditoriaApontamentoGeniusPage() {
               <Badge variant="secondary" className="text-xs">{operadoresAgg.length}</Badge>
             </div>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>Total: <strong className="text-foreground">{formatNumber(operadoresAgg.reduce((s, o) => s + o.total_horas, 0), 2)} h</strong></span>
+              <span>Total: <strong className="text-foreground">{formatHorasMin(operadoresAgg.reduce((s, o) => s + o.total_horas, 0))}</strong></span>
               <span>OPs únicas: <strong className="text-foreground">{new Set(aplicarFiltroListaApontGenius.map((r: any) => String(r.numero_op ?? '')).filter(Boolean)).size}</strong></span>
             </div>
           </button>
