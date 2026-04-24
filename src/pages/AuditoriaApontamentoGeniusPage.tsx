@@ -364,6 +364,42 @@ const initialFilters = {
   somente_acima_8h: false,
 };
 
+// ─── Contrato do backend /api/apontamentos-producao ────────────────────────
+// Chaves que o backend valida como obrigatórias (mesmo vazias precisam ir
+// na query string). Usadas tanto na busca quanto na exportação.
+export const AUDITORIA_KEEP_EMPTY = ['numorp', 'codori'] as const;
+
+export type AuditoriaFilters = typeof initialFilters;
+
+// Builder dos params da listagem — mantém nomes de campos exigidos pelo
+// backend novo (numorp, codori, codpro, somente_acima_8h).
+export function buildAuditoriaListParams(
+  filters: AuditoriaFilters,
+  pagina: number,
+  tamanho_pagina: number,
+) {
+  return {
+    data_ini: filters.data_ini,
+    data_fim: filters.data_fim,
+    numorp: filters.numop ?? '',
+    codori: filters.codori ?? '',
+    codpro: filters.codpro,
+    operador: filters.operador,
+    status_op: mapStatusOpParaApi(filters.status_op),
+    somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
+    somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
+    pagina,
+    tamanho_pagina,
+  };
+}
+
+// Builder dos params da exportação — paridade exata com a listagem,
+// exceto pelos campos de paginação (que não fazem sentido no export).
+export function buildAuditoriaExportParams(filters: AuditoriaFilters) {
+  const { pagina: _p, tamanho_pagina: _t, ...rest } = buildAuditoriaListParams(filters, 1, 1);
+  return rest;
+}
+
 type Status = 'OK' | 'SEM_INICIO' | 'SEM_FIM' | 'FIM_MENOR_INICIO' | 'APONTAMENTO_MAIOR_8H' | 'OPERADOR_MAIOR_8H_DIA';
 type StatusApont = 'ABERTO' | 'FECHADO' | 'DIVERGENTE' | 'ALERTA';
 
@@ -596,19 +632,11 @@ export default function AuditoriaApontamentoGeniusPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.', { id: 'erp-not-ready' }); return; }
     setLoading(true);
     try {
-      const result = await api.get<AuditoriaApontamentoGeniusResponse>('/api/apontamentos-producao', {
-        data_ini: filters.data_ini,
-        data_fim: filters.data_fim,
-        numorp: filters.numop ?? '',
-        codori: filters.codori ?? '',
-        codpro: filters.codpro,
-        operador: filters.operador,
-        status_op: mapStatusOpParaApi(filters.status_op),
-        somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-        somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
-        pagina: page,
-        tamanho_pagina: 100,
-      }, { keepEmpty: ['numorp', 'codori'] });
+      const result = await api.get<AuditoriaApontamentoGeniusResponse>(
+        '/api/apontamentos-producao',
+        buildAuditoriaListParams(filters, page, 100),
+        { keepEmpty: [...AUDITORIA_KEEP_EMPTY] },
+      );
       result.dados = (result.dados ?? []).map(normalizeRowApont);
       if (import.meta.env.DEV && result.dados.length > 0) {
         // eslint-disable-next-line no-console
@@ -1107,17 +1135,7 @@ export default function AuditoriaApontamentoGeniusPage() {
     []
   );
 
-  const exportParams = {
-    data_ini: filters.data_ini,
-    data_fim: filters.data_fim,
-    numorp: filters.numop ?? '',
-    codori: filters.codori ?? '',
-    codpro: filters.codpro,
-    operador: filters.operador,
-    status_op: mapStatusOpParaApi(filters.status_op),
-    somente_discrepancia: filters.somente_discrepancia ? 1 : 0,
-    somente_acima_8h: filters.somente_acima_8h ? 1 : 0,
-  };
+  const exportParams = buildAuditoriaExportParams(filters);
 
   return (
     <div className="space-y-4 p-4">
