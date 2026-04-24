@@ -826,13 +826,18 @@ export default function AuditoriaApontamentoGeniusPage() {
       agg.apontamentos += 1;
     }
     return Array.from(map.values())
-      .map((a) => ({
-        numcad: a.numcad,
-        nome_operador: a.nome_operador,
-        ops_count: a.ops.size,
-        total_horas: a.total_min / 60,
-        apontamentos: a.apontamentos,
-      }))
+      .map((a) => {
+        const totalMin = Math.round(a.total_min);
+        return {
+          numcad: a.numcad,
+          nome_operador: a.nome_operador,
+          ops_count: a.ops.size,
+          total_horas: a.total_min / 60,
+          horas_int: Math.floor(totalMin / 60),
+          minutos_resto: totalMin % 60,
+          apontamentos: a.apontamentos,
+        };
+      })
       .sort((a, b) => b.total_horas - a.total_horas);
   }, [aplicarFiltroListaApontGenius]);
 
@@ -1624,7 +1629,8 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'numcad', header: 'Código', align: 'left', className: 'font-mono' },
                   { key: 'nome_operador', header: 'Operador', align: 'left' },
                   { key: 'ops_count', header: 'OPs', align: 'right', render: (v) => formatNumber(v, 0) },
-                  { key: 'total_horas', header: 'Horas (h/min)', align: 'right', render: (v) => formatHorasMin(Number(v) || 0) },
+                  { key: 'horas_int', header: 'Horas', align: 'right', render: (v) => formatNumber(v, 0) },
+                  { key: 'minutos_resto', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
                 ]}
                 data={operadoresAgg}
