@@ -667,6 +667,14 @@ export default function FaturamentoGeniusPage() {
           />
           <Label htmlFor="somente-com-revenda" className="text-xs cursor-pointer">Somente com revenda</Label>
         </div>
+        <div className="flex items-center gap-2 pt-5">
+          <Switch
+            id="somente-genius"
+            checked={filters.somente_genius}
+            onCheckedChange={(c) => update('somente_genius', c)}
+          />
+          <Label htmlFor="somente-genius" className="text-xs cursor-pointer">Somente revendas Genius</Label>
+        </div>
       </FilterPanel>
 
       {backendIndisponivel && (
