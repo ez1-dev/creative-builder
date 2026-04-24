@@ -147,10 +147,17 @@ export default function FaturamentoGeniusPage() {
       ]);
       setDashboard(dash);
       setDetalhe(det);
+      setBackendIndisponivel(false);
     } catch (err: any) {
-      setError(err?.message || 'Erro ao consultar');
-      if (err?.statusCode !== 401) {
-        toast.error(err?.message || 'Erro ao consultar faturamento');
+      if (err?.statusCode === 404) {
+        setBackendIndisponivel(true);
+        setError(MSG_404);
+        toast.error(MSG_404);
+      } else {
+        setError(err?.message || 'Erro ao consultar');
+        if (err?.statusCode !== 401) {
+          toast.error(err?.message || 'Erro ao consultar faturamento');
+        }
       }
     } finally {
       setLoading(false);
