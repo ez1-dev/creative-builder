@@ -762,7 +762,7 @@ export default function FaturamentoGeniusPage() {
             filtroRevendaAtivo={(filters.revenda || '').toUpperCase().includes('GENIUS')}
             onAplicarFiltroGenius={() => {
               update('revenda', 'GENIUS');
-              setTimeout(() => loadData(1), 0);
+              setTimeout(() => consultar(1), 0);
             }}
           />
         </div>
