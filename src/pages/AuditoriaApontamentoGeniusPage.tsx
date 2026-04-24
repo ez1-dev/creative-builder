@@ -1181,17 +1181,7 @@ export default function AuditoriaApontamentoGeniusPage() {
                 </span>
               )}
             </div>
-            <span
-              onClickCapture={(e) => {
-                if (!obrigatoriosPreenchidos) {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  toast.error('Informe OP e Origem (ambos numéricos) para exportar.', { id: 'auditoria-genius-export-required' });
-                }
-              }}
-            >
-              <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
-            </span>
+            <ExportButton endpoint="/api/export/apontamentos-producao" params={exportParams} />
           </div>
         }
       />
