@@ -1641,13 +1641,21 @@ export default function AuditoriaApontamentoGeniusPage() {
                   { key: 'minutos_resto', header: 'Minutos', align: 'right', render: (v) => formatNumber(v, 0) },
                   { key: 'apontamentos', header: 'Apontamentos', align: 'right', render: (v) => formatNumber(v, 0) },
                 ]}
-                data={operadoresAgg}
+                data={operadoresPaginados}
                 onRowClick={(row: any) => {
                   setFilters((f) => ({ ...f, operador: row.nome_operador }));
                   setTimeout(() => buscarAuditoriaApontamentoGenius(1), 0);
                 }}
                 emptyMessage="Sem operadores nos resultados atuais."
               />
+              {totalPaginasOp > 1 && (
+                <PaginationControl
+                  pagina={paginaOperadores}
+                  totalPaginas={totalPaginasOp}
+                  totalRegistros={operadoresAgg.length}
+                  onPageChange={setPaginaOperadores}
+                />
+              )}
             </div>
           )}
         </Card>
