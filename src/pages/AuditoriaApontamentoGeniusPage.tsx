@@ -642,7 +642,6 @@ export default function AuditoriaApontamentoGeniusPage() {
       const result = await api.get<AuditoriaApontamentoGeniusResponse>(
         '/api/apontamentos-producao',
         buildAuditoriaListParams(filters, page, 100),
-        { keepEmpty: [...AUDITORIA_KEEP_EMPTY] },
       );
       result.dados = (result.dados ?? []).map(normalizeRowApont);
       if (import.meta.env.DEV && result.dados.length > 0) {
