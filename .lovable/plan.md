@@ -1,57 +1,110 @@
-## Filtro "somente GENIUS" no /api/faturamento-genius-dashboard
 
-O backend FastAPI hoje retorna **todas as revendas** quando o filtro `revenda` está vazio. Isso faz os totais da tela divergirem dos números oficiais Genius (Jan–Abr/2026), porque entram revendas que não fazem parte da visão Genius. Solução: criar uma whitelist de revendas Genius no backend e expor um parâmetro `somente_genius=true` que aplica essa whitelist via SQL.
+## Objetivo
 
-### 1. Backend (FastAPI)
+Adicionar uma linha **TOTAL** (Esperado vs API) ao final da tabela do painel **Validação Genius (QA)** em `/faturamento-genius`, com os agregados do período corrigidos:
 
-**Constante (no mesmo módulo das demais constantes Genius já adicionadas):**
+- **Fat., Dev., Impostos, Fat. Líq., Qtd, Nº Vendas** = soma simples dos meses
+- **% Rep (Total)** = `100,00%` (fixo, é o todo)
+- **% Dev. (Total)** = `sum(dev) / sum(fat) * 100` (ponderado, não média de %)
+- **Preço Médio (Total)** = `sum(fat) / sum(qtd)` (ponderado)
+- **Ticket Médio (Total)** = `sum(fat) / sum(n_vendas)` (ponderado, com NFs distintas no período inteiro)
+- **Nº Vendas (Total)** = `COUNT DISTINCT` de NFs em todo o período (não soma dos meses, evita duplicidade entre meses, embora na prática seja igual)
+- **Nº Clientes (Total)** = `COUNT DISTINCT` de clientes em **todo o período** (não a soma dos `n_clientes` mensais — um cliente que compra em 3 meses conta 1 vez)
 
-```python
-# Códigos de revenda que compõem a visão oficial "Faturamento Genius"
-GENIUS_REVENDAS = ('GENIUS',)  # ajustar caso existam outras revendas oficiais
-GENIUS_REVENDAS_SQL = ", ".join(f"'{x}'" for x in GENIUS_REVENDAS)
+## Valores esperados (referência do relatório oficial)
+
+| Campo | Valor |
+|---|---|
+| Fat. | 794.052 |
+| % Rep | 100,00% |
+| Dev. | 8.879 |
+| % Dev. | 1,12% |
+| Impostos | -120.598 |
+| Fat. Líq. | 653.862 |
+| Qtd | 11.430 |
+| Preço Médio | ~69 (794.052 / 11.430 = 69,47) |
+| Nº Vendas | 98 |
+| Nº Clientes | 34 (distintos no período) |
+| Ticket Médio | ~8.103 (794.052 / 98) |
+
+## Alterações em código
+
+Arquivo único: `src/pages/FaturamentoGeniusPage.tsx` — componente `ValidacaoGeniusPanel`.
+
+### 1. Adicionar entrada TOTAL em `GENIUS_TARGETS`
+
+Acrescentar uma chave especial `'TOTAL'` ao objeto `GENIUS_TARGETS` (linhas ~1059-1062) com os valores oficiais agregados acima.
+
+### 2. Calcular o TOTAL agregado a partir de `linhasGenius`
+
+Dentro do `useMemo` que produz `linhasComparacao` (linhas ~1082-1127), após montar `porMes`, computar um objeto `totalComputed` rodando uma única passada sobre `linhasGenius` (não sobre `porMes`) para garantir contagens distintas corretas:
+
+```ts
+const nfsPeriodo = new Set<string>();
+const clientesPeriodo = new Set<string>();
+let fatTot = 0, devTot = 0, impTot = 0, qtdTot = 0;
+
+linhasGenius.forEach((r) => {
+  fatTot  += Number(r.valor_total)     || 0;
+  devTot  += Number(r.valor_devolucao) || 0;
+  impTot  += -((Number(r.valor_icms)||0)+(Number(r.valor_ipi)||0)+(Number(r.valor_pis)||0)+(Number(r.valor_cofins)||0));
+  qtdTot  += Number(r.quantidade)      || 0;
+  nfsPeriodo.add(`${r.empresa}-${r.filial}-${r.numero_nf}-${r.serie_nf}`);
+  clientesPeriodo.add(String(r.cliente || ''));
+});
+
+const totalComputed = {
+  fat: fatTot,
+  pct_rep: 100,                                   // sempre 100% para o total
+  dev: devTot,
+  pct_dev: fatTot > 0 ? (devTot / fatTot) * 100 : 0,
+  impostos: impTot,
+  fat_liq: fatTot - devTot - Math.abs(impTot),
+  qtd: qtdTot,
+  preco_medio: qtdTot > 0 ? fatTot / qtdTot : 0,  // ponderado, não média
+  n_vendas: nfsPeriodo.size,                      // distintas no período
+  n_clientes: clientesPeriodo.size,               // distintas no período
+  ticket_medio: nfsPeriodo.size > 0 ? fatTot / nfsPeriodo.size : 0,
+};
 ```
 
-**Assinatura dos endpoints** (`/api/faturamento-genius-dashboard`, `/api/faturamento-genius`, `/api/export/faturamento-genius`):
+Retornar do `useMemo` `{ porAnomes: [...], total: { target: GENIUS_TARGETS.TOTAL, computed: totalComputed } }`.
 
-```python
-somente_genius: bool = Query(False)
+### 3. Renderizar a linha TOTAL no `<tbody>`
+
+Após o `.map` das linhas mensais (linhas ~1213-1231), acrescentar duas linhas com cabeçalho destacado (`bg-amber-100/40 font-semibold border-t-2`):
+
+```tsx
+<tr className="border-t-2 border-amber-400 bg-amber-100/30">
+  <td rowSpan={2} className="p-2 font-bold align-top">TOTAL<div className="text-[10px] text-muted-foreground">Jan–Abr/2026</div></td>
+  <td className="p-2 text-muted-foreground font-semibold">Esperado</td>
+  {campos.map((c) => (
+    <td key={c.key} className="p-2 text-right tabular-nums font-semibold">{fmtCmp(total.target[c.key], c.dec)}{c.suf || ''}</td>
+  ))}
+</tr>
+<tr className="bg-amber-100/20">
+  <td className="p-2 text-muted-foreground font-semibold">API</td>
+  {campos.map((c) => (
+    <td key={c.key} className={`p-2 text-right tabular-nums font-semibold ${statusCor(total.target[c.key], total.computed[c.key])}`}>
+      {fmtCmp(total.computed[c.key], c.dec)}{c.suf || ''}
+    </td>
+  ))}
+</tr>
 ```
 
-**Em `_where_faturamento_genius()`** acrescentar:
+### 4. Nota de rodapé
 
-```python
-if somente_genius:
-    where.append(f"UPPER(LTRIM(RTRIM(COALESCE(REV.NOMREV,'')))) IN ({GENIUS_REVENDAS_SQL})")
-```
+Acrescentar uma linha em `text-[10px] text-muted-foreground`:
 
-(usar o campo/JOIN que já identifica a revenda no SELECT atual — provavelmente `REV.NOMREV` ou alias equivalente; manter o mesmo predicado em todos os 3 endpoints para garantir consistência entre KPI dashboard, detalhe paginado e export Excel).
+> "Total: Nº Clientes e Nº Vendas usam contagem distinta no período (um cliente/NF aparece 1 vez, mesmo se em vários meses). Preço Médio e Ticket Médio são ponderados por Fat./Qtd e Fat./Nº Vendas."
 
-**Compatibilidade:** valor default `False` preserva o comportamento atual de quem não passar o parâmetro.
+## Resultado
 
-### 2. Frontend (`src/pages/FaturamentoGeniusPage.tsx`)
+A tabela QA passa a ter, ao final, uma linha TOTAL bem destacada com Esperado vs API. As fórmulas eliminam os bugs:
 
-- Adicionar campo `somente_genius: boolean` em `Filters` (default `true`, já que esta tela é a "visão Genius").
-- Adicionar Switch no `FilterPanel`: **"Somente revendas Genius"** (ligado por padrão).
-- Em `buildParams`, enviar `somente_genius: f.somente_genius` quando `true`.
-- Quando o usuário digitar uma `revenda` específica no filtro de texto, manter ambos os parâmetros (backend faz AND).
-- No painel de validação Genius (`ValidacaoGeniusPanel`), quando `somente_genius=true` o aviso de "filtre revenda = GENIUS" deixa de aparecer.
+- `Preço Médio` deixa de espelhar o último mês → vira `~69,47`
+- `Nº Clientes` deixa de ser soma (66) ou último mês → vira `34` (distintos no período)
+- `% Rep` deixa de ficar vazio → vira `100,00%`
+- `Ticket Médio` passa a usar agregação correta (`~8.103`)
 
-### 3. Validação
-
-Após deploy do backend:
-1. Abrir `/faturamento-genius` com `Mês = 03/2026`, Switch "Somente Genius" ligado.
-2. Conferir contra os targets oficiais:
-   - Fat. R$ 191.603 / Dev. R$ 821 / Impostos -R$ 27.370 / Fat. Líq. R$ 161.674 / Qtd 2.768 / 25 vendas / 14 clientes.
-3. Repetir para Jan/Fev/Abr usando o painel "Modo validação Genius" — todos os deltas devem ficar verdes.
-
-### Arquivos afetados
-
-- Backend FastAPI: módulo do Faturamento Genius (constante + 3 endpoints + função `_where_faturamento_genius`).
-- `src/pages/FaturamentoGeniusPage.tsx`: novo campo no estado, Switch no FilterPanel, `buildParams`, ajuste do painel de validação.
-
-### Garantias
-
-- Parâmetro opcional com default `False` no backend → não quebra outros consumidores.
-- Frontend continua permitindo digitar uma revenda específica (filtros combinam via AND).
-- Nenhuma mudança em colunas, tipos de retorno ou contrato JSON.
+Sem mudanças em backend ou em outras tabelas da página.
