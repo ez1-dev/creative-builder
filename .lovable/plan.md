@@ -1,65 +1,53 @@
 
 
-## Corrigir tipos de `numorp` (e `codori`) para o contrato novo do backend
+## Tornar OP e Origem obrigatórios na Auditoria Genius (contrato atual do backend)
 
 ### Diagnóstico
-O backend agora valida:
-```
-numorp: Input should be a valid integer, unable to parse string as an integer
-```
+O backend mudou de novo. Agora exige:
+- `numorp`: **obrigatório** + **inteiro**
+- `codori`: **obrigatório** + **inteiro**
 
-Ou seja: `numorp` mudou de obrigatório-string para **inteiro opcional**. Hoje a página envia `numorp=""` (string vazia) sempre, por causa do `AUDITORIA_KEEP_EMPTY`. O backend tenta converter `""` para int e quebra com 422.
+Erro atual: `numorp: Field required; codori: Field required` — porque o fix anterior omite os dois quando vazios (correto para o problema do `unable to parse string as an integer`, mas o backend agora exige presença).
 
-`codori` provavelmente seguiu o mesmo caminho (campo numérico do ERP). Vou tratar os dois com a mesma regra.
+Não dá para satisfazer os dois ao mesmo tempo enviando vazio: se mandar `""` quebra no parse int; se omitir, quebra em "field required". A única saída válida é **garantir que o usuário preencha OP e Origem antes de consultar**.
 
 ### O que muda
 
-**Arquivo:** `src/pages/AuditoriaApontamentoGeniusPage.tsx`
+#### 1) `src/pages/AuditoriaApontamentoGeniusPage.tsx`
 
-1. Em `buildAuditoriaListParams`:
-   - `numorp`: enviar `Number(filters.numop)` quando `filters.numop` for string não-vazia e numérica; caso contrário, **omitir** (`undefined`) — não mandar string vazia.
-   - `codori`: mesma regra — enviar como número se numérico, senão omitir.
-2. Remover `AUDITORIA_KEEP_EMPTY` da chamada `api.get(...)` e do `<ExportButton ... keepEmptyKeys={...}/>`. Esses campos agora são opcionais no backend; não precisam mais aparecer vazios na URL.
-3. Manter `AUDITORIA_KEEP_EMPTY` exportado como `[] as const` (ou removê-lo) — decidir pela remoção é mais limpo, mas quebra os testes existentes; vou **mantê-lo exportado como array vazio** para não quebrar import nos testes e ajustar a asserção do teste.
+**Validação na UI:**
+- Marcar visualmente os campos OP e Origem como obrigatórios (asterisco no label).
+- No `handleConsultar` (ou equivalente que dispara `fetchData`), bloquear a chamada se `filters.numop` ou `filters.codori` estiverem vazios/não numéricos. Mostrar `toast.error('Informe OP e Origem (ambos numéricos) para consultar.')` e abortar.
+- Mesmo bloqueio no clique do `ExportButton`: se faltar OP ou Origem, abrir toast e não disparar export. Implementar passando uma prop de validação ou envolvendo o botão num wrapper que checa antes.
 
-**Arquivo:** `src/pages/__tests__/AuditoriaApontamentoGeniusPage.contract.test.tsx`
+**Builders (sem mudança estrutural):**
+- `buildAuditoriaListParams` e `buildAuditoriaExportParams` continuam usando `toIntOrUndef`. Como agora a UI garante valor antes de chamar, `numorp` e `codori` sempre virão como inteiros válidos.
+- Manter `AUDITORIA_KEEP_EMPTY = [] as const` (contrato continua "envia integer ou nada", e nunca mais "nada" na prática).
 
-- Ajustar os testes que travavam o contrato antigo:
-  - Trocar `expect(p).toHaveProperty('numorp', '')` por: quando `numop=''`, `numorp` **não deve estar presente** (ou ser `undefined`).
-  - Trocar a asserção de `numop: '12345'` para esperar `numorp: 12345` (número, não string).
-  - Idem para `codori`.
-  - Asserção de `AUDITORIA_KEEP_EMPTY`: passar a esperar array vazio.
-- Manter o teste de paridade listagem × exportação intacto (continua válido).
+**Estado inicial:**
+- Não pré-preencher OP/Origem com nada. Consulta automática inicial (se houver `useEffect` que dispara `fetchData` no mount) precisa ser **removida ou condicionada** à presença dos dois campos. Senão a tela já abre com 422.
 
-**Arquivo:** `src/lib/api.ts`
-- Sem mudança de comportamento. O helper `get()` já omite `undefined`/`""` por padrão, que é exatamente o que precisamos.
+#### 2) `src/pages/__tests__/AuditoriaApontamentoGeniusPage.contract.test.tsx`
 
-**Arquivo:** `src/components/erp/__tests__/ExportButton.test.tsx`
-- Ajustar para refletir que `numorp`/`codori` vazios **não** devem aparecer mais na URL (remover a asserção que exigia `numorp=` vazio na query).
+- Adicionar caso: com `numop='12345'` e `codori='110'` preenchidos, `buildAuditoriaListParams` retorna `numorp: 12345` e `codori: 110` como inteiros (já existe — manter).
+- Manter teste que verifica omissão quando vazios (continua válido para o builder; a barreira de obrigatoriedade fica na UI, não no builder puro).
 
-### Helper utilitário
-Adicionar no topo do arquivo da página:
-```ts
-const toIntOrUndef = (v: unknown) => {
-  if (v === null || v === undefined || v === '') return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-};
-```
-Usar em `numorp` e `codori`.
+#### 3) Sem mudanças em
+- `src/lib/api.ts`
+- `src/components/erp/ExportButton.tsx` (a validação fica na página, não no botão genérico)
 
 ### Validação manual
-1. Abrir `/auditoria-apontamento-genius` sem preencher OP nem origem → request sai sem `numorp` e sem `codori` na URL → 200 OK.
-2. Preencher OP `12345` → URL contém `numorp=12345` (sem aspas, inteiro) → 200 OK.
-3. Preencher origem `110` → URL contém `codori=110` → 200 OK.
-4. Exportar Excel com filtros vazios e com OP preenchida → mesmo comportamento.
-5. Vitest (`npx vitest run`) passa todos os testes ajustados.
+1. Abrir `/auditoria-apontamento-genius` → tela carrega vazia, **sem disparar request automático**.
+2. Clicar Consultar sem preencher → toast "Informe OP e Origem…", nenhuma request sai.
+3. Preencher OP `12345` e Origem `110` → request `/api/apontamentos-producao?...&numorp=12345&codori=110` → 200 OK.
+4. Clicar Exportar sem preencher → toast, sem request.
+5. Preencher e exportar → `/api/export/apontamentos-producao?...&numorp=12345&codori=110` → 200 OK.
+6. `npx vitest run` → todos os testes passam.
 
 ### Fora de escopo
-- Backend (já está correto, é o frontend que precisa se adequar).
-- UI/visual.
-- Outras telas.
+- Backend (já está como está; estamos nos adequando).
+- Tornar OP/Origem opcionais no backend (decisão de produto, não de frontend).
 
-### Resultado
-O 422 `unable to parse string as an integer` desaparece. A integração da Auditoria Genius com `/api/apontamentos-producao` e `/api/export/apontamentos-producao` passa a respeitar os tipos do contrato novo.
+### Observação
+Se a intenção real é permitir consulta sem OP/Origem (modo "varredura ampla"), isso precisa ser **mudança no backend** — não há como o frontend resolver isso sozinho, pois `Field required` é validação server-side. Confirme se quer que eu siga o plano acima (UI obriga preenchimento) ou se prefere que eu apenas reporte e você ajuste o backend.
 
