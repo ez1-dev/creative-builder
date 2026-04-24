@@ -793,6 +793,45 @@ export default function AuditoriaApontamentoGeniusPage() {
     });
   }, [dadosFiltradosPorStatusOp, quickFilter]);
 
+  // ─── Resumo por Operador ─────────────────────────────────────────────────
+  // Agrega as linhas já filtradas (status OP + filtro rápido) por operador.
+  // Aggregação client-side sobre a página atual de data.dados.
+  const operadoresAgg = useMemo(() => {
+    const rows = aplicarFiltroListaApontGenius;
+    const map = new Map<string, {
+      numcad: string;
+      nome_operador: string;
+      total_min: number;
+      ops: Set<string>;
+      apontamentos: number;
+    }>();
+    for (const r of rows) {
+      const numcad = String(r.numcad ?? '').trim() || '—';
+      const nome = String(r.nome_operador ?? '').trim() || '—';
+      const key = `${numcad}|${nome}`;
+      let agg = map.get(key);
+      if (!agg) {
+        agg = { numcad, nome_operador: nome, total_min: 0, ops: new Set<string>(), apontamentos: 0 };
+        map.set(key, agg);
+      }
+      agg.total_min += Number(r.horas_realizadas || 0);
+      const op = String(r.numero_op ?? '').trim();
+      if (op) agg.ops.add(op);
+      agg.apontamentos += 1;
+    }
+    return Array.from(map.values())
+      .map((a) => ({
+        numcad: a.numcad,
+        nome_operador: a.nome_operador,
+        ops_count: a.ops.size,
+        total_horas: a.total_min / 60,
+        apontamentos: a.apontamentos,
+      }))
+      .sort((a, b) => b.total_horas - a.total_horas);
+  }, [aplicarFiltroListaApontGenius]);
+
+  const [operadoresAbertos, setOperadoresAbertos] = useState(false);
+
   // Detecta cenário onde o backend devolveu OPs mas NENHUM apontamento foi vinculado
   // (sintoma do JOIN com E930MPR estar quebrado no backend).
   const todosApontamentosZerados = useMemo(() => {
