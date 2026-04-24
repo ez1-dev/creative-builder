@@ -548,8 +548,9 @@ export default function FaturamentoGeniusPage() {
       )}
 
       <p className="text-xs text-muted-foreground">
-        A revenda vem de VM_FATURAMENTO.CD_REV_PEDIDO. Para produtos, a origem é E120IPD.USU_REVPED;
-        serviços/devoluções podem aparecer como OUTROS conforme a view atual.
+        A revenda vem do campo CD_REV_PEDIDO retornado pelo backend. No ERP Genius, a origem provável é a view
+        USU_VMBRUTANFE, e para produtos a revenda nasce do pedido/item, especialmente E120IPD.USU_REVPED.
+        Serviços/devoluções podem aparecer como OUTROS conforme a origem da view.
       </p>
     </div>
   );
