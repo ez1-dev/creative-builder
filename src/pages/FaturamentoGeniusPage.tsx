@@ -1249,16 +1249,16 @@ function ValidacaoGeniusPanel({ dashboard, detalhe, filtroRevendaAtivo, onAplica
                 </tr>
               </thead>
               <tbody>
-                {linhasComparacao.map(({ anomes, target, computed }) => (
-                  <>
-                    <tr key={`${anomes}-esp`} className="border-b">
+                {linhasComparacao.porAnomes.map(({ anomes, target, computed }) => (
+                  <React.Fragment key={anomes}>
+                    <tr className="border-b">
                       <td rowSpan={2} className="p-2 font-medium align-top">{mesNome(anomes)}<div className="text-[10px] text-muted-foreground">{anomes}</div></td>
                       <td className="p-2 text-muted-foreground">Esperado</td>
                       {campos.map((c) => (
                         <td key={c.key} className="p-2 text-right tabular-nums">{fmtCmp(target[c.key], c.dec)}{c.suf || ''}</td>
                       ))}
                     </tr>
-                    <tr key={`${anomes}-real`} className="border-b bg-muted/20">
+                    <tr className="border-b bg-muted/20">
                       <td className="p-2 text-muted-foreground">API</td>
                       {campos.map((c) => (
                         <td key={c.key} className={`p-2 text-right tabular-nums font-medium ${statusCor(target[c.key], computed?.[c.key] ?? null)}`}>
@@ -1266,14 +1266,34 @@ function ValidacaoGeniusPanel({ dashboard, detalhe, filtroRevendaAtivo, onAplica
                         </td>
                       ))}
                     </tr>
-                  </>
+                  </React.Fragment>
                 ))}
+                {linhasComparacao.total && (
+                  <>
+                    <tr className="border-t-2 border-amber-400 bg-amber-100/40 dark:bg-amber-900/20">
+                      <td rowSpan={2} className="p-2 font-bold align-top">TOTAL<div className="text-[10px] text-muted-foreground">Período</div></td>
+                      <td className="p-2 text-muted-foreground font-semibold">Esperado</td>
+                      {campos.map((c) => (
+                        <td key={c.key} className="p-2 text-right tabular-nums font-semibold">{fmtCmp(linhasComparacao.total!.target[c.key], c.dec)}{c.suf || ''}</td>
+                      ))}
+                    </tr>
+                    <tr className="border-b bg-amber-100/20 dark:bg-amber-900/10">
+                      <td className="p-2 text-muted-foreground font-semibold">API</td>
+                      {campos.map((c) => (
+                        <td key={c.key} className={`p-2 text-right tabular-nums font-semibold ${statusCor(linhasComparacao.total!.target[c.key], linhasComparacao.total!.computed[c.key])}`}>
+                          {fmtCmp(linhasComparacao.total!.computed[c.key], c.dec)}{c.suf || ''}
+                        </td>
+                      ))}
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
           <div className="text-[10px] text-muted-foreground space-y-0.5">
             <div>Cores: <span className="text-success">verde</span> = diferença ≤ 1 ou ≤ 1%, <span className="text-warning">amarelo</span> = ≤ 5%, <span className="text-destructive">vermelho</span> = &gt; 5%.</div>
             <div>Os valores "API" são calculados a partir de <span className="font-mono">detalhe.dados</span> filtrado por <span className="font-mono">revenda='GENIUS'</span>, agrupados por <span className="font-mono">anomes_emissao</span>.</div>
+            <div>TOTAL: Nº Clientes e Nº Vendas usam contagem distinta no período (um cliente/NF que aparece em vários meses conta 1 vez). Preço Médio = Fat./Qtd; Ticket Médio = Fat./Nº Vendas (ponderados, não médias dos meses).</div>
           </div>
         </CardContent>
       )}
