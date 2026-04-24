@@ -755,6 +755,16 @@ export default function FaturamentoGeniusPage() {
               <DataTable columns={colsMes} data={porMes} emptyMessage="Sem dados por mês." />
             </CardContent>
           </Card>
+
+          <ValidacaoGeniusPanel
+            dashboard={dashboard}
+            detalhe={detalhe}
+            filtroRevendaAtivo={(filters.revenda || '').toUpperCase().includes('GENIUS')}
+            onAplicarFiltroGenius={() => {
+              update('revenda', 'GENIUS');
+              setTimeout(() => loadData(1), 0);
+            }}
+          />
         </div>
       )}
 
