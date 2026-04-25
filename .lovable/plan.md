@@ -1,67 +1,35 @@
-## Situação
 
-O endpoint `GET /api/faturamento-genius-dashboard` **não pertence a este projeto Lovable**. Este repositório contém apenas o **frontend** (React + Vite + TypeScript). O backend FastAPI roda em outro serviço/repositório (consumido via URL configurada na tabela `api_config` — ver `src/lib/api.ts`).
+## Problema
 
-Confirmação:
-- Nenhum arquivo `.py` / FastAPI no repositório.
-- Nenhuma referência a `VLRDSC`, `E140IPV` ou `@app.get` no código.
-- O frontend apenas **chama** `/api/faturamento-genius-dashboard` via `api.get(...)` em `src/pages/FaturamentoGeniusPage.tsx:429`.
+O card **Impostos** (e por consequência **Fat. Líquido**) no `/faturamento-genius` mostra valores divergentes do mês filtrado (ex.: ~R$ 50–120 mil em vez dos R$ 27.370 esperados em Mar/2026).
 
-Portanto, **não consigo editar o arquivo FastAPI a partir do Lovable** — ele vive fora deste workspace. Quem precisa aplicar a alteração SQL/Python é o time/pessoa que mantém o repositório do backend.
+**Causa**: o card lê `kpis.valor_impostos`, vindo do agregado `dashboard.por_revenda` retornado pelo backend FastAPI — esse agregado está somando impostos de forma divergente (não respeita corretamente o recorte de período/revenda).
 
-## O que eu posso fazer aqui (no frontend)
+A **tabela "Mensal"** já calcula corretamente, somando ICMS+IPI+PIS+COFINS direto das linhas de `detalhe.dados`, e bate com o relatório oficial Genius.
 
-Quando o backend publicar `valor_desconto` e o `valor_liquido` corrigido, o frontend precisa estar pronto para:
+## Solução
 
-1. **Tipos** — adicionar `valor_desconto?: number` nas interfaces de KPI / por_revenda / por_origem / por_anomes em `src/pages/FaturamentoGeniusPage.tsx`.
-2. **Fórmulas locais** — atualizar três pontos em `src/pages/FaturamentoGeniusPage.tsx` para subtrair também `valor_desconto`:
-   - `computeKpis` (≈ linha 264)
-   - `subtractOutros` (≈ linha 298)
-   - `kpisFromPorRevenda` (≈ linha 310)
-   
-   Trocar:
-   ```ts
-   const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
-   ```
-   por:
-   ```ts
-   const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - (valor_desconto ?? 0);
-   ```
-3. **Card opcional "Descontos"** — exibir `valor_desconto` ao lado de "Impostos" no bloco de KPIs (consistente com o relatório oficial Genius).
-4. **Tabela mensal** — adicionar coluna "Desconto" (opcional, mas alinha com o relatório).
-5. **Testes** — atualizar `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx` para usar `valor_desconto` no fixture e validar Mar/2026 → R$ 161.674.
-6. **Documento** — `docs/backend-faturamento-genius-desconto.md` já existe com a especificação SQL/Python detalhada para repassar ao time backend.
+Alinhar os KPIs com a mesma lógica da tabela mensal: recalcular no frontend a partir das linhas do detalhe.
 
-## O que precisa ser feito FORA do Lovable (pelo time backend)
+### Passos
 
-Aplicar exatamente o que você descreveu, no repositório FastAPI:
+1. **Aumentar `tamanho_pagina` do detalhe** em `consultar()` e `loadPage()` de **100 → 5000** em `src/pages/FaturamentoGeniusPage.tsx`, garantindo que o mês inteiro caiba numa requisição (Mar/2026 GENIUS tem ~2.7k itens; com folga).
 
-- Adicionar ao SELECT de `/api/faturamento-genius-dashboard`:
-  ```sql
-  CAST(SUM(
-    CASE
-      WHEN IPV.TNSPRO IN ({GENIUS_TNS_DEVOLUCAO_SQL}) THEN 0
-      ELSE COALESCE(IPV.VLRDSC, 0)
-    END
-  ) AS FLOAT) AS valor_desconto
-  ```
-- Calcular em Python: `valor_liquido = valor_total - valor_impostos - valor_desconto`
-- Devolver `valor_desconto` e `valor_liquido` em `kpis`, `por_revenda`, `por_origem`, `por_anomes`.
-- Validar com `anomes_ini=202603&anomes_fim=202603&revenda=GENIUS` → Fat. Líq. ≈ R$ 161.674.
+2. **Refatorar `computeKpis(rows)`** para somar impostos a partir dos campos granulares (`valor_icms + valor_ipi + valor_pis + valor_cofins`) — exatamente a fórmula da linha 1225 — em vez do campo agregado `valor_impostos`.
 
-Já está tudo descrito em `docs/backend-faturamento-genius-desconto.md` (criado na rodada anterior).
+3. **Mudar a fonte dos KPIs no `useMemo` de `kpis` (linhas 549–557)**: usar **sempre** `computeKpis(filteredRows)` quando houver linhas detalhadas disponíveis. Manter `dashboard.kpis` apenas como fallback quando o detalhe ainda não carregou.
 
-## Pergunta
+4. **Card "Descontos"** (já adicionado): segue lendo `valor_desconto` do detalhe — sem alteração.
 
-Como **não consigo modificar o backend a partir daqui**, escolha como prosseguir:
+5. **Tooltip do card Impostos**: ajustar para "Soma de ICMS+IPI+PIS+COFINS das linhas do período (mesma base da tabela mensal)".
 
-**Opção A — Preparar o frontend agora** (recomendado):
-Aplico já as mudanças dos itens 1–5 acima, com fallback `?? 0`. Enquanto o backend não publicar `valor_desconto`, nada quebra (cai no comportamento atual). Assim que o backend subir o campo, os valores passam a bater automaticamente sem novo deploy do frontend.
+6. **Aviso de paginação**: se eventualmente o backend retornar `total > 5000` linhas no detalhe, exibir um pequeno aviso abaixo dos KPIs ("Cards calculados sobre as primeiras 5000 linhas do período"). Caso contrário, sem aviso.
 
-**Opção B — Esperar o backend**:
-Não toco no frontend agora. Apenas confirmo o documento `docs/backend-faturamento-genius-desconto.md` para você enviar ao time backend, e ajusto o frontend depois que o campo estiver publicado.
+7. **Atualizar testes** em `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx` para validar a nova fonte de cálculo (impostos somados de ICMS/IPI/PIS/COFINS) e o alvo R$ 27.370 / R$ 161.674 para Mar/2026 com revenda=GENIUS.
 
-**Opção C — Você tem acesso ao backend FastAPI**:
-Se o repositório do backend está disponível em outro lugar (GitHub, pasta local, outro projeto Lovable), me diga onde — posso gerar o **patch exato** (SQL + Python) pronto para colar lá, mas a edição em si terá que ser feita no ambiente daquele repositório.
+## Detalhes técnicos
 
-Qual opção seguimos?
+- Arquivo único impactado (lógica): `src/pages/FaturamentoGeniusPage.tsx`
+- Funções alteradas: `computeKpis`, `kpisFromPorRevenda` (deprecada para o caso impostos — passa a delegar para `computeKpis` quando há detalhe), `useMemo` de `kpis`, chamadas `api.get('/api/faturamento-genius', { tamanho_pagina: 5000 })`.
+- Fórmula final (já aplicada para desconto): `fat_liquido = valor_total − valor_devolucao − |impostos_granulares| − valor_desconto`
+- Sem mudanças no backend; sem migrações.

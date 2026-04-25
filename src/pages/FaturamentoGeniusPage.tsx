@@ -431,7 +431,7 @@ export default function FaturamentoGeniusPage() {
       const baseParams = buildParams(filters);
       const [dash, det] = await Promise.all([
         api.get<any>('/api/faturamento-genius-dashboard', baseParams),
-        api.get<any>('/api/faturamento-genius', { ...baseParams, pagina: page, tamanho_pagina: 100 }),
+        api.get<any>('/api/faturamento-genius', { ...baseParams, pagina: page, tamanho_pagina: 5000 }),
       ]);
       setDashboard(dash);
       setDetalhe(det);
@@ -466,7 +466,7 @@ export default function FaturamentoGeniusPage() {
       const det = await api.get<any>('/api/faturamento-genius', {
         ...buildParams(filters),
         pagina: page,
-        tamanho_pagina: 100,
+        tamanho_pagina: 5000,
       });
       setDetalhe(det);
     } catch (err: any) {
@@ -541,20 +541,17 @@ export default function FaturamentoGeniusPage() {
   }, [dashboard, incluirOutros, filters.revenda]);
 
   // KPIs: prioridade
-  // 1) Se há filtro ativo de revenda (porRevenda < total) → soma a partir de porRevenda filtrada.
-  //    Garante que Impostos/Fat.Líq/etc batam com o que o usuário vê na tabela.
-  // 2) Se incluirOutros → dashboard.kpis cru (cobre todo o período).
-  // 3) Senão → subtrai linha OUTROS de dashboard.kpis.
-  // 4) Fallback: recálculo local a partir do detalhe paginado.
+  // 1) Se há linhas detalhadas (detalhe.dados) → SEMPRE recalcular a partir delas com computeKpis,
+  //    que soma impostos granulares (ICMS+IPI+PIS+COFINS) e desconto direto das linhas — mesma
+  //    base usada pela tabela "Mensal", garantindo coincidência com o relatório oficial Genius.
+  // 2) Fallback (detalhe ainda não carregou): usar dashboard.kpis ou subtractOutros.
   const kpis = useMemo(() => {
+    if (filteredRows.length > 0) return computeKpis(filteredRows);
     const base = dashboard?.kpis;
-    const totalRevendas = (dashboard?.por_revenda || []).length;
-    const filtroAtivo = porRevenda.length > 0 && porRevenda.length < totalRevendas;
-    if (filtroAtivo) return kpisFromPorRevenda(porRevenda);
     if (!base) return computeKpis(filteredRows);
     if (incluirOutros) return base;
     return subtractOutros(base, dashboard?.por_revenda || []);
-  }, [dashboard, incluirOutros, filteredRows, porRevenda]);
+  }, [dashboard, incluirOutros, filteredRows]);
   const margemPct = Number(kpis.margem_percentual ?? 0);
 
   const porOrigem = useMemo(() => {
@@ -828,6 +825,13 @@ export default function FaturamentoGeniusPage() {
 
       {dashboard && (
         <div className="space-y-4">
+          {Number(detalhe?.total ?? 0) > (detalhe?.dados?.length ?? 0) && (
+            <Alert variant="default" className="border-warning/40">
+              <AlertDescription className="text-xs">
+                Os cards estão calculados sobre as primeiras {fmtNum(detalhe?.dados?.length ?? 0)} linhas de um total de {fmtNum(detalhe?.total ?? 0)}. Refine o filtro para garantir cobertura completa do período.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
             <div className="text-xs text-muted-foreground">
               {incluirOutros
@@ -844,8 +848,8 @@ export default function FaturamentoGeniusPage() {
           <KpiGroup title="Valores" tone="volume" icon={<DollarSign className="h-3.5 w-3.5" />}>
             <KpiClickable kpiKey="valor_total"><KPICard title="Faturamento" value={fmtBRL(kpis.valor_total)} icon={<DollarSign className="h-4 w-4" />} variant="success" tooltip="Soma de Valor Total das notas (faturamento bruto antes de devoluções e impostos)." index={0} /></KpiClickable>
             <KpiClickable kpiKey="valor_devolucao"><KPICard title="Devolução" value={fmtBRL(kpis.valor_devolucao)} icon={<TrendingDown className="h-4 w-4" />} variant="warning" tooltip="Soma de Valor Devolução." index={1} /></KpiClickable>
-            <KPICard title="Impostos" value={fmtBRL(kpis.valor_impostos)} icon={<Receipt className="h-4 w-4" />} variant="warning" tooltip="ICMS + IPI + PIS + COFINS." index={2} />
-            <KPICard title="Fat. Líquido" value={fmtBRL(kpis.fat_liquido)} icon={<DollarSign className="h-4 w-4" />} variant="success" tooltip="Faturamento − Devolução − Impostos." index={3} />
+            <KPICard title="Impostos" value={fmtBRL(kpis.valor_impostos)} icon={<Receipt className="h-4 w-4" />} variant="warning" tooltip="ICMS + IPI + PIS + COFINS somados a partir das linhas do período (mesma base da tabela Mensal)." index={2} />
+            <KPICard title="Fat. Líquido" value={fmtBRL(kpis.fat_liquido)} icon={<DollarSign className="h-4 w-4" />} variant="success" tooltip="Faturamento − Devolução − Impostos − Desconto." index={3} />
             <KpiClickable kpiKey="valor_custo"><KPICard title="Custo" value={fmtBRL(kpis.valor_custo)} icon={<Wallet className="h-4 w-4" />} tooltip="Soma de Valor Custo." index={4} /></KpiClickable>
             <KpiClickable kpiKey="valor_comissao"><KPICard title="Comissão" value={fmtBRL(kpis.valor_comissao)} icon={<Wallet className="h-4 w-4" />} tooltip="Soma de Valor Comissão." index={5} /></KpiClickable>
             <KpiClickable kpiKey="margem_bruta"><KPICard title="Margem Bruta" value={fmtBRL(kpis.margem_bruta)} icon={<DollarSign className="h-4 w-4" />} variant={Number(kpis.margem_bruta ?? 0) < 0 ? 'destructive' : 'success'} tooltip="Fat. Líquido − Custo." index={6} /></KpiClickable>
