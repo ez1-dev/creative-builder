@@ -466,7 +466,7 @@ export default function FaturamentoGeniusPage() {
       const det = await api.get<any>('/api/faturamento-genius', {
         ...buildParams(filters),
         pagina: page,
-        tamanho_pagina: 100,
+        tamanho_pagina: 5000,
       });
       setDetalhe(det);
     } catch (err: any) {
