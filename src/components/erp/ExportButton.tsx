@@ -65,6 +65,13 @@ export function ExportButton({ endpoint, params, label = 'Exportar Excel', varia
         toast.error('Sessão expirada. Faça login novamente.');
         return;
       }
+      if ((response.status === 404 || response.status === 501) && endpoint.includes('/api/export/contas-pagar-arvore')) {
+        toast.error(
+          'Exportação em árvore ainda não disponível no backend. Veja docs/backend-export-contas-pagar-arvore.md.',
+          { duration: 8000 },
+        );
+        return;
+      }
       if (!response.ok) {
         throw new Error(`Erro ${response.status}`);
       }
