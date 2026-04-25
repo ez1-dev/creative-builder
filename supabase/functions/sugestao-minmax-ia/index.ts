@@ -122,7 +122,7 @@ function groupMovimentacoes(movs: Mov[]) {
     if (m.lead_time_dias) g.lead_times.push(Number(m.lead_time_dias));
   }
   return Array.from(groups.values()).map((g) => {
-    const fornArr = Array.from(g.fornecedores.entries()).sort((a: any, b: any) => b[1] - a[1]);
+    const fornArr = (Array.from(g.fornecedores.entries()) as [string, number][]).sort((a, b) => b[1] - a[1]);
     return {
       codemp: g.codemp,
       codpro: g.codpro,
