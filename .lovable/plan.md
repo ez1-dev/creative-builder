@@ -1,36 +1,49 @@
-# Teste automatizado — rateios do título 975462S-1 no modo árvore
+## Contexto
 
-## Objetivo
+O SQL que dispara o erro **"Nome de coluna 'CUSMED' inválido"** roda no **backend FastAPI externo** (endpoints `/api/faturamento-genius-dashboard` e `/api/faturamento-genius`), que não está neste repositório Lovable. Este projeto contém apenas o frontend (`src/pages/FaturamentoGeniusPage.tsx`) que consome esses endpoints.
 
-Travar via testes o contrato esperado para o título **975462S-1** no endpoint `/api/contas-pagar-arvore` e o comportamento do `FinanceiroTreeTable` quando o backend retorna (ou não) linhas `tipo_linha = "RATEIO"`. Assim, quando o backend FastAPI for corrigido (ver `docs/backend-contas-centro-custo-projeto.md`), o teste de contrato passa automaticamente; enquanto isso, o teste de UI garante que o aviso "sem rateios cadastrados" aparece.
+Busca confirmou:
+- Nenhuma ocorrência de `CUSMED`, `PREMED`, `E075DER` ou SQL do Faturamento Genius no repositório.
+- Não existe documento `docs/backend-faturamento-genius.md` (só existem docs para outros módulos: contas, estoque, sugestão min/max, etc.).
 
-## O que será adicionado
+Portanto, o que dá pra entregar **dentro deste projeto** é:
 
-### 1. Teste de contrato do endpoint (`src/lib/__tests__/contas-pagar-arvore.contract.test.ts`)
+1. Criar a especificação de backend que o time do FastAPI deve aplicar (mesmo padrão dos outros docs `backend-*.md`).
+2. Tornar o erro mais legível no frontend até a correção subir.
 
-Mocka `fetch` e valida o shape da resposta de `/api/contas-pagar-arvore?numero_titulo=975462S-1`:
+---
 
-- Cenário A — **estado atual (regressão conhecida)**: backend devolve só TÍTULO, `possui_filhos=false`. Marcado como `it.skip` com comentário linkando para o doc backend, para servir como TODO até o fix.
-- Cenário B — **estado esperado pós-fix**: resposta contém 1 linha `TITULO` com `possui_filhos=true` + N linhas com `tipo_linha="RATEIO"`, `codigo_pai` apontando para o `id_linha` do título, `nivel=1`, `codigo_centro_custo` preenchido, e soma de `percentual_rateio` = 100. Esse é o teste ativo, usando fixture mockada — passa hoje (valida o consumidor) e continuará passando quando o backend real responder o mesmo shape.
+## Plano
 
-Também testa `flattenArvore` + `construirMapaFilhos` de `src/lib/treeFinanceiro.ts` com a fixture: ao expandir o título, as linhas RATEIO aparecem na ordem correta abaixo do pai.
+### 1. Criar `docs/backend-faturamento-genius-cusmed.md`
 
-### 2. Teste de UI do `FinanceiroTreeTable` (`src/components/erp/__tests__/FinanceiroTreeTable.test.tsx`)
+Conteúdo:
+- Descrição do erro retornado pelo SQL Server (`Nome de coluna 'CUSMED' inválido`).
+- Causa: `E075DER` no Senior expõe `PREMED` (preço médio) e `PRECUS` (preço de custo); não existe `CUSMED`.
+- Substituições obrigatórias: trocar todo `DER.CUSMED` por `DER.PREMED` no SQL dos endpoints `/api/faturamento-genius-dashboard` e `/api/faturamento-genius`.
+- JOIN canônico:
+  ```sql
+  LEFT JOIN dbo.E075DER DER
+      ON  DER.CODEMP = IPV.CODEMP
+      AND DER.CODPRO = IPV.CODPRO
+      AND COALESCE(DER.CODDER, '') = COALESCE(IPV.CODDER, '')
+  ```
+- Cálculo agregado:
+  ```sql
+  CAST(SUM(COALESCE(DER.PREMED, 0) * COALESCE(IPV.QTDFAT, 0)) AS FLOAT) AS valor_custo
+  ```
+- Cálculo no detalhe:
+  ```sql
+  CAST(COALESCE(DER.PREMED, 0) * COALESCE(IPV.QTDFAT, 0) AS FLOAT) AS valor_custo
+  ```
+- Checklist de validação: grep por `CUSMED` no projeto FastAPI deve retornar zero ocorrências; smoke test chamando os dois endpoints e validando que `valor_custo > 0` para um período conhecido.
 
-Render com Testing Library, dois casos:
+### 2. Ajustar mensagem de erro em `src/pages/FaturamentoGeniusPage.tsx`
 
-- **Com rateios**: passa a fixture do cenário B. Verifica que (a) o título renderiza com chevron expansível, (b) após `onToggle`, as linhas RATEIO ficam visíveis com CCU, % e valor rateado formatados, (c) o aviso "sem rateios cadastrados" **não** aparece.
-- **Sem rateios** (estado atual do backend para 975462S-1): passa só a linha TÍTULO com `possui_filhos=false`. Verifica que o aviso "sem rateios cadastrados" é exibido e que não há botão de expandir.
+Hoje o `catch` da consulta exibe `err?.message` cru no toast. Vou adicionar um mapeamento extra: quando a mensagem contiver `CUSMED` ou `Nome de coluna .* inválido`, exibir um toast/aviso amigável citando que o backend precisa aplicar a correção descrita em `docs/backend-faturamento-genius-cusmed.md`. Sem mudar lógica de dados.
 
-### 3. Fixture compartilhada (`src/test/fixtures/contasPagarArvore975462S1.ts`)
+---
 
-Exporta `respostaSemRateios` (estado atual do backend) e `respostaComRateios` (estado esperado pós-fix), com pelo menos 2 linhas RATEIO (CCUs distintos somando 100%), para reuso nos dois testes acima.
+## Fora de escopo
 
-## Como rodar
-
-`bunx vitest run src/lib/__tests__/contas-pagar-arvore.contract.test.ts src/components/erp/__tests__/FinanceiroTreeTable.test.tsx`
-
-## Observações
-
-- Não há mudanças de produção neste plano — apenas testes e fixtures. O fix real continua sendo backend (já documentado).
-- Se quiser, em uma iteração seguinte posso transformar o `it.skip` do cenário A em teste E2E real apontando para a API (via `VITE_API_BASE` em ambiente local), mas isso exige acesso ao backend e fica fora deste plano.
+- Não há como editar o SQL do FastAPI a partir deste projeto — a correção real precisa ser feita no repositório do backend pelo time responsável, seguindo o doc criado.
