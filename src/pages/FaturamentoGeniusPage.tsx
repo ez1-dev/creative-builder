@@ -446,12 +446,17 @@ export default function FaturamentoGeniusPage() {
   );
   const hiddenOutrosCount = rawRows.length - filteredRows.length;
 
-  // KPIs locais (recalculados a partir do detalhe filtrado).
+  // KPIs: SEMPRE preferir o agregado do backend (dashboard.kpis), pois cobre TODO o período.
+  // O recálculo local a partir de filteredRows só vê a página atual (tamanho_pagina=100) e
+  // produz totais subestimados — causa raiz do bug em que "Faturamento" exibia uma fração
+  // do valor mostrado na tabela mensal. Quando o usuário desliga "Incluir OUTROS",
+  // subtraímos a linha OUTROS de dashboard.por_revenda.
   const kpis = useMemo(() => {
-    if (!incluirOutros && filteredRows.length > 0) return computeKpis(filteredRows);
-    // se incluir OUTROS e o backend já devolve dashboard.kpis, usa ele para preservar totais agregados de toda a base
-    return dashboard?.kpis || computeKpis(filteredRows);
-  }, [filteredRows, dashboard, incluirOutros]);
+    const base = dashboard?.kpis;
+    if (!base) return computeKpis(filteredRows);
+    if (incluirOutros) return base;
+    return subtractOutros(base, dashboard?.por_revenda || []);
+  }, [dashboard, incluirOutros, filteredRows]);
   const margemPct = Number(kpis.margem_percentual ?? 0);
 
   // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável.
