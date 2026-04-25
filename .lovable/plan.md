@@ -1,84 +1,93 @@
-## Problema
+# Rateios não aparecem para o título 975462S-1 em Contas a Pagar (modo árvore)
 
-Na tela `/faturamento-genius`, com toggle "Incluir OUTROS" desligado (visão somente Genius), os cards de Volume Financeiro divergem do relatório oficial Genius (Jan–Abr/2026: Fat. 794.052, Dev. 8.879, Impostos -120.598, Fat.Líq. 653.862, Margem real ≈ Fat.Líq − Custo).
+## Diagnóstico
 
-A causa é que `computeKpis` (linha ~241 de `FaturamentoGeniusPage.tsx`) faz somas linha-a-linha do detalhe sem aplicar as convenções da visão Genius:
+O frontend está correto. Inspecionei a chamada feita pelo modo árvore:
 
-- **Valor Total** mostrado como soma bruta de `valor_total`, sem deduzir devolução nem impostos. Na visão Genius, esse card deve representar o **Faturamento (R$)** = soma de `valor_total` (que já é o faturamento bruto da operação, sem devolução) — precisa bater **794.052**.
-- **Margem Bruta** = `valor_total − valor_custo`. Ignora devolução e impostos, inflando a margem. O correto é `Fat.Líq − Custo`, onde `Fat.Líq = valor_total − devolução − |impostos|` (mesma fórmula já validada na linha TOTAL da tabela QA).
-- **Margem %** = `margem_bruta / valor_total`. Deveria ser `margem_bruta_corrigida / fat_liq` (ou ao menos `/ (valor_total − devolução)`) para refletir a margem real Genius.
-- **Custo / Comissão**: revisar se o backend está incluindo linhas de devolução com sinal já invertido — se sim, a soma está correta; se não, precisamos descontar a parcela referente à devolução para evitar superestimar custo/comissão atribuídos ao faturamento líquido.
+```
+GET /api/contas-pagar-arvore?numero_titulo=975462S-1&pagina=1&tamanho_pagina=100
+```
 
-## O que vai mudar
+E o backend respondeu apenas com a linha **TÍTULO**, sem nenhuma linha de RATEIO:
 
-Arquivo único: `src/pages/FaturamentoGeniusPage.tsx`, função `computeKpis` (linhas ~241-265) e os cards (linhas ~726-732).
-
-### 1. Reescrever `computeKpis` para refletir a visão Genius
-
-```ts
-function computeKpis(rows: any[]) {
-  let valor_total = 0, valor_bruto = 0, valor_devolucao = 0;
-  let valor_custo = 0, valor_comissao = 0, valor_impostos = 0;
-  // ... contagens distintas (mantidas)
-
-  for (const r of rows) {
-    valor_total      += Number(r.valor_total ?? 0);
-    valor_bruto      += Number(r.valor_bruto ?? 0);
-    valor_devolucao  += Number(r.valor_devolucao ?? 0);
-    valor_custo      += Number(r.valor_custo ?? 0);
-    valor_comissao   += Number(r.valor_comissao ?? 0);
-    valor_impostos   += (Number(r.valor_icms ?? 0) + Number(r.valor_ipi ?? 0)
-                       + Number(r.valor_pis ?? 0)  + Number(r.valor_cofins ?? 0));
-    // ... sets distintos
-  }
-
-  const fat_liquido     = valor_total - valor_devolucao - valor_impostos;
-  const margem_bruta    = fat_liquido - valor_custo;          // antes: valor_total - valor_custo
-  const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
-
-  return {
-    valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
-    valor_impostos, fat_liquido,
-    margem_bruta, margem_percentual,
-    // ... contagens
-  };
+```json
+{
+  "total_registros": 1,
+  "modo_exibicao": "ARVORE",
+  "dados": [
+    {
+      "tipo_linha": "TITULO",
+      "id_linha": "1-1-01-975462S-1",
+      "numero_titulo": "975462S-1",
+      "codigo_fornecedor": 6533,
+      "nome_fornecedor": "UNIMED DE SANTOS ...",
+      "codigo_centro_custo": "",
+      "descricao_centro_custo": "",
+      "numero_projeto": 0,
+      "valor_original": 118078.49,
+      "possui_filhos": false,
+      "nivel": 0
+    }
+  ]
 }
 ```
 
-### 2. Adicionar 2 cards novos (Impostos e Fat. Líquido) e ajustar tooltips
+Como `possui_filhos = false` e nenhum item com `tipo_linha = "RATEIO"` veio na resposta, o `FinanceiroTreeTable` não tem o que expandir — comportamento esperado da UI.
 
-Atualizar a linha de cards de Volume Financeiro (linhas ~726-732) para:
+Ou seja: **o problema está no endpoint backend `/api/contas-pagar-arvore`, que não está retornando as linhas de rateio (`E075RAT`) deste título**, mesmo o título tendo rateio cadastrado no ERP Senior.
 
-| Card | Valor | Esperado Jan–Abr/26 |
-|---|---|---|
-| Faturamento (Valor Total) | `kpis.valor_total` | 794.052 |
-| Devolução | `kpis.valor_devolucao` | 8.879 |
-| Impostos | `kpis.valor_impostos` (novo) | 120.598 |
-| Fat. Líquido | `kpis.fat_liquido` (novo) | 653.862 |
-| Custo | `kpis.valor_custo` | (do ERP) |
-| Comissão | `kpis.valor_comissao` | (do ERP) |
-| Margem Bruta | `kpis.margem_bruta` (corrigida) | Fat.Líq − Custo |
-| Margem % | `kpis.margem_percentual` (corrigida) | Margem / Fat.Líq |
+## O que precisa mudar (backend — fora deste repo)
 
-Tooltips em cada card explicando a fórmula, para ficar claro o que cada número representa.
+A correção é no serviço FastAPI que serve `/api/contas-pagar-arvore`. Já está documentada parcialmente em `docs/backend-contas-centro-custo-projeto.md` (seção "Endpoints árvore"). Resumo do ajuste necessário para este caso:
 
-### 3. Atualizar o tipo `KpisGenius`
+1. Para cada título retornado, executar uma consulta complementar em `E075RAT` filtrando por `cod_emp`, `cod_fil`, `tip_tit`, `num_tit` (chave composta do título).
+2. Se houver linhas em `E075RAT`, marcar o título com `possui_filhos = true` e anexar uma linha por rateio com:
+   - `tipo_linha: "RATEIO"`
+   - `codigo_pai: <id_linha do título>` (ex.: `1-1-01-975462S-1`)
+   - `id_linha: <id_linha do título>-RAT-<seq>`
+   - `nivel: 1`
+   - `codigo_centro_custo: rat.cod_ccu`
+   - `descricao_centro_custo: ccu.nom_ccu` (JOIN composto por `cod_emp` + `cod_ccu`)
+   - `numero_projeto: rat.cod_prj`
+   - `percentual_rateio: rat.per_rat`
+   - `valor_rateado: rat.val_rat`
+   - `origem_rateio: 'E075RAT'`
+3. SQL sugerido (Senior):
+   ```sql
+   SELECT rat.seq_rat,
+          rat.cod_ccu,
+          ccu.nom_ccu  AS descricao_centro_custo,
+          rat.cod_prj  AS numero_projeto,
+          rat.per_rat  AS percentual_rateio,
+          rat.val_rat  AS valor_rateado
+   FROM   e075rat rat
+   LEFT JOIN e550ccu ccu
+          ON ccu.cod_emp = rat.cod_emp
+         AND ccu.cod_ccu = rat.cod_ccu
+   WHERE  rat.cod_emp = :cod_emp
+     AND  rat.cod_fil = :cod_fil
+     AND  rat.tip_tit = :tip_tit
+     AND  rat.num_tit = :num_tit
+   ORDER BY rat.seq_rat;
+   ```
+4. Validação: para o título `975462S-1` (emp=1, fil=1, tip=01) a soma de `per_rat` deve ser 100% e o backend deve passar a retornar `total_registros >= 2` (1 título + N rateios).
 
-Adicionar `valor_impostos: number` e `fat_liquido: number`.
+## O que muda no frontend deste projeto
 
-### 4. Sem mudanças em backend
+Nada. O fluxo de modo árvore, o componente `FinanceiroTreeTable` e o helper `flattenArvore` já lidam corretamente com `tipo_linha = "RATEIO"` + `codigo_pai`. Confirmado lendo:
 
-Toda a correção é client-side, recalculando a partir do detalhe já filtrado (sem OUTROS). A tabela QA de validação continua existindo e servirá para confirmar que os cards passaram a bater com o oficial.
+- `src/pages/ContasPagarPage.tsx` (chamada do endpoint árvore e renderização condicional)
+- `src/components/erp/FinanceiroTreeTable.tsx` (render dos níveis)
+- `src/lib/treeFinanceiro.ts` (mapa pai→filhos)
 
-## Resultado esperado
+## Opcional (melhoria de UX, no frontend)
 
-Após a mudança, com toggle "Incluir OUTROS" desligado e período Jan–Abr/2026, os cards mostram:
+Posso adicionar um aviso discreto na grid árvore quando um título vem com `possui_filhos = false` em modo árvore, do tipo: *"Sem rateios cadastrados no ERP para este título."* — só para deixar claro ao usuário que não é bug da tela. Sem alterar lógica de dados.
 
-- Faturamento ≈ R$ 794.052
-- Devolução ≈ R$ 8.879
-- Impostos ≈ R$ 120.598
-- Fat. Líquido ≈ R$ 653.862
-- Margem Bruta = Fat.Líq − Custo (real, não inflada)
-- Margem % = Margem / Fat.Líq
+## Próximos passos
 
-Bate com a linha TOTAL da tabela QA Validação Genius já presente na página.
+Como a causa raiz está no backend FastAPI/Senior (fora deste repositório), preciso saber como prosseguir:
+
+1. Apenas registrar a especificação da correção em `docs/backend-contas-centro-custo-projeto.md` (complementando a seção existente "Centro de custo incorreto nos rateios" com este caso de "rateios ausentes").
+2. Adicionar também o aviso visual opcional na tabela árvore quando `possui_filhos = false`.
+3. Ambos os itens acima.

@@ -101,6 +101,14 @@ export function FinanceiroTreeTable({
                       {isTitulo ? 'Título' : 'Rateio'}
                     </span>
                     <span className="ml-1">{item.descricao_resumida || '-'}</span>
+                    {isTitulo && !possuiFilhos && (
+                      <span
+                        className="ml-2 text-[10px] italic text-muted-foreground"
+                        title="O backend não retornou linhas de rateio (E075RAT) para este título."
+                      >
+                        sem rateios cadastrados
+                      </span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell>{item.numero_projeto || '-'}</TableCell>

@@ -144,3 +144,82 @@ WHERE   rat.cod_emp = :cod_emp
 2. Para um título conhecido com 2+ rateios, conferir que cada linha filha
    exibe o `codigo_centro_custo` correto conforme o cadastro do ERP.
 3. Soma de `percentual_rateio` por título = 100%.
+
+### Problema 3 — Rateios ausentes na resposta árvore
+
+Sintoma observado em `/api/contas-pagar-arvore?numero_titulo=975462S-1`:
+
+```json
+{
+  "total_registros": 1,
+  "modo_exibicao": "ARVORE",
+  "dados": [
+    {
+      "tipo_linha": "TITULO",
+      "id_linha": "1-1-01-975462S-1",
+      "numero_titulo": "975462S-1",
+      "codigo_centro_custo": "",
+      "descricao_centro_custo": "",
+      "numero_projeto": 0,
+      "possui_filhos": false,
+      "nivel": 0
+    }
+  ]
+}
+```
+
+O título existe e tem rateio cadastrado em `E075RAT` no ERP Senior, mas o
+backend devolve `possui_filhos = false` e nenhuma linha `tipo_linha = "RATEIO"`.
+Resultado: o frontend (modo árvore) não tem o que expandir — comportamento
+correto da UI dado o payload recebido.
+
+#### Correção esperada
+
+Para cada título retornado, o backend deve consultar `E075RAT` filtrando pela
+chave composta do título e anexar uma linha por rateio à resposta:
+
+```sql
+SELECT rat.seq_rat,
+       rat.cod_ccu,
+       ccu.nom_ccu  AS descricao_centro_custo,
+       rat.cod_prj  AS numero_projeto,
+       rat.per_rat  AS percentual_rateio,
+       rat.val_rat  AS valor_rateado
+FROM   e075rat rat
+LEFT JOIN e550ccu ccu
+       ON ccu.cod_emp = rat.cod_emp
+      AND ccu.cod_ccu = rat.cod_ccu
+WHERE  rat.cod_emp = :cod_emp
+  AND  rat.cod_fil = :cod_fil
+  AND  rat.tip_tit = :tip_tit
+  AND  rat.num_tit = :num_tit
+ORDER BY rat.seq_rat;
+```
+
+Cada linha de rateio na resposta JSON deve seguir o contrato:
+
+```json
+{
+  "tipo_linha": "RATEIO",
+  "id_linha": "1-1-01-975462S-1-RAT-1",
+  "codigo_pai": "1-1-01-975462S-1",
+  "nivel": 1,
+  "codigo_centro_custo": "663",
+  "descricao_centro_custo": "PRODUÇÃO",
+  "numero_projeto": "P-2024-014",
+  "percentual_rateio": 100.0,
+  "valor_rateado": 118078.49,
+  "origem_rateio": "E075RAT"
+}
+```
+
+Quando houver pelo menos uma linha de rateio, o título-pai deve vir com
+`possui_filhos = true`.
+
+#### Validação
+
+1. `GET /api/contas-pagar-arvore?numero_titulo=975462S-1` deve retornar
+   `total_registros >= 2` (1 título + N rateios).
+2. Soma de `percentual_rateio` por título = 100%.
+3. Frontend passa a renderizar o nó-pai com chevron expansível e exibe os
+   centros de custo / projetos no nível 1.
