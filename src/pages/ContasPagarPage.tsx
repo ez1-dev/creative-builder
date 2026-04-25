@@ -288,6 +288,12 @@ export default function ContasPagarPage() {
 
   const columns = filters.agrupar_por_fornecedor ? columnsAgrupada : columnsDetalhada;
   const exportParams = { ...filters };
+  const exportEndpoint = modoArvoreAtivo
+    ? '/api/export/contas-pagar-arvore'
+    : '/api/export/contas-pagar';
+  const exportLabel = modoArvoreAtivo
+    ? 'Exportar Excel (Árvore)'
+    : 'Exportar Excel';
 
   return (
     <div className="space-y-4 p-4">
@@ -295,7 +301,7 @@ export default function ContasPagarPage() {
       <PageHeader
         title="Contas a Pagar"
         description="Consulta analítica de títulos financeiros a pagar"
-        actions={<ExportButton endpoint="/api/export/contas-pagar" params={exportParams} />}
+        actions={<ExportButton endpoint={exportEndpoint} params={exportParams} label={exportLabel} />}
       />
 
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
