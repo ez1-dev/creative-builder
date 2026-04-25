@@ -240,7 +240,7 @@ function aggregateBy(rows: any[], dim: DrillDim): AggregatedRow[] {
 
 function computeKpis(rows: any[]) {
   let valor_total = 0, valor_bruto = 0, valor_devolucao = 0, valor_custo = 0, valor_comissao = 0;
-  let valor_impostos = 0;
+  let valor_impostos = 0, valor_desconto = 0;
   const notas = new Set<string>();
   const pedidos = new Set<string>();
   const clientes = new Set<string>();
@@ -254,19 +254,20 @@ function computeKpis(rows: any[]) {
     valor_comissao += Number(r.valor_comissao ?? 0);
     valor_impostos += Number(r.valor_icms ?? 0) + Number(r.valor_ipi ?? 0)
                     + Number(r.valor_pis ?? 0)  + Number(r.valor_cofins ?? 0);
+    valor_desconto += Number(r.valor_desconto ?? 0);
     if (r.numero_nf != null) notas.add(`${r.serie_nf ?? ''}-${r.numero_nf}`);
     if (r.pedido != null && r.pedido !== '') pedidos.add(String(r.pedido));
     if (r.cliente) clientes.add(String(r.cliente));
     if (r.revenda) revendas.add(String(r.revenda));
     if (r.produto) produtos.add(String(r.produto));
   }
-  // Visão Genius: Faturamento Líquido = Faturamento − Devolução − Impostos
-  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  // Visão Genius: Faturamento Líquido = Faturamento − Devolução − Impostos − Desconto
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - valor_desconto;
   const margem_bruta = fat_liquido - valor_custo;
   const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
   return {
     valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
-    valor_impostos, fat_liquido,
+    valor_impostos, valor_desconto, fat_liquido,
     margem_bruta, margem_percentual,
     quantidade_notas: notas.size,
     quantidade_pedidos: pedidos.size,
