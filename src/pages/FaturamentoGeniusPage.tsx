@@ -283,6 +283,41 @@ function computeKpis(rows: any[]) {
  * exatos vindos de dashboard.por_revenda. Recalcula fat_liquido, margem_bruta e margem_percentual
  * usando a mesma fórmula de computeKpis.
  */
+/**
+ * Soma os campos numéricos de uma lista `por_revenda` (já filtrada) e devolve um
+ * objeto KPI com a mesma forma de `dashboard.kpis`. Usado quando o usuário aplica
+ * um filtro de revenda (ex.: "GENIUS"): em vez de confiar em `dashboard.kpis`
+ * (que é global e pode ignorar o filtro), recompomos a partir das linhas que
+ * realmente sobraram na tabela "Por Revenda".
+ */
+export function kpisFromPorRevenda(porRevenda: any[]) {
+  const num = (v: any) => Number(v ?? 0);
+  let valor_total = 0, valor_bruto = 0, valor_devolucao = 0, valor_custo = 0, valor_comissao = 0;
+  let valor_impostos = 0;
+  let quantidade_notas = 0, quantidade_pedidos = 0, quantidade_clientes = 0, quantidade_produtos = 0;
+  for (const r of porRevenda || []) {
+    valor_total += num(r.valor_total);
+    valor_bruto += num(r.valor_bruto);
+    valor_devolucao += num(r.valor_devolucao);
+    valor_custo += num(r.valor_custo);
+    valor_comissao += num(r.valor_comissao);
+    valor_impostos += num(r.valor_impostos);
+    quantidade_notas += num(r.quantidade_notas);
+    quantidade_pedidos += num(r.quantidade_pedidos);
+    quantidade_clientes += num(r.quantidade_clientes);
+    quantidade_produtos += num(r.quantidade_produtos);
+  }
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  const margem_bruta = fat_liquido - valor_custo;
+  const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
+  return {
+    valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
+    valor_impostos, fat_liquido, margem_bruta, margem_percentual,
+    quantidade_notas, quantidade_pedidos, quantidade_clientes, quantidade_produtos,
+    quantidade_revendas: (porRevenda || []).length,
+  };
+}
+
 export function subtractOutros(kpis: any, porRevenda: any[]) {
   if (!kpis) return kpis;
   const outros = (porRevenda || []).find((r) => String(r?.revenda ?? '').toUpperCase() === 'OUTROS');
@@ -488,25 +523,35 @@ export default function FaturamentoGeniusPage() {
   );
   const hiddenOutrosCount = rawRows.length - filteredRows.length;
 
-  // KPIs: SEMPRE preferir o agregado do backend (dashboard.kpis), pois cobre TODO o período.
-  // O recálculo local a partir de filteredRows só vê a página atual (tamanho_pagina=100) e
-  // produz totais subestimados — causa raiz do bug em que "Faturamento" exibia uma fração
-  // do valor mostrado na tabela mensal. Quando o usuário desliga "Incluir OUTROS",
-  // subtraímos a linha OUTROS de dashboard.por_revenda.
+  // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável,
+  // e também aplicar o filtro de texto de revenda (caso preenchido) para que
+  // os KPIs derivados desta lista batam com o que o usuário vê.
+  const porRevenda = useMemo(() => {
+    const base: any[] = dashboard?.por_revenda || [];
+    let out = incluirOutros ? base : base.filter((r: any) => r.revenda !== 'OUTROS');
+    const needle = (filters.revenda || '').trim().toUpperCase();
+    if (needle) {
+      out = out.filter((r: any) => String(r.revenda ?? '').toUpperCase().includes(needle));
+    }
+    return out;
+  }, [dashboard, incluirOutros, filters.revenda]);
+
+  // KPIs: prioridade
+  // 1) Se há filtro ativo de revenda (porRevenda < total) → soma a partir de porRevenda filtrada.
+  //    Garante que Impostos/Fat.Líq/etc batam com o que o usuário vê na tabela.
+  // 2) Se incluirOutros → dashboard.kpis cru (cobre todo o período).
+  // 3) Senão → subtrai linha OUTROS de dashboard.kpis.
+  // 4) Fallback: recálculo local a partir do detalhe paginado.
   const kpis = useMemo(() => {
     const base = dashboard?.kpis;
+    const totalRevendas = (dashboard?.por_revenda || []).length;
+    const filtroAtivo = porRevenda.length > 0 && porRevenda.length < totalRevendas;
+    if (filtroAtivo) return kpisFromPorRevenda(porRevenda);
     if (!base) return computeKpis(filteredRows);
     if (incluirOutros) return base;
     return subtractOutros(base, dashboard?.por_revenda || []);
-  }, [dashboard, incluirOutros, filteredRows]);
+  }, [dashboard, incluirOutros, filteredRows, porRevenda]);
   const margemPct = Number(kpis.margem_percentual ?? 0);
-
-  // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável.
-  const porRevenda = useMemo(() => {
-    const base = dashboard?.por_revenda || [];
-    if (incluirOutros) return base;
-    return base.filter((r: any) => r.revenda !== 'OUTROS');
-  }, [dashboard, incluirOutros]);
 
   const porOrigem = useMemo(() => {
     if (incluirOutros) return dashboard?.por_origem || [];
