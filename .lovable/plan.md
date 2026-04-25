@@ -1,45 +1,89 @@
-# Plano: Corrigir Falhas Críticas de Segurança (RLS + HIBP)
+# Plano: Login exclusivo via Microsoft Entra ID (single-tenant)
 
-## Contexto
+## Objetivo
 
-A varredura de segurança identificou três problemas, sendo um **crítico** que permite escalada de privilégios para administrador por qualquer usuário anônimo.
+Substituir totalmente o login email/senha pelo login com **Microsoft Entra ID** (Azure AD), restrito a **um único tenant** corporativo, usando fluxo OAuth/OIDC implementado em Edge Function.
 
-### Falhas a corrigir
+## Pré-requisitos que dependem de você
 
-1. **CRÍTICO — Escalada de privilégio em `user_access` e `access_profiles`**
-   As duas tabelas hoje têm policy `ALL` com `USING: true / WITH CHECK: true`, permitindo que qualquer um (até não autenticado) insira/edite/apague registros. Como `is_admin()` decide o admin lendo justamente dessas tabelas, um atacante pode se autopromover a `Administrador` e ganhar acesso total a `profiles`, `error_logs`, `user_sessions`, `user_activity`, `user_preferences` e `user_search_history`.
+Você precisa criar um **App Registration** no portal Azure (https://portal.azure.com → Microsoft Entra ID → App registrations → New registration) com:
 
-2. **Leitura pública das tabelas de acesso**
-   `user_access` e `access_profiles` são lidas sem autenticação, expondo a estrutura de autorização. O frontend (`AuthContext`, `useUserPermissions`) já consulta essas tabelas como usuário autenticado, então restringir leitura a `authenticated` não quebra nada.
+- **Supported account types**: "Accounts in this organizational directory only (single tenant)"
+- **Redirect URI** (Web): `https://cpgyhjqufxeweyswosuw.supabase.co/functions/v1/azure-auth-callback`
+- Após criar, gerar um **Client Secret** (Certificates & secrets → New client secret)
+- Anotar três valores: **Tenant ID**, **Client ID** (Application ID), **Client Secret**
 
-3. **Leaked Password Protection desativada (HIBP)**
-   Recurso do Lovable Cloud que bloqueia senhas vazadas em signup/troca de senha.
+Depois eu vou pedir esses três valores como secrets do projeto (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`).
 
-A tabela `profile_screens` também tem a mesma policy permissiva `ALL true/true`. Será corrigida no mesmo sweep para consistência (impacta menos, mas é abusável: usuário poderia se conceder acesso a telas que não deveria ver).
+## Arquitetura
 
-## Mudanças de banco (migration)
+```text
+Login Page  →  azure-auth-start (edge fn)  →  login.microsoftonline.com
+                                                       ↓
+                                           usuário autentica no Entra ID
+                                                       ↓
+                            azure-auth-callback (edge fn) recebe code+state
+                                                       ↓
+                  troca code por id_token, valida tenant, cria/sincroniza
+                  usuário no Supabase Auth via service_role e gera magic link
+                                                       ↓
+                         redireciona browser para magic link → sessão ativa
+```
 
-Para cada uma das três tabelas (`access_profiles`, `user_access`, `profile_screens`):
+## Mudanças
 
-1. `DROP POLICY` da policy `ALL` permissiva atual.
-2. `CREATE POLICY` somente de **SELECT** para `authenticated` (`USING true`) — necessário para o frontend ler perfis e permissões do usuário logado.
-3. `CREATE POLICY` de **ALL** restrito a admins, usando `is_admin(auth.uid())` em `USING` e `WITH CHECK`. Assim apenas administradores existentes podem alterar perfis/acessos via UI de Configurações.
+### 1. Edge functions novas (sem JWT)
 
-Nota técnica: `is_admin()` já é `SECURITY DEFINER` com `search_path` fixado, então não há recursão de RLS quando consultado dentro das próprias policies dessas tabelas.
+- **`supabase/functions/azure-auth-start/index.ts`**: gera `state` (CSRF) + `nonce`, monta URL `https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/authorize` com `client_id`, `response_type=code`, `scope=openid email profile`, `redirect_uri` (a callback), e devolve a URL para o frontend.
+- **`supabase/functions/azure-auth-callback/index.ts`**:
+  1. Recebe `code` + `state` do redirect do Azure.
+  2. Troca `code` por tokens em `https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token`.
+  3. Decodifica `id_token` (JWT) e valida `tid === AZURE_TENANT_ID`, `aud === client_id`, `iss` apontando para o tenant correto, `exp` válido.
+  4. Extrai `email` e `name` (`preferred_username`/`upn`).
+  5. Usa `service_role` para `admin.listUsers` → se não existir, cria com `admin.createUser({ email, email_confirm: true, user_metadata: { provider: 'azure', name } })`.
+  6. Cria um magic link via `admin.generateLink({ type: 'magiclink', email })` e redireciona o browser para essa URL — Supabase consome o token e ativa a sessão.
 
-## Configuração de Auth
+Ambas declaradas em `supabase/config.toml` com `verify_jwt = false`.
 
-Ativar **Leaked Password Protection (HIBP)** no Lovable Cloud via `configure_auth` com `password_hibp_enabled: true`. Isso valida senhas contra a base Have I Been Pwned no signup e nas trocas de senha, sem alteração no frontend.
+### 2. Tela de login
 
-## Verificação pós-aplicação
+`src/pages/LoginPage.tsx` reescrita: remover formulário email/senha e link "cadastre-se". Botão único **"Entrar com Microsoft"** que invoca `azure-auth-start` e faz `window.location.href = data.url`.
 
-- Login e signup continuam funcionando (rota `/login`).
-- Usuário aprovado consegue ler suas permissões (`useUserPermissions` retorna telas).
-- Tela de Configurações (gestão de perfis/acessos) continua operando para administradores; usuários comuns recebem erro de RLS ao tentar gravar (comportamento desejado).
-- Tentativa anônima de `INSERT` em `access_profiles`/`user_access` é rejeitada.
-- Re-rodar o scan de segurança: as duas findings de `user_access` ficam resolvidas e o aviso de HIBP some.
+### 3. Página de callback no front
 
-## Itens fora deste plano
+`src/pages/AuthCallback.tsx` (rota `/auth/callback`): trata o retorno do magic link consumido pelo Supabase (token no hash da URL), chama `supabase.auth.getSession()` e redireciona para `/estoque`. Adicionar a rota em `App.tsx`.
 
-- `SUPA_extension_in_public` e `SUPA_rls_policy_always_true` (warnings) — o segundo será naturalmente resolvido pela migração acima nas três tabelas; o primeiro é um aviso informativo do Supabase sobre extensões em `public` e não exige ação imediata.
-- Documentos do backend FastAPI do Faturamento Genius já entregues em `docs/backend-faturamento-genius-PATCH.md` permanecem inalterados.
+### 4. Limpeza no AuthContext
+
+`src/contexts/AuthContext.tsx`: remover `login` e `signup` (ainda chamados pelo LoginPage). Manter apenas `logout`, `session`, `user` e o carregamento de `profile` que já existe.
+
+### 5. Aprovação e perfil
+
+O fluxo de aprovação atual permanece intacto:
+- Trigger `handle_new_user` cria a linha em `profiles` (já está em produção).
+- Novo usuário entra como `approved=false` e vê a tela "Acesso Pendente" até um admin aprovar e vincular o `erp_user`.
+- Apenas administradores existentes podem vincular acesso (corrigido na migration anterior).
+
+## Limitações importantes
+
+- **Não há mais cadastro próprio** — só consegue entrar quem existe no tenant Azure configurado. Usuários atuais que estão como email/senha precisam:
+  1. Existir no tenant Azure (mesmo email).
+  2. Fazer o primeiro login via Microsoft — uma nova entrada em `auth.users` será criada **com mesmo email** se o atual não tiver sido criado por OIDC. Para preservar permissões, o admin pode reapontar o `erp_user` do `profiles` antigo para o novo `auth.uid()` se necessário.
+- O HIBP que ativamos antes deixa de ter efeito prático (sem senhas no app), mas fica ligado sem custo.
+- Recuperação de senha some da UI (Microsoft cuida disso).
+- Restrito a **1 tenant** — qualquer token de outro tenant é rejeitado na callback com 401.
+
+## Validação pós-deploy
+
+1. Acessar `/login`, clicar em "Entrar com Microsoft", autenticar como usuário do tenant → cair em `/estoque` (ou em "Acesso Pendente" se não aprovado).
+2. Tentar com conta de outro tenant → erro de tenant inválido.
+3. Logout e novo login funcionam.
+4. Admin existente continua administrador (mesmo email no Azure).
+
+## Tarefas que serão executadas
+
+1. Pedir os três secrets via `add_secret` (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) — **só prossigo depois que você adicionar**.
+2. Criar as duas edge functions e o `config.toml` com `verify_jwt = false`.
+3. Reescrever `LoginPage.tsx`, criar `AuthCallback.tsx`, registrar rota.
+4. Limpar `AuthContext`.
+5. Smoke test guiado.
