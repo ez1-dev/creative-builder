@@ -825,6 +825,13 @@ export default function FaturamentoGeniusPage() {
 
       {dashboard && (
         <div className="space-y-4">
+          {Number(detalhe?.total ?? 0) > (detalhe?.dados?.length ?? 0) && (
+            <Alert variant="default" className="border-warning/40">
+              <AlertDescription className="text-xs">
+                Os cards estão calculados sobre as primeiras {fmtNum(detalhe?.dados?.length ?? 0)} linhas de um total de {fmtNum(detalhe?.total ?? 0)}. Refine o filtro para garantir cobertura completa do período.
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
             <div className="text-xs text-muted-foreground">
               {incluirOutros
