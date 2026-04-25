@@ -1,74 +1,42 @@
-# Exportação Excel da árvore de rateios — Contas a Pagar
+## Diagnóstico
 
-## Situação atual
+A divergência (R$ 45.106,23 no card vs R$ 191.603 na tabela mensal) acontece porque os **KPIs estão sendo recalculados a partir das linhas do detalhe paginado**, não do dashboard agregado.
 
-O botão **Exportar Excel** em `/contas-pagar` sempre chama `/api/export/contas-pagar`, que devolve a visão "flat" de títulos. Quando o usuário ativa **Modo árvore de rateio**, o Excel exportado **não traz as linhas de rateio** (E075RAT) — apenas os títulos, exatamente como no modo lista.
+No arquivo `src/pages/FaturamentoGeniusPage.tsx`:
 
-## Objetivo
+- Linha 353: o detalhe é buscado com `tamanho_pagina: 100` → traz só **100 linhas** do período.
+- Linha 442–446: `rawRows = detalhe.dados` → essas mesmas 100 linhas.
+- Linha 450–454: quando o flag "Incluir OUTROS" está **desligado** (default), o código faz `computeKpis(filteredRows)` somando apenas essas 100 linhas filtradas no front. Por isso o card mostra R$ 45.106,23 (uma fração do mês).
+- A tabela "Mensal" (R$ 191.603) usa `dashboard.por_anomes`, que vem agregado pelo backend sobre **todo** o período → valor correto.
 
-Quando o flag **Modo árvore de rateio** estiver ligado, a exportação deve gerar um Excel com a mesma estrutura hierárquica exibida na tela: 1 linha por título + N linhas filhas de rateio (CCU, descrição CCU, % rateio, valor rateado, projeto/fase, origem).
+Resumindo: o KPI ignora o agregado do backend sempre que "OUTROS" está desligado e existem linhas no detalhe.
 
-## Abordagem (Opção A — backend-driven)
+## Correção
 
-Criar um novo endpoint de exportação no backend FastAPI dedicado ao modo árvore, e fazer o frontend alternar dinamicamente entre os dois endpoints conforme o flag.
+Trocar a lógica de seleção dos KPIs para **sempre preferir o agregado do backend** (`dashboard.kpis`) e só cair no recálculo local se o dashboard não existir. O filtro "OUTROS" continua sendo respeitado porque o backend já devolve agregados separados; quando o usuário desliga "OUTROS", subtraímos os totais da revenda OUTROS retornados em `dashboard.por_revenda`.
 
-### 1. Backend (documentação + spec) — fora deste repositório
+### Mudanças em `src/pages/FaturamentoGeniusPage.tsx`
 
-Criar `docs/backend-export-contas-pagar-arvore.md` especificando para o time de backend:
+1. **`useMemo` dos KPIs (linhas 450–454)**: usar `dashboard.kpis` como fonte de verdade. Quando `incluirOutros` for `false`, calcular os ajustes a partir da linha `OUTROS` em `dashboard.por_revenda` (subtrair `valor_total`, `valor_devolucao`, `valor_custo`, `quantidade_notas`, etc.) em vez de recalcular tudo a partir das 100 linhas paginadas.
 
-- **Novo endpoint:** `GET /api/export/contas-pagar-arvore`
-- **Parâmetros:** os mesmos aceitos por `/api/contas-pagar-arvore` (todos os filtros atuais: `fornecedor`, `numero_titulo`, `tipo_titulo`, `filial`, `centro_custo`, `numero_projeto`/`projeto`, `status_titulo`, datas de vencimento/emissão, etc.).
-- **Fonte de dados:** mesma query usada por `/api/contas-pagar-arvore` (E060IPC + E075RAT, com `LEFT JOIN` em projeto/fase/CCU já corrigidos conforme `docs/backend-contas-centro-custo-projeto.md`).
-- **Layout do XLSX:**
-  - Colunas: `Tipo Linha` (TITULO/RATEIO), `Nº Título`, `Fornecedor`, `Vencimento`, `Status`, `Valor Original`, `Valor Aberto`, `CCU`, `Descrição CCU`, `Projeto`, `Fase`, `% Rateio`, `Valor Rateado`, `Origem Rateio`.
-  - Linhas-filhas (RATEIO) indentadas via prefixo na coluna `Tipo Linha` ou `outline level` do openpyxl (group/outline) para o usuário poder colapsar no Excel.
-  - Linhas de título com fundo cinza claro (cabeçalho de grupo).
-  - Garantir que títulos sem rateios cadastrados apareçam com a marcação `sem rateios cadastrados` na coluna Origem.
-- **Nome do arquivo:** `contas_pagar_arvore_<YYYYMMDD_HHMM>.xlsx`.
-- **Headers:** `Content-Disposition: attachment; filename=...`, `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+2. **Helper `subtractOutros(kpis, porRevenda)`**: nova função pura que devolve `kpis` ajustados removendo a linha cuja `revenda === 'OUTROS'`. Recalcula `fat_liquido`, `margem_bruta` e `margem_percentual` ao final, com a mesma fórmula de `computeKpis` (linhas 263–266).
 
-### 2. Frontend — neste repositório
+3. **Tooltip do card "Faturamento"** (linha 749): manter o texto, mas garantir que o número exibido reflete o período inteiro, não a página atual.
 
-**Arquivo:** `src/pages/ContasPagarPage.tsx`
+4. **Aviso opcional**: se `dashboard.kpis` estiver ausente (backend antigo), mostrar um pequeno alerta informando que os KPIs estão sendo calculados a partir da página atual e podem estar incompletos.
 
-- Substituir a action atual do `PageHeader` por um `ExportButton` cujo `endpoint` muda em função de `modoArvoreAtivo`:
-  ```ts
-  const exportEndpoint = modoArvoreAtivo
-    ? '/api/export/contas-pagar-arvore'
-    : '/api/export/contas-pagar';
-  const exportLabel = modoArvoreAtivo
-    ? 'Exportar Excel (Árvore)'
-    : 'Exportar Excel';
-  ```
-- Manter `exportParams = { ...filters }` (os mesmos filtros já são aceitos por ambos endpoints).
-- Tooltip/label deve deixar claro ao usuário qual visão será exportada.
+### Testes
 
-**Arquivo:** `src/components/erp/ExportButton.tsx`
+- Adicionar teste em `src/pages/__tests__/` (novo arquivo `FaturamentoGeniusPage.kpis.test.tsx`) cobrindo:
+  - KPI usa `dashboard.kpis` quando disponível.
+  - Com `incluirOutros = false`, KPI subtrai corretamente os valores da linha OUTROS de `dashboard.por_revenda`.
+  - Fallback para `computeKpis(filteredRows)` quando `dashboard.kpis` for `undefined`.
 
-- Adicionar tratamento gracioso para resposta `404`/`501` no novo endpoint (caso o backend ainda não tenha implementado): exibir toast `Exportação em árvore ainda não disponível no backend. Veja docs/backend-export-contas-pagar-arvore.md.` em vez de erro genérico.
+## Resultado esperado
 
-### 3. Testes automatizados
+Para 202603, o card "Faturamento" passa a mostrar **R$ 191.603,00**, batendo com a tabela "Mensal" e com a soma do backend agregado.
 
-**Arquivo novo:** `src/components/erp/__tests__/ExportButton.arvore.test.tsx`
+## Arquivos
 
-- Renderiza `ContasPagarPage` (ou um wrapper mínimo) com `modoArvoreAtivo=true` e verifica que o `fetch` é chamado em `/api/export/contas-pagar-arvore`.
-- Mesmo teste com `modoArvoreAtivo=false` confirma o endpoint legado `/api/export/contas-pagar`.
-- Teste de fallback: resposta 404 dispara toast com a mensagem documentada.
-
-## Arquivos afetados
-
-- `docs/backend-export-contas-pagar-arvore.md` (novo — spec para o backend)
-- `src/pages/ContasPagarPage.tsx` (alternar endpoint conforme flag)
-- `src/components/erp/ExportButton.tsx` (mensagem amigável p/ 404/501)
-- `src/components/erp/__tests__/ExportButton.arvore.test.tsx` (novo)
-- `.lovable/plan.md` (registro)
-
-## Fora de escopo
-
-- Implementar o endpoint no FastAPI (vive em outro repositório).
-- Mudar o layout visual da árvore na tela.
-- Exportar para outros formatos (CSV/PDF).
-
-## Observação
-
-Enquanto o backend não publicar `/api/export/contas-pagar-arvore`, o botão em modo árvore ainda funcionará — apenas exibirá o toast avisando que a exportação hierárquica está pendente, mantendo o restante da UI intacto.
+- editar: `src/pages/FaturamentoGeniusPage.tsx`
+- criar: `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx`

@@ -276,6 +276,48 @@ function computeKpis(rows: any[]) {
   };
 }
 
+/**
+ * Remove a contribuição da revenda "OUTROS" de um objeto de KPIs já agregado pelo backend.
+ * Usado quando o usuário desliga o flag "Incluir OUTROS" — em vez de recalcular tudo a partir
+ * da página atual do detalhe (que cobre apenas tamanho_pagina linhas), subtraímos os totais
+ * exatos vindos de dashboard.por_revenda. Recalcula fat_liquido, margem_bruta e margem_percentual
+ * usando a mesma fórmula de computeKpis.
+ */
+export function subtractOutros(kpis: any, porRevenda: any[]) {
+  if (!kpis) return kpis;
+  const outros = (porRevenda || []).find((r) => String(r?.revenda ?? '').toUpperCase() === 'OUTROS');
+  if (!outros) return kpis;
+
+  const num = (v: any) => Number(v ?? 0);
+  const valor_total = num(kpis.valor_total) - num(outros.valor_total);
+  const valor_bruto = num(kpis.valor_bruto) - num(outros.valor_bruto);
+  const valor_devolucao = num(kpis.valor_devolucao) - num(outros.valor_devolucao);
+  const valor_custo = num(kpis.valor_custo) - num(outros.valor_custo);
+  const valor_comissao = num(kpis.valor_comissao) - num(outros.valor_comissao);
+  const valor_impostos = num(kpis.valor_impostos) - num(outros.valor_impostos);
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  const margem_bruta = fat_liquido - valor_custo;
+  const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
+
+  return {
+    ...kpis,
+    valor_total,
+    valor_bruto,
+    valor_devolucao,
+    valor_custo,
+    valor_comissao,
+    valor_impostos,
+    fat_liquido,
+    margem_bruta,
+    margem_percentual,
+    quantidade_notas: Math.max(0, num(kpis.quantidade_notas) - num(outros.quantidade_notas)),
+    quantidade_pedidos: Math.max(0, num(kpis.quantidade_pedidos) - num(outros.quantidade_pedidos)),
+    quantidade_clientes: Math.max(0, num(kpis.quantidade_clientes) - num(outros.quantidade_clientes)),
+    quantidade_produtos: Math.max(0, num(kpis.quantidade_produtos) - num(outros.quantidade_produtos)),
+    quantidade_revendas: Math.max(0, num(kpis.quantidade_revendas) - 1),
+  };
+}
+
 interface DrillStep { dim: DrillDim; key: string; label: string; }
 interface DrillState {
   open: boolean;
@@ -446,12 +488,17 @@ export default function FaturamentoGeniusPage() {
   );
   const hiddenOutrosCount = rawRows.length - filteredRows.length;
 
-  // KPIs locais (recalculados a partir do detalhe filtrado).
+  // KPIs: SEMPRE preferir o agregado do backend (dashboard.kpis), pois cobre TODO o período.
+  // O recálculo local a partir de filteredRows só vê a página atual (tamanho_pagina=100) e
+  // produz totais subestimados — causa raiz do bug em que "Faturamento" exibia uma fração
+  // do valor mostrado na tabela mensal. Quando o usuário desliga "Incluir OUTROS",
+  // subtraímos a linha OUTROS de dashboard.por_revenda.
   const kpis = useMemo(() => {
-    if (!incluirOutros && filteredRows.length > 0) return computeKpis(filteredRows);
-    // se incluir OUTROS e o backend já devolve dashboard.kpis, usa ele para preservar totais agregados de toda a base
-    return dashboard?.kpis || computeKpis(filteredRows);
-  }, [filteredRows, dashboard, incluirOutros]);
+    const base = dashboard?.kpis;
+    if (!base) return computeKpis(filteredRows);
+    if (incluirOutros) return base;
+    return subtractOutros(base, dashboard?.por_revenda || []);
+  }, [dashboard, incluirOutros, filteredRows]);
   const margemPct = Number(kpis.margem_percentual ?? 0);
 
   // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável.
