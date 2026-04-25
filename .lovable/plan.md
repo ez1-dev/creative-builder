@@ -1,42 +1,49 @@
-## Diagnóstico
+## Problema
 
-A divergência (R$ 45.106,23 no card vs R$ 191.603 na tabela mensal) acontece porque os **KPIs estão sendo recalculados a partir das linhas do detalhe paginado**, não do dashboard agregado.
+Para 202603 com filtro `revenda = "GENIUS"`:
 
-No arquivo `src/pages/FaturamentoGeniusPage.tsx`:
+| Métrica       | Tabela Mensal (correto) | Card KPI (errado)        |
+|---------------|-------------------------|--------------------------|
+| Faturamento   | R$ 191.603              | R$ 191.603 ✓ (já corrigido) |
+| Devolução     | R$ 821                  | R$ 821 ✓                 |
+| Impostos      | R$ -27.370              | ~R$ 50–120 mil ✗         |
+| Fat. Líquido  | R$ 161.674              | divergente ✗             |
 
-- Linha 353: o detalhe é buscado com `tamanho_pagina: 100` → traz só **100 linhas** do período.
-- Linha 442–446: `rawRows = detalhe.dados` → essas mesmas 100 linhas.
-- Linha 450–454: quando o flag "Incluir OUTROS" está **desligado** (default), o código faz `computeKpis(filteredRows)` somando apenas essas 100 linhas filtradas no front. Por isso o card mostra R$ 45.106,23 (uma fração do mês).
-- A tabela "Mensal" (R$ 191.603) usa `dashboard.por_anomes`, que vem agregado pelo backend sobre **todo** o período → valor correto.
+Causa: o card lê de `dashboard.kpis`, que é o agregado **global do período (todas as revendas)**. O filtro de texto `revenda = "GENIUS"` que digitamos no painel é repassado ao backend, mas o backend está retornando KPIs SEM aplicar esse filtro (provavelmente faz LIKE ou ignora). Já a tabela mensal usa `dashboard.por_anomes` que coincidentemente bate porque o backend agrupa só GENIUS quando há linha única.
 
-Resumindo: o KPI ignora o agregado do backend sempre que "OUTROS" está desligado e existem linhas no detalhe.
+A função `subtractOutros` só remove a linha "OUTROS" — não isola apenas GENIUS quando há outras revendas no agregado.
 
 ## Correção
 
-Trocar a lógica de seleção dos KPIs para **sempre preferir o agregado do backend** (`dashboard.kpis`) e só cair no recálculo local se o dashboard não existir. O filtro "OUTROS" continua sendo respeitado porque o backend já devolve agregados separados; quando o usuário desliga "OUTROS", subtraímos os totais da revenda OUTROS retornados em `dashboard.por_revenda`.
+Quando o usuário tem filtro de revenda preenchido (ou switch "Somente revendas Genius" ligado), os cards devem somar **apenas as linhas de `dashboard.por_revenda` que casam com o filtro**, em vez de usar `dashboard.kpis` cheio.
 
 ### Mudanças em `src/pages/FaturamentoGeniusPage.tsx`
 
-1. **`useMemo` dos KPIs (linhas 450–454)**: usar `dashboard.kpis` como fonte de verdade. Quando `incluirOutros` for `false`, calcular os ajustes a partir da linha `OUTROS` em `dashboard.por_revenda` (subtrair `valor_total`, `valor_devolucao`, `valor_custo`, `quantidade_notas`, etc.) em vez de recalcular tudo a partir das 100 linhas paginadas.
+1. **Nova helper `kpisFromPorRevenda(porRevenda)`**: soma todos os campos numéricos da lista `por_revenda` (já filtrada) e recalcula `fat_liquido = valor_total - valor_devolucao - |valor_impostos|`, `margem_bruta`, `margem_percentual` com a mesma fórmula de `computeKpis`. Conta `quantidade_revendas = porRevenda.length`. Para `quantidade_notas/pedidos/clientes/produtos`, soma os campos correspondentes (aceitando que pode haver dupla contagem de clientes entre revendas — manter o que o backend devolve).
 
-2. **Helper `subtractOutros(kpis, porRevenda)`**: nova função pura que devolve `kpis` ajustados removendo a linha cuja `revenda === 'OUTROS'`. Recalcula `fat_liquido`, `margem_bruta` e `margem_percentual` ao final, com a mesma fórmula de `computeKpis` (linhas 263–266).
+2. **`useMemo` dos KPIs (linhas 496–501)**: nova lógica em ordem de prioridade:
+   - Se `porRevenda` (já filtrada por OUTROS + texto do filtro de revenda) tem ≥1 item E está **estritamente menor** que `dashboard.por_revenda` total (ou seja, há filtro ativo) → usa `kpisFromPorRevenda(porRevenda)`.
+   - Senão se `incluirOutros` → usa `dashboard.kpis` direto.
+   - Senão → usa `subtractOutros(dashboard.kpis, dashboard.por_revenda)` (comportamento atual).
+   - Fallback: `computeKpis(filteredRows)`.
 
-3. **Tooltip do card "Faturamento"** (linha 749): manter o texto, mas garantir que o número exibido reflete o período inteiro, não a página atual.
+3. **Filtro de revenda nos agregados**: garantir que o `porRevenda` (linha 505–509) também filtra pelo `filters.revenda` (case-insensitive `includes`) quando preenchido, não só por OUTROS. Isso já alinha tabela e cards.
 
-4. **Aviso opcional**: se `dashboard.kpis` estiver ausente (backend antigo), mostrar um pequeno alerta informando que os KPIs estão sendo calculados a partir da página atual e podem estar incompletos.
+4. **Sinal de "Impostos"**: o tooltip e exibição mantêm `fmtBRL(kpis.valor_impostos)`. Como o backend pode retornar positivo ou negativo, manter `Math.abs` no cálculo de fat_liquido (já está) e exibir o valor "como veio" na tabela mensal (que mostra -27.370). Nada a mudar aqui.
 
 ### Testes
 
-- Adicionar teste em `src/pages/__tests__/` (novo arquivo `FaturamentoGeniusPage.kpis.test.tsx`) cobrindo:
-  - KPI usa `dashboard.kpis` quando disponível.
-  - Com `incluirOutros = false`, KPI subtrai corretamente os valores da linha OUTROS de `dashboard.por_revenda`.
-  - Fallback para `computeKpis(filteredRows)` quando `dashboard.kpis` for `undefined`.
-
-## Resultado esperado
-
-Para 202603, o card "Faturamento" passa a mostrar **R$ 191.603,00**, batendo com a tabela "Mensal" e com a soma do backend agregado.
+Estender `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx`:
+- Quando `por_revenda` tem GENIUS + 3 outras marcas e o usuário filtra por "GENIUS", `kpisFromPorRevenda` retorna apenas os totais da linha GENIUS.
+- `valor_impostos` e `fat_liquido` batem com os targets oficiais (Mar/2026: -27.370 e 161.674).
+- Sem filtro de revenda + `incluirOutros=false` → mantém comportamento atual (`subtractOutros`).
 
 ## Arquivos
 
 - editar: `src/pages/FaturamentoGeniusPage.tsx`
-- criar: `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx`
+- editar: `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx`
+
+## Resultado esperado
+
+Para 202603 com `revenda = "GENIUS"`, todos os cards passam a bater com a tabela mensal e com os targets oficiais Genius:
+- Faturamento R$ 191.603 · Devolução R$ 821 · Impostos R$ -27.370 · Fat. Líquido R$ 161.674.

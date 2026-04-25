@@ -283,6 +283,41 @@ function computeKpis(rows: any[]) {
  * exatos vindos de dashboard.por_revenda. Recalcula fat_liquido, margem_bruta e margem_percentual
  * usando a mesma fórmula de computeKpis.
  */
+/**
+ * Soma os campos numéricos de uma lista `por_revenda` (já filtrada) e devolve um
+ * objeto KPI com a mesma forma de `dashboard.kpis`. Usado quando o usuário aplica
+ * um filtro de revenda (ex.: "GENIUS"): em vez de confiar em `dashboard.kpis`
+ * (que é global e pode ignorar o filtro), recompomos a partir das linhas que
+ * realmente sobraram na tabela "Por Revenda".
+ */
+export function kpisFromPorRevenda(porRevenda: any[]) {
+  const num = (v: any) => Number(v ?? 0);
+  let valor_total = 0, valor_bruto = 0, valor_devolucao = 0, valor_custo = 0, valor_comissao = 0;
+  let valor_impostos = 0;
+  let quantidade_notas = 0, quantidade_pedidos = 0, quantidade_clientes = 0, quantidade_produtos = 0;
+  for (const r of porRevenda || []) {
+    valor_total += num(r.valor_total);
+    valor_bruto += num(r.valor_bruto);
+    valor_devolucao += num(r.valor_devolucao);
+    valor_custo += num(r.valor_custo);
+    valor_comissao += num(r.valor_comissao);
+    valor_impostos += num(r.valor_impostos);
+    quantidade_notas += num(r.quantidade_notas);
+    quantidade_pedidos += num(r.quantidade_pedidos);
+    quantidade_clientes += num(r.quantidade_clientes);
+    quantidade_produtos += num(r.quantidade_produtos);
+  }
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  const margem_bruta = fat_liquido - valor_custo;
+  const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
+  return {
+    valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
+    valor_impostos, fat_liquido, margem_bruta, margem_percentual,
+    quantidade_notas, quantidade_pedidos, quantidade_clientes, quantidade_produtos,
+    quantidade_revendas: (porRevenda || []).length,
+  };
+}
+
 export function subtractOutros(kpis: any, porRevenda: any[]) {
   if (!kpis) return kpis;
   const outros = (porRevenda || []).find((r) => String(r?.revenda ?? '').toUpperCase() === 'OUTROS');
