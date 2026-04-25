@@ -1,49 +1,67 @@
-## Problema
+## Situação
 
-Para 202603 com filtro `revenda = "GENIUS"`:
+O endpoint `GET /api/faturamento-genius-dashboard` **não pertence a este projeto Lovable**. Este repositório contém apenas o **frontend** (React + Vite + TypeScript). O backend FastAPI roda em outro serviço/repositório (consumido via URL configurada na tabela `api_config` — ver `src/lib/api.ts`).
 
-| Métrica       | Tabela Mensal (correto) | Card KPI (errado)        |
-|---------------|-------------------------|--------------------------|
-| Faturamento   | R$ 191.603              | R$ 191.603 ✓ (já corrigido) |
-| Devolução     | R$ 821                  | R$ 821 ✓                 |
-| Impostos      | R$ -27.370              | ~R$ 50–120 mil ✗         |
-| Fat. Líquido  | R$ 161.674              | divergente ✗             |
+Confirmação:
+- Nenhum arquivo `.py` / FastAPI no repositório.
+- Nenhuma referência a `VLRDSC`, `E140IPV` ou `@app.get` no código.
+- O frontend apenas **chama** `/api/faturamento-genius-dashboard` via `api.get(...)` em `src/pages/FaturamentoGeniusPage.tsx:429`.
 
-Causa: o card lê de `dashboard.kpis`, que é o agregado **global do período (todas as revendas)**. O filtro de texto `revenda = "GENIUS"` que digitamos no painel é repassado ao backend, mas o backend está retornando KPIs SEM aplicar esse filtro (provavelmente faz LIKE ou ignora). Já a tabela mensal usa `dashboard.por_anomes` que coincidentemente bate porque o backend agrupa só GENIUS quando há linha única.
+Portanto, **não consigo editar o arquivo FastAPI a partir do Lovable** — ele vive fora deste workspace. Quem precisa aplicar a alteração SQL/Python é o time/pessoa que mantém o repositório do backend.
 
-A função `subtractOutros` só remove a linha "OUTROS" — não isola apenas GENIUS quando há outras revendas no agregado.
+## O que eu posso fazer aqui (no frontend)
 
-## Correção
+Quando o backend publicar `valor_desconto` e o `valor_liquido` corrigido, o frontend precisa estar pronto para:
 
-Quando o usuário tem filtro de revenda preenchido (ou switch "Somente revendas Genius" ligado), os cards devem somar **apenas as linhas de `dashboard.por_revenda` que casam com o filtro**, em vez de usar `dashboard.kpis` cheio.
+1. **Tipos** — adicionar `valor_desconto?: number` nas interfaces de KPI / por_revenda / por_origem / por_anomes em `src/pages/FaturamentoGeniusPage.tsx`.
+2. **Fórmulas locais** — atualizar três pontos em `src/pages/FaturamentoGeniusPage.tsx` para subtrair também `valor_desconto`:
+   - `computeKpis` (≈ linha 264)
+   - `subtractOutros` (≈ linha 298)
+   - `kpisFromPorRevenda` (≈ linha 310)
+   
+   Trocar:
+   ```ts
+   const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+   ```
+   por:
+   ```ts
+   const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - (valor_desconto ?? 0);
+   ```
+3. **Card opcional "Descontos"** — exibir `valor_desconto` ao lado de "Impostos" no bloco de KPIs (consistente com o relatório oficial Genius).
+4. **Tabela mensal** — adicionar coluna "Desconto" (opcional, mas alinha com o relatório).
+5. **Testes** — atualizar `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx` para usar `valor_desconto` no fixture e validar Mar/2026 → R$ 161.674.
+6. **Documento** — `docs/backend-faturamento-genius-desconto.md` já existe com a especificação SQL/Python detalhada para repassar ao time backend.
 
-### Mudanças em `src/pages/FaturamentoGeniusPage.tsx`
+## O que precisa ser feito FORA do Lovable (pelo time backend)
 
-1. **Nova helper `kpisFromPorRevenda(porRevenda)`**: soma todos os campos numéricos da lista `por_revenda` (já filtrada) e recalcula `fat_liquido = valor_total - valor_devolucao - |valor_impostos|`, `margem_bruta`, `margem_percentual` com a mesma fórmula de `computeKpis`. Conta `quantidade_revendas = porRevenda.length`. Para `quantidade_notas/pedidos/clientes/produtos`, soma os campos correspondentes (aceitando que pode haver dupla contagem de clientes entre revendas — manter o que o backend devolve).
+Aplicar exatamente o que você descreveu, no repositório FastAPI:
 
-2. **`useMemo` dos KPIs (linhas 496–501)**: nova lógica em ordem de prioridade:
-   - Se `porRevenda` (já filtrada por OUTROS + texto do filtro de revenda) tem ≥1 item E está **estritamente menor** que `dashboard.por_revenda` total (ou seja, há filtro ativo) → usa `kpisFromPorRevenda(porRevenda)`.
-   - Senão se `incluirOutros` → usa `dashboard.kpis` direto.
-   - Senão → usa `subtractOutros(dashboard.kpis, dashboard.por_revenda)` (comportamento atual).
-   - Fallback: `computeKpis(filteredRows)`.
+- Adicionar ao SELECT de `/api/faturamento-genius-dashboard`:
+  ```sql
+  CAST(SUM(
+    CASE
+      WHEN IPV.TNSPRO IN ({GENIUS_TNS_DEVOLUCAO_SQL}) THEN 0
+      ELSE COALESCE(IPV.VLRDSC, 0)
+    END
+  ) AS FLOAT) AS valor_desconto
+  ```
+- Calcular em Python: `valor_liquido = valor_total - valor_impostos - valor_desconto`
+- Devolver `valor_desconto` e `valor_liquido` em `kpis`, `por_revenda`, `por_origem`, `por_anomes`.
+- Validar com `anomes_ini=202603&anomes_fim=202603&revenda=GENIUS` → Fat. Líq. ≈ R$ 161.674.
 
-3. **Filtro de revenda nos agregados**: garantir que o `porRevenda` (linha 505–509) também filtra pelo `filters.revenda` (case-insensitive `includes`) quando preenchido, não só por OUTROS. Isso já alinha tabela e cards.
+Já está tudo descrito em `docs/backend-faturamento-genius-desconto.md` (criado na rodada anterior).
 
-4. **Sinal de "Impostos"**: o tooltip e exibição mantêm `fmtBRL(kpis.valor_impostos)`. Como o backend pode retornar positivo ou negativo, manter `Math.abs` no cálculo de fat_liquido (já está) e exibir o valor "como veio" na tabela mensal (que mostra -27.370). Nada a mudar aqui.
+## Pergunta
 
-### Testes
+Como **não consigo modificar o backend a partir daqui**, escolha como prosseguir:
 
-Estender `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx`:
-- Quando `por_revenda` tem GENIUS + 3 outras marcas e o usuário filtra por "GENIUS", `kpisFromPorRevenda` retorna apenas os totais da linha GENIUS.
-- `valor_impostos` e `fat_liquido` batem com os targets oficiais (Mar/2026: -27.370 e 161.674).
-- Sem filtro de revenda + `incluirOutros=false` → mantém comportamento atual (`subtractOutros`).
+**Opção A — Preparar o frontend agora** (recomendado):
+Aplico já as mudanças dos itens 1–5 acima, com fallback `?? 0`. Enquanto o backend não publicar `valor_desconto`, nada quebra (cai no comportamento atual). Assim que o backend subir o campo, os valores passam a bater automaticamente sem novo deploy do frontend.
 
-## Arquivos
+**Opção B — Esperar o backend**:
+Não toco no frontend agora. Apenas confirmo o documento `docs/backend-faturamento-genius-desconto.md` para você enviar ao time backend, e ajusto o frontend depois que o campo estiver publicado.
 
-- editar: `src/pages/FaturamentoGeniusPage.tsx`
-- editar: `src/pages/__tests__/FaturamentoGeniusPage.kpis.test.tsx`
+**Opção C — Você tem acesso ao backend FastAPI**:
+Se o repositório do backend está disponível em outro lugar (GitHub, pasta local, outro projeto Lovable), me diga onde — posso gerar o **patch exato** (SQL + Python) pronto para colar lá, mas a edição em si terá que ser feita no ambiente daquele repositório.
 
-## Resultado esperado
-
-Para 202603 com `revenda = "GENIUS"`, todos os cards passam a bater com a tabela mensal e com os targets oficiais Genius:
-- Faturamento R$ 191.603 · Devolução R$ 821 · Impostos R$ -27.370 · Fat. Líquido R$ 161.674.
+Qual opção seguimos?

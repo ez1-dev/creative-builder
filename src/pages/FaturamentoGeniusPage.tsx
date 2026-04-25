@@ -240,7 +240,7 @@ function aggregateBy(rows: any[], dim: DrillDim): AggregatedRow[] {
 
 function computeKpis(rows: any[]) {
   let valor_total = 0, valor_bruto = 0, valor_devolucao = 0, valor_custo = 0, valor_comissao = 0;
-  let valor_impostos = 0;
+  let valor_impostos = 0, valor_desconto = 0;
   const notas = new Set<string>();
   const pedidos = new Set<string>();
   const clientes = new Set<string>();
@@ -254,19 +254,20 @@ function computeKpis(rows: any[]) {
     valor_comissao += Number(r.valor_comissao ?? 0);
     valor_impostos += Number(r.valor_icms ?? 0) + Number(r.valor_ipi ?? 0)
                     + Number(r.valor_pis ?? 0)  + Number(r.valor_cofins ?? 0);
+    valor_desconto += Number(r.valor_desconto ?? 0);
     if (r.numero_nf != null) notas.add(`${r.serie_nf ?? ''}-${r.numero_nf}`);
     if (r.pedido != null && r.pedido !== '') pedidos.add(String(r.pedido));
     if (r.cliente) clientes.add(String(r.cliente));
     if (r.revenda) revendas.add(String(r.revenda));
     if (r.produto) produtos.add(String(r.produto));
   }
-  // Visão Genius: Faturamento Líquido = Faturamento − Devolução − Impostos
-  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  // Visão Genius: Faturamento Líquido = Faturamento − Devolução − Impostos − Desconto
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - valor_desconto;
   const margem_bruta = fat_liquido - valor_custo;
   const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
   return {
     valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
-    valor_impostos, fat_liquido,
+    valor_impostos, valor_desconto, fat_liquido,
     margem_bruta, margem_percentual,
     quantidade_notas: notas.size,
     quantidade_pedidos: pedidos.size,
@@ -293,7 +294,7 @@ function computeKpis(rows: any[]) {
 export function kpisFromPorRevenda(porRevenda: any[]) {
   const num = (v: any) => Number(v ?? 0);
   let valor_total = 0, valor_bruto = 0, valor_devolucao = 0, valor_custo = 0, valor_comissao = 0;
-  let valor_impostos = 0;
+  let valor_impostos = 0, valor_desconto = 0;
   let quantidade_notas = 0, quantidade_pedidos = 0, quantidade_clientes = 0, quantidade_produtos = 0;
   for (const r of porRevenda || []) {
     valor_total += num(r.valor_total);
@@ -302,17 +303,18 @@ export function kpisFromPorRevenda(porRevenda: any[]) {
     valor_custo += num(r.valor_custo);
     valor_comissao += num(r.valor_comissao);
     valor_impostos += num(r.valor_impostos);
+    valor_desconto += num(r.valor_desconto);
     quantidade_notas += num(r.quantidade_notas);
     quantidade_pedidos += num(r.quantidade_pedidos);
     quantidade_clientes += num(r.quantidade_clientes);
     quantidade_produtos += num(r.quantidade_produtos);
   }
-  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - valor_desconto;
   const margem_bruta = fat_liquido - valor_custo;
   const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
   return {
     valor_total, valor_bruto, valor_devolucao, valor_custo, valor_comissao,
-    valor_impostos, fat_liquido, margem_bruta, margem_percentual,
+    valor_impostos, valor_desconto, fat_liquido, margem_bruta, margem_percentual,
     quantidade_notas, quantidade_pedidos, quantidade_clientes, quantidade_produtos,
     quantidade_revendas: (porRevenda || []).length,
   };
@@ -330,7 +332,8 @@ export function subtractOutros(kpis: any, porRevenda: any[]) {
   const valor_custo = num(kpis.valor_custo) - num(outros.valor_custo);
   const valor_comissao = num(kpis.valor_comissao) - num(outros.valor_comissao);
   const valor_impostos = num(kpis.valor_impostos) - num(outros.valor_impostos);
-  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  const valor_desconto = num(kpis.valor_desconto) - num(outros.valor_desconto);
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - valor_desconto;
   const margem_bruta = fat_liquido - valor_custo;
   const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
 
@@ -342,6 +345,7 @@ export function subtractOutros(kpis: any, porRevenda: any[]) {
     valor_custo,
     valor_comissao,
     valor_impostos,
+    valor_desconto,
     fat_liquido,
     margem_bruta,
     margem_percentual,
