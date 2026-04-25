@@ -431,7 +431,7 @@ export default function FaturamentoGeniusPage() {
       const baseParams = buildParams(filters);
       const [dash, det] = await Promise.all([
         api.get<any>('/api/faturamento-genius-dashboard', baseParams),
-        api.get<any>('/api/faturamento-genius', { ...baseParams, pagina: page, tamanho_pagina: 100 }),
+        api.get<any>('/api/faturamento-genius', { ...baseParams, pagina: page, tamanho_pagina: 5000 }),
       ]);
       setDashboard(dash);
       setDetalhe(det);
