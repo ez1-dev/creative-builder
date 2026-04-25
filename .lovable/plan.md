@@ -1,45 +1,98 @@
-## Descoberta importante a partir do arquivo enviado
+## Objetivo
 
-A view `dbo.USU_VMBRUTANFE` (fonte do `OBJ_VM_FATURAMENTO` no FastAPI) **já expõe**:
+Consolidar num único documento o patch que o time backend (FastAPI, fora deste repo Lovable) precisa aplicar para que `/api/faturamento-genius-dashboard` bata com o relatório oficial Genius (Mar/2026: Fat 191.603, Dev 821, Impostos 27.370, Desconto 1.738, Fat.Líq 161.674).
 
-- `USU_VLRDSC` — desconto agregado (linha 150 do SQL enviado: `Sum(USU_VLRDSC) USU_VLRDSC`)
-- `USU_FATLIQ` — fat. líquido pré-calculado pela view (linha 42)
-- `USU_FATBRU` — fat. bruto pré-calculado (linha 43)
-- `USU_VLRDEV`, `USU_VLRICM`, `USU_VLRIPI`, `USU_VLRPIS`, `USU_VLRCOF` — devolução e impostos por TNS
+Como o `.py` do FastAPI não está versionado aqui, **este projeto entrega apenas a documentação do patch** — o backend aplica e faz deploy.
 
-Ou seja, **não é preciso ir buscar `E140IPV.VLRDSC`** — basta consumir `USU_VLRDSC` da view que o FastAPI já lê. Isso simplifica muito o patch.
+## Estado atual do frontend (já pronto, nada a mudar no código)
 
----
+`src/pages/FaturamentoGeniusPage.tsx` já calcula em `computeKpis`, `kpisFromPorRevenda` e `subtractOutros`:
 
-## Patch a aplicar no FastAPI (`/api/faturamento-genius-dashboard` e `/api/faturamento-genius`)
+```
+fat_liquido = valor_total - valor_devolucao - |valor_impostos| - valor_desconto
+```
 
-### 1. SELECT do detalhe — adicionar a coluna por linha
+Ou seja, o frontend espera os 4 campos como **valores positivos** (módulo). Assim que o backend publicar nesse formato, os cards passam a bater **sem novo deploy do frontend**.
 
-No SELECT que monta o array `dados`:
+## O que vai mudar neste projeto
+
+### 1. Criar `docs/backend-faturamento-genius-PATCH.md` (documento mestre)
+
+Substitui e referencia os antigos:
+- `backend-faturamento-genius-cusmed.md`
+- `backend-faturamento-genius-desconto.md`
+- `backend-faturamento-genius-desconto-PATCH.md`
+
+Conteúdo:
+
+**a) Validação prévia SQL** (rodar antes de mexer no Python)
 
 ```sql
-CAST(COALESCE(VM.USU_VLRDSC, 0) AS FLOAT) AS valor_desconto,
+SELECT
+  CAST(SUM(COALESCE(USU_VLRBRU,0)) AS FLOAT) AS faturamento,
+  CAST(SUM(COALESCE(USU_VLRDEV,0)) AS FLOAT) AS devolucao,
+  CAST(SUM(COALESCE(USU_VLRDSC,0)) AS FLOAT) AS desconto,
+  CAST(SUM(COALESCE(USU_VLRICM,0)
+         + COALESCE(USU_VLRIPI,0)
+         + COALESCE(USU_VLRCOF,0)
+         + COALESCE(USU_VLRPIS,0)
+         + COALESCE(USU_VLRISS,0)) AS FLOAT) AS impostos
+FROM dbo.USU_VMBRUTANFE
+WHERE USU_CODEMP = 1
+  AND USU_ANO    = 2026
+  AND MONTH(USU_DATA) = 3
+  AND (
+    CASE
+      WHEN NULLIF(LTRIM(RTRIM(USU_REVPED)),'') IS NOT NULL
+        THEN LTRIM(RTRIM(USU_REVPED))
+      WHEN NULLIF(LTRIM(RTRIM(USU_REVNF)),'') IS NOT NULL
+       AND LTRIM(RTRIM(USU_REVNF)) <> '0'
+        THEN LTRIM(RTRIM(USU_REVNF))
+      ELSE 'OUTROS'
+    END
+  ) = 'GENIUS';
+-- Esperado: 191.603 / 821 / 1.738 / 27.370
 ```
 
-### 2. SELECT dos agregados — adicionar em cada bucket
-
-Em **toda** subquery/CTE que gera `kpis`, `por_revenda`, `por_origem`, `por_anomes`, `por_cliente`, `por_produto`:
+**b) Classificação de revenda canônica** (em **toda** subquery: detalhe, kpis, por_revenda, por_origem, por_anomes/por_mes, por_cliente, por_produto, exportação):
 
 ```sql
-CAST(SUM(COALESCE(VM.USU_VLRDSC, 0)) AS FLOAT) AS valor_desconto,
+CASE
+  WHEN NULLIF(LTRIM(RTRIM(VM.USU_REVPED)),'') IS NOT NULL
+    THEN LTRIM(RTRIM(VM.USU_REVPED))
+  WHEN NULLIF(LTRIM(RTRIM(VM.USU_REVNF)),'') IS NOT NULL
+   AND LTRIM(RTRIM(VM.USU_REVNF)) <> '0'
+    THEN LTRIM(RTRIM(VM.USU_REVNF))
+  ELSE 'OUTROS'
+END AS revenda
 ```
 
-> Não precisa do CASE de TNS de devolução: `USU_VLRDSC` já é o agregado da view.
+E aplicar o mesmo `CASE` no `WHERE`/`GROUP BY` quando o filtro `revenda` vier na query string.
 
-### 3. Recalcular `valor_liquido` em Python
+**c) SELECT agregado canônico** (kpis, por_revenda, por_origem, por_anomes, por_cliente, por_produto):
 
-Onde hoje está:
-
-```python
-valor_liquido = valor_total - valor_devolucao - abs(valor_impostos)
+```sql
+CAST(SUM(COALESCE(VM.USU_VLRBRU,0)) AS FLOAT)  AS valor_total,
+CAST(ABS(SUM(COALESCE(VM.USU_VLRDEV,0))) AS FLOAT) AS valor_devolucao,
+CAST(ABS(SUM(COALESCE(VM.USU_VLRDSC,0))) AS FLOAT) AS valor_desconto,
+CAST(ABS(SUM(COALESCE(VM.USU_VLRICM,0)
+            + COALESCE(VM.USU_VLRIPI,0)
+            + COALESCE(VM.USU_VLRCOF,0)
+            + COALESCE(VM.USU_VLRPIS,0)
+            + COALESCE(VM.USU_VLRISS,0))) AS FLOAT) AS valor_impostos,
 ```
 
-trocar por:
+> **Sinais**: o frontend trabalha com **valores positivos** (módulo). Por isso aplicamos `ABS(SUM(...))` nos 3 redutores (devolução, desconto, impostos). Não há "inversão dupla" porque o frontend faz `total - dev - |imp| - desc`.
+
+**d) SELECT do detalhe** (`/api/faturamento-genius`) — adicionar por linha:
+
+```sql
+CAST(COALESCE(VM.USU_VLRDSC,0) AS FLOAT) AS valor_desconto,
+```
+
+(os demais campos do detalhe já existem hoje).
+
+**e) Cálculo Python (todos os buckets + kpis)**
 
 ```python
 valor_liquido = (
@@ -48,85 +101,64 @@ valor_liquido = (
     - abs(valor_impostos)
     - (valor_desconto or 0)
 )
+margem_bruta      = valor_liquido - valor_custo
+margem_percentual = (margem_bruta / valor_liquido * 100) if valor_liquido > 0 else 0
 ```
 
-Repetir o mesmo cálculo onde é montado o KPI por linha (`por_revenda`, `por_origem`, `por_anomes`, etc.) e onde se calcula `margem_bruta` / `margem_percentual`.
+Aplicar em: kpis global, `por_revenda[*]`, `por_origem[*]`, `por_anomes[*]`/`por_mes[*]`, `por_cliente[*]`, `por_produto[*]`, e na rota de exportação Excel.
 
-### 4. Garantir o campo na resposta JSON
+**f) Schema JSON garantido**
 
 ```json
 {
-  "kpis":     { "...": "...", "valor_desconto": 1738, "fat_liquido": 161674 },
-  "por_revenda": [ { "revenda": "GENIUS", "valor_desconto": 1738, ... } ],
-  "por_anomes":  [ { "anomes": "202603",  "valor_desconto": 1738, ... } ],
-  "por_origem":  [ { "...": "...",        "valor_desconto": ... } ],
-  "dados":       [ { "...": "...",        "valor_desconto": 12.34 } ]
+  "kpis":        { "valor_total":191603, "valor_devolucao":821, "valor_desconto":1738, "valor_impostos":27370, "fat_liquido":161674, "valor_liquido":161674, ... },
+  "por_revenda": [{ "revenda":"GENIUS", "valor_desconto":1738, "fat_liquido":161674, ... }],
+  "por_anomes":  [{ "anomes":"202603",  "valor_desconto":1738, "fat_liquido":161674, ... }],
+  "por_origem":  [{ "...":"...",        "valor_desconto":"..." }],
+  "dados":       [{ "...":"...",        "valor_desconto":12.34 }]
 }
 ```
 
-### 5. (Opcional) Aproveitar `USU_FATLIQ` da própria view
+> Manter `fat_liquido` (compatibilidade) **e** adicionar `valor_liquido` como alias.
 
-Se quiser uma rota mais conservadora, em vez de recalcular `fat_liquido` em Python, basta retornar `SUM(VM.USU_FATLIQ)`. Recomendo manter o cálculo em Python para não depender da fórmula interna da view (que pode mudar) e por consistência com o frontend.
+**g) Lembrete CUSMED → PREMED**
 
----
+Manter a observação histórica: substituir `DER.CUSMED` por `DER.PREMED` no JOIN com `E075DER`. `grep -i CUSMED` deve retornar zero.
 
-## Validação SQL prévia (rodar antes de mexer no Python)
-
-```sql
-SELECT
-  CAST(SUM(COALESCE(USU_VLRDSC,0)) AS FLOAT) AS desconto_genius_mar26,
-  CAST(SUM(COALESCE(USU_FATLIQ,0)) AS FLOAT) AS fatliq_view
-FROM dbo.USU_VMBRUTANFE
-WHERE USU_CODEMP = 1
-  AND USU_ANO    = 2026
-  AND MONTH(USU_DATA) = 3
-  AND USU_ORIGEM IN ('110','120','130','135','140','150',
-                     '205','208','210','220','230','235','240','245','250');
--- esperado: desconto ≈ 1.738   |   fatliq ≈ 161.674
-```
-
-Se bater, o patch funciona. Se não bater, o ajuste precisa olhar `USU_VENFAT='S'` (filtro de faturamento) — replicar o mesmo `WHERE` que o endpoint já usa hoje.
-
----
-
-## Smoke-test do endpoint após o deploy
+**h) Smoke-test**
 
 ```
 GET /api/faturamento-genius-dashboard?anomes_ini=202603&anomes_fim=202603&revenda=GENIUS
 ```
 
-Conferir:
-```
-kpis.valor_desconto                ≈ 1738
-kpis.fat_liquido                   ≈ 161674
-por_revenda[GENIUS].valor_desconto ≈ 1738
-por_anomes[202603].valor_desconto  ≈ 1738
-```
+| Campo | Esperado |
+|---|---:|
+| kpis.valor_total | ≈ 191.603 |
+| kpis.valor_devolucao | ≈ 821 |
+| kpis.valor_desconto | ≈ 1.738 |
+| kpis.valor_impostos | ≈ 27.370 |
+| kpis.fat_liquido / valor_liquido | ≈ 161.674 |
+| por_revenda[GENIUS].* | mesmos números |
+| por_anomes[202603].* | mesmos números |
 
----
+Repetir para Jan/Fev/Abr 2026 (targets em `mem://features/faturamento-genius-targets`).
 
-## Frontend — já está pronto
+### 2. Atualizar docs antigos com aviso de "superseded"
 
-`src/pages/FaturamentoGeniusPage.tsx` já lê `valor_desconto ?? 0` em `computeKpis`, `kpisFromPorRevenda` e `subtractOutros`. Assim que o backend publicar o campo, os cards passam a bater **sem novo deploy do frontend**.
+Topo de `backend-faturamento-genius-cusmed.md`, `backend-faturamento-genius-desconto.md`, `backend-faturamento-genius-desconto-PATCH.md`:
 
----
+> ⚠️ Substituído por `docs/backend-faturamento-genius-PATCH.md` (patch consolidado).
 
-## Limitação
+### 3. Atualizar `.lovable/plan.md`
 
-O FastAPI não está versionado neste projeto Lovable — eu não consigo editar o `.py` daqui. Vou entregar a documentação do patch e você (ou o time backend) cola no repositório do FastAPI.
+Apontar para o novo documento mestre.
 
----
+## O que NÃO muda
 
-## Próximo passo (após aprovação)
+- Nenhuma alteração de código no `src/` (frontend já está pronto).
+- Nenhuma migração Supabase (esse fluxo é 100% FastAPI externo).
+- Testes existentes (`FaturamentoGeniusPage.kpis.test.tsx`) continuam válidos — a fórmula deles já é a mesma do patch.
 
-Em modo build, vou:
+## Próximo passo
 
-1. Atualizar `docs/backend-faturamento-genius-desconto.md` substituindo a abordagem `E140IPV.VLRDSC` pela correta `USU_VMBRUTANFE.USU_VLRDSC` (mais simples).
-2. Criar `docs/backend-faturamento-genius-desconto-PATCH.md` com:
-   - SQL de validação (acima),
-   - trechos exatos para colar no SELECT do detalhe e dos agregados,
-   - ajuste do cálculo Python,
-   - checklist de smoke-test.
-3. (Opcional, me confirme) adicionar card "Descontos" no bloco de KPIs do frontend, ao lado de "Impostos", já consumindo `kpis.valor_desconto`.
-
-Aprovo?
+Aprovar para eu sair do modo plano e criar/atualizar os 4 arquivos `.md` listados acima. Nenhum código TS/TSX será tocado.
