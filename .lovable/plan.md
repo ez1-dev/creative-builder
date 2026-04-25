@@ -1,49 +1,74 @@
-## Contexto
+# Exportação Excel da árvore de rateios — Contas a Pagar
 
-O SQL que dispara o erro **"Nome de coluna 'CUSMED' inválido"** roda no **backend FastAPI externo** (endpoints `/api/faturamento-genius-dashboard` e `/api/faturamento-genius`), que não está neste repositório Lovable. Este projeto contém apenas o frontend (`src/pages/FaturamentoGeniusPage.tsx`) que consome esses endpoints.
+## Situação atual
 
-Busca confirmou:
-- Nenhuma ocorrência de `CUSMED`, `PREMED`, `E075DER` ou SQL do Faturamento Genius no repositório.
-- Não existe documento `docs/backend-faturamento-genius.md` (só existem docs para outros módulos: contas, estoque, sugestão min/max, etc.).
+O botão **Exportar Excel** em `/contas-pagar` sempre chama `/api/export/contas-pagar`, que devolve a visão "flat" de títulos. Quando o usuário ativa **Modo árvore de rateio**, o Excel exportado **não traz as linhas de rateio** (E075RAT) — apenas os títulos, exatamente como no modo lista.
 
-Portanto, o que dá pra entregar **dentro deste projeto** é:
+## Objetivo
 
-1. Criar a especificação de backend que o time do FastAPI deve aplicar (mesmo padrão dos outros docs `backend-*.md`).
-2. Tornar o erro mais legível no frontend até a correção subir.
+Quando o flag **Modo árvore de rateio** estiver ligado, a exportação deve gerar um Excel com a mesma estrutura hierárquica exibida na tela: 1 linha por título + N linhas filhas de rateio (CCU, descrição CCU, % rateio, valor rateado, projeto/fase, origem).
 
----
+## Abordagem (Opção A — backend-driven)
 
-## Plano
+Criar um novo endpoint de exportação no backend FastAPI dedicado ao modo árvore, e fazer o frontend alternar dinamicamente entre os dois endpoints conforme o flag.
 
-### 1. Criar `docs/backend-faturamento-genius-cusmed.md`
+### 1. Backend (documentação + spec) — fora deste repositório
 
-Conteúdo:
-- Descrição do erro retornado pelo SQL Server (`Nome de coluna 'CUSMED' inválido`).
-- Causa: `E075DER` no Senior expõe `PREMED` (preço médio) e `PRECUS` (preço de custo); não existe `CUSMED`.
-- Substituições obrigatórias: trocar todo `DER.CUSMED` por `DER.PREMED` no SQL dos endpoints `/api/faturamento-genius-dashboard` e `/api/faturamento-genius`.
-- JOIN canônico:
-  ```sql
-  LEFT JOIN dbo.E075DER DER
-      ON  DER.CODEMP = IPV.CODEMP
-      AND DER.CODPRO = IPV.CODPRO
-      AND COALESCE(DER.CODDER, '') = COALESCE(IPV.CODDER, '')
+Criar `docs/backend-export-contas-pagar-arvore.md` especificando para o time de backend:
+
+- **Novo endpoint:** `GET /api/export/contas-pagar-arvore`
+- **Parâmetros:** os mesmos aceitos por `/api/contas-pagar-arvore` (todos os filtros atuais: `fornecedor`, `numero_titulo`, `tipo_titulo`, `filial`, `centro_custo`, `numero_projeto`/`projeto`, `status_titulo`, datas de vencimento/emissão, etc.).
+- **Fonte de dados:** mesma query usada por `/api/contas-pagar-arvore` (E060IPC + E075RAT, com `LEFT JOIN` em projeto/fase/CCU já corrigidos conforme `docs/backend-contas-centro-custo-projeto.md`).
+- **Layout do XLSX:**
+  - Colunas: `Tipo Linha` (TITULO/RATEIO), `Nº Título`, `Fornecedor`, `Vencimento`, `Status`, `Valor Original`, `Valor Aberto`, `CCU`, `Descrição CCU`, `Projeto`, `Fase`, `% Rateio`, `Valor Rateado`, `Origem Rateio`.
+  - Linhas-filhas (RATEIO) indentadas via prefixo na coluna `Tipo Linha` ou `outline level` do openpyxl (group/outline) para o usuário poder colapsar no Excel.
+  - Linhas de título com fundo cinza claro (cabeçalho de grupo).
+  - Garantir que títulos sem rateios cadastrados apareçam com a marcação `sem rateios cadastrados` na coluna Origem.
+- **Nome do arquivo:** `contas_pagar_arvore_<YYYYMMDD_HHMM>.xlsx`.
+- **Headers:** `Content-Disposition: attachment; filename=...`, `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`.
+
+### 2. Frontend — neste repositório
+
+**Arquivo:** `src/pages/ContasPagarPage.tsx`
+
+- Substituir a action atual do `PageHeader` por um `ExportButton` cujo `endpoint` muda em função de `modoArvoreAtivo`:
+  ```ts
+  const exportEndpoint = modoArvoreAtivo
+    ? '/api/export/contas-pagar-arvore'
+    : '/api/export/contas-pagar';
+  const exportLabel = modoArvoreAtivo
+    ? 'Exportar Excel (Árvore)'
+    : 'Exportar Excel';
   ```
-- Cálculo agregado:
-  ```sql
-  CAST(SUM(COALESCE(DER.PREMED, 0) * COALESCE(IPV.QTDFAT, 0)) AS FLOAT) AS valor_custo
-  ```
-- Cálculo no detalhe:
-  ```sql
-  CAST(COALESCE(DER.PREMED, 0) * COALESCE(IPV.QTDFAT, 0) AS FLOAT) AS valor_custo
-  ```
-- Checklist de validação: grep por `CUSMED` no projeto FastAPI deve retornar zero ocorrências; smoke test chamando os dois endpoints e validando que `valor_custo > 0` para um período conhecido.
+- Manter `exportParams = { ...filters }` (os mesmos filtros já são aceitos por ambos endpoints).
+- Tooltip/label deve deixar claro ao usuário qual visão será exportada.
 
-### 2. Ajustar mensagem de erro em `src/pages/FaturamentoGeniusPage.tsx`
+**Arquivo:** `src/components/erp/ExportButton.tsx`
 
-Hoje o `catch` da consulta exibe `err?.message` cru no toast. Vou adicionar um mapeamento extra: quando a mensagem contiver `CUSMED` ou `Nome de coluna .* inválido`, exibir um toast/aviso amigável citando que o backend precisa aplicar a correção descrita em `docs/backend-faturamento-genius-cusmed.md`. Sem mudar lógica de dados.
+- Adicionar tratamento gracioso para resposta `404`/`501` no novo endpoint (caso o backend ainda não tenha implementado): exibir toast `Exportação em árvore ainda não disponível no backend. Veja docs/backend-export-contas-pagar-arvore.md.` em vez de erro genérico.
 
----
+### 3. Testes automatizados
+
+**Arquivo novo:** `src/components/erp/__tests__/ExportButton.arvore.test.tsx`
+
+- Renderiza `ContasPagarPage` (ou um wrapper mínimo) com `modoArvoreAtivo=true` e verifica que o `fetch` é chamado em `/api/export/contas-pagar-arvore`.
+- Mesmo teste com `modoArvoreAtivo=false` confirma o endpoint legado `/api/export/contas-pagar`.
+- Teste de fallback: resposta 404 dispara toast com a mensagem documentada.
+
+## Arquivos afetados
+
+- `docs/backend-export-contas-pagar-arvore.md` (novo — spec para o backend)
+- `src/pages/ContasPagarPage.tsx` (alternar endpoint conforme flag)
+- `src/components/erp/ExportButton.tsx` (mensagem amigável p/ 404/501)
+- `src/components/erp/__tests__/ExportButton.arvore.test.tsx` (novo)
+- `.lovable/plan.md` (registro)
 
 ## Fora de escopo
 
-- Não há como editar o SQL do FastAPI a partir deste projeto — a correção real precisa ser feita no repositório do backend pelo time responsável, seguindo o doc criado.
+- Implementar o endpoint no FastAPI (vive em outro repositório).
+- Mudar o layout visual da árvore na tela.
+- Exportar para outros formatos (CSV/PDF).
+
+## Observação
+
+Enquanto o backend não publicar `/api/export/contas-pagar-arvore`, o botão em modo árvore ainda funcionará — apenas exibirá o toast avisando que a exportação hierárquica está pendente, mantendo o restante da UI intacto.
