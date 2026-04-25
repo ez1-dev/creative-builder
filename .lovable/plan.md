@@ -1,93 +1,36 @@
-# Rateios não aparecem para o título 975462S-1 em Contas a Pagar (modo árvore)
+# Teste automatizado — rateios do título 975462S-1 no modo árvore
 
-## Diagnóstico
+## Objetivo
 
-O frontend está correto. Inspecionei a chamada feita pelo modo árvore:
+Travar via testes o contrato esperado para o título **975462S-1** no endpoint `/api/contas-pagar-arvore` e o comportamento do `FinanceiroTreeTable` quando o backend retorna (ou não) linhas `tipo_linha = "RATEIO"`. Assim, quando o backend FastAPI for corrigido (ver `docs/backend-contas-centro-custo-projeto.md`), o teste de contrato passa automaticamente; enquanto isso, o teste de UI garante que o aviso "sem rateios cadastrados" aparece.
 
-```
-GET /api/contas-pagar-arvore?numero_titulo=975462S-1&pagina=1&tamanho_pagina=100
-```
+## O que será adicionado
 
-E o backend respondeu apenas com a linha **TÍTULO**, sem nenhuma linha de RATEIO:
+### 1. Teste de contrato do endpoint (`src/lib/__tests__/contas-pagar-arvore.contract.test.ts`)
 
-```json
-{
-  "total_registros": 1,
-  "modo_exibicao": "ARVORE",
-  "dados": [
-    {
-      "tipo_linha": "TITULO",
-      "id_linha": "1-1-01-975462S-1",
-      "numero_titulo": "975462S-1",
-      "codigo_fornecedor": 6533,
-      "nome_fornecedor": "UNIMED DE SANTOS ...",
-      "codigo_centro_custo": "",
-      "descricao_centro_custo": "",
-      "numero_projeto": 0,
-      "valor_original": 118078.49,
-      "possui_filhos": false,
-      "nivel": 0
-    }
-  ]
-}
-```
+Mocka `fetch` e valida o shape da resposta de `/api/contas-pagar-arvore?numero_titulo=975462S-1`:
 
-Como `possui_filhos = false` e nenhum item com `tipo_linha = "RATEIO"` veio na resposta, o `FinanceiroTreeTable` não tem o que expandir — comportamento esperado da UI.
+- Cenário A — **estado atual (regressão conhecida)**: backend devolve só TÍTULO, `possui_filhos=false`. Marcado como `it.skip` com comentário linkando para o doc backend, para servir como TODO até o fix.
+- Cenário B — **estado esperado pós-fix**: resposta contém 1 linha `TITULO` com `possui_filhos=true` + N linhas com `tipo_linha="RATEIO"`, `codigo_pai` apontando para o `id_linha` do título, `nivel=1`, `codigo_centro_custo` preenchido, e soma de `percentual_rateio` = 100. Esse é o teste ativo, usando fixture mockada — passa hoje (valida o consumidor) e continuará passando quando o backend real responder o mesmo shape.
 
-Ou seja: **o problema está no endpoint backend `/api/contas-pagar-arvore`, que não está retornando as linhas de rateio (`E075RAT`) deste título**, mesmo o título tendo rateio cadastrado no ERP Senior.
+Também testa `flattenArvore` + `construirMapaFilhos` de `src/lib/treeFinanceiro.ts` com a fixture: ao expandir o título, as linhas RATEIO aparecem na ordem correta abaixo do pai.
 
-## O que precisa mudar (backend — fora deste repo)
+### 2. Teste de UI do `FinanceiroTreeTable` (`src/components/erp/__tests__/FinanceiroTreeTable.test.tsx`)
 
-A correção é no serviço FastAPI que serve `/api/contas-pagar-arvore`. Já está documentada parcialmente em `docs/backend-contas-centro-custo-projeto.md` (seção "Endpoints árvore"). Resumo do ajuste necessário para este caso:
+Render com Testing Library, dois casos:
 
-1. Para cada título retornado, executar uma consulta complementar em `E075RAT` filtrando por `cod_emp`, `cod_fil`, `tip_tit`, `num_tit` (chave composta do título).
-2. Se houver linhas em `E075RAT`, marcar o título com `possui_filhos = true` e anexar uma linha por rateio com:
-   - `tipo_linha: "RATEIO"`
-   - `codigo_pai: <id_linha do título>` (ex.: `1-1-01-975462S-1`)
-   - `id_linha: <id_linha do título>-RAT-<seq>`
-   - `nivel: 1`
-   - `codigo_centro_custo: rat.cod_ccu`
-   - `descricao_centro_custo: ccu.nom_ccu` (JOIN composto por `cod_emp` + `cod_ccu`)
-   - `numero_projeto: rat.cod_prj`
-   - `percentual_rateio: rat.per_rat`
-   - `valor_rateado: rat.val_rat`
-   - `origem_rateio: 'E075RAT'`
-3. SQL sugerido (Senior):
-   ```sql
-   SELECT rat.seq_rat,
-          rat.cod_ccu,
-          ccu.nom_ccu  AS descricao_centro_custo,
-          rat.cod_prj  AS numero_projeto,
-          rat.per_rat  AS percentual_rateio,
-          rat.val_rat  AS valor_rateado
-   FROM   e075rat rat
-   LEFT JOIN e550ccu ccu
-          ON ccu.cod_emp = rat.cod_emp
-         AND ccu.cod_ccu = rat.cod_ccu
-   WHERE  rat.cod_emp = :cod_emp
-     AND  rat.cod_fil = :cod_fil
-     AND  rat.tip_tit = :tip_tit
-     AND  rat.num_tit = :num_tit
-   ORDER BY rat.seq_rat;
-   ```
-4. Validação: para o título `975462S-1` (emp=1, fil=1, tip=01) a soma de `per_rat` deve ser 100% e o backend deve passar a retornar `total_registros >= 2` (1 título + N rateios).
+- **Com rateios**: passa a fixture do cenário B. Verifica que (a) o título renderiza com chevron expansível, (b) após `onToggle`, as linhas RATEIO ficam visíveis com CCU, % e valor rateado formatados, (c) o aviso "sem rateios cadastrados" **não** aparece.
+- **Sem rateios** (estado atual do backend para 975462S-1): passa só a linha TÍTULO com `possui_filhos=false`. Verifica que o aviso "sem rateios cadastrados" é exibido e que não há botão de expandir.
 
-## O que muda no frontend deste projeto
+### 3. Fixture compartilhada (`src/test/fixtures/contasPagarArvore975462S1.ts`)
 
-Nada. O fluxo de modo árvore, o componente `FinanceiroTreeTable` e o helper `flattenArvore` já lidam corretamente com `tipo_linha = "RATEIO"` + `codigo_pai`. Confirmado lendo:
+Exporta `respostaSemRateios` (estado atual do backend) e `respostaComRateios` (estado esperado pós-fix), com pelo menos 2 linhas RATEIO (CCUs distintos somando 100%), para reuso nos dois testes acima.
 
-- `src/pages/ContasPagarPage.tsx` (chamada do endpoint árvore e renderização condicional)
-- `src/components/erp/FinanceiroTreeTable.tsx` (render dos níveis)
-- `src/lib/treeFinanceiro.ts` (mapa pai→filhos)
+## Como rodar
 
-## Opcional (melhoria de UX, no frontend)
+`bunx vitest run src/lib/__tests__/contas-pagar-arvore.contract.test.ts src/components/erp/__tests__/FinanceiroTreeTable.test.tsx`
 
-Posso adicionar um aviso discreto na grid árvore quando um título vem com `possui_filhos = false` em modo árvore, do tipo: *"Sem rateios cadastrados no ERP para este título."* — só para deixar claro ao usuário que não é bug da tela. Sem alterar lógica de dados.
+## Observações
 
-## Próximos passos
-
-Como a causa raiz está no backend FastAPI/Senior (fora deste repositório), preciso saber como prosseguir:
-
-1. Apenas registrar a especificação da correção em `docs/backend-contas-centro-custo-projeto.md` (complementando a seção existente "Centro de custo incorreto nos rateios" com este caso de "rateios ausentes").
-2. Adicionar também o aviso visual opcional na tabela árvore quando `possui_filhos = false`.
-3. Ambos os itens acima.
+- Não há mudanças de produção neste plano — apenas testes e fixtures. O fix real continua sendo backend (já documentado).
+- Se quiser, em uma iteração seguinte posso transformar o `it.skip` do cenário A em teste E2E real apontando para a API (via `VITE_API_BASE` em ambiente local), mas isso exige acesso ao backend e fica fora deste plano.
