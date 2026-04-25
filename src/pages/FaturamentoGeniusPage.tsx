@@ -300,20 +300,34 @@ export default function FaturamentoGeniusPage() {
 
   const MSG_404 = 'Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI.';
   const MSG_FONTE = 'Fonte de faturamento não localizada no banco. Verifique no backend se o objeto configurado existe, por exemplo dbo.USU_VMBRUTANFE.';
+  const MSG_CUSMED = 'Coluna inválida no SQL do Faturamento Genius (provável uso de DER.CUSMED). O backend precisa trocar CUSMED por PREMED em E075DER. Veja docs/backend-faturamento-genius-cusmed.md.';
 
-  const isSqlObjectError = (err: any): boolean => {
+  const errHaystack = (err: any): string => {
     const parts: string[] = [];
     if (err?.message) parts.push(String(err.message));
     if (err?.details) {
       try { parts.push(typeof err.details === 'string' ? err.details : JSON.stringify(err.details)); } catch { /* ignore */ }
     }
-    const haystack = parts.join(' ').toLowerCase();
+    return parts.join(' ').toLowerCase();
+  };
+
+  const isSqlObjectError = (err: any): boolean => {
+    const haystack = errHaystack(err);
     if (!haystack) return false;
     if (haystack.includes('42s02')) return true;
     if (haystack.includes('nome de objeto')) return true;
     if (haystack.includes('invalid object name')) return true;
     if (haystack.includes('objeto') && haystack.includes('inválido')) return true;
     if (haystack.includes('objeto') && haystack.includes('invalido')) return true;
+    return false;
+  };
+
+  const isInvalidColumnError = (err: any): boolean => {
+    const haystack = errHaystack(err);
+    if (!haystack) return false;
+    if (haystack.includes('cusmed')) return true;
+    if (haystack.includes('invalid column name')) return true;
+    if (haystack.includes('nome de coluna') && (haystack.includes('inválido') || haystack.includes('invalido'))) return true;
     return false;
   };
 
@@ -352,6 +366,9 @@ export default function FaturamentoGeniusPage() {
         setFonteIndisponivel(true);
         setError(MSG_FONTE);
         toast.error(MSG_FONTE);
+      } else if (isInvalidColumnError(err)) {
+        setError(MSG_CUSMED);
+        toast.error(MSG_CUSMED, { duration: 8000 });
       } else {
         setError(err?.message || 'Erro ao consultar');
         if (err?.statusCode !== 401) {
