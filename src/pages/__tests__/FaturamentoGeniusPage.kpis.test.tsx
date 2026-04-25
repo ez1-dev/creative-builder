@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { subtractOutros } from '../FaturamentoGeniusPage';
+import { subtractOutros, kpisFromPorRevenda } from '../FaturamentoGeniusPage';
 
 describe('FaturamentoGeniusPage — KPIs', () => {
   const kpisBackend = {
