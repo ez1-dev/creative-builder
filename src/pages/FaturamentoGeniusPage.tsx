@@ -536,12 +536,35 @@ export default function FaturamentoGeniusPage() {
   }, [dashboard, incluirOutros, filteredRows]);
   const margemPct = Number(kpis.margem_percentual ?? 0);
 
-  // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável.
+  // Tabelas resumo: filtrar/recompor sem OUTROS quando aplicável,
+  // e também aplicar o filtro de texto de revenda (caso preenchido) para que
+  // os KPIs derivados desta lista batam com o que o usuário vê.
   const porRevenda = useMemo(() => {
-    const base = dashboard?.por_revenda || [];
+    const base: any[] = dashboard?.por_revenda || [];
+    let out = incluirOutros ? base : base.filter((r: any) => r.revenda !== 'OUTROS');
+    const needle = (filters.revenda || '').trim().toUpperCase();
+    if (needle) {
+      out = out.filter((r: any) => String(r.revenda ?? '').toUpperCase().includes(needle));
+    }
+    return out;
+  }, [dashboard, incluirOutros, filters.revenda]);
+
+  // KPIs: prioridade
+  // 1) Se há filtro ativo de revenda (porRevenda < total) → soma a partir de porRevenda filtrada.
+  //    Garante que Impostos/Fat.Líq/etc batam com o que o usuário vê na tabela.
+  // 2) Se incluirOutros → dashboard.kpis cru (cobre todo o período).
+  // 3) Senão → subtrai linha OUTROS de dashboard.kpis.
+  // 4) Fallback: recálculo local a partir do detalhe paginado.
+  const kpis = useMemo(() => {
+    const base = dashboard?.kpis;
+    const totalRevendas = (dashboard?.por_revenda || []).length;
+    const filtroAtivo = porRevenda.length > 0 && porRevenda.length < totalRevendas;
+    if (filtroAtivo) return kpisFromPorRevenda(porRevenda);
+    if (!base) return computeKpis(filteredRows);
     if (incluirOutros) return base;
-    return base.filter((r: any) => r.revenda !== 'OUTROS');
-  }, [dashboard, incluirOutros]);
+    return subtractOutros(base, dashboard?.por_revenda || []);
+  }, [dashboard, incluirOutros, filteredRows, porRevenda]);
+  const margemPct = Number(kpis.margem_percentual ?? 0);
 
   const porOrigem = useMemo(() => {
     if (incluirOutros) return dashboard?.por_origem || [];
