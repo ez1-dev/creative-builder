@@ -1,9 +1,6 @@
 # Backend — Faturamento Genius: incluir `valor_desconto` no `fat_liquido`
 
-> ⚠️ **Patch atualizado em `docs/backend-faturamento-genius-desconto-PATCH.md`.**
-> A view `dbo.USU_VMBRUTANFE` (já consumida pelo backend) **expõe `USU_VLRDSC`
-> agregado** — não é necessário ir até `E140IPV.VLRDSC`. O documento abaixo
-> permanece como contexto histórico; siga o PATCH para aplicar a correção.
+> ⚠️ **Substituído por `docs/backend-faturamento-genius-PATCH.md`** (patch consolidado e definitivo). Mantido apenas como referência histórica do raciocínio inicial (que ainda apontava para `E140IPV.VLRDSC` antes de descobrirmos que `USU_VMBRUTANFE.USU_VLRDSC` já agrega o desconto).
 
 ## Contexto
 

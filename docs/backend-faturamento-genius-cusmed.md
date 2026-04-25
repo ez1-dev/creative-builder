@@ -1,5 +1,7 @@
 # Faturamento Genius — corrigir `CUSMED` → `PREMED`
 
+> ⚠️ **Substituído por `docs/backend-faturamento-genius-PATCH.md`** (patch consolidado: revenda + sinais + valor_desconto + valor_liquido + CUSMED→PREMED). Este documento permanece apenas como referência histórica.
+
 ## Sintoma
 
 Ao consultar a tela `/faturamento-genius`, os endpoints abaixo retornam erro do SQL Server:

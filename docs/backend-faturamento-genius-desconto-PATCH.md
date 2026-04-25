@@ -1,5 +1,7 @@
 # PATCH FastAPI — `valor_desconto` no Faturamento Genius
 
+> ⚠️ **Substituído por `docs/backend-faturamento-genius-PATCH.md`** (patch consolidado e definitivo, que cobre também a regra de revenda `USU_REVPED`/`USU_REVNF`/`OUTROS`, sinais com `ABS(SUM(...))`, alias `valor_liquido` e CUSMED→PREMED). Mantido como referência histórica.
+
 > **Fonte oficial:** view `dbo.USU_VMBRUTANFE` (já consumida pelo backend via
 > `OBJ_VM_FATURAMENTO`). A view **já agrega** `USU_VLRDSC` por linha — não é
 > preciso ir até `E140IPV.VLRDSC`.
