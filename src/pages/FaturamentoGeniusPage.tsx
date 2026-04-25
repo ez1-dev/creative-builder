@@ -332,7 +332,8 @@ export function subtractOutros(kpis: any, porRevenda: any[]) {
   const valor_custo = num(kpis.valor_custo) - num(outros.valor_custo);
   const valor_comissao = num(kpis.valor_comissao) - num(outros.valor_comissao);
   const valor_impostos = num(kpis.valor_impostos) - num(outros.valor_impostos);
-  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos);
+  const valor_desconto = num(kpis.valor_desconto) - num(outros.valor_desconto);
+  const fat_liquido = valor_total - valor_devolucao - Math.abs(valor_impostos) - valor_desconto;
   const margem_bruta = fat_liquido - valor_custo;
   const margem_percentual = fat_liquido > 0 ? (margem_bruta / fat_liquido) * 100 : 0;
 
@@ -344,6 +345,7 @@ export function subtractOutros(kpis: any, porRevenda: any[]) {
     valor_custo,
     valor_comissao,
     valor_impostos,
+    valor_desconto,
     fat_liquido,
     margem_bruta,
     margem_percentual,
