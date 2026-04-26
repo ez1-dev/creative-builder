@@ -574,13 +574,24 @@ export default function PainelComprasPage() {
 
                   {chartData.situacoes?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Situação das OCs</h3>
+                      <h3 className="mb-1 text-sm font-semibold">Situação das OCs</h3>
+                      <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                          <Pie
+                            data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))}
+                            dataKey="quantidade_itens"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label
+                            cursor="pointer"
+                            onClick={(slice: any) => handleDrillSituacao(slice?.payload ?? slice)}
+                          >
                             {chartData.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip content={<PieRichTooltip totals={situacoesTotals} />} />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
@@ -589,13 +600,24 @@ export default function PainelComprasPage() {
 
                   {chartData.tipos?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Produtos x Serviços</h3>
+                      <h3 className="mb-1 text-sm font-semibold">Produtos x Serviços</h3>
+                      <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={chartData.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
+                          <Pie
+                            data={chartData.tipos}
+                            dataKey="quantidade_itens"
+                            nameKey="tipo_item"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label
+                            cursor="pointer"
+                            onClick={(slice: any) => handleDrillTipo(slice?.payload ?? slice)}
+                          >
                             {chartData.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip content={<PieRichTooltip totals={tiposTotals} />} />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
