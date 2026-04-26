@@ -69,6 +69,21 @@ export function UpdateNotifier() {
 
     const inCooldown = () => Date.now() < cooldownUntilRef.current;
 
+    const isNotifierEnabled = async (): Promise<boolean> => {
+      try {
+        const { data } = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'update_notifier_enabled')
+          .maybeSingle();
+        const v = data?.value;
+        if (v === undefined || v === null) return true;
+        return String(v).toLowerCase() !== 'false';
+      } catch {
+        return true;
+      }
+    };
+
     const checkVersion = async () => {
       if (inCooldown()) return;
       try {
