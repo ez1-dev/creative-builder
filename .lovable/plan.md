@@ -1,67 +1,73 @@
 ## Objetivo
 
-Melhorar o espaçamento e a responsividade do `ResponsiveGridLayout` no `DashboardBuilder`, que atualmente fica com widgets visualmente colados (sem `margin`/`containerPadding` definidos) e com `rowHeight` baixo.
+Reformular o visual dos widgets do `DashboardBuilder` para seguir o padrão **Power BI** mostrado na referência: fundo claro, paleta vibrante (azul forte + laranja/roxo/rosa), KPI grande centralizado, gráficos com rótulos de dados visíveis, tipografia limpa e bordas sutis.
 
-## Configuração atual (src/components/dashboard-builder/DashboardBuilder.tsx, linhas 368-378)
+## Referência visual
 
-```tsx
-<ResponsiveGridLayout
-  className="layout"
-  layouts={layouts}
-  breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-  cols={{ lg: 12, md: 12, sm: 6, xs: 4, xxs: 2 }}
-  rowHeight={60}
-  isDraggable={editing}
-  isResizable={editing}
-  onLayoutChange={onLayoutChange}
-  draggableCancel=".no-drag"
->
+- Barras: azul vibrante (#2E9BFF) com **rótulos de valor no topo** (ex: "R$213 Mil").
+- Pizza: fatias coloridas com **rótulos externos contendo nome + valor + %** (ex: "FOLGA DE CAMPO R$136 Mil (26,11%)").
+- KPI: número **muito grande** centralizado (ex: "R$520 Mil") com legenda discreta abaixo ("Soma de TOTAL").
+- Tabela: linhas finas, valores alinhados à direita, linha "Total" destacada.
+- Cards: fundo branco, sem sombras pesadas, borda fina cinza.
+
+## Mudanças
+
+### 1. `src/components/dashboard-builder/WidgetRenderer.tsx`
+
+**Paleta nova (estilo Power BI):**
+```ts
+const COLORS = ['#2E9BFF', '#1F3A93', '#F58220', '#7B2CBF', '#E91E63', '#FFC107', '#00BCD4', '#10B981', '#EF4444', '#8B5CF6'];
 ```
 
-Problemas:
-- Sem `margin` → widgets sem respiro entre si (default 10px é apertado para cards com sombra/borda).
-- Sem `containerPadding` → grid colado nas bordas do painel.
-- `rowHeight={60}` é baixo demais — widgets de KPI/gráfico ficam achatados ou exigem altura grande em "rows".
-- Breakpoint `md: 996` deixa o viewport atual (1183px) cair em `md` com 12 cols, mas o `lg: 1200` corta logo acima — convém alinhar melhor com o layout do app (sidebar reduz a área útil).
+**Helper de formato curto** (R$213 Mil / R$1,2 Mi) para rótulos de gráfico.
 
-## Mudanças propostas
-
-Atualizar as props do `ResponsiveGridLayout`:
-
+**KPI** — número grande centralizado:
 ```tsx
-<ResponsiveGridLayout
-  className="layout"
-  layouts={layouts}
-  breakpoints={{ lg: 1280, md: 1024, sm: 768, xs: 480, xxs: 0 }}
-  cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-  rowHeight={80}
-  margin={[16, 16]}
-  containerPadding={[8, 8]}
-  isDraggable={editing}
-  isResizable={editing}
-  onLayoutChange={onLayoutChange}
-  draggableCancel=".no-drag"
-  useCSSTransforms
-  compactType="vertical"
->
+<Card className="h-full border-border/60">
+  <CardContent className="h-full flex flex-col items-center justify-center p-4">
+    <div className="text-4xl md:text-5xl font-bold text-foreground">{fmtShort(value)}</div>
+    <div className="text-sm text-muted-foreground mt-2">{title}</div>
+  </CardContent>
+</Card>
 ```
 
-Resumo das alterações:
-- `margin={[16, 16]}` — espaçamento horizontal/vertical entre widgets.
-- `containerPadding={[8, 8]}` — respiro nas bordas internas do grid.
-- `rowHeight={80}` — linhas mais altas, melhor para KPIs e gráficos.
-- `breakpoints` ajustados para alinhar com larguras reais (sidebar do app reduz a área útil; `lg` agora começa em 1280px).
-- `cols` em `md` reduzido para 10 (viewport intermediário com menos espaço útil que `lg`).
-- `compactType="vertical"` e `useCSSTransforms` explicitados para comportamento previsível e performance.
+**Bar chart** — rótulos no topo + cor primária Power BI:
+```tsx
+<Bar dataKey="value" fill="#2E9BFF">
+  <LabelList dataKey="value" position="top" formatter={fmtShort} style={{ fontSize: 11, fill: '#374151' }} />
+</Bar>
+```
+Remover `angle={-25}`, deixar labels horizontais.
 
-## Arquivo afetado
+**Pie chart** — rótulos externos com nome+valor+%:
+```tsx
+<Pie data={series} dataKey="value" nameKey="name" cx="50%" cy="50%"
+     outerRadius="65%" labelLine
+     label={({ name, value, percent }) =>
+       `${name} ${fmtShort(value)} (${(percent * 100).toFixed(2)}%)`}>
+```
+Remover `<Legend>` (rótulos já mostram tudo).
 
-- `src/components/dashboard-builder/DashboardBuilder.tsx` (linhas 368-378)
+**Line/Area** — manter mas trocar cor para `#2E9BFF`.
+
+**Tabela** — adicionar linha "Total" no rodapé com soma da coluna `valor`, fundo destacado.
+
+**Card wrapper** — usar `border border-border/60 shadow-sm` em vez de sombra pesada; título alinhado à esquerda em maiúsculas pequenas.
+
+### 2. `src/components/dashboard-builder/DashboardBuilder.tsx`
+
+Ajustar o container do grid para fundo claro neutro (`bg-muted/20`) para destacar os cards brancos, igual ao canvas do Power BI.
+
+## Arquivos afetados
+
+- `src/components/dashboard-builder/WidgetRenderer.tsx` (paleta, KPI, bar labels, pie labels, totais de tabela, estilo de cards)
+- `src/components/dashboard-builder/DashboardBuilder.tsx` (fundo do canvas)
 
 ## Validação
 
-Após aplicar, abrir `/passagens-aereas` e verificar:
-- Widgets com espaço visível entre si.
-- Sem corte nas bordas do painel.
-- Cards de KPI mantêm altura confortável (1-2 rows).
-- Redimensionamento fluido ao alternar viewport (sm/md/lg).
+Abrir `/passagens-aereas` e conferir:
+- KPI grande centralizado.
+- Barras com valor escrito no topo.
+- Pizza com rótulos externos `NOME R$X Mil (Y%)`.
+- Tabela com linha Total no rodapé.
+- Visual geral claro, próximo da imagem de referência.
