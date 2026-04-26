@@ -169,7 +169,7 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
       dashboard_id: (cloned as any).id, type: w.type, title: w.title,
       config: w.config, layout: w.layout, position: w.position,
     }));
-    if (widgetsToClone.length) await supabase.from('dashboard_widgets').insert(widgetsToClone);
+    if (widgetsToClone.length) await supabase.from('dashboard_widgets').insert(widgetsToClone as any);
     await loadDashboards();
     setActiveId((cloned as any).id);
     setEditing(true);
