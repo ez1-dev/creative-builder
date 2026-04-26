@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from '@/components/erp/KPICard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -64,6 +65,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [catalogoCount, setCatalogoCount] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from('colaboradores_catalogo')
+      .select('*', { count: 'exact', head: true })
+      .eq('ativo', true)
+      .then(({ count }) => setCatalogoCount(count ?? 0));
+  }, []);
 
   const filtered = useMemo(() => data.filter((r) => {
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
@@ -151,7 +161,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
         <KPICard title="Registros" value={totalRegistros} icon={<Plane className="h-5 w-5" />} variant="info" index={1} />
-        <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
+        <KPICard title="Colaboradores (catálogo)" value={catalogoCount} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
 
