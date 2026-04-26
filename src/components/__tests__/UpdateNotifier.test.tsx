@@ -78,7 +78,7 @@ describe('UpdateNotifier component', () => {
     );
 
     render(<UpdateNotifier />);
-    await flush();
+    
 
     await waitFor(() => {
       expect(screen.getByText(`Nova: v${remote}`)).toBeInTheDocument();
@@ -97,7 +97,7 @@ describe('UpdateNotifier component', () => {
     );
 
     render(<UpdateNotifier />);
-    await flush();
+    
 
     await waitFor(() => {
       expect(screen.getByText(`Nova: v${CURRENT} (novo build)`)).toBeInTheDocument();
@@ -116,7 +116,7 @@ describe('UpdateNotifier component', () => {
     );
 
     render(<UpdateNotifier />);
-    await flush();
+    
 
     expect(screen.queryByText(/Nova versão disponível/)).toBeNull();
   });
