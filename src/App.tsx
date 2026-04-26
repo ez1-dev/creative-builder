@@ -31,6 +31,7 @@ import ContasPagarPage from "@/pages/ContasPagarPage";
 import ContasReceberPage from "@/pages/ContasReceberPage";
 import FaturamentoGeniusPage from "@/pages/FaturamentoGeniusPage";
 import PassagensAereasPage from "@/pages/PassagensAereasPage";
+import PassagensAereasCompartilhadoPage from "@/pages/PassagensAereasCompartilhadoPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -52,6 +53,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/passagens-aereas/compartilhado" element={<PassagensAereasCompartilhadoPage />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/estoque" replace />} />
               <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />

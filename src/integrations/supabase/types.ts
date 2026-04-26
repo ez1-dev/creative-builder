@@ -155,6 +155,48 @@ export type Database = {
         }
         Relationships: []
       }
+      passagens_aereas_share_links: {
+        Row: {
+          access_count: number
+          active: boolean
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          last_accessed_at: string | null
+          nome: string
+          password_hash: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          access_count?: number
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          nome: string
+          password_hash?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          access_count?: number
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          last_accessed_at?: string | null
+          nome?: string
+          password_hash?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profile_screens: {
         Row: {
           can_edit: boolean
@@ -368,7 +410,60 @@ export type Database = {
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
+      create_passagens_share_link: {
+        Args: {
+          _expires_at?: string
+          _nome: string
+          _password?: string
+          _token: string
+        }
+        Returns: string
+      }
+      get_passagens_via_token: {
+        Args: { _password?: string; _token: string }
+        Returns: {
+          centro_custo: string | null
+          cia_aerea: string | null
+          colaborador: string
+          created_at: string
+          created_by: string | null
+          data_ida: string | null
+          data_registro: string
+          data_volta: string | null
+          destino: string | null
+          fornecedor: string | null
+          id: string
+          localizador: string | null
+          motivo_viagem: string | null
+          numero_bilhete: string | null
+          observacoes: string | null
+          origem: string | null
+          projeto_obra: string | null
+          tipo_despesa: string
+          updated_at: string
+          valor: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "passagens_aereas"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      get_share_link_meta: {
+        Args: { _token: string }
+        Returns: {
+          exists_link: boolean
+          expired: boolean
+          nome: string
+          requires_password: boolean
+        }[]
+      }
       is_admin: { Args: { _uid: string }; Returns: boolean }
+      validate_share_token: {
+        Args: { _password?: string; _token: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
