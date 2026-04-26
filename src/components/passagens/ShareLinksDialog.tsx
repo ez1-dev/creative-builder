@@ -80,51 +80,24 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
       ? new Date(Date.now() + Number(validade) * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    let password_hash: string | null = null;
-    if (senha.trim()) {
-      // Hash via RPC usando crypt + gen_salt
-      const { data: hash, error: hashErr } = await supabase.rpc('crypt' as any, { password: senha, salt: '' } as any);
-      if (hashErr) {
-        // Fallback: usar função inline na inserção
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase.rpc('exec_share_link_insert' as any, {
-          _token: token, _nome: nome, _password: senha, _expires_at: expiresAt,
-        } as any).catch(() => ({ error: { message: 'fallback' } } as any));
-        // Se a RPC fallback não existe, faz insert direto e usaremos texto puro como fallback (não ideal, mas senha é opcional)
-        if (error) {
-          await criarSemHash(token, expiresAt, user?.id);
-        }
-        finalize(token);
-        setCreating(false);
-        return;
-      }
-      password_hash = hash as unknown as string;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('passagens_aereas_share_links').insert({
-      token, nome, password_hash, expires_at: expiresAt, created_by: user?.id,
+    const { error } = await supabase.rpc('create_passagens_share_link', {
+      _token: token,
+      _nome: nome,
+      _password: senha.trim() || null,
+      _expires_at: expiresAt,
     });
+
     if (error) {
       toast({ title: 'Erro ao criar link', description: error.message, variant: 'destructive' });
       setCreating(false);
       return;
     }
-    finalize(token);
-    setCreating(false);
-  };
 
-  const criarSemHash = async (token: string, expiresAt: string | null, userId?: string) => {
-    await supabase.from('passagens_aereas_share_links').insert({
-      token, nome, password_hash: null, expires_at: expiresAt, created_by: userId,
-    });
-  };
-
-  const finalize = (token: string) => {
     const link = `${baseUrl}/passagens-aereas/compartilhado?token=${token}`;
     setNovoLink(link);
     setNome(''); setSenha(''); setValidade('30');
     load();
+    setCreating(false);
   };
 
   const handleRevoke = async (id: string) => {
