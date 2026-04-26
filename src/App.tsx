@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import LoginPage from "@/pages/LoginPage";
+import AuthCallback from "@/pages/AuthCallback";
 import EstoquePage from "@/pages/EstoquePage";
 import EstoqueMinMaxPage from "@/pages/EstoqueMinMaxPage";
 import SugestaoMinMaxPage from "@/pages/SugestaoMinMaxPage";
@@ -49,6 +50,7 @@ const App = () => (
           <AiPageContextProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<Navigate to="/estoque" replace />} />
               <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />
