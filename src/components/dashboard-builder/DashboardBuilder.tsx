@@ -567,7 +567,7 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
               {widgets.map((w) => (
                 <div key={w.id}
                   onClick={() => editing && setSelectedWidgetId(w.id)}
-                  className={editing && selectedWidgetId === w.id ? 'ring-2 ring-primary rounded-lg' : ''}>
+                  className={`min-w-0 overflow-hidden ${editing && selectedWidgetId === w.id ? 'ring-2 ring-primary rounded-lg' : ''}`}>
                   <WidgetRenderer
                     widget={w}
                     rows={filteredRows}
