@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
+import RGL from 'react-grid-layout';
+const { Responsive, WidthProvider } = RGL as any;
+type Layout = { i: string; x: number; y: number; w: number; h: number };
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useUserPermissions } from '@/hooks/useUserPermissions';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,10 +32,11 @@ interface Props {
   module: string;
   data: any[];
   loading?: boolean;
+  canEditDefault?: boolean;
 }
 
-export function DashboardBuilder({ module, data, loading }: Props) {
-  const { isAdmin } = useUserPermissions();
+export function DashboardBuilder({ module, data, loading, canEditDefault = false }: Props) {
+  const isAdmin = canEditDefault;
   const { toast } = useToast();
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
