@@ -272,6 +272,40 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
     toast({ title: 'Layout Power BI aplicado' });
   };
 
+  const autoArrangeLayout = () => {
+    if (!widgets.length) return;
+    const sizeFor = (w: DashboardWidget) => {
+      if (w.type === 'kpi') return { w: 3, h: 3 };
+      if (w.type === 'table' && w.config.compact) return { w: 5, h: 5 };
+      if (w.type === 'table') return { w: 12, h: 6 };
+      return { w: 6, h: 5 };
+    };
+    const isMid = (w: DashboardWidget) =>
+      ['bar', 'line', 'area', 'pie', 'treemap', 'scatter'].includes(w.type) ||
+      (w.type === 'table' && w.config.compact);
+
+    const ordered = [
+      ...widgets.filter((w) => w.type === 'kpi'),
+      ...widgets.filter(isMid),
+      ...widgets.filter((w) => w.type === 'table' && !w.config.compact),
+    ];
+
+    let x = 0, y = 0, rowH = 0;
+    const placed = ordered.map((w) => {
+      const s = sizeFor(w);
+      if (x + s.w > 12) { x = 0; y += rowH; rowH = 0; }
+      const layout = { x, y, w: s.w, h: s.h };
+      x += s.w;
+      rowH = Math.max(rowH, s.h);
+      return { ...w, layout };
+    });
+
+    // Manter a ordem original para evitar reordenar widgets desconhecidos
+    const byId = new Map(placed.map((w) => [w.id, w]));
+    setWidgets((prev) => prev.map((w) => byId.get(w.id) ?? w));
+    toast({ title: 'Widgets organizados automaticamente' });
+  };
+
   const selected = widgets.find((w) => w.id === selectedWidgetId);
   const layouts = { lg: widgets.map((w) => ({ i: w.id, ...w.layout, minW: 2, minH: 2 })) };
 
