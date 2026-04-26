@@ -151,7 +151,13 @@ export function UpdateNotifier() {
       }
     };
 
-    const runChecks = () => {
+    const runChecks = async () => {
+      const enabled = await isNotifierEnabled();
+      if (!enabled) {
+        // Mantém modal fechado caso a flag tenha sido desligada após exibição
+        setShow(false);
+        return;
+      }
       checkVersion();
       checkBundleHash();
     };
@@ -170,17 +176,19 @@ export function UpdateNotifier() {
         reg.addEventListener('updatefound', () => {
           if (inCooldown()) return;
           const newWorker = reg.installing;
-          newWorker?.addEventListener('statechange', () => {
+          newWorker?.addEventListener('statechange', async () => {
             if (inCooldown()) return;
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              if (!(await isNotifierEnabled())) return;
               setLatestVersion((prev) => prev ?? CURRENT_VERSION);
               setBundleOnlyUpdate(true);
               setShow(true);
             }
           });
         });
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
+        navigator.serviceWorker.addEventListener('controllerchange', async () => {
           if (inCooldown()) return;
+          if (!(await isNotifierEnabled())) return;
           window.location.reload();
         });
       }).catch(() => {
