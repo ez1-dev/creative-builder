@@ -15,6 +15,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 
 export interface Passagem {
   id: string;
@@ -113,7 +114,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-5">
           <div>
             <Label className="text-xs">Colaborador</Label>
-            <Input value={filtroColaborador} onChange={(e) => setFiltroColaborador(e.target.value)} placeholder="Buscar..." />
+            <ColaboradorCombobox
+              value={filtroColaborador}
+              onChange={setFiltroColaborador}
+              placeholder="Todos"
+              allowCreate={false}
+            />
           </div>
           <div>
             <Label className="text-xs">Centro de Custo</Label>
