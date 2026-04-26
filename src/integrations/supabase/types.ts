@@ -86,6 +86,75 @@ export type Database = {
         }
         Relationships: []
       }
+      passagens_aereas: {
+        Row: {
+          centro_custo: string | null
+          cia_aerea: string | null
+          colaborador: string
+          created_at: string
+          created_by: string | null
+          data_ida: string | null
+          data_registro: string
+          data_volta: string | null
+          destino: string | null
+          fornecedor: string | null
+          id: string
+          localizador: string | null
+          motivo_viagem: string | null
+          numero_bilhete: string | null
+          observacoes: string | null
+          origem: string | null
+          projeto_obra: string | null
+          tipo_despesa: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          centro_custo?: string | null
+          cia_aerea?: string | null
+          colaborador: string
+          created_at?: string
+          created_by?: string | null
+          data_ida?: string | null
+          data_registro?: string
+          data_volta?: string | null
+          destino?: string | null
+          fornecedor?: string | null
+          id?: string
+          localizador?: string | null
+          motivo_viagem?: string | null
+          numero_bilhete?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          projeto_obra?: string | null
+          tipo_despesa: string
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          centro_custo?: string | null
+          cia_aerea?: string | null
+          colaborador?: string
+          created_at?: string
+          created_by?: string | null
+          data_ida?: string | null
+          data_registro?: string
+          data_volta?: string | null
+          destino?: string | null
+          fornecedor?: string | null
+          id?: string
+          localizador?: string | null
+          motivo_viagem?: string | null
+          numero_bilhete?: string | null
+          observacoes?: string | null
+          origem?: string | null
+          projeto_obra?: string | null
+          tipo_despesa?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       profile_screens: {
         Row: {
           can_edit: boolean
