@@ -8,6 +8,26 @@ import packageJson from '../../package.json';
 
 const CURRENT_VERSION = packageJson.version;
 const POLL_INTERVAL_MS = 60_000;
+
+const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/;
+
+/**
+ * Formata o rótulo da "Nova" versão exibida no modal.
+ * Garante que:
+ *  - nunca exibe a string literal "novo build" como se fosse versão;
+ *  - sempre prefixa com "v";
+ *  - sufixo "(novo build)" só aparece quando bundleOnlyUpdate === true.
+ */
+export function formatVersionLabel(
+  latestVersion: string | null | undefined,
+  currentVersion: string,
+  bundleOnlyUpdate: boolean,
+): string {
+  const candidate = (latestVersion ?? '').trim();
+  const isValid = candidate.length > 0 && SEMVER_RE.test(candidate);
+  const version = isValid ? candidate : currentVersion;
+  return bundleOnlyUpdate ? `v${version} (novo build)` : `v${version}`;
+}
 const LS_LAST_VERSION = 'app:last_seen_version';
 const LS_LAST_BUNDLE = 'app:last_seen_bundle';
 const LS_LAST_RELOAD = 'app:last_reload_at';
@@ -69,6 +89,7 @@ export function UpdateNotifier() {
         }
         const lastSeen = safeGet(LS_LAST_VERSION);
         if (remote !== lastSeen) {
+          console.info('[UpdateNotifier]', { type: 'version-change', from: lastSeen, to: remote });
           // Persiste imediatamente para evitar loop pós-reload
           safeSet(LS_LAST_VERSION, remote);
           setBundleOnlyUpdate(false);
@@ -98,6 +119,12 @@ export function UpdateNotifier() {
           return;
         }
         if (stored !== currentBundle) {
+          console.info('[UpdateNotifier]', {
+            type: 'bundle-change',
+            from: stored,
+            to: currentBundle,
+            displayedVersion: CURRENT_VERSION,
+          });
           // Persiste IMEDIATAMENTE o novo hash para que o pós-reload não dispare de novo
           safeSet(LS_LAST_BUNDLE, currentBundle);
           setLatestVersion((prev) => prev ?? CURRENT_VERSION);
@@ -154,6 +181,7 @@ export function UpdateNotifier() {
   }, []);
 
   const handleRefresh = async () => {
+    console.info('[UpdateNotifier]', { type: 'refresh', latestVersion, bundleOnlyUpdate });
     setRefreshing(true);
     // Marca cooldown pós-reload
     safeSet(LS_LAST_RELOAD, String(Date.now()));
@@ -193,6 +221,16 @@ export function UpdateNotifier() {
     window.location.reload();
   };
 
+  const renderedLabel = formatVersionLabel(latestVersion, CURRENT_VERSION, bundleOnlyUpdate);
+  if (show) {
+    console.info('[UpdateNotifier]', {
+      type: 'render',
+      latestVersion,
+      bundleOnlyUpdate,
+      label: renderedLabel,
+    });
+  }
+
   return (
     <Dialog open={show}>
       <DialogContent
@@ -217,8 +255,7 @@ export function UpdateNotifier() {
           </Badge>
           <span className="text-muted-foreground">→</span>
           <Badge className="text-xs">
-            Nova: {latestVersion ? `v${latestVersion}` : `v${CURRENT_VERSION}`}
-            {bundleOnlyUpdate ? ' (novo build)' : ''}
+            Nova: {renderedLabel}
           </Badge>
         </div>
 
