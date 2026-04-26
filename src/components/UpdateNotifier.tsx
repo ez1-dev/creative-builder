@@ -58,8 +58,15 @@ export function UpdateNotifier() {
           .maybeSingle();
         if (cancelled || error || !data?.value) return;
         const remote = String(data.value).trim();
+        if (!remote) return;
+        // Se a versão remota é igual à versão atual do bundle, apenas
+        // atualiza o baseline e não mostra modal.
+        if (remote === CURRENT_VERSION) {
+          safeSet(LS_LAST_VERSION, remote);
+          return;
+        }
         const lastSeen = safeGet(LS_LAST_VERSION);
-        if (remote && remote !== CURRENT_VERSION && remote !== lastSeen) {
+        if (remote !== lastSeen) {
           // Persiste imediatamente para evitar loop pós-reload
           safeSet(LS_LAST_VERSION, remote);
           setLatestVersion(remote);
