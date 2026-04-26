@@ -410,6 +410,15 @@ export type Database = {
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
+      create_passagens_share_link: {
+        Args: {
+          _expires_at?: string
+          _nome: string
+          _password?: string
+          _token: string
+        }
+        Returns: string
+      }
       get_passagens_via_token: {
         Args: { _password?: string; _token: string }
         Returns: {
