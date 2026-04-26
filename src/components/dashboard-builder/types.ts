@@ -10,6 +10,7 @@ export interface WidgetConfig {
   limit?: number;
   format?: 'currency' | 'number';
   color?: string;
+  groupBy?: string;
 }
 
 export interface WidgetLayout {

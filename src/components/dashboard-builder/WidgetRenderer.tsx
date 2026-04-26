@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, Fragment } from 'react';
 import { aggregate, singleMetric } from './aggregations';
 import type { CrossFilter, DashboardWidget } from './types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,36 +127,89 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
             </ScatterChart>
           </ResponsiveContainer>
         )}
-        {type === 'table' && (
-          <div className="h-full overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Colaborador</TableHead>
-                  <TableHead>C. Custo</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Destino</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.slice(0, 200).map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="text-xs">{formatDate(r.data_registro)}</TableCell>
-                    <TableCell className="text-xs">{r.colaborador}</TableCell>
-                    <TableCell className="text-xs">{r.centro_custo ?? '-'}</TableCell>
-                    <TableCell className="text-xs">{r.tipo_despesa}</TableCell>
-                    <TableCell className="text-xs">{r.origem ?? '-'}</TableCell>
-                    <TableCell className="text-xs">{r.destino ?? '-'}</TableCell>
-                    <TableCell className="text-xs text-right">{formatCurrency(Number(r.valor || 0))}</TableCell>
+        {type === 'table' && (() => {
+          const groupBy = config.groupBy;
+          if (!groupBy) {
+            return (
+              <div className="h-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Colaborador</TableHead>
+                      <TableHead>C. Custo</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Origem</TableHead>
+                      <TableHead>Destino</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.slice(0, 200).map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="text-xs">{formatDate(r.data_registro)}</TableCell>
+                        <TableCell className="text-xs">{r.colaborador}</TableCell>
+                        <TableCell className="text-xs">{r.centro_custo ?? '-'}</TableCell>
+                        <TableCell className="text-xs">{r.tipo_despesa}</TableCell>
+                        <TableCell className="text-xs">{r.origem ?? '-'}</TableCell>
+                        <TableCell className="text-xs">{r.destino ?? '-'}</TableCell>
+                        <TableCell className="text-xs text-right">{formatCurrency(Number(r.valor || 0))}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          }
+          const groups = new Map<string, any[]>();
+          for (const r of rows) {
+            const v = r[groupBy];
+            const key = v == null || v === '' ? '(sem valor)' : String(v);
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key)!.push(r);
+          }
+          const sorted = Array.from(groups.entries())
+            .map(([k, v]) => ({ key: k, items: v, total: v.reduce((s, r) => s + Number(r.valor || 0), 0) }))
+            .sort((a, b) => b.total - a.total);
+          return (
+            <div className="h-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Colaborador</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead>Destino</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+                </TableHeader>
+                <TableBody>
+                  {sorted.map((g) => (
+                    <Fragment key={`g-${g.key}`}>
+                      <TableRow className="bg-muted/60 font-semibold">
+                        <TableCell colSpan={5} className="text-xs">
+                          {g.key} <span className="text-muted-foreground font-normal">({g.items.length} reg.)</span>
+                        </TableCell>
+                        <TableCell className="text-xs text-right">{formatCurrency(g.total)}</TableCell>
+                      </TableRow>
+                      {g.items.slice(0, 100).map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="text-xs pl-6">{formatDate(r.data_registro)}</TableCell>
+                          <TableCell className="text-xs">{r.colaborador}</TableCell>
+                          <TableCell className="text-xs">{r.tipo_despesa}</TableCell>
+                          <TableCell className="text-xs">{r.origem ?? '-'}</TableCell>
+                          <TableCell className="text-xs">{r.destino ?? '-'}</TableCell>
+                          <TableCell className="text-xs text-right">{formatCurrency(Number(r.valor || 0))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
