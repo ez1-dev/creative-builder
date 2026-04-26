@@ -86,7 +86,7 @@ export default function PassagensAereasCompartilhadoPage() {
               <h1 className="text-lg font-bold">{linkName}</h1>
               <p className="text-sm text-muted-foreground">Este conteúdo é protegido por senha</p>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); loadData(password); }} className="space-y-3">
+            <form onSubmit={(e) => { e.preventDefault(); handlePasswordSubmit(); }} className="space-y-3">
               <div>
                 <Label>Senha</Label>
                 <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
