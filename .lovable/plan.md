@@ -1,32 +1,40 @@
-## Objetivo
+## Problema
 
-Exibir, na tela **Compras / Custos do Produto** (`/compras-produto`), o preço unitário da última Ordem de Compra em aberto, ao lado das colunas "Preço Médio" e "Custo Calculado".
+No Painel de Compras, os gráficos **"Top Famílias por Valor Líquido"** e **"Top Origens por Valor Líquido"** estão exibindo apenas uma única barra **"Sem família"** / **"Sem origem"**, agregando todo o valor em um único bucket.
 
-## Contexto
+## Causa raiz
 
-A API `GET /api/compras-produto` já retorna esse dado em cada item — campo **`preco_ultima_oc_aberta`** (validado via inspeção da resposta da rede). Hoje a tela não exibe esse valor; mostra apenas:
+O agrupamento dos gráficos no `chartData` (e o `useErpOptions` que alimenta os comboboxes de filtro) lê campos que **não existem** na resposta real da API `/api/painel-compras`:
 
-- `preco_medio` (Preço Médio)
-- `custo_calculado` (Custo Calculado)
-- `preco_nf_ultima_compra` (Preço NF da última compra)
+| Código atual lê       | Campo real na resposta |
+|-----------------------|------------------------|
+| `d.familia_item`      | `d.codigo_familia`     |
+| `d.origem_item`       | `d.origem_material`    |
 
-Não é necessária alteração de backend nem nova requisição.
+Como ambos resolvem para `undefined`, o fallback `'Sem família'` / `'Sem origem'` é sempre usado, o que gera as barras únicas observadas. Confirmado inspecionando a resposta real da API (campos `codigo_familia: "TINTAS"`, `origem_material: "88"`).
 
 ## Alterações
 
-### 1. `src/pages/ComprasProdutoPage.tsx`
-- Adicionar nova coluna **`preco_ultima_oc_aberta`** com header **"Preço Unit. OC"**, alinhada à direita, formatada com `formatCurrency`.
-- Posicionar logo após a coluna **"Última OC"** (`numero_oc_ultima`), agrupando informação de OC.
-- Sem alterações em filtros, KPIs ou paginação.
+### `src/pages/PainelComprasPage.tsx`
 
-```text
-Última OC | Preço Unit. OC | OC Aberta? | Qtd. OCs
-```
+1. **Linha 69** — corrigir as keys passadas para `useErpOptions`:
+   ```ts
+   useErpOptions(erpReady, data?.dados, { 
+     familiaKey: 'codigo_familia', 
+     origemKey: 'origem_material' 
+   })
+   ```
+   Isso também conserta as opções dos filtros de Família e Origem do material.
 
-### 2. Exportação Excel
-- O endpoint `/api/export/compras-produto` é gerado pelo backend; se já incluir `preco_ultima_oc_aberta`, nada a fazer. Caso contrário, é alteração de backend fora do escopo.
+2. **Linha 228** — usar `d.codigo_familia` no agrupamento de famílias.
 
-## Testes manuais
-1. Acessar `/compras-produto`, clicar em **Pesquisar**.
-2. Verificar a nova coluna **"Preço Unit. OC"** populada (R$) para itens com OC em aberto e zero/branco para itens sem.
-3. Confirmar que ordenação, busca rápida (Ctrl+K) e paginação continuam funcionando.
+3. **Linha 239** — usar `d.origem_material` no agrupamento de origens.
+
+Nenhuma outra alteração (KPIs, filtros, paginação, exportação) é necessária. Os labels dos eixos (`codigo_familia`, `origem`) e a estrutura dos objetos do `chartData` permanecem iguais.
+
+## Validação
+
+1. Acessar `/painel-compras`, clicar **Pesquisar**.
+2. Verificar que **"Top Famílias por Valor Líquido"** mostra múltiplas famílias (TINTAS, etc.) ordenadas por valor.
+3. Verificar que **"Top Origens por Valor Líquido"** mostra múltiplas origens (ex.: 88, 0, ...).
+4. Conferir que os comboboxes de filtro **Família** e **Origem do material** agora listam as opções corretas extraídas da resposta.

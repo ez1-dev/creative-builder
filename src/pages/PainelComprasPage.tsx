@@ -66,7 +66,7 @@ export default function PainelComprasPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista'>('dashboard');
 
   const erpReady = useErpReady();
-  const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'familia_item', origemKey: 'origem_item' });
+  const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'codigo_familia', origemKey: 'origem_material' });
   const { fornecedores: fornecedoresOptions, loading: fornecedoresLoading } = useFornecedores(erpReady, data?.dados);
 
   const trackSearch = useSearchTracking('painel-compras');
@@ -225,7 +225,7 @@ export default function PainelComprasPage() {
     // Top Famílias por valor líquido
     const famMap = new Map<string, number>();
     dados.forEach((d: any) => {
-      const key = d.familia_item || 'Sem família';
+      const key = d.codigo_familia || 'Sem família';
       famMap.set(key, (famMap.get(key) || 0) + (d.valor_liquido || 0));
     });
     const familias = [...famMap.entries()]
@@ -236,7 +236,7 @@ export default function PainelComprasPage() {
     // Top Origens por valor líquido
     const origMap = new Map<string, number>();
     dados.forEach((d: any) => {
-      const key = d.origem_item || 'Sem origem';
+      const key = d.origem_material || 'Sem origem';
       origMap.set(key, (origMap.get(key) || 0) + (d.valor_liquido || 0));
     });
     const origens = [...origMap.entries()]
