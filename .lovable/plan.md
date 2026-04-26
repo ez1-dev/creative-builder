@@ -1,34 +1,35 @@
 ## Diagnóstico
 
-O erro `AADSTS700016` significa que o Azure não encontrou o Client ID `22a1a52a-...` no tenant que estamos usando como authority. O código atual já monta a URL como `https://login.microsoftonline.com/${AZURE_TENANT_ID}/...`, então o valor armazenado hoje no secret `AZURE_TENANT_ID` está apontando para um tenant errado (provavelmente um diferente do "Estrutural Zortéa", que é onde o App Registration vive).
+O print do Azure mostra que o Client ID real do App Registration "EZ ERP SAPIENS IA" no tenant Estrutural Zortéa é:
 
-O tenant correto é: `15b289b8-79a4-49f8-93de-904f7e233a25`.
+`22a1a32a-c4a4-48fc-a868-a1e5a49b9b44`
+
+O valor atualmente armazenado no secret `AZURE_CLIENT_ID` é:
+
+`22a1a52a-c4a4-48fc-a868-a1e5a49b9b44`
+
+A diferença é o terceiro grupo (`32a` vs `52a`). Por isso o Azure responde `AADSTS700016` — ele está procurando um app que não existe.
 
 ## Correções
 
-### 1. Atualizar o secret `AZURE_TENANT_ID`
-Via `update_secret`, definir `AZURE_TENANT_ID = 15b289b8-79a4-49f8-93de-904f7e233a25`. Esta é a correção principal — sem isso nenhuma mudança de código resolve.
+### 1. Atualizar o secret `AZURE_CLIENT_ID`
+Via `update_secret`, definir:
+- `AZURE_CLIENT_ID = 22a1a32a-c4a4-48fc-a868-a1e5a49b9b44`
 
-### 2. Reforçar no código (defesa em profundidade)
-Em `supabase/functions/azure-auth-start/index.ts` e `supabase/functions/azure-auth-callback/index.ts`:
+Manter inalterado:
+- `AZURE_TENANT_ID = 15b289b8-79a4-49f8-93de-904f7e233a25`
+- `AZURE_CLIENT_SECRET` (o mesmo já cadastrado, contanto que tenha sido gerado para esse mesmo app no portal)
 
-- Definir uma constante `EXPECTED_TENANT_ID = "15b289b8-79a4-49f8-93de-904f7e233a25"`.
-- Usar essa constante diretamente em todas as URLs (`/authorize`, `/token`, validação de `iss` e `tid` no `id_token`), independentemente do valor do env var.
-- Manter a leitura do env apenas para sanity check / log se divergir.
-
-Isso garante que mesmo se o secret estiver errado novamente, o fluxo continua apontando para o tenant correto. Não usar `/common` nem `/organizations` em hipótese alguma.
+### 2. Redeploy das edge functions
+Forçar redeploy de `azure-auth-start` e `azure-auth-callback` para garantir que peguem o novo valor do secret.
 
 ### 3. Validar
-Após o redeploy automático das funções:
-1. Acessar `/login` → "Entrar com Microsoft".
-2. Confirmar que a URL da Microsoft contém `/15b289b8-79a4-49f8-93de-904f7e233a25/oauth2/v2.0/authorize`.
-3. Concluir o login com uma conta do tenant Zortéa.
-4. Cair em `/auth/callback` e depois em `/estoque` (ou "Acesso Pendente").
+1. Abrir `/login` em aba anônima.
+2. Clicar em "Entrar com Microsoft".
+3. Conferir que a URL gerada contém `client_id=22a1a32a-c4a4-48fc-a868-a1e5a49b9b44` e `/15b289b8-.../oauth2/v2.0/authorize`.
+4. Concluir o login com uma conta do tenant Zortéa.
+5. Cair em `/auth/callback` e em seguida `/estoque` (ou tela "Acesso Pendente" se ainda não aprovado).
 
-## Pré-requisito do lado Azure
+## Observação
 
-Confirmar no portal Azure (tenant Estrutural Zortéa) que o App Registration `22a1a52a-c4a4-48fc-a868-a1e5a49b9b44` tem como **Redirect URI (Web)**:
-
-`https://cpgyhjqufxeweyswosuw.supabase.co/functions/v1/azure-auth-callback`
-
-Se essa URI não estiver cadastrada exatamente assim, o callback falha mesmo com o tenant correto.
+Nenhuma alteração de código é necessária — as edge functions já usam o tenant fixo correto e leem o Client ID do secret. A correção é exclusivamente no valor do secret + redeploy.
