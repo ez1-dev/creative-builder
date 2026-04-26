@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.sugestao-minmax-ia]
 verify_jwt = false
+
+[functions.azure-auth-start]
+verify_jwt = false
+
+[functions.azure-auth-callback]
+verify_jwt = false

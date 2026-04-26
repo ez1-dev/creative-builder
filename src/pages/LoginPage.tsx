@@ -1,44 +1,44 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, Mail } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Logotipo Microsoft (4 quadrados) inline
+function MicrosoftLogo({ className = 'h-5 w-5' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 23 23" className={className} aria-hidden="true">
+      <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+      <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+      <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+      <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isSignup, setIsSignup] = useState(false);
-  const { login, signup, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated) navigate('/estoque', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !senha.trim()) {
-      toast.error('Preencha email e senha');
-      return;
-    }
+  const handleMicrosoftLogin = async () => {
     setLoading(true);
     try {
-      if (isSignup) {
-        await signup(email, senha);
-        toast.success('Cadastro realizado! Aguarde a aprovação de um administrador para acessar o sistema.', { duration: 8000 });
-      } else {
-        await login(email, senha);
-        toast.success('Login realizado com sucesso!');
-        navigate('/estoque');
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Falha na autenticação');
-    } finally {
+      const { data, error } = await supabase.functions.invoke('azure-auth-start', {
+        body: { origin: window.location.origin },
+      });
+      if (error) throw error;
+      if (!data?.url) throw new Error('URL de autenticação ausente');
+      window.location.href = data.url;
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao iniciar login Microsoft');
       setLoading(false);
     }
   };
@@ -52,55 +52,21 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-xl">ERP Sapiens</CardTitle>
           <p className="text-sm text-muted-foreground">
-            {isSignup ? 'Crie sua conta para acessar o sistema' : 'Faça login para acessar o sistema'}
+            Acesso restrito a contas corporativas Microsoft
           </p>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-9"
-                  placeholder="seu@email.com"
-                  autoComplete="email"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="senha">Senha</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="senha"
-                  type="password"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                  className="pl-9"
-                  placeholder="Sua senha"
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
-                />
-              </div>
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (isSignup ? 'Cadastrando...' : 'Entrando...') : (isSignup ? 'Cadastrar' : 'Entrar')}
-            </Button>
-          </form>
-
-          <div className="mt-3 text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignup(!isSignup)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline"
-            >
-              {isSignup ? 'Já tem conta? Faça login' : 'Não tem conta? Cadastre-se'}
-            </button>
-          </div>
+          <Button
+            onClick={handleMicrosoftLogin}
+            disabled={loading}
+            className="w-full gap-2 bg-[#2F2F2F] hover:bg-[#1f1f1f] text-white"
+          >
+            <MicrosoftLogo />
+            {loading ? 'Redirecionando…' : 'Entrar com Microsoft'}
+          </Button>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Após o primeiro acesso, aguarde a aprovação de um administrador.
+          </p>
         </CardContent>
       </Card>
     </div>

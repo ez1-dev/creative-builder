@@ -12,8 +12,6 @@ interface AuthContextType {
   erpConnected: boolean;
   approved: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -118,20 +116,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-  }, []);
-
-  const signup = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    if (error) throw error;
-  }, []);
-
   const logout = useCallback(async () => {
     localStorage.removeItem('erp_is_admin');
     await supabase.auth.signOut();
@@ -144,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, erpConnected, approved, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, erpConnected, approved, loading, logout }}>
       {children}
     </AuthContext.Provider>
   );
