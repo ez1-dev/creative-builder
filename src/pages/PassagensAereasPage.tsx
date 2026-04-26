@@ -22,6 +22,7 @@ import {
   PassagensDashboard, exportPassagensCsv, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
+import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 
 const PATH = '/passagens-aereas';
 
@@ -144,7 +145,13 @@ export default function PassagensAereasPage() {
           <DialogHeader><DialogTitle>{editing ? 'Editar' : 'Novo'} registro</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div><Label>Data registro *</Label><Input type="date" value={form.data_registro ?? ''} onChange={(e) => setForm({ ...form, data_registro: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>Colaborador *</Label><Input value={form.colaborador ?? ''} onChange={(e) => setForm({ ...form, colaborador: e.target.value })} /></div>
+            <div className="md:col-span-2">
+              <Label>Colaborador *</Label>
+              <ColaboradorCombobox
+                value={form.colaborador ?? ''}
+                onChange={(v) => setForm({ ...form, colaborador: v })}
+              />
+            </div>
             <div><Label>Centro de Custo</Label><Input value={form.centro_custo ?? ''} onChange={(e) => setForm({ ...form, centro_custo: e.target.value })} /></div>
             <div><Label>Projeto / Obra</Label><Input value={form.projeto_obra ?? ''} onChange={(e) => setForm({ ...form, projeto_obra: e.target.value })} /></div>
             <div><Label>Fornecedor</Label><Input value={form.fornecedor ?? ''} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} /></div>
