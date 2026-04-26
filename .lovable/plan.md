@@ -1,15 +1,10 @@
-# Corrigir filtro de Data início / Data fim
+# KPI Colaboradores: total do catálogo
 
-## Problema
-Em `src/components/passagens/PassagensDashboard.tsx` linhas 72-73, a comparação `r.data_registro < dataInicio` é lexicográfica de string. O `data_registro` pode chegar do Supabase como ISO completo (`"2026-01-01T00:00:00+00:00"`) enquanto o input `type="date"` produz só `"2026-01-01"` (10 chars). Resultado: registros são incluídos/excluídos incorretamente.
+## Mudança em `src/components/passagens/PassagensDashboard.tsx`
 
-## Correção
-Normalizar `data_registro` para os 10 primeiros caracteres antes de comparar:
+1. Adicionar import `useEffect` e `supabase` no topo.
+2. Criar estado `catalogoCount` que carrega via `supabase.from('colaboradores_catalogo').select('*', { count: 'exact', head: true }).eq('ativo', true)` no mount.
+3. Substituir o cálculo `colaboradoresUnicos` (linha 81) — passa a usar `catalogoCount`.
+4. Trocar o título do KPI de "Colaboradores" para **"Colaboradores (catálogo)"** para deixar explícito que é o tamanho do quadro, não quem teve gastos.
 
-```ts
-const dr = (r.data_registro ?? '').slice(0, 10);
-if (dataInicio && dr < dataInicio) return false;
-if (dataFim && dr > dataFim) return false;
-```
-
-Mudança isolada — apenas o `useMemo` `filtered` (linhas ~68-75). Nenhum outro componente afetado.
+Resultado: card mostrará **152** (total de nomes ativos no catálogo). Conforme novos colaboradores forem cadastrados via combobox, o número sobe automaticamente.

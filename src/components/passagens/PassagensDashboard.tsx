@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from '@/components/erp/KPICard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -64,6 +65,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [catalogoCount, setCatalogoCount] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from('colaboradores_catalogo')
+      .select('*', { count: 'exact', head: true })
+      .eq('ativo', true)
+      .then(({ count }) => setCatalogoCount(count ?? 0));
+  }, []);
 
   const filtered = useMemo(() => data.filter((r) => {
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
