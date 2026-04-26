@@ -1,54 +1,38 @@
-# Plano: Hardening do UpdateNotifier
+# Plano: Tooltip enriquecida + Drill-down no gráfico Produtos x Serviços
 
-## Objetivo
-Garantir, com testes automatizados e logs estruturados, que o modal de atualização:
-1. **Nunca** exiba a string literal `"novo build"` no campo de versão (`Nova: vX.Y.Z`).
-2. **Sempre** mostre o sufixo `(novo build)` quando a atualização for apenas troca de hash do bundle (sem mudança de `app_version`).
-3. **Sempre** mostre apenas `vX.Y.Z` (sem sufixo) quando for mudança real de versão vinda de `app_settings.app_version`.
+## Diagnóstico
 
-## Mudanças
+Hoje o gráfico **Produtos x Serviços** (Painel de Compras → aba Dashboard) usa:
+- `dataKey="quantidade_itens"` apenas com `<Tooltip />` padrão e label numérico no Pie.
+- Não exibe valor financeiro, percentual, nem permite drill-down.
 
-### 1. `src/components/UpdateNotifier.tsx` — Logs estruturados
-Adicionar logs `console.info` com prefixo `[UpdateNotifier]` em pontos-chave:
-- Ao detectar mudança de `app_version` no banco: `{ type: 'version-change', from, to }`
-- Ao detectar mudança de hash do bundle: `{ type: 'bundle-change', from, to, displayedVersion }`
-- Ao montar o badge: `{ type: 'render', latestVersion, bundleOnlyUpdate, label }`
-- Ao clicar em "Atualizar agora": `{ type: 'refresh', latestVersion, bundleOnlyUpdate }`
+A página já agrega os dados em memória (`tipoMap`) e já existe um filtro de tipo (`filters.tipo_item` Produto/Serviço/TODOS) usado pela tabela.
 
-Também extrair a função pura `formatVersionLabel(latestVersion, currentVersion, bundleOnlyUpdate)` que retorna a string final exibida (`v1.0.3` ou `v1.0.3 (novo build)`). Isso facilita o teste unitário e elimina a possibilidade de `"novo build"` vazar para o lugar errado.
+## O que será feito
 
-Invariantes garantidas pela função:
-- Se `latestVersion` for falsy, inválido ou igual ao literal `"novo build"`, faz fallback para `currentVersion`.
-- Sempre prefixa com `v`.
-- Sufixo `(novo build)` somente quando `bundleOnlyUpdate === true`.
+### 1. Tooltip enriquecida ao passar o mouse
+Reescrever a agregação para também somar **valor líquido** por tipo e calcular **percentual**. O tooltip customizado mostrará:
+- Tipo (PRODUTO / SERVICO / Outros)
+- Quantidade de itens (N e % do total)
+- Valor líquido total (R$ formatado e % do total)
 
-### 2. Novo arquivo `src/components/__tests__/UpdateNotifier.test.tsx`
-Testes cobrindo:
+### 2. Drill-down ao clicar na fatia
+Sim, é possível. Implementação: `onClick` na fatia do Pie aplica o filtro `tipo_item` correspondente e muda automaticamente para a aba **"Itens"** (tabela). Isso reaproveita o filtro server-side já existente — nenhum endpoint novo.
 
-**a) `formatVersionLabel` (unitário, puro):**
-- Versão real → `v1.0.3`
-- Versão real + bundleOnly → `v1.0.3 (novo build)`
-- `latestVersion = null` + bundleOnly → `v{CURRENT} (novo build)` (nunca `novo build` solto)
-- `latestVersion = "novo build"` (regressão) → cai para `v{CURRENT}`, sem string literal
-- `latestVersion = ""` → cai para `v{CURRENT}`
+Comportamento:
+- Clique em "PRODUTO" → seta `filters.tipo_item = 'PRODUTO'`, dispara `consultar()` e troca aba para Itens.
+- Clique em "SERVICO" → idem com `'SERVICO'`.
+- Clique em "Outros" → mantém `TODOS` (não há código ERP definido) e exibe toast informativo.
+- Cursor `pointer` na fatia para indicar interatividade.
+- Pequena dica de UI abaixo do título: *"Clique em uma fatia para ver os itens"*.
 
-**b) Componente (render, com `supabase` e `fetch` mockados):**
-- Mock de `app_settings` retornando versão diferente da atual → modal abre, label = `v{remote}` sem sufixo `(novo build)`.
-- Mock de `app_settings` retornando versão igual + `/index.html` com hash novo → modal abre, label = `v{CURRENT} (novo build)`.
-- Mock de versão igual + hash igual → modal **não** abre.
-- Garantir via `screen.queryByText` que o texto literal `"Nova: novo build"` **nunca** aparece (sem o `v`).
-
-### 3. Setup de mocks
-Reaproveitar `src/test/setup.ts`. Mockar:
-- `@/integrations/supabase/client` → `from().select().eq().maybeSingle()` retornando dados configuráveis por teste.
-- `global.fetch` → resposta de `/index.html` com `<script src="/assets/index-XXXX.js">`.
-- `localStorage` (jsdom já fornece) — limpar entre testes.
-
-## Validação
-- Rodar `bunx vitest run src/components/__tests__/UpdateNotifier.test.tsx`.
-- Todos os testes devem passar.
-- Logs em produção permitirão rastrear, via console do navegador, exatamente qual ramo (versão vs bundle) disparou o modal — útil para depurar relatos futuros.
+### 3. Mesma melhoria no gráfico "Situação das OCs" (bônus pequeno)
+Como compartilha o mesmo padrão (Pie com Tooltip default), aplicar a mesma tooltip enriquecida (qtd + %) e drill-down clicando na fatia → filtra `situacao_oc` e vai para Itens. Útil para o usuário e custo marginal mínimo.
 
 ## Arquivos
-- editar: `src/components/UpdateNotifier.tsx`
-- criar: `src/components/__tests__/UpdateNotifier.test.tsx`
+- editar: `src/pages/PainelComprasPage.tsx`
+
+## Validação
+- Passar mouse sobre fatias mostra qtd, % e valor líquido formatado.
+- Clicar em "PRODUTO" troca para aba Itens com tabela já filtrada apenas por produtos.
+- Botão **Limpar** dos filtros volta `tipo_item` para `TODOS` (comportamento atual já existente).

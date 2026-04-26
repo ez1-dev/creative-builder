@@ -63,6 +63,7 @@ export default function PainelComprasPage() {
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'lista'>('dashboard');
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'familia_item', origemKey: 'origem_item' });
@@ -150,21 +151,35 @@ export default function PainelComprasPage() {
       .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
       .slice(0, 10);
 
-    // Situação das OCs
-    const sitMap = new Map<number, number>();
+    // Situação das OCs (qtd + valor líquido)
+    const sitMap = new Map<number, { qtd: number; valor: number }>();
     dados.forEach((d: any) => {
       const s = d.situacao_oc ?? 0;
-      sitMap.set(s, (sitMap.get(s) || 0) + 1);
+      const cur = sitMap.get(s) || { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += d.valor_liquido || 0;
+      sitMap.set(s, cur);
     });
-    const situacoes = [...sitMap.entries()].map(([situacao_oc, quantidade_itens]) => ({ situacao_oc, quantidade_itens }));
+    const situacoes = [...sitMap.entries()].map(([situacao_oc, v]) => ({
+      situacao_oc,
+      quantidade_itens: v.qtd,
+      valor_liquido_total: v.valor,
+    }));
 
-    // Produtos x Serviços
-    const tipoMap = new Map<string, number>();
+    // Produtos x Serviços (qtd + valor líquido)
+    const tipoMap = new Map<string, { qtd: number; valor: number }>();
     dados.forEach((d: any) => {
       const t = d.tipo_item || 'Outros';
-      tipoMap.set(t, (tipoMap.get(t) || 0) + 1);
+      const cur = tipoMap.get(t) || { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += d.valor_liquido || 0;
+      tipoMap.set(t, cur);
     });
-    const tipos = [...tipoMap.entries()].map(([tipo_item, quantidade_itens]) => ({ tipo_item, quantidade_itens }));
+    const tipos = [...tipoMap.entries()].map(([tipo_item, v]) => ({
+      tipo_item,
+      quantidade_itens: v.qtd,
+      valor_liquido_total: v.valor,
+    }));
 
     // Top Famílias por valor líquido
     const famMap = new Map<string, number>();
@@ -348,6 +363,68 @@ export default function PainelComprasPage() {
     return p;
   }, [filters]);
 
+  // Tooltip enriquecida para Pies (qtd + % + valor líquido)
+  const PieRichTooltip = ({ active, payload, totals }: any) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0];
+    const item = p.payload || {};
+    const name = item.name ?? item.tipo_item ?? p.name;
+    const qtd = item.quantidade_itens ?? p.value ?? 0;
+    const valor = item.valor_liquido_total ?? 0;
+    const pctQtd = totals.qtd > 0 ? (qtd / totals.qtd) * 100 : 0;
+    const pctVal = totals.valor > 0 ? (valor / totals.valor) * 100 : 0;
+    return (
+      <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
+        <div className="mb-1 font-semibold">{name}</div>
+        <div className="text-muted-foreground">
+          Itens: <span className="font-medium text-foreground">{qtd}</span> ({pctQtd.toFixed(1)}%)
+        </div>
+        <div className="text-muted-foreground">
+          Valor líquido: <span className="font-medium text-foreground">{formatCurrency(valor)}</span> ({pctVal.toFixed(1)}%)
+        </div>
+        <div className="mt-1 text-[10px] text-muted-foreground">Clique para filtrar</div>
+      </div>
+    );
+  };
+
+  const tiposTotals = useMemo(() => {
+    const list = chartData?.tipos ?? [];
+    return {
+      qtd: list.reduce((s: number, t: any) => s + (t.quantidade_itens || 0), 0),
+      valor: list.reduce((s: number, t: any) => s + (t.valor_liquido_total || 0), 0),
+    };
+  }, [chartData]);
+
+  const situacoesTotals = useMemo(() => {
+    const list = chartData?.situacoes ?? [];
+    return {
+      qtd: list.reduce((s: number, t: any) => s + (t.quantidade_itens || 0), 0),
+      valor: list.reduce((s: number, t: any) => s + (t.valor_liquido_total || 0), 0),
+    };
+  }, [chartData]);
+
+  const handleDrillTipo = (slice: any) => {
+    const raw = String(slice?.tipo_item ?? '').toUpperCase();
+    let valor: 'PRODUTO' | 'SERVICO' | 'TODOS' = 'TODOS';
+    if (raw === 'PRODUTO' || raw === 'P') valor = 'PRODUTO';
+    else if (raw === 'SERVICO' || raw === 'S') valor = 'SERVICO';
+    if (valor === 'TODOS') {
+      toast.info('Sem código de tipo definido para drill-down nesta categoria.');
+      return;
+    }
+    setFilters((f) => ({ ...f, tipo_item: valor }));
+    setActiveTab('lista');
+    setTimeout(() => search(1), 0);
+  };
+
+  const handleDrillSituacao = (slice: any) => {
+    const sit = slice?.situacao_oc;
+    if (sit === undefined || sit === null) return;
+    setFilters((f) => ({ ...f, situacao_oc: String(sit) }));
+    setActiveTab('lista');
+    setTimeout(() => search(1), 0);
+  };
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
@@ -470,7 +547,7 @@ export default function PainelComprasPage() {
       )}
 
       {data && (
-        <Tabs defaultValue="dashboard" className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'dashboard' | 'lista')} className="w-full">
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
@@ -497,13 +574,24 @@ export default function PainelComprasPage() {
 
                   {chartData.situacoes?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Situação das OCs</h3>
+                      <h3 className="mb-1 text-sm font-semibold">Situação das OCs</h3>
+                      <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))} dataKey="quantidade_itens" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                          <Pie
+                            data={chartData.situacoes.map((s: any) => ({ ...s, name: situacaoLabel(s.situacao_oc) }))}
+                            dataKey="quantidade_itens"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label
+                            cursor="pointer"
+                            onClick={(slice: any) => handleDrillSituacao(slice?.payload ?? slice)}
+                          >
                             {chartData.situacoes.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip content={<PieRichTooltip totals={situacoesTotals} />} />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
@@ -512,13 +600,24 @@ export default function PainelComprasPage() {
 
                   {chartData.tipos?.length > 0 && (
                     <div className="rounded-md border bg-card p-4">
-                      <h3 className="mb-3 text-sm font-semibold">Produtos x Serviços</h3>
+                      <h3 className="mb-1 text-sm font-semibold">Produtos x Serviços</h3>
+                      <p className="mb-2 text-[11px] text-muted-foreground">Clique em uma fatia para filtrar a Lista Detalhada</p>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={chartData.tipos} dataKey="quantidade_itens" nameKey="tipo_item" cx="50%" cy="50%" outerRadius={80} label>
+                          <Pie
+                            data={chartData.tipos}
+                            dataKey="quantidade_itens"
+                            nameKey="tipo_item"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            label
+                            cursor="pointer"
+                            onClick={(slice: any) => handleDrillTipo(slice?.payload ?? slice)}
+                          >
                             {chartData.tipos.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip content={<PieRichTooltip totals={tiposTotals} />} />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
