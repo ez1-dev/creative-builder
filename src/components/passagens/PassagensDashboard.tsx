@@ -87,10 +87,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
   }, [filtered]);
 
-  const porTipo = useMemo(() => {
+  const porMotivo = useMemo(() => {
     const map = new Map<string, number>();
-    filtered.forEach((r) => map.set(r.tipo_despesa, (map.get(r.tipo_despesa) ?? 0) + Number(r.valor || 0)));
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+    filtered.forEach((r) => {
+      const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+      map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
   const porCentroCusto = useMemo(() => {
