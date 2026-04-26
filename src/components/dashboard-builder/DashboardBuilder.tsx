@@ -272,6 +272,47 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
     toast({ title: 'Layout Power BI aplicado' });
   };
 
+  // Aplica o layout Power BI em 1 clique, fora do modo edição.
+  // Garante que estamos editando um override pessoal do usuário (clona o padrão se necessário),
+  // insere os widgets e atualiza o estado — sem entrar em modo edição.
+  const applyPowerBIOneClick = async () => {
+    if (!activeDash) return;
+    if (!confirm('Aplicar layout padrão Power BI? Os widgets atuais serão substituídos.')) return;
+
+    let targetDashId = activeDash.id;
+
+    // Se ainda não é override do usuário, clonar
+    if (!isUserOverride) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast({ title: 'Faça login para personalizar', variant: 'destructive' }); return; }
+      const { data: cloned, error: cloneErr } = await supabase.from('dashboards').insert({
+        module, name: activeDash.name, owner_id: user.id, position: activeDash.position, is_default: false,
+      }).select().single();
+      if (cloneErr) { toast({ title: 'Erro', description: cloneErr.message, variant: 'destructive' }); return; }
+      targetDashId = (cloned as any).id;
+    }
+
+    await supabase.from('dashboard_widgets').delete().eq('dashboard_id', targetDashId);
+    const blueprint = [
+      { type: 'bar', title: 'TOTAL Mês', config: { dimension: 'data_registro', granularity: 'month', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 0, y: 0, w: 7, h: 5 } },
+      { type: 'pie', title: 'MOTIVO VIAGEM', config: { dimension: 'tipo_despesa', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 7, y: 0, w: 5, h: 5 } },
+      { type: 'table', title: 'CENTRO DE CUSTO', config: { groupBy: 'centro_custo', compact: true, format: 'currency' }, layout: { x: 0, y: 5, w: 4, h: 5 } },
+      { type: 'kpi', title: 'Soma de TOTAL', config: { metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 4, y: 5, w: 4, h: 5 } },
+      { type: 'table', title: 'COLABORADOR', config: { groupBy: 'colaborador', compact: true, format: 'currency' }, layout: { x: 8, y: 5, w: 4, h: 5 } },
+    ];
+    const toInsert = blueprint.map((b, i) => ({
+      dashboard_id: targetDashId, type: b.type, title: b.title,
+      config: b.config as any, layout: b.layout as any, position: i,
+    }));
+    const { error } = await supabase.from('dashboard_widgets').insert(toInsert as any);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+
+    await loadDashboards();
+    setActiveId(targetDashId);
+    await loadWidgets(targetDashId);
+    toast({ title: 'Layout Power BI aplicado' });
+  };
+
   const autoArrangeLayout = () => {
     if (!widgets.length) return;
     const sizeFor = (w: DashboardWidget) => {
