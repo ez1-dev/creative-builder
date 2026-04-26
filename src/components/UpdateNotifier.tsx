@@ -255,7 +255,7 @@ export function UpdateNotifier() {
           </Badge>
           <span className="text-muted-foreground">→</span>
           <Badge className="text-xs">
-            Nova: {formatVersionLabel(latestVersion, CURRENT_VERSION, bundleOnlyUpdate)}
+            Nova: {renderedLabel}
           </Badge>
         </div>
 
