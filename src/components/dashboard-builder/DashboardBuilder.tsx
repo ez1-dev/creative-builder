@@ -19,7 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Pencil, Save, X, Plus, RotateCcw, UserCog, Trash2 } from 'lucide-react';
+import { Pencil, Save, X, Plus, RotateCcw, UserCog, Trash2, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Filter as FilterIcon, Focus, Maximize2 } from 'lucide-react';
 import { WidgetRenderer } from './WidgetRenderer';
 import { WidgetPalette } from './WidgetPalette';
 import { WidgetInspector } from './WidgetInspector';
@@ -251,6 +251,27 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
     setEditing(true);
   };
 
+  const applyPowerBILayout = async () => {
+    if (!activeDash) return;
+    if (!confirm('Aplicar layout padrão Power BI? Os widgets atuais serão substituídos.')) return;
+    await supabase.from('dashboard_widgets').delete().eq('dashboard_id', activeDash.id);
+    const blueprint = [
+      { type: 'bar', title: 'TOTAL Mês', config: { dimension: 'data_registro', granularity: 'month', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 0, y: 0, w: 6, h: 5 } },
+      { type: 'pie', title: 'MOTIVO VIAGEM', config: { dimension: 'tipo_despesa', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 6, y: 0, w: 6, h: 5 } },
+      { type: 'table', title: 'CENTRO DE CUSTO', config: { groupBy: 'centro_custo', compact: true, format: 'currency' }, layout: { x: 0, y: 5, w: 5, h: 5 } },
+      { type: 'kpi', title: 'Soma de TOTAL', config: { metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 5, y: 5, w: 3, h: 5 } },
+      { type: 'table', title: 'COLABORADOR', config: { groupBy: 'colaborador', compact: true, format: 'currency' }, layout: { x: 8, y: 5, w: 4, h: 5 } },
+    ];
+    const toInsert = blueprint.map((b, i) => ({
+      dashboard_id: activeDash.id, type: b.type, title: b.title,
+      config: b.config as any, layout: b.layout as any, position: i,
+    }));
+    const { error } = await supabase.from('dashboard_widgets').insert(toInsert as any);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    await loadWidgets(activeDash.id);
+    toast({ title: 'Layout Power BI aplicado' });
+  };
+
   const selected = widgets.find((w) => w.id === selectedWidgetId);
   const layouts = { lg: widgets.map((w) => ({ i: w.id, ...w.layout, minW: 2, minH: 2 })) };
 
@@ -327,6 +348,9 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
           )}
           {editing && (
             <>
+              <Button size="sm" variant="outline" onClick={applyPowerBILayout}>
+                <Sparkles className="mr-1 h-4 w-4" /> Aplicar layout Power BI
+              </Button>
               <Button size="sm" variant="outline" onClick={cancelEdit}><X className="mr-1 h-4 w-4" /> Cancelar</Button>
               <Button size="sm" onClick={saveAll}><Save className="mr-1 h-4 w-4" /> Salvar</Button>
             </>
@@ -357,12 +381,22 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
           </div>
         )}
 
-        <div className="flex-1 min-w-0 bg-muted/30 rounded-lg">
+        <div className="flex-1 min-w-0 bg-muted/30 rounded-lg overflow-hidden">
+          {/* Barra de ações estilo Power BI (decorativa) */}
+          <div className="flex items-center justify-center gap-1 h-9 border-b border-border/40 bg-background/60">
+            <button type="button" className="p-1.5 rounded hover:bg-muted text-muted-foreground" title="Ordenar crescente"><ArrowUp className="h-3.5 w-3.5" /></button>
+            <button type="button" className="p-1.5 rounded hover:bg-muted text-muted-foreground" title="Ordenar decrescente"><ArrowDown className="h-3.5 w-3.5" /></button>
+            <button type="button" className="p-1.5 rounded hover:bg-muted text-muted-foreground" title="Ordenar por"><ArrowUpDown className="h-3.5 w-3.5" /></button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <button type="button" className="p-1.5 rounded hover:bg-muted text-muted-foreground" title="Filtros"><FilterIcon className="h-3.5 w-3.5" /></button>
+            <button type="button" className="p-1.5 rounded hover:bg-muted text-muted-foreground" title="Modo foco"><Focus className="h-3.5 w-3.5" /></button>
+            <button type="button" className="p-1.5 rounded hover:bg-muted text-muted-foreground" title="Expandir"><Maximize2 className="h-3.5 w-3.5" /></button>
+          </div>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : widgets.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              {editing ? 'Adicione widgets pela paleta à esquerda.' : 'Nenhum widget. Clique em "Personalizar" para começar.'}
+              {editing ? 'Adicione widgets pela paleta à esquerda.' : 'Nenhum widget. Clique em "Personalizar" e depois "Aplicar layout Power BI".'}
             </div>
           ) : (
             <ResponsiveGridLayout
@@ -371,7 +405,7 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
               breakpoints={{ lg: 1280, md: 1024, sm: 768, xs: 480, xxs: 0 }}
               cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
               rowHeight={80}
-              margin={[16, 16]}
+              margin={[12, 12]}
               containerPadding={[12, 12]}
               isDraggable={editing}
               isResizable={editing}

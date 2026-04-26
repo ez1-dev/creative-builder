@@ -69,7 +69,7 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
     return (
       <Card className="h-full border-border/60 shadow-sm bg-card">
         <CardContent className="h-full flex flex-col items-center justify-center p-4 text-center">
-          <div className="text-3xl md:text-5xl font-bold tracking-tight text-foreground leading-none">
+          <div className="text-5xl md:text-6xl font-semibold tracking-tight text-foreground leading-none">
             {fmtShort(value, config.format)}
           </div>
           <div className="text-sm text-muted-foreground mt-3 font-normal">{title}</div>
@@ -130,11 +130,13 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius="65%"
+                outerRadius="60%"
                 labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
-                label={({ name, value, percent }: any) =>
-                  `${name} ${fmtShort(Number(value), config.format)} (${(percent * 100).toFixed(2).replace('.', ',')}%)`
-                }
+                label={({ name, value, percent }: any) => {
+                  const n = String(name ?? '');
+                  const short = n.length > 22 ? n.slice(0, 21) + '…' : n;
+                  return `${short} ${fmtShort(Number(value), config.format)} (${(percent * 100).toFixed(2).replace('.', ',')}%)`;
+                }}
                 onClick={(e: any) => handleClick(e)}
                 style={{ fontSize: 11 }}
               >
@@ -162,6 +164,44 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
         )}
         {type === 'table' && (() => {
           const groupBy = config.groupBy;
+          // Modo compacto: 2 colunas (chave | total) + linha Total
+          if (groupBy && config.compact) {
+            const groups = new Map<string, number>();
+            for (const r of rows) {
+              const v = r[groupBy];
+              const key = v == null || v === '' ? '(sem valor)' : String(v);
+              groups.set(key, (groups.get(key) ?? 0) + Number(r.valor || 0));
+            }
+            const sorted = Array.from(groups.entries())
+              .map(([k, total]) => ({ key: k, total }))
+              .sort((a, b) => b.total - a.total);
+            const totalGeral = sorted.reduce((s, g) => s + g.total, 0);
+            const colLabel = groupBy.replace(/_/g, ' ').toUpperCase();
+            return (
+              <div className="h-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">{colLabel}</TableHead>
+                      <TableHead className="text-xs text-right">Soma de TOTAL</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sorted.map((g) => (
+                      <TableRow key={g.key}>
+                        <TableCell className="text-xs py-1.5">{g.key}</TableCell>
+                        <TableCell className="text-xs text-right py-1.5">{formatCurrency(g.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="border-t-2 border-[#2E9BFF] bg-muted/40 font-bold">
+                      <TableCell className="text-xs">Total</TableCell>
+                      <TableCell className="text-xs text-right">{formatCurrency(totalGeral)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          }
           if (!groupBy) {
             const visibleRows = rows.slice(0, 200);
             const totalGeral = rows.reduce((s, r) => s + Number(r.valor || 0), 0);

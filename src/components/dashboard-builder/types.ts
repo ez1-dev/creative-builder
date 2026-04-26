@@ -11,6 +11,7 @@ export interface WidgetConfig {
   format?: 'currency' | 'number';
   color?: string;
   groupBy?: string;
+  compact?: boolean;
 }
 
 export interface WidgetLayout {
