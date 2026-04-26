@@ -256,10 +256,10 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
     if (!confirm('Aplicar layout padrão Power BI? Os widgets atuais serão substituídos.')) return;
     await supabase.from('dashboard_widgets').delete().eq('dashboard_id', activeDash.id);
     const blueprint = [
-      { type: 'bar', title: 'TOTAL Mês', config: { dimension: 'data_registro', granularity: 'month', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 0, y: 0, w: 6, h: 5 } },
-      { type: 'pie', title: 'MOTIVO VIAGEM', config: { dimension: 'tipo_despesa', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 6, y: 0, w: 6, h: 5 } },
-      { type: 'table', title: 'CENTRO DE CUSTO', config: { groupBy: 'centro_custo', compact: true, format: 'currency' }, layout: { x: 0, y: 5, w: 5, h: 5 } },
-      { type: 'kpi', title: 'Soma de TOTAL', config: { metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 5, y: 5, w: 3, h: 5 } },
+      { type: 'bar', title: 'TOTAL Mês', config: { dimension: 'data_registro', granularity: 'month', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 0, y: 0, w: 7, h: 5 } },
+      { type: 'pie', title: 'MOTIVO VIAGEM', config: { dimension: 'tipo_despesa', metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 7, y: 0, w: 5, h: 5 } },
+      { type: 'table', title: 'CENTRO DE CUSTO', config: { groupBy: 'centro_custo', compact: true, format: 'currency' }, layout: { x: 0, y: 5, w: 4, h: 5 } },
+      { type: 'kpi', title: 'Soma de TOTAL', config: { metric: 'sum', field: 'valor', format: 'currency' }, layout: { x: 4, y: 5, w: 4, h: 5 } },
       { type: 'table', title: 'COLABORADOR', config: { groupBy: 'colaborador', compact: true, format: 'currency' }, layout: { x: 8, y: 5, w: 4, h: 5 } },
     ];
     const toInsert = blueprint.map((b, i) => ({
