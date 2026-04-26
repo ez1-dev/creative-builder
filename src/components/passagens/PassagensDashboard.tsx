@@ -45,7 +45,8 @@ export const TIPO_DESPESA_OPTIONS = [
   'Outros',
 ];
 
-const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+// Paleta inspirada no Power BI (azul, laranja, roxo, magenta, amarelo)
+const COLORS = ['#1f9bff', '#1e3a8a', '#f97316', '#7c3aed', '#ec4899', '#eab308', '#06b6d4', '#10b981', '#ef4444', '#8b5cf6'];
 
 interface Props {
   data: Passagem[];
@@ -86,10 +87,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
   }, [filtered]);
 
-  const porTipo = useMemo(() => {
+  const porMotivo = useMemo(() => {
     const map = new Map<string, number>();
-    filtered.forEach((r) => map.set(r.tipo_despesa, (map.get(r.tipo_despesa) ?? 0) + Number(r.valor || 0)));
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+    filtered.forEach((r) => {
+      const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+      map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
   }, [filtered]);
 
   const porCentroCusto = useMemo(() => {
@@ -156,12 +162,27 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm">Por Tipo de Despesa</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={porTipo} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e) => `${e.name}: ${((e.percent ?? 0) * 100).toFixed(0)}%`}>
-                  {porTipo.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+                <Pie
+                  data={porMotivo}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+                  label={(e: any) => {
+                    const v = Number(e.value || 0);
+                    const mil = `R$${(v / 1000).toFixed(0)} Mil`;
+                    const pct = ((e.percent ?? 0) * 100).toFixed(2).replace('.', ',');
+                    return `${e.name} ${mil} (${pct}%)`;
+                  }}
+                  style={{ fontSize: 11 }}
+                >
+                  {porMotivo.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
               </PieChart>
