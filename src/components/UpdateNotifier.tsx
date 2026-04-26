@@ -119,6 +119,12 @@ export function UpdateNotifier() {
           return;
         }
         if (stored !== currentBundle) {
+          console.info('[UpdateNotifier]', {
+            type: 'bundle-change',
+            from: stored,
+            to: currentBundle,
+            displayedVersion: CURRENT_VERSION,
+          });
           // Persiste IMEDIATAMENTE o novo hash para que o pós-reload não dispare de novo
           safeSet(LS_LAST_BUNDLE, currentBundle);
           setLatestVersion((prev) => prev ?? CURRENT_VERSION);
