@@ -357,7 +357,7 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
           </div>
         )}
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 bg-muted/30 rounded-lg">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : widgets.length === 0 ? (
@@ -372,7 +372,7 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
               cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
               rowHeight={80}
               margin={[16, 16]}
-              containerPadding={[8, 8]}
+              containerPadding={[12, 12]}
               isDraggable={editing}
               isResizable={editing}
               onLayoutChange={onLayoutChange}
