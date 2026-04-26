@@ -468,40 +468,40 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {!editing && (
             <>
               <Button size="sm" variant="outline" onClick={() => setNewDashOpen(true)}>
-                <Plus className="mr-1 h-4 w-4" /> Nova aba
+                <Plus className="sm:mr-1 h-4 w-4" /> <span className="hidden sm:inline">Nova aba</span>
               </Button>
               {isUserOverride && (
                 <Button size="sm" variant="outline" onClick={restoreDefault}>
-                  <RotateCcw className="mr-1 h-4 w-4" /> Restaurar padrão
+                  <RotateCcw className="sm:mr-1 h-4 w-4" /> <span className="hidden sm:inline">Restaurar padrão</span>
                 </Button>
               )}
               {isAdmin && (
                 <Button size="sm" variant="outline" onClick={() => startEdit(true)}>
-                  <UserCog className="mr-1 h-4 w-4" /> Editar padrão (admin)
+                  <UserCog className="sm:mr-1 h-4 w-4" /> <span className="hidden md:inline">Editar padrão (admin)</span>
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={applyPowerBIOneClick}>
-                <Sparkles className="mr-1 h-4 w-4" /> Layout Power BI
+                <Sparkles className="sm:mr-1 h-4 w-4" /> <span className="hidden sm:inline">Layout Power BI</span>
               </Button>
               <Button size="sm" onClick={() => startEdit(false)}>
-                <Pencil className="mr-1 h-4 w-4" /> Personalizar
+                <Pencil className="sm:mr-1 h-4 w-4" /> <span className="hidden sm:inline">Personalizar</span>
               </Button>
             </>
           )}
           {editing && (
             <>
               <Button size="sm" variant="outline" onClick={applyPowerBILayout}>
-                <Sparkles className="mr-1 h-4 w-4" /> Aplicar layout Power BI
+                <Sparkles className="sm:mr-1 h-4 w-4" /> <span className="hidden md:inline">Aplicar layout Power BI</span>
               </Button>
               <Button size="sm" variant="outline" onClick={autoArrangeLayout}>
-                <LayoutGrid className="mr-1 h-4 w-4" /> Organizar automaticamente
+                <LayoutGrid className="sm:mr-1 h-4 w-4" /> <span className="hidden md:inline">Organizar automaticamente</span>
               </Button>
-              <Button size="sm" variant="outline" onClick={cancelEdit}><X className="mr-1 h-4 w-4" /> Cancelar</Button>
-              <Button size="sm" onClick={saveAll}><Save className="mr-1 h-4 w-4" /> Salvar</Button>
+              <Button size="sm" variant="outline" onClick={cancelEdit}><X className="sm:mr-1 h-4 w-4" /> <span className="hidden sm:inline">Cancelar</span></Button>
+              <Button size="sm" onClick={saveAll}><Save className="sm:mr-1 h-4 w-4" /> <span className="hidden sm:inline">Salvar</span></Button>
             </>
           )}
         </div>
