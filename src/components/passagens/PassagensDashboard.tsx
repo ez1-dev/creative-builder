@@ -190,9 +190,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-sm">Top 10 Centros de Custo</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Top 15 Centros de Custo</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={420}>
               <BarChart data={porCentroCusto} layout="vertical">
                 <XAxis type="number" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" fontSize={11} width={140} />
