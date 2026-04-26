@@ -348,6 +348,9 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
           )}
           {editing && (
             <>
+              <Button size="sm" variant="outline" onClick={applyPowerBILayout}>
+                <Sparkles className="mr-1 h-4 w-4" /> Aplicar layout Power BI
+              </Button>
               <Button size="sm" variant="outline" onClick={cancelEdit}><X className="mr-1 h-4 w-4" /> Cancelar</Button>
               <Button size="sm" onClick={saveAll}><Save className="mr-1 h-4 w-4" /> Salvar</Button>
             </>
