@@ -245,8 +245,7 @@ export function UpdateNotifier() {
           </Badge>
           <span className="text-muted-foreground">→</span>
           <Badge className="text-xs">
-            Nova: {latestVersion ? `v${latestVersion}` : `v${CURRENT_VERSION}`}
-            {bundleOnlyUpdate ? ' (novo build)' : ''}
+            Nova: {formatVersionLabel(latestVersion, CURRENT_VERSION, bundleOnlyUpdate)}
           </Badge>
         </div>
 
