@@ -1103,6 +1103,21 @@ function VersionPanel() {
             Use o mesmo número que está no <code>package.json</code> do deploy mais recente.
           </p>
         </div>
+
+        <div className="rounded-md border bg-muted/30 p-3 flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <Label className="text-sm">Notificar usuários sobre novas versões</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Quando ativo, exibe o popup "Nova versão disponível" assim que uma nova versão do
+              EZ ERP IA for publicada. Desligue para suprimir o aviso para todos os usuários.
+            </p>
+          </div>
+          <Switch
+            checked={notifierEnabled}
+            disabled={loading || notifierSaving}
+            onCheckedChange={handleToggleNotifier}
+          />
+        </div>
       </CardContent>
     </Card>
   );
