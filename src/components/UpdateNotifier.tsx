@@ -181,6 +181,7 @@ export function UpdateNotifier() {
   }, []);
 
   const handleRefresh = async () => {
+    console.info('[UpdateNotifier]', { type: 'refresh', latestVersion, bundleOnlyUpdate });
     setRefreshing(true);
     // Marca cooldown pós-reload
     safeSet(LS_LAST_RELOAD, String(Date.now()));
