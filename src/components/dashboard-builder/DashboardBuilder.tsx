@@ -553,12 +553,13 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
               layouts={layouts}
               breakpoints={{ lg: 1280, md: 1024, sm: 768, xs: 480, xxs: 0 }}
               cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-              rowHeight={80}
+              rowHeight={currentBp === 'xxs' ? 56 : currentBp === 'xs' ? 64 : currentBp === 'sm' ? 72 : 80}
               margin={[12, 12]}
               containerPadding={[12, 12]}
-              isDraggable={editing}
-              isResizable={editing}
+              isDraggable={editing && !isSmallBp}
+              isResizable={editing && !isSmallBp}
               onLayoutChange={onLayoutChange}
+              onBreakpointChange={(bp: string) => setCurrentBp(bp as any)}
               draggableCancel=".no-drag"
               useCSSTransforms
               compactType="vertical"
