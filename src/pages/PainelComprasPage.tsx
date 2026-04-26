@@ -150,21 +150,35 @@ export default function PainelComprasPage() {
       .sort((a, b) => b.valor_liquido_total - a.valor_liquido_total)
       .slice(0, 10);
 
-    // Situação das OCs
-    const sitMap = new Map<number, number>();
+    // Situação das OCs (qtd + valor líquido)
+    const sitMap = new Map<number, { qtd: number; valor: number }>();
     dados.forEach((d: any) => {
       const s = d.situacao_oc ?? 0;
-      sitMap.set(s, (sitMap.get(s) || 0) + 1);
+      const cur = sitMap.get(s) || { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += d.valor_liquido || 0;
+      sitMap.set(s, cur);
     });
-    const situacoes = [...sitMap.entries()].map(([situacao_oc, quantidade_itens]) => ({ situacao_oc, quantidade_itens }));
+    const situacoes = [...sitMap.entries()].map(([situacao_oc, v]) => ({
+      situacao_oc,
+      quantidade_itens: v.qtd,
+      valor_liquido_total: v.valor,
+    }));
 
-    // Produtos x Serviços
-    const tipoMap = new Map<string, number>();
+    // Produtos x Serviços (qtd + valor líquido)
+    const tipoMap = new Map<string, { qtd: number; valor: number }>();
     dados.forEach((d: any) => {
       const t = d.tipo_item || 'Outros';
-      tipoMap.set(t, (tipoMap.get(t) || 0) + 1);
+      const cur = tipoMap.get(t) || { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += d.valor_liquido || 0;
+      tipoMap.set(t, cur);
     });
-    const tipos = [...tipoMap.entries()].map(([tipo_item, quantidade_itens]) => ({ tipo_item, quantidade_itens }));
+    const tipos = [...tipoMap.entries()].map(([tipo_item, v]) => ({
+      tipo_item,
+      quantidade_itens: v.qtd,
+      valor_liquido_total: v.valor,
+    }));
 
     // Top Famílias por valor líquido
     const famMap = new Map<string, number>();
