@@ -89,6 +89,7 @@ export function UpdateNotifier() {
         }
         const lastSeen = safeGet(LS_LAST_VERSION);
         if (remote !== lastSeen) {
+          console.info('[UpdateNotifier]', { type: 'version-change', from: lastSeen, to: remote });
           // Persiste imediatamente para evitar loop pós-reload
           safeSet(LS_LAST_VERSION, remote);
           setBundleOnlyUpdate(false);
