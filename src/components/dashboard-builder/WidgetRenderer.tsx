@@ -69,7 +69,7 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
     return (
       <Card className="h-full border-border/60 shadow-sm bg-card">
         <CardContent className="h-full flex flex-col items-center justify-center p-4 text-center">
-          <div className="text-3xl md:text-5xl font-bold tracking-tight text-foreground leading-none">
+          <div className="text-5xl md:text-6xl font-semibold tracking-tight text-foreground leading-none">
             {fmtShort(value, config.format)}
           </div>
           <div className="text-sm text-muted-foreground mt-3 font-normal">{title}</div>
