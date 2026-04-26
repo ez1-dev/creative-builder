@@ -1001,19 +1001,39 @@ function VersionPanel() {
   const [newVersion, setNewVersion] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [notifierEnabled, setNotifierEnabled] = useState<boolean>(true);
+  const [notifierSaving, setNotifierSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data } = await supabase
       .from('app_settings')
-      .select('value')
-      .eq('key', 'app_version')
-      .maybeSingle();
-    const v = (data?.value as string) || '';
+      .select('key, value')
+      .in('key', ['app_version', 'update_notifier_enabled']);
+    const map = Object.fromEntries(((data as any[]) || []).map((s) => [s.key, s.value]));
+    const v = (map['app_version'] as string) || '';
     setDbVersion(v);
     setNewVersion(v || currentVersion);
+    const flag = map['update_notifier_enabled'];
+    setNotifierEnabled(flag === undefined ? true : String(flag).toLowerCase() !== 'false');
     setLoading(false);
   }, [currentVersion]);
+
+  const handleToggleNotifier = async (next: boolean) => {
+    setNotifierSaving(true);
+    const prev = notifierEnabled;
+    setNotifierEnabled(next);
+    const { error } = await supabase
+      .from('app_settings')
+      .upsert({ key: 'update_notifier_enabled', value: next ? 'true' : 'false' }, { onConflict: 'key' });
+    setNotifierSaving(false);
+    if (error) {
+      setNotifierEnabled(prev);
+      toast.error('Erro ao salvar preferência');
+      return;
+    }
+    toast.success(next ? 'Aviso de nova versão ativado' : 'Aviso de nova versão desativado');
+  };
 
   useEffect(() => { load(); }, [load]);
 
