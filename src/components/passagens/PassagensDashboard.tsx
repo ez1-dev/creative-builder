@@ -69,8 +69,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
     if (filtroCC && !(r.centro_custo ?? '').toLowerCase().includes(filtroCC.toLowerCase())) return false;
     if (filtroTipo !== 'todos' && r.tipo_despesa !== filtroTipo) return false;
-    if (dataInicio && r.data_registro < dataInicio) return false;
-    if (dataFim && r.data_registro > dataFim) return false;
+    // Normaliza para YYYY-MM-DD (data_registro pode vir como ISO completo)
+    const dr = (r.data_registro ?? '').slice(0, 10);
+    if (dataInicio && dr < dataInicio) return false;
+    if (dataFim && dr > dataFim) return false;
     return true;
   }), [data, filtroColaborador, filtroCC, filtroTipo, dataInicio, dataFim]);
 
