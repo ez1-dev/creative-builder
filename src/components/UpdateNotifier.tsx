@@ -8,6 +8,26 @@ import packageJson from '../../package.json';
 
 const CURRENT_VERSION = packageJson.version;
 const POLL_INTERVAL_MS = 60_000;
+
+const SEMVER_RE = /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/;
+
+/**
+ * Formata o rótulo da "Nova" versão exibida no modal.
+ * Garante que:
+ *  - nunca exibe a string literal "novo build" como se fosse versão;
+ *  - sempre prefixa com "v";
+ *  - sufixo "(novo build)" só aparece quando bundleOnlyUpdate === true.
+ */
+export function formatVersionLabel(
+  latestVersion: string | null | undefined,
+  currentVersion: string,
+  bundleOnlyUpdate: boolean,
+): string {
+  const candidate = (latestVersion ?? '').trim();
+  const isValid = candidate.length > 0 && SEMVER_RE.test(candidate);
+  const version = isValid ? candidate : currentVersion;
+  return bundleOnlyUpdate ? `v${version} (novo build)` : `v${version}`;
+}
 const LS_LAST_VERSION = 'app:last_seen_version';
 const LS_LAST_BUNDLE = 'app:last_seen_bundle';
 const LS_LAST_RELOAD = 'app:last_reload_at';
