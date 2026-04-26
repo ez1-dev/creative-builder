@@ -1,74 +1,51 @@
-# Compartilhamento da página Passagens Aéreas via link com token
+# Corrigir erro "function gen_salt(unknown) does not exist"
 
-## Objetivo
-Permitir que usuários **sem conta no sistema** acessem a página de Passagens Aéreas (com KPIs, gráficos e tabela) através de um **link especial com token de segurança**. A página será **somente leitura** para quem entrar pelo link — apenas administradores logados continuam podendo cadastrar/editar/excluir.
+## Causa
+A extensão `pgcrypto` está instalada no schema `extensions`, mas a função `create_passagens_share_link` foi criada com `SET search_path = public`, então não encontra `crypt`/`gen_salt`.
 
-## Como vai funcionar (visão do usuário)
+## Solução escolhida: hash no cliente (sem depender de pgcrypto)
 
-1. **Administrador** abre a página `/passagens-aereas` e clica no novo botão **"Compartilhar"** no canto superior.
-2. Sistema gera um link único, ex.:
-   `https://ez-erp-ia.lovable.app/passagens-aereas/compartilhado?token=abc123xyz`
-3. Administrador define:
-   - **Validade** do link (7, 30, 90 dias ou sem expiração)
-   - **Senha opcional** (caso queira proteção extra)
-   - **Nome/descrição** (ex.: "Diretoria abril/2026")
-4. Link é copiado e enviado por WhatsApp/email aos destinatários.
-5. Destinatário abre o link → vê uma tela com os mesmos KPIs, gráficos, filtros e tabela, **sem precisar logar**. Se houver senha, é solicitada antes.
-6. Administrador pode **revogar** qualquer link a qualquer momento numa lista de links ativos.
+Como a única utilidade de `pgcrypto` aqui era hashear a senha para o link compartilhado, vou migrar essa lógica para o **frontend** usando a Web Crypto API nativa do browser (SHA-256). Isso elimina a dependência problemática e simplifica o sistema.
 
-## Alterações necessárias
+### Como vai funcionar
 
-### 1. Banco de dados (Lovable Cloud)
-Nova tabela `passagens_aereas_share_links`:
-- token (chave única)
-- nome/descrição
-- senha (hash, opcional)
-- expiração
-- ativo (sim/não)
-- criado por / em
-- contador de acessos e último acesso
+**Ao criar um link com senha:**
+1. Frontend gera um `publicToken` aleatório (24 bytes)
+2. Frontend calcula `effectiveToken = SHA256(publicToken + "::" + senha)`
+3. Salva no banco apenas o `effectiveToken` no campo `token` (a senha nunca é armazenada)
+4. Campo `password_hash` recebe apenas a marcação `'protected'` para indicar à UI que o link tem senha
+5. Link enviado ao usuário contém **apenas** o `publicToken` + flag `&p=1`
 
-Função pública segura `get_passagens_by_token(token, senha)` que valida o token e retorna os dados — única forma de acesso público aos dados, sem expor a tabela diretamente.
+**Ao acessar o link:**
+1. Página pública lê o `token` e a flag `p` da URL
+2. Se `p=1`: pede a senha ao usuário
+3. Frontend recalcula `effectiveToken = SHA256(token + "::" + senha)` e envia ao servidor
+4. Servidor apenas verifica se esse `effectiveToken` existe na tabela — sem precisar de `crypt`
 
-### 2. Frontend
+### Vantagens
+- Elimina o erro do `gen_salt`
+- A senha **nunca** trafega para o servidor (apenas o hash já calculado)
+- Mais simples: não precisa de funções SQL especiais para hash
+- Banco continua sem armazenar a senha em texto puro
 
-**Botão "Compartilhar" no header da página** `/passagens-aereas`:
-- Abre modal com:
-  - Lista de links ativos (com nome, expiração, acessos, botão revogar)
-  - Botão "Gerar novo link" → formulário (nome, validade, senha opcional)
-  - Após gerar: campo com link + botão copiar
+### Cuidado importante
+Links com senha **não podem ser recuperados depois** (porque o token completo só existe em memória no momento da criação). Se o admin perder o link, precisa revogar e gerar um novo. A UI já vai avisar isso na hora de criar.
 
-**Nova rota pública** `/passagens-aereas/compartilhado?token=...`:
-- Não exige login
-- Se token tem senha: mostra tela pedindo senha
-- Se token válido: renderiza a mesma UI da página principal (filtros, KPIs, gráficos, tabela), porém **sem botões de cadastrar/editar/excluir** e **sem o sidebar** (layout limpo, focado no relatório)
-- Se token inválido/expirado/revogado: mensagem amigável "Link expirou ou foi revogado"
+## Arquivos alterados
 
-### 3. Segurança
-- Tabela `passagens_aereas` continua bloqueada por RLS (sem acesso público direto)
-- Acesso público acontece apenas via função do banco que valida o token
-- Token é gerado aleatoriamente (32+ caracteres)
-- Senha (se definida) é armazenada com hash
-- Cada acesso é registrado (contador + timestamp) para auditoria
-- Admin pode revogar instantaneamente
+### `src/components/passagens/ShareLinksDialog.tsx`
+- Remove a chamada à RPC `create_passagens_share_link`
+- Adiciona função `deriveEffectiveToken()` usando `crypto.subtle.digest('SHA-256', ...)`
+- Faz INSERT direto na tabela `passagens_aereas_share_links` (admin já tem permissão via RLS)
+- Adiciona aviso "copie agora — não poderá ser recuperado depois" para links com senha
+- Botão "copiar link" da lista só aparece para links sem senha
 
-## Detalhes técnicos
+### `src/pages/PassagensAereasCompartilhadoPage.tsx`
+- Lê parâmetro `p=1` da URL para saber se exige senha (em vez de chamar `get_share_link_meta`)
+- Quando exige senha: pede ao usuário, recalcula o `effectiveToken` e chama `get_passagens_via_token` com esse token (sem `_password`)
+- A função `get_passagens_via_token` no banco continua igual — só verifica existência do token
 
-**Migração:**
-- Tabela `passagens_aereas_share_links` com RLS (apenas admins gerenciam)
-- Função `validate_share_token(token text, password text)` SECURITY DEFINER que retorna boolean
-- Função `get_passagens_via_token(token text, password text)` SECURITY DEFINER que retorna os registros se token válido
-
-**Arquivos novos:**
-- `src/pages/PassagensAereasCompartilhadoPage.tsx` — versão pública somente leitura
-- `src/components/passagens/ShareLinksDialog.tsx` — modal de gestão de links
-- `src/components/passagens/PassagensDashboard.tsx` — componente reutilizável com KPIs/gráficos/tabela (extraído da página atual para reaproveitar nas duas versões)
-
-**Arquivos editados:**
-- `src/pages/PassagensAereasPage.tsx` — usa novo componente `PassagensDashboard`, adiciona botão Compartilhar
-- `src/App.tsx` — registra rota pública `/passagens-aereas/compartilhado` (fora do `AppLayout`, sem `ProtectedRoute`)
-
-## O que NÃO muda
-- Página administrativa `/passagens-aereas` continua igual (login + permissão de perfil obrigatória)
-- Cadastro/edição/exclusão continua exclusivo de administradores logados
-- Permissões de outros módulos não são afetadas
+## O que **não** muda
+- Estrutura da tabela `passagens_aereas_share_links` permanece intacta
+- Funções SQL `validate_share_token`, `get_share_link_meta` e `get_passagens_via_token` continuam existindo (não precisam ser tocadas — apenas não vão mais validar senha, pois a senha já está embutida no token efetivo)
+- Página administrativa, dashboard, KPIs, gráficos: sem alterações
