@@ -1,62 +1,54 @@
+## Objetivo
+
+Fazer com que o layout "Power BI" (e o grid em geral) funcione bem em telas menores — sem cortar widgets, sem empilhamento desalinhado e sem gráficos espremidos.
+
 ## Diagnóstico
 
-A tela atual mostra widgets **sobrepostos** (tabela COLABORADOR encostada em outra tabela), KPI grande não aparece e o layout não bate com a referência. Causas:
+Hoje o `ResponsiveGridLayout` em `DashboardBuilder.tsx` recebe **apenas** `layouts.lg` com larguras pensadas para 12 colunas (ex.: `w:7 + w:5`, `w:4 + w:4 + w:4`). Quando a tela cai para `md` (10 cols), `sm` (6 cols), `xs` (4 cols) ou `xxs` (2 cols), o react-grid-layout tenta encaixar essas larguras nas novas grades, gerando overlap, corte ou ordem errada. Além disso, `rowHeight` fixo em 80px deixa cards muito altos no mobile.
 
-1. **Os botões "Aplicar layout Power BI" e "Organizar automaticamente" só existem no modo edição** (após clicar Personalizar). O usuário provavelmente clicou Personalizar mas não viu / não rodou eles, ou rodou só um sem o outro, ficando com tamanhos do banco antigo.
-2. **Tabela compacta repete o título**: o cabeçalho da coluna mostra "COLABORADOR" e o título do card também — visualmente redundante.
-3. **Não há reflow**: quando widgets antigos têm `w/h` salvos com posições conflitantes, o grid empilha em cima.
+## Mudanças
 
-## Soluções
+### 1. Layouts por breakpoint no grid (`DashboardBuilder.tsx`)
 
-### 1. Ação combinada e direta — `DashboardBuilder.tsx`
+Em vez de passar somente `layouts.lg`, gerar layouts derivados para cada breakpoint a partir do layout `lg` salvo, redimensionando proporcionalmente e organizando em fluxo:
 
-Trocar **"Aplicar layout Power BI"** para fazer tudo em uma única ação:
-- Deletar widgets atuais
-- Inserir os 5 widgets do blueprint (já feito)
-- **Recarregar do banco** (já feito)
+- **lg (12 cols)**: usa o layout salvo como está.
+- **md (10 cols)**: escala `w` proporcionalmente (round, mín. 3) mantendo a ordem por (y, x).
+- **sm (6 cols)**: 2 widgets por linha — KPIs `w:3`, demais `w:6`; tabelas full-width `w:6`.
+- **xs (4 cols)**: 1 widget por linha — `w:4` para todos; KPIs com `h` menor.
+- **xxs (2 cols)**: 1 widget por linha — `w:2`, alturas levemente reduzidas.
 
-E **fora do modo edição**, expor um botão único e visível **"Layout Power BI"** ao lado de "Personalizar", que:
-- Entra em modo edição automaticamente
-- Roda `applyPowerBILayout()` 
-- Salva na hora (`saveAll()`)
-- Sai do modo edição
+Função `buildResponsiveLayouts(widgets)` faz esse cálculo, ordenando por `(y, x)` do layout `lg` e empilhando com um cursor `(x, y, rowH)` por breakpoint.
 
-Resultado: 1 clique aplica o padrão da imagem.
+### 2. Altura de linha responsiva
 
-### 2. Tabela compacta — `WidgetRenderer.tsx`
+Trocar `rowHeight={80}` por valor por breakpoint (`lg/md: 80`, `sm: 70`, `xs: 64`, `xxs: 60`) usando a prop `rowHeight` aceita pelo Responsive (manter 80 e ajustar `h` por breakpoint na função acima — mais previsível que mudar rowHeight dinamicamente).
 
-Remover o cabeçalho duplicado: na versão compacta, o `<TableHead>` da primeira coluna deixa só **"Categoria"** ou nada, já que o título do card já identifica (ex.: "CENTRO DE CUSTO"). Manter apenas "Soma de TOTAL" à direita.
+### 3. Persistir somente o layout `lg`
 
-### 3. Garantir layout sem sobreposição
+`onLayoutChange(currentLayout, allLayouts)` — salvar apenas `allLayouts.lg` no estado/banco, para não sobrescrever os layouts derivados quando o usuário arrasta em uma tela pequena. Em breakpoints menores travar `isDraggable={false}` e `isResizable={false}` (drag manual em mobile não faz sentido e gera os "cortes" reportados).
 
-No `applyPowerBILayout`, o blueprint atual já especifica posições não conflitantes (`x:0/6`, `y:0/5` com `w:6 h:5` etc.). Vamos confirmar e ajustar para o grid de 12 cols caber sem sobrar gap:
+### 4. Toolbar e barra Power BI responsivas
 
-```
-Linha 1 (y=0): TOTAL Mês [x=0,w=7,h=5] | MOTIVO VIAGEM [x=7,w=5,h=5]
-Linha 2 (y=5): CENTRO CUSTO [x=0,w=4,h=5] | KPI [x=4,w=4,h=5] | COLABORADOR [x=8,w=4,h=5]
-```
+- Na barra de ações (linha com "Personalizar", "Layout Power BI" etc.), reduzir para ícones-only quando `sm` (esconder texto com `hidden sm:inline`), evitando wrap feio.
+- A barra decorativa estilo Power BI já é centralizada — manter.
 
-Larguras ajustadas para somar exatamente 12 em cada linha.
+### 5. WidgetRenderer
 
-### 4. Dimensões mínimas adequadas
+Garantir que os componentes internos não estourem largura: adicionar `min-w-0` e `overflow-hidden` no wrapper do card de cada widget e `truncate` em títulos longos. Charts (`ResponsiveContainer`) já se ajustam, mas tabelas compactas precisam de `overflow-auto` no container para evitar corte horizontal em `xs/xxs`.
 
-Ajustar `minW`/`minH` no layouts mapping para que nada fique menor do que o necessário e force a quebra correta:
-```ts
-const layouts = { lg: widgets.map((w) => ({ i: w.id, ...w.layout, minW: 3, minH: 3 })) };
-```
+### 6. Bloqueio do botão "Layout Power BI" em telas pequenas
+
+O botão aplica coordenadas `lg`. Mantemos isso, pois o passo 1 garante que essas coordenadas serão re-fluídas automaticamente para o breakpoint atual. Sem mudanças adicionais.
 
 ## Arquivos afetados
 
-- `src/components/dashboard-builder/DashboardBuilder.tsx`
-  - Novo botão **"Layout Power BI"** fora do modo edição (ação direta: aplica + salva)
-  - Blueprint com larguras ajustadas (7+5 / 4+4+4)
-  - `minW: 3, minH: 3`
-- `src/components/dashboard-builder/WidgetRenderer.tsx`
-  - Remover título duplicado no cabeçalho da tabela compacta
+- `src/components/dashboard-builder/DashboardBuilder.tsx` — `buildResponsiveLayouts`, props do `ResponsiveGridLayout`, `onLayoutChange`, toolbar responsiva.
+- `src/components/dashboard-builder/WidgetRenderer.tsx` — overflow/min-width/truncate nos containers.
 
-## Validação
+## Resultado esperado
 
-Em `/passagens-aereas`, sem entrar em Personalizar:
-1. Clicar **Layout Power BI** → o dashboard se reconstrói sozinho com os 5 widgets bem posicionados.
-2. Não deve haver sobreposição.
-3. KPI grande "R$ X Mil" visível no centro inferior.
+- Em desktop (≥1280px): layout Power BI exatamente como hoje.
+- Em tablets (768–1279px): mesma intenção, com proporções ajustadas a 10/6 colunas, sem overlap.
+- Em mobile (<768px): widgets empilhados verticalmente, full-width, KPIs compactos, gráficos legíveis, tabelas com scroll horizontal interno.
+- Drag/resize desabilitado abaixo de `md` para evitar quebras acidentais; o layout salvo (`lg`) permanece intacto.

@@ -67,23 +67,23 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
     if (config.metric === 'catalog_count') value = catalogCount;
     else value = singleMetric(rows, config);
     return (
-      <Card className="h-full border-border/60 shadow-sm bg-card">
-        <CardContent className="h-full flex flex-col items-center justify-center p-4 text-center">
-          <div className="text-5xl md:text-6xl font-semibold tracking-tight text-foreground leading-none">
+      <Card className="h-full border-border/60 shadow-sm bg-card overflow-hidden">
+        <CardContent className="h-full flex flex-col items-center justify-center p-3 text-center min-w-0">
+          <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-none truncate max-w-full">
             {fmtShort(value, config.format)}
           </div>
-          <div className="text-sm text-muted-foreground mt-3 font-normal">{title}</div>
+          <div className="text-xs sm:text-sm text-muted-foreground mt-2 sm:mt-3 font-normal truncate max-w-full">{title}</div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="h-full flex flex-col border-border/60 shadow-sm bg-card">
-      <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0">
-        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-foreground/80">{title}</CardTitle>
+    <Card className="h-full flex flex-col border-border/60 shadow-sm bg-card overflow-hidden">
+      <CardHeader className="pb-2 pt-3 px-4 flex-shrink-0 min-w-0">
+        <CardTitle className="text-xs font-semibold uppercase tracking-wide text-foreground/80 truncate">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 min-h-0 pt-0 px-3 pb-3">
+      <CardContent className="flex-1 min-h-0 min-w-0 pt-0 px-3 pb-3 overflow-hidden">
         {type === 'bar' && (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={series} margin={{ top: 24, right: 16, left: 8, bottom: 8 }}
