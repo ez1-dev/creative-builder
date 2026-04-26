@@ -40,13 +40,21 @@ Deno.serve(async (req) => {
   }
   if (!code) return htmlError("Código de autorização ausente.", appOrigin);
 
-  const tenantId = Deno.env.get("AZURE_TENANT_ID");
+  // Tenant fixo do "Estrutural Zortéa" — não usar /common nem /organizations.
+  const EXPECTED_TENANT_ID = "15b289b8-79a4-49f8-93de-904f7e233a25";
+  const envTenant = Deno.env.get("AZURE_TENANT_ID");
+  if (envTenant && envTenant !== EXPECTED_TENANT_ID) {
+    console.warn(
+      `AZURE_TENANT_ID env (${envTenant}) difere do esperado (${EXPECTED_TENANT_ID}); usando o esperado.`,
+    );
+  }
+  const tenantId = EXPECTED_TENANT_ID;
   const clientId = Deno.env.get("AZURE_CLIENT_ID");
   const clientSecret = Deno.env.get("AZURE_CLIENT_SECRET");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  if (!tenantId || !clientId || !clientSecret) {
+  if (!clientId || !clientSecret) {
     return htmlError("Configuração Azure ausente no servidor.", appOrigin);
   }
 
