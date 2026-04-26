@@ -26,10 +26,14 @@ export function WidgetInspector({ widget, fields, onChange, onDelete }: Props) {
   const set = (patch: Partial<DashboardWidget>) => onChange({ ...widget, ...patch });
   const setCfg = (patch: any) => set({ config: { ...widget.config, ...patch } });
 
-  const showDimension = widget.type !== 'kpi';
-  const showField = widget.type === 'kpi'
+  const isTable = widget.type === 'table';
+  const showDimension = !isTable && widget.type !== 'kpi';
+  const showMetric = !isTable;
+  const showField = !isTable && (widget.type === 'kpi'
     ? !['count', 'catalog_count'].includes(widget.config.metric ?? 'sum')
-    : true;
+    : true);
+  const showLimit = !isTable && widget.type !== 'kpi';
+  const showFormat = !isTable;
 
   return (
     <div className="space-y-3">
@@ -45,6 +49,23 @@ export function WidgetInspector({ widget, fields, onChange, onDelete }: Props) {
         <Input value={widget.title} onChange={(e) => set({ title: e.target.value })} />
       </div>
 
+      {isTable && (
+        <div>
+          <Label className="text-xs">Agrupar por</Label>
+          <Select
+            value={widget.config.groupBy ?? '__none__'}
+            onValueChange={(v) => setCfg({ groupBy: v === '__none__' ? undefined : v })}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Sem agrupamento</SelectItem>
+              {fields.filter((f) => f.kind === 'text').map((f) =>
+                <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       {showDimension && (
         <div>
           <Label className="text-xs">Dimensão (eixo X / categoria)</Label>
@@ -57,15 +78,17 @@ export function WidgetInspector({ widget, fields, onChange, onDelete }: Props) {
         </div>
       )}
 
-      <div>
-        <Label className="text-xs">Métrica</Label>
-        <Select value={widget.config.metric ?? 'sum'} onValueChange={(v) => setCfg({ metric: v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {AGGS.map((a) => <SelectItem key={a.v} value={a.v}>{a.l}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
+      {showMetric && (
+        <div>
+          <Label className="text-xs">Métrica</Label>
+          <Select value={widget.config.metric ?? 'sum'} onValueChange={(v) => setCfg({ metric: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {AGGS.map((a) => <SelectItem key={a.v} value={a.v}>{a.l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {showField && (
         <div>
@@ -80,7 +103,7 @@ export function WidgetInspector({ widget, fields, onChange, onDelete }: Props) {
         </div>
       )}
 
-      {widget.config.dimension && fields.find((f) => f.key === widget.config.dimension)?.kind === 'date' && (
+      {showDimension && widget.config.dimension && fields.find((f) => f.key === widget.config.dimension)?.kind === 'date' && (
         <div>
           <Label className="text-xs">Granularidade</Label>
           <Select value={widget.config.granularity ?? 'month'} onValueChange={(v: any) => setCfg({ granularity: v })}>
@@ -94,18 +117,20 @@ export function WidgetInspector({ widget, fields, onChange, onDelete }: Props) {
         </div>
       )}
 
-      <div>
-        <Label className="text-xs">Formato</Label>
-        <Select value={widget.config.format ?? 'number'} onValueChange={(v: any) => setCfg({ format: v })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="number">Número</SelectItem>
-            <SelectItem value="currency">Moeda (R$)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {showFormat && (
+        <div>
+          <Label className="text-xs">Formato</Label>
+          <Select value={widget.config.format ?? 'number'} onValueChange={(v: any) => setCfg({ format: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="number">Número</SelectItem>
+              <SelectItem value="currency">Moeda (R$)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {showDimension && (
+      {showLimit && (
         <div>
           <Label className="text-xs">Limite (top N)</Label>
           <Input type="number" min={0} value={widget.config.limit ?? 0}
