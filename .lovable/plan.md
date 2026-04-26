@@ -1,50 +1,43 @@
-## Objetivo
+## Diagnóstico do bug
 
-Adicionar opção **"Agrupar por"** no widget de **Tabela** do dashboard de Passagens Aéreas. Ao escolher um campo (ex: Centro de Custo), a tabela passa a mostrar:
+O erro **"Senha incorreta. Tente novamente."** no link de compartilhamento de Passagens Aéreas é causado por uma incompatibilidade entre o frontend e a função SQL `validate_share_token`:
 
-- Linha de **cabeçalho de grupo** destacada com o valor do agrupamento + quantidade de registros + **subtotal** do valor.
-- Linhas dos registros indentadas abaixo de cada grupo.
-- Grupos ordenados do maior subtotal para o menor.
+- **Frontend** (`ShareLinksDialog.tsx`): grava no banco `token = SHA-256(publicToken + "::" + senha)` e marca `password_hash = 'protected'` (string literal sentinela — a senha em si nunca é salva, fica embutida no hash do token).
+- **Função SQL** (`validate_share_token`): quando vê `password_hash IS NOT NULL`, tenta validar via `crypt(_password, link_rec.password_hash)`. Como `password_hash` é a string `'protected'` (não um hash bcrypt válido) **e** o frontend chama o RPC sem passar `_password`, a função retorna `false` e o frontend mostra "Senha incorreta".
 
-A opção fica no **inspetor do widget** quando o tipo é Tabela: dropdown "Agrupar por" com as opções: *Sem agrupamento*, Centro de Custo, Colaborador, Tipo de Despesa, Cia Aérea, Projeto/Obra, Fornecedor, Origem, Destino. (Reaproveita os campos `text` já definidos em `PASSAGENS_FIELDS`.)
+O cálculo do token efetivo no frontend (`deriveEffectiveToken`) já garante que o token só vai bater com o registro se a senha estiver correta. Logo, **basta o token bater** para considerar a senha válida.
 
-## Visual esperado
+## Correção (uma migração SQL)
 
-```text
-Registros (80)
-─────────────────────────────────────────────────────
-[CENTRO DE CUSTO 4001] (12 reg.)        R$ 28.450,00
-   01/04  João Silva  Demissão  GRU→CGB  R$ 1.200,00
-   02/04  Maria S.    Folha     GRU→CWB  R$ 980,00
-   ...
-[CENTRO DE CUSTO 4002] (8 reg.)         R$ 19.800,00
-   ...
+Reescrever `public.validate_share_token` para tratar `password_hash = 'protected'` como sentinela: nesse caso, o match do token já é prova de senha correta — pular `crypt()`. Para qualquer outro valor de `password_hash` (compatibilidade futura com bcrypt real), mantém a verificação atual.
+
+```sql
+CREATE OR REPLACE FUNCTION public.validate_share_token(_token text, _password text DEFAULT NULL)
+ RETURNS boolean LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = 'public'
+AS $$
+DECLARE link_rec RECORD;
+BEGIN
+  SELECT * INTO link_rec FROM public.passagens_aereas_share_links
+  WHERE token = _token AND active = true LIMIT 1;
+  IF link_rec IS NULL THEN RETURN false; END IF;
+  IF link_rec.expires_at IS NOT NULL AND link_rec.expires_at < now() THEN RETURN false; END IF;
+  IF link_rec.password_hash IS NOT NULL AND link_rec.password_hash <> 'protected' THEN
+    IF _password IS NULL OR crypt(_password, link_rec.password_hash) <> link_rec.password_hash THEN
+      RETURN false;
+    END IF;
+  END IF;
+  RETURN true;
+END;
+$$;
 ```
 
-## Mudanças técnicas
+## Impacto
 
-**1. `src/components/dashboard-builder/types.ts`**
-- Adicionar campo opcional `groupBy?: string` em `WidgetConfig`.
+- Links **com senha** existentes voltam a funcionar imediatamente após a migração.
+- Links **sem senha** continuam funcionando exatamente como hoje (sem mudança).
+- Sem mudança no frontend e sem perda de segurança: a senha continua sem ser armazenada em texto plano nem em hash recuperável; ela só existe embutida no token efetivo, que só quem tem o link + senha consegue reconstruir.
 
-**2. `src/components/dashboard-builder/WidgetRenderer.tsx`** (bloco `type === 'table'`)
-- Se `config.groupBy` está vazio: renderiza tabela atual (sem mudança).
-- Se preenchido: agrupa `rows` por aquele campo, calcula subtotal de `valor`, ordena por subtotal desc, renderiza linhas de grupo (com `colSpan` e classe `bg-muted/60 font-semibold`) seguidas dos registros indentados (`pl-6`).
-- Mantém limite de 100 registros por grupo para performance.
+## Arquivos alterados
 
-**3. `src/components/dashboard-builder/WidgetInspector.tsx`**
-- Quando `widget.type === 'table'`, mostrar um Select **"Agrupar por"** com:
-  - "Sem agrupamento" (valor vazio)
-  - Todos os campos `kind === 'text'` de `PASSAGENS_FIELDS`.
-- Ocultar campos não aplicáveis (Dimensão, Métrica, Campo, Granularidade, Limite, Formato) para o tipo Tabela — eles não fazem sentido nessa view.
-
-## O que não muda
-
-- Não é necessária migração — `groupBy` cabe no `config jsonb` existente.
-- Drill-down, cross-filter e demais widgets continuam iguais.
-
-## Como o usuário usará
-
-1. Em `/passagens-aereas`, clicar em **"Personalizar"** (ou "Editar padrão" se for admin).
-2. Clicar no widget **"Registros"** (tabela).
-3. No inspetor lateral, escolher **Agrupar por → Centro de Custo**.
-4. Clicar em **Salvar**.
+- 1 migração SQL nova em `supabase/migrations/`.
+- Nenhum arquivo do frontend muda.
