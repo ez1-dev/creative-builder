@@ -130,11 +130,13 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
                 nameKey="name"
                 cx="50%"
                 cy="50%"
-                outerRadius="65%"
+                outerRadius="60%"
                 labelLine={{ stroke: '#9ca3af', strokeWidth: 1 }}
-                label={({ name, value, percent }: any) =>
-                  `${name} ${fmtShort(Number(value), config.format)} (${(percent * 100).toFixed(2).replace('.', ',')}%)`
-                }
+                label={({ name, value, percent }: any) => {
+                  const n = String(name ?? '');
+                  const short = n.length > 22 ? n.slice(0, 21) + '…' : n;
+                  return `${short} ${fmtShort(Number(value), config.format)} (${(percent * 100).toFixed(2).replace('.', ',')}%)`;
+                }}
                 onClick={(e: any) => handleClick(e)}
                 style={{ fontSize: 11 }}
               >
