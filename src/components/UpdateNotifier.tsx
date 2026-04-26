@@ -221,6 +221,16 @@ export function UpdateNotifier() {
     window.location.reload();
   };
 
+  const renderedLabel = formatVersionLabel(latestVersion, CURRENT_VERSION, bundleOnlyUpdate);
+  if (show) {
+    console.info('[UpdateNotifier]', {
+      type: 'render',
+      latestVersion,
+      bundleOnlyUpdate,
+      label: renderedLabel,
+    });
+  }
+
   return (
     <Dialog open={show}>
       <DialogContent
