@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, Fragment } from 'react';
 import { aggregate, singleMetric } from './aggregations';
 import type { CrossFilter, DashboardWidget } from './types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -186,7 +186,24 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
                 </TableHeader>
                 <TableBody>
                   {sorted.map((g) => (
-                    <FragmentGroup key={`g-${g.key}`} g={g} />
+                    <Fragment key={`g-${g.key}`}>
+                      <TableRow className="bg-muted/60 font-semibold">
+                        <TableCell colSpan={5} className="text-xs">
+                          {g.key} <span className="text-muted-foreground font-normal">({g.items.length} reg.)</span>
+                        </TableCell>
+                        <TableCell className="text-xs text-right">{formatCurrency(g.total)}</TableCell>
+                      </TableRow>
+                      {g.items.slice(0, 100).map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="text-xs pl-6">{formatDate(r.data_registro)}</TableCell>
+                          <TableCell className="text-xs">{r.colaborador}</TableCell>
+                          <TableCell className="text-xs">{r.tipo_despesa}</TableCell>
+                          <TableCell className="text-xs">{r.origem ?? '-'}</TableCell>
+                          <TableCell className="text-xs">{r.destino ?? '-'}</TableCell>
+                          <TableCell className="text-xs text-right">{formatCurrency(Number(r.valor || 0))}</TableCell>
+                        </TableRow>
+                      ))}
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
