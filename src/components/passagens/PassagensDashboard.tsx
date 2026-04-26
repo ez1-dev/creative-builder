@@ -45,7 +45,8 @@ export const TIPO_DESPESA_OPTIONS = [
   'Outros',
 ];
 
-const COLORS = ['hsl(var(--primary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+// Paleta inspirada no Power BI (azul, laranja, roxo, magenta, amarelo)
+const COLORS = ['#1f9bff', '#1e3a8a', '#f97316', '#7c3aed', '#ec4899', '#eab308', '#06b6d4', '#10b981', '#ef4444', '#8b5cf6'];
 
 interface Props {
   data: Passagem[];
