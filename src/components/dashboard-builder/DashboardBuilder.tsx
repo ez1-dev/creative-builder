@@ -187,10 +187,14 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
     setSelectedWidgetId(null);
   };
 
-  const onLayoutChange = (layout: Layout[]) => {
+  const onLayoutChange = (_layout: Layout[], allLayouts?: Record<string, Layout[]>) => {
     if (!editing) return;
+    // Só persistimos alterações feitas no breakpoint `lg` para não corromper o layout
+    // base com fluxos derivados de telas menores.
+    const lgLayout = allLayouts?.lg;
+    if (!lgLayout) return;
     setWidgets((prev) => prev.map((w) => {
-      const l = layout.find((x) => x.i === w.id);
+      const l = lgLayout.find((x) => x.i === w.id);
       return l ? { ...w, layout: { x: l.x, y: l.y, w: l.w, h: l.h } } : w;
     }));
   };
