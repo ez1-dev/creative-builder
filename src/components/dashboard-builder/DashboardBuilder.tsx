@@ -307,7 +307,7 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
   };
 
   const selected = widgets.find((w) => w.id === selectedWidgetId);
-  const layouts = { lg: widgets.map((w) => ({ i: w.id, ...w.layout, minW: 2, minH: 2 })) };
+  const layouts = { lg: widgets.map((w) => ({ i: w.id, ...w.layout, minW: 3, minH: 3 })) };
 
   return (
     <div className="space-y-3">
