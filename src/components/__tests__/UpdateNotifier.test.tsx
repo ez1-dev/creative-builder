@@ -62,20 +62,12 @@ describe('UpdateNotifier component', () => {
   beforeEach(() => {
     localStorage.clear();
     maybeSingleMock.mockReset();
-    vi.useFakeTimers();
   });
 
   afterEach(() => {
     cleanup();
-    vi.useRealTimers();
     vi.restoreAllMocks();
   });
-
-  async function flush() {
-    // run pending promises + any zero-delay timers
-    await vi.advanceTimersByTimeAsync(10);
-    await Promise.resolve();
-  }
 
   it('shows "v{remote}" without "(novo build)" when app_version differs', async () => {
     const remote = CURRENT === '9.9.9' ? '9.9.10' : '9.9.9';
