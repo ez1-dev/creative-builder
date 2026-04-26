@@ -348,7 +348,71 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
   };
 
   const selected = widgets.find((w) => w.id === selectedWidgetId);
-  const layouts = { lg: widgets.map((w) => ({ i: w.id, ...w.layout, minW: 3, minH: 3 })) };
+  const [currentBp, setCurrentBp] = useState<'lg' | 'md' | 'sm' | 'xs' | 'xxs'>('lg');
+
+  // Gera layouts derivados para cada breakpoint a partir do layout `lg` salvo,
+  // re-fluindo widgets em ordem (y, x) para evitar overlap/cortes em telas menores.
+  const layouts = useMemo(() => {
+    const lg = widgets.map((w) => ({
+      i: w.id, ...w.layout, minW: 3, minH: 3,
+    }));
+
+    const ordered = [...widgets].sort((a, b) => {
+      const ay = a.layout.y, by = b.layout.y;
+      if (ay !== by) return ay - by;
+      return a.layout.x - b.layout.x;
+    });
+
+    const buildFlow = (cols: number, sizeFor: (w: DashboardWidget) => { w: number; h: number }) => {
+      let x = 0, y = 0, rowH = 0;
+      return ordered.map((w) => {
+        const s = sizeFor(w);
+        const sw = Math.min(s.w, cols);
+        if (x + sw > cols) { x = 0; y += rowH; rowH = 0; }
+        const item = { i: w.id, x, y, w: sw, h: s.h, minW: 1, minH: 2 };
+        x += sw;
+        rowH = Math.max(rowH, s.h);
+        return item;
+      });
+    };
+
+    // md (10 cols): escala proporcional do lg
+    const md = ordered.map((w) => {
+      const scaledW = Math.max(3, Math.min(10, Math.round((w.layout.w / 12) * 10)));
+      return { i: w.id, x: 0, y: 0, w: scaledW, h: w.layout.h, minW: 3, minH: 3 };
+    });
+    // re-flow md para evitar overlap
+    let mx = 0, my = 0, mrh = 0;
+    const mdFlow = md.map((it) => {
+      if (mx + it.w > 10) { mx = 0; my += mrh; mrh = 0; }
+      const r = { ...it, x: mx, y: my };
+      mx += it.w;
+      mrh = Math.max(mrh, it.h);
+      return r;
+    });
+
+    const sm = buildFlow(6, (w) => {
+      if (w.type === 'kpi') return { w: 3, h: 3 };
+      if (w.type === 'table' && !w.config.compact) return { w: 6, h: 6 };
+      return { w: 6, h: 5 };
+    });
+
+    const xs = buildFlow(4, (w) => {
+      if (w.type === 'kpi') return { w: 4, h: 2 };
+      if (w.type === 'table') return { w: 4, h: 6 };
+      return { w: 4, h: 5 };
+    });
+
+    const xxs = buildFlow(2, (w) => {
+      if (w.type === 'kpi') return { w: 2, h: 2 };
+      if (w.type === 'table') return { w: 2, h: 6 };
+      return { w: 2, h: 4 };
+    });
+
+    return { lg, md: mdFlow, sm, xs, xxs };
+  }, [widgets]);
+
+  const isSmallBp = currentBp === 'sm' || currentBp === 'xs' || currentBp === 'xxs';
 
   return (
     <div className="space-y-3">
