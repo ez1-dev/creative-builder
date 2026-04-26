@@ -416,6 +416,9 @@ export function DashboardBuilder({ module, data, loading, canEditDefault = false
                   <UserCog className="mr-1 h-4 w-4" /> Editar padrão (admin)
                 </Button>
               )}
+              <Button size="sm" variant="outline" onClick={applyPowerBIOneClick}>
+                <Sparkles className="mr-1 h-4 w-4" /> Layout Power BI
+              </Button>
               <Button size="sm" onClick={() => startEdit(false)}>
                 <Pencil className="mr-1 h-4 w-4" /> Personalizar
               </Button>
