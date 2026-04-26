@@ -63,6 +63,7 @@ export default function PainelComprasPage() {
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'lista'>('dashboard');
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'familia_item', origemKey: 'origem_item' });
