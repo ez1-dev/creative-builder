@@ -363,6 +363,68 @@ export default function PainelComprasPage() {
     return p;
   }, [filters]);
 
+  // Tooltip enriquecida para Pies (qtd + % + valor líquido)
+  const PieRichTooltip = ({ active, payload, totals }: any) => {
+    if (!active || !payload?.length) return null;
+    const p = payload[0];
+    const item = p.payload || {};
+    const name = item.name ?? item.tipo_item ?? p.name;
+    const qtd = item.quantidade_itens ?? p.value ?? 0;
+    const valor = item.valor_liquido_total ?? 0;
+    const pctQtd = totals.qtd > 0 ? (qtd / totals.qtd) * 100 : 0;
+    const pctVal = totals.valor > 0 ? (valor / totals.valor) * 100 : 0;
+    return (
+      <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
+        <div className="mb-1 font-semibold">{name}</div>
+        <div className="text-muted-foreground">
+          Itens: <span className="font-medium text-foreground">{qtd}</span> ({pctQtd.toFixed(1)}%)
+        </div>
+        <div className="text-muted-foreground">
+          Valor líquido: <span className="font-medium text-foreground">{formatCurrency(valor)}</span> ({pctVal.toFixed(1)}%)
+        </div>
+        <div className="mt-1 text-[10px] text-muted-foreground">Clique para filtrar</div>
+      </div>
+    );
+  };
+
+  const tiposTotals = useMemo(() => {
+    const list = chartData?.tipos ?? [];
+    return {
+      qtd: list.reduce((s: number, t: any) => s + (t.quantidade_itens || 0), 0),
+      valor: list.reduce((s: number, t: any) => s + (t.valor_liquido_total || 0), 0),
+    };
+  }, [chartData]);
+
+  const situacoesTotals = useMemo(() => {
+    const list = chartData?.situacoes ?? [];
+    return {
+      qtd: list.reduce((s: number, t: any) => s + (t.quantidade_itens || 0), 0),
+      valor: list.reduce((s: number, t: any) => s + (t.valor_liquido_total || 0), 0),
+    };
+  }, [chartData]);
+
+  const handleDrillTipo = (slice: any) => {
+    const raw = String(slice?.tipo_item ?? '').toUpperCase();
+    let valor: 'PRODUTO' | 'SERVICO' | 'TODOS' = 'TODOS';
+    if (raw === 'PRODUTO' || raw === 'P') valor = 'PRODUTO';
+    else if (raw === 'SERVICO' || raw === 'S') valor = 'SERVICO';
+    if (valor === 'TODOS') {
+      toast.info('Sem código de tipo definido para drill-down nesta categoria.');
+      return;
+    }
+    setFilters((f) => ({ ...f, tipo_item: valor }));
+    setActiveTab('lista');
+    setTimeout(() => search(1), 0);
+  };
+
+  const handleDrillSituacao = (slice: any) => {
+    const sit = slice?.situacao_oc;
+    if (sit === undefined || sit === null) return;
+    setFilters((f) => ({ ...f, situacao_oc: String(sit) }));
+    setActiveTab('lista');
+    setTimeout(() => search(1), 0);
+  };
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
