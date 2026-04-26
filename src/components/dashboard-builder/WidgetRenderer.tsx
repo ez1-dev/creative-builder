@@ -176,13 +176,12 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
               .map(([k, total]) => ({ key: k, total }))
               .sort((a, b) => b.total - a.total);
             const totalGeral = sorted.reduce((s, g) => s + g.total, 0);
-            const colLabel = groupBy.replace(/_/g, ' ').toUpperCase();
             return (
               <div className="h-full overflow-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="text-xs">{colLabel}</TableHead>
+                      <TableHead className="text-xs">&nbsp;</TableHead>
                       <TableHead className="text-xs text-right">Soma de TOTAL</TableHead>
                     </TableRow>
                   </TableHeader>
