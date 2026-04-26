@@ -1,38 +1,32 @@
-# Flag para o popup de "Nova versão disponível"
-
 ## Objetivo
 
-Permitir que o administrador ative/desative globalmente o popup do `UpdateNotifier` em **Configurações**. Quando desligado, nenhum usuário verá o modal — a aplicação continua funcionando normalmente e o admin ainda pode forçar atualização manualmente recarregando o navegador.
+Exibir, na tela **Compras / Custos do Produto** (`/compras-produto`), o preço unitário da última Ordem de Compra em aberto, ao lado das colunas "Preço Médio" e "Custo Calculado".
 
-## Como vai funcionar
+## Contexto
 
-- Nova chave em `app_settings`: **`update_notifier_enabled`** (`'true'` | `'false'`, default `'true'`).
-- Em **Configurações → aba "Geral / Sistema"**, adicionar um `Switch`:
-  - **Label:** "Notificar usuários sobre novas versões"
-  - **Descrição:** "Quando ativo, exibe o popup 'Nova versão disponível' assim que uma nova versão do EZ ERP IA for publicada. Desligue para suprimir o aviso para todos os usuários."
-  - Apenas administradores enxergam/alteram (a RLS de `app_settings` já restringe escrita a `is_admin`).
-- O `UpdateNotifier` lê essa flag junto com `app_version`:
-  - Se `update_notifier_enabled = 'false'` → não dispara polling de versão/bundle, não escuta SW e nunca mostra o modal.
-  - Se `'true'` (ou ausente) → comportamento atual.
-- A flag é relida a cada ciclo de polling (1 min), então desligar/ligar reflete em até ~60s para sessões já abertas, e imediatamente para novos carregamentos.
+A API `GET /api/compras-produto` já retorna esse dado em cada item — campo **`preco_ultima_oc_aberta`** (validado via inspeção da resposta da rede). Hoje a tela não exibe esse valor; mostra apenas:
 
-## Arquivos a alterar
+- `preco_medio` (Preço Médio)
+- `custo_calculado` (Custo Calculado)
+- `preco_nf_ultima_compra` (Preço NF da última compra)
 
-- `src/components/UpdateNotifier.tsx`
-  - Antes de cada `runChecks`, ler `app_settings.update_notifier_enabled`. Se `'false'`, abortar o ciclo e fechar o modal caso esteja aberto.
-  - Mesmo guard nos handlers de Service Worker.
-- `src/pages/ConfiguracoesPage.tsx`
-  - Carregar `update_notifier_enabled` no mesmo bloco que já lê outras chaves de `app_settings`.
-  - Adicionar `Switch` na seção apropriada (Geral/Sistema), persistindo via `upsert({ key: 'update_notifier_enabled', value: 'true'|'false' }, { onConflict: 'key' })`.
-  - Toast de confirmação ao salvar.
-- `src/components/__tests__/UpdateNotifier.test.tsx`
-  - Caso novo: quando `update_notifier_enabled='false'`, o modal nunca aparece mesmo com nova versão remota.
+Não é necessária alteração de backend nem nova requisição.
 
-## Banco de dados
+## Alterações
 
-Não há migração estrutural — `app_settings` já existe (key/value/updated_at) e a RLS permite admins gravarem. Apenas inserimos a chave na primeira gravação via UI (upsert).
+### 1. `src/pages/ComprasProdutoPage.tsx`
+- Adicionar nova coluna **`preco_ultima_oc_aberta`** com header **"Preço Unit. OC"**, alinhada à direita, formatada com `formatCurrency`.
+- Posicionar logo após a coluna **"Última OC"** (`numero_oc_ultima`), agrupando informação de OC.
+- Sem alterações em filtros, KPIs ou paginação.
 
-## Observações
+```text
+Última OC | Preço Unit. OC | OC Aberta? | Qtd. OCs
+```
 
-- A flag é **global** (uma chave única em `app_settings`), aplicada a todos os usuários. Se no futuro quiser por usuário, dá para migrar para `user_preferences`.
-- Não removemos a lógica de detecção — só a exibição do modal —, então quando o admin religar, o próximo poll volta a notificar normalmente.
+### 2. Exportação Excel
+- O endpoint `/api/export/compras-produto` é gerado pelo backend; se já incluir `preco_ultima_oc_aberta`, nada a fazer. Caso contrário, é alteração de backend fora do escopo.
+
+## Testes manuais
+1. Acessar `/compras-produto`, clicar em **Pesquisar**.
+2. Verificar a nova coluna **"Preço Unit. OC"** populada (R$) para itens com OC em aberto e zero/branco para itens sem.
+3. Confirmar que ordenação, busca rápida (Ctrl+K) e paginação continuam funcionando.
