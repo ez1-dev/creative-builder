@@ -19,7 +19,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Pencil, Save, X, Plus, RotateCcw, UserCog, Trash2, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Filter as FilterIcon, Focus, Maximize2 } from 'lucide-react';
+import { Pencil, Save, X, Plus, RotateCcw, UserCog, Trash2, Sparkles, ArrowUp, ArrowDown, ArrowUpDown, Filter as FilterIcon, Focus, Maximize2, LayoutGrid } from 'lucide-react';
 import { WidgetRenderer } from './WidgetRenderer';
 import { WidgetPalette } from './WidgetPalette';
 import { WidgetInspector } from './WidgetInspector';
