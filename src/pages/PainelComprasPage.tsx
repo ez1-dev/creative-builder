@@ -86,6 +86,47 @@ export default function PainelComprasPage() {
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
       if (!params.observacao_oc) delete params.observacao_oc;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
+
+      // MITIGACAO_TIPO_ITEM: o backend ignora tipo_item=SERVICO (sem acento) e
+      // devolve todos os registros. Filtramos localmente e ajustamos os contadores
+      // para que a página corrente fique coerente. Remover quando o backend aplicar
+      // o patch descrito em docs/backend-painel-compras-tipo-item.md.
+      const tipoFiltro = filters.tipo_item;
+      if (tipoFiltro && tipoFiltro !== 'TODOS' && Array.isArray((result as any)?.dados)) {
+        const norm = (v: any) => String(v ?? '').toUpperCase().replace('Ç', 'C').trim();
+        const alvo = norm(tipoFiltro);
+        const originais = (result as any).dados as any[];
+        const filtrados = originais.filter((d) => {
+          const t = norm(d?.tipo_item);
+          if (alvo === 'PRODUTO') return t === 'PRODUTO' || t === 'P';
+          if (alvo === 'SERVICO') return t === 'SERVICO' || t === 'S';
+          return true;
+        });
+        if (filtrados.length !== originais.length) {
+          (result as any).dados = filtrados;
+          // Recalcula contadores do resumo da página corrente
+          if ((result as any).resumo) {
+            (result as any).resumo.itens_produto = filtrados.filter((d) => {
+              const t = norm(d?.tipo_item); return t === 'PRODUTO' || t === 'P';
+            }).length;
+            (result as any).resumo.itens_servico = filtrados.filter((d) => {
+              const t = norm(d?.tipo_item); return t === 'SERVICO' || t === 'S';
+            }).length;
+          }
+          console.warn(
+            '[PainelCompras] Backend ignorou tipo_item=' + tipoFiltro +
+            ' — aplicada mitigação client-side. Removidas ' +
+            (originais.length - filtrados.length) + ' linhas que não batiam com o filtro.'
+          );
+          if (!(window as any).__avisouTipoItemBackend) {
+            (window as any).__avisouTipoItemBackend = true;
+            toast.warning(
+              'Filtro "Tipo Item" aplicado localmente — o backend ainda não distingue SERVICO sem acento. Totais e paginação podem ficar imprecisos até a correção da API.'
+            );
+          }
+        }
+      }
+
       setData(result);
       setPagina(page);
       if (page === 1) trackSearch(filters, (result as any)?.total_registros);
