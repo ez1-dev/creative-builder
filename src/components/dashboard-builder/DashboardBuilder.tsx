@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { ResponsiveGridLayout } from 'react-grid-layout';
+import { ResponsiveGridLayout as RawResponsiveGridLayout } from 'react-grid-layout';
+const ResponsiveGridLayout = RawResponsiveGridLayout as any;
 type Layout = { i: string; x: number; y: number; w: number; h: number };
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
