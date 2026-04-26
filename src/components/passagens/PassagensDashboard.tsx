@@ -104,7 +104,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       const cc = r.centro_custo || 'Sem CC';
       map.set(cc, (map.get(cc) ?? 0) + Number(r.valor || 0));
     });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 10);
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [filtered]);
 
   return (
