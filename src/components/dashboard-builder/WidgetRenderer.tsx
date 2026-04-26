@@ -164,6 +164,44 @@ export function WidgetRenderer({ widget, rows, catalogCount = 0, onSelect, onDri
         )}
         {type === 'table' && (() => {
           const groupBy = config.groupBy;
+          // Modo compacto: 2 colunas (chave | total) + linha Total
+          if (groupBy && config.compact) {
+            const groups = new Map<string, number>();
+            for (const r of rows) {
+              const v = r[groupBy];
+              const key = v == null || v === '' ? '(sem valor)' : String(v);
+              groups.set(key, (groups.get(key) ?? 0) + Number(r.valor || 0));
+            }
+            const sorted = Array.from(groups.entries())
+              .map(([k, total]) => ({ key: k, total }))
+              .sort((a, b) => b.total - a.total);
+            const totalGeral = sorted.reduce((s, g) => s + g.total, 0);
+            const colLabel = groupBy.replace(/_/g, ' ').toUpperCase();
+            return (
+              <div className="h-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">{colLabel}</TableHead>
+                      <TableHead className="text-xs text-right">Soma de TOTAL</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sorted.map((g) => (
+                      <TableRow key={g.key}>
+                        <TableCell className="text-xs py-1.5">{g.key}</TableCell>
+                        <TableCell className="text-xs text-right py-1.5">{formatCurrency(g.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="border-t-2 border-[#2E9BFF] bg-muted/40 font-bold">
+                      <TableCell className="text-xs">Total</TableCell>
+                      <TableCell className="text-xs text-right">{formatCurrency(totalGeral)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          }
           if (!groupBy) {
             const visibleRows = rows.slice(0, 200);
             const totalGeral = rows.reduce((s, r) => s + Number(r.valor || 0), 0);
