@@ -7,48 +7,51 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plane, Lock, AlertCircle } from 'lucide-react';
 import { PassagensDashboard, exportPassagensCsv, type Passagem } from '@/components/passagens/PassagensDashboard';
+import { deriveEffectiveToken } from '@/components/passagens/ShareLinksDialog';
 
 type State = 'loading' | 'invalid' | 'expired' | 'password' | 'ok' | 'wrong-password';
 
 export default function PassagensAereasCompartilhadoPage() {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
+  const requiresPassword = params.get('p') === '1';
 
   const [state, setState] = useState<State>('loading');
-  const [linkName, setLinkName] = useState('');
+  const [linkName, setLinkName] = useState('Passagens Aéreas');
   const [password, setPassword] = useState('');
   const [data, setData] = useState<Passagem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!token) { setState('invalid'); return; }
-    (async () => {
-      const { data: meta, error } = await supabase.rpc('get_share_link_meta', { _token: token });
-      if (error || !meta || meta.length === 0) { setState('invalid'); return; }
-      const m = meta[0];
-      if (!m.exists_link) { setState('invalid'); return; }
-      if (m.expired) { setState('expired'); return; }
-      setLinkName(m.nome ?? 'Passagens Aéreas');
-      if (m.requires_password) {
-        setState('password');
-      } else {
-        await loadData(null);
-      }
-    })();
-  }, [token]);
+    if (requiresPassword) {
+      setState('password');
+    } else {
+      // Sem senha: o token na URL já é o token efetivo
+      loadData(token);
+    }
+  }, [token, requiresPassword]);
 
-  const loadData = async (pwd: string | null) => {
+  const loadData = async (effectiveToken: string) => {
     setSubmitting(true);
     const { data: rows, error } = await supabase.rpc('get_passagens_via_token', {
-      _token: token, _password: pwd,
+      _token: effectiveToken,
     });
     setSubmitting(false);
     if (error) {
-      setState(state === 'password' ? 'wrong-password' : 'invalid');
+      // Token inexistente, expirado ou senha incorreta
+      if (requiresPassword) setState('wrong-password');
+      else setState('invalid');
       return;
     }
     setData((rows as Passagem[]) ?? []);
     setState('ok');
+  };
+
+  const handlePasswordSubmit = async () => {
+    if (!password) return;
+    const effective = await deriveEffectiveToken(token, password);
+    await loadData(effective);
   };
 
   if (state === 'loading') {
