@@ -32,6 +32,7 @@ function safeSet(key: string, value: string) {
 export function UpdateNotifier() {
   const [show, setShow] = useState(false);
   const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [bundleOnlyUpdate, setBundleOnlyUpdate] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const cooldownUntilRef = useRef<number>(0);
@@ -63,12 +64,14 @@ export function UpdateNotifier() {
         // atualiza o baseline e não mostra modal.
         if (remote === CURRENT_VERSION) {
           safeSet(LS_LAST_VERSION, remote);
+          setBundleOnlyUpdate(false);
           return;
         }
         const lastSeen = safeGet(LS_LAST_VERSION);
         if (remote !== lastSeen) {
           // Persiste imediatamente para evitar loop pós-reload
           safeSet(LS_LAST_VERSION, remote);
+          setBundleOnlyUpdate(false);
           setLatestVersion(remote);
           setShow(true);
         }
@@ -97,7 +100,8 @@ export function UpdateNotifier() {
         if (stored !== currentBundle) {
           // Persiste IMEDIATAMENTE o novo hash para que o pós-reload não dispare de novo
           safeSet(LS_LAST_BUNDLE, currentBundle);
-          setLatestVersion((prev) => prev ?? 'novo build');
+          setLatestVersion((prev) => prev ?? CURRENT_VERSION);
+          setBundleOnlyUpdate(true);
           setShow(true);
         }
       } catch {
@@ -127,7 +131,8 @@ export function UpdateNotifier() {
           newWorker?.addEventListener('statechange', () => {
             if (inCooldown()) return;
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              setLatestVersion((prev) => prev ?? 'novo build');
+              setLatestVersion((prev) => prev ?? CURRENT_VERSION);
+              setBundleOnlyUpdate(true);
               setShow(true);
             }
           });
@@ -153,7 +158,7 @@ export function UpdateNotifier() {
     // Marca cooldown pós-reload
     safeSet(LS_LAST_RELOAD, String(Date.now()));
     // Sempre persiste versão atual como baseline para impedir re-disparo
-    if (latestVersion && !latestVersion.startsWith('novo')) {
+    if (latestVersion) {
       safeSet(LS_LAST_VERSION, latestVersion);
     } else {
       safeSet(LS_LAST_VERSION, CURRENT_VERSION);
@@ -211,7 +216,10 @@ export function UpdateNotifier() {
             Atual: v{CURRENT_VERSION}
           </Badge>
           <span className="text-muted-foreground">→</span>
-          <Badge className="text-xs">Nova: {latestVersion?.startsWith('novo') ? latestVersion : `v${latestVersion}`}</Badge>
+          <Badge className="text-xs">
+            Nova: {latestVersion ? `v${latestVersion}` : `v${CURRENT_VERSION}`}
+            {bundleOnlyUpdate ? ' (novo build)' : ''}
+          </Badge>
         </div>
 
         <div>
