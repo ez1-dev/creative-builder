@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import RGL from 'react-grid-layout';
-const { Responsive, WidthProvider } = RGL as any;
+import { ResponsiveGridLayout } from 'react-grid-layout';
 type Layout = { i: string; x: number; y: number; w: number; h: number };
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -25,8 +24,6 @@ import { WidgetPalette } from './WidgetPalette';
 import { WidgetInspector } from './WidgetInspector';
 import { PASSAGENS_FIELDS } from './dataSources';
 import type { Dashboard, DashboardWidget, WidgetType, CrossFilter } from './types';
-
-const ResponsiveGridLayout = WidthProvider(Responsive);
 
 interface Props {
   module: string;
