@@ -19,9 +19,8 @@ import {
 } from '@/components/ui/select';
 import { Plus, Share2 } from 'lucide-react';
 import {
-  exportPassagensCsv, TIPO_DESPESA_OPTIONS, type Passagem,
+  PassagensDashboard, exportPassagensCsv, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
-import { DashboardBuilder } from '@/components/dashboard-builder/DashboardBuilder';
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 
@@ -131,18 +130,13 @@ export default function PassagensAereasPage() {
         }
       />
 
-      <DashboardBuilder
-        module="passagens-aereas"
+      <PassagensDashboard
         data={data}
         loading={loading}
-        canEditDefault={editAllowed}
+        onEdit={editAllowed ? handleOpenEdit : undefined}
+        onDelete={editAllowed ? setDeleteId : undefined}
+        onExport={exportPassagensCsv}
       />
-
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" onClick={() => exportPassagensCsv(data)} disabled={data.length === 0}>
-          Exportar CSV
-        </Button>
-      </div>
 
       <ShareLinksDialog open={shareOpen} onOpenChange={setShareOpen} />
 

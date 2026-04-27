@@ -52,7 +52,7 @@ import { Card as UICard, CardContent as UICardContent } from '@/components/ui/ca
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-
+import { motion } from 'framer-motion';
 
 // ─── Normalizador do payload da API /api/apontamentos-producao ─────────────
 // O backend pode variar nomes de campos entre versões. Esta função garante
@@ -2365,9 +2365,10 @@ function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, 
   );
 
   return (
-    <div
-      className="animate-fade-in"
-      style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
     >
       {hasOps ? (
         <Popover>
@@ -2423,7 +2424,7 @@ function KpiDrillCard({ title, value, subtitle, icon, variant = 'default', ops, 
       ) : (
         wrapped
       )}
-    </div>
+    </motion.div>
   );
 }
 

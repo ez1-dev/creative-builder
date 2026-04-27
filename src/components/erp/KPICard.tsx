@@ -4,6 +4,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Info } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface KPIDetail {
   label: string;
@@ -64,12 +65,13 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
   ) : hasDetails ? cardContent : <div>{cardContent}</div>;
 
   const animationWrapper = (children: React.ReactNode) => (
-    <div
-      className="animate-fade-in"
-      style={{ animationDelay: `${index * 50}ms`, animationFillMode: 'both' }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
     >
       {children}
-    </div>
+    </motion.div>
   );
 
   if (hasDetails) {
