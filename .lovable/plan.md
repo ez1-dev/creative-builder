@@ -1,26 +1,26 @@
-# Adicionar botão "Limpar filtros" — Passagens Aéreas
+# Adicionar filtro por Mês — Passagens Aéreas
 
 ## O que será feito
-Incluir um botão **Limpar** no painel de filtros do dashboard `/passagens-aereas` que zera todos os filtros de uma só vez: Colaborador, Centro de Custo, Tipo, Data início e Data fim.
+Incluir um novo filtro **Mês** (Select) no painel de filtros do dashboard `/passagens-aereas`, ao lado dos filtros já existentes (Colaborador, CC, Tipo, Data início, Data fim, Limpar).
 
 ## Onde
-Arquivo: `src/components/passagens/PassagensDashboard.tsx` — painel de filtros (atualmente um `Card` com grid de 5 colunas, linhas 125–159).
+Arquivo: `src/components/passagens/PassagensDashboard.tsx`.
 
 ## Como
 
-1. Adicionar uma função `limparFiltros` que reseta os 5 estados:
-   - `setFiltroColaborador('')`
-   - `setFiltroCC('')`
-   - `setFiltroTipo('todos')`
-   - `setDataInicio('')`
-   - `setDataFim('')`
+1. **Novo estado**: `filtroMes` (string, default `'todos'`).
 
-2. Reorganizar o layout do card de filtros para acomodar o botão sem quebrar o grid:
-   - Manter o grid atual de 5 colunas com os campos.
-   - Adicionar uma linha de ações abaixo do grid, alinhada à direita, com o botão **Limpar** (`variant="outline"`, ícone `X` ou `RotateCcw` do lucide-react).
-   - O botão fica desabilitado quando nenhum filtro está ativo (todos vazios + tipo = 'todos'), seguindo o padrão de comportamento de filtros do projeto.
+2. **Lista de meses disponíveis** (memoizada): extrair `YYYY-MM` distintos de `data_registro` em `data`, ordenados crescentemente. Exibir no Select como `Jan/2026`, `Fev/2026`, etc.
 
-3. Manter consistência visual com o resto do sistema (tokens semânticos, sem cores hardcoded).
+3. **Lógica de filtragem**: dentro do `useMemo` que monta `filtered`, adicionar:
+   ```
+   if (filtroMes !== 'todos' && dr.slice(0, 7) !== filtroMes) return false;
+   ```
+   Incluir `filtroMes` nas dependências.
+
+4. **UI**: ajustar o grid de filtros de `md:grid-cols-5` para `md:grid-cols-6`, adicionando o novo Select **Mês** (com opção "Todos") logo após o filtro **Tipo**.
+
+5. **Botão Limpar**: incluir `setFiltroMes('todos')` no reset e considerar `filtroMes !== 'todos'` na condição `disabled`.
 
 ## Resultado esperado
-Um clique em **Limpar** restaura a visão completa dos 300 registros, KPIs e gráficos, sem precisar limpar campo por campo.
+Usuário pode rapidamente filtrar registros, KPIs e gráficos por um mês específico (ex.: Jan/2026, Fev/2026, Mar/2026), sem precisar preencher data início/fim manualmente.
