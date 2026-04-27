@@ -63,6 +63,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [catalogoCount, setCatalogoCount] = useState(0);
@@ -75,16 +76,32 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       .then(({ count }) => setCatalogoCount(count ?? 0));
   }, []);
 
+  const mesesDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach((r) => {
+      const m = (r.data_registro ?? '').slice(0, 7);
+      if (m) set.add(m);
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
+  const formatMesLabel = (ym: string) => {
+    const [y, m] = ym.split('-');
+    const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${nomes[Number(m) - 1] ?? m}/${y}`;
+  };
+
   const filtered = useMemo(() => data.filter((r) => {
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
     if (filtroCC && !(r.centro_custo ?? '').toLowerCase().includes(filtroCC.toLowerCase())) return false;
     if (filtroTipo !== 'todos' && r.tipo_despesa !== filtroTipo) return false;
     // Normaliza para YYYY-MM-DD (data_registro pode vir como ISO completo)
     const dr = (r.data_registro ?? '').slice(0, 10);
+    if (filtroMes !== 'todos' && dr.slice(0, 7) !== filtroMes) return false;
     if (dataInicio && dr < dataInicio) return false;
     if (dataFim && dr > dataFim) return false;
     return true;
-  }), [data, filtroColaborador, filtroCC, filtroTipo, dataInicio, dataFim]);
+  }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
 
   const totalGeral = filtered.reduce((s, r) => s + Number(r.valor || 0), 0);
   const totalRegistros = filtered.length;
@@ -124,7 +141,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     <div className="space-y-4">
       <Card>
         <CardContent className="space-y-3 p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <div>
               <Label className="text-xs">Colaborador</Label>
               <ColaboradorCombobox
@@ -149,6 +166,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               </Select>
             </div>
             <div>
+              <Label className="text-xs">Mês</Label>
+              <Select value={filtroMes} onValueChange={setFiltroMes}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {mesesDisponiveis.map((m) => (
+                    <SelectItem key={m} value={m}>{formatMesLabel(m)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">Data início</Label>
               <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
             </div>
@@ -165,10 +194,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 setFiltroColaborador('');
                 setFiltroCC('');
                 setFiltroTipo('todos');
+                setFiltroMes('todos');
                 setDataInicio('');
                 setDataFim('');
               }}
-              disabled={!filtroColaborador && !filtroCC && filtroTipo === 'todos' && !dataInicio && !dataFim}
+              disabled={!filtroColaborador && !filtroCC && filtroTipo === 'todos' && filtroMes === 'todos' && !dataInicio && !dataFim}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               Limpar
