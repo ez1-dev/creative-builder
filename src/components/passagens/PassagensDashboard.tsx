@@ -141,7 +141,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     <div className="space-y-4">
       <Card>
         <CardContent className="space-y-3 p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <div>
               <Label className="text-xs">Colaborador</Label>
               <ColaboradorCombobox
@@ -166,6 +166,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               </Select>
             </div>
             <div>
+              <Label className="text-xs">Mês</Label>
+              <Select value={filtroMes} onValueChange={setFiltroMes}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {mesesDisponiveis.map((m) => (
+                    <SelectItem key={m} value={m}>{formatMesLabel(m)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label className="text-xs">Data início</Label>
               <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
             </div>
@@ -182,10 +194,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 setFiltroColaborador('');
                 setFiltroCC('');
                 setFiltroTipo('todos');
+                setFiltroMes('todos');
                 setDataInicio('');
                 setDataFim('');
               }}
-              disabled={!filtroColaborador && !filtroCC && filtroTipo === 'todos' && !dataInicio && !dataFim}
+              disabled={!filtroColaborador && !filtroCC && filtroTipo === 'todos' && filtroMes === 'todos' && !dataInicio && !dataFim}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               Limpar
