@@ -11,7 +11,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2 } from 'lucide-react';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
