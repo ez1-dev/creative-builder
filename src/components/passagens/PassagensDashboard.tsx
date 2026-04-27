@@ -123,37 +123,56 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-5">
-          <div>
-            <Label className="text-xs">Colaborador</Label>
-            <ColaboradorCombobox
-              value={filtroColaborador}
-              onChange={setFiltroColaborador}
-              placeholder="Todos"
-              allowCreate={false}
-            />
+        <CardContent className="space-y-3 p-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+            <div>
+              <Label className="text-xs">Colaborador</Label>
+              <ColaboradorCombobox
+                value={filtroColaborador}
+                onChange={setFiltroColaborador}
+                placeholder="Todos"
+                allowCreate={false}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Centro de Custo</Label>
+              <Input value={filtroCC} onChange={(e) => setFiltroCC(e.target.value)} placeholder="Buscar..." />
+            </div>
+            <div>
+              <Label className="text-xs">Tipo</Label>
+              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {TIPO_DESPESA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Data início</Label>
+              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+            </div>
+            <div>
+              <Label className="text-xs">Data fim</Label>
+              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+            </div>
           </div>
-          <div>
-            <Label className="text-xs">Centro de Custo</Label>
-            <Input value={filtroCC} onChange={(e) => setFiltroCC(e.target.value)} placeholder="Buscar..." />
-          </div>
-          <div>
-            <Label className="text-xs">Tipo</Label>
-            <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                {TIPO_DESPESA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-xs">Data início</Label>
-            <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Data fim</Label>
-            <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setFiltroColaborador('');
+                setFiltroCC('');
+                setFiltroTipo('todos');
+                setDataInicio('');
+                setDataFim('');
+              }}
+              disabled={!filtroColaborador && !filtroCC && filtroTipo === 'todos' && !dataInicio && !dataFim}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Limpar
+            </Button>
           </div>
         </CardContent>
       </Card>
