@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw } from 'lucide-react';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
@@ -68,6 +69,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [dataFim, setDataFim] = useState('');
   const [catalogoCount, setCatalogoCount] = useState(0);
 
+  // Cross-filters (clique nos gráficos)
+  const [selectedMes, setSelectedMes] = useState<string | null>(null);
+  const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
+  const [selectedCC, setSelectedCC] = useState<string | null>(null);
+
   useEffect(() => {
     supabase
       .from('colaboradores_catalogo')
@@ -91,11 +97,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return `${nomes[Number(m) - 1] ?? m}/${y}`;
   };
 
+  // Filtros do topo
   const filtered = useMemo(() => data.filter((r) => {
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
     if (filtroCC && !(r.centro_custo ?? '').toLowerCase().includes(filtroCC.toLowerCase())) return false;
     if (filtroTipo !== 'todos' && r.tipo_despesa !== filtroTipo) return false;
-    // Normaliza para YYYY-MM-DD (data_registro pode vir como ISO completo)
     const dr = (r.data_registro ?? '').slice(0, 10);
     if (filtroMes !== 'todos' && dr.slice(0, 7) !== filtroMes) return false;
     if (dataInicio && dr < dataInicio) return false;
@@ -103,39 +109,85 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return true;
   }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
 
-  const totalGeral = filtered.reduce((s, r) => s + Number(r.valor || 0), 0);
-  const totalRegistros = filtered.length;
-  const colaboradoresUnicos = new Set(filtered.map((r) => r.colaborador)).size;
+  // Helper: aplica subset dos cross-filters
+  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean }) => {
+    return rows.filter((r) => {
+      if (opts.mes && selectedMes && (r.data_registro ?? '').slice(0, 7) !== selectedMes) return false;
+      if (opts.motivo && selectedMotivo) {
+        const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
+        if (m !== selectedMotivo) return false;
+      }
+      if (opts.cc && selectedCC) {
+        const cc = r.centro_custo || 'Sem CC';
+        if (cc !== selectedCC) return false;
+      }
+      return true;
+    });
+  };
+
+  // Dados para KPIs e tabela: aplica TODOS os cross-filters
+  const crossFiltered = useMemo(
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC],
+  );
+
+  const totalGeral = crossFiltered.reduce((s, r) => s + Number(r.valor || 0), 0);
+  const totalRegistros = crossFiltered.length;
   const ticketMedio = totalRegistros > 0 ? totalGeral / totalRegistros : 0;
 
+  // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
+    const base = applyCross(filtered, { motivo: true, cc: true });
     const map = new Map<string, number>();
-    filtered.forEach((r) => {
+    base.forEach((r) => {
       const mes = r.data_registro.slice(0, 7);
       map.set(mes, (map.get(mes) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
-  }, [filtered]);
+  }, [filtered, selectedMotivo, selectedCC]);
 
+  // Gráfico Motivo: ignora selectedMotivo
   const porMotivo = useMemo(() => {
+    const base = applyCross(filtered, { mes: true, cc: true });
     const map = new Map<string, number>();
-    filtered.forEach((r) => {
+    base.forEach((r) => {
       const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
       map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filtered]);
+  }, [filtered, selectedMes, selectedCC]);
 
+  // Gráfico CC: ignora selectedCC
   const porCentroCusto = useMemo(() => {
+    const base = applyCross(filtered, { mes: true, motivo: true });
     const map = new Map<string, number>();
-    filtered.forEach((r) => {
+    base.forEach((r) => {
       const cc = r.centro_custo || 'Sem CC';
       map.set(cc, (map.get(cc) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
-  }, [filtered]);
+  }, [filtered, selectedMes, selectedMotivo]);
+
+  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC);
+  const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
+
+  const limparTudo = () => {
+    setFiltroColaborador('');
+    setFiltroCC('');
+    setFiltroTipo('todos');
+    setFiltroMes('todos');
+    setDataInicio('');
+    setDataFim('');
+    setSelectedMes(null);
+    setSelectedMotivo(null);
+    setSelectedCC(null);
+  };
+
+  // Cores para destaque condicional
+  const primaryColor = 'hsl(var(--primary))';
+  const dimOpacity = 0.3;
 
   return (
     <div className="space-y-4">
@@ -190,15 +242,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                setFiltroColaborador('');
-                setFiltroCC('');
-                setFiltroTipo('todos');
-                setFiltroMes('todos');
-                setDataInicio('');
-                setDataFim('');
-              }}
-              disabled={!filtroColaborador && !filtroCC && filtroTipo === 'todos' && filtroMes === 'todos' && !dataInicio && !dataFim}
+              onClick={limparTudo}
+              disabled={!hasTopFilter && !hasCrossFilter}
             >
               <RotateCcw className="mr-2 h-4 w-4" />
               Limpar
@@ -206,6 +251,36 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </div>
         </CardContent>
       </Card>
+
+      {hasCrossFilter && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
+          <span className="text-xs font-medium text-muted-foreground">Filtros do gráfico:</span>
+          {selectedMes && (
+            <Badge variant="secondary" className="gap-1">
+              Mês: {formatMesLabel(selectedMes)}
+              <button onClick={() => setSelectedMes(null)} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {selectedMotivo && (
+            <Badge variant="secondary" className="gap-1">
+              Motivo: {selectedMotivo}
+              <button onClick={() => setSelectedMotivo(null)} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {selectedCC && (
+            <Badge variant="secondary" className="gap-1">
+              CC: {selectedCC}
+              <button onClick={() => setSelectedCC(null)} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
@@ -216,20 +291,32 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle className="text-sm">Evolução Mensal</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={porMes}>
                 <XAxis dataKey="mes" fontSize={11} />
                 <YAxis fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
-                <Bar dataKey="valor" fill="hsl(var(--primary))" />
+                <Bar
+                  dataKey="valor"
+                  cursor="pointer"
+                  onClick={(d: any) => setSelectedMes((prev) => (prev === d.mes ? null : d.mes))}
+                >
+                  {porMes.map((entry) => (
+                    <Cell
+                      key={entry.mes}
+                      fill={primaryColor}
+                      fillOpacity={selectedMes && selectedMes !== entry.mes ? dimOpacity : 1}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={320}>
               <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
@@ -240,6 +327,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   cx="50%"
                   cy="50%"
                   outerRadius={100}
+                  cursor="pointer"
+                  onClick={(d: any) => setSelectedMotivo((prev) => (prev === d.name ? null : d.name))}
                   labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
                   label={(e: any) => {
                     const v = Number(e.value || 0);
@@ -249,7 +338,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   }}
                   style={{ fontSize: 11 }}
                 >
-                  {porMotivo.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {porMotivo.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={COLORS[i % COLORS.length]}
+                      fillOpacity={selectedMotivo && selectedMotivo !== entry.name ? dimOpacity : 1}
+                    />
+                  ))}
                 </Pie>
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
               </PieChart>
@@ -257,14 +352,26 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-sm">Top 15 Centros de Custo</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Top 15 Centros de Custo {selectedCC && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={420}>
               <BarChart data={porCentroCusto} layout="vertical">
                 <XAxis type="number" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" fontSize={11} width={140} />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
-                <Bar dataKey="value" fill="hsl(var(--primary))" />
+                <Bar
+                  dataKey="value"
+                  cursor="pointer"
+                  onClick={(d: any) => setSelectedCC((prev) => (prev === d.name ? null : d.name))}
+                >
+                  {porCentroCusto.map((entry) => (
+                    <Cell
+                      key={entry.name}
+                      fill={primaryColor}
+                      fillOpacity={selectedCC && selectedCC !== entry.name ? dimOpacity : 1}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -273,9 +380,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Registros ({filtered.length})</CardTitle>
+          <CardTitle className="text-sm">Registros ({crossFiltered.length})</CardTitle>
           {onExport && (
-            <Button size="sm" variant="outline" onClick={() => onExport(filtered)} disabled={filtered.length === 0}>
+            <Button size="sm" variant="outline" onClick={() => onExport(crossFiltered)} disabled={crossFiltered.length === 0}>
               Exportar CSV
             </Button>
           )}
@@ -297,9 +404,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
-              ) : filtered.length === 0 ? (
+              ) : crossFiltered.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
-              ) : filtered.map((r) => (
+              ) : crossFiltered.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{formatDate(r.data_registro)}</TableCell>
                   <TableCell className="font-medium">{r.colaborador}</TableCell>
