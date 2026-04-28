@@ -43,6 +43,7 @@ const ALL_SCREENS = [
   { path: '/producao/nao-carregados', name: 'Produção - Não Carregados' },
   { path: '/producao/leadtime', name: 'Produção - Lead Time' },
   { path: '/producao/engenharia', name: 'Produção - Eng. x Produção' },
+  { path: '/passagens-aereas', name: 'Passagens Aéreas' },
   { path: '/configuracoes', name: 'Configurações' },
 ];
 
