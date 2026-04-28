@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Hash, Link2, Eraser, Radio, Unlink } from 'lucide-react';
+import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,8 @@ interface ContextoNumeroSerie {
   item_pedido: number;
   numero_op: number;
   origem_op: string;
+  origem_pedido?: string;
+  origens_conferem?: boolean;
   codigo_produto: string;
   derivacao: string;
   descricao_produto: string;
@@ -197,6 +200,16 @@ export default function NumeroSeriePage() {
     }
   };
 
+  const divergenciaOrigem = (() => {
+    if (!contexto) return null;
+    const op = contexto.numero_op;
+    const oOp = (contexto.origem_op || '').trim();
+    const oPed = (contexto.origem_pedido || '').trim();
+    if (!op || !oOp || !oPed) return null;
+    if (oOp === oPed) return null;
+    return { op, origemOp: oOp, origemPedido: oPed, pedido: contexto.numero_pedido };
+  })();
+
   const reservar = async (forcarVinculo: boolean = false) => {
     const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
     const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
@@ -208,6 +221,13 @@ export default function NumeroSeriePage() {
     }
     if (!numeroSerie) {
       toast.error(forcarVinculo ? 'Informe o número de série manual.' : 'Selecione um número de série.');
+      return;
+    }
+
+    if (divergenciaOrigem) {
+      toast.error(
+        `OP ${divergenciaOrigem.op} é da origem ${divergenciaOrigem.origemOp} e não pode ser vinculada ao pedido ${divergenciaOrigem.pedido} (origem ${divergenciaOrigem.origemPedido}). Verifique o pedido correto da OP.`
+      );
       return;
     }
 
@@ -385,8 +405,8 @@ export default function NumeroSeriePage() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={buscarContexto} disabled={loading}><Search className="mr-1 h-3.5 w-3.5" />Buscar Contexto</Button>
             <Button size="sm" variant="secondary" onClick={() => buscarProximos()} disabled={loading}><Hash className="mr-1 h-3.5 w-3.5" />Buscar Próximos</Button>
-            <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
-            <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
+            <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado || !!divergenciaOrigem} title={divergenciaOrigem ? 'Bloqueado: divergência de origem entre OP e pedido' : undefined}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
+            <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva || !!divergenciaOrigem} title={divergenciaOrigem ? 'Bloqueado: divergência de origem entre OP e pedido' : undefined}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
             <Button
               size="sm"
               variant="destructive"
@@ -410,9 +430,18 @@ export default function NumeroSeriePage() {
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm">Contexto do Pedido / OP</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 px-4 pb-4">
+          <CardContent className="pt-0 px-4 pb-4 space-y-3">
+            {divergenciaOrigem && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Divergência de origem — vínculo bloqueado</AlertTitle>
+                <AlertDescription>
+                  OP <strong>{divergenciaOrigem.op}</strong> é da origem <strong>{divergenciaOrigem.origemOp}</strong>, mas o pedido <strong>{divergenciaOrigem.pedido}</strong> é da origem <strong>{divergenciaOrigem.origemPedido}</strong>. Localize o pedido correto da OP antes de vincular o GS.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
-              {ctxField('Pedido', contexto.numero_pedido)}
+              {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
               {ctxField('Item', contexto.item_pedido)}
               {ctxField('OP', contexto.numero_op || '-')}
               {ctxField('Origem OP', contexto.origem_op)}

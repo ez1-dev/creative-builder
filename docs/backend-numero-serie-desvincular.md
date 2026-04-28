@@ -1,5 +1,7 @@
 # Backend — Desvincular Número de Série
 
+> **Veja também:** [`backend-numero-serie-validacao-origem.md`](./backend-numero-serie-validacao-origem.md) — regra de prevenção que impede o vínculo errado de acontecer (OP × pedido com origens diferentes).
+
 Endpoint a ser implementado no backend FastAPI para permitir desfazer um vínculo
 de número de série (GS) feito erroneamente em uma OP / pedido.
 
