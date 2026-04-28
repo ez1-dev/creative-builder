@@ -97,5 +97,9 @@ Reutilizar a mesma query de `/api/contas-pagar-arvore`:
       (tolerância de R$ 0,01).
 - [ ] Soma de `percentual_rateio` por título ≈ 100% (tolerância 0,01).
 - [ ] Filtros aplicados na tela são respeitados no arquivo gerado.
+- [ ] Filtrar `data_pagamento_ini`/`data_pagamento_fim` (que o frontend envia
+      como `data_movimento_ini`/`data_movimento_fim`) no modo árvore retorna
+      apenas títulos cuja `data_ultimo_movimento` está no intervalo —
+      mesma regra do modo normal.
 - [ ] Títulos sem rateio aparecem com `sem rateios cadastrados` na coluna
       Origem Rateio.
