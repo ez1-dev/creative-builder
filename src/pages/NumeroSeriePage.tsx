@@ -222,6 +222,56 @@ export default function NumeroSeriePage() {
     }
   };
 
+  const gsParaDesvincular = (
+    filters.numero_serie_manual.trim().toUpperCase()
+    || contexto?.numero_serie_atual
+    || contexto?.numero_serie_vinculada_op
+    || ''
+  );
+
+  const desvincular = async () => {
+    const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
+    const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
+    const numeroSerie = gsParaDesvincular;
+
+    if (!numeroPedido || !itemPedido) {
+      toast.error('Pedido e item do pedido são necessários para desvincular.');
+      return;
+    }
+    if (!numeroSerie) {
+      toast.error('Nenhum número de série para desvincular.');
+      return;
+    }
+
+    setLoadingDesvincular(true);
+    try {
+      const body: Record<string, any> = {
+        codigo_empresa: 1,
+        numero_pedido: Number(numeroPedido),
+        item_pedido: Number(itemPedido),
+        numero_serie: numeroSerie,
+        limpar_e000cse: true,
+      };
+      const numeroOp = filters.numero_op || String(contexto?.numero_op || '');
+      if (numeroOp && Number(numeroOp) > 0) body.numero_op = Number(numeroOp);
+
+      const result = await api.post<{ mensagem: string; contexto: ContextoNumeroSerie; numero_serie_removido: string }>(
+        '/api/numero-serie/desvincular',
+        body,
+      );
+      toast.success(result.mensagem || `Vínculo do ${numeroSerie} removido.`);
+      if (result.contexto) setContexto(result.contexto);
+      setSelecionado('');
+      setFilters(f => ({ ...f, numero_serie_manual: '' }));
+      await buscarProximos();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoadingDesvincular(false);
+      setConfirmDesvincularOpen(false);
+    }
+  };
+
   const limpar = () => {
     setFilters({ numero_pedido: '', item_pedido: '', numero_op: '', origem_op: '', codigo_produto: '', derivacao: '', numero_serie_manual: '' });
     setContexto(null);
