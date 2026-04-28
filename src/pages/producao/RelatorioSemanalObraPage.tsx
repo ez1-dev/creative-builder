@@ -204,6 +204,9 @@ export default function RelatorioSemanalObraPage() {
     setFilters(initialFilters);
     setData(null);
     setPagina(1);
+    setKpiTotals(null);
+    setKpiLoading(false);
+    consolidationIdRef.current++;
   };
 
   return (
@@ -277,37 +280,42 @@ export default function RelatorioSemanalObraPage() {
         </div>
       </FilterPanel>
 
-      {data && kpiTotals && (
+      {(data || kpiLoading) && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total de Obras"
-            value={formatNumber(kpiTotals.totalObras, 0)}
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalObras, 0) : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Building2 className="h-5 w-5" />}
             index={0}
           />
           <KPICard
             title="Total de Projetos"
-            value={formatNumber(kpiTotals.totalProjetos, 0)}
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalProjetos, 0) : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<FolderKanban className="h-5 w-5" />}
             variant="info"
             index={1}
           />
           <KPICard
             title="Total de Cargas"
-            value={formatNumber(kpiTotals.totalCargas, 0)}
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalCargas, 0) : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Truck className="h-5 w-5" />}
             variant="warning"
             index={2}
           />
           <KPICard
             title="Total de Peças"
-            value={formatNumber(kpiTotals.totalPecas, 0)}
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalPecas, 0) : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Package className="h-5 w-5" />}
             index={3}
           />
           <KPICard
             title="Peso Total (kg)"
-            value={`${formatNumber(kpiTotals.pesoTotal, 2)} kg`}
+            value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoTotal, 2)} kg` : '...'}
+            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Weight className="h-5 w-5" />}
             variant="success"
             index={4}
