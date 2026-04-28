@@ -73,7 +73,7 @@ const columns: Column<NumeroSerieItem>[] = [
 
 export default function NumeroSeriePage() {
   const [filters, setFilters] = useState({
-    numero_pedido: '', item_pedido: '', numero_op: '',
+    numero_pedido: '', item_pedido: '', numero_op: '', origem_op: '',
     codigo_produto: '', derivacao: '', numero_serie_manual: '',
   });
   const [contexto, setContexto] = useState<ContextoNumeroSerie | null>(null);
