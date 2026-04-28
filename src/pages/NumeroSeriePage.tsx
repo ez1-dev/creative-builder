@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { formatDate } from '@/lib/format';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 
@@ -35,7 +36,23 @@ interface ContextoNumeroSerie {
   codagp: string;
   numero_serie_atual: string;
   numero_serie_vinculada_op?: string;
+  pedido_vinculado_op?: number;
+  item_vinculado_op?: number;
+  situacao_vinculo_op?: string;
   vinculo_op_confere_numero_serie?: boolean;
+}
+
+type EscopoDesvinculo = 'item_pedido' | 'vinculo_op';
+
+interface CandidatoDesvinculo {
+  id: string;
+  escopo: EscopoDesvinculo;
+  numero_serie: string;
+  numero_pedido: number;
+  item_pedido: number;
+  origem_label: string;
+  descricao: string;
+  limpar_e000cse: boolean;
 }
 
 interface NumeroSerieItem {
@@ -93,6 +110,7 @@ export default function NumeroSeriePage() {
   const [loadingReserva, setLoadingReserva] = useState(false);
   const [loadingDesvincular, setLoadingDesvincular] = useState(false);
   const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
+  const [candidatoSelecionadoId, setCandidatoSelecionadoId] = useState<string>('');
 
   const erpReady = useErpReady();
 
@@ -222,24 +240,81 @@ export default function NumeroSeriePage() {
     }
   };
 
-  const gsParaDesvincular = (
-    filters.numero_serie_manual.trim().toUpperCase()
-    || contexto?.numero_serie_atual
-    || contexto?.numero_serie_vinculada_op
-    || ''
-  );
+  const candidatosDesvinculo: CandidatoDesvinculo[] = (() => {
+    const lista: CandidatoDesvinculo[] = [];
+    const manual = filters.numero_serie_manual.trim().toUpperCase();
 
-  const desvincular = async () => {
-    const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
-    const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
-    const numeroSerie = gsParaDesvincular;
+    // A — GS no item do pedido (E000CSE)
+    if (contexto?.numero_serie_atual && contexto.numero_pedido && contexto.item_pedido) {
+      lista.push({
+        id: `item-${contexto.numero_serie_atual}`,
+        escopo: 'item_pedido',
+        numero_serie: contexto.numero_serie_atual,
+        numero_pedido: contexto.numero_pedido,
+        item_pedido: contexto.item_pedido,
+        origem_label: 'Item do pedido (E000CSE)',
+        descricao: `Pedido ${contexto.numero_pedido} / Item ${contexto.item_pedido} — limpa o nº de série do item`,
+        limpar_e000cse: true,
+      });
+    }
 
-    if (!numeroPedido || !itemPedido) {
-      toast.error('Pedido e item do pedido são necessários para desvincular.');
+    // B — GS reservado para a OP (USU_T075SEP) — só se for diferente do A
+    if (
+      contexto?.numero_serie_vinculada_op &&
+      contexto.numero_serie_vinculada_op !== contexto.numero_serie_atual &&
+      contexto.pedido_vinculado_op &&
+      contexto.item_vinculado_op
+    ) {
+      lista.push({
+        id: `op-${contexto.numero_serie_vinculada_op}`,
+        escopo: 'vinculo_op',
+        numero_serie: contexto.numero_serie_vinculada_op,
+        numero_pedido: contexto.pedido_vinculado_op,
+        item_pedido: contexto.item_vinculado_op,
+        origem_label: 'Vínculo da OP (USU_T075SEP)',
+        descricao: `Pedido ${contexto.pedido_vinculado_op} / Item ${contexto.item_vinculado_op} — libera reserva da OP`,
+        limpar_e000cse: false,
+      });
+    }
+
+    // C — GS digitado manualmente (não está em A nem B)
+    if (manual && !lista.some(c => c.numero_serie === manual)) {
+      const numPed = Number(filters.numero_pedido || contexto?.numero_pedido || 0);
+      const itemPed = Number(filters.item_pedido || contexto?.item_pedido || 0);
+      if (numPed && itemPed) {
+        lista.push({
+          id: `manual-${manual}`,
+          escopo: 'item_pedido',
+          numero_serie: manual,
+          numero_pedido: numPed,
+          item_pedido: itemPed,
+          origem_label: 'GS informado manualmente',
+          descricao: `Pedido ${numPed} / Item ${itemPed}`,
+          limpar_e000cse: true,
+        });
+      }
+    }
+
+    return lista;
+  })();
+
+  const candidatoEfetivo =
+    candidatosDesvinculo.find(c => c.id === candidatoSelecionadoId) ||
+    candidatosDesvinculo[0] ||
+    null;
+
+  const abrirConfirmDesvincular = () => {
+    if (candidatosDesvinculo.length === 0) {
+      toast.error('Nenhum vínculo de GS encontrado para desvincular.');
       return;
     }
-    if (!numeroSerie) {
-      toast.error('Nenhum número de série para desvincular.');
+    setCandidatoSelecionadoId(candidatosDesvinculo[0].id);
+    setConfirmDesvincularOpen(true);
+  };
+
+  const desvincular = async () => {
+    if (!candidatoEfetivo) {
+      toast.error('Selecione um vínculo para desvincular.');
       return;
     }
 
@@ -247,10 +322,11 @@ export default function NumeroSeriePage() {
     try {
       const body: Record<string, any> = {
         codigo_empresa: 1,
-        numero_pedido: Number(numeroPedido),
-        item_pedido: Number(itemPedido),
-        numero_serie: numeroSerie,
-        limpar_e000cse: true,
+        numero_pedido: candidatoEfetivo.numero_pedido,
+        item_pedido: candidatoEfetivo.item_pedido,
+        numero_serie: candidatoEfetivo.numero_serie,
+        escopo: candidatoEfetivo.escopo,
+        limpar_e000cse: candidatoEfetivo.limpar_e000cse,
       };
       const numeroOp = filters.numero_op || String(contexto?.numero_op || '');
       if (numeroOp && Number(numeroOp) > 0) body.numero_op = Number(numeroOp);
@@ -259,7 +335,7 @@ export default function NumeroSeriePage() {
         '/api/numero-serie/desvincular',
         body,
       );
-      toast.success(result.mensagem || `Vínculo do ${numeroSerie} removido.`);
+      toast.success(result.mensagem || `Vínculo do ${candidatoEfetivo.numero_serie} removido.`);
       if (result.contexto) setContexto(result.contexto);
       setSelecionado('');
       setFilters(f => ({ ...f, numero_serie_manual: '' }));
@@ -314,8 +390,8 @@ export default function NumeroSeriePage() {
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => setConfirmDesvincularOpen(true)}
-              disabled={loadingDesvincular || !gsParaDesvincular || (!contexto && !filters.numero_pedido)}
+              onClick={abrirConfirmDesvincular}
+              disabled={loadingDesvincular || candidatosDesvinculo.length === 0}
               title="Remove o vínculo do GS no pedido/OP (use para corrigir vínculos errados)"
             >
               <Unlink className="mr-1 h-3.5 w-3.5" />Desvincular GS
@@ -395,15 +471,50 @@ export default function NumeroSeriePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar desvínculo de Nº de Série</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
-                <p>Esta ação removerá o vínculo do GS abaixo no pedido/OP. Use somente para corrigir um vínculo feito errado.</p>
-                <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
-                  <div><span className="text-muted-foreground">GS:</span> <strong>{gsParaDesvincular || '-'}</strong></div>
-                  <div><span className="text-muted-foreground">Pedido:</span> {filters.numero_pedido || contexto?.numero_pedido || '-'} / Item {filters.item_pedido || contexto?.item_pedido || '-'}</div>
-                  <div><span className="text-muted-foreground">OP:</span> {filters.numero_op || contexto?.numero_op || '-'} {contexto?.origem_op ? `(${contexto.origem_op})` : ''}</div>
-                  <div><span className="text-muted-foreground">Produto:</span> {contexto?.codigo_produto || '-'} / {contexto?.derivacao || '-'}</div>
-                </div>
-                <p className="text-xs text-muted-foreground">O GS voltará para o status LIVRE e o número de série do item do pedido será limpo.</p>
+              <div className="space-y-3 text-sm">
+                <p>Esta ação removerá o vínculo do GS abaixo. Use somente para corrigir um vínculo feito errado.</p>
+
+                {candidatosDesvinculo.length > 1 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Existem {candidatosDesvinculo.length} vínculos. Selecione qual desvincular:
+                    </p>
+                    <RadioGroup
+                      value={candidatoSelecionadoId}
+                      onValueChange={setCandidatoSelecionadoId}
+                      className="space-y-2"
+                    >
+                      {candidatosDesvinculo.map((c) => (
+                        <label
+                          key={c.id}
+                          htmlFor={c.id}
+                          className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 cursor-pointer hover:bg-muted/60"
+                        >
+                          <RadioGroupItem value={c.id} id={c.id} className="mt-0.5" />
+                          <div className="flex-1 space-y-1">
+                            <div className="font-mono text-sm font-semibold">{c.numero_serie}</div>
+                            <div className="text-xs text-muted-foreground">{c.origem_label}</div>
+                            <div className="text-xs">{c.descricao}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                ) : candidatoEfetivo ? (
+                  <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                    <div><span className="text-muted-foreground">GS:</span> <strong>{candidatoEfetivo.numero_serie}</strong></div>
+                    <div><span className="text-muted-foreground">Origem:</span> {candidatoEfetivo.origem_label}</div>
+                    <div><span className="text-muted-foreground">Pedido:</span> {candidatoEfetivo.numero_pedido} / Item {candidatoEfetivo.item_pedido}</div>
+                    <div><span className="text-muted-foreground">OP:</span> {contexto?.numero_op || '-'} {contexto?.origem_op ? `(${contexto.origem_op})` : ''}</div>
+                    <div><span className="text-muted-foreground">Produto:</span> {contexto?.codigo_produto || '-'} / {contexto?.derivacao || '-'}</div>
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  {candidatoEfetivo?.escopo === 'vinculo_op'
+                    ? 'A reserva da OP será liberada. O nº de série do item do pedido NÃO será alterado.'
+                    : 'O GS voltará para o status LIVRE e o nº de série do item do pedido será limpo.'}
+                </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

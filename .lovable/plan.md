@@ -1,84 +1,94 @@
 ## Objetivo
-Permitir que o usuário **remova/desfaça o vínculo** de um Número de Série (GS) que foi reservado erroneamente em uma OP ou pedido, diretamente na página `Reserva Nº de Série`.
 
-Hoje a página só permite **reservar** ou **vincular** — não há ação para desfazer um vínculo errado.
+Permitir que o usuário **escolha qual GS desvincular** quando o contexto carregado tiver dois GS distintos (um no item do pedido / `E000CSE` e outro reservado para a OP em `USU_T075SEP`). Hoje o frontend prioriza um deles silenciosamente, o que é perigoso.
 
-## Escopo
+Premissa: você criará a rota `POST /api/numero-serie/desvincular` no backend FastAPI seguindo o contrato em `docs/backend-numero-serie-desvincular.md` (com o ajuste descrito abaixo).
 
-### 1. Backend FastAPI (externo via ngrok) — novo endpoint
-Criar a rota:
+## Mudanças no frontend — `src/pages/NumeroSeriePage.tsx`
 
+### 1. Detectar candidatos a desvínculo
+
+Construir uma lista `candidatosDesvinculo` derivada do `contexto`:
+
+- **Candidato A — item do pedido**: presente quando `contexto.numero_serie_atual` existe.
+  - Escopo: `item_pedido`
+  - Pedido/Item: `contexto.numero_pedido` / `contexto.item_pedido`
+  - Limpa `E000CSE`: sim
+- **Candidato B — vínculo da OP**: presente quando `contexto.numero_serie_vinculada_op` existe.
+  - Escopo: `vinculo_op`
+  - Pedido/Item: `contexto.pedido_vinculado_op` / `contexto.item_vinculado_op` (já vêm no contexto)
+  - Limpa `E000CSE`: não (a menos que seja o mesmo GS de A)
+- **Candidato C — manual**: quando `filters.numero_serie_manual` está preenchido.
+  - Escopo: `item_pedido` (assume pedido/item dos filtros).
+
+Se A e B apontam para o **mesmo GS**, mostrar como um único candidato.
+
+### 2. Ajustar o `AlertDialog` de confirmação
+
+- Se houver **1 candidato**: comportamento atual (apenas confirma).
+- Se houver **2+ candidatos**: mostrar um `RadioGroup` (shadcn) listando cada um com:
+  - GS, escopo (`Item do pedido` / `Vínculo da OP`), pedido/item afetado.
+  - Texto explicativo curto.
+- O botão "Confirmar desvínculo" usa o candidato selecionado.
+
+### 3. Atualizar o payload enviado
+
+Enviar sempre os campos do **candidato escolhido** (não os filtros do topo):
+
+```ts
+{
+  codigo_empresa: 1,
+  numero_pedido: <do candidato>,
+  item_pedido: <do candidato>,
+  numero_op: contexto.numero_op,        // sempre quando houver
+  numero_serie: <GS escolhido>,
+  escopo: "item_pedido" | "vinculo_op", // novo
+  limpar_e000cse: <true só p/ item_pedido>
+}
 ```
-POST /api/numero-serie/desvincular
+
+### 4. Atualizar tipos
+
+Adicionar ao `interface ContextoNumeroSerie`:
+```ts
+pedido_vinculado_op?: number;
+item_vinculado_op?: number;
+situacao_vinculo_op?: string;
 ```
 
-**Request body:**
+### 5. Após sucesso
+
+- Atualizar `contexto` com o retorno do backend.
+- Limpar `selecionado` e `numero_serie_manual`.
+- Recarregar `buscarProximos()`.
+
+## Mudanças no contrato — `docs/backend-numero-serie-desvincular.md`
+
+Adicionar campo opcional `escopo` no request:
+
 ```json
 {
   "codigo_empresa": 1,
-  "numero_pedido": 123456,
+  "numero_pedido": 11510,
   "item_pedido": 1,
-  "numero_op": 100234,        // opcional, mas recomendado
-  "numero_serie": "GS-11705", // GS atualmente vinculado
-  "limpar_e000cse": true      // limpa o número de série gravado no item do pedido
+  "numero_op": 1111,
+  "numero_serie": "GS-11705",
+  "escopo": "vinculo_op",      // "item_pedido" (default) | "vinculo_op"
+  "limpar_e000cse": false
 }
 ```
 
-**Comportamento esperado (a ser implementado no backend):**
-1. Validar contexto (pedido/item/OP existem e o GS informado está realmente vinculado).
-2. Liberar o registro em `USU_T075SEP` correspondente (status `RESERVADO` → `LIVRE`, zerar `pedido_reservado`/`item_reservado`).
-3. Se `limpar_e000cse=true`, limpar o campo de número de série no item do pedido (`E000CSE` ou equivalente).
-4. Retornar contexto atualizado igual à rota `/reservar`:
-```json
-{
-  "mensagem": "Vínculo removido com sucesso.",
-  "contexto": { ... ContextoNumeroSerie ... },
-  "numero_serie_removido": "GS-11705"
-}
-```
-5. Erros tratados: GS não pertence ao pedido/OP informado, GS já está LIVRE, pedido inexistente, etc. — retornar `400` com `detail` claro.
+Documentar comportamento por escopo:
 
-> Observação: como o backend FastAPI não está no repositório Lovable, esta etapa precisa ser implementada por você no projeto do backend. Posso gerar o snippet de doc em `docs/backend-numero-serie-desvincular.md` para servir de contrato/checklist.
-
-### 2. Frontend — `src/pages/NumeroSeriePage.tsx`
-
-**Novo botão de ação:**
-- Adicionar botão `Desvincular GS` na barra de ações (ao lado de "Vincular GS Informado"), variante `destructive` ou `outline` com ícone `Unlink` (lucide).
-- Habilitado quando: existir `contexto` carregado **E** (`contexto.numero_serie_atual` ou `contexto.numero_serie_vinculada_op` estiver preenchido) **OU** o usuário digitou um GS no campo `numero_serie_manual`.
-
-**Fluxo:**
-1. Ao clicar, abrir um `AlertDialog` (shadcn) de confirmação mostrando:
-   - Pedido / Item / OP
-   - Produto / Derivação
-   - GS que será desvinculado (priorizar manual, senão `numero_serie_atual`)
-2. Ao confirmar, chamar `api.post('/api/numero-serie/desvincular', body)`.
-3. Em sucesso:
-   - `toast.success(result.mensagem)`
-   - Atualizar `contexto` com o retorno
-   - Limpar `selecionado` e `filters.numero_serie_manual`
-   - Recarregar lista via `buscarProximos()` para refletir o novo status `LIVRE`
-4. Em erro: `toast.error(e.message)`.
-
-**Nova função:**
-```ts
-const desvincular = async () => { ... }
-const [loadingDesvincular, setLoadingDesvincular] = useState(false);
-const [confirmOpen, setConfirmOpen] = useState(false);
-```
-
-**Ajuste visual:**
-- No card de Contexto, quando `numero_serie_atual` estiver presente, mostrar um pequeno botão `Desvincular` ao lado do badge da série atual (atalho rápido).
-
-### 3. Sem mudanças no Lovable Cloud
-Não há alterações em tabelas, RLS, edge functions ou migrations — toda a lógica de desvínculo vive no backend FastAPI externo.
+- `escopo = "item_pedido"` (default, retrocompatível): libera registro em `USU_T075SEP` zerando `pedido_reservado` / `item_reservado`; se `limpar_e000cse=true`, limpa `E000CSE` do item.
+- `escopo = "vinculo_op"`: libera registro em `USU_T075SEP` zerando `pedido_vinculado_op` / `item_vinculado_op` (e status volta para `LIVRE` se não houver outro vínculo); **não** mexe em `E000CSE` salvo se `limpar_e000cse=true` E o GS realmente estiver lá.
 
 ## Arquivos afetados
-- `src/pages/NumeroSeriePage.tsx` (botão, dialog de confirmação, função `desvincular`)
-- `docs/backend-numero-serie-desvincular.md` (novo — contrato do endpoint para o time de backend)
 
-## Pergunta para o usuário antes de implementar
-A rota `POST /api/numero-serie/desvincular` **já existe** no seu backend FastAPI, ou devo apenas:
-- (a) implementar o frontend assumindo o contrato acima e você cria a rota no backend depois, **ou**
-- (b) você já tem outro endpoint com nome/payload diferente e devo adaptar?
+- `src/pages/NumeroSeriePage.tsx` — lista de candidatos, RadioGroup no diálogo, payload com `escopo`, tipos atualizados.
+- `docs/backend-numero-serie-desvincular.md` — adicionar campo `escopo` e exemplos para os dois cenários.
 
-Me confirme isso (ou aprove como está) que sigo com a implementação.
+## Fora de escopo
+
+- Implementação da rota no backend FastAPI (você fará).
+- Mudanças no Lovable Cloud (nenhuma).
