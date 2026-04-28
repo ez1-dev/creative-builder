@@ -380,6 +380,14 @@ export default function RelatorioSemanalObraPage() {
         </div>
       )}
 
+      {(data || kpiLoading) && (
+        <RelatorioSemanalObraCharts
+          rows={consolidatedRows}
+          loading={kpiLoading && consolidatedRows.length === 0}
+          onObraClick={handleObraClick}
+        />
+      )}
+
       <DataTable
         columns={columns}
         data={data?.dados || []}
