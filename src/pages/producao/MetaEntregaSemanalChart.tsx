@@ -128,6 +128,49 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
   const [loadingMeta, setLoadingMeta] = useState(true);
   const [savingMeta, setSavingMeta] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [drillDown, setDrillDown] = useState<{
+    type: 'week' | 'month';
+    label: string;
+    rows: RelatorioRow[];
+    metaRef: number | null;
+  } | null>(null);
+
+  const handleWeekBarClick = (data: any) => {
+    if (!data || data.ts == null) return;
+    const start = Number(data.ts);
+    const end = start + 7 * 24 * 60 * 60 * 1000;
+    const filtered = rows.filter((r) => {
+      if (!r.data_inicial) return false;
+      const t = new Date(r.data_inicial).getTime();
+      return Number.isFinite(t) && t >= start && t < end;
+    });
+    setDrillDown({
+      type: 'week',
+      label: `Semana de ${new Date(start).toLocaleDateString('pt-BR')}`,
+      rows: filtered,
+      metaRef: meta,
+    });
+  };
+
+  const handleMonthBarClick = (data: any) => {
+    if (!data || data.ts == null) return;
+    const startD = new Date(Number(data.ts));
+    const start = startD.getTime();
+    const endD = new Date(startD.getFullYear(), startD.getMonth() + 1, 1);
+    const end = endD.getTime();
+    const filtered = rows.filter((r) => {
+      if (!r.data_inicial) return false;
+      const t = new Date(r.data_inicial).getTime();
+      return Number.isFinite(t) && t >= start && t < end;
+    });
+    const label = startD.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    setDrillDown({
+      type: 'month',
+      label: `Mês de ${label}`,
+      rows: filtered,
+      metaRef: meta != null ? meta * SEMANAS_POR_MES : null,
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
