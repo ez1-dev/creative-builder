@@ -55,7 +55,7 @@ const columnsDetalhada: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto', render: (v, row) => (v && v !== 0) ? String(v) : (row.projeto || '-') },
   { key: 'data_emissao', header: 'Emissão', render: (v) => formatDate(v) },
   { key: 'data_vencimento', header: 'Vencimento', render: (v) => formatDate(v) },
-  { key: 'data_ultimo_movimento', header: 'Últ. Mov.', render: (v) => formatDate(v) },
+  { key: 'data_ultimo_movimento', header: 'Data Pagamento', render: (v) => formatDate(v) },
   { key: 'valor_original', header: 'Vlr. Original', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'valor_aberto', header: 'Vlr. Aberto', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'valor_movimentado', header: 'Vlr. Movim.', align: 'right', render: (v) => formatCurrency(v) },
@@ -165,6 +165,11 @@ export default function ContasPagarPage() {
           if (incluirPagos) params.incluir_pagos = true;
           else params.excluir_pagos = true;
         }
+        // Mapear filtros de "Data de Pagamento" (UI) para parâmetros do backend (data_movimento_*)
+        if (params.data_pagamento_ini) params.data_movimento_ini = params.data_pagamento_ini;
+        if (params.data_pagamento_fim) params.data_movimento_fim = params.data_pagamento_fim;
+        delete params.data_pagamento_ini;
+        delete params.data_pagamento_fim;
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
@@ -295,7 +300,11 @@ export default function ContasPagarPage() {
 
 
   const columns = filters.agrupar_por_fornecedor ? columnsAgrupada : columnsDetalhada;
-  const exportParams = { ...filters };
+  const exportParams: any = { ...filters };
+  if (exportParams.data_pagamento_ini) exportParams.data_movimento_ini = exportParams.data_pagamento_ini;
+  if (exportParams.data_pagamento_fim) exportParams.data_movimento_fim = exportParams.data_pagamento_fim;
+  delete exportParams.data_pagamento_ini;
+  delete exportParams.data_pagamento_fim;
   const exportEndpoint = modoArvoreAtivo
     ? '/api/export/contas-pagar-arvore'
     : '/api/export/contas-pagar';
@@ -371,14 +380,14 @@ export default function ContasPagarPage() {
           <Input type="date" value={filters.data_vencimento_fim} onChange={(e) => set('data_vencimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Pagamento de</Label>
-          <Input type="date" value={filters.data_pagamento_ini} onChange={(e) => set('data_pagamento_ini', e.target.value)} className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="dataPagamentoIniContasPag">Data Pagamento Inicial</Label>
+          <Input id="dataPagamentoIniContasPag" type="date" value={filters.data_pagamento_ini} onChange={(e) => set('data_pagamento_ini', e.target.value)} className="h-8 text-xs" />
         </div>
 
         {/* Linha 3 */}
         <div>
-          <Label className="text-xs">Pagamento até</Label>
-          <Input type="date" value={filters.data_pagamento_fim} onChange={(e) => set('data_pagamento_fim', e.target.value)} className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="dataPagamentoFimContasPag">Data Pagamento Final</Label>
+          <Input id="dataPagamentoFimContasPag" type="date" value={filters.data_pagamento_fim} onChange={(e) => set('data_pagamento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Valor Mín.</Label>
