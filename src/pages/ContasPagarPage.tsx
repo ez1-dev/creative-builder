@@ -300,7 +300,11 @@ export default function ContasPagarPage() {
 
 
   const columns = filters.agrupar_por_fornecedor ? columnsAgrupada : columnsDetalhada;
-  const exportParams = { ...filters };
+  const exportParams: any = { ...filters };
+  if (exportParams.data_pagamento_ini) exportParams.data_movimento_ini = exportParams.data_pagamento_ini;
+  if (exportParams.data_pagamento_fim) exportParams.data_movimento_fim = exportParams.data_pagamento_fim;
+  delete exportParams.data_pagamento_ini;
+  delete exportParams.data_pagamento_fim;
   const exportEndpoint = modoArvoreAtivo
     ? '/api/export/contas-pagar-arvore'
     : '/api/export/contas-pagar';
