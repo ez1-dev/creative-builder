@@ -449,3 +449,153 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
     </div>
   );
 }
+
+interface DrillProps {
+  drill: {
+    type: 'week' | 'month';
+    label: string;
+    rows: RelatorioRow[];
+    metaRef: number | null;
+  } | null;
+  onClose: () => void;
+}
+
+function DrillDownDialog({ drill, onClose }: DrillProps) {
+  const totals = useMemo(() => {
+    if (!drill) return null;
+    const obras = new Set<string>();
+    const projetos = new Set<string>();
+    let peso = 0,
+      pecas = 0,
+      cargas = 0;
+    for (const r of drill.rows) {
+      if (r.obra) obras.add(String(r.obra));
+      if (r.numero_projeto != null && r.numero_projeto !== '') projetos.add(String(r.numero_projeto));
+      peso += Number(r.peso_total) || 0;
+      pecas += Number(r.quantidade_pecas) || 0;
+      cargas += Number(r.quantidade_cargas) || 0;
+    }
+    const pct = drill.metaRef ? (peso / drill.metaRef) * 100 : null;
+    return { obras: obras.size, projetos: projetos.size, peso, pecas, cargas, pct };
+  }, [drill]);
+
+  const sorted = useMemo(
+    () => (drill ? [...drill.rows].sort((a, b) => (Number(b.peso_total) || 0) - (Number(a.peso_total) || 0)) : []),
+    [drill],
+  );
+
+  if (!drill) return null;
+
+  return (
+    <Dialog open={drill != null} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>{drill.label}</DialogTitle>
+          <DialogDescription>
+            Detalhamento das entregas registradas no período selecionado.
+          </DialogDescription>
+        </DialogHeader>
+
+        {totals && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+            <KpiMini label="Peso Total" value={`${formatNumber(totals.peso, 2)} kg`} />
+            <KpiMini label="Peças" value={formatNumber(totals.pecas, 0)} />
+            <KpiMini label="Cargas" value={formatNumber(totals.cargas, 0)} />
+            <KpiMini label="Obras" value={formatNumber(totals.obras, 0)} />
+            <KpiMini label="Projetos" value={formatNumber(totals.projetos, 0)} />
+            <KpiMini
+              label="% da Meta"
+              value={totals.pct != null ? `${formatNumber(totals.pct, 0)}%` : '—'}
+              tone={
+                totals.pct == null
+                  ? 'muted'
+                  : totals.pct >= 100
+                    ? 'success'
+                    : totals.pct >= 80
+                      ? 'warning'
+                      : 'destructive'
+              }
+            />
+          </div>
+        )}
+
+        {sorted.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Sem entregas registradas neste período.
+          </div>
+        ) : (
+          <ScrollArea className="max-h-[420px] rounded-md border">
+            <Table>
+              <TableHeader className="bg-muted/50 sticky top-0">
+                <TableRow>
+                  <TableHead className="text-xs">Obra</TableHead>
+                  <TableHead className="text-xs">Cliente</TableHead>
+                  <TableHead className="text-xs">Cidade</TableHead>
+                  <TableHead className="text-xs">Projeto</TableHead>
+                  <TableHead className="text-xs">Período</TableHead>
+                  <TableHead className="text-xs text-right">Cargas</TableHead>
+                  <TableHead className="text-xs text-right">Peças</TableHead>
+                  <TableHead className="text-xs text-right">Peso (kg)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sorted.map((r, i) => (
+                  <TableRow key={i}>
+                    <TableCell className="text-xs">{r.obra || '—'}</TableCell>
+                    <TableCell className="text-xs">{r.cliente || '—'}</TableCell>
+                    <TableCell className="text-xs">{r.cidade || '—'}</TableCell>
+                    <TableCell className="text-xs">{r.numero_projeto ?? '—'}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {r.data_inicial ? new Date(r.data_inicial).toLocaleDateString('pt-BR') : '—'}
+                      {r.data_final ? ` → ${new Date(r.data_final).toLocaleDateString('pt-BR')}` : ''}
+                    </TableCell>
+                    <TableCell className="text-xs text-right">{formatNumber(Number(r.quantidade_cargas) || 0, 0)}</TableCell>
+                    <TableCell className="text-xs text-right">{formatNumber(Number(r.quantidade_pecas) || 0, 0)}</TableCell>
+                    <TableCell className="text-xs text-right font-medium">{formatNumber(Number(r.peso_total) || 0, 2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+              {totals && (
+                <TableFooter>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-xs font-semibold">Total</TableCell>
+                    <TableCell className="text-xs text-right font-semibold">{formatNumber(totals.cargas, 0)}</TableCell>
+                    <TableCell className="text-xs text-right font-semibold">{formatNumber(totals.pecas, 0)}</TableCell>
+                    <TableCell className="text-xs text-right font-semibold">{formatNumber(totals.peso, 2)}</TableCell>
+                  </TableRow>
+                </TableFooter>
+              )}
+            </Table>
+          </ScrollArea>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function KpiMini({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'success' | 'warning' | 'destructive' | 'muted';
+}) {
+  const toneCls =
+    tone === 'success'
+      ? 'text-success'
+      : tone === 'warning'
+        ? 'text-warning'
+        : tone === 'destructive'
+          ? 'text-destructive'
+          : tone === 'muted'
+            ? 'text-muted-foreground'
+            : 'text-foreground';
+  return (
+    <div className="rounded-md border bg-card p-2">
+      <div className="text-[10px] uppercase text-muted-foreground tracking-wide">{label}</div>
+      <div className={`text-sm font-semibold ${toneCls}`}>{value}</div>
+    </div>
+  );
+}
