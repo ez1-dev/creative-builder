@@ -1,27 +1,28 @@
-## Checkbox "Incluir títulos pagos" em Contas a Pagar
+## Bug: KPIs do Relatório Semanal Obra não refletem todos os dados filtrados
 
-### Comportamento
-- Por padrão (desmarcado): mantém o comportamento atual — backend retorna apenas títulos não-pagos.
-- Marcado: títulos com status PAGO entram no resultado junto com os demais.
-- Quando o usuário escolhe um Status específico (ex.: VENCIDO, A_VENCER), o checkbox é ignorado/desabilitado — o filtro de Status tem precedência.
+### Causa
+Hoje os 5 cards (Total Obras, Projetos, Cargas, Peças, Peso Total) são calculados via `useMemo` a partir de `data.dados`, que contém **apenas os 100 registros da página atual** (`tamanho_pagina: 100`). Quando o resultado tem mais de uma página e o backend não envia o objeto `resumo`, os totais ficam congelados nos números da página visível e parecem "não reagir aos filtros". Além disso, ao limpar/refiltrar, o estado anterior dos KPIs continua visível até o novo `data` chegar.
 
-### Arquivo editado
-`src/pages/ContasPagarPage.tsx`
+### Correção em `src/pages/producao/RelatorioSemanalObraPage.tsx`
+Aplicar o mesmo padrão de consolidação usado em `ExpedidoObraPage.tsx`:
 
-1. **`initialFilters`**: adicionar `incluir_pagos: false`.
-2. **Função `search`**: lógica para envio ao backend:
-   - Se Status específico selecionado → não envia `incluir_pagos` nem `excluir_pagos`.
-   - Se Status vazio + checkbox marcado → envia `incluir_pagos=true`.
-   - Se Status vazio + checkbox desmarcado → envia `excluir_pagos=true` (mantém comportamento atual de ocultar pagos).
-3. **`FilterPanel`**: novo `<Checkbox id="incluir_pagos">` após "Somente cheques", com label "Incluir títulos pagos". Fica `disabled` quando há `status_titulo` selecionado.
-4. **`clearFilters`**: já é resetado por `{ ...initialFilters }` — sem alteração extra.
+1. **Substituir** o `useMemo` de KPIs por estado `kpiTotals` + `kpiLoading` controlados pelo fluxo de busca.
+2. **Adicionar** `consolidationIdRef` (useRef) para cancelar consolidações concorrentes (race condition entre buscas).
+3. **Nova função `consolidateKpis`** chamada após cada `search(1)`:
+   - Se o backend retornar `resumo` no payload da página 1 → usa direto (caminho rápido).
+   - Senão, agrega a página 1 e dispara fetches em lotes de 5 das demais páginas (mesmo endpoint, mesmos filtros), somando totais e mantendo `Set` de obras/projetos distintos.
+   - Em caso de erro parcial, exibe toast de aviso e mantém os valores agregados até onde foi possível.
+4. **Cards exibem "Calculando..."** enquanto `kpiLoading` está ativo (em vez de números desatualizados).
+5. **`clearFilters`** zera `kpiTotals`, `kpiLoading` e incrementa `consolidationIdRef` para cancelar consolidação pendente.
+6. Remover o `useMemo` antigo e atualizar `useAiPageContext` para ler do novo estado.
 
-### Contrato backend
-`GET /api/contas-pagar`, `/api/contas-pagar-arvore` e `/api/export/contas-pagar` devem aceitar:
-- `incluir_pagos=true` → inclui status PAGO no retorno.
-- `excluir_pagos=true` → exclui status PAGO (comportamento padrão atual).
-- Convive com `status_titulo` (quando informado, este tem precedência).
+### Recomendação backend (não bloqueia o fix)
+O endpoint `/api/producao/relatorio-semanal-obra` deveria retornar um objeto `resumo` no payload com:
+```json
+{ "total_obras", "total_projetos", "total_cargas", "total_pecas", "peso_total" }
+```
+Quando presente, o frontend usa direto sem precisar varrer páginas — mais rápido e exato.
 
 ### Fora do escopo
-- Não altera KPIs nem colunas existentes.
-- Não cria filtro separado "Somente pagos" (já existe via Status = Pago).
+- Não altera filtros, colunas da tabela nem layout.
+- Não altera a tela "Expedido para Obra".
