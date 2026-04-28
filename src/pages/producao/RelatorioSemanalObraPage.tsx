@@ -68,6 +68,7 @@ export default function RelatorioSemanalObraPage() {
   const [pagina, setPagina] = useState(1);
   const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [consolidatedRows, setConsolidatedRows] = useState<RelatorioRow[]>([]);
   const consolidationIdRef = useRef(0);
   const erpReady = useErpReady();
 
