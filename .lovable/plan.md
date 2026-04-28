@@ -1,71 +1,90 @@
-## Diagnóstico
+## Resumo
 
-No **Modo árvore de rateio**, os filtros (Data Pagamento Inicial/Final, e provavelmente outros) **não são aplicados ao resultado** — a tela traz mais dados do que o pedido.
+Ajustar `src/pages/ContasPagarPage.tsx` para (1) desmarcar automaticamente "Somente saldo aberto" quando Status = Pago/Liquidado, (2) remover o `<Alert>` provisório do Modo árvore (e os imports não usados). Reescrever `docs/backend-export-contas-pagar-arvore.md` como spec definitiva (regras de Status Pago, Data Pagamento, ordem "filtros → árvore", critérios de aceite). Deletar `docs/backend-contas-pagar-arvore-filtros.md`. Atualizar `.lovable/plan.md`.
 
-Investigando o código (`src/pages/ContasPagarPage.tsx`, função `search`):
+Mapeamentos `data_pagamento_*` → `data_movimento_*`, escolha de endpoint árvore vs normal e propagação de filtros para a exportação **já estão corretos** no código atual (linhas 169‑173, 305‑311) — não há mudança a fazer aí, apenas confirmar nos critérios.
 
-- O frontend já mapeia corretamente `data_pagamento_ini/fim` (UI) para `data_movimento_ini/fim` (parâmetros backend) **antes** de decidir qual endpoint chamar.
-- Os mesmos `params` são enviados tanto para `/api/contas-pagar` (modo normal) quanto para `/api/contas-pagar-arvore` (modo árvore).
-- Ou seja: do lado do frontend, os dois modos enviam exatamente o mesmo conjunto de filtros.
+## Frontend — `src/pages/ContasPagarPage.tsx`
 
-Conferindo a documentação do backend (`docs/backend-export-contas-pagar-arvore.md`, linhas 12-23), os parâmetros oficialmente suportados pelo endpoint árvore são:
+### 1. Handler `set` desmarca "Somente saldo aberto" no Pago
 
-```
-fornecedor, numero_titulo, tipo_titulo, filial, centro_custo,
-numero_projeto/projeto, status_titulo,
-data_emissao_ini/fim, data_vencimento_ini/fim
-```
+No reducer/handler `set` (≈ linha 218), após calcular `next`, adicionar:
 
-**`data_movimento_ini` e `data_movimento_fim` NÃO estão listados** — assim como `valor_min/max`, `somente_vencidos`, `somente_saldo_aberto`, `somente_cheques`, `incluir_pagos/excluir_pagos`. É muito provável que o backend simplesmente ignore esses parâmetros na rota árvore, retornando o conjunto completo.
-
-Conclusão: o problema é **no backend FastAPI**, não no frontend. A rota `/api/contas-pagar-arvore` (e a de exportação) precisa aplicar os mesmos filtros que `/api/contas-pagar`.
-
-## O que vou fazer
-
-Como a correção é no backend (fora do escopo do projeto Lovable), vou **atualizar o documento de especificação** que o time de backend usa e **adicionar uma defesa no frontend** para o usuário não ficar sem aviso enquanto o backend não é corrigido.
-
-### 1. Atualizar `docs/backend-export-contas-pagar-arvore.md`
-
-Adicionar à lista "Query params" (que vale também para `/api/contas-pagar-arvore` segundo o próprio documento):
-
-- `data_movimento_ini`, `data_movimento_fim` (YYYY-MM-DD) — filtra pela data do último movimento financeiro do título (data de pagamento/baixa). Equivale ao filtro "Data Pagamento" da tela.
-- `valor_min`, `valor_max` (number)
-- `somente_vencidos`, `somente_saldo_aberto`, `somente_cheques` (bool)
-- `incluir_pagos` / `excluir_pagos` (bool, mutuamente exclusivos; mesma semântica de `/api/contas-pagar`)
-
-Acrescentar nota explícita: **"O endpoint árvore deve aplicar EXATAMENTE os mesmos filtros que `/api/contas-pagar` antes de montar a hierarquia. Filtros não reconhecidos hoje (notadamente `data_movimento_*`) estão fazendo a árvore retornar registros fora do escopo."**
-
-Atualizar a seção de validação para incluir:
-
-- Filtrar `data_pagamento_ini/fim` no modo árvore deve retornar apenas títulos cuja `data_ultimo_movimento` esteja no intervalo (mesma regra do modo normal).
-
-### 2. Criar `docs/backend-contas-pagar-arvore-filtros.md` (novo)
-
-Documento curto e específico apontando o bug atual: lista os parâmetros que a rota árvore ignora hoje, com exemplo de chamada e resultado esperado vs. observado, para o time de backend ter um ticket claro.
-
-### 3. Defesa no frontend (`src/pages/ContasPagarPage.tsx`)
-
-Adicionar um aviso visual discreto **apenas quando** `modo_arvore` está ativo **e** o usuário preencheu algum dos filtros que o backend árvore ainda não aplica de forma confiável (`data_pagamento_ini/fim`, `valor_min/max`, `somente_*`, `incluir_pagos`):
-
-```
-Aviso: alguns filtros (Data Pagamento, Valor, "somente...") podem não
-ser aplicados pelo backend no modo árvore. Para resultados garantidos,
-desative o "Modo árvore de rateio".
+```ts
+if (key === 'status_titulo' && (value === 'PAGO' || value === 'LIQUIDADO')) {
+  next.somente_saldo_aberto = false;
+}
 ```
 
-Renderizado como um `<Alert variant="default">` logo acima da tabela árvore (não bloqueia, só informa). Some assim que o usuário desativa o modo árvore ou limpa esses filtros.
+Mantém os guards existentes de `modo_arvore` ↔ `agrupar_por_fornecedor`.
 
-Nenhuma mudança em chamada de API, nenhum filtro removido, nenhum filtro existente quebrado.
+Observação: o checkbox "Somente saldo aberto" hoje fica `disabled={!!filters.status_titulo}` (linha 419). Vamos manter — é coerente com a nova regra e impede o usuário de re-marcar enquanto há status selecionado.
 
-## Critério de aceite
+### 2. Remover alerta provisório (linhas 463‑479)
 
-1. Documento de backend lista `data_movimento_ini/fim` (e demais) como parâmetros obrigatórios da rota árvore.
-2. Existe documento dedicado descrevendo o bug atual de filtros ignorados.
-3. Quando o usuário ativa "Modo árvore" + preenche "Data Pagamento Inicial/Final", aparece aviso explicando a limitação atual.
-4. Após o backend corrigir, basta remover o aviso do frontend — nenhuma outra mudança será necessária.
+Apagar todo o bloco `{modoArvoreAtivo && ( ... <Alert>...</Alert> )}`.
+
+### 3. Limpar import não usado (linha 16)
+
+Remover `import { Alert, AlertDescription } from '@/components/ui/alert';` (nenhum outro uso na página).
+
+### 4. Itens já corretos (não mexer, apenas validar)
+
+- Select de Status já envia `PAGO` (linha 353, opção com `value="PAGO"`).
+- `data_pagamento_ini/fim` → `data_movimento_ini/fim` no `search` (linhas 169‑173) e no `exportParams` (linhas 305‑308).
+- Endpoint de exportação alterna entre `/api/export/contas-pagar-arvore` e `/api/export/contas-pagar` conforme `modoArvoreAtivo` (linhas 309‑311).
+- `modoArvoreAtivo` reusa o mesmo objeto `params` que o modo normal (linha 178), garantindo paridade de filtros.
+
+## Documentação
+
+### `docs/backend-export-contas-pagar-arvore.md` (reescrever)
+
+Estrutura final:
+
+1. **Escopo** — endpoints `GET /api/contas-pagar-arvore` (listagem) e `GET /api/export/contas-pagar-arvore` (XLSX) devem aplicar **exatamente os mesmos filtros** que `/api/contas-pagar`.
+2. **Query params completos** (tabela): `status_titulo`, `somente_vencidos`, `somente_saldo_aberto`, `somente_cheques`, `incluir_pagos`, `excluir_pagos`, `data_emissao_ini/fim`, `data_vencimento_ini/fim`, `data_movimento_ini/fim`, `valor_min/max`, `numero_projeto`, `centro_custo`, `fornecedor`, `numero_titulo`, `tipo_titulo`, `codigo_filial`.
+3. **Ordem de execução obrigatória**:
+   1. Montar CTE `BASE` de Contas a Pagar.
+   2. Aplicar **todos** os filtros no `WHERE` da `BASE` (mesma lógica do modo normal).
+   3. Selecionar apenas os títulos filtrados.
+   4. Só então fazer `LEFT JOIN` com `E075RAT` para montar a árvore/rateio.
+   5. **Nunca** montar a árvore antes de filtrar.
+4. **Regra Status Pago** — `status_titulo IN ('PAGO','LIQUIDADO')` deve casar quando:
+   ```sql
+   COALESCE(BASE.valor_aberto, 0) <= 0
+   OR BASE.status_titulo IN ('PAGO','LIQUIDADO')
+   ```
+5. **Regra Data Pagamento**:
+   ```sql
+   CAST(BASE.data_ultimo_movimento AS DATE) >= :data_movimento_ini
+   CAST(BASE.data_ultimo_movimento AS DATE) <= :data_movimento_fim
+   ```
+6. **Exportação** — `/api/export/contas-pagar-arvore` respeita exatamente os mesmos filtros da listagem.
+7. **Layout XLSX** — preservar a seção atual (colunas, hierarquia visual, formatação, headers HTTP).
+8. **Critérios de aceite** (10 itens, conforme pedido).
+
+### `docs/backend-contas-pagar-arvore-filtros.md`
+
+Deletar.
+
+### `.lovable/plan.md`
+
+Reescrever curto refletindo: alerta removido, regra "Status Pago desmarca Somente saldo aberto", paridade de filtros normal/árvore/exportação já garantida no frontend, e os itens obrigatórios do backend (Status Pago, Data Pagamento, ordem filtros → árvore, exportação).
+
+## Critérios de aceite
+
+1. Selecionar Status = Pago no select desmarca `somente_saldo_aberto`.
+2. Status Pago envia `status_titulo=PAGO` (já ok).
+3. `Data Pagamento Inicial/Final` envia `data_movimento_ini/fim` (já ok).
+4. Modo árvore envia o mesmo `params` do modo normal (já ok).
+5. Exportação Excel reusa o mesmo `params` e alterna endpoint árvore/normal (já ok).
+6. Alerta de limitação removido; sem imports `Alert`/`AlertDescription` órfãos.
+7. `docs/backend-export-contas-pagar-arvore.md` reescrito como spec definitiva.
+8. `docs/backend-contas-pagar-arvore-filtros.md` deletado.
+9. `.lovable/plan.md` atualizado.
 
 ## Fora de escopo
 
-- Alterar a query SQL do FastAPI — depende do time de backend.
-- Mudanças em Cloud/Supabase.
-- Mudar o comportamento dos endpoints no modo não-árvore (já funciona corretamente após a entrega anterior).
+- Implementação SQL/Python no FastAPI (repositório separado).
+- Alterações em Lovable Cloud / Supabase.
+- Refatoração da tela de Contas a Pagar.
