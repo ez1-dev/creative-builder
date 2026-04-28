@@ -237,8 +237,15 @@ export default function RelatorioSemanalObraPage() {
     setPagina(1);
     setKpiTotals(null);
     setKpiLoading(false);
+    setConsolidatedRows([]);
     consolidationIdRef.current++;
   };
+
+  const handleObraClick = useCallback((obra: string) => {
+    setFilters((f) => ({ ...f, obra }));
+    // dispara busca após próximo render com novo filtro
+    setTimeout(() => search(1), 0);
+  }, [search]);
 
   return (
     <div className="space-y-4 p-4">
