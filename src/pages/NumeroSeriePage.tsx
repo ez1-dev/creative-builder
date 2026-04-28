@@ -200,6 +200,16 @@ export default function NumeroSeriePage() {
     }
   };
 
+  const divergenciaOrigem = (() => {
+    if (!contexto) return null;
+    const op = contexto.numero_op;
+    const oOp = (contexto.origem_op || '').trim();
+    const oPed = (contexto.origem_pedido || '').trim();
+    if (!op || !oOp || !oPed) return null;
+    if (oOp === oPed) return null;
+    return { op, origemOp: oOp, origemPedido: oPed, pedido: contexto.numero_pedido };
+  })();
+
   const reservar = async (forcarVinculo: boolean = false) => {
     const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
     const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
@@ -211,6 +221,13 @@ export default function NumeroSeriePage() {
     }
     if (!numeroSerie) {
       toast.error(forcarVinculo ? 'Informe o número de série manual.' : 'Selecione um número de série.');
+      return;
+    }
+
+    if (divergenciaOrigem) {
+      toast.error(
+        `OP ${divergenciaOrigem.op} é da origem ${divergenciaOrigem.origemOp} e não pode ser vinculada ao pedido ${divergenciaOrigem.pedido} (origem ${divergenciaOrigem.origemPedido}). Verifique o pedido correto da OP.`
+      );
       return;
     }
 
