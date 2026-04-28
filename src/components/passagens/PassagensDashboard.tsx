@@ -12,7 +12,10 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X } from 'lucide-react';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
@@ -48,6 +51,17 @@ export const TIPO_DESPESA_OPTIONS = [
   'Outros',
 ];
 
+type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'cia_aerea' | 'tipo_despesa';
+
+const GROUP_OPTIONS: { value: GroupBy; label: string; empty: string }[] = [
+  { value: 'centro_custo', label: 'Centro de Custo', empty: 'Sem CC' },
+  { value: 'projeto_obra', label: 'Projeto/Obra', empty: 'Sem projeto' },
+  { value: 'colaborador', label: 'Colaborador', empty: 'Sem colaborador' },
+  { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'Não informado' },
+  { value: 'cia_aerea', label: 'Cia Aérea', empty: 'Não informada' },
+  { value: 'tipo_despesa', label: 'Tipo de Despesa', empty: 'Não informado' },
+];
+
 // Paleta inspirada no Power BI (azul, laranja, roxo, magenta, amarelo)
 const COLORS = ['#1f9bff', '#1e3a8a', '#f97316', '#7c3aed', '#ec4899', '#eab308', '#06b6d4', '#10b981', '#ef4444', '#8b5cf6'];
 
@@ -71,6 +85,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const [selectedCC, setSelectedCC] = useState<string | null>(null);
+  // Agrupamento do card Registros
+  const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
+  const [groupSheetOpen, setGroupSheetOpen] = useState(false);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
@@ -128,6 +145,37 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     () => new Set(crossFiltered.map((r) => r.colaborador).filter(Boolean)).size,
     [crossFiltered],
   );
+
+  const groupOption = GROUP_OPTIONS.find((g) => g.value === groupBy)!;
+  const grupos = useMemo(() => {
+    const map = new Map<string, { qtd: number; valor: number }>();
+    crossFiltered.forEach((r) => {
+      const raw = (r as any)[groupBy];
+      const key = (typeof raw === 'string' ? raw.trim() : raw) || groupOption.empty;
+      const cur = map.get(key) ?? { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += Number(r.valor || 0);
+      map.set(key, cur);
+    });
+    return Array.from(map.entries())
+      .map(([nome, v]) => ({ nome, ...v }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [crossFiltered, groupBy, groupOption.empty]);
+  const gruposCount = grupos.length;
+
+  const exportGruposCsv = () => {
+    const rows = [['Grupo', 'Qtd', 'Valor Total']];
+    grupos.forEach((g) => rows.push([g.nome, String(g.qtd), g.valor.toFixed(2).replace('.', ',')]));
+    rows.push(['Total', String(totalRegistros), totalGeral.toFixed(2).replace('.', ',')]);
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `passagens-agrupado-${groupBy}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
@@ -278,7 +326,40 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        <KPICard title="Registros" value={totalRegistros} icon={<Plane className="h-5 w-5" />} variant="info" index={1} />
+        <div className="relative">
+          <KPICard
+            title="Registros"
+            value={totalRegistros}
+            icon={<Plane className="h-5 w-5" />}
+            variant="info"
+            index={1}
+            subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
+          />
+          <div className="absolute right-2 top-2 flex items-center gap-1">
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+              <SelectTrigger className="h-7 w-[140px] text-xs" aria-label="Agrupar por">
+                <Layers className="mr-1 h-3 w-3" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GROUP_OPTIONS.map((g) => (
+                  <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => setGroupSheetOpen(true)}
+              disabled={gruposCount === 0}
+              aria-label="Ver detalhes do agrupamento"
+              title="Ver detalhes"
+            >
+              <Layers className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
@@ -423,6 +504,56 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </Table>
         </CardContent>
       </Card>
+      <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Registros agrupados por {groupOption.label}</SheetTitle>
+            <SheetDescription>
+              {totalRegistros} registro{totalRegistros === 1 ? '' : 's'} em {gruposCount} grupo{gruposCount === 1 ? '' : 's'} — total {formatCurrency(totalGeral)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 flex justify-end">
+            <Button size="sm" variant="outline" onClick={exportGruposCsv} disabled={gruposCount === 0}>
+              <Download className="mr-1 h-4 w-4" /> Exportar CSV
+            </Button>
+          </div>
+          <div className="mt-2 rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{groupOption.label}</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">% do total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {grupos.map((g) => (
+                  <TableRow key={g.nome}>
+                    <TableCell className="font-medium">{g.nome}</TableCell>
+                    <TableCell className="text-right">{g.qtd}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(g.valor)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {totalGeral > 0 ? ((g.valor / totalGeral) * 100).toFixed(1) : '0.0'}%
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {grupos.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">Sem dados</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {grupos.length > 0 && (
+            <div className="mt-3 flex justify-between border-t pt-3 text-sm font-semibold">
+              <span>Total</span>
+              <span>{totalRegistros} registros · {formatCurrency(totalGeral)}</span>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
