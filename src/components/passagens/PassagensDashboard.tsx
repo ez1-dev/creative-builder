@@ -124,6 +124,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const totalGeral = crossFiltered.reduce((s, r) => s + Number(r.valor || 0), 0);
   const totalRegistros = crossFiltered.length;
   const ticketMedio = totalRegistros > 0 ? totalGeral / totalRegistros : 0;
+  const colaboradoresUnicos = useMemo(
+    () => new Set(crossFiltered.map((r) => r.colaborador).filter(Boolean)).size,
+    [crossFiltered],
+  );
 
   // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
