@@ -311,6 +311,15 @@ export default function NumeroSeriePage() {
             <Button size="sm" variant="secondary" onClick={() => buscarProximos()} disabled={loading}><Hash className="mr-1 h-3.5 w-3.5" />Buscar Próximos</Button>
             <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
             <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmDesvincularOpen(true)}
+              disabled={loadingDesvincular || !gsParaDesvincular || (!contexto && !filters.numero_pedido)}
+              title="Remove o vínculo do GS no pedido/OP (use para corrigir vínculos errados)"
+            >
+              <Unlink className="mr-1 h-3.5 w-3.5" />Desvincular GS
+            </Button>
             <Button size="sm" variant="outline" onClick={limpar}><Eraser className="mr-1 h-3.5 w-3.5" />Limpar</Button>
           </div>
           <p className="text-xs text-muted-foreground">
