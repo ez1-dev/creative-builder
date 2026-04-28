@@ -15,6 +15,7 @@ import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Building2, FolderKanban, Truck, Package, Weight } from 'lucide-react';
 import { RelatorioSemanalObraCharts, RelatorioRow } from './RelatorioSemanalObraCharts';
+import { MetaEntregaSemanalChart } from './MetaEntregaSemanalChart';
 
 interface KpiTotals {
   totalObras: number;
@@ -396,6 +397,13 @@ export default function RelatorioSemanalObraPage() {
             index={4}
           />
         </div>
+      )}
+
+      {(data || kpiLoading) && (
+        <MetaEntregaSemanalChart
+          rows={consolidatedRows}
+          loading={kpiLoading && consolidatedRows.length === 0}
+        />
       )}
 
       {(data || kpiLoading) && (
