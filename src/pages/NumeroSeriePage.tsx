@@ -124,8 +124,12 @@ export default function NumeroSeriePage() {
       setContexto(result.contexto);
 
       const produto = result.contexto?.codigo_produto?.trim();
+      setFilters(f => ({
+        ...f,
+        origem_op: result.contexto?.origem_op || '',
+        ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
+      }));
       if (produto) {
-        setFilters(f => ({ ...f, codigo_produto: produto, derivacao: result.contexto?.derivacao || '' }));
         await buscarProximos(produto, result.contexto?.derivacao || '');
       }
       toast.success('Contexto carregado com sucesso.');
