@@ -51,6 +51,17 @@ export const TIPO_DESPESA_OPTIONS = [
   'Outros',
 ];
 
+type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'cia_aerea' | 'tipo_despesa';
+
+const GROUP_OPTIONS: { value: GroupBy; label: string; empty: string }[] = [
+  { value: 'centro_custo', label: 'Centro de Custo', empty: 'Sem CC' },
+  { value: 'projeto_obra', label: 'Projeto/Obra', empty: 'Sem projeto' },
+  { value: 'colaborador', label: 'Colaborador', empty: 'Sem colaborador' },
+  { value: 'motivo_viagem', label: 'Motivo da Viagem', empty: 'Não informado' },
+  { value: 'cia_aerea', label: 'Cia Aérea', empty: 'Não informada' },
+  { value: 'tipo_despesa', label: 'Tipo de Despesa', empty: 'Não informado' },
+];
+
 // Paleta inspirada no Power BI (azul, laranja, roxo, magenta, amarelo)
 const COLORS = ['#1f9bff', '#1e3a8a', '#f97316', '#7c3aed', '#ec4899', '#eab308', '#06b6d4', '#10b981', '#ef4444', '#8b5cf6'];
 
