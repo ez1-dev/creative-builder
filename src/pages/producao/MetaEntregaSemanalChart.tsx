@@ -25,8 +25,8 @@ import { Target, Loader2, Save, CalendarRange } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import type { RelatorioRow } from './RelatorioSemanalObraCharts';
 
-const META_KEY = 'producao.relatorio_semanal_obra.meta_semanal_kg';
-const SEMANAS_POR_MES = 4.33;
+export const META_KEY = 'producao.relatorio_semanal_obra.meta_semanal_kg';
+export const SEMANAS_POR_MES = 4.33;
 
 interface Props {
   rows: RelatorioRow[];
@@ -42,7 +42,7 @@ function startOfWeek(d: Date) {
   return x;
 }
 
-function groupWeeklyPeso(rows: RelatorioRow[]) {
+export function groupWeeklyPeso(rows: RelatorioRow[]) {
   const map = new Map<string, { week: string; peso: number; ts: number }>();
   let minTs: number | null = null;
   let maxTs: number | null = null;
@@ -77,7 +77,7 @@ function groupWeeklyPeso(rows: RelatorioRow[]) {
   return Array.from(map.values()).sort((a, b) => a.ts - b.ts);
 }
 
-function groupMonthlyPeso(rows: RelatorioRow[]) {
+export function groupMonthlyPeso(rows: RelatorioRow[]) {
   const map = new Map<string, { month: string; peso: number; ts: number }>();
   let minTs: number | null = null;
   let maxTs: number | null = null;
@@ -290,7 +290,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
   return (
     <div className="space-y-4">
       {/* SEMANAL */}
-      <Card data-chart-id="meta-entrega">
+      <Card data-chart-id="meta-entrega-semanal">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
@@ -310,7 +310,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pdf-hide">
               {loadingMeta ? (
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               ) : isAdmin ? (
@@ -380,7 +380,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
       </Card>
 
       {/* MENSAL */}
-      <Card>
+      <Card data-chart-id="meta-entrega-mensal">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
@@ -400,7 +400,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
                 )}
               </p>
             </div>
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs pdf-hide">
               Meta mensal: {metaMensal != null ? `${formatNumber(metaMensal, 0)} kg` : 'não definida'}
             </Badge>
           </div>
