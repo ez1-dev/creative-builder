@@ -299,7 +299,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
                 Entrega Semanal para Fábrica vs. Meta (kg)
               </CardTitle>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Peso total entregue por semana comparado à meta semanal. Semanas sem entrega aparecem zeradas.
+                Peso total entregue por semana comparado à meta semanal. Clique numa barra para ver os detalhes.
                 {weeklyStats && (
                   <>
                     {' '}
@@ -389,7 +389,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
                 Entrega Mensal para Fábrica vs. Meta (kg)
               </CardTitle>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Somatória mensal do peso entregue. Meta mensal calculada automaticamente como semanal × {SEMANAS_POR_MES}.
+                Somatória mensal do peso entregue (meta = semanal × {SEMANAS_POR_MES}). Clique numa barra para ver os detalhes.
                 {monthlyStats && (
                   <>
                     {' '}
@@ -445,6 +445,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
           )}
         </CardContent>
       </Card>
+      <DrillDownDialog drill={drillDown} onClose={() => setDrillDown(null)} />
     </div>
   );
 }
