@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { api, PaginatedResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -58,12 +58,109 @@ const initialFilters = {
   peso_max: '',
 };
 
+function aggregateRows(rows: RelatorioRow[]) {
+  const obras = new Set<string>();
+  const projetos = new Set<string>();
+  let cargas = 0, pecas = 0, peso = 0;
+  for (const r of rows) {
+    if (r.obra) obras.add(String(r.obra));
+    else if (r.cliente || r.cidade) obras.add(`${r.cliente || ''} - ${r.cidade || ''}`);
+    if (r.numero_projeto != null && r.numero_projeto !== '') projetos.add(String(r.numero_projeto));
+    cargas += Number(r.quantidade_cargas) || 0;
+    pecas += Number(r.quantidade_pecas) || 0;
+    peso += Number(r.peso_total) || 0;
+  }
+  return { obras, projetos, cargas, pecas, peso };
+}
+
 export default function RelatorioSemanalObraPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState<PaginatedResponse<RelatorioRow> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
+  const [kpiLoading, setKpiLoading] = useState(false);
+  const consolidationIdRef = useRef(0);
   const erpReady = useErpReady();
+
+  const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<RelatorioRow>, currentFilters: typeof initialFilters) => {
+    const id = ++consolidationIdRef.current;
+    const resumo = (firstResult as any).resumo;
+
+    if (resumo) {
+      if (consolidationIdRef.current !== id) return;
+      setKpiTotals({
+        totalObras: resumo.total_obras ?? 0,
+        totalProjetos: resumo.total_projetos ?? 0,
+        totalCargas: resumo.total_cargas ?? 0,
+        totalPecas: resumo.total_pecas ?? resumo.total_pecas_etiquetas ?? 0,
+        pesoTotal: resumo.peso_total ?? 0,
+      });
+      setKpiLoading(false);
+      return;
+    }
+
+    const page1 = firstResult.dados || [];
+    const totalPages = firstResult.total_paginas || 1;
+    const agg = aggregateRows(page1);
+
+    if (totalPages <= 1) {
+      if (consolidationIdRef.current !== id) return;
+      setKpiTotals({
+        totalObras: agg.obras.size,
+        totalProjetos: agg.projetos.size,
+        totalCargas: agg.cargas,
+        totalPecas: agg.pecas,
+        pesoTotal: agg.peso,
+      });
+      setKpiLoading(false);
+      return;
+    }
+
+    setKpiLoading(true);
+    try {
+      const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const BATCH = 5;
+      for (let i = 0; i < remaining.length; i += BATCH) {
+        if (consolidationIdRef.current !== id) return;
+        const batch = remaining.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map((p) => api.get<PaginatedResponse<RelatorioRow>>(
+            '/api/producao/relatorio-semanal-obra',
+            { ...currentFilters, pagina: p, tamanho_pagina: 100 },
+          )),
+        );
+        for (const r of results) {
+          const a = aggregateRows(r.dados || []);
+          a.obras.forEach((o) => agg.obras.add(o));
+          a.projetos.forEach((p) => agg.projetos.add(p));
+          agg.cargas += a.cargas;
+          agg.pecas += a.pecas;
+          agg.peso += a.peso;
+        }
+      }
+      if (consolidationIdRef.current !== id) return;
+      setKpiTotals({
+        totalObras: agg.obras.size,
+        totalProjetos: agg.projetos.size,
+        totalCargas: agg.cargas,
+        totalPecas: agg.pecas,
+        pesoTotal: agg.peso,
+      });
+    } catch {
+      if (consolidationIdRef.current !== id) return;
+      setKpiTotals({
+        totalObras: agg.obras.size,
+        totalProjetos: agg.projetos.size,
+        totalCargas: agg.cargas,
+        totalPecas: agg.pecas,
+        pesoTotal: agg.peso,
+      });
+      toast.warning('Não foi possível consolidar todos os KPIs. Valores parciais exibidos.');
+    } finally {
+      if (consolidationIdRef.current === id) setKpiLoading(false);
+    }
+  }, []);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) {
@@ -78,47 +175,15 @@ export default function RelatorioSemanalObraPage() {
       );
       setData(result);
       setPagina(page);
+      if (page === 1) consolidateKpis(result, filters);
     } catch (e: any) {
       toast.error(e?.message || 'Erro ao consultar relatório semanal de obra.');
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, consolidateKpis]);
 
   useAiFilters('producao-relatorio-semanal-obra', setFilters, () => search(1));
-
-  const kpiTotals: KpiTotals | null = useMemo(() => {
-    if (!data) return null;
-    const resumo = (data as any).resumo;
-    if (resumo) {
-      return {
-        totalObras: resumo.total_obras ?? 0,
-        totalProjetos: resumo.total_projetos ?? 0,
-        totalCargas: resumo.total_cargas ?? 0,
-        totalPecas: resumo.total_pecas ?? resumo.total_pecas_etiquetas ?? 0,
-        pesoTotal: resumo.peso_total ?? 0,
-      };
-    }
-    const dados = data.dados || [];
-    const obras = new Set<string>();
-    const projetos = new Set<string>();
-    let cargas = 0, pecas = 0, peso = 0;
-    for (const r of dados) {
-      if (r.obra) obras.add(String(r.obra));
-      else if (r.cliente || r.cidade) obras.add(`${r.cliente || ''} - ${r.cidade || ''}`);
-      if (r.numero_projeto != null) projetos.add(String(r.numero_projeto));
-      cargas += Number(r.quantidade_cargas) || 0;
-      pecas += Number(r.quantidade_pecas) || 0;
-      peso += Number(r.peso_total) || 0;
-    }
-    return {
-      totalObras: obras.size,
-      totalProjetos: projetos.size,
-      totalCargas: cargas,
-      totalPecas: pecas,
-      pesoTotal: peso,
-    };
-  }, [data]);
 
   useAiPageContext({
     title: 'Relatório Semanal Obra',
