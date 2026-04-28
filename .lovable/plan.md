@@ -1,36 +1,34 @@
-## Cross-filter interativo nos gráficos do Dashboard de Passagens
+## Problema
 
-Tornar os gráficos do `/passagens-aereas` **clicáveis e interconectados**, no estilo Power BI: clicar em um elemento (barra/fatia) filtra todos os outros visuais e KPIs; clicar de novo no mesmo elemento desmarca.
+O KPI **"Colaboradores (catálogo)"** no dashboard de Passagens Aéreas não muda quando o usuário aplica filtros do topo nem quando clica em uma barra/fatia para fazer cross-filter.
 
-### Comportamento
+**Causa:** o card mostra a variável `catalogoCount`, que é resultado de uma query independente à tabela `colaboradores_catalogo` (cadastro mestre de colaboradores ativos cadastrados no sistema). Ele conta o catálogo inteiro, sem relação alguma com os dados filtrados na tela.
 
-1. **Evolução Mensal (barras)** → clicar em uma barra (ex: "2026-01") filtra todos os demais visuais, KPIs e a tabela para aquele mês.
-2. **Por Motivo de Viagem (pizza)** → clicar em uma fatia filtra por aquele motivo.
-3. **Top 15 Centros de Custo (barras)** → clicar em uma barra filtra por aquele Centro de Custo.
-4. Os filtros cruzados são **acumulativos** com os filtros do topo (Colaborador, Tipo, Mês, etc).
-5. Clicar no mesmo elemento novamente **desmarca** aquele filtro cruzado.
-6. O elemento selecionado fica visualmente destacado (cor primária forte; demais ficam mais claros / com opacidade reduzida).
-7. Um indicador acima dos KPIs mostra os filtros cruzados ativos com um "x" para limpar individualmente; o botão "Limpar" também zera os cross-filters.
+## Solução
 
-### Mudanças técnicas (`src/components/passagens/PassagensDashboard.tsx`)
+Trocar o KPI para refletir os **colaboradores únicos presentes nos dados filtrados** (`crossFiltered`), assim como os outros KPIs (Total, Registros, Ticket Médio).
 
-- Adicionar 3 novos estados de seleção:
-  - `selectedMes: string | null`
-  - `selectedMotivo: string | null`
-  - `selectedCC: string | null`
-- Criar um `crossFiltered` derivado de `filtered`, aplicando os 3 cross-filters por cima dos filtros do topo.
-- **KPIs e a tabela** passam a usar `crossFiltered`.
-- **Cada gráfico** continua sendo calculado a partir de `filtered` **sem aplicar a sua própria seleção**, para que o usuário enxergue todas as opções e o destaque visual da seleção (padrão Power BI). Os outros dois gráficos refletem o cross-filter atual.
-  - `porMes` ignora `selectedMes` (mas aplica `selectedMotivo` e `selectedCC`).
-  - `porMotivo` ignora `selectedMotivo` (mas aplica `selectedMes` e `selectedCC`).
-  - `porCentroCusto` ignora `selectedCC` (mas aplica `selectedMes` e `selectedMotivo`).
-- Handlers `onClick` nos componentes do Recharts (`<Bar onClick>`, `<Pie onClick>`) com toggle (clicar igual = limpar).
-- Destaque visual: usar `<Cell>` por item nos `<Bar>` e nos `<Pie>` com cor cheia para o selecionado e opacidade ~0.35 para os demais (quando há seleção); cor padrão quando não há seleção.
-- Faixa de "chips" acima dos KPIs listando seleções ativas (ex: `Mês: Jan/2026 ✕`, `Motivo: ... ✕`, `CC: ... ✕`), só aparece se houver alguma.
-- Atualizar o botão **Limpar** existente para também zerar `selectedMes`, `selectedMotivo` e `selectedCC`, e ajustar a condição de `disabled`.
-- Cursor `pointer` nos elementos clicáveis.
+### Mudanças (`src/components/passagens/PassagensDashboard.tsx`)
+
+1. Remover o `useState` `catalogoCount` e o `useEffect` que faz a query em `colaboradores_catalogo` (não será mais usado).
+2. Calcular um novo memo `colaboradoresUnicos`:
+   ```ts
+   const colaboradoresUnicos = useMemo(
+     () => new Set(crossFiltered.map((r) => r.colaborador).filter(Boolean)).size,
+     [crossFiltered],
+   );
+   ```
+3. Atualizar o `<KPICard>`:
+   - Título: **"Colaboradores"** (remover "(catálogo)" para não confundir).
+   - Valor: `colaboradoresUnicos`.
+   - Tooltip/descrição opcional: "Colaboradores distintos nos registros filtrados".
+4. Limpar o import de `supabase` se ele não for mais usado em outro lugar do arquivo (verificar antes de remover).
+
+### Resultado esperado
+
+- Sem filtros: mostra a quantidade de colaboradores distintos no conjunto de dados carregado.
+- Ao filtrar por mês / clicar em uma barra do gráfico de meses, motivo ou centro de custo: o KPI atualiza para refletir quantos colaboradores únicos existem naquele recorte.
 
 ### Fora do escopo
 
-- Não muda o módulo `PassagensAereasCompartilhadoPage` (página pública). Se quiser o mesmo comportamento lá, posso replicar em uma próxima rodada.
-- Não cria persistência das seleções em URL/localStorage.
+- Não muda a página pública compartilhada (`PassagensAereasCompartilhadoPage`); se quiser o mesmo ajuste lá, faço em outra rodada.
