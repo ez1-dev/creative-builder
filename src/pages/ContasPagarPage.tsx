@@ -165,6 +165,11 @@ export default function ContasPagarPage() {
           if (incluirPagos) params.incluir_pagos = true;
           else params.excluir_pagos = true;
         }
+        // Mapear filtros de "Data de Pagamento" (UI) para parâmetros do backend (data_movimento_*)
+        if (params.data_pagamento_ini) params.data_movimento_ini = params.data_pagamento_ini;
+        if (params.data_pagamento_fim) params.data_movimento_fim = params.data_pagamento_fim;
+        delete params.data_pagamento_ini;
+        delete params.data_pagamento_fim;
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
