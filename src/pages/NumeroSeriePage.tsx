@@ -430,9 +430,18 @@ export default function NumeroSeriePage() {
           <CardHeader className="py-3 px-4">
             <CardTitle className="text-sm">Contexto do Pedido / OP</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0 px-4 pb-4">
+          <CardContent className="pt-0 px-4 pb-4 space-y-3">
+            {divergenciaOrigem && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Divergência de origem — vínculo bloqueado</AlertTitle>
+                <AlertDescription>
+                  OP <strong>{divergenciaOrigem.op}</strong> é da origem <strong>{divergenciaOrigem.origemOp}</strong>, mas o pedido <strong>{divergenciaOrigem.pedido}</strong> é da origem <strong>{divergenciaOrigem.origemPedido}</strong>. Localize o pedido correto da OP antes de vincular o GS.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
-              {ctxField('Pedido', contexto.numero_pedido)}
+              {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
               {ctxField('Item', contexto.item_pedido)}
               {ctxField('OP', contexto.numero_op || '-')}
               {ctxField('Origem OP', contexto.origem_op)}
