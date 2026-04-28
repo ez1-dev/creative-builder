@@ -389,6 +389,36 @@ export default function NumeroSeriePage() {
           />
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmDesvincularOpen} onOpenChange={setConfirmDesvincularOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar desvínculo de Nº de Série</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Esta ação removerá o vínculo do GS abaixo no pedido/OP. Use somente para corrigir um vínculo feito errado.</p>
+                <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                  <div><span className="text-muted-foreground">GS:</span> <strong>{gsParaDesvincular || '-'}</strong></div>
+                  <div><span className="text-muted-foreground">Pedido:</span> {filters.numero_pedido || contexto?.numero_pedido || '-'} / Item {filters.item_pedido || contexto?.item_pedido || '-'}</div>
+                  <div><span className="text-muted-foreground">OP:</span> {filters.numero_op || contexto?.numero_op || '-'} {contexto?.origem_op ? `(${contexto.origem_op})` : ''}</div>
+                  <div><span className="text-muted-foreground">Produto:</span> {contexto?.codigo_produto || '-'} / {contexto?.derivacao || '-'}</div>
+                </div>
+                <p className="text-xs text-muted-foreground">O GS voltará para o status LIVRE e o número de série do item do pedido será limpo.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loadingDesvincular}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); desvincular(); }}
+              disabled={loadingDesvincular}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loadingDesvincular ? 'Desvinculando...' : 'Confirmar desvínculo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
