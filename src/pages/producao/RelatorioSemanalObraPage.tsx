@@ -81,17 +81,27 @@ export default function RelatorioSemanalObraPage() {
     // Sempre inicializa charts com a página 1
     setConsolidatedRows(page1);
 
-    if (resumo) {
+    // Aceita resumo apenas se ele tiver pelo menos um valor > 0
+    // (alguns endpoints retornam resumo zerado mesmo com dados na página)
+    const resumoTotals = resumo ? {
+      totalObras: Number(resumo.total_obras) || 0,
+      totalProjetos: Number(resumo.total_projetos) || 0,
+      totalCargas: Number(resumo.total_cargas) || 0,
+      totalPecas: Number(resumo.total_pecas ?? resumo.total_pecas_etiquetas) || 0,
+      pesoTotal: Number(resumo.peso_total) || 0,
+    } : null;
+    const resumoUtil = resumoTotals && (
+      resumoTotals.totalObras > 0 ||
+      resumoTotals.totalProjetos > 0 ||
+      resumoTotals.totalCargas > 0 ||
+      resumoTotals.totalPecas > 0 ||
+      resumoTotals.pesoTotal > 0
+    );
+
+    if (resumoUtil && resumoTotals) {
       if (consolidationIdRef.current !== id) return;
-      setKpiTotals({
-        totalObras: resumo.total_obras ?? 0,
-        totalProjetos: resumo.total_projetos ?? 0,
-        totalCargas: resumo.total_cargas ?? 0,
-        totalPecas: resumo.total_pecas ?? resumo.total_pecas_etiquetas ?? 0,
-        pesoTotal: resumo.peso_total ?? 0,
-      });
+      setKpiTotals(resumoTotals);
       setKpiLoading(false);
-      // Mesmo com resumo, busca demais páginas para alimentar gráficos completos
       if (totalPages > 1) {
         await fetchAllPagesForCharts(id, totalPages, currentFilters, page1);
       }
