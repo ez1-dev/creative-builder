@@ -73,7 +73,7 @@ const columns: Column<NumeroSerieItem>[] = [
 
 export default function NumeroSeriePage() {
   const [filters, setFilters] = useState({
-    numero_pedido: '', item_pedido: '', numero_op: '',
+    numero_pedido: '', item_pedido: '', numero_op: '', origem_op: '',
     codigo_produto: '', derivacao: '', numero_serie_manual: '',
   });
   const [contexto, setContexto] = useState<ContextoNumeroSerie | null>(null);
@@ -124,8 +124,12 @@ export default function NumeroSeriePage() {
       setContexto(result.contexto);
 
       const produto = result.contexto?.codigo_produto?.trim();
+      setFilters(f => ({
+        ...f,
+        origem_op: result.contexto?.origem_op || '',
+        ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
+      }));
       if (produto) {
-        setFilters(f => ({ ...f, codigo_produto: produto, derivacao: result.contexto?.derivacao || '' }));
         await buscarProximos(produto, result.contexto?.derivacao || '');
       }
       toast.success('Contexto carregado com sucesso.');
@@ -207,7 +211,7 @@ export default function NumeroSeriePage() {
   };
 
   const limpar = () => {
-    setFilters({ numero_pedido: '', item_pedido: '', numero_op: '', codigo_produto: '', derivacao: '', numero_serie_manual: '' });
+    setFilters({ numero_pedido: '', item_pedido: '', numero_op: '', origem_op: '', codigo_produto: '', derivacao: '', numero_serie_manual: '' });
     setContexto(null);
     setDados([]);
     setSelecionado('');
@@ -231,10 +235,11 @@ export default function NumeroSeriePage() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 space-y-3">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
             <div><Label className="text-xs">Pedido</Label><Input type="number" value={filters.numero_pedido} onChange={e => setFilters(f => ({ ...f, numero_pedido: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 123456" /></div>
             <div><Label className="text-xs">Item do Pedido</Label><Input type="number" value={filters.item_pedido} onChange={e => setFilters(f => ({ ...f, item_pedido: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 1" /></div>
             <div><Label className="text-xs">OP</Label><Input type="number" value={filters.numero_op} onChange={e => setFilters(f => ({ ...f, numero_op: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 100234" /></div>
+            <div><Label className="text-xs">Origem OP</Label><Input value={filters.origem_op} readOnly tabIndex={-1} className="h-8 text-xs bg-muted/50 font-mono" placeholder="Auto ao buscar contexto" /></div>
             <div><Label className="text-xs">Produto</Label><Input value={filters.codigo_produto} onChange={e => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Preenchido ao buscar contexto" /></div>
             <div><Label className="text-xs">Derivação</Label><Input value={filters.derivacao} onChange={e => setFilters(f => ({ ...f, derivacao: e.target.value }))} className="h-8 text-xs" placeholder="Opcional" /></div>
             <div><Label className="text-xs">Nº Série Manual</Label><Input value={filters.numero_serie_manual} onChange={e => setFilters(f => ({ ...f, numero_serie_manual: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: GS-11705" /></div>
