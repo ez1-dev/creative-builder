@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -45,6 +45,7 @@ const producaoSubItems = [
   { title: 'Dashboard', url: '/producao/dashboard', icon: LayoutDashboard },
   { title: 'Produzido no Período', url: '/producao/produzido', icon: Hammer },
   { title: 'Expedido para Obra', url: '/producao/expedido', icon: Truck },
+  { title: 'Relatório Semanal Obra', url: '/producao/relatorio-semanal-obra', icon: CalendarRange },
   { title: 'Saldo em Pátio', url: '/producao/patio', icon: Warehouse },
   { title: 'Itens Não Carregados', url: '/producao/nao-carregados', icon: PackageX },
   { title: 'Lead Time Produção', url: '/producao/leadtime', icon: Clock },
