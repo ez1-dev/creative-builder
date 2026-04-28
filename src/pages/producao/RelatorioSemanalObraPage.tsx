@@ -242,10 +242,29 @@ export default function RelatorioSemanalObraPage() {
   };
 
   const handleObraClick = useCallback((obra: string) => {
-    setFilters((f) => ({ ...f, obra }));
-    // dispara busca após próximo render com novo filtro
-    setTimeout(() => search(1), 0);
-  }, [search]);
+    setFilters((f) => {
+      const next = { ...f, obra };
+      // Dispara busca com filtros já atualizados
+      (async () => {
+        if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+        setLoading(true);
+        try {
+          const result = await api.get<PaginatedResponse<RelatorioRow>>(
+            '/api/producao/relatorio-semanal-obra',
+            { ...next, pagina: 1, tamanho_pagina: 100 },
+          );
+          setData(result);
+          setPagina(1);
+          consolidateKpis(result, next);
+        } catch (e: any) {
+          toast.error(e?.message || 'Erro ao consultar relatório semanal de obra.');
+        } finally {
+          setLoading(false);
+        }
+      })();
+      return next;
+    });
+  }, [erpReady, consolidateKpis]);
 
   return (
     <div className="space-y-4 p-4">
