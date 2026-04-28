@@ -390,8 +390,8 @@ export default function NumeroSeriePage() {
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => setConfirmDesvincularOpen(true)}
-              disabled={loadingDesvincular || !gsParaDesvincular || (!contexto && !filters.numero_pedido)}
+              onClick={abrirConfirmDesvincular}
+              disabled={loadingDesvincular || candidatosDesvinculo.length === 0}
               title="Remove o vínculo do GS no pedido/OP (use para corrigir vínculos errados)"
             >
               <Unlink className="mr-1 h-3.5 w-3.5" />Desvincular GS
