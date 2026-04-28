@@ -599,6 +599,32 @@ export default function ConfiguracoesPage() {
                       ))}
                     </div>
                   </div>
+
+                  <div className="mt-6 border-t pt-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                      <Shield className="h-4 w-4 text-primary" /> Compartilhamento de Passagens Aéreas
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Quando ativado, qualquer usuário com permissão de <strong>edição</strong> na tela "Passagens Aéreas" poderá criar e revogar links de compartilhamento. Administradores sempre têm acesso.
+                    </p>
+                    <div className="flex items-center gap-3 rounded-md border px-3 py-2 w-fit">
+                      <span className="text-sm">Permitir não-administradores</span>
+                      <Switch
+                        checked={passagensShareAllowNonAdmin}
+                        onCheckedChange={async (checked) => {
+                          const { error } = await supabase
+                            .from('app_settings')
+                            .upsert({ key: 'passagens_share_allow_non_admin', value: checked ? 'true' : 'false' }, { onConflict: 'key' });
+                          if (error) {
+                            toast.error('Erro ao salvar: ' + error.message);
+                          } else {
+                            setPassagensShareAllowNonAdmin(checked);
+                            toast.success(checked ? 'Compartilhamento liberado para usuários com permissão de edição' : 'Compartilhamento restrito a administradores');
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </>
               )}
             </CardContent>
