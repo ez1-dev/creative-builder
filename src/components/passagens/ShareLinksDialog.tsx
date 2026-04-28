@@ -94,15 +94,14 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
       ? new Date(Date.now() + Number(validade) * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from('passagens_aereas_share_links').insert({
-      token: effectiveToken,
-      nome,
-      // Marcação simples para indicar à UI que esse link exige senha
-      // (a senha em si nunca é armazenada — está embutida no hash do token efetivo)
-      password_hash: password ? 'protected' : null,
-      expires_at: expiresAt,
-      created_by: user?.id,
+    const { error } = await supabase.rpc('create_passagens_share_link', {
+      _token: effectiveToken,
+      _nome: nome,
+      // Sentinela 'protected' indica à UI que o link exige senha; a senha em si
+      // já está embutida no effectiveToken (SHA-256 no cliente) e validate_share_token
+      // reconhece esse sentinela, considerando o match do token suficiente.
+      _password: password ? 'protected' : null,
+      _expires_at: expiresAt,
     });
 
     if (error) {
