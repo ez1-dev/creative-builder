@@ -279,7 +279,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
         <KPICard title="Registros" value={totalRegistros} icon={<Plane className="h-5 w-5" />} variant="info" index={1} />
-        <KPICard title="Colaboradores (catálogo)" value={catalogoCount} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
+        <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
 
