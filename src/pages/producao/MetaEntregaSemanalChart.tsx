@@ -290,7 +290,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
   return (
     <div className="space-y-4">
       {/* SEMANAL */}
-      <Card>
+      <Card data-chart-id="meta-entrega">
         <CardHeader className="pb-2">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0">
