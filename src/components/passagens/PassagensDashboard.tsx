@@ -504,6 +504,56 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </Table>
         </CardContent>
       </Card>
+      <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Registros agrupados por {groupOption.label}</SheetTitle>
+            <SheetDescription>
+              {totalRegistros} registro{totalRegistros === 1 ? '' : 's'} em {gruposCount} grupo{gruposCount === 1 ? '' : 's'} — total {formatCurrency(totalGeral)}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 flex justify-end">
+            <Button size="sm" variant="outline" onClick={exportGruposCsv} disabled={gruposCount === 0}>
+              <Download className="mr-1 h-4 w-4" /> Exportar CSV
+            </Button>
+          </div>
+          <div className="mt-2 rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{groupOption.label}</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">% do total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {grupos.map((g) => (
+                  <TableRow key={g.nome}>
+                    <TableCell className="font-medium">{g.nome}</TableCell>
+                    <TableCell className="text-right">{g.qtd}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(g.valor)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {totalGeral > 0 ? ((g.valor / totalGeral) * 100).toFixed(1) : '0.0'}%
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {grupos.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">Sem dados</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {grupos.length > 0 && (
+            <div className="mt-3 flex justify-between border-t pt-3 text-sm font-semibold">
+              <span>Total</span>
+              <span>{totalRegistros} registros · {formatCurrency(totalGeral)}</span>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
