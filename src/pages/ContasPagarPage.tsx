@@ -118,6 +118,7 @@ const initialFilters = {
   data_pagamento_fim: '',
   valor_min: '',
   valor_max: '',
+  incluir_pagos: false,
   agrupar_por_fornecedor: false,
   modo_arvore: false,
 };
@@ -157,6 +158,13 @@ export default function ContasPagarPage() {
         if (!params.somente_cheques) delete params.somente_cheques;
         if (!params.agrupar_por_fornecedor) delete params.agrupar_por_fornecedor;
         delete params.modo_arvore;
+        // Inclusão de títulos pagos: só se aplica quando não há Status específico selecionado.
+        const incluirPagos = !!params.incluir_pagos;
+        delete params.incluir_pagos;
+        if (!params.status_titulo) {
+          if (incluirPagos) params.incluir_pagos = true;
+          else params.excluir_pagos = true;
+        }
         Object.keys(params).forEach((k) => {
           if (params[k] === '' || params[k] === null || params[k] === undefined) delete params[k];
         });
@@ -393,6 +401,15 @@ export default function ContasPagarPage() {
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="somente_cheques" checked={filters.somente_cheques} onCheckedChange={(v) => set('somente_cheques', !!v)} />
           <Label htmlFor="somente_cheques" className="text-xs">Somente cheques</Label>
+        </div>
+        <div className="flex items-end gap-2 pb-1">
+          <Checkbox
+            id="incluir_pagos"
+            checked={filters.incluir_pagos}
+            disabled={!!filters.status_titulo}
+            onCheckedChange={(v) => set('incluir_pagos', !!v)}
+          />
+          <Label htmlFor="incluir_pagos" className="text-xs">Incluir títulos pagos</Label>
         </div>
         <div className="flex items-end gap-2 pb-1">
           <Checkbox id="agrupar_por_fornecedor" checked={filters.agrupar_por_fornecedor} disabled={filters.modo_arvore} onCheckedChange={(v) => set('agrupar_por_fornecedor', !!v)} />
