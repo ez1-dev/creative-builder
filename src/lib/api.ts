@@ -69,10 +69,31 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+        ...options,
+        headers,
+      });
+    } catch (networkErr: any) {
+      // fetch lança TypeError("Failed to fetch") quando: servidor offline,
+      // CORS bloqueia preflight, túnel ngrok caiu, DNS falha, ou timeout de rede.
+      const baseUrl = getApiBaseUrl();
+      const friendly =
+        `Não foi possível conectar ao servidor ERP (${endpoint}). ` +
+        `Verifique se o backend FastAPI está online e se a URL configurada em Configurações está correta. ` +
+        `URL atual: ${baseUrl}`;
+      logError({
+        module: endpoint,
+        message: friendly,
+        statusCode: 0,
+        details: { originalError: networkErr?.message, baseUrl },
+      });
+      const err: any = new Error(friendly);
+      err.statusCode = 0;
+      err.isNetworkError = true;
+      throw err;
+    }
 
     if (response.status === 401) {
       const msg = 'Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.';
