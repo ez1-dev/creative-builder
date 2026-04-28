@@ -211,7 +211,7 @@ export default function NumeroSeriePage() {
   };
 
   const limpar = () => {
-    setFilters({ numero_pedido: '', item_pedido: '', numero_op: '', codigo_produto: '', derivacao: '', numero_serie_manual: '' });
+    setFilters({ numero_pedido: '', item_pedido: '', numero_op: '', origem_op: '', codigo_produto: '', derivacao: '', numero_serie_manual: '' });
     setContexto(null);
     setDados([]);
     setSelecionado('');
