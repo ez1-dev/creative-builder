@@ -124,6 +124,14 @@ export default function RelatorioSemanalObraPage() {
     }
 
     setKpiLoading(true);
+    // Mostra totais parciais imediatamente (página 1) enquanto consolida demais páginas
+    setKpiTotals({
+      totalObras: agg.obras.size,
+      totalProjetos: agg.projetos.size,
+      totalCargas: agg.cargas,
+      totalPecas: agg.pecas,
+      pesoTotal: agg.peso,
+    });
     const allRows: RelatorioRow[] = [...page1];
     try {
       const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
