@@ -1,34 +1,73 @@
-## Problema
+## Agrupar "Registros" por dimensão (com painel expansível)
 
-O KPI **"Colaboradores (catálogo)"** no dashboard de Passagens Aéreas não muda quando o usuário aplica filtros do topo nem quando clica em uma barra/fatia para fazer cross-filter.
+Adicionar ao card **Registros** do dashboard de Passagens Aéreas um seletor "Agrupar por" que conta grupos distintos do recorte filtrado e abre um painel com a lista detalhada (qtd de registros e valor total por grupo).
 
-**Causa:** o card mostra a variável `catalogoCount`, que é resultado de uma query independente à tabela `colaboradores_catalogo` (cadastro mestre de colaboradores ativos cadastrados no sistema). Ele conta o catálogo inteiro, sem relação alguma com os dados filtrados na tela.
+### Comportamento
 
-## Solução
+- O card **Registros** ganha:
+  - Um pequeno **Select** no topo direito do card com as opções de agrupamento.
+  - O **valor principal** continua sendo a quantidade total de registros, mas ganha abaixo um subtítulo dinâmico tipo `8 Centros de Custo` (contador de grupos distintos com base na dimensão escolhida).
+  - Um **botão "Ver detalhes"** (ícone de chevron) que abre um `Sheet` lateral com a tabela agrupada.
 
-Trocar o KPI para refletir os **colaboradores únicos presentes nos dados filtrados** (`crossFiltered`), assim como os outros KPIs (Total, Registros, Ticket Médio).
+- **Opções de agrupamento** disponíveis no select:
+  - Centro de Custo
+  - Projeto / Obra
+  - Colaborador
+  - Motivo da Viagem
+  - Cia Aérea
+  - Tipo de Despesa
 
-### Mudanças (`src/components/passagens/PassagensDashboard.tsx`)
+- **Painel lateral (Sheet)** mostra:
+  - Título: `Registros agrupados por <dimensão>`
+  - Tabela ordenada por valor desc com colunas: **Grupo**, **Qtd**, **Valor Total**, **% do total**.
+  - Linha de "Sem informação" para registros com o campo nulo/vazio (já há padrão `Sem CC` / `Não informado` no código atual).
+  - Linha de totais no rodapé.
+  - Botão "Exportar CSV" desse agrupamento (reaproveita lógica do `exportPassagensCsv`, gerando CSV com colunas grupo/qtd/valor).
 
-1. Remover o `useState` `catalogoCount` e o `useEffect` que faz a query em `colaboradores_catalogo` (não será mais usado).
-2. Calcular um novo memo `colaboradoresUnicos`:
+- O agrupamento respeita TODOS os filtros já aplicados:
+  - Filtros do topo (Colaborador, CC, Tipo, Mês, Período).
+  - Cross-filters dos gráficos (`selectedMes`, `selectedMotivo`, `selectedCC`).
+  - Ou seja, opera sobre `crossFiltered`.
+
+### Mudanças técnicas
+
+Arquivo: `src/components/passagens/PassagensDashboard.tsx`
+
+1. Novo estado:
    ```ts
-   const colaboradoresUnicos = useMemo(
-     () => new Set(crossFiltered.map((r) => r.colaborador).filter(Boolean)).size,
-     [crossFiltered],
-   );
+   type GroupBy = 'centro_custo' | 'projeto_obra' | 'colaborador' | 'motivo_viagem' | 'cia_aerea' | 'tipo_despesa';
+   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
+   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
    ```
-3. Atualizar o `<KPICard>`:
-   - Título: **"Colaboradores"** (remover "(catálogo)" para não confundir).
-   - Valor: `colaboradoresUnicos`.
-   - Tooltip/descrição opcional: "Colaboradores distintos nos registros filtrados".
-4. Limpar o import de `supabase` se ele não for mais usado em outro lugar do arquivo (verificar antes de remover).
 
-### Resultado esperado
+2. Memo `grupos` derivado de `crossFiltered`:
+   - Itera, normaliza valor nulo (`'Sem informação'`), agrega `qtd` e `valor`.
+   - Retorna array ordenado por `valor desc`.
+   - `gruposCount = grupos.length`.
 
-- Sem filtros: mostra a quantidade de colaboradores distintos no conjunto de dados carregado.
-- Ao filtrar por mês / clicar em uma barra do gráfico de meses, motivo ou centro de custo: o KPI atualiza para refletir quantos colaboradores únicos existem naquele recorte.
+3. Substituir o `<KPICard title="Registros">` por um **card customizado** (mantendo o visual do `KPICard`, mas com slot extra para o select e botão). Para evitar refatorar o `KPICard`, envolvo num `<div className="relative">` com:
+   - O `KPICard` original (valor = `totalRegistros`, descrição = `${gruposCount} ${labelDimensao}s`).
+   - Um `Select` compacto posicionado no canto superior direito (`absolute top-2 right-2`) com as 6 opções.
+   - Um botão fantasma "Ver detalhes" (ícone) que seta `groupSheetOpen=true`.
+
+4. Novo componente inline `<Sheet>` (shadcn) com a tabela agrupada + total no footer + botão exportar.
+
+5. Util de label e CSV:
+   ```ts
+   const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
+     { value: 'centro_custo', label: 'Centro de Custo' },
+     { value: 'projeto_obra', label: 'Projeto/Obra' },
+     { value: 'colaborador', label: 'Colaborador' },
+     { value: 'motivo_viagem', label: 'Motivo da Viagem' },
+     { value: 'cia_aerea', label: 'Cia Aérea' },
+     { value: 'tipo_despesa', label: 'Tipo de Despesa' },
+   ];
+   ```
+
+6. Tokens semânticos do design system (sem cores hardcoded), ícones `lucide-react` (`Layers`, `ChevronRight`, `Download`).
 
 ### Fora do escopo
 
-- Não muda a página pública compartilhada (`PassagensAereasCompartilhadoPage`); se quiser o mesmo ajuste lá, faço em outra rodada.
+- Não altera a página pública `PassagensAereasCompartilhadoPage` (se quiser depois, replico).
+- Não persiste a escolha de agrupamento entre sessões.
+- Não adiciona drill-down clicando numa linha do agrupamento (o clique só fica nos gráficos como hoje).
