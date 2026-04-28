@@ -508,6 +508,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_passagens_share: { Args: { _uid: string }; Returns: boolean }
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }

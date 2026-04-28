@@ -1,33 +1,49 @@
-## Problema
+## Objetivo
 
-Ao criar um link de compartilhamento de Passagens Aéreas surge:
+Permitir que usuários **não-administradores** também possam criar e gerenciar links de compartilhamento de Passagens Aéreas, controlado por uma nova opção em **Configurações**.
 
-> Erro ao criar link — `new row violates row-level security policy for table "passagens_aereas_share_links"`
+Hoje, mesmo que o perfil tenha `can_edit` em `/passagens-aereas`, a criação falha porque:
+- A RLS da tabela `passagens_aereas_share_links` exige `is_admin(auth.uid())`.
+- A função `create_passagens_share_link` também valida `is_admin` internamente.
 
-A tabela `passagens_aereas_share_links` tem uma única policy: `is_admin(auth.uid())` para ALL. Mesmo que o usuário seja admin, o `INSERT` direto está sendo bloqueado pela função `is_admin`, que depende do encadeamento `profiles.erp_user → user_access.user_login → access_profiles.name = 'Administrador'`.
+## Como vai funcionar
 
-Já existe a função `create_passagens_share_link` no banco (`SECURITY DEFINER`), criada justamente para esse fluxo. Ela:
-- Valida `is_admin` internamente.
-- Faz o hash bcrypt da senha (quando aplicável).
-- Faz o `INSERT` com privilégios elevados, ignorando a policy.
+1. Em **Configurações → Permissões / Acessos**, aparece um novo bloco:
+   > **Compartilhamento de Passagens Aéreas**
+   > [ ] Permitir que usuários não-administradores criem e gerenciem links de compartilhamento
 
-O bug é que `ShareLinksDialog.tsx` faz `supabase.from('passagens_aereas_share_links').insert(...)` em vez de chamar a RPC.
+2. Quando ativado:
+   - Qualquer usuário com `can_edit` na tela `/passagens-aereas` vê o botão **Compartilhar** (já vê hoje) e consegue criar/revogar links.
+   - Administradores continuam tendo acesso total (independente da flag).
 
-## Correção
+3. Quando desativado (padrão atual): só admins criam/revogam links.
 
-Trocar o `INSERT` direto pela chamada `supabase.rpc('create_passagens_share_link', { ... })` em `src/components/passagens/ShareLinksDialog.tsx` (função `handleCreate`):
+A configuração é global (não por usuário), salva em `app_settings` com a chave `passagens_share_allow_non_admin`.
 
-- Parâmetros: `_token` (effectiveToken), `_nome`, `_password` (sentinela `'protected'` quando há senha — alinhado com `validate_share_token`, que aceita esse sentinela), `_expires_at`.
-- Remover a chamada `supabase.auth.getUser()` (a função usa `auth.uid()` internamente para `created_by`).
-- Tratamento de erro idêntico ao atual.
+## Mudanças
 
-Sem mudanças de schema, sem migrações.
+### Banco de dados
 
-## Arquivos alterados
+- **Migração** criando função helper `can_manage_passagens_share(_uid uuid)` (`SECURITY DEFINER`), que retorna `true` se:
+  - `is_admin(_uid)` **OU**
+  - `app_settings.passagens_share_allow_non_admin = 'true'` **E** o usuário tem `can_edit` em `/passagens-aereas` no `profile_screens`.
+- Atualizar RLS da tabela `passagens_aereas_share_links`: trocar `is_admin(auth.uid())` por `can_manage_passagens_share(auth.uid())`.
+- Atualizar `create_passagens_share_link`: substituir o `IF NOT public.is_admin(...)` por `IF NOT public.can_manage_passagens_share(auth.uid())`.
+- Inserir setting padrão `passagens_share_allow_non_admin = 'false'` em `app_settings` (só se não existir).
 
-- `src/components/passagens/ShareLinksDialog.tsx` — substituir o `insert` direto pela RPC `create_passagens_share_link`.
+### Frontend
 
-## Resultado esperado
+- **`src/pages/ConfiguracoesPage.tsx`** — adicionar, na aba de Permissões/Perfis, um card com `Switch` que lê/escreve a chave `passagens_share_allow_non_admin` em `app_settings` (somente admin enxerga e altera).
+- **`src/pages/PassagensAereasPage.tsx`** — sem mudança lógica: o botão "Compartilhar" já depende de `canEdit('/passagens-aereas')`, que admins e usuários com permissão de edição já recebem.
+- **`src/components/passagens/ShareLinksDialog.tsx`** — sem alteração (já usa a RPC `create_passagens_share_link`).
 
-- Admin consegue criar links normalmente.
-- Sentinela `'protected'` permanece no `password_hash` quando há senha, mantendo compatibilidade com a validação atual (token efetivo já carrega a senha embutida via SHA-256 no cliente).
+## Segurança
+
+- A função helper é `SECURITY DEFINER` com `search_path = public`, evita recursão de RLS e não vaza dados.
+- A senha dos links continua como hoje (token efetivo SHA-256 + sentinela `'protected'`).
+- Auditoria: `created_by = auth.uid()` continua sendo gravado pela RPC.
+
+## Arquivos
+
+- Migração SQL nova (helper + update da RPC + update das policies + seed do setting).
+- `src/pages/ConfiguracoesPage.tsx` — novo bloco UI.

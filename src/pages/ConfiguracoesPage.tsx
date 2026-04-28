@@ -236,21 +236,24 @@ export default function ConfiguracoesPage() {
   const [profileDesc, setProfileDesc] = useState('');
   const [newUserLogin, setNewUserLogin] = useState('');
   const [newUserProfileId, setNewUserProfileId] = useState('');
+  const [passagensShareAllowNonAdmin, setPassagensShareAllowNonAdmin] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }] = await Promise.all([
+    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }, { data: shareSetting }] = await Promise.all([
       supabase.from('access_profiles').select('*').order('name'),
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
       supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
       supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true),
+      supabase.from('app_settings').select('value').eq('key', 'passagens_share_allow_non_admin').maybeSingle(),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
     setUserAccess(ua || []);
     setPendingUsers(pending || []);
     setApprovedUsers((approved as ApprovedUser[]) || []);
+    setPassagensShareAllowNonAdmin(shareSetting?.value === 'true');
     setLoading(false);
   }, []);
 
@@ -594,6 +597,32 @@ export default function ConfiguracoesPage() {
                           />
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 border-t pt-4">
+                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
+                      <Shield className="h-4 w-4 text-primary" /> Compartilhamento de Passagens Aéreas
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Quando ativado, qualquer usuário com permissão de <strong>edição</strong> na tela "Passagens Aéreas" poderá criar e revogar links de compartilhamento. Administradores sempre têm acesso.
+                    </p>
+                    <div className="flex items-center gap-3 rounded-md border px-3 py-2 w-fit">
+                      <span className="text-sm">Permitir não-administradores</span>
+                      <Switch
+                        checked={passagensShareAllowNonAdmin}
+                        onCheckedChange={async (checked) => {
+                          const { error } = await supabase
+                            .from('app_settings')
+                            .upsert({ key: 'passagens_share_allow_non_admin', value: checked ? 'true' : 'false' }, { onConflict: 'key' });
+                          if (error) {
+                            toast.error('Erro ao salvar: ' + error.message);
+                          } else {
+                            setPassagensShareAllowNonAdmin(checked);
+                            toast.success(checked ? 'Compartilhamento liberado para usuários com permissão de edição' : 'Compartilhamento restrito a administradores');
+                          }
+                        }}
+                      />
                     </div>
                   </div>
                 </>
