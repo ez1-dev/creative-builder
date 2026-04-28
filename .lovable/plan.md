@@ -1,94 +1,85 @@
-## Objetivo
+## Problema
 
-Permitir que o usuário **escolha qual GS desvincular** quando o contexto carregado tiver dois GS distintos (um no item do pedido / `E000CSE` e outro reservado para a OP em `USU_T075SEP`). Hoje o frontend prioriza um deles silenciosamente, o que é perigoso.
+Hoje o sistema deixou vincular GS ao pedido **4891 (origem 230)** quando a OP **1111** é da origem **250 / pedido 11510**. Isso gerou o desencontro que estamos consertando agora. Precisamos **prevenir** vínculos cruzados entre OP e pedido de origens diferentes — não só permitir desvincular depois.
 
-Premissa: você criará a rota `POST /api/numero-serie/desvincular` no backend FastAPI seguindo o contrato em `docs/backend-numero-serie-desvincular.md` (com o ajuste descrito abaixo).
+## Regra de negócio
 
-## Mudanças no frontend — `src/pages/NumeroSeriePage.tsx`
+Quando houver OP no contexto:
 
-### 1. Detectar candidatos a desvínculo
+- A **origem da OP** (`origem_op`, ex.: 250) deve casar com a **origem do pedido** ao qual o GS será vinculado.
+- Se origens divergirem, **bloquear a reserva/vínculo** com mensagem clara, oferecendo apenas a opção de "forçar" para um usuário com permissão (ou nunca, se preferir total bloqueio).
 
-Construir uma lista `candidatosDesvinculo` derivada do `contexto`:
+## Plano (frontend + contrato backend)
 
-- **Candidato A — item do pedido**: presente quando `contexto.numero_serie_atual` existe.
-  - Escopo: `item_pedido`
-  - Pedido/Item: `contexto.numero_pedido` / `contexto.item_pedido`
-  - Limpa `E000CSE`: sim
-- **Candidato B — vínculo da OP**: presente quando `contexto.numero_serie_vinculada_op` existe.
-  - Escopo: `vinculo_op`
-  - Pedido/Item: `contexto.pedido_vinculado_op` / `contexto.item_vinculado_op` (já vêm no contexto)
-  - Limpa `E000CSE`: não (a menos que seja o mesmo GS de A)
-- **Candidato C — manual**: quando `filters.numero_serie_manual` está preenchido.
-  - Escopo: `item_pedido` (assume pedido/item dos filtros).
+### 1. Frontend — `src/pages/NumeroSeriePage.tsx`
 
-Se A e B apontam para o **mesmo GS**, mostrar como um único candidato.
+**Tipos**
+- Adicionar em `ContextoNumeroSerie`: `origem_pedido?: string` (origem do pedido carregado, vinda do backend no `/contexto`).
 
-### 2. Ajustar o `AlertDialog` de confirmação
+**Validação local antes de enviar `/reservar`**
+Em `reservar(forcarVinculo)`:
+- Calcular `origemOp = contexto?.origem_op` e `origemPedido = contexto?.origem_pedido`.
+- Se `numero_op > 0` e ambas existirem e forem diferentes:
+  - Bloquear com toast vermelho:  
+    *"OP {op} é da origem {origemOp} e não pode ser vinculada ao pedido {pedido} (origem {origemPedido}). Verifique o pedido correto da OP."*
+  - **Não enviar** o request.
+- Mesma checagem ao usar "Vincular GS Informado" (manual).
 
-- Se houver **1 candidato**: comportamento atual (apenas confirma).
-- Se houver **2+ candidatos**: mostrar um `RadioGroup` (shadcn) listando cada um com:
-  - GS, escopo (`Item do pedido` / `Vínculo da OP`), pedido/item afetado.
-  - Texto explicativo curto.
-- O botão "Confirmar desvínculo" usa o candidato selecionado.
+**Aviso visual no card de Contexto**
+- Quando `origem_op` ≠ `origem_pedido`, mostrar `Alert` destrutivo no topo do card de Contexto:
+  > "Divergência de origem: OP {op} = origem {X}; Pedido {Y} = origem {Z}. Reserva bloqueada."
+- Desabilitar os botões "Reservar Selecionado" e "Vincular GS Informado" enquanto houver divergência.
 
-### 3. Atualizar o payload enviado
+**Filtro de origem (preventivo na busca)**
+- O campo `origem_op` (hoje read-only, preenchido pelo backend) ganha um indicador visual (badge verde/vermelho) comparando com `origem_pedido` quando ambos estiverem carregados.
 
-Enviar sempre os campos do **candidato escolhido** (não os filtros do topo):
+### 2. Contrato backend — atualizar `docs/backend-numero-serie-desvincular.md` e criar `docs/backend-numero-serie-validacao-origem.md`
 
-```ts
-{
-  codigo_empresa: 1,
-  numero_pedido: <do candidato>,
-  item_pedido: <do candidato>,
-  numero_op: contexto.numero_op,        // sempre quando houver
-  numero_serie: <GS escolhido>,
-  escopo: "item_pedido" | "vinculo_op", // novo
-  limpar_e000cse: <true só p/ item_pedido>
-}
-```
+Documentar que:
 
-### 4. Atualizar tipos
-
-Adicionar ao `interface ContextoNumeroSerie`:
-```ts
-pedido_vinculado_op?: number;
-item_vinculado_op?: number;
-situacao_vinculo_op?: string;
-```
-
-### 5. Após sucesso
-
-- Atualizar `contexto` com o retorno do backend.
-- Limpar `selecionado` e `numero_serie_manual`.
-- Recarregar `buscarProximos()`.
-
-## Mudanças no contrato — `docs/backend-numero-serie-desvincular.md`
-
-Adicionar campo opcional `escopo` no request:
-
+**`GET /api/numero-serie/contexto`** passa a retornar também:
 ```json
 {
-  "codigo_empresa": 1,
-  "numero_pedido": 11510,
-  "item_pedido": 1,
-  "numero_op": 1111,
-  "numero_serie": "GS-11705",
-  "escopo": "vinculo_op",      // "item_pedido" (default) | "vinculo_op"
-  "limpar_e000cse": false
+  "contexto": {
+    "...": "...",
+    "origem_op": "250",
+    "origem_pedido": "230",        // novo
+    "origens_conferem": false       // novo (conveniência)
+  }
 }
 ```
 
-Documentar comportamento por escopo:
+**`POST /api/numero-serie/reservar`** passa a validar:
+- Se `numero_op` informado e `origem_op` ≠ `origem_pedido`, retornar `409 Conflict`:
+  ```json
+  {
+    "detail": "OP 1111 (origem 250) não pode ser vinculada ao pedido 4891 (origem 230)."
+  }
+  ```
+- A flag existente `forcar_vinculo` **não** deve burlar essa checagem (é uma proteção dura). Se quiser permitir override administrativo, criar um campo separado `forcar_origem_divergente: bool` que exige header de auditoria.
 
-- `escopo = "item_pedido"` (default, retrocompatível): libera registro em `USU_T075SEP` zerando `pedido_reservado` / `item_reservado`; se `limpar_e000cse=true`, limpa `E000CSE` do item.
-- `escopo = "vinculo_op"`: libera registro em `USU_T075SEP` zerando `pedido_vinculado_op` / `item_vinculado_op` (e status volta para `LIVRE` se não houver outro vínculo); **não** mexe em `E000CSE` salvo se `limpar_e000cse=true` E o GS realmente estiver lá.
+### 3. Atualizar `docs/backend-numero-serie-desvincular-fastapi.py` (esqueleto já planejado)
+
+Adicionar no início do handler de `/reservar` (em arquivo separado de validação) um helper:
+```python
+def validar_origens(db, numero_op, numero_pedido, item_pedido):
+    origem_op = buscar_origem_op(db, numero_op)
+    origem_ped = buscar_origem_pedido(db, numero_pedido, item_pedido)
+    if origem_op and origem_ped and origem_op != origem_ped:
+        raise HTTPException(409, f"OP {numero_op} (origem {origem_op}) não pode ser vinculada ao pedido {numero_pedido} (origem {origem_ped}).")
+```
 
 ## Arquivos afetados
 
-- `src/pages/NumeroSeriePage.tsx` — lista de candidatos, RadioGroup no diálogo, payload com `escopo`, tipos atualizados.
-- `docs/backend-numero-serie-desvincular.md` — adicionar campo `escopo` e exemplos para os dois cenários.
+- `src/pages/NumeroSeriePage.tsx` — tipo, validação local, alerta visual, desabilitar botões.
+- `docs/backend-numero-serie-validacao-origem.md` — **novo**, contrato da validação.
+- `docs/backend-numero-serie-desvincular.md` — nota cruzada apontando para o novo doc.
 
 ## Fora de escopo
 
-- Implementação da rota no backend FastAPI (você fará).
-- Mudanças no Lovable Cloud (nenhuma).
+- Implementação real no backend FastAPI (você fará, com o contrato novo).
+- Mudanças em outras páginas que reservam GS.
+
+## Pergunta antes de implementar
+
+A divergência de origem deve ser **bloqueio duro** (nunca permite vincular) ou **bloqueio com override** (admin pode forçar com confirmação extra)?
