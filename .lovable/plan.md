@@ -1,56 +1,35 @@
-## Plano: Gráfico "Entrega Semanal para Fábrica" com Meta no Relatório Semanal Obra
+## Plano: Semanas completas + novo gráfico mensal de entregas
 
 ### Objetivo
-Adicionar um novo gráfico de barras na seção **Gráficos & Dashboards** da tela `/producao/relatorio-semanal-obra` que mostre o **peso total entregue por semana** comparado a uma **meta única** definida pelo administrador. A meta será salva no backend (Lovable Cloud) e visível para todos os usuários.
+1. **Gráfico semanal existente** — passar a exibir uma barra para **cada semana do período filtrado**, inclusive semanas sem entrega (barra zerada), em vez de mostrar só as semanas que tiveram dados.
+2. **Novo gráfico mensal** — adicionar um segundo card com a **somatória do peso entregue por mês**, comparado a uma **meta mensal derivada automaticamente** da meta semanal (meta_semanal × 4,33).
 
 ### O que o usuário verá
-- Um novo card de gráfico chamado **"Entrega Semanal para Fábrica vs. Meta (kg)"** dentro da grade de gráficos existente.
-- Barras (azul) representando o peso entregue por semana, respeitando os filtros aplicados.
-- Linha horizontal tracejada (laranja) marcando a **meta semanal** definida.
-- Indicador visual nas barras: verdes quando atingem/superam a meta, neutras quando ficam abaixo.
-- Acima do gráfico, um campo numérico **"Meta semanal (kg)"** com botão **Salvar** (visível apenas para administradores; demais usuários apenas visualizam o valor atual).
-- Tooltip mostrando: peso da semana, meta, % de atingimento e diferença (kg).
-- Resumo discreto no topo do card: "X de Y semanas atingiram a meta (Z%)".
+- **Card "Entrega Semanal para Fábrica vs. Meta (kg)"** (já existente):
+  - Eixo X agora mostra todas as semanas entre a primeira e a última data dos dados filtrados.
+  - Semanas sem entrega aparecem como barra de altura zero (deixa claro o gap).
+  - Demais comportamentos preservados (cor verde quando ≥ meta, linha tracejada de meta, tooltip).
+- **Novo card "Entrega Mensal para Fábrica vs. Meta (kg)"** (logo abaixo do semanal):
+  - Uma barra por mês do período filtrado (ex.: jan/26, fev/26, mar/26…), preenchendo meses vazios com zero.
+  - Linha tracejada de **Meta Mensal = meta_semanal × 4,33**, apresentada no rótulo como "Meta: X kg (≈ semanal × 4,33)".
+  - Cores condicionais: verde quando o mês atinge/supera a meta, azul caso contrário.
+  - Resumo no topo: "X de Y meses atingiram a meta (Z%)".
+  - Tooltip mostra peso do mês, % da meta e diferença em kg.
+  - Sem cadastro extra: a meta mensal acompanha automaticamente a meta semanal já salva.
 
 ### Mudanças técnicas
+- **Arquivo editado:** `src/pages/producao/MetaEntregaSemanalChart.tsx`
+  - Atualizar `groupWeeklyPeso` para preencher semanas vazias entre `min(ts)` e `max(ts)` (passos de 7 dias).
+  - Adicionar função `groupMonthlyPeso` análoga, agrupando por `YYYY-MM` e preenchendo meses vazios.
+  - Renderizar **dois `Card`s** dentro de um wrapper `<div className="space-y-4">`: o semanal (atual) e o novo mensal.
+  - Reaproveitar o mesmo estado de `meta` (semanal); calcular `metaMensal = meta * 4.33` no render.
+  - Reaproveitar o mesmo `ComposedChart` + `ReferenceLine` + `Cell` do semanal para o mensal.
+  - Manter campo de edição de meta apenas no card semanal (admins); o mensal apenas exibe a meta derivada como `Badge`.
+- **Sem mudanças no backend** (mesma chave `app_settings`).
+- **Sem mudanças em** `RelatorioSemanalObraPage.tsx` (já importa o componente único).
 
-**1. Backend (Lovable Cloud) — nova configuração**
-- Reaproveitar a tabela existente `app_settings` (key/value) para armazenar a meta:
-  - `key = 'producao.relatorio_semanal_obra.meta_semanal_kg'`
-  - `value = '<número como texto>'`
-- Sem migração de schema necessária. RLS já permite leitura por autenticados e escrita por admins.
-
-**2. Novo componente `MetaEntregaSemanalChart.tsx`**
-- Localização: `src/pages/producao/MetaEntregaSemanalChart.tsx`
-- Recebe `rows: RelatorioRow[]` (mesma fonte consolidada já usada pelos demais gráficos).
-- Reutiliza a lógica `groupByWeek` (extraída para função utilitária se necessário) para agregar `peso_total` por semana.
-- Usa `recharts` `ComposedChart` com `Bar` + `ReferenceLine` (meta).
-- Cores condicionais por barra (`<Cell>`): `hsl(var(--success))` se peso ≥ meta, `hsl(var(--primary))` caso contrário.
-- Estados: `meta` (number | null), `loadingMeta`, `savingMeta`, `isAdmin`.
-- Carrega a meta com `supabase.from('app_settings').select('value').eq('key', '...').maybeSingle()`.
-- Salva com `upsert` na mesma tabela (apenas admins; botão escondido para os demais).
-- Detecta admin via `useUserPermissions` (já existente no projeto) ou via consulta à função `is_admin`.
-
-**3. Integração na página**
-- Editar `src/pages/producao/RelatorioSemanalObraPage.tsx`:
-  - Importar `MetaEntregaSemanalChart`.
-  - Renderizar logo acima (ou abaixo) de `<RelatorioSemanalObraCharts>`, passando `consolidatedRows` e `kpiLoading`.
-- Não alterar lógica de filtros, KPIs ou consolidação já existente.
-
-**4. Design system**
-- Usar exclusivamente tokens semânticos (`hsl(var(--primary))`, `--success`, `--warning`, `--muted-foreground`) — sem cores hardcoded.
-- Layout consistente com os demais `ChartCard` (altura 280px, `Card` do shadcn).
-
-### Arquivos
-- **Criado:** `src/pages/producao/MetaEntregaSemanalChart.tsx`
-- **Editado:** `src/pages/producao/RelatorioSemanalObraPage.tsx`
-- **Backend:** apenas inserção via UI na tabela `app_settings` (sem migração).
-
-### Validação após implementação
-- Admin consegue digitar uma meta (ex.: 50000) e salvar; valor persiste após reload.
-- Usuário não-admin vê a meta e o gráfico, mas não vê o botão Salvar.
-- Aplicar filtro de obra/cliente: as barras semanais e o cálculo de "atingimento" reagem ao filtro.
-- Linha de meta aparece corretamente no eixo Y, e barras mudam de cor ao cruzar a meta.
-- Sem dados → estado vazio amigável; sem meta cadastrada → barras aparecem normalmente em azul, sem linha de referência.
-
-Posso prosseguir com a implementação?
+### Validação
+- Filtrar período de 2 meses → semanal mostra ~8–9 barras, mensal mostra 2 barras.
+- Filtrar período sem dados em algumas semanas → semanas zeradas aparecem.
+- Editar meta semanal de 20.000 → meta mensal exibida vira ~86.600 kg automaticamente.
+- Sem meta cadastrada → ambos os gráficos aparecem sem linha de referência, barras em azul.
