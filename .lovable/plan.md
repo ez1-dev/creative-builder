@@ -1,45 +1,33 @@
 ## Problema
 
-Inspecionei o PDF gerado e identifiquei três defeitos no exportador `src/lib/pdf/relatorioSemanalObraPdf.ts`:
+Ao criar um link de compartilhamento de Passagens Aéreas surge:
 
-1. **Baixa nitidez** — `html2canvas` está com `scale: 2`, mas o gráfico em tela tem só ~600px de largura e é embutido como imagem de 160mm no PDF. Resulta em texto granulado e linhas borradas (visível em todas as 7 páginas).
-2. **Layout sobreposto** — a tabela é desenhada começando em `startY: imgY` (mesma altura do topo da imagem) e o cabeçalho “Salvar / Meta:” do card é capturado dentro da imagem do gráfico Meta. Em telas mais largas a área disponível para a tabela fica espremida e a leitura piora.
-3. **Meta de Entrega Semanal incompleto** — o `data-chart-id="meta-entrega"` está apenas no card *semanal*, então o card **mensal** não entra no PDF. Além disso, no print atual aparece o input “Salvar” do admin dentro da imagem.
+> Erro ao criar link — `new row violates row-level security policy for table "passagens_aereas_share_links"`
 
-## Correções
+A tabela `passagens_aereas_share_links` tem uma única policy: `is_admin(auth.uid())` para ALL. Mesmo que o usuário seja admin, o `INSERT` direto está sendo bloqueado pela função `is_admin`, que depende do encadeamento `profiles.erp_user → user_access.user_login → access_profiles.name = 'Administrador'`.
 
-### 1. `src/lib/pdf/relatorioSemanalObraPdf.ts`
-- Subir `html2canvas` para `scale: 3` e `windowWidth = node.scrollWidth`, garantindo render em alta resolução.
-- Antes de capturar, **clonar o nó** num container off-screen com largura fixa (ex.: `1400px`) para forçar o gráfico a renderizar maior, depois capturar e remover. Isso resolve nitidez sem mexer na UI.
-- Ajustar o **layout das páginas de gráfico**:
-  - Gráfico ocupa a largura útil (≈ 273mm) com altura ≈ 110mm.
-  - Tabela vai **abaixo** do gráfico (`startY = imgY + imgH + 4`), não ao lado. Isso elimina sobreposição e permite tabelas largas (todas as colunas visíveis).
-- Adicionar tratamento especial para o gráfico **Meta de Entrega Semanal**:
-  - Capturar **dois cards separados** (`meta-entrega-semanal` e `meta-entrega-mensal`).
-  - Gerar **duas seções** no PDF: “Meta de Entrega Semanal” e “Meta de Entrega Mensal”, cada uma com seu gráfico + tabela (Semana/Peso/Meta/Atingiu? e Mês/Peso/Meta/Atingiu?).
-  - Ocultar temporariamente o input “Salvar” / Badge da meta durante a captura (via classe `pdf-hide` aplicada nos botões de ação).
+Já existe a função `create_passagens_share_link` no banco (`SECURITY DEFINER`), criada justamente para esse fluxo. Ela:
+- Valida `is_admin` internamente.
+- Faz o hash bcrypt da senha (quando aplicável).
+- Faz o `INSERT` com privilégios elevados, ignorando a policy.
 
-### 2. `src/pages/producao/MetaEntregaSemanalChart.tsx`
-- Renomear `data-chart-id="meta-entrega"` para `data-chart-id="meta-entrega-semanal"` no card semanal.
-- Adicionar `data-chart-id="meta-entrega-mensal"` no card mensal.
-- Adicionar classe `pdf-hide` no bloco do `<Input> + <Button>Salvar</Button>` e no `<Badge>` de meta, para que sumam na captura.
-- Exportar as funções `groupWeeklyPeso` e `groupMonthlyPeso` para o gerador do PDF montar as tabelas corretamente (com colunas Meta e Atingiu?).
+O bug é que `ShareLinksDialog.tsx` faz `supabase.from('passagens_aereas_share_links').insert(...)` em vez de chamar a RPC.
 
-### 3. `src/lib/pdf/relatorioSemanalObraPdf.ts` (cont.)
-- Adicionar utilitário `withHiddenPdfElements(node, fn)` que adiciona `style.visibility=hidden` em todos os `.pdf-hide` antes do `html2canvas` e restaura depois.
-- Ler a meta semanal de `app_settings` (`producao.relatorio_semanal_obra.meta_semanal_kg`) para preencher as colunas “Meta” / “Atingiu?” nas tabelas das duas novas seções.
+## Correção
 
-## Resultado esperado
+Trocar o `INSERT` direto pela chamada `supabase.rpc('create_passagens_share_link', { ... })` em `src/components/passagens/ShareLinksDialog.tsx` (função `handleCreate`):
 
-- Imagens dos 8 gráficos nítidas (sem aliasing, texto legível).
-- Sem sobreposição entre gráfico e tabela.
-- Sem botão “Salvar” aparecendo na imagem do Meta de Entrega.
-- O gráfico **Meta de Entrega Mensal** passa a aparecer no PDF (faltava).
-- Tabelas de Meta com colunas: Semana/Mês, Peso entregue (kg), Meta (kg), Atingiu? (Sim/Não).
+- Parâmetros: `_token` (effectiveToken), `_nome`, `_password` (sentinela `'protected'` quando há senha — alinhado com `validate_share_token`, que aceita esse sentinela), `_expires_at`.
+- Remover a chamada `supabase.auth.getUser()` (a função usa `auth.uid()` internamente para `created_by`).
+- Tratamento de erro idêntico ao atual.
+
+Sem mudanças de schema, sem migrações.
 
 ## Arquivos alterados
 
-- `src/lib/pdf/relatorioSemanalObraPdf.ts` (refatoração da captura + layout)
-- `src/pages/producao/MetaEntregaSemanalChart.tsx` (novos `data-chart-id`, classes `pdf-hide`, exportar helpers)
+- `src/components/passagens/ShareLinksDialog.tsx` — substituir o `insert` direto pela RPC `create_passagens_share_link`.
 
-Sem novas dependências.
+## Resultado esperado
+
+- Admin consegue criar links normalmente.
+- Sentinela `'protected'` permanece no `password_hash` quando há senha, mantendo compatibilidade com a validação atual (token efetivo já carrega a senha embutida via SHA-256 no cliente).
