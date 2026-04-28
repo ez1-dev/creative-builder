@@ -14,19 +14,7 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Building2, FolderKanban, Truck, Package, Weight } from 'lucide-react';
-
-interface RelatorioRow {
-  obra?: string;
-  cliente?: string;
-  cidade?: string;
-  numero_projeto?: string | number;
-  data_inicial?: string;
-  data_final?: string;
-  quantidade_cargas?: number;
-  quantidade_pecas?: number;
-  quantidade_expedida?: number;
-  peso_total?: number;
-}
+import { RelatorioSemanalObraCharts, RelatorioRow } from './RelatorioSemanalObraCharts';
 
 interface KpiTotals {
   totalObras: number;
