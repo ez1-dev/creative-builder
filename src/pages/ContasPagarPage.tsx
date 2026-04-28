@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import {
   LinhaArvoreFinanceira,
@@ -217,6 +217,10 @@ export default function ContasPagarPage() {
     const next = { ...f, [key]: value };
     if (key === 'modo_arvore' && value) next.agrupar_por_fornecedor = false;
     if (key === 'agrupar_por_fornecedor' && value) next.modo_arvore = false;
+    // Status Pago/Liquidado é incompatível com "Somente saldo aberto"
+    if (key === 'status_titulo' && (value === 'PAGO' || value === 'LIQUIDADO')) {
+      next.somente_saldo_aberto = false;
+    }
     return next;
   });
 
@@ -460,23 +464,6 @@ export default function ContasPagarPage() {
 
       {data && (
         <>
-          {modoArvoreAtivo && (
-            (filters.data_pagamento_ini || filters.data_pagamento_fim ||
-             filters.valor_min || filters.valor_max ||
-             filters.somente_vencidos || filters.somente_saldo_aberto ||
-             filters.somente_cheques || filters.incluir_pagos) && (
-              <Alert>
-                <AlertDescription className="text-xs">
-                  <strong>Aviso:</strong> alguns filtros (Data Pagamento, Valor mín./máx.,
-                  &quot;Somente vencidos&quot;, &quot;Somente saldo aberto&quot;, &quot;Somente cheques&quot;,
-                  &quot;Incluir pagos&quot;) podem não ser totalmente aplicados pelo backend
-                  no <strong>Modo árvore de rateio</strong>. Para resultados garantidos,
-                  desative o modo árvore. Acompanhamento do fix em
-                  {' '}<code>docs/backend-contas-pagar-arvore-filtros.md</code>.
-                </AlertDescription>
-              </Alert>
-            )
-          )}
           {modoArvoreAtivo && arvoreData ? (
             <FinanceiroTreeTable
               dados={arvoreData}
