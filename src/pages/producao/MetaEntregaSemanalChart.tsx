@@ -365,7 +365,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
                     }}
                   />
                 )}
-                <Bar dataKey="peso" name="Peso (kg)" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="peso" name="Peso (kg)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={handleWeekBarClick}>
                   {weeklyData.map((entry, i) => (
                     <Cell
                       key={i}
@@ -432,7 +432,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
                     }}
                   />
                 )}
-                <Bar dataKey="peso" name="Peso (kg)" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="peso" name="Peso (kg)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={handleMonthBarClick}>
                   {monthlyData.map((entry, i) => (
                     <Cell
                       key={i}
