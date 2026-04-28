@@ -471,15 +471,50 @@ export default function NumeroSeriePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar desvínculo de Nº de Série</AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-2 text-sm">
-                <p>Esta ação removerá o vínculo do GS abaixo no pedido/OP. Use somente para corrigir um vínculo feito errado.</p>
-                <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
-                  <div><span className="text-muted-foreground">GS:</span> <strong>{gsParaDesvincular || '-'}</strong></div>
-                  <div><span className="text-muted-foreground">Pedido:</span> {filters.numero_pedido || contexto?.numero_pedido || '-'} / Item {filters.item_pedido || contexto?.item_pedido || '-'}</div>
-                  <div><span className="text-muted-foreground">OP:</span> {filters.numero_op || contexto?.numero_op || '-'} {contexto?.origem_op ? `(${contexto.origem_op})` : ''}</div>
-                  <div><span className="text-muted-foreground">Produto:</span> {contexto?.codigo_produto || '-'} / {contexto?.derivacao || '-'}</div>
-                </div>
-                <p className="text-xs text-muted-foreground">O GS voltará para o status LIVRE e o número de série do item do pedido será limpo.</p>
+              <div className="space-y-3 text-sm">
+                <p>Esta ação removerá o vínculo do GS abaixo. Use somente para corrigir um vínculo feito errado.</p>
+
+                {candidatosDesvinculo.length > 1 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Existem {candidatosDesvinculo.length} vínculos. Selecione qual desvincular:
+                    </p>
+                    <RadioGroup
+                      value={candidatoSelecionadoId}
+                      onValueChange={setCandidatoSelecionadoId}
+                      className="space-y-2"
+                    >
+                      {candidatosDesvinculo.map((c) => (
+                        <label
+                          key={c.id}
+                          htmlFor={c.id}
+                          className="flex items-start gap-3 rounded-md border bg-muted/40 p-3 cursor-pointer hover:bg-muted/60"
+                        >
+                          <RadioGroupItem value={c.id} id={c.id} className="mt-0.5" />
+                          <div className="flex-1 space-y-1">
+                            <div className="font-mono text-sm font-semibold">{c.numero_serie}</div>
+                            <div className="text-xs text-muted-foreground">{c.origem_label}</div>
+                            <div className="text-xs">{c.descricao}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                ) : candidatoEfetivo ? (
+                  <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                    <div><span className="text-muted-foreground">GS:</span> <strong>{candidatoEfetivo.numero_serie}</strong></div>
+                    <div><span className="text-muted-foreground">Origem:</span> {candidatoEfetivo.origem_label}</div>
+                    <div><span className="text-muted-foreground">Pedido:</span> {candidatoEfetivo.numero_pedido} / Item {candidatoEfetivo.item_pedido}</div>
+                    <div><span className="text-muted-foreground">OP:</span> {contexto?.numero_op || '-'} {contexto?.origem_op ? `(${contexto.origem_op})` : ''}</div>
+                    <div><span className="text-muted-foreground">Produto:</span> {contexto?.codigo_produto || '-'} / {contexto?.derivacao || '-'}</div>
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-muted-foreground">
+                  {candidatoEfetivo?.escopo === 'vinculo_op'
+                    ? 'A reserva da OP será liberada. O nº de série do item do pedido NÃO será alterado.'
+                    : 'O GS voltará para o status LIVRE e o nº de série do item do pedido será limpo.'}
+                </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
