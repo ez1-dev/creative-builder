@@ -55,7 +55,7 @@ const columnsDetalhada: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto', render: (v, row) => (v && v !== 0) ? String(v) : (row.projeto || '-') },
   { key: 'data_emissao', header: 'Emissão', render: (v) => formatDate(v) },
   { key: 'data_vencimento', header: 'Vencimento', render: (v) => formatDate(v) },
-  { key: 'data_ultimo_movimento', header: 'Últ. Mov.', render: (v) => formatDate(v) },
+  { key: 'data_ultimo_movimento', header: 'Data Pagamento', render: (v) => formatDate(v) },
   { key: 'valor_original', header: 'Vlr. Original', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'valor_aberto', header: 'Vlr. Aberto', align: 'right', render: (v) => formatCurrency(v) },
   { key: 'valor_movimentado', header: 'Vlr. Movim.', align: 'right', render: (v) => formatCurrency(v) },
