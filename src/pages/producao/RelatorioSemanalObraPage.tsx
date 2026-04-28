@@ -420,20 +420,22 @@ export default function RelatorioSemanalObraPage() {
         </div>
       )}
 
-      {(data || kpiLoading) && (
-        <MetaEntregaSemanalChart
-          rows={consolidatedRows}
-          loading={kpiLoading && consolidatedRows.length === 0}
-        />
-      )}
+      <div ref={chartsRef} className="space-y-4">
+        {(data || kpiLoading) && (
+          <MetaEntregaSemanalChart
+            rows={consolidatedRows}
+            loading={kpiLoading && consolidatedRows.length === 0}
+          />
+        )}
 
-      {(data || kpiLoading) && (
-        <RelatorioSemanalObraCharts
-          rows={consolidatedRows}
-          loading={kpiLoading && consolidatedRows.length === 0}
-          onObraClick={handleObraClick}
-        />
-      )}
+        {(data || kpiLoading) && (
+          <RelatorioSemanalObraCharts
+            rows={consolidatedRows}
+            loading={kpiLoading && consolidatedRows.length === 0}
+            onObraClick={handleObraClick}
+          />
+        )}
+      </div>
 
       <DataTable
         columns={columns}
