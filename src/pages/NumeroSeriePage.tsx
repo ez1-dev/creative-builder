@@ -91,6 +91,8 @@ export default function NumeroSeriePage() {
   const [selecionado, setSelecionado] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingReserva, setLoadingReserva] = useState(false);
+  const [loadingDesvincular, setLoadingDesvincular] = useState(false);
+  const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
 
   const erpReady = useErpReady();
 
