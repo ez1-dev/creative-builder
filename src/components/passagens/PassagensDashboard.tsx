@@ -333,7 +333,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             icon={<Plane className="h-5 w-5" />}
             variant="info"
             index={1}
-            description={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
+            subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
           />
           <div className="absolute right-2 top-2 flex items-center gap-1">
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
