@@ -405,8 +405,8 @@ export default function NumeroSeriePage() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={buscarContexto} disabled={loading}><Search className="mr-1 h-3.5 w-3.5" />Buscar Contexto</Button>
             <Button size="sm" variant="secondary" onClick={() => buscarProximos()} disabled={loading}><Hash className="mr-1 h-3.5 w-3.5" />Buscar Próximos</Button>
-            <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
-            <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
+            <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado || !!divergenciaOrigem} title={divergenciaOrigem ? 'Bloqueado: divergência de origem entre OP e pedido' : undefined}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
+            <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva || !!divergenciaOrigem} title={divergenciaOrigem ? 'Bloqueado: divergência de origem entre OP e pedido' : undefined}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
             <Button
               size="sm"
               variant="destructive"
