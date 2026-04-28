@@ -85,6 +85,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const [selectedCC, setSelectedCC] = useState<string | null>(null);
+  // Agrupamento do card Registros
+  const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
+  const [groupSheetOpen, setGroupSheetOpen] = useState(false);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
