@@ -1,68 +1,71 @@
-## Objetivo
+## Diagnóstico
 
-Habilitar o filtro "Data de Pagamento" (já presente visualmente na tela de Contas a Pagar) para que ele realmente filtre títulos pelo campo `data_ultimo_movimento` no backend, usando os parâmetros `data_movimento_ini` / `data_movimento_fim` que o backend já reconhece.
+No **Modo árvore de rateio**, os filtros (Data Pagamento Inicial/Final, e provavelmente outros) **não são aplicados ao resultado** — a tela traz mais dados do que o pedido.
 
-## Diagnóstico do que já existe
+Investigando o código (`src/pages/ContasPagarPage.tsx`, função `search`):
 
-Na inspeção do `src/pages/ContasPagarPage.tsx`:
+- O frontend já mapeia corretamente `data_pagamento_ini/fim` (UI) para `data_movimento_ini/fim` (parâmetros backend) **antes** de decidir qual endpoint chamar.
+- Os mesmos `params` são enviados tanto para `/api/contas-pagar` (modo normal) quanto para `/api/contas-pagar-arvore` (modo árvore).
+- Ou seja: do lado do frontend, os dois modos enviam exatamente o mesmo conjunto de filtros.
 
-- O estado inicial **já contém** `data_pagamento_ini` e `data_pagamento_fim`.
-- A UI **já tem** os dois inputs com labels "Pagamento de" e "Pagamento até" (linhas 373–382).
-- Porém, esses valores são enviados ao backend como `data_pagamento_ini` / `data_pagamento_fim` (via `params: any = { ...filters }`), nomes que o backend **não reconhece** — o backend espera `data_movimento_ini` / `data_movimento_fim`.
-- A coluna na grid hoje aparece como **"Últ. Mov."** (linha 58).
-- A exportação Excel envia `exportParams = { ...filters }`, então herda o mesmo bug de naming.
+Conferindo a documentação do backend (`docs/backend-export-contas-pagar-arvore.md`, linhas 12-23), os parâmetros oficialmente suportados pelo endpoint árvore são:
 
-Conclusão: não é preciso adicionar inputs novos nem novo estado. Basta **renomear os parâmetros enviados ao backend** e **ajustar labels**.
-
-## Mudanças (somente em `src/pages/ContasPagarPage.tsx`)
-
-### 1. Mapear parâmetros antes de chamar a API (função `search`)
-
-Dentro do bloco que monta `params` (após o `...filters`), mapear:
-
-```ts
-if (params.data_pagamento_ini) {
-  params.data_movimento_ini = params.data_pagamento_ini;
-}
-if (params.data_pagamento_fim) {
-  params.data_movimento_fim = params.data_pagamento_fim;
-}
-delete params.data_pagamento_ini;
-delete params.data_pagamento_fim;
+```
+fornecedor, numero_titulo, tipo_titulo, filial, centro_custo,
+numero_projeto/projeto, status_titulo,
+data_emissao_ini/fim, data_vencimento_ini/fim
 ```
 
-Colocar antes do loop final que limpa chaves vazias.
+**`data_movimento_ini` e `data_movimento_fim` NÃO estão listados** — assim como `valor_min/max`, `somente_vencidos`, `somente_saldo_aberto`, `somente_cheques`, `incluir_pagos/excluir_pagos`. É muito provável que o backend simplesmente ignore esses parâmetros na rota árvore, retornando o conjunto completo.
 
-### 2. Mapear os mesmos parâmetros na exportação Excel
+Conclusão: o problema é **no backend FastAPI**, não no frontend. A rota `/api/contas-pagar-arvore` (e a de exportação) precisa aplicar os mesmos filtros que `/api/contas-pagar`.
 
-Trocar:
-```ts
-const exportParams = { ...filters };
+## O que vou fazer
+
+Como a correção é no backend (fora do escopo do projeto Lovable), vou **atualizar o documento de especificação** que o time de backend usa e **adicionar uma defesa no frontend** para o usuário não ficar sem aviso enquanto o backend não é corrigido.
+
+### 1. Atualizar `docs/backend-export-contas-pagar-arvore.md`
+
+Adicionar à lista "Query params" (que vale também para `/api/contas-pagar-arvore` segundo o próprio documento):
+
+- `data_movimento_ini`, `data_movimento_fim` (YYYY-MM-DD) — filtra pela data do último movimento financeiro do título (data de pagamento/baixa). Equivale ao filtro "Data Pagamento" da tela.
+- `valor_min`, `valor_max` (number)
+- `somente_vencidos`, `somente_saldo_aberto`, `somente_cheques` (bool)
+- `incluir_pagos` / `excluir_pagos` (bool, mutuamente exclusivos; mesma semântica de `/api/contas-pagar`)
+
+Acrescentar nota explícita: **"O endpoint árvore deve aplicar EXATAMENTE os mesmos filtros que `/api/contas-pagar` antes de montar a hierarquia. Filtros não reconhecidos hoje (notadamente `data_movimento_*`) estão fazendo a árvore retornar registros fora do escopo."**
+
+Atualizar a seção de validação para incluir:
+
+- Filtrar `data_pagamento_ini/fim` no modo árvore deve retornar apenas títulos cuja `data_ultimo_movimento` esteja no intervalo (mesma regra do modo normal).
+
+### 2. Criar `docs/backend-contas-pagar-arvore-filtros.md` (novo)
+
+Documento curto e específico apontando o bug atual: lista os parâmetros que a rota árvore ignora hoje, com exemplo de chamada e resultado esperado vs. observado, para o time de backend ter um ticket claro.
+
+### 3. Defesa no frontend (`src/pages/ContasPagarPage.tsx`)
+
+Adicionar um aviso visual discreto **apenas quando** `modo_arvore` está ativo **e** o usuário preencheu algum dos filtros que o backend árvore ainda não aplica de forma confiável (`data_pagamento_ini/fim`, `valor_min/max`, `somente_*`, `incluir_pagos`):
+
 ```
-por uma versão que aplica o mesmo mapeamento `data_pagamento_*` → `data_movimento_*` (e remove os antigos), garantindo que o endpoint `/api/export/contas-pagar` (e o de árvore) receba os parâmetros corretos. Os filtros de `status_titulo`, `data_emissao_*`, `data_vencimento_*` continuam fluindo normalmente.
+Aviso: alguns filtros (Data Pagamento, Valor, "somente...") podem não
+ser aplicados pelo backend no modo árvore. Para resultados garantidos,
+desative o "Modo árvore de rateio".
+```
 
-### 3. Ajustar labels da UI para "Data Pagamento"
+Renderizado como um `<Alert variant="default">` logo acima da tabela árvore (não bloqueia, só informa). Some assim que o usuário desativa o modo árvore ou limpa esses filtros.
 
-- Trocar `Label` "Pagamento de" → **"Data Pagamento Inicial"** e adicionar `id="dataPagamentoIniContasPag"` no `Input`.
-- Trocar `Label` "Pagamento até" → **"Data Pagamento Final"** e adicionar `id="dataPagamentoFimContasPag"` no `Input`.
+Nenhuma mudança em chamada de API, nenhum filtro removido, nenhum filtro existente quebrado.
 
-### 4. Ajustar texto da coluna na tabela
+## Critério de aceite
 
-Linha 58: trocar header `'Últ. Mov.'` → **`'Data Pagamento'`** na definição da coluna `data_ultimo_movimento` (em `columnsDetalhada`). Verificar se há mesma coluna em `columnsAgrupada` e aplicar o mesmo ajuste se existir.
-
-### 5. `clearFilters` — sem mudanças
-
-Já usa `setFilters({ ...initialFilters })`, que zera `data_pagamento_ini` e `data_pagamento_fim`. Nada a fazer.
-
-## Critérios de aceite cobertos
-
-1. Status = Pago → continua trazendo títulos pagos (sem alteração).
-2. Informar Data Pagamento Inicial/Final → backend recebe `data_movimento_ini` / `data_movimento_fim` e filtra por `data_ultimo_movimento`.
-3. Exportação Excel respeita o mesmo período (mapeamento aplicado em `exportParams`).
-4. Filtros de Emissão e Vencimento continuam intactos.
-5. Nenhum filtro existente é removido.
+1. Documento de backend lista `data_movimento_ini/fim` (e demais) como parâmetros obrigatórios da rota árvore.
+2. Existe documento dedicado descrevendo o bug atual de filtros ignorados.
+3. Quando o usuário ativa "Modo árvore" + preenche "Data Pagamento Inicial/Final", aparece aviso explicando a limitação atual.
+4. Após o backend corrigir, basta remover o aviso do frontend — nenhuma outra mudança será necessária.
 
 ## Fora de escopo
 
-- Backend FastAPI não é alterado — ele já suporta `data_movimento_ini` / `data_movimento_fim` conforme descrito pelo usuário.
-- Nenhuma mudança em Cloud / Supabase.
+- Alterar a query SQL do FastAPI — depende do time de backend.
+- Mudanças em Cloud/Supabase.
+- Mudar o comportamento dos endpoints no modo não-árvore (já funciona corretamente após a entrega anterior).

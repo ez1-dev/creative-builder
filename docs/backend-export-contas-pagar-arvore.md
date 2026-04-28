@@ -20,7 +20,21 @@ GET /api/export/contas-pagar-arvore
 - `status_titulo` (`PAGO` | `PARCIAL` | `VENCIDO` | `A_VENCER` | `EM_ABERTO`)
 - `data_emissao_ini`, `data_emissao_fim` (YYYY-MM-DD)
 - `data_vencimento_ini`, `data_vencimento_fim` (YYYY-MM-DD)
+- `data_movimento_ini`, `data_movimento_fim` (YYYY-MM-DD) — filtra por
+  `data_ultimo_movimento` (data de pagamento/baixa do título). Equivale ao
+  filtro **"Data Pagamento"** da tela.
+- `valor_min`, `valor_max` (number)
+- `somente_vencidos`, `somente_saldo_aberto`, `somente_cheques` (bool)
+- `incluir_pagos` / `excluir_pagos` (bool, mutuamente exclusivos — mesma
+  semântica de `/api/contas-pagar`)
 - demais filtros já aceitos pelo endpoint de listagem da árvore
+
+> **IMPORTANTE:** o endpoint árvore deve aplicar **EXATAMENTE os mesmos
+> filtros** que `/api/contas-pagar` antes de montar a hierarquia. Filtros
+> não reconhecidos hoje (notadamente `data_movimento_*`, `valor_*`,
+> `somente_*` e `incluir_pagos`/`excluir_pagos`) estão fazendo a árvore
+> retornar registros fora do escopo. Ver
+> `docs/backend-contas-pagar-arvore-filtros.md` para o ticket de bug.
 
 ## Fonte de dados
 
@@ -83,5 +97,9 @@ Reutilizar a mesma query de `/api/contas-pagar-arvore`:
       (tolerância de R$ 0,01).
 - [ ] Soma de `percentual_rateio` por título ≈ 100% (tolerância 0,01).
 - [ ] Filtros aplicados na tela são respeitados no arquivo gerado.
+- [ ] Filtrar `data_pagamento_ini`/`data_pagamento_fim` (que o frontend envia
+      como `data_movimento_ini`/`data_movimento_fim`) no modo árvore retorna
+      apenas títulos cuja `data_ultimo_movimento` está no intervalo —
+      mesma regra do modo normal.
 - [ ] Títulos sem rateio aparecem com `sem rateios cadastrados` na coluna
       Origem Rateio.
