@@ -47,7 +47,7 @@ const PALETTE = [
   'hsl(var(--muted-foreground))',
 ];
 
-function obraLabel(r: RelatorioRow): string {
+export function obraLabel(r: RelatorioRow): string {
   if (r.obra) return String(r.obra);
   const c = r.cliente || '';
   const ci = r.cidade || '';
@@ -55,7 +55,7 @@ function obraLabel(r: RelatorioRow): string {
   return '—';
 }
 
-function topByMetric(
+export function topByMetric(
   rows: RelatorioRow[],
   keyFn: (r: RelatorioRow) => string,
   metricFn: (r: RelatorioRow) => number,
@@ -82,7 +82,7 @@ function startOfWeek(d: Date) {
   return x;
 }
 
-function groupByWeek(rows: RelatorioRow[]) {
+export function groupByWeek(rows: RelatorioRow[]) {
   const map = new Map<string, { week: string; peso: number; pecas: number; cargas: number; ts: number }>();
   for (const r of rows) {
     if (!r.data_inicial) continue;
@@ -100,7 +100,7 @@ function groupByWeek(rows: RelatorioRow[]) {
   return Array.from(map.values()).sort((a, b) => a.ts - b.ts);
 }
 
-function clientShare(rows: RelatorioRow[], topN = 8) {
+export function clientShare(rows: RelatorioRow[], topN = 8) {
   const map = new Map<string, number>();
   for (const r of rows) {
     const k = (r.cliente || '').trim();
@@ -127,9 +127,9 @@ const tooltipStyle = {
   color: 'hsl(var(--popover-foreground))',
 };
 
-function ChartCard({ title, children, hint }: { title: string; children: React.ReactNode; hint?: string }) {
+function ChartCard({ title, children, hint, chartId }: { title: string; children: React.ReactNode; hint?: string; chartId?: string }) {
   return (
-    <Card>
+    <Card data-chart-id={chartId}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold">{title}</CardTitle>
         {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
@@ -137,6 +137,23 @@ function ChartCard({ title, children, hint }: { title: string; children: React.R
       <CardContent className="h-[280px] pt-0">{children}</CardContent>
     </Card>
   );
+}
+
+export function pesoMedioCargaTop(rows: RelatorioRow[], n = 10) {
+  const map = new Map<string, { peso: number; cargas: number }>();
+  for (const r of rows) {
+    const k = obraLabel(r);
+    if (!k || k === '—') continue;
+    const cur = map.get(k) || { peso: 0, cargas: 0 };
+    cur.peso += Number(r.peso_total) || 0;
+    cur.cargas += Number(r.quantidade_cargas) || 0;
+    map.set(k, cur);
+  }
+  return Array.from(map.entries())
+    .filter(([, v]) => v.cargas > 0)
+    .map(([name, v]) => ({ name, value: v.peso / v.cargas }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, n);
 }
 
 function EmptyState({ message }: { message: string }) {
