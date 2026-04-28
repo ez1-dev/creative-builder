@@ -81,17 +81,27 @@ export default function RelatorioSemanalObraPage() {
     // Sempre inicializa charts com a página 1
     setConsolidatedRows(page1);
 
-    if (resumo) {
+    // Aceita resumo apenas se ele tiver pelo menos um valor > 0
+    // (alguns endpoints retornam resumo zerado mesmo com dados na página)
+    const resumoTotals = resumo ? {
+      totalObras: Number(resumo.total_obras) || 0,
+      totalProjetos: Number(resumo.total_projetos) || 0,
+      totalCargas: Number(resumo.total_cargas) || 0,
+      totalPecas: Number(resumo.total_pecas ?? resumo.total_pecas_etiquetas) || 0,
+      pesoTotal: Number(resumo.peso_total) || 0,
+    } : null;
+    const resumoUtil = resumoTotals && (
+      resumoTotals.totalObras > 0 ||
+      resumoTotals.totalProjetos > 0 ||
+      resumoTotals.totalCargas > 0 ||
+      resumoTotals.totalPecas > 0 ||
+      resumoTotals.pesoTotal > 0
+    );
+
+    if (resumoUtil && resumoTotals) {
       if (consolidationIdRef.current !== id) return;
-      setKpiTotals({
-        totalObras: resumo.total_obras ?? 0,
-        totalProjetos: resumo.total_projetos ?? 0,
-        totalCargas: resumo.total_cargas ?? 0,
-        totalPecas: resumo.total_pecas ?? resumo.total_pecas_etiquetas ?? 0,
-        pesoTotal: resumo.peso_total ?? 0,
-      });
+      setKpiTotals(resumoTotals);
       setKpiLoading(false);
-      // Mesmo com resumo, busca demais páginas para alimentar gráficos completos
       if (totalPages > 1) {
         await fetchAllPagesForCharts(id, totalPages, currentFilters, page1);
       }
@@ -114,6 +124,14 @@ export default function RelatorioSemanalObraPage() {
     }
 
     setKpiLoading(true);
+    // Mostra totais parciais imediatamente (página 1) enquanto consolida demais páginas
+    setKpiTotals({
+      totalObras: agg.obras.size,
+      totalProjetos: agg.projetos.size,
+      totalCargas: agg.cargas,
+      totalPecas: agg.pecas,
+      pesoTotal: agg.peso,
+    });
     const allRows: RelatorioRow[] = [...page1];
     try {
       const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
@@ -341,14 +359,14 @@ export default function RelatorioSemanalObraPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KPICard
             title="Total de Obras"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalObras, 0) : '...'}
+            value={kpiTotals ? formatNumber(kpiTotals.totalObras, 0) : (kpiLoading ? 'Calculando...' : '...')}
             subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Building2 className="h-5 w-5" />}
             index={0}
           />
           <KPICard
             title="Total de Projetos"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalProjetos, 0) : '...'}
+            value={kpiTotals ? formatNumber(kpiTotals.totalProjetos, 0) : (kpiLoading ? 'Calculando...' : '...')}
             subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<FolderKanban className="h-5 w-5" />}
             variant="info"
@@ -356,7 +374,7 @@ export default function RelatorioSemanalObraPage() {
           />
           <KPICard
             title="Total de Cargas"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalCargas, 0) : '...'}
+            value={kpiTotals ? formatNumber(kpiTotals.totalCargas, 0) : (kpiLoading ? 'Calculando...' : '...')}
             subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Truck className="h-5 w-5" />}
             variant="warning"
@@ -364,14 +382,14 @@ export default function RelatorioSemanalObraPage() {
           />
           <KPICard
             title="Total de Peças"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? formatNumber(kpiTotals.totalPecas, 0) : '...'}
+            value={kpiTotals ? formatNumber(kpiTotals.totalPecas, 0) : (kpiLoading ? 'Calculando...' : '...')}
             subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Package className="h-5 w-5" />}
             index={3}
           />
           <KPICard
             title="Peso Total (kg)"
-            value={kpiLoading ? 'Calculando...' : kpiTotals ? `${formatNumber(kpiTotals.pesoTotal, 2)} kg` : '...'}
+            value={kpiTotals ? `${formatNumber(kpiTotals.pesoTotal, 2)} kg` : (kpiLoading ? 'Calculando...' : '...')}
             subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
             icon={<Weight className="h-5 w-5" />}
             variant="success"
