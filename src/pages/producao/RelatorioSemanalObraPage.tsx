@@ -14,19 +14,7 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Building2, FolderKanban, Truck, Package, Weight } from 'lucide-react';
-
-interface RelatorioRow {
-  obra?: string;
-  cliente?: string;
-  cidade?: string;
-  numero_projeto?: string | number;
-  data_inicial?: string;
-  data_final?: string;
-  quantidade_cargas?: number;
-  quantidade_pecas?: number;
-  quantidade_expedida?: number;
-  peso_total?: number;
-}
+import { RelatorioSemanalObraCharts, RelatorioRow } from './RelatorioSemanalObraCharts';
 
 interface KpiTotals {
   totalObras: number;
@@ -80,12 +68,18 @@ export default function RelatorioSemanalObraPage() {
   const [pagina, setPagina] = useState(1);
   const [kpiTotals, setKpiTotals] = useState<KpiTotals | null>(null);
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [consolidatedRows, setConsolidatedRows] = useState<RelatorioRow[]>([]);
   const consolidationIdRef = useRef(0);
   const erpReady = useErpReady();
 
   const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<RelatorioRow>, currentFilters: typeof initialFilters) => {
     const id = ++consolidationIdRef.current;
     const resumo = (firstResult as any).resumo;
+    const page1 = firstResult.dados || [];
+    const totalPages = firstResult.total_paginas || 1;
+
+    // Sempre inicializa charts com a página 1
+    setConsolidatedRows(page1);
 
     if (resumo) {
       if (consolidationIdRef.current !== id) return;
@@ -97,11 +91,13 @@ export default function RelatorioSemanalObraPage() {
         pesoTotal: resumo.peso_total ?? 0,
       });
       setKpiLoading(false);
+      // Mesmo com resumo, busca demais páginas para alimentar gráficos completos
+      if (totalPages > 1) {
+        await fetchAllPagesForCharts(id, totalPages, currentFilters, page1);
+      }
       return;
     }
 
-    const page1 = firstResult.dados || [];
-    const totalPages = firstResult.total_paginas || 1;
     const agg = aggregateRows(page1);
 
     if (totalPages <= 1) {
@@ -118,6 +114,7 @@ export default function RelatorioSemanalObraPage() {
     }
 
     setKpiLoading(true);
+    const allRows: RelatorioRow[] = [...page1];
     try {
       const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
       const BATCH = 5;
@@ -131,7 +128,9 @@ export default function RelatorioSemanalObraPage() {
           )),
         );
         for (const r of results) {
-          const a = aggregateRows(r.dados || []);
+          const dados = r.dados || [];
+          allRows.push(...dados);
+          const a = aggregateRows(dados);
           a.obras.forEach((o) => agg.obras.add(o));
           a.projetos.forEach((p) => agg.projetos.add(p));
           agg.cargas += a.cargas;
@@ -147,6 +146,7 @@ export default function RelatorioSemanalObraPage() {
         totalPecas: agg.pecas,
         pesoTotal: agg.peso,
       });
+      setConsolidatedRows(allRows);
     } catch {
       if (consolidationIdRef.current !== id) return;
       setKpiTotals({
@@ -156,9 +156,40 @@ export default function RelatorioSemanalObraPage() {
         totalPecas: agg.pecas,
         pesoTotal: agg.peso,
       });
-      toast.warning('Não foi possível consolidar todos os KPIs. Valores parciais exibidos.');
+      setConsolidatedRows(allRows);
+      toast.warning('Não foi possível consolidar todos os dados. Valores parciais exibidos.');
     } finally {
       if (consolidationIdRef.current === id) setKpiLoading(false);
+    }
+  }, []);
+
+  // Helper: busca demais páginas apenas para alimentar os gráficos (quando backend já enviou resumo)
+  const fetchAllPagesForCharts = useCallback(async (
+    id: number,
+    totalPages: number,
+    currentFilters: typeof initialFilters,
+    page1: RelatorioRow[],
+  ) => {
+    const allRows: RelatorioRow[] = [...page1];
+    try {
+      const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const BATCH = 5;
+      for (let i = 0; i < remaining.length; i += BATCH) {
+        if (consolidationIdRef.current !== id) return;
+        const batch = remaining.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map((p) => api.get<PaginatedResponse<RelatorioRow>>(
+            '/api/producao/relatorio-semanal-obra',
+            { ...currentFilters, pagina: p, tamanho_pagina: 100 },
+          )),
+        );
+        for (const r of results) allRows.push(...(r.dados || []));
+      }
+      if (consolidationIdRef.current !== id) return;
+      setConsolidatedRows(allRows);
+    } catch {
+      if (consolidationIdRef.current !== id) return;
+      setConsolidatedRows(allRows);
     }
   }, []);
 
@@ -206,8 +237,34 @@ export default function RelatorioSemanalObraPage() {
     setPagina(1);
     setKpiTotals(null);
     setKpiLoading(false);
+    setConsolidatedRows([]);
     consolidationIdRef.current++;
   };
+
+  const handleObraClick = useCallback((obra: string) => {
+    setFilters((f) => {
+      const next = { ...f, obra };
+      // Dispara busca com filtros já atualizados
+      (async () => {
+        if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+        setLoading(true);
+        try {
+          const result = await api.get<PaginatedResponse<RelatorioRow>>(
+            '/api/producao/relatorio-semanal-obra',
+            { ...next, pagina: 1, tamanho_pagina: 100 },
+          );
+          setData(result);
+          setPagina(1);
+          consolidateKpis(result, next);
+        } catch (e: any) {
+          toast.error(e?.message || 'Erro ao consultar relatório semanal de obra.');
+        } finally {
+          setLoading(false);
+        }
+      })();
+      return next;
+    });
+  }, [erpReady, consolidateKpis]);
 
   return (
     <div className="space-y-4 p-4">
@@ -321,6 +378,14 @@ export default function RelatorioSemanalObraPage() {
             index={4}
           />
         </div>
+      )}
+
+      {(data || kpiLoading) && (
+        <RelatorioSemanalObraCharts
+          rows={consolidatedRows}
+          loading={kpiLoading && consolidatedRows.length === 0}
+          onObraClick={handleObraClick}
+        />
       )}
 
       <DataTable
