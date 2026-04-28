@@ -136,6 +136,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  if (!context) {
+    // Fallback seguro — evita tela branca em casos de HMR onde o módulo
+    // do contexto é recarregado isoladamente do Provider.
+    if (import.meta.env.DEV) {
+      console.warn('useAuth called outside AuthProvider — returning fallback');
+    }
+    return {
+      isAuthenticated: false,
+      user: null,
+      session: null,
+      displayName: null,
+      erpUser: null,
+      erpConnected: false,
+      approved: false,
+      loading: true,
+      logout: async () => {},
+    } as AuthContextType;
+  }
   return context;
 };
