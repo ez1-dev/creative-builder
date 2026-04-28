@@ -9,7 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Hash, Link2, Eraser, Radio } from 'lucide-react';
+import { Search, Hash, Link2, Eraser, Radio, Unlink } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { formatDate } from '@/lib/format';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 
@@ -81,6 +91,8 @@ export default function NumeroSeriePage() {
   const [selecionado, setSelecionado] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingReserva, setLoadingReserva] = useState(false);
+  const [loadingDesvincular, setLoadingDesvincular] = useState(false);
+  const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
 
   const erpReady = useErpReady();
 
@@ -210,6 +222,56 @@ export default function NumeroSeriePage() {
     }
   };
 
+  const gsParaDesvincular = (
+    filters.numero_serie_manual.trim().toUpperCase()
+    || contexto?.numero_serie_atual
+    || contexto?.numero_serie_vinculada_op
+    || ''
+  );
+
+  const desvincular = async () => {
+    const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
+    const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
+    const numeroSerie = gsParaDesvincular;
+
+    if (!numeroPedido || !itemPedido) {
+      toast.error('Pedido e item do pedido são necessários para desvincular.');
+      return;
+    }
+    if (!numeroSerie) {
+      toast.error('Nenhum número de série para desvincular.');
+      return;
+    }
+
+    setLoadingDesvincular(true);
+    try {
+      const body: Record<string, any> = {
+        codigo_empresa: 1,
+        numero_pedido: Number(numeroPedido),
+        item_pedido: Number(itemPedido),
+        numero_serie: numeroSerie,
+        limpar_e000cse: true,
+      };
+      const numeroOp = filters.numero_op || String(contexto?.numero_op || '');
+      if (numeroOp && Number(numeroOp) > 0) body.numero_op = Number(numeroOp);
+
+      const result = await api.post<{ mensagem: string; contexto: ContextoNumeroSerie; numero_serie_removido: string }>(
+        '/api/numero-serie/desvincular',
+        body,
+      );
+      toast.success(result.mensagem || `Vínculo do ${numeroSerie} removido.`);
+      if (result.contexto) setContexto(result.contexto);
+      setSelecionado('');
+      setFilters(f => ({ ...f, numero_serie_manual: '' }));
+      await buscarProximos();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoadingDesvincular(false);
+      setConfirmDesvincularOpen(false);
+    }
+  };
+
   const limpar = () => {
     setFilters({ numero_pedido: '', item_pedido: '', numero_op: '', origem_op: '', codigo_produto: '', derivacao: '', numero_serie_manual: '' });
     setContexto(null);
@@ -249,6 +311,15 @@ export default function NumeroSeriePage() {
             <Button size="sm" variant="secondary" onClick={() => buscarProximos()} disabled={loading}><Hash className="mr-1 h-3.5 w-3.5" />Buscar Próximos</Button>
             <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
             <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmDesvincularOpen(true)}
+              disabled={loadingDesvincular || !gsParaDesvincular || (!contexto && !filters.numero_pedido)}
+              title="Remove o vínculo do GS no pedido/OP (use para corrigir vínculos errados)"
+            >
+              <Unlink className="mr-1 h-3.5 w-3.5" />Desvincular GS
+            </Button>
             <Button size="sm" variant="outline" onClick={limpar}><Eraser className="mr-1 h-3.5 w-3.5" />Limpar</Button>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -318,6 +389,36 @@ export default function NumeroSeriePage() {
           />
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmDesvincularOpen} onOpenChange={setConfirmDesvincularOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar desvínculo de Nº de Série</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>Esta ação removerá o vínculo do GS abaixo no pedido/OP. Use somente para corrigir um vínculo feito errado.</p>
+                <div className="rounded-md border bg-muted/40 p-3 font-mono text-xs space-y-1">
+                  <div><span className="text-muted-foreground">GS:</span> <strong>{gsParaDesvincular || '-'}</strong></div>
+                  <div><span className="text-muted-foreground">Pedido:</span> {filters.numero_pedido || contexto?.numero_pedido || '-'} / Item {filters.item_pedido || contexto?.item_pedido || '-'}</div>
+                  <div><span className="text-muted-foreground">OP:</span> {filters.numero_op || contexto?.numero_op || '-'} {contexto?.origem_op ? `(${contexto.origem_op})` : ''}</div>
+                  <div><span className="text-muted-foreground">Produto:</span> {contexto?.codigo_produto || '-'} / {contexto?.derivacao || '-'}</div>
+                </div>
+                <p className="text-xs text-muted-foreground">O GS voltará para o status LIVRE e o número de série do item do pedido será limpo.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loadingDesvincular}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); desvincular(); }}
+              disabled={loadingDesvincular}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loadingDesvincular ? 'Desvinculando...' : 'Confirmar desvínculo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
