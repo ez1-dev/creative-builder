@@ -36,7 +36,23 @@ interface ContextoNumeroSerie {
   codagp: string;
   numero_serie_atual: string;
   numero_serie_vinculada_op?: string;
+  pedido_vinculado_op?: number;
+  item_vinculado_op?: number;
+  situacao_vinculo_op?: string;
   vinculo_op_confere_numero_serie?: boolean;
+}
+
+type EscopoDesvinculo = 'item_pedido' | 'vinculo_op';
+
+interface CandidatoDesvinculo {
+  id: string;
+  escopo: EscopoDesvinculo;
+  numero_serie: string;
+  numero_pedido: number;
+  item_pedido: number;
+  origem_label: string;
+  descricao: string;
+  limpar_e000cse: boolean;
 }
 
 interface NumeroSerieItem {
