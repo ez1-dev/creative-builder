@@ -326,7 +326,40 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        <KPICard title="Registros" value={totalRegistros} icon={<Plane className="h-5 w-5" />} variant="info" index={1} />
+        <div className="relative">
+          <KPICard
+            title="Registros"
+            value={totalRegistros}
+            icon={<Plane className="h-5 w-5" />}
+            variant="info"
+            index={1}
+            description={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
+          />
+          <div className="absolute right-2 top-2 flex items-center gap-1">
+            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+              <SelectTrigger className="h-7 w-[140px] text-xs" aria-label="Agrupar por">
+                <Layers className="mr-1 h-3 w-3" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GROUP_OPTIONS.map((g) => (
+                  <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => setGroupSheetOpen(true)}
+              disabled={gruposCount === 0}
+              aria-label="Ver detalhes do agrupamento"
+              title="Ver detalhes"
+            >
+              <Layers className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
