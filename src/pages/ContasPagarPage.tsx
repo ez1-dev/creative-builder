@@ -380,14 +380,14 @@ export default function ContasPagarPage() {
           <Input type="date" value={filters.data_vencimento_fim} onChange={(e) => set('data_vencimento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
-          <Label className="text-xs">Pagamento de</Label>
-          <Input type="date" value={filters.data_pagamento_ini} onChange={(e) => set('data_pagamento_ini', e.target.value)} className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="dataPagamentoIniContasPag">Data Pagamento Inicial</Label>
+          <Input id="dataPagamentoIniContasPag" type="date" value={filters.data_pagamento_ini} onChange={(e) => set('data_pagamento_ini', e.target.value)} className="h-8 text-xs" />
         </div>
 
         {/* Linha 3 */}
         <div>
-          <Label className="text-xs">Pagamento até</Label>
-          <Input type="date" value={filters.data_pagamento_fim} onChange={(e) => set('data_pagamento_fim', e.target.value)} className="h-8 text-xs" />
+          <Label className="text-xs" htmlFor="dataPagamentoFimContasPag">Data Pagamento Final</Label>
+          <Input id="dataPagamentoFimContasPag" type="date" value={filters.data_pagamento_fim} onChange={(e) => set('data_pagamento_fim', e.target.value)} className="h-8 text-xs" />
         </div>
         <div>
           <Label className="text-xs">Valor Mín.</Label>
