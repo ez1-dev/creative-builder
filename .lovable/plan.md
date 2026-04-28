@@ -1,67 +1,45 @@
-## Objetivo
+## Problema
 
-Adicionar, na tela **Relatório Semanal Obra**, um botão **"Exportar PDF"** que gere um PDF com **todos os gráficos de barras** da página + **tabelas de valores** correspondentes a cada gráfico (dados que alimentaram cada barra).
+Inspecionei o PDF gerado e identifiquei três defeitos no exportador `src/lib/pdf/relatorioSemanalObraPdf.ts`:
 
-## O que será incluído no PDF
+1. **Baixa nitidez** — `html2canvas` está com `scale: 2`, mas o gráfico em tela tem só ~600px de largura e é embutido como imagem de 160mm no PDF. Resulta em texto granulado e linhas borradas (visível em todas as 7 páginas).
+2. **Layout sobreposto** — a tabela é desenhada começando em `startY: imgY` (mesma altura do topo da imagem) e o cabeçalho “Salvar / Meta:” do card é capturado dentro da imagem do gráfico Meta. Em telas mais largas a área disponível para a tabela fica espremida e a leitura piora.
+3. **Meta de Entrega Semanal incompleto** — o `data-chart-id="meta-entrega"` está apenas no card *semanal*, então o card **mensal** não entra no PDF. Além disso, no print atual aparece o input “Salvar” do admin dentro da imagem.
 
-Capa com:
-- Título "Relatório Semanal Obra"
-- Período (Data inicial / Data final dos filtros)
-- Filtros aplicados (Obra, Projeto, Peso mín/máx)
-- Data/hora de geração e usuário
-- KPIs (Total Obras, Projetos, Cargas, Peças, Peso Total)
+## Correções
 
-Para cada gráfico, uma seção com **gráfico (imagem) + tabela de valores** logo abaixo:
-1. Top 10 Obras por Peso (kg) — barras horizontais + tabela (Obra, Peso kg)
-2. Top 10 Obras por Peças — barras + tabela (Obra, Peças)
-3. Top 10 Obras por Cargas — barras + tabela (Obra, Cargas)
-4. Evolução Semanal — linhas + tabela (Semana, Peso, Peças, Cargas)
-5. Peso Médio por Carga (Top 10) — barras + tabela (Obra, kg/carga)
-6. Participação por Cliente (Peso) — pizza + tabela (Cliente, Peso, %)
-7. Meta de Entrega Semanal (do `MetaEntregaSemanalChart`) — gráfico + tabela
+### 1. `src/lib/pdf/relatorioSemanalObraPdf.ts`
+- Subir `html2canvas` para `scale: 3` e `windowWidth = node.scrollWidth`, garantindo render em alta resolução.
+- Antes de capturar, **clonar o nó** num container off-screen com largura fixa (ex.: `1400px`) para forçar o gráfico a renderizar maior, depois capturar e remover. Isso resolve nitidez sem mexer na UI.
+- Ajustar o **layout das páginas de gráfico**:
+  - Gráfico ocupa a largura útil (≈ 273mm) com altura ≈ 110mm.
+  - Tabela vai **abaixo** do gráfico (`startY = imgY + imgH + 4`), não ao lado. Isso elimina sobreposição e permite tabelas largas (todas as colunas visíveis).
+- Adicionar tratamento especial para o gráfico **Meta de Entrega Semanal**:
+  - Capturar **dois cards separados** (`meta-entrega-semanal` e `meta-entrega-mensal`).
+  - Gerar **duas seções** no PDF: “Meta de Entrega Semanal” e “Meta de Entrega Mensal”, cada uma com seu gráfico + tabela (Semana/Peso/Meta/Atingiu? e Mês/Peso/Meta/Atingiu?).
+  - Ocultar temporariamente o input “Salvar” / Badge da meta durante a captura (via classe `pdf-hide` aplicada nos botões de ação).
 
-## Abordagem técnica
+### 2. `src/pages/producao/MetaEntregaSemanalChart.tsx`
+- Renomear `data-chart-id="meta-entrega"` para `data-chart-id="meta-entrega-semanal"` no card semanal.
+- Adicionar `data-chart-id="meta-entrega-mensal"` no card mensal.
+- Adicionar classe `pdf-hide` no bloco do `<Input> + <Button>Salvar</Button>` e no `<Badge>` de meta, para que sumam na captura.
+- Exportar as funções `groupWeeklyPeso` e `groupMonthlyPeso` para o gerador do PDF montar as tabelas corretamente (com colunas Meta e Atingiu?).
 
-**Captura dos gráficos:** usar **`html2canvas`** para serializar cada `<Card>` Recharts já renderizado em PNG, depois embutir no PDF com **`jspdf`**. Esse par é leve, roda 100% no client e dispensa backend.
+### 3. `src/lib/pdf/relatorioSemanalObraPdf.ts` (cont.)
+- Adicionar utilitário `withHiddenPdfElements(node, fn)` que adiciona `style.visibility=hidden` em todos os `.pdf-hide` antes do `html2canvas` e restaura depois.
+- Ler a meta semanal de `app_settings` (`producao.relatorio_semanal_obra.meta_semanal_kg`) para preencher as colunas “Meta” / “Atingiu?” nas tabelas das duas novas seções.
 
-**Geração do PDF:** `jspdf` (paisagem A4) + `jspdf-autotable` para as tabelas de valores formatadas.
+## Resultado esperado
 
-**Cálculo dos dados das tabelas:** reutilizar exatamente as mesmas funções de agregação já usadas em `RelatorioSemanalObraCharts.tsx` (`topByMetric`, `groupByWeek`, `clientShare`, peso médio/carga). Vou **exportar essas funções** do arquivo de charts para evitar duplicação.
+- Imagens dos 8 gráficos nítidas (sem aliasing, texto legível).
+- Sem sobreposição entre gráfico e tabela.
+- Sem botão “Salvar” aparecendo na imagem do Meta de Entrega.
+- O gráfico **Meta de Entrega Mensal** passa a aparecer no PDF (faltava).
+- Tabelas de Meta com colunas: Semana/Mês, Peso entregue (kg), Meta (kg), Atingiu? (Sim/Não).
 
-**Onde plugar o botão:** na `PageHeader` da `RelatorioSemanalObraPage.tsx`, ao lado do botão "Exportar Excel" existente, novo botão `Exportar PDF` (variant outline, ícone `FileDown`).
+## Arquivos alterados
 
-**Estado de origem dos dados:** usar `consolidatedRows` (já contém todas as páginas consolidadas para alimentar os gráficos) + `kpiTotals` + `filters`.
+- `src/lib/pdf/relatorioSemanalObraPdf.ts` (refatoração da captura + layout)
+- `src/pages/producao/MetaEntregaSemanalChart.tsx` (novos `data-chart-id`, classes `pdf-hide`, exportar helpers)
 
-## Arquivos
-
-**Novo:**
-- `src/lib/pdf/relatorioSemanalObraPdf.ts` — função `gerarRelatorioSemanalObraPdf({ rows, kpis, filters, chartContainer })`. Faz a captura dos gráficos via `html2canvas`, monta capa, percorre cada gráfico capturando o `<Card>` correspondente (lookup por `data-chart-id`) e renderiza tabelas com `autoTable`.
-- `src/components/erp/ExportPdfButton.tsx` — botão genérico com loading, recebe um callback `onExport: () => Promise<void>`.
-
-**Editado:**
-- `src/components/erp/__tests__/ExportPdfButton.test.tsx` — teste mínimo de render + click invocando o callback.
-- `src/pages/producao/RelatorioSemanalObraCharts.tsx`:
-  - Adicionar `data-chart-id="<key>"` em cada `ChartCard` (peso, pecas, cargas, evolucao, pesoMedioCarga, clientes).
-  - Exportar as funções helper `topByMetric`, `groupByWeek`, `clientShare`, `obraLabel` para reuso no gerador de PDF.
-  - Envolver o grid em um `ref` (`chartsContainerRef`) opcional, ou expor via `forwardRef`.
-- `src/pages/producao/MetaEntregaSemanalChart.tsx`: adicionar `data-chart-id="meta-entrega"` no card raiz.
-- `src/pages/producao/RelatorioSemanalObraPage.tsx`:
-  - Criar `chartsRef = useRef<HTMLDivElement>(null)` envolvendo a área dos gráficos.
-  - Adicionar `<ExportPdfButton>` na `PageHeader actions`, junto ao Excel.
-  - Handler `handleExportPdf` chama `gerarRelatorioSemanalObraPdf` passando rows/kpis/filtros/ref.
-  - Botão fica desabilitado se `consolidatedRows.length === 0`.
-
-**Dependências a instalar:** `jspdf`, `jspdf-autotable`, `html2canvas`.
-
-## Comportamento
-
-- Se ainda não houver consulta executada, botão desabilitado com tooltip "Consulte primeiro".
-- Durante geração: spinner + toast "Gerando PDF…"; ao concluir: download `relatorio-semanal-obra-AAAA-MM-DD.pdf` + toast sucesso.
-- Se a consolidação ainda estiver em andamento (`kpiLoading`), o PDF usa o snapshot atual de `consolidatedRows` e exibe aviso "Dados parciais — consolidação em andamento" no rodapé da capa.
-- Erros de captura são logados via `errorLogger` (módulo `relatorio-semanal-obra-pdf`).
-
-## Fora de escopo
-
-- Exportação PDF para outras telas de produção (pode ser replicado depois reutilizando `ExportPdfButton` + função genérica).
-- Mudanças no backend FastAPI.
-- Personalização de estilo/branding do PDF além do cabeçalho padrão.
+Sem novas dependências.
