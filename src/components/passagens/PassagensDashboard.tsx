@@ -146,6 +146,37 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     [crossFiltered],
   );
 
+  const groupOption = GROUP_OPTIONS.find((g) => g.value === groupBy)!;
+  const grupos = useMemo(() => {
+    const map = new Map<string, { qtd: number; valor: number }>();
+    crossFiltered.forEach((r) => {
+      const raw = (r as any)[groupBy];
+      const key = (typeof raw === 'string' ? raw.trim() : raw) || groupOption.empty;
+      const cur = map.get(key) ?? { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += Number(r.valor || 0);
+      map.set(key, cur);
+    });
+    return Array.from(map.entries())
+      .map(([nome, v]) => ({ nome, ...v }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [crossFiltered, groupBy, groupOption.empty]);
+  const gruposCount = grupos.length;
+
+  const exportGruposCsv = () => {
+    const rows = [['Grupo', 'Qtd', 'Valor Total']];
+    grupos.forEach((g) => rows.push([g.nome, String(g.qtd), g.valor.toFixed(2).replace('.', ',')]));
+    rows.push(['Total', String(totalRegistros), totalGeral.toFixed(2).replace('.', ',')]);
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `passagens-agrupado-${groupBy}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
     const base = applyCross(filtered, { motivo: true, cc: true });
