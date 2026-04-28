@@ -67,20 +67,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
-  const [catalogoCount, setCatalogoCount] = useState(0);
-
   // Cross-filters (clique nos gráficos)
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const [selectedCC, setSelectedCC] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase
-      .from('colaboradores_catalogo')
-      .select('*', { count: 'exact', head: true })
-      .eq('ativo', true)
-      .then(({ count }) => setCatalogoCount(count ?? 0));
-  }, []);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
@@ -134,6 +124,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const totalGeral = crossFiltered.reduce((s, r) => s + Number(r.valor || 0), 0);
   const totalRegistros = crossFiltered.length;
   const ticketMedio = totalRegistros > 0 ? totalGeral / totalRegistros : 0;
+  const colaboradoresUnicos = useMemo(
+    () => new Set(crossFiltered.map((r) => r.colaborador).filter(Boolean)).size,
+    [crossFiltered],
+  );
 
   // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
@@ -285,7 +279,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
         <KPICard title="Registros" value={totalRegistros} icon={<Plane className="h-5 w-5" />} variant="info" index={1} />
-        <KPICard title="Colaboradores (catálogo)" value={catalogoCount} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
+        <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
 
