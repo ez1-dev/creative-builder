@@ -67,20 +67,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
-  const [catalogoCount, setCatalogoCount] = useState(0);
-
   // Cross-filters (clique nos gráficos)
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const [selectedCC, setSelectedCC] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase
-      .from('colaboradores_catalogo')
-      .select('*', { count: 'exact', head: true })
-      .eq('ativo', true)
-      .then(({ count }) => setCatalogoCount(count ?? 0));
-  }, []);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
