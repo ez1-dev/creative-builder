@@ -16,6 +16,9 @@ import { KPICard } from '@/components/erp/KPICard';
 import { Building2, FolderKanban, Truck, Package, Weight } from 'lucide-react';
 import { RelatorioSemanalObraCharts, RelatorioRow } from './RelatorioSemanalObraCharts';
 import { MetaEntregaSemanalChart } from './MetaEntregaSemanalChart';
+import { ExportPdfButton } from '@/components/erp/ExportPdfButton';
+import { gerarRelatorioSemanalObraPdf } from '@/lib/pdf/relatorioSemanalObraPdf';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface KpiTotals {
   totalObras: number;
@@ -71,7 +74,9 @@ export default function RelatorioSemanalObraPage() {
   const [kpiLoading, setKpiLoading] = useState(false);
   const [consolidatedRows, setConsolidatedRows] = useState<RelatorioRow[]>([]);
   const consolidationIdRef = useRef(0);
+  const chartsRef = useRef<HTMLDivElement>(null);
   const erpReady = useErpReady();
+  const { user } = useAuth();
 
   const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<RelatorioRow>, currentFilters: typeof initialFilters) => {
     const id = ++consolidationIdRef.current;
@@ -292,10 +297,26 @@ export default function RelatorioSemanalObraPage() {
         title="Relatório Semanal Obra"
         description="Visão gerencial semanal por obra e projeto"
         actions={
-          <ExportButton
-            endpoint="/api/export/producao-relatorio-semanal-obra"
-            params={filters}
-          />
+          <div className="flex items-center gap-2">
+            <ExportButton
+              endpoint="/api/export/producao-relatorio-semanal-obra"
+              params={filters}
+            />
+            <ExportPdfButton
+              disabled={consolidatedRows.length === 0}
+              disabledTooltip="Consulte primeiro para gerar o PDF."
+              onExport={async () => {
+                await gerarRelatorioSemanalObraPdf({
+                  rows: consolidatedRows,
+                  kpis: kpiTotals,
+                  filters,
+                  chartContainer: chartsRef.current,
+                  userEmail: user?.email,
+                  partial: kpiLoading,
+                });
+              }}
+            />
+          </div>
         }
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
