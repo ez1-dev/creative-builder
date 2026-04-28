@@ -31,6 +31,8 @@ interface ContextoNumeroSerie {
   item_pedido: number;
   numero_op: number;
   origem_op: string;
+  origem_pedido?: string;
+  origens_conferem?: boolean;
   codigo_produto: string;
   derivacao: string;
   descricao_produto: string;
