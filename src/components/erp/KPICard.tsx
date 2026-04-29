@@ -34,8 +34,8 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
   const hasDetails = details && details.length > 0;
 
   const cardContent = (
-    <Card data-ai-avoid="kpi" className={cn('transition-shadow hover:shadow-md', variantClasses[variant], hasDetails && 'cursor-pointer')}>
-      <CardContent className="p-4">
+    <Card data-ai-avoid="kpi" className={cn('h-full transition-shadow hover:shadow-md', variantClasses[variant], hasDetails && 'cursor-pointer')}>
+      <CardContent className="flex h-full flex-col justify-center p-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-1">
@@ -55,17 +55,18 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {hasDetails ? cardContent : <div>{cardContent}</div>}
+          {hasDetails ? cardContent : <div className="h-full">{cardContent}</div>}
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs">
           {tooltip}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  ) : hasDetails ? cardContent : <div>{cardContent}</div>;
+  ) : hasDetails ? cardContent : <div className="h-full">{cardContent}</div>;
 
   const animationWrapper = (children: React.ReactNode) => (
     <motion.div
+      className="h-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
@@ -79,9 +80,9 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
       <Popover>
         <PopoverTrigger asChild>
           {tooltip ? (
-            <div>{wrappedWithTooltip}</div>
+            <div className="h-full">{wrappedWithTooltip}</div>
           ) : (
-            <div>{cardContent}</div>
+            <div className="h-full">{cardContent}</div>
           )}
         </PopoverTrigger>
         <PopoverContent className="w-72 p-0" side="bottom" align="start">
