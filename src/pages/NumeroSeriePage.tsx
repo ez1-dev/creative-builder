@@ -414,7 +414,17 @@ export default function NumeroSeriePage() {
     setContexto(null);
     setDados([]);
     setSelecionado('');
+    setOpCandidataEscolhida('');
   };
+
+  const aplicarOpCandidata = async (numeroOp: number | string) => {
+    const op = String(numeroOp).trim();
+    if (!op || op === '0') return;
+    setFilters(f => ({ ...f, numero_op: op }));
+    // pequeno delay para garantir que o setFilters foi aplicado antes do buscarContexto ler de filters
+    setTimeout(() => { buscarContexto(); }, 0);
+  };
+
 
   const ctxField = (label: string, value: any) => (
     <div className="space-y-0.5">
