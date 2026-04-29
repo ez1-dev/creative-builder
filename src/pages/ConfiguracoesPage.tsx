@@ -410,6 +410,48 @@ export default function ConfiguracoesPage() {
     return profileScreens.find(ps => ps.profile_id === profileId && ps.screen_path === screenPath);
   };
 
+  // ---- Visuais (gráficos e mapas) por perfil ----
+  // Default: ausência de registro = pode ver. Toggle grava can_view=false para ocultar.
+  const isVisualVisible = (profileId: string, visualKey: string): boolean => {
+    const row = profileVisuals.find(v => v.profile_id === profileId && v.visual_key === visualKey);
+    if (!row) return true;
+    return row.can_view !== false;
+  };
+
+  const setVisualVisible = async (profileId: string, visualKey: string, visible: boolean) => {
+    const existing = profileVisuals.find(v => v.profile_id === profileId && v.visual_key === visualKey);
+    if (visible) {
+      // Remover registro = volta ao default (visível)
+      if (existing) {
+        const { error } = await supabase.from('profile_visuals' as any).delete().eq('id', existing.id);
+        if (error) { toast.error('Erro ao atualizar'); return; }
+        setProfileVisuals(prev => prev.filter(v => v.id !== existing.id));
+      }
+    } else {
+      if (existing) {
+        const { error } = await supabase.from('profile_visuals' as any).update({ can_view: false }).eq('id', existing.id);
+        if (error) { toast.error('Erro ao atualizar'); return; }
+        setProfileVisuals(prev => prev.map(v => v.id === existing.id ? { ...v, can_view: false } : v));
+      } else {
+        const { data: inserted, error } = await supabase
+          .from('profile_visuals' as any)
+          .insert({ profile_id: profileId, visual_key: visualKey, can_view: false })
+          .select()
+          .single();
+        if (error) { toast.error('Erro ao atualizar'); return; }
+        if (inserted) setProfileVisuals(prev => [...prev, inserted as any]);
+      }
+    }
+    toast.success(visible ? 'Gráfico liberado' : 'Gráfico oculto');
+  };
+
+  const setModuleVisuals = async (profileId: string, keys: string[], visible: boolean) => {
+    for (const k of keys) {
+      // eslint-disable-next-line no-await-in-loop
+      await setVisualVisible(profileId, k, visible);
+    }
+  };
+
   // ---- Usuários ----
   const handleAddUser = async () => {
     if (!newUserLogin.trim() || !newUserProfileId) return;
