@@ -538,24 +538,26 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card>
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : 320}>
+              <PieChart margin={isMobile ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 20, right: 30, bottom: 20, left: 30 }}>
                 <Pie
                   data={porMotivo}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={isMobile ? 70 : 100}
                   cursor="pointer"
                   onClick={(d: any) => setSelectedMotivo((prev) => (prev === d.name ? null : d.name))}
-                  labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
-                  label={(e: any) => {
-                    const v = Number(e.value || 0);
-                    const mil = `R$${(v / 1000).toFixed(0)} Mil`;
-                    const pct = ((e.percent ?? 0) * 100).toFixed(2).replace('.', ',');
-                    return `${e.name} ${mil} (${pct}%)`;
-                  }}
+                  labelLine={isMobile ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+                  label={isMobile
+                    ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
+                    : (e: any) => {
+                        const v = Number(e.value || 0);
+                        const mil = `R$${(v / 1000).toFixed(0)} Mil`;
+                        const pct = ((e.percent ?? 0) * 100).toFixed(2).replace('.', ',');
+                        return `${e.name} ${mil} (${pct}%)`;
+                      }}
                   style={{ fontSize: 11 }}
                 >
                   {porMotivo.map((entry, i) => (
@@ -569,15 +571,31 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
               </PieChart>
             </ResponsiveContainer>
+            {isMobile && porMotivo.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                {porMotivo.map((entry, i) => (
+                  <div key={entry.name} className="flex items-center gap-1">
+                    <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-muted-foreground">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-sm">Top 15 Centros de Custo {selectedCC && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={420}>
-              <BarChart data={porCentroCusto} layout="vertical">
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : 420}>
+              <BarChart data={isMobile ? porCentroCusto.slice(0, 10) : porCentroCusto} layout="vertical">
                 <XAxis type="number" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="name" fontSize={11} width={140} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  fontSize={isMobile ? 10 : 11}
+                  width={isMobile ? 90 : 140}
+                  tickFormatter={(v: string) => (isMobile && v.length > 12 ? `${v.slice(0, 12)}…` : v)}
+                />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
                 <Bar
                   dataKey="value"
