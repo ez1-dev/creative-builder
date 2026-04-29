@@ -55,12 +55,6 @@ export const VISUAL_CATALOG: VisualGroup[] = [
     ],
   },
   {
-    module: 'Faturamento Genius',
-    items: [
-      { key: 'faturamento.charts', label: 'Análises gráficas de faturamento' },
-    ],
-  },
-  {
     module: 'Configurações (admin)',
     items: [
       { key: 'admin.dashboard-uso', label: 'Dashboard de Uso de Usuários' },
