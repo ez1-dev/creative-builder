@@ -22,6 +22,7 @@ import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Pe
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { useSearchTracking } from '@/hooks/useSearchTracking';
+import { VisualGate } from '@/components/VisualGate';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
@@ -600,6 +601,7 @@ export default function PainelComprasPage() {
                 <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análises Gráficas</h3>
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
                   {chartData.top_fornecedores?.length > 0 && (
+                    <VisualGate visualKey="compras.top-fornecedores">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Fornecedores (Valor Líquido)</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -611,6 +613,7 @@ export default function PainelComprasPage() {
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+                    </VisualGate>
                   )}
 
                   {chartData.situacoes?.length > 0 && (
