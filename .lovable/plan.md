@@ -1,67 +1,40 @@
-# Filtros colapsáveis em Passagens Aéreas
+# Corrigir simetria/altura uniforme dos KPI Cards em Passagens Aéreas
 
-## Problema
+## Problema (confirmado pela imagem)
 
-Hoje o Card de filtros do topo (`src/components/passagens/PassagensDashboard.tsx`, linhas ~342–440) está sempre expandido, ocupando bastante espaço vertical com 6 campos (Colaborador, Centro de Custo, Tipo, Mês, Data início, Data fim) + botão Limpar. O usuário quer poder esconder esse painel e reabrir só quando precisar.
+No grid `grid-cols-4 items-stretch` (linha 510 de `src/components/passagens/PassagensDashboard.tsx`), o card **Registros** aparece visivelmente mais alto que os outros 3:
+
+- O wrapper externo `<div className="relative">` (linha 548) não tem `h-full`, então não estica para ocupar toda a célula do grid.
+- Mesmo se esticasse, o `KPICard` internamente é envolvido por um `motion.div` (`framer-motion`) sem `h-full`, e o `Card` interno também não tem `h-full`. Resultado: os 3 cards "limpos" assumem altura natural igual, mas o card Registros (com subtitle "16 Centro de Custos") fica mais alto pelo conteúdo extra, e os outros não acompanham.
+- `items-stretch` no grid só estica os **filhos diretos** — ele não propaga para netos/bisnetos.
 
 ## Solução
 
-Transformar o Card de filtros em um painel colapsável, com cabeçalho clicável para minimizar/maximizar, mantendo o estado dos filtros ativos visíveis mesmo quando colapsado.
+Propagar `h-full` por toda a cadeia de wrappers do KPICard e ajustar o card Registros para que os 4 cards fiquem com a mesma altura, definida pelo mais alto.
 
-### Comportamento
+### 1) `src/components/erp/KPICard.tsx`
 
-- **Estado inicial**: aberto se houver pelo menos um filtro do topo ativo (`hasTopFilter`); senão, fechado por padrão para liberar espaço.
-- **Cabeçalho sempre visível** (mesmo colapsado), contendo:
-  - Ícone de filtro + título "Filtros".
-  - Contador discreto de filtros ativos (ex.: "3 ativos") em `Badge` quando houver.
-  - Botão de chevron (`ChevronDown`/`ChevronUp`) à direita indicando estado.
-  - O cabeçalho inteiro é clicável (toggle).
-- **Conteúdo colapsado**: o grid dos 6 campos + botão Limpar somem (`hidden`), reduzindo o card a uma única linha de altura.
-- **Conteúdo expandido**: comportamento atual sem alterações.
-- **Persistência da escolha**: salvar o estado em `localStorage` na chave `passagens:filtros-aberto` para que a preferência do usuário permaneça entre sessões.
-- **Limpar**: ao clicar em "Limpar tudo" enquanto aberto, mantém aberto. O badge de filtros do gráfico (`hasCrossFilter`, linhas 442–470) continua aparecendo independente, fora do card colapsável.
+- No `motion.div` (linhas 67–75): adicionar `className="h-full"`.
+- No `<Card>` interno (linha 37): incluir `h-full` nas classes.
+- No `<CardContent>` (linha 38): trocar `p-4` por `flex h-full flex-col justify-center p-4` para que o conteúdo fique centralizado verticalmente quando o card é esticado pelo grid.
+- Nos wrappers `<div>` que aparecem em volta do `cardContent` quando há `tooltip`/`details` (linhas 58, 65, 82, 84): adicionar `h-full` para não quebrar a cadeia de altura.
 
-### Mudanças em `src/components/passagens/PassagensDashboard.tsx`
+### 2) `src/components/passagens/PassagensDashboard.tsx`
 
-1. Adicionar estado `filtrosAbertos` com inicialização a partir do `localStorage` (fallback: `hasTopFilter` ou `false`).
-2. Persistir mudanças via `useEffect` gravando em `localStorage`.
-3. Envolver o `<Card>` (linha 342) num bloco com cabeçalho próprio:
-   ```tsx
-   <Card>
-     <button
-       type="button"
-       onClick={() => setFiltrosAbertos(v => !v)}
-       className="flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium hover:bg-accent/40"
-     >
-       <span className="flex items-center gap-2">
-         <Filter className="h-4 w-4" />
-         Filtros
-         {hasTopFilter && (
-           <Badge variant="secondary" className="ml-1 h-5 text-xs">
-             {countAtivos} ativo{countAtivos === 1 ? '' : 's'}
-           </Badge>
-         )}
-       </span>
-       {filtrosAbertos
-         ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-         : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-     </button>
-     {filtrosAbertos && (
-       <CardContent className="space-y-3 p-4 pt-0 border-t">
-         {/* grid existente dos 6 campos + botão Limpar */}
-       </CardContent>
-     )}
-   </Card>
-   ```
-4. Calcular `countAtivos` simples (soma dos filtros do topo preenchidos) para o badge.
-5. Importar `ChevronDown`, `ChevronUp` e `Filter` do `lucide-react` (verificar se já estão importados; senão adicionar).
+- Linha 548: `<div className="relative">` → `<div className="relative h-full">` para que o wrapper desktop do card Registros estique para ocupar a célula inteira.
+- Linha 513 (caminho mobile): `<div className="flex flex-col gap-2">` — manter como está; mobile usa stack vertical e altura uniforme não importa.
+
+### Resultado esperado
+
+Os 4 KPI cards (Total Geral, Registros, Colaboradores, Ticket Médio) ficam exatamente da mesma altura, com o conteúdo verticalmente centralizado. O Select "Centro de…" + botão Layers permanecem absolutamente posicionados no canto superior direito do card Registros, sem afetar o layout dos vizinhos.
 
 ## Arquivos afetados
 
-- `src/components/passagens/PassagensDashboard.tsx` — apenas o bloco de filtros do topo (~linhas 340–440) e os imports.
+- `src/components/erp/KPICard.tsx` — propagação de `h-full` e centralização vertical do conteúdo.
+- `src/components/passagens/PassagensDashboard.tsx` — `h-full` no wrapper do card Registros (apenas no caminho desktop, linha 548).
 
 ## Fora do escopo
 
-- Não alterar lógica de filtragem, KPIs, gráficos, tabela ou cross-filters.
-- Não alterar o painel "Filtros do gráfico" (que já tem comportamento próprio com badges).
-- Não mexer no layout mobile específico além do herdado naturalmente (o cabeçalho colapsável funciona igual em mobile e desktop).
+- Não alterar lógica do KPICard (variantes, tooltip, popover, animação).
+- Não mexer em outros usos do `KPICard` em outras páginas — adicionar `h-full` é seguro porque só tem efeito quando o pai tem altura definida (caso contrário, vira `100%` de auto = sem efeito).
+- Não mexer no caminho mobile dos KPIs.
