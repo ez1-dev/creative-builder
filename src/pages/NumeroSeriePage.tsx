@@ -524,9 +524,52 @@ export default function NumeroSeriePage() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>OP vinculada a outro pedido — vínculo bloqueado</AlertTitle>
                 <AlertDescription>
-                  A OP <strong>{mismatchPedidoOp.op}</strong> está vinculada ao pedido <strong>{mismatchPedidoOp.pedidoOp}</strong>{mismatchPedidoOp.itemOp ? <> (item <strong>{mismatchPedidoOp.itemOp}</strong>)</> : null}, não ao pedido <strong>{mismatchPedidoOp.pedidoCtx}</strong> que você buscou. Confirme com a engenharia qual é a OP correta deste pedido, ou use <strong>Desvincular GS</strong> para liberar a OP do pedido antigo antes de prosseguir.
+                  A OP <strong>{mismatchPedidoOp.op}</strong> está vinculada ao pedido <strong>{mismatchPedidoOp.pedidoOp}</strong>{mismatchPedidoOp.itemOp ? <> (item <strong>{mismatchPedidoOp.itemOp}</strong>)</> : null}, não ao pedido <strong>{mismatchPedidoOp.pedidoCtx}</strong> que você buscou.{contexto?.ops_candidatas && contexto.ops_candidatas.length > 0 ? <> Selecione abaixo a OP correta deste pedido.</> : <> Confirme com a engenharia qual é a OP correta, ou use <strong>Desvincular GS</strong> para liberar a OP do pedido antigo.</>}
                 </AlertDescription>
               </Alert>
+            )}
+            {contexto?.ops_candidatas && contexto.ops_candidatas.length > 0 && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <Hash className="h-3.5 w-3.5 text-primary" />
+                  {contexto.ops_candidatas.length === 1
+                    ? `1 OP candidata encontrada para o pedido ${contexto.numero_pedido} / item ${contexto.item_pedido}`
+                    : `${contexto.ops_candidatas.length} OPs candidatas encontradas para o pedido ${contexto.numero_pedido} / item ${contexto.item_pedido}`}
+                </div>
+                {contexto.ops_candidatas.length === 1 ? (
+                  <Button
+                    size="sm"
+                    onClick={() => aplicarOpCandidata(contexto.ops_candidatas![0])}
+                    disabled={loading || Number(contexto.ops_candidatas![0]) === Number(contexto.numero_op)}
+                  >
+                    <Link2 className="mr-1 h-3.5 w-3.5" />
+                    Aplicar OP {contexto.ops_candidatas[0]}
+                  </Button>
+                ) : (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex-1 min-w-[180px] space-y-1">
+                      <Label className="text-xs">OP correta deste pedido</Label>
+                      <Select value={opCandidataEscolhida} onValueChange={setOpCandidataEscolhida}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione uma OP candidata" /></SelectTrigger>
+                        <SelectContent>
+                          {contexto.ops_candidatas.map((op) => (
+                            <SelectItem key={op} value={String(op)}>
+                              OP {op}{Number(op) === Number(contexto.numero_op) ? ' (atual)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => aplicarOpCandidata(opCandidataEscolhida)}
+                      disabled={loading || !opCandidataEscolhida || Number(opCandidataEscolhida) === Number(contexto.numero_op)}
+                    >
+                      <Link2 className="mr-1 h-3.5 w-3.5" />Aplicar OP
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
               {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
