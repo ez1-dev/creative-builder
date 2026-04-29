@@ -683,6 +683,7 @@ export default function PainelComprasPage() {
                   )}
 
                   {chartData.familias?.length > 0 && (
+                    <VisualGate visualKey="compras.top-familias">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Famílias por Valor Líquido</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -694,9 +695,11 @@ export default function PainelComprasPage() {
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+                    </VisualGate>
                   )}
 
                   {chartData.origens?.length > 0 && (
+                    <VisualGate visualKey="compras.top-origens">
                     <div className="rounded-md border bg-card p-4">
                       <h3 className="mb-3 text-sm font-semibold">Top Origens por Valor Líquido</h3>
                       <ResponsiveContainer width="100%" height={250}>
@@ -708,6 +711,7 @@ export default function PainelComprasPage() {
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+                    </VisualGate>
                   )}
                 </div>
               </div>
