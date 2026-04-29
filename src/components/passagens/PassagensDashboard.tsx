@@ -335,7 +335,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [filtered, selectedMes, selectedMotivo]);
 
-  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC);
+  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino);
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
@@ -349,7 +349,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedMes(null);
     setSelectedMotivo(null);
     setSelectedCC(null);
+    setSelectedDestino(null);
   };
+
+  // Dados para o mapa: respeita filtros do topo + outros cross-filters, exceto o próprio destino
+  const mapaData = useMemo(
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC],
+  );
 
   // Cores para destaque condicional
   const primaryColor = 'hsl(var(--primary))';
