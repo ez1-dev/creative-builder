@@ -157,6 +157,64 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     [filtered, selectedMes, selectedMotivo, selectedCC],
   );
 
+  // Linhas exibidas no card Registros: aplica busca + ordenação
+  const displayRows = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const filteredRows = q
+      ? crossFiltered.filter((r) => {
+          const hay = [
+            r.colaborador, r.centro_custo, r.projeto_obra, r.fornecedor,
+            r.cia_aerea, r.numero_bilhete, r.localizador,
+            r.origem, r.destino, r.motivo_viagem, r.tipo_despesa,
+          ].map((v) => (v ?? '').toString().toLowerCase()).join(' | ');
+          return hay.includes(q);
+        })
+      : crossFiltered.slice();
+    const sorted = filteredRows.sort((a, b) => {
+      switch (ordenacao) {
+        case 'data_asc': return (a.data_registro ?? '').localeCompare(b.data_registro ?? '');
+        case 'data_desc': return (b.data_registro ?? '').localeCompare(a.data_registro ?? '');
+        case 'colab_az': return (a.colaborador ?? '').localeCompare(b.colaborador ?? '');
+        case 'colab_za': return (b.colaborador ?? '').localeCompare(a.colaborador ?? '');
+        case 'valor_asc': return Number(a.valor || 0) - Number(b.valor || 0);
+        case 'valor_desc': return Number(b.valor || 0) - Number(a.valor || 0);
+        default: return 0;
+      }
+    });
+    return sorted;
+  }, [crossFiltered, busca, ordenacao]);
+
+  // Agrupamento por colaborador para a visão expansível
+  const gruposColab = useMemo(() => {
+    const map = new Map<string, { colaborador: string; qtd: number; total: number; registros: Passagem[] }>();
+    displayRows.forEach((r) => {
+      const key = (r.colaborador ?? '').trim() || 'Sem colaborador';
+      const cur = map.get(key) ?? { colaborador: key, qtd: 0, total: 0, registros: [] };
+      cur.qtd += 1;
+      cur.total += Number(r.valor || 0);
+      cur.registros.push(r);
+      map.set(key, cur);
+    });
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => {
+      switch (ordenacao) {
+        case 'colab_za': return b.colaborador.localeCompare(a.colaborador);
+        case 'valor_asc': return a.total - b.total;
+        case 'valor_desc': return b.total - a.total;
+        default: return a.colaborador.localeCompare(b.colaborador);
+      }
+    });
+    return arr;
+  }, [displayRows, ordenacao]);
+
+  const toggleGrupo = (nome: string) => {
+    setGruposAbertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(nome)) next.delete(nome); else next.add(nome);
+      return next;
+    });
+  };
+
   const totalGeral = crossFiltered.reduce((s, r) => s + Number(r.valor || 0), 0);
   const totalRegistros = crossFiltered.length;
   const ticketMedio = totalRegistros > 0 ? totalGeral / totalRegistros : 0;
