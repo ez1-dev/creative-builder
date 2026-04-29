@@ -91,6 +91,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
+  // Controles do card Registros
+  const [busca, setBusca] = useState('');
+  const [agruparColab, setAgruparColab] = useState(false);
+  const [ordenacao, setOrdenacao] = useState<'data_desc'|'data_asc'|'colab_az'|'colab_za'|'valor_desc'|'valor_asc'>('data_desc');
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
