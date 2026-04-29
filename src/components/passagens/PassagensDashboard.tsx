@@ -24,6 +24,7 @@ import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import * as XLSX from 'xlsx';
 
 export interface Passagem {
