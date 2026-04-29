@@ -80,9 +80,9 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
       <Popover>
         <PopoverTrigger asChild>
           {tooltip ? (
-            <div>{wrappedWithTooltip}</div>
+            <div className="h-full">{wrappedWithTooltip}</div>
           ) : (
-            <div>{cardContent}</div>
+            <div className="h-full">{cardContent}</div>
           )}
         </PopoverTrigger>
         <PopoverContent className="w-72 p-0" side="bottom" align="start">
