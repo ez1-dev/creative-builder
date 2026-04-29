@@ -735,9 +735,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               {totalRegistros} registro{totalRegistros === 1 ? '' : 's'} em {gruposCount} grupo{gruposCount === 1 ? '' : 's'} — total {formatCurrency(totalGeral)}
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={exportGruposCsv} disabled={gruposCount === 0}>
               <Download className="mr-1 h-4 w-4" /> Exportar CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportGruposXlsx} disabled={gruposCount === 0}>
+              <Download className="mr-1 h-4 w-4" /> Exportar Excel
             </Button>
           </div>
           <div className="mt-2 rounded-md border">
