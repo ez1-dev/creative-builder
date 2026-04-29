@@ -121,28 +121,13 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
+                      fill="hsl(215, 25%, 90%)"
+                      stroke="hsl(215, 70%, 45%)"
+                      strokeWidth={0.7}
                       style={{
-                        default: {
-                          fill: 'hsl(var(--secondary))',
-                          stroke: 'hsl(var(--primary))',
-                          strokeWidth: 0.7,
-                          strokeOpacity: 0.85,
-                          outline: 'none',
-                        },
-                        hover: {
-                          fill: 'hsl(var(--accent))',
-                          stroke: 'hsl(var(--primary))',
-                          strokeWidth: 1,
-                          strokeOpacity: 1,
-                          outline: 'none',
-                        },
-                        pressed: {
-                          fill: 'hsl(var(--secondary))',
-                          stroke: 'hsl(var(--primary))',
-                          strokeWidth: 0.7,
-                          strokeOpacity: 0.85,
-                          outline: 'none',
-                        },
+                        default: { outline: 'none' },
+                        hover: { outline: 'none', fill: 'hsl(215, 60%, 85%)' },
+                        pressed: { outline: 'none' },
                       }}
                     />
                   ))
