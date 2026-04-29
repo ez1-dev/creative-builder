@@ -22,6 +22,7 @@ import {
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
+import { VisualGate } from '@/components/VisualGate';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -605,13 +606,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <MapaDestinosCard
-          data={mapaData}
-          selectedDestino={selectedDestino}
-          onSelectDestino={setSelectedDestino}
-        />
-      </div>
+      <VisualGate visualKey="passagens.mapa-destinos">
+        <div className="grid grid-cols-1 gap-4">
+          <MapaDestinosCard
+            data={mapaData}
+            selectedDestino={selectedDestino}
+            onSelectDestino={setSelectedDestino}
+          />
+        </div>
+      </VisualGate>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
