@@ -420,9 +420,37 @@ export default function NumeroSeriePage() {
   const aplicarOpCandidata = async (numeroOp: number | string) => {
     const op = String(numeroOp).trim();
     if (!op || op === '0') return;
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setFilters(f => ({ ...f, numero_op: op }));
-    // pequeno delay para garantir que o setFilters foi aplicado antes do buscarContexto ler de filters
-    setTimeout(() => { buscarContexto(); }, 0);
+    setLoading(true);
+    setOpCandidataEscolhida('');
+    try {
+      const params: Record<string, any> = { codigo_empresa: 1, numero_op: Number(op) };
+      if (filters.numero_pedido) params.numero_pedido = Number(filters.numero_pedido);
+      if (filters.item_pedido) params.item_pedido = Number(filters.item_pedido);
+      const result = await api.get<{ contexto: ContextoNumeroSerie }>('/api/numero-serie/contexto', params);
+      setContexto(result.contexto);
+      const produto = result.contexto?.codigo_produto?.trim();
+      const pedidoDigitado = filters.numero_pedido ? Number(filters.numero_pedido) : result.contexto?.numero_pedido;
+      const pedidoOp = result.contexto?.pedido_vinculado_op;
+      const opMismatch =
+        !!result.contexto?.numero_op &&
+        !!pedidoOp &&
+        !!pedidoDigitado &&
+        Number(pedidoOp) !== Number(pedidoDigitado);
+      setFilters(f => ({
+        ...f,
+        numero_op: opMismatch ? f.numero_op : (result.contexto?.numero_op ? String(result.contexto.numero_op) : f.numero_op),
+        origem_op: opMismatch ? '' : (result.contexto?.origem_op || ''),
+        ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
+      }));
+      if (produto) await buscarProximos(produto, result.contexto?.derivacao || '');
+      toast.success(opMismatch ? `OP ${op} ainda não bate com o pedido. Verifique.` : `OP ${op} aplicada.`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
 
