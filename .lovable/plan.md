@@ -1,38 +1,68 @@
+# Cards de KPI simétricos em Passagens Aéreas
+
 ## Problema
 
-Quando o usuário ativa **"Agrupar Colaborador"** na tabela de Passagens Aéreas, os títulos das colunas continuam: `Data | Colaborador | C. Custo | Tipo | Origem → Destino | Cia | Valor`.
+Hoje, no grid de KPIs (`src/components/passagens/PassagensDashboard.tsx`, linhas ~472–510), os 4 cards estão num `grid md:grid-cols-4`, mas o card **Registros** está embrulhado num wrapper extra:
 
-Mas o conteúdo das linhas filhas muda: a coluna "Colaborador" fica vazia (mostra só "↳"), porque o nome já está no cabeçalho do grupo. Isso faz os títulos ficarem **incoerentes** com o que aparece embaixo — exatamente o ponto que você levantou (igual ao exemplo de planilha que mandou, onde os títulos refletem o conteúdo).
-
-## Solução proposta
-
-Quando estiver no modo **agrupado por colaborador**, reorganizar o cabeçalho para que faça sentido com o que está sendo mostrado:
-
-**Modo normal (sem agrupamento) — mantém igual:**
 ```
-Data | Colaborador | C. Custo | Tipo | Origem → Destino | Cia | Valor | Ações
+<div className="relative flex flex-col gap-2">
+  <KPICard ... />
+  <div>  Select "Centro de…" + botão Layers  </div>
+</div>
 ```
 
-**Modo agrupado por colaborador — novo cabeçalho:**
-```
-Data | C. Custo | Tipo | Origem → Destino | Cia | Valor | Ações
-```
+Esse wrapper adiciona uma barra de controles **abaixo** do card, fazendo com que:
+- O card Registros fique mais alto que os outros 3 (assimetria vertical).
+- O alinhamento da linha quebre — visível no print enviado, onde "Centro de…" e o ícone de avião aparecem fora/abaixo do card.
+- Em desktop os cards parecem do mesmo tamanho horizontal, mas verticalmente o Registros é maior.
 
-Ou seja: removemos a coluna **"Colaborador"** do cabeçalho (já que o nome aparece na linha-pai do grupo) e as linhas filhas ficam alinhadas certinho com os títulos. O "↳" que aparecia hoje some.
+## Objetivo
 
-A linha-pai (cabeçalho do grupo) continua mostrando: nome do colaborador + badge de quantidade + total à direita, ocupando toda a largura via `colSpan`.
+Os 4 cards devem ter **mesma altura, mesma largura e mesmo padding interno**, formando uma linha simétrica.
 
-## Detalhes técnicos
+## Solução
 
-Arquivo: `src/components/passagens/PassagensDashboard.tsx` (bloco `<Table>` linhas ~723–802)
+Mover os controles de agrupamento (Select + botão Layers) para **dentro** do card Registros, posicionados de forma compacta no topo direito do card, sem aumentar a altura.
 
-1. **Cabeçalho condicional**: renderizar `<TableHead>Colaborador</TableHead>` apenas quando `!agruparColab`.
-2. **Linha-pai do grupo**: ajustar `colSpan` de 6 → 5 (já que removemos uma coluna).
-3. **Linhas filhas no modo agrupado**: remover a `<TableCell>` com "↳" e remover também a célula de "Data com pl-8" (manter padding normal). A indentação visual pode ser substituída por uma borda lateral suave no `<TableRow>` (`border-l-2 border-muted`) para indicar hierarquia sem precisar de coluna extra.
-4. **Ajuste dos `colSpan` de loading / vazio**: hoje usam `colSpan={8}`. Trocar para uma constante calculada (ex.: `const colCount = agruparColab ? 7 : 8` considerando a coluna de Ações).
-5. **Mobile (cards)**: já está correto — o card filho não mostra o nome do colaborador porque ele está no cabeçalho do accordion. Sem mudança necessária.
-6. **Drawer "Registros agrupados" e exports CSV/Excel**: não mudam — eles mostram tabela resumo (Colaborador, Qtd, Total).
+### Mudanças em `src/components/passagens/PassagensDashboard.tsx`
 
-## Resultado
+1. **Grid de KPIs (linha 472)**: adicionar `items-stretch` para garantir que todos os filhos esticam à mesma altura:
+   ```tsx
+   <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-stretch">
+   ```
 
-Ao agrupar, o usuário vê uma tabela onde **cada título de coluna corresponde exatamente ao dado abaixo** — coerência total entre cabeçalho e conteúdo, exatamente como no exemplo de planilha que você compartilhou.
+2. **Card Registros (linhas 474–507)**: remover o wrapper `<div className="relative flex flex-col gap-2">` e os controles externos. O `KPICard` passa a receber os controles via uma prop existente (`action`/`headerAction`) ou, se não houver, via um wrapper `relative` que posiciona os controles **absolutamente** dentro do card (canto superior direito), igual a como aparece no print do usuário (onde o select "Centro de…" já está visível dentro da área do card):
+   
+   ```tsx
+   <div className="relative">
+     <KPICard
+       title="Registros"
+       value={totalRegistros}
+       icon={<Plane className="h-5 w-5" />}
+       variant="info"
+       index={1}
+       subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
+     />
+     <div className="absolute right-3 top-3 flex items-center gap-1">
+       <Select ...> ... </Select>
+       <Button size="icon" variant="ghost" className="h-7 w-7" ...>
+         <Layers className="h-4 w-4" />
+       </Button>
+     </div>
+   </div>
+   ```
+   
+   - O `Select` mantém `h-7 text-xs w-[130px]` para caber no canto sem ocupar muito espaço.
+   - Em mobile (já tratado por `useIsMobile`), os controles continuam empilhados abaixo do KPI como antes — manter o caminho mobile atual; alterar apenas o caminho desktop.
+
+3. **Verificação visual**: após a mudança, os 4 cards (Total Geral, Registros, Colaboradores, Ticket Médio) compartilham a mesma altura porque nenhum tem mais wrapper extra; o `grid` aplica `1fr` em cada coluna e `items-stretch` força altura uniforme.
+
+## Arquivos afetados
+
+- `src/components/passagens/PassagensDashboard.tsx` (apenas o bloco do grid de KPIs, ~linhas 472–510)
+
+## Fora do escopo
+
+- Não mexer no `KPICard` base (`src/components/erp/KPICard.tsx`).
+- Não mexer no layout mobile já implementado anteriormente.
+- Não mexer em gráficos, tabela, exportações.
