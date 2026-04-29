@@ -221,6 +221,26 @@ export default function NumeroSeriePage() {
     return { op, origemOp: oOp, origemPedido: oPed, pedido: contexto.numero_pedido };
   })();
 
+  // Mismatch: a OP retornada está vinculada a OUTRO pedido (caso do pedido 11510 vs OP 1111 que era do pedido 4891)
+  const mismatchPedidoOp = (() => {
+    if (!contexto) return null;
+    const op = contexto.numero_op;
+    const pedidoCtx = contexto.numero_pedido;
+    const pedidoOp = contexto.pedido_vinculado_op;
+    const itemOp = contexto.item_vinculado_op;
+    if (!op || !pedidoOp || !pedidoCtx) return null;
+    if (Number(pedidoOp) === Number(pedidoCtx)) return null;
+    return { op, pedidoCtx, pedidoOp, itemOp };
+  })();
+
+  const bloqueioVinculo = !!divergenciaOrigem || !!mismatchPedidoOp;
+  const motivoBloqueio = divergenciaOrigem
+    ? 'Bloqueado: divergência de origem entre OP e pedido'
+    : mismatchPedidoOp
+      ? `Bloqueado: a OP ${mismatchPedidoOp.op} está vinculada ao pedido ${mismatchPedidoOp.pedidoOp}, não ao pedido ${mismatchPedidoOp.pedidoCtx}`
+      : undefined;
+
+
   const reservar = async (forcarVinculo: boolean = false) => {
     const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
     const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
