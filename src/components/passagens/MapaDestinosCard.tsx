@@ -123,24 +123,24 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                       geography={geo}
                       style={{
                         default: {
-                          fill: 'hsl(var(--accent))',
+                          fill: 'hsl(var(--secondary))',
                           stroke: 'hsl(var(--primary))',
-                          strokeWidth: 0.8,
-                          strokeOpacity: 0.5,
+                          strokeWidth: 0.7,
+                          strokeOpacity: 0.85,
                           outline: 'none',
                         },
                         hover: {
                           fill: 'hsl(var(--accent))',
                           stroke: 'hsl(var(--primary))',
                           strokeWidth: 1,
-                          strokeOpacity: 0.7,
+                          strokeOpacity: 1,
                           outline: 'none',
                         },
                         pressed: {
-                          fill: 'hsl(var(--accent))',
+                          fill: 'hsl(var(--secondary))',
                           stroke: 'hsl(var(--primary))',
-                          strokeWidth: 0.8,
-                          strokeOpacity: 0.5,
+                          strokeWidth: 0.7,
+                          strokeOpacity: 0.85,
                           outline: 'none',
                         },
                       }}
