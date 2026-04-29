@@ -55,17 +55,18 @@ export function KPICard({ title, value, subtitle, icon, variant = 'default', too
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {hasDetails ? cardContent : <div>{cardContent}</div>}
+          {hasDetails ? cardContent : <div className="h-full">{cardContent}</div>}
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs text-xs">
           {tooltip}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
-  ) : hasDetails ? cardContent : <div>{cardContent}</div>;
+  ) : hasDetails ? cardContent : <div className="h-full">{cardContent}</div>;
 
   const animationWrapper = (children: React.ReactNode) => (
     <motion.div
+      className="h-full"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.4, ease: 'easeOut' }}
