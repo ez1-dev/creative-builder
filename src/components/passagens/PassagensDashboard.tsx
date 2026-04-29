@@ -635,9 +635,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 gruposColab.map((g) => {
                   const aberto = gruposAbertos.has(g.colaborador);
                   return (
-                    <>
+                    <Fragment key={g.colaborador}>
                       <TableRow
-                        key={`g-${g.colaborador}`}
                         className="cursor-pointer bg-muted/40 hover:bg-muted/60"
                         onClick={() => toggleGrupo(g.colaborador)}
                       >
