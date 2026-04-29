@@ -157,9 +157,20 @@ export default function NumeroSeriePage() {
       setContexto(result.contexto);
 
       const produto = result.contexto?.codigo_produto?.trim();
+      // Detecta mismatch: a OP retornada está vinculada a OUTRO pedido (não o que o usuário digitou)
+      const pedidoDigitado = numero_pedido ? Number(numero_pedido) : result.contexto?.numero_pedido;
+      const pedidoOp = result.contexto?.pedido_vinculado_op;
+      const opMismatch =
+        !!result.contexto?.numero_op &&
+        !!pedidoOp &&
+        !!pedidoDigitado &&
+        Number(pedidoOp) !== Number(pedidoDigitado);
+
       setFilters(f => ({
         ...f,
-        origem_op: result.contexto?.origem_op || '',
+        // Não auto-preenche OP quando ela é de outro pedido — evita reserva indevida
+        numero_op: opMismatch ? f.numero_op : (result.contexto?.numero_op ? String(result.contexto.numero_op) : f.numero_op),
+        origem_op: opMismatch ? '' : (result.contexto?.origem_op || ''),
         ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
       }));
       if (produto) {
