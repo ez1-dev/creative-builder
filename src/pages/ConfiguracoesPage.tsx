@@ -239,6 +239,10 @@ export default function ConfiguracoesPage() {
   const [newUserProfileId, setNewUserProfileId] = useState('');
   const [passagensShareAllowNonAdmin, setPassagensShareAllowNonAdmin] = useState(false);
 
+  // Visuais (gráficos e mapas) por perfil — chave canônica: visual_key denied = can_view false
+  const [profileVisuals, setProfileVisuals] = useState<Array<{ id: string; profile_id: string; visual_key: string; can_view: boolean }>>([]);
+  const [visualsSelectedProfile, setVisualsSelectedProfile] = useState<string>('');
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }, { data: shareSetting }] = await Promise.all([
