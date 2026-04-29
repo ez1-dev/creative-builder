@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from '@/components/erp/KPICard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown } from 'lucide-react';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown, ChevronDown, ChevronRight, Search, ArrowUpDown } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
@@ -91,6 +91,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
+  // Controles do card Registros
+  const [busca, setBusca] = useState('');
+  const [agruparColab, setAgruparColab] = useState(false);
+  const [ordenacao, setOrdenacao] = useState<'data_desc'|'data_asc'|'colab_az'|'colab_za'|'valor_desc'|'valor_asc'>('data_desc');
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
@@ -151,6 +156,64 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
     [filtered, selectedMes, selectedMotivo, selectedCC],
   );
+
+  // Linhas exibidas no card Registros: aplica busca + ordenação
+  const displayRows = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const filteredRows = q
+      ? crossFiltered.filter((r) => {
+          const hay = [
+            r.colaborador, r.centro_custo, r.projeto_obra, r.fornecedor,
+            r.cia_aerea, r.numero_bilhete, r.localizador,
+            r.origem, r.destino, r.motivo_viagem, r.tipo_despesa,
+          ].map((v) => (v ?? '').toString().toLowerCase()).join(' | ');
+          return hay.includes(q);
+        })
+      : crossFiltered.slice();
+    const sorted = filteredRows.sort((a, b) => {
+      switch (ordenacao) {
+        case 'data_asc': return (a.data_registro ?? '').localeCompare(b.data_registro ?? '');
+        case 'data_desc': return (b.data_registro ?? '').localeCompare(a.data_registro ?? '');
+        case 'colab_az': return (a.colaborador ?? '').localeCompare(b.colaborador ?? '');
+        case 'colab_za': return (b.colaborador ?? '').localeCompare(a.colaborador ?? '');
+        case 'valor_asc': return Number(a.valor || 0) - Number(b.valor || 0);
+        case 'valor_desc': return Number(b.valor || 0) - Number(a.valor || 0);
+        default: return 0;
+      }
+    });
+    return sorted;
+  }, [crossFiltered, busca, ordenacao]);
+
+  // Agrupamento por colaborador para a visão expansível
+  const gruposColab = useMemo(() => {
+    const map = new Map<string, { colaborador: string; qtd: number; total: number; registros: Passagem[] }>();
+    displayRows.forEach((r) => {
+      const key = (r.colaborador ?? '').trim() || 'Sem colaborador';
+      const cur = map.get(key) ?? { colaborador: key, qtd: 0, total: 0, registros: [] };
+      cur.qtd += 1;
+      cur.total += Number(r.valor || 0);
+      cur.registros.push(r);
+      map.set(key, cur);
+    });
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => {
+      switch (ordenacao) {
+        case 'colab_za': return b.colaborador.localeCompare(a.colaborador);
+        case 'valor_asc': return a.total - b.total;
+        case 'valor_desc': return b.total - a.total;
+        default: return a.colaborador.localeCompare(b.colaborador);
+      }
+    });
+    return arr;
+  }, [displayRows, ordenacao]);
+
+  const toggleGrupo = (nome: string) => {
+    setGruposAbertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(nome)) next.delete(nome); else next.add(nome);
+      return next;
+    });
+  };
 
   const totalGeral = crossFiltered.reduce((s, r) => s + Number(r.valor || 0), 0);
   const totalRegistros = crossFiltered.length;
@@ -507,13 +570,47 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-sm">Registros ({crossFiltered.length})</CardTitle>
-          {onExport && (
-            <Button size="sm" variant="outline" onClick={() => onExport(crossFiltered)} disabled={crossFiltered.length === 0}>
-              Exportar CSV
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-sm">Registros ({displayRows.length})</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="h-8 w-[200px] pl-7 text-xs"
+              />
+            </div>
+            <Select value={ordenacao} onValueChange={(v) => setOrdenacao(v as typeof ordenacao)}>
+              <SelectTrigger className="h-8 w-[180px] text-xs" aria-label="Ordenar">
+                <ArrowUpDown className="mr-1 h-3 w-3" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="data_desc" className="text-xs">Data (mais recente)</SelectItem>
+                <SelectItem value="data_asc" className="text-xs">Data (mais antiga)</SelectItem>
+                <SelectItem value="colab_az" className="text-xs">Colaborador (A→Z)</SelectItem>
+                <SelectItem value="colab_za" className="text-xs">Colaborador (Z→A)</SelectItem>
+                <SelectItem value="valor_desc" className="text-xs">Valor (maior)</SelectItem>
+                <SelectItem value="valor_asc" className="text-xs">Valor (menor)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant={agruparColab ? 'default' : 'outline'}
+              className="h-8 text-xs"
+              onClick={() => setAgruparColab((v) => !v)}
+            >
+              <Users className="mr-1 h-3.5 w-3.5" />
+              Agrupar Colaborador
             </Button>
-          )}
+            {onExport && (
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExport(displayRows)} disabled={displayRows.length === 0}>
+                Exportar CSV
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           <Table>
@@ -532,9 +629,50 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <TableBody>
               {loading ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
-              ) : crossFiltered.length === 0 ? (
+              ) : displayRows.length === 0 ? (
                 <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
-              ) : crossFiltered.map((r) => (
+              ) : agruparColab ? (
+                gruposColab.map((g) => {
+                  const aberto = gruposAbertos.has(g.colaborador);
+                  return (
+                    <Fragment key={g.colaborador}>
+                      <TableRow
+                        className="cursor-pointer bg-muted/40 hover:bg-muted/60"
+                        onClick={() => toggleGrupo(g.colaborador)}
+                      >
+                        <TableCell colSpan={6} className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            <span>{g.colaborador}</span>
+                            <Badge variant="secondary" className="text-[10px]">{g.qtd} {g.qtd === 1 ? 'registro' : 'registros'}</Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(g.total)}</TableCell>
+                        {!readOnly && (onEdit || onDelete) && <TableCell />}
+                      </TableRow>
+                      {aberto && g.registros.map((r) => (
+                        <TableRow key={r.id} className="bg-background">
+                          <TableCell className="pl-8">{formatDate(r.data_registro)}</TableCell>
+                          <TableCell className="text-muted-foreground">↳</TableCell>
+                          <TableCell>{r.centro_custo ?? '-'}</TableCell>
+                          <TableCell>{r.tipo_despesa}</TableCell>
+                          <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
+                          <TableCell>{r.cia_aerea ?? '-'}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
+                          {!readOnly && (onEdit || onDelete) && (
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                                {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
+                              </div>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </Fragment>
+                  );
+                })
+              ) : displayRows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell>{formatDate(r.data_registro)}</TableCell>
                   <TableCell className="font-medium">{r.colaborador}</TableCell>
