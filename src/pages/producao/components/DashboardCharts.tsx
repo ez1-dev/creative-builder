@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import type { DashboardData } from '../ProducaoDashboardPage';
+import { VisualGate } from '@/components/VisualGate';
 
 const CHART_COLORS = [
   'hsl(var(--primary))',
@@ -42,6 +43,7 @@ export function DashboardCharts({ data }: { data: DashboardData }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {data.cargas_por_mes && data.cargas_por_mes.length > 0 && (
+        <VisualGate visualKey="producao.cargas-periodo">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Cargas por Período</CardTitle></CardHeader>
           <CardContent>
@@ -56,9 +58,11 @@ export function DashboardCharts({ data }: { data: DashboardData }) {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        </VisualGate>
       )}
 
       {statusChartData.length > 0 && (
+        <VisualGate visualKey="producao.status-projetos">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Status dos Projetos</CardTitle></CardHeader>
           <CardContent>
@@ -75,9 +79,11 @@ export function DashboardCharts({ data }: { data: DashboardData }) {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        </VisualGate>
       )}
 
       {topPatioData.length > 0 && (
+        <VisualGate visualKey="producao.top-saldo-patio">
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2"><CardTitle className="text-sm">Top Projetos com Maior Saldo em Pátio (Kg)</CardTitle></CardHeader>
           <CardContent>
@@ -92,6 +98,7 @@ export function DashboardCharts({ data }: { data: DashboardData }) {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        </VisualGate>
       )}
     </div>
   );
