@@ -477,6 +477,15 @@ export default function NumeroSeriePage() {
                 </AlertDescription>
               </Alert>
             )}
+            {mismatchPedidoOp && !divergenciaOrigem && (
+              <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>OP vinculada a outro pedido — vínculo bloqueado</AlertTitle>
+                <AlertDescription>
+                  A OP <strong>{mismatchPedidoOp.op}</strong> está vinculada ao pedido <strong>{mismatchPedidoOp.pedidoOp}</strong>{mismatchPedidoOp.itemOp ? <> (item <strong>{mismatchPedidoOp.itemOp}</strong>)</> : null}, não ao pedido <strong>{mismatchPedidoOp.pedidoCtx}</strong> que você buscou. Confirme com a engenharia qual é a OP correta deste pedido, ou use <strong>Desvincular GS</strong> para liberar a OP do pedido antigo antes de prosseguir.
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
               {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
               {ctxField('Item', contexto.item_pedido)}
