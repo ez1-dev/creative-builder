@@ -174,7 +174,8 @@ export default function NumeroSeriePage() {
         ...f,
         // Não auto-preenche OP quando ela é de outro pedido — evita reserva indevida
         numero_op: opMismatch ? f.numero_op : (result.contexto?.numero_op ? String(result.contexto.numero_op) : f.numero_op),
-        origem_op: opMismatch ? '' : (result.contexto?.origem_op || ''),
+        // Preserva origem digitada manualmente; só preenche se estiver vazia
+        origem_op: f.origem_op.trim() ? f.origem_op : (opMismatch ? '' : (result.contexto?.origem_op || '')),
         ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
       }));
       if (produto) {
@@ -218,7 +219,7 @@ export default function NumeroSeriePage() {
   const divergenciaOrigem = (() => {
     if (!contexto) return null;
     const op = contexto.numero_op;
-    const oOp = (contexto.origem_op || '').trim();
+    const oOp = (contexto.origem_op || filters.origem_op || '').trim();
     const oPed = (contexto.origem_pedido || '').trim();
     if (!op || !oOp || !oPed) return null;
     if (oOp === oPed) return null;
@@ -441,7 +442,8 @@ export default function NumeroSeriePage() {
       setFilters(f => ({
         ...f,
         numero_op: opMismatch ? f.numero_op : (result.contexto?.numero_op ? String(result.contexto.numero_op) : f.numero_op),
-        origem_op: opMismatch ? '' : (result.contexto?.origem_op || ''),
+        // Preserva origem digitada manualmente; só preenche se estiver vazia
+        origem_op: f.origem_op.trim() ? f.origem_op : (opMismatch ? '' : (result.contexto?.origem_op || '')),
         ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
       }));
       if (produto) await buscarProximos(produto, result.contexto?.derivacao || '');
@@ -476,7 +478,7 @@ export default function NumeroSeriePage() {
             <div><Label className="text-xs">Pedido</Label><Input type="number" value={filters.numero_pedido} onChange={e => setFilters(f => ({ ...f, numero_pedido: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 123456" /></div>
             <div><Label className="text-xs">Item do Pedido</Label><Input type="number" value={filters.item_pedido} onChange={e => setFilters(f => ({ ...f, item_pedido: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 1" /></div>
             <div><Label className="text-xs">OP</Label><Input type="number" value={filters.numero_op} onChange={e => setFilters(f => ({ ...f, numero_op: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 100234" /></div>
-            <div><Label className="text-xs">Origem OP</Label><Input value={filters.origem_op} readOnly tabIndex={-1} className="h-8 text-xs bg-muted/50 font-mono" placeholder="Auto ao buscar contexto" /></div>
+            <div><Label className="text-xs">Origem OP</Label><Input value={filters.origem_op} onChange={e => setFilters(f => ({ ...f, origem_op: e.target.value }))} className="h-8 text-xs font-mono" placeholder="Ex.: 250" /></div>
             <div><Label className="text-xs">Produto</Label><Input value={filters.codigo_produto} onChange={e => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Preenchido ao buscar contexto" /></div>
             <div><Label className="text-xs">Derivação</Label><Input value={filters.derivacao} onChange={e => setFilters(f => ({ ...f, derivacao: e.target.value }))} className="h-8 text-xs" placeholder="Opcional" /></div>
             <div><Label className="text-xs">Nº Série Manual</Label><Input value={filters.numero_serie_manual} onChange={e => setFilters(f => ({ ...f, numero_serie_manual: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: GS-11705" /></div>
