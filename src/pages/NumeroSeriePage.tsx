@@ -116,6 +116,7 @@ export default function NumeroSeriePage() {
   const [loadingDesvincular, setLoadingDesvincular] = useState(false);
   const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
   const [candidatoSelecionadoId, setCandidatoSelecionadoId] = useState<string>('');
+  const [opCandidataEscolhida, setOpCandidataEscolhida] = useState<string>('');
 
   const erpReady = useErpReady();
 
