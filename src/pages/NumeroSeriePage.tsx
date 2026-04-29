@@ -261,6 +261,12 @@ export default function NumeroSeriePage() {
       );
       return;
     }
+    if (mismatchPedidoOp) {
+      toast.error(
+        `A OP ${mismatchPedidoOp.op} está vinculada ao pedido ${mismatchPedidoOp.pedidoOp} (item ${mismatchPedidoOp.itemOp ?? '-'}), não ao pedido ${mismatchPedidoOp.pedidoCtx}. Desvincule o GS do pedido antigo ou informe a OP correta deste pedido.`
+      );
+      return;
+    }
 
     setLoadingReserva(true);
     try {
