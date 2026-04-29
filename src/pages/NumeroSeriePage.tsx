@@ -117,6 +117,8 @@ export default function NumeroSeriePage() {
   const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
   const [candidatoSelecionadoId, setCandidatoSelecionadoId] = useState<string>('');
   const [opCandidataEscolhida, setOpCandidataEscolhida] = useState<string>('');
+  const [trocarPedido, setTrocarPedido] = useState<string>('');
+  const [trocarItem, setTrocarItem] = useState<string>('1');
 
   const erpReady = useErpReady();
 
@@ -416,6 +418,46 @@ export default function NumeroSeriePage() {
     setDados([]);
     setSelecionado('');
     setOpCandidataEscolhida('');
+    setTrocarPedido('');
+    setTrocarItem('1');
+  };
+
+  const aplicarPedidoManual = async () => {
+    const ped = trocarPedido.trim();
+    if (!ped || !/^\d+$/.test(ped) || Number(ped) <= 0) {
+      toast.error('Informe um número de pedido válido.');
+      return;
+    }
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+    const item = trocarItem.trim() && /^\d+$/.test(trocarItem.trim()) ? trocarItem.trim() : '1';
+    setFilters(f => ({ ...f, numero_pedido: ped, item_pedido: item, numero_op: '', origem_op: '' }));
+    setOpCandidataEscolhida('');
+    setContexto(null);
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {
+        codigo_empresa: 1,
+        numero_pedido: Number(ped),
+        item_pedido: Number(item),
+      };
+      const result = await api.get<{ contexto: ContextoNumeroSerie }>('/api/numero-serie/contexto', params);
+      setContexto(result.contexto);
+      const produto = result.contexto?.codigo_produto?.trim();
+      setFilters(f => ({
+        ...f,
+        numero_op: result.contexto?.numero_op ? String(result.contexto.numero_op) : '',
+        origem_op: result.contexto?.origem_op || '',
+        ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
+      }));
+      if (produto) await buscarProximos(produto, result.contexto?.derivacao || '');
+      setTrocarPedido('');
+      setTrocarItem('1');
+      toast.success(`Pedido ${ped} / item ${item} carregado.`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const aplicarOpCandidata = async (numeroOp: number | string) => {
