@@ -616,6 +616,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       </VisualGate>
 
+      <VisualGate visualKey="passagens.kpis-charts">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
