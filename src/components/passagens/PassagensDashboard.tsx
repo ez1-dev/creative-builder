@@ -517,6 +517,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               </button>
             </Badge>
           )}
+          {selectedDestino && (
+            <Badge variant="secondary" className="gap-1">
+              Destino: {selectedDestino}
+              <button onClick={() => setSelectedDestino(null)} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
         </div>
       )}
 
