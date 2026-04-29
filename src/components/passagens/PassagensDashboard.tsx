@@ -24,6 +24,7 @@ import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 import * as XLSX from 'xlsx';
 
 export interface Passagem {
@@ -80,6 +81,7 @@ interface Props {
 }
 
 export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
+  const isMobile = useIsMobile();
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
@@ -469,7 +471,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        <div className="relative">
+        <div className="relative flex flex-col gap-2">
           <KPICard
             title="Registros"
             value={totalRegistros}
@@ -478,10 +480,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             index={1}
             subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
           />
-          <div className="absolute right-2 top-2 flex items-center gap-1">
+          <div className="flex items-center gap-1 px-1">
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-              <SelectTrigger className="h-7 w-[140px] text-xs" aria-label="Agrupar por">
-                <Layers className="mr-1 h-3 w-3" />
+              <SelectTrigger className="h-7 flex-1 text-xs sm:w-[140px] sm:flex-none" aria-label="Agrupar por">
+                <Layers className="mr-1 h-3 w-3 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -493,7 +495,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7"
+              className="h-7 w-7 shrink-0"
               onClick={() => setGroupSheetOpen(true)}
               disabled={gruposCount === 0}
               aria-label="Ver detalhes do agrupamento"
@@ -536,24 +538,26 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card>
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : 320}>
+              <PieChart margin={isMobile ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 20, right: 30, bottom: 20, left: 30 }}>
                 <Pie
                   data={porMotivo}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={isMobile ? 70 : 100}
                   cursor="pointer"
                   onClick={(d: any) => setSelectedMotivo((prev) => (prev === d.name ? null : d.name))}
-                  labelLine={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
-                  label={(e: any) => {
-                    const v = Number(e.value || 0);
-                    const mil = `R$${(v / 1000).toFixed(0)} Mil`;
-                    const pct = ((e.percent ?? 0) * 100).toFixed(2).replace('.', ',');
-                    return `${e.name} ${mil} (${pct}%)`;
-                  }}
+                  labelLine={isMobile ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+                  label={isMobile
+                    ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
+                    : (e: any) => {
+                        const v = Number(e.value || 0);
+                        const mil = `R$${(v / 1000).toFixed(0)} Mil`;
+                        const pct = ((e.percent ?? 0) * 100).toFixed(2).replace('.', ',');
+                        return `${e.name} ${mil} (${pct}%)`;
+                      }}
                   style={{ fontSize: 11 }}
                 >
                   {porMotivo.map((entry, i) => (
@@ -567,15 +571,31 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
               </PieChart>
             </ResponsiveContainer>
+            {isMobile && porMotivo.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                {porMotivo.map((entry, i) => (
+                  <div key={entry.name} className="flex items-center gap-1">
+                    <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-muted-foreground">{entry.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-sm">Top 15 Centros de Custo {selectedCC && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={420}>
-              <BarChart data={porCentroCusto} layout="vertical">
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : 420}>
+              <BarChart data={isMobile ? porCentroCusto.slice(0, 10) : porCentroCusto} layout="vertical">
                 <XAxis type="number" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                <YAxis type="category" dataKey="name" fontSize={11} width={140} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  fontSize={isMobile ? 10 : 11}
+                  width={isMobile ? 90 : 140}
+                  tickFormatter={(v: string) => (isMobile && v.length > 12 ? `${v.slice(0, 12)}…` : v)}
+                />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
                 <Bar
                   dataKey="value"
@@ -599,18 +619,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle className="text-sm">Registros ({displayRows.length})</CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar..."
-                className="h-8 w-[200px] pl-7 text-xs"
+                className="h-8 w-full pl-7 text-xs sm:w-[200px]"
               />
             </div>
             <Select value={ordenacao} onValueChange={(v) => setOrdenacao(v as typeof ordenacao)}>
-              <SelectTrigger className="h-8 w-[180px] text-xs" aria-label="Ordenar">
+              <SelectTrigger className="h-8 w-full text-xs sm:w-[180px]" aria-label="Ordenar">
                 <ArrowUpDown className="mr-1 h-3 w-3" />
                 <SelectValue />
               </SelectTrigger>
@@ -626,105 +646,161 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <Button
               size="sm"
               variant={agruparColab ? 'default' : 'outline'}
-              className="h-8 text-xs"
+              className="h-8 flex-1 text-xs sm:flex-none"
               onClick={() => setAgruparColab((v) => !v)}
             >
               <Users className="mr-1 h-3.5 w-3.5" />
-              Agrupar Colaborador
+              <span className="sm:hidden">Agrupar</span>
+              <span className="hidden sm:inline">Agrupar Colaborador</span>
             </Button>
             {onExport && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExport(displayRows)} disabled={displayRows.length === 0}>
-                Exportar CSV
+              <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={() => onExport(displayRows)} disabled={displayRows.length === 0}>
+                <span className="sm:hidden">CSV</span>
+                <span className="hidden sm:inline">Exportar CSV</span>
               </Button>
             )}
             {onExportXlsx && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExportXlsx(displayRows)} disabled={displayRows.length === 0}>
-                Exportar Excel
+              <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={() => onExportXlsx(displayRows)} disabled={displayRows.length === 0}>
+                <span className="sm:hidden">Excel</span>
+                <span className="hidden sm:inline">Exportar Excel</span>
               </Button>
             )}
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>C. Custo</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Origem → Destino</TableHead>
-                <TableHead>Cia</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                {!readOnly && (onEdit || onDelete) && <TableHead className="w-24">Ações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
-              ) : displayRows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
-              ) : agruparColab ? (
-                gruposColab.map((g) => {
+        <CardContent className={cn(isMobile ? 'p-3' : 'overflow-x-auto p-0')}>
+          {isMobile ? (
+            loading ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
+            ) : displayRows.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Nenhum registro</div>
+            ) : agruparColab ? (
+              <div className="space-y-2">
+                {gruposColab.map((g) => {
                   const aberto = gruposAbertos.has(g.colaborador);
                   return (
-                    <Fragment key={g.colaborador}>
-                      <TableRow
-                        className="cursor-pointer bg-muted/40 hover:bg-muted/60"
+                    <div key={g.colaborador} className="rounded-md border">
+                      <button
+                        type="button"
                         onClick={() => toggleGrupo(g.colaborador)}
+                        className="flex w-full items-center justify-between gap-2 bg-muted/40 px-3 py-2 text-left hover:bg-muted/60"
                       >
-                        <TableCell colSpan={6} className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            <span>{g.colaborador}</span>
-                            <Badge variant="secondary" className="text-[10px]">{g.qtd} {g.qtd === 1 ? 'registro' : 'registros'}</Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">{formatCurrency(g.total)}</TableCell>
-                        {!readOnly && (onEdit || onDelete) && <TableCell />}
-                      </TableRow>
-                      {aberto && g.registros.map((r) => (
-                        <TableRow key={r.id} className="bg-background">
-                          <TableCell className="pl-8">{formatDate(r.data_registro)}</TableCell>
-                          <TableCell className="text-muted-foreground">↳</TableCell>
-                          <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                          <TableCell>{r.tipo_despesa}</TableCell>
-                          <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                          <TableCell>{r.cia_aerea ?? '-'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
-                          {!readOnly && (onEdit || onDelete) && (
-                            <TableCell>
-                              <div className="flex gap-1">
-                                {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
-                                {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </Fragment>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {aberto ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                          <span className="truncate text-sm font-medium">{g.colaborador}</span>
+                          <Badge variant="secondary" className="text-[10px]">{g.qtd}</Badge>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold">{formatCurrency(g.total)}</span>
+                      </button>
+                      {aberto && (
+                        <div className="space-y-2 p-2">
+                          {g.registros.map((r) => (
+                            <PassagemMobileCard
+                              key={r.id}
+                              p={r}
+                              onEdit={!readOnly ? onEdit : undefined}
+                              onDelete={!readOnly ? onDelete : undefined}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   );
-                })
-              ) : displayRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatDate(r.data_registro)}</TableCell>
-                  <TableCell className="font-medium">{r.colaborador}</TableCell>
-                  <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                  <TableCell>{r.tipo_despesa}</TableCell>
-                  <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                  <TableCell>{r.cia_aerea ?? '-'}</TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(r.valor)}</TableCell>
-                  {!readOnly && (onEdit || onDelete) && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
-                        {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
-                      </div>
-                    </TableCell>
-                  )}
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {displayRows.map((r) => (
+                  <PassagemMobileCard
+                    key={r.id}
+                    p={r}
+                    onEdit={!readOnly ? onEdit : undefined}
+                    onDelete={!readOnly ? onDelete : undefined}
+                  />
+                ))}
+              </div>
+            )
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>C. Custo</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Origem → Destino</TableHead>
+                  <TableHead>Cia</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  {!readOnly && (onEdit || onDelete) && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                ) : displayRows.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
+                ) : agruparColab ? (
+                  gruposColab.map((g) => {
+                    const aberto = gruposAbertos.has(g.colaborador);
+                    return (
+                      <Fragment key={g.colaborador}>
+                        <TableRow
+                          className="cursor-pointer bg-muted/40 hover:bg-muted/60"
+                          onClick={() => toggleGrupo(g.colaborador)}
+                        >
+                          <TableCell colSpan={6} className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              <span>{g.colaborador}</span>
+                              <Badge variant="secondary" className="text-[10px]">{g.qtd} {g.qtd === 1 ? 'registro' : 'registros'}</Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(g.total)}</TableCell>
+                          {!readOnly && (onEdit || onDelete) && <TableCell />}
+                        </TableRow>
+                        {aberto && g.registros.map((r) => (
+                          <TableRow key={r.id} className="bg-background">
+                            <TableCell className="pl-8">{formatDate(r.data_registro)}</TableCell>
+                            <TableCell className="text-muted-foreground">↳</TableCell>
+                            <TableCell>{r.centro_custo ?? '-'}</TableCell>
+                            <TableCell>{r.tipo_despesa}</TableCell>
+                            <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
+                            <TableCell>{r.cia_aerea ?? '-'}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
+                            {!readOnly && (onEdit || onDelete) && (
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                                  {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    );
+                  })
+                ) : displayRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{formatDate(r.data_registro)}</TableCell>
+                    <TableCell className="font-medium">{r.colaborador}</TableCell>
+                    <TableCell>{r.centro_custo ?? '-'}</TableCell>
+                    <TableCell>{r.tipo_despesa}</TableCell>
+                    <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
+                    <TableCell>{r.cia_aerea ?? '-'}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(r.valor)}</TableCell>
+                    {!readOnly && (onEdit || onDelete) && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                          {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
@@ -872,4 +948,48 @@ export function exportPassagensXlsx(rows: Passagem[]) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Passagens');
   XLSX.writeFile(wb, `passagens-aereas-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+interface PassagemMobileCardProps {
+  p: Passagem;
+  onEdit?: (p: Passagem) => void;
+  onDelete?: (id: string) => void;
+}
+
+function PassagemMobileCard({ p, onEdit, onDelete }: PassagemMobileCardProps) {
+  return (
+    <div className="rounded-md border bg-card p-3 text-sm shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-xs text-muted-foreground">{formatDate(p.data_registro)}</div>
+          <div className="truncate font-medium">{p.colaborador}</div>
+        </div>
+        <div className="shrink-0 text-right font-semibold">{formatCurrency(p.valor)}</div>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+        {p.centro_custo && <Badge variant="outline" className="font-normal">{p.centro_custo}</Badge>}
+        <Badge variant="secondary" className="font-normal">{p.tipo_despesa}</Badge>
+        {p.cia_aerea && <Badge variant="outline" className="font-normal">{p.cia_aerea}</Badge>}
+      </div>
+      {(p.origem || p.destino) && (
+        <div className="mt-2 text-xs text-muted-foreground">
+          {p.origem ?? '-'} → {p.destino ?? '-'}
+        </div>
+      )}
+      {(onEdit || onDelete) && (
+        <div className="mt-2 flex justify-end gap-1 border-t pt-2">
+          {onEdit && (
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => onEdit(p)}>
+              <Pencil className="mr-1 h-3.5 w-3.5" /> Editar
+            </Button>
+          )}
+          {onDelete && (
+            <Button size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive" onClick={() => onDelete(p.id)}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> Excluir
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
