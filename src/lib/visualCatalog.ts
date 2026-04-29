@@ -17,9 +17,8 @@ export const VISUAL_CATALOG: VisualGroup[] = [
   {
     module: 'Passagens Aéreas',
     items: [
-      { key: 'passagens.mapa-destinos', label: 'Mapa de Destinos (Brasil)' },
-      { key: 'passagens.top-destinos', label: 'Top 5 Destinos' },
-      { key: 'passagens.kpis-charts', label: 'Gráficos do dashboard de passagens' },
+      { key: 'passagens.mapa-destinos', label: 'Mapa de Destinos + Top 5 Destinos' },
+      { key: 'passagens.kpis-charts', label: 'Gráficos (Evolução, Motivo, Centros de Custo)' },
     ],
   },
   {
