@@ -669,7 +669,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                           )}
                         </TableRow>
                       ))}
-                    </>
+                    </Fragment>
                   );
                 })
               ) : displayRows.map((r) => (
