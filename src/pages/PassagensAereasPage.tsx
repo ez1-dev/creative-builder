@@ -47,6 +47,7 @@ export default function PassagensAereasPage() {
   const [form, setForm] = useState<Partial<Passagem>>(emptyForm());
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
