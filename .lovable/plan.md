@@ -1,49 +1,54 @@
-## Objetivo
+## Problema
 
-Quando o backend retornar `ops_candidatas: number[]` no `/contexto` (lista de OPs vinculadas ao pedido digitado), o frontend deve mostrar um seletor para o usuário escolher a OP correta. Ao escolher, re-busca o contexto passando `numero_op` da OP selecionada — o mismatch some e os botões "Reservar" / "Vincular" habilitam.
+Na tela `/numero-serie`, o campo **"Origem OP"** está como `readOnly` (linha 479 de `NumeroSeriePage.tsx`), com o placeholder "Auto ao buscar contexto". O usuário quer poder digitar/sobrescrever a origem da OP manualmente — útil quando o backend retorna `origem_op` vazia ou quando ele precisa forçar/corrigir o valor antes de buscar contexto.
 
 ## Mudanças — `src/pages/NumeroSeriePage.tsx`
 
-### 1. Tipo
-Adicionar ao `ContextoNumeroSerie`:
+### 1. Tornar o input "Origem OP" editável (linha 479)
+
+Substituir:
+```tsx
+<Input value={filters.origem_op} readOnly tabIndex={-1}
+       className="h-8 text-xs bg-muted/50 font-mono"
+       placeholder="Auto ao buscar contexto" />
+```
+por um input editável normal (mesmo padrão dos outros filtros), mantendo `font-mono`:
+```tsx
+<Input value={filters.origem_op}
+       onChange={e => setFilters(f => ({ ...f, origem_op: e.target.value }))}
+       className="h-8 text-xs font-mono"
+       placeholder="Ex.: 250" />
+```
+
+### 2. Preservar valor digitado pelo usuário ao buscar contexto
+
+Hoje `buscarContexto` (linhas ~177 e ~444) sobrescreve `filters.origem_op` com o valor retornado pelo backend. Ajustar para:
+- Se o usuário **já digitou** algo em `filters.origem_op` antes de buscar, **manter** o valor digitado (não sobrescrever).
+- Se estava vazio, usar o valor do backend como hoje.
+
+Lógica:
 ```ts
-ops_candidatas?: number[];
+origem_op: prevOrigemOp.trim() ? prevOrigemOp : (opMismatch ? '' : (result.contexto?.origem_op || ''))
 ```
 
-### 2. Card de Contexto — seletor condicional
+(capturar `prevOrigemOp = filters.origem_op` antes da chamada).
 
-Logo abaixo do `Alert` âmbar de mismatch (e também quando `ops_candidatas.length > 1` mesmo sem mismatch), renderizar um bloco:
+### 3. Usar `filters.origem_op` no cálculo de divergência quando `contexto.origem_op` estiver vazio
 
+Em `divergenciaOrigem` (linhas 218–226) e na renderização do Card de Contexto, usar como fallback o valor digitado:
+```ts
+const oOp = (contexto.origem_op || filters.origem_op || '').trim();
 ```
-[OP correta deste pedido:  ▼ 100234 ] [Aplicar]
-   3 OPs candidatas encontradas para o pedido 11510 / item 1.
-```
+Assim, se o backend não retornar `origem_op` mas o usuário digitar manualmente, a validação visual continua funcionando.
 
-- Usa `Select` do shadcn (`@/components/ui/select`).
-- Estado novo: `const [opCandidataEscolhida, setOpCandidataEscolhida] = useState<string>('')`.
-- Botão "Aplicar OP" chama uma função `aplicarOpCandidata(numeroOp)` que:
-  - Atualiza `filters.numero_op` com a OP escolhida.
-  - Re-chama `buscarContexto()` com a OP fixada.
-- Se `ops_candidatas.length === 1`, mostrar dica clicável "Aplicar OP única: 100234" sem precisar do Select.
+### 4. (Opcional, no `limpar()`) — manter o reset atual
 
-### 3. Mensagem do Alert âmbar
-Quando houver `ops_candidatas` não-vazio, complementar o Alert: "Veja abaixo as OPs candidatas e selecione a correta."
-
-Quando `ops_candidatas` estiver vazio/ausente E houver mismatch, manter a mensagem atual (instruir desvincular).
-
-### 4. Reset
-- Limpar `opCandidataEscolhida` no `limpar()`.
-- Limpar `opCandidataEscolhida` no início de `buscarContexto()`.
-
-## Sem mudanças no backend (apenas consumo)
-
-O contrato já está documentado em `docs/backend-numero-serie-contexto-op-correta.md` (`ops_candidatas: number[]`). Esta entrega só consome o campo.
-
-## Arquivos afetados
-
-- `src/pages/NumeroSeriePage.tsx` — tipo, estado, seletor visual, função `aplicarOpCandidata`.
+`limpar()` já zera `origem_op: ''` (linha 413), nada muda.
 
 ## Fora de escopo
 
-- Endpoint dedicado `/api/numero-serie/ops-do-pedido` (mencionado como opcional na doc) — fica para depois se for necessário.
-- Mostrar metadados extras das OPs (status, qtde) — hoje só temos `number[]`.
+- Enviar `origem_op` digitada para o backend nos endpoints `/contexto` e `/reservar` — o backend hoje deriva origem do banco; alterar o contrato fica para outra entrega caso necessário. Esta mudança é puramente de UI (permitir digitar e usar localmente para validação visual).
+
+## Arquivos afetados
+
+- `src/pages/NumeroSeriePage.tsx`
