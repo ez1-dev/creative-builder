@@ -1,68 +1,67 @@
-# Cards de KPI simétricos em Passagens Aéreas
+# Filtros colapsáveis em Passagens Aéreas
 
 ## Problema
 
-Hoje, no grid de KPIs (`src/components/passagens/PassagensDashboard.tsx`, linhas ~472–510), os 4 cards estão num `grid md:grid-cols-4`, mas o card **Registros** está embrulhado num wrapper extra:
-
-```
-<div className="relative flex flex-col gap-2">
-  <KPICard ... />
-  <div>  Select "Centro de…" + botão Layers  </div>
-</div>
-```
-
-Esse wrapper adiciona uma barra de controles **abaixo** do card, fazendo com que:
-- O card Registros fique mais alto que os outros 3 (assimetria vertical).
-- O alinhamento da linha quebre — visível no print enviado, onde "Centro de…" e o ícone de avião aparecem fora/abaixo do card.
-- Em desktop os cards parecem do mesmo tamanho horizontal, mas verticalmente o Registros é maior.
-
-## Objetivo
-
-Os 4 cards devem ter **mesma altura, mesma largura e mesmo padding interno**, formando uma linha simétrica.
+Hoje o Card de filtros do topo (`src/components/passagens/PassagensDashboard.tsx`, linhas ~342–440) está sempre expandido, ocupando bastante espaço vertical com 6 campos (Colaborador, Centro de Custo, Tipo, Mês, Data início, Data fim) + botão Limpar. O usuário quer poder esconder esse painel e reabrir só quando precisar.
 
 ## Solução
 
-Mover os controles de agrupamento (Select + botão Layers) para **dentro** do card Registros, posicionados de forma compacta no topo direito do card, sem aumentar a altura.
+Transformar o Card de filtros em um painel colapsável, com cabeçalho clicável para minimizar/maximizar, mantendo o estado dos filtros ativos visíveis mesmo quando colapsado.
+
+### Comportamento
+
+- **Estado inicial**: aberto se houver pelo menos um filtro do topo ativo (`hasTopFilter`); senão, fechado por padrão para liberar espaço.
+- **Cabeçalho sempre visível** (mesmo colapsado), contendo:
+  - Ícone de filtro + título "Filtros".
+  - Contador discreto de filtros ativos (ex.: "3 ativos") em `Badge` quando houver.
+  - Botão de chevron (`ChevronDown`/`ChevronUp`) à direita indicando estado.
+  - O cabeçalho inteiro é clicável (toggle).
+- **Conteúdo colapsado**: o grid dos 6 campos + botão Limpar somem (`hidden`), reduzindo o card a uma única linha de altura.
+- **Conteúdo expandido**: comportamento atual sem alterações.
+- **Persistência da escolha**: salvar o estado em `localStorage` na chave `passagens:filtros-aberto` para que a preferência do usuário permaneça entre sessões.
+- **Limpar**: ao clicar em "Limpar tudo" enquanto aberto, mantém aberto. O badge de filtros do gráfico (`hasCrossFilter`, linhas 442–470) continua aparecendo independente, fora do card colapsável.
 
 ### Mudanças em `src/components/passagens/PassagensDashboard.tsx`
 
-1. **Grid de KPIs (linha 472)**: adicionar `items-stretch` para garantir que todos os filhos esticam à mesma altura:
+1. Adicionar estado `filtrosAbertos` com inicialização a partir do `localStorage` (fallback: `hasTopFilter` ou `false`).
+2. Persistir mudanças via `useEffect` gravando em `localStorage`.
+3. Envolver o `<Card>` (linha 342) num bloco com cabeçalho próprio:
    ```tsx
-   <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-stretch">
+   <Card>
+     <button
+       type="button"
+       onClick={() => setFiltrosAbertos(v => !v)}
+       className="flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium hover:bg-accent/40"
+     >
+       <span className="flex items-center gap-2">
+         <Filter className="h-4 w-4" />
+         Filtros
+         {hasTopFilter && (
+           <Badge variant="secondary" className="ml-1 h-5 text-xs">
+             {countAtivos} ativo{countAtivos === 1 ? '' : 's'}
+           </Badge>
+         )}
+       </span>
+       {filtrosAbertos
+         ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+         : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+     </button>
+     {filtrosAbertos && (
+       <CardContent className="space-y-3 p-4 pt-0 border-t">
+         {/* grid existente dos 6 campos + botão Limpar */}
+       </CardContent>
+     )}
+   </Card>
    ```
-
-2. **Card Registros (linhas 474–507)**: remover o wrapper `<div className="relative flex flex-col gap-2">` e os controles externos. O `KPICard` passa a receber os controles via uma prop existente (`action`/`headerAction`) ou, se não houver, via um wrapper `relative` que posiciona os controles **absolutamente** dentro do card (canto superior direito), igual a como aparece no print do usuário (onde o select "Centro de…" já está visível dentro da área do card):
-   
-   ```tsx
-   <div className="relative">
-     <KPICard
-       title="Registros"
-       value={totalRegistros}
-       icon={<Plane className="h-5 w-5" />}
-       variant="info"
-       index={1}
-       subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
-     />
-     <div className="absolute right-3 top-3 flex items-center gap-1">
-       <Select ...> ... </Select>
-       <Button size="icon" variant="ghost" className="h-7 w-7" ...>
-         <Layers className="h-4 w-4" />
-       </Button>
-     </div>
-   </div>
-   ```
-   
-   - O `Select` mantém `h-7 text-xs w-[130px]` para caber no canto sem ocupar muito espaço.
-   - Em mobile (já tratado por `useIsMobile`), os controles continuam empilhados abaixo do KPI como antes — manter o caminho mobile atual; alterar apenas o caminho desktop.
-
-3. **Verificação visual**: após a mudança, os 4 cards (Total Geral, Registros, Colaboradores, Ticket Médio) compartilham a mesma altura porque nenhum tem mais wrapper extra; o `grid` aplica `1fr` em cada coluna e `items-stretch` força altura uniforme.
+4. Calcular `countAtivos` simples (soma dos filtros do topo preenchidos) para o badge.
+5. Importar `ChevronDown`, `ChevronUp` e `Filter` do `lucide-react` (verificar se já estão importados; senão adicionar).
 
 ## Arquivos afetados
 
-- `src/components/passagens/PassagensDashboard.tsx` (apenas o bloco do grid de KPIs, ~linhas 472–510)
+- `src/components/passagens/PassagensDashboard.tsx` — apenas o bloco de filtros do topo (~linhas 340–440) e os imports.
 
 ## Fora do escopo
 
-- Não mexer no `KPICard` base (`src/components/erp/KPICard.tsx`).
-- Não mexer no layout mobile já implementado anteriormente.
-- Não mexer em gráficos, tabela, exportações.
+- Não alterar lógica de filtragem, KPIs, gráficos, tabela ou cross-filters.
+- Não alterar o painel "Filtros do gráfico" (que já tem comportamento próprio com badges).
+- Não mexer no layout mobile específico além do herdado naturalmente (o cabeçalho colapsável funciona igual em mobile e desktop).
