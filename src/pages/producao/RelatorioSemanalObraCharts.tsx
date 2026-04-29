@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatNumber } from '@/lib/format';
+import { VisualGate } from '@/components/VisualGate';
 
 export interface RelatorioRow {
   obra?: string;
@@ -197,6 +198,7 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <VisualGate visualKey="producao.top-peso">
       <ChartCard chartId="top-peso" title="Top 10 Obras por Peso (kg)" hint="Clique em uma barra para filtrar pela obra">
         {topPeso.length === 0 ? <EmptyState message="Sem dados." /> : (
           <ResponsiveContainer width="100%" height="100%">
@@ -210,7 +212,9 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
           </ResponsiveContainer>
         )}
       </ChartCard>
+      </VisualGate>
 
+      <VisualGate visualKey="producao.top-pecas">
       <ChartCard chartId="top-pecas" title="Top 10 Obras por Peças" hint="Clique em uma barra para filtrar pela obra">
         {topPecas.length === 0 ? <EmptyState message="Sem dados." /> : (
           <ResponsiveContainer width="100%" height="100%">
@@ -224,7 +228,9 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
           </ResponsiveContainer>
         )}
       </ChartCard>
+      </VisualGate>
 
+      <VisualGate visualKey="producao.top-cargas">
       <ChartCard chartId="top-cargas" title="Top 10 Obras por Cargas">
         {topCargas.length === 0 ? <EmptyState message="Sem dados." /> : (
           <ResponsiveContainer width="100%" height="100%">
@@ -238,7 +244,9 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
           </ResponsiveContainer>
         )}
       </ChartCard>
+      </VisualGate>
 
+      <VisualGate visualKey="producao.evolucao-semanal">
       <ChartCard chartId="evolucao" title="Evolução Semanal" hint="Agrupado pela semana da data inicial">
         {evolucao.length === 0 ? <EmptyState message="Sem dados de data." /> : (
           <ResponsiveContainer width="100%" height="100%">
@@ -256,7 +264,9 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
           </ResponsiveContainer>
         )}
       </ChartCard>
+      </VisualGate>
 
+      <VisualGate visualKey="producao.peso-medio-carga">
       <ChartCard chartId="peso-medio-carga" title="Peso Médio por Carga (Top 10 Obras)" hint="Eficiência logística (kg/carga)">
         {pesoMedioCarga.length === 0 ? <EmptyState message="Sem dados." /> : (
           <ResponsiveContainer width="100%" height="100%">
@@ -270,7 +280,9 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
           </ResponsiveContainer>
         )}
       </ChartCard>
+      </VisualGate>
 
+      <VisualGate visualKey="producao.clientes-participacao">
       <ChartCard chartId="clientes" title="Participação por Cliente (Peso)" hint="Top 8 clientes + Outros">
         {pieClientes.length === 0 ? <EmptyState message="Sem dados de cliente." /> : (
           <ResponsiveContainer width="100%" height="100%">
@@ -286,6 +298,7 @@ export function RelatorioSemanalObraCharts({ rows, loading, onObraClick }: Props
           </ResponsiveContainer>
         )}
       </ChartCard>
+      </VisualGate>
     </div>
   );
 }

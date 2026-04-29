@@ -333,6 +333,41 @@ export type Database = {
           },
         ]
       }
+      profile_visuals: {
+        Row: {
+          can_view: boolean
+          created_at: string
+          id: string
+          profile_id: string
+          updated_at: string
+          visual_key: string
+        }
+        Insert: {
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          profile_id: string
+          updated_at?: string
+          visual_key: string
+        }
+        Update: {
+          can_view?: boolean
+          created_at?: string
+          id?: string
+          profile_id?: string
+          updated_at?: string
+          visual_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_visuals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "access_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           approved: boolean

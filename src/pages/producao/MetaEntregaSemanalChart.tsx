@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { VisualGate } from '@/components/VisualGate';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatNumber } from '@/lib/format';
@@ -288,6 +289,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
   };
 
   return (
+    <VisualGate visualKey="producao.meta-semanal">
     <div className="space-y-4">
       {/* SEMANAL */}
       <Card data-chart-id="meta-entrega-semanal">
@@ -447,6 +449,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
       </Card>
       <DrillDownDialog drill={drillDown} onClose={() => setDrillDown(null)} />
     </div>
+    </VisualGate>
   );
 }
 

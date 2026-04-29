@@ -1,42 +1,151 @@
-## Mapa de Destinos: heatmap por estado + centralização
 
-Substituir os marcadores circulares atuais por um **mapa coroplético** (estados pintados por intensidade) e centralizar o mapa no card, conforme o exemplo enviado.
+## Objetivo
 
-### Comportamento alvo
+Adicionar em **Configurações** uma nova aba **"Gráficos e Mapas"** onde admins escolhem, **por perfil de acesso**, quais gráficos/mapas cada usuário pode visualizar nas telas do ERP. Quando o perfil não tiver permissão para um gráfico, ele simplesmente não é renderizado para o usuário (a página continua acessível, só os visuais ocultam).
 
-- Estados do Brasil pintados em escala de cor por **quantidade de passagens** com destino em cidades daquela UF.
-- Faixas discretas (estilo do exemplo): cinza (sem registros) → verde claro (baixo) → azul claro (médio-baixo) → amarelo (médio-alto) → vermelho (alto).
-- Sigla da UF sobreposta no centroide de cada estado, com pequenos offsets para os estados pequenos do Nordeste (RN, PB, PE, AL, SE) ligados por linha fina, igual ao exemplo.
-- Tooltip ao passar o mouse: nome do estado, total de passagens, valor agregado. Mostra "Sem registros" para UFs sem dados.
-- Mapa centralizado horizontalmente dentro de sua coluna (`max-width` + `mx-auto`), sem mais espaço em branco assimétrico à esquerda/direita.
-- Sidebar continua exibindo **Top 5 destinos** (cidades) e ganha uma **legenda da escala de cores**.
-- Card mantém `lg:col-span-2` no grid externo (ocupa as duas colunas como hoje).
+## Catálogo de gráficos/mapas (versão 1)
 
-### Mudanças técnicas (`src/components/passagens/MapaDestinosCard.tsx`)
+Identificados no código atual e expostos como entradas configuráveis:
 
-1. **Agregação por UF**: além do agregado por cidade (já existe via `geocodeCidade`), construir `Map<uf, { qtd, total }>` somando todas as cidades de cada estado.
-2. **Mapa código IBGE → sigla UF**: o GeoJSON em `public/geo/brasil-uf.json` traz apenas `properties.codarea` (ex.: `"35"`). Adicionar tabela estática `COD_TO_UF` cobrindo as 27 UFs.
-3. **Função `colorForQtd(qtd, max)`**: retorna HSL discreta em 5 faixas conforme `ratio = qtd/max`.
-4. **Camadas SVG** (mantém abordagem de múltiplos `<Geographies>` para evitar bordas cobertas):
-   - Camada 1: `fill` por intensidade + handlers de tooltip nos estados (substitui os markers).
-   - Camada 2: bordas finas por cima.
-   - Camada 3: `<text>` com a sigla, posicionado via `geoCentroid(geo)` do `d3-geo` (já é dependência transitiva do `react-simple-maps`). Texto com `paintOrder: stroke` branco para legibilidade sobre cores fortes. Offsets manuais para RN/PB/PE/AL/SE/ES com linha guia fina.
-5. **Centralização**: envolver `<ComposableMap>` em `<div className="w-full max-w-[560px] mx-auto">` e o container externo em `flex items-center justify-center`. Ajustar `projectionConfig` para `{ scale: 780, center: [-54, -15] }` para enquadrar o Brasil sem corte.
-6. **Remover** os `<Marker>` com `circle` e a escala `scaleSqrt` (não são mais necessários — a intensidade do estado já comunica).
-7. **Legenda**: novo bloco abaixo do Top 5 com 5 swatches (Sem registros / Baixo / Médio / Médio-alto / Alto) usando as mesmas cores da escala.
-8. **Header**: "Maior incidência" passa a referenciar o **estado líder** (não mais a cidade), coerente com o heatmap.
+```text
+Passagens Aéreas
+  ├─ passagens.mapa-destinos          Mapa de Destinos (Brasil)
+  ├─ passagens.top-destinos           Top 5 Destinos
+  └─ passagens.kpis-charts            Gráficos do dashboard de passagens
 
-### Não muda
+Produção – Dashboard
+  ├─ producao.cargas-periodo          Cargas por Período
+  ├─ producao.status-projetos         Status dos Projetos
+  └─ producao.top-saldo-patio         Top Projetos com Maior Saldo em Pátio
 
-- Grid externo do dashboard (`lg:col-span-2`).
-- Filtro `selectedDestino` por cidade continua funcionando via Top 5 (clicar na lista).
-- `cidadesBrasil.ts` permanece como está.
-- `/public/geo/brasil-uf.json` permanece como está.
+Produção – Relatório Semanal Obra
+  ├─ producao.top-peso                Top 10 Obras por Peso
+  ├─ producao.top-pecas               Top 10 Obras por Peças
+  ├─ producao.top-cargas              Top 10 Obras por Cargas
+  ├─ producao.evolucao-semanal        Evolução Semanal
+  ├─ producao.peso-medio-carga        Peso Médio por Carga
+  └─ producao.clientes-participacao   Participação por Cliente
 
-### QA visual
+Produção – Meta Entrega Semanal
+  └─ producao.meta-semanal            Meta de Entrega Semanal
 
-Após aplicar, validar no preview que:
-- Mapa está visualmente centralizado no card.
-- Cores variam claramente entre os estados com mais e menos registros (ex.: SP e PA fortes; RS/PR médios; estados sem dados em cinza).
-- Siglas legíveis em todos os estados, sem sobreposição entre RN/PB/PE/AL/SE.
-- Tooltip aparece corretamente sobre cada UF.
+Painel de Compras
+  ├─ compras.top-fornecedores         Top Fornecedores
+  ├─ compras.top-familias             Top Famílias
+  └─ compras.top-origens              Top Origens
+
+Faturamento Genius
+  └─ faturamento.charts               Análises gráficas de faturamento
+
+Configurações (admin)
+  └─ admin.dashboard-uso              Dashboard de Uso de Usuários
+```
+
+Catálogo fica em `src/lib/visualCatalog.ts` (constante exportada) — fácil adicionar novos itens depois.
+
+## Banco de dados
+
+Nova tabela em Lovable Cloud:
+
+```text
+profile_visuals
+  id            uuid PK
+  profile_id    uuid → access_profiles.id (cascade)
+  visual_key    text  (ex: "passagens.mapa-destinos")
+  can_view      bool  default true
+  created_at    timestamptz
+  UNIQUE (profile_id, visual_key)
+```
+
+RLS espelha `profile_screens`:
+- SELECT para qualquer authenticated.
+- ALL apenas para admin (`is_admin(auth.uid())`).
+
+**Default**: ausência de linha = pode ver (compatível, não quebra nada). Admin desmarca para ocultar.
+
+## Frontend
+
+### 1. Hook `useUserVisuals`
+
+`src/hooks/useUserVisuals.ts`. Mesma mecânica do `useUserPermissions`: descobre `profile_id` do `erpUser`, busca `profile_visuals` daquele perfil, expõe:
+
+```ts
+{ canSeeVisual: (key: string) => boolean, loading: boolean }
+```
+
+Regra: se não houver registro → `true`. Se houver com `can_view=false` → `false`. Admin sempre vê tudo.
+
+### 2. Wrapper `<VisualGate>`
+
+`src/components/VisualGate.tsx`:
+
+```tsx
+<VisualGate visualKey="passagens.mapa-destinos">
+  <MapaDestinosCard ... />
+</VisualGate>
+```
+
+Renderiza `null` enquanto `loading`, depois `children` se permitido. Zero refactor invasivo nos componentes existentes.
+
+### 3. Aplicação nos componentes
+
+Apenas envolver os blocos atuais com `<VisualGate>` nos arquivos:
+- `PassagensDashboard.tsx`, `MapaDestinosCard.tsx` (chamada na page)
+- `producao/components/DashboardCharts.tsx` (3 cards)
+- `producao/RelatorioSemanalObraCharts.tsx` (6 ChartCard)
+- `producao/MetaEntregaSemanalChart.tsx`
+- `PainelComprasPage.tsx` (3 blocos Top)
+- `FaturamentoGeniusPage.tsx` (seção de charts)
+- `ConfiguracoesPage.tsx` (Dashboard de Uso)
+
+### 4. Aba "Gráficos e Mapas" em Configurações
+
+Em `ConfiguracoesPage.tsx`:
+
+- Novo `TabsTrigger value="visuals"` (ícone `BarChart3`).
+- Layout: `Select` com perfil no topo → lista agrupada por módulo (collapsibles), cada item com `Checkbox` "Pode ver".
+- Mesma UX/visual da aba "Telas por Perfil" já existente (consistência).
+- Toggle grava/upserta em `profile_visuals`. Toast de confirmação.
+- Botões utilitários: "Marcar todos do módulo" / "Desmarcar todos do módulo".
+
+```text
+┌─ Perfil: [Operador        ▼] ─────────────────────┐
+│                                                   │
+│  ▾ Passagens Aéreas              [✓ todos] [✗]   │
+│     ☑ Mapa de Destinos                           │
+│     ☑ Top 5 Destinos                             │
+│     ☐ Gráficos do dashboard                      │
+│                                                   │
+│  ▾ Produção – Dashboard                          │
+│     ☑ Cargas por Período                         │
+│     ...                                           │
+└───────────────────────────────────────────────────┘
+```
+
+## Detalhes técnicos
+
+- **Migration**: criar tabela `profile_visuals` + RLS + index `(profile_id, visual_key)`.
+- **Tipos Supabase**: regenerados automaticamente.
+- **Sem impacto** em `profile_screens` — permissões de tela continuam funcionando como hoje. Esta é uma camada adicional, mais granular.
+- **Performance**: hook faz 1 query (`profile_visuals` filtrada por perfil) em paralelo com a query atual de telas; resultado memoizado em `Map<string, boolean>`.
+- **Admin bypass**: `useUserVisuals` retorna `canSeeVisual = () => true` se `is_admin`.
+
+## Arquivos novos/alterados
+
+Novos:
+- `src/lib/visualCatalog.ts`
+- `src/hooks/useUserVisuals.ts`
+- `src/components/VisualGate.tsx`
+- migration SQL (tabela + RLS)
+
+Alterados:
+- `src/pages/ConfiguracoesPage.tsx` (nova aba)
+- ~7 componentes/páginas com gráficos (apenas wrap com `<VisualGate>`)
+
+## Fora do escopo (v1)
+
+- Permissão por usuário individual (continua por perfil).
+- Permissão de KPIs/cards (apenas gráficos e mapas).
+- Catálogo dinâmico auto-descoberto — usaremos lista estática mantida em `visualCatalog.ts`.
+
+Aprovar para eu implementar.
