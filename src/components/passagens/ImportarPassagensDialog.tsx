@@ -311,7 +311,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
                           <TableHead>Data</TableHead>
                           <TableHead>Colaborador</TableHead>
                           <TableHead>Origem → Destino</TableHead>
-                          <TableHead>Tipo</TableHead>
+                          <TableHead>Motivo da Viagem</TableHead>
                           <TableHead className="text-right">Valor</TableHead>
                         </TableRow>
                       </TableHeader>

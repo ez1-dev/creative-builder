@@ -825,7 +825,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )
           ) : (() => {
             const hasActions = !readOnly && (onEdit || onDelete);
-            const baseCols = agruparColab ? 6 : 7; // Data, [Colab?], C.Custo, Tipo, O→D, Cia, Valor
+            const baseCols = agruparColab ? 6 : 7; // Data, [Colab?], C.Custo, Motivo da Viagem, O→D, Tipo, Valor
             const totalCols = baseCols + (hasActions ? 1 : 0);
             return (
             <Table>
@@ -834,9 +834,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   <TableHead>Data</TableHead>
                   {!agruparColab && <TableHead>Colaborador</TableHead>}
                   <TableHead>C. Custo</TableHead>
-                  <TableHead>Tipo</TableHead>
+                  <TableHead>Motivo da Viagem</TableHead>
                   <TableHead>Origem → Destino</TableHead>
-                  <TableHead>Cia</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   {hasActions && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
@@ -969,7 +969,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 }
 
 export function exportPassagensCsv(rows: Passagem[]) {
-  const headers = ['Data', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Tipo', 'Origem', 'Destino', 'Cia', 'Bilhete', 'Valor'];
+  const headers = ['Data', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Motivo da Viagem', 'Origem', 'Destino', 'Tipo', 'Bilhete', 'Valor'];
   const data = rows.map((r) => [
     r.data_registro, r.colaborador, r.centro_custo ?? '', r.projeto_obra ?? '',
     r.tipo_despesa, r.origem ?? '', r.destino ?? '', r.cia_aerea ?? '',

@@ -1,37 +1,23 @@
-# Corrigir mapa de destinos que não está aparecendo
+## Renomear colunas da tabela de Passagens Aéreas
 
-## Problema observado
-No preview atual, as bolhas dos destinos aparecem, mas a base do mapa do Brasil não fica legível — visualmente vira um bloco cinza sem contorno claro.
+Os cabeçalhos da tabela de registros estão com nomes que não refletem o conteúdo real exibido. O ajuste é apenas de rótulos — os dados já vêm corretos dos campos `tipo_despesa` e `cia_aerea`.
 
-Também há um warning no console ligado ao uso do tooltip dentro do SVG do mapa, o que indica que a interação dos marcadores precisa ser ajustada.
+### Mudanças
 
-## Plano
-1. Ajustar a camada base do mapa em `src/components/passagens/MapaDestinosCard.tsx` para que o Brasil fique visível de forma clara:
-   - aumentar contraste do `fill` e do `stroke` das `Geography`
-   - definir melhor a espessura/opacidade das bordas
-   - evitar que o mapa se confunda com o fundo do card
+Em `src/components/passagens/PassagensDashboard.tsx`, na tabela de registros (linhas 837 e 839):
 
-2. Refinar o enquadramento do mapa:
-   - revisar `projectionConfig` (`scale`, `center` e área útil do SVG)
-   - garantir que o Brasil ocupe bem o espaço sem parecer um retângulo chapado
-   - manter os marcadores alinhados com as cidades
+| Cabeçalho atual | Novo cabeçalho | Conteúdo (não muda) |
+|---|---|---|
+| Tipo | **Motivo da Viagem** | `r.tipo_despesa` (ex: "Viagem Administrativa") |
+| Cia | **Tipo** | `r.cia_aerea` (ex: "AÉREO", "LOCAÇÃO AUTOMOVEIS S/MOTORISTA") |
 
-3. Corrigir a interação dos marcadores no SVG:
-   - remover a composição inválida atual do Radix Tooltip dentro de `Marker`
-   - substituir por uma abordagem compatível com SVG, preservando hover e clique para seleção do destino
-   - eliminar o warning do console relacionado ao `MapaDestinosCard`
+### Ajustes adicionais para consistência
 
-4. Validar a fonte cartográfica:
-   - manter o arquivo atual `public/geo/brasil-uf.json` se o ajuste visual resolver
-   - se a malha continuar inadequada, trocar por uma base simplificada/compatível para melhorar a leitura do mapa
+- **Exportação CSV** (linha 972): atualizar o array `headers` trocando `'Tipo'` por `'Motivo da Viagem'` e `'Cia'` por `'Tipo'`, mantendo a mesma ordem dos campos.
+- **Comentário** na linha 828 sobre layout de colunas: ajustar para refletir os novos nomes.
+- **Diálogo de Importação** (`ImportarPassagensDialog.tsx`, linha 314): verificar se o cabeçalho "Tipo" desse preview também precisa do mesmo ajuste; se sim, alinhar para consistência visual.
 
-## Arquivos envolvidos
-- `src/components/passagens/MapaDestinosCard.tsx`
-- `public/geo/brasil-uf.json` (somente se for necessário trocar a base cartográfica)
+### Fora do escopo
 
-## Validação esperada
-- o contorno do Brasil aparece claramente no card
-- as bolhas continuam posicionadas corretamente
-- clique nos destinos continua filtrando o dashboard
-- hover continua exibindo contexto da cidade
-- sem warning do tooltip no console
+- Não mexer nos nomes das chaves do banco (`tipo_despesa`, `cia_aerea`) nem nos campos do formulário de cadastro — apenas rótulos visuais da listagem/exportação.
+- Gráficos "Por Motivo de Viagem" e filtros já usam a terminologia correta e não precisam de mudança.
