@@ -17,12 +17,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2 } from 'lucide-react';
+import { Plus, Share2, Upload } from 'lucide-react';
 import {
   PassagensDashboard, exportPassagensCsv, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
+import { ImportarPassagensDialog } from '@/components/passagens/ImportarPassagensDialog';
 
 const PATH = '/passagens-aereas';
 
@@ -46,6 +47,7 @@ export default function PassagensAereasPage() {
   const [form, setForm] = useState<Partial<Passagem>>(emptyForm());
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -122,6 +124,11 @@ export default function PassagensAereasPage() {
               </Button>
             )}
             {editAllowed && (
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <Upload className="mr-1 h-4 w-4" /> Importar planilha
+              </Button>
+            )}
+            {editAllowed && (
               <Button size="sm" onClick={handleOpenNew}>
                 <Plus className="mr-1 h-4 w-4" /> Novo registro
               </Button>
@@ -139,6 +146,7 @@ export default function PassagensAereasPage() {
       />
 
       <ShareLinksDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <ImportarPassagensDialog open={importOpen} onOpenChange={setImportOpen} onImported={load} />
 
       <Dialog open={openForm} onOpenChange={setOpenForm}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
