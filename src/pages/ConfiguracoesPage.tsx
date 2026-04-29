@@ -245,13 +245,14 @@ export default function ConfiguracoesPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }, { data: shareSetting }] = await Promise.all([
+    const [{ data: p }, { data: ps }, { data: ua }, { data: pending }, { data: approved }, { data: shareSetting }, { data: pv }] = await Promise.all([
       supabase.from('access_profiles').select('*').order('name'),
       supabase.from('profile_screens').select('*'),
       supabase.from('user_access').select('*').order('user_login'),
       supabase.from('profiles').select('id, email, display_name, created_at').eq('approved', false),
       supabase.from('profiles').select('id, email, display_name, erp_user').eq('approved', true),
       supabase.from('app_settings').select('value').eq('key', 'passagens_share_allow_non_admin').maybeSingle(),
+      supabase.from('profile_visuals' as any).select('id, profile_id, visual_key, can_view'),
     ]);
     setProfiles(p || []);
     setProfileScreens(ps || []);
@@ -259,6 +260,7 @@ export default function ConfiguracoesPage() {
     setPendingUsers(pending || []);
     setApprovedUsers((approved as ApprovedUser[]) || []);
     setPassagensShareAllowNonAdmin(shareSetting?.value === 'true');
+    setProfileVisuals((pv as any) || []);
     setLoading(false);
   }, []);
 
