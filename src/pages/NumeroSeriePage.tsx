@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDate } from '@/lib/format';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 
@@ -43,6 +44,7 @@ interface ContextoNumeroSerie {
   item_vinculado_op?: number;
   situacao_vinculo_op?: string;
   vinculo_op_confere_numero_serie?: boolean;
+  ops_candidatas?: number[];
 }
 
 type EscopoDesvinculo = 'item_pedido' | 'vinculo_op';
@@ -114,6 +116,7 @@ export default function NumeroSeriePage() {
   const [loadingDesvincular, setLoadingDesvincular] = useState(false);
   const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
   const [candidatoSelecionadoId, setCandidatoSelecionadoId] = useState<string>('');
+  const [opCandidataEscolhida, setOpCandidataEscolhida] = useState<string>('');
 
   const erpReady = useErpReady();
 
@@ -147,6 +150,7 @@ export default function NumeroSeriePage() {
     }
 
     setLoading(true);
+    setOpCandidataEscolhida('');
     try {
       const params: Record<string, any> = { codigo_empresa: 1 };
       if (numero_op) params.numero_op = Number(numero_op);
@@ -410,7 +414,45 @@ export default function NumeroSeriePage() {
     setContexto(null);
     setDados([]);
     setSelecionado('');
+    setOpCandidataEscolhida('');
   };
+
+  const aplicarOpCandidata = async (numeroOp: number | string) => {
+    const op = String(numeroOp).trim();
+    if (!op || op === '0') return;
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+    setFilters(f => ({ ...f, numero_op: op }));
+    setLoading(true);
+    setOpCandidataEscolhida('');
+    try {
+      const params: Record<string, any> = { codigo_empresa: 1, numero_op: Number(op) };
+      if (filters.numero_pedido) params.numero_pedido = Number(filters.numero_pedido);
+      if (filters.item_pedido) params.item_pedido = Number(filters.item_pedido);
+      const result = await api.get<{ contexto: ContextoNumeroSerie }>('/api/numero-serie/contexto', params);
+      setContexto(result.contexto);
+      const produto = result.contexto?.codigo_produto?.trim();
+      const pedidoDigitado = filters.numero_pedido ? Number(filters.numero_pedido) : result.contexto?.numero_pedido;
+      const pedidoOp = result.contexto?.pedido_vinculado_op;
+      const opMismatch =
+        !!result.contexto?.numero_op &&
+        !!pedidoOp &&
+        !!pedidoDigitado &&
+        Number(pedidoOp) !== Number(pedidoDigitado);
+      setFilters(f => ({
+        ...f,
+        numero_op: opMismatch ? f.numero_op : (result.contexto?.numero_op ? String(result.contexto.numero_op) : f.numero_op),
+        origem_op: opMismatch ? '' : (result.contexto?.origem_op || ''),
+        ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
+      }));
+      if (produto) await buscarProximos(produto, result.contexto?.derivacao || '');
+      toast.success(opMismatch ? `OP ${op} ainda não bate com o pedido. Verifique.` : `OP ${op} aplicada.`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const ctxField = (label: string, value: any) => (
     <div className="space-y-0.5">
@@ -482,9 +524,52 @@ export default function NumeroSeriePage() {
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>OP vinculada a outro pedido — vínculo bloqueado</AlertTitle>
                 <AlertDescription>
-                  A OP <strong>{mismatchPedidoOp.op}</strong> está vinculada ao pedido <strong>{mismatchPedidoOp.pedidoOp}</strong>{mismatchPedidoOp.itemOp ? <> (item <strong>{mismatchPedidoOp.itemOp}</strong>)</> : null}, não ao pedido <strong>{mismatchPedidoOp.pedidoCtx}</strong> que você buscou. Confirme com a engenharia qual é a OP correta deste pedido, ou use <strong>Desvincular GS</strong> para liberar a OP do pedido antigo antes de prosseguir.
+                  A OP <strong>{mismatchPedidoOp.op}</strong> está vinculada ao pedido <strong>{mismatchPedidoOp.pedidoOp}</strong>{mismatchPedidoOp.itemOp ? <> (item <strong>{mismatchPedidoOp.itemOp}</strong>)</> : null}, não ao pedido <strong>{mismatchPedidoOp.pedidoCtx}</strong> que você buscou.{contexto?.ops_candidatas && contexto.ops_candidatas.length > 0 ? <> Selecione abaixo a OP correta deste pedido.</> : <> Confirme com a engenharia qual é a OP correta, ou use <strong>Desvincular GS</strong> para liberar a OP do pedido antigo.</>}
                 </AlertDescription>
               </Alert>
+            )}
+            {contexto?.ops_candidatas && contexto.ops_candidatas.length > 0 && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <Hash className="h-3.5 w-3.5 text-primary" />
+                  {contexto.ops_candidatas.length === 1
+                    ? `1 OP candidata encontrada para o pedido ${contexto.numero_pedido} / item ${contexto.item_pedido}`
+                    : `${contexto.ops_candidatas.length} OPs candidatas encontradas para o pedido ${contexto.numero_pedido} / item ${contexto.item_pedido}`}
+                </div>
+                {contexto.ops_candidatas.length === 1 ? (
+                  <Button
+                    size="sm"
+                    onClick={() => aplicarOpCandidata(contexto.ops_candidatas![0])}
+                    disabled={loading || Number(contexto.ops_candidatas![0]) === Number(contexto.numero_op)}
+                  >
+                    <Link2 className="mr-1 h-3.5 w-3.5" />
+                    Aplicar OP {contexto.ops_candidatas[0]}
+                  </Button>
+                ) : (
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div className="flex-1 min-w-[180px] space-y-1">
+                      <Label className="text-xs">OP correta deste pedido</Label>
+                      <Select value={opCandidataEscolhida} onValueChange={setOpCandidataEscolhida}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione uma OP candidata" /></SelectTrigger>
+                        <SelectContent>
+                          {contexto.ops_candidatas.map((op) => (
+                            <SelectItem key={op} value={String(op)}>
+                              OP {op}{Number(op) === Number(contexto.numero_op) ? ' (atual)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => aplicarOpCandidata(opCandidataEscolhida)}
+                      disabled={loading || !opCandidataEscolhida || Number(opCandidataEscolhida) === Number(contexto.numero_op)}
+                    >
+                      <Link2 className="mr-1 h-3.5 w-3.5" />Aplicar OP
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
               {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
