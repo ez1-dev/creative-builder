@@ -143,6 +143,7 @@ export default function PassagensAereasPage() {
         onEdit={editAllowed ? handleOpenEdit : undefined}
         onDelete={editAllowed ? setDeleteId : undefined}
         onExport={exportPassagensCsv}
+        onExportXlsx={exportPassagensXlsx}
       />
 
       <ShareLinksDialog open={shareOpen} onOpenChange={setShareOpen} />
