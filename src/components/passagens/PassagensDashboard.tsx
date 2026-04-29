@@ -803,7 +803,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 ))}
               </TableBody>
             </Table>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
