@@ -449,6 +449,7 @@ export function MetaEntregaSemanalChart({ rows, loading }: Props) {
       </Card>
       <DrillDownDialog drill={drillDown} onClose={() => setDrillDown(null)} />
     </div>
+    </VisualGate>
   );
 }
 
