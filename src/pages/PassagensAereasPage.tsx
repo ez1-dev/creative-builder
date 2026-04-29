@@ -17,12 +17,13 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2 } from 'lucide-react';
+import { Plus, Share2, Upload } from 'lucide-react';
 import {
   PassagensDashboard, exportPassagensCsv, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
+import { ImportarPassagensDialog } from '@/components/passagens/ImportarPassagensDialog';
 
 const PATH = '/passagens-aereas';
 
