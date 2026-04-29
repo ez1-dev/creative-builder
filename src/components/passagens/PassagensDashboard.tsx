@@ -21,6 +21,8 @@ import {
 } from 'recharts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
+import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
+import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -103,6 +105,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const [selectedCC, setSelectedCC] = useState<string | null>(null);
+  const [selectedDestino, setSelectedDestino] = useState<string | null>(null);
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
@@ -151,7 +154,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
 
   // Helper: aplica subset dos cross-filters
-  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean }) => {
+  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean }) => {
     return rows.filter((r) => {
       if (opts.mes && selectedMes && (r.data_registro ?? '').slice(0, 7) !== selectedMes) return false;
       if (opts.motivo && selectedMotivo) {
@@ -162,14 +165,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         const cc = r.centro_custo || 'Sem CC';
         if (cc !== selectedCC) return false;
       }
+      if (opts.destino && selectedDestino) {
+        if (!r.destino || nomeNormalizado(r.destino) !== nomeNormalizado(selectedDestino)) return false;
+      }
       return true;
     });
   };
 
   // Dados para KPIs e tabela: aplica TODOS os cross-filters
   const crossFiltered = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC],
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino],
   );
 
   // Linhas exibidas no card Registros: aplica busca + ordenação
@@ -329,7 +335,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [filtered, selectedMes, selectedMotivo]);
 
-  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC);
+  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino);
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
@@ -343,7 +349,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedMes(null);
     setSelectedMotivo(null);
     setSelectedCC(null);
+    setSelectedDestino(null);
   };
+
+  // Dados para o mapa: respeita filtros do topo + outros cross-filters, exceto o próprio destino
+  const mapaData = useMemo(
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC],
+  );
 
   // Cores para destaque condicional
   const primaryColor = 'hsl(var(--primary))';
@@ -504,6 +517,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               </button>
             </Badge>
           )}
+          {selectedDestino && (
+            <Badge variant="secondary" className="gap-1">
+              Destino: {selectedDestino}
+              <button onClick={() => setSelectedDestino(null)} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
         </div>
       )}
 
@@ -582,6 +603,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         )}
         <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        <MapaDestinosCard
+          data={mapaData}
+          selectedDestino={selectedDestino}
+          onSelectDestino={setSelectedDestino}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

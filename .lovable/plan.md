@@ -1,40 +1,63 @@
-# Corrigir simetria/altura uniforme dos KPI Cards em Passagens Aéreas
+# Mapa de Destinos — Passagens Aéreas
 
-## Problema (confirmado pela imagem)
+## Objetivo
 
-No grid `grid-cols-4 items-stretch` (linha 510 de `src/components/passagens/PassagensDashboard.tsx`), o card **Registros** aparece visivelmente mais alto que os outros 3:
+Adicionar um **mapa do Brasil interativo** ao dashboard de `/passagens-aereas` mostrando as cidades de destino com maior incidência (quantidade de passagens), permitindo identificar visualmente para onde mais se viaja.
 
-- O wrapper externo `<div className="relative">` (linha 548) não tem `h-full`, então não estica para ocupar toda a célula do grid.
-- Mesmo se esticasse, o `KPICard` internamente é envolvido por um `motion.div` (`framer-motion`) sem `h-full`, e o `Card` interno também não tem `h-full`. Resultado: os 3 cards "limpos" assumem altura natural igual, mas o card Registros (com subtitle "16 Centro de Custos") fica mais alto pelo conteúdo extra, e os outros não acompanham.
-- `items-stretch` no grid só estica os **filhos diretos** — ele não propaga para netos/bisnetos.
+## Contexto descoberto
 
-## Solução
+- Coluna `destino` (texto livre, ex: "CURITIBA", "SAO PAULO") está disponível em `passagens_aereas`.
+- Apenas **~36 cidades distintas** nos dados atuais — viável manter um dicionário local de coordenadas.
+- Top destinos hoje: Curitiba (52), São Paulo (34), Salvador (28), Fortaleza (26), Santarém (25), Manaus (18), Itaituba (17), Belém (14)…
+- Dashboard já existe em `src/components/passagens/PassagensDashboard.tsx` e respeita o filtro global da página.
 
-Propagar `h-full` por toda a cadeia de wrappers do KPICard e ajustar o card Registros para que os 4 cards fiquem com a mesma altura, definida pelo mais alto.
+## O que será feito
 
-### 1) `src/components/erp/KPICard.tsx`
+### 1. Dicionário de coordenadas das cidades brasileiras
+Novo arquivo `src/components/passagens/cidadesBrasil.ts` com mapa `{ nome normalizado → { lat, lng, uf } }`:
+- Todas as 27 capitais.
+- Todas as cidades já presentes no banco (Itaituba, Santarém, Chapecó, Joinville, Cascavel, etc.).
+- Função `geocodeCidade(nome)` que normaliza (uppercase, sem acento, trim) e devolve coordenadas, ou `null` se desconhecida.
 
-- No `motion.div` (linhas 67–75): adicionar `className="h-full"`.
-- No `<Card>` interno (linha 37): incluir `h-full` nas classes.
-- No `<CardContent>` (linha 38): trocar `p-4` por `flex h-full flex-col justify-center p-4` para que o conteúdo fique centralizado verticalmente quando o card é esticado pelo grid.
-- Nos wrappers `<div>` que aparecem em volta do `cardContent` quando há `tooltip`/`details` (linhas 58, 65, 82, 84): adicionar `h-full` para não quebrar a cadeia de altura.
+### 2. Novo componente `MapaDestinosCard`
+Arquivo: `src/components/passagens/MapaDestinosCard.tsx`.
 
-### 2) `src/components/passagens/PassagensDashboard.tsx`
+- Recebe a lista filtrada de passagens (mesma já calculada no dashboard).
+- Agrega por `destino`: `{ cidade, qtd, total_valor, lat, lng }`.
+- Renderiza um mapa do Brasil com **bolhas proporcionais** à quantidade de viagens em cada cidade.
+- Cores em escala (token `--primary`) — mais escuro = mais incidência. Sem cores hardcoded.
+- Tooltip por bolha: cidade, qtd de passagens, valor total formatado em BRL.
+- Lista lateral compacta com Top 5 destinos (rank, cidade, qtd, valor) — útil quando o usuário não consegue interagir com o mapa.
+- Cidades sem coordenadas conhecidas vão para um aviso discreto: "N cidades sem geolocalização".
 
-- Linha 548: `<div className="relative">` → `<div className="relative h-full">` para que o wrapper desktop do card Registros estique para ocupar a célula inteira.
-- Linha 513 (caminho mobile): `<div className="flex flex-col gap-2">` — manter como está; mobile usa stack vertical e altura uniforme não importa.
+### 3. Tecnologia do mapa
+Usar **react-simple-maps** + **d3-scale** (já leves, ~50KB) com um GeoJSON do Brasil por estado servido em `public/geo/brasil-uf.json` (arquivo enxuto, ~150KB, baixado de fonte pública confiável e commitado).
 
-### Resultado esperado
+Alternativa considerada e rejeitada: leaflet/mapbox (peso maior + chave de API). react-simple-maps roda em SVG puro, combina com o tema claro/escuro via tokens semânticos.
 
-Os 4 KPI cards (Total Geral, Registros, Colaboradores, Ticket Médio) ficam exatamente da mesma altura, com o conteúdo verticalmente centralizado. O Select "Centro de…" + botão Layers permanecem absolutamente posicionados no canto superior direito do card Registros, sem afetar o layout dos vizinhos.
+### 4. Integração no dashboard
+Em `PassagensDashboard.tsx`:
+- Adicionar o `MapaDestinosCard` numa nova linha do grid, depois dos KPIs e antes (ou ao lado) dos gráficos existentes.
+- Reutilizar a mesma fonte de dados já filtrada (não refazer fetch).
+- Respeitar layout: grid responsivo, `h-full`, alinhado com os outros cards.
+
+### 5. Filtro por clique (bônus leve)
+Clicar numa bolha aplica o destino como filtro adicional do dashboard (estado local), com um chip "Destino: CURITIBA ✕" para limpar. Sem persistir no localStorage para manter simples.
+
+## Detalhes técnicos
+
+- Dependências novas: `react-simple-maps`, `d3-scale` (`bun add react-simple-maps d3-scale @types/react-simple-maps @types/d3-scale`).
+- GeoJSON: copiar para `public/geo/brasil-uf.json` (UFs do IBGE simplificado).
+- Cores via `hsl(var(--primary) / <alpha>)` para integrar ao tema.
+- Sem chamadas externas em runtime: tudo é estático.
+- Sem alterações de banco/RLS — somente frontend.
 
 ## Arquivos afetados
 
-- `src/components/erp/KPICard.tsx` — propagação de `h-full` e centralização vertical do conteúdo.
-- `src/components/passagens/PassagensDashboard.tsx` — `h-full` no wrapper do card Registros (apenas no caminho desktop, linha 548).
+- **Novo**: `src/components/passagens/cidadesBrasil.ts`
+- **Novo**: `src/components/passagens/MapaDestinosCard.tsx`
+- **Novo**: `public/geo/brasil-uf.json`
+- **Editado**: `src/components/passagens/PassagensDashboard.tsx` (montar o card no grid)
+- **Editado**: `package.json` (3 deps)
 
-## Fora do escopo
-
-- Não alterar lógica do KPICard (variantes, tooltip, popover, animação).
-- Não mexer em outros usos do `KPICard` em outras páginas — adicionar `h-full` é seguro porque só tem efeito quando o pai tem altura definida (caso contrário, vira `100%` de auto = sem efeito).
-- Não mexer no caminho mobile dos KPIs.
+Aprove para eu implementar.
