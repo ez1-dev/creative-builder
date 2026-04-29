@@ -1,53 +1,45 @@
-## Corrigir validação de senha do link compartilhado
+## Objetivo
 
-### Migração SQL
+Adicionar botão **Exportar Excel** (.xlsx) ao lado do **Exportar CSV** existente no dashboard de Passagens Aéreas, garantindo que a coluna **Valor** saia como número monetário formatado corretamente (R$ com 2 casas, milhar/decimal) — não como texto solto, que é a causa do problema relatado no print.
 
-```sql
--- 1. Atualizar a função para preservar o sentinela 'protected'
-CREATE OR REPLACE FUNCTION public.create_passagens_share_link(
-  _token text,
-  _nome text,
-  _password text DEFAULT NULL,
-  _expires_at timestamp with time zone DEFAULT NULL
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  new_id uuid;
-  hashed text;
-BEGIN
-  IF NOT public.can_manage_passagens_share(auth.uid()) THEN
-    RAISE EXCEPTION 'Sem permissão para criar links de compartilhamento';
-  END IF;
+A biblioteca `xlsx` (SheetJS) já está nas dependências (usada no `ImportarPassagensDialog`), então reutilizamos.
 
-  IF _password = 'protected' THEN
-    -- Sentinela: a senha já está embutida no token (SHA-256 no cliente)
-    hashed := 'protected';
-  ELSIF _password IS NOT NULL AND length(_password) > 0 THEN
-    hashed := extensions.crypt(_password, extensions.gen_salt('bf'));
-  ELSE
-    hashed := NULL;
-  END IF;
+## Mudanças
 
-  INSERT INTO public.passagens_aereas_share_links (token, nome, password_hash, expires_at, created_by)
-  VALUES (_token, _nome, hashed, _expires_at, auth.uid())
-  RETURNING id INTO new_id;
+### 1. `src/components/passagens/PassagensDashboard.tsx`
 
-  RETURN new_id;
-END;
-$$;
+**a) Nova função `exportPassagensXlsx(rows)`** ao final do arquivo, ao lado de `exportPassagensCsv`:
+- Monta linhas com colunas: Data, Colaborador, Centro Custo, Projeto/Obra, Fornecedor, Cia Aérea, Nº Bilhete, Localizador, Origem, Destino, Data Ida, Data Volta, Motivo, Tipo, Valor (R$), Observações.
+- Usa `XLSX.utils.aoa_to_sheet` e atribui `cell.t = 'n'` + `cell.z = 'R$ #,##0.00'` para a coluna **Valor**, garantindo formatação numérica/monetária no Excel.
+- Datas como `Date` reais com `cell.z = 'dd/mm/yyyy'`.
+- Define larguras de coluna (`!cols`) para boa apresentação.
+- Salva via `XLSX.writeFile(wb, 'passagens-aereas-YYYY-MM-DD.xlsx')`.
 
--- 2. Normalizar links ativos cujo password_hash foi gravado como bcrypt
--- (sentinela bcrypt-ado por engano). O token salvo já é SHA-256(publicToken::senha),
--- então a validação passa a depender só do match do token.
-UPDATE public.passagens_aereas_share_links
-SET password_hash = 'protected'
-WHERE active = true AND password_hash LIKE '$2%';
+**b) Nova prop opcional `onExportXlsx?: (rows: Passagem[]) => void`** no `Props` do `PassagensDashboard`.
+
+**c) Botão adicional no toolbar do card "Registros"** (logo após o botão CSV nas linhas 608–612):
+```
+{onExportXlsx && (
+  <Button size="sm" variant="outline" className="h-8 text-xs"
+          onClick={() => onExportXlsx(displayRows)}
+          disabled={displayRows.length === 0}>
+    Exportar Excel
+  </Button>
+)}
 ```
 
-### Sem alterações no front
+**d) Também adicionar exportação Excel no Sheet de "Registros agrupados"** (atualmente só CSV em `exportGruposCsv` — linha 707). Adicionar botão **Exportar Excel** ao lado, com nova função local `exportGruposXlsx` que aplica o mesmo formato monetário na coluna Valor.
 
-A lógica do cliente já está correta para a estratégia "sentinela `'protected'`".
+### 2. `src/pages/PassagensAereasPage.tsx`
+- Importar `exportPassagensXlsx` junto de `exportPassagensCsv`.
+- Passar `onExportXlsx={exportPassagensXlsx}` ao `<PassagensDashboard>`.
+
+### 3. `src/pages/PassagensAereasCompartilhadoPage.tsx`
+- Mesma alteração: importar e passar `onExportXlsx` para que o link público também tenha a exportação Excel.
+
+## Resultado esperado
+
+- Usuário vê dois botões lado a lado: **Exportar CSV** | **Exportar Excel**.
+- No Excel gerado, a coluna **Valor** vem como número (não string), com formato `R$ #,##0.00`, permitindo somar/filtrar/ordenar corretamente — corrige o problema do print.
+- Datas legíveis em formato BR.
+- Mesmo comportamento no link compartilhado público.
