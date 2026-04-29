@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plane, Lock, AlertCircle } from 'lucide-react';
-import { PassagensDashboard, exportPassagensCsv, type Passagem } from '@/components/passagens/PassagensDashboard';
+import { PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, type Passagem } from '@/components/passagens/PassagensDashboard';
 import { deriveEffectiveToken } from '@/components/passagens/ShareLinksDialog';
 
 type State = 'loading' | 'invalid' | 'expired' | 'password' | 'ok' | 'wrong-password';
