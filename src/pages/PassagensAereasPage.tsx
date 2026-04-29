@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Share2, Upload } from 'lucide-react';
 import {
-  PassagensDashboard, exportPassagensCsv, TIPO_DESPESA_OPTIONS, type Passagem,
+  PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
