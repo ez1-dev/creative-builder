@@ -335,7 +335,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                 }}
               >
                 <div className="font-semibold">
-                  {UF_NOME[tooltip.uf] ?? tooltip.uf || '—'}
+                  {UF_NOME[tooltip.uf] ?? (tooltip.uf || '—')}
                 </div>
                 {tooltip.qtd > 0 ? (
                   <>
