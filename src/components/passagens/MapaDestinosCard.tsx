@@ -108,7 +108,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
             <TooltipProvider delayDuration={50}>
               <ComposableMap
                 projection="geoMercator"
-                projectionConfig={{ scale: 750, center: [-54, -15] }}
+                projectionConfig={{ scale: 850, center: [-54, -14] }}
                 width={600}
                 height={520}
                 style={{ width: '100%', height: 'auto' }}
@@ -119,13 +119,25 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        fill="hsl(var(--muted))"
-                        stroke="hsl(var(--border))"
-                        strokeWidth={0.5}
                         style={{
-                          default: { outline: 'none' },
-                          hover: { outline: 'none', fill: 'hsl(var(--muted) / 0.7)' },
-                          pressed: { outline: 'none' },
+                          default: {
+                            fill: 'hsl(var(--muted))',
+                            stroke: 'hsl(var(--border))',
+                            strokeWidth: 0.6,
+                            outline: 'none',
+                          },
+                          hover: {
+                            fill: 'hsl(var(--accent))',
+                            stroke: 'hsl(var(--border))',
+                            strokeWidth: 0.6,
+                            outline: 'none',
+                          },
+                          pressed: {
+                            fill: 'hsl(var(--muted))',
+                            stroke: 'hsl(var(--border))',
+                            strokeWidth: 0.6,
+                            outline: 'none',
+                          },
                         }}
                       />
                     ))
