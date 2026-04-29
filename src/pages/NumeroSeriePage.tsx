@@ -43,6 +43,7 @@ interface ContextoNumeroSerie {
   item_vinculado_op?: number;
   situacao_vinculo_op?: string;
   vinculo_op_confere_numero_serie?: boolean;
+  ops_candidatas?: number[];
 }
 
 type EscopoDesvinculo = 'item_pedido' | 'vinculo_op';

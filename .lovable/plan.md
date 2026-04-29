@@ -1,55 +1,49 @@
-## Problema
+## Objetivo
 
-Quando você busca o contexto pelo **pedido 11510**, o sistema está retornando a **OP 1111**, mas essa OP está vinculada ao **pedido antigo 4891** (vínculo errado feito no passado). Você quer que o contexto mostre a **OP correta do pedido 11510** — não uma OP herdada de outro pedido.
+Quando o backend retornar `ops_candidatas: number[]` no `/contexto` (lista de OPs vinculadas ao pedido digitado), o frontend deve mostrar um seletor para o usuário escolher a OP correta. Ao escolher, re-busca o contexto passando `numero_op` da OP selecionada — o mismatch some e os botões "Reservar" / "Vincular" habilitam.
 
-Hoje o backend `/api/numero-serie/contexto` parece estar buscando "qualquer OP do produto" (ou usa `pedido_vinculado_op` antigo do `USU_T075SEP`), e por isso traz a OP do pedido errado.
+## Mudanças — `src/pages/NumeroSeriePage.tsx`
 
-## Como vamos resolver
+### 1. Tipo
+Adicionar ao `ContextoNumeroSerie`:
+```ts
+ops_candidatas?: number[];
+```
 
-A correção principal é no **backend** (vou documentar). No **frontend** vamos:
+### 2. Card de Contexto — seletor condicional
 
-1. Tornar visível QUAL pedido a OP exibida está realmente atendendo (para você ver imediatamente o desencontro).
-2. Adicionar regra: se a OP retornada está vinculada a um pedido diferente do que você digitou, exibir alerta amarelo "OP X está vinculada ao pedido Y, não ao pedido Z digitado" e **não** preencher o campo `OP` automaticamente.
-3. Permitir que você digite manualmente a OP correta do pedido 11510 e re-buscar o contexto.
+Logo abaixo do `Alert` âmbar de mismatch (e também quando `ops_candidatas.length > 1` mesmo sem mismatch), renderizar um bloco:
 
-## Mudanças
+```
+[OP correta deste pedido:  ▼ 100234 ] [Aplicar]
+   3 OPs candidatas encontradas para o pedido 11510 / item 1.
+```
 
-### Frontend — `src/pages/NumeroSeriePage.tsx`
+- Usa `Select` do shadcn (`@/components/ui/select`).
+- Estado novo: `const [opCandidataEscolhida, setOpCandidataEscolhida] = useState<string>('')`.
+- Botão "Aplicar OP" chama uma função `aplicarOpCandidata(numeroOp)` que:
+  - Atualiza `filters.numero_op` com a OP escolhida.
+  - Re-chama `buscarContexto()` com a OP fixada.
+- Se `ops_candidatas.length === 1`, mostrar dica clicável "Aplicar OP única: 100234" sem precisar do Select.
 
-- Detectar mismatch usando os campos já existentes no `ContextoNumeroSerie`:
-  - `numero_op` retornado vs `numero_pedido` digitado
-  - `pedido_vinculado_op` / `item_vinculado_op` (já no tipo)
-  - Se `pedido_vinculado_op` existe e é diferente do `numero_pedido` digitado/retornado, é o mesmo bug que estamos vendo.
-- Novo `Alert` (warning amarelo) no card de Contexto:
-  > "A OP {numero_op} está vinculada ao pedido **{pedido_vinculado_op}** (item {item_vinculado_op}), não ao pedido {numero_pedido} que você buscou. Confirme com a engenharia qual é a OP correta deste pedido ou desvincule a OP do pedido antigo antes de prosseguir."
-- Não auto-preencher `filters.numero_op` quando esse mismatch existir (hoje é preenchido cego em `setFilters` após `buscarContexto`).
-- Desabilitar **Reservar Selecionado** e **Vincular GS Informado** enquanto o mismatch persistir, com tooltip explicando.
-- Manter o botão **Desvincular GS** habilitado (é justamente como você corrige).
+### 3. Mensagem do Alert âmbar
+Quando houver `ops_candidatas` não-vazio, complementar o Alert: "Veja abaixo as OPs candidatas e selecione a correta."
 
-### Backend — atualizar `docs/backend-numero-serie-desvincular.md` e criar `docs/backend-numero-serie-contexto-op-correta.md`
+Quando `ops_candidatas` estiver vazio/ausente E houver mismatch, manter a mensagem atual (instruir desvincular).
 
-Documentar a regra para o time do backend FastAPI:
+### 4. Reset
+- Limpar `opCandidataEscolhida` no `limpar()`.
+- Limpar `opCandidataEscolhida` no início de `buscarContexto()`.
 
-`GET /api/numero-serie/contexto` deve, quando recebe `numero_pedido` + `item_pedido`:
+## Sem mudanças no backend (apenas consumo)
 
-1. Buscar a OP **cujo pedido vinculado seja exatamente o pedido informado** — não a primeira OP que o produto tenha. Fontes possíveis (a confirmar com banco):
-   - `USU_T075SEP` filtrando por `pedido_vinculado_op = :numero_pedido AND item_vinculado_op = :item_pedido`
-   - Tabela de OPs (TPRIOP) cruzando com pedido
-2. Se encontrar mais de uma OP candidata, retornar a mais recente e expor `ops_candidatas: [...]` para o frontend listar.
-3. Se NÃO encontrar OP vinculada ao pedido, retornar `numero_op: 0` (não inventar com OP de outro pedido).
-4. Ainda assim, se chamarem com `numero_op` explícito, retornar os campos `pedido_vinculado_op` / `item_vinculado_op` corretos para o front detectar mismatch.
+O contrato já está documentado em `docs/backend-numero-serie-contexto-op-correta.md` (`ops_candidatas: number[]`). Esta entrega só consome o campo.
 
 ## Arquivos afetados
 
-- `src/pages/NumeroSeriePage.tsx` — alerta de mismatch pedido↔OP, não auto-preencher OP errada, desabilitar reserva.
-- `docs/backend-numero-serie-contexto-op-correta.md` — **novo**, contrato.
-- `docs/backend-numero-serie-desvincular.md` — nota cruzada.
+- `src/pages/NumeroSeriePage.tsx` — tipo, estado, seletor visual, função `aplicarOpCandidata`.
 
 ## Fora de escopo
 
-- Implementação no backend FastAPI (você faz com o contrato novo).
-- Mexer em outras telas que mostram OP.
-
-## Pergunta
-
-A correção só com aviso visual + bloqueio é suficiente? Ou você quer que o frontend também ofereça um botão "Procurar OP correta deste pedido" que chame um endpoint novo `/api/numero-serie/ops-do-pedido?numero_pedido=11510` para listar candidatas?
+- Endpoint dedicado `/api/numero-serie/ops-do-pedido` (mencionado como opcional na doc) — fica para depois se for necessário.
+- Mostrar metadados extras das OPs (status, qtde) — hoje só temos `number[]`.
