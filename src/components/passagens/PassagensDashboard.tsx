@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { KPICard } from '@/components/erp/KPICard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
