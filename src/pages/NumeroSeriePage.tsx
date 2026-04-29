@@ -615,6 +615,46 @@ export default function NumeroSeriePage() {
                 )}
               </div>
             )}
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                <Link2 className="h-3.5 w-3.5 text-primary" />
+                Trocar contexto por outro pedido
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-[140px] space-y-1">
+                  <Label className="text-xs">Pedido</Label>
+                  <Input
+                    type="number"
+                    value={trocarPedido}
+                    onChange={e => setTrocarPedido(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarPedidoManual(); } }}
+                    className="h-8 text-xs"
+                    placeholder="Ex.: 11510"
+                  />
+                </div>
+                <div className="w-20 space-y-1">
+                  <Label className="text-xs">Item</Label>
+                  <Input
+                    type="number"
+                    value={trocarItem}
+                    onChange={e => setTrocarItem(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarPedidoManual(); } }}
+                    className="h-8 text-xs"
+                    placeholder="1"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={aplicarPedidoManual}
+                  disabled={loading || !trocarPedido.trim()}
+                >
+                  <Link2 className="mr-1 h-3.5 w-3.5" />Aplicar Pedido
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Usa este atalho quando a OP carregada está vinculada a outro pedido (ex.: a OP atual é antiga). O contexto é recarregado pelo pedido digitado.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
               {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
               {ctxField('Item', contexto.item_pedido)}
