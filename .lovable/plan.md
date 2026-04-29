@@ -1,45 +1,37 @@
-# Corrigir mapa do Brasil que não está renderizando
+# Corrigir mapa de destinos que não está aparecendo
 
 ## Problema observado
+No preview atual, as bolhas dos destinos aparecem, mas a base do mapa do Brasil não fica legível — visualmente vira um bloco cinza sem contorno claro.
 
-Na captura enviada, as bolhas dos destinos aparecem corretamente posicionadas, mas o **contorno do Brasil não é desenhado** — o mapa fica com fundo cinza vazio.
+Também há um warning no console ligado ao uso do tooltip dentro do SVG do mapa, o que indica que a interação dos marcadores precisa ser ajustada.
 
-## Causa
+## Plano
+1. Ajustar a camada base do mapa em `src/components/passagens/MapaDestinosCard.tsx` para que o Brasil fique visível de forma clara:
+   - aumentar contraste do `fill` e do `stroke` das `Geography`
+   - definir melhor a espessura/opacidade das bordas
+   - evitar que o mapa se confunda com o fundo do card
 
-No `react-simple-maps` v3, o componente `<Geography>` ignora as props diretas `fill` e `stroke` quando também recebe a prop `style`. Hoje o componente em `MapaDestinosCard.tsx` passa `fill`/`stroke` como props soltas e um `style.default` apenas com `outline: 'none'` — resultado: as feições renderizam sem fill nem stroke (invisíveis). O GeoJSON em `/geo/brasil-uf.json` está sendo servido normalmente (verifiquei: HTTP 200, 98KB).
+2. Refinar o enquadramento do mapa:
+   - revisar `projectionConfig` (`scale`, `center` e área útil do SVG)
+   - garantir que o Brasil ocupe bem o espaço sem parecer um retângulo chapado
+   - manter os marcadores alinhados com as cidades
 
-Adicionalmente, a projeção atual (`scale: 750`) deixa o Brasil um pouco apertado dentro do viewport — ajuste fino para `scale: 850, center: [-54, -14]` para ocupar melhor o card.
+3. Corrigir a interação dos marcadores no SVG:
+   - remover a composição inválida atual do Radix Tooltip dentro de `Marker`
+   - substituir por uma abordagem compatível com SVG, preservando hover e clique para seleção do destino
+   - eliminar o warning do console relacionado ao `MapaDestinosCard`
 
-## Correção
+4. Validar a fonte cartográfica:
+   - manter o arquivo atual `public/geo/brasil-uf.json` se o ajuste visual resolver
+   - se a malha continuar inadequada, trocar por uma base simplificada/compatível para melhorar a leitura do mapa
 
-Em `src/components/passagens/MapaDestinosCard.tsx`, mover `fill` e `stroke` para dentro de `style.default` / `style.hover` / `style.pressed` do `<Geography>`:
-
-```tsx
-<Geography
-  key={geo.rsmKey}
-  geography={geo}
-  style={{
-    default: {
-      fill: 'hsl(var(--muted))',
-      stroke: 'hsl(var(--border))',
-      strokeWidth: 0.6,
-      outline: 'none',
-    },
-    hover: {
-      fill: 'hsl(var(--accent))',
-      stroke: 'hsl(var(--border))',
-      strokeWidth: 0.6,
-      outline: 'none',
-    },
-    pressed: { /* mesmo do default */ },
-  }}
-/>
-```
-
-Também ajustar `projectionConfig` para `{ scale: 850, center: [-54, -14] }`.
-
-## Arquivo afetado
-
+## Arquivos envolvidos
 - `src/components/passagens/MapaDestinosCard.tsx`
+- `public/geo/brasil-uf.json` (somente se for necessário trocar a base cartográfica)
 
-Aprove para eu aplicar a correção.
+## Validação esperada
+- o contorno do Brasil aparece claramente no card
+- as bolhas continuam posicionadas corretamente
+- clique nos destinos continua filtrando o dashboard
+- hover continua exibindo contexto da cidade
+- sem warning do tooltip no console

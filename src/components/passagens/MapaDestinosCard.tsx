@@ -3,7 +3,6 @@ import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps
 import { scaleSqrt } from 'd3-scale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { MapPin } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
 import { geocodeCidade, nomeNormalizado } from './cidadesBrasil';
@@ -28,6 +27,7 @@ interface Props {
 
 export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Props) {
   const [hover, setHover] = useState<Aggregated | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; data: Aggregated } | null>(null);
 
   const { pontos, semGeo, totalSemGeo } = useMemo(() => {
     const map = new Map<string, { qtd: number; total: number; nomeOriginal: string }>();
@@ -104,77 +104,116 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
       <CardContent>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Mapa */}
-          <div className="relative lg:col-span-2">
-            <TooltipProvider delayDuration={50}>
-              <ComposableMap
-                projection="geoMercator"
-                projectionConfig={{ scale: 850, center: [-54, -14] }}
-                width={600}
-                height={520}
-                style={{ width: '100%', height: 'auto' }}
+          <div
+            className="relative lg:col-span-2"
+            onMouseLeave={() => setTooltip(null)}
+          >
+            <ComposableMap
+              projection="geoMercator"
+              projectionConfig={{ scale: 850, center: [-54, -14] }}
+              width={600}
+              height={520}
+              style={{ width: '100%', height: 'auto' }}
+            >
+              {/* Camada 1: fills das UFs (sem stroke, para não ser coberto) */}
+              <Geographies geography={GEO_URL}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={`fill-${geo.rsmKey}`}
+                      geography={geo}
+                      fill="hsl(215, 60%, 94%)"
+                      stroke="none"
+                      style={{
+                        default: { outline: 'none' },
+                        hover: { outline: 'none', fill: 'hsl(215, 60%, 86%)' },
+                        pressed: { outline: 'none' },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+              {/* Camada 2: strokes por cima de todos os fills */}
+              <Geographies geography={GEO_URL}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={`stroke-${geo.rsmKey}`}
+                      geography={geo}
+                      fill="none"
+                      stroke="hsl(215, 70%, 40%)"
+                      strokeWidth={0.8}
+                      strokeOpacity={0.7}
+                      style={{
+                        default: { outline: 'none', pointerEvents: 'none' },
+                        hover: { outline: 'none', pointerEvents: 'none' },
+                        pressed: { outline: 'none', pointerEvents: 'none' },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+              {pontos.map((p) => {
+                const isSelected = selectedDestino && nomeNormalizado(selectedDestino) === nomeNormalizado(p.cidade);
+                const isDimmed = selectedDestino && !isSelected;
+                return (
+                  <Marker key={p.cidade} coordinates={[p.lng, p.lat]}>
+                    <circle
+                      r={radius(p.qtd)}
+                      fill="hsl(var(--primary))"
+                      fillOpacity={isDimmed ? 0.2 : 0.6}
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={isSelected ? 2 : 1}
+                      style={{ cursor: 'pointer', transition: 'all 150ms' }}
+                      onMouseEnter={(e) => {
+                        setHover(p);
+                        const rect = (e.currentTarget.ownerSVGElement?.parentElement as HTMLElement)?.getBoundingClientRect();
+                        if (rect) {
+                          setTooltip({
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                            data: p,
+                          });
+                        }
+                      }}
+                      onMouseMove={(e) => {
+                        const rect = (e.currentTarget.ownerSVGElement?.parentElement as HTMLElement)?.getBoundingClientRect();
+                        if (rect) {
+                          setTooltip({
+                            x: e.clientX - rect.left,
+                            y: e.clientY - rect.top,
+                            data: p,
+                          });
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHover(null);
+                        setTooltip(null);
+                      }}
+                      onClick={() =>
+                        onSelectDestino?.(isSelected ? null : p.cidade)
+                      }
+                    />
+                  </Marker>
+                );
+              })}
+            </ComposableMap>
+            {tooltip && (
+              <div
+                className="pointer-events-none absolute z-10 rounded-md border bg-popover px-2.5 py-1.5 text-xs text-popover-foreground shadow-md"
+                style={{
+                  left: tooltip.x + 12,
+                  top: tooltip.y + 12,
+                }}
               >
-                <Geographies geography={GEO_URL}>
-                  {({ geographies }) =>
-                    geographies.map((geo) => (
-                      <Geography
-                        key={geo.rsmKey}
-                        geography={geo}
-                        style={{
-                          default: {
-                            fill: 'hsl(var(--muted))',
-                            stroke: 'hsl(var(--border))',
-                            strokeWidth: 0.6,
-                            outline: 'none',
-                          },
-                          hover: {
-                            fill: 'hsl(var(--accent))',
-                            stroke: 'hsl(var(--border))',
-                            strokeWidth: 0.6,
-                            outline: 'none',
-                          },
-                          pressed: {
-                            fill: 'hsl(var(--muted))',
-                            stroke: 'hsl(var(--border))',
-                            strokeWidth: 0.6,
-                            outline: 'none',
-                          },
-                        }}
-                      />
-                    ))
-                  }
-                </Geographies>
-                {pontos.map((p) => {
-                  const isSelected = selectedDestino && nomeNormalizado(selectedDestino) === nomeNormalizado(p.cidade);
-                  const isDimmed = selectedDestino && !isSelected;
-                  return (
-                    <Marker key={p.cidade} coordinates={[p.lng, p.lat]}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <circle
-                            r={radius(p.qtd)}
-                            fill="hsl(var(--primary))"
-                            fillOpacity={isDimmed ? 0.2 : 0.6}
-                            stroke="hsl(var(--primary))"
-                            strokeWidth={isSelected ? 2 : 1}
-                            className="cursor-pointer transition-all hover:fill-opacity-80"
-                            onMouseEnter={() => setHover(p)}
-                            onMouseLeave={() => setHover(null)}
-                            onClick={() =>
-                              onSelectDestino?.(isSelected ? null : p.cidade)
-                            }
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">
-                          <div className="font-semibold">{p.cidade} <span className="text-muted-foreground">({p.uf})</span></div>
-                          <div>{p.qtd} passagem{p.qtd === 1 ? '' : 's'}</div>
-                          <div>{formatCurrency(p.total)}</div>
-                        </TooltipContent>
-                      </Tooltip>
-                    </Marker>
-                  );
-                })}
-              </ComposableMap>
-            </TooltipProvider>
+                <div className="font-semibold">
+                  {tooltip.data.cidade}{' '}
+                  <span className="text-muted-foreground">({tooltip.data.uf})</span>
+                </div>
+                <div>{tooltip.data.qtd} passagem{tooltip.data.qtd === 1 ? '' : 's'}</div>
+                <div>{formatCurrency(tooltip.data.total)}</div>
+              </div>
+            )}
             {pontos.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                 Sem destinos para exibir
