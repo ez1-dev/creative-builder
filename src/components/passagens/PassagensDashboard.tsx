@@ -545,7 +545,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </div>
           </div>
         ) : (
-          <div className="relative">
+          <div className="relative h-full">
             <KPICard
               title="Registros"
               value={totalRegistros}
