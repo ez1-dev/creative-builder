@@ -619,18 +619,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle className="text-sm">Registros ({displayRows.length})</CardTitle>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+            <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar..."
-                className="h-8 w-[200px] pl-7 text-xs"
+                className="h-8 w-full pl-7 text-xs sm:w-[200px]"
               />
             </div>
             <Select value={ordenacao} onValueChange={(v) => setOrdenacao(v as typeof ordenacao)}>
-              <SelectTrigger className="h-8 w-[180px] text-xs" aria-label="Ordenar">
+              <SelectTrigger className="h-8 w-full text-xs sm:w-[180px]" aria-label="Ordenar">
                 <ArrowUpDown className="mr-1 h-3 w-3" />
                 <SelectValue />
               </SelectTrigger>
@@ -646,20 +646,23 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <Button
               size="sm"
               variant={agruparColab ? 'default' : 'outline'}
-              className="h-8 text-xs"
+              className="h-8 flex-1 text-xs sm:flex-none"
               onClick={() => setAgruparColab((v) => !v)}
             >
               <Users className="mr-1 h-3.5 w-3.5" />
-              Agrupar Colaborador
+              <span className="sm:hidden">Agrupar</span>
+              <span className="hidden sm:inline">Agrupar Colaborador</span>
             </Button>
             {onExport && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExport(displayRows)} disabled={displayRows.length === 0}>
-                Exportar CSV
+              <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={() => onExport(displayRows)} disabled={displayRows.length === 0}>
+                <span className="sm:hidden">CSV</span>
+                <span className="hidden sm:inline">Exportar CSV</span>
               </Button>
             )}
             {onExportXlsx && (
-              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExportXlsx(displayRows)} disabled={displayRows.length === 0}>
-                Exportar Excel
+              <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={() => onExportXlsx(displayRows)} disabled={displayRows.length === 0}>
+                <span className="sm:hidden">Excel</span>
+                <span className="hidden sm:inline">Exportar Excel</span>
               </Button>
             )}
           </div>
