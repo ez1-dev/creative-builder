@@ -1,50 +1,53 @@
-## Importar Planilha — Passagens Aéreas
+## Corrigir validação de senha do link compartilhado
 
-Adicionar fluxo de importação a partir do modelo `.xlsx` já gerado, na própria página `/passagens-aereas`.
+### Migração SQL
 
-### UX
+```sql
+-- 1. Atualizar a função para preservar o sentinela 'protected'
+CREATE OR REPLACE FUNCTION public.create_passagens_share_link(
+  _token text,
+  _nome text,
+  _password text DEFAULT NULL,
+  _expires_at timestamp with time zone DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  new_id uuid;
+  hashed text;
+BEGIN
+  IF NOT public.can_manage_passagens_share(auth.uid()) THEN
+    RAISE EXCEPTION 'Sem permissão para criar links de compartilhamento';
+  END IF;
 
-- Novo botão no `PageHeader` (visível só para quem tem `canEdit`):
-  - **Importar planilha** (ícone `Upload`), ao lado de "Compartilhar" e "Novo registro".
-  - Botão secundário **Baixar modelo** dentro do diálogo (link para `/modelo-importacao-passagens-aereas.xlsx`).
-- Abre `Dialog` "Importar Passagens Aéreas" com:
-  1. Input de arquivo (`accept=".xlsx"`).
-  2. Após selecionar: parse no cliente e mostrar **pré-visualização** (tabela com 5 primeiras linhas + total de linhas).
-  3. Painel de **validação**: linhas válidas, linhas com erro (lista resumida: "Linha 7: colaborador vazio").
-  4. Botões: **Cancelar** | **Importar N registros** (desabilitado se não houver válidos).
-- Durante a importação: barra de progresso simples ("Importando 120/340...").
-- Ao terminar: toast com resumo ("250 importados, 3 ignorados") e `load()` para refrescar a lista.
+  IF _password = 'protected' THEN
+    -- Sentinela: a senha já está embutida no token (SHA-256 no cliente)
+    hashed := 'protected';
+  ELSIF _password IS NOT NULL AND length(_password) > 0 THEN
+    hashed := extensions.crypt(_password, extensions.gen_salt('bf'));
+  ELSE
+    hashed := NULL;
+  END IF;
 
-### Parsing
+  INSERT INTO public.passagens_aereas_share_links (token, nome, password_hash, expires_at, created_by)
+  VALUES (_token, _nome, hashed, _expires_at, auth.uid())
+  RETURNING id INTO new_id;
 
-- Usar a lib `xlsx` (SheetJS) — adicionar via `bun add xlsx`.
-- Ler aba **`Passagens`** (nome do modelo). Se não existir, usar a primeira aba.
-- Headers esperados (linha 1, exatos do modelo):  
-  `data_registro, colaborador, centro_custo, projeto_obra, fornecedor, cia_aerea, numero_bilhete, localizador, origem, destino, data_ida, data_volta, motivo_viagem, tipo_despesa, valor, observacoes`.
-- Conversões:
-  - Datas: aceitar serial Excel ou string `DD/MM/YYYY` / `YYYY-MM-DD` → normalizar para `YYYY-MM-DD`.
-  - `valor`: aceitar número ou string com `R$`, separadores → `Number`.
-  - `tipo_despesa`: validar contra `TIPO_DESPESA_OPTIONS`; se inválido, marcar erro.
-- Validação por linha:
-  - Obrigatórios: `colaborador`, `tipo_despesa`, `valor` (>= 0), `data_registro`.
-  - Demais campos opcionais (vazio → `null`).
+  RETURN new_id;
+END;
+$$;
 
-### Inserção no banco
+-- 2. Normalizar links ativos cujo password_hash foi gravado como bcrypt
+-- (sentinela bcrypt-ado por engano). O token salvo já é SHA-256(publicToken::senha),
+-- então a validação passa a depender só do match do token.
+UPDATE public.passagens_aereas_share_links
+SET password_hash = 'protected'
+WHERE active = true AND password_hash LIKE '$2%';
+```
 
-- Inserir em **lotes de 100** com `supabase.from('passagens_aereas').insert([...])`.
-- `created_by` = `auth.uid()` atual em cada registro.
-- Erros de lote: continuar próximos lotes; acumular contagem para o toast final.
-- Aproveita RLS já existente (admins inserem).
+### Sem alterações no front
 
-### Arquivos
-
-- `src/components/passagens/ImportarPassagensDialog.tsx` (novo) — todo o fluxo (upload, parse, preview, insert).
-- `src/pages/PassagensAereasPage.tsx` — adicionar estado `openImport`, botão "Importar planilha" no header, render do diálogo, e chamar `load()` ao concluir.
-- `public/modelo-importacao-passagens-aereas.xlsx` — copiar o modelo já gerado para servir como download.
-- `package.json` — dependência `xlsx`.
-
-### Detalhes técnicos
-
-- Sem mudanças no schema/Supabase.
-- Componente usa apenas `Dialog`, `Input type="file"`, `Button`, `Table`, `Progress` (já existem em shadcn).
-- Tudo client-side; sem edge functions.
+A lógica do cliente já está correta para a estratégia "sentinela `'protected'`".
