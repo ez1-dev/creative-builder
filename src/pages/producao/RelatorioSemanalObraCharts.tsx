@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatNumber } from '@/lib/format';
+import { VisualGate } from '@/components/VisualGate';
 
 export interface RelatorioRow {
   obra?: string;
