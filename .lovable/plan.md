@@ -1,85 +1,55 @@
 ## Problema
 
-Hoje o sistema deixou vincular GS ao pedido **4891 (origem 230)** quando a OP **1111** é da origem **250 / pedido 11510**. Isso gerou o desencontro que estamos consertando agora. Precisamos **prevenir** vínculos cruzados entre OP e pedido de origens diferentes — não só permitir desvincular depois.
+Quando você busca o contexto pelo **pedido 11510**, o sistema está retornando a **OP 1111**, mas essa OP está vinculada ao **pedido antigo 4891** (vínculo errado feito no passado). Você quer que o contexto mostre a **OP correta do pedido 11510** — não uma OP herdada de outro pedido.
 
-## Regra de negócio
+Hoje o backend `/api/numero-serie/contexto` parece estar buscando "qualquer OP do produto" (ou usa `pedido_vinculado_op` antigo do `USU_T075SEP`), e por isso traz a OP do pedido errado.
 
-Quando houver OP no contexto:
+## Como vamos resolver
 
-- A **origem da OP** (`origem_op`, ex.: 250) deve casar com a **origem do pedido** ao qual o GS será vinculado.
-- Se origens divergirem, **bloquear a reserva/vínculo** com mensagem clara, oferecendo apenas a opção de "forçar" para um usuário com permissão (ou nunca, se preferir total bloqueio).
+A correção principal é no **backend** (vou documentar). No **frontend** vamos:
 
-## Plano (frontend + contrato backend)
+1. Tornar visível QUAL pedido a OP exibida está realmente atendendo (para você ver imediatamente o desencontro).
+2. Adicionar regra: se a OP retornada está vinculada a um pedido diferente do que você digitou, exibir alerta amarelo "OP X está vinculada ao pedido Y, não ao pedido Z digitado" e **não** preencher o campo `OP` automaticamente.
+3. Permitir que você digite manualmente a OP correta do pedido 11510 e re-buscar o contexto.
 
-### 1. Frontend — `src/pages/NumeroSeriePage.tsx`
+## Mudanças
 
-**Tipos**
-- Adicionar em `ContextoNumeroSerie`: `origem_pedido?: string` (origem do pedido carregado, vinda do backend no `/contexto`).
+### Frontend — `src/pages/NumeroSeriePage.tsx`
 
-**Validação local antes de enviar `/reservar`**
-Em `reservar(forcarVinculo)`:
-- Calcular `origemOp = contexto?.origem_op` e `origemPedido = contexto?.origem_pedido`.
-- Se `numero_op > 0` e ambas existirem e forem diferentes:
-  - Bloquear com toast vermelho:  
-    *"OP {op} é da origem {origemOp} e não pode ser vinculada ao pedido {pedido} (origem {origemPedido}). Verifique o pedido correto da OP."*
-  - **Não enviar** o request.
-- Mesma checagem ao usar "Vincular GS Informado" (manual).
+- Detectar mismatch usando os campos já existentes no `ContextoNumeroSerie`:
+  - `numero_op` retornado vs `numero_pedido` digitado
+  - `pedido_vinculado_op` / `item_vinculado_op` (já no tipo)
+  - Se `pedido_vinculado_op` existe e é diferente do `numero_pedido` digitado/retornado, é o mesmo bug que estamos vendo.
+- Novo `Alert` (warning amarelo) no card de Contexto:
+  > "A OP {numero_op} está vinculada ao pedido **{pedido_vinculado_op}** (item {item_vinculado_op}), não ao pedido {numero_pedido} que você buscou. Confirme com a engenharia qual é a OP correta deste pedido ou desvincule a OP do pedido antigo antes de prosseguir."
+- Não auto-preencher `filters.numero_op` quando esse mismatch existir (hoje é preenchido cego em `setFilters` após `buscarContexto`).
+- Desabilitar **Reservar Selecionado** e **Vincular GS Informado** enquanto o mismatch persistir, com tooltip explicando.
+- Manter o botão **Desvincular GS** habilitado (é justamente como você corrige).
 
-**Aviso visual no card de Contexto**
-- Quando `origem_op` ≠ `origem_pedido`, mostrar `Alert` destrutivo no topo do card de Contexto:
-  > "Divergência de origem: OP {op} = origem {X}; Pedido {Y} = origem {Z}. Reserva bloqueada."
-- Desabilitar os botões "Reservar Selecionado" e "Vincular GS Informado" enquanto houver divergência.
+### Backend — atualizar `docs/backend-numero-serie-desvincular.md` e criar `docs/backend-numero-serie-contexto-op-correta.md`
 
-**Filtro de origem (preventivo na busca)**
-- O campo `origem_op` (hoje read-only, preenchido pelo backend) ganha um indicador visual (badge verde/vermelho) comparando com `origem_pedido` quando ambos estiverem carregados.
+Documentar a regra para o time do backend FastAPI:
 
-### 2. Contrato backend — atualizar `docs/backend-numero-serie-desvincular.md` e criar `docs/backend-numero-serie-validacao-origem.md`
+`GET /api/numero-serie/contexto` deve, quando recebe `numero_pedido` + `item_pedido`:
 
-Documentar que:
-
-**`GET /api/numero-serie/contexto`** passa a retornar também:
-```json
-{
-  "contexto": {
-    "...": "...",
-    "origem_op": "250",
-    "origem_pedido": "230",        // novo
-    "origens_conferem": false       // novo (conveniência)
-  }
-}
-```
-
-**`POST /api/numero-serie/reservar`** passa a validar:
-- Se `numero_op` informado e `origem_op` ≠ `origem_pedido`, retornar `409 Conflict`:
-  ```json
-  {
-    "detail": "OP 1111 (origem 250) não pode ser vinculada ao pedido 4891 (origem 230)."
-  }
-  ```
-- A flag existente `forcar_vinculo` **não** deve burlar essa checagem (é uma proteção dura). Se quiser permitir override administrativo, criar um campo separado `forcar_origem_divergente: bool` que exige header de auditoria.
-
-### 3. Atualizar `docs/backend-numero-serie-desvincular-fastapi.py` (esqueleto já planejado)
-
-Adicionar no início do handler de `/reservar` (em arquivo separado de validação) um helper:
-```python
-def validar_origens(db, numero_op, numero_pedido, item_pedido):
-    origem_op = buscar_origem_op(db, numero_op)
-    origem_ped = buscar_origem_pedido(db, numero_pedido, item_pedido)
-    if origem_op and origem_ped and origem_op != origem_ped:
-        raise HTTPException(409, f"OP {numero_op} (origem {origem_op}) não pode ser vinculada ao pedido {numero_pedido} (origem {origem_ped}).")
-```
+1. Buscar a OP **cujo pedido vinculado seja exatamente o pedido informado** — não a primeira OP que o produto tenha. Fontes possíveis (a confirmar com banco):
+   - `USU_T075SEP` filtrando por `pedido_vinculado_op = :numero_pedido AND item_vinculado_op = :item_pedido`
+   - Tabela de OPs (TPRIOP) cruzando com pedido
+2. Se encontrar mais de uma OP candidata, retornar a mais recente e expor `ops_candidatas: [...]` para o frontend listar.
+3. Se NÃO encontrar OP vinculada ao pedido, retornar `numero_op: 0` (não inventar com OP de outro pedido).
+4. Ainda assim, se chamarem com `numero_op` explícito, retornar os campos `pedido_vinculado_op` / `item_vinculado_op` corretos para o front detectar mismatch.
 
 ## Arquivos afetados
 
-- `src/pages/NumeroSeriePage.tsx` — tipo, validação local, alerta visual, desabilitar botões.
-- `docs/backend-numero-serie-validacao-origem.md` — **novo**, contrato da validação.
-- `docs/backend-numero-serie-desvincular.md` — nota cruzada apontando para o novo doc.
+- `src/pages/NumeroSeriePage.tsx` — alerta de mismatch pedido↔OP, não auto-preencher OP errada, desabilitar reserva.
+- `docs/backend-numero-serie-contexto-op-correta.md` — **novo**, contrato.
+- `docs/backend-numero-serie-desvincular.md` — nota cruzada.
 
 ## Fora de escopo
 
-- Implementação real no backend FastAPI (você fará, com o contrato novo).
-- Mudanças em outras páginas que reservam GS.
+- Implementação no backend FastAPI (você faz com o contrato novo).
+- Mexer em outras telas que mostram OP.
 
-## Pergunta antes de implementar
+## Pergunta
 
-A divergência de origem deve ser **bloqueio duro** (nunca permite vincular) ou **bloqueio com override** (admin pode forçar com confirmação extra)?
+A correção só com aviso visual + bloqueio é suficiente? Ou você quer que o frontend também ofereça um botão "Procurar OP correta deste pedido" que chame um endpoint novo `/api/numero-serie/ops-do-pedido?numero_pedido=11510` para listar candidatas?
