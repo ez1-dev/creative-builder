@@ -121,10 +121,10 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                     <Geography
                       key={geo.rsmKey}
                       geography={geo}
-                      fill="hsl(215, 60%, 92%)"
-                      stroke="hsl(215, 70%, 45%)"
-                      strokeWidth={0.7}
-                      strokeOpacity={0.6}
+                      fill="hsl(215, 60%, 94%)"
+                      stroke="hsl(215, 70%, 40%)"
+                      strokeWidth={1}
+                      strokeOpacity={0.9}
                       style={{
                         default: { outline: 'none' },
                         hover: { outline: 'none', fill: 'hsl(215, 60%, 86%)' },
