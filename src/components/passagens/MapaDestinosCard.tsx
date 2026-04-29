@@ -71,7 +71,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
   const lider = pontos[0];
 
   return (
-    <Card className="flex h-full flex-col">
+    <Card className="lg:col-span-2">
       <CardHeader className="flex flex-col gap-2 pb-2 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-primary" />
@@ -79,7 +79,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
             Mapa de Destinos
             {lider && (
               <span className="ml-2 text-xs font-normal text-muted-foreground">
-                — Maior: <strong className="text-foreground">{lider.cidade}</strong> ({lider.qtd})
+                — Maior incidência: <strong className="text-foreground">{lider.cidade}</strong> ({lider.qtd})
               </span>
             )}
           </CardTitle>
@@ -96,15 +96,15 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
           )}
           {totalSemGeo > 0 && (
             <Badge variant="outline" className="text-xs">
-              {semGeo.length} sem geo
+              {semGeo.length} cidade{semGeo.length === 1 ? '' : 's'} sem geo ({totalSemGeo} reg.)
             </Badge>
           )}
         </div>
       </CardHeader>
-      <CardContent className="flex-1">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
+      <CardContent>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           {/* Mapa */}
-          <div className="relative sm:col-span-3">
+          <div className="relative lg:col-span-2">
             <TooltipProvider delayDuration={50}>
               <ComposableMap
                 projection="geoMercator"
