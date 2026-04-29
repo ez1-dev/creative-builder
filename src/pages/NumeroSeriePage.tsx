@@ -157,9 +157,20 @@ export default function NumeroSeriePage() {
       setContexto(result.contexto);
 
       const produto = result.contexto?.codigo_produto?.trim();
+      // Detecta mismatch: a OP retornada está vinculada a OUTRO pedido (não o que o usuário digitou)
+      const pedidoDigitado = numero_pedido ? Number(numero_pedido) : result.contexto?.numero_pedido;
+      const pedidoOp = result.contexto?.pedido_vinculado_op;
+      const opMismatch =
+        !!result.contexto?.numero_op &&
+        !!pedidoOp &&
+        !!pedidoDigitado &&
+        Number(pedidoOp) !== Number(pedidoDigitado);
+
       setFilters(f => ({
         ...f,
-        origem_op: result.contexto?.origem_op || '',
+        // Não auto-preenche OP quando ela é de outro pedido — evita reserva indevida
+        numero_op: opMismatch ? f.numero_op : (result.contexto?.numero_op ? String(result.contexto.numero_op) : f.numero_op),
+        origem_op: opMismatch ? '' : (result.contexto?.origem_op || ''),
         ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
       }));
       if (produto) {
@@ -210,6 +221,26 @@ export default function NumeroSeriePage() {
     return { op, origemOp: oOp, origemPedido: oPed, pedido: contexto.numero_pedido };
   })();
 
+  // Mismatch: a OP retornada está vinculada a OUTRO pedido (caso do pedido 11510 vs OP 1111 que era do pedido 4891)
+  const mismatchPedidoOp = (() => {
+    if (!contexto) return null;
+    const op = contexto.numero_op;
+    const pedidoCtx = contexto.numero_pedido;
+    const pedidoOp = contexto.pedido_vinculado_op;
+    const itemOp = contexto.item_vinculado_op;
+    if (!op || !pedidoOp || !pedidoCtx) return null;
+    if (Number(pedidoOp) === Number(pedidoCtx)) return null;
+    return { op, pedidoCtx, pedidoOp, itemOp };
+  })();
+
+  const bloqueioVinculo = !!divergenciaOrigem || !!mismatchPedidoOp;
+  const motivoBloqueio = divergenciaOrigem
+    ? 'Bloqueado: divergência de origem entre OP e pedido'
+    : mismatchPedidoOp
+      ? `Bloqueado: a OP ${mismatchPedidoOp.op} está vinculada ao pedido ${mismatchPedidoOp.pedidoOp}, não ao pedido ${mismatchPedidoOp.pedidoCtx}`
+      : undefined;
+
+
   const reservar = async (forcarVinculo: boolean = false) => {
     const numeroPedido = filters.numero_pedido || String(contexto?.numero_pedido || '');
     const itemPedido = filters.item_pedido || String(contexto?.item_pedido || '');
@@ -227,6 +258,12 @@ export default function NumeroSeriePage() {
     if (divergenciaOrigem) {
       toast.error(
         `OP ${divergenciaOrigem.op} é da origem ${divergenciaOrigem.origemOp} e não pode ser vinculada ao pedido ${divergenciaOrigem.pedido} (origem ${divergenciaOrigem.origemPedido}). Verifique o pedido correto da OP.`
+      );
+      return;
+    }
+    if (mismatchPedidoOp) {
+      toast.error(
+        `A OP ${mismatchPedidoOp.op} está vinculada ao pedido ${mismatchPedidoOp.pedidoOp} (item ${mismatchPedidoOp.itemOp ?? '-'}), não ao pedido ${mismatchPedidoOp.pedidoCtx}. Desvincule o GS do pedido antigo ou informe a OP correta deste pedido.`
       );
       return;
     }
@@ -405,8 +442,8 @@ export default function NumeroSeriePage() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={buscarContexto} disabled={loading}><Search className="mr-1 h-3.5 w-3.5" />Buscar Contexto</Button>
             <Button size="sm" variant="secondary" onClick={() => buscarProximos()} disabled={loading}><Hash className="mr-1 h-3.5 w-3.5" />Buscar Próximos</Button>
-            <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado || !!divergenciaOrigem} title={divergenciaOrigem ? 'Bloqueado: divergência de origem entre OP e pedido' : undefined}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
-            <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva || !!divergenciaOrigem} title={divergenciaOrigem ? 'Bloqueado: divergência de origem entre OP e pedido' : undefined}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
+            <Button size="sm" variant="secondary" onClick={() => reservar(false)} disabled={loadingReserva || !selecionado || bloqueioVinculo} title={motivoBloqueio}><Link2 className="mr-1 h-3.5 w-3.5" />Reservar Selecionado</Button>
+            <Button size="sm" variant="secondary" onClick={() => reservar(true)} disabled={loadingReserva || bloqueioVinculo} title={motivoBloqueio}><Link2 className="mr-1 h-3.5 w-3.5" />Vincular GS Informado</Button>
             <Button
               size="sm"
               variant="destructive"
@@ -437,6 +474,15 @@ export default function NumeroSeriePage() {
                 <AlertTitle>Divergência de origem — vínculo bloqueado</AlertTitle>
                 <AlertDescription>
                   OP <strong>{divergenciaOrigem.op}</strong> é da origem <strong>{divergenciaOrigem.origemOp}</strong>, mas o pedido <strong>{divergenciaOrigem.pedido}</strong> é da origem <strong>{divergenciaOrigem.origemPedido}</strong>. Localize o pedido correto da OP antes de vincular o GS.
+                </AlertDescription>
+              </Alert>
+            )}
+            {mismatchPedidoOp && !divergenciaOrigem && (
+              <Alert className="border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100 [&>svg]:text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>OP vinculada a outro pedido — vínculo bloqueado</AlertTitle>
+                <AlertDescription>
+                  A OP <strong>{mismatchPedidoOp.op}</strong> está vinculada ao pedido <strong>{mismatchPedidoOp.pedidoOp}</strong>{mismatchPedidoOp.itemOp ? <> (item <strong>{mismatchPedidoOp.itemOp}</strong>)</> : null}, não ao pedido <strong>{mismatchPedidoOp.pedidoCtx}</strong> que você buscou. Confirme com a engenharia qual é a OP correta deste pedido, ou use <strong>Desvincular GS</strong> para liberar a OP do pedido antigo antes de prosseguir.
                 </AlertDescription>
               </Alert>
             )}
