@@ -154,7 +154,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
 
   // Helper: aplica subset dos cross-filters
-  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean }) => {
+  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean }) => {
     return rows.filter((r) => {
       if (opts.mes && selectedMes && (r.data_registro ?? '').slice(0, 7) !== selectedMes) return false;
       if (opts.motivo && selectedMotivo) {
@@ -165,14 +165,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         const cc = r.centro_custo || 'Sem CC';
         if (cc !== selectedCC) return false;
       }
+      if (opts.destino && selectedDestino) {
+        if (!r.destino || nomeNormalizado(r.destino) !== nomeNormalizado(selectedDestino)) return false;
+      }
       return true;
     });
   };
 
   // Dados para KPIs e tabela: aplica TODOS os cross-filters
   const crossFiltered = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC],
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino],
   );
 
   // Linhas exibidas no card Registros: aplica busca + ordenação
