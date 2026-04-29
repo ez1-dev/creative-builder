@@ -146,6 +146,7 @@ export default function PassagensAereasPage() {
       />
 
       <ShareLinksDialog open={shareOpen} onOpenChange={setShareOpen} />
+      <ImportarPassagensDialog open={importOpen} onOpenChange={setImportOpen} onImported={load} />
 
       <Dialog open={openForm} onOpenChange={setOpenForm}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
