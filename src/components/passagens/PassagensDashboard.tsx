@@ -612,6 +612,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 Exportar CSV
               </Button>
             )}
+            {onExportXlsx && (
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExportXlsx(displayRows)} disabled={displayRows.length === 0}>
+                Exportar Excel
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
