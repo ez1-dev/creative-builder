@@ -667,87 +667,140 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </div>
         </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>C. Custo</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Origem → Destino</TableHead>
-                <TableHead>Cia</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                {!readOnly && (onEdit || onDelete) && <TableHead className="w-24">Ações</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
-              ) : displayRows.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
-              ) : agruparColab ? (
-                gruposColab.map((g) => {
+        <CardContent className={cn(isMobile ? 'p-3' : 'overflow-x-auto p-0')}>
+          {isMobile ? (
+            loading ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
+            ) : displayRows.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Nenhum registro</div>
+            ) : agruparColab ? (
+              <div className="space-y-2">
+                {gruposColab.map((g) => {
                   const aberto = gruposAbertos.has(g.colaborador);
                   return (
-                    <Fragment key={g.colaborador}>
-                      <TableRow
-                        className="cursor-pointer bg-muted/40 hover:bg-muted/60"
+                    <div key={g.colaborador} className="rounded-md border">
+                      <button
+                        type="button"
                         onClick={() => toggleGrupo(g.colaborador)}
+                        className="flex w-full items-center justify-between gap-2 bg-muted/40 px-3 py-2 text-left hover:bg-muted/60"
                       >
-                        <TableCell colSpan={6} className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                            <span>{g.colaborador}</span>
-                            <Badge variant="secondary" className="text-[10px]">{g.qtd} {g.qtd === 1 ? 'registro' : 'registros'}</Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">{formatCurrency(g.total)}</TableCell>
-                        {!readOnly && (onEdit || onDelete) && <TableCell />}
-                      </TableRow>
-                      {aberto && g.registros.map((r) => (
-                        <TableRow key={r.id} className="bg-background">
-                          <TableCell className="pl-8">{formatDate(r.data_registro)}</TableCell>
-                          <TableCell className="text-muted-foreground">↳</TableCell>
-                          <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                          <TableCell>{r.tipo_despesa}</TableCell>
-                          <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                          <TableCell>{r.cia_aerea ?? '-'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
-                          {!readOnly && (onEdit || onDelete) && (
-                            <TableCell>
-                              <div className="flex gap-1">
-                                {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
-                                {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
-                              </div>
-                            </TableCell>
-                          )}
-                        </TableRow>
-                      ))}
-                    </Fragment>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {aberto ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                          <span className="truncate text-sm font-medium">{g.colaborador}</span>
+                          <Badge variant="secondary" className="text-[10px]">{g.qtd}</Badge>
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold">{formatCurrency(g.total)}</span>
+                      </button>
+                      {aberto && (
+                        <div className="space-y-2 p-2">
+                          {g.registros.map((r) => (
+                            <PassagemMobileCard
+                              key={r.id}
+                              p={r}
+                              onEdit={!readOnly ? onEdit : undefined}
+                              onDelete={!readOnly ? onDelete : undefined}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   );
-                })
-              ) : displayRows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatDate(r.data_registro)}</TableCell>
-                  <TableCell className="font-medium">{r.colaborador}</TableCell>
-                  <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                  <TableCell>{r.tipo_despesa}</TableCell>
-                  <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                  <TableCell>{r.cia_aerea ?? '-'}</TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(r.valor)}</TableCell>
-                  {!readOnly && (onEdit || onDelete) && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
-                        {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
-                      </div>
-                    </TableCell>
-                  )}
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {displayRows.map((r) => (
+                  <PassagemMobileCard
+                    key={r.id}
+                    p={r}
+                    onEdit={!readOnly ? onEdit : undefined}
+                    onDelete={!readOnly ? onDelete : undefined}
+                  />
+                ))}
+              </div>
+            )
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>C. Custo</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Origem → Destino</TableHead>
+                  <TableHead>Cia</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  {!readOnly && (onEdit || onDelete) && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                ) : displayRows.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
+                ) : agruparColab ? (
+                  gruposColab.map((g) => {
+                    const aberto = gruposAbertos.has(g.colaborador);
+                    return (
+                      <Fragment key={g.colaborador}>
+                        <TableRow
+                          className="cursor-pointer bg-muted/40 hover:bg-muted/60"
+                          onClick={() => toggleGrupo(g.colaborador)}
+                        >
+                          <TableCell colSpan={6} className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              <span>{g.colaborador}</span>
+                              <Badge variant="secondary" className="text-[10px]">{g.qtd} {g.qtd === 1 ? 'registro' : 'registros'}</Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{formatCurrency(g.total)}</TableCell>
+                          {!readOnly && (onEdit || onDelete) && <TableCell />}
+                        </TableRow>
+                        {aberto && g.registros.map((r) => (
+                          <TableRow key={r.id} className="bg-background">
+                            <TableCell className="pl-8">{formatDate(r.data_registro)}</TableCell>
+                            <TableCell className="text-muted-foreground">↳</TableCell>
+                            <TableCell>{r.centro_custo ?? '-'}</TableCell>
+                            <TableCell>{r.tipo_despesa}</TableCell>
+                            <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
+                            <TableCell>{r.cia_aerea ?? '-'}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
+                            {!readOnly && (onEdit || onDelete) && (
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                                  {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
+                                </div>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </Fragment>
+                    );
+                  })
+                ) : displayRows.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{formatDate(r.data_registro)}</TableCell>
+                    <TableCell className="font-medium">{r.colaborador}</TableCell>
+                    <TableCell>{r.centro_custo ?? '-'}</TableCell>
+                    <TableCell>{r.tipo_despesa}</TableCell>
+                    <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
+                    <TableCell>{r.cia_aerea ?? '-'}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(r.valor)}</TableCell>
+                    {!readOnly && (onEdit || onDelete) && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
+                          {onDelete && <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>}
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
