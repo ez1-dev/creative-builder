@@ -150,6 +150,7 @@ export default function NumeroSeriePage() {
     }
 
     setLoading(true);
+    setOpCandidataEscolhida('');
     try {
       const params: Record<string, any> = { codigo_empresa: 1 };
       if (numero_op) params.numero_op = Number(numero_op);
