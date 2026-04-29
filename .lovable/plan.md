@@ -1,52 +1,27 @@
-## Objetivo
+## Problema
 
-Permitir trocar a OP carregada digitando **outro pedido + item** diretamente no card "Contexto do Pedido / OP", sem precisar limpar tudo e refazer a busca pelos filtros do topo. Isso resolve o caso em que o backend retornou a OP errada (ex.: OP 1111 do pedido antigo 4891) e você quer recarregar o contexto pelo pedido correto (ex.: 11510 / item 1).
+Ao gerar um link com senha em /passagens-aereas, o backend retorna:
+`function gen_salt(unknown) does not exist`
 
-## Escopo
+A extensão `pgcrypto` está instalada no schema `extensions` (padrão correto do Lovable Cloud), mas as funções RPC `create_passagens_share_link` e `verify_passagens_share_link` foram criadas com `SET search_path = public`, então não enxergam `gen_salt`/`crypt`.
 
-Apenas frontend. Arquivo único: `src/pages/NumeroSeriePage.tsx`. Sem mudanças no backend, schema ou design system.
+## Solução
 
-## Implementação
+Criar uma migração que recria as duas funções qualificando explicitamente as chamadas como `extensions.gen_salt(...)` e `extensions.crypt(...)`. Isso é mais seguro do que abrir o `search_path` para incluir `extensions` (recomendação do linter de segurança do Supabase).
 
-### 1. Estado novo
-Dois `useState<string>` para os inputs do trocador:
-- `trocarPedido` — número do pedido a aplicar
-- `trocarItem` — item do pedido (default `'1'`)
+### Mudanças
 
-Limpos em `limpar()` e após aplicar com sucesso.
+**Nova migração** ajustando duas funções:
 
-### 2. Função `aplicarPedidoManual()`
-Análoga à `aplicarOpCandidata()` que já existe:
-- Valida que `trocarPedido` é número > 0
-- Atualiza `filters` zerando `numero_op` e setando `numero_pedido` + `item_pedido`
-- Reseta `opCandidataEscolhida` e `contexto`
-- Chama `api.get('/api/numero-serie/contexto', { numero_pedido, item_pedido, codigo_empresa })`
-- Em sucesso: `setContexto(result.contexto)`, dispara `buscarProximos` se houver `codigo_produto`
-- Em erro: toast com a mensagem
-- Sempre `setLoading(false)` no `finally`
+1. `public.create_passagens_share_link(_token, _nome, _password, _expires_at)`
+   - Trocar `crypt(_password, gen_salt('bf'))` por `extensions.crypt(_password, extensions.gen_salt('bf'))`
+   - Manter resto da lógica (permissão via `can_manage_passagens_share`, insert na tabela).
 
-### 3. UI no card de Contexto
-Novo bloco logo abaixo do bloco existente de "OPs candidatas" (linha ~575), com mesmo estilo visual (border primário, fundo `primary/5`):
+2. `public.get_passagens_via_token(_token)` / `verify_passagens_share_link` (a que usa `crypt(_password, link_rec.password_hash)` na migration `20260426201410`)
+   - Trocar para `extensions.crypt(_password, link_rec.password_hash)`.
 
-```text
-┌─ Trocar contexto por outro pedido ──────────────┐
-│ [Pedido______] [Item__] [ Aplicar Pedido ]      │
-└─────────────────────────────────────────────────┘
-```
+### Resultado
 
-- 2 `Input` pequenos (`h-8 text-xs`) + 1 `Button` (`size="sm"`)
-- Label discreta acima: "Trocar contexto por outro pedido"
-- Botão desabilitado quando `loading` ou `trocarPedido` vazio
-- `Enter` no input dispara `aplicarPedidoManual()`
-
-### 4. Sem regressão
-- Não altera nada no fluxo de filtros do topo, no seletor de OPs candidatas, na detecção de mismatch, na validação de origem, nem nos botões Reservar/Vincular/Desvincular.
-- Não toca em `buscarContexto`, `buscarProximos`, `desvincular`, `reservar`, `vincular`.
-
-## Resultado esperado
-
-No seu cenário atual (OP 1111 carregada, pedido vinculado 4891 mostrado), você digita `11510` em Pedido, `1` em Item, clica **Aplicar Pedido** e o card recarrega com a OP que o backend devolver para o pedido 11510 — habilitando Reservar/Vincular se não houver mismatch.
-
-## Arquivos modificados
-
-- `src/pages/NumeroSeriePage.tsx` (estado + função + bloco JSX no card de Contexto)
+- Criação de link com senha volta a funcionar.
+- Verificação de senha em links compartilhados (`/passagens-aereas/compartilhado?token=...&p=1`) continua funcionando.
+- Sem alterações no frontend.
