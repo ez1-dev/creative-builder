@@ -101,6 +101,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(set).sort();
   }, [data]);
 
+  const ccsDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach((r) => {
+      const cc = (r.centro_custo ?? '').trim();
+      if (cc) set.add(cc);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
+  const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
+
   const formatMesLabel = (ym: string) => {
     const [y, m] = ym.split('-');
     const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
