@@ -256,6 +256,31 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     URL.revokeObjectURL(url);
   };
 
+  const exportGruposXlsx = () => {
+    const header = [groupOption.label, 'Qtd', 'Valor Total', '% do total'];
+    const body = grupos.map((g) => [
+      g.nome,
+      g.qtd,
+      Number(g.valor || 0),
+      totalGeral > 0 ? Number(((g.valor / totalGeral) * 100).toFixed(1)) : 0,
+    ]);
+    body.push(['Total', totalRegistros, Number(totalGeral || 0), 100]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+    // Formatar coluna C (Valor) como moeda BRL e D como percentual
+    const range = XLSX.utils.decode_range(ws['!ref'] as string);
+    for (let R = 1; R <= range.e.r; R++) {
+      const cValor = ws[XLSX.utils.encode_cell({ r: R, c: 2 })];
+      if (cValor) { cValor.t = 'n'; cValor.z = 'R$ #,##0.00'; }
+      const cPerc = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+      if (cPerc) { cPerc.t = 'n'; cPerc.z = '0.0"%"'; }
+    }
+    ws['!cols'] = [{ wch: 32 }, { wch: 8 }, { wch: 16 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Agrupado');
+    XLSX.writeFile(wb, `passagens-agrupado-${groupBy}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+
   // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
     const base = applyCross(filtered, { motivo: true, cc: true });
