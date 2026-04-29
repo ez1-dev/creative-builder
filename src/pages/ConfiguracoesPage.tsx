@@ -492,6 +492,7 @@ export default function ConfiguracoesPage() {
         <TabsList>
           <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
           <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
+          <TabsTrigger value="visuals" className="gap-1"><LineChart className="h-4 w-4" /> Gráficos e Mapas</TabsTrigger>
           <TabsTrigger value="users" className="gap-1"><Users className="h-4 w-4" /> Usuários</TabsTrigger>
           <TabsTrigger value="approvals" className="gap-1">
             <UserCheck className="h-4 w-4" /> Aprovações
