@@ -261,7 +261,46 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </div>
             <div>
               <Label className="text-xs">Centro de Custo</Label>
-              <Input value={filtroCC} onChange={(e) => setFiltroCC(e.target.value)} placeholder="Buscar..." />
+              <Popover open={ccPopoverOpen} onOpenChange={setCcPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={ccPopoverOpen}
+                    className={cn('w-full justify-between font-normal', !filtroCC && 'text-muted-foreground')}
+                  >
+                    <span className="truncate">{filtroCC || 'Todos'}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar centro de custo..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__todos__"
+                          onSelect={() => { setFiltroCC(''); setCcPopoverOpen(false); }}
+                        >
+                          <Check className={cn('mr-2 h-4 w-4', !filtroCC ? 'opacity-100' : 'opacity-0')} />
+                          Todos
+                        </CommandItem>
+                        {ccsDisponiveis.map((cc) => (
+                          <CommandItem
+                            key={cc}
+                            value={cc}
+                            onSelect={() => { setFiltroCC(cc); setCcPopoverOpen(false); }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', filtroCC === cc ? 'opacity-100' : 'opacity-0')} />
+                            {cc}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <Label className="text-xs">Tipo</Label>
