@@ -471,7 +471,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        <div className="relative">
+        <div className="relative flex flex-col gap-2">
           <KPICard
             title="Registros"
             value={totalRegistros}
@@ -480,10 +480,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             index={1}
             subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
           />
-          <div className="absolute right-2 top-2 flex items-center gap-1">
+          <div className="flex items-center gap-1 px-1">
             <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-              <SelectTrigger className="h-7 w-[140px] text-xs" aria-label="Agrupar por">
-                <Layers className="mr-1 h-3 w-3" />
+              <SelectTrigger className="h-7 flex-1 text-xs sm:w-[140px] sm:flex-none" aria-label="Agrupar por">
+                <Layers className="mr-1 h-3 w-3 shrink-0" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -495,7 +495,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7"
+              className="h-7 w-7 shrink-0"
               onClick={() => setGroupSheetOpen(true)}
               disabled={gruposCount === 0}
               aria-label="Ver detalhes do agrupamento"
