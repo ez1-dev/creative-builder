@@ -331,6 +331,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC);
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
+  const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
   const limparTudo = () => {
     setFiltroColaborador('');
