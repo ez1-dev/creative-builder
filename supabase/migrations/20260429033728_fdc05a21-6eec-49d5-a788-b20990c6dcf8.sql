@@ -1,9 +1,3 @@
-## Corrigir validação de senha do link compartilhado
-
-### Migração SQL
-
-```sql
--- 1. Atualizar a função para preservar o sentinela 'protected'
 CREATE OR REPLACE FUNCTION public.create_passagens_share_link(
   _token text,
   _nome text,
@@ -14,7 +8,7 @@ RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $function$
 DECLARE
   new_id uuid;
   hashed text;
@@ -24,7 +18,6 @@ BEGIN
   END IF;
 
   IF _password = 'protected' THEN
-    -- Sentinela: a senha já está embutida no token (SHA-256 no cliente)
     hashed := 'protected';
   ELSIF _password IS NOT NULL AND length(_password) > 0 THEN
     hashed := extensions.crypt(_password, extensions.gen_salt('bf'));
@@ -38,16 +31,8 @@ BEGIN
 
   RETURN new_id;
 END;
-$$;
+$function$;
 
--- 2. Normalizar links ativos cujo password_hash foi gravado como bcrypt
--- (sentinela bcrypt-ado por engano). O token salvo já é SHA-256(publicToken::senha),
--- então a validação passa a depender só do match do token.
 UPDATE public.passagens_aereas_share_links
 SET password_hash = 'protected'
 WHERE active = true AND password_hash LIKE '$2%';
-```
-
-### Sem alterações no front
-
-A lógica do cliente já está correta para a estratégia "sentinela `'protected'`".
