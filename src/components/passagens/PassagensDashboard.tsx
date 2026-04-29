@@ -24,6 +24,7 @@ import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import * as XLSX from 'xlsx';
 
 export interface Passagem {
   id: string;
@@ -74,10 +75,11 @@ interface Props {
   onEdit?: (p: Passagem) => void;
   onDelete?: (id: string) => void;
   onExport?: (rows: Passagem[]) => void;
+  onExportXlsx?: (rows: Passagem[]) => void;
   readOnly?: boolean;
 }
 
-export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, readOnly }: Props) {
+export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
@@ -253,6 +255,31 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const exportGruposXlsx = () => {
+    const header = [groupOption.label, 'Qtd', 'Valor Total', '% do total'];
+    const body = grupos.map((g) => [
+      g.nome,
+      g.qtd,
+      Number(g.valor || 0),
+      totalGeral > 0 ? Number(((g.valor / totalGeral) * 100).toFixed(1)) : 0,
+    ]);
+    body.push(['Total', totalRegistros, Number(totalGeral || 0), 100]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+    // Formatar coluna C (Valor) como moeda BRL e D como percentual
+    const range = XLSX.utils.decode_range(ws['!ref'] as string);
+    for (let R = 1; R <= range.e.r; R++) {
+      const cValor = ws[XLSX.utils.encode_cell({ r: R, c: 2 })];
+      if (cValor) { cValor.t = 'n'; cValor.z = 'R$ #,##0.00'; }
+      const cPerc = ws[XLSX.utils.encode_cell({ r: R, c: 3 })];
+      if (cPerc) { cPerc.t = 'n'; cPerc.z = '0.0"%"'; }
+    }
+    ws['!cols'] = [{ wch: 32 }, { wch: 8 }, { wch: 16 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Agrupado');
+    XLSX.writeFile(wb, `passagens-agrupado-${groupBy}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
 
   // Gráfico Evolução Mensal: ignora selectedMes
   const porMes = useMemo(() => {
@@ -610,6 +637,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 Exportar CSV
               </Button>
             )}
+            {onExportXlsx && (
+              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => onExportXlsx(displayRows)} disabled={displayRows.length === 0}>
+                Exportar Excel
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
@@ -703,9 +735,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               {totalRegistros} registro{totalRegistros === 1 ? '' : 's'} em {gruposCount} grupo{gruposCount === 1 ? '' : 's'} — total {formatCurrency(totalGeral)}
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={exportGruposCsv} disabled={gruposCount === 0}>
               <Download className="mr-1 h-4 w-4" /> Exportar CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportGruposXlsx} disabled={gruposCount === 0}>
+              <Download className="mr-1 h-4 w-4" /> Exportar Excel
             </Button>
           </div>
           <div className="mt-2 rounded-md border">
@@ -764,4 +799,77 @@ export function exportPassagensCsv(rows: Passagem[]) {
   a.download = `passagens-aereas-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function parseDateOrNull(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  // Aceita 'YYYY-MM-DD' (puro) ou ISO. Mantém a data no fuso local sem deslocamento.
+  const ymd = value.slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+export function exportPassagensXlsx(rows: Passagem[]) {
+  const headers = [
+    'Data Registro', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Fornecedor',
+    'Cia Aérea', 'Nº Bilhete', 'Localizador', 'Origem', 'Destino',
+    'Data Ida', 'Data Volta', 'Motivo Viagem', 'Tipo Despesa', 'Valor (R$)', 'Observações',
+  ];
+  const body = rows.map((r) => [
+    parseDateOrNull(r.data_registro),
+    r.colaborador,
+    r.centro_custo ?? '',
+    r.projeto_obra ?? '',
+    r.fornecedor ?? '',
+    r.cia_aerea ?? '',
+    r.numero_bilhete ?? '',
+    r.localizador ?? '',
+    r.origem ?? '',
+    r.destino ?? '',
+    parseDateOrNull(r.data_ida),
+    parseDateOrNull(r.data_volta),
+    r.motivo_viagem ?? '',
+    r.tipo_despesa,
+    Number(r.valor || 0),
+    r.observacoes ?? '',
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...body], { cellDates: true });
+
+  // Total no final
+  const totalRow = body.length + 1; // 0-based row index of total
+  const total = rows.reduce((s, r) => s + Number(r.valor || 0), 0);
+  XLSX.utils.sheet_add_aoa(ws, [[
+    '', '', '', '', '', '', '', '', '', '', '', '', '', 'Total', total, '',
+  ]], { origin: { r: totalRow, c: 0 } });
+
+  // Aplica formatos por coluna
+  const range = XLSX.utils.decode_range(ws['!ref'] as string);
+  const dateCols = [0, 10, 11]; // Data Registro, Data Ida, Data Volta
+  const valorCol = 14; // Valor (R$)
+  for (let R = 1; R <= range.e.r; R++) {
+    for (const c of dateCols) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c })];
+      if (cell && cell.v instanceof Date) {
+        cell.t = 'd';
+        cell.z = 'dd/mm/yyyy';
+      }
+    }
+    const cValor = ws[XLSX.utils.encode_cell({ r: R, c: valorCol })];
+    if (cValor && cValor.v !== '' && cValor.v != null) {
+      cValor.t = 'n';
+      cValor.z = 'R$ #,##0.00';
+    }
+  }
+
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 20 },
+    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 32 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Passagens');
+  XLSX.writeFile(wb, `passagens-aereas-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
