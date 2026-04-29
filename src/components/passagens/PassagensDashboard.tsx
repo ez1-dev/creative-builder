@@ -88,6 +88,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [filtrosAbertos, setFiltrosAbertos] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = window.localStorage.getItem('passagens:filtros-aberto');
+    if (saved !== null) return saved === '1';
+    return false;
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('passagens:filtros-aberto', filtrosAbertos ? '1' : '0');
+    }
+  }, [filtrosAbertos]);
   // Cross-filters (clique nos gráficos)
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
