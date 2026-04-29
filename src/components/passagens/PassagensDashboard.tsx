@@ -15,7 +15,7 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown, ChevronDown, ChevronRight, Search, ArrowUpDown } from 'lucide-react';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown, ChevronDown, ChevronUp, ChevronRight, Search, ArrowUpDown, Filter } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
@@ -88,6 +88,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
+  const [filtrosAbertos, setFiltrosAbertos] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const saved = window.localStorage.getItem('passagens:filtros-aberto');
+    if (saved !== null) return saved === '1';
+    return false;
+  });
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('passagens:filtros-aberto', filtrosAbertos ? '1' : '0');
+    }
+  }, [filtrosAbertos]);
   // Cross-filters (clique nos gráficos)
   const [selectedMes, setSelectedMes] = useState<string | null>(null);
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
@@ -320,6 +331,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC);
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
+  const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
   const limparTudo = () => {
     setFiltroColaborador('');
@@ -340,103 +352,129 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <div>
-              <Label className="text-xs">Colaborador</Label>
-              <ColaboradorCombobox
-                value={filtroColaborador}
-                onChange={setFiltroColaborador}
-                placeholder="Todos"
-                allowCreate={false}
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Centro de Custo</Label>
-              <Popover open={ccPopoverOpen} onOpenChange={setCcPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={ccPopoverOpen}
-                    className={cn('w-full justify-between font-normal', !filtroCC && 'text-muted-foreground')}
-                  >
-                    <span className="truncate">{filtroCC || 'Todos'}</span>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar centro de custo..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        <CommandItem
-                          value="__todos__"
-                          onSelect={() => { setFiltroCC(''); setCcPopoverOpen(false); }}
-                        >
-                          <Check className={cn('mr-2 h-4 w-4', !filtroCC ? 'opacity-100' : 'opacity-0')} />
-                          Todos
-                        </CommandItem>
-                        {ccsDisponiveis.map((cc) => (
+        <button
+          type="button"
+          onClick={() => setFiltrosAbertos((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium hover:bg-accent/40 rounded-t-lg"
+          aria-expanded={filtrosAbertos}
+        >
+          <span className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Filtros
+            {hasTopFilter && (
+              <Badge variant="secondary" className="ml-1 h-5 text-xs">
+                {countAtivos} ativo{countAtivos === 1 ? '' : 's'}
+              </Badge>
+            )}
+          </span>
+          <span className="flex items-center gap-2 text-muted-foreground">
+            {!filtrosAbertos && hasTopFilter && (
+              <span className="hidden text-xs sm:inline">Mostrar</span>
+            )}
+            {filtrosAbertos
+              ? <ChevronUp className="h-4 w-4" />
+              : <ChevronDown className="h-4 w-4" />}
+          </span>
+        </button>
+        {filtrosAbertos && (
+          <CardContent className="space-y-3 p-4 pt-3 border-t">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+              <div>
+                <Label className="text-xs">Colaborador</Label>
+                <ColaboradorCombobox
+                  value={filtroColaborador}
+                  onChange={setFiltroColaborador}
+                  placeholder="Todos"
+                  allowCreate={false}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Centro de Custo</Label>
+                <Popover open={ccPopoverOpen} onOpenChange={setCcPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={ccPopoverOpen}
+                      className={cn('w-full justify-between font-normal', !filtroCC && 'text-muted-foreground')}
+                    >
+                      <span className="truncate">{filtroCC || 'Todos'}</span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar centro de custo..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum encontrado.</CommandEmpty>
+                        <CommandGroup>
                           <CommandItem
-                            key={cc}
-                            value={cc}
-                            onSelect={() => { setFiltroCC(cc); setCcPopoverOpen(false); }}
+                            value="__todos__"
+                            onSelect={() => { setFiltroCC(''); setCcPopoverOpen(false); }}
                           >
-                            <Check className={cn('mr-2 h-4 w-4', filtroCC === cc ? 'opacity-100' : 'opacity-0')} />
-                            {cc}
+                            <Check className={cn('mr-2 h-4 w-4', !filtroCC ? 'opacity-100' : 'opacity-0')} />
+                            Todos
                           </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+                          {ccsDisponiveis.map((cc) => (
+                            <CommandItem
+                              key={cc}
+                              value={cc}
+                              onSelect={() => { setFiltroCC(cc); setCcPopoverOpen(false); }}
+                            >
+                              <Check className={cn('mr-2 h-4 w-4', filtroCC === cc ? 'opacity-100' : 'opacity-0')} />
+                              {cc}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs">Tipo</Label>
+                <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {TIPO_DESPESA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Mês</Label>
+                <Select value={filtroMes} onValueChange={setFiltroMes}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {mesesDisponiveis.map((m) => (
+                      <SelectItem key={m} value={m}>{formatMesLabel(m)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Data início</Label>
+                <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+              </div>
+              <div>
+                <Label className="text-xs">Data fim</Label>
+                <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+              </div>
             </div>
-            <div>
-              <Label className="text-xs">Tipo</Label>
-              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {TIPO_DESPESA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={limparTudo}
+                disabled={!hasTopFilter && !hasCrossFilter}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Limpar
+              </Button>
             </div>
-            <div>
-              <Label className="text-xs">Mês</Label>
-              <Select value={filtroMes} onValueChange={setFiltroMes}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  {mesesDisponiveis.map((m) => (
-                    <SelectItem key={m} value={m}>{formatMesLabel(m)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-xs">Data início</Label>
-              <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
-            </div>
-            <div>
-              <Label className="text-xs">Data fim</Label>
-              <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={limparTudo}
-              disabled={!hasTopFilter && !hasCrossFilter}
-            >
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Limpar
-            </Button>
-          </div>
-        </CardContent>
+          </CardContent>
+        )}
       </Card>
 
       {hasCrossFilter && (
