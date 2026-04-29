@@ -719,25 +719,29 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 ))}
               </div>
             )
-          ) : (
+          ) : (() => {
+            const hasActions = !readOnly && (onEdit || onDelete);
+            const baseCols = agruparColab ? 6 : 7; // Data, [Colab?], C.Custo, Tipo, O→D, Cia, Valor
+            const totalCols = baseCols + (hasActions ? 1 : 0);
+            return (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Data</TableHead>
-                  <TableHead>Colaborador</TableHead>
+                  {!agruparColab && <TableHead>Colaborador</TableHead>}
                   <TableHead>C. Custo</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Origem → Destino</TableHead>
                   <TableHead>Cia</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
-                  {!readOnly && (onEdit || onDelete) && <TableHead className="w-24">Ações</TableHead>}
+                  {hasActions && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={totalCols} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
                 ) : displayRows.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={totalCols} className="text-center py-8 text-muted-foreground">Nenhum registro</TableCell></TableRow>
                 ) : agruparColab ? (
                   gruposColab.map((g) => {
                     const aberto = gruposAbertos.has(g.colaborador);
@@ -747,7 +751,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                           className="cursor-pointer bg-muted/40 hover:bg-muted/60"
                           onClick={() => toggleGrupo(g.colaborador)}
                         >
-                          <TableCell colSpan={6} className="font-medium">
+                          <TableCell colSpan={baseCols - 1} className="font-medium">
                             <div className="flex items-center gap-2">
                               {aberto ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                               <span>{g.colaborador}</span>
@@ -755,18 +759,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-semibold">{formatCurrency(g.total)}</TableCell>
-                          {!readOnly && (onEdit || onDelete) && <TableCell />}
+                          {hasActions && <TableCell />}
                         </TableRow>
                         {aberto && g.registros.map((r) => (
-                          <TableRow key={r.id} className="bg-background">
-                            <TableCell className="pl-8">{formatDate(r.data_registro)}</TableCell>
-                            <TableCell className="text-muted-foreground">↳</TableCell>
+                          <TableRow key={r.id} className="bg-background border-l-2 border-l-muted">
+                            <TableCell>{formatDate(r.data_registro)}</TableCell>
                             <TableCell>{r.centro_custo ?? '-'}</TableCell>
                             <TableCell>{r.tipo_despesa}</TableCell>
                             <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
                             <TableCell>{r.cia_aerea ?? '-'}</TableCell>
                             <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
-                            {!readOnly && (onEdit || onDelete) && (
+                            {hasActions && (
                               <TableCell>
                                 <div className="flex gap-1">
                                   {onEdit && <Button size="icon" variant="ghost" onClick={() => onEdit(r)}><Pencil className="h-3.5 w-3.5" /></Button>}
