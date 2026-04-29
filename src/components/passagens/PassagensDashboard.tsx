@@ -800,3 +800,76 @@ export function exportPassagensCsv(rows: Passagem[]) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+function parseDateOrNull(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  // Aceita 'YYYY-MM-DD' (puro) ou ISO. Mantém a data no fuso local sem deslocamento.
+  const ymd = value.slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+export function exportPassagensXlsx(rows: Passagem[]) {
+  const headers = [
+    'Data Registro', 'Colaborador', 'Centro Custo', 'Projeto/Obra', 'Fornecedor',
+    'Cia Aérea', 'Nº Bilhete', 'Localizador', 'Origem', 'Destino',
+    'Data Ida', 'Data Volta', 'Motivo Viagem', 'Tipo Despesa', 'Valor (R$)', 'Observações',
+  ];
+  const body = rows.map((r) => [
+    parseDateOrNull(r.data_registro),
+    r.colaborador,
+    r.centro_custo ?? '',
+    r.projeto_obra ?? '',
+    r.fornecedor ?? '',
+    r.cia_aerea ?? '',
+    r.numero_bilhete ?? '',
+    r.localizador ?? '',
+    r.origem ?? '',
+    r.destino ?? '',
+    parseDateOrNull(r.data_ida),
+    parseDateOrNull(r.data_volta),
+    r.motivo_viagem ?? '',
+    r.tipo_despesa,
+    Number(r.valor || 0),
+    r.observacoes ?? '',
+  ]);
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...body], { cellDates: true });
+
+  // Total no final
+  const totalRow = body.length + 1; // 0-based row index of total
+  const total = rows.reduce((s, r) => s + Number(r.valor || 0), 0);
+  XLSX.utils.sheet_add_aoa(ws, [[
+    '', '', '', '', '', '', '', '', '', '', '', '', '', 'Total', total, '',
+  ]], { origin: { r: totalRow, c: 0 } });
+
+  // Aplica formatos por coluna
+  const range = XLSX.utils.decode_range(ws['!ref'] as string);
+  const dateCols = [0, 10, 11]; // Data Registro, Data Ida, Data Volta
+  const valorCol = 14; // Valor (R$)
+  for (let R = 1; R <= range.e.r; R++) {
+    for (const c of dateCols) {
+      const cell = ws[XLSX.utils.encode_cell({ r: R, c })];
+      if (cell && cell.v instanceof Date) {
+        cell.t = 'd';
+        cell.z = 'dd/mm/yyyy';
+      }
+    }
+    const cValor = ws[XLSX.utils.encode_cell({ r: R, c: valorCol })];
+    if (cValor && cValor.v !== '' && cValor.v != null) {
+      cValor.t = 'n';
+      cValor.z = 'R$ #,##0.00';
+    }
+  }
+
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 18 }, { wch: 20 },
+    { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 },
+    { wch: 12 }, { wch: 12 }, { wch: 28 }, { wch: 22 }, { wch: 14 }, { wch: 32 },
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Passagens');
+  XLSX.writeFile(wb, `passagens-aereas-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
