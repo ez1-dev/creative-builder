@@ -124,12 +124,13 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                       fill="hsl(215, 60%, 94%)"
                       stroke="hsl(215, 70%, 40%)"
                       strokeWidth={1}
-                      strokeOpacity={0.9}
+                      strokeOpacity={0.85}
                       style={{
-                        default: { outline: 'none' },
-                        hover: { outline: 'none', fill: 'hsl(215, 60%, 86%)' },
+                        default: { outline: 'none', paintOrder: 'fill stroke' as const },
+                        hover: { outline: 'none', fill: 'hsl(215, 60%, 86%)', paintOrder: 'fill stroke' as const },
                         pressed: { outline: 'none' },
                       }}
+                      vectorEffect="non-scaling-stroke"
                     />
                   ))
                 }
