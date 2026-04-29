@@ -605,15 +605,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-stretch">
         <MapaDestinosCard
           data={mapaData}
           selectedDestino={selectedDestino}
           onSelectDestino={setSelectedDestino}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
           <CardContent>
