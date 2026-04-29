@@ -469,42 +469,79 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        <div className="relative flex flex-col gap-2">
-          <KPICard
-            title="Registros"
-            value={totalRegistros}
-            icon={<Plane className="h-5 w-5" />}
-            variant="info"
-            index={1}
-            subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
-          />
-          <div className="flex items-center gap-1 px-1">
-            <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
-              <SelectTrigger className="h-7 flex-1 text-xs sm:w-[140px] sm:flex-none" aria-label="Agrupar por">
-                <Layers className="mr-1 h-3 w-3 shrink-0" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {GROUP_OPTIONS.map((g) => (
-                  <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 shrink-0"
-              onClick={() => setGroupSheetOpen(true)}
-              disabled={gruposCount === 0}
-              aria-label="Ver detalhes do agrupamento"
-              title="Ver detalhes"
-            >
-              <Layers className="h-4 w-4" />
-            </Button>
+        {isMobile ? (
+          <div className="flex flex-col gap-2">
+            <KPICard
+              title="Registros"
+              value={totalRegistros}
+              icon={<Plane className="h-5 w-5" />}
+              variant="info"
+              index={1}
+              subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
+            />
+            <div className="flex items-center gap-1 px-1">
+              <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                <SelectTrigger className="h-7 flex-1 text-xs" aria-label="Agrupar por">
+                  <Layers className="mr-1 h-3 w-3 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GROUP_OPTIONS.map((g) => (
+                    <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0"
+                onClick={() => setGroupSheetOpen(true)}
+                disabled={gruposCount === 0}
+                aria-label="Ver detalhes do agrupamento"
+                title="Ver detalhes"
+              >
+                <Layers className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="relative">
+            <KPICard
+              title="Registros"
+              value={totalRegistros}
+              icon={<Plane className="h-5 w-5" />}
+              variant="info"
+              index={1}
+              subtitle={`${gruposCount} ${groupOption.label}${gruposCount === 1 ? '' : 's'}`}
+            />
+            <div className="absolute right-3 top-3 flex items-center gap-1">
+              <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                <SelectTrigger className="h-7 w-[130px] text-xs" aria-label="Agrupar por">
+                  <Layers className="mr-1 h-3 w-3 shrink-0" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {GROUP_OPTIONS.map((g) => (
+                    <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 shrink-0"
+                onClick={() => setGroupSheetOpen(true)}
+                disabled={gruposCount === 0}
+                aria-label="Ver detalhes do agrupamento"
+                title="Ver detalhes"
+              >
+                <Layers className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
         <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
