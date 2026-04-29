@@ -115,22 +115,40 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
               height={520}
               style={{ width: '100%', height: 'auto' }}
             >
+              {/* Camada 1: fills das UFs (sem stroke, para não ser coberto) */}
               <Geographies geography={GEO_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => (
                     <Geography
-                      key={geo.rsmKey}
+                      key={`fill-${geo.rsmKey}`}
                       geography={geo}
                       fill="hsl(215, 60%, 94%)"
-                      stroke="hsl(215, 70%, 40%)"
-                      strokeWidth={1}
-                      strokeOpacity={0.85}
+                      stroke="none"
                       style={{
-                        default: { outline: 'none', paintOrder: 'fill stroke' as const },
-                        hover: { outline: 'none', fill: 'hsl(215, 60%, 86%)', paintOrder: 'fill stroke' as const },
+                        default: { outline: 'none' },
+                        hover: { outline: 'none', fill: 'hsl(215, 60%, 86%)' },
                         pressed: { outline: 'none' },
                       }}
-                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))
+                }
+              </Geographies>
+              {/* Camada 2: strokes por cima de todos os fills */}
+              <Geographies geography={GEO_URL}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={`stroke-${geo.rsmKey}`}
+                      geography={geo}
+                      fill="none"
+                      stroke="hsl(215, 70%, 40%)"
+                      strokeWidth={0.8}
+                      strokeOpacity={0.7}
+                      style={{
+                        default: { outline: 'none', pointerEvents: 'none' },
+                        hover: { outline: 'none', pointerEvents: 'none' },
+                        pressed: { outline: 'none', pointerEvents: 'none' },
+                      }}
                     />
                   ))
                 }
