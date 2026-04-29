@@ -1,27 +1,33 @@
-## Problema
+## Objetivo
 
-Ao gerar um link com senha em /passagens-aereas, o backend retorna:
-`function gen_salt(unknown) does not exist`
+No filtro **Centro de Custo** da página `/passagens-aereas`, substituir o `<Input>` de texto livre por um **combobox pesquisável** já pré-carregado com todos os centros de custo existentes nos registros, agilizando o filtro.
 
-A extensão `pgcrypto` está instalada no schema `extensions` (padrão correto do Lovable Cloud), mas as funções RPC `create_passagens_share_link` e `verify_passagens_share_link` foram criadas com `SET search_path = public`, então não enxergam `gen_salt`/`crypt`.
+## Mudanças
 
-## Solução
+**Arquivo:** `src/components/passagens/PassagensDashboard.tsx`
 
-Criar uma migração que recria as duas funções qualificando explicitamente as chamadas como `extensions.gen_salt(...)` e `extensions.crypt(...)`. Isso é mais seguro do que abrir o `search_path` para incluir `extensions` (recomendação do linter de segurança do Supabase).
+1. **Calcular lista de CCs disponíveis** a partir do `data` recebido:
+   ```ts
+   const ccsDisponiveis = useMemo(() => {
+     const set = new Set<string>();
+     data.forEach(r => { const cc = (r.centro_custo ?? '').trim(); if (cc) set.add(cc); });
+     return Array.from(set).sort((a, b) => a.localeCompare(b));
+   }, [data]);
+   ```
 
-### Mudanças
+2. **Trocar o input de CC** (linhas 248-251) por um `Popover + Command` (mesmo padrão do `ColaboradorCombobox`), com:
+   - Botão trigger mostrando o CC selecionado ou "Todos".
+   - `CommandInput` para busca textual (mantém a UX de "buscar...").
+   - Item "Todos" no topo para limpar o filtro.
+   - Lista dos CCs únicos extraídos de `data`.
+   - Ícone `Check` indicando o selecionado.
 
-**Nova migração** ajustando duas funções:
+3. **Imports adicionais** no topo: `Popover`, `Command*`, `cn`, ícones `Check` e `ChevronsUpDown`.
 
-1. `public.create_passagens_share_link(_token, _nome, _password, _expires_at)`
-   - Trocar `crypt(_password, gen_salt('bf'))` por `extensions.crypt(_password, extensions.gen_salt('bf'))`
-   - Manter resto da lógica (permissão via `can_manage_passagens_share`, insert na tabela).
+4. Comportamento de filtragem permanece o mesmo (`filtered` continua usando `filtroCC.toLowerCase().includes(...)`), só que agora `filtroCC` será sempre o nome exato de um CC ou string vazia.
 
-2. `public.get_passagens_via_token(_token)` / `verify_passagens_share_link` (a que usa `crypt(_password, link_rec.password_hash)` na migration `20260426201410`)
-   - Trocar para `extensions.crypt(_password, link_rec.password_hash)`.
+## Resultado
 
-### Resultado
-
-- Criação de link com senha volta a funcionar.
-- Verificação de senha em links compartilhados (`/passagens-aereas/compartilhado?token=...&p=1`) continua funcionando.
-- Sem alterações no frontend.
+- Usuário clica no campo "Centro de Custo" e vê imediatamente todos os CCs já cadastrados em passagens.
+- Pode digitar para filtrar a lista, ou escolher "Todos" para remover o filtro.
+- Comportamento se mantém igual em modo compartilhado (read-only) e admin.

@@ -15,12 +15,15 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download } from 'lucide-react';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 export interface Passagem {
   id: string;
@@ -97,6 +100,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     });
     return Array.from(set).sort();
   }, [data]);
+
+  const ccsDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach((r) => {
+      const cc = (r.centro_custo ?? '').trim();
+      if (cc) set.add(cc);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
+  const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
 
   const formatMesLabel = (ym: string) => {
     const [y, m] = ym.split('-');
@@ -247,7 +261,46 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </div>
             <div>
               <Label className="text-xs">Centro de Custo</Label>
-              <Input value={filtroCC} onChange={(e) => setFiltroCC(e.target.value)} placeholder="Buscar..." />
+              <Popover open={ccPopoverOpen} onOpenChange={setCcPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={ccPopoverOpen}
+                    className={cn('w-full justify-between font-normal', !filtroCC && 'text-muted-foreground')}
+                  >
+                    <span className="truncate">{filtroCC || 'Todos'}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar centro de custo..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__todos__"
+                          onSelect={() => { setFiltroCC(''); setCcPopoverOpen(false); }}
+                        >
+                          <Check className={cn('mr-2 h-4 w-4', !filtroCC ? 'opacity-100' : 'opacity-0')} />
+                          Todos
+                        </CommandItem>
+                        {ccsDisponiveis.map((cc) => (
+                          <CommandItem
+                            key={cc}
+                            value={cc}
+                            onSelect={() => { setFiltroCC(cc); setCcPopoverOpen(false); }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4', filtroCC === cc ? 'opacity-100' : 'opacity-0')} />
+                            {cc}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div>
               <Label className="text-xs">Tipo</Label>
