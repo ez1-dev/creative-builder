@@ -681,6 +681,106 @@ export default function ConfiguracoesPage() {
           </Card>
         </TabsContent>
 
+        {/* === GRÁFICOS E MAPAS === */}
+        <TabsContent value="visuals">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <LineChart className="h-4 w-4 text-primary" />
+                Gráficos e Mapas por Perfil
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Escolha quais gráficos e mapas cada perfil pode visualizar nas telas do ERP. Itens desmarcados ficam ocultos para os usuários daquele perfil. Administradores sempre veem todos.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {profiles.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">
+                  Crie um perfil primeiro na aba "Perfis de Acesso"
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 max-w-md">
+                    <Label className="text-xs whitespace-nowrap">Perfil:</Label>
+                    <Select
+                      value={visualsSelectedProfile || profiles[0]?.id || ''}
+                      onValueChange={setVisualsSelectedProfile}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Selecione um perfil" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {profiles.map(p => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {(() => {
+                    const pid = visualsSelectedProfile || profiles[0]?.id;
+                    if (!pid) return null;
+                    return (
+                      <div className="space-y-4">
+                        {VISUAL_CATALOG.map(group => {
+                          const keys = group.items.map(i => i.key);
+                          const allOn = keys.every(k => isVisualVisible(pid, k));
+                          const allOff = keys.every(k => !isVisualVisible(pid, k));
+                          return (
+                            <div key={group.module} className="rounded-md border bg-card">
+                              <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/30">
+                                <h4 className="text-sm font-semibold">{group.module}</h4>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={allOn}
+                                    onClick={() => setModuleVisuals(pid, keys, true)}
+                                  >
+                                    Marcar todos
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    disabled={allOff}
+                                    onClick={() => setModuleVisuals(pid, keys, false)}
+                                  >
+                                    Desmarcar todos
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="divide-y">
+                                {group.items.map(item => {
+                                  const visible = isVisualVisible(pid, item.key);
+                                  return (
+                                    <label
+                                      key={item.key}
+                                      className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 cursor-pointer"
+                                    >
+                                      <Checkbox
+                                        checked={visible}
+                                        onCheckedChange={(c) => setVisualVisible(pid, item.key, c === true)}
+                                      />
+                                      <span className="text-sm">{item.label}</span>
+                                      <span className="ml-auto text-[10px] text-muted-foreground font-mono">{item.key}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* === USUÁRIOS === */}
         <TabsContent value="users">
           <Card>
