@@ -124,6 +124,11 @@ export default function PassagensAereasPage() {
               </Button>
             )}
             {editAllowed && (
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <Upload className="mr-1 h-4 w-4" /> Importar planilha
+              </Button>
+            )}
+            {editAllowed && (
               <Button size="sm" onClick={handleOpenNew}>
                 <Plus className="mr-1 h-4 w-4" /> Novo registro
               </Button>
