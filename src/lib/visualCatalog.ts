@@ -54,12 +54,6 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'compras.top-origens', label: 'Top Origens por Valor Líquido' },
     ],
   },
-  {
-    module: 'Configurações (admin)',
-    items: [
-      { key: 'admin.dashboard-uso', label: 'Dashboard de Uso de Usuários' },
-    ],
-  },
 ];
 
 export const ALL_VISUAL_KEYS: string[] = VISUAL_CATALOG.flatMap((g) => g.items.map((i) => i.key));
