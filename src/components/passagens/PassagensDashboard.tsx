@@ -75,10 +75,11 @@ interface Props {
   onEdit?: (p: Passagem) => void;
   onDelete?: (id: string) => void;
   onExport?: (rows: Passagem[]) => void;
+  onExportXlsx?: (rows: Passagem[]) => void;
   readOnly?: boolean;
 }
 
-export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, readOnly }: Props) {
+export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
