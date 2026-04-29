@@ -117,6 +117,8 @@ export default function NumeroSeriePage() {
   const [confirmDesvincularOpen, setConfirmDesvincularOpen] = useState(false);
   const [candidatoSelecionadoId, setCandidatoSelecionadoId] = useState<string>('');
   const [opCandidataEscolhida, setOpCandidataEscolhida] = useState<string>('');
+  const [trocarPedido, setTrocarPedido] = useState<string>('');
+  const [trocarItem, setTrocarItem] = useState<string>('1');
 
   const erpReady = useErpReady();
 
@@ -416,6 +418,46 @@ export default function NumeroSeriePage() {
     setDados([]);
     setSelecionado('');
     setOpCandidataEscolhida('');
+    setTrocarPedido('');
+    setTrocarItem('1');
+  };
+
+  const aplicarPedidoManual = async () => {
+    const ped = trocarPedido.trim();
+    if (!ped || !/^\d+$/.test(ped) || Number(ped) <= 0) {
+      toast.error('Informe um número de pedido válido.');
+      return;
+    }
+    if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
+    const item = trocarItem.trim() && /^\d+$/.test(trocarItem.trim()) ? trocarItem.trim() : '1';
+    setFilters(f => ({ ...f, numero_pedido: ped, item_pedido: item, numero_op: '', origem_op: '' }));
+    setOpCandidataEscolhida('');
+    setContexto(null);
+    setLoading(true);
+    try {
+      const params: Record<string, any> = {
+        codigo_empresa: 1,
+        numero_pedido: Number(ped),
+        item_pedido: Number(item),
+      };
+      const result = await api.get<{ contexto: ContextoNumeroSerie }>('/api/numero-serie/contexto', params);
+      setContexto(result.contexto);
+      const produto = result.contexto?.codigo_produto?.trim();
+      setFilters(f => ({
+        ...f,
+        numero_op: result.contexto?.numero_op ? String(result.contexto.numero_op) : '',
+        origem_op: result.contexto?.origem_op || '',
+        ...(produto ? { codigo_produto: produto, derivacao: result.contexto?.derivacao || '' } : {}),
+      }));
+      if (produto) await buscarProximos(produto, result.contexto?.derivacao || '');
+      setTrocarPedido('');
+      setTrocarItem('1');
+      toast.success(`Pedido ${ped} / item ${item} carregado.`);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const aplicarOpCandidata = async (numeroOp: number | string) => {
@@ -573,6 +615,46 @@ export default function NumeroSeriePage() {
                 )}
               </div>
             )}
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                <Link2 className="h-3.5 w-3.5 text-primary" />
+                Trocar contexto por outro pedido
+              </div>
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="flex-1 min-w-[140px] space-y-1">
+                  <Label className="text-xs">Pedido</Label>
+                  <Input
+                    type="number"
+                    value={trocarPedido}
+                    onChange={e => setTrocarPedido(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarPedidoManual(); } }}
+                    className="h-8 text-xs"
+                    placeholder="Ex.: 11510"
+                  />
+                </div>
+                <div className="w-20 space-y-1">
+                  <Label className="text-xs">Item</Label>
+                  <Input
+                    type="number"
+                    value={trocarItem}
+                    onChange={e => setTrocarItem(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarPedidoManual(); } }}
+                    className="h-8 text-xs"
+                    placeholder="1"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={aplicarPedidoManual}
+                  disabled={loading || !trocarPedido.trim()}
+                >
+                  <Link2 className="mr-1 h-3.5 w-3.5" />Aplicar Pedido
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Usa este atalho quando a OP carregada está vinculada a outro pedido (ex.: a OP atual é antiga). O contexto é recarregado pelo pedido digitado.
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
               {ctxField('Pedido', `${contexto.numero_pedido}${contexto.origem_pedido ? ` (${contexto.origem_pedido})` : ''}`)}
               {ctxField('Item', contexto.item_pedido)}

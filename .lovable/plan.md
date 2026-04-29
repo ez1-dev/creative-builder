@@ -1,54 +1,52 @@
-## Problema
+## Objetivo
 
-Na tela `/numero-serie`, o campo **"Origem OP"** está como `readOnly` (linha 479 de `NumeroSeriePage.tsx`), com o placeholder "Auto ao buscar contexto". O usuário quer poder digitar/sobrescrever a origem da OP manualmente — útil quando o backend retorna `origem_op` vazia ou quando ele precisa forçar/corrigir o valor antes de buscar contexto.
+Permitir trocar a OP carregada digitando **outro pedido + item** diretamente no card "Contexto do Pedido / OP", sem precisar limpar tudo e refazer a busca pelos filtros do topo. Isso resolve o caso em que o backend retornou a OP errada (ex.: OP 1111 do pedido antigo 4891) e você quer recarregar o contexto pelo pedido correto (ex.: 11510 / item 1).
 
-## Mudanças — `src/pages/NumeroSeriePage.tsx`
+## Escopo
 
-### 1. Tornar o input "Origem OP" editável (linha 479)
+Apenas frontend. Arquivo único: `src/pages/NumeroSeriePage.tsx`. Sem mudanças no backend, schema ou design system.
 
-Substituir:
-```tsx
-<Input value={filters.origem_op} readOnly tabIndex={-1}
-       className="h-8 text-xs bg-muted/50 font-mono"
-       placeholder="Auto ao buscar contexto" />
+## Implementação
+
+### 1. Estado novo
+Dois `useState<string>` para os inputs do trocador:
+- `trocarPedido` — número do pedido a aplicar
+- `trocarItem` — item do pedido (default `'1'`)
+
+Limpos em `limpar()` e após aplicar com sucesso.
+
+### 2. Função `aplicarPedidoManual()`
+Análoga à `aplicarOpCandidata()` que já existe:
+- Valida que `trocarPedido` é número > 0
+- Atualiza `filters` zerando `numero_op` e setando `numero_pedido` + `item_pedido`
+- Reseta `opCandidataEscolhida` e `contexto`
+- Chama `api.get('/api/numero-serie/contexto', { numero_pedido, item_pedido, codigo_empresa })`
+- Em sucesso: `setContexto(result.contexto)`, dispara `buscarProximos` se houver `codigo_produto`
+- Em erro: toast com a mensagem
+- Sempre `setLoading(false)` no `finally`
+
+### 3. UI no card de Contexto
+Novo bloco logo abaixo do bloco existente de "OPs candidatas" (linha ~575), com mesmo estilo visual (border primário, fundo `primary/5`):
+
+```text
+┌─ Trocar contexto por outro pedido ──────────────┐
+│ [Pedido______] [Item__] [ Aplicar Pedido ]      │
+└─────────────────────────────────────────────────┘
 ```
-por um input editável normal (mesmo padrão dos outros filtros), mantendo `font-mono`:
-```tsx
-<Input value={filters.origem_op}
-       onChange={e => setFilters(f => ({ ...f, origem_op: e.target.value }))}
-       className="h-8 text-xs font-mono"
-       placeholder="Ex.: 250" />
-```
 
-### 2. Preservar valor digitado pelo usuário ao buscar contexto
+- 2 `Input` pequenos (`h-8 text-xs`) + 1 `Button` (`size="sm"`)
+- Label discreta acima: "Trocar contexto por outro pedido"
+- Botão desabilitado quando `loading` ou `trocarPedido` vazio
+- `Enter` no input dispara `aplicarPedidoManual()`
 
-Hoje `buscarContexto` (linhas ~177 e ~444) sobrescreve `filters.origem_op` com o valor retornado pelo backend. Ajustar para:
-- Se o usuário **já digitou** algo em `filters.origem_op` antes de buscar, **manter** o valor digitado (não sobrescrever).
-- Se estava vazio, usar o valor do backend como hoje.
+### 4. Sem regressão
+- Não altera nada no fluxo de filtros do topo, no seletor de OPs candidatas, na detecção de mismatch, na validação de origem, nem nos botões Reservar/Vincular/Desvincular.
+- Não toca em `buscarContexto`, `buscarProximos`, `desvincular`, `reservar`, `vincular`.
 
-Lógica:
-```ts
-origem_op: prevOrigemOp.trim() ? prevOrigemOp : (opMismatch ? '' : (result.contexto?.origem_op || ''))
-```
+## Resultado esperado
 
-(capturar `prevOrigemOp = filters.origem_op` antes da chamada).
+No seu cenário atual (OP 1111 carregada, pedido vinculado 4891 mostrado), você digita `11510` em Pedido, `1` em Item, clica **Aplicar Pedido** e o card recarrega com a OP que o backend devolver para o pedido 11510 — habilitando Reservar/Vincular se não houver mismatch.
 
-### 3. Usar `filters.origem_op` no cálculo de divergência quando `contexto.origem_op` estiver vazio
+## Arquivos modificados
 
-Em `divergenciaOrigem` (linhas 218–226) e na renderização do Card de Contexto, usar como fallback o valor digitado:
-```ts
-const oOp = (contexto.origem_op || filters.origem_op || '').trim();
-```
-Assim, se o backend não retornar `origem_op` mas o usuário digitar manualmente, a validação visual continua funcionando.
-
-### 4. (Opcional, no `limpar()`) — manter o reset atual
-
-`limpar()` já zera `origem_op: ''` (linha 413), nada muda.
-
-## Fora de escopo
-
-- Enviar `origem_op` digitada para o backend nos endpoints `/contexto` e `/reservar` — o backend hoje deriva origem do banco; alterar o contrato fica para outra entrega caso necessário. Esta mudança é puramente de UI (permitir digitar e usar localmente para validação visual).
-
-## Arquivos afetados
-
-- `src/pages/NumeroSeriePage.tsx`
+- `src/pages/NumeroSeriePage.tsx` (estado + função + bloco JSX no card de Contexto)
