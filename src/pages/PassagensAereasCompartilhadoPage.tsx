@@ -109,22 +109,24 @@ export default function PassagensAereasCompartilhadoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Plane className="h-6 w-6 text-primary" />
-          <div className="flex-1">
-            <h1 className="text-lg font-bold">Passagens Aéreas</h1>
-            <p className="text-xs text-muted-foreground">{linkName} · Visualização compartilhada</p>
+    <PublicVisualsProvider hiddenVisuals={hiddenVisuals}>
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <Plane className="h-6 w-6 text-primary" />
+            <div className="flex-1">
+              <h1 className="text-lg font-bold">Passagens Aéreas</h1>
+              <p className="text-xs text-muted-foreground">{linkName} · Visualização compartilhada</p>
+            </div>
           </div>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto p-4">
-        <PassagensDashboard data={data} readOnly onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
-      </main>
-      <footer className="text-center text-xs text-muted-foreground py-4">
-        EZ ERP IA · Acesso somente leitura
-      </footer>
-    </div>
+        </header>
+        <main className="max-w-7xl mx-auto p-4">
+          <PassagensDashboard data={data} readOnly onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
+        </main>
+        <footer className="text-center text-xs text-muted-foreground py-4">
+          EZ ERP IA · Acesso somente leitura
+        </footer>
+      </div>
+    </PublicVisualsProvider>
   );
 }
