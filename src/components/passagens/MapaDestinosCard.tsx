@@ -157,6 +157,49 @@ export function MapaDestinosCard({
     [porUF],
   );
 
+  // Diagnóstico: valida que PR/PA/SP (líderes esperados) caem no quartil "top".
+  // Loga uma tabela com UF, qtd, tier e cor aplicada, além dos thresholds.
+  useEffect(() => {
+    if (porUF.size === 0) return;
+    const rows = Array.from(porUF.values())
+      .sort((a, b) => b.qtd - a.qtd)
+      .map((u) => ({
+        UF: u.uf,
+        qtd: u.qtd,
+        tier: colorScale.tierOf(u.qtd),
+        fill: colorScale(u.qtd),
+      }));
+    // eslint-disable-next-line no-console
+    console.groupCollapsed(
+      `[MapaDestinos] Quartis — ${porUF.size} UF(s) | t1=${colorScale.thresholds.t1} t2=${colorScale.thresholds.t2} t3=${colorScale.thresholds.t3} max=${colorScale.thresholds.max}`,
+    );
+    // eslint-disable-next-line no-console
+    console.table(rows);
+
+    const ESPERADOS_TOP = ['PR', 'PA', 'SP'];
+    for (const uf of ESPERADOS_TOP) {
+      const agg = porUF.get(uf);
+      if (!agg) {
+        // eslint-disable-next-line no-console
+        console.warn(`[MapaDestinos] ${uf} sem dados agregados (esperado quartil top).`);
+        continue;
+      }
+      const tier = colorScale.tierOf(agg.qtd);
+      if (tier !== 'top') {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[MapaDestinos] ${uf} caiu no quartil "${tier}" (qtd=${agg.qtd}); thresholds`,
+          colorScale.thresholds,
+        );
+      } else {
+        // eslint-disable-next-line no-console
+        console.info(`[MapaDestinos] ${uf} ✓ quartil top (qtd=${agg.qtd}).`);
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.groupEnd();
+  }, [porUF, colorScale]);
+
   const legenda = useMemo(() => {
     if (maxQtdUF <= 0) return [];
     return [
