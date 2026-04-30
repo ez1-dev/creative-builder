@@ -1012,6 +1012,59 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           )}
         </SheetContent>
       </Sheet>
+
+      <Sheet open={outrosMotivoOpen} onOpenChange={setOutrosMotivoOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Detalhamento — Outros motivos</SheetTitle>
+            <SheetDescription>
+              Motivos com participação menor que 5% do total{porMotivoOutros.length > 0 && ` · ${porMotivoOutros.length} motivos`}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">% total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {porMotivoOutros.map((m) => {
+                  const pct = totalMotivo > 0 ? (m.value / totalMotivo) * 100 : 0;
+                  return (
+                    <TableRow
+                      key={m.name}
+                      className="cursor-pointer hover:bg-accent/40"
+                      onClick={() => {
+                        setSelectedMotivo(m.name);
+                        setOutrosMotivoOpen(false);
+                      }}
+                    >
+                      <TableCell className="font-medium">{m.name}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(m.value)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {pct.toFixed(2).replace('.', ',')}%
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {porMotivoOutros.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                      Nenhum motivo agrupado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Clique em um motivo para filtrar todo o dashboard por ele.
+          </p>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
