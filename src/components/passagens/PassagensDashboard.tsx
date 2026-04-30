@@ -118,6 +118,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
+  const [filtroMotivo, setFiltroMotivo] = useState<string>('todos');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
@@ -171,6 +172,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
+  const motivosDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach((r) => {
+      const m = (r.motivo_viagem ?? '').trim();
+      if (m) set.add(m);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
   const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
 
   const formatMesLabel = (ym: string) => {
@@ -183,13 +193,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const filtered = useMemo(() => data.filter((r) => {
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
     if (filtroCC && !(r.centro_custo ?? '').toLowerCase().includes(filtroCC.toLowerCase())) return false;
+    if (filtroMotivo !== 'todos' && (r.motivo_viagem ?? '').trim() !== filtroMotivo) return false;
     if (filtroTipo !== 'todos' && r.tipo_despesa !== filtroTipo) return false;
     const dr = (r.data_registro ?? '').slice(0, 10);
     if (filtroMes !== 'todos' && dr.slice(0, 7) !== filtroMes) return false;
     if (dataInicio && dr < dataInicio) return false;
     if (dataFim && dr > dataFim) return false;
     return true;
-  }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
+  }), [data, filtroColaborador, filtroCC, filtroMotivo, filtroTipo, filtroMes, dataInicio, dataFim]);
 
   // Helper: aplica subset dos cross-filters
   const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean }) => {
@@ -428,12 +439,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF]);
 
   const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino || selectedUF);
-  const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
-  const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
+  const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroMotivo !== 'todos' || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
+  const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroMotivo !== 'todos' ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
   const limparTudo = () => {
     setFiltroColaborador('');
     setFiltroCC('');
+    setFiltroMotivo('todos');
     setFiltroTipo('todos');
     setFiltroMes('todos');
     setDataInicio('');
@@ -484,7 +496,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </button>
         {filtrosAbertos && (
           <CardContent className="space-y-3 p-4 pt-3 border-t">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-7">
               <div>
                 <Label className="text-xs">Colaborador</Label>
                 <ColaboradorCombobox
@@ -536,6 +548,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     </Command>
                   </PopoverContent>
                 </Popover>
+              </div>
+              <div>
+                <Label className="text-xs">Motivo da Viagem</Label>
+                <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {motivosDisponiveis.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs">Tipo</Label>
