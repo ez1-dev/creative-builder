@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Plus, Minus, RotateCcw, ChevronLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
 import { geocodeCidade, nomeNormalizado } from './cidadesBrasil';
-import { COD_TO_UF, UF_NOME, LABEL_OFFSET, colorForQtd, GEO_URL } from './mapaUtils';
+import { COD_TO_UF, UF_NOME, LABEL_OFFSET, colorForQtd, GEO_URL, HEAT_COLORS } from './mapaUtils';
 import type { Passagem } from './PassagensDashboard';
 
 interface AggregadoCidade {
@@ -155,11 +155,11 @@ export function MapaDestinosCard({
   const legenda = useMemo(() => {
     if (maxQtdUF <= 0) return [];
     return [
-      { label: 'Sem registros', color: 'hsl(220, 14%, 92%)' },
-      { label: 'Baixo', color: 'hsl(150, 35%, 70%)' },
-      { label: 'Médio', color: 'hsl(205, 70%, 70%)' },
-      { label: 'Médio-alto', color: 'hsl(45, 90%, 60%)' },
-      { label: `Alto (até ${maxQtdUF})`, color: 'hsl(0, 70%, 52%)' },
+      { label: 'Sem registros', color: HEAT_COLORS.empty },
+      { label: 'Baixo', color: HEAT_COLORS.low },
+      { label: 'Médio', color: HEAT_COLORS.mid },
+      { label: 'Médio-alto', color: HEAT_COLORS.high },
+      { label: `Alto (até ${maxQtdUF})`, color: HEAT_COLORS.top },
     ];
   }, [maxQtdUF]);
 
