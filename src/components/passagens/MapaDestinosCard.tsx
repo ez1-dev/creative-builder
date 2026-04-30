@@ -577,11 +577,18 @@ export function MapaDestinosCard({
               // Modo padrão: Top 5 + legenda
               <>
                 <div className="space-y-2">
-                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Top 5 destinos
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Top destinos por valor
+                    </div>
+                    {porCidade.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {topDestinos.length} de {porCidade.length}
+                      </span>
+                    )}
                   </div>
                   <div className="space-y-1.5">
-                    {top5.map((p, i) => {
+                    {topDestinos.map((p, i) => {
                       const isSelected =
                         selectedDestino &&
                         nomeNormalizado(selectedDestino) === nomeNormalizado(p.cidade);
@@ -603,18 +610,46 @@ export function MapaDestinosCard({
                             <div className="min-w-0">
                               <div className="truncate font-medium">{p.cidade}</div>
                               <div className="text-[10px] text-muted-foreground">
-                                {p.uf} · {formatCurrency(p.total)}
+                                {p.uf} · {p.qtd} {p.qtd === 1 ? 'passagem' : 'passagens'}
                               </div>
                             </div>
                           </div>
                           <Badge variant="secondary" className="shrink-0 text-[10px]">
-                            {p.qtd}
+                            {formatCurrency(p.total)}
                           </Badge>
                         </button>
                       );
                     })}
-                    {top5.length === 0 && (
+                    {topDestinos.length === 0 && (
                       <div className="text-xs text-muted-foreground">Sem dados</div>
+                    )}
+                    {(porCidade.length > topLimit || topLimit > 5) && (
+                      <div className="flex gap-1.5 pt-1">
+                        {porCidade.length > topLimit && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 flex-1 text-[11px]"
+                            onClick={() =>
+                              setTopLimit((n) => Math.min(n + 5, porCidade.length))
+                            }
+                          >
+                            <Plus className="h-3 w-3 mr-1" /> Mostrar mais
+                          </Button>
+                        )}
+                        {topLimit > 5 && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 flex-1 text-[11px]"
+                            onClick={() => setTopLimit(5)}
+                          >
+                            Mostrar menos
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
