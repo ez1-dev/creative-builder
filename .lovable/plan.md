@@ -1,64 +1,77 @@
 ## Objetivo
 
-Remover o **mapa visual do Brasil** do card "Mapa de destinos" e manter **apenas a lista "Top destinos por valor"** (com seu cross-filter por cidade já existente). O componente passa a ser um card compacto e focado, sem mapa interativo, sem zoom, sem heatmap por UF.
+Corrigir as duas quebras visuais detectadas no viewport tablet (~768–1023px) da página pública `/passagens-aereas/compartilhado`:
 
-## Análise
+1. **KPI "Registros"**: o `Select` "Centro de Custo / UF" + ícone de avião se sobrepõem ao número do card.
+2. **Tabela Registros**: a tabela desktop com 7 colunas estoura horizontalmente (Origem→Destino e Valor saem do viewport).
 
-O componente `MapaDestinosCard` hoje combina:
-- **Mapa SVG do Brasil** (`react-simple-maps`) com heatmap por UF, markers de cidades, tooltips, zoom e seleção de UF.
-- **Painel lateral "Top destinos por valor"** com lista clicável que filtra `selectedDestino` no dashboard.
-- **Modo "drill por UF"** que substitui o Top Destinos pela lista de cidades daquela UF.
+## Estratégia
 
-Como o usuário quer **remover o mapa e manter só o Top Destinos**, a forma mais limpa é reescrever o `MapaDestinosCard` para renderizar apenas a lista, descartando todo o estado/lógica do mapa (zoom, UF selecionada interna, tooltip, geocoding, geo URL etc.).
+Introduzir um threshold local **`isCompact` = `< 1024px`** dentro do `PassagensDashboard` (sem alterar `useIsMobile` global) e usá-lo apenas nos pontos onde o layout desktop não cabe em tablet:
 
-A interação por UF deixa de existir junto com o mapa — nenhum outro componente do dashboard dispara `selectedUF` (verificado: o filtro UF é definido apenas dentro do MapaDestinosCard). Isso simplifica também o `PassagensDashboard` que não precisará mais passar `selectedUF`/`onSelectUF`.
+- Render do **KPI "Registros"** → versão empilhada (Select abaixo do número), idêntica à já usada no mobile.
+- Render da **lista Registros** → cards verticais (`PassagemMobileCard`), também já existentes.
 
-## Mudanças
+Isso reaproveita os layouts mobile já testados e elimina ambas as sobreposições/cortes em uma só correção.
 
-### 1. Reescrever `src/components/passagens/MapaDestinosCard.tsx`
+Adicionalmente, o grid dos 4 KPIs sobe de `md:grid-cols-4` para `lg:grid-cols-4`, ficando **2×2 em tablet** com folga, e 4 colunas só em desktop (≥1024px).
 
-Reduzir o componente para um card simples com:
-- Header: ícone + título "Top destinos por valor" + contador "N de M".
-- Lista do **Top 5** (com botões "Mostrar mais" / "Mostrar menos" idênticos aos atuais).
-- Cada item: rank (1, 2, 3…), cidade, UF · qtd passagens, badge com total formatado.
-- Click no item → `onSelectDestino(cidade)` (toggle).
-- Seleção visual: borda/bg `primary` quando ativo, igual ao atual.
+## Mudanças em `src/components/passagens/PassagensDashboard.tsx`
 
-Remover por completo:
-- Imports `react-simple-maps`, `d3-geo`, `createPortal`.
-- Imports de `mapaUtils` (heatmap, GEO_URL).
-- Estado de zoom/center/tooltip.
-- Toda a JSX do `<ComposableMap>` e suas geographies/markers.
-- Modo "drill por UF" (lista de cidades de uma UF) — sem mapa não há como ativar UF.
-- Props `selectedUF` / `onSelectUF` da interface (não usadas mais).
+### 1. Adicionar threshold `isCompact` (após `useIsMobile`, ~linha 88)
+```tsx
+const [isCompact, setIsCompact] = useState<boolean>(() =>
+  typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
+);
+useEffect(() => {
+  const mql = window.matchMedia('(max-width: 1023px)');
+  const onChange = () => setIsCompact(window.innerWidth < 1024);
+  mql.addEventListener('change', onChange);
+  onChange();
+  return () => mql.removeEventListener('change', onChange);
+}, []);
+```
 
-Manter:
-- Cálculo de `porCidade` ordenado por `total` desc.
-- Estado `topLimit` para paginação visual.
-- `selectedDestino` / `onSelectDestino` (cross-filter principal).
+### 2. Grid dos 4 KPIs (linha 560)
+```diff
+- <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-stretch">
++ <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+```
 
-### 2. Ajustar `src/components/passagens/PassagensDashboard.tsx`
+### 3. KPI "Registros" — usar `isCompact` em vez de `isMobile` (linha 562)
+Trocar a condição que decide entre versão empilhada e versão com Select absolute:
+```diff
+- {isMobile ? (
++ {isCompact ? (
+```
+A versão empilhada já existente (linhas 563-596) passa a ser usada em mobile e tablet.
 
-Linhas 637-647:
-- Manter o `<VisualGate visualKey="passagens.mapa-destinos">` (compatibilidade com perfis que já têm essa chave).
-- Remover `selectedUF` e `onSelectUF` da chamada do componente.
-- Ajustar grid se necessário (já é `grid-cols-1`, fica igual).
+### 4. Lista Registros — cards verticais até 1024px (linha 826)
+```diff
+- <CardContent className={cn(isMobile ? 'p-3' : 'overflow-x-auto p-0')}>
+-   {isMobile ? (
++ <CardContent className={cn(isCompact ? 'p-3' : 'overflow-x-auto p-0')}>
++   {isCompact ? (
+```
+Tablet passa a ver cards verticais (`PassagemMobileCard`) em vez da tabela cortada.
 
-Verificar se `selectedUF` ainda é usado em algum cross-filter no resto do arquivo. Se sim:
-- Como o filtro por UF deixa de poder ser definido pelo usuário, **manter o estado** apenas se já houver dados públicos/persistidos que dependam dele; senão remover. (decisão na implementação após `grep selectedUF`).
+### 5. Mantém `isMobile` (sem mudar) para
+- Altura/margem do chart pizza (linhas 677-695).
+- Top 10 vs Top 15 Centros de Custo (linhas 741-751).
+- Truncamento de labels do BarChart vertical.
+- Render do gráfico (`isMobile && porMotivo.length > 0` legenda inline).
 
-### 3. Limpeza opcional
+Esses ajustes seguem fazendo sentido sob o breakpoint mobile real (<768px).
 
-Se após a remoção `mapaUtils.ts` e os imports relacionados ficarem totalmente sem uso, deixar os arquivos no projeto (não remover) para evitar quebras em testes/imports indiretos. O bundler vai tree-shake automaticamente.
+## Comportamento esperado pós-correção
 
-## Comportamento final
+| Viewport | KPIs | Tabela Registros |
+|---|---|---|
+| 375 (mobile) | 1 coluna empilhada | Cards verticais |
+| 768 (tablet) | 2×2 com folga, sem sobreposição | Cards verticais (sem corte horizontal) |
+| 1280 (desktop) | 4 colunas lado a lado | Tabela completa com todas as colunas |
 
-- Card mostra somente a lista "Top destinos por valor" com Top 5 expansível.
-- Clique numa cidade aplica o cross-filter normal (gráficos, KPIs, lista de registros reagem).
-- Sem mapa, sem heatmap, sem seleção por UF.
-- Sem mudança em outras chaves do `visualCatalog` nem nos exports.
+Subtotal sticky e cross-filters continuam funcionando em todos os tamanhos.
 
-## Arquivos afetados
-
-- `src/components/passagens/MapaDestinosCard.tsx` (reescrita)
-- `src/components/passagens/PassagensDashboard.tsx` (ajuste de props)
+## Arquivo afetado
+- `src/components/passagens/PassagensDashboard.tsx`
