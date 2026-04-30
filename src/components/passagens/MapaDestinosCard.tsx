@@ -61,9 +61,9 @@ export function MapaDestinosCard({
     [selectedUFProp, onSelectUF],
   );
 
-  // Zoom e centro
+  // Zoom e pan (panOffset em pixels SVG, relativo ao centro 300x280)
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Agregação
   const { porCidade, porUF, semGeo, totalSemGeo, maxQtdUF } = useMemo(() => {
