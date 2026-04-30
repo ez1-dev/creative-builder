@@ -797,13 +797,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <Bar
                   dataKey="valor"
                   cursor="pointer"
-                  onClick={(d: any) => setSelectedMes((prev) => (prev === d.mes ? null : d.mes))}
+                  onClick={(d: any) => setSelectedMes((prev) => toggleItem(prev, d.mes))}
                 >
                   {porMes.map((entry) => (
                     <Cell
                       key={entry.mes}
                       fill={primaryColor}
-                      fillOpacity={selectedMes && selectedMes !== entry.mes ? dimOpacity : 1}
+                      fillOpacity={selectedMes.length > 0 && !selectedMes.includes(entry.mes) ? dimOpacity : 1}
                     />
                   ))}
                 </Bar>
