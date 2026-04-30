@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Trash2, Activity, Users as UsersIcon, BarChart3 } from 'lucide-react';
+import { RefreshCw, Trash2, Activity, Users as UsersIcon, BarChart3, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SessionRow {
   user_id: string;
@@ -41,6 +42,7 @@ function timeAgo(iso: string): string {
 const PAGE_SIZE = 50;
 
 export function MonitoramentoUsuarios() {
+  const { user } = useAuth();
   const [online, setOnline] = useState<SessionRow[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,7 @@ export function MonitoramentoUsuarios() {
   const [eventType, setEventType] = useState<'all' | 'page_view' | 'action'>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
+  const [killing, setKilling] = useState<string | null>(null);
 
   const fetchOnline = useCallback(async () => {
     const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
@@ -118,6 +121,24 @@ export function MonitoramentoUsuarios() {
     fetchActivity();
   };
 
+  const handleKick = async (s: SessionRow) => {
+    const label = s.display_name || s.user_email || s.user_id;
+    if (!confirm(`Derrubar a conexão de ${label}?\n\nO usuário será desconectado em alguns segundos e precisará entrar novamente.`)) return;
+    setKilling(s.user_id);
+    try {
+      const { error } = await supabase.functions.invoke('admin-force-logout', {
+        body: { userId: s.user_id },
+      });
+      if (error) throw error;
+      toast.success(`Conexão de ${label} encerrada`);
+      fetchOnline();
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao derrubar conexão');
+    } finally {
+      setKilling(null);
+    }
+  };
+
   const paged = activity.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(activity.length / PAGE_SIZE));
 
@@ -145,19 +166,39 @@ export function MonitoramentoUsuarios() {
                 <TableHead>Email</TableHead>
                 <TableHead>Página atual</TableHead>
                 <TableHead className="w-[140px]">Última atividade</TableHead>
+                <TableHead className="w-[120px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {online.map(s => (
-                <TableRow key={s.user_id}>
-                  <TableCell className="font-medium text-sm">{s.display_name || '—'}</TableCell>
-                  <TableCell className="text-sm">{s.user_email || '—'}</TableCell>
-                  <TableCell className="text-xs font-mono">{s.current_path || '—'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{timeAgo(s.last_seen_at)}</TableCell>
-                </TableRow>
-              ))}
+              {online.map(s => {
+                const isSelf = user?.id === s.user_id;
+                return (
+                  <TableRow key={s.user_id}>
+                    <TableCell className="font-medium text-sm">{s.display_name || '—'}</TableCell>
+                    <TableCell className="text-sm">{s.user_email || '—'}</TableCell>
+                    <TableCell className="text-xs font-mono">{s.current_path || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{timeAgo(s.last_seen_at)}</TableCell>
+                    <TableCell className="text-right">
+                      {isSelf ? (
+                        <span className="text-[10px] text-muted-foreground italic">você</span>
+                      ) : (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => handleKick(s)}
+                          disabled={killing === s.user_id}
+                        >
+                          <LogOut className="h-3 w-3 mr-1" />
+                          {killing === s.user_id ? 'Derrubando...' : 'Derrubar'}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {online.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhum usuário online</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Nenhum usuário online</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

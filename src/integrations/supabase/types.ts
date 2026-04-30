@@ -518,6 +518,7 @@ export type Database = {
         Row: {
           current_path: string | null
           display_name: string | null
+          force_logout_at: string | null
           last_seen_at: string
           user_agent: string | null
           user_email: string | null
@@ -526,6 +527,7 @@ export type Database = {
         Insert: {
           current_path?: string | null
           display_name?: string | null
+          force_logout_at?: string | null
           last_seen_at?: string
           user_agent?: string | null
           user_email?: string | null
@@ -534,6 +536,7 @@ export type Database = {
         Update: {
           current_path?: string | null
           display_name?: string | null
+          force_logout_at?: string | null
           last_seen_at?: string
           user_agent?: string | null
           user_email?: string | null
@@ -559,6 +562,7 @@ export type Database = {
         }
         Returns: string
       }
+      force_user_logout: { Args: { _user_id: string }; Returns: undefined }
       get_passagens_via_token: {
         Args: { _password?: string; _token: string }
         Returns: {

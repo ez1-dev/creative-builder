@@ -2,6 +2,28 @@ import { supabase } from '@/integrations/supabase/client';
 
 let heartbeatTimer: number | null = null;
 let lastPath: string | null = null;
+let sessionStartedAt: number = Date.now();
+let forceLogoutTriggered = false;
+
+async function checkForceLogout(userId: string) {
+  if (forceLogoutTriggered) return;
+  try {
+    const { data } = await (supabase.from('user_sessions') as any)
+      .select('force_logout_at')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const flag = data?.force_logout_at ? new Date(data.force_logout_at).getTime() : 0;
+    if (flag && flag > sessionStartedAt) {
+      forceLogoutTriggered = true;
+      try { await supabase.auth.signOut(); } catch { /* ignore */ }
+      try {
+        const { toast } = await import('sonner');
+        toast.error('Sua sessão foi encerrada por um administrador.');
+      } catch { /* ignore */ }
+      setTimeout(() => { window.location.href = '/login'; }, 300);
+    }
+  } catch { /* silencioso */ }
+}
 
 async function getCurrentUserInfo() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -58,6 +80,8 @@ export async function trackAction(action: string, details?: Record<string, unkno
 
 export function startHeartbeat() {
   if (heartbeatTimer !== null) return;
+  sessionStartedAt = Date.now();
+  forceLogoutTriggered = false;
   const tick = async () => {
     try {
       const info = await getCurrentUserInfo();
@@ -70,10 +94,11 @@ export function startHeartbeat() {
         current_path: typeof window !== 'undefined' ? window.location.pathname : null,
         user_agent: navigator.userAgent,
       }, { onConflict: 'user_id' });
+      await checkForceLogout(info.id);
     } catch { /* silencioso */ }
   };
   tick();
-  heartbeatTimer = window.setInterval(tick, 60000);
+  heartbeatTimer = window.setInterval(tick, 30000);
 }
 
 export function stopHeartbeat() {
