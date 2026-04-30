@@ -875,7 +875,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   />
                 ))}
                 {displayRows.length > 0 && (
-                  <div className="flex items-center justify-between rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+                  <div className="sticky bottom-0 z-10 flex items-center justify-between rounded-md border bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 px-3 py-2 text-sm font-semibold shadow-[0_-1px_0_0_hsl(var(--border))]">
                     <span>Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}</span>
                     <span>{formatCurrency(subtotalDisplay)}</span>
                   </div>
@@ -966,8 +966,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 ))}
               </TableBody>
               {displayRows.length > 0 && (
-                <TableFooter>
-                  <TableRow className="bg-muted/60 font-semibold">
+                <TableFooter className="sticky bottom-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 shadow-[0_-1px_0_0_hsl(var(--border))]">
+                  <TableRow className="font-semibold hover:bg-transparent">
                     <TableCell colSpan={baseCols - 1}>
                       Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
                     </TableCell>

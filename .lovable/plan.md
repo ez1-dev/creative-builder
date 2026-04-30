@@ -1,44 +1,37 @@
 ## Objetivo
 
-Adicionar uma linha fixa de **Subtotal** no final da tabela "Registros" da página `/passagens-aereas`, refletindo exatamente os filtros, busca e cross-filters atuais. Funciona tanto no modo plano (uma linha por registro) quanto no modo agrupado por colaborador. Também aparece como barra resumo no modo mobile (cards).
+Tornar o rodapé de **Subtotal** da tabela "Registros" flutuante (sticky), de modo que fique sempre visível na parte inferior da viewport enquanto o usuário rola a página — sem precisar chegar ao fim da lista para ver o valor.
 
 ## Mudanças em `src/components/passagens/PassagensDashboard.tsx`
 
-### 1. Import `TableFooter`
-Adicionar `TableFooter` ao import de `@/components/ui/table` (linhas 9-11).
+### 1. Sticky no `<TableFooter>` da tabela desktop (linhas 968-978)
 
-### 2. Calcular subtotal das linhas exibidas
-Após o `useMemo` de `displayRows` (linha 214), adicionar:
-```ts
-const subtotalDisplay = useMemo(
-  () => displayRows.reduce((s, r) => s + Number(r.valor || 0), 0),
-  [displayRows],
-);
+Substituir o `<TableFooter>` atual por uma versão com `position: sticky` ancorada no `bottom: 0` da viewport, com fundo opaco e leve sombra superior para destacar do conteúdo que rola atrás:
+
+```tsx
+<TableFooter className="sticky bottom-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 shadow-[0_-1px_0_0_hsl(var(--border))]">
+  <TableRow className="font-semibold hover:bg-transparent">
+    <TableCell colSpan={baseCols - 1}>
+      Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+    </TableCell>
+    <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+    {hasActions && <TableCell />}
+  </TableRow>
+</TableFooter>
 ```
 
-### 3. Rodapé da tabela desktop
-Dentro do `<Table>` da seção Registros (entre `</TableBody>` e `</Table>`, ~linha 956), inserir:
+Notas técnicas:
+- Como `<table>` em shadcn já usa `display: table` padrão, `sticky bottom-0` aplicado no `<tfoot>` funciona dentro do scroll da página (ancestral mais próximo com overflow é a viewport — exatamente o que queremos).
+- Usa `bg-muted/95` + `backdrop-blur` para garantir legibilidade sobre as linhas que passam por trás.
+- `shadow-[0_-1px_0_0_hsl(var(--border))]` adiciona uma borda superior sutil usando token semântico (sem cores hardcoded).
+
+### 2. Sticky na barra resumo do modo mobile (cards) — linhas ~877-882
+
+Adicionar `sticky bottom-0 z-10` à barra que aparece abaixo dos `PassagemMobileCard`, com mesmo tratamento de fundo/blur:
+
 ```tsx
 {displayRows.length > 0 && (
-  <TableFooter>
-    <TableRow className="bg-muted/60 font-semibold">
-      <TableCell colSpan={baseCols - 1}>
-        Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
-      </TableCell>
-      <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
-      {hasActions && <TableCell />}
-    </TableRow>
-  </TableFooter>
-)}
-```
-
-`baseCols` e `hasActions` já existem no escopo (linhas 875-877). O subtotal soma `displayRows`, então no modo agrupado representa a soma de todos os grupos visíveis (cada grupo continua mostrando seu próprio total na linha-cabeçalho do grupo).
-
-### 4. Barra de subtotal no modo mobile (cards)
-Logo após o `<div className="space-y-2">` que renderiza os `PassagemMobileCard` (~linha 863), adicionar antes do fechamento da div:
-```tsx
-{displayRows.length > 0 && (
-  <div className="flex items-center justify-between rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+  <div className="sticky bottom-0 z-10 flex items-center justify-between rounded-md border bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 px-3 py-2 text-sm font-semibold shadow-[0_-1px_0_0_hsl(var(--border))]">
     <span>Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}</span>
     <span>{formatCurrency(subtotalDisplay)}</span>
   </div>
@@ -47,10 +40,10 @@ Logo após o `<div className="space-y-2">` que renderiza os `PassagemMobileCard`
 
 ## Comportamento
 
-- O subtotal reflete **exatamente o que está visível**: respeita filtros do dashboard, cross-filters (mês, motivo, CC, destino, UF), busca textual e ordenação.
-- Modo agrupado: linhas-cabeçalho de cada colaborador mantêm seu total individual; o rodapé soma todos os grupos visíveis.
-- Quando não há registros, o rodapé/barra não é renderizado.
-- Sem alterações nos exports (CSV/XLSX) — escopo apenas visual, conforme conversado.
+- Enquanto o card "Registros" estiver na tela, o subtotal fica **fixo no rodapé da viewport**.
+- Quando o usuário rola além do card (acima ou abaixo), o subtotal volta ao fluxo normal — `sticky` se desprende automaticamente fora dos limites do `<table>` / container do mobile.
+- O valor continua refletindo `displayRows` (filtros + busca + cross-filters).
+- Sem cores hardcoded — todos os fundos via tokens (`bg-muted`, `hsl(var(--border))`).
 
 ## Arquivo afetado
 
