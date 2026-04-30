@@ -147,6 +147,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [agruparColab, setAgruparColab] = useState(false);
   const [ordenacao, setOrdenacao] = useState<'data_desc'|'data_asc'|'colab_az'|'colab_za'|'valor_desc'|'valor_asc'>('data_desc');
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
+  // Paginação do card Registros (modo lista, sem agrupamento)
+  const [pageSize, setPageSize] = useState<number>(25); // 0 = "Todos"
+  const [pageIndex, setPageIndex] = useState(0);
   const [outrosMotivoOpen, setOutrosMotivoOpen] = useState(false);
   const OUTROS_LABEL = 'Outros';
 
