@@ -811,15 +811,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card>
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={isMobile ? 360 : 320}>
-              <PieChart margin={isMobile ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 20, right: 30, bottom: 20, left: 30 }}>
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : 380}>
+              <PieChart margin={isMobile ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 30, right: 90, bottom: 30, left: 90 }}>
                 <Pie
                   data={porMotivo}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 70 : 100}
+                  outerRadius={isMobile ? 70 : 85}
                   cursor="pointer"
                   onClick={(d: any) => {
                     if (d.name === OUTROS_LABEL) {
@@ -832,10 +832,22 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   label={isMobile
                     ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
                     : (e: any) => {
+                        const RADIAN = Math.PI / 180;
+                        const radius = e.outerRadius + 22;
+                        const x = e.cx + radius * Math.cos(-e.midAngle * RADIAN);
+                        const y = e.cy + radius * Math.sin(-e.midAngle * RADIAN);
                         const v = Number(e.value || 0);
                         const mil = `R$${(v / 1000).toFixed(0)} Mil`;
                         const pct = ((e.percent ?? 0) * 100).toFixed(1).replace('.', ',');
-                        return `${e.name} ${mil} (${pct}%)`;
+                        const nameRaw = String(e.name ?? '');
+                        const name = nameRaw.length > 24 ? `${nameRaw.slice(0, 23)}…` : nameRaw;
+                        const anchor = x > e.cx ? 'start' : 'end';
+                        return (
+                          <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={anchor} fontSize={11}>
+                            <tspan x={x} dy="-0.3em">{name}</tspan>
+                            <tspan x={x} dy="1.15em" fill="hsl(var(--muted-foreground))">{mil} ({pct}%)</tspan>
+                          </text>
+                        );
                       }}
                   style={{ fontSize: 11 }}
                 >
