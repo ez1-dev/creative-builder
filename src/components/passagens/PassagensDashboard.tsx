@@ -1277,7 +1277,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       key={m.name}
                       className="cursor-pointer hover:bg-accent/40"
                       onClick={() => {
-                        setSelectedMotivo(m.name);
+                        setSelectedMotivo((prev) => toggleItem(prev, m.name));
                         setOutrosMotivoOpen(false);
                       }}
                     >
