@@ -28,6 +28,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePassagensLayout } from '@/hooks/usePassagensLayout';
+import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export interface Passagem {
