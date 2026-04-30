@@ -570,9 +570,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-stretch">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        {isMobile ? (
+        {isCompact ? (
           <div className="flex flex-col gap-2">
             <KPICard
               title="Registros"
