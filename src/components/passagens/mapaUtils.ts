@@ -40,28 +40,47 @@ export const HEAT_COLORS = {
   top:   'hsl(0, 75%, 50%)',       // vermelho - líder
 } as const;
 
+export type HeatTier = 'empty' | 'low' | 'mid' | 'high' | 'top';
+
+export interface ColorScale {
+  (qtd: number): string;
+  tierOf: (qtd: number) => HeatTier;
+  thresholds: { t1: number; t2: number; t3: number; max: number; count: number };
+}
+
 /**
  * Constrói uma função de cor baseada em quantis (ordinal).
  * Distribui os estados COM dados em 4 faixas de igual tamanho, garantindo
  * contraste visual mesmo quando a distribuição é cauda longa
  * (ex.: poucos estados no topo + muitos com valores pequenos).
  */
-export function makeColorScale(values: number[]): (qtd: number) => string {
+export function makeColorScale(values: number[]): ColorScale {
   const sorted = values.filter((v) => v > 0).sort((a, b) => a - b);
-  if (sorted.length === 0) return () => HEAT_COLORS.empty;
+  if (sorted.length === 0) {
+    const fn = ((_: number) => HEAT_COLORS.empty) as ColorScale;
+    fn.tierOf = () => 'empty';
+    fn.thresholds = { t1: 0, t2: 0, t3: 0, max: 0, count: 0 };
+    return fn;
+  }
 
   const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
   const t1 = q(0.25);
   const t2 = q(0.5);
   const t3 = q(0.75);
+  const max = sorted[sorted.length - 1];
 
-  return (qtd: number) => {
-    if (!qtd || qtd <= 0) return HEAT_COLORS.empty;
-    if (qtd <= t1) return HEAT_COLORS.low;
-    if (qtd <= t2) return HEAT_COLORS.mid;
-    if (qtd <= t3) return HEAT_COLORS.high;
-    return HEAT_COLORS.top;
+  const tierOf = (qtd: number): HeatTier => {
+    if (!qtd || qtd <= 0) return 'empty';
+    if (qtd <= t1) return 'low';
+    if (qtd <= t2) return 'mid';
+    if (qtd <= t3) return 'high';
+    return 'top';
   };
+
+  const fn = ((qtd: number) => HEAT_COLORS[tierOf(qtd)]) as ColorScale;
+  fn.tierOf = tierOf;
+  fn.thresholds = { t1, t2, t3, max, count: sorted.length };
+  return fn;
 }
 
 // Mantida por compatibilidade — usa a escala linear simples.
