@@ -202,23 +202,29 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return true;
   }), [data, filtroColaborador, filtroCC, filtroMotivo, filtroTipo, filtroMes, dataInicio, dataFim]);
 
-  // Helper: aplica subset dos cross-filters
+  // Helper para multi-seleção: adiciona se ausente, remove se presente
+  const toggleItem = (arr: string[], item: string): string[] =>
+    arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+
+  // Helper: aplica subset dos cross-filters (OR dentro de cada filtro, AND entre filtros)
   const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean }) => {
     return rows.filter((r) => {
-      if (opts.mes && selectedMes && (r.data_registro ?? '').slice(0, 7) !== selectedMes) return false;
-      if (opts.motivo && selectedMotivo) {
+      if (opts.mes && selectedMes.length && !selectedMes.includes((r.data_registro ?? '').slice(0, 7))) return false;
+      if (opts.motivo && selectedMotivo.length) {
         const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
-        if (m !== selectedMotivo) return false;
+        if (!selectedMotivo.includes(m)) return false;
       }
-      if (opts.cc && selectedCC) {
+      if (opts.cc && selectedCC.length) {
         const cc = r.centro_custo || 'Sem CC';
-        if (cc !== selectedCC) return false;
+        if (!selectedCC.includes(cc)) return false;
       }
-      if (opts.destino && selectedDestino) {
-        if (!r.destino || nomeNormalizado(r.destino) !== nomeNormalizado(selectedDestino)) return false;
+      if (opts.destino && selectedDestino.length) {
+        if (!r.destino) return false;
+        const norm = nomeNormalizado(r.destino);
+        if (!selectedDestino.some((d) => nomeNormalizado(d) === norm)) return false;
       }
-      if (opts.uf && selectedUF) {
-        if ((r.uf_destino ?? '').toUpperCase() !== selectedUF) return false;
+      if (opts.uf && selectedUF.length) {
+        if (!selectedUF.includes((r.uf_destino ?? '').toUpperCase())) return false;
       }
       return true;
     });
