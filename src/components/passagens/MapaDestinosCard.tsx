@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { geoCentroid, geoMercator } from 'd3-geo';
