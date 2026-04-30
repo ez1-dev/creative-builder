@@ -86,6 +86,19 @@ interface Props {
 
 export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
   const isMobile = useIsMobile();
+  // Threshold "compact" para layouts até tablet inclusive (< 1024px):
+  // KPI "Registros" e tabela usam a versão empilhada/cards para evitar
+  // sobreposição do Select e overflow horizontal da tabela.
+  const [isCompact, setIsCompact] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    const onChange = () => setIsCompact(window.innerWidth < 1024);
+    mql.addEventListener('change', onChange);
+    onChange();
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
@@ -557,9 +570,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4 items-stretch">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
-        {isMobile ? (
+        {isCompact ? (
           <div className="flex flex-col gap-2">
             <KPICard
               title="Registros"
@@ -822,8 +835,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </div>
         </CardHeader>
-        <CardContent className={cn(isMobile ? 'p-3' : 'overflow-x-auto p-0')}>
-          {isMobile ? (
+        <CardContent className={cn(isCompact ? 'p-3' : 'overflow-x-auto p-0')}>
+          {isCompact ? (
             loading ? (
               <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
             ) : displayRows.length === 0 ? (
