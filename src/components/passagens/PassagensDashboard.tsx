@@ -614,38 +614,46 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       {hasCrossFilter && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
           <span className="text-xs font-medium text-muted-foreground">Filtros do gráfico:</span>
-          {selectedMes && (
-            <Badge variant="secondary" className="gap-1">
-              Mês: {formatMesLabel(selectedMes)}
-              <button onClick={() => setSelectedMes(null)} className="ml-1 hover:text-destructive">
+          {selectedMes.map((m) => (
+            <Badge key={`mes-${m}`} variant="secondary" className="gap-1">
+              Mês: {formatMesLabel(m)}
+              <button onClick={() => setSelectedMes((prev) => prev.filter((x) => x !== m))} className="ml-1 hover:text-destructive">
                 <X className="h-3 w-3" />
               </button>
             </Badge>
-          )}
-          {selectedMotivo && (
-            <Badge variant="secondary" className="gap-1">
-              Motivo: {selectedMotivo}
-              <button onClick={() => setSelectedMotivo(null)} className="ml-1 hover:text-destructive">
+          ))}
+          {selectedMotivo.map((m) => (
+            <Badge key={`mot-${m}`} variant="secondary" className="gap-1">
+              Motivo: {m}
+              <button onClick={() => setSelectedMotivo((prev) => prev.filter((x) => x !== m))} className="ml-1 hover:text-destructive">
                 <X className="h-3 w-3" />
               </button>
             </Badge>
-          )}
-          {selectedCC && (
-            <Badge variant="secondary" className="gap-1">
-              CC: {selectedCC}
-              <button onClick={() => setSelectedCC(null)} className="ml-1 hover:text-destructive">
+          ))}
+          {selectedCC.map((c) => (
+            <Badge key={`cc-${c}`} variant="secondary" className="gap-1">
+              CC: {c}
+              <button onClick={() => setSelectedCC((prev) => prev.filter((x) => x !== c))} className="ml-1 hover:text-destructive">
                 <X className="h-3 w-3" />
               </button>
             </Badge>
-          )}
-          {selectedDestino && (
-            <Badge variant="secondary" className="gap-1">
-              Destino: {selectedDestino}
-              <button onClick={() => setSelectedDestino(null)} className="ml-1 hover:text-destructive">
+          ))}
+          {selectedDestino.map((d) => (
+            <Badge key={`dest-${d}`} variant="secondary" className="gap-1">
+              Destino: {d}
+              <button onClick={() => setSelectedDestino((prev) => prev.filter((x) => x !== d))} className="ml-1 hover:text-destructive">
                 <X className="h-3 w-3" />
               </button>
             </Badge>
-          )}
+          ))}
+          {selectedUF.map((u) => (
+            <Badge key={`uf-${u}`} variant="secondary" className="gap-1">
+              UF: {u}
+              <button onClick={() => setSelectedUF((prev) => prev.filter((x) => x !== u))} className="ml-1 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
         </div>
       )}
 
