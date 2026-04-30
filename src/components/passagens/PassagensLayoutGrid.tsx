@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout';
+import GridLayout, { WidthProvider, type Layout, type LayoutItem } from 'react-grid-layout/legacy';
 import { cn } from '@/lib/utils';
 import type { PassagensWidget } from '@/hooks/usePassagensLayout';
 
