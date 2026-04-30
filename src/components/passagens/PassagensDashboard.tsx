@@ -977,20 +977,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     onDelete={!readOnly ? onDelete : undefined}
                   />
                 ))}
-                {pagedRows.length > 0 && (
-                  <div className="flex flex-col gap-1 rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
-                    <div className="flex items-center justify-between">
-                      <span>
-                        Subtotal página · {pagedRows.length} {pagedRows.length === 1 ? 'registro' : 'registros'}
-                      </span>
-                      <span>{formatCurrency(subtotalPagina)}</span>
-                    </div>
-                    {showPagination && (
-                      <div className="flex items-center justify-between text-xs font-normal text-muted-foreground">
-                        <span>Total geral · {displayRows.length} registros</span>
-                        <span>{formatCurrency(subtotalDisplay)}</span>
-                      </div>
-                    )}
+                {displayRows.length > 0 && (
+                  <div className="flex items-center justify-between rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+                    <span>
+                      Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+                    </span>
+                    <span>{formatCurrency(subtotalDisplay)}</span>
                   </div>
                 )}
               </div>
