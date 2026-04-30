@@ -874,6 +874,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     onDelete={!readOnly ? onDelete : undefined}
                   />
                 ))}
+                {displayRows.length > 0 && (
+                  <div className="flex items-center justify-between rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+                    <span>Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}</span>
+                    <span>{formatCurrency(subtotalDisplay)}</span>
+                  </div>
+                )}
               </div>
             )
           ) : (() => {
