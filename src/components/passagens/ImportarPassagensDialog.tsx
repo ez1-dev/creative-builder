@@ -52,7 +52,22 @@ const HEADERS = [
   'data_registro','colaborador','centro_custo','projeto_obra','fornecedor',
   'cia_aerea','numero_bilhete','localizador','origem','destino',
   'data_ida','data_volta','motivo_viagem','tipo_despesa','valor','observacoes',
+  'uf_destino',
 ];
+
+// Aliases aceitos para a coluna de UF de destino
+const UF_DESTINO_ALIASES = ['uf_destino', 'UF DESTINO', 'UF Destino', 'uf destino', 'UF', 'uf'];
+
+function pickUf(raw: Record<string, any>): string | null {
+  for (const k of UF_DESTINO_ALIASES) {
+    const v = raw[k];
+    if (v !== null && v !== undefined && String(v).trim() !== '') {
+      const s = String(v).trim().toUpperCase();
+      if (/^[A-Z]{2}$/.test(s)) return s;
+    }
+  }
+  return null;
+}
 
 function normalizeDate(v: any): string | null {
   if (v === null || v === undefined || v === '') return null;
