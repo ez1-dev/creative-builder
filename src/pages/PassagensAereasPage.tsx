@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2, Upload } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw } from 'lucide-react';
 import {
   PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
@@ -62,6 +62,33 @@ export default function PassagensAereasPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  // Recarrega ao voltar para a aba (cobre backfills/migrações feitos com a aba em segundo plano)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    const onFocus = () => load();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
+
+  // Realtime: recarrega quando qualquer registro de passagens_aereas muda no banco
+  useEffect(() => {
+    const channel = supabase
+      .channel('passagens_aereas_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'passagens_aereas' },
+        () => { load(); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const handleOpenNew = () => { setEditing(null); setForm(emptyForm()); setOpenForm(true); };
   const handleOpenEdit = (p: Passagem) => { setEditing(p); setForm({ ...p }); setOpenForm(true); };
@@ -122,6 +149,15 @@ export default function PassagensAereasPage() {
         description="Cadastro manual de despesas com passagens aéreas"
         actions={
           <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={load}
+              disabled={loading}
+              title="Recarregar dados"
+            >
+              <RefreshCw className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
             {editAllowed && (
               <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
                 <Share2 className="mr-1 h-4 w-4" /> Compartilhar

@@ -1,65 +1,52 @@
-## Diagnóstico
+## Objetivo
 
-Investiguei o banco e identifiquei a **causa raiz** do mapa não refletir os estados:
+Fazer `/passagens-aereas` recarregar automaticamente os dados (incluindo `uf_destino` para o mapa) sem precisar de Ctrl+Shift+R.
 
-```
-SELECT COUNT(*) AS total, COUNT(uf_destino) AS com_uf FROM passagens_aereas;
- total | com_uf 
--------+--------
-   300 |      0
-```
+Hoje a página só busca dados uma vez no mount (`useEffect(() => { load() }, [])`). Quando o banco é atualizado por backfill, importação em outra aba, ou por outro usuário, o mapa fica desatualizado até o reload manual.
 
-**Os 300 registros existentes têm `uf_destino` NULO.** A coluna foi adicionada na migração anterior, mas:
+## Mudanças
 
-1. Os dados já estavam no banco antes da feature, sem UF.
-2. O importador só preenche `uf_destino` se a planilha tiver a coluna "UF DESTINO" — quem importou antes não tinha essa coluna.
-3. O mapa, sem nenhum `uf_destino` populado, cai no fallback do dicionário de cidades — mas mesmo o dicionário cobrindo as cidades, nada está sendo coloreado de forma confiável porque parte das cidades não está no dicionário (cidades menores) e algumas variações de grafia podem não normalizar.
+### 1. Realtime — recarrega ao detectar mudanças no banco
+Subscribe Postgres changes da tabela `passagens_aereas` (já usado em outros módulos do projeto). Qualquer INSERT/UPDATE/DELETE dispara `load()`.
 
-## Solução
-
-Fazer um **backfill único** (UPDATE no banco) populando `uf_destino` em todos os registros existentes a partir do dicionário de cidades já existente em `cidadesBrasil.ts`. Assim:
-
-- Dados antigos passam a ter UF correta no banco.
-- O mapa usa `ufDirectMap` (caminho rápido e autoritativo).
-- Importações futuras com coluna "UF DESTINO" continuam sobrepondo (já implementado).
-- Cidades sem UF deduzível ficam NULL e serão exibidas no rótulo "X cidades sem geo".
-
-## Passos
-
-1. **Migration de backfill** (`supabase/migrations/..._backfill_uf_destino.sql`):
-   - Atualiza `passagens_aereas` cruzando `UPPER(unaccent(destino))` com um `VALUES (...)` contendo o mapeamento cidade→UF (mesmo dicionário do front).
-   - `WHERE uf_destino IS NULL` para não sobrescrever quaisquer valores já presentes.
-   - Inclui as ~60 cidades já listadas em `cidadesBrasil.ts` mais as cidades vistas no banco (Curitiba, São Paulo, Salvador, Fortaleza, Santarém, Manaus, Itaituba, Belém, São Luís, Chapecó, Maceió, Santos, Belo Horizonte, Campinas, Teresina, Porto Alegre, Rio de Janeiro, Recife, Osasco, Goiânia etc.).
-
-2. **Sem mudanças no frontend** — a lógica do mapa já prioriza `uf_destino` direto do registro quando presente. Após o backfill, todos os 300 registros entram nesse caminho.
-
-3. **Verificação pós-migração** — rodar `SELECT uf_destino, COUNT(*) FROM passagens_aereas GROUP BY uf_destino` para confirmar a distribuição.
-
-## Detalhes técnicos
-
+Requer migration para adicionar a tabela à publicação `supabase_realtime`:
 ```sql
--- Forma do UPDATE (resumo)
-UPDATE public.passagens_aereas p
-SET uf_destino = m.uf
-FROM (VALUES
-  ('CURITIBA','PR'), ('SAO PAULO','SP'), ('SALVADOR','BA'),
-  ('FORTALEZA','CE'), ('SANTAREM','PA'), ('MANAUS','AM'),
-  ('ITAITUBA','PA'), ('BELEM','PA'), ('SAO LUIS','MA'),
-  ('CHAPECO','SC'), ('MACEIO','AL'), ('SANTOS','SP'),
-  ('BELO HORIZONTE','MG'), ('CAMPINAS','SP'), ('TERESINA','PI'),
-  ('PORTO ALEGRE','RS'), ('RIO DE JANEIRO','RJ'), ('RECIFE','PE'),
-  ('OSASCO','SP'), ('GOIANIA','GO')
-  -- + restantes do dicionário cidadesBrasil.ts
-) AS m(cidade, uf)
-WHERE p.uf_destino IS NULL
-  AND UPPER(TRIM(p.destino)) = m.cidade;
+ALTER TABLE public.passagens_aereas REPLICA IDENTITY FULL;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.passagens_aereas;
 ```
 
-Como o Postgres pode não ter `unaccent` instalado e os destinos no banco já estão em maiúsculas e sem acentos (verifiquei: "SAO PAULO", "SAO LUIS", "CHAPECO"), basta `UPPER(TRIM(...))`.
+### 2. Reload ao voltar à aba
+Listeners `visibilitychange` + `focus` chamam `load()` quando o usuário retorna à página. Cobre o caso de migrações/backfills feitos enquanto a aba estava em segundo plano (não depende de realtime estar habilitado).
+
+### 3. Botão "Atualizar" no header
+Botão visível com ícone `RefreshCw` (anima ao carregar) ao lado de "Compartilhar / Importar / Novo registro". Permite forçar reload manual sem F5.
 
 ## Arquivos
 
-- **novo**: `supabase/migrations/<timestamp>_backfill_uf_destino.sql`
-- nenhuma mudança em código TS/TSX
+- **edita** `src/pages/PassagensAereasPage.tsx`:
+  - Importa `RefreshCw` do `lucide-react`.
+  - Adiciona `useEffect` com listeners `visibilitychange` e `focus`.
+  - Adiciona `useEffect` com canal Supabase Realtime escutando `postgres_changes` em `passagens_aereas`.
+  - Adiciona botão "Atualizar" em `PageHeader.actions` (sempre visível, mesmo para usuários read-only).
 
-Aprove para eu rodar o backfill.
+- **migration nova** (será aplicada via tool de migration ao sair do modo plan): habilita realtime na tabela.
+
+## Detalhe técnico — bloco realtime
+
+```ts
+useEffect(() => {
+  const channel = supabase
+    .channel('passagens_aereas_changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'passagens_aereas' },
+      () => { load(); },
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, []);
+```
+
+A página `/passagens-aereas-compartilhado` (link público) **não** ganha realtime nesta rodada — usa RPC com token e a sessão é anônima; mantém comportamento atual.
+
+Aprove para implementar.
