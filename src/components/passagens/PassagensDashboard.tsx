@@ -193,13 +193,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const filtered = useMemo(() => data.filter((r) => {
     if (filtroColaborador && !r.colaborador.toLowerCase().includes(filtroColaborador.toLowerCase())) return false;
     if (filtroCC && !(r.centro_custo ?? '').toLowerCase().includes(filtroCC.toLowerCase())) return false;
+    if (filtroMotivo !== 'todos' && (r.motivo_viagem ?? '').trim() !== filtroMotivo) return false;
     if (filtroTipo !== 'todos' && r.tipo_despesa !== filtroTipo) return false;
     const dr = (r.data_registro ?? '').slice(0, 10);
     if (filtroMes !== 'todos' && dr.slice(0, 7) !== filtroMes) return false;
     if (dataInicio && dr < dataInicio) return false;
     if (dataFim && dr > dataFim) return false;
     return true;
-  }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
+  }), [data, filtroColaborador, filtroCC, filtroMotivo, filtroTipo, filtroMes, dataInicio, dataFim]);
 
   // Helper: aplica subset dos cross-filters
   const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean }) => {
