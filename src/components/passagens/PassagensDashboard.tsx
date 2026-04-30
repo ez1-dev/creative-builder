@@ -135,11 +135,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     }
   }, [filtrosAbertos]);
   // Cross-filters (clique nos gráficos)
-  const [selectedMes, setSelectedMes] = useState<string | null>(null);
-  const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
-  const [selectedCC, setSelectedCC] = useState<string | null>(null);
-  const [selectedDestino, setSelectedDestino] = useState<string | null>(null);
-  const [selectedUF, setSelectedUF] = useState<string | null>(null);
+  const [selectedMes, setSelectedMes] = useState<string[]>([]);
+  const [selectedMotivo, setSelectedMotivo] = useState<string[]>([]);
+  const [selectedCC, setSelectedCC] = useState<string[]>([]);
+  const [selectedDestino, setSelectedDestino] = useState<string[]>([]);
+  const [selectedUF, setSelectedUF] = useState<string[]>([]);
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
