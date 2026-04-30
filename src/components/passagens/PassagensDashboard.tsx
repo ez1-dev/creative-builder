@@ -496,7 +496,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </button>
         {filtrosAbertos && (
           <CardContent className="space-y-3 p-4 pt-3 border-t">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-7">
               <div>
                 <Label className="text-xs">Colaborador</Label>
                 <ColaboradorCombobox
