@@ -1,34 +1,25 @@
-## Cross-filters multi-seleção nos gráficos e mapa
+## Tipo = Aéreo / Ônibus / Outros
 
-Hoje, clicar em uma barra/fatia/UF substitui a seleção anterior (single-select). Vou tornar **todos os 5 cross-filters** multi-seleção, com lógica **OR dentro do mesmo filtro** e **AND entre filtros diferentes** (padrão BI).
-
-### Comportamento esperado
-
-- Clicar em CURITIBA no Top Destinos → filtra Curitiba.
-- Clicar em SANTARÉM em seguida → adiciona Santarém (filtro vira `destino ∈ {Curitiba, Santarém}`).
-- Clicar de novo em CURITIBA → remove apenas Curitiba do conjunto, mantém Santarém.
-- Vale também para: Evolução Mensal (mês), Por Motivo, Top CC, mapa por UF.
-- O destaque visual atual (opacidade dim em barras/fatias não-selecionadas) continua, considerando o **conjunto** de selecionados.
-- Os badges de "filtros ativos" no topo passam a listar cada item selecionado individualmente, com X para remover só aquele.
-- Botão "Limpar tudo" zera todos os conjuntos.
+O campo `tipo_despesa` (hoje "Folha de Campo, Demissão, ..." — que é semanticamente **motivo da viagem**, não tipo) passa a ter apenas três opções: **Aéreo**, **Ônibus**, **Outros**.
 
 ### Alterações
 
-Arquivo único: `src/components/passagens/PassagensDashboard.tsx`
+1. **`src/components/passagens/PassagensDashboard.tsx`** — substituir `TIPO_DESPESA_OPTIONS` por:
+   ```ts
+   export const TIPO_DESPESA_OPTIONS = ['Aéreo', 'Ônibus', 'Outros'];
+   ```
+   Isso já reflete automaticamente no filtro **Tipo** da barra de filtros (já usa `TIPO_DESPESA_OPTIONS`) e no cadastro/edição em `PassagensAereasPage.tsx` e validação do importador.
 
-1. **Trocar tipos de estado** de `string | null` para `string[]`:
-   - `selectedMes`, `selectedMotivo`, `selectedCC`, `selectedDestino`, `selectedUF` → arrays.
-2. **Helper `toggleItem(arr, item)`** que adiciona se ausente, remove se presente. Usar em todos os onClick dos gráficos e do mapa.
-3. **Atualizar `applyCross`**: substituir `if (selectedX) ... !== selectedX` por `if (selectedX.length && !selectedX.includes(value))`.
-4. **Atualizar `hasCrossFilter`**: `arr.length > 0` para cada um.
-5. **Atualizar a lógica de `fillOpacity`** nos `<Cell>` dos charts: dim quando há seleção e o item atual **não** está no array.
-6. **Badges de filtros ativos** (linhas ~611-): renderizar um badge por item selecionado, com X que chama `toggleItem` (remove só aquele).
-7. **`limparTudo`**: setar todos os arrays para `[]`.
-8. **`MapaDestinosCard`**: passa a receber `selectedUFs: string[]` (renomeio interno da prop) e `onSelectUF` continua chamando `toggleItem`. Verificar a assinatura atual e ajustar destaque condicional do mapa para usar `includes`.
-9. **Texto auxiliar** "(clique novamente para limpar)" nos títulos: trocar para "(clique para adicionar/remover)".
+2. **Migração de dados (UPDATE no banco)** — atualizar todos os 300 registros existentes para `tipo_despesa = 'Aéreo'`:
+   ```sql
+   UPDATE public.passagens_aereas SET tipo_despesa = 'Aéreo';
+   ```
+   (executado via tool de insert/update, não via migração de schema)
+
+3. **Default do formulário** — `PassagensAereasPage.tsx` já usa `TIPO_DESPESA_OPTIONS[0]`, então o default novo será 'Aéreo' automaticamente.
 
 ### Fora do escopo
 
-- Não mexer nos filtros do topo (Colaborador, CC, Motivo, Tipo, Mês, datas).
-- Não alterar agrupamento, paginação, KPIs ou exportações.
-- Não mexer em compartilhamento público.
+- Não renomear a coluna `tipo_despesa` no banco.
+- Não mexer no filtro "Motivo da Viagem" recém-criado.
+- Não mexer em KPIs, agrupamentos ou exportações.

@@ -55,11 +55,8 @@ export interface Passagem {
 }
 
 export const TIPO_DESPESA_OPTIONS = [
-  'Folha de Campo',
-  'Demissão',
-  'Viagem Administrativa',
-  'Contratação',
-  'Transferência de Obra',
+  'Aéreo',
+  'Ônibus',
   'Outros',
 ];
 
