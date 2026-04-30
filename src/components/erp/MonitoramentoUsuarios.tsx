@@ -166,19 +166,39 @@ export function MonitoramentoUsuarios() {
                 <TableHead>Email</TableHead>
                 <TableHead>Página atual</TableHead>
                 <TableHead className="w-[140px]">Última atividade</TableHead>
+                <TableHead className="w-[120px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {online.map(s => (
-                <TableRow key={s.user_id}>
-                  <TableCell className="font-medium text-sm">{s.display_name || '—'}</TableCell>
-                  <TableCell className="text-sm">{s.user_email || '—'}</TableCell>
-                  <TableCell className="text-xs font-mono">{s.current_path || '—'}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{timeAgo(s.last_seen_at)}</TableCell>
-                </TableRow>
-              ))}
+              {online.map(s => {
+                const isSelf = user?.id === s.user_id;
+                return (
+                  <TableRow key={s.user_id}>
+                    <TableCell className="font-medium text-sm">{s.display_name || '—'}</TableCell>
+                    <TableCell className="text-sm">{s.user_email || '—'}</TableCell>
+                    <TableCell className="text-xs font-mono">{s.current_path || '—'}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{timeAgo(s.last_seen_at)}</TableCell>
+                    <TableCell className="text-right">
+                      {isSelf ? (
+                        <span className="text-[10px] text-muted-foreground italic">você</span>
+                      ) : (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => handleKick(s)}
+                          disabled={killing === s.user_id}
+                        >
+                          <LogOut className="h-3 w-3 mr-1" />
+                          {killing === s.user_id ? 'Derrubando...' : 'Derrubar'}
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {online.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">Nenhum usuário online</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Nenhum usuário online</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
