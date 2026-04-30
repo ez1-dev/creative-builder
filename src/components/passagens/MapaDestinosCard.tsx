@@ -64,25 +64,42 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
   >(null);
 
   const { porCidade, porUF, semGeo, totalSemGeo, maxQtdUF } = useMemo(() => {
-    const cidadeMap = new Map<string, { qtd: number; total: number; nomeOriginal: string }>();
+    const cidadeMap = new Map<string, { qtd: number; total: number; nomeOriginal: string; ufRegistro: string | null }>();
     const sem = new Set<string>();
     let semCount = 0;
 
+    // Agregação extra: UF direta do registro (uf_destino), independente da cidade ter geo
+    const ufDirectMap = new Map<string, AggregadoUF>();
+
     for (const r of data) {
+      const ufReg = (r.uf_destino && /^[A-Z]{2}$/.test(r.uf_destino.toUpperCase()))
+        ? r.uf_destino.toUpperCase()
+        : null;
+
+      // Agrega por UF do registro (autoritativo) — mesmo sem cidade conhecida
+      if (ufReg) {
+        const cur = ufDirectMap.get(ufReg) ?? { uf: ufReg, qtd: 0, total: 0 };
+        cur.qtd += 1;
+        cur.total += Number(r.valor || 0);
+        ufDirectMap.set(ufReg, cur);
+      }
+
       if (!r.destino) continue;
       const key = nomeNormalizado(r.destino);
-      const cur = cidadeMap.get(key) ?? { qtd: 0, total: 0, nomeOriginal: r.destino };
+      const cur = cidadeMap.get(key) ?? { qtd: 0, total: 0, nomeOriginal: r.destino, ufRegistro: ufReg };
       cur.qtd += 1;
       cur.total += Number(r.valor || 0);
+      // se algum registro da cidade tiver uf_destino, prevalece sobre fallback
+      if (!cur.ufRegistro && ufReg) cur.ufRegistro = ufReg;
       cidadeMap.set(key, cur);
     }
 
     const cidades: AggregadoCidade[] = [];
-    const ufMap = new Map<string, AggregadoUF>();
 
     for (const [, val] of cidadeMap.entries()) {
       const coord = geocodeCidade(nomeNormalizado(val.nomeOriginal));
-      if (!coord) {
+      const ufFinal = val.ufRegistro ?? coord?.uf ?? null;
+      if (!ufFinal) {
         sem.add(val.nomeOriginal);
         semCount += val.qtd;
         continue;
@@ -91,21 +108,33 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
         cidade: val.nomeOriginal,
         qtd: val.qtd,
         total: val.total,
-        uf: coord.uf,
+        uf: ufFinal,
       });
-      const ufCur = ufMap.get(coord.uf) ?? { uf: coord.uf, qtd: 0, total: 0 };
-      ufCur.qtd += val.qtd;
-      ufCur.total += val.total;
-      ufMap.set(coord.uf, ufCur);
     }
 
     cidades.sort((a, b) => b.qtd - a.qtd);
-    const ufs = Array.from(ufMap.values());
+
+    // porUF final: prioriza ufDirectMap quando há registros com uf_destino;
+    // caso contrário, soma das cidades com UF resolvida
+    let porUFMap: Map<string, AggregadoUF>;
+    if (ufDirectMap.size > 0) {
+      porUFMap = ufDirectMap;
+    } else {
+      porUFMap = new Map();
+      for (const c of cidades) {
+        const cur = porUFMap.get(c.uf) ?? { uf: c.uf, qtd: 0, total: 0 };
+        cur.qtd += c.qtd;
+        cur.total += c.total;
+        porUFMap.set(c.uf, cur);
+      }
+    }
+
+    const ufs = Array.from(porUFMap.values());
     const max = ufs.reduce((m, u) => Math.max(m, u.qtd), 0);
 
     return {
       porCidade: cidades,
-      porUF: ufMap,
+      porUF: porUFMap,
       semGeo: Array.from(sem),
       totalSemGeo: semCount,
       maxQtdUF: max,

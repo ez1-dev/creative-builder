@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Download, Upload, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { TIPO_DESPESA_OPTIONS } from '@/components/passagens/PassagensDashboard';
+import { geocodeCidade, nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 
 interface Props {
   open: boolean;
@@ -37,6 +38,7 @@ interface ParsedRow {
   tipo_despesa: string;
   valor: number;
   observacoes: string | null;
+  uf_destino: string | null;
 }
 
 interface RowResult {
@@ -50,7 +52,22 @@ const HEADERS = [
   'data_registro','colaborador','centro_custo','projeto_obra','fornecedor',
   'cia_aerea','numero_bilhete','localizador','origem','destino',
   'data_ida','data_volta','motivo_viagem','tipo_despesa','valor','observacoes',
+  'uf_destino',
 ];
+
+// Aliases aceitos para a coluna de UF de destino
+const UF_DESTINO_ALIASES = ['uf_destino', 'UF DESTINO', 'UF Destino', 'uf destino', 'UF', 'uf'];
+
+function pickUf(raw: Record<string, any>): string | null {
+  for (const k of UF_DESTINO_ALIASES) {
+    const v = raw[k];
+    if (v !== null && v !== undefined && String(v).trim() !== '') {
+      const s = String(v).trim().toUpperCase();
+      if (/^[A-Z]{2}$/.test(s)) return s;
+    }
+  }
+  return null;
+}
 
 function normalizeDate(v: any): string | null {
   if (v === null || v === undefined || v === '') return null;
@@ -172,6 +189,14 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
           tipo_despesa: tipo_despesa!,
           valor: valor!,
           observacoes: strOrNull(get('observacoes')),
+          uf_destino: (() => {
+            const fromSheet = pickUf(raw);
+            if (fromSheet) return fromSheet;
+            // Fallback: deduzir pela cidade
+            const dest = strOrNull(get('destino'));
+            if (!dest) return null;
+            return geocodeCidade(nomeNormalizado(dest))?.uf ?? null;
+          })(),
         };
         return { linha, ok: true, data };
       }).filter((r) => r.erro !== '__empty__');

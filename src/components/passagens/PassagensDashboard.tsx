@@ -48,6 +48,7 @@ export interface Passagem {
   tipo_despesa: string;
   valor: number;
   observacoes: string | null;
+  uf_destino: string | null;
 }
 
 export const TIPO_DESPESA_OPTIONS = [

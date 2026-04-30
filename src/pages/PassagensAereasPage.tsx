@@ -24,6 +24,7 @@ import {
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { ImportarPassagensDialog } from '@/components/passagens/ImportarPassagensDialog';
+import { geocodeCidade, nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 
 const PATH = '/passagens-aereas';
 
@@ -87,6 +88,9 @@ export default function PassagensAereasPage() {
       tipo_despesa: form.tipo_despesa,
       valor: Number(form.valor) || 0,
       observacoes: form.observacoes || null,
+      uf_destino: form.destino
+        ? (geocodeCidade(nomeNormalizado(form.destino))?.uf ?? null)
+        : null,
     };
 
     if (editing) {
