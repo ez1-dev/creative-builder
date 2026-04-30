@@ -846,7 +846,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     <Cell
                       key={i}
                       fill={entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length]}
-                      fillOpacity={selectedMotivo && selectedMotivo !== entry.name ? dimOpacity : 1}
+                      fillOpacity={selectedMotivo.length > 0 && !selectedMotivo.includes(entry.name) ? dimOpacity : 1}
                     />
                   ))}
                 </Pie>
