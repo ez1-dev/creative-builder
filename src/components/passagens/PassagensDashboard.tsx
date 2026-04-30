@@ -835,8 +835,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </div>
         </CardHeader>
-        <CardContent className={cn(isMobile ? 'p-3' : 'overflow-x-auto p-0')}>
-          {isMobile ? (
+        <CardContent className={cn(isCompact ? 'p-3' : 'overflow-x-auto p-0')}>
+          {isCompact ? (
             loading ? (
               <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
             ) : displayRows.length === 0 ? (
