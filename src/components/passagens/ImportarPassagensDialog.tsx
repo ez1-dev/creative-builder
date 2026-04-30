@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table';
 import { Download, Upload, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import { TIPO_DESPESA_OPTIONS } from '@/components/passagens/PassagensDashboard';
+import { geocodeCidade, nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 
 interface Props {
   open: boolean;
