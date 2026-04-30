@@ -31,14 +31,24 @@ export const LABEL_OFFSET: Record<string, [number, number]> = {
 };
 
 // Faixas discretas de cor (heatmap)
+// Paleta azul → âmbar → vermelho, alinhada à identidade corporativa.
+// Evita verde para não competir com semântica de "sucesso" usada em outros módulos.
+export const HEAT_COLORS = {
+  empty: 'hsl(220, 16%, 90%)',     // cinza claro - sem registros
+  low:   'hsl(210, 85%, 82%)',     // azul muito claro
+  mid:   'hsl(212, 80%, 60%)',     // azul corporativo
+  high:  'hsl(35, 92%, 55%)',      // âmbar
+  top:   'hsl(0, 75%, 50%)',       // vermelho - líder
+} as const;
+
 export function colorForQtd(qtd: number, max: number): string {
-  if (!qtd || qtd <= 0) return 'hsl(220, 14%, 92%)';
-  if (max <= 0) return 'hsl(220, 14%, 92%)';
+  if (!qtd || qtd <= 0) return HEAT_COLORS.empty;
+  if (max <= 0) return HEAT_COLORS.empty;
   const ratio = qtd / max;
-  if (ratio <= 0.2) return 'hsl(150, 35%, 70%)';
-  if (ratio <= 0.45) return 'hsl(205, 70%, 70%)';
-  if (ratio <= 0.7) return 'hsl(45, 90%, 60%)';
-  return 'hsl(0, 70%, 52%)';
+  if (ratio <= 0.2) return HEAT_COLORS.low;
+  if (ratio <= 0.45) return HEAT_COLORS.mid;
+  if (ratio <= 0.7) return HEAT_COLORS.high;
+  return HEAT_COLORS.top;
 }
 
 export const GEO_URL = '/geo/brasil-uf.json';
