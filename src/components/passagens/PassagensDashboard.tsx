@@ -15,7 +15,7 @@ import {
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
-import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown, ChevronDown, ChevronUp, ChevronRight, Search, ArrowUpDown, Filter } from 'lucide-react';
+import { Plane, DollarSign, TrendingUp, Users, Pencil, Trash2, RotateCcw, X, Layers, Download, Check, ChevronsUpDown, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Search, ArrowUpDown, Filter } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip as RTooltip,
 } from 'recharts';
@@ -147,6 +147,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [agruparColab, setAgruparColab] = useState(false);
   const [ordenacao, setOrdenacao] = useState<'data_desc'|'data_asc'|'colab_az'|'colab_za'|'valor_desc'|'valor_asc'>('data_desc');
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
+  // Paginação do card Registros (modo lista, sem agrupamento)
+  const [pageSize, setPageSize] = useState<number>(25); // 0 = "Todos"
+  const [pageIndex, setPageIndex] = useState(0);
   const [outrosMotivoOpen, setOutrosMotivoOpen] = useState(false);
   const OUTROS_LABEL = 'Outros';
 
@@ -247,6 +250,37 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     () => displayRows.reduce((s, r) => s + Number(r.valor || 0), 0),
     [displayRows],
   );
+
+  // Paginação: aplicada apenas no modo lista (sem agrupar) e quando pageSize > 0
+  const totalPages = useMemo(() => {
+    if (agruparColab || pageSize <= 0) return 1;
+    return Math.max(1, Math.ceil(displayRows.length / pageSize));
+  }, [agruparColab, pageSize, displayRows.length]);
+
+  // Resetar página quando filtros/busca/ordenação/agrupamento/pageSize mudarem
+  useEffect(() => {
+    setPageIndex(0);
+  }, [busca, ordenacao, agruparColab, pageSize, crossFiltered.length]);
+
+  // Garantir que pageIndex não fique fora do range
+  useEffect(() => {
+    if (pageIndex > totalPages - 1) setPageIndex(Math.max(0, totalPages - 1));
+  }, [pageIndex, totalPages]);
+
+  const pagedRows = useMemo(() => {
+    if (agruparColab || pageSize <= 0) return displayRows;
+    const start = pageIndex * pageSize;
+    return displayRows.slice(start, start + pageSize);
+  }, [displayRows, agruparColab, pageSize, pageIndex]);
+
+  const subtotalPagina = useMemo(
+    () => pagedRows.reduce((s, r) => s + Number(r.valor || 0), 0),
+    [pagedRows],
+  );
+
+  const showPagination = !agruparColab && pageSize > 0 && displayRows.length > pageSize;
+  const pageStart = pagedRows.length === 0 ? 0 : pageIndex * pageSize + 1;
+  const pageEnd = pageIndex * pageSize + pagedRows.length;
 
   // Agrupamento por colaborador para a visão expansível
   const gruposColab = useMemo(() => {
@@ -935,7 +969,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               </div>
             ) : (
               <div className="space-y-2">
-                {displayRows.map((r) => (
+                {pagedRows.map((r) => (
                   <PassagemMobileCard
                     key={r.id}
                     p={r}
@@ -943,10 +977,20 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     onDelete={!readOnly ? onDelete : undefined}
                   />
                 ))}
-                {displayRows.length > 0 && (
-                  <div className="sticky bottom-0 z-10 flex items-center justify-between rounded-md border bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 px-3 py-2 text-sm font-semibold shadow-[0_-1px_0_0_hsl(var(--border))]">
-                    <span>Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}</span>
-                    <span>{formatCurrency(subtotalDisplay)}</span>
+                {pagedRows.length > 0 && (
+                  <div className="flex flex-col gap-1 rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+                    <div className="flex items-center justify-between">
+                      <span>
+                        Subtotal página · {pagedRows.length} {pagedRows.length === 1 ? 'registro' : 'registros'}
+                      </span>
+                      <span>{formatCurrency(subtotalPagina)}</span>
+                    </div>
+                    {showPagination && (
+                      <div className="flex items-center justify-between text-xs font-normal text-muted-foreground">
+                        <span>Total geral · {displayRows.length} registros</span>
+                        <span>{formatCurrency(subtotalDisplay)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1014,7 +1058,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       </Fragment>
                     );
                   })
-                ) : displayRows.map((r) => (
+                ) : pagedRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{formatDate(r.data_registro)}</TableCell>
                     <TableCell className="font-medium">{r.colaborador}</TableCell>
@@ -1034,20 +1078,101 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   </TableRow>
                 ))}
               </TableBody>
-              {displayRows.length > 0 && (
-                <TableFooter className="sticky bottom-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 shadow-[0_-1px_0_0_hsl(var(--border))]">
+              {pagedRows.length > 0 && (
+                <TableFooter>
                   <TableRow className="font-semibold hover:bg-transparent">
                     <TableCell colSpan={baseCols - 1}>
-                      Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+                      Subtotal página · {pagedRows.length} {pagedRows.length === 1 ? 'registro' : 'registros'}
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(subtotalPagina)}</TableCell>
                     {hasActions && <TableCell />}
                   </TableRow>
+                  {showPagination && (
+                    <TableRow className="text-xs font-normal text-muted-foreground hover:bg-transparent">
+                      <TableCell colSpan={baseCols - 1}>
+                        Total geral · {displayRows.length} registros
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+                      {hasActions && <TableCell />}
+                    </TableRow>
+                  )}
                 </TableFooter>
               )}
             </Table>
             );
           })()}
+          {!agruparColab && displayRows.length > 0 && (
+            <div className={cn(
+              'flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2 text-xs',
+              isCompact && 'mt-2 rounded-md border',
+            )}>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>
+                  {pageSize > 0
+                    ? `Mostrando ${pageStart}–${pageEnd} de ${displayRows.length}`
+                    : `Mostrando todos · ${displayRows.length}`}
+                </span>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger className="h-7 w-[110px] text-xs" aria-label="Registros por página">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25" className="text-xs">25 por página</SelectItem>
+                    <SelectItem value="50" className="text-xs">50 por página</SelectItem>
+                    <SelectItem value="100" className="text-xs">100 por página</SelectItem>
+                    <SelectItem value="0" className="text-xs">Todos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {showPagination && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex(0)}
+                    disabled={pageIndex === 0}
+                    aria-label="Primeira página"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                    disabled={pageIndex === 0}
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-2 text-muted-foreground">
+                    Página {pageIndex + 1} de {totalPages}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={pageIndex >= totalPages - 1}
+                    aria-label="Próxima página"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex(totalPages - 1)}
+                    disabled={pageIndex >= totalPages - 1}
+                    aria-label="Última página"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
           ),
