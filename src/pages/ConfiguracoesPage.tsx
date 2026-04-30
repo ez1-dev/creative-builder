@@ -32,6 +32,7 @@ const ALL_SCREENS = [
   { path: '/painel-compras', name: 'Painel de Compras' },
   { path: '/auditoria-tributaria', name: 'Auditoria Tributária' },
   { path: '/auditoria-apontamento-genius', name: 'Auditoria Apont. Genius' },
+  { path: '/faturamento-genius', name: 'Faturamento Genius' },
   { path: '/conciliacao-edocs', name: 'Conciliação EDocs' },
   { path: '/notas-recebimento', name: 'NF Recebimento' },
   { path: '/contas-pagar', name: 'Contas a Pagar' },
