@@ -86,6 +86,19 @@ interface Props {
 
 export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
   const isMobile = useIsMobile();
+  // Threshold "compact" para layouts até tablet inclusive (< 1024px):
+  // KPI "Registros" e tabela usam a versão empilhada/cards para evitar
+  // sobreposição do Select e overflow horizontal da tabela.
+  const [isCompact, setIsCompact] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 1023px)');
+    const onChange = () => setIsCompact(window.innerWidth < 1024);
+    mql.addEventListener('change', onChange);
+    onChange();
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
