@@ -878,7 +878,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={isMobile ? 360 : 420}>
               <BarChart data={isMobile ? porCentroCusto.slice(0, 10) : porCentroCusto} layout="vertical">
@@ -894,13 +894,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <Bar
                   dataKey="value"
                   cursor="pointer"
-                  onClick={(d: any) => setSelectedCC((prev) => (prev === d.name ? null : d.name))}
+                  onClick={(d: any) => setSelectedCC((prev) => toggleItem(prev, d.name))}
                 >
                   {porCentroCusto.map((entry) => (
                     <Cell
                       key={entry.name}
                       fill={primaryColor}
-                      fillOpacity={selectedCC && selectedCC !== entry.name ? dimOpacity : 1}
+                      fillOpacity={selectedCC.length > 0 && !selectedCC.includes(entry.name) ? dimOpacity : 1}
                     />
                   ))}
                 </Bar>
