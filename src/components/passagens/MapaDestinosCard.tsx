@@ -16,13 +16,13 @@ interface AggregadoCidade {
 
 interface Props {
   data: Passagem[];
-  selectedDestino?: string | null;
-  onSelectDestino?: (cidade: string | null) => void;
+  selectedDestino?: string[];
+  onSelectDestino?: (cidade: string) => void;
 }
 
 const TOP_INITIAL = 5;
 
-export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Props) {
+export function MapaDestinosCard({ data, selectedDestino = [], onSelectDestino }: Props) {
   const [topLimit, setTopLimit] = useState(TOP_INITIAL);
 
   const porCidade = useMemo<AggregadoCidade[]>(() => {
