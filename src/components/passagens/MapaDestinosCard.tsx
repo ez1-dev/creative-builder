@@ -428,7 +428,7 @@ export function MapaDestinosCard({
                       })
                     }
                   </Geographies>
-                </ZoomableGroup>
+                </g>
               </ComposableMap>
             </div>
 
