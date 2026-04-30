@@ -681,7 +681,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   cy="50%"
                   outerRadius={isMobile ? 70 : 100}
                   cursor="pointer"
-                  onClick={(d: any) => setSelectedMotivo((prev) => (prev === d.name ? null : d.name))}
+                  onClick={(d: any) => {
+                    if (d.name === OUTROS_LABEL) {
+                      setOutrosMotivoOpen(true);
+                    } else {
+                      setSelectedMotivo((prev) => (prev === d.name ? null : d.name));
+                    }
+                  }}
                   labelLine={isMobile ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
                   label={isMobile
                     ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
@@ -696,7 +702,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   {porMotivo.map((entry, i) => (
                     <Cell
                       key={i}
-                      fill={COLORS[i % COLORS.length]}
+                      fill={entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length]}
                       fillOpacity={selectedMotivo && selectedMotivo !== entry.name ? dimOpacity : 1}
                     />
                   ))}
