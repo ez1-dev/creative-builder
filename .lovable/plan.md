@@ -1,52 +1,52 @@
-## Objetivo
+Vou corrigir o problema no frontend do mapa em `/passagens-aereas`.
 
-Fazer `/passagens-aereas` recarregar automaticamente os dados (incluindo `uf_destino` para o mapa) sem precisar de Ctrl+Shift+R.
+## O que eu confirmei
+- Os dados no backend estão corretos: a consulta atual mostra vários estados com volume relevante (`PR 57`, `PA 56`, `SP 53`, `BA 29`, `CE 27` etc.).
+- A própria UI já confirma isso parcialmente: o título mostra `Paraná (57)` e o `Top 5 destinos` está coerente.
+- Portanto, o problema não está no carregamento dos dados nem no `uf_destino`; ele está na renderização do SVG em `src/components/passagens/MapaDestinosCard.tsx`.
 
-Hoje a página só busca dados uma vez no mount (`useEffect(() => { load() }, [])`). Quando o banco é atualizado por backfill, importação em outra aba, ou por outro usuário, o mapa fica desatualizado até o reload manual.
+## Causa raiz provável
+Há dois problemas visuais no componente do mapa:
 
-## Mudanças
+1. **As cores por intensidade não estão sendo aplicadas no estado “default” do `Geography`**
+   - Hoje o componente calcula `fill` corretamente, mas a cor dinâmica está sendo passada de forma que a biblioteca não está refletindo isso como esperado no desenho base.
+   - Resultado prático: quase todos os estados ficam com uma cor parecida, mesmo com contagens bem diferentes.
 
-### 1. Realtime — recarrega ao detectar mudanças no banco
-Subscribe Postgres changes da tabela `passagens_aereas` (já usado em outros módulos do projeto). Qualquer INSERT/UPDATE/DELETE dispara `load()`.
+2. **As siglas das UFs estão sendo posicionadas com coordenadas geográficas brutas**
+   - O código usa `geoCentroid(geo)` diretamente como `x/y` do SVG.
+   - Isso explica o agrupamento das siglas no canto superior esquerdo da imagem.
+   - O centróide precisa ser projetado para coordenadas do mapa antes de renderizar o texto.
 
-Requer migration para adicionar a tabela à publicação `supabase_realtime`:
-```sql
-ALTER TABLE public.passagens_aereas REPLICA IDENTITY FULL;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.passagens_aereas;
-```
+## Plano de implementação
+1. **Corrigir a pintura dos estados** em `MapaDestinosCard.tsx`
+   - Aplicar a cor calculada explicitamente dentro de `style.default.fill`, `style.hover.fill` e `style.pressed.fill`.
+   - Manter stroke e hover consistentes.
+   - Garantir que cada UF use de fato o `qtd` vindo de `porUF`.
 
-### 2. Reload ao voltar à aba
-Listeners `visibilitychange` + `focus` chamam `load()` quando o usuário retorna à página. Cobre o caso de migrações/backfills feitos enquanto a aba estava em segundo plano (não depende de realtime estar habilitado).
+2. **Corrigir o posicionamento das siglas**
+   - Substituir o uso direto de `geoCentroid` como coordenada SVG por uma abordagem projetada.
+   - Posso fazer isso de duas formas seguras, seguindo o que encaixar melhor na biblioteca já usada:
+     - usar `Marker`/projeção do `react-simple-maps`, ou
+     - projetar o centróide antes de desenhar o `<text>`.
+   - Isso vai espalhar as siglas corretamente sobre os estados.
 
-### 3. Botão "Atualizar" no header
-Botão visível com ícone `RefreshCw` (anima ao carregar) ao lado de "Compartilhar / Importar / Novo registro". Permite forçar reload manual sem F5.
+3. **Adicionar um fallback de identificação da UF mais robusto**
+   - Hoje o mapa depende de `geo.properties.codarea`.
+   - Vou manter isso, mas adicionar fallback defensivo caso alguma feature venha com outra chave compatível no GeoJSON.
+   - Isso reduz risco de inconsistência futura no arquivo `public/geo/brasil-uf.json`.
 
-## Arquivos
+4. **Validar visualmente o resultado**
+   - Confirmar que estados com maior incidência (`PR`, `PA`, `SP`) ficam visualmente destacados.
+   - Confirmar que estados médios (`BA`, `CE`, `AM`) aparecem em faixas diferentes.
+   - Confirmar que as siglas não ficam mais empilhadas no canto.
 
-- **edita** `src/pages/PassagensAereasPage.tsx`:
-  - Importa `RefreshCw` do `lucide-react`.
-  - Adiciona `useEffect` com listeners `visibilitychange` e `focus`.
-  - Adiciona `useEffect` com canal Supabase Realtime escutando `postgres_changes` em `passagens_aereas`.
-  - Adiciona botão "Atualizar" em `PageHeader.actions` (sempre visível, mesmo para usuários read-only).
+## Arquivo principal a ajustar
+- `src/components/passagens/MapaDestinosCard.tsx`
 
-- **migration nova** (será aplicada via tool de migration ao sair do modo plan): habilita realtime na tabela.
+## Resultado esperado
+- O mapa passará a refletir os dados reais já carregados.
+- As cores vão variar por intensidade de forma visível.
+- As siglas das UFs ficarão posicionadas corretamente.
+- Não será necessário mexer no banco para esse ajuste específico.
 
-## Detalhe técnico — bloco realtime
-
-```ts
-useEffect(() => {
-  const channel = supabase
-    .channel('passagens_aereas_changes')
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'passagens_aereas' },
-      () => { load(); },
-    )
-    .subscribe();
-  return () => { supabase.removeChannel(channel); };
-}, []);
-```
-
-A página `/passagens-aereas-compartilhado` (link público) **não** ganha realtime nesta rodada — usa RPC com token e a sessão é anônima; mantém comportamento atual.
-
-Aprove para implementar.
+Se você aprovar, eu implemento essa correção agora.

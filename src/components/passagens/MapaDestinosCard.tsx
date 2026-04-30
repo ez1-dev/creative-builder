@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { geoCentroid } from 'd3-geo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -235,31 +235,35 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                         <Geography
                           key={`fill-${geo.rsmKey}`}
                           geography={geo}
-                          fill={fill}
-                          stroke="hsl(0, 0%, 100%)"
-                          strokeWidth={0.8}
                           style={{
-                            default: { outline: 'none', transition: 'opacity 150ms' },
-                            hover: {
-                              outline: 'none',
+                            default: {
                               fill,
+                              stroke: 'hsl(0, 0%, 100%)',
+                              strokeWidth: 0.8,
+                              outline: 'none',
+                              transition: 'opacity 150ms',
+                            },
+                            hover: {
+                              fill,
+                              stroke: 'hsl(0, 0%, 100%)',
+                              strokeWidth: 0.8,
+                              outline: 'none',
                               opacity: 0.82,
                               cursor: qtd > 0 ? 'pointer' : 'default',
                             },
-                            pressed: { outline: 'none' },
+                            pressed: {
+                              fill,
+                              stroke: 'hsl(0, 0%, 100%)',
+                              strokeWidth: 0.8,
+                              outline: 'none',
+                            },
                           }}
                           onMouseEnter={(e) => {
                             const rect = (
                               e.currentTarget.ownerSVGElement?.parentElement as HTMLElement
                             )?.getBoundingClientRect();
                             if (rect) {
-                              setTooltip({
-                                x: e.clientX - rect.left,
-                                y: e.clientY - rect.top,
-                                uf,
-                                qtd,
-                                total,
-                              });
+                              setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, uf, qtd, total });
                             }
                           }}
                           onMouseMove={(e) => {
@@ -267,13 +271,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                               e.currentTarget.ownerSVGElement?.parentElement as HTMLElement
                             )?.getBoundingClientRect();
                             if (rect) {
-                              setTooltip({
-                                x: e.clientX - rect.left,
-                                y: e.clientY - rect.top,
-                                uf,
-                                qtd,
-                                total,
-                              });
+                              setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, uf, qtd, total });
                             }
                           }}
                           onMouseLeave={() => setTooltip(null)}
@@ -304,7 +302,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                   }
                 </Geographies>
 
-                {/* Camada 3: siglas das UFs */}
+                {/* Camada 3: siglas das UFs (posicionadas via Marker → projetadas) */}
                 <Geographies geography={GEO_URL}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
@@ -313,25 +311,10 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                       if (!uf) return null;
                       const [cx, cy] = geoCentroid(geo);
                       const [dx, dy] = labelOffset[uf] ?? [0, 0];
-                      const lx = cx + dx;
-                      const ly = cy + dy;
-                      const hasOffset = dx !== 0 || dy !== 0;
+                      const labelCoord: [number, number] = [cx + dx, cy + dy];
                       return (
-                        <g key={`label-${geo.rsmKey}`} pointerEvents="none">
-                          {hasOffset && (
-                            <line
-                              x1={cx}
-                              y1={cy}
-                              x2={lx}
-                              y2={ly}
-                              stroke="hsl(220, 18%, 45%)"
-                              strokeWidth={0.35}
-                              strokeOpacity={0.6}
-                            />
-                          )}
+                        <Marker key={`label-${geo.rsmKey}`} coordinates={labelCoord}>
                           <text
-                            x={lx}
-                            y={ly}
                             textAnchor="middle"
                             dominantBaseline="central"
                             style={{
@@ -343,11 +326,12 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                               stroke: 'hsl(0, 0%, 100%)',
                               strokeWidth: 2.5,
                               strokeLinejoin: 'round',
+                              pointerEvents: 'none',
                             }}
                           >
                             {uf}
                           </text>
-                        </g>
+                        </Marker>
                       );
                     })
                   }
