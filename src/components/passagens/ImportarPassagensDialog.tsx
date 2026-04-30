@@ -38,6 +38,7 @@ interface ParsedRow {
   tipo_despesa: string;
   valor: number;
   observacoes: string | null;
+  uf_destino: string | null;
 }
 
 interface RowResult {
