@@ -32,7 +32,6 @@ export const LABEL_OFFSET: Record<string, [number, number]> = {
 
 // Faixas discretas de cor (heatmap)
 // Paleta azul → âmbar → vermelho, alinhada à identidade corporativa.
-// Evita verde para não competir com semântica de "sucesso" usada em outros módulos.
 export const HEAT_COLORS = {
   empty: 'hsl(220, 16%, 90%)',     // cinza claro - sem registros
   low:   'hsl(210, 85%, 82%)',     // azul muito claro
@@ -41,6 +40,31 @@ export const HEAT_COLORS = {
   top:   'hsl(0, 75%, 50%)',       // vermelho - líder
 } as const;
 
+/**
+ * Constrói uma função de cor baseada em quantis (ordinal).
+ * Distribui os estados COM dados em 4 faixas de igual tamanho, garantindo
+ * contraste visual mesmo quando a distribuição é cauda longa
+ * (ex.: poucos estados no topo + muitos com valores pequenos).
+ */
+export function makeColorScale(values: number[]): (qtd: number) => string {
+  const sorted = values.filter((v) => v > 0).sort((a, b) => a - b);
+  if (sorted.length === 0) return () => HEAT_COLORS.empty;
+
+  const q = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
+  const t1 = q(0.25);
+  const t2 = q(0.5);
+  const t3 = q(0.75);
+
+  return (qtd: number) => {
+    if (!qtd || qtd <= 0) return HEAT_COLORS.empty;
+    if (qtd <= t1) return HEAT_COLORS.low;
+    if (qtd <= t2) return HEAT_COLORS.mid;
+    if (qtd <= t3) return HEAT_COLORS.high;
+    return HEAT_COLORS.top;
+  };
+}
+
+// Mantida por compatibilidade — usa a escala linear simples.
 export function colorForQtd(qtd: number, max: number): string {
   if (!qtd || qtd <= 0) return HEAT_COLORS.empty;
   if (max <= 0) return HEAT_COLORS.empty;
