@@ -80,6 +80,8 @@ export async function trackAction(action: string, details?: Record<string, unkno
 
 export function startHeartbeat() {
   if (heartbeatTimer !== null) return;
+  sessionStartedAt = Date.now();
+  forceLogoutTriggered = false;
   const tick = async () => {
     try {
       const info = await getCurrentUserInfo();
@@ -92,10 +94,11 @@ export function startHeartbeat() {
         current_path: typeof window !== 'undefined' ? window.location.pathname : null,
         user_agent: navigator.userAgent,
       }, { onConflict: 'user_id' });
+      await checkForceLogout(info.id);
     } catch { /* silencioso */ }
   };
   tick();
-  heartbeatTimer = window.setInterval(tick, 60000);
+  heartbeatTimer = window.setInterval(tick, 30000);
 }
 
 export function stopHeartbeat() {
