@@ -85,9 +85,11 @@ interface Props {
   onExport?: (rows: Passagem[]) => void;
   onExportXlsx?: (rows: Passagem[]) => void;
   readOnly?: boolean;
+  /** Quando definido, carrega o layout via RPC pública (página de link compartilhado). */
+  shareToken?: string | null;
 }
 
-export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
+export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly, shareToken }: Props) {
   const isMobile = useIsMobile();
   // Threshold "compact" para layouts até tablet inclusive (< 1024px):
   // KPI "Registros" e tabela usam a versão empilhada/cards para evitar
@@ -102,6 +104,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     onChange();
     return () => mql.removeEventListener('change', onChange);
   }, []);
+
+  // === Layout customizável (drag & drop, salvo globalmente) ===
+  const { widgets, isAdmin, saveLayout, resetLayout } = usePassagensLayout({
+    shareToken: shareToken ?? null,
+  });
+  const [editingLayout, setEditingLayout] = useState(false);
+  const [pendingLayout, setPendingLayout] = useState<
+    { type: string; layout: { x: number; y: number; w: number; h: number } }[] | null
+  >(null);
+  const [savingLayout, setSavingLayout] = useState(false);
+  const canEditLayout = !readOnly && isAdmin && !shareToken;
+
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
