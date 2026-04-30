@@ -189,6 +189,14 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
           tipo_despesa: tipo_despesa!,
           valor: valor!,
           observacoes: strOrNull(get('observacoes')),
+          uf_destino: (() => {
+            const fromSheet = pickUf(raw);
+            if (fromSheet) return fromSheet;
+            // Fallback: deduzir pela cidade
+            const dest = strOrNull(get('destino'));
+            if (!dest) return null;
+            return geocodeCidade(nomeNormalizado(dest))?.uf ?? null;
+          })(),
         };
         return { linha, ok: true, data };
       }).filter((r) => r.erro !== '__empty__');
