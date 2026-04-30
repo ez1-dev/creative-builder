@@ -118,6 +118,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
+  const [filtroMotivo, setFiltroMotivo] = useState<string>('todos');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [filtroMes, setFiltroMes] = useState<string>('todos');
   const [dataInicio, setDataInicio] = useState('');
