@@ -21,6 +21,7 @@ export default function PassagensAereasCompartilhadoPage() {
   const [linkName, setLinkName] = useState('Passagens Aéreas');
   const [password, setPassword] = useState('');
   const [data, setData] = useState<Passagem[]>([]);
+  const [hiddenVisuals, setHiddenVisuals] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -35,9 +36,10 @@ export default function PassagensAereasCompartilhadoPage() {
 
   const loadData = async (effectiveToken: string) => {
     setSubmitting(true);
-    const { data: rows, error } = await supabase.rpc('get_passagens_via_token', {
-      _token: effectiveToken,
-    });
+    const [{ data: rows, error }, { data: visuals }] = await Promise.all([
+      supabase.rpc('get_passagens_via_token', { _token: effectiveToken }),
+      supabase.rpc('get_share_link_visuals', { _token: effectiveToken }),
+    ]);
     setSubmitting(false);
     if (error) {
       // Token inexistente, expirado ou senha incorreta
@@ -46,6 +48,7 @@ export default function PassagensAereasCompartilhadoPage() {
       return;
     }
     setData((rows as Passagem[]) ?? []);
+    setHiddenVisuals((visuals as string[]) ?? []);
     setState('ok');
   };
 
