@@ -266,6 +266,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           expires_at: string | null
+          hidden_visuals: string[]
           id: string
           last_accessed_at: string | null
           nome: string
@@ -279,6 +280,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
+          hidden_visuals?: string[]
           id?: string
           last_accessed_at?: string | null
           nome: string
@@ -292,6 +294,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expires_at?: string | null
+          hidden_visuals?: string[]
           id?: string
           last_accessed_at?: string | null
           nome?: string
@@ -553,15 +556,26 @@ export type Database = {
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
-      create_passagens_share_link: {
-        Args: {
-          _expires_at?: string
-          _nome: string
-          _password?: string
-          _token: string
-        }
-        Returns: string
-      }
+      create_passagens_share_link:
+        | {
+            Args: {
+              _expires_at?: string
+              _nome: string
+              _password?: string
+              _token: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _expires_at?: string
+              _hidden_visuals?: string[]
+              _nome: string
+              _password?: string
+              _token: string
+            }
+            Returns: string
+          }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
       get_passagens_via_token: {
         Args: { _password?: string; _token: string }
@@ -604,6 +618,7 @@ export type Database = {
           requires_password: boolean
         }[]
       }
+      get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
       is_admin: { Args: { _uid: string }; Returns: boolean }
       validate_share_token: {
         Args: { _password?: string; _token: string }
