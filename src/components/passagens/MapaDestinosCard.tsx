@@ -290,15 +290,9 @@ export function MapaDestinosCard({
                 height={560}
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               >
-                <ZoomableGroup
-                  zoom={zoom}
-                  center={center}
-                  minZoom={MIN_ZOOM}
-                  maxZoom={MAX_ZOOM}
-                  onMoveEnd={({ coordinates, zoom: z }) => {
-                    setCenter(coordinates as [number, number]);
-                    setZoom(z);
-                  }}
+                <g
+                  transform={`translate(300 280) scale(${zoom}) translate(${-300 - panOffset.x} ${-280 - panOffset.y})`}
+                  style={{ transition: 'transform 250ms ease' }}
                 >
                   {/* Camada 1: fills + interação */}
                   <Geographies geography={GEO_URL}>
