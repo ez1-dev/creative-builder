@@ -1067,7 +1067,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       <TableCell className="font-medium">{m.name}</TableCell>
                       <TableCell className="text-right">{formatCurrency(m.value)}</TableCell>
                       <TableCell className="text-right text-muted-foreground">
-                        {pct.toFixed(2).replace('.', ',')}%
+                        {pct.toFixed(1).replace('.', ',')}%
                       </TableCell>
                     </TableRow>
                   );
