@@ -24,6 +24,7 @@ import {
 import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { ImportarPassagensDialog } from '@/components/passagens/ImportarPassagensDialog';
+import { geocodeCidade, nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 
 const PATH = '/passagens-aereas';
 
