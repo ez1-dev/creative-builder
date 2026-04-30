@@ -163,14 +163,19 @@ export function MapaDestinosCard({
     ];
   }, [maxQtdUF]);
 
+  // Projeção igual à do ComposableMap, para converter lat/lon em pixel SVG
+  const projection = useMemo(
+    () => geoMercator().scale(780).center(DEFAULT_CENTER).translate([300, 280]),
+    [],
+  );
+
   // Zoom helpers
   const handleZoomIn = () => setZoom((z) => Math.min(z * 1.5, MAX_ZOOM));
   const handleZoomOut = () => setZoom((z) => Math.max(z / 1.5, MIN_ZOOM));
   const handleResetView = () => {
     setZoom(DEFAULT_ZOOM);
-    setCenter(DEFAULT_CENTER);
+    setPanOffset({ x: 0, y: 0 });
   };
-
 
   const handleSelectUF = useCallback(
     (uf: string, centroid: [number, number]) => {
@@ -180,10 +185,14 @@ export function MapaDestinosCard({
         return;
       }
       setSelectedUF(uf);
-      setCenter(centroid);
+      const projected = projection(centroid);
+      if (projected) {
+        // pan = (centroide projetado - centro do svg)
+        setPanOffset({ x: projected[0] - 300, y: projected[1] - 280 });
+      }
       setZoom(FOCUS_ZOOM);
     },
-    [selectedUF, setSelectedUF],
+    [selectedUF, setSelectedUF, projection],
   );
 
   const handleClearUF = () => {
