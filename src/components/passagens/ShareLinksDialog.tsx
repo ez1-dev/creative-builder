@@ -11,8 +11,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Copy, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { VISUAL_CATALOG } from '@/lib/visualCatalog';
+
+const PASSAGENS_VISUALS =
+  VISUAL_CATALOG.find((g) => g.module === 'Passagens Aéreas')?.items ?? [];
 
 interface ShareLink {
   id: string;
@@ -24,6 +29,7 @@ interface ShareLink {
   access_count: number;
   last_accessed_at: string | null;
   created_at: string;
+  hidden_visuals: string[] | null;
 }
 
 interface Props {
@@ -65,6 +71,9 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
   const [senha, setSenha] = useState('');
   const [novoLink, setNovoLink] = useState<string | null>(null);
   const [novoLinkProtegido, setNovoLinkProtegido] = useState(false);
+  const [visiveis, setVisiveis] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(PASSAGENS_VISUALS.map((v) => [v.key, true])),
+  );
 
   const baseUrl = window.location.origin;
 
@@ -94,6 +103,10 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
       ? new Date(Date.now() + Number(validade) * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
+    const hiddenVisuals = PASSAGENS_VISUALS
+      .filter((v) => !visiveis[v.key])
+      .map((v) => v.key);
+
     const { error } = await supabase.rpc('create_passagens_share_link', {
       _token: effectiveToken,
       _nome: nome,
@@ -102,6 +115,7 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
       // reconhece esse sentinela, considerando o match do token suficiente.
       _password: password ? 'protected' : null,
       _expires_at: expiresAt,
+      _hidden_visuals: hiddenVisuals,
     });
 
     if (error) {
@@ -117,6 +131,7 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
     setNovoLink(link);
     setNovoLinkProtegido(!!password);
     setNome(''); setSenha(''); setValidade('30');
+    setVisiveis(Object.fromEntries(PASSAGENS_VISUALS.map((v) => [v.key, true])));
     load();
     setCreating(false);
   };
@@ -168,6 +183,29 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
                 <Input type="text" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Vazio = sem senha" />
               </div>
             </div>
+
+            {PASSAGENS_VISUALS.length > 0 && (
+              <div className="rounded-md border bg-background p-3 space-y-2">
+                <Label className="text-xs font-semibold">Gráficos e mapas visíveis no link</Label>
+                <p className="text-xs text-muted-foreground">
+                  Desmarque o que NÃO deve aparecer para quem abrir este link público.
+                </p>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {PASSAGENS_VISUALS.map((v) => (
+                    <label key={v.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox
+                        checked={visiveis[v.key] ?? true}
+                        onCheckedChange={(c) =>
+                          setVisiveis((prev) => ({ ...prev, [v.key]: c === true }))
+                        }
+                      />
+                      <span>{v.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Button size="sm" onClick={handleCreate} disabled={creating}>
               {creating ? 'Gerando...' : 'Gerar link'}
             </Button>
@@ -196,6 +234,7 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
                   <TableRow>
                     <TableHead>Nome</TableHead>
                     <TableHead>Senha</TableHead>
+                    <TableHead>Visuais</TableHead>
                     <TableHead>Expira em</TableHead>
                     <TableHead>Acessos</TableHead>
                     <TableHead>Status</TableHead>
@@ -204,16 +243,22 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-4 text-muted-foreground">Carregando...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-4 text-muted-foreground">Carregando...</TableCell></TableRow>
                   ) : links.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-4 text-muted-foreground">Nenhum link criado</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-4 text-muted-foreground">Nenhum link criado</TableCell></TableRow>
                   ) : links.map((l) => {
                     const expired = l.expires_at && new Date(l.expires_at) < new Date();
                     const hasPassword = !!l.password_hash;
+                    const hiddenCount = (l.hidden_visuals ?? []).length;
                     return (
                       <TableRow key={l.id}>
                         <TableCell className="font-medium">{l.nome}</TableCell>
                         <TableCell>{hasPassword ? 'Sim' : 'Não'}</TableCell>
+                        <TableCell className="text-xs">
+                          {hiddenCount === 0
+                            ? 'Todos'
+                            : `${hiddenCount} oculto${hiddenCount > 1 ? 's' : ''}`}
+                        </TableCell>
                         <TableCell>{l.expires_at ? formatDate(l.expires_at) : 'Nunca'}</TableCell>
                         <TableCell>{l.access_count}</TableCell>
                         <TableCell>

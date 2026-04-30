@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plane, Lock, AlertCircle } from 'lucide-react';
 import { PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, type Passagem } from '@/components/passagens/PassagensDashboard';
 import { deriveEffectiveToken } from '@/components/passagens/ShareLinksDialog';
+import { PublicVisualsProvider } from '@/contexts/PublicVisualsContext';
 
 type State = 'loading' | 'invalid' | 'expired' | 'password' | 'ok' | 'wrong-password';
 
@@ -20,6 +21,7 @@ export default function PassagensAereasCompartilhadoPage() {
   const [linkName, setLinkName] = useState('Passagens Aéreas');
   const [password, setPassword] = useState('');
   const [data, setData] = useState<Passagem[]>([]);
+  const [hiddenVisuals, setHiddenVisuals] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -34,9 +36,10 @@ export default function PassagensAereasCompartilhadoPage() {
 
   const loadData = async (effectiveToken: string) => {
     setSubmitting(true);
-    const { data: rows, error } = await supabase.rpc('get_passagens_via_token', {
-      _token: effectiveToken,
-    });
+    const [{ data: rows, error }, { data: visuals }] = await Promise.all([
+      supabase.rpc('get_passagens_via_token', { _token: effectiveToken }),
+      supabase.rpc('get_share_link_visuals', { _token: effectiveToken }),
+    ]);
     setSubmitting(false);
     if (error) {
       // Token inexistente, expirado ou senha incorreta
@@ -45,6 +48,7 @@ export default function PassagensAereasCompartilhadoPage() {
       return;
     }
     setData((rows as Passagem[]) ?? []);
+    setHiddenVisuals((visuals as string[]) ?? []);
     setState('ok');
   };
 
@@ -105,22 +109,24 @@ export default function PassagensAereasCompartilhadoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Plane className="h-6 w-6 text-primary" />
-          <div className="flex-1">
-            <h1 className="text-lg font-bold">Passagens Aéreas</h1>
-            <p className="text-xs text-muted-foreground">{linkName} · Visualização compartilhada</p>
+    <PublicVisualsProvider hiddenVisuals={hiddenVisuals}>
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <Plane className="h-6 w-6 text-primary" />
+            <div className="flex-1">
+              <h1 className="text-lg font-bold">Passagens Aéreas</h1>
+              <p className="text-xs text-muted-foreground">{linkName} · Visualização compartilhada</p>
+            </div>
           </div>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto p-4">
-        <PassagensDashboard data={data} readOnly onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
-      </main>
-      <footer className="text-center text-xs text-muted-foreground py-4">
-        EZ ERP IA · Acesso somente leitura
-      </footer>
-    </div>
+        </header>
+        <main className="max-w-7xl mx-auto p-4">
+          <PassagensDashboard data={data} readOnly onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
+        </main>
+        <footer className="text-center text-xs text-muted-foreground py-4">
+          EZ ERP IA · Acesso somente leitura
+        </footer>
+      </div>
+    </PublicVisualsProvider>
   );
 }

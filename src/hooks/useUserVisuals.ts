@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePublicVisuals } from '@/contexts/PublicVisualsContext';
 
 /**
  * Hook que retorna quais gráficos/mapas o usuário atual pode visualizar,
@@ -10,14 +11,26 @@ import { useAuth } from '@/contexts/AuthContext';
  * até que um admin desmarque explicitamente).
  *
  * Admins veem tudo (bypass).
+ *
+ * Em páginas públicas (sem auth), se houver um PublicVisualsProvider no tree,
+ * ele dita as restrições — pulamos a consulta autenticada.
  */
 export function useUserVisuals() {
+  const publicCtx = usePublicVisuals();
   const { erpUser, user } = useAuth();
   const [denied, setDenied] = useState<Set<string>>(new Set());
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    // Modo público: usa o set fornecido pelo provider e ignora auth.
+    if (publicCtx) {
+      setIsAdmin(false);
+      setDenied(publicCtx.hidden);
+      setLoading(false);
+      return;
+    }
+
     if (!user?.id) {
       setDenied(new Set());
       setIsAdmin(false);
@@ -65,7 +78,7 @@ export function useUserVisuals() {
     }
     setDenied(deniedSet);
     setLoading(false);
-  }, [user?.id, erpUser]);
+  }, [user?.id, erpUser, publicCtx]);
 
   useEffect(() => {
     load();

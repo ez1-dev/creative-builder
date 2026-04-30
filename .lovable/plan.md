@@ -1,58 +1,48 @@
 ## Objetivo
 
-Adicionar, na seção **Configurações → Monitoramento de Usuários → Online agora**, uma ação para o admin **derrubar a conexão de um usuário** (forçar logout remoto).
+Permitir que ao gerar um link de compartilhamento público de Passagens Aéreas o admin escolha quais gráficos/mapas o destinatário externo poderá ver. Hoje o link público ignora as restrições de "Ocultar Gráficos e Mapas por Perfil" porque essa configuração depende de usuário autenticado.
 
-## Como funcionará (UX)
+## Visão geral da solução
 
-- Cada linha da tabela "Online agora" ganha uma coluna **Ações** com botão `Derrubar` (ícone `LogOut`, variante destrutiva).
-- Ao clicar, abre confirmação ("Derrubar a conexão de {nome/email}?").
-- Após confirmar:
-  - Backend invalida a sessão Supabase do usuário (signOut global → revoga refresh tokens).
-  - Marca uma flag `force_logout_at` em `user_sessions` para sinalizar ao cliente.
-  - Toast: "Conexão derrubada. O usuário será desconectado em segundos."
-- No cliente de qualquer usuário logado, um pequeno listener (em `UserTrackingProvider`) verifica a cada heartbeat se `force_logout_at > sessionStartedAt` e, se sim, chama `logout()` automaticamente e redireciona para `/login` com toast "Sua sessão foi encerrada por um administrador."
+Adicionar uma lista de "visuais ocultos" diretamente em cada link de compartilhamento. No diálogo de criação, o admin marca/desmarca quais gráficos e mapas estarão visíveis. A página pública passa a respeitar essa lista usando o mesmo `VisualGate`, alimentado por um contexto local que não depende de auth.
 
-## Mudanças técnicas
+## Mudanças
 
-### 1. Banco (migração)
+### 1. Banco de dados (migration)
 
-- Adicionar coluna `force_logout_at timestamptz null` em `public.user_sessions`.
-- Criar função SQL `public.force_user_logout(_user_id uuid)`:
-  - `SECURITY DEFINER`, `search_path=public`
-  - Checa `is_admin(auth.uid())`; se não, `RAISE EXCEPTION`.
-  - `UPDATE public.user_sessions SET force_logout_at = now() WHERE user_id = _user_id`.
-  - Retorna `void`.
-- Política RLS: nenhuma nova necessária (admins já leem `user_sessions`; a função roda como definer).
+- Adicionar coluna `hidden_visuals text[] not null default '{}'` em `passagens_aereas_share_links`.
+- Atualizar `create_passagens_share_link` para receber `_hidden_visuals text[] default '{}'` e gravar no insert.
+- Criar nova função `get_share_link_visuals(_token text) returns text[]` (SECURITY DEFINER, STABLE) que retorna o array `hidden_visuals` se o link for válido (`active`, não expirado). Sem exigir senha — saber quais blocos esconder não é dado sensível e simplifica o frontend.
 
-### 2. Edge Function `admin-force-logout` (nova)
+### 2. UI de criação do link (`ShareLinksDialog.tsx`)
 
-- Verifica JWT do chamador, busca `auth.uid()` e valida `is_admin` via `supabase.rpc('is_admin', { _uid })`.
-- Usa `SUPABASE_SERVICE_ROLE_KEY` para chamar `supabaseAdmin.auth.admin.signOut(targetUserId, 'global')` — revoga todos os refresh tokens do alvo.
-- Em seguida chama a RPC `force_user_logout` para marcar o flag (fallback do client).
-- Retorna `{ ok: true }`.
-- Configurada com `verify_jwt = true` (default).
+- Importar `VISUAL_CATALOG` de `src/lib/visualCatalog.ts` filtrando o módulo Passagens Aéreas (chaves `passagens.*`).
+- Adicionar um bloco "Gráficos/Mapas visíveis no link" com checkboxes (todos marcados por padrão).
+- No `handleCreate`, calcular `hiddenVisuals = catalog.filter(k => !checked[k])` e passar para a RPC `create_passagens_share_link`.
+- Mostrar na tabela de links ativos uma coluna leve indicando se há restrição (ex.: "Todos" ou "N ocultos").
 
-### 3. Frontend — `MonitoramentoUsuarios.tsx`
+### 3. Página pública (`PassagensAereasCompartilhadoPage.tsx`)
 
-- Nova coluna **Ações** na tabela "Online agora".
-- Botão `Derrubar` chama `supabase.functions.invoke('admin-force-logout', { body: { userId } })`.
-- Após sucesso, refaz `fetchOnline()`.
+- Após `loadData` bem-sucedido, chamar `supabase.rpc('get_share_link_visuals', { _token: effectiveToken })` e guardar como `Set<string>`.
+- Criar um pequeno provider local `PublicVisualsContext` (em `src/contexts/PublicVisualsContext.tsx`) que expõe `canSeeVisual(key)` baseado no Set.
+- Ajustar `VisualGate` (ou criar um wrapper `PublicVisualGate`) para preferir o contexto público quando presente, caindo no `useUserVisuals` apenas quando não houver. Implementação mais simples: `useUserVisuals` detecta se há `PublicVisualsContext` no provider tree e o usa em vez de consultar o Supabase autenticado. Assim `PassagensDashboard` e `MapaDestinosCard` continuam usando `<VisualGate visualKey="…">` sem mudanças.
 
-### 4. Frontend — detecção no cliente (`UserTrackingProvider.tsx`)
+### 4. Catálogo de visuais
 
-- Guardar `sessionStartedAt = Date.now()` em ref ao montar.
-- No heartbeat (`startHeartbeat` em `src/lib/userTracking.ts`), após upsert, ler `force_logout_at` da própria linha; se existir e for posterior a `sessionStartedAt`, disparar `supabase.auth.signOut()` e `window.location.href = '/login'` com `toast.error('Sua sessão foi encerrada por um administrador.')`.
-- Como `signOut` global da edge function já invalida o refresh token, na próxima troca de token o cliente também cai sozinho — o flag apenas acelera (UX imediata, ~60s).
+- Confirmar que `src/lib/visualCatalog.ts` já lista as chaves `passagens.*` usadas no dashboard (mapa de destinos, KPIs, gráficos). Se faltar alguma chave referenciada nos componentes, acrescentar no catálogo para aparecer na UI de seleção.
 
-## Arquivos afetados
+## Arquivos envolvidos
 
-- `src/components/erp/MonitoramentoUsuarios.tsx` — coluna Ações + botão.
-- `src/lib/userTracking.ts` — heartbeat lê `force_logout_at` e dispara logout.
-- `src/components/UserTrackingProvider.tsx` — passa callback de logout para tracking.
-- `supabase/functions/admin-force-logout/index.ts` — nova edge function.
-- Migração SQL — coluna + função `force_user_logout`.
+- `supabase/migrations/<novo>.sql` (coluna + função)
+- `src/components/passagens/ShareLinksDialog.tsx` (UI de seleção + chamada RPC)
+- `src/pages/PassagensAereasCompartilhadoPage.tsx` (carregar visuais e prover contexto)
+- `src/contexts/PublicVisualsContext.tsx` (novo)
+- `src/hooks/useUserVisuals.ts` (consumir contexto público quando presente)
+- `src/lib/visualCatalog.ts` (revisão das chaves de Passagens)
+- `src/integrations/supabase/types.ts` (auto-gerado pela migração)
 
-## Notas
+## Comportamento final
 
-- Não aparece a opção para o próprio admin logado (oculta linha self).
-- Se a edge function falhar ao chamar `auth.admin.signOut`, ainda assim o flag em `user_sessions` força o logout local na próxima batida do heartbeat.
+- Admin cria link → escolhe quais gráficos/mapas ficam visíveis → link gerado com restrição embutida.
+- Destinatário externo abre o link → vê apenas o que foi liberado, mesmo sem login.
+- Links já existentes continuam funcionando normalmente (default = todos visíveis).
