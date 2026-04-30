@@ -121,6 +121,24 @@ export function MonitoramentoUsuarios() {
     fetchActivity();
   };
 
+  const handleKick = async (s: SessionRow) => {
+    const label = s.display_name || s.user_email || s.user_id;
+    if (!confirm(`Derrubar a conexão de ${label}?\n\nO usuário será desconectado em alguns segundos e precisará entrar novamente.`)) return;
+    setKilling(s.user_id);
+    try {
+      const { error } = await supabase.functions.invoke('admin-force-logout', {
+        body: { userId: s.user_id },
+      });
+      if (error) throw error;
+      toast.success(`Conexão de ${label} encerrada`);
+      fetchOnline();
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao derrubar conexão');
+    } finally {
+      setKilling(null);
+    }
+  };
+
   const paged = activity.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(activity.length / PAGE_SIZE));
 
