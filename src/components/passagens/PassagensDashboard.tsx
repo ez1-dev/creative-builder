@@ -251,6 +251,37 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     [displayRows],
   );
 
+  // Paginação: aplicada apenas no modo lista (sem agrupar) e quando pageSize > 0
+  const totalPages = useMemo(() => {
+    if (agruparColab || pageSize <= 0) return 1;
+    return Math.max(1, Math.ceil(displayRows.length / pageSize));
+  }, [agruparColab, pageSize, displayRows.length]);
+
+  // Resetar página quando filtros/busca/ordenação/agrupamento/pageSize mudarem
+  useEffect(() => {
+    setPageIndex(0);
+  }, [busca, ordenacao, agruparColab, pageSize, crossFiltered.length]);
+
+  // Garantir que pageIndex não fique fora do range
+  useEffect(() => {
+    if (pageIndex > totalPages - 1) setPageIndex(Math.max(0, totalPages - 1));
+  }, [pageIndex, totalPages]);
+
+  const pagedRows = useMemo(() => {
+    if (agruparColab || pageSize <= 0) return displayRows;
+    const start = pageIndex * pageSize;
+    return displayRows.slice(start, start + pageSize);
+  }, [displayRows, agruparColab, pageSize, pageIndex]);
+
+  const subtotalPagina = useMemo(
+    () => pagedRows.reduce((s, r) => s + Number(r.valor || 0), 0),
+    [pagedRows],
+  );
+
+  const showPagination = !agruparColab && pageSize > 0 && displayRows.length > pageSize;
+  const pageStart = pagedRows.length === 0 ? 0 : pageIndex * pageSize + 1;
+  const pageEnd = pageIndex * pageSize + pagedRows.length;
+
   // Agrupamento por colaborador para a visão expansível
   const gruposColab = useMemo(() => {
     const map = new Map<string, { colaborador: string; qtd: number; total: number; registros: Passagem[] }>();
