@@ -456,11 +456,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setFiltroMes('todos');
     setDataInicio('');
     setDataFim('');
-    setSelectedMes(null);
-    setSelectedMotivo(null);
-    setSelectedCC(null);
-    setSelectedDestino(null);
-    setSelectedUF(null);
+    setSelectedMes([]);
+    setSelectedMotivo([]);
+    setSelectedCC([]);
+    setSelectedDestino([]);
+    setSelectedUF([]);
   };
 
   // Dados para o mapa: respeita filtros do topo + outros cross-filters, exceto o próprio destino
