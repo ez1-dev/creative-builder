@@ -11,8 +11,13 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Copy, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { formatDate } from '@/lib/format';
+import { VISUAL_CATALOG } from '@/lib/visualCatalog';
+
+const PASSAGENS_VISUALS =
+  VISUAL_CATALOG.find((g) => g.module === 'Passagens Aéreas')?.items ?? [];
 
 interface ShareLink {
   id: string;
@@ -24,6 +29,7 @@ interface ShareLink {
   access_count: number;
   last_accessed_at: string | null;
   created_at: string;
+  hidden_visuals: string[] | null;
 }
 
 interface Props {
