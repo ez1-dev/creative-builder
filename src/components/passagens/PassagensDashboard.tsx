@@ -1078,15 +1078,24 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   </TableRow>
                 ))}
               </TableBody>
-              {displayRows.length > 0 && (
-                <TableFooter className="sticky bottom-0 z-10 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80 shadow-[0_-1px_0_0_hsl(var(--border))]">
+              {pagedRows.length > 0 && (
+                <TableFooter>
                   <TableRow className="font-semibold hover:bg-transparent">
                     <TableCell colSpan={baseCols - 1}>
-                      Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+                      Subtotal página · {pagedRows.length} {pagedRows.length === 1 ? 'registro' : 'registros'}
                     </TableCell>
-                    <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(subtotalPagina)}</TableCell>
                     {hasActions && <TableCell />}
                   </TableRow>
+                  {showPagination && (
+                    <TableRow className="text-xs font-normal text-muted-foreground hover:bg-transparent">
+                      <TableCell colSpan={baseCols - 1}>
+                        Total geral · {displayRows.length} registros
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+                      {hasActions && <TableCell />}
+                    </TableRow>
+                  )}
                 </TableFooter>
               )}
             </Table>
