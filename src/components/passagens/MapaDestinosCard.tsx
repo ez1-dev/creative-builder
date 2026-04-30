@@ -152,10 +152,15 @@ export function MapaDestinosCard({
 
   const aggUFSelected = selectedUF ? porUF.get(selectedUF) : null;
 
-  const colorScale = useMemo(
-    () => makeColorScale(Array.from(porUF.values()).map((u) => u.qtd)),
-    [porUF],
-  );
+  const colorScale = useMemo(() => {
+    const values = Array.from(porUF.values()).map((u) => u.qtd);
+    const fn = makeColorScale(values);
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line no-console
+      console.log('[MapaDestinos] porUF size=', porUF.size, 'values=', values, 'sample fills=', values.slice(0, 5).map((v) => fn(v)));
+    }
+    return fn;
+  }, [porUF]);
 
   const legenda = useMemo(() => {
     if (maxQtdUF <= 0) return [];
