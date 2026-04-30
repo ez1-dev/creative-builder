@@ -121,7 +121,7 @@ export default function PassagensAereasCompartilhadoPage() {
           </div>
         </header>
         <main className="max-w-7xl mx-auto p-4">
-          <PassagensDashboard data={data} readOnly onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
+          <PassagensDashboard data={data} readOnly shareToken={token} onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
         </main>
         <footer className="text-center text-xs text-muted-foreground py-4">
           EZ ERP IA · Acesso somente leitura

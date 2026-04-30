@@ -28,6 +28,9 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { usePassagensLayout } from '@/hooks/usePassagensLayout';
+import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 export interface Passagem {
@@ -82,9 +85,11 @@ interface Props {
   onExport?: (rows: Passagem[]) => void;
   onExportXlsx?: (rows: Passagem[]) => void;
   readOnly?: boolean;
+  /** Quando definido, carrega o layout via RPC pública (página de link compartilhado). */
+  shareToken?: string | null;
 }
 
-export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly }: Props) {
+export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly, shareToken }: Props) {
   const isMobile = useIsMobile();
   // Threshold "compact" para layouts até tablet inclusive (< 1024px):
   // KPI "Registros" e tabela usam a versão empilhada/cards para evitar
@@ -99,6 +104,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     onChange();
     return () => mql.removeEventListener('change', onChange);
   }, []);
+
+  // === Layout customizável (drag & drop, salvo globalmente) ===
+  const { widgets, isAdmin, saveLayout, resetLayout } = usePassagensLayout({
+    shareToken: shareToken ?? null,
+  });
+  const [editingLayout, setEditingLayout] = useState(false);
+  const [pendingLayout, setPendingLayout] = useState<
+    { type: string; layout: { x: number; y: number; w: number; h: number } }[] | null
+  >(null);
+  const [savingLayout, setSavingLayout] = useState(false);
+  const canEditLayout = !readOnly && isAdmin && !shareToken;
+
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
@@ -570,6 +587,44 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       )}
 
+      {canEditLayout && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+          {!editingLayout ? (
+            <Button size="sm" variant="outline" onClick={() => setEditingLayout(true)}>
+              <Layers className="mr-1.5 h-4 w-4" />
+              Editar layout
+            </Button>
+          ) : (
+            <>
+              <span className="text-xs font-medium text-primary">Modo edição: arraste ou redimensione os blocos</span>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={() => { setEditingLayout(false); setPendingLayout(null); }} disabled={savingLayout}>Cancelar</Button>
+                <Button size="sm" variant="outline" disabled={savingLayout} onClick={async () => {
+                  if (!confirm('Restaurar o layout padrão para todos os usuários?')) return;
+                  setSavingLayout(true);
+                  try { await resetLayout(); setEditingLayout(false); setPendingLayout(null); toast.success('Layout restaurado.'); }
+                  catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
+                  finally { setSavingLayout(false); }
+                }}>Restaurar padrão</Button>
+                <Button size="sm" disabled={savingLayout} onClick={async () => {
+                  if (!pendingLayout) { setEditingLayout(false); return; }
+                  setSavingLayout(true);
+                  try { await saveLayout(pendingLayout); setEditingLayout(false); setPendingLayout(null); toast.success('Layout salvo para todos os usuários.'); }
+                  catch (e: any) { toast.error(e?.message ?? 'Falha ao salvar layout'); }
+                  finally { setSavingLayout(false); }
+                }}>{savingLayout ? 'Salvando...' : 'Salvar'}</Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <PassagensLayoutGrid
+        widgets={widgets}
+        editing={editingLayout}
+        onLayoutChange={setPendingLayout}
+        blocks={{
+          'kpis-row': (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
         {isCompact ? (
@@ -646,7 +701,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Colaboradores" value={colaboradoresUnicos} icon={<Users className="h-5 w-5" />} variant="success" index={2} />
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
-
+          ),
+          'mapa-destinos': (
       <VisualGate visualKey="passagens.mapa-destinos">
         <div className="grid grid-cols-1 gap-4">
           <MapaDestinosCard
@@ -656,7 +712,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           />
         </div>
       </VisualGate>
-
+          ),
+          'charts-row': (
       <VisualGate visualKey="passagens.kpis-charts">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -783,7 +840,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
       </div>
       </VisualGate>
-
+          ),
+          'tabela-registros': (
       <Card>
         <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <CardTitle className="text-sm">Registros ({displayRows.length})</CardTitle>
@@ -992,6 +1050,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           })()}
         </CardContent>
       </Card>
+          ),
+        }}
+      />
+
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
