@@ -445,6 +445,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const limparTudo = () => {
     setFiltroColaborador('');
     setFiltroCC('');
+    setFiltroMotivo('todos');
     setFiltroTipo('todos');
     setFiltroMes('todos');
     setDataInicio('');
