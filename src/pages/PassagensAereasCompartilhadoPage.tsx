@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Plane, Lock, AlertCircle } from 'lucide-react';
 import { PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, type Passagem } from '@/components/passagens/PassagensDashboard';
 import { deriveEffectiveToken } from '@/components/passagens/ShareLinksDialog';
+import { PublicVisualsProvider } from '@/contexts/PublicVisualsContext';
 
 type State = 'loading' | 'invalid' | 'expired' | 'password' | 'ok' | 'wrong-password';
 
