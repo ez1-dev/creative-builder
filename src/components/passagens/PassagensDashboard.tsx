@@ -778,7 +778,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           <MapaDestinosCard
             data={mapaData}
             selectedDestino={selectedDestino}
-            onSelectDestino={setSelectedDestino}
+            onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
           />
         </div>
       </VisualGate>
