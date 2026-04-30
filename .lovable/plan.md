@@ -1,52 +1,35 @@
-Vou corrigir o problema no frontend do mapa em `/passagens-aereas`.
+# Correção dos rótulos do mapa
 
-## O que eu confirmei
-- Os dados no backend estão corretos: a consulta atual mostra vários estados com volume relevante (`PR 57`, `PA 56`, `SP 53`, `BA 29`, `CE 27` etc.).
-- A própria UI já confirma isso parcialmente: o título mostra `Paraná (57)` e o `Top 5 destinos` está coerente.
-- Portanto, o problema não está no carregamento dos dados nem no `uf_destino`; ele está na renderização do SVG em `src/components/passagens/MapaDestinosCard.tsx`.
+## Status atual
 
-## Causa raiz provável
-Há dois problemas visuais no componente do mapa:
+Após inspecionar `src/components/passagens/MapaDestinosCard.tsx` (linhas 305-338), os rótulos das siglas de UF **já estão usando a projeção correta** do `react-simple-maps`.
 
-1. **As cores por intensidade não estão sendo aplicadas no estado “default” do `Geography`**
-   - Hoje o componente calcula `fill` corretamente, mas a cor dinâmica está sendo passada de forma que a biblioteca não está refletindo isso como esperado no desenho base.
-   - Resultado prático: quase todos os estados ficam com uma cor parecida, mesmo com contagens bem diferentes.
+A correção que você pediu já foi aplicada na iteração anterior:
 
-2. **As siglas das UFs estão sendo posicionadas com coordenadas geográficas brutas**
-   - O código usa `geoCentroid(geo)` diretamente como `x/y` do SVG.
-   - Isso explica o agrupamento das siglas no canto superior esquerdo da imagem.
-   - O centróide precisa ser projetado para coordenadas do mapa antes de renderizar o texto.
+```tsx
+<Marker key={`label-${geo.rsmKey}`} coordinates={labelCoord}>
+  <text textAnchor="middle" dominantBaseline="central" ...>
+    {uf}
+  </text>
+</Marker>
+```
 
-## Plano de implementação
-1. **Corrigir a pintura dos estados** em `MapaDestinosCard.tsx`
-   - Aplicar a cor calculada explicitamente dentro de `style.default.fill`, `style.hover.fill` e `style.pressed.fill`.
-   - Manter stroke e hover consistentes.
-   - Garantir que cada UF use de fato o `qtd` vindo de `porUF`.
+- `labelCoord` é `[longitude, latitude]` em graus (vindo de `geoCentroid(geo)`).
+- O componente `<Marker>` aplica automaticamente a projeção `geoMercator` definida no `ComposableMap` (scale 780, center [-54, -15]).
+- O `<text>` interno renderiza no espaço já projetado, com `textAnchor="middle"` para centralizar sobre o estado.
 
-2. **Corrigir o posicionamento das siglas**
-   - Substituir o uso direto de `geoCentroid` como coordenada SVG por uma abordagem projetada.
-   - Posso fazer isso de duas formas seguras, seguindo o que encaixar melhor na biblioteca já usada:
-     - usar `Marker`/projeção do `react-simple-maps`, ou
-     - projetar o centróide antes de desenhar o `<text>`.
-   - Isso vai espalhar as siglas corretamente sobre os estados.
+## Não há código a alterar
 
-3. **Adicionar um fallback de identificação da UF mais robusto**
-   - Hoje o mapa depende de `geo.properties.codarea`.
-   - Vou manter isso, mas adicionar fallback defensivo caso alguma feature venha com outra chave compatível no GeoJSON.
-   - Isso reduz risco de inconsistência futura no arquivo `public/geo/brasil-uf.json`.
+A versão antiga (que usava `<text x={cx} y={cy}>` direto, fazendo as siglas se aglomerarem no canto superior esquerdo) já foi removida.
 
-4. **Validar visualmente o resultado**
-   - Confirmar que estados com maior incidência (`PR`, `PA`, `SP`) ficam visualmente destacados.
-   - Confirmar que estados médios (`BA`, `CE`, `AM`) aparecem em faixas diferentes.
-   - Confirmar que as siglas não ficam mais empilhadas no canto.
+## Se você ainda vê rótulos fora de posição
 
-## Arquivo principal a ajustar
-- `src/components/passagens/MapaDestinosCard.tsx`
+Pode ser cache do navegador. Possíveis próximas ações (precisa aprovar para eu executar):
 
-## Resultado esperado
-- O mapa passará a refletir os dados reais já carregados.
-- As cores vão variar por intensidade de forma visível.
-- As siglas das UFs ficarão posicionadas corretamente.
-- Não será necessário mexer no banco para esse ajuste específico.
+1. **Forçar reload do preview** — abrir o preview em aba anônima ou Ctrl+Shift+R.
+2. **Verificar visualmente** com a ferramenta de browser autenticada e tirar um screenshot do mapa atual para confirmar onde estão as siglas hoje.
+3. **Ajustar offsets dos estados pequenos do Nordeste** (RN, PB, PE, AL, SE) — hoje há `labelOffset` empurrando essas siglas para o oceano para não sobrepor. Se estiverem caindo no lugar errado, ajusto os valores.
 
-Se você aprovar, eu implemento essa correção agora.
+## Recomendação
+
+Me confirme **qual sigla específica** está fora do lugar (ex.: "SP está sobre o RJ", "RN aparece no meio do mar muito longe") para eu corrigir o offset exato. Sem isso, qualquer mudança seria às cegas e pode piorar o que já está bom.
