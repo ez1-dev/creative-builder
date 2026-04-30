@@ -812,7 +812,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo && <span className="text-xs font-normal text-muted-foreground">(clique novamente para limpar)</span>}</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={isMobile ? 360 : 320}>
               <PieChart margin={isMobile ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 20, right: 30, bottom: 20, left: 30 }}>
