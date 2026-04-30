@@ -88,6 +88,9 @@ export default function PassagensAereasPage() {
       tipo_despesa: form.tipo_despesa,
       valor: Number(form.valor) || 0,
       observacoes: form.observacoes || null,
+      uf_destino: form.destino
+        ? (geocodeCidade(nomeNormalizado(form.destino))?.uf ?? null)
+        : null,
     };
 
     if (editing) {
