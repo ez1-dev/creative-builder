@@ -1,33 +1,26 @@
-## Objetivo
+## Problema
 
-No card "Mapa de Destinos", a lista de "Top destinos" deve ser ordenada pelo **valor total gasto** (não pela quantidade de passagens) e ter um botão "+" para mostrar mais itens além dos 5 iniciais.
+Quando o usuário clica num destino na lista "Top destinos por valor" (ou no mapa por UF), os três gráficos de baixo **não** são atualizados:
 
-## Mudanças em `src/components/passagens/MapaDestinosCard.tsx`
+- **Evolução Mensal**
+- **Por Motivo de Viagem**
+- **Top 15 Centros de Custo**
 
-1. **Ordenar por valor**: trocar `cidades.sort((a, b) => b.qtd - a.qtd)` por `cidades.sort((a, b) => b.total - a.total)` no `useMemo` que monta `porCidade`.
+KPIs, lista de registros e card de agrupamento já filtram corretamente — só os gráficos ficam estáticos.
 
-2. **Limite dinâmico**: substituir `const top5 = porCidade.slice(0, 5)` por:
-   - `const [topLimit, setTopLimit] = useState(5)` (resetado pelo botão de limpar zoom/seleção que já existe).
-   - `const topDestinos = porCidade.slice(0, topLimit)`.
+## Causa
 
-3. **UI**:
-   - Renomear o título "Top 5 destinos" para "Top destinos por valor".
-   - Trocar `top5.map(...)` por `topDestinos.map(...)`.
-   - No item da lista, dar destaque ao **valor** (linha principal) e mover a quantidade para o badge secundário (já é o caso). Manter o `formatCurrency(p.total)` visível.
-   - Abaixo da lista, adicionar dois botões pequenos lado a lado quando `porCidade.length > topLimit` ou `topLimit > 5`:
-     - **+5** (`<Plus />` ícone): `setTopLimit((n) => Math.min(n + 5, porCidade.length))`.
-     - **Mostrar menos** (aparece só se `topLimit > 5`): `setTopLimit(5)`.
-   - Mostrar contador "exibindo X de Y" em texto pequeno e mudo.
+Em `src/components/passagens/PassagensDashboard.tsx` (linhas 309–342), os três `useMemo` chamam `applyCross(filtered, { ... })` passando apenas `mes`, `motivo` e `cc` como flags ativas. O filtro de `destino` e `uf` são ignorados na base, e ainda por cima `selectedDestino` / `selectedUF` não estão nas dependências do `useMemo`, então o React nem recalcula quando o usuário seleciona uma cidade/UF.
 
-4. **Reset**: quando o usuário limpa filtros/seleção (ações já existentes), opcionalmente resetar `topLimit` para 5 — evita lista enorme após mudar contexto.
+## Correção
 
-## Comportamento final
+Em cada um dos três gráficos:
 
-- Lista ordenada do destino que mais consumiu valor para o que menos consumiu.
-- 5 itens por padrão; clicar "+" expande de 5 em 5 até o total disponível.
-- Botão "Mostrar menos" volta para 5.
-- Cross-filter ao clicar em um destino continua funcionando igual.
+1. Adicionar `destino: true, uf: true` à chamada `applyCross(...)` — assim cada gráfico ignora apenas seu próprio eixo (regra Power BI) mas respeita destino e UF.
+2. Incluir `selectedDestino` e `selectedUF` no array de dependências do `useMemo`.
 
-## Arquivos envolvidos
+Resultado: ao clicar em "Curitiba" na lista, Evolução Mensal mostra só a evolução de Curitiba, Motivo mostra só os motivos das viagens para Curitiba, e Top 15 CC mostra só os centros de custo que tiveram passagens para Curitiba — coerente com o resto do dashboard.
 
-- `src/components/passagens/MapaDestinosCard.tsx` (única mudança)
+## Arquivo
+
+- `src/components/passagens/PassagensDashboard.tsx` (única mudança, ~6 linhas).

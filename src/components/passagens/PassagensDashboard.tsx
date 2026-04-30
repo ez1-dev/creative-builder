@@ -306,20 +306,20 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   };
 
 
-  // Gráfico Evolução Mensal: ignora selectedMes
+  // Gráfico Evolução Mensal: ignora apenas selectedMes (próprio eixo)
   const porMes = useMemo(() => {
-    const base = applyCross(filtered, { motivo: true, cc: true });
+    const base = applyCross(filtered, { motivo: true, cc: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const mes = r.data_registro.slice(0, 7);
       map.set(mes, (map.get(mes) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
-  }, [filtered, selectedMotivo, selectedCC]);
+  }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
 
-  // Gráfico Motivo: ignora selectedMotivo
+  // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo)
   const porMotivo = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, cc: true });
+    const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
@@ -328,18 +328,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filtered, selectedMes, selectedCC]);
+  }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF]);
 
-  // Gráfico CC: ignora selectedCC
+  // Gráfico CC: ignora apenas selectedCC (próprio eixo)
   const porCentroCusto = useMemo(() => {
-    const base = applyCross(filtered, { mes: true, motivo: true });
+    const base = applyCross(filtered, { mes: true, motivo: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const cc = r.centro_custo || 'Sem CC';
       map.set(cc, (map.get(cc) ?? 0) + Number(r.valor || 0));
     });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
-  }, [filtered, selectedMes, selectedMotivo]);
+  }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF]);
 
   const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino || selectedUF);
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
