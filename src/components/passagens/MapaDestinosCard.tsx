@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
 import { geoCentroid } from 'd3-geo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
