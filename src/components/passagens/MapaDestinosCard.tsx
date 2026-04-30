@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { geoCentroid } from 'd3-geo';
@@ -171,14 +171,6 @@ export function MapaDestinosCard({
     setCenter(DEFAULT_CENTER);
   };
 
-  // Quando seleciona UF, dá zoom no centroide
-  useEffect(() => {
-    if (!selectedUF) {
-      // ao limpar, volta zoom só se estiver focado
-      return;
-    }
-    // não altera se o usuário já moveu o mapa manualmente
-  }, [selectedUF]);
 
   const handleSelectUF = useCallback(
     (uf: string, centroid: [number, number]) => {
