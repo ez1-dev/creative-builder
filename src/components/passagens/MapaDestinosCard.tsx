@@ -110,7 +110,7 @@ export function MapaDestinosCard({
       }
       cidades.push({ cidade: val.nomeOriginal, qtd: val.qtd, total: val.total, uf: ufFinal });
     }
-    cidades.sort((a, b) => b.qtd - a.qtd);
+    cidades.sort((a, b) => b.total - a.total);
 
     let porUFMap: Map<string, AggregadoUF>;
     if (ufDirectMap.size > 0) {
@@ -135,7 +135,8 @@ export function MapaDestinosCard({
     };
   }, [data]);
 
-  const top5 = porCidade.slice(0, 5);
+  const [topLimit, setTopLimit] = useState(5);
+  const topDestinos = porCidade.slice(0, topLimit);
 
   const liderUF = useMemo(() => {
     let best: AggregadoUF | null = null;
