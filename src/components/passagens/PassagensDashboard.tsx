@@ -828,7 +828,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     if (d.name === OUTROS_LABEL) {
                       setOutrosMotivoOpen(true);
                     } else {
-                      setSelectedMotivo((prev) => (prev === d.name ? null : d.name));
+                      setSelectedMotivo((prev) => toggleItem(prev, d.name));
                     }
                   }}
                   labelLine={isMobile ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
