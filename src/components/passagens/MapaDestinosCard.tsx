@@ -317,7 +317,7 @@ export function MapaDestinosCard({
                         const agg = porUF.get(uf);
                         const qtd = agg?.qtd ?? 0;
                         const total = agg?.total ?? 0;
-                        const fill = colorForQtd(qtd, maxQtdUF);
+                        const fill = colorScale(qtd);
                         const isSelected = selectedUF === uf;
                         const isDimmed = !!selectedUF && !isSelected;
                         const opacity = isDimmed ? 0.3 : 1;
