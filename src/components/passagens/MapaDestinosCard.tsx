@@ -302,7 +302,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                   }
                 </Geographies>
 
-                {/* Camada 3: siglas das UFs */}
+                {/* Camada 3: siglas das UFs (posicionadas via Marker → projetadas) */}
                 <Geographies geography={GEO_URL}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
@@ -311,25 +311,10 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                       if (!uf) return null;
                       const [cx, cy] = geoCentroid(geo);
                       const [dx, dy] = labelOffset[uf] ?? [0, 0];
-                      const lx = cx + dx;
-                      const ly = cy + dy;
-                      const hasOffset = dx !== 0 || dy !== 0;
+                      const labelCoord: [number, number] = [cx + dx, cy + dy];
                       return (
-                        <g key={`label-${geo.rsmKey}`} pointerEvents="none">
-                          {hasOffset && (
-                            <line
-                              x1={cx}
-                              y1={cy}
-                              x2={lx}
-                              y2={ly}
-                              stroke="hsl(220, 18%, 45%)"
-                              strokeWidth={0.35}
-                              strokeOpacity={0.6}
-                            />
-                          )}
+                        <Marker key={`label-${geo.rsmKey}`} coordinates={labelCoord}>
                           <text
-                            x={lx}
-                            y={ly}
                             textAnchor="middle"
                             dominantBaseline="central"
                             style={{
@@ -341,11 +326,12 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                               stroke: 'hsl(0, 0%, 100%)',
                               strokeWidth: 2.5,
                               strokeLinejoin: 'round',
+                              pointerEvents: 'none',
                             }}
                           >
                             {uf}
                           </text>
-                        </g>
+                        </Marker>
                       );
                     })
                   }
