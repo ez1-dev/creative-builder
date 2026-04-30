@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Plus, Minus, RotateCcw, ChevronLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
 import { geocodeCidade, nomeNormalizado } from './cidadesBrasil';
-import { COD_TO_UF, UF_NOME, LABEL_OFFSET, colorForQtd, GEO_URL, HEAT_COLORS } from './mapaUtils';
+import { COD_TO_UF, UF_NOME, LABEL_OFFSET, makeColorScale, GEO_URL, HEAT_COLORS } from './mapaUtils';
 import type { Passagem } from './PassagensDashboard';
 
 interface AggregadoCidade {
@@ -151,6 +151,11 @@ export function MapaDestinosCard({
   }, [porCidade, selectedUF]);
 
   const aggUFSelected = selectedUF ? porUF.get(selectedUF) : null;
+
+  const colorScale = useMemo(
+    () => makeColorScale(Array.from(porUF.values()).map((u) => u.qtd)),
+    [porUF],
+  );
 
   const legenda = useMemo(() => {
     if (maxQtdUF <= 0) return [];
