@@ -1,35 +1,88 @@
-# Correção dos rótulos do mapa
+# Refazer Mapa de Destinos — react-simple-maps com zoom, drill-down e animação
 
-## Status atual
+## Objetivo
 
-Após inspecionar `src/components/passagens/MapaDestinosCard.tsx` (linhas 305-338), os rótulos das siglas de UF **já estão usando a projeção correta** do `react-simple-maps`.
+Substituir o `MapaDestinosCard.tsx` atual por uma versão limpa, com 4 capacidades:
 
-A correção que você pediu já foi aplicada na iteração anterior:
+1. **Zoom e pan** (scroll/pinch + arrastar)
+2. **Drill-down**: clicar num estado abre painel lateral com cidades daquele estado e filtra o dashboard
+3. **Hover + clique para filtrar** (mantém comportamento atual)
+4. **Animação de entrada** (fade + scale ao montar)
 
-```tsx
-<Marker key={`label-${geo.rsmKey}`} coordinates={labelCoord}>
-  <text textAnchor="middle" dominantBaseline="central" ...>
-    {uf}
-  </text>
-</Marker>
+Mantemos `react-simple-maps` (já instalado, sem novas dependências).
+
+## Estrutura nova do componente
+
+```text
+MapaDestinosCard
+├── Header
+│   ├── Título + líder UF
+│   ├── Badge do filtro ativo (UF ou cidade)
+│   └── Botões: [Reset zoom] [Limpar filtro]
+├── Body (grid 3 colunas)
+│   ├── Mapa (col-span-2)
+│   │   ├── ComposableMap com ZoomableGroup
+│   │   │   ├── Camada 1: Geographies (fills + click + hover)
+│   │   │   ├── Camada 2: Geographies (bordas)
+│   │   │   └── Camada 3: Markers com siglas UF
+│   │   ├── Tooltip flutuante (portal)
+│   │   └── Controles de zoom [+] [-] [reset]
+│   └── Sidebar
+│       ├── Modo padrão: Top 5 cidades + legenda
+│       └── Modo drill-down: cidades do estado selecionado
 ```
 
-- `labelCoord` é `[longitude, latitude]` em graus (vindo de `geoCentroid(geo)`).
-- O componente `<Marker>` aplica automaticamente a projeção `geoMercator` definida no `ComposableMap` (scale 780, center [-54, -15]).
-- O `<text>` interno renderiza no espaço já projetado, com `textAnchor="middle"` para centralizar sobre o estado.
+## Mudanças técnicas concretas
 
-## Não há código a alterar
+### 1. Zoom e pan
+- Envolver `<Geographies>` em `<ZoomableGroup zoom={zoom} center={center} onMoveEnd={...}>`.
+- Estado: `zoom: number`, `center: [number, number]`.
+- Botões `+` `-` `reset` controlam o estado.
+- Limites: `minZoom={1}` `maxZoom={8}`.
 
-A versão antiga (que usava `<text x={cx} y={cy}>` direto, fazendo as siglas se aglomerarem no canto superior esquerdo) já foi removida.
+### 2. Drill-down por estado
+- Estado novo: `selectedUF: string | null`.
+- Click no `<Geography>` → `setSelectedUF(uf)` + `onSelectUF?.(uf)` (nova prop).
+- Quando `selectedUF` está ativo:
+  - Mapa dá zoom automático nas coordenadas do centroide do estado (com `setZoom(3)` e `setCenter(centroid)`).
+  - Outros estados ficam com `opacity: 0.35`.
+  - Sidebar troca de "Top 5" para "Cidades em {UF}" listando cidades agregadas.
+- Botão "← Voltar" reseta `selectedUF`, zoom e center.
 
-## Se você ainda vê rótulos fora de posição
+### 3. Animação de entrada
+- Container do mapa com `className="animate-fade-in"`.
+- Cada `<Geography>` recebe `style={{ transition: 'opacity 200ms, fill 300ms' }}`.
+- Markers de UF com `animate-scale-in` aplicado via wrapper SVG.
 
-Pode ser cache do navegador. Possíveis próximas ações (precisa aprovar para eu executar):
+### 4. Refatoração de qualidade
+- Extrair `colorForQtd`, `COD_TO_UF`, `UF_NOME`, `labelOffset` para `src/components/passagens/mapaUtils.ts`.
+- Tooltip via portal (`createPortal` no `document.body`) para evitar clipping do Card.
+- Remover código duplicado das 3 camadas de `<Geographies>`.
 
-1. **Forçar reload do preview** — abrir o preview em aba anônima ou Ctrl+Shift+R.
-2. **Verificar visualmente** com a ferramenta de browser autenticada e tirar um screenshot do mapa atual para confirmar onde estão as siglas hoje.
-3. **Ajustar offsets dos estados pequenos do Nordeste** (RN, PB, PE, AL, SE) — hoje há `labelOffset` empurrando essas siglas para o oceano para não sobrepor. Se estiverem caindo no lugar errado, ajusto os valores.
+## Integração com o dashboard
 
-## Recomendação
+A prop `onSelectDestino` continua existindo (filtra por cidade). Adicionar:
 
-Me confirme **qual sigla específica** está fora do lugar (ex.: "SP está sobre o RJ", "RN aparece no meio do mar muito longe") para eu corrigir o offset exato. Sem isso, qualquer mudança seria às cegas e pode piorar o que já está bom.
+- `selectedUF?: string | null`
+- `onSelectUF?: (uf: string | null) => void`
+
+No `PassagensDashboard.tsx` (linha ~612) adicionar handler que filtra `data` por `uf_destino` quando `selectedUF` está setado.
+
+## Arquivos afetados
+
+- `src/components/passagens/MapaDestinosCard.tsx` — reescrito
+- `src/components/passagens/mapaUtils.ts` — novo (utils extraídos)
+- `src/components/passagens/PassagensDashboard.tsx` — adicionar estado `selectedUF` e passar prop
+
+## Não muda
+
+- GeoJSON em `/public/geo/brasil-uf.json`
+- Lógica de agregação `porUF` / `porCidade` (continua igual)
+- Tabela `passagens_aereas` e queries
+
+## Riscos
+
+- **Zoom + Marker labels**: em zoom alto, siglas pequenas viram poluição visual. Solução: esconder labels quando `zoom > 2` exceto para o UF selecionado.
+- **Click vs pan**: `ZoomableGroup` pode capturar clicks como drag. Mitigação: usar `onClick` no `<Geography>` com threshold de movimento (já tratado pela lib).
+
+Aprovando, eu implemento direto.

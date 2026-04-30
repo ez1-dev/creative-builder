@@ -108,6 +108,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [selectedMotivo, setSelectedMotivo] = useState<string | null>(null);
   const [selectedCC, setSelectedCC] = useState<string | null>(null);
   const [selectedDestino, setSelectedDestino] = useState<string | null>(null);
+  const [selectedUF, setSelectedUF] = useState<string | null>(null);
   // Agrupamento do card Registros
   const [groupBy, setGroupBy] = useState<GroupBy>('centro_custo');
   const [groupSheetOpen, setGroupSheetOpen] = useState(false);
@@ -156,7 +157,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }), [data, filtroColaborador, filtroCC, filtroTipo, filtroMes, dataInicio, dataFim]);
 
   // Helper: aplica subset dos cross-filters
-  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean }) => {
+  const applyCross = (rows: Passagem[], opts: { mes?: boolean; motivo?: boolean; cc?: boolean; destino?: boolean; uf?: boolean }) => {
     return rows.filter((r) => {
       if (opts.mes && selectedMes && (r.data_registro ?? '').slice(0, 7) !== selectedMes) return false;
       if (opts.motivo && selectedMotivo) {
@@ -170,14 +171,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       if (opts.destino && selectedDestino) {
         if (!r.destino || nomeNormalizado(r.destino) !== nomeNormalizado(selectedDestino)) return false;
       }
+      if (opts.uf && selectedUF) {
+        if ((r.uf_destino ?? '').toUpperCase() !== selectedUF) return false;
+      }
       return true;
     });
   };
 
   // Dados para KPIs e tabela: aplica TODOS os cross-filters
   const crossFiltered = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino],
+    () => applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true, uf: true }),
+    [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino, selectedUF],
   );
 
   // Linhas exibidas no card Registros: aplica busca + ordenação
@@ -337,7 +341,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [filtered, selectedMes, selectedMotivo]);
 
-  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino);
+  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino || selectedUF);
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
@@ -352,6 +356,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedMotivo(null);
     setSelectedCC(null);
     setSelectedDestino(null);
+    setSelectedUF(null);
   };
 
   // Dados para o mapa: respeita filtros do topo + outros cross-filters, exceto o próprio destino
@@ -613,6 +618,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             data={mapaData}
             selectedDestino={selectedDestino}
             onSelectDestino={setSelectedDestino}
+            selectedUF={selectedUF}
+            onSelectUF={setSelectedUF}
           />
         </div>
       </VisualGate>
