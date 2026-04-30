@@ -1058,7 +1058,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       </Fragment>
                     );
                   })
-                ) : displayRows.map((r) => (
+                ) : pagedRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>{formatDate(r.data_registro)}</TableCell>
                     <TableCell className="font-medium">{r.colaborador}</TableCell>
