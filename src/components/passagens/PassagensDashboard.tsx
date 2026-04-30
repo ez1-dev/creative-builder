@@ -1101,6 +1101,78 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </Table>
             );
           })()}
+          {!agruparColab && displayRows.length > 0 && (
+            <div className={cn(
+              'flex flex-wrap items-center justify-between gap-2 border-t bg-muted/30 px-3 py-2 text-xs',
+              isCompact && 'mt-2 rounded-md border',
+            )}>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>
+                  {pageSize > 0
+                    ? `Mostrando ${pageStart}–${pageEnd} de ${displayRows.length}`
+                    : `Mostrando todos · ${displayRows.length}`}
+                </span>
+                <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+                  <SelectTrigger className="h-7 w-[110px] text-xs" aria-label="Registros por página">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="25" className="text-xs">25 por página</SelectItem>
+                    <SelectItem value="50" className="text-xs">50 por página</SelectItem>
+                    <SelectItem value="100" className="text-xs">100 por página</SelectItem>
+                    <SelectItem value="0" className="text-xs">Todos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {showPagination && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex(0)}
+                    disabled={pageIndex === 0}
+                    aria-label="Primeira página"
+                  >
+                    <ChevronsLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                    disabled={pageIndex === 0}
+                    aria-label="Página anterior"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <span className="px-2 text-muted-foreground">
+                    Página {pageIndex + 1} de {totalPages}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={pageIndex >= totalPages - 1}
+                    aria-label="Próxima página"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-7 w-7"
+                    onClick={() => setPageIndex(totalPages - 1)}
+                    disabled={pageIndex >= totalPages - 1}
+                    aria-label="Última página"
+                  >
+                    <ChevronsRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
           ),
