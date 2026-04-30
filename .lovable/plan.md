@@ -1,26 +1,39 @@
-## Problema
+## Objetivo
 
-Quando o usuário clica num destino na lista "Top destinos por valor" (ou no mapa por UF), os três gráficos de baixo **não** são atualizados:
+No gráfico de pizza **"Por Motivo de Viagem"**, agrupar todas as fatias com participação **menor que 5% do total** numa única fatia chamada **"Outros"**, com drill-down ao clicar — abrindo um painel lateral que lista os motivos agrupados com seu valor e percentual.
 
-- **Evolução Mensal**
-- **Por Motivo de Viagem**
-- **Top 15 Centros de Custo**
+## Comportamento
 
-KPIs, lista de registros e card de agrupamento já filtram corretamente — só os gráficos ficam estáticos.
+- Fatias ≥ 5% → renderizadas individualmente como hoje.
+- Fatias < 5% → somadas e exibidas como uma fatia única "Outros" (com cor neutra/cinza).
+- Se houver apenas 1 motivo abaixo de 5%, mantém ele individual (não vira "Outros" só com 1 item, pra evitar renomear sem motivo).
+- Clicar em "Outros" → abre um `Sheet` lateral mostrando a lista detalhada (motivo, valor, % do total geral) ordenada por valor desc.
+- Clicar em qualquer item dessa lista → aplica `selectedMotivo` naquele motivo específico (cross-filter normal) e fecha o sheet.
+- Clicar em fatias normais continua filtrando por motivo, como já funciona.
+- Quando "Outros" está como `selectedMotivo` virtual: tratamos como "todos os motivos pertencentes a Outros" — porém, para evitar complexidade, **não** suportamos selecionar "Outros" como filtro; o clique apenas abre o drill. Selecionar um item dentro do drill aplica o filtro normal.
 
-## Causa
+## Mudanças em `src/components/passagens/PassagensDashboard.tsx`
 
-Em `src/components/passagens/PassagensDashboard.tsx` (linhas 309–342), os três `useMemo` chamam `applyCross(filtered, { ... })` passando apenas `mes`, `motivo` e `cc` como flags ativas. O filtro de `destino` e `uf` são ignorados na base, e ainda por cima `selectedDestino` / `selectedUF` não estão nas dependências do `useMemo`, então o React nem recalcula quando o usuário seleciona uma cidade/UF.
+1. Adicionar estado `outrosMotivoOpen` e constante `OUTROS_LABEL = 'Outros'`.
+2. Reestruturar `porMotivo` (`useMemo`) para retornar `{ porMotivo, porMotivoOutros }`:
+   - `porMotivo` = lista exibida no gráfico (com fatia "Outros" agregada).
+   - `porMotivoOutros` = array dos motivos originais que entraram em "Outros" (para o drill).
+   - Limiar: 5% do total.
+3. No `<Pie>` do gráfico:
+   - No `onClick`, se `d.name === OUTROS_LABEL` → `setOutrosMotivoOpen(true)`. Caso contrário, manter o `setSelectedMotivo` atual.
+   - No `<Cell>` correspondente a "Outros", usar uma cor neutra (`hsl(var(--muted-foreground))` ou cinza fixo da paleta) para destacar visualmente que é uma agregação.
+4. Adicionar um `<Sheet>` ao final do componente (irmão do `groupSheetOpen`) com:
+   - Título "Detalhamento — Outros motivos"
+   - Subtexto: "Motivos com participação menor que 5% do total"
+   - Tabela: Motivo | Valor | % do total geral (do `porMotivo` somado).
+   - Cada linha clicável → `setSelectedMotivo(item.name)` + `setOutrosMotivoOpen(false)`.
 
-## Correção
+## Detalhes UX
 
-Em cada um dos três gráficos:
-
-1. Adicionar `destino: true, uf: true` à chamada `applyCross(...)` — assim cada gráfico ignora apenas seu próprio eixo (regra Power BI) mas respeita destino e UF.
-2. Incluir `selectedDestino` e `selectedUF` no array de dependências do `useMemo`.
-
-Resultado: ao clicar em "Curitiba" na lista, Evolução Mensal mostra só a evolução de Curitiba, Motivo mostra só os motivos das viagens para Curitiba, e Top 15 CC mostra só os centros de custo que tiveram passagens para Curitiba — coerente com o resto do dashboard.
+- Mostrar contador "(N motivos)" ao lado do título do sheet.
+- Manter consistência com o `Sheet` já usado em `groupSheetOpen`.
+- Exportar CSV/XLSX desse drill é opcional — fica de fora desta entrega para manter escopo.
 
 ## Arquivo
 
-- `src/components/passagens/PassagensDashboard.tsx` (única mudança, ~6 linhas).
+- `src/components/passagens/PassagensDashboard.tsx` (única mudança).

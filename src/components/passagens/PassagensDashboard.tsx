@@ -117,6 +117,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [agruparColab, setAgruparColab] = useState(false);
   const [ordenacao, setOrdenacao] = useState<'data_desc'|'data_asc'|'colab_az'|'colab_za'|'valor_desc'|'valor_asc'>('data_desc');
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
+  const [outrosMotivoOpen, setOutrosMotivoOpen] = useState(false);
+  const OUTROS_LABEL = 'Outros';
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
@@ -317,17 +319,32 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
   }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
 
-  // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo)
-  const porMotivo = useMemo(() => {
+  // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo).
+  // Agrupa fatias <5% do total numa fatia "Outros" com drill-down.
+  const { porMotivo, porMotivoOutros, totalMotivo } = useMemo(() => {
     const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
       map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
     });
-    return Array.from(map.entries())
+    const all = Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
+    const total = all.reduce((s, e) => s + e.value, 0);
+    const principais: { name: string; value: number }[] = [];
+    const outros: { name: string; value: number }[] = [];
+    all.forEach((e) => {
+      const pct = total > 0 ? e.value / total : 0;
+      if (pct < 0.05) outros.push(e);
+      else principais.push(e);
+    });
+    if (outros.length >= 2) {
+      const somaOutros = outros.reduce((s, e) => s + e.value, 0);
+      principais.push({ name: OUTROS_LABEL, value: somaOutros });
+      return { porMotivo: principais, porMotivoOutros: outros, totalMotivo: total };
+    }
+    return { porMotivo: all, porMotivoOutros: [] as { name: string; value: number }[], totalMotivo: total };
   }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF]);
 
   // Gráfico CC: ignora apenas selectedCC (próprio eixo)
@@ -664,7 +681,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   cy="50%"
                   outerRadius={isMobile ? 70 : 100}
                   cursor="pointer"
-                  onClick={(d: any) => setSelectedMotivo((prev) => (prev === d.name ? null : d.name))}
+                  onClick={(d: any) => {
+                    if (d.name === OUTROS_LABEL) {
+                      setOutrosMotivoOpen(true);
+                    } else {
+                      setSelectedMotivo((prev) => (prev === d.name ? null : d.name));
+                    }
+                  }}
                   labelLine={isMobile ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
                   label={isMobile
                     ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
@@ -679,7 +702,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   {porMotivo.map((entry, i) => (
                     <Cell
                       key={i}
-                      fill={COLORS[i % COLORS.length]}
+                      fill={entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length]}
                       fillOpacity={selectedMotivo && selectedMotivo !== entry.name ? dimOpacity : 1}
                     />
                   ))}
@@ -691,11 +714,23 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                 {porMotivo.map((entry, i) => (
                   <div key={entry.name} className="flex items-center gap-1">
-                    <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length] }}
+                    />
                     <span className="text-muted-foreground">{entry.name}</span>
                   </div>
                 ))}
               </div>
+            )}
+            {porMotivoOutros.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOutrosMotivoOpen(true)}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Ver detalhamento de "Outros" ({porMotivoOutros.length} motivos)
+              </button>
             )}
           </CardContent>
         </Card>
@@ -975,6 +1010,59 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               <span>{totalRegistros} registros · {formatCurrency(totalGeral)}</span>
             </div>
           )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={outrosMotivoOpen} onOpenChange={setOutrosMotivoOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Detalhamento — Outros motivos</SheetTitle>
+            <SheetDescription>
+              Motivos com participação menor que 5% do total{porMotivoOutros.length > 0 && ` · ${porMotivoOutros.length} motivos`}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 rounded-md border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="text-right">% total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {porMotivoOutros.map((m) => {
+                  const pct = totalMotivo > 0 ? (m.value / totalMotivo) * 100 : 0;
+                  return (
+                    <TableRow
+                      key={m.name}
+                      className="cursor-pointer hover:bg-accent/40"
+                      onClick={() => {
+                        setSelectedMotivo(m.name);
+                        setOutrosMotivoOpen(false);
+                      }}
+                    >
+                      <TableCell className="font-medium">{m.name}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(m.value)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {pct.toFixed(2).replace('.', ',')}%
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {porMotivoOutros.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-muted-foreground py-6">
+                      Nenhum motivo agrupado.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Clique em um motivo para filtrar todo o dashboard por ele.
+          </p>
         </SheetContent>
       </Sheet>
     </div>
