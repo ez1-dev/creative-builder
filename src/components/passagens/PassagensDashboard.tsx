@@ -117,6 +117,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [agruparColab, setAgruparColab] = useState(false);
   const [ordenacao, setOrdenacao] = useState<'data_desc'|'data_asc'|'colab_az'|'colab_za'|'valor_desc'|'valor_asc'>('data_desc');
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
+  const [outrosMotivoOpen, setOutrosMotivoOpen] = useState(false);
+  const OUTROS_LABEL = 'Outros';
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
@@ -317,17 +319,32 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([mes, valor]) => ({ mes, valor }));
   }, [filtered, selectedMotivo, selectedCC, selectedDestino, selectedUF]);
 
-  // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo)
-  const porMotivo = useMemo(() => {
+  // Gráfico Motivo: ignora apenas selectedMotivo (próprio eixo).
+  // Agrupa fatias <5% do total numa fatia "Outros" com drill-down.
+  const { porMotivo, porMotivoOutros, totalMotivo } = useMemo(() => {
     const base = applyCross(filtered, { mes: true, cc: true, destino: true, uf: true });
     const map = new Map<string, number>();
     base.forEach((r) => {
       const m = (r.motivo_viagem && r.motivo_viagem.trim()) || 'Não informado';
       map.set(m, (map.get(m) ?? 0) + Number(r.valor || 0));
     });
-    return Array.from(map.entries())
+    const all = Array.from(map.entries())
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
+    const total = all.reduce((s, e) => s + e.value, 0);
+    const principais: { name: string; value: number }[] = [];
+    const outros: { name: string; value: number }[] = [];
+    all.forEach((e) => {
+      const pct = total > 0 ? e.value / total : 0;
+      if (pct < 0.05) outros.push(e);
+      else principais.push(e);
+    });
+    if (outros.length >= 2) {
+      const somaOutros = outros.reduce((s, e) => s + e.value, 0);
+      principais.push({ name: OUTROS_LABEL, value: somaOutros });
+      return { porMotivo: principais, porMotivoOutros: outros, totalMotivo: total };
+    }
+    return { porMotivo: all, porMotivoOutros: [] as { name: string; value: number }[], totalMotivo: total };
   }, [filtered, selectedMes, selectedCC, selectedDestino, selectedUF]);
 
   // Gráfico CC: ignora apenas selectedCC (próprio eixo)
