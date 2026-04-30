@@ -285,7 +285,7 @@ export function MapaDestinosCard({
                   variant="ghost"
                   className="h-7 w-7"
                   onClick={handleResetView}
-                  disabled={zoom === DEFAULT_ZOOM && center[0] === DEFAULT_CENTER[0]}
+                  disabled={zoom === DEFAULT_ZOOM && panOffset.x === 0 && panOffset.y === 0}
                   title="Resetar vista"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
