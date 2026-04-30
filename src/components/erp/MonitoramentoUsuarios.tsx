@@ -42,6 +42,7 @@ function timeAgo(iso: string): string {
 const PAGE_SIZE = 50;
 
 export function MonitoramentoUsuarios() {
+  const { user } = useAuth();
   const [online, setOnline] = useState<SessionRow[]>([]);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,7 @@ export function MonitoramentoUsuarios() {
   const [eventType, setEventType] = useState<'all' | 'page_view' | 'action'>('all');
   const [userFilter, setUserFilter] = useState<string>('all');
   const [page, setPage] = useState(0);
+  const [killing, setKilling] = useState<string | null>(null);
 
   const fetchOnline = useCallback(async () => {
     const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
