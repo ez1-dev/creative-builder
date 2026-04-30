@@ -1,25 +1,29 @@
-## Resolver corte dos nomes em "Por Motivo de Viagem"
+## Diagnóstico
 
-Hoje cada fatia do Pie renderiza `Nome R$X Mil (Y%)` numa única linha SVG. Em motivos longos (ex: "Viagem Administrativa") o texto sai pela borda do card — visível principalmente na página de compartilhamento.
+A tela `/passagens-aereas/compartilhado` reutiliza o mesmo `PassagensDashboard.tsx`. O gráfico "Por Motivo de Viagem" já recebeu o fix de label em 2 linhas anteriormente, mas em motivos longos como **"TRANSFERENCIA DE OBRA"** (21 chars) e **"VIAGEM ADMINISTRATIVA"** (21 chars), o texto continua estourando para fora do `<svg>` do Recharts e é clipado pelo `overflow: hidden` padrão do SVG.
 
-Solução: manter labels nas fatias, mas dar mais espaço e quebrar em 2 linhas.
+Causa técnica: `PieChart margin.right/left = 90px` reserva apenas 90px laterais dentro do SVG. Um nome com 21 chars a fontSize 11 ocupa ~135px — excede o espaço reservado e é cortado pela borda do SVG. A largura efetiva do card (em layout 2-colunas a 1364px) é ~430px, então o problema é estrutural, não cosmético.
 
-### Alterações em `src/components/passagens/PassagensDashboard.tsx`
+Pelo print do usuário ainda aparecer no formato antigo de 1 linha (`SFERENCIA DE OBRA R$108 Mil (20,9%)`), parte do problema também é que o ajuste anterior pode não estar refletido no ambiente compartilhado que ele testou — mas mesmo com 2 linhas, "TRANSFERENCIA DE OBRA" sozinha ainda estouraria os 90px atuais.
 
-1. **Aumentar margens do PieChart** (desktop) para reservar espaço para as labels:
-   - De `{ top: 20, right: 30, bottom: 20, left: 30 }` para `{ top: 30, right: 90, bottom: 30, left: 90 }`.
-2. **Reduzir `outerRadius`** no desktop de `100` para `85` para sobrar mais espaço externo às labels.
-3. **Aumentar `height`** do `ResponsiveContainer` no desktop de `320` para `380`.
-4. **Renderizar label customizado em 2 linhas** (apenas desktop) usando função que retorna um elemento SVG `<text>` com dois `<tspan>`:
-   - Linha 1: `Nome do motivo` (com truncamento >24 chars + reticências)
-   - Linha 2: `R$X Mil (Y%)`
-   - Posicionamento polar igual ao default (cos/sin de midAngle, raio = outerRadius + 22).
-   - `textAnchor` dinâmico (`start` ou `end`) conforme o lado.
-5. Mobile permanece igual (só `%` dentro da fatia + legenda embaixo já existente).
+## Solução
 
-A página de compartilhamento (`PassagensAereasCompartilhadoPage`) usa o mesmo `PassagensDashboard`, então herda o fix automaticamente.
+Endurecer o fix em `src/components/passagens/PassagensDashboard.tsx` (afeta automaticamente `/passagens-aereas` e `/passagens-aereas/compartilhado`):
 
-### Fora do escopo
+1. **Permitir overflow no SVG do Recharts** para o gráfico de pizza, removendo o clip que corta as labels: aplicar `style={{ overflow: 'visible' }}` no `PieChart` (ou via CSS no `ResponsiveContainer` + selector `.recharts-surface { overflow: visible }`). Isso resolve o corte estrutural sem precisar reduzir mais o gráfico.
 
-- Não mexer no comportamento de clique/seleção do gráfico.
-- Não mexer nos demais gráficos (Evolução, Top CC, Mapa).
+2. **Reduzir o limite de truncamento** de 24 → 18 caracteres como fallback, garantindo que mesmo sem `overflow:visible` o texto caiba (ex: "TRANSFERENCIA DE OB…").
+
+3. **Diminuir o raio das labels** de `outerRadius + 22` para `outerRadius + 14`, encostando o texto mais perto da pizza e ganhando ~8px de cada lado.
+
+4. **Reduzir `outerRadius` desktop** de 85 para 78, liberando mais espaço lateral para o texto sem reduzir a altura percebida do gráfico.
+
+5. **Manter labels em 2 linhas** (nome em cima, valor + % embaixo) — já implementado.
+
+A página de compartilhamento não precisa de mudanças: ela apenas renderiza o `PassagensDashboard` em modo `readOnly`, então herda o fix.
+
+## Fora do escopo
+
+- Não mexer em outros gráficos (Evolução, Top CC, Mapa).
+- Não alterar layout mobile (continua com `%` dentro da fatia + legenda embaixo).
+- Não alterar lógica de clique/seleção de fatias nem o "Ver detalhamento de Outros".
