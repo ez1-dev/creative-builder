@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -212,6 +212,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     });
     return sorted;
   }, [crossFiltered, busca, ordenacao]);
+
+  const subtotalDisplay = useMemo(
+    () => displayRows.reduce((s, r) => s + Number(r.valor || 0), 0),
+    [displayRows],
+  );
 
   // Agrupamento por colaborador para a visão expansível
   const gruposColab = useMemo(() => {
@@ -869,6 +874,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     onDelete={!readOnly ? onDelete : undefined}
                   />
                 ))}
+                {displayRows.length > 0 && (
+                  <div className="flex items-center justify-between rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+                    <span>Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}</span>
+                    <span>{formatCurrency(subtotalDisplay)}</span>
+                  </div>
+                )}
               </div>
             )
           ) : (() => {
@@ -954,6 +965,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   </TableRow>
                 ))}
               </TableBody>
+              {displayRows.length > 0 && (
+                <TableFooter>
+                  <TableRow className="bg-muted/60 font-semibold">
+                    <TableCell colSpan={baseCols - 1}>
+                      Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+                    {hasActions && <TableCell />}
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
             );
           })()}

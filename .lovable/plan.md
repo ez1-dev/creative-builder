@@ -1,39 +1,57 @@
 ## Objetivo
 
-No gráfico de pizza **"Por Motivo de Viagem"**, agrupar todas as fatias com participação **menor que 5% do total** numa única fatia chamada **"Outros"**, com drill-down ao clicar — abrindo um painel lateral que lista os motivos agrupados com seu valor e percentual.
-
-## Comportamento
-
-- Fatias ≥ 5% → renderizadas individualmente como hoje.
-- Fatias < 5% → somadas e exibidas como uma fatia única "Outros" (com cor neutra/cinza).
-- Se houver apenas 1 motivo abaixo de 5%, mantém ele individual (não vira "Outros" só com 1 item, pra evitar renomear sem motivo).
-- Clicar em "Outros" → abre um `Sheet` lateral mostrando a lista detalhada (motivo, valor, % do total geral) ordenada por valor desc.
-- Clicar em qualquer item dessa lista → aplica `selectedMotivo` naquele motivo específico (cross-filter normal) e fecha o sheet.
-- Clicar em fatias normais continua filtrando por motivo, como já funciona.
-- Quando "Outros" está como `selectedMotivo` virtual: tratamos como "todos os motivos pertencentes a Outros" — porém, para evitar complexidade, **não** suportamos selecionar "Outros" como filtro; o clique apenas abre o drill. Selecionar um item dentro do drill aplica o filtro normal.
+Adicionar uma linha fixa de **Subtotal** no final da tabela "Registros" da página `/passagens-aereas`, refletindo exatamente os filtros, busca e cross-filters atuais. Funciona tanto no modo plano (uma linha por registro) quanto no modo agrupado por colaborador. Também aparece como barra resumo no modo mobile (cards).
 
 ## Mudanças em `src/components/passagens/PassagensDashboard.tsx`
 
-1. Adicionar estado `outrosMotivoOpen` e constante `OUTROS_LABEL = 'Outros'`.
-2. Reestruturar `porMotivo` (`useMemo`) para retornar `{ porMotivo, porMotivoOutros }`:
-   - `porMotivo` = lista exibida no gráfico (com fatia "Outros" agregada).
-   - `porMotivoOutros` = array dos motivos originais que entraram em "Outros" (para o drill).
-   - Limiar: 5% do total.
-3. No `<Pie>` do gráfico:
-   - No `onClick`, se `d.name === OUTROS_LABEL` → `setOutrosMotivoOpen(true)`. Caso contrário, manter o `setSelectedMotivo` atual.
-   - No `<Cell>` correspondente a "Outros", usar uma cor neutra (`hsl(var(--muted-foreground))` ou cinza fixo da paleta) para destacar visualmente que é uma agregação.
-4. Adicionar um `<Sheet>` ao final do componente (irmão do `groupSheetOpen`) com:
-   - Título "Detalhamento — Outros motivos"
-   - Subtexto: "Motivos com participação menor que 5% do total"
-   - Tabela: Motivo | Valor | % do total geral (do `porMotivo` somado).
-   - Cada linha clicável → `setSelectedMotivo(item.name)` + `setOutrosMotivoOpen(false)`.
+### 1. Import `TableFooter`
+Adicionar `TableFooter` ao import de `@/components/ui/table` (linhas 9-11).
 
-## Detalhes UX
+### 2. Calcular subtotal das linhas exibidas
+Após o `useMemo` de `displayRows` (linha 214), adicionar:
+```ts
+const subtotalDisplay = useMemo(
+  () => displayRows.reduce((s, r) => s + Number(r.valor || 0), 0),
+  [displayRows],
+);
+```
 
-- Mostrar contador "(N motivos)" ao lado do título do sheet.
-- Manter consistência com o `Sheet` já usado em `groupSheetOpen`.
-- Exportar CSV/XLSX desse drill é opcional — fica de fora desta entrega para manter escopo.
+### 3. Rodapé da tabela desktop
+Dentro do `<Table>` da seção Registros (entre `</TableBody>` e `</Table>`, ~linha 956), inserir:
+```tsx
+{displayRows.length > 0 && (
+  <TableFooter>
+    <TableRow className="bg-muted/60 font-semibold">
+      <TableCell colSpan={baseCols - 1}>
+        Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+      </TableCell>
+      <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+      {hasActions && <TableCell />}
+    </TableRow>
+  </TableFooter>
+)}
+```
 
-## Arquivo
+`baseCols` e `hasActions` já existem no escopo (linhas 875-877). O subtotal soma `displayRows`, então no modo agrupado representa a soma de todos os grupos visíveis (cada grupo continua mostrando seu próprio total na linha-cabeçalho do grupo).
 
-- `src/components/passagens/PassagensDashboard.tsx` (única mudança).
+### 4. Barra de subtotal no modo mobile (cards)
+Logo após o `<div className="space-y-2">` que renderiza os `PassagemMobileCard` (~linha 863), adicionar antes do fechamento da div:
+```tsx
+{displayRows.length > 0 && (
+  <div className="flex items-center justify-between rounded-md border bg-muted/60 px-3 py-2 text-sm font-semibold">
+    <span>Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}</span>
+    <span>{formatCurrency(subtotalDisplay)}</span>
+  </div>
+)}
+```
+
+## Comportamento
+
+- O subtotal reflete **exatamente o que está visível**: respeita filtros do dashboard, cross-filters (mês, motivo, CC, destino, UF), busca textual e ordenação.
+- Modo agrupado: linhas-cabeçalho de cada colaborador mantêm seu total individual; o rodapé soma todos os grupos visíveis.
+- Quando não há registros, o rodapé/barra não é renderizado.
+- Sem alterações nos exports (CSV/XLSX) — escopo apenas visual, conforme conversado.
+
+## Arquivo afetado
+
+- `src/components/passagens/PassagensDashboard.tsx` (única mudança)
