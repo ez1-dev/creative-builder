@@ -40,7 +40,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
   );
 
   // Layout para o grid (1 entry por widget).
-  const layoutItems: Layout[] = useMemo(
+  const layoutItems: LayoutItem[] = useMemo(
     () =>
       orderedWidgets.map((w) => ({
         i: w.type,
