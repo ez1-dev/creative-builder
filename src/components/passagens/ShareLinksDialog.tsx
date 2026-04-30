@@ -71,6 +71,9 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
   const [senha, setSenha] = useState('');
   const [novoLink, setNovoLink] = useState<string | null>(null);
   const [novoLinkProtegido, setNovoLinkProtegido] = useState(false);
+  const [visiveis, setVisiveis] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(PASSAGENS_VISUALS.map((v) => [v.key, true])),
+  );
 
   const baseUrl = window.location.origin;
 
@@ -100,6 +103,10 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
       ? new Date(Date.now() + Number(validade) * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
+    const hiddenVisuals = PASSAGENS_VISUALS
+      .filter((v) => !visiveis[v.key])
+      .map((v) => v.key);
+
     const { error } = await supabase.rpc('create_passagens_share_link', {
       _token: effectiveToken,
       _nome: nome,
@@ -108,6 +115,7 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
       // reconhece esse sentinela, considerando o match do token suficiente.
       _password: password ? 'protected' : null,
       _expires_at: expiresAt,
+      _hidden_visuals: hiddenVisuals,
     });
 
     if (error) {
@@ -123,6 +131,7 @@ export function ShareLinksDialog({ open, onOpenChange }: Props) {
     setNovoLink(link);
     setNovoLinkProtegido(!!password);
     setNome(''); setSenha(''); setValidade('30');
+    setVisiveis(Object.fromEntries(PASSAGENS_VISUALS.map((v) => [v.key, true])));
     load();
     setCreating(false);
   };
