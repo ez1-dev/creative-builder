@@ -18,19 +18,20 @@ export interface PassagensWidget {
 
 /**
  * Lista canônica dos blocos do dashboard de Passagens Aéreas.
- * Usada para garantir que sempre temos os 8 blocos mesmo antes do banco
- * estar populado (fallback) e para o "reset" do layout default.
+ * Usada para garantir que sempre temos os blocos corretos mesmo antes do
+ * banco estar populado (fallback) e para o "reset" do layout default.
+ *
+ * Atualmente são 4 blocos visíveis ao usuário:
+ * - kpis-row: linha com os 4 cards de KPI
+ * - mapa-destinos: mapa com top destinos
+ * - charts-row: 3 gráficos (evolução mensal, motivo, top centros de custo)
+ * - tabela-registros: tabela completa de registros + filtros + export
  */
 export const PASSAGENS_DEFAULT_WIDGETS: PassagensWidget[] = [
-  { id: 'kpi-total',         type: 'kpi-total',         title: 'Total Geral',          position: 0, layout: { x: 0,  y: 0,  w: 3,  h: 2 } },
-  { id: 'kpi-registros',     type: 'kpi-registros',     title: 'Registros',            position: 1, layout: { x: 3,  y: 0,  w: 3,  h: 2 } },
-  { id: 'kpi-colaboradores', type: 'kpi-colaboradores', title: 'Colaboradores',        position: 2, layout: { x: 6,  y: 0,  w: 3,  h: 2 } },
-  { id: 'kpi-ticket',        type: 'kpi-ticket',        title: 'Ticket Médio',         position: 3, layout: { x: 9,  y: 0,  w: 3,  h: 2 } },
-  { id: 'mapa-destinos',     type: 'mapa-destinos',     title: 'Mapa de Destinos',     position: 4, layout: { x: 0,  y: 2,  w: 12, h: 6 } },
-  { id: 'chart-evolucao',    type: 'chart-evolucao',    title: 'Evolução Mensal',      position: 5, layout: { x: 0,  y: 8,  w: 6,  h: 5 } },
-  { id: 'chart-motivo',      type: 'chart-motivo',      title: 'Por Motivo',           position: 6, layout: { x: 6,  y: 8,  w: 6,  h: 5 } },
-  { id: 'chart-cc',          type: 'chart-cc',          title: 'Top Centros de Custo', position: 7, layout: { x: 0,  y: 13, w: 12, h: 6 } },
-  { id: 'tabela-registros',  type: 'tabela-registros',  title: 'Registros',            position: 8, layout: { x: 0,  y: 19, w: 12, h: 8 } },
+  { id: 'kpis-row',         type: 'kpis-row',         title: 'KPIs',             position: 0, layout: { x: 0, y: 0,  w: 12, h: 3  } },
+  { id: 'mapa-destinos',    type: 'mapa-destinos',    title: 'Mapa de Destinos', position: 1, layout: { x: 0, y: 3,  w: 12, h: 7  } },
+  { id: 'charts-row',       type: 'charts-row',       title: 'Gráficos',         position: 2, layout: { x: 0, y: 10, w: 12, h: 12 } },
+  { id: 'tabela-registros', type: 'tabela-registros', title: 'Registros',        position: 3, layout: { x: 0, y: 22, w: 12, h: 10 } },
 ];
 
 interface Options {
