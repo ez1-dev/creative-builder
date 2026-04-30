@@ -699,7 +699,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     : (e: any) => {
                         const v = Number(e.value || 0);
                         const mil = `R$${(v / 1000).toFixed(0)} Mil`;
-                        const pct = ((e.percent ?? 0) * 100).toFixed(2).replace('.', ',');
+                        const pct = ((e.percent ?? 0) * 100).toFixed(1).replace('.', ',');
                         return `${e.name} ${mil} (${pct}%)`;
                       }}
                   style={{ fontSize: 11 }}
