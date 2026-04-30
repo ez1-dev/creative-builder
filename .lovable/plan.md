@@ -1,151 +1,75 @@
+## Atualizar o Mapa para usar a UF de Destino
 
-## Objetivo
+Hoje o Mapa de Destinos descobre o estado a partir do nome da cidade (`cidadesBrasil.ts`). Quando uma cidade não está no dicionário, ela cai no balde "sem geo" e não pinta o estado. A planilha enviada (`Relatório_Anual_Passagens_2026.xlsx`) traz uma coluna **UF DESTINO** explícita — vamos usá-la como fonte oficial.
 
-Adicionar em **Configurações** uma nova aba **"Gráficos e Mapas"** onde admins escolhem, **por perfil de acesso**, quais gráficos/mapas cada usuário pode visualizar nas telas do ERP. Quando o perfil não tiver permissão para um gráfico, ele simplesmente não é renderizado para o usuário (a página continua acessível, só os visuais ocultam).
+### O que muda
 
-## Catálogo de gráficos/mapas (versão 1)
+1. **Banco de dados**
+   - Nova coluna `uf_destino` (text, 2 chars) em `passagens_aereas`.
+   - Validação leve: aceita apenas siglas UF maiúsculas ou nulo.
 
-Identificados no código atual e expostos como entradas configuráveis:
+2. **Importação de XLSX**
+   - `ImportarPassagensDialog.tsx` passa a aceitar a coluna `uf_destino` (e variações: `UF DESTINO`, `UF`, `uf`).
+   - Modelo de importação (download) inclui a nova coluna.
+   - Se a planilha não trouxer UF, o sistema tenta deduzir pelo dicionário de cidades no momento do insert (best-effort), mas não bloqueia a linha.
+   - Linhas existentes continuam válidas (UF nula).
 
-```text
-Passagens Aéreas
-  ├─ passagens.mapa-destinos          Mapa de Destinos (Brasil)
-  ├─ passagens.top-destinos           Top 5 Destinos
-  └─ passagens.kpis-charts            Gráficos do dashboard de passagens
+3. **Mapa de Destinos** (`MapaDestinosCard.tsx`)
+   - Para cada passagem, a ordem de resolução do estado vira:
+     1. `uf_destino` do registro (autoritativo)
+     2. `geocodeCidade(destino)` (fallback atual)
+   - Tooltip e contagem por estado passam a refletir a UF do registro, sem depender do dicionário.
+   - Cidades sem coordenada continuam no badge "sem geo" só quando o Top 5 precisar plotar marcador, mas a coloração do estado já funciona com a UF crua.
 
-Produção – Dashboard
-  ├─ producao.cargas-periodo          Cargas por Período
-  ├─ producao.status-projetos         Status dos Projetos
-  └─ producao.top-saldo-patio         Top Projetos com Maior Saldo em Pátio
+4. **Dicionário de cidades**
+   - Conferimos as 36 cidades da planilha enviada — todas já presentes em `cidadesBrasil.ts`. Nenhuma adição necessária por enquanto.
+   - Mantemos um pequeno utilitário para detectar cidades futuras sem geo e logar no console (ajuda manutenção).
 
-Produção – Relatório Semanal Obra
-  ├─ producao.top-peso                Top 10 Obras por Peso
-  ├─ producao.top-pecas               Top 10 Obras por Peças
-  ├─ producao.top-cargas              Top 10 Obras por Cargas
-  ├─ producao.evolucao-semanal        Evolução Semanal
-  ├─ producao.peso-medio-carga        Peso Médio por Carga
-  └─ producao.clientes-participacao   Participação por Cliente
+5. **UI (escopo restrito)**
+   - Conforme combinado: a UF é interna, **não** aparece em formulário de cadastro nem em colunas de tabela.
+   - Apenas o tooltip do mapa fica mais preciso.
 
-Produção – Meta Entrega Semanal
-  └─ producao.meta-semanal            Meta de Entrega Semanal
+### Detalhes técnicos
 
-Painel de Compras
-  ├─ compras.top-fornecedores         Top Fornecedores
-  ├─ compras.top-familias             Top Famílias
-  └─ compras.top-origens              Top Origens
+**Migration**
+```sql
+alter table public.passagens_aereas
+  add column uf_destino text;
 
-Faturamento Genius
-  └─ faturamento.charts               Análises gráficas de faturamento
-
-Configurações (admin)
-  └─ admin.dashboard-uso              Dashboard de Uso de Usuários
+alter table public.passagens_aereas
+  add constraint passagens_aereas_uf_destino_chk
+  check (uf_destino is null or uf_destino ~ '^[A-Z]{2}$');
 ```
 
-Catálogo fica em `src/lib/visualCatalog.ts` (constante exportada) — fácil adicionar novos itens depois.
-
-## Banco de dados
-
-Nova tabela em Lovable Cloud:
-
-```text
-profile_visuals
-  id            uuid PK
-  profile_id    uuid → access_profiles.id (cascade)
-  visual_key    text  (ex: "passagens.mapa-destinos")
-  can_view      bool  default true
-  created_at    timestamptz
-  UNIQUE (profile_id, visual_key)
-```
-
-RLS espelha `profile_screens`:
-- SELECT para qualquer authenticated.
-- ALL apenas para admin (`is_admin(auth.uid())`).
-
-**Default**: ausência de linha = pode ver (compatível, não quebra nada). Admin desmarca para ocultar.
-
-## Frontend
-
-### 1. Hook `useUserVisuals`
-
-`src/hooks/useUserVisuals.ts`. Mesma mecânica do `useUserPermissions`: descobre `profile_id` do `erpUser`, busca `profile_visuals` daquele perfil, expõe:
-
+**Tipo `Passagem`** (em `PassagensDashboard.tsx`)
 ```ts
-{ canSeeVisual: (key: string) => boolean, loading: boolean }
+export interface Passagem {
+  // ... campos atuais
+  uf_destino: string | null;
+}
 ```
 
-Regra: se não houver registro → `true`. Se houver com `can_view=false` → `false`. Admin sempre vê tudo.
-
-### 2. Wrapper `<VisualGate>`
-
-`src/components/VisualGate.tsx`:
-
-```tsx
-<VisualGate visualKey="passagens.mapa-destinos">
-  <MapaDestinosCard ... />
-</VisualGate>
+**Resolução no mapa**
+```ts
+const ufResolvida =
+  (r.uf_destino && /^[A-Z]{2}$/.test(r.uf_destino)) ? r.uf_destino
+  : geocodeCidade(nomeNormalizado(r.destino))?.uf
+  ?? null;
 ```
 
-Renderiza `null` enquanto `loading`, depois `children` se permitido. Zero refactor invasivo nos componentes existentes.
+**Importação** — aceita header em qualquer dos formatos: `uf_destino`, `UF DESTINO`, `UF`. Normaliza para maiúsculas e valida 2 letras antes do insert.
 
-### 3. Aplicação nos componentes
+### Arquivos afetados
+- `supabase/migrations/<timestamp>_add_uf_destino.sql` (novo)
+- `src/components/passagens/PassagensDashboard.tsx` (interface Passagem + select)
+- `src/components/passagens/ImportarPassagensDialog.tsx` (parser + modelo)
+- `src/components/passagens/MapaDestinosCard.tsx` (resolução de UF)
+- `src/pages/PassagensAereasPage.tsx` (tipo do select Supabase, se necessário)
+- `src/pages/PassagensAereasCompartilhadoPage.tsx` (mesmo ajuste no select público)
 
-Apenas envolver os blocos atuais com `<VisualGate>` nos arquivos:
-- `PassagensDashboard.tsx`, `MapaDestinosCard.tsx` (chamada na page)
-- `producao/components/DashboardCharts.tsx` (3 cards)
-- `producao/RelatorioSemanalObraCharts.tsx` (6 ChartCard)
-- `producao/MetaEntregaSemanalChart.tsx`
-- `PainelComprasPage.tsx` (3 blocos Top)
-- `FaturamentoGeniusPage.tsx` (seção de charts)
-- `ConfiguracoesPage.tsx` (Dashboard de Uso)
+### Fora do escopo
+- Não alteramos formulário de cadastro manual (UF continua interna).
+- Não exibimos coluna UF na tabela nem no PDF/export.
+- Não importamos automaticamente as 1258 linhas da planilha enviada — fica para um próximo pedido se você quiser.
 
-### 4. Aba "Gráficos e Mapas" em Configurações
-
-Em `ConfiguracoesPage.tsx`:
-
-- Novo `TabsTrigger value="visuals"` (ícone `BarChart3`).
-- Layout: `Select` com perfil no topo → lista agrupada por módulo (collapsibles), cada item com `Checkbox` "Pode ver".
-- Mesma UX/visual da aba "Telas por Perfil" já existente (consistência).
-- Toggle grava/upserta em `profile_visuals`. Toast de confirmação.
-- Botões utilitários: "Marcar todos do módulo" / "Desmarcar todos do módulo".
-
-```text
-┌─ Perfil: [Operador        ▼] ─────────────────────┐
-│                                                   │
-│  ▾ Passagens Aéreas              [✓ todos] [✗]   │
-│     ☑ Mapa de Destinos                           │
-│     ☑ Top 5 Destinos                             │
-│     ☐ Gráficos do dashboard                      │
-│                                                   │
-│  ▾ Produção – Dashboard                          │
-│     ☑ Cargas por Período                         │
-│     ...                                           │
-└───────────────────────────────────────────────────┘
-```
-
-## Detalhes técnicos
-
-- **Migration**: criar tabela `profile_visuals` + RLS + index `(profile_id, visual_key)`.
-- **Tipos Supabase**: regenerados automaticamente.
-- **Sem impacto** em `profile_screens` — permissões de tela continuam funcionando como hoje. Esta é uma camada adicional, mais granular.
-- **Performance**: hook faz 1 query (`profile_visuals` filtrada por perfil) em paralelo com a query atual de telas; resultado memoizado em `Map<string, boolean>`.
-- **Admin bypass**: `useUserVisuals` retorna `canSeeVisual = () => true` se `is_admin`.
-
-## Arquivos novos/alterados
-
-Novos:
-- `src/lib/visualCatalog.ts`
-- `src/hooks/useUserVisuals.ts`
-- `src/components/VisualGate.tsx`
-- migration SQL (tabela + RLS)
-
-Alterados:
-- `src/pages/ConfiguracoesPage.tsx` (nova aba)
-- ~7 componentes/páginas com gráficos (apenas wrap com `<VisualGate>`)
-
-## Fora do escopo (v1)
-
-- Permissão por usuário individual (continua por perfil).
-- Permissão de KPIs/cards (apenas gráficos e mapas).
-- Catálogo dinâmico auto-descoberto — usaremos lista estática mantida em `visualCatalog.ts`.
-
-Aprovar para eu implementar.
+Aprove para eu implementar.

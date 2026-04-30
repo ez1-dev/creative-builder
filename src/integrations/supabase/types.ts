@@ -207,6 +207,7 @@ export type Database = {
           origem: string | null
           projeto_obra: string | null
           tipo_despesa: string
+          uf_destino: string | null
           updated_at: string
           valor: number
         }
@@ -229,6 +230,7 @@ export type Database = {
           origem?: string | null
           projeto_obra?: string | null
           tipo_despesa: string
+          uf_destino?: string | null
           updated_at?: string
           valor?: number
         }
@@ -251,6 +253,7 @@ export type Database = {
           origem?: string | null
           projeto_obra?: string | null
           tipo_despesa?: string
+          uf_destino?: string | null
           updated_at?: string
           valor?: number
         }
@@ -577,6 +580,7 @@ export type Database = {
           origem: string | null
           projeto_obra: string | null
           tipo_despesa: string
+          uf_destino: string | null
           updated_at: string
           valor: number
         }[]
