@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
-import { geoCentroid } from 'd3-geo';
+import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
+import { geoCentroid, geoMercator } from 'd3-geo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,9 +61,9 @@ export function MapaDestinosCard({
     [selectedUFProp, onSelectUF],
   );
 
-  // Zoom e centro
+  // Zoom e pan (panOffset em pixels SVG, relativo ao centro 300x280)
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
-  const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+  const [panOffset, setPanOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Agregação
   const { porCidade, porUF, semGeo, totalSemGeo, maxQtdUF } = useMemo(() => {
@@ -163,14 +163,19 @@ export function MapaDestinosCard({
     ];
   }, [maxQtdUF]);
 
+  // Projeção igual à do ComposableMap, para converter lat/lon em pixel SVG
+  const projection = useMemo(
+    () => geoMercator().scale(780).center(DEFAULT_CENTER).translate([300, 280]),
+    [],
+  );
+
   // Zoom helpers
   const handleZoomIn = () => setZoom((z) => Math.min(z * 1.5, MAX_ZOOM));
   const handleZoomOut = () => setZoom((z) => Math.max(z / 1.5, MIN_ZOOM));
   const handleResetView = () => {
     setZoom(DEFAULT_ZOOM);
-    setCenter(DEFAULT_CENTER);
+    setPanOffset({ x: 0, y: 0 });
   };
-
 
   const handleSelectUF = useCallback(
     (uf: string, centroid: [number, number]) => {
@@ -180,10 +185,14 @@ export function MapaDestinosCard({
         return;
       }
       setSelectedUF(uf);
-      setCenter(centroid);
+      const projected = projection(centroid);
+      if (projected) {
+        // pan = (centroide projetado - centro do svg)
+        setPanOffset({ x: projected[0] - 300, y: projected[1] - 280 });
+      }
       setZoom(FOCUS_ZOOM);
     },
-    [selectedUF, setSelectedUF],
+    [selectedUF, setSelectedUF, projection],
   );
 
   const handleClearUF = () => {
@@ -276,7 +285,7 @@ export function MapaDestinosCard({
                   variant="ghost"
                   className="h-7 w-7"
                   onClick={handleResetView}
-                  disabled={zoom === DEFAULT_ZOOM && center[0] === DEFAULT_CENTER[0]}
+                  disabled={zoom === DEFAULT_ZOOM && panOffset.x === 0 && panOffset.y === 0}
                   title="Resetar vista"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
@@ -290,15 +299,9 @@ export function MapaDestinosCard({
                 height={560}
                 style={{ width: '100%', height: 'auto', display: 'block' }}
               >
-                <ZoomableGroup
-                  zoom={zoom}
-                  center={center}
-                  minZoom={MIN_ZOOM}
-                  maxZoom={MAX_ZOOM}
-                  onMoveEnd={({ coordinates, zoom: z }) => {
-                    setCenter(coordinates as [number, number]);
-                    setZoom(z);
-                  }}
+                <g
+                  transform={`translate(300 280) scale(${zoom}) translate(${-300 - panOffset.x} ${-280 - panOffset.y})`}
+                  style={{ transition: 'transform 250ms ease' }}
                 >
                   {/* Camada 1: fills + interação */}
                   <Geographies geography={GEO_URL}>
@@ -434,7 +437,7 @@ export function MapaDestinosCard({
                       })
                     }
                   </Geographies>
-                </ZoomableGroup>
+                </g>
               </ComposableMap>
             </div>
 
