@@ -65,14 +65,13 @@ export function MapaDestinosCard({ data, selectedDestino = [], onSelectDestino }
       <CardContent>
         <div className="space-y-1.5">
           {topDestinos.map((p, i) => {
-            const isSelected =
-              !!selectedDestino &&
-              nomeNormalizado(selectedDestino) === nomeNormalizado(p.cidade);
+            const norm = nomeNormalizado(p.cidade);
+            const isSelected = selectedDestino.some((d) => nomeNormalizado(d) === norm);
             return (
               <button
                 key={p.cidade}
                 type="button"
-                onClick={() => onSelectDestino?.(isSelected ? null : p.cidade)}
+                onClick={() => onSelectDestino?.(p.cidade)}
                 className={`flex w-full items-center justify-between gap-2 rounded-md border px-2.5 py-2 text-left text-xs transition-colors ${
                   isSelected
                     ? 'border-primary bg-primary/10'
