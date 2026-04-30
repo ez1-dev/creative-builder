@@ -66,7 +66,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
     );
   }
 
-  const handleLayoutChange = (next: Layout[]) => {
+  const handleLayoutChange = (next: Layout) => {
     if (!editing || !onLayoutChange) return;
     const mapped = next.map((l) => ({
       type: l.i,
