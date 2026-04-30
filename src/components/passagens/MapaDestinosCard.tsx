@@ -363,8 +363,8 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
               </div>
             )}
 
-            {porCidade.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+            {porUF.size === 0 && porCidade.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/60 text-sm text-muted-foreground">
                 Sem destinos para exibir
               </div>
             )}
