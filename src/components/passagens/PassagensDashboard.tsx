@@ -550,6 +550,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 </Popover>
               </div>
               <div>
+                <Label className="text-xs">Motivo da Viagem</Label>
+                <Select value={filtroMotivo} onValueChange={setFiltroMotivo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    {motivosDisponiveis.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label className="text-xs">Tipo</Label>
                 <Select value={filtroTipo} onValueChange={setFiltroTipo}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
