@@ -172,6 +172,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
+  const motivosDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    data.forEach((r) => {
+      const m = (r.motivo_viagem ?? '').trim();
+      if (m) set.add(m);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
   const [ccPopoverOpen, setCcPopoverOpen] = useState(false);
 
   const formatMesLabel = (ym: string) => {
