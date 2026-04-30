@@ -213,6 +213,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return sorted;
   }, [crossFiltered, busca, ordenacao]);
 
+  const subtotalDisplay = useMemo(
+    () => displayRows.reduce((s, r) => s + Number(r.valor || 0), 0),
+    [displayRows],
+  );
+
   // Agrupamento por colaborador para a visão expansível
   const gruposColab = useMemo(() => {
     const map = new Map<string, { colaborador: string; qtd: number; total: number; registros: Passagem[] }>();
