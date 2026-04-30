@@ -577,6 +577,17 @@ export type Database = {
             Returns: string
           }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
+      get_passagens_layout_via_token: {
+        Args: { _token: string }
+        Returns: {
+          widget_config: Json
+          widget_id: string
+          widget_layout: Json
+          widget_position: number
+          widget_title: string
+          widget_type: string
+        }[]
+      }
       get_passagens_via_token: {
         Args: { _password?: string; _token: string }
         Returns: {
@@ -620,6 +631,7 @@ export type Database = {
       }
       get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
       is_admin: { Args: { _uid: string }; Returns: boolean }
+      upsert_passagens_dashboard_default: { Args: never; Returns: string }
       validate_share_token: {
         Args: { _password?: string; _token: string }
         Returns: boolean
