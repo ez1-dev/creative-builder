@@ -444,7 +444,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF]);
 
-  const hasCrossFilter = !!(selectedMes || selectedMotivo || selectedCC || selectedDestino || selectedUF);
+  const hasCrossFilter = selectedMes.length > 0 || selectedMotivo.length > 0 || selectedCC.length > 0 || selectedDestino.length > 0 || selectedUF.length > 0;
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroMotivo !== 'todos' || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroMotivo !== 'todos' ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
 
