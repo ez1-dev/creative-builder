@@ -235,31 +235,35 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                         <Geography
                           key={`fill-${geo.rsmKey}`}
                           geography={geo}
-                          fill={fill}
-                          stroke="hsl(0, 0%, 100%)"
-                          strokeWidth={0.8}
                           style={{
-                            default: { outline: 'none', transition: 'opacity 150ms' },
-                            hover: {
-                              outline: 'none',
+                            default: {
                               fill,
+                              stroke: 'hsl(0, 0%, 100%)',
+                              strokeWidth: 0.8,
+                              outline: 'none',
+                              transition: 'opacity 150ms',
+                            },
+                            hover: {
+                              fill,
+                              stroke: 'hsl(0, 0%, 100%)',
+                              strokeWidth: 0.8,
+                              outline: 'none',
                               opacity: 0.82,
                               cursor: qtd > 0 ? 'pointer' : 'default',
                             },
-                            pressed: { outline: 'none' },
+                            pressed: {
+                              fill,
+                              stroke: 'hsl(0, 0%, 100%)',
+                              strokeWidth: 0.8,
+                              outline: 'none',
+                            },
                           }}
                           onMouseEnter={(e) => {
                             const rect = (
                               e.currentTarget.ownerSVGElement?.parentElement as HTMLElement
                             )?.getBoundingClientRect();
                             if (rect) {
-                              setTooltip({
-                                x: e.clientX - rect.left,
-                                y: e.clientY - rect.top,
-                                uf,
-                                qtd,
-                                total,
-                              });
+                              setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, uf, qtd, total });
                             }
                           }}
                           onMouseMove={(e) => {
@@ -267,13 +271,7 @@ export function MapaDestinosCard({ data, selectedDestino, onSelectDestino }: Pro
                               e.currentTarget.ownerSVGElement?.parentElement as HTMLElement
                             )?.getBoundingClientRect();
                             if (rect) {
-                              setTooltip({
-                                x: e.clientX - rect.left,
-                                y: e.clientY - rect.top,
-                                uf,
-                                qtd,
-                                total,
-                              });
+                              setTooltip({ x: e.clientX - rect.left, y: e.clientY - rect.top, uf, qtd, total });
                             }
                           }}
                           onMouseLeave={() => setTooltip(null)}
