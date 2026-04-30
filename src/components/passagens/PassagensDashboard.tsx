@@ -965,6 +965,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   </TableRow>
                 ))}
               </TableBody>
+              {displayRows.length > 0 && (
+                <TableFooter>
+                  <TableRow className="bg-muted/60 font-semibold">
+                    <TableCell colSpan={baseCols - 1}>
+                      Subtotal · {displayRows.length} {displayRows.length === 1 ? 'registro' : 'registros'}
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(subtotalDisplay)}</TableCell>
+                    {hasActions && <TableCell />}
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
             );
           })()}
