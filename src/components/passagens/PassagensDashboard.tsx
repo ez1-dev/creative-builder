@@ -714,11 +714,23 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                 {porMotivo.map((entry, i) => (
                   <div key={entry.name} className="flex items-center gap-1">
-                    <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length] }}
+                    />
                     <span className="text-muted-foreground">{entry.name}</span>
                   </div>
                 ))}
               </div>
+            )}
+            {porMotivoOutros.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setOutrosMotivoOpen(true)}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Ver detalhamento de "Outros" ({porMotivoOutros.length} motivos)
+              </button>
             )}
           </CardContent>
         </Card>
