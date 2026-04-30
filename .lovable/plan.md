@@ -1,48 +1,33 @@
 ## Objetivo
 
-Permitir que ao gerar um link de compartilhamento público de Passagens Aéreas o admin escolha quais gráficos/mapas o destinatário externo poderá ver. Hoje o link público ignora as restrições de "Ocultar Gráficos e Mapas por Perfil" porque essa configuração depende de usuário autenticado.
+No card "Mapa de Destinos", a lista de "Top destinos" deve ser ordenada pelo **valor total gasto** (não pela quantidade de passagens) e ter um botão "+" para mostrar mais itens além dos 5 iniciais.
 
-## Visão geral da solução
+## Mudanças em `src/components/passagens/MapaDestinosCard.tsx`
 
-Adicionar uma lista de "visuais ocultos" diretamente em cada link de compartilhamento. No diálogo de criação, o admin marca/desmarca quais gráficos e mapas estarão visíveis. A página pública passa a respeitar essa lista usando o mesmo `VisualGate`, alimentado por um contexto local que não depende de auth.
+1. **Ordenar por valor**: trocar `cidades.sort((a, b) => b.qtd - a.qtd)` por `cidades.sort((a, b) => b.total - a.total)` no `useMemo` que monta `porCidade`.
 
-## Mudanças
+2. **Limite dinâmico**: substituir `const top5 = porCidade.slice(0, 5)` por:
+   - `const [topLimit, setTopLimit] = useState(5)` (resetado pelo botão de limpar zoom/seleção que já existe).
+   - `const topDestinos = porCidade.slice(0, topLimit)`.
 
-### 1. Banco de dados (migration)
+3. **UI**:
+   - Renomear o título "Top 5 destinos" para "Top destinos por valor".
+   - Trocar `top5.map(...)` por `topDestinos.map(...)`.
+   - No item da lista, dar destaque ao **valor** (linha principal) e mover a quantidade para o badge secundário (já é o caso). Manter o `formatCurrency(p.total)` visível.
+   - Abaixo da lista, adicionar dois botões pequenos lado a lado quando `porCidade.length > topLimit` ou `topLimit > 5`:
+     - **+5** (`<Plus />` ícone): `setTopLimit((n) => Math.min(n + 5, porCidade.length))`.
+     - **Mostrar menos** (aparece só se `topLimit > 5`): `setTopLimit(5)`.
+   - Mostrar contador "exibindo X de Y" em texto pequeno e mudo.
 
-- Adicionar coluna `hidden_visuals text[] not null default '{}'` em `passagens_aereas_share_links`.
-- Atualizar `create_passagens_share_link` para receber `_hidden_visuals text[] default '{}'` e gravar no insert.
-- Criar nova função `get_share_link_visuals(_token text) returns text[]` (SECURITY DEFINER, STABLE) que retorna o array `hidden_visuals` se o link for válido (`active`, não expirado). Sem exigir senha — saber quais blocos esconder não é dado sensível e simplifica o frontend.
-
-### 2. UI de criação do link (`ShareLinksDialog.tsx`)
-
-- Importar `VISUAL_CATALOG` de `src/lib/visualCatalog.ts` filtrando o módulo Passagens Aéreas (chaves `passagens.*`).
-- Adicionar um bloco "Gráficos/Mapas visíveis no link" com checkboxes (todos marcados por padrão).
-- No `handleCreate`, calcular `hiddenVisuals = catalog.filter(k => !checked[k])` e passar para a RPC `create_passagens_share_link`.
-- Mostrar na tabela de links ativos uma coluna leve indicando se há restrição (ex.: "Todos" ou "N ocultos").
-
-### 3. Página pública (`PassagensAereasCompartilhadoPage.tsx`)
-
-- Após `loadData` bem-sucedido, chamar `supabase.rpc('get_share_link_visuals', { _token: effectiveToken })` e guardar como `Set<string>`.
-- Criar um pequeno provider local `PublicVisualsContext` (em `src/contexts/PublicVisualsContext.tsx`) que expõe `canSeeVisual(key)` baseado no Set.
-- Ajustar `VisualGate` (ou criar um wrapper `PublicVisualGate`) para preferir o contexto público quando presente, caindo no `useUserVisuals` apenas quando não houver. Implementação mais simples: `useUserVisuals` detecta se há `PublicVisualsContext` no provider tree e o usa em vez de consultar o Supabase autenticado. Assim `PassagensDashboard` e `MapaDestinosCard` continuam usando `<VisualGate visualKey="…">` sem mudanças.
-
-### 4. Catálogo de visuais
-
-- Confirmar que `src/lib/visualCatalog.ts` já lista as chaves `passagens.*` usadas no dashboard (mapa de destinos, KPIs, gráficos). Se faltar alguma chave referenciada nos componentes, acrescentar no catálogo para aparecer na UI de seleção.
-
-## Arquivos envolvidos
-
-- `supabase/migrations/<novo>.sql` (coluna + função)
-- `src/components/passagens/ShareLinksDialog.tsx` (UI de seleção + chamada RPC)
-- `src/pages/PassagensAereasCompartilhadoPage.tsx` (carregar visuais e prover contexto)
-- `src/contexts/PublicVisualsContext.tsx` (novo)
-- `src/hooks/useUserVisuals.ts` (consumir contexto público quando presente)
-- `src/lib/visualCatalog.ts` (revisão das chaves de Passagens)
-- `src/integrations/supabase/types.ts` (auto-gerado pela migração)
+4. **Reset**: quando o usuário limpa filtros/seleção (ações já existentes), opcionalmente resetar `topLimit` para 5 — evita lista enorme após mudar contexto.
 
 ## Comportamento final
 
-- Admin cria link → escolhe quais gráficos/mapas ficam visíveis → link gerado com restrição embutida.
-- Destinatário externo abre o link → vê apenas o que foi liberado, mesmo sem login.
-- Links já existentes continuam funcionando normalmente (default = todos visíveis).
+- Lista ordenada do destino que mais consumiu valor para o que menos consumiu.
+- 5 itens por padrão; clicar "+" expande de 5 em 5 até o total disponível.
+- Botão "Mostrar menos" volta para 5.
+- Cross-filter ao clicar em um destino continua funcionando igual.
+
+## Arquivos envolvidos
+
+- `src/components/passagens/MapaDestinosCard.tsx` (única mudança)
