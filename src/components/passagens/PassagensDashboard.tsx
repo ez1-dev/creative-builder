@@ -640,8 +640,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             data={mapaData}
             selectedDestino={selectedDestino}
             onSelectDestino={setSelectedDestino}
-            selectedUF={selectedUF}
-            onSelectUF={setSelectedUF}
           />
         </div>
       </VisualGate>
