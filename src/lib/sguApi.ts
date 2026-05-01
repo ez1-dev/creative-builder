@@ -127,9 +127,15 @@ function normalizarUsuario(u: any): SguUsuario {
   const r910 = pickFirst(base, ['existe_r910', 'r910', 'tem_r910']);
   const r999 = pickFirst(base, ['existe_r999', 'r999', 'tem_r999']);
   const qtd = pickFirst(base, ['qtd_empresas_e099usu', 'qtd_e099usu', 'qtd_empresas', 'empresas_e099usu']);
+  const ativoRaw = pickFirst(base, ['ativo']);
+  const sguHab = pickFirst(base, ['sgu_habilitado', 'sguhab']);
+  const sguBloq = pickFirst(base, ['sgu_bloqueado', 'sgubloq', 'bloqueado']);
+  const statusRaw = pickFirst(base, ['status_usuario', 'status']);
 
   const safeStr = (v: any) =>
     v == null ? null : typeof v === 'object' ? null : v;
+  const toBin = (v: any): 0 | 1 =>
+    (v === true || v === 1 || v === '1' || v === 'S' || v === 's') ? 1 : 0;
 
   return {
     ...base,
@@ -140,9 +146,14 @@ function normalizarUsuario(u: any): SguUsuario {
     tipcol: safeStr(pickFirst(base, ['tipcol', 'tip_col', 'tipo'])),
     empcol: safeStr(pickFirst(base, ['empcol', 'emp_col', 'empresa', 'codemp'])),
     filcol: safeStr(pickFirst(base, ['filcol', 'fil_col', 'filial', 'codfil'])),
-    existe_r910: (r910 === true || r910 === 1 || r910 === '1' || r910 === 'S') ? 1 : 0,
-    existe_r999: (r999 === true || r999 === 1 || r999 === '1' || r999 === 'S') ? 1 : 0,
+    existe_r910: toBin(r910),
+    existe_r999: toBin(r999),
     qtd_empresas_e099usu: Number(qtd ?? 0) || 0,
+    situacao: safeStr(pickFirst(base, ['situacao', 'sit_cad', 'sitcad'])),
+    status_usuario: typeof statusRaw === 'string' ? statusRaw.toUpperCase() : (statusRaw ?? null),
+    ativo: toBin(ativoRaw),
+    sgu_habilitado: toBin(sguHab),
+    sgu_bloqueado: toBin(sguBloq),
   };
 }
 
