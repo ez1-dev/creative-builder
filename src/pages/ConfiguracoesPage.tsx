@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff } from 'lucide-react';
 import { VISUAL_CATALOG } from '@/lib/visualCatalog';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
-import { SeniorRulesSection } from '@/components/erp/SeniorRulesSection';
+
 import { DashboardUsoUsuarios } from '@/components/erp/DashboardUsoUsuarios';
 import { MinhasPreferenciasSection } from '@/components/erp/MinhasPreferenciasSection';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
