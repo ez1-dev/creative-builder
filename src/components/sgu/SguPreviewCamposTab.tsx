@@ -140,10 +140,10 @@ export function SguPreviewCamposTab() {
       {preview && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <KPICard label="Total de diferenças" value={preview.total_diferencas} />
-            <KPICard label="Alterações planejadas" value={preview.total_alterar} />
-            <KPICard label="Campos preservados" value={preview.total_manter} />
-            <KPICard label="Registros a inserir" value={preview.total_inserir} />
+            <KPICard title="Total de diferenças" value={preview.total_diferencas} variant="default" index={0} />
+            <KPICard title="Alterações planejadas" value={preview.total_alterar} variant="warning" index={1} />
+            <KPICard title="Campos preservados" value={preview.total_manter} variant="default" index={2} />
+            <KPICard title="Registros a inserir" value={preview.total_inserir} variant="info" index={3} />
           </div>
 
           <Card>
