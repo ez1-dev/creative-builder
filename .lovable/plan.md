@@ -1,105 +1,183 @@
+
 ## Objetivo
 
-Trocar o tracking atual (insert direto no banco) por uma chamada **POST /api/navegacao/log** com fallback para edge function, adicionar **HEARTBEAT a cada 60s**, e criar uma **aba "Navegação ERP Web"** dentro do Monitor de Usuários Senior.
+Fechar o ciclo de log de navegação:
 
-## 1. Migration — ampliar enum de ação
+1. Entregar o **código pronto do módulo FastAPI** (`/api/navegacao/log` e `/api/navegacao/heartbeat`) para você colar no seu backend externo (ngrok). Esse arquivo não fica no repo Lovable — o FastAPI roda fora daqui.
+2. Ajustar o logger do frontend para usar o endpoint dedicado de heartbeat quando o FastAPI estiver online (hoje ele manda tudo em `/api/navegacao/log`).
 
-```sql
-ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'ABRIU_TELA';
-ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'HEARTBEAT';
-ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'TROCOU_TELA';
-ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'FECHOU_TELA';
+O frontend já está integrado: dispara `ABRIU_TELA` / `TROCOU_TELA` ao navegar e `HEARTBEAT` a cada 60s, com Bearer token e fallback para a edge function. Só precisa do split do heartbeat.
 
--- Novos campos exigidos pelo payload
-ALTER TABLE public.usu_log_navegacao_erp
-  ADD COLUMN IF NOT EXISTS path_url      text,
-  ADD COLUMN IF NOT EXISTS observacao    text,
-  ADD COLUMN IF NOT EXISTS origem_evento text NOT NULL DEFAULT 'ERP_WEB';
+---
 
--- View existente continua válida (não cita os novos campos).
+## 1. Frontend (no repo Lovable)
+
+### `src/lib/navegacaoLogger.ts`
+- Adicionar parâmetro de rota no `tryFastApi(payload, endpoint)`.
+- Em `postLog`, usar `/api/navegacao/heartbeat` quando `payload.acao === 'HEARTBEAT'`, senão `/api/navegacao/log`.
+- A edge function `navegacao-log` continua recebendo todos os tipos no fallback (já trata `HEARTBEAT` no enum).
+- Sem mudança de assinatura nas funções `logAbriuTela` / `logHeartbeat` etc.
+
+Nada muda em `UserTrackingProvider.tsx`, `userTracking.ts`, banco, RLS, ou edge function.
+
+---
+
+## 2. Backend FastAPI (entregue como snippet, você cola no seu projeto externo)
+
+Arquivo sugerido: `app/routers/navegacao.py`
+
+```python
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+import os, httpx, jwt
+
+router = APIRouter(prefix="/api/navegacao", tags=["navegacao"])
+
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+SUPABASE_JWT_SECRET = os.environ["SUPABASE_JWT_SECRET"]  # do projeto Supabase
+
+class NavegacaoIn(BaseModel):
+    sistema: str = "ERP_WEB"
+    cod_tela: str
+    nome_tela: str
+    acao: str  # ABRIU_TELA | TROCOU_TELA | FECHOU_TELA | HEARTBEAT
+    path_url: Optional[str] = None
+    observacao: Optional[str] = None
+    session_id: Optional[str] = None
+    computador: Optional[str] = None
+    origem_evento: str = "ERP_WEB"
+    detalhes: Optional[Dict[str, Any]] = None
+
+def _decode_user(authorization: Optional[str]) -> Dict[str, Any]:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(401, "Missing bearer token")
+    token = authorization.split(" ", 1)[1]
+    try:
+        # Supabase assina com HS256 + jwt secret do projeto
+        claims = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
+    except jwt.PyJWTError as e:
+        raise HTTPException(401, f"Invalid token: {e}")
+    return claims
+
+async def _insert_log(row: Dict[str, Any]) -> None:
+    headers = {
+        "apikey": SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal",
+    }
+    url = f"{SUPABASE_URL}/rest/v1/usu_log_navegacao_erp"
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.post(url, json=row, headers=headers)
+        if r.status_code >= 300:
+            raise HTTPException(502, f"Supabase insert failed: {r.status_code} {r.text}")
+
+def _row_from_payload(
+    payload: NavegacaoIn,
+    claims: Dict[str, Any],
+    request: Request,
+    user_agent: Optional[str],
+    forced_acao: Optional[str] = None,
+) -> Dict[str, Any]:
+    user_id = claims.get("sub")
+    email = claims.get("email")
+    # IP: respeita proxy/ngrok
+    xff = request.headers.get("x-forwarded-for")
+    ip = (xff.split(",")[0].strip() if xff else (request.client.host if request.client else None))
+    return {
+        "user_id": user_id,
+        "user_email": email,
+        "sistema": payload.sistema,
+        "tela_codigo": payload.cod_tela,
+        "tela_nome": payload.nome_tela,
+        "acao": forced_acao or payload.acao,
+        "path_url": payload.path_url,
+        "observacao": payload.observacao,
+        "session_id": payload.session_id,
+        "computador": payload.computador,
+        "user_agent": user_agent,
+        "ip": ip,
+        "origem_evento": payload.origem_evento or "ERP_WEB",
+        "detalhes": payload.detalhes or {},
+    }
+
+@router.post("/log")
+async def log_navegacao(
+    payload: NavegacaoIn,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    user_agent: Optional[str] = Header(None),
+):
+    claims = _decode_user(authorization)
+    await _insert_log(_row_from_payload(payload, claims, request, user_agent))
+    return {"ok": True}
+
+@router.post("/heartbeat")
+async def heartbeat_navegacao(
+    payload: NavegacaoIn,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    user_agent: Optional[str] = Header(None),
+):
+    claims = _decode_user(authorization)
+    # força acao=HEARTBEAT independentemente do que vier no body
+    await _insert_log(_row_from_payload(payload, claims, request, user_agent, forced_acao="HEARTBEAT"))
+    return {"ok": True}
 ```
 
-> Os valores antigos (`entrar/sair/click/erro`) ficam preservados — sem breaking change.
-
-## 2. Edge Function `navegacao-log` (fallback)
-
-`supabase/functions/navegacao-log/index.ts`:
-- Valida JWT via `supabase.auth.getClaims(token)` → obtém `user_id` e email.
-- Busca `erp_user` em `profiles` (service role).
-- Captura **IP** dos headers `x-forwarded-for` / `cf-connecting-ip` / `x-real-ip`.
-- Captura **user_agent** de `req.headers.get('user-agent')`.
-- Valida body com Zod: `sistema, cod_tela, nome_tela, acao, path_url, observacao?, session_id, computador?, origem_evento?`.
-- Faz `INSERT` em `usu_log_navegacao_erp` (mapeia `cod_tela→tela_codigo`, `nome_tela→tela_nome`).
-- CORS completo. Retorna `{ ok: true, id }`.
-
-`supabase/config.toml`: adiciona bloco da função (default `verify_jwt = false` — validação é feita em código com `getClaims`).
-
-## 3. Frontend — cliente híbrido
-
-### `src/lib/navegacaoLogger.ts` (novo)
-- `postLog(payload)`:
-  1. Tenta `api.post('/api/navegacao/log', payload)` (FastAPI). Timeout curto (3s).
-  2. Se falhar (network/CORS/404/timeout), faz fallback para a edge function via `supabase.functions.invoke('navegacao-log', { body: payload })`.
-  3. Lembra qual canal funcionou por ~60s para evitar tentar o canal morto a cada navegação.
-- `logAbriuTela(path)`, `logTrocouTela(path)`, `logFechouTela(path)`, `logHeartbeat(path)` — todos montam o payload com `sistema='ERP_WEB'`, `session_id` (do `getSessionId()` que já existe), `computador = navigator.platform`, `origem_evento='ERP_WEB'`, `cod_tela`/`nome_tela` resolvidos pelo `screenCatalog`.
-
-### `src/components/UserTrackingProvider.tsx`
-- Trocar `trackNavegacao(...)` (insert direto) por `logAbriuTela / logTrocouTela`.
-- Iniciar `setInterval` de **60s** que chama `logHeartbeat(window.location.pathname)` enquanto autenticado. Limpar no logout/unmount.
-- `beforeunload` → `logFechouTela()` (best-effort com `navigator.sendBeacon` para a URL do FastAPI; senão fire-and-forget).
-
-### `src/lib/userTracking.ts`
-- Manter `trackPageView` e `trackAction` (eles gravam em `user_activity`, é outro log — sessão/heartbeat de presença). 
-- Remover `trackNavegacao` antigo (substituído pelo novo módulo) e o `bindNavegacaoUnload` antigo.
-
-## 4. Tela admin — "Navegação ERP Web" como nova aba
-
-### `src/pages/MonitorUsuariosSeniorPage.tsx`
-- Envolver o conteúdo atual num `<Tabs>` com 2 abas:
-  - **Sessões Senior** (tudo que já existe hoje).
-  - **Navegação ERP Web** (novo — `<MonitorNavegacaoSection />`).
-
-### `src/components/erp/MonitorNavegacaoSection.tsx` (novo)
-Lê da view `vw_ultima_tela_usuario` e exibe:
-| Usuário | Email | Última tela | Ação | Há quantos minutos | Computador | Sistema | Status |
-|---|---|---|---|---|---|---|---|
-
-- "Há quantos minutos" = `now() - ultima_navegacao` em minutos.
-- **Status**: `ativo` se a última linha com `acao='HEARTBEAT'` desse usuário for ≤ 5 min; senão `inativo`. Faz uma 2ª query agrupada `MAX(created_at) FILTER (WHERE acao='HEARTBEAT') GROUP BY user_id` para isso.
-- Auto-refresh 30s (toggle).
-- Filtros: busca por usuário, filtro de status (ativo/inativo/todos), filtro de sistema.
-- Botão **Exportar CSV**.
-
-### Permissão
-- Aba é renderizada se: `is_admin(auth.uid())` **OU** o usuário tem `profile_screens.can_view = true` para `screen_path='/monitor-usuarios-senior'` com sub-permissão `screen_path='/monitor-usuarios-senior/navegacao'`.
-- Para simplificar e seguir o padrão atual: cadastrar a screen `/monitor-usuarios-senior` em `profile_screens` (já existe) — quem entra na página, vê as duas abas. Sem nova screen separada.
-- RLS da tabela já está correto: admin lê tudo, usuário comum só o próprio. A aba só faz sentido para admin (usuário comum veria só a si próprio).
-
-## 5. Resultado
-
-```text
-Monitor de Usuários Senior
-┌─[ Sessões Senior ]─[ Navegação ERP Web ]──────────────────┐
-│ [Buscar…] [Status: Todos ▾] [Auto: 30s] [Exportar CSV]    │
-│ ┌──────────────────────────────────────────────────────┐ │
-│ │ Usuário | Última tela | Ação      | Há min | Status   │ │
-│ │ joao    | Dashboard   | HEARTBEAT | 1 min  | • ativo  │ │
-│ │ maria   | Passagens   | ABRIU…    | 12 min | • inat.  │ │
-│ └──────────────────────────────────────────────────────┘ │
-└────────────────────────────────────────────────────────────┘
+Em `app/main.py`:
+```python
+from app.routers import navegacao
+app.include_router(navegacao.router)
 ```
 
-## 6. Arquivos
+Variáveis de ambiente necessárias no FastAPI:
+- `SUPABASE_URL` — `https://cpgyhjqufxeweyswosuw.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY` — service role do projeto (NUNCA exposto no frontend; usado só dentro do FastAPI)
+- `SUPABASE_JWT_SECRET` — JWT secret do projeto (usado para validar o token Bearer do usuário)
 
-Criados:
-- `supabase/functions/navegacao-log/index.ts`
-- `src/lib/navegacaoLogger.ts`
-- `src/components/erp/MonitorNavegacaoSection.tsx`
+CORS já liberado para preview Lovable + header `ngrok-skip-browser-warning` (regra do projeto), nada novo.
 
-Editados:
-- `src/components/UserTrackingProvider.tsx`
-- `src/lib/userTracking.ts` (remove tracking antigo de navegação)
-- `src/pages/MonitorUsuariosSeniorPage.tsx` (envolve em Tabs)
-- `supabase/config.toml` (registra a função)
+### Por que validar JWT no FastAPI
+O frontend manda `Authorization: Bearer <access_token Supabase>` (já é o que o `api` client faz). O FastAPI:
+- decodifica o JWT com `SUPABASE_JWT_SECRET` para extrair `sub` (user_id) e `email`;
+- usa a service role só para inserir na tabela com user_id já validado;
+- nunca recebe senha;
+- nunca devolve service role para o cliente.
 
-Migration: ampliação do enum + colunas novas.
+---
+
+## Detalhes técnicos
+
+### Tabela e enum (já existem)
+- `public.usu_log_navegacao_erp` — colunas: `user_id`, `user_email`, `erp_user`, `sistema`, `tela_codigo`, `tela_nome`, `acao` (enum `navegacao_acao`), `path_url`, `observacao`, `session_id`, `computador`, `user_agent`, `ip`, `origem_evento`, `detalhes`, `created_at`.
+- Enum `navegacao_acao` já tem `ABRIU_TELA`, `TROCOU_TELA`, `FECHOU_TELA`, `HEARTBEAT`, mais os antigos (`entrar`, `sair`, `click`, `erro`).
+- RLS permite admin ler tudo, usuário lê apenas o próprio. Insert via service role bypassa RLS sem expor nada.
+
+### Sticky channel (lógica atual)
+O logger lembra qual canal entregou o último log (FastAPI ou edge) por 60s, evitando bater no canal morto a cada navegação. Continua valendo após o split — mesmo sticky para os dois endpoints.
+
+### Formato data/hora e IP
+- IP: `X-Forwarded-For` primeiro (ngrok injeta), `request.client.host` como fallback.
+- `created_at` é preenchido pelo default da tabela (`now()`), não precisa enviar.
+
+### Nada muda na edge function
+A edge `navegacao-log` (Lovable Cloud) continua sendo o fallback único para os dois tipos. Mantém compatibilidade caso o FastAPI caia.
+
+---
+
+## Arquivos
+
+**Modificado no repo:**
+- `src/lib/navegacaoLogger.ts` — split de endpoint por `acao`.
+
+**Entregue como snippet (você cola no seu FastAPI externo):**
+- `app/routers/navegacao.py`
+- 1 linha em `app/main.py` para `include_router`.
+
+**Sem mudança:**
+- Banco / migrations / RLS
+- Edge function `navegacao-log`
+- `UserTrackingProvider.tsx`, `userTracking.ts`, `MonitorNavegacaoSection.tsx`
