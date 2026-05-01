@@ -582,7 +582,7 @@ export default function MonitorUsuariosSeniorPage() {
                       ) : connStatus.kind === 'not_found' ? (
                         <p>Backend online, mas a rota /api/senior/sessoes ainda não foi publicada.</p>
                       ) : (
-                        <p>Nenhuma sessão encontrada.</p>
+                        <p>Nenhuma sessão conectada encontrada.</p>
                       )}
                     </TableCell>
                   </TableRow>
