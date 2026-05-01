@@ -218,7 +218,7 @@ export function SguUsuariosTab() {
                               size="sm"
                               variant="outline"
                               disabled={!codValido}
-                              onClick={() => handleVerDetalhes(u.codusu)}
+                              onClick={() => handleVerDetalhes(u)}
                             >
                               <Eye className="h-3 w-3" /> Detalhes
                             </Button>
