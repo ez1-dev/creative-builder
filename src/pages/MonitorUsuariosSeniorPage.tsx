@@ -455,16 +455,19 @@ export default function MonitorUsuariosSeniorPage() {
         }
       />
 
-      {/* Status do backend */}
-      <BackendStatusCard
-        status={connStatus.kind === 'idle' && loading ? { kind: 'loading' } : connStatus}
-        apiUrl={apiUrl}
-        onTest={testHealth}
-        onChangeUrl={() => setUrlDialogOpen(true)}
-        onRetry={load}
-        testing={testing}
-        retrying={loading}
-      />
+      {/* Status do backend — escondido para usuários comuns quando estiver tudo OK.
+          Admin/RENATO continuam enxergando para diagnosticar. Erros aparecem para todos. */}
+      {(connStatus.kind !== 'online' || canDisconnect) && (
+        <BackendStatusCard
+          status={connStatus.kind === 'idle' && loading ? { kind: 'loading' } : connStatus}
+          apiUrl={apiUrl}
+          onTest={testHealth}
+          onChangeUrl={() => setUrlDialogOpen(true)}
+          onRetry={load}
+          testing={testing}
+          retrying={loading}
+        />
+      )}
 
       <UpdateApiUrlDialog
         open={urlDialogOpen}
