@@ -122,14 +122,15 @@ export function SguUsuariosTab() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  visiveis.map((u) => {
+                  visiveis.map((u, idx) => {
                     const semR910 = !u.existe_r910;
                     const semR999 = !u.existe_r999;
                     const semE099 = (u.qtd_empresas_e099usu ?? 0) === 0;
+                    const codValido = codusuValido(u);
                     return (
-                      <TableRow key={u.codusu}>
-                        <TableCell className="font-mono">{u.codusu}</TableCell>
-                        <TableCell className="font-medium">{u.nomusu}</TableCell>
+                      <TableRow key={codValido ? `cod-${u.codusu}` : `idx-${idx}`}>
+                        <TableCell className="font-mono">{codValido ? u.codusu : <span className="text-destructive">inválido</span>}</TableCell>
+                        <TableCell className="font-medium">{u.nomusu || '—'}</TableCell>
                         <TableCell>{u.tipcol ?? '—'}</TableCell>
                         <TableCell>{u.empcol ?? '—'}</TableCell>
                         <TableCell>{u.filcol ?? '—'}</TableCell>
