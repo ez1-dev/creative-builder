@@ -68,13 +68,13 @@ function buildPayload(path: string, acao: NavegacaoAcao, sessionId: string): Nav
   };
 }
 
-async function tryFastApi(payload: NavegacaoPayload): Promise<boolean> {
+async function tryFastApi(payload: NavegacaoPayload, endpoint: string): Promise<boolean> {
   // Só tenta o FastAPI se já tivermos o token de ERP local.
   if (!api.isAuthenticated()) return false;
   try {
     // Race contra um timeout curto pra não travar a navegação.
     const result = await Promise.race([
-      api.post<unknown>('/api/navegacao/log', payload as any).then(() => true).catch(() => false),
+      api.post<unknown>(endpoint, payload as any).then(() => true).catch(() => false),
       new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 3000)),
     ]);
     return result === true;
@@ -99,8 +99,12 @@ async function postLog(payload: NavegacaoPayload): Promise<void> {
       ? (stickyChannel.ch === 'fastapi' ? ['fastapi', 'edge'] : ['edge', 'fastapi'])
       : ['fastapi', 'edge'];
 
+  // Endpoint dedicado para heartbeat; demais ações vão para /log.
+  const fastApiEndpoint =
+    payload.acao === 'HEARTBEAT' ? '/api/navegacao/heartbeat' : '/api/navegacao/log';
+
   for (const ch of order) {
-    const ok = ch === 'fastapi' ? await tryFastApi(payload) : await tryEdge(payload);
+    const ok = ch === 'fastapi' ? await tryFastApi(payload, fastApiEndpoint) : await tryEdge(payload);
     if (ok) {
       stickyChannel = { ch, until: Date.now() + STICKY_TTL_MS };
       return;
