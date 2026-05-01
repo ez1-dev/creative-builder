@@ -1,79 +1,94 @@
 ## Objetivo
 
-Eliminar os "—" na coluna **Descrição** da aba **SGU › Preview por campo**, ampliando o dicionário `src/lib/erpFieldLabels.ts` para cobrir todos os campos das tabelas E099* usadas pelo módulo SGU.
+Eliminar os rótulos no formato `(E099XXX.CAMPO)` da coluna **Descrição** em **SGU › Preview por campo**, completando o dicionário `src/lib/erpFieldLabels.ts` com os campos remanescentes das 8 tabelas E099* do Senior ERP.
 
-## Tabelas a cobrir
+## Contexto
 
-As 8 tabelas SGU já listadas em `TABELAS_E099` (`src/lib/sguApi.ts`):
+Hoje o `getFieldLabel` já cobre os campos principais e usa fallback `(TABELA.CAMPO)` para mostrar lacunas. Vamos preencher essas lacunas com base nos nomes oficiais do dicionário Senior para as tabelas:
 
 `E099USU`, `E099CPR`, `E099FIN`, `E099GCO`, `E099UCP`, `E099UDE`, `E099USE`, `E099UVE`
 
 ## Mudanças
 
-### 1. `src/lib/erpFieldLabels.ts` — expandir dicionário
+### 1. `src/lib/erpFieldLabels.ts` — ampliar `BY_TABLE`
 
-**Ampliar o `GLOBAL`** com campos comuns que aparecem em quase todas as E099*:
-- `CODUSU` Código do Usuário
-- `NUMEMP` / `NUMFIL` Empresa / Filial
-- `TIPUSU` Tipo de Usuário
-- `BLOUSU` Usuário Bloqueado
-- `INDPER` Indicador de Permissão
-- `NIVPER` Nível de Permissão
-- `INDACE` Indicador de Acesso
-- `DATINI` / `DATFIM` Data Inicial / Final
-- `OBSUSU` Observação do Usuário
-- `INDPAD` Indicador Padrão
-- `IDEEXT` Identificador Externo
-- `CODCCU` Código do Centro de Custo
-- `CODPRJ` Código do Projeto
-- `CODFOR` Código do Fornecedor
-- `CODCLI` Código do Cliente
-- `CODFPG` Forma de Pagamento
-- `CODTPT` Tipo de Título
-- `CODNAT` Natureza
-- `CODCFO` Cliente/Fornecedor
-- `CODGRP` Grupo
-- `CODDEP` Departamento
-- `CODSEC` Seção
-- `CODVEN` Vendedor
-- `CODCPR` Comprador
-- `CODESP` Espécie
-- `CODFIL` Filial
-- `CODFCO` Filial de Conta
-- `CODCCO` Conta Corrente
-- `CODBAN` Banco
+Adicionar/complementar mapeamentos por tabela com os campos típicos do Senior que ainda aparecem como `(TABELA.CAMPO)`:
 
-**Adicionar mapas específicos por tabela** em `BY_TABLE`:
+- **E099USU** (parâmetros gerais do usuário)
+  - `TIPCOL` Tipo de Colaborador, `NUMCAD` Cadastro do Colaborador
+  - `EMPATI` / `FILATI` / `PSTATI` Empresa/Filial/Posto da atividade
+  - `INDADM` Indicador Administrador, `INDMAS` Usuário Mestre
+  - `INDLOG` Permite Login, `INDWEB` Acesso Web, `INDAPP` Acesso App
+  - `INDREL` Acesso a Relatórios, `INDEXP` Permite Exportação
+  - `DATEXP` Data de Expiração, `DIAEXP` Dias para Expiração de Senha
+  - `INDSEN` Troca de Senha Obrigatória, `TENINV` Tentativas Inválidas
+  - `LIBHOR` Libera fora de horário, `IDIUSU` Idioma do Usuário
 
-- **E099USU** — Parâmetros gerais do usuário SGU (mantém heranças do GLOBAL).
-- **E099CPR** — Compradores autorizados: `CODCPR`, `INDPAD`.
-- **E099FIN** — Restrições financeiras: `CODFPG`, `CODTPT`, `CODNAT`, `CODCCU`, `CODPRJ`.
-- **E099GCO** — Grupos de contas: `CODGRP`, `CODCCU`.
-- **E099UCP** — Usuário × Centro de Custo: `CODCCU`, `CODPRJ`, `INDACE`.
-- **E099UDE** — Usuário × Departamento: `CODDEP`, `CODSEC`.
-- **E099USE** — Usuário × Seção/Empresa: `NUMEMP`, `NUMFIL`, `CODSEC`.
-- **E099UVE** — Usuário × Vendedor: `CODVEN`, `INDPAD`.
+- **E099CPR**
+  - `INDACE` Indicador de Acesso, `LIMAPR` Limite de Aprovação
+  - `MOEAPR` Moeda do Limite, `INDAPR` Aprovador
 
-### 2. Fallback melhor que "—"
+- **E099FIN**
+  - `CODFOR` Fornecedor, `CODCLI` Cliente, `CODCFO` Cliente/Fornecedor
+  - `CODBAN` Banco, `CODCCO` Conta Corrente, `CODFCO` Filial da Conta
+  - `INDPAD` Padrão, `LIMVAL` Limite de Valor
 
-Quando ainda não houver mapeamento, em vez de mostrar `—`, mostrar o próprio código entre parênteses (ex.: `(E099UVE.XYZ)`), para o usuário identificar quais campos ainda faltam mapear e nos reportar.
+- **E099GCO**
+  - `CODPRJ` Projeto, `INDPAD` Grupo Padrão, `NIVPER` Nível de Permissão
 
-Alterar `getFieldLabel` em `src/lib/erpFieldLabels.ts`:
+- **E099UCP**
+  - `NIVPER` Nível de Permissão, `DATINI` Data Inicial, `DATFIM` Data Final
+  - `INDLAN` Permite Lançamento, `INDCON` Permite Consulta
 
-```ts
-return tabMap?.[key] ?? GLOBAL[key] ?? `(${tab}.${key})`;
-```
+- **E099UDE**
+  - `INDPAD` Departamento Padrão, `NIVPER` Nível de Permissão
+  - `DATINI` / `DATFIM` Vigência
 
-Assim nenhum campo fica vazio e fica fácil identificar lacunas.
+- **E099USE**
+  - `INDPAD` Empresa Padrão, `INDACE` Indicador de Acesso
+  - `EMPATI` / `FILATI` Empresa/Filial de Atividade
+  - `DATINI` / `DATFIM` Vigência
 
-## Arquivos afetados
+- **E099UVE**
+  - `INDACE` Indicador de Acesso, `LIMVEN` Limite de Venda
+  - `DESMAX` Desconto Máximo (%), `MOEVEN` Moeda
 
-- `src/lib/erpFieldLabels.ts` (expandir GLOBAL + BY_TABLE + fallback)
+### 2. Ampliar `GLOBAL` com campos comuns adicionais
 
-Nenhuma mudança em UI ou backend é necessária.
+Para cobrir variações que aparecem em várias E099* sem precisar repetir em cada tabela:
+
+- `INDADM` Indicador Administrador
+- `INDMAS` Usuário Mestre
+- `INDLOG` Permite Login
+- `INDWEB` Acesso Web
+- `INDAPP` Acesso App
+- `INDREL` Acesso a Relatórios
+- `INDEXP` Permite Exportação
+- `INDLAN` Permite Lançamento
+- `INDAPR` Indicador Aprovador
+- `LIMAPR` Limite de Aprovação
+- `LIMVAL` Limite de Valor
+- `LIMVEN` Limite de Venda
+- `DESMAX` Desconto Máximo
+- `MOEAPR` / `MOEVEN` Moeda
+- `DATEXP` Data de Expiração
+- `DIAEXP` Dias para Expiração
+- `INDSEN` Troca de Senha Obrigatória
+- `TENINV` Tentativas Inválidas
+- `LIBHOR` Libera fora de Horário
+- `IDIUSU` Idioma do Usuário
+- `NIVACE` Nível de Acesso
+
+### 3. Manter fallback atual
+
+`getFieldLabel` continua retornando `(TABELA.CAMPO)` quando não houver mapeamento, para permitir reportar lacunas remanescentes.
+
+## Arquivo afetado
+
+- `src/lib/erpFieldLabels.ts` (apenas expansão do dicionário; nenhuma mudança em UI ou backend)
 
 ## Validação
 
-Após aplicar, abrir **Gestão SGU › Preview por campo**, gerar preview entre dois usuários e confirmar que:
-1. Campos comuns (CODUSU, NUMEMP, TIPCOL...) mostram nome amigável.
-2. Campos restantes mostram `(TABELA.CAMPO)` — caso apareçam, me reporta a lista para eu adicionar nomes oficiais.
+Abrir **Gestão SGU › Preview por campo**, gerar preview entre dois usuários e:
+1. Confirmar que a coluna **Descrição** mostra nomes amigáveis na grande maioria dos campos.
+2. Caso reste algum campo no formato `(TABELA.CAMPO)`, copiar a lista para uma rodada final de mapeamento com nomes oficiais do Senior.
