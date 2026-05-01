@@ -1,5 +1,9 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+
+// Rotas que renderizam sua própria UI de fallback quando não autenticado/aprovado,
+// em vez de redirecionar para /login.
+const PUBLIC_FALLBACK_PATHS = new Set<string>(['/gestao-sgu-usuarios']);
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { Button } from '@/components/ui/button';
@@ -11,14 +15,18 @@ import packageJson from '../../package.json';
 
 export default function AppLayout() {
   const { isAuthenticated, user, displayName, approved, loading, logout } = useAuth();
+  const location = useLocation();
+  const allowFallback = PUBLIC_FALLBACK_PATHS.has(location.pathname);
 
   if (loading) return null;
 
   if (!isAuthenticated) {
+    if (allowFallback) return <Outlet />;
     return <Navigate to="/login" replace />;
   }
 
   if (!approved) {
+    if (allowFallback) return <Outlet />;
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[hsl(215,70%,22%)] to-[hsl(215,60%,35%)]">
         <div className="w-full max-w-sm rounded-lg border bg-card p-8 shadow-2xl text-center space-y-4">

@@ -7,8 +7,28 @@ import { SguUsuariosTab } from '@/components/sgu/SguUsuariosTab';
 import { SguCompararTab } from '@/components/sgu/SguCompararTab';
 import { SguPreviewCamposTab } from '@/components/sgu/SguPreviewCamposTab';
 import { SguAplicarDuplicacaoTab } from '@/components/sgu/SguAplicarDuplicacaoTab';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import GestaoSguUsuariosFallback from './GestaoSguUsuariosFallback';
+
+const PATH = '/gestao-sgu-usuarios';
 
 export default function GestaoSguUsuariosPage() {
+  const { isAuthenticated, approved, loading: authLoading } = useAuth();
+  const { canView, loading: permsLoading, hasPermissions } = useUserPermissions();
+
+  if (authLoading) return null;
+
+  if (!isAuthenticated || !approved) {
+    return <GestaoSguUsuariosFallback variant="unauthenticated" />;
+  }
+
+  if (permsLoading) return null;
+
+  if (hasPermissions && !canView(PATH)) {
+    return <GestaoSguUsuariosFallback variant="forbidden" />;
+  }
+
   return (
     <SguProvider>
       <div className="space-y-4 p-4">
