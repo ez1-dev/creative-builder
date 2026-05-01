@@ -112,6 +112,34 @@ const GLOBAL: FieldMap = {
   TELCEL: 'Celular',
   INTNET: 'E-mail (Internet)',
   GERAUS: 'Gera Usuário (S/N)',
+
+  // Flags de acesso e perfil
+  INDADM: 'Indicador Administrador',
+  INDMAS: 'Usuário Mestre',
+  INDLOG: 'Permite Login',
+  INDWEB: 'Acesso Web',
+  INDAPP: 'Acesso App',
+  INDREL: 'Acesso a Relatórios',
+  INDEXP: 'Permite Exportação',
+  INDLAN: 'Permite Lançamento',
+  INDAPR: 'Indicador Aprovador',
+  NIVACE: 'Nível de Acesso',
+
+  // Limites e moeda
+  LIMAPR: 'Limite de Aprovação',
+  LIMVAL: 'Limite de Valor',
+  LIMVEN: 'Limite de Venda',
+  DESMAX: 'Desconto Máximo (%)',
+  MOEAPR: 'Moeda do Limite',
+  MOEVEN: 'Moeda da Venda',
+
+  // Senha / sessão
+  DATEXP: 'Data de Expiração',
+  DIAEXP: 'Dias para Expiração de Senha',
+  INDSEN: 'Troca de Senha Obrigatória',
+  TENINV: 'Tentativas Inválidas',
+  LIBHOR: 'Libera fora de Horário',
+  IDIUSU: 'Idioma do Usuário',
 };
 
 // Mapas específicos por tabela (sobrepõem o GLOBAL quando houver)
