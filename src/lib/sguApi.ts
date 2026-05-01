@@ -223,6 +223,8 @@ export async function getUsuario(codusu: number): Promise<SguUsuario> {
   return withRetryOn401(async () => {
     const data = await api.get<SguUsuario>(url);
     logCall('GET', url, 200, data);
+    // eslint-disable-next-line no-console
+    console.info('[SGU] payload bruto getUsuario', data, 'chaves:', data && typeof data === 'object' ? Object.keys(data) : null);
     return normalizarUsuario(data);
   }, url);
 }
