@@ -401,6 +401,63 @@ export type Database = {
         }
         Relationships: []
       }
+      senior_disconnect_rules: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          enabled: boolean
+          id: string
+          nome: string
+          params: Json
+          rule_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          enabled?: boolean
+          id?: string
+          nome: string
+          params?: Json
+          rule_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          enabled?: boolean
+          id?: string
+          nome?: string
+          params?: Json
+          rule_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      senior_disconnect_whitelist: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          motivo: string | null
+          usuario: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motivo?: string | null
+          usuario: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motivo?: string | null
+          usuario?: string
+        }
+        Relationships: []
+      }
       user_access: {
         Row: {
           created_at: string
