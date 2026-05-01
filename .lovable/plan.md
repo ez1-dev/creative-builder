@@ -1,50 +1,32 @@
 ## Objetivo
 
-Hoje o "Aplicar regras agora" usa **todas as regras ligadas** em Configurações. Quero deixar o usuário **escolher na hora** quais regras serão aplicadas, sem precisar entrar em Configurações para ligar/desligar.
+Mover a configuração das **Regras de Desconexão Senior** (parâmetros das regras + whitelist) de `Configurações → Regras Senior` para **dentro da página Monitor de Usuários Senior**, onde o uso já acontece.
 
 ## Mudanças
 
-### `src/components/erp/ApplyRulesDialog.tsx`
+### 1. `src/pages/MonitorUsuariosSeniorPage.tsx`
+- Adicionar um botão **"Configurar regras"** (ícone `Settings`) no header, ao lado de "Aplicar regras agora", visível só para `canDisconnect` (admin/RENATO).
+- Botão abre um novo `Dialog` (largo, com scroll) que renderiza o `<SeniorRulesSection />` existente.
+- Ao fechar o diálogo, chamar `reload()` do hook `useSeniorDisconnectRules` para atualizar regras/whitelist usadas pelo `ApplyRulesDialog`.
 
-1. Novo estado local `selectedKeys: Set<string>` — começa com todas as regras `enabled` marcadas ao abrir o diálogo.
-2. Adicionar uma **seção de seleção** logo abaixo do header, antes da tabela de candidatos:
-   - Lista cada regra (`rules`) com `Checkbox` + nome + descrição curta + parâmetros principais (ex.: "após 22h", ">12h", "ocioso 30min").
-   - Regras com `enabled = false` aparecem mas iniciam desmarcadas (ainda dá pra marcar pra usar uma vez).
-   - Botões rápidos "Marcar todas" / "Desmarcar todas".
-3. Recalcular `candidatos` usando uma lista derivada `rulesParaUsar = rules.filter(r => selectedKeys.has(r.rule_key))` ao invés de `rules`. O `avaliarSessoes` já filtra por `enabled`, então passamos as regras escolhidas com `enabled: true` forçado:
-   ```ts
-   const rulesParaUsar = rules
-     .filter((r) => selectedKeys.has(r.rule_key))
-     .map((r) => ({ ...r, enabled: true }));
-   ```
-4. Ajustar mensagens:
-   - Se nenhuma regra marcada → aviso "Selecione pelo menos uma regra".
-   - Botão "Confirmar" desabilitado quando `selectedKeys.size === 0` ou `candidatos.length === 0`.
-5. Remover o bloco "Nenhuma regra está ligada" (não é mais bloqueante — usuário pode marcar uma desligada para uso pontual).
-6. O motivo gravado no log já inclui `c.motivo` (vindo da regra que disparou), nada muda aí.
+### 2. `src/pages/ConfiguracoesPage.tsx`
+- Remover a aba **"Regras Senior"**: a `<TabsTrigger value="senior-rules">` (linha 510) e o `<TabsContent value="senior-rules">` (linhas 1164–1167).
+- Remover o import de `SeniorRulesSection` (linha 16) e do ícone `PowerOff` se não for usado em outro lugar do arquivo.
+
+### 3. `src/components/erp/ApplyRulesDialog.tsx`
+- Atualizar a mensagem "Crie regras em Configurações → Regras Senior" para algo coerente como "Use o botão **Configurar regras** acima para cadastrar."
 
 ### Sem mudanças
+- `SeniorRulesSection.tsx` continua igual — só muda quem o renderiza.
+- Banco, hooks, RLS: nada muda.
 
-- `src/lib/seniorRules.ts` — lógica permanece igual.
-- `senior_disconnect_rules` (banco) — toggles em Configurações continuam funcionando como **default** ao abrir o diálogo.
-- `MonitorUsuariosSeniorPage.tsx` — só passa `rules` como já passa.
-
-## UX final
+## Resultado
 
 ```text
-┌ Aplicar regras de desconexão agora ─────────────────┐
-│ Selecione as regras a aplicar:                      │
-│  [x] Fora do horário comercial  (sáb/dom, após 22h) │
-│  [x] Sessão ociosa sem módulo  (>30 min)            │
-│  [ ] Sessão muito longa  (>12h)                     │
-│  [Marcar todas] [Desmarcar todas]                   │
-│                                                     │
-│ 4 sessão(ões) candidata(s)  [fora_horario: 3] ...   │
-│ <tabela de candidatos>                              │
-│ Motivo do lote: [________]                          │
-│                                                     │
-│ [Cancelar]  [Confirmar desconexão em lote]          │
-└─────────────────────────────────────────────────────┘
+Monitor de Usuários Senior
+[Auto-atualizar] [Exportar CSV] [Atualizar] [⚙ Configurar regras] [⏻ Aplicar regras agora]
+                                              └─ abre diálogo com SeniorRulesSection
+                                                 (parâmetros + whitelist)
 ```
 
-A lista de candidatos atualiza em tempo real conforme o usuário marca/desmarca regras.
+Configurações fica mais enxuto e tudo relacionado a sessões Senior vive numa tela só.

@@ -21,7 +21,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Settings } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SeniorRulesSection } from '@/components/erp/SeniorRulesSection';
 import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -154,7 +156,8 @@ export default function MonitorUsuariosSeniorPage() {
 
   // modal de lote (regras)
   const [applyOpen, setApplyOpen] = useState(false);
-  const { rules, whitelistUpper } = useSeniorDisconnectRules();
+  const [rulesConfigOpen, setRulesConfigOpen] = useState(false);
+  const { rules, whitelistUpper, reload: reloadRules } = useSeniorDisconnectRules();
 
   const classifyError = (e: any): BackendStatus => {
     const msg = String(e?.message ?? 'Falha desconhecida');
@@ -458,16 +461,27 @@ export default function MonitorUsuariosSeniorPage() {
               Atualizar
             </Button>
             {canDisconnect && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => setApplyOpen(true)}
-                disabled={loading || data.length === 0}
-                className="gap-2"
-              >
-                <PowerOff className="h-3.5 w-3.5" />
-                Aplicar regras agora
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRulesConfigOpen(true)}
+                  className="gap-2"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Configurar regras
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setApplyOpen(true)}
+                  disabled={loading || data.length === 0}
+                  className="gap-2"
+                >
+                  <PowerOff className="h-3.5 w-3.5" />
+                  Aplicar regras agora
+                </Button>
+              </>
             )}
           </div>
         }
@@ -503,6 +517,27 @@ export default function MonitorUsuariosSeniorPage() {
         selfErpUser={erpUser ?? undefined}
         onCompleted={load}
       />
+
+      <Dialog
+        open={rulesConfigOpen}
+        onOpenChange={(o) => {
+          setRulesConfigOpen(o);
+          if (!o) reloadRules();
+        }}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Regras de Desconexão Senior
+            </DialogTitle>
+            <DialogDescription>
+              Configure as regras e a whitelist usadas pelo botão "Aplicar regras agora".
+            </DialogDescription>
+          </DialogHeader>
+          <SeniorRulesSection />
+        </DialogContent>
+      </Dialog>
 
       {/* Preview do JSON cru — útil quando vem 200 OK mas a tabela parece vazia */}
       {connStatus.kind === 'online' && rawSamplePreview && (data.length === 0 || (import.meta as any).env?.DEV) && (
