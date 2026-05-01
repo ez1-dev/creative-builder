@@ -14,6 +14,9 @@ export const TABELAS_E099 = [
 
 export type TabelaE099 = typeof TABELAS_E099[number];
 
+export type SguStatusUsuario = 'ATIVO' | 'INATIVO' | 'SEM_PARAMETRIZACAO';
+export type SguStatusFiltro = 'TODOS' | SguStatusUsuario;
+
 export interface SguUsuario {
   codusu: number;
   nomusu: string;
@@ -25,6 +28,11 @@ export interface SguUsuario {
   existe_r910: 0 | 1;
   existe_r999: 0 | 1;
   qtd_empresas_e099usu: number;
+  status_usuario?: SguStatusUsuario | string | null;
+  situacao?: string | null;
+  ativo?: 0 | 1;
+  sgu_habilitado?: 0 | 1;
+  sgu_bloqueado?: 0 | 1;
   [k: string]: any;
 }
 
