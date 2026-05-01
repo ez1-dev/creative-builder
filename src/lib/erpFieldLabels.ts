@@ -180,6 +180,17 @@ const BY_TABLE: Record<string, FieldMap> = {
     TENINV: 'Tentativas Inválidas',
     LIBHOR: 'Libera fora de Horário',
     IDIUSU: 'Idioma do Usuário',
+    VENTBP: 'Vendedor Padrão (TBP)',
+    CODFIL: 'Filial Padrão',
+    CODDEP: 'Departamento Padrão',
+    CODSEC: 'Seção Padrão',
+    CODCCU: 'Centro de Custo Padrão',
+    CODPRJ: 'Projeto Padrão',
+    CODCPR: 'Comprador Padrão',
+    CODVEN: 'Vendedor Padrão',
+    CODREP: 'Representante Padrão',
+    CODTRA: 'Transportadora Padrão',
+    CODOPR: 'Operador Padrão',
   },
 
   // ===== E099CPR — Compradores autorizados =====
