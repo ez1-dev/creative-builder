@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { KPICard } from '@/components/erp/KPICard';
 import { useSgu } from './SguContext';
 import { duplicarPreviewCampos, TABELAS_E099, type AcaoCampo } from '@/lib/sguApi';
+import { getFieldLabel } from '@/lib/erpFieldLabels';
 import { cn } from '@/lib/utils';
 
 const ACOES: AcaoCampo[] = ['ALTERAR', 'MANTER', 'INSERIR', 'IGNORAR', 'ERRO'];
