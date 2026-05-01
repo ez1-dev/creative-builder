@@ -53,8 +53,22 @@ const pick = (o: any, ...keys: string[]) => {
   return undefined;
 };
 
+const toIsoDate = (v: any): string | undefined => {
+  if (v === undefined || v === null || v === '') return undefined;
+  if (typeof v === 'number') {
+    const ms = v < 1e12 ? v * 1000 : v; // segundos vs ms
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? v : d.toISOString();
+  }
+  return undefined;
+};
+
 const normalizeSessao = (raw: any): SessaoSenior => {
-  const data_hora_conexao = pick(raw, 'data_hora_conexao', 'dat_tim', 'dattim', 'DatTim');
+  const data_hora_conexao = toIsoDate(pick(raw, 'data_hora_conexao', 'dat_tim', 'dattim', 'DatTim'));
   let minutos_conectado = pick(raw, 'minutos_conectado', 'minutos', 'min_conectado');
   if ((minutos_conectado === undefined || minutos_conectado === null) && data_hora_conexao) {
     const d = new Date(data_hora_conexao);
@@ -155,7 +169,28 @@ export default function MonitorUsuariosSeniorPage() {
     const startedAt = new Date().toISOString();
     try {
       const res = await api.get<any>('/api/senior/sessoes');
-      const rawList: any[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
+      // Leitura robusta do retorno: o backend devolve { total, dados: [...] }
+      let rawList: any[] = [];
+      if (Array.isArray(res)) {
+        rawList = res;
+      } else if (Array.isArray((res as any)?.dados)) {
+        rawList = (res as any).dados;
+      } else if (Array.isArray((res as any)?.sessoes)) {
+        rawList = (res as any).sessoes;
+      } else if (Array.isArray((res as any)?.data)) {
+        rawList = (res as any).data;
+      } else {
+        rawList = [];
+      }
+      // Logs obrigatórios para diagnóstico
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] response completo:', res);
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] response.total:', (res as any)?.total);
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] response.dados:', (res as any)?.dados);
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] linhas interpretadas para a tabela:', rawList.length);
       const rows: SessaoSenior[] = rawList.map(normalizeSessao);
       setData(rows);
       setRawSamplePreview(
@@ -547,7 +582,7 @@ export default function MonitorUsuariosSeniorPage() {
                       ) : connStatus.kind === 'not_found' ? (
                         <p>Backend online, mas a rota /api/senior/sessoes ainda não foi publicada.</p>
                       ) : (
-                        <p>Nenhuma sessão encontrada.</p>
+                        <p>Nenhuma sessão conectada encontrada.</p>
                       )}
                     </TableCell>
                   </TableRow>
