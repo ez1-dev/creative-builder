@@ -21,10 +21,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Users, Activity, Clock, LayoutGrid, Loader2, PowerOff } from 'lucide-react';
-import { api } from '@/lib/api';
+import { RefreshCw, Users, Activity, Clock, LayoutGrid, Loader2, PowerOff, Link2Off } from 'lucide-react';
+import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { BackendStatusCard, type BackendStatus } from '@/components/erp/BackendStatusCard';
+import { UpdateApiUrlDialog } from '@/components/erp/UpdateApiUrlDialog';
 
 interface SessaoSenior {
   numsec: number | string;
