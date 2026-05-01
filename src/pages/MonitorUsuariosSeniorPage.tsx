@@ -377,6 +377,10 @@ export default function MonitorUsuariosSeniorPage() {
                 {autoRefresh && <span className="ml-1 text-muted-foreground">({countdown}s)</span>}
               </Label>
             </div>
+            <Button size="sm" variant="outline" onClick={exportCsv} disabled={sorted.length === 0} className="gap-2">
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </Button>
             <Button size="sm" variant="outline" onClick={load} disabled={loading} className="gap-2">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
@@ -438,10 +442,10 @@ export default function MonitorUsuariosSeniorPage() {
           details={stats.modulosTop}
         />
         <KPICard
-          title="Conectados > 4h"
-          value={stats.acimaDe4h}
-          icon={<Clock className="h-5 w-5" />}
-          variant={stats.acimaDe4h > 0 ? 'destructive' : 'default'}
+          title="Computadores Distintos"
+          value={stats.computadoresDistintos}
+          icon={<Monitor className="h-5 w-5" />}
+          variant="default"
         />
       </div>
 
@@ -478,17 +482,39 @@ export default function MonitorUsuariosSeniorPage() {
       {/* Tabela */}
       <Card>
         <CardContent className="p-0">
+          {/* Toolbar busca rápida */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+            <div className="text-xs text-muted-foreground">
+              {sorted.length} {sorted.length === 1 ? 'sessão' : 'sessões'}
+              {data.length !== sorted.length && ` (de ${data.length})`}
+            </div>
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={quickSearch}
+                onChange={(e) => setQuickSearch(e.target.value)}
+                placeholder="Buscar em todas as colunas..."
+                className="h-8 pl-7 text-xs"
+              />
+            </div>
+          </div>
           <div className="w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="whitespace-nowrap">Sessão</TableHead>
-                  <TableHead className="whitespace-nowrap">Usuário Senior</TableHead>
+                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('numsec')}>
+                    Sessão<SortIcon k="numsec" />
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('usuario_senior')}>
+                    Usuário Senior<SortIcon k="usuario_senior" />
+                  </TableHead>
                   <TableHead className="whitespace-nowrap">Usuário Windows</TableHead>
                   <TableHead className="whitespace-nowrap">Computador</TableHead>
                   <TableHead className="whitespace-nowrap">Aplicativo</TableHead>
                   <TableHead className="whitespace-nowrap">Cód. Mód.</TableHead>
-                  <TableHead className="whitespace-nowrap">Módulo</TableHead>
+                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('modulo')}>
+                    Módulo<SortIcon k="modulo" />
+                  </TableHead>
                   <TableHead className="whitespace-nowrap">Conexão</TableHead>
                   <TableHead className="whitespace-nowrap text-right">Min.</TableHead>
                   <TableHead className="whitespace-nowrap">Instância</TableHead>
@@ -525,7 +551,7 @@ export default function MonitorUsuariosSeniorPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ) : filtered.map((s, i) => {
+                ) : sorted.map((s, i) => {
                   const min = s.minutos_conectado ?? 0;
                   const longa = min > 240;
                   const rowKey = s.numsec != null && s.numsec !== ''
