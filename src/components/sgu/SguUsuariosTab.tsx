@@ -224,6 +224,19 @@ export function SguUsuariosTab() {
                         </TableCell>
                         <TableCell className="font-medium">{u.nomusu || '—'}</TableCell>
                         <TableCell>{u.nomcom || u.desusu || '—'}</TableCell>
+                        <TableCell>
+                          <div className="inline-flex items-center gap-1.5">
+                            <StatusBadge status={u.status_usuario} />
+                            {u.sgu_bloqueado ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Lock className="h-3.5 w-3.5 text-destructive" />
+                                </TooltipTrigger>
+                                <TooltipContent>Usuário SGU bloqueado</TooltipContent>
+                              </Tooltip>
+                            ) : null}
+                          </div>
+                        </TableCell>
                         <TableCell>{u.tipcol ?? '—'}</TableCell>
                         <TableCell>{u.empcol ?? '—'}</TableCell>
                         <TableCell>{u.filcol ?? '—'}</TableCell>
