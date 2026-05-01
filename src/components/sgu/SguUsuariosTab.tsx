@@ -42,6 +42,7 @@ function StatusBadge({ status }: { status?: string | null }) {
 export function SguUsuariosTab() {
   const { setUsuarioOrigem, setUsuarioDestino, usuarioOrigem, usuarioDestino } = useSgu();
   const [filtro, setFiltro] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState<SguStatusFiltro>('TODOS');
   const [usuarios, setUsuarios] = useState<SguUsuario[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -52,16 +53,29 @@ export function SguUsuariosTab() {
   const [detalheLoading, setDetalheLoading] = useState(false);
   const [detalheErro, setDetalheErro] = useState<string | null>(null);
 
-  const handlePesquisar = async () => {
+  const handlePesquisar = async (statusOverride?: SguStatusFiltro) => {
+    const status = statusOverride ?? statusFiltro;
     setLoading(true);
     try {
-      const data = await getUsuarios(filtro);
-      setUsuarios(data);
+      const data = await getUsuarios(filtro, status);
+      // Filtro defensivo client-side caso backend ainda não suporte ?status=
+      const filtrado =
+        status === 'TODOS'
+          ? data
+          : data.filter((u) => (u.status_usuario ?? '').toString().toUpperCase() === status);
+      setUsuarios(filtrado);
       setPagina(1);
     } catch {
       // toast já disparado em sguApi
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = (next: SguStatusFiltro) => {
+    setStatusFiltro(next);
+    if (usuarios.length > 0 || filtro.trim().length > 0) {
+      void handlePesquisar(next);
     }
   };
 
