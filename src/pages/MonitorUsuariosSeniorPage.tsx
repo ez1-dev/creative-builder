@@ -530,7 +530,7 @@ export default function MonitorUsuariosSeniorPage() {
                       <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : filtered.length === 0 ? (
+                ) : sorted.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
                       {connStatus.kind === 'offline' || connStatus.kind === 'server_error' ? (
