@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { KPICard } from '@/components/erp/KPICard';
 import { useSgu } from './SguContext';
 import { duplicarPreviewCampos, TABELAS_E099, type AcaoCampo } from '@/lib/sguApi';
+import { getFieldLabel } from '@/lib/erpFieldLabels';
 import { cn } from '@/lib/utils';
 
 const ACOES: AcaoCampo[] = ['ALTERAR', 'MANTER', 'INSERIR', 'IGNORAR', 'ERRO'];
@@ -96,7 +97,7 @@ export function SguPreviewCamposTab() {
       if (fAcao !== 'all' && d.acao !== fAcao) return false;
       if (fCampo && !d.campo.toLowerCase().includes(fCampo.toLowerCase())) return false;
       if (busca) {
-        const blob = `${d.tabela} ${d.campo} ${d.empresa ?? ''} ${d.valor_origem ?? ''} ${d.valor_destino ?? ''} ${d.motivo ?? ''}`.toLowerCase();
+        const blob = `${d.tabela} ${d.campo} ${getFieldLabel(d.tabela, d.campo)} ${d.empresa ?? ''} ${d.valor_origem ?? ''} ${d.valor_destino ?? ''} ${d.motivo ?? ''}`.toLowerCase();
         if (!blob.includes(busca)) return false;
       }
       return true;
@@ -197,6 +198,7 @@ export function SguPreviewCamposTab() {
                       <TableHead>Tabela</TableHead>
                       <TableHead>Empresa</TableHead>
                       <TableHead>Campo</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead>Valor origem</TableHead>
                       <TableHead>Valor destino</TableHead>
                       <TableHead>Ação</TableHead>
@@ -206,7 +208,7 @@ export function SguPreviewCamposTab() {
                   <TableBody>
                     {filtradas.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
                           Nenhuma diferença para os filtros atuais.
                         </TableCell>
                       </TableRow>
@@ -216,6 +218,7 @@ export function SguPreviewCamposTab() {
                           <TableCell className="font-mono text-xs">{d.tabela}</TableCell>
                           <TableCell>{d.empresa ?? '—'}</TableCell>
                           <TableCell className="font-mono text-xs">{d.campo}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{getFieldLabel(d.tabela, d.campo)}</TableCell>
                           <TableCell>{fmt(d.valor_origem)}</TableCell>
                           <TableCell>{fmt(d.valor_destino)}</TableCell>
                           <TableCell>
