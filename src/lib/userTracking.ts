@@ -1,25 +1,9 @@
 import { supabase } from '@/integrations/supabase/client';
-import { resolveScreen } from '@/lib/screenCatalog';
 
 let heartbeatTimer: number | null = null;
 let lastPath: string | null = null;
 let sessionStartedAt: number = Date.now();
 let forceLogoutTriggered = false;
-let beforeUnloadBound = false;
-
-const LOCAL_SID_KEY = 'sapiens_local_sid';
-function getLocalSessionId(): string {
-  try {
-    let sid = localStorage.getItem(LOCAL_SID_KEY);
-    if (!sid) {
-      sid = `sid_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-      localStorage.setItem(LOCAL_SID_KEY, sid);
-    }
-    return sid;
-  } catch {
-    return `sid_${Date.now().toString(36)}`;
-  }
-}
 
 async function checkForceLogout(userId: string) {
   if (forceLogoutTriggered) return;
