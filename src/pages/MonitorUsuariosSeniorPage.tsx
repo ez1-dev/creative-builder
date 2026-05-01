@@ -27,6 +27,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendStatusCard, type BackendStatus } from '@/components/erp/BackendStatusCard';
 import { UpdateApiUrlDialog } from '@/components/erp/UpdateApiUrlDialog';
+import { ApplyRulesDialog } from '@/components/erp/ApplyRulesDialog';
+import { useSeniorDisconnectRules } from '@/hooks/useSeniorDisconnectRules';
 
 interface SessaoSenior {
   numsec: number | string;
