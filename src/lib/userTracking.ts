@@ -78,63 +78,8 @@ export async function trackAction(action: string, details?: Record<string, unkno
   } catch { /* silencioso */ }
 }
 
-/** Resolve session_id da auth Supabase, com fallback local. */
-async function getSessionId(): Promise<string> {
-  try {
-    const { data } = await supabase.auth.getSession();
-    const accessToken = data.session?.access_token;
-    if (accessToken) {
-      // Usa um sufixo determinístico do access token (não vaza o token).
-      return `sb_${accessToken.slice(-12)}`;
-    }
-  } catch { /* ignore */ }
-  return getLocalSessionId();
-}
-
-/**
- * Registra navegação por tela em usu_log_navegacao_erp.
- * Chamado automaticamente em cada mudança de rota.
- */
-export async function trackNavegacao(
-  path: string,
-  acao: 'entrar' | 'sair' | 'click' | 'erro' = 'entrar',
-  detalhes?: Record<string, unknown>,
-) {
-  try {
-    const info = await getCurrentUserInfo();
-    if (!info) return;
-    const screen = resolveScreen(path);
-    let erpUser: string | null = null;
-    try { erpUser = localStorage.getItem('erp_user'); } catch { /* ignore */ }
-    const sessionId = await getSessionId();
-    await (supabase.from('usu_log_navegacao_erp') as any).insert({
-      user_id: info.id,
-      user_email: info.email,
-      erp_user: erpUser,
-      sistema: 'ERP_WEB',
-      tela_codigo: screen.codigo,
-      tela_nome: screen.nome,
-      acao,
-      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
-      session_id: sessionId,
-      detalhes: detalhes ?? {},
-    });
-  } catch { /* fire-and-forget */ }
-}
-
-/** Liga listener global para registrar 'sair' quando a aba é fechada. */
-export function bindNavegacaoUnload() {
-  if (beforeUnloadBound || typeof window === 'undefined') return;
-  beforeUnloadBound = true;
-  window.addEventListener('beforeunload', () => {
-    try {
-      const path = window.location.pathname;
-      // Tentativa best-effort. Pode falhar se o navegador já cortou requests.
-      void trackNavegacao(path, 'sair');
-    } catch { /* ignore */ }
-  });
-}
-
+// trackNavegacao / bindNavegacaoUnload foram movidos para src/lib/navegacaoLogger.ts
+// (cliente híbrido FastAPI + edge function navegacao-log).
 export function startHeartbeat() {
   if (heartbeatTimer !== null) return;
   sessionStartedAt = Date.now();
