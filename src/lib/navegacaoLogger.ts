@@ -72,19 +72,12 @@ async function tryFastApi(payload: NavegacaoPayload): Promise<boolean> {
   // Só tenta o FastAPI se já tivermos o token de ERP local.
   if (!api.isAuthenticated()) return false;
   try {
-    // Timeout curto pra não travar a navegação se o ngrok estiver lento.
-    const controller = new AbortController();
-    const t = window.setTimeout(() => controller.abort(), 3000);
-    try {
-      await api.request<unknown>('/api/navegacao/log', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-      return true;
-    } finally {
-      window.clearTimeout(t);
-    }
+    // Race contra um timeout curto pra não travar a navegação.
+    const result = await Promise.race([
+      api.post<unknown>('/api/navegacao/log', payload as any).then(() => true).catch(() => false),
+      new Promise<boolean>((resolve) => window.setTimeout(() => resolve(false), 3000)),
+    ]);
+    return result === true;
   } catch {
     return false;
   }
