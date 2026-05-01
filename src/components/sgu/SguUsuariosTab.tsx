@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, AlertTriangle, Eye, ArrowRightFromLine, ArrowLeftToLine, Loader2 } from 'lucide-react';
+import { Search, AlertTriangle, Eye, ArrowRightFromLine, ArrowLeftToLine, Loader2, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -16,10 +17,27 @@ import {
 } from '@/components/ui/sheet';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { useSgu } from './SguContext';
-import { getResumoAcessos, getUsuario, getUsuarios, type SguUsuario, type ResumoAcessos } from '@/lib/sguApi';
+import {
+  getResumoAcessos,
+  getUsuario,
+  getUsuarios,
+  type SguUsuario,
+  type ResumoAcessos,
+  type SguStatusFiltro,
+} from '@/lib/sguApi';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 50;
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'ATIVO')
+    return <Badge className="bg-success text-success-foreground hover:bg-success/90">Ativo</Badge>;
+  if (s === 'INATIVO') return <Badge variant="destructive">Inativo</Badge>;
+  if (s === 'SEM_PARAMETRIZACAO')
+    return <Badge variant="secondary">Sem parametrização</Badge>;
+  return <span className="text-muted-foreground text-xs">—</span>;
+}
 
 export function SguUsuariosTab() {
   const { setUsuarioOrigem, setUsuarioDestino, usuarioOrigem, usuarioDestino } = useSgu();
