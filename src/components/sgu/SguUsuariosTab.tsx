@@ -180,6 +180,7 @@ export function SguUsuariosTab() {
                   <TableHead>Código</TableHead>
                   <TableHead>Login</TableHead>
                   <TableHead>Nome completo</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
@@ -192,7 +193,7 @@ export function SguUsuariosTab() {
               <TableBody>
                 {visiveis.length === 0 && !loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                       Pesquise para listar usuários SGU.
                     </TableCell>
                   </TableRow>
