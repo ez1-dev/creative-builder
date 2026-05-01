@@ -274,25 +274,36 @@ export function SguUsuariosTab() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : detalheUsr ? (
+          ) : (
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Código</div>
-                <div className="font-mono">{detalheUsr.codusu}</div>
-                <div className="text-muted-foreground">Login</div>
-                <div className="font-medium">{detalheUsr.nomusu}</div>
-                <div className="text-muted-foreground">Nome completo</div>
-                <div>{detalheUsr.nomcom || detalheUsr.desusu || '—'}</div>
-                <div className="text-muted-foreground">Tipo</div>
-                <div>{detalheUsr.tipcol ?? '—'}</div>
-                <div className="text-muted-foreground">Empresa</div>
-                <div>{detalheUsr.empcol ?? '—'}</div>
-                <div className="text-muted-foreground">Filial</div>
-                <div>{detalheUsr.filcol ?? '—'}</div>
-              </div>
+              {detalheErro && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Falha ao carregar detalhes</AlertTitle>
+                  <AlertDescription>{detalheErro}</AlertDescription>
+                </Alert>
+              )}
+              {detalheUsr ? (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-muted-foreground">Código</div>
+                  <div className="font-mono">{String(detalheUsr.codusu ?? '—')}</div>
+                  <div className="text-muted-foreground">Login</div>
+                  <div className="font-medium">{detalheUsr.nomusu || '—'}</div>
+                  <div className="text-muted-foreground">Nome completo</div>
+                  <div>{detalheUsr.nomcom || detalheUsr.desusu || '—'}</div>
+                  <div className="text-muted-foreground">Tipo</div>
+                  <div>{detalheUsr.tipcol != null ? String(detalheUsr.tipcol) : '—'}</div>
+                  <div className="text-muted-foreground">Empresa</div>
+                  <div>{detalheUsr.empcol != null ? String(detalheUsr.empcol) : '—'}</div>
+                  <div className="text-muted-foreground">Filial</div>
+                  <div>{detalheUsr.filcol != null ? String(detalheUsr.filcol) : '—'}</div>
+                </div>
+              ) : !detalheErro ? (
+                <p className="text-xs text-muted-foreground">Sem dados do usuário.</p>
+              ) : null}
               <div>
                 <h4 className="font-semibold text-sm mb-2">Resumo de acessos</h4>
-                {detalheResumo?.tabelas?.length ? (
+                {Array.isArray(detalheResumo?.tabelas) && detalheResumo!.tabelas.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -301,10 +312,10 @@ export function SguUsuariosTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {detalheResumo.tabelas.map((t) => (
-                        <TableRow key={t.tabela}>
-                          <TableCell className="font-mono">{t.tabela}</TableCell>
-                          <TableCell className="text-right">{t.qtd}</TableCell>
+                      {detalheResumo!.tabelas.map((t, i) => (
+                        <TableRow key={`${t?.tabela ?? 'tab'}-${i}`}>
+                          <TableCell className="font-mono">{String(t?.tabela ?? '—')}</TableCell>
+                          <TableCell className="text-right">{Number(t?.qtd ?? 0)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -314,7 +325,7 @@ export function SguUsuariosTab() {
                 )}
               </div>
             </div>
-          ) : null}
+          )}
         </SheetContent>
       </Sheet>
     </div>
