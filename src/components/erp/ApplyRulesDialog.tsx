@@ -184,7 +184,7 @@ export function ApplyRulesDialog({
           </div>
           {rules.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              Nenhuma regra cadastrada. Crie regras em Configurações → Regras Senior.
+              Nenhuma regra cadastrada. Use o botão "Configurar regras" acima para criar.
             </p>
           ) : (
             <div className="space-y-2">
