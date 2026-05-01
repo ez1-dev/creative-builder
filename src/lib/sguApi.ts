@@ -17,6 +17,8 @@ export type TabelaE099 = typeof TABELAS_E099[number];
 export interface SguUsuario {
   codusu: number;
   nomusu: string;
+  nomcom?: string | null;
+  desusu?: string | null;
   tipcol?: string | number | null;
   empcol?: string | number | null;
   filcol?: string | number | null;
@@ -102,7 +104,9 @@ function normalizarUsuario(u: any): SguUsuario {
   return {
     ...u,
     codusu: Number.isFinite(codNum) ? codNum : (codRaw as any),
-    nomusu: pickFirst(u, ['nomusu', 'nom_usu', 'nome', 'nome_usuario', 'descricao']) ?? '',
+    nomusu: pickFirst(u, ['nomusu', 'nom_usu', 'nome', 'nome_usuario']) ?? '',
+    nomcom: pickFirst(u, ['nomcom', 'nom_com', 'nome_completo']) ?? null,
+    desusu: pickFirst(u, ['desusu', 'des_usu', 'descricao_usuario', 'descricao', 'login']) ?? null,
     tipcol: pickFirst(u, ['tipcol', 'tip_col', 'tipo']) ?? null,
     empcol: pickFirst(u, ['empcol', 'emp_col', 'empresa', 'codemp']) ?? null,
     filcol: pickFirst(u, ['filcol', 'fil_col', 'filial', 'codfil']) ?? null,

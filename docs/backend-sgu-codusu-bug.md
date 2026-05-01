@@ -19,10 +19,35 @@ Em `GET /api/sgu/usuarios?filtro=...` o JSON retornado contém:
 
 O campo `codusu` está vindo com o **login textual** (igual ao `nomusu`),
 quando deveria ser o **identificador numérico (PK)** do usuário SGU
-(`R910USU.CODUSU`, integer). Os campos `tipcol`, `empcol`, `filcol`
-também estão vindo `null` — provavelmente faltam no SELECT.
+em `R999USU.CODUSU` (integer).
 
-## Consequência no frontend
+## Esquema real das tabelas (importante)
+
+A documentação anterior citava `R910USU.CODUSU` e `R910USU.DESUSU` em
+contexto errado. O esquema correto é:
+
+### `R999USU` — usuários SGU (fonte da PK)
+
+| Coluna   | Tipo    | Descrição                                |
+|----------|---------|------------------------------------------|
+| `CODUSU` | integer | Código numérico do usuário SGU (**PK**)  |
+| `NOMUSU` | string  | Login / nome curto                       |
+| `TIPCOL` | string  | Tipo de colaborador                      |
+| `NUMEMP` | int     | Empresa                                  |
+| `CODFIL` | int     | Filial                                   |
+
+### `R910USU` — cadastro / colaborador
+
+| Coluna   | Tipo    | Descrição                                                |
+|----------|---------|----------------------------------------------------------|
+| `CODENT` | integer | Código numérico do usuário (FK lógica → `R999USU.CODUSU`)|
+| `NOMCOM` | string  | Nome completo                                            |
+| `DESUSU` | string  | Descrição / login                                        |
+
+> ⚠️ `R910USU.CODUSU` **não existe**. A junção correta é
+> `R910USU.CODENT = R999USU.CODUSU`.
+
+## Consequência atual no frontend
 
 1. A coluna "Código" mostra um aviso porque não consegue converter
    `"ademir.passos"` para inteiro.
@@ -34,60 +59,75 @@ também estão vindo `null` — provavelmente faltam no SELECT.
    rota tipada como `int`.
 3. As ações **Detalhes / Origem / Destino** ficam desabilitadas.
 
-## Correção esperada no backend
+## Schema JSON esperado (após correção)
 
-O JSON deve retornar campos distintos:
+```json
+{
+  "codusu": 301,
+  "nomusu": "lucas.martins",
+  "nomcom": "Lucas Martins - CUSTEIO",
+  "desusu": "lucas.martins",
+  "tipcol": null,
+  "empcol": null,
+  "filcol": null,
+  "existe_r910": 1,
+  "existe_r999": 1,
+  "qtd_empresas_e099usu": 2
+}
+```
 
-| Campo     | Tipo       | Descrição                              | Exemplo         |
-|-----------|------------|----------------------------------------|-----------------|
-| `codusu`  | integer    | Código numérico do usuário SGU (PK)    | `1234`          |
-| `nomusu`  | string     | Login / nome curto do usuário          | `ademir.passos` |
-| `descusu` | string?    | (opcional) Descrição/nome completo     | `Ademir Passos` |
-| `tipcol`  | string?    | Tipo de colaborador                    | `F` / `J`       |
-| `empcol`  | string/int | Empresa do colaborador                 | `1`             |
-| `filcol`  | string/int | Filial do colaborador                  | `1`             |
+| Campo     | Tipo       | Origem                  |
+|-----------|------------|-------------------------|
+| `codusu`  | integer    | `R999USU.CODUSU` (**PK**) |
+| `nomusu`  | string     | `R999USU.NOMUSU`        |
+| `nomcom`  | string?    | `R910USU.NOMCOM`        |
+| `desusu`  | string?    | `R910USU.DESUSU`        |
+| `tipcol`  | string?    | `R999USU.TIPCOL`        |
+| `empcol`  | string/int | `R999USU.NUMEMP`        |
+| `filcol`  | string/int | `R999USU.CODFIL`        |
 
-### Endpoints afetados (todos devem usar `codusu` integer)
-
-- `GET  /api/sgu/usuarios?filtro=...` — lista
-- `GET  /api/sgu/usuarios/{codusu}` — detalhe (path int)
-- `GET  /api/sgu/usuarios/{codusu}/resumo-acessos` (path int)
-- `POST /api/sgu/usuarios/comparar` — body `{usuario_origem: int, usuario_destino: int}`
-- `POST /api/sgu/usuarios/duplicar-preview-campos` — body com ints
-- `POST /api/sgu/usuarios/duplicar-parametros` — body com ints
-
-### Sugestão de SELECT
+## SQL sugerido
 
 ```sql
 SELECT
-  R910.CODUSU                 AS codusu,    -- integer (PK)
-  R910.NOMUSU                 AS nomusu,    -- string (login)
-  R910.DESUSU                 AS descusu,   -- string (descrição)
-  R910.TIPCOL                 AS tipcol,
-  R910.EMPCOL                 AS empcol,
-  R910.FILCOL                 AS filcol,
-  CASE WHEN R910.CODUSU IS NULL THEN 0 ELSE 1 END AS existe_r910,
-  CASE WHEN R999.CODUSU IS NULL THEN 0 ELSE 1 END AS existe_r999,
-  COALESCE((SELECT COUNT(DISTINCT E099.CODEMP)
-              FROM E099USU E099
-             WHERE E099.CODUSU = R910.CODUSU), 0) AS qtd_empresas_e099usu
-FROM R910USU R910
-LEFT JOIN R999USU R999 ON R999.CODUSU = R910.CODUSU
-WHERE (
-       :filtro IS NULL
-    OR R910.NOMUSU ILIKE '%' || :filtro || '%'
-    OR CAST(R910.CODUSU AS TEXT) = :filtro
-)
-ORDER BY R910.NOMUSU;
+    R.CODUSU                          AS codusu,
+    LTRIM(RTRIM(R.NOMUSU))            AS nomusu,
+    LTRIM(RTRIM(A.NOMCOM))            AS nomcom,
+    LTRIM(RTRIM(A.DESUSU))            AS desusu,
+    LTRIM(RTRIM(R.TIPCOL))            AS tipcol,
+    LTRIM(RTRIM(R.NUMEMP))            AS empcol,
+    LTRIM(RTRIM(R.CODFIL))            AS filcol,
+    CASE WHEN A.CODENT IS NULL THEN 0 ELSE 1 END AS existe_r910,
+    CASE WHEN R.CODUSU IS NULL THEN 0 ELSE 1 END AS existe_r999,
+    (
+        SELECT COUNT(*)
+        FROM E099USU E
+        WHERE E.CODUSU = R.CODUSU
+    ) AS qtd_empresas_e099usu
+FROM R999USU R
+LEFT JOIN R910USU A
+       ON A.CODENT = R.CODUSU
+ORDER BY R.NOMUSU;
 ```
 
-### Pydantic / response model sugerido
+Aplicar o filtro de pesquisa via parâmetro:
+
+```sql
+WHERE (
+    :filtro IS NULL
+ OR R.NOMUSU LIKE '%' + :filtro + '%'
+ OR CAST(R.CODUSU AS VARCHAR(20)) = :filtro
+)
+```
+
+## Pydantic / response model sugerido
 
 ```python
 class SguUsuario(BaseModel):
     codusu: int
     nomusu: str
-    descusu: Optional[str] = None
+    nomcom: Optional[str] = None
+    desusu: Optional[str] = None
     tipcol: Optional[str] = None
     empcol: Optional[str] = None
     filcol: Optional[str] = None
@@ -96,10 +136,31 @@ class SguUsuario(BaseModel):
     qtd_empresas_e099usu: int = 0
 ```
 
+## Endpoints afetados
+
+Todos devem usar `codusu` integer:
+
+- `GET  /api/sgu/usuarios?filtro=...` — lista
+- `GET  /api/sgu/usuarios/{codusu}` — detalhe (path int)
+- `GET  /api/sgu/usuarios/{codusu}/resumo-acessos` (path int)
+- `POST /api/sgu/usuarios/comparar` — body `{usuario_origem: int, usuario_destino: int}`
+- `POST /api/sgu/usuarios/duplicar-preview-campos` — body com ints
+- `POST /api/sgu/usuarios/duplicar-parametros` — body com ints
+
+## Critérios de validação
+
+- `codusu` deve ser **número/integer**.
+- `nomusu` deve ser **texto** (login).
+- `nomcom` e `desusu` devem ser campos **separados** (nunca duplicar com `codusu`).
+- **Nunca** retornar login textual no campo `codusu`.
+- As rotas `/api/sgu/usuarios/{codusu}` devem aceitar `codusu` numérico.
+
 ## Validação após o ajuste
 
-1. `GET /api/sgu/usuarios?filtro=ademir` retorna `codusu` numérico
-   (ex: `1234`) e `nomusu` textual (`"ademir.passos"`).
-2. Frontend renderiza a coluna Código com o número e remove o banner
-   de alerta automaticamente.
+1. `GET /api/sgu/usuarios?filtro=lucas` retorna `codusu` numérico
+   (ex: `301`), `nomusu` textual (`"lucas.martins"`) e `nomcom`
+   (`"Lucas Martins - CUSTEIO"`).
+2. Frontend renderiza a coluna Código com o número, exibe o nome
+   completo na coluna correspondente e remove o banner de alerta
+   automaticamente.
 3. Botões Detalhes / Origem / Destino funcionam sem 422.
