@@ -24,6 +24,8 @@ import {
 import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Settings } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SeniorRulesSection } from '@/components/erp/SeniorRulesSection';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { MonitorNavegacaoSection } from '@/components/erp/MonitorNavegacaoSection';
 import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -551,6 +553,13 @@ export default function MonitorUsuariosSeniorPage() {
         </details>
       )}
 
+      <Tabs defaultValue="senior" className="space-y-3">
+        <TabsList>
+          <TabsTrigger value="senior">Sessões Senior</TabsTrigger>
+          <TabsTrigger value="navegacao">Navegação ERP Web</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="senior" className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KPICard
@@ -731,6 +740,12 @@ export default function MonitorUsuariosSeniorPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="navegacao">
+          <MonitorNavegacaoSection />
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de confirmação */}
       <AlertDialog open={!!target} onOpenChange={(o) => { if (!o) { setTarget(null); setMotivo(''); } }}>

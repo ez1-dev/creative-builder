@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.azure-auth-callback]
 verify_jwt = false
+
+[functions.navegacao-log]
+verify_jwt = false

@@ -613,6 +613,9 @@ export type Database = {
           erp_user: string | null
           id: string
           ip: string | null
+          observacao: string | null
+          origem_evento: string
+          path_url: string | null
           session_id: string | null
           sistema: string
           tela_codigo: string | null
@@ -629,6 +632,9 @@ export type Database = {
           erp_user?: string | null
           id?: string
           ip?: string | null
+          observacao?: string | null
+          origem_evento?: string
+          path_url?: string | null
           session_id?: string | null
           sistema?: string
           tela_codigo?: string | null
@@ -645,6 +651,9 @@ export type Database = {
           erp_user?: string | null
           id?: string
           ip?: string | null
+          observacao?: string | null
+          origem_evento?: string
+          path_url?: string | null
           session_id?: string | null
           sistema?: string
           tela_codigo?: string | null
@@ -763,7 +772,15 @@ export type Database = {
       }
     }
     Enums: {
-      navegacao_acao: "entrar" | "sair" | "click" | "erro"
+      navegacao_acao:
+        | "entrar"
+        | "sair"
+        | "click"
+        | "erro"
+        | "ABRIU_TELA"
+        | "HEARTBEAT"
+        | "TROCOU_TELA"
+        | "FECHOU_TELA"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -891,7 +908,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      navegacao_acao: ["entrar", "sair", "click", "erro"],
+      navegacao_acao: [
+        "entrar",
+        "sair",
+        "click",
+        "erro",
+        "ABRIU_TELA",
+        "HEARTBEAT",
+        "TROCOU_TELA",
+        "FECHOU_TELA",
+      ],
     },
   },
 } as const
