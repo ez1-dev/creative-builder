@@ -33,6 +33,7 @@ import ContasReceberPage from "@/pages/ContasReceberPage";
 import FaturamentoGeniusPage from "@/pages/FaturamentoGeniusPage";
 import PassagensAereasPage from "@/pages/PassagensAereasPage";
 import PassagensAereasCompartilhadoPage from "@/pages/PassagensAereasCompartilhadoPage";
+import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
