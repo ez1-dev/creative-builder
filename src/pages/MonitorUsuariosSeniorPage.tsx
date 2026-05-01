@@ -461,16 +461,27 @@ export default function MonitorUsuariosSeniorPage() {
               Atualizar
             </Button>
             {canDisconnect && (
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => setApplyOpen(true)}
-                disabled={loading || data.length === 0}
-                className="gap-2"
-              >
-                <PowerOff className="h-3.5 w-3.5" />
-                Aplicar regras agora
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRulesConfigOpen(true)}
+                  className="gap-2"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                  Configurar regras
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setApplyOpen(true)}
+                  disabled={loading || data.length === 0}
+                  className="gap-2"
+                >
+                  <PowerOff className="h-3.5 w-3.5" />
+                  Aplicar regras agora
+                </Button>
+              </>
             )}
           </div>
         }
