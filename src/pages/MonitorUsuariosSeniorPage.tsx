@@ -21,10 +21,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Users, Activity, Clock, LayoutGrid, Loader2, PowerOff } from 'lucide-react';
-import { api } from '@/lib/api';
+import { RefreshCw, Users, Activity, Clock, LayoutGrid, Loader2, PowerOff, Link2Off } from 'lucide-react';
+import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { BackendStatusCard, type BackendStatus } from '@/components/erp/BackendStatusCard';
+import { UpdateApiUrlDialog } from '@/components/erp/UpdateApiUrlDialog';
 
 interface SessaoSenior {
   numsec: number | string;
@@ -64,6 +66,12 @@ export default function MonitorUsuariosSeniorPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [countdown, setCountdown] = useState(30);
 
+  // status do backend
+  const [connStatus, setConnStatus] = useState<BackendStatus>({ kind: 'idle' });
+  const [apiUrl, setApiUrl] = useState<string>(getApiUrl());
+  const [testing, setTesting] = useState(false);
+  const [urlDialogOpen, setUrlDialogOpen] = useState(false);
+
   // filtros
   const [fUsuario, setFUsuario] = useState('');
   const [fComputador, setFComputador] = useState('');
@@ -75,17 +83,51 @@ export default function MonitorUsuariosSeniorPage() {
   const [motivo, setMotivo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const classifyError = (e: any): BackendStatus => {
+    const msg = String(e?.message ?? 'Falha desconhecida');
+    const code = e?.statusCode;
+    const isNetwork = e?.isNetworkError || code === 0 || /Failed to fetch|NetworkError|ERR_NGROK|timeout/i.test(msg);
+    if (code === 401) return { kind: 'unauthorized', message: msg, statusCode: 401, timestamp: new Date().toISOString() };
+    if (code === 404) return { kind: 'not_found', message: msg, statusCode: 404, timestamp: new Date().toISOString() };
+    if (typeof code === 'number' && code >= 500) {
+      return { kind: 'server_error', message: msg, statusCode: code, timestamp: new Date().toISOString() };
+    }
+    if (isNetwork) return { kind: 'offline', message: msg, statusCode: code ?? 0, timestamp: new Date().toISOString() };
+    return { kind: 'server_error', message: msg, statusCode: code, timestamp: new Date().toISOString() };
+  };
+
   const loadingRef = useRef(false);
   const load = async () => {
     if (loadingRef.current) return;
     loadingRef.current = true;
     setLoading(true);
+    setConnStatus((s) => (s.kind === 'idle' ? { kind: 'loading' } : s));
+    const url = `${getApiUrl()}/api/senior/sessoes`;
+    const startedAt = new Date().toISOString();
     try {
       const res = await api.get<any>('/api/senior/sessoes');
       const rows: SessaoSenior[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
       setData(rows);
+      setConnStatus({ kind: 'online', statusCode: 200, timestamp: new Date().toISOString() });
+      // eslint-disable-next-line no-console
+      console.info('[MonitorSenior] GET sessoes OK', { url, status: 200, rows: rows.length, timestamp: startedAt });
     } catch (e: any) {
-      toast({ title: 'Erro ao carregar sessões', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' });
+      const status = classifyError(e);
+      setConnStatus(status);
+      // eslint-disable-next-line no-console
+      console.warn('[MonitorSenior] GET sessoes FAIL', {
+        url,
+        status: status.statusCode ?? 0,
+        errorMessage: status.message,
+        timestamp: startedAt,
+      });
+      // Toast só para erros que não viram destaque visível no card (todos viram card,
+      // então mantemos um toast curto para reforçar)
+      toast({
+        title: status.kind === 'offline' ? 'Backend offline' : 'Erro ao carregar sessões',
+        description: status.message,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
       loadingRef.current = false;
@@ -95,9 +137,10 @@ export default function MonitorUsuariosSeniorPage() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
-  // auto-refresh com contador
+  // auto-refresh com contador — pausa quando offline para não martelar o backend caído
   useEffect(() => {
     if (!autoRefresh) return;
+    if (connStatus.kind === 'offline' || connStatus.kind === 'unauthorized') return;
     const tick = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
@@ -109,7 +152,58 @@ export default function MonitorUsuariosSeniorPage() {
     }, 1000);
     return () => clearInterval(tick);
     // eslint-disable-next-line
-  }, [autoRefresh]);
+  }, [autoRefresh, connStatus.kind]);
+
+  const testHealth = async (): Promise<boolean> => {
+    setTesting(true);
+    const base = getApiUrl();
+    setApiUrl(base);
+    const url = `${base}/health`;
+    const startedAt = new Date().toISOString();
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const res = await fetch(url, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      // eslint-disable-next-line no-console
+      console.info('[MonitorSenior] GET /health', { url, status: res.status, timestamp: startedAt });
+      if (res.ok) {
+        setConnStatus({ kind: 'online', statusCode: res.status, timestamp: new Date().toISOString() });
+        toast({ title: 'Backend online', description: 'Conexão verificada com sucesso.' });
+        return true;
+      }
+      setConnStatus({
+        kind: res.status >= 500 ? 'server_error' : res.status === 401 ? 'unauthorized' : res.status === 404 ? 'not_found' : 'offline',
+        statusCode: res.status,
+        message: `HTTP ${res.status}`,
+        timestamp: new Date().toISOString(),
+      });
+      return false;
+    } catch (e: any) {
+      const msg = String(e?.message ?? 'Falha de rede');
+      // eslint-disable-next-line no-console
+      console.warn('[MonitorSenior] GET /health FAIL', { url, errorMessage: msg, timestamp: startedAt });
+      setConnStatus({
+        kind: 'offline',
+        statusCode: 0,
+        message: msg,
+        timestamp: new Date().toISOString(),
+      });
+      return false;
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const onUrlSavedAndTest = async (newUrl: string): Promise<boolean> => {
+    setApiUrl(newUrl);
+    const ok = await testHealth();
+    if (ok) await load();
+    return ok;
+  };
 
   const aplicativos = useMemo(() => {
     const set = new Set<string>();
@@ -196,6 +290,24 @@ export default function MonitorUsuariosSeniorPage() {
             </Button>
           </div>
         }
+      />
+
+      {/* Status do backend */}
+      <BackendStatusCard
+        status={connStatus.kind === 'idle' && loading ? { kind: 'loading' } : connStatus}
+        apiUrl={apiUrl}
+        onTest={testHealth}
+        onChangeUrl={() => setUrlDialogOpen(true)}
+        onRetry={load}
+        testing={testing}
+        retrying={loading}
+      />
+
+      <UpdateApiUrlDialog
+        open={urlDialogOpen}
+        onOpenChange={setUrlDialogOpen}
+        currentUrl={apiUrl}
+        onSavedAndTest={onUrlSavedAndTest}
       />
 
       {/* KPIs */}
@@ -290,7 +402,22 @@ export default function MonitorUsuariosSeniorPage() {
                 ) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
-                      Nenhuma sessão encontrada.
+                      {connStatus.kind === 'offline' || connStatus.kind === 'server_error' ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Link2Off className="h-5 w-5 text-destructive" />
+                          <p>Nenhuma sessão carregada porque o backend ERP está offline.</p>
+                          <Button size="sm" variant="outline" onClick={load} disabled={loading} className="gap-1">
+                            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                            Atualizar
+                          </Button>
+                        </div>
+                      ) : connStatus.kind === 'unauthorized' ? (
+                        <p>Token expirado ou inválido. Faça login novamente.</p>
+                      ) : connStatus.kind === 'not_found' ? (
+                        <p>Backend online, mas a rota /api/senior/sessoes ainda não foi publicada.</p>
+                      ) : (
+                        <p>Nenhuma sessão encontrada.</p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : filtered.map((s) => {

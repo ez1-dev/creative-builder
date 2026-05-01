@@ -1,84 +1,80 @@
-# Monitor de Usuários Senior
+# Diagnóstico visual de backend offline — Monitor de Usuários Senior
 
-Nova página administrativa para acompanhar sessões ativas no ERP Senior/Sapiens via backend FastAPI e permitir desconexão controlada com motivo.
+Objetivo: na tela `/monitor-usuarios-senior`, transformar a falha silenciosa atual (toast vermelho + tabela "Nenhuma sessão encontrada") em um painel claro que diga exatamente **qual** é o problema (ngrok caiu, token expirou, rota não publicada, sem dados, etc.) e permita corrigir sem sair da tela.
 
-## O que será criado
+## O que o usuário verá
 
-### 1. Rota e navegação
-- Rota: `/monitor-usuarios-senior` (protegida por `ProtectedRoute`).
-- Item no `AppSidebar.tsx` com ícone `Users` (lucide), seguindo o padrão dos demais módulos.
-- Registro em `App.tsx` ao lado das demais rotas autenticadas.
+No topo da página, abaixo do header, um **card de status do backend** que muda conforme o resultado da última chamada a `GET /api/senior/sessoes`:
 
-### 2. Página `src/pages/MonitorUsuariosSeniorPage.tsx`
+- **Verde — "Backend ERP online"**: chamada OK. Card pode ser recolhido.
+- **Vermelho — "Backend ERP offline ou indisponível"** (erro de rede, `Failed to fetch`, `ERR_NGROK_3200`, timeout, status 0):
+  - Mensagem: *"Não foi possível conectar na API ERP. Verifique se o FastAPI e o túnel ngrok estão ativos."*
+  - Sub-mensagem específica para ngrok: *"Túnel ngrok offline. Reinicie o ngrok no servidor do backend."*
+  - Mostra a URL atual configurada e o erro técnico retornado.
+- **Âmbar — "Token expirado ou inválido"** (HTTP 401): *"Faça login novamente."* Botão "Ir para login".
+- **Âmbar — "Rota não publicada"** (HTTP 404): *"Backend online, mas a rota /api/senior/sessoes ainda não foi publicada no FastAPI."*
+- **Vermelho — "Erro do backend"** (HTTP 500/502/503): mostra o detalhe retornado.
 
-**Cards de KPI no topo** (usando `KPICard`/`KpiGroup` já existentes):
-- Total de sessões
-- Usuários distintos
-- Sessões há mais de 4h (destaque vermelho)
-- Total por módulo — card único listando os 3 módulos com mais sessões (ou um grid compacto se houver poucos módulos)
+O card sempre exibe:
+- URL atual da API (lida de `app_settings.erp_api_url` via `getApiUrl()`).
+- Horário da última tentativa.
+- Botões: **Testar conexão**, **Atualizar API URL**, **Tentar novamente**.
 
-**Filtros** (`FilterPanel` ou linha de inputs no padrão existente):
-- Usuário Senior (texto)
-- Computador (texto)
-- Módulo (texto)
-- Aplicativo (Select; padrão `SAPIENS`, com opções dinâmicas do retorno)
-- Botão **Atualizar** (ícone `RefreshCw`)
-- Switch **Auto-atualizar (30s)** ligado por padrão; quando ligado, dispara `setInterval` de 30s e mostra contador "Próx. atualização em Xs"
+Na **tabela**, quando o backend está offline, em vez de "Nenhuma sessão encontrada" (que confunde com sucesso vazio), mostrar:
+> *"Nenhuma sessão carregada porque o backend ERP está offline."*
+com botão "Atualizar" inline. Quando o backend respondeu 200 com lista vazia, manter a mensagem original "Nenhuma sessão encontrada."
 
-**Tabela** (componente `Table` shadcn, com `overflow-x-auto` para responsividade) com as colunas pedidas:
-Sessão · Usuário Senior · Usuário Windows · Computador · Aplicativo · Cód. módulo · Módulo acessado · Data/hora conexão · Min. conectado · Instância · Tipo aplicação · Mensagem admin · Ações.
+Durante o carregamento inicial: spinner centralizado (já existe). O card de status mostra "Verificando conexão…".
 
-- Linhas com `> 240 min` recebem badge âmbar/vermelha em "Min. conectado".
-- Coluna "Ações": botão `Desconectar` (variant `destructive`, size `sm`) — visível apenas para usuários autorizados.
+## Botões
 
-**Modal de confirmação** (`AlertDialog`):
-- Mostra resumo da sessão (usuário, computador, módulo).
-- Campo obrigatório `Motivo` (`Textarea`, mínimo 5 caracteres, validado com zod).
-- Checkbox/aviso "Esta ação encerrará a sessão imediatamente".
-- Botões: Cancelar / Confirmar Desconexão (loading enquanto envia).
+- **Testar conexão**: chama `GET {ERP_API_URL}/health` (com header `ngrok-skip-browser-warning`). Resposta 200 → toast verde "Backend online" e card fica verde. Falha → mantém alerta com a mensagem classificada.
+- **Atualizar API URL**: abre um `Dialog` com um único `Input` (URL atual pré-preenchida), validação básica (`https?://...`), botão Salvar:
+  1. Faz `upsert` em `app_settings` com `{ key: 'erp_api_url', value: <nova> }`.
+  2. Chama `setApiBaseUrl(nova)`.
+  3. Dispara automaticamente um teste em `/health`.
+  4. Se OK, recarrega `/api/senior/sessoes`. Se falhar, mantém modal aberto com erro.
 
-### 3. Integração com backend
-Usar o `api` client em `src/lib/api.ts` (que já adiciona `Authorization`, `ngrok-skip-browser-warning` e `VITE_API_BASE_URL`).
+Ambos reaproveitam o padrão já existente em `ConfiguracoesPage.tsx` (mesmo `upsert` em `app_settings` + `setApiBaseUrl`). Nada novo no banco.
 
-- `GET /api/senior/sessoes` — lista de sessões ativas. Chamada inicial, no botão Atualizar e a cada 30s quando o auto-refresh está ligado.
-- `POST /api/senior/sessoes/{numsec}/desconectar` com body:
-  ```json
-  { "confirmar": true, "motivo": "texto informado" }
-  ```
-  Em sucesso: `toast.success`, fecha modal, recarrega a lista. Em erro: `toast.error` com mensagem do backend.
+## Logging
 
-### 4. Segurança / autorização
-Botão **Desconectar** e modal só ficam disponíveis para usuários ADMIN ou RENATO. A regra usa o que já existe no app:
+Toda tentativa de carregar sessões loga no `console.info` um objeto estruturado:
+```
+{ url, method: 'GET', status, errorMessage, timestamp }
+```
+Erros já são gravados em `error_logs` automaticamente pelo `ApiClient.request` (via `logError`), então não há duplicação no Supabase.
 
-- Admin: `localStorage.getItem('erp_is_admin') === 'true'` (definido pelo `AuthContext` quando o perfil de acesso é "Administrador").
-- RENATO: `erpUser?.toUpperCase() === 'RENATO'` lido do `useAuth()`.
+## Detalhes técnicos
 
-```ts
-const canDisconnect = isAdmin || erpUser?.toUpperCase() === 'RENATO';
+Arquivos alterados:
+
+- **`src/pages/MonitorUsuariosSeniorPage.tsx`** (única página tocada na lógica):
+  - Novo estado `connectionStatus: { kind: 'idle' | 'loading' | 'online' | 'offline' | 'unauthorized' | 'not_found' | 'server_error', message?, statusCode?, timestamp? }`.
+  - Refatorar `load()` para classificar o erro usando os campos já expostos por `src/lib/api.ts`: `err.statusCode` (0 = rede), `err.isNetworkError`, `err.message` (procurar `ERR_NGROK_3200`, `Failed to fetch`, `NetworkError`, `timeout`).
+  - Auto-refresh: quando offline, **pausar** o contador automático para não martelar o servidor caído (só voltar a contar após `Tentar novamente` bem-sucedido). Mantém o switch funcional.
+  - Novo handler `testHealth()`: usa `fetch` direto em `${getApiUrl()}/health` com `ngrok-skip-browser-warning: true`, `signal: AbortSignal.timeout(8000)`.
+  - Novo handler `saveApiUrl(novaUrl)`: `supabase.from('app_settings').upsert({ key: 'erp_api_url', value })` + `setApiBaseUrl()` + `testHealth()` + `load()`.
+
+- **`src/components/erp/BackendStatusCard.tsx`** (novo, ~120 linhas, reutilizável): recebe `status`, `apiUrl`, `onTest`, `onChangeUrl`, `onRetry` e renderiza o `Alert` colorido com botões. Usa apenas tokens semânticos (`destructive`, `warning`, `success` via `Badge`/`Alert variant`); sem cor hardcoded.
+
+- **`src/components/erp/UpdateApiUrlDialog.tsx`** (novo, ~70 linhas): `Dialog` com um campo de URL, salvar e teste automático. Reaproveitado se necessário em outras telas no futuro.
+
+Sem mudanças no banco, sem novas RLS, sem edge functions.
+
+## Comportamento da classificação de erro
+
+```text
+err.isNetworkError && /ERR_NGROK_3200/i        → kind: offline, "Túnel ngrok offline..."
+err.isNetworkError                              → kind: offline, "Backend ERP offline..."
+err.statusCode === 401                          → kind: unauthorized
+err.statusCode === 404                          → kind: not_found
+err.statusCode >= 500                           → kind: server_error
+status 200 + array vazio                        → kind: online (tabela mostra "Nenhuma sessão encontrada")
+status 200 + dados                              → kind: online
 ```
 
-Para os demais usuários a coluna "Ações" mostra um traço ou badge "Somente consulta". A visibilidade da própria página continua controlada por `useUserPermissions`/`profile_screens` como nas outras telas (registramos a screen via Configurações; o seed inicial pode ser feito manualmente pelo admin).
+## Fora de escopo
 
-### 5. Detalhes técnicos
-
-- Tipo `SessaoSenior` definido no topo do arquivo da página com os campos retornados pelo backend (numsec, usuario_senior, usuario_windows, computador, aplicativo, cod_modulo, modulo, data_hora_conexao, minutos_conectado, instancia, tipo_aplicacao, mensagem_admin).
-- Filtros aplicados client-side sobre o array carregado (evita refetch a cada digitação) — o botão Atualizar/timer é que recarrega do servidor.
-- Auto-refresh:
-  ```ts
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const id = setInterval(load, 30_000);
-    return () => clearInterval(id);
-  }, [autoRefresh]);
-  ```
-- Validação do motivo via `zod` (mín. 5, máx. 500 chars).
-- Toasts via `@/hooks/use-toast` (padrão do projeto).
-- Datas formatadas com `src/lib/format.ts` se houver helper; senão `Intl.DateTimeFormat('pt-BR')`.
-
-### 6. Arquivos tocados
-
-- **Novo:** `src/pages/MonitorUsuariosSeniorPage.tsx`
-- **Editado:** `src/App.tsx` (rota)
-- **Editado:** `src/components/AppSidebar.tsx` (item de menu)
-
-Após aprovação, implemento direto. Confirma?
+- Não vamos alterar `src/lib/api.ts` (a classificação acontece na página, usando os campos já existentes).
+- Não vamos mexer em outras páginas que também consomem a ERP API (essas continuam usando `ErpConnectionAlert`). Se você quiser que esse novo card substitua o `ErpConnectionAlert` em todas as telas, é um passo seguinte.
