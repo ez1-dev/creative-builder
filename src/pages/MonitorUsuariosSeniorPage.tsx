@@ -740,6 +740,12 @@ export default function MonitorUsuariosSeniorPage() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="navegacao">
+          <MonitorNavegacaoSection />
+        </TabsContent>
+      </Tabs>
 
       {/* Modal de confirmação */}
       <AlertDialog open={!!target} onOpenChange={(o) => { if (!o) { setTarget(null); setMotivo(''); } }}>
