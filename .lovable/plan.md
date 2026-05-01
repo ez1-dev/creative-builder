@@ -1,96 +1,106 @@
 
-# Corrigir exibição de sessões no Monitor de Usuários Senior
+# Extras para Usuários Conectados + alias de rota
 
-## Diagnóstico
+A tela já existe (`/monitor-usuarios-senior` → `MonitorUsuariosSeniorPage`). Vamos só adicionar o que falta e expor a rota nova.
 
-O SQL no servidor retorna 6 sessões (Sapiens) com as colunas:
+## 1. Alias de rota `/usuarios-conectados`
 
-```
-sessao, usuario_senior, usuario_sistema_operacional, computador,
-aplicativo, codigo_modulo, modulo_acessado, data_hora_conexao,
-instancia, tipo_aplicacao, mensagem_admin
-```
+Em `src/App.tsx`, adicionar uma segunda `<Route>` apontando para o mesmo componente, reusando a permissão de `/monitor-usuarios-senior`:
 
-A página `MonitorUsuariosSeniorPage.tsx` espera outras chaves no JSON:
-
-```
-numsec, usuario_windows, cod_modulo, modulo, ...
+```tsx
+<Route path="/usuarios-conectados"
+       element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
 ```
 
-Resultado: mesmo se o backend responder 200 com os 6 registros, a tabela mostra linhas em branco (sem usuário, sem computador, sem módulo) e o filtro padrão `Aplicativo = SAPIENS` filtra corretamente — mas **a chave primária `numsec` fica `undefined`**, o que pode quebrar a renderização (`key={String(s.numsec)}`) e, somado ao filtro de aplicativo case-sensitive, a percepção é "não está mostrando nada".
+A entrada do menu (`AppSidebar.tsx`) continua única em `/monitor-usuarios-senior` para não duplicar — o alias serve só para deep-links externos.
 
-Além disso, hoje não temos forma rápida de ver no preview qual JSON o backend devolveu — só toast genérico.
+## 2. Voltar default do filtro Aplicativo para `SAPIENS`
 
-## O que vai ser feito
+Como pedido no requisito original. Continua sendo possível trocar para "Todos" no select.
 
-### 1. Mapear a resposta da API para o formato interno
+## 3. Novo KPI: "Computadores distintos"
 
-Em `MonitorUsuariosSeniorPage.tsx`, criar uma função `normalizeSessao(raw)` que aceita os dois formatos (legado e atual do FastAPI) e devolve o objeto `SessaoSenior` esperado:
-
-| Campo interno              | Aceita também (fallback)                          |
-|----------------------------|---------------------------------------------------|
-| `numsec`                   | `sessao`, `num_sec`, `numSec`                     |
-| `usuario_senior`           | `usuario`, `app_usr`, `appusr`                    |
-| `usuario_windows`          | `usuario_sistema_operacional`, `usr_nam`, `usrnam`|
-| `computador`               | `com_nam`, `comnam`                               |
-| `aplicativo`               | `app_nam`, `appnam`                               |
-| `cod_modulo`               | `codigo_modulo`, `mod_nam`, `modnam`              |
-| `modulo`                   | `modulo_acessado`, `descricao_modulo`             |
-| `data_hora_conexao`        | `dat_tim`, `dattim`                               |
-| `minutos_conectado`        | calculado se ausente: `(now - data_hora_conexao)` |
-| `instancia`                | `id_inst`, `idinst`                               |
-| `tipo_aplicacao`           | `app_knd`, `appknd`                               |
-| `mensagem_admin`           | `adm_msg`, `admmsg`                               |
-
-A normalização é aplicada logo após `api.get(...)`:
+Substituir o KPI "Conectados >4h" por "Computadores Distintos" (contagem única de `computador`). O alerta de sessões longas continua funcionando via badge na coluna "Min." da tabela (vermelho > 4h, cinza > 2h), então não perdemos a sinalização — só tiramos o card.
 
 ```ts
-const rows: SessaoSenior[] = (Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []))
-  .map(normalizeSessao);
+const computadoresDistintos = new Set(filtered.map(s => s.computador).filter(Boolean)).size;
 ```
 
-### 2. Calcular `minutos_conectado` no frontend quando não vier do backend
+Ícone: `Monitor` do lucide-react.
 
-O SQL atual não devolve `minutos_conectado`. Calcular a partir de `data_hora_conexao` (diferença com `Date.now()` em minutos). Isso já alimenta corretamente o KPI "Conectados > 4h" e a coluna "Min." da tabela.
+## 4. Busca rápida na tabela
 
-### 3. Tornar o filtro "Aplicativo" tolerante e padrão "Todos"
-
-- Trocar o default de `fAplicativo` de `'SAPIENS'` para `'__all__'` para evitar esconder linhas quando o backend devolve aplicativo em minúsculo, vazio ou diferente.
-- Comparação continua case-insensitive (já é).
-
-### 4. Garantir `key` único na tabela mesmo sem `numsec`
-
-Usar `key={String(s.numsec ?? `${s.usuario_senior}-${s.computador}-${i}`)}` para não sobrescrever linhas quando o backend não preenche `numsec`.
-
-### 5. Mostrar preview do JSON cru quando vier resposta inesperada
-
-Adicionar um pequeno bloco colapsável (visível apenas quando `import.meta.env.DEV` ou quando `data.length === 0` mas `connStatus.kind === 'online'`) com os primeiros 500 chars do JSON recebido. Isso ajuda a identificar rapidamente outro mismatch no futuro.
-
-Implementação: armazenar `rawSamplePreview: string | null` em estado, preencher no `load()` com `JSON.stringify(res, null, 2).slice(0, 1500)`. Mostrar dentro de um `<details>` abaixo do `BackendStatusCard` quando aplicável.
-
-### 6. Logar no console o shape da primeira linha
-
-No `load()`, depois de obter `rows`, fazer:
+Novo `Input` com ícone de lupa, acima da tabela (à direita). Filtra `data` em todas as colunas-texto:
 
 ```ts
-console.info('[MonitorSenior] sample row keys', rows[0] ? Object.keys(rows[0]) : []);
+const [quickSearch, setQuickSearch] = useState('');
+// dentro do filtered:
+if (quickSearch) {
+  const q = quickSearch.toLowerCase();
+  const haystack = [
+    s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
+    s.cod_modulo, s.modulo, s.instancia, s.tipo_aplicacao, s.mensagem_admin,
+  ].map(v => String(v ?? '').toLowerCase()).join(' ');
+  if (!haystack.includes(q)) return false;
+}
 ```
 
-Útil para debugging futuro — sem custo.
+## 5. Ordenação por coluna (clicar no header)
+
+Suporte a 3 colunas-chave: **Sessão**, **Usuário Senior**, **Módulo** (conforme pedido). Adiciono ícone clicável (`ArrowUp` / `ArrowDown` / `ArrowUpDown` neutro) ao lado do título.
+
+```ts
+type SortKey = 'numsec' | 'usuario_senior' | 'modulo';
+const [sortKey, setSortKey] = useState<SortKey | null>(null);
+const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+const toggleSort = (k: SortKey) => {
+  if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+  else { setSortKey(k); setSortDir('asc'); }
+};
+// aplicado depois do filtered, antes de exibir:
+const sorted = useMemo(() => {
+  if (!sortKey) return filtered;
+  const sign = sortDir === 'asc' ? 1 : -1;
+  return [...filtered].sort((a, b) => {
+    const av = a[sortKey] ?? ''; const bv = b[sortKey] ?? '';
+    if (sortKey === 'numsec') return (Number(av) - Number(bv)) * sign;
+    return String(av).localeCompare(String(bv), 'pt-BR') * sign;
+  });
+}, [filtered, sortKey, sortDir]);
+```
+
+A tabela passa a iterar `sorted` em vez de `filtered`.
+
+## 6. Exportação CSV
+
+Botão "Exportar CSV" no header, ao lado de "Atualizar". Gera um Blob CSV (UTF-8 com BOM, separador `;`) e dispara download:
+
+```ts
+const exportCsv = () => {
+  const headers = ['Sessão','Usuário Senior','Usuário Windows','Computador','Aplicativo',
+    'Cód. Módulo','Módulo','Conexão','Min.','Instância','Tipo Aplic.','Mensagem Admin'];
+  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const rows = sorted.map(s => [
+    s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
+    s.cod_modulo, s.modulo, s.data_hora_conexao, s.minutos_conectado,
+    s.instancia, s.tipo_aplicacao, s.mensagem_admin
+  ].map(escape).join(';'));
+  const csv = '\uFEFF' + [headers.join(';'), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `usuarios-conectados-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+  a.click();
+};
+```
+
+## 7. Botão "Consultar"
+
+Já existe via "Atualizar". O pedido fala em "Consultar" e "Atualizar" como dois botões — semanticamente fazem a mesma coisa (recarregar do backend). Vou manter apenas "Atualizar" para não poluir o header. Se você quiser dois botões idênticos, é só dizer.
 
 ## Arquivos alterados
 
-- `src/pages/MonitorUsuariosSeniorPage.tsx` (única mudança)
-  - Adicionar `normalizeSessao()`.
-  - Aplicar normalização e cálculo de `minutos_conectado`.
-  - Mudar default de `fAplicativo` para `'__all__'`.
-  - Reforçar `key` da `TableRow`.
-  - Estado e UI opcional do preview cru (`<details>`).
-  - Log estruturado das chaves da primeira linha.
+- `src/App.tsx` — adicionar rota alias.
+- `src/pages/MonitorUsuariosSeniorPage.tsx` — busca rápida, ordenação, novo KPI, export CSV, voltar default Aplicativo para `SAPIENS`.
 
-Sem mudanças em `src/lib/api.ts`, sem mudanças no banco, sem mudanças no backend.
-
-## Fora de escopo
-
-- Não vamos pedir ao backend para renomear campos. O frontend se adapta ao que o FastAPI já retorna (formato visível no SQL).
-- O sistema de diagnóstico (`BackendStatusCard`, `UpdateApiUrlDialog`) já implementado continua funcionando como hoje.
+Sem alterações em backend, banco ou outras telas.

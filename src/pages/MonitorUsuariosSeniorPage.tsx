@@ -21,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Users, Activity, Clock, LayoutGrid, Loader2, PowerOff, Link2Off } from 'lucide-react';
+import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,8 +109,23 @@ export default function MonitorUsuariosSeniorPage() {
   const [fUsuario, setFUsuario] = useState('');
   const [fComputador, setFComputador] = useState('');
   const [fModulo, setFModulo] = useState('');
-  const [fAplicativo, setFAplicativo] = useState('__all__');
+  const [fAplicativo, setFAplicativo] = useState('SAPIENS');
   const [rawSamplePreview, setRawSamplePreview] = useState<string | null>(null);
+  const [quickSearch, setQuickSearch] = useState('');
+
+  type SortKey = 'numsec' | 'usuario_senior' | 'modulo';
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(k); setSortDir('asc'); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="ml-1 inline h-3 w-3" />
+      : <ArrowDown className="ml-1 inline h-3 w-3" />;
+  };
 
   // modal
   const [target, setTarget] = useState<SessaoSenior | null>(null);
@@ -262,14 +277,33 @@ export default function MonitorUsuariosSeniorPage() {
         if (!m.includes(fModulo.toLowerCase())) return false;
       }
       if (fAplicativo && fAplicativo !== '__all__' && (s.aplicativo ?? '').toUpperCase() !== fAplicativo.toUpperCase()) return false;
+      if (quickSearch) {
+        const q = quickSearch.toLowerCase();
+        const haystack = [
+          s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
+          s.cod_modulo, s.modulo, s.instancia, s.tipo_aplicacao, s.mensagem_admin,
+        ].map((v) => String(v ?? '').toLowerCase()).join(' ');
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
-  }, [data, fUsuario, fComputador, fModulo, fAplicativo]);
+  }, [data, fUsuario, fComputador, fModulo, fAplicativo, quickSearch]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const sign = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = (a as any)[sortKey] ?? '';
+      const bv = (b as any)[sortKey] ?? '';
+      if (sortKey === 'numsec') return (Number(av) - Number(bv)) * sign;
+      return String(av).localeCompare(String(bv), 'pt-BR') * sign;
+    });
+  }, [filtered, sortKey, sortDir]);
 
   const stats = useMemo(() => {
     const totalSessoes = filtered.length;
     const usuariosDistintos = new Set(filtered.map((s) => s.usuario_senior).filter(Boolean)).size;
-    const acimaDe4h = filtered.filter((s) => (s.minutos_conectado ?? 0) > 240).length;
+    const computadoresDistintos = new Set(filtered.map((s) => s.computador).filter(Boolean)).size;
     const porModulo: Record<string, number> = {};
     filtered.forEach((s) => {
       const k = s.modulo || String(s.cod_modulo ?? '—');
@@ -279,8 +313,26 @@ export default function MonitorUsuariosSeniorPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([label, value]) => ({ label, value: String(value) }));
-    return { totalSessoes, usuariosDistintos, acimaDe4h, modulosTop: top, totalModulos: Object.keys(porModulo).length };
+    return { totalSessoes, usuariosDistintos, computadoresDistintos, modulosTop: top, totalModulos: Object.keys(porModulo).length };
   }, [filtered]);
+
+  const exportCsv = () => {
+    const headers = ['Sessão','Usuário Senior','Usuário Windows','Computador','Aplicativo',
+      'Cód. Módulo','Módulo','Conexão','Min.','Instância','Tipo Aplic.','Mensagem Admin'];
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = sorted.map((s) => [
+      s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
+      s.cod_modulo, s.modulo, s.data_hora_conexao, s.minutos_conectado,
+      s.instancia, s.tipo_aplicacao, s.mensagem_admin,
+    ].map(esc).join(';'));
+    const csv = '\uFEFF' + [headers.join(';'), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `usuarios-conectados-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   const openConfirm = (s: SessaoSenior) => {
     setTarget(s);
