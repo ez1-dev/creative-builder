@@ -16,6 +16,7 @@ import { PowerOff, Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { avaliarSessoes, type Avaliacao, type Rule, type SessaoSeniorEval } from '@/lib/seniorRules';
+import type { RuleRow } from '@/hooks/useSeniorDisconnectRules';
 
 const motivoSchema = z.string().trim().min(5, 'Mín. 5 caracteres').max(500);
 
@@ -23,7 +24,7 @@ interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   sessoes: SessaoSeniorEval[];
-  rules: Rule[];
+  rules: RuleRow[];
   whitelistUpper: string[];
   selfErpUser?: string;
   onCompleted: () => void | Promise<void>;
