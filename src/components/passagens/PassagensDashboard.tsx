@@ -819,7 +819,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={isCompact ? 70 : 78}
+                  outerRadius={isCompact ? 70 : 85}
                   cursor="pointer"
                   onClick={(d: any) => {
                     if (d.name === OUTROS_LABEL) {
@@ -833,7 +833,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
                     : (e: any) => {
                         const RADIAN = Math.PI / 180;
-                        const radius = e.outerRadius + 14;
+                        const radius = e.outerRadius + 22;
                         const x = e.cx + radius * Math.cos(-e.midAngle * RADIAN);
                         const y = e.cy + radius * Math.sin(-e.midAngle * RADIAN);
                         const v = Number(e.value || 0);
