@@ -27,6 +27,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { BackendStatusCard, type BackendStatus } from '@/components/erp/BackendStatusCard';
 import { UpdateApiUrlDialog } from '@/components/erp/UpdateApiUrlDialog';
+import { ApplyRulesDialog } from '@/components/erp/ApplyRulesDialog';
+import { useSeniorDisconnectRules } from '@/hooks/useSeniorDisconnectRules';
 
 interface SessaoSenior {
   numsec: number | string;
@@ -145,10 +147,14 @@ export default function MonitorUsuariosSeniorPage() {
       : <ArrowDown className="ml-1 inline h-3 w-3" />;
   };
 
-  // modal
+  // modal individual
   const [target, setTarget] = useState<SessaoSenior | null>(null);
   const [motivo, setMotivo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // modal de lote (regras)
+  const [applyOpen, setApplyOpen] = useState(false);
+  const { rules, whitelistUpper } = useSeniorDisconnectRules();
 
   const classifyError = (e: any): BackendStatus => {
     const msg = String(e?.message ?? 'Falha desconhecida');
@@ -451,6 +457,18 @@ export default function MonitorUsuariosSeniorPage() {
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
+            {canDisconnect && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setApplyOpen(true)}
+                disabled={loading || data.length === 0}
+                className="gap-2"
+              >
+                <PowerOff className="h-3.5 w-3.5" />
+                Aplicar regras agora
+              </Button>
+            )}
           </div>
         }
       />
@@ -474,6 +492,16 @@ export default function MonitorUsuariosSeniorPage() {
         onOpenChange={setUrlDialogOpen}
         currentUrl={apiUrl}
         onSavedAndTest={onUrlSavedAndTest}
+      />
+
+      <ApplyRulesDialog
+        open={applyOpen}
+        onOpenChange={setApplyOpen}
+        sessoes={data}
+        rules={rules}
+        whitelistUpper={whitelistUpper}
+        selfErpUser={erpUser ?? undefined}
+        onCompleted={load}
       />
 
       {/* Preview do JSON cru — útil quando vem 200 OK mas a tabela parece vazia */}

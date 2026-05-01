@@ -10,9 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff } from 'lucide-react';
 import { VISUAL_CATALOG } from '@/lib/visualCatalog';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
+import { SeniorRulesSection } from '@/components/erp/SeniorRulesSection';
 import { DashboardUsoUsuarios } from '@/components/erp/DashboardUsoUsuarios';
 import { MinhasPreferenciasSection } from '@/components/erp/MinhasPreferenciasSection';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
@@ -506,6 +507,7 @@ export default function ConfiguracoesPage() {
             {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
           </TabsTrigger>
           <TabsTrigger value="monitoramento" className="gap-1"><Activity className="h-4 w-4" /> Monitoramento</TabsTrigger>
+          <TabsTrigger value="senior-rules" className="gap-1"><PowerOff className="h-4 w-4" /> Regras Senior</TabsTrigger>
           <TabsTrigger value="dashboard-uso" className="gap-1"><BarChart3 className="h-4 w-4" /> Dashboard de Uso</TabsTrigger>
           <TabsTrigger value="minhas-preferencias" className="gap-1"><Brain className="h-4 w-4" /> Minhas Preferências</TabsTrigger>
           <TabsTrigger value="versao" className="gap-1"><Rocket className="h-4 w-4" /> Versão</TabsTrigger>
@@ -1157,6 +1159,11 @@ export default function ConfiguracoesPage() {
         {/* === MONITORAMENTO === */}
         <TabsContent value="monitoramento">
           <MonitoramentoUsuarios />
+        </TabsContent>
+
+        {/* === REGRAS SENIOR === */}
+        <TabsContent value="senior-rules">
+          <SeniorRulesSection />
         </TabsContent>
 
         {/* === DASHBOARD DE USO === */}
