@@ -268,8 +268,10 @@ export function SguUsuariosTab() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-muted-foreground">Código</div>
                 <div className="font-mono">{detalheUsr.codusu}</div>
-                <div className="text-muted-foreground">Nome</div>
+                <div className="text-muted-foreground">Login</div>
                 <div className="font-medium">{detalheUsr.nomusu}</div>
+                <div className="text-muted-foreground">Nome completo</div>
+                <div>{detalheUsr.nomcom || detalheUsr.desusu || '—'}</div>
                 <div className="text-muted-foreground">Tipo</div>
                 <div>{detalheUsr.tipcol ?? '—'}</div>
                 <div className="text-muted-foreground">Empresa</div>
