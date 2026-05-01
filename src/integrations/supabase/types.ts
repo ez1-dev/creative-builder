@@ -604,13 +604,81 @@ export type Database = {
         }
         Relationships: []
       }
+      usu_log_navegacao_erp: {
+        Row: {
+          acao: Database["public"]["Enums"]["navegacao_acao"]
+          computador: string | null
+          created_at: string
+          detalhes: Json
+          erp_user: string | null
+          id: string
+          ip: string | null
+          session_id: string | null
+          sistema: string
+          tela_codigo: string | null
+          tela_nome: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          acao?: Database["public"]["Enums"]["navegacao_acao"]
+          computador?: string | null
+          created_at?: string
+          detalhes?: Json
+          erp_user?: string | null
+          id?: string
+          ip?: string | null
+          session_id?: string | null
+          sistema?: string
+          tela_codigo?: string | null
+          tela_nome?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          acao?: Database["public"]["Enums"]["navegacao_acao"]
+          computador?: string | null
+          created_at?: string
+          detalhes?: Json
+          erp_user?: string | null
+          id?: string
+          ip?: string | null
+          session_id?: string | null
+          sistema?: string
+          tela_codigo?: string | null
+          tela_nome?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      vw_ultima_tela_usuario: {
+        Row: {
+          acao: Database["public"]["Enums"]["navegacao_acao"] | null
+          computador: string | null
+          erp_user: string | null
+          ip: string | null
+          session_id: string | null
+          sistema: string | null
+          tela_codigo: string | null
+          tela_nome: string | null
+          ultima_navegacao: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_manage_passagens_share: { Args: { _uid: string }; Returns: boolean }
       cleanup_old_error_logs: { Args: never; Returns: undefined }
+      cleanup_old_navegacao_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
       create_passagens_share_link:
@@ -695,7 +763,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      navegacao_acao: "entrar" | "sair" | "click" | "erro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -822,6 +890,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      navegacao_acao: ["entrar", "sair", "click", "erro"],
+    },
   },
 } as const
