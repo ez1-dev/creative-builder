@@ -402,7 +402,22 @@ export default function MonitorUsuariosSeniorPage() {
                 ) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
-                      Nenhuma sessão encontrada.
+                      {connStatus.kind === 'offline' || connStatus.kind === 'server_error' ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <Link2Off className="h-5 w-5 text-destructive" />
+                          <p>Nenhuma sessão carregada porque o backend ERP está offline.</p>
+                          <Button size="sm" variant="outline" onClick={load} disabled={loading} className="gap-1">
+                            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                            Atualizar
+                          </Button>
+                        </div>
+                      ) : connStatus.kind === 'unauthorized' ? (
+                        <p>Token expirado ou inválido. Faça login novamente.</p>
+                      ) : connStatus.kind === 'not_found' ? (
+                        <p>Backend online, mas a rota /api/senior/sessoes ainda não foi publicada.</p>
+                      ) : (
+                        <p>Nenhuma sessão encontrada.</p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : filtered.map((s) => {
