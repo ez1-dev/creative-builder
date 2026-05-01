@@ -124,7 +124,8 @@ export function SguUsuariosTab() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>
-                  <TableHead>Nome</TableHead>
+                  <TableHead>Login</TableHead>
+                  <TableHead>Nome completo</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
@@ -137,7 +138,7 @@ export function SguUsuariosTab() {
               <TableBody>
                 {visiveis.length === 0 && !loading ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       Pesquise para listar usuários SGU.
                     </TableCell>
                   </TableRow>
@@ -167,6 +168,7 @@ export function SguUsuariosTab() {
                           )}
                         </TableCell>
                         <TableCell className="font-medium">{u.nomusu || '—'}</TableCell>
+                        <TableCell>{u.nomcom || u.desusu || '—'}</TableCell>
                         <TableCell>{u.tipcol ?? '—'}</TableCell>
                         <TableCell>{u.empcol ?? '—'}</TableCell>
                         <TableCell>{u.filcol ?? '—'}</TableCell>
@@ -266,8 +268,10 @@ export function SguUsuariosTab() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="text-muted-foreground">Código</div>
                 <div className="font-mono">{detalheUsr.codusu}</div>
-                <div className="text-muted-foreground">Nome</div>
+                <div className="text-muted-foreground">Login</div>
                 <div className="font-medium">{detalheUsr.nomusu}</div>
+                <div className="text-muted-foreground">Nome completo</div>
+                <div>{detalheUsr.nomcom || detalheUsr.desusu || '—'}</div>
                 <div className="text-muted-foreground">Tipo</div>
                 <div>{detalheUsr.tipcol ?? '—'}</div>
                 <div className="text-muted-foreground">Empresa</div>
