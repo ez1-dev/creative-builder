@@ -72,6 +72,11 @@ export function SguUsuariosTab() {
   const inicio = (pagina - 1) * PAGE_SIZE;
   const visiveis = usuarios.slice(inicio, inicio + PAGE_SIZE);
 
+  const backendComBugCodusu = useMemo(
+    () => usuarios.length > 0 && usuarios.every((u) => !codusuValido(u)),
+    [usuarios],
+  );
+
   return (
     <div className="space-y-4">
       <Card>
@@ -97,6 +102,20 @@ export function SguUsuariosTab() {
           </div>
         </CardContent>
       </Card>
+
+      {backendComBugCodusu && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Backend SGU retornando codusu incorreto</AlertTitle>
+          <AlertDescription>
+            O backend está enviando o login textual no campo <code>codusu</code>, quando o esperado é o
+            código numérico (PK) do usuário SGU. Enquanto isso não for corrigido, as ações
+            <strong> Detalhes</strong>, <strong>Origem</strong> e <strong>Destino</strong> ficam
+            desabilitadas. Detalhes técnicos e SQL sugerido para o time de backend em
+            <code> docs/backend-sgu-codusu-bug.md</code>.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -130,7 +149,23 @@ export function SguUsuariosTab() {
                     const codValido = codusuValido(u);
                     return (
                       <TableRow key={codValido ? `cod-${u.codusu}` : `idx-${idx}`}>
-                        <TableCell className="font-mono">{codValido ? u.codusu : <span className="text-destructive">inválido</span>}</TableCell>
+                        <TableCell className="font-mono">
+                          {codValido ? (
+                            u.codusu
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-muted-foreground cursor-help">
+                                  <AlertTriangle className="h-3 w-3 text-destructive" />
+                                  <span className="text-xs">aguardando</span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Backend retornou codusu não numérico. Aguardando correção (ver docs/backend-sgu-codusu-bug.md).
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">{u.nomusu || '—'}</TableCell>
                         <TableCell>{u.tipcol ?? '—'}</TableCell>
                         <TableCell>{u.empcol ?? '—'}</TableCell>
