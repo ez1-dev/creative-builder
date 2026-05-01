@@ -147,10 +147,14 @@ export default function MonitorUsuariosSeniorPage() {
       : <ArrowDown className="ml-1 inline h-3 w-3" />;
   };
 
-  // modal
+  // modal individual
   const [target, setTarget] = useState<SessaoSenior | null>(null);
   const [motivo, setMotivo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // modal de lote (regras)
+  const [applyOpen, setApplyOpen] = useState(false);
+  const { rules, whitelistUpper } = useSeniorDisconnectRules();
 
   const classifyError = (e: any): BackendStatus => {
     const msg = String(e?.message ?? 'Falha desconhecida');
