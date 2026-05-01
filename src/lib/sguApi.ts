@@ -80,6 +80,38 @@ function logCall(method: string, url: string, status: number | string, response:
   console.info('[SGU]', { url, method, status, response, ts: ts() });
 }
 
+function pickFirst(obj: any, keys: string[]): any {
+  if (!obj || typeof obj !== 'object') return undefined;
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+    const upper = k.toUpperCase();
+    if (obj[upper] !== undefined && obj[upper] !== null) return obj[upper];
+    const lower = k.toLowerCase();
+    if (obj[lower] !== undefined && obj[lower] !== null) return obj[lower];
+  }
+  return undefined;
+}
+
+function normalizarUsuario(u: any): SguUsuario {
+  if (!u || typeof u !== 'object') return u as SguUsuario;
+  const codRaw = pickFirst(u, ['codusu', 'cod_usu', 'codigo', 'cod', 'id', 'usuario_codigo', 'usuario']);
+  const codNum = Number(codRaw);
+  const r910 = pickFirst(u, ['existe_r910', 'r910', 'tem_r910']);
+  const r999 = pickFirst(u, ['existe_r999', 'r999', 'tem_r999']);
+  const qtd = pickFirst(u, ['qtd_empresas_e099usu', 'qtd_e099usu', 'qtd_empresas', 'empresas_e099usu']);
+  return {
+    ...u,
+    codusu: Number.isFinite(codNum) ? codNum : (codRaw as any),
+    nomusu: pickFirst(u, ['nomusu', 'nom_usu', 'nome', 'nome_usuario', 'descricao']) ?? '',
+    tipcol: pickFirst(u, ['tipcol', 'tip_col', 'tipo']) ?? null,
+    empcol: pickFirst(u, ['empcol', 'emp_col', 'empresa', 'codemp']) ?? null,
+    filcol: pickFirst(u, ['filcol', 'fil_col', 'filial', 'codfil']) ?? null,
+    existe_r910: (r910 === true || r910 === 1 || r910 === '1' || r910 === 'S') ? 1 : 0,
+    existe_r999: (r999 === true || r999 === 1 || r999 === '1' || r999 === 'S') ? 1 : 0,
+    qtd_empresas_e099usu: Number(qtd ?? 0) || 0,
+  };
+}
+
 function handleError(err: any, context: string): never {
   const status = err?.statusCode;
   let msg: string;
@@ -94,7 +126,12 @@ function handleError(err: any, context: string): never {
   } else if (status === 404) {
     msg = 'Endpoint SGU ainda não publicado no backend.';
   } else if (status === 422) {
-    msg = err?.message || 'Erro de validação.';
+    const raw = err?.message || '';
+    if (raw.toLowerCase().includes('codusu')) {
+      msg = 'Código de usuário inválido. Verifique o mapeamento de campos retornados pelo backend SGU (codusu ausente ou não numérico).';
+    } else {
+      msg = raw || 'Erro de validação.';
+    }
   } else if (status === 500) {
     msg = `Erro interno do backend SGU: ${err?.message ?? 'erro desconhecido'}`;
   } else {
@@ -138,16 +175,29 @@ export async function getUsuarios(filtro: string): Promise<SguUsuario[]> {
   return withRetryOn401(async () => {
     const data = await api.get<any>(url, { filtro });
     logCall('GET', `${url}?filtro=${filtro}`, 200, data);
-    return Array.isArray(data) ? data : data?.dados ?? data?.usuarios ?? [];
+    const lista = Array.isArray(data) ? data : data?.dados ?? data?.usuarios ?? [];
+    if (lista.length > 0) {
+      // eslint-disable-next-line no-console
+      console.info('[SGU] payload bruto - 1º registro:', lista[0]);
+      // eslint-disable-next-line no-console
+      console.info('[SGU] chaves disponíveis:', Object.keys(lista[0] ?? {}));
+    }
+    return lista.map(normalizarUsuario);
   }, url);
 }
 
 export async function getUsuario(codusu: number): Promise<SguUsuario> {
+  if (!Number.isFinite(Number(codusu))) {
+    const e: any = new Error('Código de usuário inválido (não numérico).');
+    e.statusCode = 400;
+    toast.error(e.message);
+    throw e;
+  }
   const url = `/api/sgu/usuarios/${codusu}`;
   return withRetryOn401(async () => {
     const data = await api.get<SguUsuario>(url);
     logCall('GET', url, 200, data);
-    return data;
+    return normalizarUsuario(data);
   }, url);
 }
 

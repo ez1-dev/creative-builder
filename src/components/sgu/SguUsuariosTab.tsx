@@ -46,6 +46,10 @@ export function SguUsuariosTab() {
   };
 
   const handleVerDetalhes = async (codusu: number) => {
+    if (!Number.isFinite(Number(codusu))) {
+      toast.error('Código de usuário inválido neste registro. O backend não retornou um codusu numérico.');
+      return;
+    }
     setDetalheOpen(true);
     setDetalheLoading(true);
     setDetalheUsr(null);
@@ -60,6 +64,8 @@ export function SguUsuariosTab() {
       setDetalheLoading(false);
     }
   };
+
+  const codusuValido = (u: SguUsuario) => Number.isFinite(Number(u.codusu));
 
   const totalPaginas = Math.max(1, Math.ceil(usuarios.length / PAGE_SIZE));
   const inicio = (pagina - 1) * PAGE_SIZE;
@@ -116,14 +122,15 @@ export function SguUsuariosTab() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  visiveis.map((u) => {
+                  visiveis.map((u, idx) => {
                     const semR910 = !u.existe_r910;
                     const semR999 = !u.existe_r999;
                     const semE099 = (u.qtd_empresas_e099usu ?? 0) === 0;
+                    const codValido = codusuValido(u);
                     return (
-                      <TableRow key={u.codusu}>
-                        <TableCell className="font-mono">{u.codusu}</TableCell>
-                        <TableCell className="font-medium">{u.nomusu}</TableCell>
+                      <TableRow key={codValido ? `cod-${u.codusu}` : `idx-${idx}`}>
+                        <TableCell className="font-mono">{codValido ? u.codusu : <span className="text-destructive">inválido</span>}</TableCell>
+                        <TableCell className="font-medium">{u.nomusu || '—'}</TableCell>
                         <TableCell>{u.tipcol ?? '—'}</TableCell>
                         <TableCell>{u.empcol ?? '—'}</TableCell>
                         <TableCell>{u.filcol ?? '—'}</TableCell>
@@ -161,6 +168,7 @@ export function SguUsuariosTab() {
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={!codValido}
                               onClick={() => handleVerDetalhes(u.codusu)}
                             >
                               <Eye className="h-3 w-3" /> Detalhes
@@ -168,6 +176,7 @@ export function SguUsuariosTab() {
                             <Button
                               size="sm"
                               variant={usuarioOrigem?.codusu === u.codusu ? 'default' : 'outline'}
+                              disabled={!codValido}
                               onClick={() => {
                                 setUsuarioOrigem(u);
                                 toast.success(`Origem: ${u.codusu} - ${u.nomusu}`);
@@ -178,6 +187,7 @@ export function SguUsuariosTab() {
                             <Button
                               size="sm"
                               variant={usuarioDestino?.codusu === u.codusu ? 'default' : 'outline'}
+                              disabled={!codValido}
                               onClick={() => {
                                 setUsuarioDestino(u);
                                 toast.success(`Destino: ${u.codusu} - ${u.nomusu}`);

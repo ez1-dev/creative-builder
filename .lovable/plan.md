@@ -1,56 +1,49 @@
-# Plano: Fallback de login em `/gestao-sgu-usuarios`
+## Diagnóstico
 
-## Objetivo
-Quando um usuário acessar `/gestao-sgu-usuarios` sem estar autenticado (ou sem permissão), em vez de ser redirecionado silenciosamente para `/login` ou `/estoque`, exibir uma página explicativa com:
-- mensagem clara de que é necessário fazer login;
-- botão "Entrar com Microsoft" (vai para `/login`);
-- botão "Voltar ao dashboard" (vai para `/estoque`).
+Pelos screenshots e pela análise do código:
 
-Também corrigir o problema reportado anteriormente: a tela não aparece em **Configurações → Perfis de Acesso** porque está faltando no array `ALL_SCREENS`.
+1. **Linhas em branco na tabela** (Código/Nome/Tipo/Empresa/Filial todos como "—"): o backend está retornando registros (já que aparecem `OK/OK` em R910/R999 e `2` em E099USU), mas os campos `codusu`, `nomusu`, `tipcol`, `empcol`, `filcol` estão chegando com nomes diferentes do esperado pelo frontend. Como `codusu` está vindo vazio/inválido, qualquer ação posterior (Detalhes/Origem/Destino) dispara o erro **422** `path.codusu: Input should be a valid integer` porque o React envia `undefined` na URL `/api/sgu/usuarios/undefined`.
 
-## Mudanças
+2. **Falta do `key` válido na tabela**: `<TableRow key={u.codusu}>` produz keys duplicadas/`undefined`, agravando o problema de render.
 
-### 1. Nova rota pública de fallback no `App.tsx`
-Hoje `/gestao-sgu-usuarios` está dentro de `<AppLayout />`, que força redirect para `/login` quando não autenticado. Para que o fallback apareça, vamos:
+## Plano de correção
 
-- Manter a rota protegida normal `/gestao-sgu-usuarios` (acesso autenticado e com permissão → renderiza `GestaoSguUsuariosPage`).
-- Dentro de `ProtectedRoute` / `AppLayout`, em vez de redirecionar, deixar o componente decidir o conteúdo. Abordagem mais simples: criar um componente novo `GestaoSguUsuariosGate` que:
-  - usa `useAuth()` e `useUserPermissions()`;
-  - se `!isAuthenticated` ou `!approved` → renderiza `<GestaoSguUsuariosFallback />`;
-  - se autenticado mas sem `canView('/gestao-sgu-usuarios')` → renderiza fallback variante "sem permissão";
-  - caso contrário → renderiza `<GestaoSguUsuariosPage />`.
-- Registrar a rota fora do `AppLayout` autenticado (rota pública), igual a `/passagens-aereas/compartilhado`, para não cair no redirect global de `AppLayout`. Assim o fallback aparece mesmo deslogado.
+### 1. Inspecionar o payload real do backend
+Adicionar `console.table` e `console.dir` na resposta de `getUsuarios` em `src/lib/sguApi.ts` para mostrar nas próximas mensagens **exatamente** quais nomes de campo o FastAPI está retornando (pode ser `cod_usu`, `codUsu`, `CODUSU`, `usuario`, `nome`, etc.).
 
-### 2. Novo componente `src/pages/GestaoSguUsuariosFallback.tsx`
-Página simples, sem sidebar, com:
-- ícone de cadeado (`Lock` do lucide);
-- título: "Acesso restrito";
-- subtítulo: "Você precisa estar autenticado para acessar **Gestão SGU - Usuários ERP Senior**.";
-- variante "sem permissão": "Sua conta não tem permissão para esta tela. Solicite ao administrador a liberação em Perfis de Acesso.";
-- botão primário **Entrar com Microsoft** → `navigate('/login')`;
-- botão secundário **Voltar ao dashboard** → `navigate('/estoque')`;
-- usa tokens semânticos do design system (sem cores hardcoded).
+### 2. Normalizar os campos no `sguApi.ts`
+Mapear nomes alternativos de forma defensiva ao retornar usuários, cobrindo as variantes mais comuns:
 
-### 3. Registrar a tela em `ConfiguracoesPage.tsx`
-Adicionar no array `ALL_SCREENS`:
 ```ts
-{ path: '/gestao-sgu-usuarios', name: 'Gestão SGU - Usuários ERP Senior' },
+function normalizar(u: any): SguUsuario {
+  return {
+    codusu: Number(u.codusu ?? u.cod_usu ?? u.CODUSU ?? u.codigo ?? u.id),
+    nomusu: u.nomusu ?? u.nom_usu ?? u.NOMUSU ?? u.nome ?? '',
+    tipcol: u.tipcol ?? u.tip_col ?? u.TIPCOL ?? null,
+    empcol: u.empcol ?? u.emp_col ?? u.EMPCOL ?? null,
+    filcol: u.filcol ?? u.fil_col ?? u.FILCOL ?? null,
+    existe_r910: u.existe_r910 ?? u.r910 ?? 0,
+    existe_r999: u.existe_r999 ?? u.r999 ?? 0,
+    qtd_empresas_e099usu: u.qtd_empresas_e099usu ?? u.qtd_e099usu ?? 0,
+  };
+}
 ```
-Sem isso, a tela não aparece na lista de permissões e nenhum perfil consegue marcá-la, mantendo o item invisível na sidebar.
 
-### 4. Sidebar (`AppSidebar.tsx`)
-Já existe entrada para `/gestao-sgu-usuarios`. Após o passo 3 e marcar a permissão no perfil Admin, o item aparece automaticamente. Sem alteração de código aqui.
+Aplicar em `getUsuarios` e `getUsuario` antes de retornar.
 
-## Arquivos afetados
-- `src/App.tsx` — mover rota `/gestao-sgu-usuarios` para fora de `AppLayout` (ou usar gate próprio) e apontar para o novo gate.
-- `src/pages/GestaoSguUsuariosFallback.tsx` — **novo**.
-- `src/pages/GestaoSguUsuariosPage.tsx` — passar a usar o gate no topo (ou criar wrapper separado em `App.tsx`).
-- `src/pages/ConfiguracoesPage.tsx` — adicionar entrada em `ALL_SCREENS`.
+### 3. Validar `codusu` antes das chamadas
+Em `SguUsuariosTab.tsx` e nos demais handlers (Origem/Destino/Detalhes), bloquear ação e exibir toast quando `codusu` for `NaN`/`undefined`, evitando o 422 silencioso.
 
-## Pós-implementação (ação do usuário)
-1. Ir em **Configurações → Perfis de Acesso**.
-2. Editar o perfil Admin (ou o desejado).
-3. Marcar **"Gestão SGU - Usuários ERP Senior"** como visível.
-4. Salvar e recarregar — item aparece na sidebar; acesso direto à URL deslogado mostra o fallback.
+### 4. Corrigir `key` da tabela
+Trocar `key={u.codusu}` por `key={u.codusu ?? \`row-${idx}\`}` usando o índice como fallback.
 
-Aprova para eu implementar?
+### 5. Mensagem de erro mais útil
+No `handleError` do `sguApi.ts`, quando `status === 422` e a mensagem mencionar `codusu`, exibir: "Resposta do backend SGU não trouxe o código do usuário. Verifique o mapeamento de campos."
+
+## Arquivos a modificar
+- `src/lib/sguApi.ts` — função `normalizar`, log do payload, mensagem 422 mais clara
+- `src/components/sgu/SguUsuariosTab.tsx` — validação de `codusu` antes das ações + key fallback
+
+Após aplicar, você reabre a página, faz uma pesquisa e me envia (ou eu leio via console logs) o objeto bruto que o backend retornou — assim afino o mapeamento se algum campo ainda estiver fora.
+
+**Aprova?**
