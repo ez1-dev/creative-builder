@@ -126,7 +126,12 @@ function handleError(err: any, context: string): never {
   } else if (status === 404) {
     msg = 'Endpoint SGU ainda não publicado no backend.';
   } else if (status === 422) {
-    msg = err?.message || 'Erro de validação.';
+    const raw = err?.message || '';
+    if (raw.toLowerCase().includes('codusu')) {
+      msg = 'Código de usuário inválido. Verifique o mapeamento de campos retornados pelo backend SGU (codusu ausente ou não numérico).';
+    } else {
+      msg = raw || 'Erro de validação.';
+    }
   } else if (status === 500) {
     msg = `Erro interno do backend SGU: ${err?.message ?? 'erro desconhecido'}`;
   } else {
@@ -170,16 +175,29 @@ export async function getUsuarios(filtro: string): Promise<SguUsuario[]> {
   return withRetryOn401(async () => {
     const data = await api.get<any>(url, { filtro });
     logCall('GET', `${url}?filtro=${filtro}`, 200, data);
-    return Array.isArray(data) ? data : data?.dados ?? data?.usuarios ?? [];
+    const lista = Array.isArray(data) ? data : data?.dados ?? data?.usuarios ?? [];
+    if (lista.length > 0) {
+      // eslint-disable-next-line no-console
+      console.info('[SGU] payload bruto - 1º registro:', lista[0]);
+      // eslint-disable-next-line no-console
+      console.info('[SGU] chaves disponíveis:', Object.keys(lista[0] ?? {}));
+    }
+    return lista.map(normalizarUsuario);
   }, url);
 }
 
 export async function getUsuario(codusu: number): Promise<SguUsuario> {
+  if (!Number.isFinite(Number(codusu))) {
+    const e: any = new Error('Código de usuário inválido (não numérico).');
+    e.statusCode = 400;
+    toast.error(e.message);
+    throw e;
+  }
   const url = `/api/sgu/usuarios/${codusu}`;
   return withRetryOn401(async () => {
     const data = await api.get<SguUsuario>(url);
     logCall('GET', url, 200, data);
-    return data;
+    return normalizarUsuario(data);
   }, url);
 }
 
