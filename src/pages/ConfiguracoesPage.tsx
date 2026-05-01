@@ -1161,6 +1161,11 @@ export default function ConfiguracoesPage() {
           <MonitoramentoUsuarios />
         </TabsContent>
 
+        {/* === REGRAS SENIOR === */}
+        <TabsContent value="senior-rules">
+          <SeniorRulesSection />
+        </TabsContent>
+
         {/* === DASHBOARD DE USO === */}
         <TabsContent value="dashboard-uso">
           <DashboardUsoUsuarios />
