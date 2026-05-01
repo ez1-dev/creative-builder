@@ -156,7 +156,8 @@ export default function MonitorUsuariosSeniorPage() {
 
   // modal de lote (regras)
   const [applyOpen, setApplyOpen] = useState(false);
-  const { rules, whitelistUpper } = useSeniorDisconnectRules();
+  const [rulesConfigOpen, setRulesConfigOpen] = useState(false);
+  const { rules, whitelistUpper, reload: reloadRules } = useSeniorDisconnectRules();
 
   const classifyError = (e: any): BackendStatus => {
     const msg = String(e?.message ?? 'Falha desconhecida');
