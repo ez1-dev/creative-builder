@@ -894,16 +894,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={isMobile ? 360 : 420}>
+          <CardContent className="p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : isCompact ? 400 : 420}>
               <BarChart data={isMobile ? porCentroCusto.slice(0, 10) : porCentroCusto} layout="vertical">
                 <XAxis type="number" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <YAxis
                   type="category"
                   dataKey="name"
                   fontSize={isMobile ? 10 : 11}
-                  width={isMobile ? 90 : 140}
-                  tickFormatter={(v: string) => (isMobile && v.length > 12 ? `${v.slice(0, 12)}…` : v)}
+                  width={isMobile ? 90 : isCompact ? 110 : 140}
+                  tickFormatter={(v: string) => (v.length > (isMobile ? 12 : isCompact ? 16 : 24) ? `${v.slice(0, isMobile ? 12 : isCompact ? 16 : 24)}…` : v)}
                 />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
                 <Bar
