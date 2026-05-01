@@ -1,83 +1,129 @@
 ## Diagnóstico
 
-A página `/monitor-usuarios-senior` (e o alias `/usuarios-conectados`) já chama `GET /api/senior/sessoes` autenticado com `Authorization: Bearer {access_token}` e o login já envia `{ usuario, senha }` (itens 5, 6 e 7 do pedido já estão corretos no código atual).
+A tela `/monitor-usuarios-senior` já recebe os dados (`{ total, dados }`), mas mostra `01/01/1970` na coluna **Data Conexão** porque o backend está retornando `S.DatTim` como `NUMERIC` do Senior (ex.: `46140.431939`) — esse valor **não é** Unix timestamp em segundos nem em ms, é o formato interno de data do Senior.
 
-O problema está na **linha 158** de `src/pages/MonitorUsuariosSeniorPage.tsx`:
-
-```ts
-const rawList: any[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
-```
-
-Ela tenta `res.sessoes` e `res.data`, mas o backend retorna `{ total, dados: [...] }`. Por isso `rawList` fica `[]` mesmo quando o SQL retorna registros, e a tabela aparece vazia.
-
-Além disso, falta logar os 4 itens pedidos e proteger campos null em `normalizeSessao`.
-
-## Mudanças
-
-Arquivo único: `src/pages/MonitorUsuariosSeniorPage.tsx`
-
-### 1. Leitura robusta do response (substitui linha 158)
+No frontend, `toIsoDate()` em `src/pages/MonitorUsuariosSeniorPage.tsx` (linhas 56–68) faz exatamente o que você pediu para evitar:
 
 ```ts
-let rawList: any[] = [];
-if (Array.isArray(res)) {
-  rawList = res;
-} else if (Array.isArray((res as any)?.dados)) {
-  rawList = (res as any).dados;
-} else if (Array.isArray((res as any)?.sessoes)) {
-  rawList = (res as any).sessoes;
-} else if (Array.isArray((res as any)?.data)) {
-  rawList = (res as any).data;
-} else {
-  rawList = [];
+if (typeof v === 'number') {
+  const ms = v < 1e12 ? v * 1000 : v; // ← trata como Unix → vira 1970
+  ...
 }
 ```
 
-### 2. Logs obrigatórios (antes do `setData`)
+Como `46140.431939` é menor que `1e12`, ele multiplica por 1000 e cai no início de 1970. Isso também contamina `minutos_conectado`, que usa `data_hora_conexao` como base quando não vem do backend.
 
-```ts
-console.log('[MonitorSenior] response completo:', res);
-console.log('[MonitorSenior] response.total:', (res as any)?.total);
-console.log('[MonitorSenior] response.dados:', (res as any)?.dados);
-console.log('[MonitorSenior] linhas interpretadas para a tabela:', rawList.length);
+A correção precisa acontecer nos **dois lados**:
+
+1. **Backend FastAPI** (`GET /api/senior/sessoes`) — formatar a data no SQL.
+2. **Frontend** — parar de tratar número como timestamp Unix e exibir a string já formatada.
+
+Observação: o título da sua mensagem diz "NÃO ESTÁ DESCONECTANDO O USUÁRIO", mas o corpo todo é sobre data/módulo. Vou tratar **só do problema de data e módulo nulo** descrito. Se o botão de desconectar também estiver com defeito, me diga depois exatamente o que acontece (erro, request, resposta) que ataco em separado.
+
+## Mudanças
+
+### 1) Backend FastAPI — `GET /api/senior/sessoes`
+
+Substituir o SELECT da query atual por (apenas as colunas afetadas — manter o resto igual):
+
+```sql
+SELECT
+    S.NumSec AS sessao,
+    LTRIM(RTRIM(S.AppUsr)) AS usuario_senior,
+    LTRIM(RTRIM(S.UsrNam)) AS usuario_sistema_operacional,
+    LTRIM(RTRIM(S.ComNam)) AS computador,
+    LTRIM(RTRIM(S.AppNam)) AS aplicativo,
+
+    COALESCE(NULLIF(LTRIM(RTRIM(M.ModNam)), ''), '-') AS codigo_modulo,
+
+    CASE
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'All'  THEN 'BackOffice / Licenca Flutuante'
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'M'    THEN 'Manufatura'
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'U'    THEN 'Custos'
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'V'    THEN 'Servicos'
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'EMDC' THEN 'Integracoes'
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'WWEB' THEN 'Web 5.0'
+        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = ''     THEN '-'
+        ELSE LTRIM(RTRIM(M.ModNam))
+    END AS modulo_acessado,
+
+    CONVERT(VARCHAR(19), CAST(S.DatTim AS DATETIME), 120) AS data_hora_conexao,
+    DATEDIFF(MINUTE, CAST(S.DatTim AS DATETIME), GETDATE())  AS minutos_conectado,
+
+    S.IDInst  AS instancia,
+    S.AppKnd  AS tipo_aplicacao,
+    S.AdmMsg  AS mensagem_admin
+FROM R911SEC S
+LEFT JOIN R911MOD M ON M.NumSec = S.NumSec
+WHERE S.AppNam = 'SAPIENS'
+  AND LTRIM(RTRIM(ISNULL(S.AppUsr, ''))) <> ''
+ORDER BY S.AppUsr, S.NumSec, M.ModNam;
 ```
 
-### 3. Proteção contra campos null em `normalizeSessao`
+`data_hora_conexao` passa a vir como string `'YYYY-MM-DD HH:MM:SS'` e `minutos_conectado` já vem calculado pelo SQL Server (consistente com o relógio do banco, sem depender do fuso do navegador).
 
-Garantir tolerância para:
-- `codigo_modulo`, `modulo_acessado`, `mensagem_admin` chegando `null` → manter `undefined`/`'-'` na renderização (já tratado com `?? '-'` na tabela, vou só reforçar no normalize com `?? undefined`).
-- `data_hora_conexao` chegando como número (epoch ms/seg) ou string ISO → converter com helper:
+### 2) Frontend — `src/pages/MonitorUsuariosSeniorPage.tsx`
+
+**a. Reescrever `toIsoDate` para NÃO tratar número como Unix timestamp.** Aceitar:
+- string `'YYYY-MM-DD HH:MM:SS'` (formato 120) → retornar como veio.
+- string ISO válida → retornar como veio.
+- número → retornar `undefined` (formato Senior numérico que não conseguimos converter no front).
+- vazio/null → `undefined`.
 
 ```ts
 const toIsoDate = (v: any): string | undefined => {
-  if (v == null || v === '') return undefined;
-  if (typeof v === 'number') {
-    const ms = v < 1e12 ? v * 1000 : v; // segundos vs ms
-    const d = new Date(ms);
-    return isNaN(d.getTime()) ? undefined : d.toISOString();
-  }
+  if (v === undefined || v === null || v === '') return undefined;
   if (typeof v === 'string') {
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? v : d.toISOString();
+    const s = v.trim();
+    if (!s) return undefined;
+    // Formato SQL 120: 'YYYY-MM-DD HH:MM:SS' — devolver como está
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(s)) return s;
+    // Outras strings: só aceitar se parseiam para data válida
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? undefined : s;
   }
+  // number (formato NUMERIC do Senior) ou outro tipo: ignorar
   return undefined;
 };
 ```
 
-### 4. Mensagem "Nenhuma sessão conectada encontrada."
+**b. `normalizeSessao`:** preferir `minutos_conectado` do backend; só calcular no front se a data vier em formato parseável (string). Não calcular a partir de número Senior.
 
-Hoje a tabela mostra um estado vazio genérico. Vou ajustar para que, quando `rawList.length === 0` **e** o status for `online`, apareça exatamente o texto pedido: `Nenhuma sessão conectada encontrada.`
+```ts
+let minutos_conectado = pick(raw, 'minutos_conectado', 'minutos', 'min_conectado');
+if ((minutos_conectado === undefined || minutos_conectado === null) && typeof data_hora_conexao === 'string') {
+  const d = new Date(data_hora_conexao.replace(' ', 'T'));
+  if (!isNaN(d.getTime())) {
+    minutos_conectado = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+  }
+}
+```
+
+**c. `fmtDateTime`:** se a string já estiver no formato `'YYYY-MM-DD HH:MM:SS'`, formatar como `dd/MM/yyyy HH:mm` sem usar `new Date()` (evita qualquer surpresa de timezone). Senão, fallback atual.
+
+```ts
+const fmtDateTime = (v?: string) => {
+  if (!v) return '-';
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(v);
+  if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(d);
+};
+```
 
 ## O que NÃO muda
 
-- Login (`{ usuario, senha }`) — já correto.
-- Header `Authorization: Bearer {access_token}` — já correto em `src/lib/api.ts`.
-- Retry em 401 (limpa token + relogin) — já implementado em `api.ts`.
-- Filtros, KPIs, ordenação, export CSV e alias de rota — preservados.
+- Filtros, KPIs, ordenação, busca, export CSV, alias `/usuarios-conectados`, autenticação Bearer e retry em 401.
+- Demais colunas (`codigo_modulo`, `modulo_acessado` etc.) continuam tolerando null no front; backend agora também já entrega `'-'` quando vazio.
 
 ## Validação
 
-Após aplicar, abrir `/monitor-usuarios-senior` e conferir no console:
-- `response completo` mostrando `{ total, dados: [...] }`
-- `linhas interpretadas para a tabela: N` igual a `total`
-- Tabela renderiza as N linhas, sem quebrar mesmo com `codigo_modulo` / `modulo_acessado` / `mensagem_admin` null.
+Após aplicar:
+- Coluna **Data Conexão** mostra a data real (ex.: `27/04/2026 10:31`) em vez de `01/01/1970`.
+- Coluna **Tempo Conectado** usa `minutos_conectado` vindo do banco.
+- Linhas com `M.ModNam` null mostram `-` em **Cód. Módulo** e **Módulo**.
+- Console: `response.dados` continua chegando com `total` linhas e a tabela renderiza todas.

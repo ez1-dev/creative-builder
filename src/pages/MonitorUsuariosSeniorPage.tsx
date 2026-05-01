@@ -55,23 +55,24 @@ const pick = (o: any, ...keys: string[]) => {
 
 const toIsoDate = (v: any): string | undefined => {
   if (v === undefined || v === null || v === '') return undefined;
-  if (typeof v === 'number') {
-    const ms = v < 1e12 ? v * 1000 : v; // segundos vs ms
-    const d = new Date(ms);
-    return isNaN(d.getTime()) ? undefined : d.toISOString();
-  }
   if (typeof v === 'string') {
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? v : d.toISOString();
+    const s = v.trim();
+    if (!s) return undefined;
+    // Formato SQL Server style 120: 'YYYY-MM-DD HH:MM:SS' — devolver como veio
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?/.test(s)) return s;
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? undefined : s;
   }
+  // number (formato NUMERIC do Senior, ex.: 46140.431939) ou outro tipo: ignorar
+  // — não é timestamp Unix e não pode ser convertido com new Date().
   return undefined;
 };
 
 const normalizeSessao = (raw: any): SessaoSenior => {
   const data_hora_conexao = toIsoDate(pick(raw, 'data_hora_conexao', 'dat_tim', 'dattim', 'DatTim'));
   let minutos_conectado = pick(raw, 'minutos_conectado', 'minutos', 'min_conectado');
-  if ((minutos_conectado === undefined || minutos_conectado === null) && data_hora_conexao) {
-    const d = new Date(data_hora_conexao);
+  if ((minutos_conectado === undefined || minutos_conectado === null) && typeof data_hora_conexao === 'string') {
+    const d = new Date(data_hora_conexao.replace(' ', 'T'));
     if (!isNaN(d.getTime())) {
       minutos_conectado = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
     }
@@ -94,6 +95,9 @@ const normalizeSessao = (raw: any): SessaoSenior => {
 
 const fmtDateTime = (v?: string) => {
   if (!v) return '-';
+  // Formato vindo do backend: 'YYYY-MM-DD HH:MM[:SS]' — formatar sem new Date() para evitar fuso.
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(v);
+  if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
   const d = new Date(v);
   if (isNaN(d.getTime())) return v;
   return new Intl.DateTimeFormat('pt-BR', {
