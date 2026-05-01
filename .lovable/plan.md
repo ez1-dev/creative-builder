@@ -1,51 +1,79 @@
 ## Objetivo
 
-Na tabela de diferenças do **SGU › Preview por Campo**, adicionar uma nova coluna **"Descrição"** ao lado de **Campo**, exibindo o nome real (legível) do campo do ERP Senior (ex.: `NUMEMP` → "Número da Empresa", `TIPCOL` → "Tipo de Colaborador"). A coluna técnica `Campo` continua sendo exibida exatamente como hoje.
+Eliminar os "—" na coluna **Descrição** da aba **SGU › Preview por campo**, ampliando o dicionário `src/lib/erpFieldLabels.ts` para cobrir todos os campos das tabelas E099* usadas pelo módulo SGU.
+
+## Tabelas a cobrir
+
+As 8 tabelas SGU já listadas em `TABELAS_E099` (`src/lib/sguApi.ts`):
+
+`E099USU`, `E099CPR`, `E099FIN`, `E099GCO`, `E099UCP`, `E099UDE`, `E099USE`, `E099UVE`
 
 ## Mudanças
 
-### 1. Criar dicionário de campos do ERP
+### 1. `src/lib/erpFieldLabels.ts` — expandir dicionário
 
-Novo arquivo `src/lib/erpFieldLabels.ts` contendo:
+**Ampliar o `GLOBAL`** com campos comuns que aparecem em quase todas as E099*:
+- `CODUSU` Código do Usuário
+- `NUMEMP` / `NUMFIL` Empresa / Filial
+- `TIPUSU` Tipo de Usuário
+- `BLOUSU` Usuário Bloqueado
+- `INDPER` Indicador de Permissão
+- `NIVPER` Nível de Permissão
+- `INDACE` Indicador de Acesso
+- `DATINI` / `DATFIM` Data Inicial / Final
+- `OBSUSU` Observação do Usuário
+- `INDPAD` Indicador Padrão
+- `IDEEXT` Identificador Externo
+- `CODCCU` Código do Centro de Custo
+- `CODPRJ` Código do Projeto
+- `CODFOR` Código do Fornecedor
+- `CODCLI` Código do Cliente
+- `CODFPG` Forma de Pagamento
+- `CODTPT` Tipo de Título
+- `CODNAT` Natureza
+- `CODCFO` Cliente/Fornecedor
+- `CODGRP` Grupo
+- `CODDEP` Departamento
+- `CODSEC` Seção
+- `CODVEN` Vendedor
+- `CODCPR` Comprador
+- `CODESP` Espécie
+- `CODFIL` Filial
+- `CODFCO` Filial de Conta
+- `CODCCO` Conta Corrente
+- `CODBAN` Banco
 
-- Um mapa por tabela: `{ E099USU: { NUMEMP: 'Número da Empresa', TIPCOL: 'Tipo de Colaborador', ... }, R999USU: { ... }, ... }`
-- Um fallback global para campos comuns do Senior (NUMEMP, TIPCOL, NUMCAD, NOMFUN, EMPATI, FILATI, etc.).
-- Função `getFieldLabel(tabela: string, campo: string): string` que tenta tabela específica → fallback global → retorna `'—'` quando não houver mapeamento.
+**Adicionar mapas específicos por tabela** em `BY_TABLE`:
 
-Cobertura inicial baseada nos campos vistos no preview e no padrão Senior:
+- **E099USU** — Parâmetros gerais do usuário SGU (mantém heranças do GLOBAL).
+- **E099CPR** — Compradores autorizados: `CODCPR`, `INDPAD`.
+- **E099FIN** — Restrições financeiras: `CODFPG`, `CODTPT`, `CODNAT`, `CODCCU`, `CODPRJ`.
+- **E099GCO** — Grupos de contas: `CODGRP`, `CODCCU`.
+- **E099UCP** — Usuário × Centro de Custo: `CODCCU`, `CODPRJ`, `INDACE`.
+- **E099UDE** — Usuário × Departamento: `CODDEP`, `CODSEC`.
+- **E099USE** — Usuário × Seção/Empresa: `NUMEMP`, `NUMFIL`, `CODSEC`.
+- **E099UVE** — Usuário × Vendedor: `CODVEN`, `INDPAD`.
 
-```text
-NUMEMP  → Número da Empresa
-TIPCOL  → Tipo de Colaborador
-NUMCAD  → Número do Cadastro
-SUPTME  → Superior Imediato
-COOCCU  → Código da Ocupação
-INTNET  → E-mail (Internet)
-EMPATI  → Empresa de Atividade
-FILATI  → Filial de Atividade
-GERAUS  → Gera Usuário (S/N)
-FPGOBR  → Forma de Pagamento Obrigatório (S/N)
-PSTATI  → Posto Atividade
-NOMUSU  → Nome do Usuário
-CODUSU  → Código do Usuário
-SITCAD  → Situação do Cadastro
+### 2. Fallback melhor que "—"
+
+Quando ainda não houver mapeamento, em vez de mostrar `—`, mostrar o próprio código entre parênteses (ex.: `(E099UVE.XYZ)`), para o usuário identificar quais campos ainda faltam mapear e nos reportar.
+
+Alterar `getFieldLabel` em `src/lib/erpFieldLabels.ts`:
+
+```ts
+return tabMap?.[key] ?? GLOBAL[key] ?? `(${tab}.${key})`;
 ```
 
-(Lista será preenchida com todos os campos E099USU/R999USU já tratados pelo backend; campos sem mapeamento mostram `—`.)
+Assim nenhum campo fica vazio e fica fácil identificar lacunas.
 
-### 2. Atualizar `src/components/sgu/SguPreviewCamposTab.tsx`
+## Arquivos afetados
 
-- Importar `getFieldLabel`.
-- Adicionar `<TableHead>Descrição</TableHead>` logo após `Campo` no cabeçalho.
-- Adicionar `<TableCell>{getFieldLabel(d.tabela, d.campo)}</TableCell>` correspondente em cada linha.
-- Atualizar `colSpan={7}` da linha "Nenhuma diferença..." para `colSpan={8}`.
-- Incluir a descrição no blob de busca (`fBusca`) para permitir buscar por nome amigável também.
+- `src/lib/erpFieldLabels.ts` (expandir GLOBAL + BY_TABLE + fallback)
 
-### Detalhes técnicos
+Nenhuma mudança em UI ou backend é necessária.
 
-- Não há mudança de backend. É apenas UI + um dicionário estático no frontend.
-- `getFieldLabel` é case-insensitive em relação ao código do campo (`campo.toUpperCase()`).
-- A coluna técnica `Campo` continua intacta (mesma fonte mono, mesmo valor cru).
-- Caso o usuário queira no futuro, esse mesmo dicionário pode ser reaproveitado em outros pontos do SGU (detalhes do usuário, exports, etc.).
+## Validação
 
-Aprova a implementação?
+Após aplicar, abrir **Gestão SGU › Preview por campo**, gerar preview entre dois usuários e confirmar que:
+1. Campos comuns (CODUSU, NUMEMP, TIPCOL...) mostram nome amigável.
+2. Campos restantes mostram `(TABELA.CAMPO)` — caso apareçam, me reporta a lista para eu adicionar nomes oficiais.
