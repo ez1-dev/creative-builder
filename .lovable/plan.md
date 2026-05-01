@@ -1,43 +1,76 @@
-## Objetivo
+## Problema
 
-Enriquecer o painel lateral de **Detalhes do usuário** (aba Usuários do SGU) para mostrar todos os campos retornados pelo backend com placeholders consistentes e chips de status visuais para R910/R999/E099USU.
+O painel "Detalhes do usuário" mostra `[object Object]` no campo **Código** e todos os outros campos como `—`. Isto significa que o objeto retornado por `GET /api/sgu/usuarios/{codusu}` não tem o mesmo formato plano da listagem; provavelmente vem aninhado, algo como:
 
-## Mudanças
+```json
+{ "usuario": { "codusu": 123, "nomusu": "fulano", ... }, "extras": ... }
+```
 
-Arquivo único afetado: `src/components/sgu/SguUsuariosTab.tsx` (apenas o JSX dentro do `<Sheet>`).
+Em `normalizarUsuario`, a lista de candidatos do `codusu` inclui literalmente a chave `'usuario'`, então `pickFirst` retorna o **objeto** inteiro como valor do `codusu`. `Number(obj)` vira `NaN` → cai no fallback `codRaw` → React renderiza objeto → `[object Object]`. Como nenhum campo plano é encontrado no nível raiz, o resto fica `null`/`''`.
 
-### 1. Grade de campos completa
+Detalhe extra: também não temos visibilidade do payload bruto desse endpoint (só vemos no console do navegador, não nos logs do agente).
 
-Hoje o painel mistura `nomcom || desusu` numa linha só e omite a separação. Passar para 7 linhas, uma por campo, todas com o mesmo placeholder `—` quando vazio/null/`""`:
+## Plano
 
-| Label                       | Fonte                       |
-|-----------------------------|-----------------------------|
-| Código                      | `codusu`                    |
-| Login (nomusu)              | `nomusu`                    |
-| Nome completo (nomcom)      | `nomcom`                    |
-| Descrição (desusu)          | `desusu`                    |
-| Tipo (tipcol)               | `tipcol`                    |
-| Empresa (empcol)            | `empcol`                    |
-| Filial (filcol)             | `filcol`                    |
-
-Helper inline para evitar repetição: `(v) => v != null && v !== '' ? String(v) : '—'`.
-
-### 2. Chips de status
-
-Logo abaixo da grade, uma linha de `<Badge>` (componente shadcn já importado) com tokens semânticos:
-
-- **R910**: `secondary` "R910 OK" se `existe_r910`, senão `destructive` "Sem R910".
-- **R999**: idem para `existe_r999`.
-- **E099USU**: `secondary` "E099USU: N" se `qtd_empresas_e099usu > 0`, senão `destructive` "E099USU: 0".
-
-Layout: `flex flex-wrap gap-2 pt-1`.
-
-### 3. Nada mais muda
-
-- Bloco "Resumo de acessos" continua igual.
-- Estado de erro (`detalheErro`) e loading continuam iguais.
-- Sem alteração em `sguApi.ts` nem na tabela principal.
+1. **Tornar `normalizarUsuario` robusto a payloads aninhados** em `src/lib/sguApi.ts`:
+   - Antes de mapear, detectar wrapper comum: se `u.usuario` for objeto, fazer merge `{ ...u.usuario, ...u }` (campos do nível superior têm prioridade) e usar como base.
+   - Aplicar o mesmo para `u.dados` e `u.data` quando forem objetos não-array.
+   - Remover `'usuario'` da lista de candidatos do `codusu` para evitar colisão com o wrapper.
+2. **Logar payload bruto** do `GET /api/sgu/usuarios/{codusu}` em `getUsuario` (igual ao que já existe em `getUsuarios`) para diagnóstico imediato no console quando o formato for diferente do esperado.
+3. **Defesa final no JSX** em `src/components/sgu/SguUsuariosTab.tsx`: se algum campo for objeto/array (após normalização), renderizar `JSON.stringify(...)` truncado em vez de deixar o React converter para `[object Object]`. Isso garante que nunca mais apareça aquele texto críptico — mostra o conteúdo real do bug ao usuário.
+4. **Garantir que a versão atual do JSX já entregue na conversa anterior está mesmo aplicada** (labels com `(nomusu)`, `(nomcom)`, chips R910/R999/E099USU). A imagem do usuário mostra labels antigos — pode ser cache do preview, mas vou conferir o arquivo e re-aplicar se necessário.
 
 ## Detalhes técnicos
 
-Substituir o bloco `{detalheUsr ? (<div className="grid grid-cols-2 ...">...</div>)` por um fragmento contendo a grade expandida + a fileira de chips, mantendo o ramo `!detalheErro ? <p>Sem dados...</p> : null`. Sem novos imports (Badge e AlertTriangle já estão em uso no arquivo).
+`normalizarUsuario` reescrito:
+
+```ts
+function normalizarUsuario(u: any): SguUsuario {
+  if (!u || typeof u !== 'object') return u as SguUsuario;
+
+  // Desembrulhar wrappers comuns: { usuario: {...} }, { dados: {...} }, { data: {...} }
+  let base: any = u;
+  for (const wrapper of ['usuario', 'dados', 'data']) {
+    const inner = u[wrapper];
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+      base = { ...inner, ...u };  // top-level wins
+      break;
+    }
+  }
+
+  const codRaw = pickFirst(base, ['codusu', 'cod_usu', 'codigo', 'cod', 'id', 'usuario_codigo']);
+  const codNum = Number(codRaw);
+  // ... resto igual, usando `base` em vez de `u`
+  return {
+    ...base,
+    codusu: Number.isFinite(codNum) ? codNum : (typeof codRaw === 'object' ? null : codRaw),
+    // ...
+  };
+}
+```
+
+Helper de render seguro no JSX:
+
+```tsx
+const safeText = (v: any) =>
+  v == null || v === '' ? '—'
+  : typeof v === 'object' ? JSON.stringify(v).slice(0, 80)
+  : String(v);
+```
+
+E aplicar nas linhas da grade de detalhes.
+
+Em `getUsuario`, adicionar:
+
+```ts
+console.info('[SGU] payload bruto getUsuario', data, 'chaves:', Object.keys(data ?? {}));
+```
+
+## Arquivos afetados
+
+- `src/lib/sguApi.ts` — `normalizarUsuario` (desembrulha wrappers) e `getUsuario` (log).
+- `src/components/sgu/SguUsuariosTab.tsx` — helper `safeText` aplicado na grade de detalhes; reconfirmar labels novos e chips.
+
+## Fora de escopo
+
+- Não alterar a tabela principal nem o backend. Quando virmos no console qual era o formato real, podemos especializar mais a normalização.

@@ -96,20 +96,42 @@ function pickFirst(obj: any, keys: string[]): any {
 
 function normalizarUsuario(u: any): SguUsuario {
   if (!u || typeof u !== 'object') return u as SguUsuario;
-  const codRaw = pickFirst(u, ['codusu', 'cod_usu', 'codigo', 'cod', 'id', 'usuario_codigo', 'usuario']);
+
+  // Desembrulhar wrappers comuns retornados por endpoints de detalhe:
+  // { usuario: {...} } | { dados: {...} } | { data: {...} }
+  let base: any = u;
+  for (const wrapper of ['usuario', 'dados', 'data']) {
+    const inner = u[wrapper];
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+      base = { ...inner, ...u };
+      // remove o wrapper para não vazar no spread final
+      delete base[wrapper];
+      break;
+    }
+  }
+
+  const codRaw = pickFirst(base, ['codusu', 'cod_usu', 'codigo', 'cod', 'id', 'usuario_codigo']);
   const codNum = Number(codRaw);
-  const r910 = pickFirst(u, ['existe_r910', 'r910', 'tem_r910']);
-  const r999 = pickFirst(u, ['existe_r999', 'r999', 'tem_r999']);
-  const qtd = pickFirst(u, ['qtd_empresas_e099usu', 'qtd_e099usu', 'qtd_empresas', 'empresas_e099usu']);
+  const codSafe =
+    Number.isFinite(codNum) ? codNum
+    : typeof codRaw === 'object' ? (null as any)
+    : (codRaw as any);
+  const r910 = pickFirst(base, ['existe_r910', 'r910', 'tem_r910']);
+  const r999 = pickFirst(base, ['existe_r999', 'r999', 'tem_r999']);
+  const qtd = pickFirst(base, ['qtd_empresas_e099usu', 'qtd_e099usu', 'qtd_empresas', 'empresas_e099usu']);
+
+  const safeStr = (v: any) =>
+    v == null ? null : typeof v === 'object' ? null : v;
+
   return {
-    ...u,
-    codusu: Number.isFinite(codNum) ? codNum : (codRaw as any),
-    nomusu: pickFirst(u, ['nomusu', 'nom_usu', 'nome', 'nome_usuario']) ?? '',
-    nomcom: pickFirst(u, ['nomcom', 'nom_com', 'nome_completo']) ?? null,
-    desusu: pickFirst(u, ['desusu', 'des_usu', 'descricao_usuario', 'descricao', 'login']) ?? null,
-    tipcol: pickFirst(u, ['tipcol', 'tip_col', 'tipo']) ?? null,
-    empcol: pickFirst(u, ['empcol', 'emp_col', 'empresa', 'codemp']) ?? null,
-    filcol: pickFirst(u, ['filcol', 'fil_col', 'filial', 'codfil']) ?? null,
+    ...base,
+    codusu: codSafe,
+    nomusu: safeStr(pickFirst(base, ['nomusu', 'nom_usu', 'nome', 'nome_usuario'])) ?? '',
+    nomcom: safeStr(pickFirst(base, ['nomcom', 'nom_com', 'nome_completo'])),
+    desusu: safeStr(pickFirst(base, ['desusu', 'des_usu', 'descricao_usuario', 'descricao', 'login'])),
+    tipcol: safeStr(pickFirst(base, ['tipcol', 'tip_col', 'tipo'])),
+    empcol: safeStr(pickFirst(base, ['empcol', 'emp_col', 'empresa', 'codemp'])),
+    filcol: safeStr(pickFirst(base, ['filcol', 'fil_col', 'filial', 'codfil'])),
     existe_r910: (r910 === true || r910 === 1 || r910 === '1' || r910 === 'S') ? 1 : 0,
     existe_r999: (r999 === true || r999 === 1 || r999 === '1' || r999 === 'S') ? 1 : 0,
     qtd_empresas_e099usu: Number(qtd ?? 0) || 0,
