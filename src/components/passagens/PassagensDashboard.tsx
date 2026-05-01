@@ -785,8 +785,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
+          <CardContent className="p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={isCompact ? 220 : 260}>
               <BarChart data={porMes}>
                 <XAxis dataKey="mes" fontSize={11} />
                 <YAxis fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
