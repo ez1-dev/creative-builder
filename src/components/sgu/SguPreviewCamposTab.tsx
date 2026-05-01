@@ -97,7 +97,7 @@ export function SguPreviewCamposTab() {
       if (fAcao !== 'all' && d.acao !== fAcao) return false;
       if (fCampo && !d.campo.toLowerCase().includes(fCampo.toLowerCase())) return false;
       if (busca) {
-        const blob = `${d.tabela} ${d.campo} ${d.empresa ?? ''} ${d.valor_origem ?? ''} ${d.valor_destino ?? ''} ${d.motivo ?? ''}`.toLowerCase();
+        const blob = `${d.tabela} ${d.campo} ${getFieldLabel(d.tabela, d.campo)} ${d.empresa ?? ''} ${d.valor_origem ?? ''} ${d.valor_destino ?? ''} ${d.motivo ?? ''}`.toLowerCase();
         if (!blob.includes(busca)) return false;
       }
       return true;
