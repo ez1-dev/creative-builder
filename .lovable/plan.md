@@ -1,36 +1,82 @@
-## Diagnóstico confirmado
+## Contexto
 
-O backend FastAPI SGU está retornando `codusu` como **string com o login do usuário** (`"ademir.passos"`, `"admin"`, `"agendador"`) em vez do **inteiro PK** da tabela `R910USU`. Além disso, `tipcol`, `empcol`, `filcol` estão vindo todos `null` — provavelmente também precisam ser revistos no SELECT do backend.
+A documentação atual em `docs/backend-sgu-codusu-bug.md` cita campos errados (`R910USU.CODUSU`, `R910USU.DESUSU`) que **não existem**. O esquema real é:
 
-Como o codusu correto **é numérico**, a solução definitiva é no backend. O frontend já está correto.
+**R910USU** (cadastro/colaborador)
+- `CODENT` — código numérico do usuário (FK lógica)
+- `NOMCOM` — nome completo
+- `DESUSU` — descrição/login
+
+**R999USU** (usuários SGU)
+- `CODUSU` — código numérico (PK do usuário SGU) ← este é o `codusu` que o frontend precisa
+- `NOMUSU` — login textual
+
+A junção correta é `R910USU.CODENT = R999USU.CODUSU`.
 
 ## Plano
 
-### 1. Documentar bug e correção esperada para o backend
-Criar `docs/backend-sgu-codusu-bug.md` com:
-- Sintoma observado (JSON atual)
-- Lista dos endpoints afetados
-- Schema esperado (`codusu: int`, `nomusu: string`, `descusu: string?`)
-- SQL sugerido (`SELECT R910USU.CODUSU AS codusu, R910USU.NOMUSU AS nomusu, ...`)
-- Critério de validação
+### 1. Reescrever `docs/backend-sgu-codusu-bug.md`
 
-### 2. Mensagem clara no frontend enquanto o backend não é corrigido
-Em `src/components/sgu/SguUsuariosTab.tsx`:
-- Quando **todos** os registros retornarem com `codusu` inválido (string), exibir um banner `<Alert variant="destructive">` acima da tabela:
-  > "O backend SGU está retornando `codusu` no formato incorreto (texto em vez de número inteiro). Aguardando correção do backend conforme `docs/backend-sgu-codusu-bug.md`. As ações Detalhes/Origem/Destino ficarão desabilitadas."
-- Manter as linhas visíveis (apenas leitura) para o usuário ver que a pesquisa funciona.
+Substituir integralmente o conteúdo para refletir o schema real:
 
-### 3. Reverter parcialmente o aviso "inválido" para algo mais amigável
-Em vez de mostrar "inválido" em vermelho na coluna Código, mostrar o `nomusu` precedido de um ícone de alerta com tooltip "Aguardando correção do backend (codusu numérico)". Mais limpo visualmente.
+- **Tabelas e campos corretos**: documentar R999USU (CODUSU, NOMUSU) e R910USU (CODENT, NOMCOM, DESUSU), deixando claro que `R910USU.CODUSU` não existe.
+- **SQL sugerido** (versão fornecida pelo usuário):
+  ```sql
+  SELECT
+      R.CODUSU                          AS codusu,
+      LTRIM(RTRIM(R.NOMUSU))            AS nomusu,
+      LTRIM(RTRIM(A.NOMCOM))            AS nomcom,
+      LTRIM(RTRIM(A.DESUSU))            AS desusu,
+      LTRIM(RTRIM(R.TIPCOL))            AS tipcol,
+      LTRIM(RTRIM(R.NUMEMP))            AS empcol,
+      LTRIM(RTRIM(R.CODFIL))            AS filcol,
+      CASE WHEN A.CODENT IS NULL THEN 0 ELSE 1 END AS existe_r910,
+      CASE WHEN R.CODUSU IS NULL THEN 0 ELSE 1 END AS existe_r999,
+      (SELECT COUNT(*) FROM E099USU E WHERE E.CODUSU = R.CODUSU) AS qtd_empresas_e099usu
+  FROM R999USU R
+  LEFT JOIN R910USU A ON A.CODENT = R.CODUSU
+  ORDER BY R.NOMUSU;
+  ```
+- **Schema JSON esperado** (com `nomcom` e `desusu` adicionais):
+  ```json
+  {
+    "codusu": 301,
+    "nomusu": "lucas.martins",
+    "nomcom": "Lucas Martins - CUSTEIO",
+    "desusu": "lucas.martins",
+    "tipcol": null,
+    "empcol": null,
+    "filcol": null,
+    "existe_r910": 1,
+    "existe_r999": 1,
+    "qtd_empresas_e099usu": 2
+  }
+  ```
+- **Pydantic model** atualizado com `nomcom: Optional[str]` e `desusu: Optional[str]`.
+- **Critério de validação**:
+  - `codusu` deve ser integer
+  - `nomusu` deve ser string (login)
+  - `desusu` / `nomcom` devem ser campos **separados** (não duplicar com `codusu`)
+  - Nunca retornar login textual em `codusu`
+  - Rotas `/api/sgu/usuarios/{codusu}` devem aceitar inteiro
+- **Endpoints afetados** (mantém a lista atual: lista, detalhe, resumo-acessos, comparar, duplicar-preview-campos, duplicar-parametros).
 
-### 4. Manter `normalizarUsuario` resiliente
-O mapeamento defensivo (`pickFirst`) continua útil — se o backend corrigir e mudar nomes (`cod_usu`, `CODUSU`), nada quebra.
+### 2. Estender tipo e mapeamento no frontend para suportar `nomcom`/`desusu`
 
-## Arquivos a alterar (após aprovação)
-- `docs/backend-sgu-codusu-bug.md` — novo (especificação de correção do backend)
-- `src/components/sgu/SguUsuariosTab.tsx` — banner de alerta + ajuste visual da coluna Código
+`src/lib/sguApi.ts`:
+- Adicionar `nomcom?: string | null` e `desusu?: string | null` à interface `SguUsuario`.
+- Em `normalizarUsuario`, mapear via `pickFirst` os campos `nomcom` (`['nomcom','nom_com','nome_completo']`) e `desusu` (`['desusu','des_usu','descricao_usuario','login']`).
 
-## Próximo passo após implementação
-Você envia o arquivo `docs/backend-sgu-codusu-bug.md` ao desenvolvedor backend FastAPI. Quando ele ajustar a query/serializer para retornar `codusu` como inteiro PK, a tela funciona automaticamente (incluindo Detalhes/Origem/Destino) sem mais nenhuma mudança no frontend.
+### 3. Mostrar nome completo na tabela de usuários
 
-**Aprova?**
+`src/components/sgu/SguUsuariosTab.tsx`:
+- Adicionar coluna **"Nome completo"** exibindo `nomcom` (fallback `desusu` ou `—`) ao lado de `nomusu`.
+- Manter o banner/alerta de bug do backend como já implementado (ele desaparece automaticamente quando o backend devolver `codusu` numérico).
+
+## Arquivos a alterar
+- `docs/backend-sgu-codusu-bug.md` — reescrita completa
+- `src/lib/sguApi.ts` — extensão do tipo + mapeamento
+- `src/components/sgu/SguUsuariosTab.tsx` — coluna "Nome completo"
+
+## Próximo passo
+Você envia o `docs/backend-sgu-codusu-bug.md` corrigido ao desenvolvedor backend. Quando ele aplicar o SQL e o response model, a tela funciona automaticamente: códigos numéricos, nome completo (`nomcom`) na coluna nova, e botões Detalhes/Origem/Destino habilitados.
