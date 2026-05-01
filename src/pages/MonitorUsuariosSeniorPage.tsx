@@ -45,6 +45,39 @@ interface SessaoSenior {
 
 const motivoSchema = z.string().trim().min(5, 'Informe um motivo (mín. 5 caracteres)').max(500, 'Máximo 500 caracteres');
 
+/** Normaliza um registro vindo do backend (qualquer formato conhecido) para o shape interno SessaoSenior. */
+const pick = (o: any, ...keys: string[]) => {
+  for (const k of keys) {
+    if (o && o[k] !== undefined && o[k] !== null && o[k] !== '') return o[k];
+  }
+  return undefined;
+};
+
+const normalizeSessao = (raw: any): SessaoSenior => {
+  const data_hora_conexao = pick(raw, 'data_hora_conexao', 'dat_tim', 'dattim', 'DatTim');
+  let minutos_conectado = pick(raw, 'minutos_conectado', 'minutos', 'min_conectado');
+  if ((minutos_conectado === undefined || minutos_conectado === null) && data_hora_conexao) {
+    const d = new Date(data_hora_conexao);
+    if (!isNaN(d.getTime())) {
+      minutos_conectado = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+    }
+  }
+  return {
+    numsec: pick(raw, 'numsec', 'sessao', 'num_sec', 'numSec', 'NumSec'),
+    usuario_senior: pick(raw, 'usuario_senior', 'usuario', 'app_usr', 'appusr', 'AppUsr'),
+    usuario_windows: pick(raw, 'usuario_windows', 'usuario_sistema_operacional', 'usr_nam', 'usrnam', 'UsrNam'),
+    computador: pick(raw, 'computador', 'com_nam', 'comnam', 'ComNam'),
+    aplicativo: pick(raw, 'aplicativo', 'app_nam', 'appnam', 'AppNam'),
+    cod_modulo: pick(raw, 'cod_modulo', 'codigo_modulo', 'mod_nam', 'modnam', 'ModNam'),
+    modulo: pick(raw, 'modulo', 'modulo_acessado', 'descricao_modulo'),
+    data_hora_conexao,
+    minutos_conectado,
+    instancia: pick(raw, 'instancia', 'id_inst', 'idinst', 'IDInst'),
+    tipo_aplicacao: pick(raw, 'tipo_aplicacao', 'app_knd', 'appknd', 'AppKnd'),
+    mensagem_admin: pick(raw, 'mensagem_admin', 'adm_msg', 'admmsg', 'AdmMsg'),
+  };
+};
+
 const fmtDateTime = (v?: string) => {
   if (!v) return '-';
   const d = new Date(v);
@@ -76,7 +109,8 @@ export default function MonitorUsuariosSeniorPage() {
   const [fUsuario, setFUsuario] = useState('');
   const [fComputador, setFComputador] = useState('');
   const [fModulo, setFModulo] = useState('');
-  const [fAplicativo, setFAplicativo] = useState('SAPIENS');
+  const [fAplicativo, setFAplicativo] = useState('__all__');
+  const [rawSamplePreview, setRawSamplePreview] = useState<string | null>(null);
 
   // modal
   const [target, setTarget] = useState<SessaoSenior | null>(null);
@@ -106,11 +140,18 @@ export default function MonitorUsuariosSeniorPage() {
     const startedAt = new Date().toISOString();
     try {
       const res = await api.get<any>('/api/senior/sessoes');
-      const rows: SessaoSenior[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
+      const rawList: any[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
+      const rows: SessaoSenior[] = rawList.map(normalizeSessao);
       setData(rows);
+      setRawSamplePreview(
+        rawList.length > 0 ? JSON.stringify(rawList[0], null, 2).slice(0, 1500) : JSON.stringify(res, null, 2).slice(0, 1500),
+      );
       setConnStatus({ kind: 'online', statusCode: 200, timestamp: new Date().toISOString() });
       // eslint-disable-next-line no-console
-      console.info('[MonitorSenior] GET sessoes OK', { url, status: 200, rows: rows.length, timestamp: startedAt });
+      console.info('[MonitorSenior] GET sessoes OK', {
+        url, status: 200, rows: rows.length, timestamp: startedAt,
+        sampleKeys: rawList[0] ? Object.keys(rawList[0]) : [],
+      });
     } catch (e: any) {
       const status = classifyError(e);
       setConnStatus(status);
@@ -310,6 +351,18 @@ export default function MonitorUsuariosSeniorPage() {
         onSavedAndTest={onUrlSavedAndTest}
       />
 
+      {/* Preview do JSON cru — útil quando vem 200 OK mas a tabela parece vazia */}
+      {connStatus.kind === 'online' && rawSamplePreview && (data.length === 0 || (import.meta as any).env?.DEV) && (
+        <details className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
+          <summary className="cursor-pointer text-muted-foreground">
+            Resposta bruta da API (primeiro registro) — útil para diagnosticar campos
+          </summary>
+          <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] text-muted-foreground">
+            {rawSamplePreview}
+          </pre>
+        </details>
+      )}
+
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KPICard
@@ -420,11 +473,14 @@ export default function MonitorUsuariosSeniorPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ) : filtered.map((s) => {
+                ) : filtered.map((s, i) => {
                   const min = s.minutos_conectado ?? 0;
                   const longa = min > 240;
+                  const rowKey = s.numsec != null && s.numsec !== ''
+                    ? String(s.numsec)
+                    : `${s.usuario_senior ?? '?'}-${s.computador ?? '?'}-${i}`;
                   return (
-                    <TableRow key={String(s.numsec)}>
+                    <TableRow key={rowKey}>
                       <TableCell className="font-mono text-xs">{s.numsec}</TableCell>
                       <TableCell className="whitespace-nowrap font-medium">{s.usuario_senior ?? '-'}</TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">{s.usuario_windows ?? '-'}</TableCell>
