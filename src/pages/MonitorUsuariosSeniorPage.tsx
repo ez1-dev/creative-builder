@@ -53,8 +53,22 @@ const pick = (o: any, ...keys: string[]) => {
   return undefined;
 };
 
+const toIsoDate = (v: any): string | undefined => {
+  if (v === undefined || v === null || v === '') return undefined;
+  if (typeof v === 'number') {
+    const ms = v < 1e12 ? v * 1000 : v; // segundos vs ms
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? v : d.toISOString();
+  }
+  return undefined;
+};
+
 const normalizeSessao = (raw: any): SessaoSenior => {
-  const data_hora_conexao = pick(raw, 'data_hora_conexao', 'dat_tim', 'dattim', 'DatTim');
+  const data_hora_conexao = toIsoDate(pick(raw, 'data_hora_conexao', 'dat_tim', 'dattim', 'DatTim'));
   let minutos_conectado = pick(raw, 'minutos_conectado', 'minutos', 'min_conectado');
   if ((minutos_conectado === undefined || minutos_conectado === null) && data_hora_conexao) {
     const d = new Date(data_hora_conexao);
