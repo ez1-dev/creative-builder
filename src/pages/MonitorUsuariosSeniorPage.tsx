@@ -553,6 +553,13 @@ export default function MonitorUsuariosSeniorPage() {
         </details>
       )}
 
+      <Tabs defaultValue="senior" className="space-y-3">
+        <TabsList>
+          <TabsTrigger value="senior">Sessões Senior</TabsTrigger>
+          <TabsTrigger value="navegacao">Navegação ERP Web</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="senior" className="space-y-4">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KPICard
