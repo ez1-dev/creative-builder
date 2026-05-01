@@ -1,82 +1,86 @@
-## Contexto
+## Problema
 
-A documentação atual em `docs/backend-sgu-codusu-bug.md` cita campos errados (`R910USU.CODUSU`, `R910USU.DESUSU`) que **não existem**. O esquema real é:
+Ao clicar em **Detalhes** na aba "Usuários" do módulo Gestão SGU, a tela inteira fica em branco (sem header, sem sidebar, sem conteúdo). Isso indica uma exceção durante o render que sobe acima de qualquer error boundary — atualmente o app **não tem nenhum ErrorBoundary**, então qualquer throw em render derruba toda a árvore React.
 
-**R910USU** (cadastro/colaborador)
-- `CODENT` — código numérico do usuário (FK lógica)
-- `NOMCOM` — nome completo
-- `DESUSU` — descrição/login
+## Causa provável
 
-**R999USU** (usuários SGU)
-- `CODUSU` — código numérico (PK do usuário SGU) ← este é o `codusu` que o frontend precisa
-- `NOMUSU` — login textual
+O handler `handleVerDetalhes` faz `Promise.all([getUsuario(codusu), getResumoAcessos(codusu)])`:
 
-A junção correta é `R910USU.CODENT = R999USU.CODUSU`.
+- `getUsuario` valida se `codusu` é numérico e dispara toast/throw amigável.
+- `getResumoAcessos` **não valida** — monta a URL `/api/sgu/usuarios/{codusu}/resumo-acessos` mesmo com `codusu` string (login textual). O backend devolve 422/500 com payload inesperado, e em alguns casos o objeto de resposta normalizado contém campos que o JSX do `<Sheet>` tenta renderizar diretamente (ex.: `detalheResumo.tabelas` chega como objeto não-array, ou `detalheUsr` parcialmente preenchido com tipos inesperados), gerando um throw em render.
+
+Além disso, quando o backend devolve 401, `api.logout()` é chamado, mas isso só limpa o token do ERP — não deveria, sozinho, causar tela branca. O combinado de Promise.all rejeitando + Sheet aberto + dados parciais é o que provoca o crash visual.
 
 ## Plano
 
-### 1. Reescrever `docs/backend-sgu-codusu-bug.md`
+1. **Adicionar ErrorBoundary global** (`src/components/ErrorBoundary.tsx`) e envolver `<App>` em `src/main.tsx`. Sempre que algo lançar em render, mostra fallback "Algo deu errado" com botão "Recarregar" em vez de tela branca total. Isto resolve a classe inteira de bugs futuros, não só este.
 
-Substituir integralmente o conteúdo para refletir o schema real:
+2. **Endurecer `handleVerDetalhes`** em `src/components/sgu/SguUsuariosTab.tsx`:
+   - Validar `codusuValido(u)` antes de abrir o Sheet (já que botão pode ter clique programático).
+   - Trocar `Promise.all` por `Promise.allSettled` para que falha em uma das chamadas não derrube a outra.
+   - Guardar erro em estado `detalheErro` e exibir mensagem dentro do Sheet em vez de ficar `null`.
 
-- **Tabelas e campos corretos**: documentar R999USU (CODUSU, NOMUSU) e R910USU (CODENT, NOMCOM, DESUSU), deixando claro que `R910USU.CODUSU` não existe.
-- **SQL sugerido** (versão fornecida pelo usuário):
-  ```sql
-  SELECT
-      R.CODUSU                          AS codusu,
-      LTRIM(RTRIM(R.NOMUSU))            AS nomusu,
-      LTRIM(RTRIM(A.NOMCOM))            AS nomcom,
-      LTRIM(RTRIM(A.DESUSU))            AS desusu,
-      LTRIM(RTRIM(R.TIPCOL))            AS tipcol,
-      LTRIM(RTRIM(R.NUMEMP))            AS empcol,
-      LTRIM(RTRIM(R.CODFIL))            AS filcol,
-      CASE WHEN A.CODENT IS NULL THEN 0 ELSE 1 END AS existe_r910,
-      CASE WHEN R.CODUSU IS NULL THEN 0 ELSE 1 END AS existe_r999,
-      (SELECT COUNT(*) FROM E099USU E WHERE E.CODUSU = R.CODUSU) AS qtd_empresas_e099usu
-  FROM R999USU R
-  LEFT JOIN R910USU A ON A.CODENT = R.CODUSU
-  ORDER BY R.NOMUSU;
-  ```
-- **Schema JSON esperado** (com `nomcom` e `desusu` adicionais):
-  ```json
-  {
-    "codusu": 301,
-    "nomusu": "lucas.martins",
-    "nomcom": "Lucas Martins - CUSTEIO",
-    "desusu": "lucas.martins",
-    "tipcol": null,
-    "empcol": null,
-    "filcol": null,
-    "existe_r910": 1,
-    "existe_r999": 1,
-    "qtd_empresas_e099usu": 2
+3. **Validar codusu em `getResumoAcessos`** em `src/lib/sguApi.ts`, igual já é feito em `getUsuario` (rejeita cedo com toast amigável quando não é numérico).
+
+4. **Defesa no JSX do Sheet**:
+   - Garantir que `detalheResumo?.tabelas` é tratado como array (`Array.isArray(...) ? ... : []`).
+   - Coagir `detalheUsr.codusu` para string ao renderizar.
+   - Renderizar bloco de erro quando `detalheErro` estiver setado.
+
+5. **Logar payload bruto** das duas respostas (`getUsuario` detalhe e `getResumoAcessos`) no console quando abrir Detalhes, para facilitar diagnóstico futuro caso o backend retorne formato inesperado.
+
+## Detalhes técnicos
+
+**`src/components/ErrorBoundary.tsx`** (novo): classe React com `componentDidCatch` chamando `logError({ module: 'react/error-boundary', ... })` e fallback usando tokens semânticos (`bg-background`, `text-foreground`, `border-destructive`).
+
+**`src/main.tsx`**: envolver `<App />` com `<ErrorBoundary>`.
+
+**`SguUsuariosTab.tsx`** — substituição do handler:
+
+```ts
+const handleVerDetalhes = async (u: SguUsuario) => {
+  if (!codusuValido(u)) {
+    toast.error('Código de usuário inválido neste registro.');
+    return;
   }
-  ```
-- **Pydantic model** atualizado com `nomcom: Optional[str]` e `desusu: Optional[str]`.
-- **Critério de validação**:
-  - `codusu` deve ser integer
-  - `nomusu` deve ser string (login)
-  - `desusu` / `nomcom` devem ser campos **separados** (não duplicar com `codusu`)
-  - Nunca retornar login textual em `codusu`
-  - Rotas `/api/sgu/usuarios/{codusu}` devem aceitar inteiro
-- **Endpoints afetados** (mantém a lista atual: lista, detalhe, resumo-acessos, comparar, duplicar-preview-campos, duplicar-parametros).
+  const cod = Number(u.codusu);
+  setDetalheOpen(true);
+  setDetalheLoading(true);
+  setDetalheUsr(null);
+  setDetalheResumo(null);
+  setDetalheErro(null);
+  const [resU, resR] = await Promise.allSettled([getUsuario(cod), getResumoAcessos(cod)]);
+  if (resU.status === 'fulfilled') setDetalheUsr(resU.value);
+  if (resR.status === 'fulfilled') setDetalheResumo(resR.value);
+  const firstErr = [resU, resR].find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+  if (firstErr) setDetalheErro(firstErr.reason?.message ?? 'Falha ao carregar detalhes');
+  setDetalheLoading(false);
+};
+```
 
-### 2. Estender tipo e mapeamento no frontend para suportar `nomcom`/`desusu`
+E passar `u` em vez de `u.codusu` nos botões.
 
-`src/lib/sguApi.ts`:
-- Adicionar `nomcom?: string | null` e `desusu?: string | null` à interface `SguUsuario`.
-- Em `normalizarUsuario`, mapear via `pickFirst` os campos `nomcom` (`['nomcom','nom_com','nome_completo']`) e `desusu` (`['desusu','des_usu','descricao_usuario','login']`).
+**`sguApi.ts`** — `getResumoAcessos`:
 
-### 3. Mostrar nome completo na tabela de usuários
+```ts
+export async function getResumoAcessos(codusu: number): Promise<ResumoAcessos> {
+  if (!Number.isFinite(Number(codusu))) {
+    const e: any = new Error('Código de usuário inválido (não numérico).');
+    e.statusCode = 400;
+    toast.error(e.message);
+    throw e;
+  }
+  // ... resto igual
+}
+```
 
-`src/components/sgu/SguUsuariosTab.tsx`:
-- Adicionar coluna **"Nome completo"** exibindo `nomcom` (fallback `desusu` ou `—`) ao lado de `nomusu`.
-- Manter o banner/alerta de bug do backend como já implementado (ele desaparece automaticamente quando o backend devolver `codusu` numérico).
+## Arquivos afetados
 
-## Arquivos a alterar
-- `docs/backend-sgu-codusu-bug.md` — reescrita completa
-- `src/lib/sguApi.ts` — extensão do tipo + mapeamento
-- `src/components/sgu/SguUsuariosTab.tsx` — coluna "Nome completo"
+- `src/components/ErrorBoundary.tsx` (novo)
+- `src/main.tsx` (envolver App)
+- `src/components/sgu/SguUsuariosTab.tsx` (handler + JSX defensivo)
+- `src/lib/sguApi.ts` (validação em `getResumoAcessos`)
 
-## Próximo passo
-Você envia o `docs/backend-sgu-codusu-bug.md` corrigido ao desenvolvedor backend. Quando ele aplicar o SQL e o response model, a tela funciona automaticamente: códigos numéricos, nome completo (`nomcom`) na coluna nova, e botões Detalhes/Origem/Destino habilitados.
+## Fora de escopo
+
+- Não toca no backend nem na documentação `docs/backend-sgu-codusu-bug.md` — o bug do `codusu` continua documentado lá e a correção real ainda depende do backend.

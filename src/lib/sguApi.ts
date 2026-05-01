@@ -206,11 +206,18 @@ export async function getUsuario(codusu: number): Promise<SguUsuario> {
 }
 
 export async function getResumoAcessos(codusu: number): Promise<ResumoAcessos> {
+  if (!Number.isFinite(Number(codusu))) {
+    const e: any = new Error('Código de usuário inválido (não numérico) para resumo de acessos.');
+    e.statusCode = 400;
+    toast.error(e.message);
+    throw e;
+  }
   const url = `/api/sgu/usuarios/${codusu}/resumo-acessos`;
   return withRetryOn401(async () => {
     const data = await api.get<ResumoAcessos>(url);
     logCall('GET', url, 200, data);
-    return data;
+    const tabelas = Array.isArray(data?.tabelas) ? data.tabelas : [];
+    return { ...(data ?? {}), codusu: Number(codusu), tabelas } as ResumoAcessos;
   }, url);
 }
 

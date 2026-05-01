@@ -32,6 +32,7 @@ export function SguUsuariosTab() {
   const [detalheUsr, setDetalheUsr] = useState<SguUsuario | null>(null);
   const [detalheResumo, setDetalheResumo] = useState<ResumoAcessos | null>(null);
   const [detalheLoading, setDetalheLoading] = useState(false);
+  const [detalheErro, setDetalheErro] = useState<string | null>(null);
 
   const handlePesquisar = async () => {
     setLoading(true);
@@ -46,27 +47,37 @@ export function SguUsuariosTab() {
     }
   };
 
-  const handleVerDetalhes = async (codusu: number) => {
-    if (!Number.isFinite(Number(codusu))) {
+  const codusuValido = (u: SguUsuario) => Number.isFinite(Number(u.codusu));
+
+  const handleVerDetalhes = async (u: SguUsuario) => {
+    if (!codusuValido(u)) {
       toast.error('Código de usuário inválido neste registro. O backend não retornou um codusu numérico.');
       return;
     }
+    const cod = Number(u.codusu);
     setDetalheOpen(true);
     setDetalheLoading(true);
     setDetalheUsr(null);
     setDetalheResumo(null);
+    setDetalheErro(null);
     try {
-      const [u, r] = await Promise.all([getUsuario(codusu), getResumoAcessos(codusu)]);
-      setDetalheUsr(u);
-      setDetalheResumo(r);
-    } catch {
-      // erro já tratado
+      const [resU, resR] = await Promise.allSettled([getUsuario(cod), getResumoAcessos(cod)]);
+      // eslint-disable-next-line no-console
+      console.info('[SGU] detalhes payload bruto', { resU, resR });
+      if (resU.status === 'fulfilled') setDetalheUsr(resU.value);
+      if (resR.status === 'fulfilled') setDetalheResumo(resR.value);
+      const firstErr = [resU, resR].find((r) => r.status === 'rejected') as
+        | PromiseRejectedResult
+        | undefined;
+      if (firstErr) {
+        setDetalheErro(firstErr.reason?.message ?? 'Falha ao carregar detalhes do usuário.');
+      }
+    } catch (err: any) {
+      setDetalheErro(err?.message ?? 'Falha inesperada ao carregar detalhes.');
     } finally {
       setDetalheLoading(false);
     }
   };
-
-  const codusuValido = (u: SguUsuario) => Number.isFinite(Number(u.codusu));
 
   const totalPaginas = Math.max(1, Math.ceil(usuarios.length / PAGE_SIZE));
   const inicio = (pagina - 1) * PAGE_SIZE;
@@ -207,7 +218,7 @@ export function SguUsuariosTab() {
                               size="sm"
                               variant="outline"
                               disabled={!codValido}
-                              onClick={() => handleVerDetalhes(u.codusu)}
+                              onClick={() => handleVerDetalhes(u)}
                             >
                               <Eye className="h-3 w-3" /> Detalhes
                             </Button>
@@ -263,25 +274,36 @@ export function SguUsuariosTab() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : detalheUsr ? (
+          ) : (
             <div className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div className="text-muted-foreground">Código</div>
-                <div className="font-mono">{detalheUsr.codusu}</div>
-                <div className="text-muted-foreground">Login</div>
-                <div className="font-medium">{detalheUsr.nomusu}</div>
-                <div className="text-muted-foreground">Nome completo</div>
-                <div>{detalheUsr.nomcom || detalheUsr.desusu || '—'}</div>
-                <div className="text-muted-foreground">Tipo</div>
-                <div>{detalheUsr.tipcol ?? '—'}</div>
-                <div className="text-muted-foreground">Empresa</div>
-                <div>{detalheUsr.empcol ?? '—'}</div>
-                <div className="text-muted-foreground">Filial</div>
-                <div>{detalheUsr.filcol ?? '—'}</div>
-              </div>
+              {detalheErro && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Falha ao carregar detalhes</AlertTitle>
+                  <AlertDescription>{detalheErro}</AlertDescription>
+                </Alert>
+              )}
+              {detalheUsr ? (
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="text-muted-foreground">Código</div>
+                  <div className="font-mono">{String(detalheUsr.codusu ?? '—')}</div>
+                  <div className="text-muted-foreground">Login</div>
+                  <div className="font-medium">{detalheUsr.nomusu || '—'}</div>
+                  <div className="text-muted-foreground">Nome completo</div>
+                  <div>{detalheUsr.nomcom || detalheUsr.desusu || '—'}</div>
+                  <div className="text-muted-foreground">Tipo</div>
+                  <div>{detalheUsr.tipcol != null ? String(detalheUsr.tipcol) : '—'}</div>
+                  <div className="text-muted-foreground">Empresa</div>
+                  <div>{detalheUsr.empcol != null ? String(detalheUsr.empcol) : '—'}</div>
+                  <div className="text-muted-foreground">Filial</div>
+                  <div>{detalheUsr.filcol != null ? String(detalheUsr.filcol) : '—'}</div>
+                </div>
+              ) : !detalheErro ? (
+                <p className="text-xs text-muted-foreground">Sem dados do usuário.</p>
+              ) : null}
               <div>
                 <h4 className="font-semibold text-sm mb-2">Resumo de acessos</h4>
-                {detalheResumo?.tabelas?.length ? (
+                {Array.isArray(detalheResumo?.tabelas) && detalheResumo!.tabelas.length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -290,10 +312,10 @@ export function SguUsuariosTab() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {detalheResumo.tabelas.map((t) => (
-                        <TableRow key={t.tabela}>
-                          <TableCell className="font-mono">{t.tabela}</TableCell>
-                          <TableCell className="text-right">{t.qtd}</TableCell>
+                      {detalheResumo!.tabelas.map((t, i) => (
+                        <TableRow key={`${t?.tabela ?? 'tab'}-${i}`}>
+                          <TableCell className="font-mono">{String(t?.tabela ?? '—')}</TableCell>
+                          <TableCell className="text-right">{Number(t?.qtd ?? 0)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -303,7 +325,7 @@ export function SguUsuariosTab() {
                 )}
               </div>
             </div>
-          ) : null}
+          )}
         </SheetContent>
       </Sheet>
     </div>
