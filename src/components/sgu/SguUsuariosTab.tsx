@@ -168,6 +168,7 @@ export function SguUsuariosTab() {
                             <Button
                               size="sm"
                               variant="outline"
+                              disabled={!codValido}
                               onClick={() => handleVerDetalhes(u.codusu)}
                             >
                               <Eye className="h-3 w-3" /> Detalhes
@@ -175,6 +176,7 @@ export function SguUsuariosTab() {
                             <Button
                               size="sm"
                               variant={usuarioOrigem?.codusu === u.codusu ? 'default' : 'outline'}
+                              disabled={!codValido}
                               onClick={() => {
                                 setUsuarioOrigem(u);
                                 toast.success(`Origem: ${u.codusu} - ${u.nomusu}`);
@@ -185,6 +187,7 @@ export function SguUsuariosTab() {
                             <Button
                               size="sm"
                               variant={usuarioDestino?.codusu === u.codusu ? 'default' : 'outline'}
+                              disabled={!codValido}
                               onClick={() => {
                                 setUsuarioDestino(u);
                                 toast.success(`Destino: ${u.codusu} - ${u.nomusu}`);
