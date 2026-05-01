@@ -518,6 +518,27 @@ export default function MonitorUsuariosSeniorPage() {
         onCompleted={load}
       />
 
+      <Dialog
+        open={rulesConfigOpen}
+        onOpenChange={(o) => {
+          setRulesConfigOpen(o);
+          if (!o) reloadRules();
+        }}
+      >
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              Regras de Desconexão Senior
+            </DialogTitle>
+            <DialogDescription>
+              Configure as regras e a whitelist usadas pelo botão "Aplicar regras agora".
+            </DialogDescription>
+          </DialogHeader>
+          <SeniorRulesSection />
+        </DialogContent>
+      </Dialog>
+
       {/* Preview do JSON cru — útil quando vem 200 OK mas a tabela parece vazia */}
       {connStatus.kind === 'online' && rawSamplePreview && (data.length === 0 || (import.meta as any).env?.DEV) && (
         <details className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
