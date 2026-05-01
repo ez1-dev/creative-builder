@@ -21,7 +21,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Users, Activity, Clock, LayoutGrid, Loader2, PowerOff, Link2Off } from 'lucide-react';
+import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -109,8 +109,23 @@ export default function MonitorUsuariosSeniorPage() {
   const [fUsuario, setFUsuario] = useState('');
   const [fComputador, setFComputador] = useState('');
   const [fModulo, setFModulo] = useState('');
-  const [fAplicativo, setFAplicativo] = useState('__all__');
+  const [fAplicativo, setFAplicativo] = useState('SAPIENS');
   const [rawSamplePreview, setRawSamplePreview] = useState<string | null>(null);
+  const [quickSearch, setQuickSearch] = useState('');
+
+  type SortKey = 'numsec' | 'usuario_senior' | 'modulo';
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(k); setSortDir('asc'); }
+  };
+  const SortIcon = ({ k }: { k: SortKey }) => {
+    if (sortKey !== k) return <ArrowUpDown className="ml-1 inline h-3 w-3 opacity-40" />;
+    return sortDir === 'asc'
+      ? <ArrowUp className="ml-1 inline h-3 w-3" />
+      : <ArrowDown className="ml-1 inline h-3 w-3" />;
+  };
 
   // modal
   const [target, setTarget] = useState<SessaoSenior | null>(null);
@@ -262,14 +277,33 @@ export default function MonitorUsuariosSeniorPage() {
         if (!m.includes(fModulo.toLowerCase())) return false;
       }
       if (fAplicativo && fAplicativo !== '__all__' && (s.aplicativo ?? '').toUpperCase() !== fAplicativo.toUpperCase()) return false;
+      if (quickSearch) {
+        const q = quickSearch.toLowerCase();
+        const haystack = [
+          s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
+          s.cod_modulo, s.modulo, s.instancia, s.tipo_aplicacao, s.mensagem_admin,
+        ].map((v) => String(v ?? '').toLowerCase()).join(' ');
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
-  }, [data, fUsuario, fComputador, fModulo, fAplicativo]);
+  }, [data, fUsuario, fComputador, fModulo, fAplicativo, quickSearch]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const sign = sortDir === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = (a as any)[sortKey] ?? '';
+      const bv = (b as any)[sortKey] ?? '';
+      if (sortKey === 'numsec') return (Number(av) - Number(bv)) * sign;
+      return String(av).localeCompare(String(bv), 'pt-BR') * sign;
+    });
+  }, [filtered, sortKey, sortDir]);
 
   const stats = useMemo(() => {
     const totalSessoes = filtered.length;
     const usuariosDistintos = new Set(filtered.map((s) => s.usuario_senior).filter(Boolean)).size;
-    const acimaDe4h = filtered.filter((s) => (s.minutos_conectado ?? 0) > 240).length;
+    const computadoresDistintos = new Set(filtered.map((s) => s.computador).filter(Boolean)).size;
     const porModulo: Record<string, number> = {};
     filtered.forEach((s) => {
       const k = s.modulo || String(s.cod_modulo ?? '—');
@@ -279,8 +313,26 @@ export default function MonitorUsuariosSeniorPage() {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([label, value]) => ({ label, value: String(value) }));
-    return { totalSessoes, usuariosDistintos, acimaDe4h, modulosTop: top, totalModulos: Object.keys(porModulo).length };
+    return { totalSessoes, usuariosDistintos, computadoresDistintos, modulosTop: top, totalModulos: Object.keys(porModulo).length };
   }, [filtered]);
+
+  const exportCsv = () => {
+    const headers = ['Sessão','Usuário Senior','Usuário Windows','Computador','Aplicativo',
+      'Cód. Módulo','Módulo','Conexão','Min.','Instância','Tipo Aplic.','Mensagem Admin'];
+    const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const rows = sorted.map((s) => [
+      s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
+      s.cod_modulo, s.modulo, s.data_hora_conexao, s.minutos_conectado,
+      s.instancia, s.tipo_aplicacao, s.mensagem_admin,
+    ].map(esc).join(';'));
+    const csv = '\uFEFF' + [headers.join(';'), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `usuarios-conectados-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   const openConfirm = (s: SessaoSenior) => {
     setTarget(s);
@@ -325,6 +377,10 @@ export default function MonitorUsuariosSeniorPage() {
                 {autoRefresh && <span className="ml-1 text-muted-foreground">({countdown}s)</span>}
               </Label>
             </div>
+            <Button size="sm" variant="outline" onClick={exportCsv} disabled={sorted.length === 0} className="gap-2">
+              <Download className="h-3.5 w-3.5" />
+              Exportar CSV
+            </Button>
             <Button size="sm" variant="outline" onClick={load} disabled={loading} className="gap-2">
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
@@ -386,10 +442,10 @@ export default function MonitorUsuariosSeniorPage() {
           details={stats.modulosTop}
         />
         <KPICard
-          title="Conectados > 4h"
-          value={stats.acimaDe4h}
-          icon={<Clock className="h-5 w-5" />}
-          variant={stats.acimaDe4h > 0 ? 'destructive' : 'default'}
+          title="Computadores Distintos"
+          value={stats.computadoresDistintos}
+          icon={<Monitor className="h-5 w-5" />}
+          variant="default"
         />
       </div>
 
@@ -426,17 +482,39 @@ export default function MonitorUsuariosSeniorPage() {
       {/* Tabela */}
       <Card>
         <CardContent className="p-0">
+          {/* Toolbar busca rápida */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+            <div className="text-xs text-muted-foreground">
+              {sorted.length} {sorted.length === 1 ? 'sessão' : 'sessões'}
+              {data.length !== sorted.length && ` (de ${data.length})`}
+            </div>
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={quickSearch}
+                onChange={(e) => setQuickSearch(e.target.value)}
+                placeholder="Buscar em todas as colunas..."
+                className="h-8 pl-7 text-xs"
+              />
+            </div>
+          </div>
           <div className="w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="whitespace-nowrap">Sessão</TableHead>
-                  <TableHead className="whitespace-nowrap">Usuário Senior</TableHead>
+                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('numsec')}>
+                    Sessão<SortIcon k="numsec" />
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('usuario_senior')}>
+                    Usuário Senior<SortIcon k="usuario_senior" />
+                  </TableHead>
                   <TableHead className="whitespace-nowrap">Usuário Windows</TableHead>
                   <TableHead className="whitespace-nowrap">Computador</TableHead>
                   <TableHead className="whitespace-nowrap">Aplicativo</TableHead>
                   <TableHead className="whitespace-nowrap">Cód. Mód.</TableHead>
-                  <TableHead className="whitespace-nowrap">Módulo</TableHead>
+                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('modulo')}>
+                    Módulo<SortIcon k="modulo" />
+                  </TableHead>
                   <TableHead className="whitespace-nowrap">Conexão</TableHead>
                   <TableHead className="whitespace-nowrap text-right">Min.</TableHead>
                   <TableHead className="whitespace-nowrap">Instância</TableHead>
@@ -452,7 +530,7 @@ export default function MonitorUsuariosSeniorPage() {
                       <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : filtered.length === 0 ? (
+                ) : sorted.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
                       {connStatus.kind === 'offline' || connStatus.kind === 'server_error' ? (
@@ -473,7 +551,7 @@ export default function MonitorUsuariosSeniorPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ) : filtered.map((s, i) => {
+                ) : sorted.map((s, i) => {
                   const min = s.minutos_conectado ?? 0;
                   const longa = min > 240;
                   const rowKey = s.numsec != null && s.numsec !== ''
