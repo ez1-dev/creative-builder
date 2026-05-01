@@ -1,183 +1,126 @@
+# Gestão SGU — Usuários ERP Senior
 
-## Objetivo
+Tela administrativa crítica para listar usuários do SGU, comparar permissões e duplicar parâmetros E099* com preview campo a campo e dupla confirmação. Toda a comunicação usa a API ERP externa (FastAPI/ngrok) já configurada em `app_settings.erp_api_url`, reaproveitando o `ApiClient` existente em `src/lib/api.ts` (que já trata `Authorization: Bearer`, `ngrok-skip-browser-warning`, 401, erros de rede e logging).
 
-Fechar o ciclo de log de navegação:
+## Arquivos a criar
 
-1. Entregar o **código pronto do módulo FastAPI** (`/api/navegacao/log` e `/api/navegacao/heartbeat`) para você colar no seu backend externo (ngrok). Esse arquivo não fica no repo Lovable — o FastAPI roda fora daqui.
-2. Ajustar o logger do frontend para usar o endpoint dedicado de heartbeat quando o FastAPI estiver online (hoje ele manda tudo em `/api/navegacao/log`).
+- `src/pages/GestaoSguUsuariosPage.tsx` — página principal com 4 abas (shadcn `Tabs`).
+- `src/lib/sguApi.ts` — wrapper tipado dos 6 endpoints SGU usando o `api` singleton.
+- `src/components/sgu/SguUsuariosTab.tsx` — Aba 1 (lista + busca + ações).
+- `src/components/sgu/SguCompararTab.tsx` — Aba 2 (origem/destino + comparação por tabela).
+- `src/components/sgu/SguPreviewCamposTab.tsx` — Aba 3 (preview campo a campo + filtros + KPIs).
+- `src/components/sgu/SguAplicarDuplicacaoTab.tsx` — Aba 4 (motivo + confirmação dupla + modal "CONFIGURAR").
+- `src/components/sgu/SguContext.tsx` — `SguProvider` com estado compartilhado entre abas: `usuarioOrigem`, `usuarioDestino`, `previewResultado`, `mostrarCamposIguais`, `tabelasSelecionadas`.
 
-O frontend já está integrado: dispara `ABRIU_TELA` / `TROCOU_TELA` ao navegar e `HEARTBEAT` a cada 60s, com Bearer token e fallback para a edge function. Só precisa do split do heartbeat.
+## Arquivos a editar
 
----
+- `src/App.tsx` — registrar rota `/gestao-sgu-usuarios` dentro de `<AppLayout />` envolvida por `<ProtectedRoute path="/gestao-sgu-usuarios">` e pelo `SguProvider`.
+- `src/components/AppSidebar.tsx` — adicionar item "Gestão SGU" (ícone `ShieldCheck` ou `UserCog`) no array `modules`.
+- `src/lib/screenCatalog.ts` — registrar `'/gestao-sgu-usuarios': { codigo: 'SGU_USR', nome: 'Gestão SGU - Usuários ERP Senior' }`.
 
-## 1. Frontend (no repo Lovable)
+## Login e tokens
 
-### `src/lib/navegacaoLogger.ts`
-- Adicionar parâmetro de rota no `tryFastApi(payload, endpoint)`.
-- Em `postLog`, usar `/api/navegacao/heartbeat` quando `payload.acao === 'HEARTBEAT'`, senão `/api/navegacao/log`.
-- A edge function `navegacao-log` continua recebendo todos os tipos no fallback (já trata `HEARTBEAT` no enum).
-- Sem mudança de assinatura nas funções `logAbriuTela` / `logHeartbeat` etc.
+- O `ApiClient` em `src/lib/api.ts` já implementa `login(usuario, senha)` chamando `POST /login?usuario=...&senha=...` (query string, não FormData) e armazenando `access_token` + `usuario` em localStorage. **Vou reutilizar esse fluxo** — ele já está alinhado ao formato exigido (usuario/senha, Bearer token).
+- Em `sguApi.ts`, antes de cada chamada, se `api.getToken()` for nulo, abre um diálogo de re-login (ou direciona para `/login`). Em 401, limpa token via `api.logout()` e tenta uma única vez; se falhar de novo, mostra "Token expirado ou inválido."
+- Não enviar senha em nenhum body além do `/login`.
 
-Nada muda em `UserTrackingProvider.tsx`, `userTracking.ts`, banco, RLS, ou edge function.
+## Endpoints (em `sguApi.ts`)
 
----
-
-## 2. Backend FastAPI (entregue como snippet, você cola no seu projeto externo)
-
-Arquivo sugerido: `app/routers/navegacao.py`
-
-```python
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import os, httpx, jwt
-
-router = APIRouter(prefix="/api/navegacao", tags=["navegacao"])
-
-SUPABASE_URL = os.environ["SUPABASE_URL"]
-SUPABASE_SERVICE_ROLE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
-SUPABASE_JWT_SECRET = os.environ["SUPABASE_JWT_SECRET"]  # do projeto Supabase
-
-class NavegacaoIn(BaseModel):
-    sistema: str = "ERP_WEB"
-    cod_tela: str
-    nome_tela: str
-    acao: str  # ABRIU_TELA | TROCOU_TELA | FECHOU_TELA | HEARTBEAT
-    path_url: Optional[str] = None
-    observacao: Optional[str] = None
-    session_id: Optional[str] = None
-    computador: Optional[str] = None
-    origem_evento: str = "ERP_WEB"
-    detalhes: Optional[Dict[str, Any]] = None
-
-def _decode_user(authorization: Optional[str]) -> Dict[str, Any]:
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(401, "Missing bearer token")
-    token = authorization.split(" ", 1)[1]
-    try:
-        # Supabase assina com HS256 + jwt secret do projeto
-        claims = jwt.decode(token, SUPABASE_JWT_SECRET, algorithms=["HS256"], audience="authenticated")
-    except jwt.PyJWTError as e:
-        raise HTTPException(401, f"Invalid token: {e}")
-    return claims
-
-async def _insert_log(row: Dict[str, Any]) -> None:
-    headers = {
-        "apikey": SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal",
-    }
-    url = f"{SUPABASE_URL}/rest/v1/usu_log_navegacao_erp"
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        r = await client.post(url, json=row, headers=headers)
-        if r.status_code >= 300:
-            raise HTTPException(502, f"Supabase insert failed: {r.status_code} {r.text}")
-
-def _row_from_payload(
-    payload: NavegacaoIn,
-    claims: Dict[str, Any],
-    request: Request,
-    user_agent: Optional[str],
-    forced_acao: Optional[str] = None,
-) -> Dict[str, Any]:
-    user_id = claims.get("sub")
-    email = claims.get("email")
-    # IP: respeita proxy/ngrok
-    xff = request.headers.get("x-forwarded-for")
-    ip = (xff.split(",")[0].strip() if xff else (request.client.host if request.client else None))
-    return {
-        "user_id": user_id,
-        "user_email": email,
-        "sistema": payload.sistema,
-        "tela_codigo": payload.cod_tela,
-        "tela_nome": payload.nome_tela,
-        "acao": forced_acao or payload.acao,
-        "path_url": payload.path_url,
-        "observacao": payload.observacao,
-        "session_id": payload.session_id,
-        "computador": payload.computador,
-        "user_agent": user_agent,
-        "ip": ip,
-        "origem_evento": payload.origem_evento or "ERP_WEB",
-        "detalhes": payload.detalhes or {},
-    }
-
-@router.post("/log")
-async def log_navegacao(
-    payload: NavegacaoIn,
-    request: Request,
-    authorization: Optional[str] = Header(None),
-    user_agent: Optional[str] = Header(None),
-):
-    claims = _decode_user(authorization)
-    await _insert_log(_row_from_payload(payload, claims, request, user_agent))
-    return {"ok": True}
-
-@router.post("/heartbeat")
-async def heartbeat_navegacao(
-    payload: NavegacaoIn,
-    request: Request,
-    authorization: Optional[str] = Header(None),
-    user_agent: Optional[str] = Header(None),
-):
-    claims = _decode_user(authorization)
-    # força acao=HEARTBEAT independentemente do que vier no body
-    await _insert_log(_row_from_payload(payload, claims, request, user_agent, forced_acao="HEARTBEAT"))
-    return {"ok": True}
+```
+GET  /api/sgu/usuarios?filtro={texto}
+GET  /api/sgu/usuarios/{codusu}
+GET  /api/sgu/usuarios/{codusu}/resumo-acessos
+POST /api/sgu/usuarios/comparar              { usuario_origem, usuario_destino }
+POST /api/sgu/usuarios/duplicar-preview-campos { usuario_origem, usuario_destino, tabelas[], mostrar_campos_iguais }
+POST /api/sgu/usuarios/duplicar-parametros    { usuario_origem, usuario_destino, motivo, confirmar, tabelas[] }
 ```
 
-Em `app/main.py`:
-```python
-from app.routers import navegacao
-app.include_router(navegacao.router)
+Constante exportada `TABELAS_E099 = ['E099USU','E099CPR','E099FIN','E099GCO','E099UCP','E099UDE','E099USE','E099UVE']`.
+
+## Aba 1 — Usuários
+
+- Input de busca + botão "Pesquisar" → `getUsuarios(filtro)`.
+- Tabela shadcn com colunas: Código, Nome, Tipo colab., Empresa, Filial, R910, R999, Qtd E099USU, Ações.
+- Badges destrutivos (`variant="destructive"`) para `existe_r910 = 0` ("Sem R910") e `existe_r999 = 0` ("Sem R999").
+- Linha com `qtd_empresas_e099usu = 0` mostra ícone `AlertTriangle` + tooltip "Usuário sem parametrização no Gestão Empresarial".
+- Ações: botões "Ver detalhes" (drawer com `getUsuario` + `getResumoAcessos`), "Usar como origem", "Usar como destino" — atualizam `SguContext`.
+- Paginação local (50 por página) usando `PaginationControl` existente.
+
+## Aba 2 — Comparar usuários
+
+- Dois cards mostrando origem/destino selecionados no contexto (ou aviso "Selecione na aba Usuários").
+- Botão "Comparar" → `compararUsuarios(origem, destino)`.
+- Tabela: Tabela | Qtd origem | Qtd destino | Status (Badge):
+  - igual → `secondary` "Quantidade igual"
+  - origem > destino → `destructive` "Destino incompleto"
+  - origem < destino → `outline` amarelo "Destino tem registros extras"
+- `<Alert>` fixo: "Quantidade igual não significa permissão igual. Use o Preview por Campo para validar diferenças internas."
+
+## Aba 3 — Preview por campo
+
+- Botão "Gerar preview por campo", checkbox "Mostrar campos iguais" → `duplicarPreviewCampos(...)` salva `previewResultado` no contexto.
+- 4 KPI cards (componente `KPICard` existente): Total diferenças, Alterações planejadas (ALTERAR), Campos preservados (MANTER), Registros a inserir (INSERIR).
+- Filtros (Selects + Input): Tabela, Empresa, Campo, Ação, Buscar texto.
+- Tabela: Tabela, Empresa, Campo, Valor origem, Valor destino, Ação (Badge colorido), Motivo.
+- Cores das ações via classes do design system:
+  - ALTERAR → `bg-warning text-warning-foreground` (amarelo/laranja)
+  - INSERIR → `bg-info text-info-foreground` (azul)
+  - MANTER / IGNORAR → `bg-muted text-muted-foreground` (cinza)
+  - Erro → `destructive`
+- Campos preservados de E099USU exibem motivo "Campo preservado do usuário destino."
+- `<Alert>` fixo no topo: "A duplicação não altera senha, login, bloqueio, nome, cadastro base R910USU/R999USU nem históricos R999. Apenas parâmetros E099* serão considerados."
+
+## Aba 4 — Aplicar duplicação
+
+- Botão "Aplicar duplicação" só habilita se: origem ✓, destino ✓, `previewResultado` existe, `total_diferencas > 0`, motivo preenchido (mínimo 10 chars), checkbox marcado.
+- Resumos origem/destino + lista de tabelas afetadas.
+- `Textarea` "Motivo da duplicação" (obrigatório).
+- `Checkbox` "Confirmo que revisei o preview e desejo aplicar os parâmetros do usuário origem no destino."
+- Ao clicar Aplicar → `<AlertDialog>` exigindo digitar "CONFIRMAR" (case-sensitive) num input para liberar o botão de submit.
+- Submete `duplicarParametros({ ..., confirmar: true, tabelas: TABELAS_E099 })`.
+- Sucesso: toast verde "Parâmetros SGU duplicados com sucesso. Senha, login, bloqueio e cadastro base não foram alterados." + reexecuta `compararUsuarios` e `duplicarPreviewCampos`.
+
+## Aba 5 — Logs / Auditoria
+
+Placeholder com `<Alert>` "Endpoint de auditoria ainda não publicado." Mantém estrutura pronta para futura ativação.
+
+## Tratamento de erros (centralizado em `sguApi.ts`)
+
+Wrapper que mapeia `err.statusCode`:
+
+| Status | Mensagem (toast.error) |
+|---|---|
+| 401 | logout + 1 retry; se falhar: "Token expirado ou inválido." |
+| 403 | "Usuário sem permissão para administrar SGU." |
+| 404 | "Endpoint SGU ainda não publicado no backend." |
+| 422 | mensagem `err.message` (já formatada pelo ApiClient) |
+| 500 | "Erro interno do backend SGU: " + detalhe |
+| `isNetworkError` (status 0) | "Backend ERP/ngrok offline. Verifique se a API está ativa." |
+
+Toda chamada loga no console: `console.info('[SGU]', { url, method, status, response, ts: new Date().toISOString() })`.
+
+## Permissão de acesso
+
+- `<ProtectedRoute path="/gestao-sgu-usuarios">` já cobre o fluxo padrão: admin tem acesso total; perfis comuns precisam ter `/gestao-sgu-usuarios` liberado em `useUserPermissions`. O administrador concede via tela existente de Perfis de Acesso.
+
+## Design
+
+- shadcn `Tabs`, `Card`, `Table`, `Badge`, `Alert`, `AlertDialog`, `Select`, `Checkbox`, `Textarea`, `Input`, `Button`.
+- Tokens semânticos do design system (`bg-primary`, `bg-warning`, `bg-info`, `text-destructive`, `bg-muted`) — sem cores hardcoded.
+- Layout: `PageHeader` no topo + KPIs + abas + tabelas paginadas.
+
+## Estrutura de fluxo
+
+```text
+[Aba 1 Usuários] --selecionar origem/destino--> [SguContext]
+                                                     |
+                                                     v
+[Aba 2 Comparar] -- compararUsuarios --> tabela quantidades
+                                                     |
+                                                     v
+[Aba 3 Preview]  -- duplicarPreviewCampos --> previewResultado (contexto)
+                                                     |
+                                                     v
+[Aba 4 Aplicar] (gates: origem, destino, preview, motivo, checkbox, modal CONFIRMAR)
+                 -- duplicarParametros --> sucesso → recarrega Aba 2 + Aba 3
 ```
-
-Variáveis de ambiente necessárias no FastAPI:
-- `SUPABASE_URL` — `https://cpgyhjqufxeweyswosuw.supabase.co`
-- `SUPABASE_SERVICE_ROLE_KEY` — service role do projeto (NUNCA exposto no frontend; usado só dentro do FastAPI)
-- `SUPABASE_JWT_SECRET` — JWT secret do projeto (usado para validar o token Bearer do usuário)
-
-CORS já liberado para preview Lovable + header `ngrok-skip-browser-warning` (regra do projeto), nada novo.
-
-### Por que validar JWT no FastAPI
-O frontend manda `Authorization: Bearer <access_token Supabase>` (já é o que o `api` client faz). O FastAPI:
-- decodifica o JWT com `SUPABASE_JWT_SECRET` para extrair `sub` (user_id) e `email`;
-- usa a service role só para inserir na tabela com user_id já validado;
-- nunca recebe senha;
-- nunca devolve service role para o cliente.
-
----
-
-## Detalhes técnicos
-
-### Tabela e enum (já existem)
-- `public.usu_log_navegacao_erp` — colunas: `user_id`, `user_email`, `erp_user`, `sistema`, `tela_codigo`, `tela_nome`, `acao` (enum `navegacao_acao`), `path_url`, `observacao`, `session_id`, `computador`, `user_agent`, `ip`, `origem_evento`, `detalhes`, `created_at`.
-- Enum `navegacao_acao` já tem `ABRIU_TELA`, `TROCOU_TELA`, `FECHOU_TELA`, `HEARTBEAT`, mais os antigos (`entrar`, `sair`, `click`, `erro`).
-- RLS permite admin ler tudo, usuário lê apenas o próprio. Insert via service role bypassa RLS sem expor nada.
-
-### Sticky channel (lógica atual)
-O logger lembra qual canal entregou o último log (FastAPI ou edge) por 60s, evitando bater no canal morto a cada navegação. Continua valendo após o split — mesmo sticky para os dois endpoints.
-
-### Formato data/hora e IP
-- IP: `X-Forwarded-For` primeiro (ngrok injeta), `request.client.host` como fallback.
-- `created_at` é preenchido pelo default da tabela (`now()`), não precisa enviar.
-
-### Nada muda na edge function
-A edge `navegacao-log` (Lovable Cloud) continua sendo o fallback único para os dois tipos. Mantém compatibilidade caso o FastAPI caia.
-
----
-
-## Arquivos
-
-**Modificado no repo:**
-- `src/lib/navegacaoLogger.ts` — split de endpoint por `acao`.
-
-**Entregue como snippet (você cola no seu FastAPI externo):**
-- `app/routers/navegacao.py`
-- 1 linha em `app/main.py` para `include_router`.
-
-**Sem mudança:**
-- Banco / migrations / RLS
-- Edge function `navegacao-log`
-- `UserTrackingProvider.tsx`, `userTracking.ts`, `MonitorNavegacaoSection.tsx`
