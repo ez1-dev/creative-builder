@@ -47,27 +47,37 @@ export function SguUsuariosTab() {
     }
   };
 
-  const handleVerDetalhes = async (codusu: number) => {
-    if (!Number.isFinite(Number(codusu))) {
+  const codusuValido = (u: SguUsuario) => Number.isFinite(Number(u.codusu));
+
+  const handleVerDetalhes = async (u: SguUsuario) => {
+    if (!codusuValido(u)) {
       toast.error('Código de usuário inválido neste registro. O backend não retornou um codusu numérico.');
       return;
     }
+    const cod = Number(u.codusu);
     setDetalheOpen(true);
     setDetalheLoading(true);
     setDetalheUsr(null);
     setDetalheResumo(null);
+    setDetalheErro(null);
     try {
-      const [u, r] = await Promise.all([getUsuario(codusu), getResumoAcessos(codusu)]);
-      setDetalheUsr(u);
-      setDetalheResumo(r);
-    } catch {
-      // erro já tratado
+      const [resU, resR] = await Promise.allSettled([getUsuario(cod), getResumoAcessos(cod)]);
+      // eslint-disable-next-line no-console
+      console.info('[SGU] detalhes payload bruto', { resU, resR });
+      if (resU.status === 'fulfilled') setDetalheUsr(resU.value);
+      if (resR.status === 'fulfilled') setDetalheResumo(resR.value);
+      const firstErr = [resU, resR].find((r) => r.status === 'rejected') as
+        | PromiseRejectedResult
+        | undefined;
+      if (firstErr) {
+        setDetalheErro(firstErr.reason?.message ?? 'Falha ao carregar detalhes do usuário.');
+      }
+    } catch (err: any) {
+      setDetalheErro(err?.message ?? 'Falha inesperada ao carregar detalhes.');
     } finally {
       setDetalheLoading(false);
     }
   };
-
-  const codusuValido = (u: SguUsuario) => Number.isFinite(Number(u.codusu));
 
   const totalPaginas = Math.max(1, Math.ceil(usuarios.length / PAGE_SIZE));
   const inicio = (pagina - 1) * PAGE_SIZE;
