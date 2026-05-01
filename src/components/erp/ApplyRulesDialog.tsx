@@ -321,7 +321,7 @@ export function ApplyRulesDialog({
             <Button
               variant="destructive"
               onClick={start}
-              disabled={running || candidatos.length === 0 || regrasAtivas.length === 0}
+              disabled={running || candidatos.length === 0 || selectedKeys.size === 0}
               className="gap-1"
             >
               {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <PowerOff className="h-4 w-4" />}
