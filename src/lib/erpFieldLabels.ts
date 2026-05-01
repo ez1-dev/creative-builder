@@ -162,6 +162,24 @@ const BY_TABLE: Record<string, FieldMap> = {
     INDPAD: 'Empresa Padrão',
     INDACE: 'Indicador de Acesso',
     NIVACE: 'Nível de Acesso',
+    TIPCOL: 'Tipo de Colaborador',
+    NUMCAD: 'Cadastro do Colaborador',
+    EMPATI: 'Empresa de Atividade',
+    FILATI: 'Filial de Atividade',
+    PSTATI: 'Posto de Atividade',
+    INDADM: 'Indicador Administrador',
+    INDMAS: 'Usuário Mestre',
+    INDLOG: 'Permite Login',
+    INDWEB: 'Acesso Web',
+    INDAPP: 'Acesso App',
+    INDREL: 'Acesso a Relatórios',
+    INDEXP: 'Permite Exportação',
+    DATEXP: 'Data de Expiração',
+    DIAEXP: 'Dias para Expiração de Senha',
+    INDSEN: 'Troca de Senha Obrigatória',
+    TENINV: 'Tentativas Inválidas',
+    LIBHOR: 'Libera fora de Horário',
+    IDIUSU: 'Idioma do Usuário',
   },
 
   // ===== E099CPR — Compradores autorizados =====
@@ -170,6 +188,10 @@ const BY_TABLE: Record<string, FieldMap> = {
     NUMEMP: 'Número da Empresa',
     CODCPR: 'Comprador Autorizado',
     INDPAD: 'Comprador Padrão',
+    INDACE: 'Indicador de Acesso',
+    INDAPR: 'Aprovador',
+    LIMAPR: 'Limite de Aprovação',
+    MOEAPR: 'Moeda do Limite',
   },
 
   // ===== E099FIN — Restrições financeiras =====
@@ -182,7 +204,15 @@ const BY_TABLE: Record<string, FieldMap> = {
     CODCCU: 'Centro de Custo',
     CODPRJ: 'Projeto',
     CODESP: 'Espécie',
+    CODFOR: 'Fornecedor',
+    CODCLI: 'Cliente',
+    CODCFO: 'Cliente / Fornecedor',
+    CODBAN: 'Banco',
+    CODCCO: 'Conta Corrente',
+    CODFCO: 'Filial da Conta',
     INDACE: 'Indicador de Acesso',
+    INDPAD: 'Padrão',
+    LIMVAL: 'Limite de Valor',
   },
 
   // ===== E099GCO — Grupos de contas =====
@@ -191,7 +221,10 @@ const BY_TABLE: Record<string, FieldMap> = {
     NUMEMP: 'Número da Empresa',
     CODGRP: 'Código do Grupo',
     CODCCU: 'Centro de Custo',
+    CODPRJ: 'Projeto',
     INDACE: 'Indicador de Acesso',
+    INDPAD: 'Grupo Padrão',
+    NIVPER: 'Nível de Permissão',
   },
 
   // ===== E099UCP — Usuário × Centro de Custo / Projeto =====
@@ -202,6 +235,11 @@ const BY_TABLE: Record<string, FieldMap> = {
     CODPRJ: 'Projeto',
     INDACE: 'Indicador de Acesso',
     INDPAD: 'Centro de Custo Padrão',
+    NIVPER: 'Nível de Permissão',
+    DATINI: 'Data Inicial',
+    DATFIM: 'Data Final',
+    INDLAN: 'Permite Lançamento',
+    INDCON: 'Permite Consulta',
   },
 
   // ===== E099UDE — Usuário × Departamento =====
@@ -211,6 +249,10 @@ const BY_TABLE: Record<string, FieldMap> = {
     CODDEP: 'Departamento',
     CODSEC: 'Seção',
     INDACE: 'Indicador de Acesso',
+    INDPAD: 'Departamento Padrão',
+    NIVPER: 'Nível de Permissão',
+    DATINI: 'Data Inicial',
+    DATFIM: 'Data Final',
   },
 
   // ===== E099USE — Usuário × Seção / Empresa =====
@@ -220,6 +262,11 @@ const BY_TABLE: Record<string, FieldMap> = {
     NUMFIL: 'Número da Filial',
     CODSEC: 'Seção',
     INDACE: 'Indicador de Acesso',
+    INDPAD: 'Empresa Padrão',
+    EMPATI: 'Empresa de Atividade',
+    FILATI: 'Filial de Atividade',
+    DATINI: 'Data Inicial',
+    DATFIM: 'Data Final',
   },
 
   // ===== E099UVE — Usuário × Vendedor =====
@@ -228,6 +275,10 @@ const BY_TABLE: Record<string, FieldMap> = {
     NUMEMP: 'Número da Empresa',
     CODVEN: 'Vendedor Autorizado',
     INDPAD: 'Vendedor Padrão',
+    INDACE: 'Indicador de Acesso',
+    LIMVEN: 'Limite de Venda',
+    DESMAX: 'Desconto Máximo (%)',
+    MOEVEN: 'Moeda da Venda',
   },
 };
 
