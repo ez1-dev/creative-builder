@@ -371,6 +371,18 @@ export function SguUsuariosTab() {
 
                         <div className="text-muted-foreground">Filial (filcol)</div>
                         <div>{safeText(detalheUsr.filcol)}</div>
+
+                        <div className="text-muted-foreground">Situação (situacao)</div>
+                        <div>{safeText(detalheUsr.situacao)}</div>
+
+                        <div className="text-muted-foreground">Status (status_usuario)</div>
+                        <div><StatusBadge status={detalheUsr.status_usuario} /></div>
+
+                        <div className="text-muted-foreground">Ativo (ativo)</div>
+                        <div>{detalheUsr.ativo ? 'Sim' : 'Não'}</div>
+
+                        <div className="text-muted-foreground">SGU habilitado</div>
+                        <div>{detalheUsr.sgu_habilitado ? 'Sim' : 'Não'}</div>
                       </div>
 
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -383,6 +395,11 @@ export function SguUsuariosTab() {
                         <Badge variant={(detalheUsr.qtd_empresas_e099usu ?? 0) > 0 ? 'secondary' : 'destructive'}>
                           E099USU: {detalheUsr.qtd_empresas_e099usu ?? 0}
                         </Badge>
+                        {detalheUsr.sgu_bloqueado ? (
+                          <Badge variant="destructive" className="inline-flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> Bloqueado
+                          </Badge>
+                        ) : null}
                       </div>
                     </>
                   );
