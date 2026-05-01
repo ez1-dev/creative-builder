@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users, ShieldCheck,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -39,6 +39,7 @@ const modules = [
   { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
   { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
   { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
+  { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
