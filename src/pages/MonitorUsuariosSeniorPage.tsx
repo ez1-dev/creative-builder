@@ -292,6 +292,24 @@ export default function MonitorUsuariosSeniorPage() {
         }
       />
 
+      {/* Status do backend */}
+      <BackendStatusCard
+        status={connStatus.kind === 'idle' && loading ? { kind: 'loading' } : connStatus}
+        apiUrl={apiUrl}
+        onTest={testHealth}
+        onChangeUrl={() => setUrlDialogOpen(true)}
+        onRetry={load}
+        testing={testing}
+        retrying={loading}
+      />
+
+      <UpdateApiUrlDialog
+        open={urlDialogOpen}
+        onOpenChange={setUrlDialogOpen}
+        currentUrl={apiUrl}
+        onSavedAndTest={onUrlSavedAndTest}
+      />
+
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KPICard
