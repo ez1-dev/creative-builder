@@ -198,6 +198,7 @@ export function SguPreviewCamposTab() {
                       <TableHead>Tabela</TableHead>
                       <TableHead>Empresa</TableHead>
                       <TableHead>Campo</TableHead>
+                      <TableHead>Descrição</TableHead>
                       <TableHead>Valor origem</TableHead>
                       <TableHead>Valor destino</TableHead>
                       <TableHead>Ação</TableHead>
@@ -207,7 +208,7 @@ export function SguPreviewCamposTab() {
                   <TableBody>
                     {filtradas.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
                           Nenhuma diferença para os filtros atuais.
                         </TableCell>
                       </TableRow>
@@ -217,6 +218,7 @@ export function SguPreviewCamposTab() {
                           <TableCell className="font-mono text-xs">{d.tabela}</TableCell>
                           <TableCell>{d.empresa ?? '—'}</TableCell>
                           <TableCell className="font-mono text-xs">{d.campo}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{getFieldLabel(d.tabela, d.campo)}</TableCell>
                           <TableCell>{fmt(d.valor_origem)}</TableCell>
                           <TableCell>{fmt(d.valor_destino)}</TableCell>
                           <TableCell>
