@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, AlertTriangle, Eye, ArrowRightFromLine, ArrowLeftToLine, Loader2 } from 'lucide-react';
+import { Search, AlertTriangle, Eye, ArrowRightFromLine, ArrowLeftToLine, Loader2, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Sheet,
   SheetContent,
@@ -16,14 +17,32 @@ import {
 } from '@/components/ui/sheet';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { useSgu } from './SguContext';
-import { getResumoAcessos, getUsuario, getUsuarios, type SguUsuario, type ResumoAcessos } from '@/lib/sguApi';
+import {
+  getResumoAcessos,
+  getUsuario,
+  getUsuarios,
+  type SguUsuario,
+  type ResumoAcessos,
+  type SguStatusFiltro,
+} from '@/lib/sguApi';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 50;
 
+function StatusBadge({ status }: { status?: string | null }) {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'ATIVO')
+    return <Badge className="bg-success text-success-foreground hover:bg-success/90">Ativo</Badge>;
+  if (s === 'INATIVO') return <Badge variant="destructive">Inativo</Badge>;
+  if (s === 'SEM_PARAMETRIZACAO')
+    return <Badge variant="secondary">Sem parametrização</Badge>;
+  return <span className="text-muted-foreground text-xs">—</span>;
+}
+
 export function SguUsuariosTab() {
   const { setUsuarioOrigem, setUsuarioDestino, usuarioOrigem, usuarioDestino } = useSgu();
   const [filtro, setFiltro] = useState('');
+  const [statusFiltro, setStatusFiltro] = useState<SguStatusFiltro>('TODOS');
   const [usuarios, setUsuarios] = useState<SguUsuario[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
@@ -34,16 +53,29 @@ export function SguUsuariosTab() {
   const [detalheLoading, setDetalheLoading] = useState(false);
   const [detalheErro, setDetalheErro] = useState<string | null>(null);
 
-  const handlePesquisar = async () => {
+  const handlePesquisar = async (statusOverride?: SguStatusFiltro) => {
+    const status = statusOverride ?? statusFiltro;
     setLoading(true);
     try {
-      const data = await getUsuarios(filtro);
-      setUsuarios(data);
+      const data = await getUsuarios(filtro, status);
+      // Filtro defensivo client-side caso backend ainda não suporte ?status=
+      const filtrado =
+        status === 'TODOS'
+          ? data
+          : data.filter((u) => (u.status_usuario ?? '').toString().toUpperCase() === status);
+      setUsuarios(filtrado);
       setPagina(1);
     } catch {
       // toast já disparado em sguApi
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStatusChange = (next: SguStatusFiltro) => {
+    setStatusFiltro(next);
+    if (usuarios.length > 0 || filtro.trim().length > 0) {
+      void handlePesquisar(next);
     }
   };
 
@@ -106,7 +138,18 @@ export function SguUsuariosTab() {
                 className="pl-8"
               />
             </div>
-            <Button onClick={handlePesquisar} disabled={loading}>
+            <Select value={statusFiltro} onValueChange={(v) => handleStatusChange(v as SguStatusFiltro)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos os status</SelectItem>
+                <SelectItem value="ATIVO">Ativos</SelectItem>
+                <SelectItem value="INATIVO">Inativos</SelectItem>
+                <SelectItem value="SEM_PARAMETRIZACAO">Sem parametrização</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => handlePesquisar()} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               Pesquisar
             </Button>
@@ -137,6 +180,7 @@ export function SguUsuariosTab() {
                   <TableHead>Código</TableHead>
                   <TableHead>Login</TableHead>
                   <TableHead>Nome completo</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Empresa</TableHead>
                   <TableHead>Filial</TableHead>
@@ -149,7 +193,7 @@ export function SguUsuariosTab() {
               <TableBody>
                 {visiveis.length === 0 && !loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                       Pesquise para listar usuários SGU.
                     </TableCell>
                   </TableRow>
@@ -180,6 +224,19 @@ export function SguUsuariosTab() {
                         </TableCell>
                         <TableCell className="font-medium">{u.nomusu || '—'}</TableCell>
                         <TableCell>{u.nomcom || u.desusu || '—'}</TableCell>
+                        <TableCell>
+                          <div className="inline-flex items-center gap-1.5">
+                            <StatusBadge status={u.status_usuario} />
+                            {u.sgu_bloqueado ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Lock className="h-3.5 w-3.5 text-destructive" />
+                                </TooltipTrigger>
+                                <TooltipContent>Usuário SGU bloqueado</TooltipContent>
+                              </Tooltip>
+                            ) : null}
+                          </div>
+                        </TableCell>
                         <TableCell>{u.tipcol ?? '—'}</TableCell>
                         <TableCell>{u.empcol ?? '—'}</TableCell>
                         <TableCell>{u.filcol ?? '—'}</TableCell>
@@ -314,6 +371,18 @@ export function SguUsuariosTab() {
 
                         <div className="text-muted-foreground">Filial (filcol)</div>
                         <div>{safeText(detalheUsr.filcol)}</div>
+
+                        <div className="text-muted-foreground">Situação (situacao)</div>
+                        <div>{safeText(detalheUsr.situacao)}</div>
+
+                        <div className="text-muted-foreground">Status (status_usuario)</div>
+                        <div><StatusBadge status={detalheUsr.status_usuario} /></div>
+
+                        <div className="text-muted-foreground">Ativo (ativo)</div>
+                        <div>{detalheUsr.ativo ? 'Sim' : 'Não'}</div>
+
+                        <div className="text-muted-foreground">SGU habilitado</div>
+                        <div>{detalheUsr.sgu_habilitado ? 'Sim' : 'Não'}</div>
                       </div>
 
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -326,6 +395,11 @@ export function SguUsuariosTab() {
                         <Badge variant={(detalheUsr.qtd_empresas_e099usu ?? 0) > 0 ? 'secondary' : 'destructive'}>
                           E099USU: {detalheUsr.qtd_empresas_e099usu ?? 0}
                         </Badge>
+                        {detalheUsr.sgu_bloqueado ? (
+                          <Badge variant="destructive" className="inline-flex items-center gap-1">
+                            <Lock className="h-3 w-3" /> Bloqueado
+                          </Badge>
+                        ) : null}
                       </div>
                     </>
                   );

@@ -14,6 +14,9 @@ export const TABELAS_E099 = [
 
 export type TabelaE099 = typeof TABELAS_E099[number];
 
+export type SguStatusUsuario = 'ATIVO' | 'INATIVO' | 'SEM_PARAMETRIZACAO';
+export type SguStatusFiltro = 'TODOS' | SguStatusUsuario;
+
 export interface SguUsuario {
   codusu: number;
   nomusu: string;
@@ -25,6 +28,11 @@ export interface SguUsuario {
   existe_r910: 0 | 1;
   existe_r999: 0 | 1;
   qtd_empresas_e099usu: number;
+  status_usuario?: SguStatusUsuario | string | null;
+  situacao?: string | null;
+  ativo?: 0 | 1;
+  sgu_habilitado?: 0 | 1;
+  sgu_bloqueado?: 0 | 1;
   [k: string]: any;
 }
 
@@ -119,9 +127,15 @@ function normalizarUsuario(u: any): SguUsuario {
   const r910 = pickFirst(base, ['existe_r910', 'r910', 'tem_r910']);
   const r999 = pickFirst(base, ['existe_r999', 'r999', 'tem_r999']);
   const qtd = pickFirst(base, ['qtd_empresas_e099usu', 'qtd_e099usu', 'qtd_empresas', 'empresas_e099usu']);
+  const ativoRaw = pickFirst(base, ['ativo']);
+  const sguHab = pickFirst(base, ['sgu_habilitado', 'sguhab']);
+  const sguBloq = pickFirst(base, ['sgu_bloqueado', 'sgubloq', 'bloqueado']);
+  const statusRaw = pickFirst(base, ['status_usuario', 'status']);
 
   const safeStr = (v: any) =>
     v == null ? null : typeof v === 'object' ? null : v;
+  const toBin = (v: any): 0 | 1 =>
+    (v === true || v === 1 || v === '1' || v === 'S' || v === 's') ? 1 : 0;
 
   return {
     ...base,
@@ -132,9 +146,14 @@ function normalizarUsuario(u: any): SguUsuario {
     tipcol: safeStr(pickFirst(base, ['tipcol', 'tip_col', 'tipo'])),
     empcol: safeStr(pickFirst(base, ['empcol', 'emp_col', 'empresa', 'codemp'])),
     filcol: safeStr(pickFirst(base, ['filcol', 'fil_col', 'filial', 'codfil'])),
-    existe_r910: (r910 === true || r910 === 1 || r910 === '1' || r910 === 'S') ? 1 : 0,
-    existe_r999: (r999 === true || r999 === 1 || r999 === '1' || r999 === 'S') ? 1 : 0,
+    existe_r910: toBin(r910),
+    existe_r999: toBin(r999),
     qtd_empresas_e099usu: Number(qtd ?? 0) || 0,
+    situacao: safeStr(pickFirst(base, ['situacao', 'sit_cad', 'sitcad'])),
+    status_usuario: typeof statusRaw === 'string' ? statusRaw.toUpperCase() : (statusRaw ?? null),
+    ativo: toBin(ativoRaw),
+    sgu_habilitado: toBin(sguHab),
+    sgu_bloqueado: toBin(sguBloq),
   };
 }
 
@@ -196,11 +215,13 @@ export function ensureAuthenticated(): boolean {
   return true;
 }
 
-export async function getUsuarios(filtro: string): Promise<SguUsuario[]> {
+export async function getUsuarios(filtro: string, status?: SguStatusFiltro): Promise<SguUsuario[]> {
   const url = '/api/sgu/usuarios';
+  const params: Record<string, string> = { filtro };
+  if (status && status !== 'TODOS') params.status = status;
   return withRetryOn401(async () => {
-    const data = await api.get<any>(url, { filtro });
-    logCall('GET', `${url}?filtro=${filtro}`, 200, data);
+    const data = await api.get<any>(url, params);
+    logCall('GET', `${url}?${new URLSearchParams(params).toString()}`, 200, data);
     const lista = Array.isArray(data) ? data : data?.dados ?? data?.usuarios ?? [];
     if (lista.length > 0) {
       // eslint-disable-next-line no-console

@@ -1,76 +1,112 @@
-## Problema
+## Objetivo
 
-O painel "Detalhes do usuário" mostra `[object Object]` no campo **Código** e todos os outros campos como `—`. Isto significa que o objeto retornado por `GET /api/sgu/usuarios/{codusu}` não tem o mesmo formato plano da listagem; provavelmente vem aninhado, algo como:
+Refletir os novos campos do backend SGU (`situacao`, `status_usuario`, `ativo`, `sgu_habilitado`, `sgu_bloqueado`) na aba "Usuários" do módulo Gestão SGU, com badges semânticos, alerta de bloqueio e filtro por `status_usuario`.
 
-```json
-{ "usuario": { "codusu": 123, "nomusu": "fulano", ... }, "extras": ... }
+## Mudanças
+
+### 1. Tipo e normalização — `src/lib/sguApi.ts`
+
+Adicionar campos na interface `SguUsuario`:
+
+```ts
+status_usuario?: 'ATIVO' | 'INATIVO' | 'SEM_PARAMETRIZACAO' | string | null;
+situacao?: string | null;
+ativo?: 0 | 1 | boolean | null;
+sgu_habilitado?: 0 | 1 | boolean | null;
+sgu_bloqueado?: 0 | 1 | boolean | null;
 ```
 
-Em `normalizarUsuario`, a lista de candidatos do `codusu` inclui literalmente a chave `'usuario'`, então `pickFirst` retorna o **objeto** inteiro como valor do `codusu`. `Number(obj)` vira `NaN` → cai no fallback `codRaw` → React renderiza objeto → `[object Object]`. Como nenhum campo plano é encontrado no nível raiz, o resto fica `null`/`''`.
+Em `normalizarUsuario`, mapear (com `pickFirst`) e **preservar** o valor cru — sem inferir status localmente. Apenas:
+- Coagir `status_usuario` para upper-case quando string (`ATIVO`, `INATIVO`, `SEM_PARAMETRIZACAO`).
+- Coagir flags binárias para 0/1 (mesma lógica já usada para `existe_r910`).
 
-Detalhe extra: também não temos visibilidade do payload bruto desse endpoint (só vemos no console do navegador, não nos logs do agente).
+`getUsuarios(filtro, status?)` passa a aceitar segundo parâmetro opcional `status` que, quando diferente de `'TODOS'` e não vazio, é enviado como query param `?status=...` ao backend. O backend pode ignorar até implementar — o frontend filtra defensivamente em memória pelo campo `status_usuario` recebido como fallback.
 
-## Plano
+### 2. UI — `src/components/sgu/SguUsuariosTab.tsx`
 
-1. **Tornar `normalizarUsuario` robusto a payloads aninhados** em `src/lib/sguApi.ts`:
-   - Antes de mapear, detectar wrapper comum: se `u.usuario` for objeto, fazer merge `{ ...u.usuario, ...u }` (campos do nível superior têm prioridade) e usar como base.
-   - Aplicar o mesmo para `u.dados` e `u.data` quando forem objetos não-array.
-   - Remover `'usuario'` da lista de candidatos do `codusu` para evitar colisão com o wrapper.
-2. **Logar payload bruto** do `GET /api/sgu/usuarios/{codusu}` em `getUsuario` (igual ao que já existe em `getUsuarios`) para diagnóstico imediato no console quando o formato for diferente do esperado.
-3. **Defesa final no JSX** em `src/components/sgu/SguUsuariosTab.tsx`: se algum campo for objeto/array (após normalização), renderizar `JSON.stringify(...)` truncado em vez de deixar o React converter para `[object Object]`. Isso garante que nunca mais apareça aquele texto críptico — mostra o conteúdo real do bug ao usuário.
-4. **Garantir que a versão atual do JSX já entregue na conversa anterior está mesmo aplicada** (labels com `(nomusu)`, `(nomcom)`, chips R910/R999/E099USU). A imagem do usuário mostra labels antigos — pode ser cache do preview, mas vou conferir o arquivo e re-aplicar se necessário.
+**Filtro Status** (Select shadcn) ao lado do input de busca:
+
+- Opções: `TODOS` (default), `ATIVO`, `INATIVO`, `SEM_PARAMETRIZACAO`.
+- Estado novo `statusFiltro`.
+- `handlePesquisar` passa `statusFiltro` para `getUsuarios`.
+- Mudar a opção dispara nova pesquisa automaticamente (se já existir resultado).
+
+**Coluna "Status"** nova, antes da coluna R910:
+
+| `status_usuario`         | Badge                          |
+|--------------------------|--------------------------------|
+| `ATIVO`                  | verde — `bg-emerald-500 text-white hover:bg-emerald-600` |
+| `INATIVO`                | `variant="destructive"`        |
+| `SEM_PARAMETRIZACAO`     | cinza — `variant="secondary"`  |
+| outro/null               | `—` em `text-muted-foreground` |
+
+Como o design system é HSL e não temos token verde semântico ainda, vou criar um **token novo** `--success` em `src/index.css` (light + dark) e estendê-lo em `tailwind.config.ts` (`success: { DEFAULT, foreground }`). Assim a badge verde fica consistente com tema. A badge usa `className="bg-success text-success-foreground hover:bg-success/90"`.
+
+**Alerta de bloqueio**: dentro da célula Status, quando `sgu_bloqueado` for truthy (1/true), renderizar um ícone `Lock` em `text-destructive` ao lado da badge com `<Tooltip>` "Usuário SGU bloqueado".
+
+**Painel de detalhes (Sheet)**: adicionar quatro linhas na grade — `Situação (situacao)`, `Status (status_usuario)`, `Ativo (ativo)`, `SGU habilitado (sgu_habilitado)` — usando `safeText` já existente. Acrescentar um chip extra `Bloqueado` (destructive) quando `sgu_bloqueado` truthy, ao lado dos chips R910/R999/E099USU.
+
+### 3. Atualizar colSpan da row vazia
+
+A linha "Pesquise para listar..." passa de `colSpan={10}` para `colSpan={11}` (adição da coluna Status).
 
 ## Detalhes técnicos
 
-`normalizarUsuario` reescrito:
+`tailwind.config.ts` — adicionar dentro de `theme.extend.colors`:
 
 ```ts
-function normalizarUsuario(u: any): SguUsuario {
-  if (!u || typeof u !== 'object') return u as SguUsuario;
+success: {
+  DEFAULT: "hsl(var(--success))",
+  foreground: "hsl(var(--success-foreground))",
+},
+```
 
-  // Desembrulhar wrappers comuns: { usuario: {...} }, { dados: {...} }, { data: {...} }
-  let base: any = u;
-  for (const wrapper of ['usuario', 'dados', 'data']) {
-    const inner = u[wrapper];
-    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
-      base = { ...inner, ...u };  // top-level wins
-      break;
-    }
-  }
+`src/index.css`:
 
-  const codRaw = pickFirst(base, ['codusu', 'cod_usu', 'codigo', 'cod', 'id', 'usuario_codigo']);
-  const codNum = Number(codRaw);
-  // ... resto igual, usando `base` em vez de `u`
-  return {
-    ...base,
-    codusu: Number.isFinite(codNum) ? codNum : (typeof codRaw === 'object' ? null : codRaw),
-    // ...
-  };
+```css
+:root {
+  --success: 142 71% 38%;
+  --success-foreground: 0 0% 100%;
+}
+.dark {
+  --success: 142 71% 45%;
+  --success-foreground: 0 0% 100%;
 }
 ```
 
-Helper de render seguro no JSX:
+Helper de badge de status no componente:
 
 ```tsx
-const safeText = (v: any) =>
-  v == null || v === '' ? '—'
-  : typeof v === 'object' ? JSON.stringify(v).slice(0, 80)
-  : String(v);
+const StatusBadge = ({ status }: { status?: string | null }) => {
+  const s = (status ?? '').toUpperCase();
+  if (s === 'ATIVO')
+    return <Badge className="bg-success text-success-foreground hover:bg-success/90">Ativo</Badge>;
+  if (s === 'INATIVO') return <Badge variant="destructive">Inativo</Badge>;
+  if (s === 'SEM_PARAMETRIZACAO')
+    return <Badge variant="secondary">Sem parametrização</Badge>;
+  return <span className="text-muted-foreground">—</span>;
+};
 ```
 
-E aplicar nas linhas da grade de detalhes.
-
-Em `getUsuario`, adicionar:
+Filtro defensivo client-side (caso backend ainda não filtre):
 
 ```ts
-console.info('[SGU] payload bruto getUsuario', data, 'chaves:', Object.keys(data ?? {}));
+const data = await getUsuarios(filtro, statusFiltro);
+const filtrado = statusFiltro === 'TODOS'
+  ? data
+  : data.filter(u => (u.status_usuario ?? '').toUpperCase() === statusFiltro);
+setUsuarios(filtrado);
 ```
 
 ## Arquivos afetados
 
-- `src/lib/sguApi.ts` — `normalizarUsuario` (desembrulha wrappers) e `getUsuario` (log).
-- `src/components/sgu/SguUsuariosTab.tsx` — helper `safeText` aplicado na grade de detalhes; reconfirmar labels novos e chips.
+- `src/lib/sguApi.ts` — interface + `normalizarUsuario` + assinatura de `getUsuarios`.
+- `src/components/sgu/SguUsuariosTab.tsx` — filtro, coluna Status, badge, alerta bloqueado, painel detalhes.
+- `src/index.css` — tokens `--success` / `--success-foreground` (light + dark).
+- `tailwind.config.ts` — cor semântica `success`.
 
 ## Fora de escopo
 
-- Não alterar a tabela principal nem o backend. Quando virmos no console qual era o formato real, podemos especializar mais a normalização.
+- Não tocar no backend; apenas consumir os novos campos.
+- Não recalcular `ativo`/`inativo` no frontend — só ler `status_usuario`.
+- Não alterar comparação, preview, aplicar duplicação.
