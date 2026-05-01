@@ -215,11 +215,13 @@ export function ensureAuthenticated(): boolean {
   return true;
 }
 
-export async function getUsuarios(filtro: string): Promise<SguUsuario[]> {
+export async function getUsuarios(filtro: string, status?: SguStatusFiltro): Promise<SguUsuario[]> {
   const url = '/api/sgu/usuarios';
+  const params: Record<string, string> = { filtro };
+  if (status && status !== 'TODOS') params.status = status;
   return withRetryOn401(async () => {
-    const data = await api.get<any>(url, { filtro });
-    logCall('GET', `${url}?filtro=${filtro}`, 200, data);
+    const data = await api.get<any>(url, params);
+    logCall('GET', `${url}?${new URLSearchParams(params).toString()}`, 200, data);
     const lista = Array.isArray(data) ? data : data?.dados ?? data?.usuarios ?? [];
     if (lista.length > 0) {
       // eslint-disable-next-line no-console
