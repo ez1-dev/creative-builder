@@ -1,132 +1,105 @@
 ## Objetivo
 
-Criar a tabela `public.usu_log_navegacao_erp` para registrar **toda navegação dos usuários no ERP Web** (a cada troca de rota) e a view `public.vw_ultima_tela_usuario` com a última tela acessada por usuário. Em seguida, integrar o tracking automático no frontend.
+Trocar o tracking atual (insert direto no banco) por uma chamada **POST /api/navegacao/log** com fallback para edge function, adicionar **HEARTBEAT a cada 60s**, e criar uma **aba "Navegação ERP Web"** dentro do Monitor de Usuários Senior.
 
-## 1. Migração — schema + RLS
-
-```sql
--- Enum de ação (cobre os casos do ERP Web e deixa hooks para uso futuro Senior)
-CREATE TYPE public.navegacao_acao AS ENUM (
-  'entrar',     -- abriu a tela
-  'sair',       -- saiu da tela (beforeunload / troca)
-  'click',      -- ação relevante dentro da tela
-  'erro'        -- erro visível para o usuário
-);
-
-CREATE TABLE public.usu_log_navegacao_erp (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id       uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  user_email    text,
-  erp_user      text,                                  -- login Senior (quando houver)
-  sistema       text NOT NULL DEFAULT 'ERP_WEB',       -- ERP_WEB | ERP_SENIOR | API
-  tela_codigo   text,                                  -- rota/path ou cod_modulo Senior
-  tela_nome     text,                                  -- label amigável
-  acao          public.navegacao_acao NOT NULL DEFAULT 'entrar',
-  computador    text,                                  -- hostname (vazio no web; preenchido se Senior enviar)
-  ip            text,                                  -- preenchido por edge function/Senior
-  user_agent    text,
-  session_id    text,                                  -- auth session id ou id local
-  detalhes      jsonb NOT NULL DEFAULT '{}'::jsonb,
-  created_at    timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_usu_log_navegacao_user_created
-  ON public.usu_log_navegacao_erp (user_id, created_at DESC);
-CREATE INDEX idx_usu_log_navegacao_erp_user_created
-  ON public.usu_log_navegacao_erp (erp_user, created_at DESC);
-CREATE INDEX idx_usu_log_navegacao_sistema_created
-  ON public.usu_log_navegacao_erp (sistema, created_at DESC);
-
-ALTER TABLE public.usu_log_navegacao_erp ENABLE ROW LEVEL SECURITY;
-
--- Insert: usuário autenticado pode inserir as próprias linhas (ERP Web).
-CREATE POLICY "Users insert own navegacao"
-ON public.usu_log_navegacao_erp FOR INSERT TO authenticated
-WITH CHECK (user_id = auth.uid());
-
--- Select: usuário lê o próprio histórico; admin lê tudo.
-CREATE POLICY "Users read own navegacao"
-ON public.usu_log_navegacao_erp FOR SELECT TO authenticated
-USING (user_id = auth.uid());
-
-CREATE POLICY "Admins read all navegacao"
-ON public.usu_log_navegacao_erp FOR SELECT TO authenticated
-USING (public.is_admin(auth.uid()));
-
-CREATE POLICY "Admins delete navegacao"
-ON public.usu_log_navegacao_erp FOR DELETE TO authenticated
-USING (public.is_admin(auth.uid()));
-```
+## 1. Migration — ampliar enum de ação
 
 ```sql
--- View: última tela por usuário (combina user_id e erp_user)
-CREATE OR REPLACE VIEW public.vw_ultima_tela_usuario
-WITH (security_invoker = true) AS
-SELECT DISTINCT ON (COALESCE(user_id::text, erp_user))
-  user_id,
-  user_email,
-  erp_user,
-  sistema,
-  tela_codigo,
-  tela_nome,
-  acao,
-  computador,
-  ip,
-  user_agent,
-  session_id,
-  created_at AS ultima_navegacao
-FROM public.usu_log_navegacao_erp
-ORDER BY COALESCE(user_id::text, erp_user), created_at DESC;
+ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'ABRIU_TELA';
+ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'HEARTBEAT';
+ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'TROCOU_TELA';
+ALTER TYPE public.navegacao_acao ADD VALUE IF NOT EXISTS 'FECHOU_TELA';
+
+-- Novos campos exigidos pelo payload
+ALTER TABLE public.usu_log_navegacao_erp
+  ADD COLUMN IF NOT EXISTS path_url      text,
+  ADD COLUMN IF NOT EXISTS observacao    text,
+  ADD COLUMN IF NOT EXISTS origem_evento text NOT NULL DEFAULT 'ERP_WEB';
+
+-- View existente continua válida (não cita os novos campos).
 ```
 
-```sql
--- Limpeza automática (mantém 90 dias)
-CREATE OR REPLACE FUNCTION public.cleanup_old_navegacao_logs()
-RETURNS void
-LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
-  DELETE FROM public.usu_log_navegacao_erp
-  WHERE created_at < now() - interval '90 days';
-$$;
-```
+> Os valores antigos (`entrar/sair/click/erro`) ficam preservados — sem breaking change.
 
-## 2. Frontend — registrar navegação automaticamente
+## 2. Edge Function `navegacao-log` (fallback)
 
-### `src/lib/screenCatalog.ts` (novo)
-Mapa `path → { codigo, nome }` para resolver `tela_codigo`/`tela_nome` a partir da rota. Usa match exato + prefixo. Ex.:
-```ts
-'/dashboard'         → { codigo: 'DASH',         nome: 'Dashboard' }
-'/passagens-aereas'  → { codigo: 'PASSAGENS',    nome: 'Passagens Aéreas' }
-'/monitor-usuarios-senior' → { codigo: 'MON_SR', nome: 'Monitor Usuários Senior' }
-'/configuracoes'     → { codigo: 'CONFIG',       nome: 'Configurações' }
-```
-Fallback: `codigo = path`, `nome = path` capitalizado.
+`supabase/functions/navegacao-log/index.ts`:
+- Valida JWT via `supabase.auth.getClaims(token)` → obtém `user_id` e email.
+- Busca `erp_user` em `profiles` (service role).
+- Captura **IP** dos headers `x-forwarded-for` / `cf-connecting-ip` / `x-real-ip`.
+- Captura **user_agent** de `req.headers.get('user-agent')`.
+- Valida body com Zod: `sistema, cod_tela, nome_tela, acao, path_url, observacao?, session_id, computador?, origem_evento?`.
+- Faz `INSERT` em `usu_log_navegacao_erp` (mapeia `cod_tela→tela_codigo`, `nome_tela→tela_nome`).
+- CORS completo. Retorna `{ ok: true, id }`.
 
-### `src/lib/userTracking.ts`
-Adicionar função `trackNavegacao(path)` chamada junto com `trackPageView`:
-- Resolve `screenCatalog` para `tela_codigo`/`tela_nome`.
-- Lê `erp_user` de `localStorage.getItem('erp_user')`.
-- Lê `session_id` de `supabase.auth.getSession()` (ou gera id local persistido em `localStorage`).
-- Insere em `usu_log_navegacao_erp` com `acao='entrar'`, `sistema='ERP_WEB'`, `user_agent=navigator.userAgent`.
-- IP: deixado em branco no client (necessitaria edge function — fora do escopo desta etapa, mas o campo já existe).
-- Registra `acao='sair'` em `beforeunload` da tela anterior (best-effort com `navigator.sendBeacon` para a REST do Supabase quando possível, senão um insert direto).
+`supabase/config.toml`: adiciona bloco da função (default `verify_jwt = false` — validação é feita em código com `getClaims`).
+
+## 3. Frontend — cliente híbrido
+
+### `src/lib/navegacaoLogger.ts` (novo)
+- `postLog(payload)`:
+  1. Tenta `api.post('/api/navegacao/log', payload)` (FastAPI). Timeout curto (3s).
+  2. Se falhar (network/CORS/404/timeout), faz fallback para a edge function via `supabase.functions.invoke('navegacao-log', { body: payload })`.
+  3. Lembra qual canal funcionou por ~60s para evitar tentar o canal morto a cada navegação.
+- `logAbriuTela(path)`, `logTrocouTela(path)`, `logFechouTela(path)`, `logHeartbeat(path)` — todos montam o payload com `sistema='ERP_WEB'`, `session_id` (do `getSessionId()` que já existe), `computador = navigator.platform`, `origem_evento='ERP_WEB'`, `cod_tela`/`nome_tela` resolvidos pelo `screenCatalog`.
 
 ### `src/components/UserTrackingProvider.tsx`
-- Já chama `trackPageView(location.pathname)` em cada mudança de rota; adicionar `trackNavegacao(location.pathname)` no mesmo efeito.
-- Registrar `beforeunload` listener uma vez para gravar `acao='sair'` da última tela.
+- Trocar `trackNavegacao(...)` (insert direto) por `logAbriuTela / logTrocouTela`.
+- Iniciar `setInterval` de **60s** que chama `logHeartbeat(window.location.pathname)` enquanto autenticado. Limpar no logout/unmount.
+- `beforeunload` → `logFechouTela()` (best-effort com `navigator.sendBeacon` para a URL do FastAPI; senão fire-and-forget).
 
-### `src/integrations/supabase/types.ts`
-Será regenerado automaticamente pelo Lovable após a migration; não editar à mão.
+### `src/lib/userTracking.ts`
+- Manter `trackPageView` e `trackAction` (eles gravam em `user_activity`, é outro log — sessão/heartbeat de presença). 
+- Remover `trackNavegacao` antigo (substituído pelo novo módulo) e o `bindNavegacaoUnload` antigo.
 
-## 3. Observação sobre ERP Senior nativo (registrada na descrição da tabela)
+## 4. Tela admin — "Navegação ERP Web" como nova aba
 
-Adicionar `COMMENT ON TABLE` explicando que o Senior nativo só populará esta tabela se uma customização/regra/API publicar eventos via REST com `service_role`. R911SEC e R911MOD continuam dando conexão e módulo/licença — não a tela.
+### `src/pages/MonitorUsuariosSeniorPage.tsx`
+- Envolver o conteúdo atual num `<Tabs>` com 2 abas:
+  - **Sessões Senior** (tudo que já existe hoje).
+  - **Navegação ERP Web** (novo — `<MonitorNavegacaoSection />`).
 
-```sql
-COMMENT ON TABLE public.usu_log_navegacao_erp IS
-'Log de navegação por tela. ERP Web grava automaticamente. Para ERP Senior nativo, requer customização/API enviando eventos — R911SEC/R911MOD não expõem a tela exata.';
+### `src/components/erp/MonitorNavegacaoSection.tsx` (novo)
+Lê da view `vw_ultima_tela_usuario` e exibe:
+| Usuário | Email | Última tela | Ação | Há quantos minutos | Computador | Sistema | Status |
+|---|---|---|---|---|---|---|---|
+
+- "Há quantos minutos" = `now() - ultima_navegacao` em minutos.
+- **Status**: `ativo` se a última linha com `acao='HEARTBEAT'` desse usuário for ≤ 5 min; senão `inativo`. Faz uma 2ª query agrupada `MAX(created_at) FILTER (WHERE acao='HEARTBEAT') GROUP BY user_id` para isso.
+- Auto-refresh 30s (toggle).
+- Filtros: busca por usuário, filtro de status (ativo/inativo/todos), filtro de sistema.
+- Botão **Exportar CSV**.
+
+### Permissão
+- Aba é renderizada se: `is_admin(auth.uid())` **OU** o usuário tem `profile_screens.can_view = true` para `screen_path='/monitor-usuarios-senior'` com sub-permissão `screen_path='/monitor-usuarios-senior/navegacao'`.
+- Para simplificar e seguir o padrão atual: cadastrar a screen `/monitor-usuarios-senior` em `profile_screens` (já existe) — quem entra na página, vê as duas abas. Sem nova screen separada.
+- RLS da tabela já está correto: admin lê tudo, usuário comum só o próprio. A aba só faz sentido para admin (usuário comum veria só a si próprio).
+
+## 5. Resultado
+
+```text
+Monitor de Usuários Senior
+┌─[ Sessões Senior ]─[ Navegação ERP Web ]──────────────────┐
+│ [Buscar…] [Status: Todos ▾] [Auto: 30s] [Exportar CSV]    │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │ Usuário | Última tela | Ação      | Há min | Status   │ │
+│ │ joao    | Dashboard   | HEARTBEAT | 1 min  | • ativo  │ │
+│ │ maria   | Passagens   | ABRIU…    | 12 min | • inat.  │ │
+│ └──────────────────────────────────────────────────────┘ │
+└────────────────────────────────────────────────────────────┘
 ```
 
-## Sem mudanças
-- `user_activity` continua existindo (tracking genérico de eventos). A nova tabela é específica para navegação por tela e tem campos do ERP (erp_user, sistema, tela_codigo).
+## 6. Arquivos
 
-Após aprovação executo a migration e atualizo o frontend.
+Criados:
+- `supabase/functions/navegacao-log/index.ts`
+- `src/lib/navegacaoLogger.ts`
+- `src/components/erp/MonitorNavegacaoSection.tsx`
+
+Editados:
+- `src/components/UserTrackingProvider.tsx`
+- `src/lib/userTracking.ts` (remove tracking antigo de navegação)
+- `src/pages/MonitorUsuariosSeniorPage.tsx` (envolve em Tabs)
+- `supabase/config.toml` (registra a função)
+
+Migration: ampliação do enum + colunas novas.
