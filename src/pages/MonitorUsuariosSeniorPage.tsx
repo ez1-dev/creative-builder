@@ -457,6 +457,18 @@ export default function MonitorUsuariosSeniorPage() {
               <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
+            {canDisconnect && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setApplyOpen(true)}
+                disabled={loading || data.length === 0}
+                className="gap-2"
+              >
+                <PowerOff className="h-3.5 w-3.5" />
+                Aplicar regras agora
+              </Button>
+            )}
           </div>
         }
       />
