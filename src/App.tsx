@@ -34,6 +34,7 @@ import FaturamentoGeniusPage from "@/pages/FaturamentoGeniusPage";
 import PassagensAereasPage from "@/pages/PassagensAereasPage";
 import PassagensAereasCompartilhadoPage from "@/pages/PassagensAereasCompartilhadoPage";
 import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
+import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -76,6 +77,7 @@ const App = () => (
               <Route path="/passagens-aereas" element={<ProtectedRoute path="/passagens-aereas"><PassagensAereasPage /></ProtectedRoute>} />
               <Route path="/monitor-usuarios-senior" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/usuarios-conectados" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
+              <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
               {/* Produção */}
               <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
