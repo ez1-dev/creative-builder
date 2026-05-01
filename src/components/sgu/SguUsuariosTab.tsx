@@ -138,7 +138,18 @@ export function SguUsuariosTab() {
                 className="pl-8"
               />
             </div>
-            <Button onClick={handlePesquisar} disabled={loading}>
+            <Select value={statusFiltro} onValueChange={(v) => handleStatusChange(v as SguStatusFiltro)}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos os status</SelectItem>
+                <SelectItem value="ATIVO">Ativos</SelectItem>
+                <SelectItem value="INATIVO">Inativos</SelectItem>
+                <SelectItem value="SEM_PARAMETRIZACAO">Sem parametrização</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={() => handlePesquisar()} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               Pesquisar
             </Button>
