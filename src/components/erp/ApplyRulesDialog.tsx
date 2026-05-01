@@ -44,17 +44,57 @@ export function ApplyRulesDialog({
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [done, setDone] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
 
-  const candidatos = useMemo<Avaliacao[]>(
-    () => avaliarSessoes(sessoes, rules, whitelistUpper, new Date(), selfErpUser),
-    [sessoes, rules, whitelistUpper, selfErpUser, open],
+  // Ao abrir o diálogo, marca por padrão as regras já habilitadas em Configurações.
+  useEffect(() => {
+    if (open) {
+      setSelectedKeys(new Set(rules.filter((r) => r.enabled).map((r) => r.rule_key)));
+    }
+  }, [open, rules]);
+
+  const rulesParaUsar = useMemo<Rule[]>(
+    () => rules.filter((r) => selectedKeys.has(r.rule_key)).map((r) => ({ ...r, enabled: true })),
+    [rules, selectedKeys],
   );
 
-  const regrasAtivas = rules.filter((r) => r.enabled);
+  const candidatos = useMemo<Avaliacao[]>(
+    () => avaliarSessoes(sessoes, rulesParaUsar, whitelistUpper, new Date(), selfErpUser),
+    [sessoes, rulesParaUsar, whitelistUpper, selfErpUser],
+  );
+
   const porRegra = candidatos.reduce<Record<string, number>>((acc, a) => {
     acc[a.rule_key] = (acc[a.rule_key] ?? 0) + 1;
     return acc;
   }, {});
+
+  const toggleKey = (key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const marcarTodas = () => setSelectedKeys(new Set(rules.map((r) => r.rule_key)));
+  const desmarcarTodas = () => setSelectedKeys(new Set());
+
+  const resumoParametros = (r: Rule): string => {
+    const p = r.params ?? {};
+    if (r.rule_key === 'fora_horario') {
+      const ini = p.hora_inicio ?? 22;
+      const fim = p.hora_fim ?? 6;
+      return `fim de semana ou após ${ini}h e antes das ${fim}h`;
+    }
+    if (r.rule_key === 'ocioso_sem_modulo') {
+      return `ocioso há mais de ${p.minutos_ocioso ?? 30} min`;
+    }
+    if (r.rule_key === 'sessao_longa') {
+      return `conectado há mais de ${p.horas_max ?? 12}h`;
+    }
+    return '';
+  };
 
   const reset = () => {
     setMotivo(''); setProgress([]); setDone(false); setRunning(false);
