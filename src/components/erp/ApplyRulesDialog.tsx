@@ -163,20 +163,68 @@ export function ApplyRulesDialog({
             Aplicar regras de desconexão agora
           </DialogTitle>
           <DialogDescription>
-            Avalia as regras ligadas contra as sessões ativas e desconecta as que baterem,
-            respeitando a whitelist. Regras desligadas são ignoradas.
+            Escolha quais regras aplicar nesta execução. Sessões na whitelist são sempre ignoradas.
           </DialogDescription>
         </DialogHeader>
 
-        {regrasAtivas.length === 0 ? (
+        <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium">Regras a aplicar</Label>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]"
+                onClick={marcarTodas} disabled={running}>
+                Marcar todas
+              </Button>
+              <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]"
+                onClick={desmarcarTodas} disabled={running}>
+                Desmarcar todas
+              </Button>
+            </div>
+          </div>
+          {rules.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhuma regra cadastrada. Crie regras em Configurações → Regras Senior.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {rules.map((r) => {
+                const checked = selectedKeys.has(r.rule_key);
+                return (
+                  <label
+                    key={r.rule_key}
+                    className="flex cursor-pointer items-start gap-2 rounded-md border bg-background/40 p-2 hover:bg-background/70"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleKey(r.rule_key)}
+                      disabled={running}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {r.nome}
+                        {!r.enabled && (
+                          <Badge variant="outline" className="text-[10px]">desligada por padrão</Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {resumoParametros(r)}
+                        {r.descricao ? ` · ${r.descricao}` : ''}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {selectedKeys.size === 0 ? (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
             <div className="flex items-center gap-2 font-medium">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              Nenhuma regra está ligada.
+              Selecione pelo menos uma regra acima.
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Ative pelo menos uma regra em Configurações → Regras de Desconexão Senior.
-            </p>
           </div>
         ) : (
           <>
@@ -189,7 +237,7 @@ export function ApplyRulesDialog({
 
             {candidatos.length === 0 ? (
               <p className="rounded-md border bg-muted/30 px-3 py-4 text-center text-sm text-muted-foreground">
-                Nenhuma sessão bate com as regras ativas neste momento.
+                Nenhuma sessão bate com as regras selecionadas neste momento.
               </p>
             ) : (
               <div className="max-h-[280px] overflow-auto rounded-md border">
