@@ -21,7 +21,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { RefreshCw, Users, Activity, LayoutGrid, Loader2, PowerOff, Link2Off, Monitor, Search, Download, ArrowUp, ArrowDown, ArrowUpDown, Settings } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SeniorRulesSection } from '@/components/erp/SeniorRulesSection';
 import { api, getApiUrl } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
