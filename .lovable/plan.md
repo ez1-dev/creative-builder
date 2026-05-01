@@ -1,106 +1,83 @@
+## Diagnóstico
 
-# Extras para Usuários Conectados + alias de rota
+A página `/monitor-usuarios-senior` (e o alias `/usuarios-conectados`) já chama `GET /api/senior/sessoes` autenticado com `Authorization: Bearer {access_token}` e o login já envia `{ usuario, senha }` (itens 5, 6 e 7 do pedido já estão corretos no código atual).
 
-A tela já existe (`/monitor-usuarios-senior` → `MonitorUsuariosSeniorPage`). Vamos só adicionar o que falta e expor a rota nova.
-
-## 1. Alias de rota `/usuarios-conectados`
-
-Em `src/App.tsx`, adicionar uma segunda `<Route>` apontando para o mesmo componente, reusando a permissão de `/monitor-usuarios-senior`:
-
-```tsx
-<Route path="/usuarios-conectados"
-       element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
-```
-
-A entrada do menu (`AppSidebar.tsx`) continua única em `/monitor-usuarios-senior` para não duplicar — o alias serve só para deep-links externos.
-
-## 2. Voltar default do filtro Aplicativo para `SAPIENS`
-
-Como pedido no requisito original. Continua sendo possível trocar para "Todos" no select.
-
-## 3. Novo KPI: "Computadores distintos"
-
-Substituir o KPI "Conectados >4h" por "Computadores Distintos" (contagem única de `computador`). O alerta de sessões longas continua funcionando via badge na coluna "Min." da tabela (vermelho > 4h, cinza > 2h), então não perdemos a sinalização — só tiramos o card.
+O problema está na **linha 158** de `src/pages/MonitorUsuariosSeniorPage.tsx`:
 
 ```ts
-const computadoresDistintos = new Set(filtered.map(s => s.computador).filter(Boolean)).size;
+const rawList: any[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
 ```
 
-Ícone: `Monitor` do lucide-react.
+Ela tenta `res.sessoes` e `res.data`, mas o backend retorna `{ total, dados: [...] }`. Por isso `rawList` fica `[]` mesmo quando o SQL retorna registros, e a tabela aparece vazia.
 
-## 4. Busca rápida na tabela
+Além disso, falta logar os 4 itens pedidos e proteger campos null em `normalizeSessao`.
 
-Novo `Input` com ícone de lupa, acima da tabela (à direita). Filtra `data` em todas as colunas-texto:
+## Mudanças
+
+Arquivo único: `src/pages/MonitorUsuariosSeniorPage.tsx`
+
+### 1. Leitura robusta do response (substitui linha 158)
 
 ```ts
-const [quickSearch, setQuickSearch] = useState('');
-// dentro do filtered:
-if (quickSearch) {
-  const q = quickSearch.toLowerCase();
-  const haystack = [
-    s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
-    s.cod_modulo, s.modulo, s.instancia, s.tipo_aplicacao, s.mensagem_admin,
-  ].map(v => String(v ?? '').toLowerCase()).join(' ');
-  if (!haystack.includes(q)) return false;
+let rawList: any[] = [];
+if (Array.isArray(res)) {
+  rawList = res;
+} else if (Array.isArray((res as any)?.dados)) {
+  rawList = (res as any).dados;
+} else if (Array.isArray((res as any)?.sessoes)) {
+  rawList = (res as any).sessoes;
+} else if (Array.isArray((res as any)?.data)) {
+  rawList = (res as any).data;
+} else {
+  rawList = [];
 }
 ```
 
-## 5. Ordenação por coluna (clicar no header)
-
-Suporte a 3 colunas-chave: **Sessão**, **Usuário Senior**, **Módulo** (conforme pedido). Adiciono ícone clicável (`ArrowUp` / `ArrowDown` / `ArrowUpDown` neutro) ao lado do título.
+### 2. Logs obrigatórios (antes do `setData`)
 
 ```ts
-type SortKey = 'numsec' | 'usuario_senior' | 'modulo';
-const [sortKey, setSortKey] = useState<SortKey | null>(null);
-const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-const toggleSort = (k: SortKey) => {
-  if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-  else { setSortKey(k); setSortDir('asc'); }
-};
-// aplicado depois do filtered, antes de exibir:
-const sorted = useMemo(() => {
-  if (!sortKey) return filtered;
-  const sign = sortDir === 'asc' ? 1 : -1;
-  return [...filtered].sort((a, b) => {
-    const av = a[sortKey] ?? ''; const bv = b[sortKey] ?? '';
-    if (sortKey === 'numsec') return (Number(av) - Number(bv)) * sign;
-    return String(av).localeCompare(String(bv), 'pt-BR') * sign;
-  });
-}, [filtered, sortKey, sortDir]);
+console.log('[MonitorSenior] response completo:', res);
+console.log('[MonitorSenior] response.total:', (res as any)?.total);
+console.log('[MonitorSenior] response.dados:', (res as any)?.dados);
+console.log('[MonitorSenior] linhas interpretadas para a tabela:', rawList.length);
 ```
 
-A tabela passa a iterar `sorted` em vez de `filtered`.
+### 3. Proteção contra campos null em `normalizeSessao`
 
-## 6. Exportação CSV
-
-Botão "Exportar CSV" no header, ao lado de "Atualizar". Gera um Blob CSV (UTF-8 com BOM, separador `;`) e dispara download:
+Garantir tolerância para:
+- `codigo_modulo`, `modulo_acessado`, `mensagem_admin` chegando `null` → manter `undefined`/`'-'` na renderização (já tratado com `?? '-'` na tabela, vou só reforçar no normalize com `?? undefined`).
+- `data_hora_conexao` chegando como número (epoch ms/seg) ou string ISO → converter com helper:
 
 ```ts
-const exportCsv = () => {
-  const headers = ['Sessão','Usuário Senior','Usuário Windows','Computador','Aplicativo',
-    'Cód. Módulo','Módulo','Conexão','Min.','Instância','Tipo Aplic.','Mensagem Admin'];
-  const escape = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const rows = sorted.map(s => [
-    s.numsec, s.usuario_senior, s.usuario_windows, s.computador, s.aplicativo,
-    s.cod_modulo, s.modulo, s.data_hora_conexao, s.minutos_conectado,
-    s.instancia, s.tipo_aplicacao, s.mensagem_admin
-  ].map(escape).join(';'));
-  const csv = '\uFEFF' + [headers.join(';'), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `usuarios-conectados-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
-  a.click();
+const toIsoDate = (v: any): string | undefined => {
+  if (v == null || v === '') return undefined;
+  if (typeof v === 'number') {
+    const ms = v < 1e12 ? v * 1000 : v; // segundos vs ms
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof v === 'string') {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? v : d.toISOString();
+  }
+  return undefined;
 };
 ```
 
-## 7. Botão "Consultar"
+### 4. Mensagem "Nenhuma sessão conectada encontrada."
 
-Já existe via "Atualizar". O pedido fala em "Consultar" e "Atualizar" como dois botões — semanticamente fazem a mesma coisa (recarregar do backend). Vou manter apenas "Atualizar" para não poluir o header. Se você quiser dois botões idênticos, é só dizer.
+Hoje a tabela mostra um estado vazio genérico. Vou ajustar para que, quando `rawList.length === 0` **e** o status for `online`, apareça exatamente o texto pedido: `Nenhuma sessão conectada encontrada.`
 
-## Arquivos alterados
+## O que NÃO muda
 
-- `src/App.tsx` — adicionar rota alias.
-- `src/pages/MonitorUsuariosSeniorPage.tsx` — busca rápida, ordenação, novo KPI, export CSV, voltar default Aplicativo para `SAPIENS`.
+- Login (`{ usuario, senha }`) — já correto.
+- Header `Authorization: Bearer {access_token}` — já correto em `src/lib/api.ts`.
+- Retry em 401 (limpa token + relogin) — já implementado em `api.ts`.
+- Filtros, KPIs, ordenação, export CSV e alias de rota — preservados.
 
-Sem alterações em backend, banco ou outras telas.
+## Validação
+
+Após aplicar, abrir `/monitor-usuarios-senior` e conferir no console:
+- `response completo` mostrando `{ total, dados: [...] }`
+- `linhas interpretadas para a tabela: N` igual a `total`
+- Tabela renderiza as N linhas, sem quebrar mesmo com `codigo_modulo` / `modulo_acessado` / `mensagem_admin` null.
