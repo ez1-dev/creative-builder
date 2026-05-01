@@ -494,6 +494,16 @@ export default function MonitorUsuariosSeniorPage() {
         onSavedAndTest={onUrlSavedAndTest}
       />
 
+      <ApplyRulesDialog
+        open={applyOpen}
+        onOpenChange={setApplyOpen}
+        sessoes={data}
+        rules={rules}
+        whitelistUpper={whitelistUpper}
+        selfErpUser={erpUser ?? undefined}
+        onCompleted={load}
+      />
+
       {/* Preview do JSON cru — útil quando vem 200 OK mas a tabela parece vazia */}
       {connStatus.kind === 'online' && rawSamplePreview && (data.length === 0 || (import.meta as any).env?.DEV) && (
         <details className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
