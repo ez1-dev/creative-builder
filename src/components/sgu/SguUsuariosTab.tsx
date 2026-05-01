@@ -46,6 +46,10 @@ export function SguUsuariosTab() {
   };
 
   const handleVerDetalhes = async (codusu: number) => {
+    if (!Number.isFinite(Number(codusu))) {
+      toast.error('Código de usuário inválido neste registro. O backend não retornou um codusu numérico.');
+      return;
+    }
     setDetalheOpen(true);
     setDetalheLoading(true);
     setDetalheUsr(null);
@@ -60,6 +64,8 @@ export function SguUsuariosTab() {
       setDetalheLoading(false);
     }
   };
+
+  const codusuValido = (u: SguUsuario) => Number.isFinite(Number(u.codusu));
 
   const totalPaginas = Math.max(1, Math.ceil(usuarios.length / PAGE_SIZE));
   const inicio = (pagina - 1) * PAGE_SIZE;
