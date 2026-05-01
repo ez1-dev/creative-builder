@@ -785,8 +785,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
+          <CardContent className="p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={isCompact ? 220 : 260}>
               <BarChart data={porMes}>
                 <XAxis dataKey="mes" fontSize={11} />
                 <YAxis fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
@@ -810,16 +810,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={isMobile ? 360 : 380} className="[&_.recharts-surface]:overflow-visible [&_.recharts-wrapper]:overflow-visible">
-              <PieChart margin={isMobile ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 30, right: 90, bottom: 30, left: 90 }} style={{ overflow: 'visible' }}>
+          <CardContent className="p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={isCompact ? 300 : 380} className="[&_.recharts-surface]:overflow-visible [&_.recharts-wrapper]:overflow-visible">
+              <PieChart margin={isCompact ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 30, right: 90, bottom: 30, left: 90 }} style={{ overflow: 'visible' }}>
                 <Pie
                   data={porMotivo}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 70 : 78}
+                  outerRadius={isCompact ? 70 : 78}
                   cursor="pointer"
                   onClick={(d: any) => {
                     if (d.name === OUTROS_LABEL) {
@@ -828,8 +828,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                       setSelectedMotivo((prev) => toggleItem(prev, d.name));
                     }
                   }}
-                  labelLine={isMobile ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
-                  label={isMobile
+                  labelLine={isCompact ? false : { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 }}
+                  label={isCompact
                     ? (e: any) => `${((e.percent ?? 0) * 100).toFixed(0)}%`
                     : (e: any) => {
                         const RADIAN = Math.PI / 180;
@@ -862,17 +862,23 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
               </PieChart>
             </ResponsiveContainer>
-            {isMobile && porMotivo.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                {porMotivo.map((entry, i) => (
-                  <div key={entry.name} className="flex items-center gap-1">
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-sm"
-                      style={{ backgroundColor: entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length] }}
-                    />
-                    <span className="text-muted-foreground">{entry.name}</span>
-                  </div>
-                ))}
+            {isCompact && porMotivo.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-[11px]">
+                {porMotivo.map((entry, i) => {
+                  const v = Number(entry.value || 0);
+                  const total = porMotivo.reduce((s, x) => s + Number(x.value || 0), 0) || 1;
+                  const pct = ((v / total) * 100).toFixed(1).replace('.', ',');
+                  return (
+                    <div key={entry.name} className="flex items-center gap-1.5 min-w-0">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-sm shrink-0"
+                        style={{ backgroundColor: entry.name === OUTROS_LABEL ? 'hsl(var(--muted-foreground))' : COLORS[i % COLORS.length] }}
+                      />
+                      <span className="text-foreground truncate max-w-[140px]">{entry.name}</span>
+                      <span className="text-muted-foreground shrink-0">({pct}%)</span>
+                    </div>
+                  );
+                })}
               </div>
             )}
             {porMotivoOutros.length > 0 && (
@@ -888,16 +894,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={isMobile ? 360 : 420}>
+          <CardContent className="p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={isMobile ? 360 : isCompact ? 400 : 420}>
               <BarChart data={isMobile ? porCentroCusto.slice(0, 10) : porCentroCusto} layout="vertical">
                 <XAxis type="number" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <YAxis
                   type="category"
                   dataKey="name"
                   fontSize={isMobile ? 10 : 11}
-                  width={isMobile ? 90 : 140}
-                  tickFormatter={(v: string) => (isMobile && v.length > 12 ? `${v.slice(0, 12)}…` : v)}
+                  width={isMobile ? 90 : isCompact ? 110 : 140}
+                  tickFormatter={(v: string) => (v.length > (isMobile ? 12 : isCompact ? 16 : 24) ? `${v.slice(0, isMobile ? 12 : isCompact ? 16 : 24)}…` : v)}
                 />
                 <RTooltip formatter={(v: number) => formatCurrency(v)} />
                 <Bar
@@ -922,9 +928,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           ),
           'tabela-registros': (
       <Card>
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle className="text-sm">Registros ({displayRows.length})</CardTitle>
-          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
+        <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-sm min-w-0 truncate">Registros ({displayRows.length})</CardTitle>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto">
             <div className="relative w-full sm:w-auto">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
