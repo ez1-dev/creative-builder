@@ -387,16 +387,43 @@ export default function MonitorUsuariosSeniorPage() {
     }
     setSubmitting(true);
     try {
-      await api.post(`/api/senior/sessoes/${target.numsec}/desconectar`, {
+      const resp = await api.post<{
+        ok?: boolean;
+        numsec?: number | string;
+        usuario?: string;
+        computador?: string;
+        registros_removidos?: { R911MOD?: number; R911SRV?: number; R911SEC?: number; total?: number };
+        mensagem?: string;
+      }>(`/api/senior/sessoes/${target.numsec}/desconectar`, {
         confirmar: true,
         motivo: parsed.data,
       });
-      toast({ title: 'Sessão desconectada', description: `Sessão ${target.numsec} encerrada.` });
+
+      const total = resp?.registros_removidos?.total ?? 0;
+      const usuario = resp?.usuario ?? target.usuario_senior ?? '?';
+      const computador = resp?.computador ?? target.computador ?? '?';
+
+      toast({
+        title: 'Sessão desconectada',
+        description: `${usuario} @ ${computador} — ${total} registro(s) removido(s).`,
+      });
+      // Aviso obrigatório sobre Terminal Server
+      toast({
+        title: 'Atenção',
+        description: resp?.mensagem
+          ?? 'Sessão removida do controle do ERP. Se o SAPIENS continuar aberto no Terminal Server, pode ser necessário encerrar a sessão Windows.',
+        duration: 8000,
+      });
+
       setTarget(null);
       setMotivo('');
       await load();
     } catch (e: any) {
-      toast({ title: 'Erro ao desconectar', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' });
+      toast({
+        title: 'Erro ao desconectar',
+        description: e?.message ?? 'Falha desconhecida',
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }

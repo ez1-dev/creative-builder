@@ -1,129 +1,272 @@
 ## Diagnóstico
 
-A tela `/monitor-usuarios-senior` já recebe os dados (`{ total, dados }`), mas mostra `01/01/1970` na coluna **Data Conexão** porque o backend está retornando `S.DatTim` como `NUMERIC` do Senior (ex.: `46140.431939`) — esse valor **não é** Unix timestamp em segundos nem em ms, é o formato interno de data do Senior.
+O frontend **já tem quase tudo** que você pediu:
 
-No frontend, `toIsoDate()` em `src/pages/MonitorUsuariosSeniorPage.tsx` (linhas 56–68) faz exatamente o que você pediu para evitar:
+- Botão **Desconectar** em cada linha (`src/pages/MonitorUsuariosSeniorPage.tsx`, linhas 624–628), só aparece para `ADMIN` ou `RENATO` (`canDisconnect`, linha 113).
+- Modal `AlertDialog` que exige **motivo** com validação Zod (`min 5`, `max 500`), linhas 642–685.
+- POST para `/api/senior/sessoes/{numsec}/desconectar` com `{ confirmar: true, motivo }` (linhas 390–393).
+- `await load()` após sucesso para atualizar a tabela (linha 397).
 
-```ts
-if (typeof v === 'number') {
-  const ms = v < 1e12 ? v * 1000 : v; // ← trata como Unix → vira 1970
-  ...
-}
-```
+O que **falta**:
 
-Como `46140.431939` é menor que `1e12`, ele multiplica por 1000 e cai no início de 1970. Isso também contamina `minutos_conectado`, que usa `data_hora_conexao` como base quando não vem do backend.
-
-A correção precisa acontecer nos **dois lados**:
-
-1. **Backend FastAPI** (`GET /api/senior/sessoes`) — formatar a data no SQL.
-2. **Frontend** — parar de tratar número como timestamp Unix e exibir a string já formatada.
-
-Observação: o título da sua mensagem diz "NÃO ESTÁ DESCONECTANDO O USUÁRIO", mas o corpo todo é sobre data/módulo. Vou tratar **só do problema de data e módulo nulo** descrito. Se o botão de desconectar também estiver com defeito, me diga depois exatamente o que acontece (erro, request, resposta) que ataco em separado.
+1. **Backend FastAPI**: o endpoint não existe ainda. Como o backend é externo (FastAPI rodando via ngrok), eu não consigo criar o arquivo Python aqui — entrego a documentação completa em `docs/backend-senior-desconectar-sessao.md` para você levar pra equipe do FastAPI.
+2. **Frontend**: três ajustes de UX:
+   - Mostrar o **aviso sobre Terminal Server** após sucesso.
+   - Exibir **usuário, computador e qtd de registros removidos** no toast (resposta do backend).
+   - Logar erros em `errorLogger` para aparecerem no painel de erros.
 
 ## Mudanças
 
-### 1) Backend FastAPI — `GET /api/senior/sessoes`
+### 1) Documentação backend — `docs/backend-senior-desconectar-sessao.md` (novo)
 
-Substituir o SELECT da query atual por (apenas as colunas afetadas — manter o resto igual):
+Spec completa para a equipe do FastAPI implementar:
+
+**Rota**: `POST /api/senior/sessoes/{numsec}/desconectar`
+
+**Auth**: `Authorization: Bearer <token>` obrigatório. Se ausente/expirado → `401`.
+
+**Autorização**: usuário do token deve ser `ADMIN` (flag `is_admin`) **ou** ter `usuario == 'RENATO'` (case-insensitive). Caso contrário → `403 { "detail": "Apenas ADMIN ou RENATO podem desconectar sessões." }`.
+
+**Body** (Pydantic):
+```python
+class DesconectarSessaoRequest(BaseModel):
+    confirmar: bool
+    motivo: str = Field(min_length=5, max_length=500)
+```
+Se `confirmar != true` → `400 { "detail": "Confirmação obrigatória." }`.
+
+**Path param**: `numsec: int` (ou `str` numérica — conferir tipo da coluna `R911SEC.NumSec` no Senior; pelos dados reais vem como inteiro).
+
+**Fluxo SQL** (SQL Server, dentro de **uma transação**):
 
 ```sql
-SELECT
-    S.NumSec AS sessao,
-    LTRIM(RTRIM(S.AppUsr)) AS usuario_senior,
-    LTRIM(RTRIM(S.UsrNam)) AS usuario_sistema_operacional,
-    LTRIM(RTRIM(S.ComNam)) AS computador,
-    LTRIM(RTRIM(S.AppNam)) AS aplicativo,
+BEGIN TRAN;
 
-    COALESCE(NULLIF(LTRIM(RTRIM(M.ModNam)), ''), '-') AS codigo_modulo,
+-- 1) Validar existência + capturar dados pra log/resposta
+SELECT TOP 1
+    LTRIM(RTRIM(AppUsr)) AS usuario_senior,
+    LTRIM(RTRIM(ComNam)) AS computador,
+    LTRIM(RTRIM(AppNam)) AS aplicativo
+INTO #sessao
+FROM R911SEC
+WHERE NumSec = @numsec;
 
-    CASE
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'All'  THEN 'BackOffice / Licenca Flutuante'
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'M'    THEN 'Manufatura'
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'U'    THEN 'Custos'
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'V'    THEN 'Servicos'
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'EMDC' THEN 'Integracoes'
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = 'WWEB' THEN 'Web 5.0'
-        WHEN LTRIM(RTRIM(ISNULL(M.ModNam, ''))) = ''     THEN '-'
-        ELSE LTRIM(RTRIM(M.ModNam))
-    END AS modulo_acessado,
+IF NOT EXISTS (SELECT 1 FROM #sessao)
+BEGIN
+    ROLLBACK;
+    -- 404
+END
 
-    CONVERT(VARCHAR(19), CAST(S.DatTim AS DATETIME), 120) AS data_hora_conexao,
-    DATEDIFF(MINUTE, CAST(S.DatTim AS DATETIME), GETDATE())  AS minutos_conectado,
+-- 2) Apagar nas 3 tabelas
+DELETE FROM R911MOD WHERE NumSec = @numsec;  -- @mod_removidos = @@ROWCOUNT
+DELETE FROM R911SRV WHERE NumSec = @numsec;  -- @srv_removidos = @@ROWCOUNT
+DELETE FROM R911SEC WHERE NumSec = @numsec;  -- @sec_removidos = @@ROWCOUNT
 
-    S.IDInst  AS instancia,
-    S.AppKnd  AS tipo_aplicacao,
-    S.AdmMsg  AS mensagem_admin
-FROM R911SEC S
-LEFT JOIN R911MOD M ON M.NumSec = S.NumSec
-WHERE S.AppNam = 'SAPIENS'
-  AND LTRIM(RTRIM(ISNULL(S.AppUsr, ''))) <> ''
-ORDER BY S.AppUsr, S.NumSec, M.ModNam;
+-- 3) Log de auditoria (DEPOIS dos deletes, dentro da mesma transação)
+INSERT INTO dbo.USU_LOG_SESSAO_SENIOR
+    (numsec, usuario_alvo, computador, executado_por, motivo,
+     mod_removidos, srv_removidos, sec_removidos, data_hora)
+VALUES
+    (@numsec, @usuario_senior, @computador, @executado_por, @motivo,
+     @mod_removidos, @srv_removidos, @sec_removidos, GETDATE());
+
+COMMIT;
 ```
 
-`data_hora_conexao` passa a vir como string `'YYYY-MM-DD HH:MM:SS'` e `minutos_conectado` já vem calculado pelo SQL Server (consistente com o relógio do banco, sem depender do fuso do navegador).
+Em qualquer exceção → `ROLLBACK` e `500 { "detail": "Falha ao desconectar sessão. Nada foi alterado.", "error": "<msg>" }`.
+
+**DDL da tabela de log** (criar se ainda não existir):
+```sql
+IF OBJECT_ID('dbo.USU_LOG_SESSAO_SENIOR') IS NULL
+CREATE TABLE dbo.USU_LOG_SESSAO_SENIOR (
+    id              BIGINT IDENTITY(1,1) PRIMARY KEY,
+    numsec          BIGINT      NOT NULL,
+    usuario_alvo    VARCHAR(60) NULL,
+    computador      VARCHAR(60) NULL,
+    executado_por   VARCHAR(60) NOT NULL,
+    motivo          VARCHAR(500) NOT NULL,
+    mod_removidos   INT NOT NULL DEFAULT 0,
+    srv_removidos   INT NOT NULL DEFAULT 0,
+    sec_removidos   INT NOT NULL DEFAULT 0,
+    data_hora       DATETIME    NOT NULL DEFAULT GETDATE()
+);
+CREATE INDEX IX_USU_LOG_SESSAO_SENIOR_data ON dbo.USU_LOG_SESSAO_SENIOR(data_hora DESC);
+CREATE INDEX IX_USU_LOG_SESSAO_SENIOR_user ON dbo.USU_LOG_SESSAO_SENIOR(usuario_alvo);
+```
+
+**Respostas**:
+
+- `200 OK`:
+  ```json
+  {
+    "ok": true,
+    "numsec": 12345,
+    "usuario": "FULANO",
+    "computador": "PC-FULANO",
+    "registros_removidos": {
+      "R911MOD": 1,
+      "R911SRV": 0,
+      "R911SEC": 1,
+      "total": 2
+    },
+    "mensagem": "Sessão removida do controle do ERP. Se o SAPIENS continuar aberto no Terminal Server, pode ser necessário encerrar a sessão Windows.",
+    "executado_por": "RENATO",
+    "data_hora": "2026-05-01 10:42:17"
+  }
+  ```
+- `401` token ausente/expirado.
+- `403` usuário sem permissão.
+- `400` `confirmar=false` ou `motivo` < 5 chars.
+- `404` `numsec` não existe em `R911SEC`.
+- `500` qualquer erro de SQL → rollback feito.
+
+**Importante**: os `DELETE` precisam ser feitos com **parâmetro** (`?` ou `:numsec`), nunca interpolando string — risco de SQL injection com `numsec` vindo da URL.
+
+**Esqueleto Python (FastAPI + pyodbc)** — pra colar no projeto FastAPI:
+```python
+from fastapi import APIRouter, Depends, HTTPException, Path
+from pydantic import BaseModel, Field
+from .auth import get_current_user, require_admin_or_renato  # já existem no projeto
+from .db import get_conn
+
+router = APIRouter()
+
+class DesconectarSessaoRequest(BaseModel):
+    confirmar: bool
+    motivo: str = Field(min_length=5, max_length=500)
+
+@router.post("/api/senior/sessoes/{numsec}/desconectar")
+def desconectar_sessao(
+    numsec: int = Path(..., ge=1),
+    body: DesconectarSessaoRequest = ...,
+    user = Depends(require_admin_or_renato),
+):
+    if not body.confirmar:
+        raise HTTPException(400, "Confirmação obrigatória.")
+
+    with get_conn() as conn:
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT TOP 1 LTRIM(RTRIM(AppUsr)), LTRIM(RTRIM(ComNam)), LTRIM(RTRIM(AppNam))
+                FROM R911SEC WHERE NumSec = ?
+            """, numsec)
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(404, f"Sessão {numsec} não encontrada.")
+            usuario_alvo, computador, aplicativo = row
+
+            cur.execute("DELETE FROM R911MOD WHERE NumSec = ?", numsec); mod_n = cur.rowcount
+            cur.execute("DELETE FROM R911SRV WHERE NumSec = ?", numsec); srv_n = cur.rowcount
+            cur.execute("DELETE FROM R911SEC WHERE NumSec = ?", numsec); sec_n = cur.rowcount
+
+            cur.execute("""
+                INSERT INTO dbo.USU_LOG_SESSAO_SENIOR
+                    (numsec, usuario_alvo, computador, executado_por, motivo,
+                     mod_removidos, srv_removidos, sec_removidos)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, numsec, usuario_alvo, computador, user.usuario, body.motivo, mod_n, srv_n, sec_n)
+
+            conn.commit()
+        except HTTPException:
+            conn.rollback(); raise
+        except Exception as e:
+            conn.rollback()
+            raise HTTPException(500, f"Falha ao desconectar sessão. Nada foi alterado. {e}")
+
+    return {
+        "ok": True,
+        "numsec": numsec,
+        "usuario": usuario_alvo,
+        "computador": computador,
+        "registros_removidos": {
+            "R911MOD": mod_n, "R911SRV": srv_n, "R911SEC": sec_n,
+            "total": mod_n + srv_n + sec_n,
+        },
+        "mensagem": ("Sessão removida do controle do ERP. Se o SAPIENS continuar aberto "
+                     "no Terminal Server, pode ser necessário encerrar a sessão Windows."),
+        "executado_por": user.usuario,
+    }
+```
+
+Adicionar lembrete: rota deve estar no router de senior e CORS já libera o preview Lovable + header `ngrok-skip-browser-warning: true` (já configurado para as outras rotas senior).
 
 ### 2) Frontend — `src/pages/MonitorUsuariosSeniorPage.tsx`
 
-**a. Reescrever `toIsoDate` para NÃO tratar número como Unix timestamp.** Aceitar:
-- string `'YYYY-MM-DD HH:MM:SS'` (formato 120) → retornar como veio.
-- string ISO válida → retornar como veio.
-- número → retornar `undefined` (formato Senior numérico que não conseguimos converter no front).
-- vazio/null → `undefined`.
+Pequenos ajustes em `confirmDisconnect` (linhas 381–403):
+
+- Tipar a resposta e usar `usuario`, `computador`, `registros_removidos.total` no toast.
+- Mostrar o **aviso de Terminal Server** como toast separado, persistente alguns segundos, com a mensagem exata pedida.
+- Logar erros via `logError` pra aparecerem no painel de erros (mesmo padrão das outras pages).
 
 ```ts
-const toIsoDate = (v: any): string | undefined => {
-  if (v === undefined || v === null || v === '') return undefined;
-  if (typeof v === 'string') {
-    const s = v.trim();
-    if (!s) return undefined;
-    // Formato SQL 120: 'YYYY-MM-DD HH:MM:SS' — devolver como está
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(s)) return s;
-    // Outras strings: só aceitar se parseiam para data válida
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? undefined : s;
+const confirmDisconnect = async () => {
+  if (!target) return;
+  const parsed = motivoSchema.safeParse(motivo);
+  if (!parsed.success) {
+    toast({ title: 'Motivo inválido', description: parsed.error.issues[0].message, variant: 'destructive' });
+    return;
   }
-  // number (formato NUMERIC do Senior) ou outro tipo: ignorar
-  return undefined;
+  setSubmitting(true);
+  try {
+    const resp = await api.post<{
+      ok: boolean;
+      numsec: number | string;
+      usuario?: string;
+      computador?: string;
+      registros_removidos?: { R911MOD: number; R911SRV: number; R911SEC: number; total: number };
+      mensagem?: string;
+    }>(`/api/senior/sessoes/${target.numsec}/desconectar`, {
+      confirmar: true,
+      motivo: parsed.data,
+    });
+
+    const total = resp?.registros_removidos?.total ?? 0;
+    const usuario = resp?.usuario ?? target.usuario_senior ?? '?';
+    const computador = resp?.computador ?? target.computador ?? '?';
+
+    toast({
+      title: 'Sessão desconectada',
+      description: `${usuario} @ ${computador} — ${total} registro(s) removido(s).`,
+    });
+    // Aviso obrigatório sobre Terminal Server (mensagem do backend ou fallback)
+    toast({
+      title: 'Atenção',
+      description: resp?.mensagem
+        ?? 'Sessão removida do controle do ERP. Se o SAPIENS continuar aberto no Terminal Server, pode ser necessário encerrar a sessão Windows.',
+      duration: 8000,
+    });
+
+    setTarget(null);
+    setMotivo('');
+    await load();
+  } catch (e: any) {
+    toast({
+      title: 'Erro ao desconectar',
+      description: e?.message ?? 'Falha desconhecida',
+      variant: 'destructive',
+    });
+  } finally {
+    setSubmitting(false);
+  }
 };
 ```
 
-**b. `normalizeSessao`:** preferir `minutos_conectado` do backend; só calcular no front se a data vier em formato parseável (string). Não calcular a partir de número Senior.
-
-```ts
-let minutos_conectado = pick(raw, 'minutos_conectado', 'minutos', 'min_conectado');
-if ((minutos_conectado === undefined || minutos_conectado === null) && typeof data_hora_conexao === 'string') {
-  const d = new Date(data_hora_conexao.replace(' ', 'T'));
-  if (!isNaN(d.getTime())) {
-    minutos_conectado = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
-  }
-}
-```
-
-**c. `fmtDateTime`:** se a string já estiver no formato `'YYYY-MM-DD HH:MM:SS'`, formatar como `dd/MM/yyyy HH:mm` sem usar `new Date()` (evita qualquer surpresa de timezone). Senão, fallback atual.
-
-```ts
-const fmtDateTime = (v?: string) => {
-  if (!v) return '-';
-  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(v);
-  if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return v;
-  return new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  }).format(d);
-};
-```
+Demais coisas (modal, motivo, validação Zod, botão só pra ADMIN/RENATO, refresh da tabela) já estão implementadas e **não mudam**.
 
 ## O que NÃO muda
 
-- Filtros, KPIs, ordenação, busca, export CSV, alias `/usuarios-conectados`, autenticação Bearer e retry em 401.
-- Demais colunas (`codigo_modulo`, `modulo_acessado` etc.) continuam tolerando null no front; backend agora também já entrega `'-'` quando vazio.
+- Lista, filtros, KPIs, ordenação, busca, export CSV, alias `/usuarios-conectados`.
+- Modal de confirmação e validação do motivo.
+- Permissão `canDisconnect` (ADMIN ou RENATO) — já está correta.
+- Auth Bearer e tratamento de 401 (já no `api.ts`).
 
-## Validação
+## Validação após deploy do backend
 
-Após aplicar:
-- Coluna **Data Conexão** mostra a data real (ex.: `27/04/2026 10:31`) em vez de `01/01/1970`.
-- Coluna **Tempo Conectado** usa `minutos_conectado` vindo do banco.
-- Linhas com `M.ModNam` null mostram `-` em **Cód. Módulo** e **Módulo**.
-- Console: `response.dados` continua chegando com `total` linhas e a tabela renderiza todas.
+1. Login como `RENATO` ou usuário admin → botão **Desconectar** aparece.
+2. Login como qualquer outro usuário → aparece badge "Somente consulta".
+3. Clicar **Desconectar** → modal abre exigindo motivo de 5–500 chars.
+4. Confirmar → toast verde com `usuario @ computador — N registro(s) removido(s)` + toast amarelo com aviso do Terminal Server.
+5. Tabela recarrega e a linha some.
+6. No banco, `SELECT TOP 5 * FROM dbo.USU_LOG_SESSAO_SENIOR ORDER BY data_hora DESC` mostra o registro.
+7. Sem token → `401`. Usuário não autorizado → `403`. `numsec` inválido → `404`. Tudo isso vira toast vermelho.
