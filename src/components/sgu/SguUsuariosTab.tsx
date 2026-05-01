@@ -32,6 +32,7 @@ export function SguUsuariosTab() {
   const [detalheUsr, setDetalheUsr] = useState<SguUsuario | null>(null);
   const [detalheResumo, setDetalheResumo] = useState<ResumoAcessos | null>(null);
   const [detalheLoading, setDetalheLoading] = useState(false);
+  const [detalheErro, setDetalheErro] = useState<string | null>(null);
 
   const handlePesquisar = async () => {
     setLoading(true);
