@@ -155,7 +155,28 @@ export default function MonitorUsuariosSeniorPage() {
     const startedAt = new Date().toISOString();
     try {
       const res = await api.get<any>('/api/senior/sessoes');
-      const rawList: any[] = Array.isArray(res) ? res : (res?.sessoes ?? res?.data ?? []);
+      // Leitura robusta do retorno: o backend devolve { total, dados: [...] }
+      let rawList: any[] = [];
+      if (Array.isArray(res)) {
+        rawList = res;
+      } else if (Array.isArray((res as any)?.dados)) {
+        rawList = (res as any).dados;
+      } else if (Array.isArray((res as any)?.sessoes)) {
+        rawList = (res as any).sessoes;
+      } else if (Array.isArray((res as any)?.data)) {
+        rawList = (res as any).data;
+      } else {
+        rawList = [];
+      }
+      // Logs obrigatórios para diagnóstico
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] response completo:', res);
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] response.total:', (res as any)?.total);
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] response.dados:', (res as any)?.dados);
+      // eslint-disable-next-line no-console
+      console.log('[MonitorSenior] linhas interpretadas para a tabela:', rawList.length);
       const rows: SessaoSenior[] = rawList.map(normalizeSessao);
       setData(rows);
       setRawSamplePreview(
