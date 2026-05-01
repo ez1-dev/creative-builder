@@ -284,42 +284,52 @@ export function SguUsuariosTab() {
                 </Alert>
               )}
               {detalheUsr ? (
-                <>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="text-muted-foreground">Código</div>
-                    <div className="font-mono">{String(detalheUsr.codusu ?? '—')}</div>
+                (() => {
+                  const safeText = (v: any) =>
+                    v == null || v === ''
+                      ? '—'
+                      : typeof v === 'object'
+                      ? JSON.stringify(v).slice(0, 80)
+                      : String(v);
+                  return (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="text-muted-foreground">Código</div>
+                        <div className="font-mono">{safeText(detalheUsr.codusu)}</div>
 
-                    <div className="text-muted-foreground">Login (nomusu)</div>
-                    <div className="font-medium">{detalheUsr.nomusu || '—'}</div>
+                        <div className="text-muted-foreground">Login (nomusu)</div>
+                        <div className="font-medium">{safeText(detalheUsr.nomusu)}</div>
 
-                    <div className="text-muted-foreground">Nome completo (nomcom)</div>
-                    <div>{detalheUsr.nomcom || '—'}</div>
+                        <div className="text-muted-foreground">Nome completo (nomcom)</div>
+                        <div>{safeText(detalheUsr.nomcom)}</div>
 
-                    <div className="text-muted-foreground">Descrição (desusu)</div>
-                    <div>{detalheUsr.desusu || '—'}</div>
+                        <div className="text-muted-foreground">Descrição (desusu)</div>
+                        <div>{safeText(detalheUsr.desusu)}</div>
 
-                    <div className="text-muted-foreground">Tipo (tipcol)</div>
-                    <div>{detalheUsr.tipcol != null && detalheUsr.tipcol !== '' ? String(detalheUsr.tipcol) : '—'}</div>
+                        <div className="text-muted-foreground">Tipo (tipcol)</div>
+                        <div>{safeText(detalheUsr.tipcol)}</div>
 
-                    <div className="text-muted-foreground">Empresa (empcol)</div>
-                    <div>{detalheUsr.empcol != null && detalheUsr.empcol !== '' ? String(detalheUsr.empcol) : '—'}</div>
+                        <div className="text-muted-foreground">Empresa (empcol)</div>
+                        <div>{safeText(detalheUsr.empcol)}</div>
 
-                    <div className="text-muted-foreground">Filial (filcol)</div>
-                    <div>{detalheUsr.filcol != null && detalheUsr.filcol !== '' ? String(detalheUsr.filcol) : '—'}</div>
-                  </div>
+                        <div className="text-muted-foreground">Filial (filcol)</div>
+                        <div>{safeText(detalheUsr.filcol)}</div>
+                      </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Badge variant={detalheUsr.existe_r910 ? 'secondary' : 'destructive'}>
-                      {detalheUsr.existe_r910 ? 'R910 OK' : 'Sem R910'}
-                    </Badge>
-                    <Badge variant={detalheUsr.existe_r999 ? 'secondary' : 'destructive'}>
-                      {detalheUsr.existe_r999 ? 'R999 OK' : 'Sem R999'}
-                    </Badge>
-                    <Badge variant={(detalheUsr.qtd_empresas_e099usu ?? 0) > 0 ? 'secondary' : 'destructive'}>
-                      E099USU: {detalheUsr.qtd_empresas_e099usu ?? 0}
-                    </Badge>
-                  </div>
-                </>
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Badge variant={detalheUsr.existe_r910 ? 'secondary' : 'destructive'}>
+                          {detalheUsr.existe_r910 ? 'R910 OK' : 'Sem R910'}
+                        </Badge>
+                        <Badge variant={detalheUsr.existe_r999 ? 'secondary' : 'destructive'}>
+                          {detalheUsr.existe_r999 ? 'R999 OK' : 'Sem R999'}
+                        </Badge>
+                        <Badge variant={(detalheUsr.qtd_empresas_e099usu ?? 0) > 0 ? 'secondary' : 'destructive'}>
+                          E099USU: {detalheUsr.qtd_empresas_e099usu ?? 0}
+                        </Badge>
+                      </div>
+                    </>
+                  );
+                })()
               ) : !detalheErro ? (
                 <p className="text-xs text-muted-foreground">Sem dados do usuário.</p>
               ) : null}
