@@ -253,40 +253,76 @@ export default function PainelComprasPage() {
   }, [data]);
 
   const kpis = useMemo(() => {
-    if ((data as any)?.totais) return (data as any).totais;
-    if (data?.resumo) return data.resumo;
-    if (!data?.dados || data.dados.length === 0) return null;
-    const dados = data.dados;
-    const uniqueOcs = new Set(dados.map((d: any) => d.numero_oc));
-    const uniqueFornecedores = new Set(dados.map((d: any) => d.fantasia_fornecedor).filter(Boolean));
-    const valorBruto = dados.reduce((s: number, d: any) => s + (d.valor_bruto || d.quantidade_pedida * d.preco_unitario || 0), 0);
-    const valorLiquido = dados.reduce((s: number, d: any) => s + (d.valor_liquido || 0), 0);
-    const valorDesconto = dados.reduce((s: number, d: any) => s + (d.valor_desconto_total || 0), 0);
-    const valorPendente = dados.reduce((s: number, d: any) => s + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)), 0);
-    const itensPendentes = dados.filter((d: any) => (d.saldo_pendente || 0) > 0).length;
-    const itensAtrasados = dados.filter((d: any) => (d.dias_atraso || 0) > 0).length;
-    const ocsAtrasadas = new Set(dados.filter((d: any) => (d.dias_atraso || 0) > 0).map((d: any) => d.numero_oc)).size;
-    const maiorAtraso = Math.max(0, ...dados.map((d: any) => d.dias_atraso || 0));
-    const itensProduto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
-    const itensServico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
-    const totalLinhas = dados.length;
-    return {
-      total_ocs: uniqueOcs.size,
-      valor_bruto_total: valorBruto,
-      valor_liquido_total: valorLiquido,
-      valor_desconto_total: valorDesconto,
-      total_fornecedores: uniqueFornecedores.size,
-      valor_pendente_total: valorPendente,
-      itens_pendentes: itensPendentes,
-      itens_atrasados: itensAtrasados,
-      ocs_atrasadas: ocsAtrasadas,
-      maior_atraso_dias: maiorAtraso,
-      ticket_medio_item: totalLinhas > 0 ? valorLiquido / totalLinhas : 0,
-      impostos_totais: dados.reduce((s: number, d: any) => s + (d.impostos || 0), 0),
-      total_linhas: totalLinhas,
-      itens_produto: itensProduto,
-      itens_servico: itensServico,
+    if (!data) return null;
+    const totais = (data as any)?.totais as Record<string, any> | undefined;
+    const resumo = (data as any)?.resumo as Record<string, any> | undefined;
+
+    // Fallback client-side sobre data.dados (página corrente).
+    // Usado para preencher campos que `totais`/`resumo` não trouxeram.
+    let fallback: Record<string, any> | null = null;
+    if (Array.isArray(data.dados) && data.dados.length > 0) {
+      const dados = data.dados;
+      const uniqueOcs = new Set(dados.map((d: any) => d.numero_oc));
+      const uniqueFornecedores = new Set(dados.map((d: any) => d.fantasia_fornecedor).filter(Boolean));
+      const valorBruto = dados.reduce((s: number, d: any) => s + (d.valor_bruto || d.quantidade_pedida * d.preco_unitario || 0), 0);
+      const valorLiquido = dados.reduce((s: number, d: any) => s + (d.valor_liquido || 0), 0);
+      const valorDesconto = dados.reduce((s: number, d: any) => s + (d.valor_desconto_total || 0), 0);
+      const valorPendente = dados.reduce((s: number, d: any) => s + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)), 0);
+      const itensPendentes = dados.filter((d: any) => (d.saldo_pendente || 0) > 0).length;
+      const itensAtrasados = dados.filter((d: any) => (d.dias_atraso || 0) > 0).length;
+      const ocsAtrasadas = new Set(dados.filter((d: any) => (d.dias_atraso || 0) > 0).map((d: any) => d.numero_oc)).size;
+      const maiorAtraso = Math.max(0, ...dados.map((d: any) => d.dias_atraso || 0));
+      const itensProduto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
+      const itensServico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
+      const totalLinhas = dados.length;
+      fallback = {
+        total_ocs: uniqueOcs.size,
+        valor_bruto_total: valorBruto,
+        valor_liquido_total: valorLiquido,
+        valor_desconto_total: valorDesconto,
+        total_fornecedores: uniqueFornecedores.size,
+        valor_pendente_total: valorPendente,
+        itens_pendentes: itensPendentes,
+        itens_atrasados: itensAtrasados,
+        ocs_atrasadas: ocsAtrasadas,
+        maior_atraso_dias: maiorAtraso,
+        ticket_medio_item: totalLinhas > 0 ? valorLiquido / totalLinhas : 0,
+        impostos_totais: dados.reduce((s: number, d: any) => s + (d.impostos || 0), 0),
+        total_linhas: totalLinhas,
+        itens_produto: itensProduto,
+        itens_servico: itensServico,
+      };
+    }
+
+    if (!totais && !resumo && !fallback) return null;
+
+    // Normaliza aliases do backend para o schema esperado pelos cards.
+    const totaisNorm: Record<string, any> = { ...(totais ?? {}) };
+    if (totais?.qtd_registros != null && totaisNorm.total_linhas == null) {
+      totaisNorm.total_linhas = totais.qtd_registros;
+    }
+    if (totais?.qtd_ocs != null && totaisNorm.total_ocs == null) {
+      totaisNorm.total_ocs = totais.qtd_ocs;
+    }
+    if (totais?.valor_total != null && totaisNorm.valor_liquido_total == null) {
+      totaisNorm.valor_liquido_total = totais.valor_total;
+    }
+
+    // Merge por prioridade: totais > resumo > fallback.
+    // Só preenche se ainda não houver valor — campos ausentes em `totais`
+    // caem para `resumo`/fallback em vez de ficarem vazios nos cards.
+    const merge = (...sources: (Record<string, any> | null | undefined)[]) => {
+      const out: Record<string, any> = {};
+      for (const src of sources) {
+        if (!src) continue;
+        for (const [k, v] of Object.entries(src)) {
+          if (out[k] == null && v != null) out[k] = v;
+        }
+      }
+      return out;
     };
+
+    return merge(totaisNorm, resumo, fallback);
   }, [data]);
 
   const drillDetails = useMemo(() => {
