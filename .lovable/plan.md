@@ -1,55 +1,52 @@
-## Fix: Painel de Compras — backend rejeita CSV em `situacao_oc`
+## Backend agora aceita CSV em `situacao_oc` — remover mitigação
 
-### Problema
+O backend foi atualizado: `situacao_oc` agora é `Optional[str]` e aceita `1`, `1,2,3`, etc., aplicando `IN (?, ?, ?)` no SQL. Isso vale também para `/api/export/painel-compras`.
 
-Backend respondeu:
-```
-situacao_oc: Input should be a valid integer, unable to parse string as an integer
-```
+Com isso, toda a mitigação client-side em `src/pages/PainelComprasPage.tsx` deixa de ser necessária e passa a ser código morto que pode mascarar bugs (filtra `dados` localmente, deixando `total`/paginação inconsistentes).
 
-Ou seja, ele faz `int(situacao_oc)` direto. Quando o frontend envia `1,2,3` (CSV), o request quebra com 422. A mitigação client-side que escrevi assumia que o backend devolveria os dados (mesmo que sem filtrar), mas na verdade a chamada nem completa.
+### Alterações
 
-### Correção
+#### 1. `src/pages/PainelComprasPage.tsx`
 
-Em `src/pages/PainelComprasPage.tsx`, ajustar o tratamento de `situacao_oc` em **dois pontos** (`search` e `exportParams`):
-
-- **0 selecionadas** → omite o parâmetro (= todas) — já funciona.
-- **1 selecionada** → envia valor único (ex: `situacao_oc=4`) — já funciona.
-- **2+ selecionadas** → **omite o parâmetro** (em vez de mandar CSV) e mantém o filtro **client-side** já existente (`MITIGACAO_SITUACAO_OC_MULTI`).
-
-A mitigação já filtra `data.dados` local e exibe o `toast.warning` único avisando o usuário. Isso permanece como está.
-
-#### Patch — bloco do `search` (~linhas 106-110)
+**a) Bloco `search` (linhas ~106-112)** — substituir o tratamento "1 envia, 2+ omite" por envio de CSV:
 
 ```ts
-// situacao_oc: backend só aceita INT único hoje (ver docs/backend-painel-compras-situacao-multi.md).
-// - 0 selecionadas → omite (todas)
-// - 1 selecionada → envia valor único
-// - 2+ selecionadas → omite e filtra client-side abaixo (MITIGACAO_SITUACAO_OC_MULTI)
+// situacao_oc: backend aceita CSV (ex.: "1" ou "1,2,3").
 const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
-if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
+if (situacoesSel.length > 0) params.situacao_oc = situacoesSel.join(',');
 else delete params.situacao_oc;
 ```
 
-#### Patch — bloco do `exportParams` (~linhas 446-449)
+**b) Remover bloco `MITIGACAO_SITUACAO_OC_MULTI` (linhas ~160-177)** — apaga o filtro client-side, o `toast.warning` e a flag `__avisouSituacaoMultiBackend`. Agora o backend devolve dados/total/paginação corretos.
 
-Mesmo tratamento: omite quando `length !== 1`.
+**c) Bloco `exportParams` (linhas ~448-450)** — mesmo tratamento do `search`:
 
 ```ts
 const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
-if (sitsSel.length === 1) p.situacao_oc = sitsSel[0];
+if (sitsSel.length > 0) p.situacao_oc = sitsSel.join(',');
 else delete p.situacao_oc;
 ```
 
-> **Observação sobre exportação**: com 2+ situações, o CSV exportado vai trazer **todas as situações** (porque o backend é quem gera o arquivo, sem suporte a multi-situação). Vou adicionar um `toast.info` no clique de exportar avisando o usuário a baixar e filtrar localmente, **ou** desabilitar o botão de Export quando houver 2+ situações marcadas. Sugiro **avisar** (toast) em vez de desabilitar — menos atrito.
+**d) Remover wrapper `onClickCapture` do `ExportButton` (linhas ~528-538)** — o `toast.info` "Exportação trará todas as situações" não faz mais sentido. Restaura para:
 
-### Ajuste no doc backend
+```tsx
+actions={<ExportButton endpoint="/api/export/painel-compras" params={exportParams} />}
+```
 
-Atualizar `docs/backend-painel-compras-situacao-multi.md` deixando explícito que **hoje** o backend faz `int(...)` direto (Pydantic) e que a correção é trocar o tipo do parâmetro para `Optional[str]` + parser CSV (mesmo pseudocódigo já documentado lá). Adicionar um trecho “Status atual: rejeita CSV com 422” para ficar claro.
+#### 2. `docs/backend-painel-compras-situacao-multi.md`
 
-### Arquivos alterados
+Marcar como **resolvido**: backend aceita CSV; frontend envia `situacao_oc=1,2,3`; mitigação removida.
 
-- `src/pages/PainelComprasPage.tsx` — 2 blocos pequenos + toast no Export.
-- `docs/backend-painel-compras-situacao-multi.md` — nota de status.
+#### 3. `.lovable/plan.md`
 
-Aprova?
+Substituir pelo registro curto desta correção (fix aplicado, doc atualizado).
+
+### Fora de escopo
+
+- `MITIGACAO_TIPO_ITEM` (linhas ~120-158) permanece — é problema diferente (`tipo_item=SERVICO` sem acento), não relacionado a esta correção.
+- `ExportButton` em si não muda; ele já serializa arrays via `appendValue`, mas como mandamos string CSV pronta, o comportamento fica explícito e idêntico ao `search`.
+
+### Validação
+
+- Build TS limpa.
+- Manual no preview (após deploy): selecionar 2+ situações → request deve ir com `situacao_oc=1,2,3`, `total` e paginação coerentes, exportação respeita o filtro.

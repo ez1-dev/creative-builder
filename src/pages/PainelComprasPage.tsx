@@ -103,12 +103,9 @@ export default function PainelComprasPage() {
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
-      // situacao_oc: backend só aceita INT único hoje (ver docs/backend-painel-compras-situacao-multi.md).
-      // - 0 selecionadas → omite (todas)
-      // - 1 selecionada → envia valor único
-      // - 2+ selecionadas → omite e filtra client-side abaixo (MITIGACAO_SITUACAO_OC_MULTI)
+      // situacao_oc: backend aceita CSV (ex.: "1" ou "1,2,3").
       const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
-      if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
+      if (situacoesSel.length > 0) params.situacao_oc = situacoesSel.join(',');
       else delete params.situacao_oc;
       if (!params.coddep) delete params.coddep;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
