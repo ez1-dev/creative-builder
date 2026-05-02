@@ -1,61 +1,50 @@
 
-## Problema
+## Bug
 
-No Painel de Compras (`/painel-compras`), na aba **Dashboard** e nos cards do **Detalhamento**, os valores estão somando "por página" em alguns cenários — o usuário quer ver os totais de **todas as páginas** do filtro corrente.
+Ao escolher **"Todos"** (ou qualquer outra opção do seletor "Registros") no Painel de Compras, os KPIs e gráficos não atualizam para o conjunto novo — continuam refletindo o tamanho de página anterior.
 
-## Diagnóstico
+## Causa
 
-A página já tenta usar `data.resumo` (KPIs) e `data.graficos` (top fornecedores, situações, tipos, famílias, etc.) que o backend devolve agregados sobre todo o resultado do filtro. Existem dois pontos onde os totais voltam a ser calculados sobre a **página corrente** (100 linhas) e geram o sintoma:
+No `onValueChange` do `<Select>` de tamanho de página (linhas 505–514 de `src/pages/PainelComprasPage.tsx`), eu faço:
 
-1. **Fallback do `useMemo` de `kpis` e `chartData`** (linhas 207-326 de `src/pages/PainelComprasPage.tsx`): quando `data.resumo`/`data.graficos` não vem, somamos sobre `data.dados`, que é só a página atual.
-2. **Mitigação de `tipo_item=SERVICO`** (linhas 121-155): sobrescreve `data.dados` com o filtrado e recalcula `resumo.itens_produto`/`itens_servico` apenas na página corrente. O próprio toast já avisava que ficaria impreciso.
-3. `tamanho_pagina` está fixo em 100 (linha 101), sem opção do usuário aumentar.
-
-## Solução
-
-Adicionar um seletor de **tamanho da página** com opções 100 / 250 / 500 / 1000 / **Todos** e ajustar a lógica para que, quando "Todos" for escolhido (ou paginação ficar agregada), os cards e gráficos somem sobre o conjunto completo.
-
-### 1. Seletor de tamanho de página
-
-- Novo estado `tamanhoPagina` (default `100`).
-- Novo `Select` no painel de filtros (ou ao lado da paginação) com opções: `100`, `250`, `500`, `1000`, `Todos`.
-- "Todos" envia `tamanho_pagina=100000` (limite alto seguro) — ao backend, sinalizando que queremos o resultado completo. Mostrar `toast.info` quando "Todos" for escolhido alertando que pode demorar mais.
-- Trocar a opção dispara `search(1)`.
-
-### 2. Garantir KPIs/gráficos sempre agregados
-
-- Manter a preferência por `data.resumo` e `data.graficos` (já vêm agregados do backend).
-- Quando o tamanho selecionado for **menor que `total_registros`** e usarmos o fallback client-side, exibir um aviso discreto nos KPIs ("Totais da página atual — selecione 'Todos' para o agregado completo") em vez de simplesmente mostrar valores parciais sem contexto.
-- **Remover a sobrescrita de `data.resumo.itens_produto`/`itens_servico`** dentro da mitigação `tipo_item`: deixar `resumo` intacto (vem agregado do backend) e aplicar o filtro client-side só em `dados` da tabela. Isso resolve o caso onde "Tipo Item = SERVIÇO" estava fazendo os cards refletirem só a página.
-
-### 3. Detalhamento (tabela)
-
-- A tabela continua paginada normalmente respeitando `tamanhoPagina` selecionado.
-- Quando "Todos" for selecionado, esconder o `PaginationControl` (já que tudo está em uma página) e mostrar contagem total no header da tabela.
-
-### 4. Exportação
-
-- A exportação CSV já manda os mesmos filtros e ignora paginação no backend, então não muda nada — só revalidar.
-
-## Arquivos a alterar
-
-- `src/pages/PainelComprasPage.tsx`
-  - Adicionar estado `tamanhoPagina` e o `Select` de tamanho.
-  - Trocar `tamanho_pagina: 100` (linha 101) por `tamanho_pagina: tamanhoPagina === 'todos' ? 100000 : tamanhoPagina`.
-  - Remover recálculo de `resumo.itens_produto`/`itens_servico` na mitigação de tipo_item (linhas 134-142). Manter apenas o filtro de `dados` para a tabela.
-  - Esconder `PaginationControl` quando "Todos".
-  - Toast informativo ao escolher "Todos".
-
-## Detalhes técnicos
-
-```text
-PainelComprasPage
-├── filters (sem alterar)
-├── tamanhoPagina: 100 | 250 | 500 | 1000 | 'todos'   ← NOVO
-├── search(page)
-│     └─ params.tamanho_pagina = tamanhoPagina === 'todos' ? 100000 : Number(tamanhoPagina)
-├── KPIs / charts: priorizar data.resumo e data.graficos (já agregados pelo backend)
-└── Tabela paginada respeita tamanhoPagina; se "Todos", esconde PaginationControl
+```tsx
+setTamanhoPagina(novo);
+if (data) search(1);
 ```
 
-Sem mudanças no backend — o backend já agrega `resumo` e `graficos` sobre o filtro completo.
+`setTamanhoPagina` é assíncrono — o React só aplica o novo state no próximo render. Mas `search` é um `useCallback` que captura `tamanhoPagina` no closure. Quando chamo `search(1)` na mesma linha, o callback ainda enxerga o valor **antigo** (`'100'`), então a request vai com `tamanho_pagina=100` e o backend devolve a resposta paginada — KPIs e gráficos somem só os 100 primeiros registros.
+
+## Correção
+
+Aceitar um override explícito no `search` e passar o novo tamanho diretamente, sem depender do state ainda não propagado.
+
+### Mudança 1 — assinatura do `search` (linha 98)
+
+```tsx
+const search = useCallback(async (page = 1, tamanhoOverride?: typeof tamanhoPagina) => {
+  // ...
+  const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
+  const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
+  const params: any = { ...filters, pagina: page, tamanho_pagina: tamanhoNumerico };
+  // resto inalterado
+}, [filters, erpReady, trackSearch, tamanhoPagina]);
+```
+
+### Mudança 2 — handler do Select (linhas 507–514)
+
+```tsx
+onValueChange={(v) => {
+  const novo = v as typeof tamanhoPagina;
+  setTamanhoPagina(novo);
+  if (novo === 'todos') {
+    toast.info('Carregando todos os registros do filtro — pode levar alguns segundos para muitos resultados.');
+  }
+  if (data) search(1, novo); // ← passa o novo tamanho explicitamente
+}}
+```
+
+Sem mudanças em backend, em outras páginas, ou no contrato de API. Apenas dois pontos pequenos no `PainelComprasPage.tsx`.
+
+## Por que não polling
+
+O contexto sugere "polling" como solução, mas o problema aqui não é timeout do backend — é puramente um closure stale do React. Polling adicionaria complexidade desnecessária.
