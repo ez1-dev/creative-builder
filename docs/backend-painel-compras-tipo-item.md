@@ -1,5 +1,8 @@
 # Backend patch — Painel de Compras: filtro `tipo_item` ignorado
 
+> **Status: RESOLVIDO.** O backend agora distingue corretamente `PRODUTO`/`SERVICO` (com e sem cedilha) e devolve `dados`, `totais` e `graficos` filtrados. A mitigação client-side em `PainelComprasPage.tsx` foi **removida**.
+
+
 ## Resumo do bug
 
 O endpoint `GET /api/painel-compras` está **ignorando** o parâmetro `tipo_item` quando o valor enviado é `SERVICO` (sem cedilha). O frontend passa a usar a forma sem acento (consistente com nomes de variáveis e URL), mas a comparação no backend é feita contra a string `"SERVIÇO"` (com cedilha), então a condição falha e o `WHERE` não é aplicado — o backend devolve **todos** os registros como se nenhum filtro tivesse sido informado.

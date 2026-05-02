@@ -117,39 +117,6 @@ export default function PainelComprasPage() {
       if (!params.observacao_oc) delete params.observacao_oc;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
 
-      // MITIGACAO_TIPO_ITEM: o backend ignora tipo_item=SERVICO (sem acento) e
-      // devolve todos os registros. Filtramos apenas os `dados` da página corrente
-      // (a tabela). NÃO mexemos em `resumo`/`graficos`, que vêm agregados pelo
-      // backend sobre o filtro completo — alterá-los faria os KPIs refletirem só
-      // a página atual. Remover quando o backend aplicar o patch descrito em
-      // docs/backend-painel-compras-tipo-item.md.
-      const tipoFiltro = filters.tipo_item;
-      if (tipoFiltro && tipoFiltro !== 'TODOS' && Array.isArray((result as any)?.dados)) {
-        const norm = (v: any) => String(v ?? '').toUpperCase().replace('Ç', 'C').trim();
-        const alvo = norm(tipoFiltro);
-        const originais = (result as any).dados as any[];
-        const filtrados = originais.filter((d) => {
-          const t = norm(d?.tipo_item);
-          if (alvo === 'PRODUTO') return t === 'PRODUTO' || t === 'P';
-          if (alvo === 'SERVICO') return t === 'SERVICO' || t === 'S';
-          return true;
-        });
-        if (filtrados.length !== originais.length) {
-          (result as any).dados = filtrados;
-          console.warn(
-            '[PainelCompras] Backend ignorou tipo_item=' + tipoFiltro +
-            ' — aplicada mitigação client-side só na tabela. Removidas ' +
-            (originais.length - filtrados.length) + ' linhas que não batiam com o filtro.'
-          );
-          if (!(window as any).__avisouTipoItemBackend) {
-            (window as any).__avisouTipoItemBackend = true;
-            toast.warning(
-              'Filtro "Tipo Item" aplicado localmente na tabela — o backend ainda não distingue SERVICO sem acento. Os KPIs e gráficos continuam refletindo o agregado completo do backend.'
-            );
-          }
-        }
-      }
-
 
       setData(result);
       setPagina(page);

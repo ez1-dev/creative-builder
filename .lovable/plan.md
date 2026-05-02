@@ -1,45 +1,44 @@
 
-## Mudança
+## Bug
 
-Priorizar `response.totais` sobre `response.resumo` nos KPIs do Painel de Compras, e esconder o alerta de "backend não retornou totais agregados" quando `totais` existir.
+No Painel de Compras, ao filtrar **Tipo Item** (Produto / Serviço / Todos), os KPIs e gráficos mudam com **valores errados**, porque o frontend ainda aplica uma mitigação client-side antiga sobre o array `dados` antes dos `useMemo` calcularem KPIs/gráficos no fallback.
 
-## Arquivo
+Como o backend agora filtra `tipo_item` corretamente (segundo confirmação do usuário), essa mitigação só atrapalha: ela remove linhas do `data.dados` que o backend já filtrou, e quando o fallback de KPIs cai para somar `data.dados` (porque `totais`/`resumo` não vieram naquele momento), os números ficam descalibrados.
 
-`src/pages/PainelComprasPage.tsx` — duas alterações pequenas.
+## Solução
 
-### 1. KPIs (linha 288)
+Remover totalmente a mitigação client-side de `tipo_item` em `src/pages/PainelComprasPage.tsx`. Confiar no backend.
 
-```tsx
-const kpis = useMemo(() => {
-  if ((data as any)?.totais) return (data as any).totais;   // ← novo: prioridade máxima
-  if (data?.resumo) return data.resumo;                      // fallback existente
-  if (!data?.dados || data.dados.length === 0) return null;
-  // ... fallback client-side somando a página atual (inalterado)
-}, [data]);
+### Alterações
+
+**Arquivo único: `src/pages/PainelComprasPage.tsx`**
+
+1. **Remover bloco MITIGACAO_TIPO_ITEM** (linhas 120–151): apaga o `if (tipoFiltro && tipoFiltro !== 'TODOS' …)` inteiro e o `console.warn` + `toast.warning` associados. O backend já filtra; não precisamos pós-processar.
+
+2. **Limpar a flag global** `(window as any).__avisouTipoItemBackend` se ainda for referenciada — só existe nesse bloco; sai junto.
+
+3. **Manter** os outros tratamentos do `search()`: situacao_oc CSV, valor_min/max, coddep, etc.
+
+### Diff conceitual
+
+```diff
+  const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
+
+- // MITIGACAO_TIPO_ITEM: ...
+- const tipoFiltro = filters.tipo_item;
+- if (tipoFiltro && tipoFiltro !== 'TODOS' && Array.isArray((result as any)?.dados)) {
+-   ... filtra `dados`, dispara toast ...
+- }
+-
+  setData(result);
 ```
 
-### 2. Alerta (linha 665)
+## Por que isso resolve
 
-Atualmente:
+- Cards usam `response.totais` → `response.resumo` → fallback (já implementado).
+- Sem mitigação adulterando `data.dados`, o fallback (quando usado) soma o que o backend mandou, que já está corretamente filtrado por `tipo_item`.
+- A tabela mostra exatamente o que o backend devolveu — consistente com KPIs e gráficos.
 
-```tsx
-{!data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
-  <div ...>Atenção: o backend não retornou totais agregados...</div>
-)}
-```
+## Documentação
 
-Passa a ser:
-
-```tsx
-{!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
-  <div ...>Atenção: o backend não retornou totais agregados...</div>
-)}
-```
-
-## Resultado
-
-- `response.totais` presente → cards usam `totais`, alerta some.
-- `response.totais` ausente mas `response.resumo` presente → cards usam `resumo`, alerta some (comportamento atual).
-- Nenhum dos dois e há mais de uma página → fallback client-side soma a página atual e o alerta aparece.
-
-Sem mudanças em backend, tipos ou outras páginas.
+Marcar `docs/backend-painel-compras-tipo-item.md` como **resolvido** (uma linha no topo). Sem mudanças no backend ou em outras páginas.
