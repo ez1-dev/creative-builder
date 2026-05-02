@@ -103,11 +103,13 @@ export default function PainelComprasPage() {
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
-      // situacao_oc: array → omite se vazio; envia valor único OU CSV
+      // situacao_oc: backend só aceita INT único hoje (ver docs/backend-painel-compras-situacao-multi.md).
+      // - 0 selecionadas → omite (todas)
+      // - 1 selecionada → envia valor único
+      // - 2+ selecionadas → omite e filtra client-side abaixo (MITIGACAO_SITUACAO_OC_MULTI)
       const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
-      if (situacoesSel.length === 0) delete params.situacao_oc;
-      else if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
-      else params.situacao_oc = situacoesSel.join(',');
+      if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
+      else delete params.situacao_oc;
       if (!params.coddep) delete params.coddep;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
@@ -444,9 +446,8 @@ export default function PainelComprasPage() {
     if (p.valor_max) p.valor_max = parseFloat(p.valor_max);
     else delete p.valor_max;
     const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
-    if (sitsSel.length === 0) delete p.situacao_oc;
-    else if (sitsSel.length === 1) p.situacao_oc = sitsSel[0];
-    else p.situacao_oc = sitsSel.join(',');
+    if (sitsSel.length === 1) p.situacao_oc = sitsSel[0];
+    else delete p.situacao_oc;
     if (!p.coddep) delete p.coddep;
     if (!p.tipo_item || p.tipo_item === 'TODOS') delete p.tipo_item;
     if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
@@ -523,7 +524,19 @@ export default function PainelComprasPage() {
       <PageHeader
         title="Painel de Compras"
         description="Dashboard e detalhamento de ordens de compra"
-        actions={<ExportButton endpoint="/api/export/painel-compras" params={exportParams} />}
+        actions={
+          <div
+            onClickCapture={() => {
+              if (filters.situacao_oc.length >= 2) {
+                toast.info(
+                  'Exportação trará todas as situações: o backend ainda não filtra múltiplas situações. Filtre o arquivo após o download.'
+                );
+              }
+            }}
+          >
+            <ExportButton endpoint="/api/export/painel-compras" params={exportParams} />
+          </div>
+        }
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>

@@ -1,52 +1,55 @@
-## Painel de Compras — Multi-situação e filtro de Depósito
+## Fix: Painel de Compras — backend rejeita CSV em `situacao_oc`
 
-Duas mudanças no filtro do **Painel de Compras** (`src/pages/PainelComprasPage.tsx`):
+### Problema
 
-### 1. Situação da OC com múltipla seleção
+Backend respondeu:
+```
+situacao_oc: Input should be a valid integer, unable to parse string as an integer
+```
 
-Hoje o filtro "Situação da OC" é um `Select` simples (uma opção ou "Todas"). Vou trocar por um **dropdown com checkboxes** (Popover + Checkbox), permitindo marcar várias situações simultaneamente.
+Ou seja, ele faz `int(situacao_oc)` direto. Quando o frontend envia `1,2,3` (CSV), o request quebra com 422. A mitigação client-side que escrevi assumia que o backend devolveria os dados (mesmo que sem filtrar), mas na verdade a chamada nem completa.
 
-- O estado `situacao_oc` passa de `string` (`'TODOS' | '1' | ... | '9'`) para `string[]` (lista de códigos selecionados; vazio = todas).
-- Botão de trigger mostra:
-  - `"Todas"` quando vazio,
-  - `"Aberto Total"` quando uma única,
-  - `"3 selecionadas"` quando múltiplas (com tooltip listando os nomes).
-- Atalho rápido "Selecionar todas / Limpar" dentro do popover.
-- Auto-desmarca `somente_pendentes` quando "Liquidado" (4) for incluído (mantém o comportamento atual).
+### Correção
 
-### 2. Envio ao backend
+Em `src/pages/PainelComprasPage.tsx`, ajustar o tratamento de `situacao_oc` em **dois pontos** (`search` e `exportParams`):
 
-A API `/api/painel-compras` hoje recebe `situacao_oc` como string única. Para enviar várias:
+- **0 selecionadas** → omite o parâmetro (= todas) — já funciona.
+- **1 selecionada** → envia valor único (ex: `situacao_oc=4`) — já funciona.
+- **2+ selecionadas** → **omite o parâmetro** (em vez de mandar CSV) e mantém o filtro **client-side** já existente (`MITIGACAO_SITUACAO_OC_MULTI`).
 
-- Se 0 selecionadas → não envia o parâmetro (= todas).
-- Se 1 selecionada → envia `situacao_oc=4` (compatível com o atual).
-- Se 2+ selecionadas → envia como CSV: `situacao_oc=1,2,3`.
+A mitigação já filtra `data.dados` local e exibe o `toast.warning` único avisando o usuário. Isso permanece como está.
 
-Como não temos certeza de que o backend aceita CSV, vou também aplicar **fallback de filtro client-side** (igual ao já existente para `tipo_item`): após receber a resposta, se houver mais de uma situação selecionada, filtro `data.dados` localmente por `situacao_oc ∈ selecionadas` e recalculo `resumo` da página corrente. Aviso `toast.warning` único caso o backend devolva linhas fora do conjunto. Isso garante que a tela funcione hoje, mesmo antes de ajuste no FastAPI.
+#### Patch — bloco do `search` (~linhas 106-110)
 
-(Recomendo que depois eu gere um doc `docs/backend-painel-compras-situacao-multi.md` descrevendo o contrato `situacao_oc` aceitando CSV/lista, para o backend remover a mitigação.)
+```ts
+// situacao_oc: backend só aceita INT único hoje (ver docs/backend-painel-compras-situacao-multi.md).
+// - 0 selecionadas → omite (todas)
+// - 1 selecionada → envia valor único
+// - 2+ selecionadas → omite e filtra client-side abaixo (MITIGACAO_SITUACAO_OC_MULTI)
+const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
+if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
+else delete params.situacao_oc;
+```
 
-### 3. Novo filtro: Depósito
+#### Patch — bloco do `exportParams` (~linhas 446-449)
 
-Adicionar campo de texto **"Depósito"** no `FilterPanel`, ao lado de "Origem"/"Família":
+Mesmo tratamento: omite quando `length !== 1`.
 
-- Estado: `coddep: ''` (consistente com `EstoquePage` / `EstoqueMinMaxPage` que já usam `coddep`).
-- Input livre (mesmo padrão das outras páginas — não há combobox de depósitos hoje).
-- Enviado ao backend como `coddep` (omitido quando vazio).
-- Caso o backend não conheça o parâmetro, ele simplesmente o ignora — sem regressão. Vou registrar em `docs/backend-painel-compras-deposito.md` a sugestão de contrato (`coddep` mapeando para `E300OCP.CODDEP` ou equivalente da OC).
+```ts
+const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
+if (sitsSel.length === 1) p.situacao_oc = sitsSel[0];
+else delete p.situacao_oc;
+```
+
+> **Observação sobre exportação**: com 2+ situações, o CSV exportado vai trazer **todas as situações** (porque o backend é quem gera o arquivo, sem suporte a multi-situação). Vou adicionar um `toast.info` no clique de exportar avisando o usuário a baixar e filtrar localmente, **ou** desabilitar o botão de Export quando houver 2+ situações marcadas. Sugiro **avisar** (toast) em vez de desabilitar — menos atrito.
+
+### Ajuste no doc backend
+
+Atualizar `docs/backend-painel-compras-situacao-multi.md` deixando explícito que **hoje** o backend faz `int(...)` direto (Pydantic) e que a correção é trocar o tipo do parâmetro para `Optional[str]` + parser CSV (mesmo pseudocódigo já documentado lá). Adicionar um trecho “Status atual: rejeita CSV com 422” para ficar claro.
 
 ### Arquivos alterados
 
-- `src/pages/PainelComprasPage.tsx` — único arquivo de UI tocado.
-- `docs/backend-painel-compras-situacao-multi.md` — novo, descreve contrato CSV de `situacao_oc`.
-- `docs/backend-painel-compras-deposito.md` — novo, descreve novo parâmetro `coddep`.
+- `src/pages/PainelComprasPage.tsx` — 2 blocos pequenos + toast no Export.
+- `docs/backend-painel-compras-situacao-multi.md` — nota de status.
 
-### Detalhes técnicos
-
-- Componente do popover: `Popover` + `Checkbox` (já em `@/components/ui`). Sem dependência nova.
-- `clearFilters` reseta `situacao_oc: []` e `coddep: ''`.
-- `useAiFilters` recebe array — confiro que ele apenas faz `setFilters({...})`, então qualquer formato passa pelo state (já é genérico).
-- O drilldown do KPI "Total OCs" e o gráfico de "Situações" continuam usando `chartData.situacoes`, que é montado a partir de `data.dados` — funciona automaticamente com o filtro client-side aplicado.
-- Onde hoje há `params.situacao_oc === 'TODOS'` substituo por `Array.isArray(params.situacao_oc) && params.situacao_oc.length === 0`.
-
-Confirma para eu implementar?
+Aprova?

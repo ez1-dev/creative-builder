@@ -1,13 +1,28 @@
 # Painel de Compras — `situacao_oc` aceitar múltiplas situações
 
+## Status atual (rejeita CSV com 422)
+
+Hoje o endpoint `/api/painel-compras` (e `/api/export/painel-compras`) tipa
+`situacao_oc` como `int` direto via Pydantic. Qualquer string não numérica
+quebra com:
+
+```
+situacao_oc: Input should be a valid integer, unable to parse string as an integer
+```
+
+Por isso o frontend **não envia CSV** quando o usuário seleciona 2+
+situações: ele omite o parâmetro e aplica a mitigação client-side
+(`MITIGACAO_SITUACAO_OC_MULTI` em `PainelComprasPage.tsx`), filtrando
+`dados` localmente e exibindo um `toast.warning`. A exportação, nesse
+cenário, baixa todas as situações — o usuário é avisado por outro toast.
+
 ## Contexto
 
 O frontend de **Painel de Compras** (`/api/painel-compras`) passou a permitir
 selecionar **mais de uma situação da OC** ao mesmo tempo (Aberto Total +
-Aberto Parcial + Suspenso, por exemplo). Hoje o backend recebe apenas um
-valor único; quando o usuário seleciona várias o frontend aplica uma
-**mitigação client-side** (filtra `dados` localmente após receber a página),
-o que distorce paginação e contadores.
+Aberto Parcial + Suspenso, por exemplo). Para que o filtro funcione no
+backend (paginação correta, exportação correta), o parâmetro precisa ser
+relaxado para aceitar uma lista.
 
 ## Contrato proposto
 
