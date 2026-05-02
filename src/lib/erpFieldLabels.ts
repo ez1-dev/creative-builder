@@ -510,6 +510,33 @@ const BY_TABLE: Record<string, FieldMap> = {
     INDACE: 'Indicador de Acesso',
     INDPAD: 'Padrão',
     LIMVAL: 'Limite de Valor',
+    PAGALT: 'Pagar — Tipo de Alteração',
+    PAGABA: 'Pagar — Altera Abatimento',
+    PAGAJR: 'Pagar — Altera Juros',
+    PAGAML: 'Pagar — Altera Multa',
+    PAGAEN: 'Pagar — Altera Encargos',
+    PAGACR: 'Pagar — Altera Acréscimo',
+    PAGAAC: 'Pagar — Altera Acordo',
+    PAGASC: 'Pagar — Altera Saldo Cobrança',
+    PAGADE: 'Pagar — Altera Desconto',
+    PAGALQ: 'Pagar — Altera Alíquota',
+    PAGMOE: 'Pagar — Altera Moeda',
+    RECABA: 'Receber — Altera Abatimento',
+    RECAJR: 'Receber — Altera Juros',
+    RECAML: 'Receber — Altera Multa',
+    RECAEN: 'Receber — Altera Encargos',
+    RECACR: 'Receber — Altera Acréscimo',
+    RECAAC: 'Receber — Altera Acordo',
+    RECASC: 'Receber — Altera Saldo Cobrança',
+    RECADE: 'Receber — Altera Desconto',
+    RECALQ: 'Receber — Altera Alíquota',
+    RECMOE: 'Receber — Altera Moeda',
+    PERGDS: 'Permite Gerar Desconto',
+    CXBBLO: 'Bloqueia Caixa/Banco',
+    MAIPAR: 'Maior Parcial',
+    ENTREN: 'Entrada/Renegociação',
+    BAIPER: 'Baixa Permitida',
+    MOVLOJ: 'Movimentação Loja',
   },
 
   // ===== E099GCO — Grupos de contas =====
@@ -522,6 +549,10 @@ const BY_TABLE: Record<string, FieldMap> = {
     INDACE: 'Indicador de Acesso',
     INDPAD: 'Grupo Padrão',
     NIVPER: 'Nível de Permissão',
+    CONACE: 'Conta com Acesso',
+    USUGER: 'Usuário Geração',
+    DATGER: 'Data Geração',
+    HORGER: 'Hora Geração',
   },
 
   // ===== E099UCP — Usuário × Centro de Custo / Projeto =====
@@ -537,6 +568,13 @@ const BY_TABLE: Record<string, FieldMap> = {
     DATFIM: 'Data Final',
     INDLAN: 'Permite Lançamento',
     INDCON: 'Permite Consulta',
+    ALTTCP: 'Altera Tipo CC/Projeto',
+    OPCCTR: 'Opção de Contrato',
+    USUGER: 'Usuário Geração',
+    DATGER: 'Data Geração',
+    HORGER: 'Hora Geração',
+    REPFIX: 'Repete Fixo',
+    ACEHRY: 'Aceita Hierarquia',
   },
 
   // ===== E099UDE — Usuário × Departamento =====
@@ -550,6 +588,12 @@ const BY_TABLE: Record<string, FieldMap> = {
     NIVPER: 'Nível de Permissão',
     DATINI: 'Data Inicial',
     DATFIM: 'Data Final',
+    DBUNFE: 'Débito NF Entrada',
+    DBUNFS: 'Débito NF Saída',
+    DBUCTE: 'Débito Conta Específica',
+    USUGER: 'Usuário Geração',
+    DATGER: 'Data Geração',
+    HORGER: 'Hora Geração',
   },
 
   // ===== E099USE — Usuário × Seção / Empresa =====
@@ -564,6 +608,7 @@ const BY_TABLE: Record<string, FieldMap> = {
     FILATI: 'Filial de Atividade',
     DATINI: 'Data Inicial',
     DATFIM: 'Data Final',
+    DESXTD: 'Descrição Estendida',
   },
 
   // ===== E099UVE — Usuário × Vendedor =====
@@ -576,6 +621,13 @@ const BY_TABLE: Record<string, FieldMap> = {
     LIMVEN: 'Limite de Venda',
     DESMAX: 'Desconto Máximo (%)',
     MOEVEN: 'Moeda da Venda',
+    ALTTVE: 'Altera Tipo de Vendedor',
+    PEREPS: 'Permite Empresa Personalizada',
+    USUGER: 'Usuário Geração',
+    DATGER: 'Data Geração',
+    HORGER: 'Hora Geração',
+    CODAGR: 'Código de Agregação',
+    ENVRSG: 'Envia Resgate',
   },
 };
 
