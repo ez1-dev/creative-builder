@@ -95,11 +95,12 @@ export default function PainelComprasPage() {
 
   const trackSearch = useSearchTracking('painel-compras');
 
-  const search = useCallback(async (page = 1) => {
+  const search = useCallback(async (page = 1, tamanhoOverride?: typeof tamanhoPagina) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const tamanhoNumerico = tamanhoPagina === 'todos' ? 100000 : Number(tamanhoPagina);
+      const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
+      const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
       const params: any = { ...filters, pagina: page, tamanho_pagina: tamanhoNumerico };
       if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
       else delete params.valor_min;
@@ -510,7 +511,7 @@ export default function PainelComprasPage() {
                   if (novo === 'todos') {
                     toast.info('Carregando todos os registros do filtro — pode levar alguns segundos para muitos resultados.');
                   }
-                  if (data) search(1);
+                  if (data) search(1, novo);
                 }}
               >
                 <SelectTrigger className="h-8 w-[110px] text-xs">
