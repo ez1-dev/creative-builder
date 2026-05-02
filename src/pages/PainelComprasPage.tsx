@@ -99,7 +99,8 @@ export default function PainelComprasPage() {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const params: any = { ...filters, pagina: page, tamanho_pagina: 100 };
+      const tamanhoNumerico = tamanhoPagina === 'todos' ? 100000 : Number(tamanhoPagina);
+      const params: any = { ...filters, pagina: page, tamanho_pagina: tamanhoNumerico };
       if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
@@ -116,9 +117,11 @@ export default function PainelComprasPage() {
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
 
       // MITIGACAO_TIPO_ITEM: o backend ignora tipo_item=SERVICO (sem acento) e
-      // devolve todos os registros. Filtramos localmente e ajustamos os contadores
-      // para que a página corrente fique coerente. Remover quando o backend aplicar
-      // o patch descrito em docs/backend-painel-compras-tipo-item.md.
+      // devolve todos os registros. Filtramos apenas os `dados` da página corrente
+      // (a tabela). NÃO mexemos em `resumo`/`graficos`, que vêm agregados pelo
+      // backend sobre o filtro completo — alterá-los faria os KPIs refletirem só
+      // a página atual. Remover quando o backend aplicar o patch descrito em
+      // docs/backend-painel-compras-tipo-item.md.
       const tipoFiltro = filters.tipo_item;
       if (tipoFiltro && tipoFiltro !== 'TODOS' && Array.isArray((result as any)?.dados)) {
         const norm = (v: any) => String(v ?? '').toUpperCase().replace('Ç', 'C').trim();
@@ -132,24 +135,15 @@ export default function PainelComprasPage() {
         });
         if (filtrados.length !== originais.length) {
           (result as any).dados = filtrados;
-          // Recalcula contadores do resumo da página corrente
-          if ((result as any).resumo) {
-            (result as any).resumo.itens_produto = filtrados.filter((d) => {
-              const t = norm(d?.tipo_item); return t === 'PRODUTO' || t === 'P';
-            }).length;
-            (result as any).resumo.itens_servico = filtrados.filter((d) => {
-              const t = norm(d?.tipo_item); return t === 'SERVICO' || t === 'S';
-            }).length;
-          }
           console.warn(
             '[PainelCompras] Backend ignorou tipo_item=' + tipoFiltro +
-            ' — aplicada mitigação client-side. Removidas ' +
+            ' — aplicada mitigação client-side só na tabela. Removidas ' +
             (originais.length - filtrados.length) + ' linhas que não batiam com o filtro.'
           );
           if (!(window as any).__avisouTipoItemBackend) {
             (window as any).__avisouTipoItemBackend = true;
             toast.warning(
-              'Filtro "Tipo Item" aplicado localmente — o backend ainda não distingue SERVICO sem acento. Totais e paginação podem ficar imprecisos até a correção da API.'
+              'Filtro "Tipo Item" aplicado localmente na tabela — o backend ainda não distingue SERVICO sem acento. Os KPIs e gráficos continuam refletindo o agregado completo do backend.'
             );
           }
         }
@@ -164,7 +158,7 @@ export default function PainelComprasPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady, trackSearch]);
+  }, [filters, erpReady, trackSearch, tamanhoPagina]);
 
   useAiFilters('painel-compras', setFilters, () => search(1));
 
