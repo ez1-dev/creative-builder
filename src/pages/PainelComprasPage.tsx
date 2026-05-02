@@ -28,9 +28,21 @@ import { VisualGate } from '@/components/VisualGate';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
-const situacaoLabel = (s: number) => {
-  const map: Record<number, string> = { 1: 'Aberto Total', 2: 'Aberto Parcial', 3: 'Suspenso', 4: 'Liquidado', 5: 'Cancelado', 6: 'Aguard. Integração WMS', 7: 'Em Transmissão', 8: 'Prep. Análise/NF', 9: 'Não Fechado' };
-  return map[s] || `Sit. ${s}`;
+const SITUACOES_OPCOES: { value: string; label: string }[] = [
+  { value: '1', label: 'Aberto Total' },
+  { value: '2', label: 'Aberto Parcial' },
+  { value: '3', label: 'Suspenso' },
+  { value: '4', label: 'Liquidado' },
+  { value: '5', label: 'Cancelado' },
+  { value: '6', label: 'Aguard. Integração WMS' },
+  { value: '7', label: 'Em Transmissão' },
+  { value: '8', label: 'Prep. Análise/NF' },
+  { value: '9', label: 'Não Fechado' },
+];
+
+const situacaoLabel = (s: number | string) => {
+  const found = SITUACOES_OPCOES.find((o) => o.value === String(s));
+  return found ? found.label : `Sit. ${s}`;
 };
 
 const baseColumns: Column<any>[] = [
