@@ -811,8 +811,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <Card>
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
-            <ResponsiveContainer width="100%" height={isCompact ? 300 : 380} className="[&_.recharts-surface]:overflow-visible [&_.recharts-wrapper]:overflow-visible">
-              <PieChart margin={isCompact ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 30, right: 90, bottom: 30, left: 90 }} style={{ overflow: 'visible' }}>
+            <ResponsiveContainer width="100%" height={isCompact ? 300 : 460} className="[&_.recharts-surface]:overflow-visible [&_.recharts-wrapper]:overflow-visible">
+              <PieChart margin={isCompact ? { top: 8, right: 8, bottom: 8, left: 8 } : { top: 30, right: 60, bottom: 30, left: 60 }} style={{ overflow: 'visible' }}>
                 <Pie
                   data={porMotivo}
                   dataKey="value"
