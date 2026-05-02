@@ -286,6 +286,7 @@ export default function PainelComprasPage() {
   }, [data]);
 
   const kpis = useMemo(() => {
+    if ((data as any)?.totais) return (data as any).totais;
     if (data?.resumo) return data.resumo;
     if (!data?.dados || data.dados.length === 0) return null;
     const dados = data.dados;
