@@ -66,13 +66,21 @@ const baseColumns: Column<any>[] = [
 ];
 
 export default function PainelComprasPage() {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<{
+    codigo_item: string; descricao_item: string; fornecedor: string; numero_oc: string;
+    numero_projeto: string; centro_custo: string; transacao: string; codigo_produto: string;
+    valor_min: string; valor_max: string; tipo_item: string; tipo_oc: string;
+    data_emissao_ini: string; data_emissao_fim: string; data_entrega_ini: string; data_entrega_fim: string;
+    origem_material: string; familia: string; coddep: string; somente_pendentes: boolean;
+    agrupar_por_fornecedor: boolean; situacao_oc: string[]; codigo_motivo_oc: string; observacao_oc: string;
+    mostrar_valor_total_oc: boolean;
+  }>({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
-    origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
+    origem_material: '', familia: '', coddep: '', somente_pendentes: true,
+    agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
