@@ -819,7 +819,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={isCompact ? 70 : 85}
+                  outerRadius={isCompact ? 70 : 130}
                   cursor="pointer"
                   onClick={(d: any) => {
                     if (d.name === OUTROS_LABEL) {
