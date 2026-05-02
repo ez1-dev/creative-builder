@@ -828,8 +828,15 @@ export default function PainelComprasPage() {
           </TabsContent>
 
           <TabsContent value="lista" className="space-y-2">
+            {tamanhoPagina === 'todos' && data.total_registros > 0 && (
+              <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Exibindo todos os {data.total_registros.toLocaleString('pt-BR')} registros do filtro — paginação desativada.
+              </div>
+            )}
             <DataTable columns={columns} data={data.dados} loading={loading} />
-            <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
+            {tamanhoPagina !== 'todos' && (
+              <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
+            )}
           </TabsContent>
         </Tabs>
       )}
