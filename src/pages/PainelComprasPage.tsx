@@ -508,7 +508,7 @@ export default function PainelComprasPage() {
   const handleDrillSituacao = (slice: any) => {
     const sit = slice?.situacao_oc;
     if (sit === undefined || sit === null) return;
-    setFilters((f) => ({ ...f, situacao_oc: String(sit) }));
+    setFilters((f) => ({ ...f, situacao_oc: [String(sit)] }));
     setActiveTab('lista');
     setTimeout(() => search(1), 0);
   };
