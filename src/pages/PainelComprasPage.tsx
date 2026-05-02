@@ -524,7 +524,19 @@ export default function PainelComprasPage() {
       <PageHeader
         title="Painel de Compras"
         description="Dashboard e detalhamento de ordens de compra"
-        actions={<ExportButton endpoint="/api/export/painel-compras" params={exportParams} />}
+        actions={
+          <div
+            onClickCapture={() => {
+              if (filters.situacao_oc.length >= 2) {
+                toast.info(
+                  'Exportação trará todas as situações: o backend ainda não filtra múltiplas situações. Filtre o arquivo após o download.'
+                );
+              }
+            }}
+          >
+            <ExportButton endpoint="/api/export/painel-compras" params={exportParams} />
+          </div>
+        }
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
