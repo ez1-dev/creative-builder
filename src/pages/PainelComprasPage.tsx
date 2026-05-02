@@ -536,23 +536,78 @@ export default function PainelComprasPage() {
         <div><Label className="text-xs">Entrega até</Label><Input type="date" value={filters.data_entrega_fim} onChange={(e) => setFilters(f => ({ ...f, data_entrega_fim: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.familia} onChange={(v) => setFilters(f => ({ ...f, familia: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem_material} onChange={(v) => setFilters(f => ({ ...f, origem_material: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
+        <div><Label className="text-xs">Depósito</Label><Input value={filters.coddep} onChange={(e) => setFilters(f => ({ ...f, coddep: e.target.value }))} placeholder="Depósito" className="h-8 text-xs" /></div>
         <div>
           <Label className="text-xs">Situação da OC</Label>
-          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v, somente_pendentes: v === '4' ? false : f.somente_pendentes }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todas</SelectItem>
-              <SelectItem value="1">Aberto Total</SelectItem>
-              <SelectItem value="2">Aberto Parcial</SelectItem>
-              <SelectItem value="3">Suspenso</SelectItem>
-              <SelectItem value="4">Liquidado</SelectItem>
-              <SelectItem value="5">Cancelado</SelectItem>
-              <SelectItem value="6">Aguard. Integração WMS</SelectItem>
-              <SelectItem value="7">Em Transmissão</SelectItem>
-              <SelectItem value="8">Prep. Análise/NF</SelectItem>
-              <SelectItem value="9">Não Fechado</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                title={filters.situacao_oc.map((v) => situacaoLabel(v)).join(', ') || 'Todas'}
+              >
+                <span className="truncate">
+                  {filters.situacao_oc.length === 0
+                    ? 'Todas'
+                    : filters.situacao_oc.length === 1
+                      ? situacaoLabel(filters.situacao_oc[0])
+                      : `${filters.situacao_oc.length} selecionadas`}
+                </span>
+                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                <button
+                  type="button"
+                  className="hover:text-foreground"
+                  onClick={() => setFilters((f) => ({ ...f, situacao_oc: SITUACOES_OPCOES.map((o) => o.value) }))}
+                >
+                  Selecionar todas
+                </button>
+                <button
+                  type="button"
+                  className="hover:text-foreground"
+                  onClick={() => setFilters((f) => ({ ...f, situacao_oc: [] }))}
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {SITUACOES_OPCOES.map((opt) => {
+                  const checked = filters.situacao_oc.includes(opt.value);
+                  return (
+                    <label
+                      key={opt.value}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-accent"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          const isChecked = !!v;
+                          setFilters((f) => {
+                            const cur = new Set(f.situacao_oc);
+                            if (isChecked) cur.add(opt.value);
+                            else cur.delete(opt.value);
+                            const next = SITUACOES_OPCOES
+                              .map((o) => o.value)
+                              .filter((v) => cur.has(v));
+                            const includesLiquidado = next.includes('4');
+                            return {
+                              ...f,
+                              situacao_oc: next,
+                              somente_pendentes: includesLiquidado ? false : f.somente_pendentes,
+                            };
+                          });
+                        }}
+                      />
+                      <span className="truncate">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <div>
           <Label className="text-xs">Desconto</Label>
