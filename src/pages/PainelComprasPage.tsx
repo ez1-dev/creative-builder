@@ -425,7 +425,7 @@ export default function PainelComprasPage() {
     if (p.valor_max) p.valor_max = parseFloat(p.valor_max);
     else delete p.valor_max;
     const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
-    if (sitsSel.length === 1) p.situacao_oc = sitsSel[0];
+    if (sitsSel.length > 0) p.situacao_oc = sitsSel.join(',');
     else delete p.situacao_oc;
     if (!p.coddep) delete p.coddep;
     if (!p.tipo_item || p.tipo_item === 'TODOS') delete p.tipo_item;
