@@ -103,7 +103,12 @@ export default function PainelComprasPage() {
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
-      if (!params.situacao_oc || params.situacao_oc === 'TODOS') delete params.situacao_oc;
+      // situacao_oc: array → omite se vazio; envia valor único OU CSV
+      const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
+      if (situacoesSel.length === 0) delete params.situacao_oc;
+      else if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
+      else params.situacao_oc = situacoesSel.join(',');
+      if (!params.coddep) delete params.coddep;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
