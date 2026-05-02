@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ChevronsUpDown } from 'lucide-react';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -26,9 +28,21 @@ import { VisualGate } from '@/components/VisualGate';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
-const situacaoLabel = (s: number) => {
-  const map: Record<number, string> = { 1: 'Aberto Total', 2: 'Aberto Parcial', 3: 'Suspenso', 4: 'Liquidado', 5: 'Cancelado', 6: 'Aguard. Integração WMS', 7: 'Em Transmissão', 8: 'Prep. Análise/NF', 9: 'Não Fechado' };
-  return map[s] || `Sit. ${s}`;
+const SITUACOES_OPCOES: { value: string; label: string }[] = [
+  { value: '1', label: 'Aberto Total' },
+  { value: '2', label: 'Aberto Parcial' },
+  { value: '3', label: 'Suspenso' },
+  { value: '4', label: 'Liquidado' },
+  { value: '5', label: 'Cancelado' },
+  { value: '6', label: 'Aguard. Integração WMS' },
+  { value: '7', label: 'Em Transmissão' },
+  { value: '8', label: 'Prep. Análise/NF' },
+  { value: '9', label: 'Não Fechado' },
+];
+
+const situacaoLabel = (s: number | string) => {
+  const found = SITUACOES_OPCOES.find((o) => o.value === String(s));
+  return found ? found.label : `Sit. ${s}`;
 };
 
 const baseColumns: Column<any>[] = [
@@ -52,13 +66,21 @@ const baseColumns: Column<any>[] = [
 ];
 
 export default function PainelComprasPage() {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<{
+    codigo_item: string; descricao_item: string; fornecedor: string; numero_oc: string;
+    numero_projeto: string; centro_custo: string; transacao: string; codigo_produto: string;
+    valor_min: string; valor_max: string; tipo_item: string; tipo_oc: string;
+    data_emissao_ini: string; data_emissao_fim: string; data_entrega_ini: string; data_entrega_fim: string;
+    origem_material: string; familia: string; coddep: string; somente_pendentes: boolean;
+    agrupar_por_fornecedor: boolean; situacao_oc: string[]; codigo_motivo_oc: string; observacao_oc: string;
+    mostrar_valor_total_oc: boolean;
+  }>({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
-    origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
+    origem_material: '', familia: '', coddep: '', somente_pendentes: true,
+    agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
@@ -81,7 +103,12 @@ export default function PainelComprasPage() {
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
-      if (!params.situacao_oc || params.situacao_oc === 'TODOS') delete params.situacao_oc;
+      // situacao_oc: array → omite se vazio; envia valor único OU CSV
+      const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
+      if (situacoesSel.length === 0) delete params.situacao_oc;
+      else if (situacoesSel.length === 1) params.situacao_oc = situacoesSel[0];
+      else params.situacao_oc = situacoesSel.join(',');
+      if (!params.coddep) delete params.coddep;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
@@ -128,6 +155,25 @@ export default function PainelComprasPage() {
         }
       }
 
+      // MITIGACAO_SITUACAO_OC_MULTI: caso o backend não suporte CSV em situacao_oc,
+      // filtramos client-side quando há mais de uma situação selecionada.
+      // Ver docs/backend-painel-compras-situacao-multi.md.
+      const sitsSel: string[] = Array.isArray(filters.situacao_oc) ? filters.situacao_oc : [];
+      if (sitsSel.length >= 2 && Array.isArray((result as any)?.dados)) {
+        const setSel = new Set(sitsSel.map((s) => String(s)));
+        const originais = (result as any).dados as any[];
+        const filtrados = originais.filter((d) => setSel.has(String(d?.situacao_oc)));
+        if (filtrados.length !== originais.length) {
+          (result as any).dados = filtrados;
+          if (!(window as any).__avisouSituacaoMultiBackend) {
+            (window as any).__avisouSituacaoMultiBackend = true;
+            toast.warning(
+              'Filtro "Situação da OC" aplicado localmente — o backend ainda não aceita várias situações de uma vez. Totais e paginação podem ficar imprecisos até a correção da API.'
+            );
+          }
+        }
+      }
+
       setData(result);
       setPagina(page);
       if (page === 1) trackSearch(filters, (result as any)?.total_registros);
@@ -160,8 +206,8 @@ export default function PainelComprasPage() {
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
     valor_min: '', valor_max: '', tipo_item: 'TODOS', tipo_oc: 'TODOS',
     data_emissao_ini: '', data_emissao_fim: '', data_entrega_ini: '', data_entrega_fim: '',
-    origem_material: '', familia: '', somente_pendentes: true,
-    agrupar_por_fornecedor: false, situacao_oc: 'TODOS', codigo_motivo_oc: 'TODOS', observacao_oc: '',
+    origem_material: '', familia: '', coddep: '', somente_pendentes: true,
+    agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
   }); setData(null); setPagina(1); };
 
@@ -397,7 +443,11 @@ export default function PainelComprasPage() {
     else delete p.valor_min;
     if (p.valor_max) p.valor_max = parseFloat(p.valor_max);
     else delete p.valor_max;
-    if (!p.situacao_oc || p.situacao_oc === 'TODOS') delete p.situacao_oc;
+    const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
+    if (sitsSel.length === 0) delete p.situacao_oc;
+    else if (sitsSel.length === 1) p.situacao_oc = sitsSel[0];
+    else p.situacao_oc = sitsSel.join(',');
+    if (!p.coddep) delete p.coddep;
     if (!p.tipo_item || p.tipo_item === 'TODOS') delete p.tipo_item;
     if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
     if (!p.codigo_motivo_oc || p.codigo_motivo_oc === 'TODOS') delete p.codigo_motivo_oc;
@@ -462,7 +512,7 @@ export default function PainelComprasPage() {
   const handleDrillSituacao = (slice: any) => {
     const sit = slice?.situacao_oc;
     if (sit === undefined || sit === null) return;
-    setFilters((f) => ({ ...f, situacao_oc: String(sit) }));
+    setFilters((f) => ({ ...f, situacao_oc: [String(sit)] }));
     setActiveTab('lista');
     setTimeout(() => search(1), 0);
   };
@@ -490,23 +540,78 @@ export default function PainelComprasPage() {
         <div><Label className="text-xs">Entrega até</Label><Input type="date" value={filters.data_entrega_fim} onChange={(e) => setFilters(f => ({ ...f, data_entrega_fim: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.familia} onChange={(v) => setFilters(f => ({ ...f, familia: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
         <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem_material} onChange={(v) => setFilters(f => ({ ...f, origem_material: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
+        <div><Label className="text-xs">Depósito</Label><Input value={filters.coddep} onChange={(e) => setFilters(f => ({ ...f, coddep: e.target.value }))} placeholder="Depósito" className="h-8 text-xs" /></div>
         <div>
           <Label className="text-xs">Situação da OC</Label>
-          <Select value={filters.situacao_oc} onValueChange={(v) => setFilters(f => ({ ...f, situacao_oc: v, somente_pendentes: v === '4' ? false : f.somente_pendentes }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todas</SelectItem>
-              <SelectItem value="1">Aberto Total</SelectItem>
-              <SelectItem value="2">Aberto Parcial</SelectItem>
-              <SelectItem value="3">Suspenso</SelectItem>
-              <SelectItem value="4">Liquidado</SelectItem>
-              <SelectItem value="5">Cancelado</SelectItem>
-              <SelectItem value="6">Aguard. Integração WMS</SelectItem>
-              <SelectItem value="7">Em Transmissão</SelectItem>
-              <SelectItem value="8">Prep. Análise/NF</SelectItem>
-              <SelectItem value="9">Não Fechado</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                title={filters.situacao_oc.map((v) => situacaoLabel(v)).join(', ') || 'Todas'}
+              >
+                <span className="truncate">
+                  {filters.situacao_oc.length === 0
+                    ? 'Todas'
+                    : filters.situacao_oc.length === 1
+                      ? situacaoLabel(filters.situacao_oc[0])
+                      : `${filters.situacao_oc.length} selecionadas`}
+                </span>
+                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                <button
+                  type="button"
+                  className="hover:text-foreground"
+                  onClick={() => setFilters((f) => ({ ...f, situacao_oc: SITUACOES_OPCOES.map((o) => o.value) }))}
+                >
+                  Selecionar todas
+                </button>
+                <button
+                  type="button"
+                  className="hover:text-foreground"
+                  onClick={() => setFilters((f) => ({ ...f, situacao_oc: [] }))}
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="max-h-64 space-y-1 overflow-y-auto">
+                {SITUACOES_OPCOES.map((opt) => {
+                  const checked = filters.situacao_oc.includes(opt.value);
+                  return (
+                    <label
+                      key={opt.value}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-accent"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          const isChecked = !!v;
+                          setFilters((f) => {
+                            const cur = new Set(f.situacao_oc);
+                            if (isChecked) cur.add(opt.value);
+                            else cur.delete(opt.value);
+                            const next = SITUACOES_OPCOES
+                              .map((o) => o.value)
+                              .filter((v) => cur.has(v));
+                            const includesLiquidado = next.includes('4');
+                            return {
+                              ...f,
+                              situacao_oc: next,
+                              somente_pendentes: includesLiquidado ? false : f.somente_pendentes,
+                            };
+                          });
+                        }}
+                      />
+                      <span className="truncate">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <div>
           <Label className="text-xs">Desconto</Label>
