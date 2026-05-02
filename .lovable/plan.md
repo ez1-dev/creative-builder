@@ -1,50 +1,45 @@
 
-## Bug
+## Mudança
 
-Ao escolher **"Todos"** (ou qualquer outra opção do seletor "Registros") no Painel de Compras, os KPIs e gráficos não atualizam para o conjunto novo — continuam refletindo o tamanho de página anterior.
+Priorizar `response.totais` sobre `response.resumo` nos KPIs do Painel de Compras, e esconder o alerta de "backend não retornou totais agregados" quando `totais` existir.
 
-## Causa
+## Arquivo
 
-No `onValueChange` do `<Select>` de tamanho de página (linhas 505–514 de `src/pages/PainelComprasPage.tsx`), eu faço:
+`src/pages/PainelComprasPage.tsx` — duas alterações pequenas.
 
-```tsx
-setTamanhoPagina(novo);
-if (data) search(1);
-```
-
-`setTamanhoPagina` é assíncrono — o React só aplica o novo state no próximo render. Mas `search` é um `useCallback` que captura `tamanhoPagina` no closure. Quando chamo `search(1)` na mesma linha, o callback ainda enxerga o valor **antigo** (`'100'`), então a request vai com `tamanho_pagina=100` e o backend devolve a resposta paginada — KPIs e gráficos somem só os 100 primeiros registros.
-
-## Correção
-
-Aceitar um override explícito no `search` e passar o novo tamanho diretamente, sem depender do state ainda não propagado.
-
-### Mudança 1 — assinatura do `search` (linha 98)
+### 1. KPIs (linha 288)
 
 ```tsx
-const search = useCallback(async (page = 1, tamanhoOverride?: typeof tamanhoPagina) => {
-  // ...
-  const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
-  const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
-  const params: any = { ...filters, pagina: page, tamanho_pagina: tamanhoNumerico };
-  // resto inalterado
-}, [filters, erpReady, trackSearch, tamanhoPagina]);
+const kpis = useMemo(() => {
+  if ((data as any)?.totais) return (data as any).totais;   // ← novo: prioridade máxima
+  if (data?.resumo) return data.resumo;                      // fallback existente
+  if (!data?.dados || data.dados.length === 0) return null;
+  // ... fallback client-side somando a página atual (inalterado)
+}, [data]);
 ```
 
-### Mudança 2 — handler do Select (linhas 507–514)
+### 2. Alerta (linha 665)
+
+Atualmente:
 
 ```tsx
-onValueChange={(v) => {
-  const novo = v as typeof tamanhoPagina;
-  setTamanhoPagina(novo);
-  if (novo === 'todos') {
-    toast.info('Carregando todos os registros do filtro — pode levar alguns segundos para muitos resultados.');
-  }
-  if (data) search(1, novo); // ← passa o novo tamanho explicitamente
-}}
+{!data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
+  <div ...>Atenção: o backend não retornou totais agregados...</div>
+)}
 ```
 
-Sem mudanças em backend, em outras páginas, ou no contrato de API. Apenas dois pontos pequenos no `PainelComprasPage.tsx`.
+Passa a ser:
 
-## Por que não polling
+```tsx
+{!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
+  <div ...>Atenção: o backend não retornou totais agregados...</div>
+)}
+```
 
-O contexto sugere "polling" como solução, mas o problema aqui não é timeout do backend — é puramente um closure stale do React. Polling adicionaria complexidade desnecessária.
+## Resultado
+
+- `response.totais` presente → cards usam `totais`, alerta some.
+- `response.totais` ausente mas `response.resumo` presente → cards usam `resumo`, alerta some (comportamento atual).
+- Nenhum dos dois e há mais de uma página → fallback client-side soma a página atual e o alerta aparece.
+
+Sem mudanças em backend, tipos ou outras páginas.

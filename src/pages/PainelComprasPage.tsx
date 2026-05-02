@@ -286,6 +286,7 @@ export default function PainelComprasPage() {
   }, [data]);
 
   const kpis = useMemo(() => {
+    if ((data as any)?.totais) return (data as any).totais;
     if (data?.resumo) return data.resumo;
     if (!data?.dados || data.dados.length === 0) return null;
     const dados = data.dados;
@@ -663,7 +664,7 @@ export default function PainelComprasPage() {
 
       {data && kpis && (
         <>
-          {!data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
+          {!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
             <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
               Atenção: o backend não retornou totais agregados. Os cards estão somando apenas a página atual ({data.dados.length} de {data.total_registros.toLocaleString('pt-BR')} registros). Selecione "Todos" no canto superior direito para ver os valores completos.
             </div>
