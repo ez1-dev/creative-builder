@@ -511,7 +511,7 @@ export default function PainelComprasPage() {
                   if (novo === 'todos') {
                     toast.info('Carregando todos os registros do filtro — pode levar alguns segundos para muitos resultados.');
                   }
-                  if (data) search(1);
+                  if (data) search(1, novo);
                 }}
               >
                 <SelectTrigger className="h-8 w-[110px] text-xs">
