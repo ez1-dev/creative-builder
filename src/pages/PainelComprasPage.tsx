@@ -498,7 +498,36 @@ export default function PainelComprasPage() {
       <PageHeader
         title="Painel de Compras"
         description="Dashboard e detalhamento de ordens de compra"
-        actions={<ExportButton endpoint="/api/export/painel-compras" params={exportParams} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Label className="whitespace-nowrap text-xs text-muted-foreground">Registros:</Label>
+              <Select
+                value={tamanhoPagina}
+                onValueChange={(v) => {
+                  const novo = v as typeof tamanhoPagina;
+                  setTamanhoPagina(novo);
+                  if (novo === 'todos') {
+                    toast.info('Carregando todos os registros do filtro — pode levar alguns segundos para muitos resultados.');
+                  }
+                  if (data) search(1);
+                }}
+              >
+                <SelectTrigger className="h-8 w-[110px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="250">250</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="1000">1000</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <ExportButton endpoint="/api/export/painel-compras" params={exportParams} />
+          </div>
+        }
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
