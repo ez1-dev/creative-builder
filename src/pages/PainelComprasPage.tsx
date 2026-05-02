@@ -154,24 +154,6 @@ export default function PainelComprasPage() {
         }
       }
 
-      // MITIGACAO_SITUACAO_OC_MULTI: caso o backend não suporte CSV em situacao_oc,
-      // filtramos client-side quando há mais de uma situação selecionada.
-      // Ver docs/backend-painel-compras-situacao-multi.md.
-      const sitsSel: string[] = Array.isArray(filters.situacao_oc) ? filters.situacao_oc : [];
-      if (sitsSel.length >= 2 && Array.isArray((result as any)?.dados)) {
-        const setSel = new Set(sitsSel.map((s) => String(s)));
-        const originais = (result as any).dados as any[];
-        const filtrados = originais.filter((d) => setSel.has(String(d?.situacao_oc)));
-        if (filtrados.length !== originais.length) {
-          (result as any).dados = filtrados;
-          if (!(window as any).__avisouSituacaoMultiBackend) {
-            (window as any).__avisouSituacaoMultiBackend = true;
-            toast.warning(
-              'Filtro "Situação da OC" aplicado localmente — o backend ainda não aceita várias situações de uma vez. Totais e paginação podem ficar imprecisos até a correção da API.'
-            );
-          }
-        }
-      }
 
       setData(result);
       setPagina(page);
