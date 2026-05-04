@@ -1,68 +1,65 @@
+## Problema
 
-## Bug
+O usuário **LUIZ.ANTUNES@EZORTEA.COM.BR** não consegue desconectar sessões em **Monitor de Usuários Senior**, mesmo sendo administrador. O botão "Desconectar" aparece bloqueado / a checagem `canDisconnect` falha.
 
-Após a última mudança, vários cards do Painel de Compras aparecem vazios (`-`): Total OCs, Valor Líquido, Impostos Totais, Fornecedores, Valor Pendente, OCs Atrasadas, Ticket Médio, Total Linhas, Itens Produto, Itens Serviço.
+## Causa raiz
 
-## Causa
+No banco, o Luiz tem **dois vínculos** em `user_access`:
 
-O `useMemo` de `kpis` agora faz `if (data.totais) return data.totais;` — substitui tudo pelo objeto `totais` do backend.
+```
+LUIZ.ANTUNES@EZORTEA.COM.BR  →  Administrador
+LUIZ.ANTUNES@EZORTEA.COM.BR  →  TI
+```
 
-O problema: o objeto `totais` que o backend manda usa um **schema diferente** do que os cards esperam. Pelo que vimos no exemplo do próprio backend (`{ qtd_registros, valor_total, ... }`), e pela imagem do usuário (só "Valor Bruto", "Itens Pendentes/Atrasados" e "Maior Atraso" aparecem — coincidentemente os campos com nomes mais comuns), o backend devolve apenas um subconjunto de campos, com nomes diferentes em alguns casos. Os cards leem `kpis.total_ocs`, `kpis.valor_liquido_total`, `kpis.impostos_totais`, etc.; quando a chave não existe em `totais`, o card fica `-`.
+No `src/contexts/AuthContext.tsx` (linhas 65–83), a checagem de admin faz:
+
+```ts
+const { data: access } = await supabase
+  .from('user_access')
+  .select('profile_id')
+  .ilike('user_login', data.erp_user)
+  .maybeSingle();   // ← falha silenciosamente quando há 2+ linhas
+```
+
+Como o Luiz tem 2 linhas, `.maybeSingle()` retorna `null` (PGRST116 — multiple rows), o bloco do `if (access)` é pulado, `erp_is_admin` não é setado, e em `MonitorUsuariosSeniorPage.tsx:118-119`:
+
+```ts
+const isAdmin = localStorage.getItem('erp_is_admin') === 'true';
+const canDisconnect = isAdmin || (erpUser?.toUpperCase() === 'RENATO');
+```
+
+→ `canDisconnect = false`, botão Desconectar fica desabilitado/oculto.
+
+Mesmo problema afeta `useUserPermissions` (também usa `.maybeSingle()`), então qualquer usuário com perfil duplicado fica sem permissões.
 
 ## Correção
 
-Em vez de **substituir** com `data.totais`, **mesclar** os três níveis em ordem de prioridade, preservando campos ausentes:
+### 1. `src/contexts/AuthContext.tsx`
+Buscar **todos** os vínculos do usuário e marcar admin se **qualquer** um deles for "Administrador":
 
-1. `totais` (backend agregado, prioridade máxima)
-2. `resumo` (legado, se ainda vier)
-3. fallback client-side calculado sobre `data.dados` (para preencher os campos que `totais` não trouxe)
+```ts
+const { data: accesses } = await supabase
+  .from('user_access')
+  .select('profile_id, access_profiles!inner(name)')
+  .ilike('user_login', data.erp_user);
 
-Também normalizar aliases conhecidos do backend (`qtd_registros` → `total_linhas`, `valor_total` → `valor_liquido_total`, `qtd_ocs` → `total_ocs`) antes do merge, para que campos com nomes diferentes ainda alimentem os cards corretos.
-
-A função `merge` percorre as fontes na ordem e **só preenche um campo se ele ainda estiver vazio**, garantindo que `totais.valor_bruto_total` (se existir) ganhe do fallback, mas que `total_ocs` (ausente em `totais`) seja preenchido pelo fallback.
-
-### Arquivo
-
-`src/pages/PainelComprasPage.tsx` — substituir o `useMemo` de `kpis` (linhas 255–290).
-
-```tsx
-const kpis = useMemo(() => {
-  if (!data) return null;
-  const totais = (data as any)?.totais;
-  const resumo = (data as any)?.resumo;
-
-  // fallback sobre data.dados (página corrente)
-  let fallback: Record<string, any> | null = null;
-  if (Array.isArray(data.dados) && data.dados.length > 0) {
-    // ... mesmo cálculo que existia antes
-  }
-
-  if (!totais && !resumo && !fallback) return null;
-
-  // Aliases do backend → schema esperado pelos cards
-  const totaisNorm: Record<string, any> = { ...(totais ?? {}) };
-  if (totais?.qtd_registros  != null && totaisNorm.total_linhas        == null) totaisNorm.total_linhas        = totais.qtd_registros;
-  if (totais?.qtd_ocs        != null && totaisNorm.total_ocs           == null) totaisNorm.total_ocs           = totais.qtd_ocs;
-  if (totais?.valor_total    != null && totaisNorm.valor_liquido_total == null) totaisNorm.valor_liquido_total = totais.valor_total;
-
-  // Merge: prioridade totais > resumo > fallback; só preenche se vazio
-  const merge = (...sources: (Record<string, any> | null | undefined)[]) => {
-    const out: Record<string, any> = {};
-    for (const src of sources) for (const [k, v] of Object.entries(src ?? {})) {
-      if (out[k] == null && v != null) out[k] = v;
-    }
-    return out;
-  };
-
-  return merge(totaisNorm, resumo, fallback);
-}, [data]);
+const isAdmin = (accesses ?? []).some(
+  (a: any) => a.access_profiles?.name === 'Administrador'
+);
+if (isAdmin) localStorage.setItem('erp_is_admin', 'true');
+else localStorage.removeItem('erp_is_admin');
 ```
 
-## Resultado esperado
+### 2. `src/hooks/useUserPermissions.ts`
+Mesmo tratamento: trocar `.maybeSingle()` por buscar todas as linhas e **unir** as permissões de todos os perfis (OR em `can_view`/`can_edit`, OR em `ai_enabled`). Assim Luiz herda permissões de Administrador + TI.
 
-- Quando o backend manda `totais` parciais → cards usam `totais` para os campos que existem e completam com fallback para os demais. Nada fica `-` à toa.
-- Quando `totais` cobre todos os campos → fallback é ignorado naturalmente.
-- Quando não há `totais` nem `resumo` → fallback toma conta (igual ao comportamento original).
-- Aliases (`qtd_registros`, `valor_total`, `qtd_ocs`) passam a alimentar os cards corretos automaticamente.
+### 3. Aviso opcional na UI de "Atribuir Perfil a Usuário"
+Quando o admin tentar atribuir um perfil a um usuário que **já tem** outro perfil, mostrar toast informativo (não bloquear) — ajuda a evitar surpresas futuras. *(implementar só se o usuário pedir; fora do escopo do bug atual.)*
 
-Sem mudanças em backend ou em outras páginas.
+## Validação
+
+- Após o fix, Luiz faz login → `localStorage.erp_is_admin === 'true'` → botão Desconectar fica habilitado em `/monitor-usuarios-senior`.
+- Outros usuários com 1 perfil só continuam funcionando normalmente.
+- Usuários sem vínculo continuam sem admin.
+
+Aprova para aplicar?
