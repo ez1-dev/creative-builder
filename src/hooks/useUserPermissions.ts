@@ -25,33 +25,43 @@ export function useUserPermissions() {
 
     const fetchPerms = async () => {
       setLoading(true);
-      const { data: access } = await supabase
+      const { data: accesses } = await supabase
         .from('user_access')
         .select('profile_id')
-        .ilike('user_login', erpUser)
-        .maybeSingle();
+        .ilike('user_login', erpUser);
 
-      if (!access) {
+      const profileIds = (accesses ?? []).map((a) => a.profile_id);
+      if (profileIds.length === 0) {
         setPermissions([]);
         setCanUseAi(false);
         setLoading(false);
         return;
       }
 
-      const [{ data: screens }, { data: profile }] = await Promise.all([
+      const [{ data: screens }, { data: profiles }] = await Promise.all([
         supabase
           .from('profile_screens')
           .select('screen_path, screen_name, can_view, can_edit')
-          .eq('profile_id', access.profile_id),
+          .in('profile_id', profileIds),
         supabase
           .from('access_profiles')
           .select('ai_enabled')
-          .eq('id', access.profile_id)
-          .maybeSingle(),
+          .in('id', profileIds),
       ]);
 
-      setPermissions(screens ?? []);
-      setCanUseAi(profile?.ai_enabled ?? false);
+      // Une permissões de múltiplos perfis: OR em can_view/can_edit por screen_path
+      const merged = new Map<string, ScreenPermission>();
+      for (const s of screens ?? []) {
+        const cur = merged.get(s.screen_path);
+        if (cur) {
+          cur.can_view = cur.can_view || s.can_view;
+          cur.can_edit = cur.can_edit || s.can_edit;
+        } else {
+          merged.set(s.screen_path, { ...s });
+        }
+      }
+      setPermissions(Array.from(merged.values()));
+      setCanUseAi((profiles ?? []).some((p) => p.ai_enabled));
       setLoading(false);
     };
 
