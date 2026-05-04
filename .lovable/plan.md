@@ -1,65 +1,29 @@
+# Padronizar nome do colaborador em MAIÚSCULAS
+
 ## Problema
+Em `/passagens-aereas` → aba Registros, o mesmo colaborador aparece duplicado quando foi cadastrado com caixa diferente (ex.: "Edgard Soares Amorim" vs "EDGARD SOARES AMORIM"), gerando dois grupos e somas separadas.
 
-O usuário **LUIZ.ANTUNES@EZORTEA.COM.BR** não consegue desconectar sessões em **Monitor de Usuários Senior**, mesmo sendo administrador. O botão "Desconectar" aparece bloqueado / a checagem `canDisconnect` falha.
+## Solução (3 frentes)
 
-## Causa raiz
+### 1. Banco — normalizar dados existentes (migration)
+- `UPDATE public.passagens_aereas SET colaborador = upper(trim(colaborador))` para consolidar registros já cadastrados.
+- Adicionar trigger `BEFORE INSERT OR UPDATE` em `passagens_aereas` que faz `NEW.colaborador := upper(trim(NEW.colaborador))`, garantindo que toda nova gravação fique normalizada (inclusive via importação ou edição futura).
 
-No banco, o Luiz tem **dois vínculos** em `user_access`:
+### 2. Inserção (frontend)
+- Em `src/pages/PassagensAereasPage.tsx` (criação manual) e `src/components/passagens/ImportarPassagensDialog.tsx` (importação em massa): aplicar `colaborador.trim().toUpperCase()` antes do insert.
 
-```
-LUIZ.ANTUNES@EZORTEA.COM.BR  →  Administrador
-LUIZ.ANTUNES@EZORTEA.COM.BR  →  TI
-```
+### 3. Agregações (frontend, defesa em profundidade)
+- Em `src/components/passagens/PassagensDashboard.tsx`:
+  - Agrupamento por colaborador (mapa em `~linha 301`): usar `upper(trim)` como chave.
+  - Contagem `colaboradoresUnicos` (linha 334): aplicar normalização no Set.
+  - Filtro por colaborador (linha 191) e ordenações: comparar normalizado.
+  - `ColaboradorCombobox` (lista de sugestões): deduplicar via versão maiúscula.
 
-No `src/contexts/AuthContext.tsx` (linhas 65–83), a checagem de admin faz:
+## Resultado
+- "Edgard Soares Amorim" e "EDGARD SOARES AMORIM" passam a aparecer como um único colaborador "EDGARD SOARES AMORIM" com a soma correta (R$ 200,66 no exemplo).
+- Não há mais como criar variações por caixa: trigger + frontend garantem consistência.
 
-```ts
-const { data: access } = await supabase
-  .from('user_access')
-  .select('profile_id')
-  .ilike('user_login', data.erp_user)
-  .maybeSingle();   // ← falha silenciosamente quando há 2+ linhas
-```
-
-Como o Luiz tem 2 linhas, `.maybeSingle()` retorna `null` (PGRST116 — multiple rows), o bloco do `if (access)` é pulado, `erp_is_admin` não é setado, e em `MonitorUsuariosSeniorPage.tsx:118-119`:
-
-```ts
-const isAdmin = localStorage.getItem('erp_is_admin') === 'true';
-const canDisconnect = isAdmin || (erpUser?.toUpperCase() === 'RENATO');
-```
-
-→ `canDisconnect = false`, botão Desconectar fica desabilitado/oculto.
-
-Mesmo problema afeta `useUserPermissions` (também usa `.maybeSingle()`), então qualquer usuário com perfil duplicado fica sem permissões.
-
-## Correção
-
-### 1. `src/contexts/AuthContext.tsx`
-Buscar **todos** os vínculos do usuário e marcar admin se **qualquer** um deles for "Administrador":
-
-```ts
-const { data: accesses } = await supabase
-  .from('user_access')
-  .select('profile_id, access_profiles!inner(name)')
-  .ilike('user_login', data.erp_user);
-
-const isAdmin = (accesses ?? []).some(
-  (a: any) => a.access_profiles?.name === 'Administrador'
-);
-if (isAdmin) localStorage.setItem('erp_is_admin', 'true');
-else localStorage.removeItem('erp_is_admin');
-```
-
-### 2. `src/hooks/useUserPermissions.ts`
-Mesmo tratamento: trocar `.maybeSingle()` por buscar todas as linhas e **unir** as permissões de todos os perfis (OR em `can_view`/`can_edit`, OR em `ai_enabled`). Assim Luiz herda permissões de Administrador + TI.
-
-### 3. Aviso opcional na UI de "Atribuir Perfil a Usuário"
-Quando o admin tentar atribuir um perfil a um usuário que **já tem** outro perfil, mostrar toast informativo (não bloquear) — ajuda a evitar surpresas futuras. *(implementar só se o usuário pedir; fora do escopo do bug atual.)*
-
-## Validação
-
-- Após o fix, Luiz faz login → `localStorage.erp_is_admin === 'true'` → botão Desconectar fica habilitado em `/monitor-usuarios-senior`.
-- Outros usuários com 1 perfil só continuam funcionando normalmente.
-- Usuários sem vínculo continuam sem admin.
-
-Aprova para aplicar?
+## Detalhes técnicos
+- Migration única com: `UPDATE`, função `normalize_passagens_colaborador()` e trigger `passagens_aereas_normalize_colab`.
+- Sem alterações no schema (mesma coluna `colaborador text`).
+- Sem impacto em links de compartilhamento públicos (apenas leem dados).
