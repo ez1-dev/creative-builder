@@ -174,7 +174,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
 
         const data: ParsedRow = {
           data_registro,
-          colaborador: colaborador!,
+          colaborador: colaborador!.toUpperCase(),
           centro_custo: strOrNull(get('centro_custo')),
           projeto_obra: strOrNull(get('projeto_obra')),
           fornecedor: strOrNull(get('fornecedor')),

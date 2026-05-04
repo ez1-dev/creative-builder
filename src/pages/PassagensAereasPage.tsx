@@ -100,7 +100,7 @@ export default function PassagensAereasPage() {
     }
     const payload = {
       data_registro: form.data_registro,
-      colaborador: form.colaborador,
+      colaborador: (form.colaborador || '').trim().toUpperCase(),
       centro_custo: form.centro_custo || null,
       projeto_obra: form.projeto_obra || null,
       fornecedor: form.fornecedor || null,

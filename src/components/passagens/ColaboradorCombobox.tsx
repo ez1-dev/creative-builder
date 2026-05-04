@@ -67,8 +67,16 @@ export function ColaboradorCombobox({
   );
 
   const handleCreate = async () => {
-    const nome = query.trim();
+    const nome = query.trim().toUpperCase();
     if (!nome) return;
+    // Se já existe (case-insensitive) na cache, apenas seleciona
+    const existente = (cache ?? []).find((c) => c.nome.toUpperCase() === nome);
+    if (existente) {
+      onChange(existente.nome);
+      setOpen(false);
+      setQuery('');
+      return;
+    }
     setCreating(true);
     const { data, error } = await supabase
       .from('colaboradores_catalogo')

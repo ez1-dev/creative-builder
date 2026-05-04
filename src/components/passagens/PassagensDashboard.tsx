@@ -300,7 +300,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const gruposColab = useMemo(() => {
     const map = new Map<string, { colaborador: string; qtd: number; total: number; registros: Passagem[] }>();
     displayRows.forEach((r) => {
-      const key = (r.colaborador ?? '').trim() || 'Sem colaborador';
+      const key = (r.colaborador ?? '').trim().toUpperCase() || 'SEM COLABORADOR';
       const cur = map.get(key) ?? { colaborador: key, qtd: 0, total: 0, registros: [] };
       cur.qtd += 1;
       cur.total += Number(r.valor || 0);
@@ -331,7 +331,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const totalRegistros = crossFiltered.length;
   const ticketMedio = totalRegistros > 0 ? totalGeral / totalRegistros : 0;
   const colaboradoresUnicos = useMemo(
-    () => new Set(crossFiltered.map((r) => r.colaborador).filter(Boolean)).size,
+    () => new Set(crossFiltered.map((r) => (r.colaborador ?? '').trim().toUpperCase()).filter(Boolean)).size,
     [crossFiltered],
   );
 
