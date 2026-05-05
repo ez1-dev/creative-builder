@@ -142,12 +142,46 @@ export function AuditoriaRevendaTab() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AuditoriaRevendaResponse | null>(null);
   const [linhaSelecionada, setLinhaSelecionada] = useState<AuditoriaRevendaItem | null>(null);
-  const [revendaInput, setRevendaInput] = useState('');
+  const [revendaQuery, setRevendaQuery] = useState('');
+  const [revendaSelecionada, setRevendaSelecionada] = useState<RevendaOption | null>(null);
+  const [revendaOpcoes, setRevendaOpcoes] = useState<RevendaOption[]>([]);
+  const [buscandoRevendas, setBuscandoRevendas] = useState(false);
+  const [revendaPopoverOpen, setRevendaPopoverOpen] = useState(false);
   const [motivoInput, setMotivoInput] = useState('');
   const [atualizarPedido, setAtualizarPedido] = useState(true);
   const [atualizarNf, setAtualizarNf] = useState(true);
   const [sobrescrever, setSobrescrever] = useState(false);
   const [aplicando, setAplicando] = useState(false);
+
+  useEffect(() => {
+    const q = revendaQuery.trim();
+    if (revendaSelecionada && revendaSelecionada.label === revendaQuery) return;
+    if (q.length < 2) {
+      setRevendaOpcoes([]);
+      setBuscandoRevendas(false);
+      return;
+    }
+    setBuscandoRevendas(true);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await api.get<{ dados?: any[] }>(
+          '/api/faturamento-genius/revendas',
+          { q },
+        );
+        const opcoes: RevendaOption[] = (result?.dados ?? []).map((d: any) => {
+          const codigo = String(d.codigo ?? d.cod_cliente ?? d.codcli ?? '');
+          const nome = d.nome ?? d.nome_fantasia ?? d.razao_social ?? '';
+          return { codigo, nome, label: `${codigo} - ${nome}` };
+        });
+        setRevendaOpcoes(opcoes);
+      } catch (err: any) {
+        setRevendaOpcoes([]);
+      } finally {
+        setBuscandoRevendas(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [revendaQuery, revendaSelecionada]);
 
   const abrirAplicar = (row: AuditoriaRevendaItem) => {
     const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
