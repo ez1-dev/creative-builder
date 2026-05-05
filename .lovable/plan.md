@@ -1,70 +1,123 @@
 ## Objetivo
 
-Substituir o campo de texto livre "Revenda" no modal **Aplicar Revenda no ERP** (aba Auditoria Revenda do módulo Faturamento Genius) por um **autocomplete** que consulta o ERP em tempo real e exige a seleção de uma revenda cadastrada.
+Na aba **Auditoria Revenda** (Faturamento Genius), exibir o confronto entre as três revendas (NF, Pedido, Item do Pedido) com badges de status, e ajustar a aplicação para enviar `codcli_revenda` (numérico) em vez de `revenda` (texto).
 
 ## Arquivo alterado
 
-- `src/components/faturamento/AuditoriaRevendaTab.tsx` (único)
-
-Sem mudanças em endpoints existentes, sem Supabase, sem migrações.
+`src/components/faturamento/AuditoriaRevendaTab.tsx` (único). Sem alterações de endpoints, sem Supabase.
 
 ## Mudanças
 
-### 1. Novo tipo e estado
+### 1. Tipo `AuditoriaRevendaItem`
 
-- Tipo `RevendaOption = { codigo: string; nome: string; label: string }`.
-- Substituir o estado `revendaInput: string` por:
-  - `revendaQuery: string` (texto digitado)
-  - `revendaSelecionada: RevendaOption | null`
-  - `revendaOpcoes: RevendaOption[]`
-  - `buscandoRevendas: boolean`
-  - `revendaPopoverOpen: boolean`
+Adicionar campos opcionais:
+- `revenda_nf?: string | null`
+- `revenda_pedido?: string | null`
+- `revenda_item_pedido?: string | null`
+- `status_revenda?: string | null` (`OK` | `PENDENTE` | `DIVERGENTE` | etc.)
 
-### 2. Busca com debounce (~300ms)
+Manter `revenda` legado por compatibilidade (não usado mais nas colunas).
 
-- `useEffect` observando `revendaQuery`:
-  - Se `query.trim().length < 2`, limpa as opções e não chama a API.
-  - Caso contrário, agenda `setTimeout` de 300ms que chama:
-    `api.get('/api/faturamento-genius/revendas', { q: query })`
-  - Cancela o timer anterior no cleanup. (`api` já injeta o `Authorization: Bearer <jwt>`.)
-  - Mapeia a resposta: `result.dados.map(d => ({ codigo: String(d.codigo), nome: d.nome ?? d.nome_fantasia ?? '', label: `${d.codigo} - ${d.nome ?? d.nome_fantasia ?? ''}` }))`.
+### 2. Colunas da tabela
 
-### 3. UI do campo Revenda
+Substituir a coluna única **Revenda** por três colunas + **Status**:
 
-Trocar o `<Input>` simples por um combobox usando `Popover` + `Command` (já presentes em `src/components/ui/`):
+Ordem final:
+```
+Origem · Data Emissão · Pedido · NF · Série NF · Item NF · Cliente · Projeto · Produto · Derivação · Revenda NF · Revenda Pedido · Revenda Item Pedido · Status · Motivo · Ações
+```
 
-- `PopoverTrigger`: botão/`Input` exibindo `revendaSelecionada?.label || revendaQuery`.
-- `PopoverContent`: `Command` com `CommandInput` (vinculado a `revendaQuery`), `CommandList`:
-  - Estado vazio: "Digite ao menos 2 caracteres".
-  - Carregando: spinner + "Buscando revendas...".
-  - Sem resultados: "Nenhuma revenda encontrada".
-  - `CommandItem` para cada opção; ao selecionar: define `revendaSelecionada`, `revendaQuery = option.label`, fecha o popover.
-- Ao digitar no `CommandInput`, limpa `revendaSelecionada` (forçando nova seleção válida).
+Helper:
+```ts
+const renderRevenda = (v: unknown) => {
+  const s = (v ?? '').toString().trim();
+  return s
+    ? <span className="text-xs">{s}</span>
+    : <Badge variant="outline" className="text-muted-foreground">Sem revenda</Badge>;
+};
+```
 
-### 4. Validação no `aplicarRevenda()`
+Coluna **Status** — badge por valor (case-insensitive):
+- `OK` → `default` (verde via `bg-emerald-600 text-white`)
+- `PENDENTE` → `bg-amber-500 text-white`
+- `DIVERGENTE` → `destructive`
+- vazio/desconhecido → `outline` cinza
 
-- Antes de montar o payload:
-  ```ts
-  if (!revendaSelecionada) {
-    toast.error('Selecione uma revenda cadastrada no ERP.');
-    return;
-  }
-  ```
-- Remover validação atual baseada em `revendaInput.trim()`.
+### 3. Coluna NF (já existe `getNF`)
 
-### 5. Payload
+Manter prioridade `documento_nf || numero_nf || nf || id_nf || num_nfv`. Quando houver `serie_nf`, exibir `${nf}/${serie_nf}` na própria coluna NF (a coluna Série NF continua separada para filtro visual).
 
-Substituir `revenda: revendaInput.trim()` por `revenda: revendaSelecionada.codigo` nos dois ramos (`NF` e `PEDIDO`). Demais campos inalterados.
+### 4. Modal "Aplicar Revenda no ERP"
 
-### 6. Reset
+Cabeçalho dinâmico em `DialogDescription`:
+- NF: `Origem NF · Pedido {pedido} · NF {numero_nf}/{serie_nf}`
+- PEDIDO: `Origem PEDIDO · Pedido {pedido}`
 
-- `abrirAplicar(row)`: zera `revendaQuery`, `revendaSelecionada`, `revendaOpcoes`. (Não pré-popula com `row.revenda`, pois esse texto não é necessariamente um código cadastrado.)
-- `fecharAplicar()`: idem ao fechar.
+Defaults conforme origem:
+- NF → `atualizar_pedido=true`, `atualizar_nf=true`, `sobrescrever=false`
+- PEDIDO → `atualizar_pedido=true`, `atualizar_nf=false` (checkbox desabilitado), `sobrescrever=false`
 
-### 7. Pós-sucesso
+Autocomplete de revenda permanece (já implementado).
 
-Mantém comportamento atual: toast `"Revenda aplicada no ERP com sucesso"`, fecha modal, `consultar(pagina)`.
+### 5. Payload — trocar `revenda` por `codcli_revenda`
+
+Substituir nos dois ramos de `aplicarRevenda()`:
+
+```ts
+codcli_revenda: Number(revendaSelecionada.codigo)
+```
+
+Remover a chave `revenda` do payload.
+
+NF:
+```ts
+{
+  origem: 'NF',
+  codemp: row.empresa,
+  codfil: row.filial,
+  codsnf: row.serie_nf,
+  numnfv: row.numero_nf || row.nf || row.num_nfv,
+  seqipv: row.item_nf,
+  numped: row.pedido,
+  seqipd: row.seqipd,
+  codcli_revenda: Number(revendaSelecionada.codigo),
+  motivo: motivoInput.trim(),
+  atualizar_pedido: atualizarPedido,
+  atualizar_nf: atualizarNf,
+  sobrescrever,
+}
+```
+
+PEDIDO:
+```ts
+{
+  origem: 'PEDIDO',
+  codemp: row.empresa,
+  codfil: row.filial,
+  numped: row.pedido,
+  seqipd: row.seqipd,
+  codcli_revenda: Number(revendaSelecionada.codigo),
+  motivo: motivoInput.trim(),
+  atualizar_pedido: atualizarPedido,
+  atualizar_nf: false,
+  sobrescrever,
+}
+```
+
+Validação adicional: se `Number.isNaN(Number(revendaSelecionada.codigo))`, abortar com toast de erro.
+
+### 6. Tratamento de erro 409
+
+No `catch` de `aplicarRevenda()`:
+- Detectar `err?.status === 409` (ou `err?.response?.status === 409`) e exibir a mensagem retornada pelo backend (`err?.detail || err?.message`) com `toast.error(...)`.
+- Não fechar o modal — usuário pode marcar **Sobrescrever** e tentar novamente.
+- Para outros erros, manter comportamento atual.
+
+### 7. Sucesso
+
+Mantém: `toast.success('Revenda aplicada no ERP com sucesso')`, fecha modal, `consultar(pagina)`.
 
 ## Fora de escopo
 
-- Endpoint de consulta da auditoria, endpoint de aplicar, demais colunas da tabela e filtros — inalterados.
+- Endpoints de consulta/aplicação/exportação/revendas — inalterados.
+- Filtros, paginação, KPIs — inalterados.
