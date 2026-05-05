@@ -541,13 +541,18 @@ export function AuditoriaRevendaTab() {
           <DialogHeader>
             <DialogTitle>Aplicar Revenda no ERP</DialogTitle>
             <DialogDescription className="text-xs">
-              {linhaSelecionada && (
-                <>
-                  Origem <span className="font-medium">{String(linhaSelecionada.origem ?? '').toUpperCase()}</span>
-                  {linhaSelecionada.pedido ? ` · Pedido ${linhaSelecionada.pedido}` : ''}
-                  {getNF(linhaSelecionada) ? ` · NF ${getNF(linhaSelecionada)}` : ''}
-                </>
-              )}
+              {linhaSelecionada && (() => {
+                const isNf = String(linhaSelecionada.origem ?? '').toUpperCase() === 'NF';
+                const nf = getNF(linhaSelecionada);
+                const nfLabel = nf
+                  ? linhaSelecionada.serie_nf
+                    ? `${nf}/${linhaSelecionada.serie_nf}`
+                    : String(nf)
+                  : '';
+                return isNf
+                  ? `Origem NF · Pedido ${linhaSelecionada.pedido ?? '-'}${nfLabel ? ` · NF ${nfLabel}` : ''}`
+                  : `Origem PEDIDO · Pedido ${linhaSelecionada.pedido ?? '-'}`;
+              })()}
             </DialogDescription>
           </DialogHeader>
 
