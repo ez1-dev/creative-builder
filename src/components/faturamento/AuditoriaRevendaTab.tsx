@@ -4,6 +4,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -11,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Search, Download, FileSearch } from 'lucide-react';
+import { Loader2, Search, Download, FileSearch, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, type PaginatedResponse } from '@/lib/api';
 import { DataTable, type Column } from '@/components/erp/DataTable';
@@ -37,6 +46,7 @@ interface AuditoriaRevendaItem {
   id_nf?: string | number | null;
   num_nfv?: string | number | null;
   item_nf?: string | number | null;
+  seqipd?: string | number | null;
   cod_cliente?: string | number | null;
   cliente?: string | null;
   projeto?: string | number | null;
@@ -120,6 +130,82 @@ export function AuditoriaRevendaTab() {
   const [tamanhoPagina] = useState(50);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AuditoriaRevendaResponse | null>(null);
+  const [linhaSelecionada, setLinhaSelecionada] = useState<AuditoriaRevendaItem | null>(null);
+  const [revendaInput, setRevendaInput] = useState('');
+  const [motivoInput, setMotivoInput] = useState('');
+  const [atualizarPedido, setAtualizarPedido] = useState(true);
+  const [atualizarNf, setAtualizarNf] = useState(true);
+  const [sobrescrever, setSobrescrever] = useState(false);
+  const [aplicando, setAplicando] = useState(false);
+
+  const abrirAplicar = (row: AuditoriaRevendaItem) => {
+    const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
+    setLinhaSelecionada(row);
+    setRevendaInput((row.revenda ?? '').toString());
+    setMotivoInput('');
+    setAtualizarPedido(true);
+    setAtualizarNf(isNf);
+    setSobrescrever(false);
+  };
+
+  const fecharAplicar = () => {
+    if (aplicando) return;
+    setLinhaSelecionada(null);
+  };
+
+  const aplicarRevenda = async () => {
+    if (!linhaSelecionada) return;
+    if (!revendaInput.trim()) {
+      toast.error('Informe a revenda.');
+      return;
+    }
+    if (!motivoInput.trim()) {
+      toast.error('Motivo é obrigatório.');
+      return;
+    }
+    const row = linhaSelecionada;
+    const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
+    const payload = isNf
+      ? {
+          origem: 'NF',
+          codemp: row.empresa,
+          codfil: row.filial,
+          codsnf: row.serie_nf,
+          numnfv: row.numero_nf || row.nf || row.num_nfv,
+          seqipv: row.item_nf,
+          numped: row.pedido,
+          seqipd: row.seqipd,
+          revenda: revendaInput.trim(),
+          motivo: motivoInput.trim(),
+          atualizar_pedido: atualizarPedido,
+          atualizar_nf: atualizarNf,
+          sobrescrever,
+        }
+      : {
+          origem: 'PEDIDO',
+          codemp: row.empresa,
+          codfil: row.filial,
+          numped: row.pedido,
+          seqipd: row.seqipd,
+          revenda: revendaInput.trim(),
+          motivo: motivoInput.trim(),
+          atualizar_pedido: atualizarPedido,
+          atualizar_nf: false,
+          sobrescrever,
+        };
+
+    setAplicando(true);
+    try {
+      await api.post('/api/faturamento-genius/auditoria-revenda/aplicar', payload);
+      toast.success('Revenda aplicada no ERP com sucesso');
+      setLinhaSelecionada(null);
+      await consultar(pagina);
+    } catch (err: any) {
+      toast.error(err?.message || 'Falha ao aplicar revenda no ERP.');
+    } finally {
+      setAplicando(false);
+    }
+  };
 
   const update = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -206,6 +292,21 @@ export function AuditoriaRevendaTab() {
       },
     },
     { key: 'motivo', header: 'Motivo' },
+    {
+      key: 'acoes' as any,
+      header: 'Ações',
+      render: (_v, row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={() => abrirAplicar(row as AuditoriaRevendaItem)}
+        >
+          <Wrench className="mr-1 h-3 w-3" />
+          Aplicar Revenda
+        </Button>
+      ),
+    },
   ];
 
   return (
@@ -342,6 +443,79 @@ export function AuditoriaRevendaTab() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!linhaSelecionada} onOpenChange={(o) => !o && fecharAplicar()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aplicar Revenda no ERP</DialogTitle>
+            <DialogDescription className="text-xs">
+              {linhaSelecionada && (
+                <>
+                  Origem <span className="font-medium">{String(linhaSelecionada.origem ?? '').toUpperCase()}</span>
+                  {linhaSelecionada.pedido ? ` · Pedido ${linhaSelecionada.pedido}` : ''}
+                  {getNF(linhaSelecionada) ? ` · NF ${getNF(linhaSelecionada)}` : ''}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Revenda *</Label>
+              <Input
+                value={revendaInput}
+                onChange={(e) => setRevendaInput(e.target.value)}
+                placeholder="Código ou nome da revenda"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Motivo *</Label>
+              <Input
+                value={motivoInput}
+                onChange={(e) => setMotivoInput(e.target.value)}
+                placeholder="Justificativa da correção"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={atualizarPedido}
+                  onCheckedChange={(c) => setAtualizarPedido(!!c)}
+                />
+                Atualizar pedido
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={atualizarNf}
+                  onCheckedChange={(c) => setAtualizarNf(!!c)}
+                  disabled={String(linhaSelecionada?.origem ?? '').toUpperCase() !== 'NF'}
+                />
+                Atualizar NF
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={sobrescrever}
+                  onCheckedChange={(c) => setSobrescrever(!!c)}
+                />
+                Sobrescrever se já existir revenda
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={fecharAplicar} disabled={aplicando}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={aplicarRevenda} disabled={aplicando}>
+              {aplicando ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Wrench className="mr-1 h-3 w-3" />}
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
