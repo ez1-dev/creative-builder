@@ -46,6 +46,7 @@ interface AuditoriaRevendaItem {
   id_nf?: string | number | null;
   num_nfv?: string | number | null;
   item_nf?: string | number | null;
+  seqipd?: string | number | null;
   cod_cliente?: string | number | null;
   cliente?: string | null;
   projeto?: string | number | null;
