@@ -240,7 +240,7 @@ export function AuditoriaRevendaTab() {
           codfil: row.filial,
           numped: row.pedido,
           seqipd: row.seqipd,
-          revenda: revendaInput.trim(),
+          revenda: revendaSelecionada.codigo,
           motivo: motivoInput.trim(),
           atualizar_pedido: atualizarPedido,
           atualizar_nf: false,
