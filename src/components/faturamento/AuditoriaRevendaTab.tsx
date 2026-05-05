@@ -497,6 +497,30 @@ export function AuditoriaRevendaTab() {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-4 pt-2">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={filters.sem_revenda_nf}
+                onCheckedChange={(c) => update('sem_revenda_nf', !!c)}
+              />
+              Sem revenda na NF
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={filters.sem_revenda_pedido}
+                onCheckedChange={(c) => update('sem_revenda_pedido', !!c)}
+              />
+              Sem revenda no Pedido
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={filters.sem_revenda_item_pedido}
+                onCheckedChange={(c) => update('sem_revenda_item_pedido', !!c)}
+              />
+              Sem revenda no Item do Pedido
+            </label>
+          </div>
+
           <div className="flex flex-wrap gap-2 pt-2">
             <Button size="sm" onClick={() => consultar(1)} disabled={loading}>
               {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Search className="mr-1 h-3 w-3" />}
