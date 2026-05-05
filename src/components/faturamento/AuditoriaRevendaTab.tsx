@@ -32,6 +32,10 @@ interface AuditoriaRevendaItem {
   pedido?: string | number | null;
   serie_nf?: string | null;
   nf?: string | number | null;
+  numero_nf?: string | number | null;
+  documento_nf?: string | number | null;
+  id_nf?: string | number | null;
+  num_nfv?: string | number | null;
   item_nf?: string | number | null;
   cod_cliente?: string | number | null;
   cliente?: string | null;
@@ -43,6 +47,9 @@ interface AuditoriaRevendaItem {
   motivo?: string | null;
   [k: string]: any;
 }
+
+const getNF = (r: AuditoriaRevendaItem) =>
+  r.documento_nf || r.numero_nf || r.nf || r.id_nf || r.num_nfv || '';
 
 interface AuditoriaRevendaResponse extends PaginatedResponse<AuditoriaRevendaItem> {
   resumo?: {
