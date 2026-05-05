@@ -66,6 +66,10 @@ interface AuditoriaRevendaItem {
   produto?: string | null;
   derivacao?: string | null;
   revenda?: string | null;
+  revenda_nf?: string | null;
+  revenda_pedido?: string | null;
+  revenda_item_pedido?: string | null;
+  status_revenda?: string | null;
   tipo_pendencia?: string | null;
   motivo?: string | null;
   [k: string]: any;
