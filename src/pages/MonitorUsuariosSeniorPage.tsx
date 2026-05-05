@@ -358,6 +358,38 @@ export default function MonitorUsuariosSeniorPage() {
     });
   }, [filtered, sortKey, sortDir]);
 
+  // Agrupar por usuário (mantendo ordenação interna)
+  const grouped = useMemo(() => {
+    const map = new Map<string, {
+      usuario: string;
+      sessoes: SessaoSenior[];
+      totalMinutos: number;
+      computadores: Set<string>;
+      modulos: Set<string>;
+      aplicativos: Set<string>;
+    }>();
+    for (const s of sorted) {
+      const u = s.usuario_senior || '(sem usuário)';
+      let g = map.get(u);
+      if (!g) {
+        g = { usuario: u, sessoes: [], totalMinutos: 0, computadores: new Set(), modulos: new Set(), aplicativos: new Set() };
+        map.set(u, g);
+      }
+      g.sessoes.push(s);
+      g.totalMinutos += s.minutos_conectado ?? 0;
+      if (s.computador) g.computadores.add(s.computador);
+      if (s.modulo) g.modulos.add(s.modulo);
+      else if (s.cod_modulo != null) g.modulos.add(String(s.cod_modulo));
+      if (s.aplicativo) g.aplicativos.add(s.aplicativo);
+    }
+    return Array.from(map.values());
+  }, [sorted]);
+
+  const allExpanded = grouped.length > 0 && grouped.every((g) => expanded.has(g.usuario));
+  const toggleAll = () => {
+    if (allExpanded) setExpanded(new Set());
+    else setExpanded(new Set(grouped.map((g) => g.usuario)));
+  };
   const stats = useMemo(() => {
     const totalSessoes = filtered.length;
     const usuariosDistintos = new Set(filtered.map((s) => s.usuario_senior).filter(Boolean)).size;
