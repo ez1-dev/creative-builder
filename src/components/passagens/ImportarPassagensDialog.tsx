@@ -272,6 +272,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
               return 'REMARCAÇÃO';
             }
             if (u === 'LAZER') return 'PARTICULAR';
+            if (u.startsWith('DESIST')) return 'DESISTÊNCIA';
             return mv;
           })(),
           tipo_despesa: tipo_despesa!,
