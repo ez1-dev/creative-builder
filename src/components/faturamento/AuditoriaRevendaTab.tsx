@@ -443,6 +443,79 @@ export function AuditoriaRevendaTab() {
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={!!linhaSelecionada} onOpenChange={(o) => !o && fecharAplicar()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Aplicar Revenda no ERP</DialogTitle>
+            <DialogDescription className="text-xs">
+              {linhaSelecionada && (
+                <>
+                  Origem <span className="font-medium">{String(linhaSelecionada.origem ?? '').toUpperCase()}</span>
+                  {linhaSelecionada.pedido ? ` · Pedido ${linhaSelecionada.pedido}` : ''}
+                  {getNF(linhaSelecionada) ? ` · NF ${getNF(linhaSelecionada)}` : ''}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Revenda *</Label>
+              <Input
+                value={revendaInput}
+                onChange={(e) => setRevendaInput(e.target.value)}
+                placeholder="Código ou nome da revenda"
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Motivo *</Label>
+              <Input
+                value={motivoInput}
+                onChange={(e) => setMotivoInput(e.target.value)}
+                placeholder="Justificativa da correção"
+                className="h-8 text-xs"
+              />
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={atualizarPedido}
+                  onCheckedChange={(c) => setAtualizarPedido(!!c)}
+                />
+                Atualizar pedido
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={atualizarNf}
+                  onCheckedChange={(c) => setAtualizarNf(!!c)}
+                  disabled={String(linhaSelecionada?.origem ?? '').toUpperCase() !== 'NF'}
+                />
+                Atualizar NF
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={sobrescrever}
+                  onCheckedChange={(c) => setSobrescrever(!!c)}
+                />
+                Sobrescrever se já existir revenda
+              </label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={fecharAplicar} disabled={aplicando}>
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={aplicarRevenda} disabled={aplicando}>
+              {aplicando ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Wrench className="mr-1 h-3 w-3" />}
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
