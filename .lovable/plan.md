@@ -1,37 +1,25 @@
-# Corrigir Cia Aérea / Motivo nos registros de Passagens Aéreas
+# Corrigir colunas trocadas na tabela "Registros"
 
 ## Diagnóstico
 
-Conferi a planilha de abril e o banco. O importador **atual** já mapeia certo:
-- coluna `ITEM` (FOLGA DE CAMPO, PARTICULAR…) → `motivo_viagem`
-- coluna `CIA AÉREA` (LATAM, GOL, AZUL…) → `cia_aerea`
-- coluna `TIPO` (PASSAGEM AEREA NACIONAL…) → `tipo_despesa` (classificado em Aéreo/Ônibus/Outros)
+Na tabela de Registros do dashboard, os cabeçalhos são:
 
-Os 68 registros importados de abril/2026 já estão corretos (cia=LATAM/GOL/AZUL, motivo=FOLGA DE CAMPO, etc.).
+`Data | Colaborador | C. Custo | Motivo da Viagem | Origem → Destino | Tipo | Valor`
 
-O problema está em **registros antigos** (importações anteriores) onde `cia_aerea` ficou preenchida com a categoria em vez do nome da cia:
+Mas as células renderizam (em `PassagensDashboard.tsx`):
 
-| cia_aerea (errado) | qtd |
-|---|---|
-| AÉREO | 256 |
-| ÔNIBUS | 37 |
-| HOTEL | 5 |
-| LOCAÇÃO AUTOMOVEIS S/MOTORISTA | 2 |
+- coluna **Motivo da Viagem** → mostra `tipo_despesa` (ex.: "Aéreo")
+- coluna **Tipo** → mostra `cia_aerea` (ex.: "AZUL LINHAS AEREAS", "LATAM")
 
-Nesses registros o `motivo_viagem` está OK — só a Cia está “poluída” com o tipo.
+Por isso na tela aparece "Aéreo" debaixo de Motivo e "LATAM" debaixo de Tipo. O dado no banco está correto — só a renderização está trocada.
 
-## O que vou fazer
+## Correção
 
-### 1. Migração de limpeza dos registros existentes
+Em `src/components/passagens/PassagensDashboard.tsx`, nos dois blocos da tabela (linhas ~1083–1100 agrupado por colaborador e ~1104–1120 lista plana), trocar o conteúdo das células 3 e 5 para casar com os cabeçalhos:
 
-Atualizar `passagens_aereas`:
+- Coluna **Motivo da Viagem** → `r.motivo_viagem ?? '-'`
+- Coluna **Tipo** → `r.tipo_despesa` (mantém o tipo: Aéreo / Ônibus / Outros)
 
-- Quando `cia_aerea` for `'AÉREO'` / `'AEREO'` → ajustar `tipo_despesa = 'Aéreo'` e setar `cia_aerea = NULL`.
-- Quando `cia_aerea` for `'ÔNIBUS'` / `'ONIBUS'` → `tipo_despesa = 'Ônibus'`, `cia_aerea = NULL`.
-- Quando `cia_aerea` for `'HOTEL'` ou `'LOCAÇÃO AUTOMOVEIS S/MOTORISTA'` → `tipo_despesa = 'Outros'`, `cia_aerea = NULL` (e copiar o valor original para `observacoes` para não perder a informação).
+A coluna Cia Aérea continua não aparecendo nessa tabela (já não estava no header). Quem quiser ver a Cia, ela aparece nos badges de detalhe e nos exports.
 
-### 2. Reforço no importador (`ImportarPassagensDialog.tsx`)
-
-Adicionar uma sanitização final pós-mapeamento: se a `cia_aerea` resolvida for um dos termos categóricos (`AÉREO`, `ÔNIBUS`, `HOTEL`, `LOCAÇÃO…`), trata como tipo e limpa o campo `cia_aerea`. Isso evita que qualquer planilha futura com layout diferente repita o mesmo problema.
-
-Nenhuma mudança visual / no formulário de cadastro manual.
+Nenhuma mudança de banco — apenas o frontend.

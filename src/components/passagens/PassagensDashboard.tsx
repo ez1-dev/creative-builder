@@ -1084,9 +1084,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                           <TableRow key={r.id} className="bg-background border-l-2 border-l-muted">
                             <TableCell>{formatDate(r.data_registro)}</TableCell>
                             <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                            <TableCell>{r.tipo_despesa}</TableCell>
+                            <TableCell>{r.motivo_viagem ?? '-'}</TableCell>
                             <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                            <TableCell>{r.cia_aerea ?? '-'}</TableCell>
+                            <TableCell>{r.tipo_despesa}</TableCell>
                             <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
                             {hasActions && (
                               <TableCell>
