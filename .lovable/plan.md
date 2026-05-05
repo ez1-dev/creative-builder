@@ -1,13 +1,25 @@
-# Corrigir ortografia "DESISTÃªNCIA" → "DESISTÊNCIA"
+## Objetivo
 
-No filtro de Motivo da Viagem aparece `DESISTÃªNCIA` (encoding quebrado vindo da planilha original). Corrigir.
+Na tela **Compras / Custos do Produto** (`/compras-produto`) a grid já mostra "Última OC", "Preço Unit. OC" e "Qtd. OCs" (contagem de OCs abertas), mas **não exibe a quantidade da última OC aberta**. Vamos adicionar essa coluna.
 
-## Banco
-```sql
-UPDATE passagens_aereas
-SET motivo_viagem = 'DESISTÊNCIA'
-WHERE motivo_viagem ILIKE 'DESIST%' AND motivo_viagem <> 'DESISTÊNCIA';
+## Alteração
+
+Em `src/pages/ComprasProdutoPage.tsx`, no array `columns`, inserir uma nova coluna logo após `preco_ultima_oc_aberta`:
+
+```ts
+{ key: 'quantidade_ultima_oc_aberta', header: 'Qtd. Última OC', align: 'right', render: (v) => formatNumber(v, 2) },
 ```
 
-## Importador
-Em `src/components/passagens/ImportarPassagensDialog.tsx`, no normalizador de `motivo_viagem`, adicionar regra: se o valor começar com `DESIST` (qualquer encoding) → `DESISTÊNCIA`.
+Ordem final do bloco de OC ficará:
+
+```
+Última OC | Preço Unit. OC | Qtd. Última OC | OC Aberta? | Qtd. OCs
+```
+
+## Observação sobre o backend
+
+O endpoint `/api/compras-produto` precisa retornar o campo `quantidade_ultima_oc_aberta` no JSON de cada produto. Se o backend ainda não envia esse campo, a coluna ficará com `-` até o backend ser ajustado — sem quebrar nada. Caso o nome real do campo no backend seja outro (ex.: `qtde_ultima_oc`, `quantidade_oc_ultima`), basta trocar a `key` da coluna; o resto fica igual.
+
+## Arquivos afetados
+
+- `src/pages/ComprasProdutoPage.tsx` (1 linha adicionada)
