@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AuditoriaRevendaTab } from '@/components/faturamento/AuditoriaRevendaTab';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { KPICard } from '@/components/erp/KPICard';
