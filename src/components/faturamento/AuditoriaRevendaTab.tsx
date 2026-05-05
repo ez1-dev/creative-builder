@@ -292,6 +292,21 @@ export function AuditoriaRevendaTab() {
       },
     },
     { key: 'motivo', header: 'Motivo' },
+    {
+      key: 'acoes' as any,
+      header: 'Ações',
+      render: (_v, row) => (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs"
+          onClick={() => abrirAplicar(row as AuditoriaRevendaItem)}
+        >
+          <Wrench className="mr-1 h-3 w-3" />
+          Aplicar Revenda
+        </Button>
+      ),
+    },
   ];
 
   return (
