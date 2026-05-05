@@ -1,25 +1,50 @@
-# Corrigir colunas trocadas na tabela "Registros"
+# Normalizar valores de "Motivo da Viagem"
 
 ## Diagnóstico
 
-Na tabela de Registros do dashboard, os cabeçalhos são:
+Hoje no banco existem variações que poluem o filtro:
 
-`Data | Colaborador | C. Custo | Motivo da Viagem | Origem → Destino | Tipo | Valor`
+- `REMARCAÇÃO` (5)
+- `REMARCACAO - ALTERACAO POR FAVOR TROCAR C A SV 18644199` (1)
+- `REMARCACAO - ALTERACAO COLABORADOR PERDEU O VOO...` (1)
+- `REMARCACAO - ALTERACAO ALTERAÇÃO DE VOO.` (1)
+- `LAZER` (3)
+- `PARTICULAR` (2)
 
-Mas as células renderizam (em `PassagensDashboard.tsx`):
+Outros motivos (FOLGA DE CAMPO, TRANSFERENCIA DE OBRA, DEMISSÃO, etc.) ficam intactos.
 
-- coluna **Motivo da Viagem** → mostra `tipo_despesa` (ex.: "Aéreo")
-- coluna **Tipo** → mostra `cia_aerea` (ex.: "AZUL LINHAS AEREAS", "LATAM")
+## Mudança no banco (migration)
 
-Por isso na tela aparece "Aéreo" debaixo de Motivo e "LATAM" debaixo de Tipo. O dado no banco está correto — só a renderização está trocada.
+Atualizar `passagens_aereas` (preservando o texto original em `observacoes` quando houver detalhe extra):
 
-## Correção
+```sql
+-- Variantes de remarcação → "REMARCAÇÃO"
+-- Move detalhe original para observacoes para não perder informação
+UPDATE passagens_aereas
+SET observacoes = COALESCE(NULLIF(observacoes,'') || ' | ', '') || 'Detalhe original: ' || motivo_viagem,
+    motivo_viagem = 'REMARCAÇÃO'
+WHERE motivo_viagem ILIKE 'REMARCA%' AND motivo_viagem <> 'REMARCAÇÃO';
 
-Em `src/components/passagens/PassagensDashboard.tsx`, nos dois blocos da tabela (linhas ~1083–1100 agrupado por colaborador e ~1104–1120 lista plana), trocar o conteúdo das células 3 e 5 para casar com os cabeçalhos:
+-- LAZER → PARTICULAR
+UPDATE passagens_aereas
+SET motivo_viagem = 'PARTICULAR'
+WHERE motivo_viagem = 'LAZER';
+```
 
-- Coluna **Motivo da Viagem** → `r.motivo_viagem ?? '-'`
-- Coluna **Tipo** → `r.tipo_despesa` (mantém o tipo: Aéreo / Ônibus / Outros)
+## Mudança no importador
 
-A coluna Cia Aérea continua não aparecendo nessa tabela (já não estava no header). Quem quiser ver a Cia, ela aparece nos badges de detalhe e nos exports.
+Em `src/components/passagens/ImportarPassagensDialog.tsx`, no pré-processamento de cada linha aplicar o mesmo normalizador para `motivo_viagem`:
 
-Nenhuma mudança de banco — apenas o frontend.
+- Se começa com `REMARCA` (com ou sem acento) → `REMARCAÇÃO`, e o texto original vai para `observacoes`.
+- Se for `LAZER` → `PARTICULAR`.
+
+Assim importações futuras já entram normalizadas e o filtro continua limpo.
+
+## Filtros
+
+O dropdown de Motivo da Viagem em `PassagensDashboard.tsx` é montado dinamicamente a partir dos valores existentes — após a migration ele passa a mostrar apenas as opções consolidadas (REMARCAÇÃO, PARTICULAR, etc.), sem perder nenhum filtro existente. Nenhuma alteração de UI necessária.
+
+## Arquivos afetados
+
+- migration SQL (UPDATE em `passagens_aereas`)
+- `src/components/passagens/ImportarPassagensDialog.tsx` (normalizador)
