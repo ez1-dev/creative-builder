@@ -1,40 +1,37 @@
-## Por que não está funcionando
+# Corrigir Cia Aérea / Motivo nos registros de Passagens Aéreas
 
-O importador atual exige exatamente os headers do modelo padrão (`data_registro`, `colaborador`, `centro_custo`, `tipo_despesa`, `valor`, …). A planilha que você está enviando (`RELATORIO_CARTÃO_-_ABRIL.xlsx`) usa um layout totalmente diferente, vindo da rotina do cartão:
+## Diagnóstico
 
-```
-DATA | LOCAL | ITEM | CENTRO CUSTO | C.CUSTO | VALOR | NF | CARTÃO | VENC.
-```
+Conferi a planilha de abril e o banco. O importador **atual** já mapeia certo:
+- coluna `ITEM` (FOLGA DE CAMPO, PARTICULAR…) → `motivo_viagem`
+- coluna `CIA AÉREA` (LATAM, GOL, AZUL…) → `cia_aerea`
+- coluna `TIPO` (PASSAGEM AEREA NACIONAL…) → `tipo_despesa` (classificado em Aéreo/Ônibus/Outros)
 
-Como nenhum dos nomes esperados aparece, o parser considera todas as linhas inválidas (`colaborador vazio`, `tipo_despesa vazio`, `data_registro inválida`, `valor inválido`) e o botão "Importar" fica desabilitado.
+Os 68 registros importados de abril/2026 já estão corretos (cia=LATAM/GOL/AZUL, motivo=FOLGA DE CAMPO, etc.).
 
-Além disso, você quer trazer **só abril**, e hoje o diálogo não tem nenhum filtro de período.
+O problema está em **registros antigos** (importações anteriores) onde `cia_aerea` ficou preenchida com a categoria em vez do nome da cia:
 
-## Plano (somente `src/components/passagens/ImportarPassagensDialog.tsx`)
+| cia_aerea (errado) | qtd |
+|---|---|
+| AÉREO | 256 |
+| ÔNIBUS | 37 |
+| HOTEL | 5 |
+| LOCAÇÃO AUTOMOVEIS S/MOTORISTA | 2 |
 
-1. **Mapeamento flexível de colunas (case/acento-insensível):**
-   - `DATA` → `data_registro`
-   - `LOCAL` → `colaborador`
-   - `ITEM` → `motivo_viagem`
-   - `CENTRO CUSTO` → `projeto_obra` (descritivo, ex. "OBRA 660")
-   - `C.CUSTO` / `CCUSTO` → `centro_custo` (código)
-   - `VALOR` → `valor`
-   - `NF` → `numero_bilhete` (quando for "PASSAGENS" entra como observação)
-   - `CARTÃO` → `fornecedor`
-   - `VENC.` → ignorado
-   - Mantém compatibilidade total com os headers atuais (`data_registro`, `colaborador`, etc.) — quem já usa o modelo continua funcionando.
-   - Quando o `tipo_despesa` não vier na planilha, assume **"Aéreo"** (padrão para essa rotina; o usuário pode trocar depois pelo botão Editar).
+Nesses registros o `motivo_viagem` está OK — só a Cia está “poluída” com o tipo.
 
-2. **Filtro de mês/ano no diálogo:**
-   - Adicionar dois selects "Mês" e "Ano" (default: mês/ano da maioria das datas do arquivo) com opção "Todos".
-   - As linhas fora do período selecionado entram em uma quarta caixa "Ignoradas pelo filtro de período" (não contam como erro).
-   - Para esse arquivo, basta deixar **Abril/2026** selecionado e só as 140 linhas do mês entram.
+## O que vou fazer
 
-3. **Pré-visualização e contadores:**
-   - Cards: Total | Válidas | Com erro | **Fora do período**.
-   - Mostrar abaixo do nome do arquivo a faixa de datas detectada (ex. "Datas no arquivo: 01/04/2026 a 30/04/2026").
+### 1. Migração de limpeza dos registros existentes
 
-4. **Bug menor de console (`forwardRef` no DialogFooter):**
-   - Envolver o `<Button asChild>` de "Baixar modelo" corretamente — sem efeito visível, só limpa o warning que aparece ao abrir o diálogo.
+Atualizar `passagens_aereas`:
 
-Sem alterações de banco, RLS, edge function nem em outras telas. KPIs, mapa, tabela e link público continuam idênticos.
+- Quando `cia_aerea` for `'AÉREO'` / `'AEREO'` → ajustar `tipo_despesa = 'Aéreo'` e setar `cia_aerea = NULL`.
+- Quando `cia_aerea` for `'ÔNIBUS'` / `'ONIBUS'` → `tipo_despesa = 'Ônibus'`, `cia_aerea = NULL`.
+- Quando `cia_aerea` for `'HOTEL'` ou `'LOCAÇÃO AUTOMOVEIS S/MOTORISTA'` → `tipo_despesa = 'Outros'`, `cia_aerea = NULL` (e copiar o valor original para `observacoes` para não perder a informação).
+
+### 2. Reforço no importador (`ImportarPassagensDialog.tsx`)
+
+Adicionar uma sanitização final pós-mapeamento: se a `cia_aerea` resolvida for um dos termos categóricos (`AÉREO`, `ÔNIBUS`, `HOTEL`, `LOCAÇÃO…`), trata como tipo e limpa o campo `cia_aerea`. Isso evita que qualquer planilha futura com layout diferente repita o mesmo problema.
+
+Nenhuma mudança visual / no formulário de cadastro manual.

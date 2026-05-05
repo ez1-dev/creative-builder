@@ -231,13 +231,30 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
         const obsBase = strOrNull(get(raw, 'observacoes'));
         if (obsBase) obsParts.push(obsBase);
 
+        // Sanitiza cia_aerea: se vier preenchida com uma categoria (AÉREO/ÔNIBUS/HOTEL/LOCAÇÃO),
+        // trata como tipo_despesa e limpa o campo cia_aerea
+        let ciaAereaResolvida = strOrNull(get(raw, 'cia_aerea'));
+        const obsExtras: string[] = [];
+        if (ciaAereaResolvida) {
+          const c = ciaAereaResolvida.toUpperCase();
+          if (c === 'AÉREO' || c === 'AEREO') {
+            tipo_despesa = 'Aéreo'; ciaAereaResolvida = null;
+          } else if (c === 'ÔNIBUS' || c === 'ONIBUS') {
+            tipo_despesa = 'Ônibus'; ciaAereaResolvida = null;
+          } else if (c === 'HOTEL' || c.startsWith('LOCAÇÃO') || c.startsWith('LOCACAO')) {
+            tipo_despesa = 'Outros';
+            obsExtras.push(`Categoria original: ${ciaAereaResolvida}`);
+            ciaAereaResolvida = null;
+          }
+        }
+
         const data: ParsedRow = {
           data_registro,
           colaborador: colaborador!.toUpperCase(),
           centro_custo: strOrNull(get(raw, 'centro_custo')),
           projeto_obra: strOrNull(get(raw, 'projeto_obra')),
           fornecedor: strOrNull(get(raw, 'fornecedor')),
-          cia_aerea: strOrNull(get(raw, 'cia_aerea')),
+          cia_aerea: ciaAereaResolvida,
           numero_bilhete: strOrNull(get(raw, 'numero_bilhete')),
           localizador: strOrNull(get(raw, 'localizador')),
           origem: strOrNull(get(raw, 'origem')),
@@ -247,7 +264,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
           motivo_viagem: strOrNull(get(raw, 'motivo_viagem')),
           tipo_despesa: tipo_despesa!,
           valor: valor!,
-          observacoes: obsParts.length ? obsParts.join(' | ') : null,
+          observacoes: [...obsParts, ...obsExtras].length ? [...obsParts, ...obsExtras].join(' | ') : null,
           uf_destino: (() => {
             const u = strOrNull(get(raw, 'uf_destino'));
             if (u && /^[A-Z]{2}$/i.test(u)) return u.toUpperCase();
