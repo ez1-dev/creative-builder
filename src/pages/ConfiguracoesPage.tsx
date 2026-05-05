@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink } from 'lucide-react';
 import { VISUAL_CATALOG } from '@/lib/visualCatalog';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 
@@ -512,6 +512,7 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="dashboard-uso" className="gap-1"><BarChart3 className="h-4 w-4" /> Dashboard de Uso</TabsTrigger>
           <TabsTrigger value="minhas-preferencias" className="gap-1"><Brain className="h-4 w-4" /> Minhas Preferências</TabsTrigger>
           <TabsTrigger value="versao" className="gap-1"><Rocket className="h-4 w-4" /> Versão</TabsTrigger>
+          <TabsTrigger value="documentacao" className="gap-1"><BookOpen className="h-4 w-4" /> Documentação</TabsTrigger>
         </TabsList>
         {/* === PERFIS === */}
         <TabsContent value="profiles">
@@ -1175,6 +1176,50 @@ export default function ConfiguracoesPage() {
         {/* === VERSÃO === */}
         <TabsContent value="versao">
           <VersionPanel />
+        </TabsContent>
+
+        {/* === DOCUMENTAÇÃO === */}
+        <TabsContent value="documentacao">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-primary" />
+                    Documentação Técnica do Projeto
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Visão geral, arquitetura, rotas, módulos, endpoints, banco de dados,
+                    edge functions, segurança e integrações de IA.
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <a href="/docs/sapiens-control-center.pdf" target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" size="sm" className="gap-1">
+                      <ExternalLink className="h-4 w-4" /> Abrir em nova aba
+                    </Button>
+                  </a>
+                  <a href="/docs/sapiens-control-center.pdf" download="sapiens-control-center.pdf">
+                    <Button size="sm" className="gap-1">
+                      <Download className="h-4 w-4" /> Baixar PDF
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="rounded-lg border bg-muted/30 overflow-hidden" style={{ height: '70vh' }}>
+                <iframe
+                  src="/docs/sapiens-control-center.pdf#view=FitH"
+                  title="Documentação Sapiens Control Center"
+                  className="w-full h-full"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Documento estático (14 páginas) — atualizado conforme novas versões do sistema.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
