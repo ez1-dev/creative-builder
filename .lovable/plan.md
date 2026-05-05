@@ -1,23 +1,57 @@
-## Adicionar aba "Documentação" em Configurações
+## Objetivo
 
-Disponibilizar a documentação técnica completa do projeto (PDF gerado) diretamente dentro da página de Configurações, como uma nova aba.
+Na aba **Sessões Senior** do Monitor de Usuários Senior, agrupar as linhas por **Usuário Senior**, mostrando uma única linha por usuário e, ao expandir, exibir uma sub-árvore com cada módulo/sessão acessada por ele. Isso elimina a repetição do mesmo usuário em várias linhas.
 
-### Mudanças
+## Mudanças
 
-**1. `public/docs/sapiens-control-center.pdf`** (novo)
-- Copiar o PDF gerado (`/mnt/documents/documentacao-sapiens-control-center.pdf`) para `public/docs/` para que fique servido estaticamente pelo app em `/docs/sapiens-control-center.pdf`.
+**Arquivo único:** `src/pages/MonitorUsuariosSeniorPage.tsx`
 
-**2. `src/pages/ConfiguracoesPage.tsx`** (editar)
-- Importar ícone `BookOpen` (lucide-react).
-- Adicionar `<TabsTrigger value="documentacao">` ao final do `TabsList` (após "Versão").
-- Adicionar `<TabsContent value="documentacao">` com:
-  - Card "Documentação Técnica do Projeto" descrevendo o conteúdo (visão geral, arquitetura, rotas, módulos, endpoints, banco de dados, edge functions, segurança, IA/tracking).
-  - Botão "Baixar PDF" → link `/docs/sapiens-control-center.pdf` com `download` e `target="_blank"`.
-  - Botão "Abrir em nova aba" → mesmo link sem `download`.
-  - `<iframe src="/docs/sapiens-control-center.pdf">` com altura ~`70vh` para visualização inline.
-  - Versão do documento + data de geração no rodapé do card.
+### 1. Estrutura de agrupamento
 
-### Fora de escopo
-- Não modifica permissões: a aba ficará visível a quem já vê `/configuracoes`.
-- Não regenera o PDF dinamicamente — é um arquivo estático; quando precisar atualizar, basta gerar e substituir.
-- Sem mudanças no banco, edge functions ou outras telas.
+Criar `grouped` (via `useMemo`) a partir do `sorted`:
+```
+{ usuario, totalSessoes, totalMinutos, computadores: Set, modulos: Set, sessoes: SessaoSenior[] }
+```
+Chave de agrupamento: `usuario_senior` (fallback `'(sem usuário)'`).
+
+### 2. Estado de expansão
+
+`const [expanded, setExpanded] = useState<Set<string>>(new Set())` + helper `toggleExpand(usuario)`.
+Botão "Expandir todos / Recolher todos" no toolbar (ao lado da busca rápida).
+
+### 3. Nova tabela em árvore
+
+Substituir o `<TableBody>` atual por renderização agrupada:
+
+- **Linha-pai** (uma por usuário):
+  - Coluna 1: chevron (`ChevronRight` / `ChevronDown` do lucide-react) + nome do usuário em negrito
+  - Badge com `totalSessoes` ("3 sessões")
+  - Computador(es) distintos (concatenados ou contagem se >1)
+  - Módulos distintos (contagem; primeiro nome + "+N")
+  - Soma de minutos (com mesma lógica de cor: >240 destructive, >120 secondary)
+  - Coluna Ações: vazia na linha-pai (ações ficam por sessão)
+  - Linha clicável inteira para expandir
+  
+- **Linhas-filho** (renderizadas só quando expandido):
+  - Indentação visual (pl-8 + borda-l)
+  - Mostram colunas detalhadas: Sessão (numsec), Usuário Windows, Computador, Aplicativo, Cód. Mód., Módulo, Conexão, Min., Instância, Tipo Aplic., Mensagem Admin
+  - Botão "Desconectar" individual (mantém comportamento atual — `openConfirm(s)`)
+
+Ajustar cabeçalhos para refletir as novas colunas resumidas (linha-pai) — usar `colSpan` adequado ou manter mesmo grid e deixar células vazias na linha-pai.
+
+### 4. Ordenação e filtros
+
+- Filtros existentes (Usuário/Computador/Módulo/Aplicativo/quickSearch) continuam aplicados ANTES do agrupamento.
+- Ordenação por `usuario_senior` ordena os grupos; ordenação por `numsec`/`modulo` ordena dentro de cada grupo.
+- Contador do toolbar passa a mostrar: `{N usuários · M sessões}`.
+
+### 5. CSV export
+
+Mantém o formato atual (linha por sessão) — não alterar.
+
+## Fora de escopo
+
+- Aba "Navegação ERP Web" — não muda.
+- KPIs — não mudam.
+- Endpoint backend — não muda.
+- Modal de desconexão individual e "Aplicar regras agora" — sem alteração.
