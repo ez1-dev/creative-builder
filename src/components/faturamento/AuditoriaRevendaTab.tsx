@@ -188,15 +188,11 @@ export function AuditoriaRevendaTab() {
         return <Badge variant={variant as any}>{s}</Badge>;
       },
     },
-    { key: 'empresa', header: 'Empresa' },
-    { key: 'filial', header: 'Filial' },
     { key: 'data_emissao', header: 'Data Emissão', render: (v) => (v ? formatDate(v) : '-') },
-    { key: 'anomes', header: 'Ano/Mês', render: (v) => fmtAnomes(v) },
     { key: 'pedido', header: 'Pedido' },
+    { key: 'nf', header: 'NF', render: (_v, row) => getNF(row as AuditoriaRevendaItem) || '-' },
     { key: 'serie_nf', header: 'Série NF' },
-    { key: 'nf', header: 'NF' },
     { key: 'item_nf', header: 'Item NF' },
-    { key: 'cod_cliente', header: 'Código Cliente' },
     { key: 'cliente', header: 'Cliente' },
     { key: 'projeto', header: 'Projeto' },
     { key: 'produto', header: 'Produto' },
@@ -209,7 +205,6 @@ export function AuditoriaRevendaTab() {
         return s ? s : <Badge variant="outline" className="text-muted-foreground">Sem revenda</Badge>;
       },
     },
-    { key: 'tipo_pendencia', header: 'Tipo Pendência' },
     { key: 'motivo', header: 'Motivo' },
   ];
 
