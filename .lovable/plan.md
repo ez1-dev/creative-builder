@@ -1,123 +1,55 @@
 ## Objetivo
 
-Na aba **Auditoria Revenda** (Faturamento Genius), exibir o confronto entre as três revendas (NF, Pedido, Item do Pedido) com badges de status, e ajustar a aplicação para enviar `codcli_revenda` (numérico) em vez de `revenda` (texto).
+Adicionar três filtros independentes na aba **Auditoria Revenda** (Faturamento Genius) para listar registros sem revenda em cada um dos três níveis: NF, Pedido, Item do Pedido.
 
 ## Arquivo alterado
 
-`src/components/faturamento/AuditoriaRevendaTab.tsx` (único). Sem alterações de endpoints, sem Supabase.
+`src/components/faturamento/AuditoriaRevendaTab.tsx` (único). Sem alterações de endpoint.
 
 ## Mudanças
 
-### 1. Tipo `AuditoriaRevendaItem`
+### 1. Interface `Filters` e `initialFilters`
 
-Adicionar campos opcionais:
-- `revenda_nf?: string | null`
-- `revenda_pedido?: string | null`
-- `revenda_item_pedido?: string | null`
-- `status_revenda?: string | null` (`OK` | `PENDENTE` | `DIVERGENTE` | etc.)
-
-Manter `revenda` legado por compatibilidade (não usado mais nas colunas).
-
-### 2. Colunas da tabela
-
-Substituir a coluna única **Revenda** por três colunas + **Status**:
-
-Ordem final:
-```
-Origem · Data Emissão · Pedido · NF · Série NF · Item NF · Cliente · Projeto · Produto · Derivação · Revenda NF · Revenda Pedido · Revenda Item Pedido · Status · Motivo · Ações
-```
-
-Helper:
-```ts
-const renderRevenda = (v: unknown) => {
-  const s = (v ?? '').toString().trim();
-  return s
-    ? <span className="text-xs">{s}</span>
-    : <Badge variant="outline" className="text-muted-foreground">Sem revenda</Badge>;
-};
-```
-
-Coluna **Status** — badge por valor (case-insensitive):
-- `OK` → `default` (verde via `bg-emerald-600 text-white`)
-- `PENDENTE` → `bg-amber-500 text-white`
-- `DIVERGENTE` → `destructive`
-- vazio/desconhecido → `outline` cinza
-
-### 3. Coluna NF (já existe `getNF`)
-
-Manter prioridade `documento_nf || numero_nf || nf || id_nf || num_nfv`. Quando houver `serie_nf`, exibir `${nf}/${serie_nf}` na própria coluna NF (a coluna Série NF continua separada para filtro visual).
-
-### 4. Modal "Aplicar Revenda no ERP"
-
-Cabeçalho dinâmico em `DialogDescription`:
-- NF: `Origem NF · Pedido {pedido} · NF {numero_nf}/{serie_nf}`
-- PEDIDO: `Origem PEDIDO · Pedido {pedido}`
-
-Defaults conforme origem:
-- NF → `atualizar_pedido=true`, `atualizar_nf=true`, `sobrescrever=false`
-- PEDIDO → `atualizar_pedido=true`, `atualizar_nf=false` (checkbox desabilitado), `sobrescrever=false`
-
-Autocomplete de revenda permanece (já implementado).
-
-### 5. Payload — trocar `revenda` por `codcli_revenda`
-
-Substituir nos dois ramos de `aplicarRevenda()`:
+Adicionar três flags booleanas (default `false`):
 
 ```ts
-codcli_revenda: Number(revendaSelecionada.codigo)
+sem_revenda_nf: boolean;
+sem_revenda_pedido: boolean;
+sem_revenda_item_pedido: boolean;
 ```
 
-Remover a chave `revenda` do payload.
+### 2. `buildParams`
 
-NF:
+Quando a flag estiver marcada, enviar `true`; caso contrário, omitir (`undefined`):
+
 ```ts
-{
-  origem: 'NF',
-  codemp: row.empresa,
-  codfil: row.filial,
-  codsnf: row.serie_nf,
-  numnfv: row.numero_nf || row.nf || row.num_nfv,
-  seqipv: row.item_nf,
-  numped: row.pedido,
-  seqipd: row.seqipd,
-  codcli_revenda: Number(revendaSelecionada.codigo),
-  motivo: motivoInput.trim(),
-  atualizar_pedido: atualizarPedido,
-  atualizar_nf: atualizarNf,
-  sobrescrever,
-}
+sem_revenda_nf: f.sem_revenda_nf || undefined,
+sem_revenda_pedido: f.sem_revenda_pedido || undefined,
+sem_revenda_item_pedido: f.sem_revenda_item_pedido || undefined,
 ```
 
-PEDIDO:
-```ts
-{
-  origem: 'PEDIDO',
-  codemp: row.empresa,
-  codfil: row.filial,
-  numped: row.pedido,
-  seqipd: row.seqipd,
-  codcli_revenda: Number(revendaSelecionada.codigo),
-  motivo: motivoInput.trim(),
-  atualizar_pedido: atualizarPedido,
-  atualizar_nf: false,
-  sobrescrever,
-}
+Endpoint `GET /api/faturamento-genius/auditoria-revenda` continua o mesmo — apenas três query params novos.
+
+### 3. UI dos filtros
+
+Após a grid de inputs (Ano/Mês, Projeto, Origem, etc.), adicionar uma linha de checkboxes independentes:
+
+```
+[ ] Sem revenda na NF
+[ ] Sem revenda no Pedido
+[ ] Sem revenda no Item do Pedido
 ```
 
-Validação adicional: se `Number.isNaN(Number(revendaSelecionada.codigo))`, abortar com toast de erro.
+Layout: `<div className="flex flex-wrap gap-4 pt-2">` com três `<label>` + `<Checkbox>` (mesmo padrão visual usado no modal Aplicar Revenda).
 
-### 6. Tratamento de erro 409
+Os três filtros são independentes — podem ser combinados (ex.: marcar NF + Item retorna registros sem revenda em qualquer um dos dois, conforme tratamento do backend).
 
-No `catch` de `aplicarRevenda()`:
-- Detectar `err?.status === 409` (ou `err?.response?.status === 409`) e exibir a mensagem retornada pelo backend (`err?.detail || err?.message`) com `toast.error(...)`.
-- Não fechar o modal — usuário pode marcar **Sobrescrever** e tentar novamente.
-- Para outros erros, manter comportamento atual.
+### 4. Comportamento
 
-### 7. Sucesso
-
-Mantém: `toast.success('Revenda aplicada no ERP com sucesso')`, fecha modal, `consultar(pagina)`.
+- Ao alterar qualquer checkbox, apenas atualiza o estado (sem auto-buscar).
+- Usuário clica **Buscar Auditoria** para aplicar.
+- O botão **Exportar Excel** (que já usa `buildParams`) leva os filtros automaticamente.
 
 ## Fora de escopo
 
-- Endpoints de consulta/aplicação/exportação/revendas — inalterados.
-- Filtros, paginação, KPIs — inalterados.
+Tabela, colunas, modal Aplicar Revenda, KPIs, demais filtros — inalterados.
