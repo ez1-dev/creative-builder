@@ -156,6 +156,14 @@ export default function MonitorUsuariosSeniorPage() {
   const [motivo, setMotivo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // expansão da árvore por usuário
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpand = (u: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(u)) next.delete(u); else next.add(u);
+      return next;
+    });
   // modal de lote (regras)
   const [applyOpen, setApplyOpen] = useState(false);
   const [rulesConfigOpen, setRulesConfigOpen] = useState(false);
