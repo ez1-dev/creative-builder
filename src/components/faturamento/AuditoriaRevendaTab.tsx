@@ -515,12 +515,83 @@ export function AuditoriaRevendaTab() {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Revenda *</Label>
-              <Input
-                value={revendaInput}
-                onChange={(e) => setRevendaInput(e.target.value)}
-                placeholder="Código ou nome da revenda"
-                className="h-8 text-xs"
-              />
+              <Popover open={revendaPopoverOpen} onOpenChange={setRevendaPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      'h-8 w-full justify-between text-xs font-normal',
+                      !revendaSelecionada && 'text-muted-foreground',
+                    )}
+                  >
+                    <span className="truncate">
+                      {revendaSelecionada
+                        ? revendaSelecionada.label
+                        : 'Buscar revenda no ERP...'}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Código, nome ou nome fantasia..."
+                      value={revendaQuery}
+                      onValueChange={(v) => {
+                        setRevendaQuery(v);
+                        if (revendaSelecionada && v !== revendaSelecionada.label) {
+                          setRevendaSelecionada(null);
+                        }
+                      }}
+                      className="text-xs"
+                    />
+                    <CommandList>
+                      {buscandoRevendas && (
+                        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Buscando revendas...
+                        </div>
+                      )}
+                      {!buscandoRevendas && revendaQuery.trim().length < 2 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Digite ao menos 2 caracteres
+                        </div>
+                      )}
+                      {!buscandoRevendas && revendaQuery.trim().length >= 2 && (
+                        <CommandEmpty className="px-3 py-2 text-xs text-muted-foreground">
+                          Nenhuma revenda encontrada
+                        </CommandEmpty>
+                      )}
+                      {revendaOpcoes.length > 0 && (
+                        <CommandGroup>
+                          {revendaOpcoes.map((opt) => (
+                            <CommandItem
+                              key={opt.codigo}
+                              value={opt.codigo}
+                              onSelect={() => {
+                                setRevendaSelecionada(opt);
+                                setRevendaQuery(opt.label);
+                                setRevendaPopoverOpen(false);
+                              }}
+                              className="text-xs"
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-3 w-3',
+                                  revendaSelecionada?.codigo === opt.codigo
+                                    ? 'opacity-100'
+                                    : 'opacity-0',
+                                )}
+                              />
+                              {opt.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Motivo *</Label>
