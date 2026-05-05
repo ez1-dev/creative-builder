@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { AuditoriaRevendaTab } from '@/components/faturamento/AuditoriaRevendaTab';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { KPICard } from '@/components/erp/KPICard';
@@ -725,6 +727,13 @@ export default function FaturamentoGeniusPage() {
         }
       />
 
+      <Tabs defaultValue="faturamento" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
+          <TabsTrigger value="auditoria">Auditoria Revenda</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="faturamento" className="space-y-4 mt-0">
       <ErpConnectionAlert />
 
       <FilterPanel onSearch={() => consultar(1)} onClear={limpar}>
@@ -947,6 +956,12 @@ export default function FaturamentoGeniusPage() {
         totalPaginas={detalhe?.total_paginas ?? 0}
         colsDetalhe={colsDetalhe}
       />
+        </TabsContent>
+
+        <TabsContent value="auditoria" className="mt-0">
+          <AuditoriaRevendaTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
