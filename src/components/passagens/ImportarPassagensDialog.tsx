@@ -261,7 +261,19 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
           destino: strOrNull(get(raw, 'destino')),
           data_ida: normalizeDate(get(raw, 'data_ida')),
           data_volta: normalizeDate(get(raw, 'data_volta')),
-          motivo_viagem: strOrNull(get(raw, 'motivo_viagem')),
+          motivo_viagem: (() => {
+            const mv = strOrNull(get(raw, 'motivo_viagem'));
+            if (!mv) return null;
+            const u = mv.toUpperCase();
+            if (u.startsWith('REMARCA')) {
+              if (u !== 'REMARCAÇÃO' && u !== 'REMARCACAO') {
+                obsExtras.push(`Detalhe original: ${mv}`);
+              }
+              return 'REMARCAÇÃO';
+            }
+            if (u === 'LAZER') return 'PARTICULAR';
+            return mv;
+          })(),
           tipo_despesa: tipo_despesa!,
           valor: valor!,
           observacoes: [...obsParts, ...obsExtras].length ? [...obsParts, ...obsExtras].join(' | ') : null,
