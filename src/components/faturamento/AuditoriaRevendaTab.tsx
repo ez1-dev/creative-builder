@@ -216,6 +216,11 @@ export function AuditoriaRevendaTab() {
       toast.error('Selecione uma revenda cadastrada no ERP.');
       return;
     }
+    const codNum = Number(revendaSelecionada.codigo);
+    if (!Number.isFinite(codNum) || Number.isNaN(codNum)) {
+      toast.error('Código da revenda inválido.');
+      return;
+    }
     if (!motivoInput.trim()) {
       toast.error('Motivo é obrigatório.');
       return;
@@ -232,7 +237,7 @@ export function AuditoriaRevendaTab() {
           seqipv: row.item_nf,
           numped: row.pedido,
           seqipd: row.seqipd,
-          revenda: revendaSelecionada.codigo,
+          codcli_revenda: codNum,
           motivo: motivoInput.trim(),
           atualizar_pedido: atualizarPedido,
           atualizar_nf: atualizarNf,
@@ -244,7 +249,7 @@ export function AuditoriaRevendaTab() {
           codfil: row.filial,
           numped: row.pedido,
           seqipd: row.seqipd,
-          revenda: revendaSelecionada.codigo,
+          codcli_revenda: codNum,
           motivo: motivoInput.trim(),
           atualizar_pedido: atualizarPedido,
           atualizar_nf: false,
@@ -258,7 +263,14 @@ export function AuditoriaRevendaTab() {
       setLinhaSelecionada(null);
       await consultar(pagina);
     } catch (err: any) {
-      toast.error(err?.message || 'Falha ao aplicar revenda no ERP.');
+      const status = err?.status ?? err?.response?.status;
+      const msg = err?.detail || err?.response?.data?.detail || err?.message || 'Falha ao aplicar revenda no ERP.';
+      if (status === 409) {
+        toast.error(msg);
+        // não fecha o modal — usuário pode marcar Sobrescrever e tentar de novo
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setAplicando(false);
     }
