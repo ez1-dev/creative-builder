@@ -1,4 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +42,8 @@ import { formatDate } from '@/lib/format';
 
 const ORIGEM_OPTIONS = ['TODOS', 'PEDIDO', 'NF'] as const;
 type OrigemOption = (typeof ORIGEM_OPTIONS)[number];
+
+type RevendaOption = { codigo: string; nome: string; label: string };
 
 interface AuditoriaRevendaItem {
   origem?: string | null;
@@ -131,17 +144,53 @@ export function AuditoriaRevendaTab() {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AuditoriaRevendaResponse | null>(null);
   const [linhaSelecionada, setLinhaSelecionada] = useState<AuditoriaRevendaItem | null>(null);
-  const [revendaInput, setRevendaInput] = useState('');
+  const [revendaQuery, setRevendaQuery] = useState('');
+  const [revendaSelecionada, setRevendaSelecionada] = useState<RevendaOption | null>(null);
+  const [revendaOpcoes, setRevendaOpcoes] = useState<RevendaOption[]>([]);
+  const [buscandoRevendas, setBuscandoRevendas] = useState(false);
+  const [revendaPopoverOpen, setRevendaPopoverOpen] = useState(false);
   const [motivoInput, setMotivoInput] = useState('');
   const [atualizarPedido, setAtualizarPedido] = useState(true);
   const [atualizarNf, setAtualizarNf] = useState(true);
   const [sobrescrever, setSobrescrever] = useState(false);
   const [aplicando, setAplicando] = useState(false);
 
+  useEffect(() => {
+    const q = revendaQuery.trim();
+    if (revendaSelecionada && revendaSelecionada.label === revendaQuery) return;
+    if (q.length < 2) {
+      setRevendaOpcoes([]);
+      setBuscandoRevendas(false);
+      return;
+    }
+    setBuscandoRevendas(true);
+    const timer = setTimeout(async () => {
+      try {
+        const result = await api.get<{ dados?: any[] }>(
+          '/api/faturamento-genius/revendas',
+          { q },
+        );
+        const opcoes: RevendaOption[] = (result?.dados ?? []).map((d: any) => {
+          const codigo = String(d.codigo ?? d.cod_cliente ?? d.codcli ?? '');
+          const nome = d.nome ?? d.nome_fantasia ?? d.razao_social ?? '';
+          return { codigo, nome, label: `${codigo} - ${nome}` };
+        });
+        setRevendaOpcoes(opcoes);
+      } catch (err: any) {
+        setRevendaOpcoes([]);
+      } finally {
+        setBuscandoRevendas(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [revendaQuery, revendaSelecionada]);
+
   const abrirAplicar = (row: AuditoriaRevendaItem) => {
     const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
     setLinhaSelecionada(row);
-    setRevendaInput((row.revenda ?? '').toString());
+    setRevendaQuery('');
+    setRevendaSelecionada(null);
+    setRevendaOpcoes([]);
     setMotivoInput('');
     setAtualizarPedido(true);
     setAtualizarNf(isNf);
@@ -151,12 +200,16 @@ export function AuditoriaRevendaTab() {
   const fecharAplicar = () => {
     if (aplicando) return;
     setLinhaSelecionada(null);
+    setRevendaQuery('');
+    setRevendaSelecionada(null);
+    setRevendaOpcoes([]);
+    setRevendaPopoverOpen(false);
   };
 
   const aplicarRevenda = async () => {
     if (!linhaSelecionada) return;
-    if (!revendaInput.trim()) {
-      toast.error('Informe a revenda.');
+    if (!revendaSelecionada) {
+      toast.error('Selecione uma revenda cadastrada no ERP.');
       return;
     }
     if (!motivoInput.trim()) {
@@ -175,7 +228,7 @@ export function AuditoriaRevendaTab() {
           seqipv: row.item_nf,
           numped: row.pedido,
           seqipd: row.seqipd,
-          revenda: revendaInput.trim(),
+          revenda: revendaSelecionada.codigo,
           motivo: motivoInput.trim(),
           atualizar_pedido: atualizarPedido,
           atualizar_nf: atualizarNf,
@@ -187,7 +240,7 @@ export function AuditoriaRevendaTab() {
           codfil: row.filial,
           numped: row.pedido,
           seqipd: row.seqipd,
-          revenda: revendaInput.trim(),
+          revenda: revendaSelecionada.codigo,
           motivo: motivoInput.trim(),
           atualizar_pedido: atualizarPedido,
           atualizar_nf: false,
@@ -462,12 +515,83 @@ export function AuditoriaRevendaTab() {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Revenda *</Label>
-              <Input
-                value={revendaInput}
-                onChange={(e) => setRevendaInput(e.target.value)}
-                placeholder="Código ou nome da revenda"
-                className="h-8 text-xs"
-              />
+              <Popover open={revendaPopoverOpen} onOpenChange={setRevendaPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className={cn(
+                      'h-8 w-full justify-between text-xs font-normal',
+                      !revendaSelecionada && 'text-muted-foreground',
+                    )}
+                  >
+                    <span className="truncate">
+                      {revendaSelecionada
+                        ? revendaSelecionada.label
+                        : 'Buscar revenda no ERP...'}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="p-0 w-[--radix-popover-trigger-width]" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Código, nome ou nome fantasia..."
+                      value={revendaQuery}
+                      onValueChange={(v) => {
+                        setRevendaQuery(v);
+                        if (revendaSelecionada && v !== revendaSelecionada.label) {
+                          setRevendaSelecionada(null);
+                        }
+                      }}
+                      className="text-xs"
+                    />
+                    <CommandList>
+                      {buscandoRevendas && (
+                        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Buscando revendas...
+                        </div>
+                      )}
+                      {!buscandoRevendas && revendaQuery.trim().length < 2 && (
+                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                          Digite ao menos 2 caracteres
+                        </div>
+                      )}
+                      {!buscandoRevendas && revendaQuery.trim().length >= 2 && (
+                        <CommandEmpty className="px-3 py-2 text-xs text-muted-foreground">
+                          Nenhuma revenda encontrada
+                        </CommandEmpty>
+                      )}
+                      {revendaOpcoes.length > 0 && (
+                        <CommandGroup>
+                          {revendaOpcoes.map((opt) => (
+                            <CommandItem
+                              key={opt.codigo}
+                              value={opt.codigo}
+                              onSelect={() => {
+                                setRevendaSelecionada(opt);
+                                setRevendaQuery(opt.label);
+                                setRevendaPopoverOpen(false);
+                              }}
+                              className="text-xs"
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-3 w-3',
+                                  revendaSelecionada?.codigo === opt.codigo
+                                    ? 'opacity-100'
+                                    : 'opacity-0',
+                                )}
+                              />
+                              {opt.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      )}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Motivo *</Label>
