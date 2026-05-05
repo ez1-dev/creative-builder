@@ -332,6 +332,24 @@ export function AuditoriaRevendaTab() {
     response?.resumo?.total_nfs_sem_revenda ??
     dados.filter((d) => String(d.origem ?? '').toUpperCase() === 'NF').length;
 
+  const renderRevendaCell = (v: unknown) => {
+    const s = (v ?? '').toString().trim();
+    return s ? (
+      <span className="text-xs">{s}</span>
+    ) : (
+      <Badge variant="outline" className="text-muted-foreground">Sem revenda</Badge>
+    );
+  };
+
+  const renderStatusCell = (v: unknown) => {
+    const s = String(v ?? '').toUpperCase().trim();
+    if (!s) return <Badge variant="outline" className="text-muted-foreground">-</Badge>;
+    if (s === 'OK') return <Badge className="bg-emerald-600 text-primary-foreground hover:bg-emerald-600">OK</Badge>;
+    if (s === 'PENDENTE') return <Badge className="bg-amber-500 text-primary-foreground hover:bg-amber-500">PENDENTE</Badge>;
+    if (s === 'DIVERGENTE') return <Badge variant="destructive">DIVERGENTE</Badge>;
+    return <Badge variant="outline">{s}</Badge>;
+  };
+
   const cols: Column<AuditoriaRevendaItem>[] = [
     {
       key: 'origem',
@@ -345,21 +363,26 @@ export function AuditoriaRevendaTab() {
     },
     { key: 'data_emissao', header: 'Data Emissão', render: (v) => (v ? formatDate(v) : '-') },
     { key: 'pedido', header: 'Pedido' },
-    { key: 'nf', header: 'NF', render: (_v, row) => getNF(row as AuditoriaRevendaItem) || '-' },
+    {
+      key: 'nf',
+      header: 'NF',
+      render: (_v, row) => {
+        const r = row as AuditoriaRevendaItem;
+        const nf = getNF(r);
+        if (!nf) return '-';
+        return r.serie_nf ? `${nf}/${r.serie_nf}` : String(nf);
+      },
+    },
     { key: 'serie_nf', header: 'Série NF' },
     { key: 'item_nf', header: 'Item NF' },
     { key: 'cliente', header: 'Cliente' },
     { key: 'projeto', header: 'Projeto' },
     { key: 'produto', header: 'Produto' },
     { key: 'derivacao', header: 'Derivação' },
-    {
-      key: 'revenda',
-      header: 'Revenda',
-      render: (v) => {
-        const s = (v ?? '').toString().trim();
-        return s ? s : <Badge variant="outline" className="text-muted-foreground">Sem revenda</Badge>;
-      },
-    },
+    { key: 'revenda_nf', header: 'Revenda NF', render: (v) => renderRevendaCell(v) },
+    { key: 'revenda_pedido', header: 'Revenda Pedido', render: (v) => renderRevendaCell(v) },
+    { key: 'revenda_item_pedido', header: 'Revenda Item Pedido', render: (v) => renderRevendaCell(v) },
+    { key: 'status_revenda', header: 'Status', render: (v) => renderStatusCell(v) },
     { key: 'motivo', header: 'Motivo' },
     {
       key: 'acoes' as any,
