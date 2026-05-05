@@ -727,6 +727,13 @@ export default function FaturamentoGeniusPage() {
         }
       />
 
+      <Tabs defaultValue="faturamento" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="faturamento">Faturamento</TabsTrigger>
+          <TabsTrigger value="auditoria">Auditoria Revenda</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="faturamento" className="space-y-4 mt-0">
       <ErpConnectionAlert />
 
       <FilterPanel onSearch={() => consultar(1)} onClear={limpar}>
