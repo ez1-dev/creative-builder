@@ -264,7 +264,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
           motivo_viagem: strOrNull(get(raw, 'motivo_viagem')),
           tipo_despesa: tipo_despesa!,
           valor: valor!,
-          observacoes: obsParts.length ? obsParts.join(' | ') : null,
+          observacoes: [...obsParts, ...obsExtras].length ? [...obsParts, ...obsExtras].join(' | ') : null,
           uf_destino: (() => {
             const u = strOrNull(get(raw, 'uf_destino'));
             if (u && /^[A-Z]{2}$/i.test(u)) return u.toUpperCase();
