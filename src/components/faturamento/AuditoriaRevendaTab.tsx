@@ -114,9 +114,9 @@ const initialFilters = (): Filters => ({
   cliente: '',
   pedido: '',
   nf: '',
-  sem_revenda_nf: false,
-  sem_revenda_pedido: false,
-  sem_revenda_item_pedido: false,
+  sem_revenda_nf: true,
+  sem_revenda_pedido: true,
+  sem_revenda_item_pedido: true,
 });
 
 const fmtAnomes = (v: string | number | null | undefined) => {
@@ -142,9 +142,9 @@ function buildParams(f: Filters, pagina: number, tamanhoPagina: number) {
     cliente: f.cliente || undefined,
     pedido: f.pedido || undefined,
     nf: f.nf || undefined,
-    sem_revenda_nf: f.sem_revenda_nf || undefined,
-    sem_revenda_pedido: f.sem_revenda_pedido || undefined,
-    sem_revenda_item_pedido: f.sem_revenda_item_pedido || undefined,
+    sem_revenda_nf: String(f.sem_revenda_nf),
+    sem_revenda_pedido: String(f.sem_revenda_pedido),
+    sem_revenda_item_pedido: String(f.sem_revenda_item_pedido),
     pagina,
     tamanho_pagina: tamanhoPagina,
   };
@@ -293,6 +293,8 @@ export function AuditoriaRevendaTab() {
     if (!isValidYYYYMM(filters.anomes_fim)) return 'Ano/Mês final inválido (use YYYYMM).';
     if (filters.anomes_ini > filters.anomes_fim) return 'Ano/Mês inicial deve ser ≤ Ano/Mês final.';
     if (!filters.numprj.trim()) return 'Informe o Projeto.';
+    if (!filters.sem_revenda_nf && !filters.sem_revenda_pedido && !filters.sem_revenda_item_pedido)
+      return 'Selecione ao menos um tipo de ausência de revenda para auditar.';
     return null;
   };
 
@@ -497,28 +499,33 @@ export function AuditoriaRevendaTab() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-4 pt-2">
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <Checkbox
-                checked={filters.sem_revenda_nf}
-                onCheckedChange={(c) => update('sem_revenda_nf', !!c)}
-              />
-              Sem revenda na NF
-            </label>
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <Checkbox
-                checked={filters.sem_revenda_pedido}
-                onCheckedChange={(c) => update('sem_revenda_pedido', !!c)}
-              />
-              Sem revenda no Pedido
-            </label>
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <Checkbox
-                checked={filters.sem_revenda_item_pedido}
-                onCheckedChange={(c) => update('sem_revenda_item_pedido', !!c)}
-              />
-              Sem revenda no Item do Pedido
-            </label>
+          <div className="pt-2">
+            <div className="text-xs font-medium text-muted-foreground mb-1.5">
+              Auditar ausência de revenda em:
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={filters.sem_revenda_nf}
+                  onCheckedChange={(c) => update('sem_revenda_nf', !!c)}
+                />
+                NF
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={filters.sem_revenda_pedido}
+                  onCheckedChange={(c) => update('sem_revenda_pedido', !!c)}
+                />
+                Pedido
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <Checkbox
+                  checked={filters.sem_revenda_item_pedido}
+                  onCheckedChange={(c) => update('sem_revenda_item_pedido', !!c)}
+                />
+                Item do Pedido
+              </label>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">

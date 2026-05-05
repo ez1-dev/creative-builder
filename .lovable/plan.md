@@ -1,55 +1,56 @@
 ## Objetivo
 
-Adicionar três filtros independentes na aba **Auditoria Revenda** (Faturamento Genius) para listar registros sem revenda em cada um dos três níveis: NF, Pedido, Item do Pedido.
+Refinar os três filtros de ausência de revenda já existentes na aba **Auditoria Revenda** (Faturamento Genius) para: (1) virem marcados por padrão, (2) serem enviados sempre como `true`/`false` (não omitidos), (3) bloquearem busca quando todos desmarcados, (4) ficarem visualmente agrupados sob o título "Auditar ausência de revenda em:".
 
 ## Arquivo alterado
 
-`src/components/faturamento/AuditoriaRevendaTab.tsx` (único). Sem alterações de endpoint.
+`src/components/faturamento/AuditoriaRevendaTab.tsx` (único). Sem mudanças de endpoint, Supabase ou mocks.
 
 ## Mudanças
 
-### 1. Interface `Filters` e `initialFilters`
-
-Adicionar três flags booleanas (default `false`):
-
-```ts
-sem_revenda_nf: boolean;
-sem_revenda_pedido: boolean;
-sem_revenda_item_pedido: boolean;
-```
-
-### 2. `buildParams`
-
-Quando a flag estiver marcada, enviar `true`; caso contrário, omitir (`undefined`):
+### 1. `initialFilters` (linha ~108)
+Trocar default das três flags para `true`:
 
 ```ts
-sem_revenda_nf: f.sem_revenda_nf || undefined,
-sem_revenda_pedido: f.sem_revenda_pedido || undefined,
-sem_revenda_item_pedido: f.sem_revenda_item_pedido || undefined,
+sem_revenda_nf: true,
+sem_revenda_pedido: true,
+sem_revenda_item_pedido: true,
 ```
 
-Endpoint `GET /api/faturamento-genius/auditoria-revenda` continua o mesmo — apenas três query params novos.
+### 2. `buildParams` (linha ~135)
+Enviar sempre o boolean como string, não omitir:
 
-### 3. UI dos filtros
-
-Após a grid de inputs (Ano/Mês, Projeto, Origem, etc.), adicionar uma linha de checkboxes independentes:
-
-```
-[ ] Sem revenda na NF
-[ ] Sem revenda no Pedido
-[ ] Sem revenda no Item do Pedido
+```ts
+sem_revenda_nf: String(f.sem_revenda_nf),
+sem_revenda_pedido: String(f.sem_revenda_pedido),
+sem_revenda_item_pedido: String(f.sem_revenda_item_pedido),
 ```
 
-Layout: `<div className="flex flex-wrap gap-4 pt-2">` com três `<label>` + `<Checkbox>` (mesmo padrão visual usado no modal Aplicar Revenda).
+### 3. `validar()` (linha ~291)
+Acrescentar validação:
 
-Os três filtros são independentes — podem ser combinados (ex.: marcar NF + Item retorna registros sem revenda em qualquer um dos dois, conforme tratamento do backend).
+```ts
+if (!f.sem_revenda_nf && !f.sem_revenda_pedido && !f.sem_revenda_item_pedido)
+  return 'Selecione ao menos um tipo de ausência de revenda para auditar.';
+```
 
-### 4. Comportamento
+### 4. UI dos filtros (linha ~500)
+Envolver os três checkboxes num bloco com título:
 
-- Ao alterar qualquer checkbox, apenas atualiza o estado (sem auto-buscar).
-- Usuário clica **Buscar Auditoria** para aplicar.
-- O botão **Exportar Excel** (que já usa `buildParams`) leva os filtros automaticamente.
+```
+Auditar ausência de revenda em:
+[x] NF   [x] Pedido   [x] Item do Pedido
+```
+
+Trocar labels atuais ("Sem revenda na NF" etc.) por curtos: **"NF"**, **"Pedido"**, **"Item do Pedido"**, com o título acima como `<div className="text-xs font-medium text-muted-foreground">`.
+
+## Itens já implementados (sem mudança)
+
+Conforme verificado no arquivo, já estão prontos:
+- Colunas **Revenda NF / Revenda Pedido / Revenda Item Pedido / Status / Motivo** com badges (cinza para "Sem revenda", verde/amarelo/vermelho conforme status).
+- Modal **Aplicar Revenda** com autocomplete em `/api/faturamento-genius/revendas?q=` enviando `codcli_revenda: Number(...)`.
+- Endpoint `GET /api/faturamento-genius/auditoria-revenda` consumido via `api.get` (FastAPI, sem Supabase/mock).
 
 ## Fora de escopo
 
-Tabela, colunas, modal Aplicar Revenda, KPIs, demais filtros — inalterados.
+Tabela, modal Aplicar Revenda, KPIs, demais filtros, export Excel (já recebe os params via `buildParams`).
