@@ -307,11 +307,11 @@ export function AuditoriaRevendaTab() {
       </Card>
 
       {response && (
-        <KpiGroup>
-          <KPICard title="Total de registros" value={totalRegistros.toLocaleString('pt-BR')} icon={FileSearch} />
-          <KPICard title="Exibidos na página" value={dados.length.toLocaleString('pt-BR')} icon={FileSearch} />
-          <KPICard title="Pedidos s/ revenda (página)" value={pedidosSemRevendaPagina.toLocaleString('pt-BR')} icon={FileSearch} />
-          <KPICard title="NFs s/ revenda (página)" value={nfsSemRevendaPagina.toLocaleString('pt-BR')} icon={FileSearch} />
+        <KpiGroup title="Resumo da auditoria" icon={<FileSearch className="h-4 w-4" />}>
+          <KPICard title="Total de registros" value={totalRegistros.toLocaleString('pt-BR')} icon={<FileSearch className="h-4 w-4" />} />
+          <KPICard title="Exibidos na página" value={dados.length.toLocaleString('pt-BR')} icon={<FileSearch className="h-4 w-4" />} />
+          <KPICard title="Pedidos s/ revenda (página)" value={pedidosSemRevendaPagina.toLocaleString('pt-BR')} icon={<FileSearch className="h-4 w-4" />} variant="warning" />
+          <KPICard title="NFs s/ revenda (página)" value={nfsSemRevendaPagina.toLocaleString('pt-BR')} icon={<FileSearch className="h-4 w-4" />} variant="warning" />
         </KpiGroup>
       )}
 
