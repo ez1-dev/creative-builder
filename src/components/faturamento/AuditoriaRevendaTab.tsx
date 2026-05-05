@@ -95,6 +95,9 @@ interface Filters {
   cliente: string;
   pedido: string;
   nf: string;
+  sem_revenda_nf: boolean;
+  sem_revenda_pedido: boolean;
+  sem_revenda_item_pedido: boolean;
 }
 
 function currentYYYYMM(): string {
@@ -111,6 +114,9 @@ const initialFilters = (): Filters => ({
   cliente: '',
   pedido: '',
   nf: '',
+  sem_revenda_nf: false,
+  sem_revenda_pedido: false,
+  sem_revenda_item_pedido: false,
 });
 
 const fmtAnomes = (v: string | number | null | undefined) => {
@@ -136,6 +142,9 @@ function buildParams(f: Filters, pagina: number, tamanhoPagina: number) {
     cliente: f.cliente || undefined,
     pedido: f.pedido || undefined,
     nf: f.nf || undefined,
+    sem_revenda_nf: f.sem_revenda_nf || undefined,
+    sem_revenda_pedido: f.sem_revenda_pedido || undefined,
+    sem_revenda_item_pedido: f.sem_revenda_item_pedido || undefined,
     pagina,
     tamanho_pagina: tamanhoPagina,
   };
@@ -486,6 +495,30 @@ export function AuditoriaRevendaTab() {
                 className="h-8 text-xs"
               />
             </div>
+          </div>
+
+          <div className="flex flex-wrap gap-4 pt-2">
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={filters.sem_revenda_nf}
+                onCheckedChange={(c) => update('sem_revenda_nf', !!c)}
+              />
+              Sem revenda na NF
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={filters.sem_revenda_pedido}
+                onCheckedChange={(c) => update('sem_revenda_pedido', !!c)}
+              />
+              Sem revenda no Pedido
+            </label>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={filters.sem_revenda_item_pedido}
+                onCheckedChange={(c) => update('sem_revenda_item_pedido', !!c)}
+              />
+              Sem revenda no Item do Pedido
+            </label>
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">
