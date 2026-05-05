@@ -735,7 +735,7 @@ export default function MonitorUsuariosSeniorPage() {
                   const appsArr = Array.from(g.aplicativos);
                   const tot = g.totalMinutos;
                   return (
-                    <>
+                    <Fragment key={`g-${g.usuario}`}>
                       <TableRow
                         key={`grp-${g.usuario}`}
                         className="cursor-pointer hover:bg-muted/50"
