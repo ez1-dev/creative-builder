@@ -188,7 +188,9 @@ export function AuditoriaRevendaTab() {
   const abrirAplicar = (row: AuditoriaRevendaItem) => {
     const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
     setLinhaSelecionada(row);
-    setRevendaInput((row.revenda ?? '').toString());
+    setRevendaQuery('');
+    setRevendaSelecionada(null);
+    setRevendaOpcoes([]);
     setMotivoInput('');
     setAtualizarPedido(true);
     setAtualizarNf(isNf);
@@ -198,12 +200,16 @@ export function AuditoriaRevendaTab() {
   const fecharAplicar = () => {
     if (aplicando) return;
     setLinhaSelecionada(null);
+    setRevendaQuery('');
+    setRevendaSelecionada(null);
+    setRevendaOpcoes([]);
+    setRevendaPopoverOpen(false);
   };
 
   const aplicarRevenda = async () => {
     if (!linhaSelecionada) return;
-    if (!revendaInput.trim()) {
-      toast.error('Informe a revenda.');
+    if (!revendaSelecionada) {
+      toast.error('Selecione uma revenda cadastrada no ERP.');
       return;
     }
     if (!motivoInput.trim()) {
