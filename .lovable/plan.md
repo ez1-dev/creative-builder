@@ -1,57 +1,40 @@
-## Objetivo
+## Por que não está funcionando
 
-Na aba **Sessões Senior** do Monitor de Usuários Senior, agrupar as linhas por **Usuário Senior**, mostrando uma única linha por usuário e, ao expandir, exibir uma sub-árvore com cada módulo/sessão acessada por ele. Isso elimina a repetição do mesmo usuário em várias linhas.
+O importador atual exige exatamente os headers do modelo padrão (`data_registro`, `colaborador`, `centro_custo`, `tipo_despesa`, `valor`, …). A planilha que você está enviando (`RELATORIO_CARTÃO_-_ABRIL.xlsx`) usa um layout totalmente diferente, vindo da rotina do cartão:
 
-## Mudanças
-
-**Arquivo único:** `src/pages/MonitorUsuariosSeniorPage.tsx`
-
-### 1. Estrutura de agrupamento
-
-Criar `grouped` (via `useMemo`) a partir do `sorted`:
 ```
-{ usuario, totalSessoes, totalMinutos, computadores: Set, modulos: Set, sessoes: SessaoSenior[] }
+DATA | LOCAL | ITEM | CENTRO CUSTO | C.CUSTO | VALOR | NF | CARTÃO | VENC.
 ```
-Chave de agrupamento: `usuario_senior` (fallback `'(sem usuário)'`).
 
-### 2. Estado de expansão
+Como nenhum dos nomes esperados aparece, o parser considera todas as linhas inválidas (`colaborador vazio`, `tipo_despesa vazio`, `data_registro inválida`, `valor inválido`) e o botão "Importar" fica desabilitado.
 
-`const [expanded, setExpanded] = useState<Set<string>>(new Set())` + helper `toggleExpand(usuario)`.
-Botão "Expandir todos / Recolher todos" no toolbar (ao lado da busca rápida).
+Além disso, você quer trazer **só abril**, e hoje o diálogo não tem nenhum filtro de período.
 
-### 3. Nova tabela em árvore
+## Plano (somente `src/components/passagens/ImportarPassagensDialog.tsx`)
 
-Substituir o `<TableBody>` atual por renderização agrupada:
+1. **Mapeamento flexível de colunas (case/acento-insensível):**
+   - `DATA` → `data_registro`
+   - `LOCAL` → `colaborador`
+   - `ITEM` → `motivo_viagem`
+   - `CENTRO CUSTO` → `projeto_obra` (descritivo, ex. "OBRA 660")
+   - `C.CUSTO` / `CCUSTO` → `centro_custo` (código)
+   - `VALOR` → `valor`
+   - `NF` → `numero_bilhete` (quando for "PASSAGENS" entra como observação)
+   - `CARTÃO` → `fornecedor`
+   - `VENC.` → ignorado
+   - Mantém compatibilidade total com os headers atuais (`data_registro`, `colaborador`, etc.) — quem já usa o modelo continua funcionando.
+   - Quando o `tipo_despesa` não vier na planilha, assume **"Aéreo"** (padrão para essa rotina; o usuário pode trocar depois pelo botão Editar).
 
-- **Linha-pai** (uma por usuário):
-  - Coluna 1: chevron (`ChevronRight` / `ChevronDown` do lucide-react) + nome do usuário em negrito
-  - Badge com `totalSessoes` ("3 sessões")
-  - Computador(es) distintos (concatenados ou contagem se >1)
-  - Módulos distintos (contagem; primeiro nome + "+N")
-  - Soma de minutos (com mesma lógica de cor: >240 destructive, >120 secondary)
-  - Coluna Ações: vazia na linha-pai (ações ficam por sessão)
-  - Linha clicável inteira para expandir
-  
-- **Linhas-filho** (renderizadas só quando expandido):
-  - Indentação visual (pl-8 + borda-l)
-  - Mostram colunas detalhadas: Sessão (numsec), Usuário Windows, Computador, Aplicativo, Cód. Mód., Módulo, Conexão, Min., Instância, Tipo Aplic., Mensagem Admin
-  - Botão "Desconectar" individual (mantém comportamento atual — `openConfirm(s)`)
+2. **Filtro de mês/ano no diálogo:**
+   - Adicionar dois selects "Mês" e "Ano" (default: mês/ano da maioria das datas do arquivo) com opção "Todos".
+   - As linhas fora do período selecionado entram em uma quarta caixa "Ignoradas pelo filtro de período" (não contam como erro).
+   - Para esse arquivo, basta deixar **Abril/2026** selecionado e só as 140 linhas do mês entram.
 
-Ajustar cabeçalhos para refletir as novas colunas resumidas (linha-pai) — usar `colSpan` adequado ou manter mesmo grid e deixar células vazias na linha-pai.
+3. **Pré-visualização e contadores:**
+   - Cards: Total | Válidas | Com erro | **Fora do período**.
+   - Mostrar abaixo do nome do arquivo a faixa de datas detectada (ex. "Datas no arquivo: 01/04/2026 a 30/04/2026").
 
-### 4. Ordenação e filtros
+4. **Bug menor de console (`forwardRef` no DialogFooter):**
+   - Envolver o `<Button asChild>` de "Baixar modelo" corretamente — sem efeito visível, só limpa o warning que aparece ao abrir o diálogo.
 
-- Filtros existentes (Usuário/Computador/Módulo/Aplicativo/quickSearch) continuam aplicados ANTES do agrupamento.
-- Ordenação por `usuario_senior` ordena os grupos; ordenação por `numsec`/`modulo` ordena dentro de cada grupo.
-- Contador do toolbar passa a mostrar: `{N usuários · M sessões}`.
-
-### 5. CSV export
-
-Mantém o formato atual (linha por sessão) — não alterar.
-
-## Fora de escopo
-
-- Aba "Navegação ERP Web" — não muda.
-- KPIs — não mudam.
-- Endpoint backend — não muda.
-- Modal de desconexão individual e "Aplicar regras agora" — sem alteração.
+Sem alterações de banco, RLS, edge function nem em outras telas. KPIs, mapa, tabela e link público continuam idênticos.
