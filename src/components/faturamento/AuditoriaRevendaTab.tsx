@@ -43,6 +43,8 @@ import { formatDate } from '@/lib/format';
 const ORIGEM_OPTIONS = ['TODOS', 'PEDIDO', 'NF'] as const;
 type OrigemOption = (typeof ORIGEM_OPTIONS)[number];
 
+type RevendaOption = { codigo: string; nome: string; label: string };
+
 interface AuditoriaRevendaItem {
   origem?: string | null;
   empresa?: string | null;
