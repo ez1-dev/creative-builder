@@ -666,54 +666,50 @@ export default function MonitorUsuariosSeniorPage() {
           {/* Toolbar busca rápida */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
             <div className="text-xs text-muted-foreground">
-              {sorted.length} {sorted.length === 1 ? 'sessão' : 'sessões'}
+              {grouped.length} {grouped.length === 1 ? 'usuário' : 'usuários'} · {sorted.length} {sorted.length === 1 ? 'sessão' : 'sessões'}
               {data.length !== sorted.length && ` (de ${data.length})`}
             </div>
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={quickSearch}
-                onChange={(e) => setQuickSearch(e.target.value)}
-                placeholder="Buscar em todas as colunas..."
-                className="h-8 pl-7 text-xs"
-              />
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" onClick={toggleAll} disabled={grouped.length === 0} className="h-8 text-xs">
+                {allExpanded ? 'Recolher todos' : 'Expandir todos'}
+              </Button>
+              <div className="relative w-full max-w-xs">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={quickSearch}
+                  onChange={(e) => setQuickSearch(e.target.value)}
+                  placeholder="Buscar em todas as colunas..."
+                  className="h-8 pl-7 text-xs"
+                />
+              </div>
             </div>
           </div>
           <div className="w-full overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('numsec')}>
-                    Sessão<SortIcon k="numsec" />
-                  </TableHead>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('usuario_senior')}>
                     Usuário Senior<SortIcon k="usuario_senior" />
                   </TableHead>
-                  <TableHead className="whitespace-nowrap">Usuário Windows</TableHead>
-                  <TableHead className="whitespace-nowrap">Computador</TableHead>
-                  <TableHead className="whitespace-nowrap">Aplicativo</TableHead>
-                  <TableHead className="whitespace-nowrap">Cód. Mód.</TableHead>
-                  <TableHead className="whitespace-nowrap cursor-pointer select-none" onClick={() => toggleSort('modulo')}>
-                    Módulo<SortIcon k="modulo" />
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap">Conexão</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">Min.</TableHead>
-                  <TableHead className="whitespace-nowrap">Instância</TableHead>
-                  <TableHead className="whitespace-nowrap">Tipo Aplic.</TableHead>
-                  <TableHead className="whitespace-nowrap">Mensagem Admin</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">Sessões</TableHead>
+                  <TableHead className="whitespace-nowrap">Computadores</TableHead>
+                  <TableHead className="whitespace-nowrap">Módulos</TableHead>
+                  <TableHead className="whitespace-nowrap">Aplicativos</TableHead>
+                  <TableHead className="whitespace-nowrap text-right">Min. (total)</TableHead>
                   <TableHead className="whitespace-nowrap text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && data.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                       <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ) : sorted.length === 0 ? (
+                ) : grouped.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                       {connStatus.kind === 'offline' || connStatus.kind === 'server_error' ? (
                         <div className="flex flex-col items-center gap-2">
                           <Link2Off className="h-5 w-5 text-destructive" />
@@ -732,47 +728,114 @@ export default function MonitorUsuariosSeniorPage() {
                       )}
                     </TableCell>
                   </TableRow>
-                ) : sorted.map((s, i) => {
-                  const min = s.minutos_conectado ?? 0;
-                  const longa = min > 240;
-                  const rowKey = s.numsec != null && s.numsec !== ''
-                    ? String(s.numsec)
-                    : `${s.usuario_senior ?? '?'}-${s.computador ?? '?'}-${i}`;
+                ) : grouped.map((g) => {
+                  const isOpen = expanded.has(g.usuario);
+                  const compsArr = Array.from(g.computadores);
+                  const modsArr = Array.from(g.modulos);
+                  const appsArr = Array.from(g.aplicativos);
+                  const tot = g.totalMinutos;
                   return (
-                    <TableRow key={rowKey}>
-                      <TableCell className="font-mono text-xs">{s.numsec}</TableCell>
-                      <TableCell className="whitespace-nowrap font-medium">{s.usuario_senior ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{s.usuario_windows ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{s.computador ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{s.aplicativo ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{s.cod_modulo ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap">{s.modulo ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{fmtDateTime(s.data_hora_conexao)}</TableCell>
-                      <TableCell className="text-right">
-                        {longa ? (
-                          <Badge variant="destructive">{min}</Badge>
-                        ) : min > 120 ? (
-                          <Badge variant="secondary">{min}</Badge>
-                        ) : (
-                          <span>{min}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{s.instancia ?? '-'}</TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{s.tipo_aplicacao ?? '-'}</TableCell>
-                      <TableCell className="max-w-[220px] truncate text-muted-foreground" title={s.mensagem_admin ?? ''}>
-                        {s.mensagem_admin ?? '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {canDisconnect ? (
-                          <Button size="sm" variant="destructive" className="h-7 gap-1" onClick={() => openConfirm(s)}>
-                            <PowerOff className="h-3 w-3" />
-                            Desconectar
-                          </Button>
-                        ) : (
-                          <Badge variant="outline" className="text-xs">Somente consulta</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      <TableRow
+                        key={`grp-${g.usuario}`}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => toggleExpand(g.usuario)}
+                      >
+                        <TableCell className="w-8">
+                          {isOpen
+                            ? <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap font-semibold">{g.usuario}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge variant="secondary" className="text-xs">{g.sessoes.length}</Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs" title={compsArr.join(', ')}>
+                          {compsArr.length === 0 ? '-' : compsArr.length === 1 ? compsArr[0] : `${compsArr[0]} +${compsArr.length - 1}`}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs" title={modsArr.join(', ')}>
+                          {modsArr.length === 0 ? '-' : modsArr.length === 1 ? modsArr[0] : `${modsArr[0]} +${modsArr.length - 1}`}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                          {appsArr.join(', ') || '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {tot > 240 ? <Badge variant="destructive">{tot}</Badge>
+                            : tot > 120 ? <Badge variant="secondary">{tot}</Badge>
+                            : <span>{tot}</span>}
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {isOpen ? 'Ver detalhes ↓' : 'Expandir →'}
+                        </TableCell>
+                      </TableRow>
+
+                      {isOpen && (
+                        <TableRow key={`det-${g.usuario}`} className="bg-muted/20 hover:bg-muted/20">
+                          <TableCell colSpan={8} className="p-0">
+                            <div className="border-l-2 border-primary/40 ml-4 my-1">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow className="bg-transparent">
+                                    <TableHead className="h-8 text-[11px]">Sessão</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Win</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Computador</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Aplic.</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Cód.</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Módulo</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Conexão</TableHead>
+                                    <TableHead className="h-8 text-[11px] text-right">Min.</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Instância</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Tipo</TableHead>
+                                    <TableHead className="h-8 text-[11px]">Mensagem</TableHead>
+                                    <TableHead className="h-8 text-[11px] text-right">Ações</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {g.sessoes.map((s, i) => {
+                                    const min = s.minutos_conectado ?? 0;
+                                    const longa = min > 240;
+                                    const rowKey = s.numsec != null && s.numsec !== ''
+                                      ? `${g.usuario}-${s.numsec}`
+                                      : `${g.usuario}-${s.computador ?? '?'}-${i}`;
+                                    return (
+                                      <TableRow key={rowKey}>
+                                        <TableCell className="font-mono text-xs">{s.numsec}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{s.usuario_windows ?? '-'}</TableCell>
+                                        <TableCell className="text-xs">{s.computador ?? '-'}</TableCell>
+                                        <TableCell className="text-xs">{s.aplicativo ?? '-'}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{s.cod_modulo ?? '-'}</TableCell>
+                                        <TableCell className="text-xs">{s.modulo ?? '-'}</TableCell>
+                                        <TableCell className="text-xs">{fmtDateTime(s.data_hora_conexao)}</TableCell>
+                                        <TableCell className="text-right text-xs">
+                                          {longa ? <Badge variant="destructive">{min}</Badge>
+                                            : min > 120 ? <Badge variant="secondary">{min}</Badge>
+                                            : <span>{min}</span>}
+                                        </TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{s.instancia ?? '-'}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">{s.tipo_aplicacao ?? '-'}</TableCell>
+                                        <TableCell className="max-w-[220px] truncate text-xs text-muted-foreground" title={s.mensagem_admin ?? ''}>
+                                          {s.mensagem_admin ?? '-'}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                          {canDisconnect ? (
+                                            <Button size="sm" variant="destructive" className="h-7 gap-1" onClick={(e) => { e.stopPropagation(); openConfirm(s); }}>
+                                              <PowerOff className="h-3 w-3" />
+                                              Desconectar
+                                            </Button>
+                                          ) : (
+                                            <Badge variant="outline" className="text-xs">Somente consulta</Badge>
+                                          )}
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </>
                   );
                 })}
               </TableBody>
