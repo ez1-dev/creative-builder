@@ -835,7 +835,7 @@ export default function MonitorUsuariosSeniorPage() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </TableBody>
