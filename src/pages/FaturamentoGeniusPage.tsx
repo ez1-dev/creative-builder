@@ -956,6 +956,12 @@ export default function FaturamentoGeniusPage() {
         totalPaginas={detalhe?.total_paginas ?? 0}
         colsDetalhe={colsDetalhe}
       />
+        </TabsContent>
+
+        <TabsContent value="auditoria" className="mt-0">
+          <AuditoriaRevendaTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
