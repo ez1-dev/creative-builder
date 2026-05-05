@@ -196,14 +196,31 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
         if (allEmpty) return { linha, ok: false, erro: '__empty__' };
 
         const colaborador = strOrNull(get(raw, 'colaborador'));
-        let tipo_despesa = strOrNull(get(raw, 'tipo_despesa'));
-        if (!tipo_despesa) tipo_despesa = 'Aéreo'; // default
+        const rawTipo = strOrNull(get(raw, 'tipo_despesa'));
+        // Mapeia o tipo: se não bater com a lista, classifica automaticamente.
+        let tipo_despesa: string = 'Aéreo';
+        if (rawTipo) {
+          const exact = TIPO_DESPESA_OPTIONS.find(
+            (t) => t.toLowerCase() === rawTipo.toLowerCase(),
+          );
+          if (exact) {
+            tipo_despesa = exact;
+          } else {
+            const t = rawTipo.toLowerCase();
+            if (t.includes('onibus') || t.includes('ônibus') || t.includes('bus') || t.includes('rodovi')) {
+              tipo_despesa = 'Ônibus';
+            } else if (t.includes('aer') || t.includes('voo') || t.includes('passagem')) {
+              tipo_despesa = 'Aéreo';
+            } else {
+              tipo_despesa = 'Outros';
+            }
+          }
+        }
         const data_registro = normalizeDate(get(raw, 'data_registro'));
         const valor = normalizeNumber(get(raw, 'valor'));
 
         const errs: string[] = [];
         if (!colaborador) errs.push('colaborador/local vazio');
-        if (!TIPO_DESPESA_OPTIONS.includes(tipo_despesa as any)) errs.push(`tipo_despesa inválido (${tipo_despesa})`);
         if (!data_registro) errs.push('data inválida');
         if (valor === null || valor < 0) errs.push('valor inválido');
 
