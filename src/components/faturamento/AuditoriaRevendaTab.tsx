@@ -130,6 +130,82 @@ export function AuditoriaRevendaTab() {
   const [tamanhoPagina] = useState(50);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<AuditoriaRevendaResponse | null>(null);
+  const [linhaSelecionada, setLinhaSelecionada] = useState<AuditoriaRevendaItem | null>(null);
+  const [revendaInput, setRevendaInput] = useState('');
+  const [motivoInput, setMotivoInput] = useState('');
+  const [atualizarPedido, setAtualizarPedido] = useState(true);
+  const [atualizarNf, setAtualizarNf] = useState(true);
+  const [sobrescrever, setSobrescrever] = useState(false);
+  const [aplicando, setAplicando] = useState(false);
+
+  const abrirAplicar = (row: AuditoriaRevendaItem) => {
+    const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
+    setLinhaSelecionada(row);
+    setRevendaInput((row.revenda ?? '').toString());
+    setMotivoInput('');
+    setAtualizarPedido(true);
+    setAtualizarNf(isNf);
+    setSobrescrever(false);
+  };
+
+  const fecharAplicar = () => {
+    if (aplicando) return;
+    setLinhaSelecionada(null);
+  };
+
+  const aplicarRevenda = async () => {
+    if (!linhaSelecionada) return;
+    if (!revendaInput.trim()) {
+      toast.error('Informe a revenda.');
+      return;
+    }
+    if (!motivoInput.trim()) {
+      toast.error('Motivo é obrigatório.');
+      return;
+    }
+    const row = linhaSelecionada;
+    const isNf = String(row.origem ?? '').toUpperCase() === 'NF';
+    const payload = isNf
+      ? {
+          origem: 'NF',
+          codemp: row.empresa,
+          codfil: row.filial,
+          codsnf: row.serie_nf,
+          numnfv: row.numero_nf || row.nf || row.num_nfv,
+          seqipv: row.item_nf,
+          numped: row.pedido,
+          seqipd: row.seqipd,
+          revenda: revendaInput.trim(),
+          motivo: motivoInput.trim(),
+          atualizar_pedido: atualizarPedido,
+          atualizar_nf: atualizarNf,
+          sobrescrever,
+        }
+      : {
+          origem: 'PEDIDO',
+          codemp: row.empresa,
+          codfil: row.filial,
+          numped: row.pedido,
+          seqipd: row.seqipd,
+          revenda: revendaInput.trim(),
+          motivo: motivoInput.trim(),
+          atualizar_pedido: atualizarPedido,
+          atualizar_nf: false,
+          sobrescrever,
+        };
+
+    setAplicando(true);
+    try {
+      await api.post('/api/faturamento-genius/auditoria-revenda/aplicar', payload);
+      toast.success('Revenda aplicada no ERP com sucesso');
+      setLinhaSelecionada(null);
+      await consultar(pagina);
+    } catch (err: any) {
+      toast.error(err?.message || 'Falha ao aplicar revenda no ERP.');
+    } finally {
+      setAplicando(false);
+    }
+  };
 
   const update = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
