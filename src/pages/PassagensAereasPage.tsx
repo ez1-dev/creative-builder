@@ -37,7 +37,7 @@ const emptyForm = (): Partial<Passagem> => ({
 });
 
 export default function PassagensAereasPage() {
-  const { canEdit } = useUserPermissions();
+  const { canEdit, isAdmin } = useUserPermissions();
   const editAllowed = canEdit(PATH);
   const { toast } = useToast();
 
