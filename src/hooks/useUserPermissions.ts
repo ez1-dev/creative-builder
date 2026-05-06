@@ -13,12 +13,14 @@ export function useUserPermissions() {
   const { erpUser } = useAuth();
   const [permissions, setPermissions] = useState<ScreenPermission[]>([]);
   const [canUseAi, setCanUseAi] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!erpUser) {
       setPermissions([]);
       setCanUseAi(false);
+      setIsAdmin(false);
       setLoading(false);
       return;
     }
