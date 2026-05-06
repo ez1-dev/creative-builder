@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2, Upload, RefreshCw } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw, Trash2 } from 'lucide-react';
 import {
   PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
@@ -37,7 +37,7 @@ const emptyForm = (): Partial<Passagem> => ({
 });
 
 export default function PassagensAereasPage() {
-  const { canEdit } = useUserPermissions();
+  const { canEdit, isAdmin } = useUserPermissions();
   const editAllowed = canEdit(PATH);
   const { toast } = useToast();
 
@@ -49,6 +49,9 @@ export default function PassagensAereasPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [deleteAllText, setDeleteAllText] = useState('');
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -142,6 +145,22 @@ export default function PassagensAereasPage() {
     setDeleteId(null);
   };
 
+  const handleDeleteAll = async () => {
+    setDeletingAll(true);
+    const { error } = await supabase
+      .from('passagens_aereas')
+      .delete()
+      .gte('data_registro', '1900-01-01');
+    setDeletingAll(false);
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Todos os registros foram excluídos' });
+    setDeleteAllOpen(false);
+    setDeleteAllText('');
+    load();
+  };
   return (
     <div className="space-y-4">
       <PageHeader
@@ -171,6 +190,17 @@ export default function PassagensAereasPage() {
             {editAllowed && (
               <Button size="sm" onClick={handleOpenNew}>
                 <Plus className="mr-1 h-4 w-4" /> Novo registro
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => { setDeleteAllText(''); setDeleteAllOpen(true); }}
+                disabled={data.length === 0}
+                title="Excluir todos os registros"
+              >
+                <Trash2 className="mr-1 h-4 w-4" /> Excluir todos
               </Button>
             )}
           </>
@@ -238,6 +268,34 @@ export default function PassagensAereasPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deleteAllOpen} onOpenChange={(o) => { if (!o) { setDeleteAllOpen(false); setDeleteAllText(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir TODOS os registros?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Serão removidos {data.length} registro(s) de Passagens Aéreas.
+              Para confirmar, digite <strong>EXCLUIR TODOS</strong> abaixo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteAllText}
+            onChange={(e) => setDeleteAllText(e.target.value)}
+            placeholder="EXCLUIR TODOS"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              disabled={deleteAllText.trim() !== 'EXCLUIR TODOS' || deletingAll}
+              className="bg-destructive"
+            >
+              {deletingAll ? 'Excluindo...' : 'Excluir tudo'}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
