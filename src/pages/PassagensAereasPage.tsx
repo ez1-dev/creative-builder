@@ -17,7 +17,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2, Upload, RefreshCw } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw, Trash2 } from 'lucide-react';
 import {
   PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
