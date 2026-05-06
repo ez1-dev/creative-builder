@@ -192,6 +192,17 @@ export default function PassagensAereasPage() {
                 <Plus className="mr-1 h-4 w-4" /> Novo registro
               </Button>
             )}
+            {isAdmin && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => { setDeleteAllText(''); setDeleteAllOpen(true); }}
+                disabled={data.length === 0}
+                title="Excluir todos os registros"
+              >
+                <Trash2 className="mr-1 h-4 w-4" /> Excluir todos
+              </Button>
+            )}
           </>
         }
       />
