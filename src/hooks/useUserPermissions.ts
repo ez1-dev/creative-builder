@@ -36,6 +36,7 @@ export function useUserPermissions() {
       if (profileIds.length === 0) {
         setPermissions([]);
         setCanUseAi(false);
+        setIsAdmin(false);
         setLoading(false);
         return;
       }
@@ -47,7 +48,7 @@ export function useUserPermissions() {
           .in('profile_id', profileIds),
         supabase
           .from('access_profiles')
-          .select('ai_enabled')
+          .select('ai_enabled, name')
           .in('id', profileIds),
       ]);
 
@@ -64,6 +65,7 @@ export function useUserPermissions() {
       }
       setPermissions(Array.from(merged.values()));
       setCanUseAi((profiles ?? []).some((p) => p.ai_enabled));
+      setIsAdmin((profiles ?? []).some((p) => (p as any).name === 'Administrador'));
       setLoading(false);
     };
 
@@ -82,5 +84,5 @@ export function useUserPermissions() {
 
   const hasPermissions = permissions.length > 0;
 
-  return { permissions, loading, canView, canEdit, canUseAi, hasPermissions };
+  return { permissions, loading, canView, canEdit, canUseAi, isAdmin, hasPermissions };
 }
