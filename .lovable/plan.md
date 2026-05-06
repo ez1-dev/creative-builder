@@ -1,24 +1,26 @@
 ## Objetivo
 
-Na tela **Compras / Custos do Produto** (`/compras-produto`) a grid já mostra "Última OC", "Preço Unit. OC" e "Qtd. OCs" (contagem de OCs abertas), mas **não exibe a quantidade da última OC aberta**. Vamos adicionar essa coluna.
+Adicionar a coluna **"Qtd. ordem"** na grid de **Compras / Custos do Produto**, exibindo o campo `qtd_pedida_ultima_oc_aberta` retornado pela API.
 
 ## Alteração
 
-Em `src/pages/ComprasProdutoPage.tsx`, no array `columns`, inserir uma nova coluna logo após `preco_ultima_oc_aberta`:
+Em `src/pages/ComprasProdutoPage.tsx`, no array `columns`, inserir uma nova coluna logo após `quantidade_ultima_oc_aberta` ("Qtd. Última OC"):
 
 ```ts
-{ key: 'quantidade_ultima_oc_aberta', header: 'Qtd. Última OC', align: 'right', render: (v) => formatNumber(v, 2) },
+{ key: 'qtd_pedida_ultima_oc_aberta', header: 'Qtd. ordem', align: 'right', render: (v) => formatNumber(v, 2) },
 ```
 
 Ordem final do bloco de OC ficará:
 
 ```
-Última OC | Preço Unit. OC | Qtd. Última OC | OC Aberta? | Qtd. OCs
+Última OC | Preço Unit. OC | Qtd. Última OC | Qtd. ordem | OC Aberta? | Qtd. OCs
 ```
 
-## Observação sobre o backend
+## Observação
 
-O endpoint `/api/compras-produto` precisa retornar o campo `quantidade_ultima_oc_aberta` no JSON de cada produto. Se o backend ainda não envia esse campo, a coluna ficará com `-` até o backend ser ajustado — sem quebrar nada. Caso o nome real do campo no backend seja outro (ex.: `qtde_ultima_oc`, `quantidade_oc_ultima`), basta trocar a `key` da coluna; o resto fica igual.
+A grid é renderizada via componente React `DataTable` (não HTML puro), portanto **não há `colspan` para ajustar** — o componente calcula automaticamente a largura/colunas a partir do array `columns`. As instruções de `colspan="27" → "28"` da mensagem original não se aplicam a este projeto.
+
+A coluna usa `formatNumber(v, 2)` para manter o mesmo padrão visual das demais colunas numéricas (ex.: "Qtd. Última Compra", "Qtd. Última OC"). Se o valor vier `null`/`undefined`, será exibido `-`.
 
 ## Arquivos afetados
 
