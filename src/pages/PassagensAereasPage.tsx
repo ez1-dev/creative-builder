@@ -271,6 +271,34 @@ export default function PassagensAereasPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={deleteAllOpen} onOpenChange={(o) => { if (!o) { setDeleteAllOpen(false); setDeleteAllText(''); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir TODOS os registros?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Serão removidos {data.length} registro(s) de Passagens Aéreas.
+              Para confirmar, digite <strong>EXCLUIR TODOS</strong> abaixo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteAllText}
+            onChange={(e) => setDeleteAllText(e.target.value)}
+            placeholder="EXCLUIR TODOS"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAll}
+              disabled={deleteAllText.trim() !== 'EXCLUIR TODOS' || deletingAll}
+              className="bg-destructive"
+            >
+              {deletingAll ? 'Excluindo...' : 'Excluir tudo'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
