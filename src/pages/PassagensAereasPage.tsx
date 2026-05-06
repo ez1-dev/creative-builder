@@ -145,6 +145,22 @@ export default function PassagensAereasPage() {
     setDeleteId(null);
   };
 
+  const handleDeleteAll = async () => {
+    setDeletingAll(true);
+    const { error } = await supabase
+      .from('passagens_aereas')
+      .delete()
+      .gte('data_registro', '1900-01-01');
+    setDeletingAll(false);
+    if (error) {
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Todos os registros foram excluídos' });
+    setDeleteAllOpen(false);
+    setDeleteAllText('');
+    load();
+  };
   return (
     <div className="space-y-4">
       <PageHeader
