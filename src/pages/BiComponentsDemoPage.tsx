@@ -335,10 +335,10 @@ export default function BiComponentsDemoPage() {
 
           <section id="layout" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Layout & estrutura" icon={<LayoutDashboard className="h-4 w-4" />}>
-              <DemoBlock name="DashboardTabs" description="Navegação entre visões dentro de uma página">
+              <DemoBlock name="DashboardTabs" description="Navegação entre visões dentro de uma página" nonApplicable>
                 <DashboardTabs tabs={tabContent} />
               </DemoBlock>
-              <DemoBlock name="DashboardGrid (cols=4)" description="Grid responsivo automático">
+              <DemoBlock name="DashboardGrid (cols=4)" description="Grid responsivo automático" nonApplicable>
                 <DashboardGrid cols={4}>
                   {[1,2,3,4].map((i) => (
                     <div key={i} className="rounded-md border bg-muted/30 p-4 text-center text-xs text-muted-foreground">Slot {i}</div>
@@ -363,12 +363,14 @@ export default function BiComponentsDemoPage() {
                     icon={<Users className="h-4 w-4" />} status="atraso" tooltip="Soma de notas com vencimento ultrapassado." />
                 </KpiGrid>
               </DemoBlock>
-              <DemoBlock name="KpiComparisonCard / KpiVariationCard / KpiStatusCard">
-                <KpiGrid cols={3}>
-                  <KpiComparisonCard title="Faturamento" current={1820000} previous={1620000} />
-                  <KpiVariationCard title="Variação MoM" variation={12.34} subtitle="Junho vs Maio" />
-                  <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
-                </KpiGrid>
+              <DemoBlock name="KpiComparisonCard" applyId="kpi-comparison">
+                <KpiComparisonCard title="Faturamento" current={1820000} previous={1620000} />
+              </DemoBlock>
+              <DemoBlock name="KpiVariationCard" applyId="kpi-variation">
+                <KpiVariationCard title="Variação MoM" variation={12.34} subtitle="Junho vs Maio" />
+              </DemoBlock>
+              <DemoBlock name="KpiStatusCard" applyId="kpi-status">
+                <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
               </DemoBlock>
               <DemoBlock name="KpiSparklineCard / KpiTargetCard" applyId="kpi-sparkline">
                 <KpiGrid cols={4}>
