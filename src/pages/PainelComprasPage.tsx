@@ -25,6 +25,8 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { useSearchTracking } from '@/hooks/useSearchTracking';
 import { VisualGate } from '@/components/VisualGate';
+import { enrichRow } from '@/lib/comprasClassificacao';
+import { PainelDrillView } from '@/components/compras/PainelDrillView';
 
 const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
@@ -74,6 +76,7 @@ export default function PainelComprasPage() {
     origem_material: string; familia: string; coddep: string; somente_pendentes: boolean;
     agrupar_por_fornecedor: boolean; situacao_oc: string[]; codigo_motivo_oc: string; observacao_oc: string;
     mostrar_valor_total_oc: boolean;
+    projeto_macro: string; tipo_despesa: string; mes_competencia: string; condicao_pagamento: string;
   }>({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
@@ -82,12 +85,13 @@ export default function PainelComprasPage() {
     origem_material: '', familia: '', coddep: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
+    projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'lista'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'codigo_familia', origemKey: 'origem_material' });
@@ -115,6 +119,10 @@ export default function PainelComprasPage() {
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
       if (!params.observacao_oc) delete params.observacao_oc;
+      if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
+      if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
+      if (!params.mes_competencia) delete params.mes_competencia;
+      if (!params.condicao_pagamento) delete params.condicao_pagamento;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
 
 
@@ -153,6 +161,7 @@ export default function PainelComprasPage() {
     origem_material: '', familia: '', coddep: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
+    projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
   }); setData(null); setPagina(1); };
 
   const columns = useMemo(() => {
@@ -325,6 +334,74 @@ export default function PainelComprasPage() {
     return merge(totaisNorm, resumo, fallback);
   }, [data]);
 
+  // Enriquecimento client-side: adiciona projeto_macro / tipo_despesa_calc / mes_competencia_calc.
+  const dadosEnriquecidos = useMemo(() => {
+    if (!data?.dados?.length) return [] as any[];
+    return data.dados.map((d: any) => enrichRow(d));
+  }, [data]);
+
+  // Filtragem client-side adicional (caso o backend ainda não suporte os novos filtros).
+  const dadosFiltrados = useMemo(() => {
+    return dadosEnriquecidos.filter((d) => {
+      if (filters.projeto_macro && filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+      if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+      if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+      if (filters.condicao_pagamento) {
+        const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+        const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+        const q = filters.condicao_pagamento.toLowerCase();
+        if (!cp.includes(q) && !dcp.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
+
+  const kpisGerencial = useMemo(() => {
+    if (!dadosFiltrados.length) return null;
+    const ocs = new Set<any>();
+    const fornecedores = new Set<any>();
+    let comprado = 0;
+    let pendente = 0;
+    const fornMap = new Map<string, number>();
+    dadosFiltrados.forEach((d: any) => {
+      ocs.add(d.numero_oc);
+      if (d.fantasia_fornecedor) fornecedores.add(d.fantasia_fornecedor);
+      const v = d.valor_liquido || 0;
+      comprado += v;
+      pendente += (d.saldo_pendente || 0) * (d.preco_unitario || 0);
+      const k = d.fantasia_fornecedor || '—';
+      fornMap.set(k, (fornMap.get(k) || 0) + v);
+    });
+    const recebido = (data as any)?.totais?.valor_recebido_total
+      ?? (data as any)?.resumo?.valor_recebido_total
+      ?? null;
+    const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
+    return {
+      comprado, pendente, recebido,
+      qtdOcs: ocs.size, qtdItens: dadosFiltrados.length, qtdFornecedores: fornecedores.size,
+      ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
+      maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
+    };
+  }, [dadosFiltrados, data]);
+
+  const gerencialCharts = useMemo(() => {
+    if (!dadosFiltrados.length) return null;
+    const agg = (key: string) => {
+      const m = new Map<string, number>();
+      dadosFiltrados.forEach((d: any) => {
+        const k = String(d[key] ?? '—');
+        m.set(k, (m.get(k) || 0) + (d.valor_liquido || 0));
+      });
+      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+    };
+    return {
+      porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
+      porTipoDespesa: agg('tipo_despesa_calc'),
+      porCentroCusto: agg('centro_custo').slice(0, 10),
+      porProjeto: agg('numero_projeto').slice(0, 10),
+    };
+  }, [dadosFiltrados]);
+
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
     const dados = data.dados;
@@ -432,6 +509,10 @@ export default function PainelComprasPage() {
     if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
     if (!p.codigo_motivo_oc || p.codigo_motivo_oc === 'TODOS') delete p.codigo_motivo_oc;
     if (!p.observacao_oc) delete p.observacao_oc;
+    if (!p.projeto_macro || p.projeto_macro === 'TODOS') delete p.projeto_macro;
+    if (!p.tipo_despesa || p.tipo_despesa === 'TODOS') delete p.tipo_despesa;
+    if (!p.mes_competencia) delete p.mes_competencia;
+    if (!p.condicao_pagamento) delete p.condicao_pagamento;
     return p;
   }, [filters]);
 
@@ -663,6 +744,39 @@ export default function PainelComprasPage() {
           <Checkbox id="mostrarValorTotalOc" checked={filters.mostrar_valor_total_oc} onCheckedChange={(v) => setFilters(f => ({ ...f, mostrar_valor_total_oc: !!v }))} />
           <Label htmlFor="mostrarValorTotalOc" className="text-xs">Mostrar valor total da OC</Label>
         </div>
+        <div>
+          <Label className="text-xs">Projeto Macro</Label>
+          <Select value={filters.projeto_macro} onValueChange={(v) => setFilters(f => ({ ...f, projeto_macro: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="Genius">Genius</SelectItem>
+              <SelectItem value="Estrutural">Estrutural</SelectItem>
+              <SelectItem value="Outros">Outros</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Tipo de Despesa</Label>
+          <Select value={filters.tipo_despesa} onValueChange={(v) => setFilters(f => ({ ...f, tipo_despesa: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="Matéria-prima">Matéria-prima</SelectItem>
+              <SelectItem value="Uso e consumo">Uso e consumo</SelectItem>
+              <SelectItem value="Despesas gerais">Despesas gerais</SelectItem>
+              <SelectItem value="Serviços">Serviços</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Mês (YYYY-MM)</Label>
+          <Input value={filters.mes_competencia} onChange={(e) => setFilters(f => ({ ...f, mes_competencia: e.target.value }))} placeholder="2026-05" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Cond. Pagamento</Label>
+          <Input value={filters.condicao_pagamento} onChange={(e) => setFilters(f => ({ ...f, condicao_pagamento: e.target.value }))} placeholder="Código ou descrição" className="h-8 text-xs" />
+        </div>
       </FilterPanel>
 
       {data && kpis && (
@@ -670,6 +784,21 @@ export default function PainelComprasPage() {
           {!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
             <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
               Atenção: o backend não retornou totais agregados. Os cards estão somando apenas a página atual ({data.dados.length} de {data.total_registros.toLocaleString('pt-BR')} registros). Selecione "Todos" no canto superior direito para ver os valores completos.
+            </div>
+          )}
+          {kpisGerencial && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Visão Gerencial</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+                <KPICard index={0} title="Total Comprado" value={formatCurrency(kpisGerencial.comprado)} variant="info" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma do valor líquido dos itens filtrados" />
+                <KPICard index={1} title="Total Pendente" value={formatCurrency(kpisGerencial.pendente)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Saldo pendente x preço unitário dos itens filtrados" />
+                <KPICard index={2} title="Total Recebido" value={kpisGerencial.recebido != null ? formatCurrency(kpisGerencial.recebido) : '--'} variant="success" icon={<TrendingUp className="h-5 w-5" />} tooltip="Disponível quando o backend retornar valor_recebido_total" />
+                <KPICard index={3} title="Qtd OCs" value={kpisGerencial.qtdOcs} icon={<ShoppingCart className="h-5 w-5" />} />
+                <KPICard index={4} title="Qtd Itens" value={kpisGerencial.qtdItens} icon={<Package className="h-5 w-5" />} />
+                <KPICard index={5} title="Qtd Fornecedores" value={kpisGerencial.qtdFornecedores} icon={<Layers className="h-5 w-5" />} />
+                <KPICard index={6} title="Ticket Médio/OC" value={formatCurrency(kpisGerencial.ticketMedio)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
+                <KPICard index={7} title="Maior Fornecedor" value={kpisGerencial.maiorFornecedor ? formatCurrency(kpisGerencial.maiorFornecedor.valor) : '--'} icon={<Layers className="h-5 w-5" />} tooltip={kpisGerencial.maiorFornecedor?.nome ?? ''} />
+              </div>
             </div>
           )}
           <div>
@@ -708,9 +837,10 @@ export default function PainelComprasPage() {
       )}
 
       {data && (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'dashboard' | 'lista')} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'dashboard' | 'lista' | 'drill')} className="w-full">
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="drill">Drill-down Gerencial</TabsTrigger>
             <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
           </TabsList>
 
@@ -835,6 +965,71 @@ export default function PainelComprasPage() {
                 </div>
               </div>
             )}
+
+            {gerencialCharts && (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análise Gerencial</h3>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {gerencialCharts.porMes.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Compras por Mês</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gerencialCharts.porMes}>
+                          <XAxis dataKey="label" className="text-xs" tick={{ fontSize: 10 }} />
+                          <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor" fill="hsl(215,70%,45%)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {gerencialCharts.porTipoDespesa.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label>
+                            {gerencialCharts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {gerencialCharts.porCentroCusto.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Top 10 Centros de Custo</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gerencialCharts.porCentroCusto} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {gerencialCharts.porProjeto.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Top 10 Projetos</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gerencialCharts.porProjeto} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="drill" className="space-y-2">
+            <PainelDrillView dados={dadosFiltrados} />
           </TabsContent>
 
           <TabsContent value="lista" className="space-y-2">
