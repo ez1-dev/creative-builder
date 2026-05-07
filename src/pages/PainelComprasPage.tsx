@@ -385,7 +385,7 @@ export default function PainelComprasPage() {
     };
 
     return merge(totaisNorm, resumo, fallback);
-  }, [data]);
+  }, [data, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
 
   // Enriquecimento client-side: adiciona projeto_macro / tipo_despesa_calc / mes_competencia_calc.
   const dadosEnriquecidos = useMemo(() => {
