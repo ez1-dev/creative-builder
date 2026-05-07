@@ -11,11 +11,20 @@
 import { ReactNode } from 'react';
 import {
   KpiCard, KpiSparklineCard, KpiTargetCard,
+  KpiComparisonCard, KpiVariationCard, KpiStatusCard,
   BarChartCard, HorizontalBarChartCard, LineChartCard, AreaChartCard,
   DonutChartCard, PieChartCard, RankingChartCard, FunnelChartCard,
   TreemapChartCard, RadarChartCard, SparklineCard,
+  StackedBarChartCard, ComboChartCard, GaugeChartCard, ProgressChartCard,
+  ScatterChartCard, HeatmapChartCard, WaterfallChartCard, CalendarHeatmapCard,
+  BrazilMapCard,
+  TreeView,
+  Timeline,
   DataTableBI, ChartCardShell,
+  RankingTable, SummaryTable, ComparisonTable, DrillDownTable,
+  StatusBadge,
   type Column,
+  type BiStatus,
 } from '@/components/bi';
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';

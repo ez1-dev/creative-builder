@@ -1,27 +1,69 @@
-
 ## Objetivo
 
-Adicionar a opção **"Mostrar Todos"** (junto com 100/250/500/1000) no rodapé das páginas com paginação, começando por: **Notas de Recebimento**, **Estoque**, **Conciliação EDocs**, **Onde Usa**, e **Painel de Compras** (que já tem o seletor no topo — apenas reaproveita).
+Permitir aplicar **todos** os componentes visíveis no catálogo `/biblioteca-bi`. Hoje só ~12 itens têm botão "Aplicar" porque o `COMPONENT_REGISTRY` cobre apenas parte dos componentes da biblioteca.
 
 ## Mudanças
 
-### 1. `src/components/erp/PaginationControl.tsx`
-Tornar o componente reutilizável adicionando seletor opcional de tamanho de página:
-- Novas props opcionais: `pageSize`, `onPageSizeChange`, `pageSizeOptions` (default `[100, 250, 500, 1000, 'todos']`).
-- Quando `pageSize === 'todos'`: oculta navegação de páginas e exibe "Mostrando todos os N registros".
-- Mantém retrocompatibilidade total — páginas que não passam as novas props seguem como hoje.
+### 1. `src/lib/bi/componentRegistry.tsx` — ampliar registry
 
-### 2. Páginas que vão ganhar o seletor
-Em cada uma destas páginas, adicionar `useState` para `pageSize` (default 100), passar para a chamada `api.get(..., { tamanho_pagina: pageSize === 'todos' ? 100000 : pageSize })`, e passar `pageSize` + `onPageSizeChange` ao `<PaginationControl>`. Quando o usuário escolhe "Todos", mostrar `toast.info` avisando que pode demorar.
+Adicionar entradas para todos os componentes faltantes, cada um com `id`, `kind`, `inputs`, `autoMap` e `render`:
 
-- `src/pages/EstoquePage.tsx`
-- `src/pages/OndeUsaPage.tsx`
-- `src/pages/ConciliacaoEdocsPage.tsx`
-- `src/pages/NotasRecebimentoPage.tsx`
+**KPIs faltantes (`kind: 'kpi'`):**
+- `kpi-comparison` → KpiComparisonCard (input: `current` + `previous` em kpis)
+- `kpi-variation` → KpiVariationCard (input: variação numérica)
+- `kpi-status` → KpiStatusCard (input: kpi + status fixo via options)
 
-### 3. Painel de Compras
-Já tem seletor próprio no topo com a opção "Todos". Sem alteração.
+**Charts faltantes (`kind: 'chart'`):**
+- `stacked-bar-chart` → StackedBarChartCard (série multi-key)
+- `combo-chart` → ComboChartCard (barra + linha)
+- `gauge-chart` → GaugeChartCard (kpi único, 0–100)
+- `progress-chart` → ProgressChartCard (lista de metas)
+- `scatter-chart` → ScatterChartCard (série x/y)
+- `heatmap-chart` → HeatmapChartCard
+- `waterfall-chart` → WaterfallChartCard
+- `calendar-heatmap` → CalendarHeatmapCard (série diária)
+
+**Mapas (`kind: 'map'`):**
+- `brazil-map` → BrazilMapCard (série uf/valor)
+
+**Hierarquia (`kind: 'tree'`):**
+- `tree-view` → TreeView (rows hierárquicas)
+- `timeline` → Timeline (rows com timestamp/title)
+
+**Tabelas (`kind: 'table'`):**
+- `ranking-table` → RankingTable
+- `summary-table` → SummaryTable
+- `comparison-table` → ComparisonTable
+- `drill-down-table` → DrillDownTable
+
+**Badges (`kind: 'kpi'` reaproveitando):**
+- `status-badge` → StatusBadge (status fixo via options)
+
+Cada entrada usa `SERIES_LIKE` (ou variação) para normalizar dados. Quando o componente exigir formato muito específico (heatmap row/col, scatter x/y, calendar date/value), o `render` faz a transformação inline a partir de `ctx.series[mapping.series]` ou `ctx.rows`.
+
+### 2. `src/pages/BiComponentsDemoPage.tsx` — vincular DemoBlocks
+
+Adicionar `applyId="..."` em cada `<DemoBlock>` (ou `<WithApply componentId="...">` para os que ficam dentro de `<ChartGrid>`) para os componentes acima. Lista de blocos a marcar:
+
+- KPIs: `KpiComparisonCard / KpiVariationCard / KpiStatusCard` (separar em 3 DemoBlocks com 3 applyIds, ou usar 1 applyId representativo). Solução escolhida: separar em sub-blocos.
+- Charts: StackedBar, Combo, Gauge, Progress, Scatter, Waterfall, Heatmap, CalendarHeatmap, Sparkline.
+- Maps: BrazilMapCard.
+- Tree: TreeView, Timeline.
+- Tables: RankingTable, SummaryTable, ComparisonTable, DrillDownTable.
+- Badges: StatusBadge.
+
+### 3. Blocos que **continuam sem botão** (intencional)
+
+Componentes de composição/UI puros — não fazem sentido como widget isolado em uma página:
+
+- `DashboardTabs`, `DashboardGrid` (containers)
+- Toda a seção "Filtros" (DashboardFilters, FilterBar, FilterChips, AdvancedFiltersPanel, DateRangeFilter, SelectFilter, MultiSelectFilter, SearchFilter)
+- Toda a seção "Drill-down" (DrillBreadcrumb, DrillLevelSelector — fazem parte do estado da página)
+- Toda a seção "Estados" (LoadingState, EmptyState, ErrorState, NoDataState)
+- "Formatadores" (helpers utilitários)
+
+Esses ganharão um pequeno selo `<span>` cinza com texto "uso direto via import" ao lado do nome, deixando claro ao usuário que não há botão "Aplicar" porque não é um widget.
 
 ## Resultado
 
-Em cada página listada, ao final da tabela aparece "Mostrar: [100 ▾]" com opções 100/250/500/1000/Todos. Escolher "Todos" carrega todos os registros do filtro de uma vez (limite técnico 100.000) e oculta os botões de navegação.
+Todos os cards visuais do catálogo (KPIs, Gráficos, Mapas, Hierarquia, Tabelas, Badges) terão botão **Aplicar** funcional. Os cards utilitários (Filtros/Drill/Estados/Formatadores) continuam sem botão, mas com um selo explicando o motivo.
