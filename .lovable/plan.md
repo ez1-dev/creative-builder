@@ -1,53 +1,66 @@
 
-## Diagnóstico
+## Contexto
 
-No Painel de Compras, os filtros **Projeto Macro**, **Tipo de Despesa**, **Mês de Competência** e **Cond. Pagamento** são **classificações calculadas no front-end** por `enrichRow()` em `src/lib/comprasClassificacao.ts` (regras com origem do material, número de projeto, descrição, etc.). O backend **não conhece** esses campos.
+Os endpoints `/api/painel-compras` e `/api/painel-compras-dashboard` ficam no **backend FastAPI externo** (via ngrok), fora deste repositório. A correção definitiva — fazer o dashboard aplicar os mesmos filtros e a mesma derivação de `tipo_despesa` que a lista — precisa ser feita pelo time do backend.
 
-O que está acontecendo na tela mostrada:
+O que está sob nosso controle aqui:
 
-1. `buildParams()` (linhas 156–175 de `src/pages/PainelComprasPage.tsx`) **envia** `tipo_despesa=Matéria-prima` para `/api/painel-compras-dashboard` e `/api/painel-compras`. O backend ignora ou trata como filtro inexistente — em ambos os casos os agregados retornam zerados / vazios.
-2. Os cards do topo (`Total Comprado`, `Recebimento vs Pendência`, `Qtd OCs`, `Qtd Itens`, `Qtd Fornecedores`, `Maior Fornecedor`) são alimentados por `kpisGerencial` (linhas 519–575). Quando `dashboard` existe, ele usa `dashboard.kpis` **direto**, sem refazer a classificação client-side → tudo zera.
-3. Já o bloco **"Indicadores Operacionais Detalhados"** usa o useMemo `kpis` (linhas 383–478) que **já trata** `gerencialActive` rodando `enrichRow` + filtro client-side sobre `data.dados`. Por isso ele mostra valores corretos (R$ 3.778,52, 3 itens pendentes, 2 fornecedores).
-4. `gerencialCharts` (linhas 577–600) tem o mesmo problema do item 2.
+1. **Especificar com precisão** o contrato esperado em `docs/backend-painel-compras-dashboard.md`, incluindo as regras de derivação de `tipo_despesa` / `projeto_macro` que hoje vivem só no frontend (`src/lib/comprasClassificacao.ts`).
+2. **Voltar a enviar** `tipo_despesa`, `projeto_macro`, `mes_competencia` e `condicao_pagamento` para os dois endpoints (atualmente o front está removendo esses campos do payload como workaround).
+3. **Manter o fallback client-side** já implementado em `kpisGerencial` / `gerencialCharts` / `kpis` enquanto o backend não publicar a versão nova — assim, se o backend ainda não conhecer o filtro, recalculamos localmente a partir de `dadosFiltrados` e os cards continuam corretos.
 
-Resumo: existe assimetria — KPIs operacionais detalhados respeitam filtros client-side, mas KPIs do topo + gráficos gerenciais confiam cegamente no `dashboard`/`graficos` do backend.
+## Plano
 
-## Plano de correção
+### 1. `docs/backend-painel-compras-dashboard.md` — especificação para o backend
 
-### 1. `src/pages/PainelComprasPage.tsx` — não enviar filtros client-side ao backend
+Substituir a nota atual ("esses filtros são client-side") por uma seção **CRÍTICA** exigindo paridade lista x dashboard, e documentar:
 
-Em `buildParams()`, **remover** do payload os campos que são puramente client-side, evitando que o backend devolva zero por causa de filtro desconhecido:
+- Tabela de chaves canônicas vs labels aceitos para `tipo_despesa`:
+  - `MATERIA_PRIMA` ↔ Matéria-prima (aceitar variações com/sem acento, hífen, underscore, caixa).
+  - `USO_CONSUMO` ↔ Uso e consumo.
+  - `DESPESAS_GERAIS` ↔ Despesas gerais.
+  - `SERVICOS` ↔ Serviços.
+- Regras de derivação server-side de `tipo_despesa_calc` (mesma lógica de `getTipoDespesa`):
+  1. Se ERP já tem `tipo_despesa` → normaliza.
+  2. `tipo_item ∈ {SERVICO,S}` → `SERVICOS`.
+  3. `descricao_item` contém EPI/FERRAMENTA/MANUTEN/CONSUMO/etc. → `USO_CONSUMO`.
+  4. `origem_material`/`codigo_familia`/`descricao_item` contém ACO/AÇO/CHAPA/PERFIL/etc. → `MATERIA_PRIMA`.
+  5. default → `DESPESAS_GERAIS`.
+- Regras de `projeto_macro` (mesma lógica de `getProjetoMacro`): `numero_projeto >= 600` → ESTRUTURAL ZORTEA; origens {110…250} → GENIUS; etc.
+- `mes_competencia`: filtro por `SUBSTRING(COALESCE(mes_competencia,data_emissao,data_recebimento),1,7) = :mes`.
+- `condicao_pagamento`: casa (case-insensitive contains) contra código OU descrição.
+- `somente_pendentes=true` → `WHERE saldo_pendente > 0` em **ambos** os endpoints.
+- Exigência: a coluna calculada `tipo_despesa_calc` deve ser materializada na CTE base, para que tanto o `WHERE` quanto os `GROUP BY` (`por_tipo_despesa`) usem a mesma classificação.
 
-- `projeto_macro`
-- `tipo_despesa`
-- `mes_competencia`
-- `condicao_pagamento`
+### 2. `src/pages/PainelComprasPage.tsx` — voltar a enviar os filtros
 
-(Eles continuam aplicados localmente via `enrichRow` + `filtroCliente`.)
+Em `buildParams()` (linhas 170-176), substituir o bloco que **deleta** os campos por um bloco que apenas remove valores vazios/sentinelas, igual aos demais filtros:
 
-### 2. `kpisGerencial` — recomputar client-side quando filtro gerencial está ativo
+```ts
+if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
+if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
+if (!params.mes_competencia) delete params.mes_competencia;
+if (!params.condicao_pagamento) delete params.condicao_pagamento;
+```
 
-Mesma lógica já usada em `kpis` (linhas 383–478): se `gerencialActive`, **ignorar** `dashboard` e somar a partir de `dadosFiltrados` (que já vem de `dadosEnriquecidos`/`enrichRow` + `filtroCliente`). Continuar usando `dashboard` quando nenhum filtro gerencial estiver ativo.
+Assim o backend novo (com a especificação acima implementada) passa a receber o filtro e devolver agregados consistentes com a lista.
 
-### 3. `gerencialCharts` — mesma regra
+### 3. Manter o fallback client-side (sem mudanças)
 
-Quando `gerencialActive`, derivar `porMes`, `porTipoDespesa`, `porCentroCusto`, `porProjeto` a partir de `dadosFiltrados`, não de `dashboard.graficos`.
+`kpisGerencial`, `gerencialCharts` e o useMemo `kpis` já recalculam localmente quando `gerencialActive` é true. Esse caminho continua funcionando como **rede de segurança**: enquanto o backend não publicar a versão nova, o frontend ainda mostra os números certos somando `dadosFiltrados`.
 
-### 4. Aviso de amostragem
+Quando o backend implementar a especificação, esse fallback simplesmente deixa de ser exercitado (porque `dashboard.kpis` já virá filtrado corretamente) — não precisa remover nada.
 
-Quando estivermos no caminho client-side e `data.total_registros > data.dados.length` (e não existir `dadosAgregados` cobrindo tudo), exibir o aviso já existente de amostragem (`amostragemAtivaCompras`) também para esse cenário, para o usuário saber que os totais podem estar limitados pela paginação carregada.
+### 4. Comunicação ao time de backend
 
-### 5. Documentação
-
-Atualizar `docs/backend-painel-compras-dashboard.md` adicionando uma nota: `projeto_macro`, `tipo_despesa`, `mes_competencia` e `condicao_pagamento` **não** são enviados ao backend — são classificações derivadas no frontend.
-
-## Resultado esperado
-
-Com o filtro `Tipo de Despesa = Matéria-prima` + `Somente pendentes`:
-- Total Comprado, Qtd OCs/Itens/Fornecedores, Maior Fornecedor e barra Recebimento vs Pendência passam a refletir as mesmas linhas mostradas em "Indicadores Operacionais Detalhados" (R$ 3.778,52, 2 OCs, 3 itens, 2 fornecedores no exemplo da tela).
-- Gráficos do dashboard gerencial (`Por Mês`, `Por Tipo de Despesa`, `Por Centro de Custo`, `Top Projetos`) também passam a respeitar o filtro client-side.
+Sinalizar ao time que a doc atualizada em `docs/backend-painel-compras-dashboard.md` agora exige paridade lista x dashboard e que devem implementar a derivação `tipo_despesa_calc` na CTE base.
 
 ## Arquivos afetados
 
-- `src/pages/PainelComprasPage.tsx`
-- `docs/backend-painel-compras-dashboard.md`
+- `docs/backend-painel-compras-dashboard.md` (especificação completa)
+- `src/pages/PainelComprasPage.tsx` (reativa envio de `tipo_despesa` / `projeto_macro` / `mes_competencia` / `condicao_pagamento`)
+
+## Resultado esperado
+
+- **Hoje (antes do backend atualizar):** cards e gráficos continuam corretos via fallback client-side (já em vigor).
+- **Depois do backend atualizar:** mesmos cards e gráficos passam a vir do agregado server-side, sem amostragem e sem teto de 50k linhas, refletindo 100% da base filtrada — exatamente o comportamento que você descreveu.
