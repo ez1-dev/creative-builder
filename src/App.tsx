@@ -82,8 +82,8 @@ const App = () => (
               <Route path="/usuarios-conectados" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />
               <Route path="/configuracoes" element={<ProtectedRoute path="/configuracoes"><ConfiguracoesPage /></ProtectedRoute>} />
-              <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
-              <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
+              <Route path="/bi-components-demo" element={<ProtectedRoute path="/biblioteca-bi"><BiComponentsDemoPage /></ProtectedRoute>} />
+              <Route path="/biblioteca-bi" element={<ProtectedRoute path="/biblioteca-bi"><BiComponentsDemoPage /></ProtectedRoute>} />
               {/* Produção */}
               <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
               <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
