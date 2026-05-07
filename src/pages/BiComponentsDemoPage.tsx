@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Layers, Palette, Filter, Table2, BarChart3, MousePointerClick, AlertCircle, Tag, LayoutDashboard } from 'lucide-react';
 import {
   // layout
@@ -209,7 +210,7 @@ export default function BiComponentsDemoPage() {
   return (
     <DashboardPage>
       <DashboardHeader
-        title="Catálogo de Componentes BI"
+        title={useLocation().pathname === '/biblioteca-bi' ? 'Biblioteca BI — Componentes' : 'Catálogo de Componentes BI'}
         description="Biblioteca interna padronizada para dashboards, KPIs, gráficos, filtros e drill-down do sistema ERP. Todos os exemplos usam dados controlados (mock) — nenhum endpoint é chamado nesta tela."
         actions={<StatusBadge status="positivo" label="v1.0 — Fase 1 concluída" />}
       />
