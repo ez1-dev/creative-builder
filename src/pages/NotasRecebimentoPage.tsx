@@ -207,8 +207,8 @@ export default function NotasRecebimentoPage() {
     async (page = 1) => {
       if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
       setLoading(true);
-      try {
-        const params: any = { ...filters, pagina: page, tamanho_pagina: 100 };
+      const buildParams = (p: number, size: number) => {
+        const params: any = { ...filters, pagina: p, tamanho_pagina: size };
         if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
         else delete params.valor_min;
         if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
@@ -224,13 +224,38 @@ export default function NotasRecebimentoPage() {
         if (!params.mes_competencia) delete params.mes_competencia;
         if (!params.condicao_pagamento) delete params.condicao_pagamento;
         if (!params.familia) delete params.familia;
-        const result = await api.get<NotasRecebimentoResponse>("/api/notas-recebimento", params);
+        return params;
+      };
+      try {
+        // Listagem paginada — alimenta a aba "Lista Detalhada"
+        const result = await api.get<NotasRecebimentoResponse>(
+          "/api/notas-recebimento",
+          buildParams(page, 100),
+        );
         setData(result);
         setPagina(page);
       } catch (e: any) {
         toast.error(e.message);
       } finally {
         setLoading(false);
+      }
+
+      // Dataset agregado — alimenta KPIs, gráficos e drill-down (somente na primeira página)
+      if (page === 1) {
+        setLoadingAgregado(true);
+        try {
+          const aggregated = await api.get<NotasRecebimentoResponse>(
+            "/api/notas-recebimento",
+            buildParams(1, TAMANHO_AGREGADO),
+          );
+          setDadosAgregados(aggregated);
+        } catch (e: any) {
+          // Falha do agregado não bloqueia a lista; loga discretamente.
+          console.warn('Falha ao carregar dataset agregado:', e?.message);
+          setDadosAgregados(null);
+        } finally {
+          setLoadingAgregado(false);
+        }
       }
     },
     [filters, erpReady],
