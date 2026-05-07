@@ -965,6 +965,71 @@ export default function PainelComprasPage() {
                 </div>
               </div>
             )}
+
+            {gerencialCharts && (
+              <div>
+                <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análise Gerencial</h3>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {gerencialCharts.porMes.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Compras por Mês</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gerencialCharts.porMes}>
+                          <XAxis dataKey="label" className="text-xs" tick={{ fontSize: 10 }} />
+                          <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor" fill="hsl(215,70%,45%)" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {gerencialCharts.porTipoDespesa.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <PieChart>
+                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label>
+                            {gerencialCharts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {gerencialCharts.porCentroCusto.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Top 10 Centros de Custo</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gerencialCharts.porCentroCusto} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {gerencialCharts.porProjeto.length > 0 && (
+                    <div className="rounded-md border bg-card p-4">
+                      <h3 className="mb-3 text-sm font-semibold">Top 10 Projetos</h3>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <BarChart data={gerencialCharts.porProjeto} layout="vertical">
+                          <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                          <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                          <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                          <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="drill" className="space-y-2">
+            <PainelDrillView dados={dadosFiltrados} />
           </TabsContent>
 
           <TabsContent value="lista" className="space-y-2">
