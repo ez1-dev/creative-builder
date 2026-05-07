@@ -80,9 +80,12 @@ const fornecedorOptions = fornecedoresRanking.map((f) => ({ value: f.label, labe
 
 // ============ SECTIONS ============
 const SECTIONS = [
+  { id: 'dashboard-pronto', label: 'Dashboard Pronto', icon: Sparkles },
   { id: 'layout',  label: 'Layout',     icon: LayoutDashboard },
   { id: 'kpis',    label: 'KPIs',       icon: TrendingUp },
   { id: 'charts',  label: 'Gráficos',   icon: BarChart3 },
+  { id: 'maps',    label: 'Mapas',      icon: Map },
+  { id: 'tree',    label: 'Hierarquia', icon: Network },
   { id: 'tables',  label: 'Tabelas',    icon: Table2 },
   { id: 'filters', label: 'Filtros',    icon: Filter },
   { id: 'drill',   label: 'Drill-down', icon: MousePointerClick },
