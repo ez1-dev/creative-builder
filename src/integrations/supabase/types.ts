@@ -730,6 +730,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_edit_passagens: { Args: { _uid: string }; Returns: boolean }
       can_manage_passagens_share: { Args: { _uid: string }; Returns: boolean }
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_navegacao_logs: { Args: never; Returns: undefined }
