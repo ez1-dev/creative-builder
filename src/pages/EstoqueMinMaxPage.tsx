@@ -18,6 +18,8 @@ import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowUpCircle, HelpCircle, CheckCircle2, TrendingDown, TrendingUp } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 type Status = 'SEM_POLITICA' | 'ABAIXO_MINIMO' | 'NO_MINIMO' | 'ACIMA_MAXIMO' | 'ENTRE_MIN_E_MAX';
 
