@@ -157,6 +157,7 @@ export default function PainelComprasPage() {
     origem_material: '', familia: '', coddep: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
+    projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
   }); setData(null); setPagina(1); };
 
   const columns = useMemo(() => {
