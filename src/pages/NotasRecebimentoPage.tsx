@@ -263,23 +263,44 @@ export default function NotasRecebimentoPage() {
 
   const clearFilters = () => setFilters({ ...initialFilters });
 
+  // Lista detalhada (paginada — 100 por vez)
   const dadosBrutos = data?.dados || [];
-  const dadosEnriquecidos = useMemo(() => dadosBrutos.map((d: any) => enrichRow(d)), [dadosBrutos]);
+  const dadosEnriquecidosLista = useMemo(() => dadosBrutos.map((d: any) => enrichRow(d)), [dadosBrutos]);
 
-  const dados = useMemo(() => {
-    return dadosEnriquecidos.filter((d: any) => {
-      if (filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
-      if (filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
-      if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
-      if (filters.condicao_pagamento) {
-        const q = filters.condicao_pagamento.toLowerCase();
-        const cp = String(d.condicao_pagamento ?? '').toLowerCase();
-        const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
-        if (!cp.includes(q) && !dcp.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
+  // Dataset agregado para KPIs/gráficos/drill (até TAMANHO_AGREGADO linhas)
+  const dadosBrutosAgregados = dadosAgregados?.dados || dadosBrutos;
+  const dadosEnriquecidos = useMemo(
+    () => dadosBrutosAgregados.map((d: any) => enrichRow(d)),
+    [dadosBrutosAgregados],
+  );
+
+  const filtroCliente = (d: any) => {
+    if (filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+    if (filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+    if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+    if (filters.condicao_pagamento) {
+      const q = filters.condicao_pagamento.toLowerCase();
+      const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+      const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+      if (!cp.includes(q) && !dcp.includes(q)) return false;
+    }
+    return true;
+  };
+
+  // `dados` = base agregada usada por KPIs, gráficos e drill
+  const dados = useMemo(
+    () => dadosEnriquecidos.filter(filtroCliente),
+    [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento],
+  );
+
+  // `dadosLista` = base paginada usada apenas pela aba "Lista Detalhada"
+  const dadosLista = useMemo(
+    () => dadosEnriquecidosLista.filter(filtroCliente),
+    [dadosEnriquecidosLista, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento],
+  );
+
+  const totalAgregado = dadosAgregados?.total_registros ?? 0;
+  const amostragemAtiva = totalAgregado > TAMANHO_AGREGADO;
 
   const transacaoOptions = useMemo(() => {
     const unique = [...new Set(dados.map((d: any) => d.transacao).filter(Boolean))].sort();
