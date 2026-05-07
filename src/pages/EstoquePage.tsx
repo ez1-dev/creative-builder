@@ -4,7 +4,7 @@ import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionA
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
-import { PaginationControl } from '@/components/erp/PaginationControl';
+import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 import { KPICard } from '@/components/erp/KPICard';
@@ -38,6 +38,7 @@ export default function EstoquePage() {
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(100);
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados);
@@ -50,7 +51,8 @@ export default function EstoquePage() {
     setLoading(true);
     try {
       const { situacao, ...rest } = filters;
-      const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
+      const tp = pageSize === 'todos' ? 100000 : pageSize;
+      const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...rest, situacao_cadastro: situacao, pagina: pageSize === 'todos' ? 1 : page, tamanho_pagina: tp });
       setData(result);
       setPagina(page);
       if (page === 1) trackSearch(filters, result?.total_registros);
@@ -59,7 +61,7 @@ export default function EstoquePage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady, trackSearch]);
+  }, [filters, erpReady, trackSearch, pageSize]);
 
   const kpis = useMemo(() => {
     if (!data) return null;
@@ -110,7 +112,7 @@ export default function EstoquePage() {
         </div>
       )}
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="estoque" />
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} pageSize={pageSize} onPageSizeChange={(s) => { setPageSize(s); if (s === 'todos') toast.info('Carregando todos os registros — pode levar alguns segundos.'); setTimeout(() => search(1), 0); }} />}      <BiAutoSlots pageKey="estoque" />
     </div>
   );
 }
