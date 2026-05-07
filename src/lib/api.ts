@@ -245,6 +245,12 @@ export interface PainelComprasDashboardResponse {
     quantidade_fornecedores: number;
     ticket_medio_oc: number;
     percentual_recebido: number;
+    valor_bruto_total?: number;
+    valor_liquido_total?: number;
+    itens_pendentes?: number;
+    itens_atrasados?: number;
+    maior_atraso_dias?: number;
+    maior_fornecedor?: { codigo?: string; nome?: string; valor?: number } | null;
   };
   graficos: {
     por_mes: Array<{ mes: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
