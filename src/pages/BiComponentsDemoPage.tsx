@@ -289,6 +289,16 @@ export default function BiComponentsDemoPage() {
                   <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
                 </KpiGrid>
               </DemoBlock>
+              <DemoBlock name="KpiSparklineCard / KpiTargetCard">
+                <KpiGrid cols={4}>
+                  <KpiSparklineCard title="Compras" value={1820000} format="currency" trend={12.4}
+                    series={mesesData.map((m) => m.valor)} />
+                  <KpiSparklineCard title="Recebido" value={1620000} format="currency" trend={8.1}
+                    series={mesesData.map((m) => m.recebido)} color="hsl(142,70%,40%)" />
+                  <KpiTargetCard title="Meta mensal" value={1820000} target={2000000} format="currency" />
+                  <KpiTargetCard title="% Recebimento" value={84.1} target={95} format="percent" subtitle="Meta SLA" />
+                </KpiGrid>
+              </DemoBlock>
               <DemoBlock name="KpiCard loading">
                 <KpiGrid cols={3}>
                   <KpiCard title="Carregando..." value={null} loading />
