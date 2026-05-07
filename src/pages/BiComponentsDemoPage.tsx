@@ -246,9 +246,6 @@ export default function BiComponentsDemoPage() {
     ) },
   ]), []);
 
-  return (
-    <DashboardPage>
-      <DashboardHeader
   if (blocked) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center p-6">
