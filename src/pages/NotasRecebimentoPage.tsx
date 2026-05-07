@@ -285,13 +285,19 @@ export default function NotasRecebimentoPage() {
 
   const charts = useMemo(() => {
     if (!dados.length) return null;
-    const agg = (key: string) => {
-      const m = new Map<string, number>();
+    /** keyForChave: campo usado para abrir o drill; keyForLabel: campo exibido. */
+    const agg = (keyForChave: string, keyForLabel?: string) => {
+      const m = new Map<string, { label: string; valor: number }>();
       dados.forEach((d: any) => {
-        const k = String(d[key] ?? '—');
-        m.set(k, (m.get(k) || 0) + Number(d.valor_liquido || 0));
+        const chave = String(d[keyForChave] ?? '—');
+        const label = String((keyForLabel ? d[keyForLabel] : d[keyForChave]) ?? chave);
+        const cur = m.get(chave) || { label, valor: 0 };
+        cur.valor += Number(d.valor_liquido || 0);
+        m.set(chave, cur);
       });
-      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+      return [...m.entries()]
+        .map(([chave, v]) => ({ chave, label: v.label, valor: v.valor }))
+        .sort((a, b) => b.valor - a.valor);
     };
     const porMes = agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label));
     const mediaMes = porMes.length ? porMes.reduce((s, x) => s + x.valor, 0) / porMes.length : 0;
@@ -299,8 +305,8 @@ export default function NotasRecebimentoPage() {
       porMes, mediaMes,
       porTipoDespesa: agg('tipo_despesa_calc'),
       topFornecedores: agg('nome_fornecedor').slice(0, 10),
-      porCentroCusto: agg('descricao_centro_custo').slice(0, 10),
-      porProjeto: agg('nome_projeto').slice(0, 10),
+      porCentroCusto: agg('codigo_centro_custo', 'descricao_centro_custo').slice(0, 10),
+      porProjeto: agg('numero_projeto', 'nome_projeto').slice(0, 10),
       porTransacao: agg('transacao').slice(0, 10),
       totalFornecedores: new Set(dados.map((d: any) => d.nome_fornecedor || d.codigo_fornecedor).filter(Boolean)).size,
       totalProjetos: new Set(dados.map((d: any) => d.nome_projeto || d.numero_projeto).filter(Boolean)).size,
