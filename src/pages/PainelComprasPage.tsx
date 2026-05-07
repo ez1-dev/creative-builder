@@ -777,167 +777,190 @@ export default function PainelComprasPage() {
         }
       />
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters} defaultOpen={!data}>
-        <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Código Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex: 001.001" /></div>
-        <div><Label className="text-xs">Descrição Item</Label><Input value={filters.descricao_item} onChange={(e) => setFilters(f => ({ ...f, descricao_item: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Fornecedor</Label><ComboboxFilter value={filters.fornecedor} onChange={(v) => setFilters(f => ({ ...f, fornecedor: v }))} options={fornecedoresOptions} placeholder="Buscar fornecedor..." loading={fornecedoresLoading} /></div>
-        <div><Label className="text-xs">Nº OC</Label><Input value={filters.numero_oc} onChange={(e) => setFilters(f => ({ ...f, numero_oc: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Centro Custo</Label><Input value={filters.centro_custo} onChange={(e) => setFilters(f => ({ ...f, centro_custo: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Transação</Label><Input value={filters.transacao} onChange={(e) => setFilters(f => ({ ...f, transacao: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Emissão de</Label><Input type="date" value={filters.data_emissao_ini} onChange={(e) => setFilters(f => ({ ...f, data_emissao_ini: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Emissão até</Label><Input type="date" value={filters.data_emissao_fim} onChange={(e) => setFilters(f => ({ ...f, data_emissao_fim: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Entrega de</Label><Input type="date" value={filters.data_entrega_ini} onChange={(e) => setFilters(f => ({ ...f, data_entrega_ini: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Entrega até</Label><Input type="date" value={filters.data_entrega_fim} onChange={(e) => setFilters(f => ({ ...f, data_entrega_fim: e.target.value }))} className="h-8 text-xs" /></div>
-        <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.familia} onChange={(v) => setFilters(f => ({ ...f, familia: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
-        <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem_material} onChange={(v) => setFilters(f => ({ ...f, origem_material: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
-        <div><Label className="text-xs">Depósito</Label><Input value={filters.coddep} onChange={(e) => setFilters(f => ({ ...f, coddep: e.target.value }))} placeholder="Depósito" className="h-8 text-xs" /></div>
-        <div>
-          <Label className="text-xs">Situação da OC</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                title={filters.situacao_oc.map((v) => situacaoLabel(v)).join(', ') || 'Todas'}
-              >
-                <span className="truncate">
-                  {filters.situacao_oc.length === 0
-                    ? 'Todas'
-                    : filters.situacao_oc.length === 1
-                      ? situacaoLabel(filters.situacao_oc[0])
-                      : `${filters.situacao_oc.length} selecionadas`}
-                </span>
-                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-56 p-2" align="start">
-              <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+        {/* 1) Visão Gerencial */}
+        <FilterSection title="Visão Gerencial" icon={<TrendingUp className="h-3.5 w-3.5" />} cols={5}>
+          <div>
+            <Label className="text-xs">Projeto Macro</Label>
+            <Select value={filters.projeto_macro} onValueChange={(v) => setFilters(f => ({ ...f, projeto_macro: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="GENIUS">Genius</SelectItem>
+                <SelectItem value="ESTRUTURAL ZORTEA">Estrutural Zortea</SelectItem>
+                <SelectItem value="OUTROS">Outros</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Tipo de Despesa</Label>
+            <Select value={filters.tipo_despesa} onValueChange={(v) => setFilters(f => ({ ...f, tipo_despesa: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="Matéria-prima">Matéria-prima</SelectItem>
+                <SelectItem value="Uso e consumo">Uso e consumo</SelectItem>
+                <SelectItem value="Despesas gerais">Despesas gerais</SelectItem>
+                <SelectItem value="Serviços">Serviços</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Mês (YYYY-MM)</Label>
+            <Input value={filters.mes_competencia} onChange={(e) => setFilters(f => ({ ...f, mes_competencia: e.target.value }))} placeholder="2026-05" className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-xs">Cond. Pagamento</Label>
+            <Input value={filters.condicao_pagamento} onChange={(e) => setFilters(f => ({ ...f, condicao_pagamento: e.target.value }))} placeholder="Código ou descrição" className="h-8 text-xs" />
+          </div>
+          <div>
+            <Label className="text-xs">Situação da OC</Label>
+            <Popover>
+              <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="hover:text-foreground"
-                  onClick={() => setFilters((f) => ({ ...f, situacao_oc: SITUACOES_OPCOES.map((o) => o.value) }))}
+                  className="flex h-8 w-full items-center justify-between rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  title={filters.situacao_oc.map((v) => situacaoLabel(v)).join(', ') || 'Todas'}
                 >
-                  Selecionar todas
+                  <span className="truncate">
+                    {filters.situacao_oc.length === 0
+                      ? 'Todas'
+                      : filters.situacao_oc.length === 1
+                        ? situacaoLabel(filters.situacao_oc[0])
+                        : `${filters.situacao_oc.length} selecionadas`}
+                  </span>
+                  <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
                 </button>
-                <button
-                  type="button"
-                  className="hover:text-foreground"
-                  onClick={() => setFilters((f) => ({ ...f, situacao_oc: [] }))}
-                >
-                  Limpar
-                </button>
-              </div>
-              <div className="max-h-64 space-y-1 overflow-y-auto">
-                {SITUACOES_OPCOES.map((opt) => {
-                  const checked = filters.situacao_oc.includes(opt.value);
-                  return (
-                    <label
-                      key={opt.value}
-                      className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-accent"
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(v) => {
-                          const isChecked = !!v;
-                          setFilters((f) => {
-                            const cur = new Set(f.situacao_oc);
-                            if (isChecked) cur.add(opt.value);
-                            else cur.delete(opt.value);
-                            const next = SITUACOES_OPCOES
-                              .map((o) => o.value)
-                              .filter((v) => cur.has(v));
-                            const includesLiquidado = next.includes('4');
-                            return {
-                              ...f,
-                              situacao_oc: next,
-                              somente_pendentes: includesLiquidado ? false : f.somente_pendentes,
-                            };
-                          });
-                        }}
-                      />
-                      <span className="truncate">{opt.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div>
-          <Label className="text-xs">Desconto</Label>
-          <Select value={filters.codigo_motivo_oc} onValueChange={(v) => setFilters(f => ({ ...f, codigo_motivo_oc: v }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="19">Com desconto</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div><Label className="text-xs">Obs./Valor Desconto</Label><Input value={filters.observacao_oc} onChange={(e) => setFilters(f => ({ ...f, observacao_oc: e.target.value }))} placeholder="Pesquisar desconto..." className="h-8 text-xs" /></div>
-        <div>
-          <Label className="text-xs">Tipo Item</Label>
-          <Select value={filters.tipo_item} onValueChange={(v) => setFilters(f => ({ ...f, tipo_item: v }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="PRODUTO">Produto</SelectItem>
-              <SelectItem value="SERVICO">Serviço</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Tipo OC</Label>
-          <Select value={filters.tipo_oc} onValueChange={(v) => setFilters(f => ({ ...f, tipo_oc: v }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="NORMAL">Normal</SelectItem>
-              <SelectItem value="MISTA">Mista</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-end gap-2 pb-1">
-          <Checkbox id="pendentes" checked={filters.somente_pendentes} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_pendentes: !!v }))} />
-          <Label htmlFor="pendentes" className="text-xs">Somente pendentes</Label>
-        </div>
-        <div className="flex items-end gap-2 pb-1">
-          <Checkbox id="mostrarValorTotalOc" checked={filters.mostrar_valor_total_oc} onCheckedChange={(v) => setFilters(f => ({ ...f, mostrar_valor_total_oc: !!v }))} />
-          <Label htmlFor="mostrarValorTotalOc" className="text-xs">Mostrar valor total da OC</Label>
-        </div>
-        <div>
-          <Label className="text-xs">Projeto Macro</Label>
-          <Select value={filters.projeto_macro} onValueChange={(v) => setFilters(f => ({ ...f, projeto_macro: v }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="GENIUS">Genius</SelectItem>
-              <SelectItem value="ESTRUTURAL ZORTEA">Estrutural Zortea</SelectItem>
-              <SelectItem value="OUTROS">Outros</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Tipo de Despesa</Label>
-          <Select value={filters.tipo_despesa} onValueChange={(v) => setFilters(f => ({ ...f, tipo_despesa: v }))}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="Matéria-prima">Matéria-prima</SelectItem>
-              <SelectItem value="Uso e consumo">Uso e consumo</SelectItem>
-              <SelectItem value="Despesas gerais">Despesas gerais</SelectItem>
-              <SelectItem value="Serviços">Serviços</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Mês (YYYY-MM)</Label>
-          <Input value={filters.mes_competencia} onChange={(e) => setFilters(f => ({ ...f, mes_competencia: e.target.value }))} placeholder="2026-05" className="h-8 text-xs" />
-        </div>
-        <div>
-          <Label className="text-xs">Cond. Pagamento</Label>
-          <Input value={filters.condicao_pagamento} onChange={(e) => setFilters(f => ({ ...f, condicao_pagamento: e.target.value }))} placeholder="Código ou descrição" className="h-8 text-xs" />
-        </div>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" align="start">
+                <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <button
+                    type="button"
+                    className="hover:text-foreground"
+                    onClick={() => setFilters((f) => ({ ...f, situacao_oc: SITUACOES_OPCOES.map((o) => o.value) }))}
+                  >
+                    Selecionar todas
+                  </button>
+                  <button
+                    type="button"
+                    className="hover:text-foreground"
+                    onClick={() => setFilters((f) => ({ ...f, situacao_oc: [] }))}
+                  >
+                    Limpar
+                  </button>
+                </div>
+                <div className="max-h-64 space-y-1 overflow-y-auto">
+                  {SITUACOES_OPCOES.map((opt) => {
+                    const checked = filters.situacao_oc.includes(opt.value);
+                    return (
+                      <label
+                        key={opt.value}
+                        className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-accent"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) => {
+                            const isChecked = !!v;
+                            setFilters((f) => {
+                              const cur = new Set(f.situacao_oc);
+                              if (isChecked) cur.add(opt.value);
+                              else cur.delete(opt.value);
+                              const next = SITUACOES_OPCOES
+                                .map((o) => o.value)
+                                .filter((v) => cur.has(v));
+                              const includesLiquidado = next.includes('4');
+                              return {
+                                ...f,
+                                situacao_oc: next,
+                                somente_pendentes: includesLiquidado ? false : f.somente_pendentes,
+                              };
+                            });
+                          }}
+                        />
+                        <span className="truncate">{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        </FilterSection>
+
+        {/* 2) Período */}
+        <FilterSection title="Período" icon={<Clock className="h-3.5 w-3.5" />} cols={4}>
+          <div><Label className="text-xs">Emissão de</Label><Input type="date" value={filters.data_emissao_ini} onChange={(e) => setFilters(f => ({ ...f, data_emissao_ini: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Emissão até</Label><Input type="date" value={filters.data_emissao_fim} onChange={(e) => setFilters(f => ({ ...f, data_emissao_fim: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Entrega de</Label><Input type="date" value={filters.data_entrega_ini} onChange={(e) => setFilters(f => ({ ...f, data_entrega_ini: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Entrega até</Label><Input type="date" value={filters.data_entrega_fim} onChange={(e) => setFilters(f => ({ ...f, data_entrega_fim: e.target.value }))} className="h-8 text-xs" /></div>
+        </FilterSection>
+
+        {/* 3) Identificação */}
+        <FilterSection title="Identificação" icon={<FileText className="h-3.5 w-3.5" />} cols={5}>
+          <div><Label className="text-xs">Nº OC</Label><Input value={filters.numero_oc} onChange={(e) => setFilters(f => ({ ...f, numero_oc: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Código Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex: 001.001" /></div>
+          <div><Label className="text-xs">Descrição Item</Label><Input value={filters.descricao_item} onChange={(e) => setFilters(f => ({ ...f, descricao_item: e.target.value }))} className="h-8 text-xs" /></div>
+          <div>
+            <Label className="text-xs">Tipo OC</Label>
+            <Select value={filters.tipo_oc} onValueChange={(v) => setFilters(f => ({ ...f, tipo_oc: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="NORMAL">Normal</SelectItem>
+                <SelectItem value="MISTA">Mista</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </FilterSection>
+
+        {/* 4) Entidades & Local */}
+        <FilterSection title="Entidades & Local" icon={<Layers className="h-3.5 w-3.5" />} cols={6}>
+          <div><Label className="text-xs">Fornecedor</Label><ComboboxFilter value={filters.fornecedor} onChange={(v) => setFilters(f => ({ ...f, fornecedor: v }))} options={fornecedoresOptions} placeholder="Buscar fornecedor..." loading={fornecedoresLoading} /></div>
+          <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Centro Custo</Label><Input value={filters.centro_custo} onChange={(e) => setFilters(f => ({ ...f, centro_custo: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.familia} onChange={(v) => setFilters(f => ({ ...f, familia: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
+          <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem_material} onChange={(v) => setFilters(f => ({ ...f, origem_material: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
+          <div><Label className="text-xs">Depósito</Label><Input value={filters.coddep} onChange={(e) => setFilters(f => ({ ...f, coddep: e.target.value }))} placeholder="Depósito" className="h-8 text-xs" /></div>
+        </FilterSection>
+
+        {/* 5) Classificação & Desconto */}
+        <FilterSection title="Classificação & Desconto" icon={<Percent className="h-3.5 w-3.5" />} cols={4}>
+          <div>
+            <Label className="text-xs">Tipo Item</Label>
+            <Select value={filters.tipo_item} onValueChange={(v) => setFilters(f => ({ ...f, tipo_item: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="PRODUTO">Produto</SelectItem>
+                <SelectItem value="SERVICO">Serviço</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label className="text-xs">Transação</Label><Input value={filters.transacao} onChange={(e) => setFilters(f => ({ ...f, transacao: e.target.value }))} className="h-8 text-xs" /></div>
+          <div>
+            <Label className="text-xs">Desconto</Label>
+            <Select value={filters.codigo_motivo_oc} onValueChange={(v) => setFilters(f => ({ ...f, codigo_motivo_oc: v }))}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="19">Com desconto</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label className="text-xs">Obs./Valor Desconto</Label><Input value={filters.observacao_oc} onChange={(e) => setFilters(f => ({ ...f, observacao_oc: e.target.value }))} placeholder="Pesquisar desconto..." className="h-8 text-xs" /></div>
+        </FilterSection>
+
+        {/* 6) Opções */}
+        <FilterSection title="Opções" cols={4}>
+          <label className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs cursor-pointer hover:bg-accent/50">
+            <Checkbox checked={filters.somente_pendentes} onCheckedChange={(v) => setFilters(f => ({ ...f, somente_pendentes: !!v }))} />
+            <span>Somente pendentes</span>
+          </label>
+          <label className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs cursor-pointer hover:bg-accent/50">
+            <Checkbox checked={filters.mostrar_valor_total_oc} onCheckedChange={(v) => setFilters(f => ({ ...f, mostrar_valor_total_oc: !!v }))} />
+            <span>Mostrar valor total da OC</span>
+          </label>
+        </FilterSection>
       </FilterPanel>
 
       <ActiveFilterChips chips={activeChips} onClearAll={clearFilters} />
