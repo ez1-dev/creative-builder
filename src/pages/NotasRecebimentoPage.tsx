@@ -346,25 +346,22 @@ export default function NotasRecebimentoPage() {
   }, [dados]);
 
   const kpis = useMemo(() => {
-    // Quando o endpoint /api/notas-recebimento-dashboard responde, usamos seus KPIs (base completa filtrada).
-    // Caso contrário, calculamos client-side a partir de `dados` (fallback paginado em até 50k linhas).
+    // Quando o endpoint /api/notas-recebimento-dashboard responde, usamos exclusivamente
+    // seus KPIs (base completa filtrada, sem paginação). Nada é somado a partir do array
+    // `dados` (que é apenas a amostra agregada de até 50k linhas).
     if (dashboard) {
       const k = dashboard.kpis;
       const totalNfs = k.quantidade_nfs || 0;
       const valorRecebido = k.valor_recebido || 0;
-      // Para indicadores que o backend ainda não expõe, usamos a amostra como aproximação.
-      const valorBruto = dados.reduce((acc: number, d: any) => acc + Number(d.valor_bruto || 0), 0);
-      const qtdRecebida = dados.reduce((acc: number, d: any) => acc + Number(d.quantidade_recebida || 0), 0);
-      const fornMap = new Map<string, number>();
-      dados.forEach((d: any) => {
-        const kk = d.nome_fornecedor || d.codigo_fornecedor || '—';
-        fornMap.set(kk, (fornMap.get(kk) || 0) + Number(d.valor_liquido || 0));
-      });
-      const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
-      const nfsComOc = new Set(dados.filter((d: any) => d.numero_oc_origem && d.numero_oc_origem !== 0).map((d: any) => `${d.numero_nf}|${d.serie_nf}`)).size;
-      const nfsSampleSet = new Set(dados.map((d: any) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
-      const nfsSemOc = Math.max(nfsSampleSet - nfsComOc, 0);
-      const baseOc = nfsSampleSet || 1;
+      const valorBruto = k.valor_bruto_total ?? 0;
+      const qtdRecebida = k.quantidade_recebida_total ?? 0;
+      const nfsComOc = k.nfs_com_oc ?? 0;
+      const nfsSemOc = k.nfs_sem_oc ?? Math.max(totalNfs - nfsComOc, 0);
+      const pctComOc = k.pct_com_oc ?? (totalNfs > 0 ? (nfsComOc / totalNfs) * 100 : 0);
+      const pctSemOc = k.pct_sem_oc ?? (totalNfs > 0 ? (nfsSemOc / totalNfs) * 100 : 0);
+      const maior = k.maior_fornecedor
+        ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+        : null;
       return {
         totalNfs,
         totalItens: k.quantidade_itens || 0,
@@ -373,12 +370,11 @@ export default function NotasRecebimentoPage() {
         valorBruto,
         qtdRecebida,
         valorMedioNf: k.valor_medio_nf || 0,
-        maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
-        nfsComOc, nfsSemOc,
-        pctComOc: (nfsComOc / baseOc) * 100,
-        pctSemOc: (nfsSemOc / baseOc) * 100,
+        maiorFornecedor: maior,
+        nfsComOc, nfsSemOc, pctComOc, pctSemOc,
       };
     }
+    // Fallback (endpoint dashboard indisponível): cálculo client-side sobre a amostra agregada.
     const totalNfs = new Set(dados.map((d: any) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
     const totalItens = dados.length;
     const totalFornecedores = new Set(dados.map((d: any) => d.codigo_fornecedor).filter(Boolean)).size;
