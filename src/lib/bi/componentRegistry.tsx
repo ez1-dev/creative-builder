@@ -47,8 +47,21 @@ export interface BiComponentDef {
 const SERIES_LIKE = (s: any): { label: string; valor: number }[] => {
   if (!Array.isArray(s)) return [];
   return s
-    .map((p) => ({ label: String(p?.label ?? p?.name ?? p?.x ?? ''), valor: Number(p?.valor ?? p?.value ?? p?.y ?? 0) }))
-    .filter((p) => p.label);
+    .map((p) => {
+      if (p == null || typeof p !== 'object') return { label: String(p ?? ''), valor: 0 };
+      let label: any = p.label ?? p.name ?? p.x ?? p.categoria ?? p.category;
+      let valor: any = p.valor ?? p.value ?? p.y ?? p.total;
+      if (label == null || valor == null) {
+        for (const [k, v] of Object.entries(p)) {
+          if (label == null && typeof v === 'string') label = v;
+          else if (valor == null && typeof v === 'number') valor = v;
+          if (label != null && valor != null) break;
+          void k;
+        }
+      }
+      return { label: String(label ?? ''), valor: Number(valor ?? 0) };
+    })
+    .filter((p) => p.label !== '' && Number.isFinite(p.valor));
 };
 
 export const COMPONENT_REGISTRY: BiComponentDef[] = [

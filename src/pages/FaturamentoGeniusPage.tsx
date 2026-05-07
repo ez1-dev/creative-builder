@@ -692,7 +692,11 @@ export default function FaturamentoGeniusPage() {
     <PageDataProvider
       pageKey="faturamento-genius"
       kpis={kpis ?? null}
-      series={{ por_revenda: porRevenda, por_anomes: porMes }}
+      series={{
+        por_revenda: (porRevenda ?? []).map((r: any) => ({ label: r.revenda ?? r.label ?? '-', valor: Number(r.valor_total ?? r.valor ?? 0) })),
+        por_anomes:  (porMes ?? []).map((r: any) => ({ label: fmtAnomes(r.anomes), valor: Number(r.valor_total ?? r.valor ?? 0) })),
+        por_origem:  (porOrigem ?? []).map((r: any) => ({ label: r.origem ?? '-', valor: Number(r.valor_total ?? 0) })),
+      }}
       rows={filteredRows}
       filtros={filters}
     >

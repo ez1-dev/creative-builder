@@ -90,6 +90,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
     sections: [
       { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
       { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
+      { key: 'tables', label: 'Tabelas auxiliares',accepts: ['table'],                cols: 2 },
     ],
     schema: {
       kpis: [
@@ -99,9 +100,11 @@ export const PAGE_REGISTRY: BiPageDef[] = [
         { key: 'meta_semanal',    label: 'Meta Semanal',    format: 'number' },
       ],
       series: [
-        { key: 'producao_por_dia', label: 'Produção por Dia' },
-        { key: 'top_produtos',     label: 'Top Produtos' },
+        { key: 'cargas_por_mes',         label: 'Cargas por Mês' },
+        { key: 'top_projetos_patio',     label: 'Top Projetos (Pátio)' },
+        { key: 'top_projetos_produzido', label: 'Top Projetos (Produzido)' },
       ],
+      rows: { key: 'dados', label: 'Top Projetos', fields: ['numero_projeto', 'numero_desenho', 'cliente', 'kg_patio', 'kg_produzido', 'status_patio'] },
     },
   },
   {
@@ -130,6 +133,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
       series: [
         { key: 'por_revenda', label: 'Por Revenda' },
         { key: 'por_anomes',  label: 'Por Mês' },
+        { key: 'por_origem',  label: 'Por Origem' },
       ],
     },
   },
