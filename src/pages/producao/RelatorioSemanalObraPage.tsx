@@ -137,36 +137,6 @@ export default function RelatorioSemanalObraPage() {
     }
   }, [fetchAllPagesForCharts]);
 
-  // Helper: busca demais páginas apenas para alimentar os gráficos (quando backend já enviou resumo)
-  const fetchAllPagesForCharts = useCallback(async (
-    id: number,
-    totalPages: number,
-    currentFilters: typeof initialFilters,
-    page1: RelatorioRow[],
-  ) => {
-    const allRows: RelatorioRow[] = [...page1];
-    try {
-      const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const BATCH = 5;
-      for (let i = 0; i < remaining.length; i += BATCH) {
-        if (consolidationIdRef.current !== id) return;
-        const batch = remaining.slice(i, i + BATCH);
-        const results = await Promise.all(
-          batch.map((p) => api.get<PaginatedResponse<RelatorioRow>>(
-            '/api/producao/relatorio-semanal-obra',
-            { ...currentFilters, pagina: p, tamanho_pagina: 100 },
-          )),
-        );
-        for (const r of results) allRows.push(...(r.dados || []));
-      }
-      if (consolidationIdRef.current !== id) return;
-      setConsolidatedRows(allRows);
-    } catch {
-      if (consolidationIdRef.current !== id) return;
-      setConsolidatedRows(allRows);
-    }
-  }, []);
-
   const search = useCallback(async (page = 1) => {
     if (!erpReady) {
       toast.error('Conexão ERP não disponível.');
