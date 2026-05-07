@@ -848,7 +848,7 @@ export default function NotasRecebimentoPage() {
                   </span>
                 </div>
                 <TabsContent value="lista" className="mt-3 space-y-2">
-                  <DataTable columns={columns} data={dados} loading={loading} emptyMessage="Nenhuma nota fiscal encontrada para os filtros aplicados." />
+                  <DataTable columns={columns} data={dadosLista} loading={loading} emptyMessage="Nenhuma nota fiscal encontrada para os filtros aplicados." />
                   {data.total_paginas > 1 && (
                     <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
                   )}
