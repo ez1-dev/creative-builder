@@ -1,32 +1,44 @@
-## Causa raiz
+## Objetivo
 
-A rota `/biblioteca-bi` está **sem proteção de autenticação** em `src/App.tsx` (linhas 85–86), enquanto todas as outras páginas usam `<ProtectedRoute>`. Você abre o catálogo deslogado, clica em **Aplicar**, e:
+Reverter o redirecionamento forçado para `/login` em `/biblioteca-bi` e, em vez disso, expor a tela em **Configurações → Permissões por Tela**, para que admins possam liberar/restringir o acesso por perfil — comportamento idêntico às demais telas do ERP.
 
-1. O dialog detecta `supabase.auth.getUser() === null` e mostra o aviso amarelo "Você não está autenticado".
-2. O botão **Aplicar à página** fica desabilitado (`canSave` exige `authed === true`).
-3. Mesmo se passasse, o insert em `bi_user_widgets` seria rejeitado pelo RLS (`auth.uid() = user_id`).
+## Mudanças
 
-Confirmado por evidência: você está em `/login` agora, e `SELECT count(*) FROM bi_user_widgets` = **0 registros**. A tabela e a RLS estão corretas — o problema é só de sessão expirada + rota desprotegida.
+### 1. `src/App.tsx` (linhas 85–86)
+Remover `<ProtectedRoute>` de `/bi-components-demo` e `/biblioteca-bi`, voltando a:
+```tsx
+<Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
+<Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
+```
+Assim a página fica acessível mesmo sem login (para preview/exploração do catálogo). O insert em `bi_user_widgets` continua exigindo sessão pelo RLS — o próprio dialog já mostra o aviso amarelo "Faça login" quando deslogado, comportamento que mantemos.
 
-## Correção
+### 2. `src/pages/ConfiguracoesPage.tsx` (linha 26, `ALL_SCREENS`)
+Adicionar a entrada da Biblioteca BI ao catálogo de telas:
+```ts
+{ path: '/biblioteca-bi', name: 'Biblioteca BI (Catálogo de Componentes)' },
+```
+Isso faz a tela aparecer na aba **Permissões por Tela** de cada perfil, podendo ser marcada como Ver/Editar.
 
-Envolver `/biblioteca-bi` (e o alias `/bi-components-demo`) com `<ProtectedRoute path="/biblioteca-bi">`, igual às demais páginas. Resultado: ao abrir o link você é redirecionado para `/login`; após autenticar, volta ao catálogo já com sessão ativa, o aviso amarelo some e o botão **Aplicar à página** funciona normalmente.
+### 3. `src/pages/BiComponentsDemoPage.tsx`
+Aplicar gate "soft" usando `useUserPermissions()`:
+- Se o usuário **está autenticado** e possui permissões carregadas (`hasPermissions === true`) **e** `canView('/biblioteca-bi') === false` → renderizar tela de "Sem acesso à Biblioteca BI" com botão para voltar a `/estoque` (mesma UX de `ProtectedRoute`, mas inline).
+- Se **não está autenticado** ou `hasPermissions === false` (perfil novo/sem cadastro) → renderizar normalmente o catálogo (modo público de exploração). O dialog "Aplicar componente" continua bloqueando o save sem login.
 
-## Arquivo a editar
+Esse comportamento atende ao pedido: a tela não exige login para abrir, mas admins têm controle granular via Configurações para esconder/restringir do perfil quando quiserem.
 
-- `src/App.tsx` linhas 85–86: trocar
-  ```tsx
-  <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
-  <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
-  ```
-  por:
-  ```tsx
-  <Route path="/bi-components-demo" element={<ProtectedRoute path="/biblioteca-bi"><BiComponentsDemoPage /></ProtectedRoute>} />
-  <Route path="/biblioteca-bi" element={<ProtectedRoute path="/biblioteca-bi"><BiComponentsDemoPage /></ProtectedRoute>} />
-  ```
+### 4. `src/lib/screenCatalog.ts`
+Adicionar entrada para que logs de navegação registrem nome correto:
+```ts
+'/biblioteca-bi': { codigo: 'BIBLIO_BI', nome: 'Biblioteca BI' },
+```
 
-Sem mudanças de schema, RLS, ou dialog. Só uma linha de roteamento.
+### 5. `src/components/AppSidebar.tsx`
+Verificar se o link da Biblioteca BI no menu lateral respeita `canView('/biblioteca-bi')` — se hoje está sempre visível, manter assim (já que a tela é pública); se está oculto sob permissão, garantir que apareça por padrão quando o perfil ainda não tem regra.
 
-## Verificação
+## Resultado
 
-Após aplicar: abrir `/biblioteca-bi` deslogado → redireciona para `/login` → após login, retorna ao catálogo, o banner amarelo do dialog desaparece e o **Aplicar à página** salva normalmente em `bi_user_widgets`.
+- `/biblioteca-bi` abre sem exigir login (catálogo navegável por qualquer um).
+- Admin pode entrar em **Configurações → Perfis de Acesso → Permissões por Tela** e desmarcar "Ver" para o perfil X → usuários daquele perfil verão a tela de "Sem acesso".
+- Aplicar componente continua exigindo sessão (RLS de `bi_user_widgets` inalterado), e o dialog já comunica isso com o banner amarelo.
+
+Sem mudanças de schema ou RLS.

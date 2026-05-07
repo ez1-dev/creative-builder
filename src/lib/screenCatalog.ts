@@ -16,6 +16,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/faturamento-genius':        { codigo: 'FAT_GENIUS',   nome: 'Faturamento Genius' },
   '/gestao-sgu-usuarios':       { codigo: 'SGU_USR',      nome: 'Gestão SGU - Usuários ERP Senior' },
   '/demonstrativo-compras-recebimentos': { codigo: 'DEM_COMP_REC', nome: 'Demonstrativo de Compras e Recebimentos' },
+  '/biblioteca-bi':             { codigo: 'BIBLIO_BI',    nome: 'Biblioteca BI' },
 };
 
 const PREFIX: Array<[string, ScreenInfo]> = [
