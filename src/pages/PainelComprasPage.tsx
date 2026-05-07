@@ -507,7 +507,7 @@ export default function PainelComprasPage() {
   );
 
   const totalAgregadoCompras = dadosAgregados?.total_registros ?? 0;
-  const amostragemAtivaCompras = totalAgregadoCompras > TAMANHO_AGREGADO;
+  const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
     if (!dadosFiltrados.length) return null;
