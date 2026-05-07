@@ -1,44 +1,51 @@
-## Objetivo
+# Diagnóstico — Por que widgets não aparecem nas páginas
 
-Reverter o redirecionamento forçado para `/login` em `/biblioteca-bi` e, em vez disso, expor a tela em **Configurações → Permissões por Tela**, para que admins possam liberar/restringir o acesso por perfil — comportamento idêntico às demais telas do ERP.
+## O que verifiquei
 
-## Mudanças
+1. **Tabela `bi_user_widgets` está vazia** (`SELECT * → 0 rows`). Nenhum widget chegou a ser salvo no banco — não é problema de exibição, é problema de **gravação**.
+2. **RLS está correta**: insert exige `auth.uid() = user_id`. Se o usuário não estiver logado, o insert é silenciosamente bloqueado e o `ApplyComponentDialog` desabilita o botão (`authed === false → canSave=false`).
+3. **A rota `/biblioteca-bi` agora é pública** (sem `ProtectedRoute`) — então o usuário consegue abrir o catálogo **deslogado**, clicar em "Aplicar componente", e o botão "Aplicar à página" fica desabilitado com um banner amarelo discreto. Provavelmente passou despercebido.
+4. **Apenas 3 páginas hoje renderizam `<UserWidgetsSlot/>`**:
+   - `/painel-compras`
+   - `/notas-recebimento`
+   - `/producao/dashboard`
+   
+   Páginas como Estoque, Faturamento Genius, Contas a Pagar/Receber, Auditoria, Min/Max etc. **não têm slot nenhum** — mesmo que o widget fosse salvo, não apareceria lá.
+5. O `PAGE_REGISTRY` (lista de páginas-alvo no diálogo "Aplicar") só conhece as 3 páginas acima — então não é possível aplicar widget em mais nenhuma página.
 
-### 1. `src/App.tsx` (linhas 85–86)
-Remover `<ProtectedRoute>` de `/bi-components-demo` e `/biblioteca-bi`, voltando a:
-```tsx
-<Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
-<Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
-```
-Assim a página fica acessível mesmo sem login (para preview/exploração do catálogo). O insert em `bi_user_widgets` continua exigindo sessão pelo RLS — o próprio dialog já mostra o aviso amarelo "Faça login" quando deslogado, comportamento que mantemos.
+## O que vou implementar
 
-### 2. `src/pages/ConfiguracoesPage.tsx` (linha 26, `ALL_SCREENS`)
-Adicionar a entrada da Biblioteca BI ao catálogo de telas:
-```ts
-{ path: '/biblioteca-bi', name: 'Biblioteca BI (Catálogo de Componentes)' },
-```
-Isso faz a tela aparecer na aba **Permissões por Tela** de cada perfil, podendo ser marcada como Ver/Editar.
+### 1. Tornar a falha de autenticação inescapável no diálogo
+Em `ApplyComponentDialog.tsx`:
+- Quando `authed === false`, substituir o banner amarelo por um **bloco grande vermelho** com botão "Entrar agora" que redireciona para `/login?redirect=/biblioteca-bi`.
+- Trocar o texto do botão "Aplicar à página" para **"Faça login para aplicar"** quando bloqueado por auth (em vez de só desabilitar).
 
-### 3. `src/pages/BiComponentsDemoPage.tsx`
-Aplicar gate "soft" usando `useUserPermissions()`:
-- Se o usuário **está autenticado** e possui permissões carregadas (`hasPermissions === true`) **e** `canView('/biblioteca-bi') === false` → renderizar tela de "Sem acesso à Biblioteca BI" com botão para voltar a `/estoque` (mesma UX de `ProtectedRoute`, mas inline).
-- Se **não está autenticado** ou `hasPermissions === false` (perfil novo/sem cadastro) → renderizar normalmente o catálogo (modo público de exploração). O dialog "Aplicar componente" continua bloqueando o save sem login.
+### 2. Expandir o `PAGE_REGISTRY` com mais páginas-alvo
+Adicionar em `src/lib/bi/pageRegistry.ts`:
+- `faturamento-genius` (KPIs faturado/meta/variação + séries por mês/cliente)
+- `estoque-min-max` (KPIs estoque atual/mín/máx + tabela de itens)
+- `contas-pagar` (KPIs total/vencidas/a vencer + séries)
+- `auditoria-apontamento-genius` (KPIs e tabela)
 
-Esse comportamento atende ao pedido: a tela não exige login para abrir, mas admins têm controle granular via Configurações para esconder/restringir do perfil quando quiserem.
+### 3. Embrulhar essas páginas com `<PageDataProvider>` + `<UserWidgetsSlot>`
+Adicionar nas 4 páginas acima:
+- `<PageDataProvider pageKey="..." kpis={...} series={...} rows={...} filtros={filters}>` ao redor do conteúdo.
+- `<UserWidgetsSlot section="kpis" cols={4} />` após o `KpiGrid` existente.
+- `<UserWidgetsSlot section="charts" cols={3} emptyHint={false} />` após os gráficos.
 
-### 4. `src/lib/screenCatalog.ts`
-Adicionar entrada para que logs de navegação registrem nome correto:
-```ts
-'/biblioteca-bi': { codigo: 'BIBLIO_BI', nome: 'Biblioteca BI' },
-```
+### 4. Confirmar funcionamento end-to-end
+Após o build:
+- Logar como usuário, abrir `/biblioteca-bi`, aplicar 1 KPI em "Faturamento Genius".
+- Abrir `/faturamento-genius` e confirmar que o widget aparece.
+- Verificar via SQL que o registro entrou em `bi_user_widgets`.
 
-### 5. `src/components/AppSidebar.tsx`
-Verificar se o link da Biblioteca BI no menu lateral respeita `canView('/biblioteca-bi')` — se hoje está sempre visível, manter assim (já que a tela é pública); se está oculto sob permissão, garantir que apareça por padrão quando o perfil ainda não tem regra.
+## Arquivos editados
 
-## Resultado
+- `src/components/bi/runtime/ApplyComponentDialog.tsx` — bloqueio de auth mais visível.
+- `src/lib/bi/pageRegistry.ts` — +4 páginas-alvo.
+- `src/pages/FaturamentoGeniusPage.tsx`
+- `src/pages/EstoqueMinMaxPage.tsx`
+- `src/pages/ContasPagarPage.tsx`
+- `src/pages/AuditoriaApontamentoGeniusPage.tsx`
 
-- `/biblioteca-bi` abre sem exigir login (catálogo navegável por qualquer um).
-- Admin pode entrar em **Configurações → Perfis de Acesso → Permissões por Tela** e desmarcar "Ver" para o perfil X → usuários daquele perfil verão a tela de "Sem acesso".
-- Aplicar componente continua exigindo sessão (RLS de `bi_user_widgets` inalterado), e o dialog já comunica isso com o banner amarelo.
-
-Sem mudanças de schema ou RLS.
+Cada página recebe wrapper `<PageDataProvider>` + 1–2 `<UserWidgetsSlot>` em pontos previsíveis (após KPIs e após gráficos). Sem mudanças em RLS nem em migrations.
