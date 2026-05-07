@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, ArrowLeft, X, ChevronDown } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/format';
@@ -26,12 +26,25 @@ const NIVEIS: { key: Nivel; label: string }[] = [
 
 type Step = { nivel: Nivel; chave: string; label: string };
 
+export type PainelDrillSeed = { nivel: Nivel; chave: string; label: string; nonce?: number } | null;
+
 interface Props {
   dados: any[];
+  seed?: PainelDrillSeed;
 }
 
-export function PainelDrillView({ dados }: Props) {
+export function PainelDrillView({ dados, seed }: Props) {
   const [stack, setStack] = useState<Step[]>([]);
+  const lastSeedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    const sig = `${seed.nivel}:::${seed.chave}:::${seed.nonce ?? ''}`;
+    if (lastSeedRef.current === sig) return;
+    if (!NIVEIS.some((n) => n.key === seed.nivel)) return;
+    lastSeedRef.current = sig;
+    setStack([{ nivel: seed.nivel, chave: seed.chave, label: seed.label }]);
+  }, [seed]);
 
   const filtrados = useMemo(() => {
     return dados.filter((d) =>

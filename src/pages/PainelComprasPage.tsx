@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { api, PainelComprasResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -103,6 +103,15 @@ export default function PainelComprasPage() {
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
+  const [drillSeed, setDrillSeed] = useState<{ nivel: any; chave: string; label: string; nonce: number } | null>(null);
+  const drillRef = useRef<HTMLDivElement>(null);
+  const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
+    if (chave == null || chave === '') return;
+    const ch = String(chave);
+    setDrillSeed({ nivel, chave: ch, label: label ?? ch, nonce: Date.now() });
+    setActiveTab('drill');
+    setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'codigo_familia', origemKey: 'origem_material' });
@@ -911,7 +920,7 @@ export default function PainelComprasPage() {
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('fantasia_fornecedor', d?.fantasia_fornecedor, d?.fantasia_fornecedor)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -978,7 +987,7 @@ export default function PainelComprasPage() {
                           <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
                           <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.periodo_entrega, d?.periodo_entrega)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1031,7 +1040,7 @@ export default function PainelComprasPage() {
                           <XAxis dataKey="label" className="text-xs" tick={{ fontSize: 10 }} />
                           <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(215,70%,45%)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="valor" fill="hsl(215,70%,45%)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.label, d?.label)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1041,7 +1050,7 @@ export default function PainelComprasPage() {
                       <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label>
+                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label cursor="pointer" onClick={(d: any) => openDrill('tipo_despesa_calc', d?.label, d?.label)}>
                             {gerencialCharts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
@@ -1058,7 +1067,7 @@ export default function PainelComprasPage() {
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('centro_custo', d?.label, d?.label)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1071,7 +1080,7 @@ export default function PainelComprasPage() {
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('numero_projeto', d?.label, d?.label)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -1082,7 +1091,9 @@ export default function PainelComprasPage() {
           </TabsContent>
 
           <TabsContent value="drill" className="space-y-2">
-            <PainelDrillView dados={dadosFiltrados} />
+            <div ref={drillRef}>
+              <PainelDrillView dados={dadosFiltrados} seed={drillSeed} />
+            </div>
           </TabsContent>
 
           <TabsContent value="lista" className="space-y-2">

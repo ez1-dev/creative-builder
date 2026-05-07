@@ -20,6 +20,7 @@ interface KPICardProps {
   tooltip?: string;
   details?: KPIDetail[];
   index?: number;
+  onClick?: () => void;
 }
 
 const variantClasses = {
@@ -30,11 +31,16 @@ const variantClasses = {
   info: 'border-l-4 border-l-[hsl(var(--info))]',
 };
 
-export function KPICard({ title, value, subtitle, icon, variant = 'default', tooltip, details, index = 0 }: KPICardProps) {
+export function KPICard({ title, value, subtitle, icon, variant = 'default', tooltip, details, index = 0, onClick }: KPICardProps) {
   const hasDetails = details && details.length > 0;
+  const isClickable = !!onClick || hasDetails;
 
   const cardContent = (
-    <Card data-ai-avoid="kpi" className={cn('h-full transition-shadow hover:shadow-md', variantClasses[variant], hasDetails && 'cursor-pointer')}>
+    <Card
+      data-ai-avoid="kpi"
+      onClick={onClick && !hasDetails ? onClick : undefined}
+      className={cn('h-full transition-shadow hover:shadow-md', variantClasses[variant], isClickable && 'cursor-pointer')}
+    >
       <CardContent className="flex h-full flex-col justify-center p-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
