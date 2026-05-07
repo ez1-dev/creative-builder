@@ -181,10 +181,12 @@ export default function NotasRecebimentoPage() {
   const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState<NotasRecebimentoResponse | null>(null);
   const [dadosAgregados, setDadosAgregados] = useState<NotasRecebimentoResponse | null>(null);
+  const [dashboard, setDashboard] = useState<NotasRecebimentoDashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingAgregado, setLoadingAgregado] = useState(false);
   const [pagina, setPagina] = useState(1);
   const TAMANHO_AGREGADO = 50000;
+  const [usandoFallbackAgregado, setUsandoFallbackAgregado] = useState(false);
   const [activeTab, setActiveTab] = useState<'lista' | 'drill'>('lista');
   const [drillSeed, setDrillSeed] = useState<{ nivel: string; chave: string; label: string; nonce: number } | null>(null);
   const drillRef = useRef<HTMLDivElement>(null);
@@ -207,8 +209,8 @@ export default function NotasRecebimentoPage() {
     async (page = 1) => {
       if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
       setLoading(true);
-      const buildParams = (p: number, size: number) => {
-        const params: any = { ...filters, pagina: p, tamanho_pagina: size };
+      const buildParams = (extra?: Record<string, any>) => {
+        const params: any = { ...filters, ...(extra || {}) };
         if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
         else delete params.valor_min;
         if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
@@ -230,7 +232,7 @@ export default function NotasRecebimentoPage() {
         // Listagem paginada — alimenta a aba "Lista Detalhada"
         const result = await api.get<NotasRecebimentoResponse>(
           "/api/notas-recebimento",
-          buildParams(page, 100),
+          buildParams({ pagina: page, tamanho_pagina: 100 }),
         );
         setData(result);
         setPagina(page);
@@ -240,19 +242,43 @@ export default function NotasRecebimentoPage() {
         setLoading(false);
       }
 
-      // Dataset agregado — alimenta KPIs, gráficos e drill-down (somente na primeira página)
+      // Dataset agregado — alimenta KPIs, gráficos e drill-down (somente na primeira página).
+      // Tenta primeiro o endpoint agregado real (sem paginação). Em caso de 404/erro,
+      // cai de volta para o endpoint paginado com tamanho_pagina=50000.
       if (page === 1) {
         setLoadingAgregado(true);
         try {
-          const aggregated = await api.get<NotasRecebimentoResponse>(
-            "/api/notas-recebimento",
-            buildParams(1, TAMANHO_AGREGADO),
+          const dash = await api.get<NotasRecebimentoDashboardResponse>(
+            "/api/notas-recebimento-dashboard",
+            buildParams(),
           );
-          setDadosAgregados(aggregated);
+          setDashboard(dash);
+          setUsandoFallbackAgregado(false);
+          // Em modo dashboard, agregados client-side ficam só como fallback de drill.
+          try {
+            const aggregated = await api.get<NotasRecebimentoResponse>(
+              "/api/notas-recebimento",
+              buildParams({ pagina: 1, tamanho_pagina: TAMANHO_AGREGADO }),
+            );
+            setDadosAgregados(aggregated);
+          } catch {
+            setDadosAgregados(null);
+          }
         } catch (e: any) {
-          // Falha do agregado não bloqueia a lista; loga discretamente.
-          console.warn('Falha ao carregar dataset agregado:', e?.message);
-          setDadosAgregados(null);
+          // Fallback para o endpoint legado paginado
+          console.warn('Endpoint /api/notas-recebimento-dashboard indisponível, usando fallback paginado:', e?.message);
+          setDashboard(null);
+          setUsandoFallbackAgregado(true);
+          try {
+            const aggregated = await api.get<NotasRecebimentoResponse>(
+              "/api/notas-recebimento",
+              buildParams({ pagina: 1, tamanho_pagina: TAMANHO_AGREGADO }),
+            );
+            setDadosAgregados(aggregated);
+          } catch (e2: any) {
+            console.warn('Falha ao carregar dataset agregado fallback:', e2?.message);
+            setDadosAgregados(null);
+          }
         } finally {
           setLoadingAgregado(false);
         }
