@@ -1,81 +1,37 @@
-## Demonstrativo de Compras e Recebimentos
+## Revisão do Demonstrativo de Compras e Recebimentos
 
-Nova página gerencial em `/demonstrativo-compras-recebimentos`, consumindo um único endpoint backend `/api/demonstrativo-compras-recebimentos` (a ser criado/disponibilizado pelo backend FastAPI conforme contrato abaixo). Reaproveita componentes visuais já existentes (PageHeader, FilterPanel, KPICard, DataTable, ExportButton, ComboboxFilter, recharts).
+Revisei a tela criada (`src/pages/DemonstrativoComprasRecebimentosPage.tsx`) contra os 7 critérios. Resultado:
 
-### Arquivos a criar/alterar
+| # | Critério | Status | Observação |
+|---|---|---|---|
+| 1 | Filtros funcionam em todas as abas | Parcial | Estado de filtros é compartilhado entre as 3 abas; `handleSearch` refaz o fetch da aba ativa + abas já carregadas. **Bug**: a construção de `params` em `fetchData` tem um filtro `Object.fromEntries(...)` com expressão ternária mal-formada que sempre exclui `projeto_macro`/`tipo_despesa` (depois reincluídos) mas elimina por engano outras chaves quando `v === 'TODOS'`. Funciona, mas é frágil — vou simplificar. |
+| 2 | Drill-down segue ordem correta | OK | `NIVEL_ORDER` define `projeto_macro → numero_projeto → centro_custo → tipo_despesa → mes_competencia → fornecedor → documento → item`. `nextNivel()` avança por índice. |
+| 3 | Breadcrumb permite voltar | OK | `Breadcrumb` renderiza Início + cada step clicável; `handleBreadcrumb(index)` corta o stack e refaz o fetch. |
+| 4 | KPIs mudam com filtros | OK (depende do backend) | KPIs são lidos de `response.kpis`; cada `Pesquisar` reenvia filtros e o backend deve recalcular. Frontend já está correto. |
+| 5 | Aba Comparativo mostra C×R | OK | Aba `TODOS` envia `origem=TODOS`; colunas drill incluem Comprado, Recebido, Diferença; gráfico de barras renderiza ambas séries; tabela detalhe mostra as 3 colunas + Diferença. |
+| 6 | Sem dados mockados | OK | Nenhum array fixo; tudo vem de `api.get`. Estado vazio quando o endpoint não responde. |
+| 7 | Layout responsivo desktop/notebook | Parcial | KPIs em grid `sm:grid-cols-3 lg:grid-cols-6` (ok). Filtros usam o grid do `FilterPanel` (até `xl:grid-cols-5`). Gráficos `lg:grid-cols-3`. **Ajuste**: em notebooks de ~1366px, 6 KPIs em 1 linha ficam apertados — mudar para `md:grid-cols-3 xl:grid-cols-6`. Tabelas já têm overflow horizontal via `DataTable`. |
 
-**Novos:**
-- `src/pages/DemonstrativoComprasRecebimentosPage.tsx` — página principal com 3 abas (Compras / Recebimentos / Comparativo), filtros globais, KPIs, gráficos, tabela drill-down + breadcrumb e tabela detalhe.
-- `src/components/demonstrativo/DrillTable.tsx` — tabela de drill genérica (clica linha → próximo nível).
-- `src/components/demonstrativo/DrillBreadcrumb.tsx` — breadcrumb clicável para voltar níveis.
-- `src/components/demonstrativo/ComparativoCharts.tsx` — gráficos de barras por mês, pizza por tipo de despesa, ranking de fornecedores.
+### Mudanças propostas (apenas `src/pages/DemonstrativoComprasRecebimentosPage.tsx`)
 
-**Alterar:**
-- `src/lib/api.ts` — adicionar tipos `DemonstrativoResponse`, `DemonstrativoNivel` (tipo união) e helper opcional.
-- `src/App.tsx` — registrar a rota `/demonstrativo-compras-recebimentos` dentro de `AppLayout` com `ProtectedRoute`.
-- `src/components/AppSidebar.tsx` — novo grupo colapsável "Dashboard" (ou item solto, ver pergunta abaixo) com entrada "Compras e Recebimentos" (ícone `BarChart3`/`Receipt`).
-- `src/lib/screenCatalog.ts` — registrar a nova tela para gestão de permissões.
+**A. Simplificar a montagem de params em `fetchData`** — substituir o `Object.fromEntries` confuso por um `forEach` linear que ignora `''`, `null`, `undefined` e `'TODOS'`. Comportamento idêntico, código auditável.
 
-### Filtros globais (compartilhados pelas 3 abas)
+**B. Resetar drill ao trocar filtros** — ao clicar `Pesquisar`, limpar o `stack` de todas as abas (já é feito implicitamente, mas vou garantir explicitamente passando `[]` e `'projeto_macro'`).
 
-Projeto macro (`Genius` | `Estrutural` | `Outros` | `TODOS`), Projeto, Centro de custo, Tipo de despesa (`Matéria-prima` | `Uso e consumo` | `Despesas gerais` | `Serviços`), Descrição da compra, Mês (YYYY-MM), Fornecedor (ComboboxFilter via `useFornecedores`), Condição de pagamento, Transação NF, Período inicial, Período final. Botão "Limpar filtros".
+**C. Resetar drill ao trocar de aba mantendo filtros** — comportamento atual: cada aba mantém seu próprio stack. Vou manter assim (permite comparar níveis distintos por aba), mas adicionar um botão "Resetar drill" no breadcrumb quando `stack.length > 0` para clareza.
 
-Os filtros vivem em estado único; ao mudar de aba, são preservados e enviados ao endpoint apenas trocando `origem` (`COMPRAS` / `RECEBIMENTOS` / `TODOS`).
+**D. Responsividade dos KPIs** — alterar grid de `grid-cols-2 sm:grid-cols-3 lg:grid-cols-6` para `grid-cols-2 md:grid-cols-3 xl:grid-cols-6` (em 1366px ficam 3 por linha em vez de 6 espremidos).
 
-### KPIs (cards no topo, mesmo `KPICard` do projeto)
+**E. Loading explícito nos KPIs** — quando `loading && !data`, mostrar `--` em vez de `R$ 0,00` para não confundir com "sem dados".
 
-Total comprado, Total recebido, Saldo pendente, Diferença comprado x recebido, Qtd. documentos, Qtd. fornecedores. Valores vindos de `response.kpis`. Formato R$ pt-BR.
+**F. Após `Pesquisar`, abrir o filtro** — sem alteração; já está OK.
 
-### Drill-down
+### Não vou mexer em
 
-Sequência fixa de níveis:
+- Backend / contrato (já documentado em `docs/backend-demonstrativo-compras-recebimentos.md`).
+- Sidebar, rotas, screen catalog (já registrados).
+- Outras páginas.
 
-```text
-projeto_macro → numero_projeto → centro_custo → tipo_despesa → mes_competencia → fornecedor → documento → item
-```
+### Resultado esperado
 
-Estado local `nivelStack: Array<{nivel, valor, label}>`. Ao clicar uma linha do `DrillTable`, push no stack e refetch enviando `nivel = proximo_nivel` + chave do nível anterior como filtro adicional. `DrillBreadcrumb` exibe o caminho e permite voltar (pop até o índice clicado). Aba Comparativo usa o mesmo drill com `origem=TODOS`.
-
-### Abas
-
-- **Compras** (`origem=COMPRAS`): KPIs filtrados a Compras, gráfico de barras "Valor comprado por mês", tabela drill-down + tabela detalhe com colunas: Projeto, CC, Tipo despesa, Descrição, Mês, Fornecedor, Cond. pagto, Nº OC, Item, Quantidade, Valor comprado, Valor pendente.
-- **Recebimentos** (`origem=RECEBIMENTOS`): KPIs filtrados a Recebimentos, gráfico de barras "Valor recebido por mês", tabela drill-down + detalhe: Projeto, CC, Tipo despesa, Descrição, Mês, Fornecedor, Transação NF, Cond. pagto, Nº NF, Série, Item, Quantidade, Valor recebido, OC origem.
-- **Comparativo** (`origem=TODOS`): cards extras (Comprado pendente de recebimento, Recebido sem OC), barras agrupadas Comprado x Recebido por mês, pizza por tipo de despesa, ranking top fornecedores (barras horizontais), tabela drill-down comparativa com colunas Comprado, Recebido, Diferença, % atendimento.
-
-### Export
-
-Botão `ExportButton` por aba apontando para `/api/export/demonstrativo-compras-recebimentos` enviando os filtros + `origem` atual. Se o backend ainda não tiver o export, fallback gera CSV no cliente a partir de `detalhe`.
-
-### Estados
-
-Loading (skeleton nos cards e tabela), erro (`ErpConnectionAlert` + toast), vazio ("Sem dados para os filtros aplicados"). Tudo formatado em pt-BR (`formatCurrency`, `formatDate`, `formatNumber`).
-
-### Contrato esperado do endpoint (backend FastAPI)
-
-`GET /api/demonstrativo-compras-recebimentos` com query params: `origem`, `nivel`, `projeto_macro`, `numero_projeto`, `centro_custo`, `tipo_despesa`, `descricao_item`, `mes_competencia`, `fornecedor`, `condicao_pagamento`, `transacao`, `data_ini`, `data_fim`. Retorno:
-
-```json
-{
-  "nivel": "projeto_macro",
-  "proximo_nivel": "numero_projeto",
-  "kpis": { "valor_comprado": 0, "valor_recebido": 0, "valor_pendente": 0,
-            "diferenca_comprado_recebido": 0, "qtd_linhas": 0,
-            "qtd_documentos": 0, "qtd_fornecedores": 0 },
-  "drill": [ { "chave": "GENIUS", "label": "GENIUS",
-               "valor_comprado": 0, "valor_recebido": 0,
-               "valor_pendente": 0, "qtd_documentos": 0 } ],
-  "detalhe": []
-}
-```
-
-Será criado um doc `docs/backend-demonstrativo-compras-recebimentos.md` descrevendo o contrato para o time de backend.
-
-### Segurança / padrões
-
-- Usa `api.get` existente (JWT + ngrok header já tratados).
-- Tokens semânticos do design system (sem cores hardcoded).
-- Sem dados mockados — se o endpoint responder 404/erro, exibir `ErpConnectionAlert` com instrução para subir o backend.
-
-### Pergunta antes de implementar
-
-Antes de implementar, preciso confirmar 1 ponto de UX no menu lateral.
+Após estas pequenas correções, a tela atende aos 7 critérios. Como o backend `/api/demonstrativo-compras-recebimentos` ainda não existe, ao abrir a tela o usuário verá os KPIs com `--`, drill vazio e um toast de erro vindo do `api.get` — exatamente o comportamento esperado para "sem dados mockados".
