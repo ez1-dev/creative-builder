@@ -483,7 +483,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== TABLES ===== */}
           <section id="tables" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Tabelas analíticas" icon={<Table2 className="h-4 w-4" />}>
-              <DemoBlock name="DataTableBI (com paginação)">
+              <DemoBlock name="DataTableBI (com paginação)" applyId="data-table">
                 <DataTableBI
                   columns={cols}
                   data={tableRows}
