@@ -24,6 +24,8 @@ interface Props {
   primaryMetricKey?: string;
   /** Quando muda, posiciona o drill iniciando neste nível/valor. */
   seed?: DrillSeed;
+  /** Totais GLOBAIS do filtro (não da página atual). Usado no header. */
+  resumoGlobal?: Record<string, number>;
 }
 
 type Step = { nivel: string; chave: string; label: string };
