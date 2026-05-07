@@ -22,10 +22,10 @@ import {
   PieChart, Pie, Cell, CartesianGrid,
 } from 'recharts';
 import {
-import { BiAutoSlots } from '@/components/bi';
   ShoppingCart, Receipt, GitCompare, DollarSign, AlertTriangle,
   TrendingUp, FileText, Users, ChevronRight, Home,
 } from 'lucide-react';
+import { BiAutoSlots } from '@/components/bi';
 
 const COLORS = [
   'hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)',
