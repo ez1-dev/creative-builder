@@ -51,6 +51,7 @@ const ALL_SCREENS = [
   { path: '/monitor-usuarios-senior', name: 'Monitor de Usuários Senior' },
   { path: '/gestao-sgu-usuarios', name: 'Gestão SGU - Usuários ERP Senior' },
   { path: '/configuracoes', name: 'Configurações' },
+  { path: '/biblioteca-bi', name: 'Biblioteca BI (Catálogo de Componentes)' },
 ];
 
 interface AccessProfile {
