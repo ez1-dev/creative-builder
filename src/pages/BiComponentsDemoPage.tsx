@@ -34,6 +34,7 @@ import {
   ComponentSuggester,
   // runtime: aplicar em páginas
   ApplyComponentButton,
+  MyWidgetsPanel,
   // utils
   formatCurrency, formatNumber, abbreviateNumber,
   type Column,
