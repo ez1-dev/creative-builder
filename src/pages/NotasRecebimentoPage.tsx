@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from "react";
-import { api, NotasRecebimentoResponse } from "@/lib/api";
+import { api, NotasRecebimentoResponse, NotasRecebimentoDashboardResponse } from "@/lib/api";
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from "@/components/erp/PageHeader";
 import { FilterPanel } from "@/components/erp/FilterPanel";
