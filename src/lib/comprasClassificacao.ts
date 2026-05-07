@@ -40,7 +40,7 @@ export function getTipoDespesa(row: any): TipoDespesa {
 }
 
 export function getMesCompetencia(row: any): string {
-  const v = row?.mes_competencia || row?.data_emissao;
+  const v = row?.mes_competencia || row?.data_emissao || row?.data_recebimento;
   if (!v) return '';
   return String(v).substring(0, 7); // YYYY-MM
 }
