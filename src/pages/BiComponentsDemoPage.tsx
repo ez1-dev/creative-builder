@@ -179,12 +179,12 @@ export default function BiComponentsDemoPage() {
 
   // table columns
   const cols: Column<typeof tableRows[number]>[] = [
-    { key: 'id', label: '#', sortable: true },
-    { key: 'tipo', label: 'Tipo' },
-    { key: 'centro', label: 'Centro de Custo' },
-    { key: 'fornecedor', label: 'Fornecedor' },
-    { key: 'valor_liquido', label: 'Valor', sortable: true, align: 'right', render: (r) => formatCurrency(r.valor_liquido) },
-    { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status as BiStatus} /> },
+    { key: 'id', header: '#', sortable: true },
+    { key: 'tipo', header: 'Tipo' },
+    { key: 'centro', header: 'Centro de Custo' },
+    { key: 'fornecedor', header: 'Fornecedor' },
+    { key: 'valor_liquido', header: 'Valor', sortable: true, align: 'right', render: (_v, r) => formatCurrency(r.valor_liquido) },
+    { key: 'status', header: 'Status', render: (_v, r) => <StatusBadge status={r.status as BiStatus} /> },
   ];
 
   const tabContent = useMemo(() => ([
