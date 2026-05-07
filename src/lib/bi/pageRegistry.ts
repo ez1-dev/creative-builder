@@ -206,6 +206,39 @@ export const PAGE_REGISTRY: BiPageDef[] = [
   },
 ];
 
+/** Seções padrão usadas por páginas genéricas (sem schema rico). */
+const GENERIC_SECTIONS: PageSection[] = [
+  { key: 'kpis',   label: 'Linha de KPIs',      accepts: ['kpi'],                                  cols: 4 },
+  { key: 'charts', label: 'Linha de gráficos',  accepts: ['chart', 'map', 'tree'],                 cols: 3 },
+  { key: 'tables', label: 'Tabelas auxiliares', accepts: ['table'],                                cols: 2 },
+];
+
+/** Páginas adicionais — aceitam qualquer componente, mapeamento livre. */
+const GENERIC_PAGES: BiPageDef[] = [
+  { key: 'estoque',                           label: 'Estoque',                              route: '/estoque' },
+  { key: 'conciliacao-edocs',                 label: 'Conciliação EDocs',                    route: '/conciliacao-edocs' },
+  { key: 'bom',                               label: 'BOM',                                  route: '/bom' },
+  { key: 'onde-usa',                          label: 'Onde Usa',                             route: '/onde-usa' },
+  { key: 'engenharia-producao',               label: 'Engenharia x Produção',                route: '/engenharia-producao' },
+  { key: 'sugestao-min-max',                  label: 'Sugestão Min/Max',                     route: '/sugestao-min-max' },
+  { key: 'auditoria-tributaria',              label: 'Auditoria Tributária',                 route: '/auditoria-tributaria' },
+  { key: 'contas-receber',                    label: 'Contas a Receber',                     route: '/contas-receber' },
+  { key: 'compras-produto',                   label: 'Compras por Produto',                  route: '/compras-produto' },
+  { key: 'numero-serie',                      label: 'Número de Série',                      route: '/numero-serie' },
+  { key: 'demonstrativo-compras-recebimentos',label: 'Demonstrativo Compras/Recebimentos',   route: '/demonstrativo-compras-recebimentos' },
+  { key: 'monitor-usuarios-senior',           label: 'Monitor Usuários Senior',              route: '/monitor-usuarios-senior' },
+  { key: 'gestao-sgu-usuarios',               label: 'Gestão SGU — Usuários',                route: '/gestao-sgu-usuarios' },
+  { key: 'passagens-aereas',                  label: 'Passagens Aéreas',                     route: '/passagens-aereas' },
+  { key: 'producao-expedido-obra',            label: 'Produção — Expedido por Obra',         route: '/producao/expedido-obra' },
+  { key: 'producao-lead-time',                label: 'Produção — Lead Time',                 route: '/producao/lead-time' },
+  { key: 'producao-nao-carregados',           label: 'Produção — Não Carregados',            route: '/producao/nao-carregados' },
+  { key: 'producao-produzido-periodo',        label: 'Produção — Produzido no Período',      route: '/producao/produzido-periodo' },
+  { key: 'producao-relatorio-semanal-obra',   label: 'Produção — Relatório Semanal por Obra',route: '/producao/relatorio-semanal-obra' },
+  { key: 'producao-saldo-patio',              label: 'Produção — Saldo de Pátio',            route: '/producao/saldo-patio' },
+].map((p) => ({ ...p, sections: GENERIC_SECTIONS, schema: {} }));
+
+PAGE_REGISTRY.push(...GENERIC_PAGES);
+
 export function getPage(key: string): BiPageDef | undefined {
   return PAGE_REGISTRY.find((p) => p.key === key);
 }
