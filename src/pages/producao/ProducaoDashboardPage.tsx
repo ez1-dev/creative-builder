@@ -210,6 +210,9 @@ export default function ProducaoDashboardPage() {
 
   const resumo = data?.resumo;
 
+  const topProjetos = data?.top_projetos_patio ?? [];
+  const cargasPorMes = data?.cargas_por_mes ?? [];
+
   return (
     <PageDataProvider
       pageKey="producao-dashboard"
@@ -219,7 +222,12 @@ export default function ProducaoDashboardPage() {
         em_estoque: resumo.kg_patio,
         meta_semanal: resumo.kg_engenharia,
       } : null}
-      series={{}}
+      series={{
+        cargas_por_mes: cargasPorMes.map((c) => ({ label: c.periodo, valor: Number(c.quantidade_cargas ?? 0) })),
+        top_projetos_patio: topProjetos.map((p) => ({ label: `Proj ${p.numero_projeto}`, valor: Number(p.kg_patio ?? 0) })),
+        top_projetos_produzido: topProjetos.map((p) => ({ label: `Proj ${p.numero_projeto}`, valor: Number(p.kg_produzido ?? 0) })),
+      }}
+      rows={topProjetos}
       filtros={filters}
     >
     <div className="space-y-4 p-4">
