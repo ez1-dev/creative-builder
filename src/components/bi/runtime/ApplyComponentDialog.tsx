@@ -86,7 +86,7 @@ export function ApplyComponentDialog({
   };
 
   const canSave =
-    pageKey && section && def.inputs.every((i) => !i.required || !!mapping[i.key]);
+    authed === true && pageKey && section && def.inputs.every((i) => !i.required || !!mapping[i.key]);
 
   const save = async () => {
     if (!canSave) return;
