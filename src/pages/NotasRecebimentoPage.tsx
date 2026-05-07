@@ -799,7 +799,7 @@ export default function NotasRecebimentoPage() {
                   )}
                 </TabsContent>
                 <TabsContent value="drill" className="mt-3 space-y-2">
-                  <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" />
+                  <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" seed={drillSeed} />
                 </TabsContent>
               </Tabs>
             </CardHeader>
