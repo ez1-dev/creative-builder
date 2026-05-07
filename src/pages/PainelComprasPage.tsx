@@ -663,6 +663,34 @@ export default function PainelComprasPage() {
     setTimeout(() => search(1), 0);
   };
 
+
+  const activeChips: ActiveChip[] = useMemo(() => {
+    const c: ActiveChip[] = [];
+    const set = (k: keyof typeof filters, v: any) => setFilters((f) => ({ ...f, [k]: v }));
+    if (filters.projeto_macro && filters.projeto_macro !== 'TODOS') c.push({ key: 'pm', label: 'Projeto Macro', value: filters.projeto_macro, onRemove: () => set('projeto_macro', 'TODOS') });
+    if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') c.push({ key: 'td', label: 'Tipo Despesa', value: filters.tipo_despesa, onRemove: () => set('tipo_despesa', 'TODOS') });
+    if (filters.mes_competencia) c.push({ key: 'mes', label: 'Mês', value: filters.mes_competencia, onRemove: () => set('mes_competencia', '') });
+    if (filters.condicao_pagamento) c.push({ key: 'cp', label: 'Cond. Pagto', value: filters.condicao_pagamento, onRemove: () => set('condicao_pagamento', '') });
+    if (filters.fornecedor) c.push({ key: 'forn', label: 'Fornecedor', value: filters.fornecedor, onRemove: () => set('fornecedor', '') });
+    if (filters.numero_projeto) c.push({ key: 'np', label: 'Projeto', value: filters.numero_projeto, onRemove: () => set('numero_projeto', '') });
+    if (filters.centro_custo) c.push({ key: 'cc', label: 'CC', value: filters.centro_custo, onRemove: () => set('centro_custo', '') });
+    if (filters.transacao) c.push({ key: 'tr', label: 'Transação', value: filters.transacao, onRemove: () => set('transacao', '') });
+    if (filters.numero_oc) c.push({ key: 'oc', label: 'Nº OC', value: filters.numero_oc, onRemove: () => set('numero_oc', '') });
+    if (filters.codigo_item) c.push({ key: 'ci', label: 'Item', value: filters.codigo_item, onRemove: () => set('codigo_item', '') });
+    if (filters.descricao_item) c.push({ key: 'di', label: 'Descrição', value: filters.descricao_item, onRemove: () => set('descricao_item', '') });
+    if (filters.familia) c.push({ key: 'fa', label: 'Família', value: filters.familia, onRemove: () => set('familia', '') });
+    if (filters.origem_material) c.push({ key: 'om', label: 'Origem', value: filters.origem_material, onRemove: () => set('origem_material', '') });
+    if (filters.tipo_item && filters.tipo_item !== 'TODOS') c.push({ key: 'ti', label: 'Tipo Item', value: filters.tipo_item, onRemove: () => set('tipo_item', 'TODOS') });
+    if (filters.tipo_oc && filters.tipo_oc !== 'TODOS') c.push({ key: 'to', label: 'Tipo OC', value: filters.tipo_oc, onRemove: () => set('tipo_oc', 'TODOS') });
+    if (filters.situacao_oc?.length) c.push({ key: 'sit', label: 'Situação', value: filters.situacao_oc.map(situacaoLabel).join(', '), onRemove: () => set('situacao_oc', []) });
+    if (filters.data_emissao_ini) c.push({ key: 'dei', label: 'Emissão de', value: filters.data_emissao_ini, onRemove: () => set('data_emissao_ini', '') });
+    if (filters.data_emissao_fim) c.push({ key: 'def', label: 'Emissão até', value: filters.data_emissao_fim, onRemove: () => set('data_emissao_fim', '') });
+    if (filters.data_entrega_ini) c.push({ key: 'dti', label: 'Entrega de', value: filters.data_entrega_ini, onRemove: () => set('data_entrega_ini', '') });
+    if (filters.data_entrega_fim) c.push({ key: 'dtf', label: 'Entrega até', value: filters.data_entrega_fim, onRemove: () => set('data_entrega_fim', '') });
+    if (filters.somente_pendentes) c.push({ key: 'sp', label: 'Somente', value: 'pendentes', onRemove: () => set('somente_pendentes', false) });
+    return c;
+  }, [filters]);
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
