@@ -76,6 +76,7 @@ export default function PainelComprasPage() {
     origem_material: string; familia: string; coddep: string; somente_pendentes: boolean;
     agrupar_por_fornecedor: boolean; situacao_oc: string[]; codigo_motivo_oc: string; observacao_oc: string;
     mostrar_valor_total_oc: boolean;
+    projeto_macro: string; tipo_despesa: string; mes_competencia: string; condicao_pagamento: string;
   }>({
     codigo_item: '', descricao_item: '', fornecedor: '', numero_oc: '',
     numero_projeto: '', centro_custo: '', transacao: '', codigo_produto: '',
@@ -84,6 +85,7 @@ export default function PainelComprasPage() {
     origem_material: '', familia: '', coddep: '', somente_pendentes: true,
     agrupar_por_fornecedor: false, situacao_oc: [], codigo_motivo_oc: 'TODOS', observacao_oc: '',
     mostrar_valor_total_oc: false,
+    projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
