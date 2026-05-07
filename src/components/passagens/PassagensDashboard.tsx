@@ -1040,9 +1040,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )
           ) : (() => {
             const hasActions = !readOnly && (onEdit || onDelete);
-            // Colunas: Data, [Colab?], C.Custo, Projeto/Obra, Fornecedor, Cia,
+            // Colunas: Data, [Colab?], C.Custo, Fornecedor, Cia,
             // Origem, Destino, UF, Data Ida, Motivo, Valor
-            const baseCols = agruparColab ? 11 : 12;
+            const baseCols = agruparColab ? 10 : 11;
             const totalCols = baseCols + (hasActions ? 1 : 0);
             const cellCls = "whitespace-nowrap text-xs px-2 py-1.5";
             const headCls = "whitespace-nowrap text-xs px-2";
