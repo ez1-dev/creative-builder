@@ -1057,15 +1057,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   <TableHead className={headCls}>Projeto / Obra</TableHead>
                   <TableHead className={headCls}>Fornecedor</TableHead>
                   <TableHead className={headCls}>Cia Aérea</TableHead>
-                  <TableHead className={headCls}>Nº Bilhete</TableHead>
-                  <TableHead className={headCls}>Localizador</TableHead>
                   <TableHead className={headCls}>Origem</TableHead>
                   <TableHead className={headCls}>Destino</TableHead>
                   <TableHead className={headCls}>UF</TableHead>
                   <TableHead className={headCls}>Data Ida</TableHead>
-                  <TableHead className={headCls}>Data Volta</TableHead>
                   <TableHead className={headCls}>Motivo da Viagem</TableHead>
-                  <TableHead className={headCls}>Tipo</TableHead>
                   <TableHead className={`${headCls} text-right`}>Valor</TableHead>
                   {hasActions && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
