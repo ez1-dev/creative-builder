@@ -64,3 +64,9 @@ export * from './drill/DrillLevelSelector';
 
 export * from './layout/DashboardLayout';
 export * from './layout/DashboardTabs';
+
+// runtime: aplicar componentes em páginas reais
+export * from './runtime/ApplyComponentDialog';
+export * from './runtime/ApplyComponentButton';
+export * from './runtime/UserWidgetsSlot';
+export * from './runtime/UserWidgetFrame';

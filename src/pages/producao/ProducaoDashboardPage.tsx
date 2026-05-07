@@ -14,7 +14,8 @@ import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { AlertTriangle, Clock, SearchX, RefreshCw, Package, TrendingUp, Truck, Warehouse, Layers, AlertCircle, Hourglass } from 'lucide-react';
 import { DashboardCharts } from './components/DashboardCharts';
-import { KpiGrid, KpiCard, LoadingState } from '@/components/bi';
+import { KpiGrid, KpiCard, LoadingState, UserWidgetsSlot } from '@/components/bi';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
 
 interface DashboardResumo {
   kg_engenharia: number;
@@ -210,6 +211,17 @@ export default function ProducaoDashboardPage() {
   const resumo = data?.resumo;
 
   return (
+    <PageDataProvider
+      pageKey="producao-dashboard"
+      kpis={resumo ? {
+        total_produzido: resumo.kg_produzido,
+        total_expedido: resumo.kg_expedido,
+        em_estoque: resumo.kg_patio,
+        meta_semanal: resumo.kg_engenharia,
+      } : null}
+      series={{}}
+      filtros={filters}
+    >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
@@ -296,8 +308,13 @@ export default function ProducaoDashboardPage() {
           </KpiGrid>
 
           <DashboardCharts data={data!} />
+
+          {/* Widgets personalizados via Biblioteca BI */}
+          <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+          <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
         </>
       )}
     </div>
+    </PageDataProvider>
   );
 }

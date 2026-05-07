@@ -8,6 +8,8 @@ import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
+import { UserWidgetsSlot } from '@/components/bi';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { useErpOptions } from '@/hooks/useErpOptions';
 import { useFornecedores } from '@/hooks/useFornecedores';
 import { KPICard } from '@/components/erp/KPICard';
@@ -809,6 +811,22 @@ export default function PainelComprasPage() {
   }, [filters]);
 
   return (
+    <PageDataProvider
+      pageKey="painel-compras"
+      kpis={dashboard ? {
+        total_compras: dashboard.kpis?.valor_comprado ?? 0,
+        total_recebido: dashboard.kpis?.valor_recebido ?? 0,
+        ticket_medio: dashboard.kpis?.ticket_medio_oc ?? 0,
+        qtde_notas: dashboard.kpis?.quantidade_ocs ?? 0,
+      } : null}
+      series={dashboard ? {
+        compras_por_mes:  (dashboard.graficos?.por_mes ?? []).map((p: any) => ({ label: p.mes ?? p.label, valor: p.valor ?? 0 })),
+        top_fornecedores: (dashboard.graficos?.por_fornecedor ?? []).map((p: any) => ({ label: p.fornecedor ?? p.label, valor: p.valor ?? 0 })),
+        tipos_despesa:    (dashboard.graficos?.por_tipo_despesa ?? []).map((p: any) => ({ label: p.tipo_despesa ?? p.label, valor: p.valor ?? 0 })),
+      } : null}
+      rows={dadosFiltrados}
+      filtros={filters}
+    >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
@@ -1384,6 +1402,12 @@ export default function PainelComprasPage() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Widgets personalizados via Biblioteca BI */}
+      <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+      <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+      <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
     </div>
+    </PageDataProvider>
   );
 }
