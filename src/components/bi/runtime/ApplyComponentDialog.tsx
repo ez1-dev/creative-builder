@@ -20,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PAGE_REGISTRY, getPage, getSectionsForKind } from '@/lib/bi/pageRegistry';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { createUserWidget } from '@/hooks/useUserWidgets';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export function ApplyComponentDialog({
   open, onOpenChange, componentId,
@@ -44,10 +45,12 @@ export function ApplyComponentDialog({
   const [ordem, setOrdem] = useState<number>(0);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [authed, setAuthed] = useState<boolean | null>(null);
 
   // Preset on open
   useEffect(() => {
     if (!open || !def) return;
+    supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
     const p = compatiblePages[0];
     if (p) {
       setPageKey(p.key);
@@ -83,7 +86,7 @@ export function ApplyComponentDialog({
   };
 
   const canSave =
-    pageKey && section && def.inputs.every((i) => !i.required || !!mapping[i.key]);
+    authed === true && pageKey && section && def.inputs.every((i) => !i.required || !!mapping[i.key]);
 
   const save = async () => {
     if (!canSave) return;
@@ -116,6 +119,14 @@ export function ApplyComponentDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {authed === false && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                Você não está autenticado. <a href="/login" className="underline font-semibold">Faça login</a> para aplicar componentes às páginas.
+              </div>
+            </div>
+          )}
           {/* Página */}
           <div className="space-y-1">
             <Label className="text-xs">Página alvo</Label>

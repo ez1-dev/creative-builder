@@ -22,7 +22,7 @@ export function ApplyComponentButton({
         size={size as any}
         variant={variant as any}
         onClick={() => setOpen(true)}
-        className="h-7 gap-1.5 text-[11px]"
+        className="h-6 gap-1 px-2 text-[10px] font-semibold border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground shadow-sm"
       >
         <Sparkles className="h-3 w-3" />
         {label}

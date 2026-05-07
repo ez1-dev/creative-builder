@@ -1,138 +1,50 @@
+## Diagnóstico
 
-## Problema
+Investiguei o código (`ApplyComponentButton`, `ApplyComponentDialog`, `UserWidgetsSlot`, `PageDataContext`, `componentRegistry`, integrações em `PainelComprasPage`, `NotasRecebimentoPage`, `ProducaoDashboardPage`, `BiComponentsDemoPage`) e a tabela `bi_user_widgets` (0 registros). A engrenagem existe e o dialog/insert/RLS estão corretos, mas há **4 razões reais** para parecer "não funcionar":
 
-Hoje, em algumas páginas de drill-down (Saldo em Pátio, Expedido para Obra, Produzido no Período, Relatório Semanal, Engenharia x Produção, Lead Time, Itens Não Carregados), os KPIs/cards/resumos podem ser calculados a partir de `data.dados` (apenas a página atual), o que faz os valores **mudarem ao trocar de página**.
+1. **Botões "Aplicar" escondidos no hover** — em `BiComponentsDemoPage.tsx`, o componente `WithApply` envolve quase todos os gráficos com `opacity-0 group-hover/apply:opacity-100`. O usuário não vê o botão até passar o mouse exatamente sobre o card. Em telas touch nem aparece.
+2. **Cobertura incompleta** — apenas alguns blocos têm `applyId`/`WithApply`. Tabelas, mapas, hierarquia, vários KPIs e charts não têm botão nenhum.
+3. **Sem feedback no estado vazio** — `UserWidgetsSlot` está com `emptyHint={false}` em todas as páginas piloto. Quando nenhum widget existe (caso atual: tabela vazia) **nada aparece**, então o usuário acha que "não funcionou" mesmo após salvar.
+4. **Erro silencioso de autenticação** — `createUserWidget` lança "Não autenticado" se a sessão expirou, mas o usuário hoje está em `/login`. O dialog mostra toast de erro mas o botão "Aplicar" no catálogo abre normalmente, dando a impressão que algo deveria acontecer.
 
-Em outras páginas (`Saldo em Pátio`, `Expedido para Obra`, `Produzido no Período`) já existe consumo de `result.resumo`, **porém com fallback que varre todas as páginas** quando o backend não envia `resumo`, e os nomes de campos não estão padronizados (`kg_engenharia` vs `kg_engenharia_total`, `quantidade_cargas` vs `cargas_distintas`, etc).
+## Plano de correção
 
-Em `Itens Não Carregados`, `Lead Time`, `Engenharia x Produção` **não há KPIs** ainda — apenas tabela paginada e contagem `total_registros`.
+### 1. Tornar o botão "Aplicar" sempre visível
+- `WithApply` (em `BiComponentsDemoPage.tsx`): remover `opacity-0/group-hover` e ancorar o botão como pill no canto superior-direito do card, **sempre visível**, com tamanho discreto (`h-6 text-[10px]`).
+- `ApplyComponentButton`: pequeno polish de estilo para combinar (badge azul-soft).
 
-## Objetivo
+### 2. Cobrir 100% do catálogo
+Adicionar `applyId` ou `<WithApply>` em todos os blocos cujo componente já está no `COMPONENT_REGISTRY`:
+- KPIs faltantes (`kpi-target`, variantes do `KpiCard`).
+- Charts faltantes do registry (sparkline standalone).
+- Bloco da tabela `DataTableBI` → `applyId="data-table"`.
+- Estender o registry com 4 componentes que já estão no catálogo mas faltam: `stacked-bar`, `combo-chart`, `gauge`, `progress-list` — wrappers simples reaproveitando os componentes existentes da `@/components/bi`.
 
-Padronizar a regra:
+### 3. Estado vazio útil nas páginas piloto
+- `PainelComprasPage`, `NotasRecebimentoPage`, `ProducaoDashboardPage`: trocar `emptyHint={false}` por `emptyHint={true}` apenas no **primeiro slot de cada página** (KPIs), com hint compacto explicando "Vá em Biblioteca BI → clique em Aplicar". Demais slots permanecem ocultos quando vazios.
+- Adicionar um banner discreto de "modo personalizado ativo: N widgets" quando houver widgets, com botão "Gerenciar" levando a `/biblioteca-bi`.
 
-- **Tabela** = somente registros da página atual (`data.dados`).
-- **KPIs / cards / drill-down gerencial** = totais globais vindos de `data.resumo` (ou `data.totais`), **nunca** somados a partir do array paginado.
-- Trocar de página **não** recalcula KPIs.
-- Trocar filtros recalcula KPIs (nova chamada).
+### 4. Diagnóstico de autenticação no dialog
+- `ApplyComponentDialog`: ler `supabase.auth.getUser()` ao abrir; se não autenticado, mostrar aviso visível ("Faça login para aplicar componentes") e desabilitar o botão Aplicar (ao invés de deixar quebrar no submit).
+- `createUserWidget`: já lança erro; deixar a mensagem mais clara ("Sessão expirada — entre novamente").
 
-## Mudanças no front-end
+### 5. Aba "Meus Widgets" no Biblioteca BI
+Nova seção no topo de `/biblioteca-bi` mostrando todos os widgets do usuário (lista por página/seção) com botões "Abrir página" e "Remover". Assim o usuário consegue ver imediatamente o que aplicou, mesmo sem navegar para a página alvo.
 
-### 1) Helper único: `src/lib/drillResumo.ts`
+### 6. Smoke-test pós-implementação
+Em modo build, navegar via browser tools para `/biblioteca-bi`, clicar em "Aplicar" num KPI, salvar, abrir `/painel-compras` e screenshot confirmando o widget renderizado.
 
-```ts
-export interface ResumoGerencial {
-  kg_engenharia: number;
-  kg_produzido: number;
-  kg_expedido: number;
-  kg_patio: number;
-  itens_nao_carregados: number;
-  quantidade_cargas: number;
-  leadtime_medio_engenharia_producao: number;
-  leadtime_medio_producao_expedicao: number;
-  leadtime_medio_total: number;
-  total_registros: number;
-  // genéricos
-  [k: string]: number | undefined;
-}
+## Arquivos a editar
 
-export function normalizarResumoGerencial(resumo: any = {}): ResumoGerencial { ... }
-```
+- `src/pages/BiComponentsDemoPage.tsx` — `WithApply` sempre visível, cobertura completa, nova seção "Meus Widgets".
+- `src/components/bi/runtime/ApplyComponentButton.tsx` — polish visual.
+- `src/components/bi/runtime/ApplyComponentDialog.tsx` — checagem de auth + UI de aviso.
+- `src/lib/bi/componentRegistry.tsx` — adicionar 4 componentes faltantes.
+- `src/pages/PainelComprasPage.tsx`, `src/pages/NotasRecebimentoPage.tsx`, `src/pages/producao/ProducaoDashboardPage.tsx` — `emptyHint` no primeiro slot + banner de gerenciamento.
+- `src/hooks/useUserWidgets.ts` — mensagem de erro mais clara.
 
-Aceita aliases (`kg_engenharia_total`, `kg_entrada_estoque_total`, `total_itens_nao_carregados`, `quantidade_cargas_geral`, `cargas_distintas`, etc).
+Sem mudanças de schema (tabela `bi_user_widgets` e RLS já estão corretas).
 
-### 2) Hook `useResumoGlobal`
+## Resultado esperado
 
-`src/hooks/useResumoGlobal.ts` — recebe a primeira resposta paginada e devolve `{ resumo, loading, ready }`. **Sem fallback varrendo páginas.** Se o backend não enviar `resumo`/`totais`, o hook retorna `null` e exibe aviso “Resumo gerencial indisponível neste endpoint — atualize o backend para retornar `resumo` global”.
-
-### 3) Refatorar páginas
-
-Em **todas** as páginas abaixo, KPIs passam a ler exclusivamente do `resumo` global da primeira chamada (não recalculados ao paginar):
-
-- `src/pages/producao/SaldoPatioPage.tsx`
-- `src/pages/producao/ExpedidoObraPage.tsx`
-- `src/pages/producao/ProduzidoPeriodoPage.tsx`
-- `src/pages/producao/RelatorioSemanalObraPage.tsx`
-- `src/pages/producao/NaoCarregadosPage.tsx` (adicionar KPIs)
-- `src/pages/producao/LeadTimeProducaoPage.tsx` (adicionar KPIs com lead time médio)
-- `src/pages/EngenhariaProducaoPage.tsx` (adicionar KPIs Kg Eng/Prod/Exp/Pátio)
-- `src/pages/NotasRecebimentoPage.tsx` (já usa `dashboard`, manter; só remover fallbacks que varriam páginas para drill)
-
-Padrão único:
-
-```ts
-const result = await api.get(endpoint, { ...filtros, pagina, tamanho_pagina: 100 });
-setData(result);                       // tabela = página atual
-if (page === 1) {
-  const r = normalizarResumoGerencial(result.resumo ?? result.totais);
-  setResumo(r);                        // KPIs globais
-}
-```
-
-Ao mudar página, apenas `setData` é chamado — `resumo` permanece intacto.
-
-### 4) Remover fallback “consolidar todas as páginas”
-
-Os blocos `consolidateKpis` que iteram `for (let p = 2; p <= totalPaginas; p++)` em `SaldoPatioPage`, `ExpedidoObraPage`, `ProduzidoPeriodoPage` e `RelatorioSemanalObraPage` serão removidos. Esse fluxo é o que faz KPIs flutuarem e gera carga desnecessária.
-
-### 5) `GenericDrillView` (drill da página de Notas Recebimento)
-
-Hoje o `GenericDrillView` agrega valores **a partir de `dados`** (array client-side com até 50k linhas amostradas). Ajustes:
-
-- Aceitar prop opcional `resumoGlobal` para o badge superior “Total Geral”.
-- O drill por nível continua somando o subset filtrado (necessário para hierarquia), mas o **rodapé/header sempre mostra o total global do `resumo`**, não o total da amostra.
-
-## Mudanças no back-end (FastAPI externo)
-
-Não temos acesso direto ao FastAPI a partir do Lovable, então **a entrega do plano inclui um documento de especificação** em `docs/drilldown-resumo-backend.md` com:
-
-- Lista de endpoints que precisam retornar `resumo` global:
-  - `/api/producao/patio`
-  - `/api/producao/expedido-obra`
-  - `/api/producao/produzido-periodo`
-  - `/api/producao/relatorio-semanal-obra`
-  - `/api/producao/nao-carregados`
-  - `/api/producao/leadtime`
-  - `/api/producao/engenharia-x-producao`
-- Contrato JSON padrão:
-  ```json
-  {
-    "pagina": 1, "tamanho_pagina": 100,
-    "total_registros": 1000, "total_paginas": 10,
-    "resumo": {
-      "kg_engenharia": 0, "kg_produzido": 0, "kg_expedido": 0, "kg_patio": 0,
-      "itens_nao_carregados": 0, "quantidade_cargas": 0,
-      "leadtime_medio_engenharia_producao": 0,
-      "leadtime_medio_producao_expedicao": 0,
-      "leadtime_medio_total": 0
-    },
-    "dados": [ ... ]
-  }
-  ```
-- Padrão SQL: `sql_resumo` sem `OFFSET/FETCH`, `sql_dados` com paginação.
-- Nomes canônicos esperados pelo front (com aliases aceitos no helper).
-
-## Critérios de aceite
-
-1. Pesquisar 1.000 registros, 100 por página → KPIs mostram total dos 1.000.
-2. Trocar de página 1 → 2 → 3 → KPIs **não mudam**.
-3. Alterar filtros → KPIs recalculados (nova chamada).
-4. Tabela continua paginada normalmente.
-5. Nenhum KPI gerencial é somado a partir de `data.dados`.
-6. Drill da página de Notas Recebimento exibe total global no header.
-7. Endpoints sem `resumo` exibem aviso “Resumo gerencial indisponível” em vez de mostrar valores da página.
-
-## Arquivos afetados
-
-- novo: `src/lib/drillResumo.ts`
-- novo: `src/hooks/useResumoGlobal.ts`
-- novo: `docs/drilldown-resumo-backend.md`
-- editar: `src/pages/producao/SaldoPatioPage.tsx`
-- editar: `src/pages/producao/ExpedidoObraPage.tsx`
-- editar: `src/pages/producao/ProduzidoPeriodoPage.tsx`
-- editar: `src/pages/producao/RelatorioSemanalObraPage.tsx`
-- editar: `src/pages/producao/NaoCarregadosPage.tsx`
-- editar: `src/pages/producao/LeadTimeProducaoPage.tsx`
-- editar: `src/pages/EngenhariaProducaoPage.tsx`
-- editar: `src/components/erp/GenericDrillView.tsx` (prop `resumoGlobal`)
-- editar: `src/pages/NotasRecebimentoPage.tsx` (passar resumo ao drill)
+Depois das mudanças: o botão "Aplicar" fica visível em todos os componentes do catálogo; o dialog avisa se você está deslogado; ao salvar, um toast confirma e a página alvo passa a mostrar o widget no slot correspondente; existe uma tela "Meus Widgets" para gerenciar tudo num lugar só.

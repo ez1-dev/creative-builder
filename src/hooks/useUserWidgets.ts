@@ -48,9 +48,11 @@ export async function createUserWidget(payload: {
   mapping?: Record<string, any>; options?: Record<string, any>;
 }) {
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) throw new Error('Não autenticado');
-  return supabase.from('bi_user_widgets').insert({
+  if (!auth.user) throw new Error('Sessão expirada — entre novamente para aplicar componentes.');
+  const result = await supabase.from('bi_user_widgets').insert({
     user_id: auth.user.id,
     span: 1, ordem: 0, mapping: {}, options: {}, ...payload,
   }).select().single();
+  if (result.error) throw new Error(result.error.message);
+  return result;
 }

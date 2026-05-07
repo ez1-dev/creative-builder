@@ -34,6 +34,7 @@ import {
   ComponentSuggester,
   // runtime: aplicar em páginas
   ApplyComponentButton,
+  MyWidgetsPanel,
   // utils
   formatCurrency, formatNumber, abbreviateNumber,
   type Column,
@@ -113,8 +114,8 @@ function DemoBlock({ name, children, description, span, applyId }: { name: strin
 
 function WithApply({ componentId, children }: { componentId: string; children: React.ReactNode }) {
   return (
-    <div className="group/apply relative">
-      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/apply:opacity-100">
+    <div className="relative">
+      <div className="absolute right-1.5 top-1.5 z-10">
         <ApplyComponentButton componentId={componentId} label="Aplicar" />
       </div>
       {children}
@@ -251,6 +252,9 @@ export default function BiComponentsDemoPage() {
         <CatalogSidebar active={active} onJump={jumpTo} />
 
         <div className="flex-1 space-y-10 min-w-0">
+          {/* ===== MEUS WIDGETS APLICADOS ===== */}
+          <MyWidgetsPanel />
+
           {/* ===== AI SUGGESTER ===== */}
           <ComponentSuggester onJumpToSection={jumpTo} />
 
@@ -479,7 +483,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== TABLES ===== */}
           <section id="tables" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Tabelas analíticas" icon={<Table2 className="h-4 w-4" />}>
-              <DemoBlock name="DataTableBI (com paginação)">
+              <DemoBlock name="DataTableBI (com paginação)" applyId="data-table">
                 <DataTableBI
                   columns={cols}
                   data={tableRows}

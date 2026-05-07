@@ -310,7 +310,7 @@ export default function ProducaoDashboardPage() {
           <DashboardCharts data={data!} />
 
           {/* Widgets personalizados via Biblioteca BI */}
-          <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+          <UserWidgetsSlot section="kpis" cols={4} emptyHint={true} />
           <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
         </>
       )}
