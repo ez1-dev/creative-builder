@@ -35,6 +35,7 @@ import PassagensAereasPage from "@/pages/PassagensAereasPage";
 import PassagensAereasCompartilhadoPage from "@/pages/PassagensAereasCompartilhadoPage";
 import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
+import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/bom" element={<ProtectedRoute path="/bom"><BomPage /></ProtectedRoute>} />
               <Route path="/compras-produto" element={<ProtectedRoute path="/compras-produto"><ComprasProdutoPage /></ProtectedRoute>} />
               <Route path="/painel-compras" element={<ProtectedRoute path="/painel-compras"><PainelComprasPage /></ProtectedRoute>} />
+              <Route path="/demonstrativo-compras-recebimentos" element={<ProtectedRoute path="/demonstrativo-compras-recebimentos"><DemonstrativoComprasRecebimentosPage /></ProtectedRoute>} />
               <Route path="/auditoria-tributaria" element={<ProtectedRoute path="/auditoria-tributaria"><AuditoriaTributariaPage /></ProtectedRoute>} />
               <Route path="/auditoria-apontamento-genius" element={<ProtectedRoute path="/auditoria-apontamento-genius"><AuditoriaApontamentoGeniusPage /></ProtectedRoute>} />
               <Route path="/faturamento-genius" element={<ProtectedRoute path="/faturamento-genius"><FaturamentoGeniusPage /></ProtectedRoute>} />
