@@ -79,6 +79,36 @@ export default function RelatorioSemanalObraPage() {
   const erpReady = useErpReady();
   const { user } = useAuth();
 
+  // Helper: busca demais páginas apenas para alimentar os gráficos
+  const fetchAllPagesForCharts = useCallback(async (
+    id: number,
+    totalPages: number,
+    currentFilters: typeof initialFilters,
+    page1: RelatorioRow[],
+  ) => {
+    const allRows: RelatorioRow[] = [...page1];
+    try {
+      const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+      const BATCH = 5;
+      for (let i = 0; i < remaining.length; i += BATCH) {
+        if (consolidationIdRef.current !== id) return;
+        const batch = remaining.slice(i, i + BATCH);
+        const results = await Promise.all(
+          batch.map((p) => api.get<PaginatedResponse<RelatorioRow>>(
+            '/api/producao/relatorio-semanal-obra',
+            { ...currentFilters, pagina: p, tamanho_pagina: 100 },
+          )),
+        );
+        for (const r of results) allRows.push(...(r.dados || []));
+      }
+      if (consolidationIdRef.current !== id) return;
+      setConsolidatedRows(allRows);
+    } catch {
+      if (consolidationIdRef.current !== id) return;
+      setConsolidatedRows(allRows);
+    }
+  }, []);
+
   const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<RelatorioRow>, currentFilters: typeof initialFilters) => {
     const id = ++consolidationIdRef.current;
     const page1 = firstResult.dados || [];
@@ -98,8 +128,6 @@ export default function RelatorioSemanalObraPage() {
         pesoTotal: resumoNorm.kg_produzido || resumoNorm.kg_expedido,
       });
     } else {
-      // Backend ainda não envia resumo global → KPIs ficam indisponíveis
-      // (não somamos a página atual para não exibir totais que mudam ao paginar).
       setKpiTotals(null);
     }
     setKpiLoading(false);
@@ -107,7 +135,7 @@ export default function RelatorioSemanalObraPage() {
     if (totalPages > 1) {
       await fetchAllPagesForCharts(id, totalPages, currentFilters, page1);
     }
-  }, []);
+  }, [fetchAllPagesForCharts]);
 
   // Helper: busca demais páginas apenas para alimentar os gráficos (quando backend já enviou resumo)
   const fetchAllPagesForCharts = useCallback(async (
