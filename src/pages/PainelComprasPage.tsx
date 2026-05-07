@@ -3,6 +3,7 @@ import { api, PainelComprasResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
+import { FilterSection } from '@/components/erp/FilterSection';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { PaginationControl } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
