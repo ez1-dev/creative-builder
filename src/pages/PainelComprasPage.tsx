@@ -236,12 +236,17 @@ export default function PainelComprasPage() {
     title: 'Painel de Compras',
     module: 'painel-compras',
     filters,
-    kpis: data && (data as any).resumo ? {
+    kpis: dashboard ? {
+      'Total OCs': dashboard.kpis.quantidade_ocs ?? '-',
+      'Valor Comprado': formatCurrency(dashboard.kpis.valor_comprado ?? 0),
+      'Valor Pendente': formatCurrency(dashboard.kpis.valor_pendente ?? 0),
+      'Itens Atrasados': dashboard.kpis.itens_atrasados ?? '-',
+    } : (data && (data as any).resumo ? {
       'Total OCs': (data as any).resumo.total_ocs ?? '-',
       'Valor Líquido': formatCurrency((data as any).resumo.valor_liquido_total ?? 0),
       'Valor Pendente': formatCurrency((data as any).resumo.valor_pendente_total ?? 0),
       'Itens Atrasados': (data as any).resumo.itens_atrasados ?? 0,
-    } : undefined,
+    } : undefined),
     summary: data
       ? `${data.total_registros} linhas de OC; página ${pagina}/${data.total_paginas}`
       : undefined,
@@ -510,12 +515,18 @@ export default function PainelComprasPage() {
   const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
-    // Quando o endpoint dashboard responder, usamos seus KPIs (base completa filtrada).
+    // Quando o endpoint /api/painel-compras-dashboard responde, usamos exclusivamente
+    // seus KPIs (base completa filtrada, sem paginação). Sem somar `dadosFiltrados`.
     if (dashboard) {
       const k = dashboard.kpis;
-      // Maior fornecedor: usa o topo de por_fornecedor (já agregado no backend).
-      const topForn = [...(dashboard.graficos?.por_fornecedor ?? [])]
-        .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+      const topBackend = k.maior_fornecedor
+        ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+        : null;
+      const topForn = topBackend ?? (() => {
+        const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
+          .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+        return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
+      })();
       return {
         comprado: k.valor_comprado || 0,
         pendente: k.valor_pendente || 0,
@@ -524,7 +535,12 @@ export default function PainelComprasPage() {
         qtdItens: k.quantidade_itens || 0,
         qtdFornecedores: k.quantidade_fornecedores || 0,
         ticketMedio: k.ticket_medio_oc || 0,
-        maiorFornecedor: topForn ? { nome: topForn.fornecedor || '—', valor: topForn.valor || 0 } : null,
+        itensPendentes: k.itens_pendentes ?? null,
+        itensAtrasados: k.itens_atrasados ?? null,
+        maiorAtrasoDias: k.maior_atraso_dias ?? null,
+        valorBruto: k.valor_bruto_total ?? null,
+        valorLiquido: k.valor_liquido_total ?? null,
+        maiorFornecedor: topForn,
       };
     }
     if (!dadosFiltrados.length) return null;
@@ -550,6 +566,8 @@ export default function PainelComprasPage() {
       comprado, pendente, recebido,
       qtdOcs: ocs.size, qtdItens: dadosFiltrados.length, qtdFornecedores: fornecedores.size,
       ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
+      itensPendentes: null, itensAtrasados: null, maiorAtrasoDias: null,
+      valorBruto: null, valorLiquido: null,
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
     };
   }, [dadosFiltrados, data, dashboard]);

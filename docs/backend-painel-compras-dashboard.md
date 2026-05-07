@@ -31,11 +31,17 @@ GET /api/painel-compras-dashboard
     "valor_comprado": 0,
     "valor_recebido": 0,
     "valor_pendente": 0,
+    "valor_bruto_total": 0,
+    "valor_liquido_total": 0,
     "quantidade_ocs": 0,
     "quantidade_itens": 0,
     "quantidade_fornecedores": 0,
     "ticket_medio_oc": 0,
-    "percentual_recebido": 0
+    "percentual_recebido": 0,
+    "itens_pendentes": 0,
+    "itens_atrasados": 0,
+    "maior_atraso_dias": 0,
+    "maior_fornecedor": { "codigo": "", "nome": "", "valor": 0 }
   },
   "graficos": {
     "por_mes":                    [{ "mes": "2026-01", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
@@ -70,6 +76,18 @@ GET /api/painel-compras-dashboard
 - `quantidade_fornecedores` = `COUNT(DISTINCT codigo_fornecedor)`.
 - `ticket_medio_oc` = `valor_comprado / NULLIF(quantidade_ocs, 0)`.
 - `percentual_recebido` = `(valor_recebido / NULLIF(valor_comprado, 0)) * 100`.
+- `valor_bruto_total` = `SUM(valor_bruto)`.
+- `valor_liquido_total` = `SUM(valor_liquido)`.
+- `itens_pendentes` = `COUNT(*)` de itens com `saldo_pendente > 0`.
+- `itens_atrasados` = `COUNT(*)` de itens pendentes com `data_entrega < CURRENT_DATE`.
+- `maior_atraso_dias` = `MAX(CURRENT_DATE - data_entrega)` entre itens atrasados (0 se nenhum).
+- `maior_fornecedor` = fornecedor com maior `SUM(valor_liquido)` (campos `codigo`, `nome`, `valor`).
+
+> **Padrão técnico obrigatório (igual à conciliação ERP x EDocs):**
+> 1. Construir CTE/base com TODOS os filtros aplicados.
+> 2. `sql_resumo` roda **sem** `OFFSET` / `FETCH` e produz o objeto `kpis`.
+> 3. `sql_dados` (do endpoint paginado) roda **com** `OFFSET` / `FETCH` apenas para a tabela.
+> 4. Front-end usa `kpis` deste endpoint para os cards e `dados` do endpoint paginado para a tabela. Nunca somar o array paginado para gerar totais.
 
 ### Ordenação sugerida
 

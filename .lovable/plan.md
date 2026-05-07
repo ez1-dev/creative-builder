@@ -1,20 +1,83 @@
-# Nova rota `/biblioteca-bi`
+# Garantir KPIs globais — Painel de Compras & NF de Recebimento
 
-Criar uma rota dedicada para a biblioteca de componentes BI, separada do catálogo técnico atual (`/bi-components-demo`).
+## Diagnóstico
+
+Ambas as telas já chamam endpoints `*-dashboard` agregados. Porém, hoje os KPIs ainda misturam dados da amostra (50k linhas paginadas) quando o backend não expõe certos campos:
+
+**`src/pages/NotasRecebimentoPage.tsx`** (`kpis` em ~L348-407):
+- Mesmo com `dashboard` presente, calcula `valorBruto`, `qtdRecebida`, `maiorFornecedor`, `nfsComOc`, `nfsSemOc`, `pctComOc`, `pctSemOc` somando o array `dados` (que é a amostra agregada de 50k, não a base completa).
+- Comentário no código admite explicitamente: "Para indicadores que o backend ainda não expõe, usamos a amostra como aproximação."
+
+**`src/pages/PainelComprasPage.tsx`** (`kpisGerencial` em ~L512-555):
+- Quando `dashboard` está presente, usa apenas KPIs do backend. Correto.
+- Maior fornecedor é derivado do `por_fornecedor` do dashboard. Correto.
+- Fallback (sem dashboard) ainda calcula tudo a partir de `dadosFiltrados` (até 50k). Aceitável apenas como degradação, mas atualmente nunca exibe aviso de amostragem se total ≤ 50k.
+
+**Tipos (`src/lib/api.ts`)** estão incompletos para cobrir 100% dos KPIs que o usuário listou.
 
 ## Mudanças
 
-**`src/App.tsx`** — adicionar rota apelido apontando para o mesmo componente já existente:
-```tsx
-<Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
+### 1. Backend (FastAPI) — atualizar specs e implementação
+
+**`docs/backend-notas-recebimento-dashboard.md`** — ampliar `kpis` para incluir TODOS os campos do KPI:
+```json
+"kpis": {
+  "quantidade_nfs", "quantidade_itens", "quantidade_fornecedores",
+  "valor_bruto_total", "valor_liquido_total", "quantidade_recebida_total",
+  "valor_medio_nf",
+  "nfs_com_oc", "nfs_sem_oc", "pct_com_oc", "pct_sem_oc",
+  "maior_fornecedor": { "codigo": "...", "nome": "...", "valor": 0 },
+  "total_produtos", "total_servicos",
+  "total_digitadas", "total_fechadas", "total_canceladas"
+}
 ```
-Logo abaixo da rota `/bi-components-demo` (linha 85). Mantém a rota antiga funcionando para não quebrar links internos.
+Calcular tudo na query agregada (sem OFFSET/FETCH), seguindo o padrão `sql_resumo` da conciliação EDocs (descrito na seção 3 do pedido).
 
-**`src/pages/BiComponentsDemoPage.tsx`** — pequeno ajuste no header para refletir o nome amigável quando acessado via `/biblioteca-bi`:
-- Detectar `useLocation()`; se path = `/biblioteca-bi`, exibir título "Biblioteca BI — Componentes" (caso contrário mantém "Catálogo de Componentes BI").
-- Sem qualquer outra mudança de conteúdo: a página continua mostrando todas as seções (KPIs, Gráficos, Tabelas, Filtros, Drill-down, Estados, Badges, Layout) com os mesmos mocks.
+**`docs/backend-painel-compras-dashboard.md`** — ampliar `kpis`:
+```json
+"kpis": {
+  "valor_comprado", "valor_recebido", "valor_pendente",
+  "quantidade_ocs", "quantidade_itens", "quantidade_fornecedores",
+  "ticket_medio_oc", "percentual_recebido",
+  "valor_bruto_total", "valor_liquido_total",
+  "itens_pendentes", "itens_atrasados", "maior_atraso_dias",
+  "maior_fornecedor": { "codigo": "...", "nome": "...", "valor": 0 }
+}
+```
 
-## Resultado
-- `/biblioteca-bi` passa a ser o caminho oficial e amigável da biblioteca interna.
-- `/bi-components-demo` continua respondendo (alias técnico).
-- Nenhum impacto em outras telas, APIs ou autenticação.
+Em ambos: docs reforçam que `sql_resumo` roda primeiro, sem paginação, e retorna apenas o objeto `kpis` + buckets de gráficos.
+
+### 2. `src/lib/api.ts` — ampliar interfaces
+
+Atualizar `PainelComprasDashboardResponse.kpis` e `NotasRecebimentoDashboardResponse.kpis` com todos os novos campos opcionais (mantendo retrocompatibilidade com `?:`).
+
+### 3. `src/pages/NotasRecebimentoPage.tsx`
+
+Reescrever o `useMemo` `kpis` (L348-407):
+- Quando `dashboard` está presente: ler **exclusivamente** de `dashboard.kpis` (sem somar `dados`). Para campos ausentes no backend, exibir `'--'`.
+- Quando em fallback (`!dashboard`): seguir cálculo client-side atual sobre o agregado, mas sempre exibir o aviso `amostragemAtiva` quando `totalAgregado >= TAMANHO_AGREGADO`.
+- Remover a mistura `dashboard.kpis + dados.reduce(...)`.
+
+### 4. `src/pages/PainelComprasPage.tsx`
+
+Reescrever `kpisGerencial` (L512-555):
+- Quando `dashboard` presente: mapear todos os campos novos (`itens_pendentes`, `itens_atrasados`, `maior_atraso`, `maior_fornecedor`) direto de `dashboard.kpis`.
+- Manter fallback client-side sobre `dadosFiltrados`, mas exibir aviso de amostragem quando o fallback estiver ativo e `totalAgregadoCompras >= TAMANHO_AGREGADO`.
+- Verificar contexto AI (`useAiPageContext`, L239-244): hoje lê `(data as any).resumo` (paginado). Trocar para `dashboard?.kpis` quando disponível.
+
+### 5. Critérios de aceite (validação manual após implementação)
+
+- Filtrar 1.000 registros, paginar a tabela: KPIs permanecem idênticos entre páginas.
+- Alterar filtro: KPIs e tabela recalculam (ambas chamadas refeitas).
+- Aviso de amostragem só aparece em fallback genuíno (endpoint dashboard indisponível) e total > 50k.
+- Exportação continua usando `tamanho_pagina=todos` na rota paginada (sem alteração).
+
+## Arquivos tocados
+
+- `docs/backend-notas-recebimento-dashboard.md` (atualização da spec)
+- `docs/backend-painel-compras-dashboard.md` (atualização da spec)
+- `src/lib/api.ts` (ampliar interfaces)
+- `src/pages/NotasRecebimentoPage.tsx` (refatorar `kpis`)
+- `src/pages/PainelComprasPage.tsx` (refatorar `kpisGerencial` + AI context)
+
+Sem novas rotas, sem migração de banco, sem mudança em autenticação. A implementação no FastAPI fica a cargo do time de backend, guiada pelos docs atualizados.
