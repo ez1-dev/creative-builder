@@ -664,7 +664,7 @@ export default function NotasRecebimentoPage() {
                           contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }}
                         />
                         <ReferenceLine y={charts.mediaMes} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" label={{ value: `Média ${formatCurrency(charts.mediaMes)}`, fontSize: 10, fill: 'hsl(var(--muted-foreground))', position: 'insideTopRight' }} />
-                        <Bar dataKey="valor" fill="url(#grad-mes)" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="valor" fill="url(#grad-mes)" radius={[6, 6, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.chave ?? d?.label, d?.label)} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartCard>
