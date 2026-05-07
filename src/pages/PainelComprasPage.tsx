@@ -20,7 +20,13 @@ import { ChevronsUpDown } from 'lucide-react';
 import { formatNumber, formatCurrency, formatDate } from '@/lib/format';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
-import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, TrendingUp, Package, DollarSign, Clock, Percent, FileText, Layers, Receipt, RefreshCw, Filter as FilterIcon, Eraser, Link2, Unlink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { ChartCard } from '@/components/erp/ChartCard';
+import { ActiveFilterChips, type ActiveChip } from '@/components/erp/ActiveFilterChips';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { useSearchTracking } from '@/hooks/useSearchTracking';
@@ -73,9 +79,21 @@ const baseColumns: Column<any>[] = [
   { key: 'percentual_desconto', header: '% Desc.', align: 'right', render: (v) => v ? `${formatNumber(v, 2)}%` : '-' },
   { key: 'valor_desconto_total', header: 'Vlr. Desconto', align: 'right' as const, render: (v: any) => formatCurrency(v) },
   { key: 'valor_liquido', header: 'Vlr. Líquido', align: 'right', render: (v) => formatCurrency(v) },
-  { key: 'situacao_oc', header: 'Situação', render: (v) => situacaoLabel(v) },
-  { key: 'numero_nf', header: 'Nº NF', render: (v: any) => v || '-' },
-  { key: 'dias_atraso', header: 'Dias Atraso', align: 'right', render: (v) => v > 0 ? <span className="text-destructive font-semibold">{v}</span> : '-' },
+  { key: 'situacao_oc', header: 'Situação', render: (v) => {
+    const s = String(v ?? '');
+    const label = situacaoLabel(v);
+    let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'secondary';
+    let extra = '';
+    if (s === '4') { variant = 'default'; extra = 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] hover:bg-[hsl(var(--success))]'; }
+    else if (s === '1' || s === '2') { variant = 'default'; extra = 'bg-[hsl(var(--info))] text-[hsl(var(--info-foreground))] hover:bg-[hsl(var(--info))]'; }
+    else if (s === '3') { variant = 'default'; extra = 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]'; }
+    else if (s === '5') { variant = 'destructive'; }
+    return <Badge variant={variant} className={extra}>{label}</Badge>;
+  } },
+  { key: 'numero_nf', header: 'NF', render: (v: any) => v
+    ? <Badge variant="outline" className="gap-1 border-[hsl(var(--success))]/40 text-[hsl(var(--success))]"><Link2 className="h-3 w-3" />{v}</Badge>
+    : <Badge variant="outline" className="gap-1 border-[hsl(var(--warning))]/40 text-[hsl(var(--warning))]"><Unlink className="h-3 w-3" />sem NF</Badge> },
+  { key: 'dias_atraso', header: 'Dias Atraso', align: 'right', render: (v) => v > 0 ? <Badge variant="destructive">{v}</Badge> : '-' },
 ];
 
 export default function PainelComprasPage() {
@@ -104,6 +122,7 @@ export default function PainelComprasPage() {
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
   const [drillSeed, setDrillSeed] = useState<{ nivel: any; chave: string; label: string; nonce: number } | null>(null);
+  const [clearDrillSignal, setClearDrillSignal] = useState(0);
   const drillRef = useRef<HTMLDivElement>(null);
   const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
     if (chave == null || chave === '') return;
@@ -111,6 +130,10 @@ export default function PainelComprasPage() {
     setDrillSeed({ nivel, chave: ch, label: label ?? ch, nonce: Date.now() });
     setActiveTab('drill');
     setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
+  const clearDrill = useCallback(() => {
+    setDrillSeed(null);
+    setClearDrillSignal((n) => n + 1);
   }, []);
 
   const erpReady = useErpReady();
@@ -640,14 +663,42 @@ export default function PainelComprasPage() {
     setTimeout(() => search(1), 0);
   };
 
+
+  const activeChips: ActiveChip[] = useMemo(() => {
+    const c: ActiveChip[] = [];
+    const set = (k: keyof typeof filters, v: any) => setFilters((f) => ({ ...f, [k]: v }));
+    if (filters.projeto_macro && filters.projeto_macro !== 'TODOS') c.push({ key: 'pm', label: 'Projeto Macro', value: filters.projeto_macro, onRemove: () => set('projeto_macro', 'TODOS') });
+    if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') c.push({ key: 'td', label: 'Tipo Despesa', value: filters.tipo_despesa, onRemove: () => set('tipo_despesa', 'TODOS') });
+    if (filters.mes_competencia) c.push({ key: 'mes', label: 'Mês', value: filters.mes_competencia, onRemove: () => set('mes_competencia', '') });
+    if (filters.condicao_pagamento) c.push({ key: 'cp', label: 'Cond. Pagto', value: filters.condicao_pagamento, onRemove: () => set('condicao_pagamento', '') });
+    if (filters.fornecedor) c.push({ key: 'forn', label: 'Fornecedor', value: filters.fornecedor, onRemove: () => set('fornecedor', '') });
+    if (filters.numero_projeto) c.push({ key: 'np', label: 'Projeto', value: filters.numero_projeto, onRemove: () => set('numero_projeto', '') });
+    if (filters.centro_custo) c.push({ key: 'cc', label: 'CC', value: filters.centro_custo, onRemove: () => set('centro_custo', '') });
+    if (filters.transacao) c.push({ key: 'tr', label: 'Transação', value: filters.transacao, onRemove: () => set('transacao', '') });
+    if (filters.numero_oc) c.push({ key: 'oc', label: 'Nº OC', value: filters.numero_oc, onRemove: () => set('numero_oc', '') });
+    if (filters.codigo_item) c.push({ key: 'ci', label: 'Item', value: filters.codigo_item, onRemove: () => set('codigo_item', '') });
+    if (filters.descricao_item) c.push({ key: 'di', label: 'Descrição', value: filters.descricao_item, onRemove: () => set('descricao_item', '') });
+    if (filters.familia) c.push({ key: 'fa', label: 'Família', value: filters.familia, onRemove: () => set('familia', '') });
+    if (filters.origem_material) c.push({ key: 'om', label: 'Origem', value: filters.origem_material, onRemove: () => set('origem_material', '') });
+    if (filters.tipo_item && filters.tipo_item !== 'TODOS') c.push({ key: 'ti', label: 'Tipo Item', value: filters.tipo_item, onRemove: () => set('tipo_item', 'TODOS') });
+    if (filters.tipo_oc && filters.tipo_oc !== 'TODOS') c.push({ key: 'to', label: 'Tipo OC', value: filters.tipo_oc, onRemove: () => set('tipo_oc', 'TODOS') });
+    if (filters.situacao_oc?.length) c.push({ key: 'sit', label: 'Situação', value: filters.situacao_oc.map(situacaoLabel).join(', '), onRemove: () => set('situacao_oc', []) });
+    if (filters.data_emissao_ini) c.push({ key: 'dei', label: 'Emissão de', value: filters.data_emissao_ini, onRemove: () => set('data_emissao_ini', '') });
+    if (filters.data_emissao_fim) c.push({ key: 'def', label: 'Emissão até', value: filters.data_emissao_fim, onRemove: () => set('data_emissao_fim', '') });
+    if (filters.data_entrega_ini) c.push({ key: 'dti', label: 'Entrega de', value: filters.data_entrega_ini, onRemove: () => set('data_entrega_ini', '') });
+    if (filters.data_entrega_fim) c.push({ key: 'dtf', label: 'Entrega até', value: filters.data_entrega_fim, onRemove: () => set('data_entrega_fim', '') });
+    if (filters.somente_pendentes) c.push({ key: 'sp', label: 'Somente', value: 'pendentes', onRemove: () => set('somente_pendentes', false) });
+    return c;
+  }, [filters]);
+
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
         title="Painel de Compras"
-        description="Dashboard e detalhamento de ordens de compra"
+        description="Compras por projeto, centro de custo, tipo de despesa, fornecedor e recebimento"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
               <Label className="whitespace-nowrap text-xs text-muted-foreground">Registros:</Label>
               <Select
@@ -673,11 +724,20 @@ export default function PainelComprasPage() {
                 </SelectContent>
               </Select>
             </div>
+            <Button size="sm" variant="outline" onClick={() => search(pagina)} disabled={loading}>
+              <RefreshCw className={`mr-1 h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button size="sm" variant="outline" onClick={clearFilters}>
+              <FilterIcon className="mr-1 h-3 w-3" /> Limpar filtros
+            </Button>
+            <Button size="sm" variant="outline" onClick={clearDrill} disabled={!drillSeed && clearDrillSignal === 0}>
+              <Eraser className="mr-1 h-3 w-3" /> Limpar drill
+            </Button>
             <ExportButton endpoint="/api/export/painel-compras" params={exportParams} />
           </div>
         }
       />
-      <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
+      <FilterPanel onSearch={() => search(1)} onClear={clearFilters} defaultOpen={!data}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Código Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex: 001.001" /></div>
         <div><Label className="text-xs">Descrição Item</Label><Input value={filters.descricao_item} onChange={(e) => setFilters(f => ({ ...f, descricao_item: e.target.value }))} className="h-8 text-xs" /></div>
@@ -841,6 +901,8 @@ export default function PainelComprasPage() {
         </div>
       </FilterPanel>
 
+      <ActiveFilterChips chips={activeChips} onClearAll={clearFilters} />
+
       {data && kpis && (
         <>
           {!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
@@ -848,53 +910,117 @@ export default function PainelComprasPage() {
               Atenção: o backend não retornou totais agregados. Os cards estão somando apenas a página atual ({data.dados.length} de {data.total_registros.toLocaleString('pt-BR')} registros). Selecione "Todos" no canto superior direito para ver os valores completos.
             </div>
           )}
-          {kpisGerencial && (
-            <div>
-              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Visão Gerencial</h3>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
-                <KPICard index={0} title="Total Comprado" value={formatCurrency(kpisGerencial.comprado)} variant="info" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma do valor líquido dos itens filtrados" />
-                <KPICard index={1} title="Total Pendente" value={formatCurrency(kpisGerencial.pendente)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Saldo pendente x preço unitário dos itens filtrados" />
-                <KPICard index={2} title="Total Recebido" value={kpisGerencial.recebido != null ? formatCurrency(kpisGerencial.recebido) : '--'} variant="success" icon={<TrendingUp className="h-5 w-5" />} tooltip="Disponível quando o backend retornar valor_recebido_total" />
-                <KPICard index={3} title="Qtd OCs" value={kpisGerencial.qtdOcs} icon={<ShoppingCart className="h-5 w-5" />} />
-                <KPICard index={4} title="Qtd Itens" value={kpisGerencial.qtdItens} icon={<Package className="h-5 w-5" />} />
-                <KPICard index={5} title="Qtd Fornecedores" value={kpisGerencial.qtdFornecedores} icon={<Layers className="h-5 w-5" />} />
-                <KPICard index={6} title="Ticket Médio/OC" value={formatCurrency(kpisGerencial.ticketMedio)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
-                <KPICard index={7} title="Maior Fornecedor" value={kpisGerencial.maiorFornecedor ? formatCurrency(kpisGerencial.maiorFornecedor.valor) : '--'} icon={<Layers className="h-5 w-5" />} tooltip={kpisGerencial.maiorFornecedor?.nome ?? ''} />
+
+          {kpisGerencial && (() => {
+            const totalBase = kpisGerencial.comprado || 1;
+            const recebidoVal = kpisGerencial.recebido ?? 0;
+            const pendenteVal = kpisGerencial.pendente ?? 0;
+            const pctRecebido = kpisGerencial.recebido != null ? Math.min(100, (recebidoVal / totalBase) * 100) : null;
+            const pctPendente = Math.min(100, (pendenteVal / totalBase) * 100);
+            return (
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                {/* Hero: Total Comprado */}
+                <Card className="border-l-4 border-l-primary bg-gradient-to-br from-primary/5 to-transparent lg:col-span-1">
+                  <CardContent className="flex h-full flex-col justify-between p-5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Comprado</p>
+                      <DollarSign className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="mt-3 text-3xl font-bold tabular-nums">{formatCurrency(kpisGerencial.comprado)}</p>
+                    <div className="mt-3 flex flex-wrap gap-x-4 text-xs text-muted-foreground">
+                      <span>Ticket médio/OC: <span className="font-medium text-foreground tabular-nums">{formatCurrency(kpisGerencial.ticketMedio)}</span></span>
+                      <span>OCs: <span className="font-medium text-foreground">{kpisGerencial.qtdOcs}</span></span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Recebido vs Pendente */}
+                <Card className="lg:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      Recebimento vs Pendência
+                      <span className="ml-auto text-xs font-normal text-muted-foreground">base: total comprado</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {pctRecebido != null && (
+                      <div>
+                        <div className="mb-1 flex items-center justify-between text-xs">
+                          <span className="flex items-center gap-2"><Link2 className="h-3 w-3 text-[hsl(var(--success))]" /> Recebido</span>
+                          <span className="tabular-nums"><span className="font-semibold text-foreground">{formatCurrency(recebidoVal)}</span><span className="text-muted-foreground"> ({pctRecebido.toFixed(1)}%)</span></span>
+                        </div>
+                        <Progress value={pctRecebido} className="h-2 [&>div]:bg-[hsl(var(--success))]" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-2"><Clock className="h-3 w-3 text-[hsl(var(--warning))]" /> Pendente</span>
+                        <span className="tabular-nums"><span className="font-semibold text-foreground">{formatCurrency(pendenteVal)}</span><span className="text-muted-foreground"> ({pctPendente.toFixed(1)}%)</span></span>
+                      </div>
+                      <Progress value={pctPendente} className="h-2 [&>div]:bg-[hsl(var(--warning))]" />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
+            );
+          })()}
+
+          {kpisGerencial && (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
+              <KPICard index={0} title="Qtd OCs" value={kpisGerencial.qtdOcs} icon={<ShoppingCart className="h-5 w-5" />} onClick={() => setActiveTab('lista')} />
+              <KPICard index={1} title="Qtd Itens" value={kpisGerencial.qtdItens} icon={<Package className="h-5 w-5" />} onClick={() => setActiveTab('lista')} />
+              <KPICard index={2} title="Qtd Fornecedores" value={kpisGerencial.qtdFornecedores} icon={<Layers className="h-5 w-5" />} onClick={() => { setDrillSeed(null); setActiveTab('drill'); }} />
+              <KPICard
+                index={3}
+                title="Maior Fornecedor"
+                value={kpisGerencial.maiorFornecedor ? formatCurrency(kpisGerencial.maiorFornecedor.valor) : '--'}
+                subtitle={kpisGerencial.maiorFornecedor?.nome}
+                variant="info"
+                icon={<Layers className="h-5 w-5" />}
+                onClick={kpisGerencial.maiorFornecedor ? () => openDrill('fantasia_fornecedor', kpisGerencial.maiorFornecedor!.nome, kpisGerencial.maiorFornecedor!.nome) : undefined}
+              />
             </div>
           )}
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores Financeiros</h3>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={chartData?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
-              <KPICard index={1} title="Valor Bruto" value={formatCurrency(kpis.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" details={drillDetails.valorBruto} />
-              <KPICard index={2} title="Desconto Total" value={formatCurrency(kpis.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" details={drillDetails.desconto} />
-              <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(kpis.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(kpis.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(kpis.valor_liquido_total) }]} />
-              <KPICard index={4} title="Impostos Totais" value={formatCurrency(kpis.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} tooltip="Soma de IPI, ICMS, ISS e outros impostos" details={drillDetails.impostos} />
-              <KPICard index={5} title="Fornecedores" value={kpis.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de fornecedores distintos" details={drillDetails.fornecedores} />
-            </div>
-          </div>
 
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores de Pendência</h3>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={6} title="Valor Pendente" value={formatCurrency(kpis.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" details={drillDetails.valorPendente} />
-              <KPICard index={7} title="Itens Pendentes" value={kpis.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" details={drillDetails.itensPendentes} />
-              <KPICard index={8} title="Itens Atrasados" value={kpis.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" details={drillDetails.itensAtrasados} />
-              <KPICard index={9} title="OCs Atrasadas" value={kpis.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" details={drillDetails.ocsAtrasadas} />
-              <KPICard index={10} title="Maior Atraso" value={`${kpis.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" details={drillDetails.maiorAtraso} />
-              <KPICard index={11} title="Ticket Médio/Item" value={formatCurrency(kpis.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
+          <details className="group rounded-md border bg-card">
+            <summary className="flex cursor-pointer items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/30">
+              <span>Indicadores Operacionais Detalhados</span>
+              <span className="text-xs font-normal">clique para expandir</span>
+            </summary>
+            <div className="space-y-4 border-t p-3">
+              <div>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Financeiros</h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                  <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={chartData?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
+                  <KPICard index={1} title="Valor Bruto" value={formatCurrency(kpis.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" details={drillDetails.valorBruto} />
+                  <KPICard index={2} title="Desconto Total" value={formatCurrency(kpis.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" details={drillDetails.desconto} />
+                  <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(kpis.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(kpis.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(kpis.valor_liquido_total) }]} />
+                  <KPICard index={4} title="Impostos Totais" value={formatCurrency(kpis.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} tooltip="Soma de IPI, ICMS, ISS e outros impostos" details={drillDetails.impostos} />
+                  <KPICard index={5} title="Fornecedores" value={kpis.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de fornecedores distintos" details={drillDetails.fornecedores} />
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pendência</h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                  <KPICard index={6} title="Valor Pendente" value={formatCurrency(kpis.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" details={drillDetails.valorPendente} />
+                  <KPICard index={7} title="Itens Pendentes" value={kpis.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" details={drillDetails.itensPendentes} />
+                  <KPICard index={8} title="Itens Atrasados" value={kpis.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" details={drillDetails.itensAtrasados} />
+                  <KPICard index={9} title="OCs Atrasadas" value={kpis.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" details={drillDetails.ocsAtrasadas} />
+                  <KPICard index={10} title="Maior Atraso" value={`${kpis.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" details={drillDetails.maiorAtraso} />
+                  <KPICard index={11} title="Ticket Médio/Item" value={formatCurrency(kpis.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
+                </div>
+              </div>
+              <div>
+                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Contagem de Itens</h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                  <KPICard index={12} title="Total Linhas" value={kpis.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" details={drillDetails.totalLinhas} />
+                  <KPICard index={13} title="Itens Produto" value={kpis.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={kpis.total_linhas ? [{ label: 'Produtos', value: `${kpis.itens_produto ?? 0} (${((kpis.itens_produto ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${kpis.itens_servico ?? 0} (${((kpis.itens_servico ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
+                  <KPICard index={14} title="Itens Serviço" value={kpis.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" details={drillDetails.itensServico} />
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div>
-            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contagem de Itens</h3>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-              <KPICard index={12} title="Total Linhas" value={kpis.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" details={drillDetails.totalLinhas} />
-              <KPICard index={13} title="Itens Produto" value={kpis.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={kpis.total_linhas ? [{ label: 'Produtos', value: `${kpis.itens_produto ?? 0} (${((kpis.itens_produto ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${kpis.itens_servico ?? 0} (${((kpis.itens_servico ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
-              <KPICard index={14} title="Itens Serviço" value={kpis.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" details={drillDetails.itensServico} />
-            </div>
-          </div>
+          </details>
         </>
       )}
 
@@ -1092,7 +1218,7 @@ export default function PainelComprasPage() {
 
           <TabsContent value="drill" className="space-y-2">
             <div ref={drillRef}>
-              <PainelDrillView dados={dadosFiltrados} seed={drillSeed} />
+              <PainelDrillView dados={dadosFiltrados} seed={drillSeed} clearSignal={clearDrillSignal} />
             </div>
           </TabsContent>
 
