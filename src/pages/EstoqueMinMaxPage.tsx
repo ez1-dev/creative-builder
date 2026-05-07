@@ -18,6 +18,8 @@ import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { AlertTriangle, ArrowUpCircle, HelpCircle, CheckCircle2, TrendingDown, TrendingUp } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 type Status = 'SEM_POLITICA' | 'ABAIXO_MINIMO' | 'NO_MINIMO' | 'ACIMA_MAXIMO' | 'ENTRE_MIN_E_MAX';
 
@@ -154,6 +156,12 @@ export default function EstoqueMinMaxPage() {
 
 
   return (
+    <PageDataProvider
+      pageKey="estoque-min-max"
+      kpis={kpis ?? null}
+      rows={enrichedData}
+      filtros={filters}
+    >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
@@ -207,8 +215,13 @@ export default function EstoqueMinMaxPage() {
         </div>
       )}
 
+      <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+
       <DataTable columns={columns} data={enrichedData} loading={loading} />
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
+
+      <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
     </div>
+    </PageDataProvider>
   );
 }

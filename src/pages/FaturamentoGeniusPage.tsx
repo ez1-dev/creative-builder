@@ -50,6 +50,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 const fmtBRL = (v: number | null | undefined) => {
   if (v === null || v === undefined) return '-';
@@ -687,6 +689,13 @@ export default function FaturamentoGeniusPage() {
   );
 
   return (
+    <PageDataProvider
+      pageKey="faturamento-genius"
+      kpis={kpis ?? null}
+      series={{ por_revenda: porRevenda, por_anomes: porMes }}
+      rows={filteredRows}
+      filtros={filters}
+    >
     <div className="space-y-4">
       <PageHeader
         title="Faturamento Genius"
@@ -869,6 +878,9 @@ export default function FaturamentoGeniusPage() {
             <KpiClickable kpiKey="quantidade_produtos"><KPICard title="Produtos" value={fmtNum(kpis.quantidade_produtos)} icon={<Package className="h-4 w-4" />} index={4} /></KpiClickable>
           </KpiGroup>
 
+          <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+          <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold tracking-tight">Faturamento por Revenda</CardTitle>
@@ -963,6 +975,7 @@ export default function FaturamentoGeniusPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </PageDataProvider>
   );
 }
 

@@ -26,6 +26,8 @@ import {
   TrendingUp, Calendar, Receipt, CreditCard, Landmark,
 } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 /* ─── Status helpers ─── */
 const statusLabel: Record<string, string> = {
@@ -318,6 +320,12 @@ export default function ContasPagarPage() {
     : 'Exportar Excel';
 
   return (
+    <PageDataProvider
+      pageKey="contas-pagar"
+      kpis={kpis ?? null}
+      rows={data?.dados ?? []}
+      filtros={filters}
+    >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
@@ -462,6 +470,10 @@ export default function ContasPagarPage() {
         </>
       )}
 
+      {kpis && (
+        <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+      )}
+
       {data && (
         <>
           {modoArvoreAtivo && arvoreData ? (
@@ -489,8 +501,11 @@ export default function ContasPagarPage() {
               onPageChange={(p) => search(p)}
             />
           )}
+
+          <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
         </>
       )}
     </div>
+    </PageDataProvider>
   );
 }
