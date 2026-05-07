@@ -14,7 +14,7 @@ import {
   BarChartCard, HorizontalBarChartCard, LineChartCard, AreaChartCard,
   DonutChartCard, PieChartCard, RankingChartCard, FunnelChartCard,
   TreemapChartCard, RadarChartCard, SparklineCard,
-  DataTableBI,
+  DataTableBI, ChartCardShell,
   type Column,
 } from '@/components/bi';
 import type { PageDataSchema } from './pageRegistry';
@@ -192,7 +192,10 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <FunnelChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+      <FunnelChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => ({ name: p.label, value: p.valor }))}
+      />
     ),
   },
   {
@@ -203,7 +206,10 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <TreemapChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+      <TreemapChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => ({ name: p.label, value: p.valor }))}
+      />
     ),
   },
   {
@@ -213,9 +219,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <RadarChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
-    ),
+    render: ({ title, mapping, ctx }) => {
+      const arr = SERIES_LIKE(ctx.series?.[mapping.series]);
+      return (
+        <RadarChartCard
+          title={title || mapping.series}
+          data={arr.map((p) => ({ axis: p.label, valor: p.valor }))}
+          series={[{ dataKey: 'valor', label: title || mapping.series }]}
+        />
+      );
+    },
   },
   {
     id: 'sparkline',
@@ -225,7 +238,9 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <SparklineCard title={title || mapping.series} series={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => p.valor)} />
+      <ChartCardShell title={title || mapping.series} height={120}>
+        <SparklineCard data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => p.valor)} height={100} />
+      </ChartCardShell>
     ),
   },
 
@@ -243,7 +258,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const cols: Column<any>[] = Object.keys(sample).slice(0, 6).map((k) => ({
         key: k, header: k, sortable: true,
       }));
-      return <DataTableBI title={title || 'Tabela'} data={rows} columns={cols} pageSize={10} />;
+      return (
+        <ChartCardShell title={title || 'Tabela'}>
+          <DataTableBI data={rows.slice(0, 10)} columns={cols} />
+        </ChartCardShell>
+      );
     },
   },
 ];
