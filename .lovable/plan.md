@@ -1,49 +1,82 @@
-## Evolução da tela de Notas Fiscais de Recebimento
+# Redesign — Notas Fiscais de Recebimento (Dashboard Executivo)
 
-Mantendo `src/pages/NotasRecebimentoPage.tsx` (sem remover nada — todos os filtros, colunas e KPIs atuais permanecem), adicionar um dashboard gerencial completo com filtros, KPIs, gráficos e drill-down — espelhando o padrão já criado para o Painel de Compras.
+Objetivo: elevar o visual da tela ao padrão de um dashboard de BI/ERP executivo, **sem mudar comportamento, dados ou rotas**, mantendo o design system atual (azul corporativo, tokens semânticos, shadcn) e todas as funcionalidades já validadas.
 
-### Reuso
+## 1. Filtros recolhíveis no topo
 
-- `src/lib/comprasClassificacao.ts` (já existe) — `enrichRow`, `getProjetoMacro`, `getTipoDespesa`, `getMesCompetencia` funcionam para qualquer linha (NF de recebimento usa `data_recebimento`/`data_emissao` no `mes_competencia`). Adiciono opção de origem do mês via fallback `data_recebimento || data_emissao` no `getMesCompetencia` se já não cobrir (já cobre — usa `data_emissao`; ajusto para também aceitar `data_recebimento` como alternativa).
+- `FilterPanel` passa a abrir **fechado por padrão** (`defaultOpen={false}`) — segue o padrão de dashboards BI onde filtros ficam acessíveis mas não dominam a tela.
+- Acima do FilterPanel, uma **barra fina de "filtros ativos"**: chips horizontais mostrando os filtros aplicados (ex: `Projeto Macro: Genius ✕`, `Mês: 2026-05 ✕`), cada chip removível individualmente. Dá visibilidade do estado sem precisar abrir o painel.
+- Header da página ganha o `ExportButton` + um botão "Atualizar" ao lado.
 
-### Novo
+## 2. Hero de KPIs (Visão Gerencial)
 
-- `src/components/recebimento/NotasDrillView.tsx` — análogo ao `PainelDrillView`, mas níveis fixos `projeto_macro → numero_projeto → codigo_centro_custo → tipo_despesa_calc → mes_competencia_calc → nome_fornecedor → numero_nf → codigo_item`. Cada linha mostra Valor Recebido, Qtd NFs, Qtd Itens. Breadcrumb com "Voltar nível" / "Limpar drill" (estado isolado, não toca filtros).
+Reorganiza as 8 KPIs gerenciais em uma **hierarquia visual**:
 
-### Alterar `src/pages/NotasRecebimentoPage.tsx`
+```text
+┌─────────────────────────────┬──────────┬──────────┬──────────┐
+│  TOTAL RECEBIDO (destaque)  │  Qtd NFs │  Itens   │  Fornec. │
+│  R$ 1.234.567,00            │   142    │  3.821   │   87     │
+│  ▲ ticket médio R$ 8.6k     │          │          │          │
+├──────────┬──────────┬───────┴──────────┴──────────┴──────────┤
+│ Maior    │ Valor    │  ░░░░░░░░░░░░░░░░░░ Vínculo OC ░░░░░░░░│
+│ Forneced.│ Médio/NF │  ▰▰▰▰▰▰▰▰▰▱▱  78% NFs com OC (110)    │
+│          │          │  ▰▰▱▱▱▱▱▱▱▱▱  22% sem OC (32)         │
+└──────────┴──────────┴────────────────────────────────────────┘
+```
 
-- **Filtros novos** no `FilterPanel` (opcionais; só vão ao backend quando preenchidos): `projeto_macro` (Select Todos/Genius/Estrutural/Outros), `tipo_despesa` (Select), `mes_competencia` (Input `YYYY-MM`), `condicao_pagamento` (Input texto), `familia` (Input texto). Os existentes (NF, série, fornecedor, OC origem, transação, depósito, datas, etc.) são mantidos.
-- **search()**: adicionar dispatch dos novos params + remover quando vazios/`TODOS`.
-- **Enrichment + filtragem client-side**: `dadosEnriquecidos = data.dados.map(enrichRow)`; `dadosFiltrados` aplica `projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento` (com fallback a `descricao_condicao_pagamento`).
-- **Colunas adicionais** em `columns` (sem remover existentes): Projeto Macro, Tipo de Despesa (`tipo_despesa_calc`), Mês (`mes_competencia_calc`), Cond. Pagto (`condicao_pagamento` + `descricao_condicao_pagamento`), e melhorar `numero_oc_origem` para exibir badge "S/ OC" quando vazio (item 11).
-- **KPIs gerenciais** (novo bloco "Visão Gerencial" acima/junto dos atuais — não remove os atuais):
-  - Total recebido (Σ `valor_liquido`)
-  - Qtd NFs (set `(empresa|filial|nf|serie)`)
-  - Qtd itens
-  - Qtd fornecedores
-  - Valor médio por NF (total / qtd NFs)
-  - Maior fornecedor (top1 por valor)
-  - Total NFs com OC vinculada × Sem OC (mini-card duplo)
-- **Gráficos** (nova seção "Análise Gerencial" — aparece quando há dados):
-  - Bar — Recebimentos por mês (`mes_competencia_calc`)
-  - Pie — por Tipo de Despesa
-  - Bar horizontal — Top 10 fornecedores
-  - Bar horizontal — por Centro de Custo (top 10)
-  - Bar horizontal — por Projeto (top 10)
-  - Bar — por Transação NF (top 10)
-- **Tabs** "Lista Detalhada" / "Drill-down Gerencial" — `<NotasDrillView dados={dadosFiltrados} />`. Tabs aparecem só quando `data` carregado.
-- **clearFilters**: remover `setData(null); setPagina(1)` para preservar drill aberto (mesmo padrão usado no Painel de Compras).
-- **Export**: estender `params` do `<ExportButton>` com os novos filtros.
-- **AI page context**: adicionar os novos KPIs ao snapshot.
+- **Card hero** (col-span-2 lg / row-span-2): "Total Recebido" em fonte grande (3xl), com subtítulo "Ticket médio R$ X" e ícone grande à direita. Mantém `border-l-4 border-l-info`.
+- 3 KPIs compactos no topo (Qtd NFs, Itens Recebidos, Fornecedores).
+- 2 KPIs médios na linha de baixo (Maior Fornecedor, Valor Médio/NF).
+- **Painel "Vínculo de OC"** substitui os dois cards "NFs com OC" / "NFs sem OC" por um card único com **duas barras de progresso horizontais** (success + warning) mostrando proporção, contagens e percentuais. Mais informativo e ocupa menos espaço.
 
-### Estados
+Indicadores Operacionais existentes (NFs, Itens, Fornecedores, Valor Líquido, Bruto, Qtd Recebida) ficam recolhidos atrás de um `<details>` "Indicadores operacionais detalhados" — preservados, mas sem competir visualmente.
 
-Loading/erro/vazio já tratados via `toast`/`DataTable.emptyMessage`. Sem mocks — tudo deriva de `/api/notas-recebimento`.
+## 3. Grid de gráficos balanceada
 
-### Documentação
-- `docs/backend-notas-recebimento-gerencial.md` — campos extras esperados (`projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`, `descricao_condicao_pagamento`, `nome_projeto`) e parâmetros novos para o backend evoluir.
+Layout tipo "feature + supporting":
 
-### Não inclui
-- Não removo nenhuma coluna ou filtro existente.
-- Não toco no endpoint nem nas tabelas do banco.
-- Não altero o design system (uso `KPICard`, `DataTable`, `FilterPanel`, `Tabs`, recharts — mesmas dependências).
+```text
+┌────────────────────────────────────┬──────────────────────┐
+│ Recebimentos por Mês (Bar grande)  │ Por Tipo de Despesa  │
+│ - destaque, col-span-2             │ (Donut com legenda)  │
+├──────────────────┬─────────────────┼──────────────────────┤
+│ Top 10 Fornec.   │ Top 10 CC       │ Top 10 Projetos      │
+├──────────────────┴─────────────────┴──────────────────────┤
+│ Por Transação NF (full-width slim)                        │
+└────────────────────────────────────────────────────────────┘
+```
+
+- Mês: bar chart maior (col-span-2), com **gradiente** (fill via `<linearGradient>` em `hsl(var(--primary))`) e linha de média pontilhada via `ReferenceLine`.
+- Tipo de Despesa: vira **donut** (innerRadius=50) com legenda à direita e total no centro.
+- Top 10 (Fornecedores/CC/Projetos): cards uniformes com badge de cor da categoria.
+- Cada card de gráfico ganha um cabeçalho com ícone pequeno, título e contador (ex: "10 de 87"), border `bg-card`, `shadow-sm` e `hover:shadow-md`.
+
+## 4. Tabela limpa
+
+- Wrapper em `Card` com header próprio: título "Lista detalhada", contador de registros à direita, ícone para alternar densidade (compacta/normal) — opcional via toggle local.
+- Coluna **OC Origem** ganha visual mais forte: `Badge` `success` outline com `Link2` quando há OC, `Badge` `warning` outline com `Unlink` quando não há. Mais escaneável.
+- Coluna **Situação NF** vira `Badge` colorido por estado (Fechada=success, Cancelada=destructive, Digitada=secondary, demais=outline).
+- Cabeçalho sticky ao rolar (já é padrão do `DataTable`?). Se não, adicionar via prop ou wrapper.
+
+Tabs "Lista Detalhada" / "Drill-down Gerencial" mantidas; visual das tabs alinhado ao restante.
+
+## 5. Drill-down
+
+Sem mudança de comportamento. Apenas refino visual: breadcrumbs em `Badge` clicável, "Agrupando por X" em destaque tipográfico, números na tabela alinhados à direita com `tabular-nums`.
+
+## 6. Responsividade
+
+- Mobile: hero KPI ocupa largura total; Top-10 viram lista compacta; gráficos empilham 1 coluna.
+- Tablet: 2 colunas; hero mantém destaque.
+- Desktop ≥ xl: layout completo descrito acima.
+
+Tudo via classes Tailwind existentes — sem CSS novo.
+
+---
+
+## Arquivos a editar
+
+1. **`src/pages/NotasRecebimentoPage.tsx`** — reorganiza JSX (KPIs, gráficos, tabela), adiciona chips de filtros ativos, abaixa filtros (`defaultOpen={false}`), substitui células de OC e Situação por `Badge`.
+2. **`src/components/erp/FilterPanel.tsx`** — sem alteração estrutural; só consumimos `defaultOpen={false}`.
+
+Nenhum arquivo novo. Nenhum mock. Nenhum comportamento ou endpoint alterado. Todas as 12 validações anteriores continuam atendidas.
