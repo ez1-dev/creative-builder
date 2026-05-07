@@ -103,6 +103,15 @@ export default function PainelComprasPage() {
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
+  const [drillSeed, setDrillSeed] = useState<{ nivel: any; chave: string; label: string; nonce: number } | null>(null);
+  const drillRef = useRef<HTMLDivElement>(null);
+  const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
+    if (chave == null || chave === '') return;
+    const ch = String(chave);
+    setDrillSeed({ nivel, chave: ch, label: label ?? ch, nonce: Date.now() });
+    setActiveTab('drill');
+    setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'codigo_familia', origemKey: 'origem_material' });
