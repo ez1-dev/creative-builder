@@ -167,12 +167,14 @@ export default function PainelComprasPage() {
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
       if (!params.observacao_oc) delete params.observacao_oc;
-      // Filtros calculados client-side (enrichRow): nunca enviar ao backend,
-      // pois ele desconhece esses campos e zeraria os agregados.
-      delete params.projeto_macro;
-      delete params.tipo_despesa;
-      delete params.mes_competencia;
-      delete params.condicao_pagamento;
+      // Enviados ao backend; quando ele aplicar a derivação server-side
+      // (ver docs/backend-painel-compras-dashboard.md), o dashboard passa a
+      // refletir 100% da base filtrada. Enquanto isso, o frontend mantém um
+      // fallback client-side em kpisGerencial / gerencialCharts.
+      if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
+      if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
+      if (!params.mes_competencia) delete params.mes_competencia;
+      if (!params.condicao_pagamento) delete params.condicao_pagamento;
       return params;
     };
     try {
