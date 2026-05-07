@@ -24,11 +24,13 @@ interface Props {
   primaryMetricKey?: string;
   /** Quando muda, posiciona o drill iniciando neste nível/valor. */
   seed?: DrillSeed;
+  /** Totais GLOBAIS do filtro (não da página atual). Usado no header. */
+  resumoGlobal?: Record<string, number>;
 }
 
 type Step = { nivel: string; chave: string; label: string };
 
-export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey, seed }: Props) {
+export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey, seed, resumoGlobal }: Props) {
   const [stack, setStack] = useState<Step[]>([]);
   const lastSeedRef = useRef<string | null>(null);
 
@@ -131,11 +133,15 @@ export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey, see
           {filtrados.length} linhas
         </div>
         <div className="flex flex-wrap gap-3">
-          {metrics.map((m) => (
-            <span key={m.key}>
-              {m.label}: <span className="font-semibold text-foreground">{fmt(m, totals[m.key] || 0)}</span>
-            </span>
-          ))}
+          {metrics.map((m) => {
+            const valor = resumoGlobal && resumoGlobal[m.key] != null ? resumoGlobal[m.key] : (totals[m.key] || 0);
+            return (
+              <span key={m.key}>
+                {m.label}: <span className="font-semibold text-foreground">{fmt(m, valor)}</span>
+                {resumoGlobal && resumoGlobal[m.key] != null && <span className="ml-1 text-[10px] text-muted-foreground">(total geral)</span>}
+              </span>
+            );
+          })}
         </div>
       </div>
 

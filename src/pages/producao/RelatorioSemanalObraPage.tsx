@@ -19,6 +19,7 @@ import { MetaEntregaSemanalChart } from './MetaEntregaSemanalChart';
 import { ExportPdfButton } from '@/components/erp/ExportPdfButton';
 import { gerarRelatorioSemanalObraPdf } from '@/lib/pdf/relatorioSemanalObraPdf';
 import { useAuth } from '@/contexts/AuthContext';
+import { extrairResumo } from '@/lib/drillResumo';
 
 interface KpiTotals {
   totalObras: number;
@@ -78,116 +79,7 @@ export default function RelatorioSemanalObraPage() {
   const erpReady = useErpReady();
   const { user } = useAuth();
 
-  const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<RelatorioRow>, currentFilters: typeof initialFilters) => {
-    const id = ++consolidationIdRef.current;
-    const resumo = (firstResult as any).resumo;
-    const page1 = firstResult.dados || [];
-    const totalPages = firstResult.total_paginas || 1;
-
-    // Sempre inicializa charts com a página 1
-    setConsolidatedRows(page1);
-
-    // Aceita resumo apenas se ele tiver pelo menos um valor > 0
-    // (alguns endpoints retornam resumo zerado mesmo com dados na página)
-    const resumoTotals = resumo ? {
-      totalObras: Number(resumo.total_obras) || 0,
-      totalProjetos: Number(resumo.total_projetos) || 0,
-      totalCargas: Number(resumo.total_cargas) || 0,
-      totalPecas: Number(resumo.total_pecas ?? resumo.total_pecas_etiquetas) || 0,
-      pesoTotal: Number(resumo.peso_total) || 0,
-    } : null;
-    const resumoUtil = resumoTotals && (
-      resumoTotals.totalObras > 0 ||
-      resumoTotals.totalProjetos > 0 ||
-      resumoTotals.totalCargas > 0 ||
-      resumoTotals.totalPecas > 0 ||
-      resumoTotals.pesoTotal > 0
-    );
-
-    if (resumoUtil && resumoTotals) {
-      if (consolidationIdRef.current !== id) return;
-      setKpiTotals(resumoTotals);
-      setKpiLoading(false);
-      if (totalPages > 1) {
-        await fetchAllPagesForCharts(id, totalPages, currentFilters, page1);
-      }
-      return;
-    }
-
-    const agg = aggregateRows(page1);
-
-    if (totalPages <= 1) {
-      if (consolidationIdRef.current !== id) return;
-      setKpiTotals({
-        totalObras: agg.obras.size,
-        totalProjetos: agg.projetos.size,
-        totalCargas: agg.cargas,
-        totalPecas: agg.pecas,
-        pesoTotal: agg.peso,
-      });
-      setKpiLoading(false);
-      return;
-    }
-
-    setKpiLoading(true);
-    // Mostra totais parciais imediatamente (página 1) enquanto consolida demais páginas
-    setKpiTotals({
-      totalObras: agg.obras.size,
-      totalProjetos: agg.projetos.size,
-      totalCargas: agg.cargas,
-      totalPecas: agg.pecas,
-      pesoTotal: agg.peso,
-    });
-    const allRows: RelatorioRow[] = [...page1];
-    try {
-      const remaining = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
-      const BATCH = 5;
-      for (let i = 0; i < remaining.length; i += BATCH) {
-        if (consolidationIdRef.current !== id) return;
-        const batch = remaining.slice(i, i + BATCH);
-        const results = await Promise.all(
-          batch.map((p) => api.get<PaginatedResponse<RelatorioRow>>(
-            '/api/producao/relatorio-semanal-obra',
-            { ...currentFilters, pagina: p, tamanho_pagina: 100 },
-          )),
-        );
-        for (const r of results) {
-          const dados = r.dados || [];
-          allRows.push(...dados);
-          const a = aggregateRows(dados);
-          a.obras.forEach((o) => agg.obras.add(o));
-          a.projetos.forEach((p) => agg.projetos.add(p));
-          agg.cargas += a.cargas;
-          agg.pecas += a.pecas;
-          agg.peso += a.peso;
-        }
-      }
-      if (consolidationIdRef.current !== id) return;
-      setKpiTotals({
-        totalObras: agg.obras.size,
-        totalProjetos: agg.projetos.size,
-        totalCargas: agg.cargas,
-        totalPecas: agg.pecas,
-        pesoTotal: agg.peso,
-      });
-      setConsolidatedRows(allRows);
-    } catch {
-      if (consolidationIdRef.current !== id) return;
-      setKpiTotals({
-        totalObras: agg.obras.size,
-        totalProjetos: agg.projetos.size,
-        totalCargas: agg.cargas,
-        totalPecas: agg.pecas,
-        pesoTotal: agg.peso,
-      });
-      setConsolidatedRows(allRows);
-      toast.warning('Não foi possível consolidar todos os dados. Valores parciais exibidos.');
-    } finally {
-      if (consolidationIdRef.current === id) setKpiLoading(false);
-    }
-  }, []);
-
-  // Helper: busca demais páginas apenas para alimentar os gráficos (quando backend já enviou resumo)
+  // Helper: busca demais páginas apenas para alimentar os gráficos
   const fetchAllPagesForCharts = useCallback(async (
     id: number,
     totalPages: number,
@@ -216,6 +108,34 @@ export default function RelatorioSemanalObraPage() {
       setConsolidatedRows(allRows);
     }
   }, []);
+
+  const consolidateKpis = useCallback(async (firstResult: PaginatedResponse<RelatorioRow>, currentFilters: typeof initialFilters) => {
+    const id = ++consolidationIdRef.current;
+    const page1 = firstResult.dados || [];
+    const totalPages = firstResult.total_paginas || 1;
+
+    // Sempre inicializa charts com a página 1
+    setConsolidatedRows(page1);
+
+    // KPIs: somente do `resumo` global do backend. Nunca somar `data.dados`.
+    const resumoNorm = extrairResumo(firstResult);
+    if (resumoNorm) {
+      setKpiTotals({
+        totalObras: resumoNorm.total_obras,
+        totalProjetos: resumoNorm.total_projetos,
+        totalCargas: resumoNorm.quantidade_cargas,
+        totalPecas: resumoNorm.quantidade_etiquetas,
+        pesoTotal: resumoNorm.kg_produzido || resumoNorm.kg_expedido,
+      });
+    } else {
+      setKpiTotals(null);
+    }
+    setKpiLoading(false);
+
+    if (totalPages > 1) {
+      await fetchAllPagesForCharts(id, totalPages, currentFilters, page1);
+    }
+  }, [fetchAllPagesForCharts]);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) {
