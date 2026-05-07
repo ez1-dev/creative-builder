@@ -398,66 +398,13 @@ export default function PainelComprasPage() {
       (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') ||
       !!filters.mes_competencia ||
       !!filters.condicao_pagamento;
-    // Quando há filtro gerencial, ignoramos `totais`/`resumo` do backend (não conhecem esses filtros).
-    const totais = gerencialActive ? undefined : ((data as any)?.totais as Record<string, any> | undefined);
-    const resumo = gerencialActive ? undefined : ((data as any)?.resumo as Record<string, any> | undefined);
+    // Quando há filtro gerencial client-side, o backend agregado não conhece
+    // esses recortes — não exibimos KPIs detalhados parciais.
+    if (gerencialActive) return null;
 
-    // Fallback client-side. Quando filtro gerencial está ativo, soma sobre dadosFiltrados.
-    let fallback: Record<string, any> | null = null;
-    const baseDados: any[] = gerencialActive
-      ? (Array.isArray((globalThis as any).__nope) ? [] : [])
-      : (Array.isArray(data.dados) ? data.dados : []);
-    // Use dadosFiltrados via closure (definido depois? não — dadosFiltrados está fora deste useMemo).
-    // Para evitar dependência circular, recomputamos rapidamente aqui:
-    const dadosParaFallback = gerencialActive
-      ? data.dados.map((d: any) => enrichRow(d)).filter((d: any) => {
-          if (filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
-          if (filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
-          if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
-          if (filters.condicao_pagamento) {
-            const q = filters.condicao_pagamento.toLowerCase();
-            const cp = String(d.condicao_pagamento ?? '').toLowerCase();
-            const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
-            if (!cp.includes(q) && !dcp.includes(q)) return false;
-          }
-          return true;
-        })
-      : baseDados;
-    if (dadosParaFallback.length > 0) {
-      const dados = dadosParaFallback;
-      const uniqueOcs = new Set(dados.map((d: any) => d.numero_oc));
-      const uniqueFornecedores = new Set(dados.map((d: any) => d.fantasia_fornecedor).filter(Boolean));
-      const valorBruto = dados.reduce((s: number, d: any) => s + (d.valor_bruto || d.quantidade_pedida * d.preco_unitario || 0), 0);
-      const valorLiquido = dados.reduce((s: number, d: any) => s + (d.valor_liquido || 0), 0);
-      const valorDesconto = dados.reduce((s: number, d: any) => s + (d.valor_desconto_total || 0), 0);
-      const valorPendente = dados.reduce((s: number, d: any) => s + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)), 0);
-      const itensPendentes = dados.filter((d: any) => (d.saldo_pendente || 0) > 0).length;
-      const itensAtrasados = dados.filter((d: any) => (d.dias_atraso || 0) > 0).length;
-      const ocsAtrasadas = new Set(dados.filter((d: any) => (d.dias_atraso || 0) > 0).map((d: any) => d.numero_oc)).size;
-      const maiorAtraso = Math.max(0, ...dados.map((d: any) => d.dias_atraso || 0));
-      const itensProduto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
-      const itensServico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
-      const totalLinhas = dados.length;
-      fallback = {
-        total_ocs: uniqueOcs.size,
-        valor_bruto_total: valorBruto,
-        valor_liquido_total: valorLiquido,
-        valor_desconto_total: valorDesconto,
-        total_fornecedores: uniqueFornecedores.size,
-        valor_pendente_total: valorPendente,
-        itens_pendentes: itensPendentes,
-        itens_atrasados: itensAtrasados,
-        ocs_atrasadas: ocsAtrasadas,
-        maior_atraso_dias: maiorAtraso,
-        ticket_medio_item: totalLinhas > 0 ? valorLiquido / totalLinhas : 0,
-        impostos_totais: dados.reduce((s: number, d: any) => s + (d.impostos || 0), 0),
-        total_linhas: totalLinhas,
-        itens_produto: itensProduto,
-        itens_servico: itensServico,
-      };
-    }
-
-    if (!totais && !resumo && !fallback) return null;
+    const totais = (data as any)?.totais as Record<string, any> | undefined;
+    const resumo = (data as any)?.resumo as Record<string, any> | undefined;
+    if (!totais && !resumo) return null;
 
     // Normaliza aliases do backend para o schema esperado pelos cards.
     const totaisNorm: Record<string, any> = { ...(totais ?? {}) };
@@ -471,9 +418,7 @@ export default function PainelComprasPage() {
       totaisNorm.valor_liquido_total = totais.valor_total;
     }
 
-    // Merge por prioridade: totais > resumo > fallback.
-    // Só preenche se ainda não houver valor — campos ausentes em `totais`
-    // caem para `resumo`/fallback em vez de ficarem vazios nos cards.
+    // Merge por prioridade: totais > resumo. KPIs vêm exclusivamente do agregado da API.
     const merge = (...sources: (Record<string, any> | null | undefined)[]) => {
       const out: Record<string, any> = {};
       for (const src of sources) {
@@ -485,7 +430,7 @@ export default function PainelComprasPage() {
       return out;
     };
 
-    return merge(totaisNorm, resumo, fallback);
+    return merge(totaisNorm, resumo);
   }, [data, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
 
   // Base paginada (Lista Detalhada)
@@ -534,62 +479,34 @@ export default function PainelComprasPage() {
     !!filters.condicao_pagamento;
 
   const kpisGerencial = useMemo(() => {
-    // Quando há filtro gerencial (classificações client-side), o backend não
-    // conhece esses campos — recalculamos a partir de dadosFiltrados.
-    if (dashboard && !gerencialActive) {
-      const k = dashboard.kpis;
-      const topBackend = k.maior_fornecedor
-        ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
-        : null;
-      const topForn = topBackend ?? (() => {
-        const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
-          .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
-        return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
-      })();
-      return {
-        comprado: k.valor_comprado || 0,
-        pendente: k.valor_pendente || 0,
-        recebido: k.valor_recebido ?? null,
-        qtdOcs: k.quantidade_ocs || 0,
-        qtdItens: k.quantidade_itens || 0,
-        qtdFornecedores: k.quantidade_fornecedores || 0,
-        ticketMedio: k.ticket_medio_oc || 0,
-        itensPendentes: k.itens_pendentes ?? null,
-        itensAtrasados: k.itens_atrasados ?? null,
-        maiorAtrasoDias: k.maior_atraso_dias ?? null,
-        valorBruto: k.valor_bruto_total ?? null,
-        valorLiquido: k.valor_liquido_total ?? null,
-        maiorFornecedor: topForn,
-      };
-    }
-    if (!dadosFiltrados.length) return null;
-    const ocs = new Set<any>();
-    const fornecedores = new Set<any>();
-    let comprado = 0;
-    let pendente = 0;
-    const fornMap = new Map<string, number>();
-    dadosFiltrados.forEach((d: any) => {
-      ocs.add(d.numero_oc);
-      if (d.fantasia_fornecedor) fornecedores.add(d.fantasia_fornecedor);
-      const v = d.valor_liquido || 0;
-      comprado += v;
-      pendente += (d.saldo_pendente || 0) * (d.preco_unitario || 0);
-      const k = d.fantasia_fornecedor || '—';
-      fornMap.set(k, (fornMap.get(k) || 0) + v);
-    });
-    const recebido = (data as any)?.totais?.valor_recebido_total
-      ?? (data as any)?.resumo?.valor_recebido_total
-      ?? null;
-    const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
+    // KPIs vêm exclusivamente do agregado da API. Sem dashboard ou com filtro
+    // gerencial client-side ativo (que o backend não conhece), retornamos null.
+    if (!dashboard || gerencialActive) return null;
+    const k = dashboard.kpis;
+    const topBackend = k.maior_fornecedor
+      ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+      : null;
+    const topForn = topBackend ?? (() => {
+      const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
+        .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+      return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
+    })();
     return {
-      comprado, pendente, recebido,
-      qtdOcs: ocs.size, qtdItens: dadosFiltrados.length, qtdFornecedores: fornecedores.size,
-      ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
-      itensPendentes: null, itensAtrasados: null, maiorAtrasoDias: null,
-      valorBruto: null, valorLiquido: null,
-      maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
+      comprado: k.valor_comprado || 0,
+      pendente: k.valor_pendente || 0,
+      recebido: k.valor_recebido ?? null,
+      qtdOcs: k.quantidade_ocs || 0,
+      qtdItens: k.quantidade_itens || 0,
+      qtdFornecedores: k.quantidade_fornecedores || 0,
+      ticketMedio: k.ticket_medio_oc || 0,
+      itensPendentes: k.itens_pendentes ?? null,
+      itensAtrasados: k.itens_atrasados ?? null,
+      maiorAtrasoDias: k.maior_atraso_dias ?? null,
+      valorBruto: k.valor_bruto_total ?? null,
+      valorLiquido: k.valor_liquido_total ?? null,
+      maiorFornecedor: topForn,
     };
-  }, [dadosFiltrados, data, dashboard, gerencialActive]);
+  }, [dashboard, gerencialActive]);
 
   const gerencialCharts = useMemo(() => {
     if (dashboard && !gerencialActive) {
@@ -1087,13 +1004,14 @@ export default function PainelComprasPage() {
         <div className="px-1 text-xs text-muted-foreground">Carregando agregação completa para KPIs e drill-down…</div>
       )}
 
+      {data && !kpis && !dashboard && !loadingAgregado && (
+        <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          Atenção: o backend não retornou totais agregados — KPIs indisponíveis nesta consulta. Ajuste os filtros e tente novamente.
+        </div>
+      )}
+
       {data && kpis && (
         <>
-          {!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
-            <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
-              Atenção: o backend não retornou totais agregados. Os cards estão somando apenas a página atual ({data.dados.length} de {data.total_registros.toLocaleString('pt-BR')} registros). Selecione "Todos" no canto superior direito para ver os valores completos.
-            </div>
-          )}
 
           {kpisGerencial && (() => {
             const totalBase = kpisGerencial.comprado || 1;
