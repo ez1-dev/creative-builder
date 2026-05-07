@@ -1,80 +1,61 @@
-# Endpoint agregado de Notas Fiscais de Recebimento
+# Endpoint agregado do Painel de Compras
 
 ## Objetivo
-Eliminar o teto de 50.000 linhas e o aviso de amostragem nos KPIs/gráficos/drill da tela `Notas Fiscais de Recebimento`, passando o cálculo dos agregados para um novo endpoint FastAPI que roda no banco, sem paginação.
-
-A `Lista Detalhada` continua exatamente como está hoje (paginada por `/api/notas-recebimento`).
+Mesmo padrão aplicado em Notas Fiscais de Recebimento, agora para `/painel-compras`: KPIs/gráficos/drill passam a vir de um endpoint agregado real, sem paginação. A `Lista Detalhada` continua paginada por `/api/painel-compras`.
 
 ## Parte 1 — Backend FastAPI (fora deste repositório)
 
-Será entregue como especificação para o time do ERP através do documento `docs/backend-notas-recebimento-dashboard.md`. A implementação acontece no projeto FastAPI, não aqui.
+Especificação em `docs/backend-painel-compras-dashboard.md`.
 
-**Novo endpoint:** `GET /api/notas-recebimento-dashboard`
+**Novo endpoint:** `GET /api/painel-compras-dashboard`
 
-- Reaproveita exatamente a mesma query base e os mesmos filtros aceitos por `/api/notas-recebimento`.
-- **NÃO** usa `LIMIT`, `OFFSET`, `pagina` nem `tamanho_pagina`.
-- Filtros que devem afetar todos os cálculos: `tipo_despesa`, `projeto`, `centro_custo`, `fornecedor`, `transacao_nf`, `condicao_pagamento`, `data_emissao_ini/fim`, `data_recebimento_ini/fim`, `mes_competencia`, `numero_nf`, `serie_nf`, `numero_oc_origem`, `familia`, `origem`, `deposito`, `projeto_macro`, `valor_min/max`, `tipo_item`, `situacao_nf`.
-- Todos os KPIs, buckets de gráficos e linhas de drill são calculados via `GROUP BY` no SQL sobre o resultado filtrado completo.
+- Sem `pagina`, `tamanho_pagina`, `LIMIT`, `OFFSET`.
+- Reaproveita exatamente a mesma query base e filtros do `GET /api/painel-compras`.
+- Filtros: `fornecedor`, `numero_oc`, `codigo_item`, `descricao_item`, `centro_custo`, `numero_projeto`, `tipo_oc`, `transacao`, `data_emissao_ini/fim`, `data_entrega_ini/fim`, `tipo_item`, `valor_min/max`, `origem_material`, `familia`, `coddep`, `somente_pendentes`, `agrupar_por_fornecedor`, `situacao_oc` (CSV), `codigo_motivo_oc`, `observacao_oc`, `mostrar_valor_total_oc`, `projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`.
+- Todos os agregados via `GROUP BY`.
 
-**Formato da resposta:**
+**Resposta:**
 ```json
 {
   "kpis": {
-    "valor_recebido": 0,
-    "quantidade_nfs": 0,
-    "quantidade_itens": 0,
-    "quantidade_fornecedores": 0,
-    "valor_medio_nf": 0
+    "valor_comprado": 0, "valor_recebido": 0, "valor_pendente": 0,
+    "quantidade_ocs": 0, "quantidade_itens": 0, "quantidade_fornecedores": 0,
+    "ticket_medio_oc": 0, "percentual_recebido": 0
   },
   "graficos": {
-    "por_mes": [{ "mes": "2026-01", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }],
-    "por_tipo_despesa": [{ "tipo": "Matéria-prima", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }],
-    "por_centro_custo": [{ "centro_custo": "...", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }],
-    "por_projeto": [{ "projeto": "...", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }],
-    "por_fornecedor": [{ "fornecedor": "...", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }],
-    "por_transacao_nf": [{ "transacao": "...", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }]
+    "por_mes": [{ "mes": "2026-01", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
+    "por_tipo_despesa": [{ "tipo": "Matéria-prima", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
+    "por_centro_custo": [{ "centro_custo": "...", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
+    "por_projeto": [{ "numero_projeto": "...", "projeto": "...", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
+    "por_fornecedor": [{ "fornecedor": "...", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
+    "comprado_recebido_pendente": [{ "mes": "2026-01", "comprado": 0, "recebido": 0, "pendente": 0 }]
   },
-  "drill": [
-    { "projeto_macro": "Genius", "tipo_despesa": "Matéria-prima", "projeto": "...", "centro_custo": "...", "fornecedor": "...", "transacao": "...", "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }
-  ]
+  "drill": []
 }
 ```
 
-`quantidade_nfs` = `COUNT(DISTINCT numero_nf || serie_nf || fornecedor)`. `quantidade_itens` = `COUNT(*)` de itens.
+Definições: `valor_comprado=SUM(valor_liquido)`, `valor_recebido=SUM(valor_recebido)` (ou `SUM(qtd_recebida*preco_unitario)`), `valor_pendente=SUM(saldo_pendente*preco_unitario)`, `quantidade_ocs=COUNT(DISTINCT numero_oc)`, `ticket_medio_oc=valor_comprado/qtd_ocs`, `percentual_recebido=valor_recebido/valor_comprado*100`.
 
 ## Parte 2 — Documentação
 
-Criar `docs/backend-notas-recebimento-dashboard.md` com:
-- contrato acima
-- lista de filtros aceitos (idêntica a `/api/notas-recebimento`)
-- exemplos de SQL agregado por bucket
-- nota: endpoint **sem paginação**, usar `application/json` direto
+Criar `docs/backend-painel-compras-dashboard.md` com o contrato completo, lista de filtros e exemplos de SQL.
 
-## Parte 3 — Frontend (`src/pages/NotasRecebimentoPage.tsx`)
+## Parte 3 — Frontend (`src/pages/PainelComprasPage.tsx`)
 
-1. **Substituir o segundo request agregado** (hoje em `search()`, lines ~244-259) que chama `/api/notas-recebimento` com `tamanho_pagina=50000` por uma chamada a `/api/notas-recebimento-dashboard` (sem `pagina`/`tamanho_pagina`).
-2. Novo estado `dashboard` (tipo `NotasRecebimentoDashboardResponse`) substitui `dadosAgregados` para alimentar KPIs/gráficos/drill.
-3. KPIs passam a vir direto de `dashboard.kpis` — remover o cálculo client-side via `dados.reduce(...)`.
-4. Gráficos passam a usar `dashboard.graficos.*` — remover os `useMemo` que agrupam por mês/tipo/projeto/fornecedor/centro_custo/transacao client-side.
-5. Drill-down usa `dashboard.drill` no `<GenericDrillView>` (com fallback para `dados` caso o backend ainda não esteja deployado).
-6. **Remover `TAMANHO_AGREGADO = 50000`** e o estado `amostragemAtiva` + chip amarelo de aviso (lines ~302-303 e ~465).
-7. **Manter intacto**:
-   - `/api/notas-recebimento` paginado (alimenta `<DataTable data={dadosLista}>`).
-   - `exportParams` para o `<ExportButton>`.
-   - Filtros client-side (`filtroCliente`) para o caso do endpoint legado ainda em uso.
-8. **Compatibilidade graceful**: se a chamada ao novo endpoint falhar com 404, cair de volta no comportamento atual (segundo request paginado com `tamanho_pagina=50000`) e logar warning. Isso permite deploy do front antes do backend.
-9. Adicionar tipo em `src/lib/api.ts`:
-   ```ts
-   export interface NotasRecebimentoDashboardResponse {
-     kpis: { valor_recebido: number; quantidade_nfs: number; quantidade_itens: number; quantidade_fornecedores: number; valor_medio_nf: number };
-     graficos: { por_mes: any[]; por_tipo_despesa: any[]; por_centro_custo: any[]; por_projeto: any[]; por_fornecedor: any[]; por_transacao_nf: any[] };
-     drill: any[];
-   }
-   ```
+1. Adicionar tipo `PainelComprasDashboardResponse` em `src/lib/api.ts`.
+2. Em `search()`:
+   - Manter primeiro request a `/api/painel-compras` paginado (alimenta Lista Detalhada).
+   - Quando `page === 1`, chamar `/api/painel-compras-dashboard` (sem paginação).
+   - Em caso de erro/404, cair de volta para o request paginado com `tamanho_pagina=50000` (comportamento atual) e setar `usandoFallbackAgregado=true`.
+3. Adicionar estado `dashboard` substituindo o `dadosAgregados` como fonte preferencial de KPIs/gráficos/drill.
+4. Em `kpisGerencial` e `gerencialCharts`: preferir dados de `dashboard` quando disponível; manter cálculo client-side como fallback.
+5. Banner amarelo de amostragem só aparece em fallback (`usandoFallbackAgregado && totalAgregado > 50000`).
+6. Trocar página da tabela continua chamando só o endpoint paginado — KPIs/gráficos não recalculam.
+7. Trocar filtros + Pesquisar dispara os dois endpoints.
+8. `<DataTable>` continua usando `dadosListaFiltrados` (sem mudança).
+9. Drill-down: usa `dashboard.drill` quando presente; senão usa `dadosFiltrados` como hoje.
 
 ## Resultado
-- KPIs/gráficos/drill sempre refletem a base completa filtrada (sem teto de 50k, sem amostragem).
-- Lista Detalhada continua paginada e independente.
-- Trocar página da tabela não recalcula agregados.
-- Trocar filtro recalcula tudo via novo endpoint.
-- Frontend tolera backend ainda não atualizado (fallback transparente).
+- KPIs/gráficos/drill sempre na base completa filtrada (sem teto de 50k).
+- Lista Detalhada paginada e independente.
+- Fallback transparente enquanto o backend não atualiza.

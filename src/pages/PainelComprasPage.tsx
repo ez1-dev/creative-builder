@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { api, PainelComprasResponse } from '@/lib/api';
+import { api, PainelComprasResponse, PainelComprasDashboardResponse } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
@@ -119,6 +119,8 @@ export default function PainelComprasPage() {
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [dadosAgregados, setDadosAgregados] = useState<PainelComprasResponse | null>(null);
+  const [dashboard, setDashboard] = useState<PainelComprasDashboardResponse | null>(null);
+  const [usandoFallbackAgregado, setUsandoFallbackAgregado] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingAgregado, setLoadingAgregado] = useState(false);
   const TAMANHO_AGREGADO = 50000;
@@ -182,23 +184,49 @@ export default function PainelComprasPage() {
       setLoading(false);
     }
 
-    // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página e quando o tamanho atual for menor.
+    // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página.
+    // Tenta primeiro o endpoint dashboard real (sem paginação). Em caso de erro,
+    // cai de volta para o endpoint paginado com tamanho_pagina=TAMANHO_AGREGADO.
     const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
     const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
-    if (page === 1 && tamanhoNumerico < TAMANHO_AGREGADO) {
+    if (page === 1) {
       setLoadingAgregado(true);
       try {
-        const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
-        setDadosAgregados(aggregated);
+        const dash = await api.get<PainelComprasDashboardResponse>(
+          '/api/painel-compras-dashboard',
+          buildParams(1, 0),
+        );
+        setDashboard(dash);
+        setUsandoFallbackAgregado(false);
+        // Mantém o agregado paginado como apoio para drill detalhado e listas auxiliares.
+        if (tamanhoNumerico < TAMANHO_AGREGADO) {
+          try {
+            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+            setDadosAgregados(aggregated);
+          } catch {
+            setDadosAgregados(null);
+          }
+        } else {
+          setDadosAgregados(null);
+        }
       } catch (e: any) {
-        console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e?.message);
-        setDadosAgregados(null);
+        console.warn('Endpoint /api/painel-compras-dashboard indisponível, usando fallback paginado:', e?.message);
+        setDashboard(null);
+        setUsandoFallbackAgregado(true);
+        if (tamanhoNumerico < TAMANHO_AGREGADO) {
+          try {
+            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+            setDadosAgregados(aggregated);
+          } catch (e2: any) {
+            console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e2?.message);
+            setDadosAgregados(null);
+          }
+        } else {
+          setDadosAgregados(null);
+        }
       } finally {
         setLoadingAgregado(false);
       }
-    } else if (page === 1) {
-      // Quando o usuário pediu "todos" / tamanho >= teto, o próprio result já é a base completa.
-      setDadosAgregados(null);
     }
   }, [filters, erpReady, trackSearch, tamanhoPagina]);
 
@@ -479,9 +507,26 @@ export default function PainelComprasPage() {
   );
 
   const totalAgregadoCompras = dadosAgregados?.total_registros ?? 0;
-  const amostragemAtivaCompras = totalAgregadoCompras > TAMANHO_AGREGADO;
+  const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
+    // Quando o endpoint dashboard responder, usamos seus KPIs (base completa filtrada).
+    if (dashboard) {
+      const k = dashboard.kpis;
+      // Maior fornecedor: usa o topo de por_fornecedor (já agregado no backend).
+      const topForn = [...(dashboard.graficos?.por_fornecedor ?? [])]
+        .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+      return {
+        comprado: k.valor_comprado || 0,
+        pendente: k.valor_pendente || 0,
+        recebido: k.valor_recebido ?? null,
+        qtdOcs: k.quantidade_ocs || 0,
+        qtdItens: k.quantidade_itens || 0,
+        qtdFornecedores: k.quantidade_fornecedores || 0,
+        ticketMedio: k.ticket_medio_oc || 0,
+        maiorFornecedor: topForn ? { nome: topForn.fornecedor || '—', valor: topForn.valor || 0 } : null,
+      };
+    }
     if (!dadosFiltrados.length) return null;
     const ocs = new Set<any>();
     const fornecedores = new Set<any>();
@@ -507,9 +552,23 @@ export default function PainelComprasPage() {
       ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
     };
-  }, [dadosFiltrados, data]);
+  }, [dadosFiltrados, data, dashboard]);
 
   const gerencialCharts = useMemo(() => {
+    if (dashboard) {
+      const g = dashboard.graficos;
+      const map = (rows: any[] | undefined, labelKey: string) =>
+        (rows || []).map((r) => ({ label: String(r[labelKey] ?? '—'), valor: Number(r.valor || 0) }));
+      const porMes = map(g.por_mes, 'mes').sort((a, b) => a.label.localeCompare(b.label));
+      const porTipoDespesa = map(g.por_tipo_despesa, 'tipo').sort((a, b) => b.valor - a.valor);
+      const porCentroCusto = map(g.por_centro_custo, 'centro_custo').sort((a, b) => b.valor - a.valor).slice(0, 10);
+      const porProjeto = (g.por_projeto || [])
+        .map((r) => ({ label: String(r.projeto ?? r.numero_projeto ?? '—'), valor: Number(r.valor || 0) }))
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
+      if (!porMes.length && !porTipoDespesa.length && !porCentroCusto.length && !porProjeto.length) return null;
+      return { porMes, porTipoDespesa, porCentroCusto, porProjeto };
+    }
     if (!dadosFiltrados.length) return null;
     const agg = (key: string) => {
       const m = new Map<string, number>();
@@ -525,7 +584,7 @@ export default function PainelComprasPage() {
       porCentroCusto: agg('centro_custo').slice(0, 10),
       porProjeto: agg('numero_projeto').slice(0, 10),
     };
-  }, [dadosFiltrados]);
+  }, [dadosFiltrados, dashboard]);
 
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
