@@ -50,6 +50,7 @@ export function ApplyComponentDialog({
   // Preset on open
   useEffect(() => {
     if (!open || !def) return;
+    supabase.auth.getUser().then(({ data }) => setAuthed(!!data.user));
     const p = compatiblePages[0];
     if (p) {
       setPageKey(p.key);
