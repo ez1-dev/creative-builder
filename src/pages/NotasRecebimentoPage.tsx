@@ -192,6 +192,11 @@ export default function NotasRecebimentoPage() {
     setActiveTab('drill');
     setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }, []);
+  const openDrillRoot = useCallback(() => {
+    setDrillSeed(null);
+    setActiveTab('drill');
+    setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
 
   const erpReady = useErpReady();
 
