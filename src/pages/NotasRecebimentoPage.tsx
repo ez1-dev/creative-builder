@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { api, NotasRecebimentoResponse } from "@/lib/api";
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from "@/components/erp/PageHeader";
@@ -183,6 +183,15 @@ export default function NotasRecebimentoPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [activeTab, setActiveTab] = useState<'lista' | 'drill'>('lista');
+  const [drillSeed, setDrillSeed] = useState<{ nivel: string; chave: string; label: string; nonce: number } | null>(null);
+  const drillRef = useRef<HTMLDivElement>(null);
+  const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
+    if (chave == null || chave === '') return;
+    const ch = String(chave);
+    setDrillSeed({ nivel, chave: ch, label: label ?? ch, nonce: Date.now() });
+    setActiveTab('drill');
+    setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
 
   const erpReady = useErpReady();
 
@@ -285,13 +294,19 @@ export default function NotasRecebimentoPage() {
 
   const charts = useMemo(() => {
     if (!dados.length) return null;
-    const agg = (key: string) => {
-      const m = new Map<string, number>();
+    /** keyForChave: campo usado para abrir o drill; keyForLabel: campo exibido. */
+    const agg = (keyForChave: string, keyForLabel?: string) => {
+      const m = new Map<string, { label: string; valor: number }>();
       dados.forEach((d: any) => {
-        const k = String(d[key] ?? '—');
-        m.set(k, (m.get(k) || 0) + Number(d.valor_liquido || 0));
+        const chave = String(d[keyForChave] ?? '—');
+        const label = String((keyForLabel ? d[keyForLabel] : d[keyForChave]) ?? chave);
+        const cur = m.get(chave) || { label, valor: 0 };
+        cur.valor += Number(d.valor_liquido || 0);
+        m.set(chave, cur);
       });
-      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+      return [...m.entries()]
+        .map(([chave, v]) => ({ chave, label: v.label, valor: v.valor }))
+        .sort((a, b) => b.valor - a.valor);
     };
     const porMes = agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label));
     const mediaMes = porMes.length ? porMes.reduce((s, x) => s + x.valor, 0) / porMes.length : 0;
@@ -299,8 +314,8 @@ export default function NotasRecebimentoPage() {
       porMes, mediaMes,
       porTipoDespesa: agg('tipo_despesa_calc'),
       topFornecedores: agg('nome_fornecedor').slice(0, 10),
-      porCentroCusto: agg('descricao_centro_custo').slice(0, 10),
-      porProjeto: agg('nome_projeto').slice(0, 10),
+      porCentroCusto: agg('codigo_centro_custo', 'descricao_centro_custo').slice(0, 10),
+      porProjeto: agg('numero_projeto', 'nome_projeto').slice(0, 10),
       porTransacao: agg('transacao').slice(0, 10),
       totalFornecedores: new Set(dados.map((d: any) => d.nome_fornecedor || d.codigo_fornecedor).filter(Boolean)).size,
       totalProjetos: new Set(dados.map((d: any) => d.nome_projeto || d.numero_projeto).filter(Boolean)).size,
@@ -649,7 +664,7 @@ export default function NotasRecebimentoPage() {
                           contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }}
                         />
                         <ReferenceLine y={charts.mediaMes} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" label={{ value: `Média ${formatCurrency(charts.mediaMes)}`, fontSize: 10, fill: 'hsl(var(--muted-foreground))', position: 'insideTopRight' }} />
-                        <Bar dataKey="valor" fill="url(#grad-mes)" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="valor" fill="url(#grad-mes)" radius={[6, 6, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.chave ?? d?.label, d?.label)} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartCard>
@@ -666,7 +681,7 @@ export default function NotasRecebimentoPage() {
                   <div className="relative">
                     <ResponsiveContainer width="100%" height={280}>
                       <PieChart>
-                        <Pie data={charts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                        <Pie data={charts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} cursor="pointer" onClick={(d: any) => openDrill('tipo_despesa_calc', d?.chave ?? d?.label, d?.label)}>
                           {charts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                         <Tooltip
@@ -697,7 +712,7 @@ export default function NotasRecebimentoPage() {
                       <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="label" width={130} className="text-xs" tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
-                      <Bar dataKey="valor" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="valor" fill="hsl(var(--success))" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('nome_fornecedor', d?.chave ?? d?.label, d?.label)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -716,7 +731,7 @@ export default function NotasRecebimentoPage() {
                       <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="label" width={130} className="text-xs" tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
-                      <Bar dataKey="valor" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="valor" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('codigo_centro_custo', d?.chave, d?.label)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -735,7 +750,7 @@ export default function NotasRecebimentoPage() {
                       <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="label" width={130} className="text-xs" tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
-                      <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('numero_projeto', d?.chave, d?.label)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
@@ -755,7 +770,7 @@ export default function NotasRecebimentoPage() {
                         <XAxis dataKey="label" className="text-xs" tick={{ fontSize: 10 }} />
                         <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" tick={{ fontSize: 10 }} />
                         <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
-                        <Bar dataKey="valor" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} />
+                        <Bar dataKey="valor" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('transacao', d?.chave ?? d?.label, d?.label)} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartCard>
@@ -765,7 +780,7 @@ export default function NotasRecebimentoPage() {
           )}
 
           {/* ============ TABELA + DRILL ============ */}
-          <Card>
+          <Card ref={drillRef}>
             <CardHeader className="pb-2">
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'lista' | 'drill')}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -784,7 +799,7 @@ export default function NotasRecebimentoPage() {
                   )}
                 </TabsContent>
                 <TabsContent value="drill" className="mt-3 space-y-2">
-                  <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" />
+                  <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" seed={drillSeed} />
                 </TabsContent>
               </Tabs>
             </CardHeader>
