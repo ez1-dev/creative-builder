@@ -307,7 +307,7 @@ export function ApplyComponentDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
           <Button onClick={save} disabled={!canSave || saving}>
             <CheckCircle2 className="mr-1.5 h-4 w-4" />
-            {saving ? 'Salvando…' : 'Aplicar à página'}
+            {saving ? 'Salvando…' : (authed === false ? 'Faça login para aplicar' : 'Aplicar à página')}
           </Button>
         </DialogFooter>
       </DialogContent>
