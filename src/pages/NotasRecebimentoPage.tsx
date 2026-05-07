@@ -11,12 +11,21 @@ import { ComboboxFilter } from "@/components/erp/ComboboxFilter";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatNumber, formatCurrency, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { FileText, Package, Users, DollarSign, TrendingUp, Boxes } from "lucide-react";
+import { FileText, Package, Users, DollarSign, TrendingUp, Boxes, Link2, Unlink, Layers } from "lucide-react";
 import { useAiPageContext } from "@/hooks/useAiPageContext";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { enrichRow } from "@/lib/comprasClassificacao";
+import { GenericDrillView, DrillNivel, DrillMetric } from "@/components/erp/GenericDrillView";
+
+const COLORS = ['hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)', 'hsl(199,89%,48%)', 'hsl(280,60%,50%)', 'hsl(160,60%,40%)', 'hsl(30,80%,55%)'];
 
 const columns: Column<any>[] = [
+  { key: "projeto_macro", header: "Projeto Macro" },
+  { key: "tipo_despesa_calc", header: "Tipo de Despesa" },
+  { key: "mes_competencia_calc", header: "Mês" },
   { key: "numero_nf", header: "NF" },
   { key: "serie_nf", header: "Série" },
   {
@@ -38,6 +47,16 @@ const columns: Column<any>[] = [
   },
   { key: "codigo_fornecedor", header: "Cód. Fornecedor" },
   { key: "nome_fornecedor", header: "Fornecedor" },
+  {
+    key: "condicao_pagamento",
+    header: "Cond. Pagto",
+    render: (v: any, row: any) => {
+      const cod = v ?? '';
+      const desc = row?.descricao_condicao_pagamento ?? '';
+      if (!cod && !desc) return '-';
+      return desc ? `${cod} - ${desc}` : String(cod);
+    },
+  },
   { key: "data_emissao", header: "Emissão", render: (v) => formatDate(v) },
   { key: "data_recebimento", header: "Recebimento", render: (v) => formatDate(v) },
   { key: "tipo_item", header: "Tipo" },
@@ -62,7 +81,16 @@ const columns: Column<any>[] = [
   { key: "valor_pis", header: "PIS", align: "right", render: (v) => formatCurrency(v) },
   { key: "valor_cofins", header: "COFINS", align: "right", render: (v) => formatCurrency(v) },
   { key: "valor_iss", header: "ISS", align: "right", render: (v) => formatCurrency(v) },
-  { key: "numero_oc_origem", header: "OC Origem", render: (v) => (v && v !== 0 ? v : "-") },
+  {
+    key: "numero_oc_origem",
+    header: "OC Origem",
+    render: (v) => {
+      if (v && v !== 0) {
+        return <span className="inline-flex items-center gap-1 text-xs"><Link2 className="h-3 w-3 text-info" /> {v}</span>;
+      }
+      return <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Unlink className="h-3 w-3" /> Sem OC</span>;
+    },
+  },
 ];
 
 const initialFilters = {
@@ -84,13 +112,40 @@ const initialFilters = {
   valor_min: "",
   valor_max: "",
   situacao_nf: "",
+  // Novos filtros gerenciais
+  projeto_macro: "TODOS",
+  tipo_despesa: "TODOS",
+  mes_competencia: "",
+  condicao_pagamento: "",
+  familia: "",
 };
+
+const NIVEIS_DRILL: DrillNivel[] = [
+  { key: 'projeto_macro', label: 'Projeto Macro' },
+  { key: 'numero_projeto', label: 'Projeto' },
+  { key: 'codigo_centro_custo', label: 'Centro de Custo' },
+  { key: 'tipo_despesa_calc', label: 'Tipo de Despesa' },
+  { key: 'mes_competencia_calc', label: 'Mês' },
+  { key: 'nome_fornecedor', label: 'Fornecedor' },
+  { key: 'numero_nf', label: 'Nota Fiscal' },
+  { key: 'codigo_item', label: 'Item' },
+];
+
+const METRICS_DRILL: DrillMetric[] = [
+  { key: 'valor_recebido', label: 'Valor Recebido', format: 'currency', accessor: (r) => Number(r.valor_liquido || 0) },
+  {
+    key: 'qtd_nfs', label: 'Qtd NFs', format: 'number', accessor: () => 0,
+    distinctOf: (r) => `${r.codigo_empresa}|${r.codigo_filial}|${r.numero_nf}|${r.serie_nf}`,
+  },
+  { key: 'qtd_itens', label: 'Qtd Itens', format: 'number', accessor: () => 1 },
+];
 
 export default function NotasRecebimentoPage() {
   const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState<NotasRecebimentoResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [activeTab, setActiveTab] = useState<'lista' | 'drill'>('lista');
 
   const erpReady = useErpReady();
 
@@ -110,6 +165,11 @@ export default function NotasRecebimentoPage() {
         if (!params.numero_oc_origem) delete params.numero_oc_origem;
         if (!params.data_emissao_ini) delete params.data_emissao_ini;
         if (!params.data_emissao_fim) delete params.data_emissao_fim;
+        if (!params.projeto_macro || params.projeto_macro === "TODOS") delete params.projeto_macro;
+        if (!params.tipo_despesa || params.tipo_despesa === "TODOS") delete params.tipo_despesa;
+        if (!params.mes_competencia) delete params.mes_competencia;
+        if (!params.condicao_pagamento) delete params.condicao_pagamento;
+        if (!params.familia) delete params.familia;
         const result = await api.get<NotasRecebimentoResponse>("/api/notas-recebimento", params);
         setData(result);
         setPagina(page);
@@ -122,43 +182,96 @@ export default function NotasRecebimentoPage() {
     [filters, erpReady],
   );
 
+  // Apenas zera filtros — preserva o drill aberto e a lista atual.
   const clearFilters = () => {
     setFilters({ ...initialFilters });
-    setData(null);
-    setPagina(1);
   };
 
-  const dados = data?.dados || [];
+  const dadosBrutos = data?.dados || [];
 
-  // Opções extraídas dos dados carregados para ComboboxFilter
+  // Enriquecimento (projeto_macro / tipo_despesa_calc / mes_competencia_calc).
+  const dadosEnriquecidos = useMemo(() => dadosBrutos.map((d: any) => enrichRow(d)), [dadosBrutos]);
+
+  // Filtros gerenciais aplicados client-side.
+  const dados = useMemo(() => {
+    return dadosEnriquecidos.filter((d: any) => {
+      if (filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+      if (filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+      if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+      if (filters.condicao_pagamento) {
+        const q = filters.condicao_pagamento.toLowerCase();
+        const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+        const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+        if (!cp.includes(q) && !dcp.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
+
+  // Opções para Combobox (extraídas dos dados carregados).
   const transacaoOptions = useMemo(() => {
-    const unique = [...new Set(dados.map((d) => d.transacao).filter(Boolean))].sort();
+    const unique = [...new Set(dados.map((d: any) => d.transacao).filter(Boolean))].sort();
     return unique.map((v) => ({ value: String(v), label: String(v) }));
   }, [dados]);
 
   const depositoOptions = useMemo(() => {
-    const unique = [...new Set(dados.map((d) => d.deposito).filter(Boolean))].sort();
+    const unique = [...new Set(dados.map((d: any) => d.deposito).filter(Boolean))].sort();
     return unique.map((v) => ({ value: String(v), label: String(v) }));
   }, [dados]);
 
   const centroCustoOptions = useMemo(() => {
     const map = new Map<string, string>();
-    dados.forEach((d) => {
+    dados.forEach((d: any) => {
       if (d.codigo_centro_custo) {
         map.set(String(d.codigo_centro_custo), d.descricao_centro_custo || String(d.codigo_centro_custo));
       }
     });
-    return [...map.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([value, label]) => ({ value, label }));
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([value, label]) => ({ value, label }));
   }, [dados]);
 
-  const totalNfs = new Set(dados.map((d) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
-  const totalItens = dados.length;
-  const totalFornecedores = new Set(dados.map((d) => d.codigo_fornecedor)).size;
-  const valorLiquidoTotal = dados.reduce((acc, d) => acc + Number(d.valor_liquido || 0), 0);
-  const valorBrutoTotal = dados.reduce((acc, d) => acc + Number(d.valor_bruto || 0), 0);
-  const qtdRecebidaTotal = dados.reduce((acc, d) => acc + Number(d.quantidade_recebida || 0), 0);
+  // KPIs
+  const kpis = useMemo(() => {
+    const totalNfs = new Set(dados.map((d: any) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
+    const totalItens = dados.length;
+    const totalFornecedores = new Set(dados.map((d: any) => d.codigo_fornecedor).filter(Boolean)).size;
+    const valorRecebido = dados.reduce((acc: number, d: any) => acc + Number(d.valor_liquido || 0), 0);
+    const valorBruto = dados.reduce((acc: number, d: any) => acc + Number(d.valor_bruto || 0), 0);
+    const qtdRecebida = dados.reduce((acc: number, d: any) => acc + Number(d.quantidade_recebida || 0), 0);
+    const valorMedioNf = totalNfs > 0 ? valorRecebido / totalNfs : 0;
+
+    const fornMap = new Map<string, number>();
+    dados.forEach((d: any) => {
+      const k = d.nome_fornecedor || d.codigo_fornecedor || '—';
+      fornMap.set(k, (fornMap.get(k) || 0) + Number(d.valor_liquido || 0));
+    });
+    const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    const nfsComOc = new Set(dados.filter((d: any) => d.numero_oc_origem && d.numero_oc_origem !== 0).map((d: any) => `${d.numero_nf}|${d.serie_nf}`)).size;
+    const nfsSemOc = totalNfs - nfsComOc;
+
+    return { totalNfs, totalItens, totalFornecedores, valorRecebido, valorBruto, qtdRecebida, valorMedioNf, maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null, nfsComOc, nfsSemOc };
+  }, [dados]);
+
+  // Gráficos gerenciais
+  const charts = useMemo(() => {
+    if (!dados.length) return null;
+    const agg = (key: string) => {
+      const m = new Map<string, number>();
+      dados.forEach((d: any) => {
+        const k = String(d[key] ?? '—');
+        m.set(k, (m.get(k) || 0) + Number(d.valor_liquido || 0));
+      });
+      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+    };
+    return {
+      porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
+      porTipoDespesa: agg('tipo_despesa_calc'),
+      topFornecedores: agg('nome_fornecedor').slice(0, 10),
+      porCentroCusto: agg('descricao_centro_custo').slice(0, 10),
+      porProjeto: agg('nome_projeto').slice(0, 10),
+      porTransacao: agg('transacao').slice(0, 10),
+    };
+  }, [dados]);
 
   const set = (key: string, value: string) => setFilters((f) => ({ ...f, [key]: value }));
 
@@ -166,30 +279,80 @@ export default function NotasRecebimentoPage() {
     title: 'Notas Fiscais de Recebimento',
     filters,
     kpis: data ? {
-      'NFs distintas': totalNfs,
-      'Itens Recebidos': totalItens,
-      'Fornecedores': totalFornecedores,
-      'Valor Líquido': formatCurrency(valorLiquidoTotal),
-      'Valor Bruto': formatCurrency(valorBrutoTotal),
-      'Qtd. Recebida': formatNumber(qtdRecebidaTotal, 2),
+      'NFs distintas': kpis.totalNfs,
+      'Itens Recebidos': kpis.totalItens,
+      'Fornecedores': kpis.totalFornecedores,
+      'Total Recebido': formatCurrency(kpis.valorRecebido),
+      'Valor Bruto': formatCurrency(kpis.valorBruto),
+      'Valor Médio/NF': formatCurrency(kpis.valorMedioNf),
+      'NFs com OC': kpis.nfsComOc,
+      'NFs sem OC': kpis.nfsSemOc,
     } : undefined,
-    summary: data
-      ? `${data.total_registros} itens; página ${pagina}/${data.total_paginas}`
-      : undefined,
+    summary: data ? `${data.total_registros} itens; página ${pagina}/${data.total_paginas}` : undefined,
   });
 
+  // Params para export — incluem todos os filtros (limpos).
+  const exportParams = useMemo(() => {
+    const p: any = { ...filters };
+    if (p.valor_min) p.valor_min = parseFloat(p.valor_min); else delete p.valor_min;
+    if (p.valor_max) p.valor_max = parseFloat(p.valor_max); else delete p.valor_max;
+    if (!p.tipo_item || p.tipo_item === "TODOS") delete p.tipo_item;
+    if (!p.projeto_macro || p.projeto_macro === "TODOS") delete p.projeto_macro;
+    if (!p.tipo_despesa || p.tipo_despesa === "TODOS") delete p.tipo_despesa;
+    Object.keys(p).forEach((k) => { if (p[k] === '' || p[k] == null) delete p[k]; });
+    return p;
+  }, [filters]);
 
   return (
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
         title="Notas Fiscais de Recebimento"
-        description="Consulta analítica de NFs de entrada por item, projeto, centro de custo e transação"
-        actions={<ExportButton endpoint="/api/export/notas-recebimento" params={filters} />}
+        description="Dashboard gerencial de recebimentos por projeto, centro de custo, tipo de despesa e fornecedor"
+        actions={<ExportButton endpoint="/api/export/notas-recebimento" params={exportParams} />}
       />
 
       <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
-        {/* Linha 1 — Dados da Nota */}
+        {/* Filtros gerenciais */}
+        <div>
+          <Label className="text-xs">Projeto Macro</Label>
+          <Select value={filters.projeto_macro} onValueChange={(v) => set("projeto_macro", v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="Genius">Genius</SelectItem>
+              <SelectItem value="Estrutural">Estrutural</SelectItem>
+              <SelectItem value="Outros">Outros</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Tipo de Despesa</Label>
+          <Select value={filters.tipo_despesa} onValueChange={(v) => set("tipo_despesa", v)}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="Matéria-prima">Matéria-prima</SelectItem>
+              <SelectItem value="Uso e consumo">Uso e consumo</SelectItem>
+              <SelectItem value="Despesas gerais">Despesas gerais</SelectItem>
+              <SelectItem value="Serviços">Serviços</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Mês (YYYY-MM)</Label>
+          <Input value={filters.mes_competencia} onChange={(e) => set("mes_competencia", e.target.value)} placeholder="2026-05" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Cond. Pagamento</Label>
+          <Input value={filters.condicao_pagamento} onChange={(e) => set("condicao_pagamento", e.target.value)} placeholder="Código ou descrição" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Família</Label>
+          <Input value={filters.familia} onChange={(e) => set("familia", e.target.value)} placeholder="Código família" className="h-8 text-xs" />
+        </div>
+
+        {/* Filtros existentes — Dados da Nota */}
         <div>
           <Label className="text-xs">Número NF</Label>
           <Input value={filters.numero_nf} onChange={(e) => set("numero_nf", e.target.value)} placeholder="Ex: 12345" className="h-8 text-xs" />
@@ -223,8 +386,6 @@ export default function NotasRecebimentoPage() {
           <Label className="text-xs">OC Origem</Label>
           <Input value={filters.numero_oc_origem} onChange={(e) => set("numero_oc_origem", e.target.value)} placeholder="Nº da OC" className="h-8 text-xs" />
         </div>
-
-        {/* Linha 2 — Dados do Item */}
         <div>
           <Label className="text-xs">Código Item</Label>
           <Input value={filters.codigo_item} onChange={(e) => set("codigo_item", e.target.value)} placeholder="Ex: 001.0001" className="h-8 text-xs" />
@@ -252,8 +413,6 @@ export default function NotasRecebimentoPage() {
           <Label className="text-xs">Depósito</Label>
           <ComboboxFilter value={filters.deposito} onChange={(v) => set("deposito", v)} options={depositoOptions} placeholder="Código depósito" />
         </div>
-
-        {/* Linha 3 — Contexto */}
         <div>
           <Label className="text-xs">Centro de Custo</Label>
           <ComboboxFilter value={filters.centro_custo} onChange={(v) => set("centro_custo", v)} options={centroCustoOptions} placeholder="Centro de custo" />
@@ -274,8 +433,6 @@ export default function NotasRecebimentoPage() {
           <Label className="text-xs">Recebimento de</Label>
           <Input type="date" value={filters.data_recebimento_ini} onChange={(e) => set("data_recebimento_ini", e.target.value)} className="h-8 text-xs" />
         </div>
-
-        {/* Linha 4 — Complementares */}
         <div>
           <Label className="text-xs">Recebimento até</Label>
           <Input type="date" value={filters.data_recebimento_fim} onChange={(e) => set("data_recebimento_fim", e.target.value)} className="h-8 text-xs" />
@@ -292,20 +449,137 @@ export default function NotasRecebimentoPage() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <KPICard index={0} title="NFs" value={totalNfs} icon={<FileText className="h-5 w-5" />} tooltip="Notas fiscais distintas" />
-            <KPICard index={1} title="Itens Recebidos" value={totalItens} icon={<Package className="h-5 w-5" />} tooltip="Total de itens retornados" />
-            <KPICard index={2} title="Fornecedores" value={totalFornecedores} icon={<Users className="h-5 w-5" />} tooltip="Fornecedores distintos" />
-            <KPICard index={3} title="Valor Líquido" value={formatCurrency(valorLiquidoTotal)} variant="info" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma do valor líquido" />
-            <KPICard index={4} title="Valor Bruto" value={formatCurrency(valorBrutoTotal)} variant="default" icon={<TrendingUp className="h-5 w-5" />} tooltip="Soma do valor bruto" />
-            <KPICard index={5} title="Qtd. Recebida" value={formatNumber(qtdRecebidaTotal, 2)} variant="success" icon={<Boxes className="h-5 w-5" />} tooltip="Quantidade total recebida" />
+          {/* KPIs Gerenciais */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Visão Gerencial</h3>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+              <KPICard index={0} title="Total Recebido" value={formatCurrency(kpis.valorRecebido)} variant="info" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma do valor líquido das NFs filtradas" />
+              <KPICard index={1} title="Qtd NFs" value={kpis.totalNfs} icon={<FileText className="h-5 w-5" />} />
+              <KPICard index={2} title="Itens Recebidos" value={kpis.totalItens} icon={<Package className="h-5 w-5" />} />
+              <KPICard index={3} title="Fornecedores" value={kpis.totalFornecedores} icon={<Users className="h-5 w-5" />} />
+              <KPICard index={4} title="Valor Médio/NF" value={formatCurrency(kpis.valorMedioNf)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
+              <KPICard index={5} title="Maior Fornecedor" value={kpis.maiorFornecedor ? formatCurrency(kpis.maiorFornecedor.valor) : '--'} icon={<Layers className="h-5 w-5" />} tooltip={kpis.maiorFornecedor?.nome ?? ''} />
+              <KPICard index={6} title="NFs com OC" value={kpis.nfsComOc} variant="success" icon={<Link2 className="h-5 w-5" />} tooltip="NFs com Ordem de Compra vinculada" />
+              <KPICard index={7} title="NFs sem OC" value={kpis.nfsSemOc} variant="warning" icon={<Unlink className="h-5 w-5" />} tooltip="Recebimentos sem OC vinculada" />
+            </div>
           </div>
 
-          <DataTable columns={columns} data={dados} loading={loading} emptyMessage="Nenhuma nota fiscal encontrada." />
+          {/* KPIs operacionais (originais — preservados) */}
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores Operacionais</h3>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+              <KPICard index={0} title="NFs" value={kpis.totalNfs} icon={<FileText className="h-5 w-5" />} tooltip="Notas fiscais distintas" />
+              <KPICard index={1} title="Itens Recebidos" value={kpis.totalItens} icon={<Package className="h-5 w-5" />} />
+              <KPICard index={2} title="Fornecedores" value={kpis.totalFornecedores} icon={<Users className="h-5 w-5" />} />
+              <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valorRecebido)} variant="info" icon={<DollarSign className="h-5 w-5" />} />
+              <KPICard index={4} title="Valor Bruto" value={formatCurrency(kpis.valorBruto)} variant="default" icon={<TrendingUp className="h-5 w-5" />} />
+              <KPICard index={5} title="Qtd. Recebida" value={formatNumber(kpis.qtdRecebida, 2)} variant="success" icon={<Boxes className="h-5 w-5" />} />
+            </div>
+          </div>
 
-          {data.total_paginas > 1 && (
-            <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
+          {/* Gráficos */}
+          {charts && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Análise Gerencial</h3>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                {charts.porMes.length > 0 && (
+                  <div className="rounded-md border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-semibold">Recebimentos por Mês</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={charts.porMes}>
+                        <XAxis dataKey="label" className="text-xs" tick={{ fontSize: 10 }} />
+                        <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="valor" fill="hsl(215,70%,45%)" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {charts.porTipoDespesa.length > 0 && (
+                  <div className="rounded-md border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-semibold">Por Tipo de Despesa</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie data={charts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label>
+                          {charts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {charts.topFornecedores.length > 0 && (
+                  <div className="rounded-md border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-semibold">Top 10 Fornecedores</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={charts.topFornecedores} layout="vertical">
+                        <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <YAxis type="category" dataKey="label" width={120} className="text-xs" tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {charts.porCentroCusto.length > 0 && (
+                  <div className="rounded-md border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-semibold">Top 10 Centros de Custo</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={charts.porCentroCusto} layout="vertical">
+                        <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <YAxis type="category" dataKey="label" width={120} className="text-xs" tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="valor" fill="hsl(38,92%,50%)" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {charts.porProjeto.length > 0 && (
+                  <div className="rounded-md border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-semibold">Top 10 Projetos</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={charts.porProjeto} layout="vertical">
+                        <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <YAxis type="category" dataKey="label" width={120} className="text-xs" tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="valor" fill="hsl(280,60%,50%)" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                {charts.porTransacao.length > 0 && (
+                  <div className="rounded-md border bg-card p-4">
+                    <h3 className="mb-3 text-sm font-semibold">Por Transação NF</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={charts.porTransacao} layout="vertical">
+                        <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
+                        <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="valor" fill="hsl(199,89%,48%)" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
+
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'lista' | 'drill')}>
+            <TabsList>
+              <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
+              <TabsTrigger value="drill">Drill-down Gerencial</TabsTrigger>
+            </TabsList>
+            <TabsContent value="lista" className="space-y-2">
+              <DataTable columns={columns} data={dados} loading={loading} emptyMessage="Nenhuma nota fiscal encontrada para os filtros aplicados." />
+              {data.total_paginas > 1 && (
+                <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
+              )}
+            </TabsContent>
+            <TabsContent value="drill" className="space-y-2">
+              <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" />
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>
