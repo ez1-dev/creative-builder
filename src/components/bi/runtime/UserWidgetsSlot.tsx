@@ -48,6 +48,20 @@ export function UserWidgetsSlot({
       {items.map((w) => {
         const def = getComponent(w.component_id);
         if (!def) return null;
+        if (import.meta.env.DEV) {
+          for (const inp of def.inputs) {
+            const fk = w.mapping?.[inp.key];
+            if (!fk) continue;
+            const bag =
+              inp.source === 'kpis' ? ctx.kpis :
+              inp.source === 'series' ? ctx.series :
+              null;
+            if (bag && !(fk in bag)) {
+              // eslint-disable-next-line no-console
+              console.warn(`[BI] Widget "${w.title ?? def.label}" (${w.component_id}) refere-se a ${inp.source}.${fk} que não existe em PageDataContext da página "${ctx.pageKey}".`);
+            }
+          }
+        }
         return (
           <UserWidgetFrame key={w.id} id={w.id} span={w.span as 1 | 2 | 3 | 4} onChanged={refresh}>
             {def.render({
