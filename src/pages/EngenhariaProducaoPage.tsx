@@ -14,6 +14,9 @@ import { formatNumber, formatDate, formatPercent } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { KPICard } from '@/components/erp/KPICard';
+import { Package, Factory, Truck, Warehouse } from 'lucide-react';
+import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
 
 const statusColor = (s: string) => {
   switch (s) {
