@@ -31,11 +31,17 @@ GET /api/painel-compras-dashboard
     "valor_comprado": 0,
     "valor_recebido": 0,
     "valor_pendente": 0,
+    "valor_bruto_total": 0,
+    "valor_liquido_total": 0,
     "quantidade_ocs": 0,
     "quantidade_itens": 0,
     "quantidade_fornecedores": 0,
     "ticket_medio_oc": 0,
-    "percentual_recebido": 0
+    "percentual_recebido": 0,
+    "itens_pendentes": 0,
+    "itens_atrasados": 0,
+    "maior_atraso_dias": 0,
+    "maior_fornecedor": { "codigo": "", "nome": "", "valor": 0 }
   },
   "graficos": {
     "por_mes":                    [{ "mes": "2026-01", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
