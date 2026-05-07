@@ -320,6 +320,12 @@ export default function ContasPagarPage() {
     : 'Exportar Excel';
 
   return (
+    <PageDataProvider
+      pageKey="contas-pagar"
+      kpis={kpis ?? null}
+      rows={data?.dados ?? []}
+      filtros={filters}
+    >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
