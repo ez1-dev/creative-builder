@@ -421,9 +421,9 @@ export default function NotasRecebimentoPage() {
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="Genius">Genius</SelectItem>
-              <SelectItem value="Estrutural">Estrutural</SelectItem>
-              <SelectItem value="Outros">Outros</SelectItem>
+              <SelectItem value="GENIUS">Genius</SelectItem>
+              <SelectItem value="ESTRUTURAL ZORTEA">Estrutural Zortea</SelectItem>
+              <SelectItem value="OUTROS">Outros</SelectItem>
             </SelectContent>
           </Select>
         </div>
