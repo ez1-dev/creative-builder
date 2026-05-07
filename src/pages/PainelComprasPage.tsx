@@ -668,9 +668,9 @@ export default function PainelComprasPage() {
       <ErpConnectionAlert />
       <PageHeader
         title="Painel de Compras"
-        description="Dashboard e detalhamento de ordens de compra"
+        description="Compras por projeto, centro de custo, tipo de despesa, fornecedor e recebimento"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
               <Label className="whitespace-nowrap text-xs text-muted-foreground">Registros:</Label>
               <Select
@@ -696,11 +696,20 @@ export default function PainelComprasPage() {
                 </SelectContent>
               </Select>
             </div>
+            <Button size="sm" variant="outline" onClick={() => search(pagina)} disabled={loading}>
+              <RefreshCw className={`mr-1 h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button size="sm" variant="outline" onClick={clearFilters}>
+              <FilterIcon className="mr-1 h-3 w-3" /> Limpar filtros
+            </Button>
+            <Button size="sm" variant="outline" onClick={clearDrill} disabled={!drillSeed && clearDrillSignal === 0}>
+              <Eraser className="mr-1 h-3 w-3" /> Limpar drill
+            </Button>
             <ExportButton endpoint="/api/export/painel-compras" params={exportParams} />
           </div>
         }
       />
-      <FilterPanel onSearch={() => search(1)} onClear={clearFilters}>
+      <FilterPanel onSearch={() => search(1)} onClear={clearFilters} defaultOpen={!data}>
         <div><Label className="text-xs">Item</Label><Input value={filters.codigo_item} onChange={(e) => setFilters(f => ({ ...f, codigo_item: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Código Produto</Label><Input value={filters.codigo_produto} onChange={(e) => setFilters(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex: 001.001" /></div>
         <div><Label className="text-xs">Descrição Item</Label><Input value={filters.descricao_item} onChange={(e) => setFilters(f => ({ ...f, descricao_item: e.target.value }))} className="h-8 text-xs" /></div>
