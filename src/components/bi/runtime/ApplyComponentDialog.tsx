@@ -20,8 +20,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PAGE_REGISTRY, getPage, getSectionsForKind } from '@/lib/bi/pageRegistry';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { createUserWidget } from '@/hooks/useUserWidgets';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export function ApplyComponentDialog({
   open, onOpenChange, componentId,
