@@ -780,7 +780,7 @@ export default function NotasRecebimentoPage() {
           )}
 
           {/* ============ TABELA + DRILL ============ */}
-          <Card>
+          <Card ref={drillRef}>
             <CardHeader className="pb-2">
               <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'lista' | 'drill')}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
