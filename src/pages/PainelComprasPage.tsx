@@ -744,6 +744,39 @@ export default function PainelComprasPage() {
           <Checkbox id="mostrarValorTotalOc" checked={filters.mostrar_valor_total_oc} onCheckedChange={(v) => setFilters(f => ({ ...f, mostrar_valor_total_oc: !!v }))} />
           <Label htmlFor="mostrarValorTotalOc" className="text-xs">Mostrar valor total da OC</Label>
         </div>
+        <div>
+          <Label className="text-xs">Projeto Macro</Label>
+          <Select value={filters.projeto_macro} onValueChange={(v) => setFilters(f => ({ ...f, projeto_macro: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="Genius">Genius</SelectItem>
+              <SelectItem value="Estrutural">Estrutural</SelectItem>
+              <SelectItem value="Outros">Outros</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Tipo de Despesa</Label>
+          <Select value={filters.tipo_despesa} onValueChange={(v) => setFilters(f => ({ ...f, tipo_despesa: v }))}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos</SelectItem>
+              <SelectItem value="Matéria-prima">Matéria-prima</SelectItem>
+              <SelectItem value="Uso e consumo">Uso e consumo</SelectItem>
+              <SelectItem value="Despesas gerais">Despesas gerais</SelectItem>
+              <SelectItem value="Serviços">Serviços</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Mês (YYYY-MM)</Label>
+          <Input value={filters.mes_competencia} onChange={(e) => setFilters(f => ({ ...f, mes_competencia: e.target.value }))} placeholder="2026-05" className="h-8 text-xs" />
+        </div>
+        <div>
+          <Label className="text-xs">Cond. Pagamento</Label>
+          <Input value={filters.condicao_pagamento} onChange={(e) => setFilters(f => ({ ...f, condicao_pagamento: e.target.value }))} placeholder="Código ou descrição" className="h-8 text-xs" />
+        </div>
       </FilterPanel>
 
       {data && kpis && (
