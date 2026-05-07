@@ -441,27 +441,44 @@ export default function PainelComprasPage() {
     return merge(totaisNorm, resumo, fallback);
   }, [data, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
 
-  // Enriquecimento client-side: adiciona projeto_macro / tipo_despesa_calc / mes_competencia_calc.
-  const dadosEnriquecidos = useMemo(() => {
+  // Base paginada (Lista Detalhada)
+  const dadosEnriquecidosLista = useMemo(() => {
     if (!data?.dados?.length) return [] as any[];
     return data.dados.map((d: any) => enrichRow(d));
   }, [data]);
 
-  // Filtragem client-side adicional (caso o backend ainda não suporte os novos filtros).
-  const dadosFiltrados = useMemo(() => {
-    return dadosEnriquecidos.filter((d) => {
-      if (filters.projeto_macro && filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
-      if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
-      if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
-      if (filters.condicao_pagamento) {
-        const cp = String(d.condicao_pagamento ?? '').toLowerCase();
-        const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
-        const q = filters.condicao_pagamento.toLowerCase();
-        if (!cp.includes(q) && !dcp.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
+  // Base agregada (KPIs/gráficos/drill). Cai para a paginada se ainda não chegou.
+  const baseAgregadaBruta = dadosAgregados?.dados?.length ? dadosAgregados.dados : (data?.dados ?? []);
+  const dadosEnriquecidos = useMemo(
+    () => baseAgregadaBruta.map((d: any) => enrichRow(d)),
+    [baseAgregadaBruta],
+  );
+
+  const filtroCliente = (d: any) => {
+    if (filters.projeto_macro && filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+    if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+    if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+    if (filters.condicao_pagamento) {
+      const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+      const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+      const q = filters.condicao_pagamento.toLowerCase();
+      if (!cp.includes(q) && !dcp.includes(q)) return false;
+    }
+    return true;
+  };
+
+  const dadosFiltrados = useMemo(
+    () => dadosEnriquecidos.filter(filtroCliente),
+    [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento],
+  );
+
+  const dadosListaFiltrados = useMemo(
+    () => dadosEnriquecidosLista.filter(filtroCliente),
+    [dadosEnriquecidosLista, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento],
+  );
+
+  const totalAgregadoCompras = dadosAgregados?.total_registros ?? 0;
+  const amostragemAtivaCompras = totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
     if (!dadosFiltrados.length) return null;
