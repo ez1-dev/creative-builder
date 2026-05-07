@@ -1040,19 +1040,33 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )
           ) : (() => {
             const hasActions = !readOnly && (onEdit || onDelete);
-            const baseCols = agruparColab ? 6 : 7; // Data, [Colab?], C.Custo, Motivo da Viagem, O→D, Tipo, Valor
+            // Colunas: Data, [Colab?], C.Custo, Projeto/Obra, Fornecedor, Cia, Bilhete, Localizador,
+            // Origem, Destino, UF, Data Ida, Data Volta, Motivo, Tipo, Valor
+            const baseCols = agruparColab ? 15 : 16;
             const totalCols = baseCols + (hasActions ? 1 : 0);
+            const cellCls = "whitespace-nowrap text-xs px-2 py-1.5";
+            const headCls = "whitespace-nowrap text-xs px-2";
             return (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  {!agruparColab && <TableHead>Colaborador</TableHead>}
-                  <TableHead>C. Custo</TableHead>
-                  <TableHead>Motivo da Viagem</TableHead>
-                  <TableHead>Origem → Destino</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className={headCls}>Data</TableHead>
+                  {!agruparColab && <TableHead className={headCls}>Colaborador</TableHead>}
+                  <TableHead className={headCls}>C. Custo</TableHead>
+                  <TableHead className={headCls}>Projeto / Obra</TableHead>
+                  <TableHead className={headCls}>Fornecedor</TableHead>
+                  <TableHead className={headCls}>Cia Aérea</TableHead>
+                  <TableHead className={headCls}>Nº Bilhete</TableHead>
+                  <TableHead className={headCls}>Localizador</TableHead>
+                  <TableHead className={headCls}>Origem</TableHead>
+                  <TableHead className={headCls}>Destino</TableHead>
+                  <TableHead className={headCls}>UF</TableHead>
+                  <TableHead className={headCls}>Data Ida</TableHead>
+                  <TableHead className={headCls}>Data Volta</TableHead>
+                  <TableHead className={headCls}>Motivo da Viagem</TableHead>
+                  <TableHead className={headCls}>Tipo</TableHead>
+                  <TableHead className={`${headCls} text-right`}>Valor</TableHead>
                   {hasActions && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -1082,12 +1096,21 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         </TableRow>
                         {aberto && g.registros.map((r) => (
                           <TableRow key={r.id} className="bg-background border-l-2 border-l-muted">
-                            <TableCell>{formatDate(r.data_registro)}</TableCell>
-                            <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                            <TableCell>{r.motivo_viagem ?? '-'}</TableCell>
-                            <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                            <TableCell>{r.tipo_despesa}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(r.valor)}</TableCell>
+                            <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
+                            <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.numero_bilhete ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.localizador ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
+                            <TableCell className={cellCls}>{formatDate(r.data_volta)}</TableCell>
+                            <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
+                            <TableCell className={cellCls}>{r.tipo_despesa}</TableCell>
+                            <TableCell className={`${cellCls} text-right`}>{formatCurrency(r.valor)}</TableCell>
                             {hasActions && (
                               <TableCell>
                                 <div className="flex gap-1">
@@ -1103,13 +1126,22 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   })
                 ) : pagedRows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>{formatDate(r.data_registro)}</TableCell>
-                    <TableCell className="font-medium">{r.colaborador}</TableCell>
-                    <TableCell>{r.centro_custo ?? '-'}</TableCell>
-                    <TableCell>{r.motivo_viagem ?? '-'}</TableCell>
-                    <TableCell>{r.origem ?? '-'} → {r.destino ?? '-'}</TableCell>
-                    <TableCell>{r.tipo_despesa}</TableCell>
-                    <TableCell className="text-right font-medium">{formatCurrency(r.valor)}</TableCell>
+                    <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
+                    <TableCell className={`${cellCls} font-medium`}>{r.colaborador}</TableCell>
+                    <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.numero_bilhete ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.localizador ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
+                    <TableCell className={cellCls}>{formatDate(r.data_volta)}</TableCell>
+                    <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
+                    <TableCell className={cellCls}>{r.tipo_despesa}</TableCell>
+                    <TableCell className={`${cellCls} text-right font-medium`}>{formatCurrency(r.valor)}</TableCell>
                     {!readOnly && (onEdit || onDelete) && (
                       <TableCell>
                         <div className="flex gap-1">
@@ -1133,6 +1165,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 </TableFooter>
               )}
             </Table>
+            </div>
             );
           })()}
           {!agruparColab && displayRows.length > 0 && (
