@@ -479,62 +479,34 @@ export default function PainelComprasPage() {
     !!filters.condicao_pagamento;
 
   const kpisGerencial = useMemo(() => {
-    // Quando há filtro gerencial (classificações client-side), o backend não
-    // conhece esses campos — recalculamos a partir de dadosFiltrados.
-    if (dashboard && !gerencialActive) {
-      const k = dashboard.kpis;
-      const topBackend = k.maior_fornecedor
-        ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
-        : null;
-      const topForn = topBackend ?? (() => {
-        const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
-          .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
-        return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
-      })();
-      return {
-        comprado: k.valor_comprado || 0,
-        pendente: k.valor_pendente || 0,
-        recebido: k.valor_recebido ?? null,
-        qtdOcs: k.quantidade_ocs || 0,
-        qtdItens: k.quantidade_itens || 0,
-        qtdFornecedores: k.quantidade_fornecedores || 0,
-        ticketMedio: k.ticket_medio_oc || 0,
-        itensPendentes: k.itens_pendentes ?? null,
-        itensAtrasados: k.itens_atrasados ?? null,
-        maiorAtrasoDias: k.maior_atraso_dias ?? null,
-        valorBruto: k.valor_bruto_total ?? null,
-        valorLiquido: k.valor_liquido_total ?? null,
-        maiorFornecedor: topForn,
-      };
-    }
-    if (!dadosFiltrados.length) return null;
-    const ocs = new Set<any>();
-    const fornecedores = new Set<any>();
-    let comprado = 0;
-    let pendente = 0;
-    const fornMap = new Map<string, number>();
-    dadosFiltrados.forEach((d: any) => {
-      ocs.add(d.numero_oc);
-      if (d.fantasia_fornecedor) fornecedores.add(d.fantasia_fornecedor);
-      const v = d.valor_liquido || 0;
-      comprado += v;
-      pendente += (d.saldo_pendente || 0) * (d.preco_unitario || 0);
-      const k = d.fantasia_fornecedor || '—';
-      fornMap.set(k, (fornMap.get(k) || 0) + v);
-    });
-    const recebido = (data as any)?.totais?.valor_recebido_total
-      ?? (data as any)?.resumo?.valor_recebido_total
-      ?? null;
-    const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
+    // KPIs vêm exclusivamente do agregado da API. Sem dashboard ou com filtro
+    // gerencial client-side ativo (que o backend não conhece), retornamos null.
+    if (!dashboard || gerencialActive) return null;
+    const k = dashboard.kpis;
+    const topBackend = k.maior_fornecedor
+      ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+      : null;
+    const topForn = topBackend ?? (() => {
+      const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
+        .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+      return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
+    })();
     return {
-      comprado, pendente, recebido,
-      qtdOcs: ocs.size, qtdItens: dadosFiltrados.length, qtdFornecedores: fornecedores.size,
-      ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
-      itensPendentes: null, itensAtrasados: null, maiorAtrasoDias: null,
-      valorBruto: null, valorLiquido: null,
-      maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
+      comprado: k.valor_comprado || 0,
+      pendente: k.valor_pendente || 0,
+      recebido: k.valor_recebido ?? null,
+      qtdOcs: k.quantidade_ocs || 0,
+      qtdItens: k.quantidade_itens || 0,
+      qtdFornecedores: k.quantidade_fornecedores || 0,
+      ticketMedio: k.ticket_medio_oc || 0,
+      itensPendentes: k.itens_pendentes ?? null,
+      itensAtrasados: k.itens_atrasados ?? null,
+      maiorAtrasoDias: k.maior_atraso_dias ?? null,
+      valorBruto: k.valor_bruto_total ?? null,
+      valorLiquido: k.valor_liquido_total ?? null,
+      maiorFornecedor: topForn,
     };
-  }, [dadosFiltrados, data, dashboard, gerencialActive]);
+  }, [dashboard, gerencialActive]);
 
   const gerencialCharts = useMemo(() => {
     if (dashboard && !gerencialActive) {
