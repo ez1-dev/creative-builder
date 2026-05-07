@@ -987,7 +987,7 @@ export default function PainelComprasPage() {
                           <XAxis dataKey="periodo_entrega" className="text-xs" tick={{ fontSize: 10 }} />
                           <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="valor_pendente_total" fill="hsl(38,92%,50%)" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(d: any) => openDrill('mes_competencia_calc', d?.periodo_entrega, d?.periodo_entrega)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
