@@ -56,6 +56,51 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_user_widgets: {
+        Row: {
+          component_id: string
+          created_at: string
+          id: string
+          mapping: Json
+          options: Json
+          ordem: number
+          page_key: string
+          section: string
+          span: number
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          component_id: string
+          created_at?: string
+          id?: string
+          mapping?: Json
+          options?: Json
+          ordem?: number
+          page_key: string
+          section: string
+          span?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          component_id?: string
+          created_at?: string
+          id?: string
+          mapping?: Json
+          options?: Json
+          ordem?: number
+          page_key?: string
+          section?: string
+          span?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       colaboradores_catalogo: {
         Row: {
           ativo: boolean
