@@ -235,7 +235,23 @@ export default function BiComponentsDemoPage() {
         <CatalogSidebar active={active} onJump={jumpTo} />
 
         <div className="flex-1 space-y-10 min-w-0">
-          {/* ===== LAYOUT ===== */}
+          {/* ===== AI SUGGESTER ===== */}
+          <ComponentSuggester onJumpToSection={jumpTo} />
+
+          {/* ===== DASHBOARD PRONTO ===== */}
+          <section id="dashboard-pronto" className="scroll-mt-4 space-y-3">
+            <DashboardSection title="Dashboard Pronto — Gestão de Compras" icon={<Sparkles className="h-4 w-4" />}>
+              <p className="text-[11px] text-muted-foreground">
+                Exemplo completo de composição: filtros + KPIs + ComboChart + Donut + Mapa do Brasil + Ranking + Treemap + DrillDown.
+                Importe <code className="text-primary">ComprasDashboardTemplate</code> da lib <code className="text-primary">@/components/bi</code>.
+              </p>
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <ComprasDashboardTemplate />
+              </div>
+            </DashboardSection>
+          </section>
+
+
           <section id="layout" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Layout & estrutura" icon={<LayoutDashboard className="h-4 w-4" />}>
               <DemoBlock name="DashboardTabs" description="Navegação entre visões dentro de uma página">
