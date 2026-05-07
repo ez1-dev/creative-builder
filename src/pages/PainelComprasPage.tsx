@@ -1115,7 +1115,7 @@ export default function PainelComprasPage() {
 
           <TabsContent value="drill" className="space-y-2">
             <div ref={drillRef}>
-              <PainelDrillView dados={dadosFiltrados} seed={drillSeed} />
+              <PainelDrillView dados={dadosFiltrados} seed={drillSeed} clearSignal={clearDrillSignal} />
             </div>
           </TabsContent>
 
