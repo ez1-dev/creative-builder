@@ -40,11 +40,24 @@ GET /api/notas-recebimento-dashboard
 ```json
 {
   "kpis": {
-    "valor_recebido": 0,
     "quantidade_nfs": 0,
     "quantidade_itens": 0,
     "quantidade_fornecedores": 0,
-    "valor_medio_nf": 0
+    "valor_recebido": 0,
+    "valor_liquido_total": 0,
+    "valor_bruto_total": 0,
+    "quantidade_recebida_total": 0,
+    "valor_medio_nf": 0,
+    "nfs_com_oc": 0,
+    "nfs_sem_oc": 0,
+    "pct_com_oc": 0,
+    "pct_sem_oc": 0,
+    "maior_fornecedor": { "codigo": "", "nome": "", "valor": 0 },
+    "total_produtos": 0,
+    "total_servicos": 0,
+    "total_digitadas": 0,
+    "total_fechadas": 0,
+    "total_canceladas": 0
   },
   "graficos": {
     "por_mes":            [{ "mes": "2026-01",     "valor": 0, "qtd_nfs": 0, "qtd_itens": 0 }],
