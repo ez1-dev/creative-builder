@@ -1,66 +1,59 @@
 
-## Contexto
+## Objetivo
 
-Os endpoints `/api/painel-compras` e `/api/painel-compras-dashboard` ficam no **backend FastAPI externo** (via ngrok), fora deste repositório. A correção definitiva — fazer o dashboard aplicar os mesmos filtros e a mesma derivação de `tipo_despesa` que a lista — precisa ser feita pelo time do backend.
+Permitir que **qualquer componente** da Biblioteca BI (KPIs, gráficos, mapas, árvores, tabelas) seja aplicado em **qualquer página** do sistema, não apenas nas 7 páginas hoje cadastradas em `pageRegistry.ts`.
 
-O que está sob nosso controle aqui:
+## Diagnóstico
 
-1. **Especificar com precisão** o contrato esperado em `docs/backend-painel-compras-dashboard.md`, incluindo as regras de derivação de `tipo_despesa` / `projeto_macro` que hoje vivem só no frontend (`src/lib/comprasClassificacao.ts`).
-2. **Voltar a enviar** `tipo_despesa`, `projeto_macro`, `mes_competencia` e `condicao_pagamento` para os dois endpoints (atualmente o front está removendo esses campos do payload como workaround).
-3. **Manter o fallback client-side** já implementado em `kpisGerencial` / `gerencialCharts` / `kpis` enquanto o backend não publicar a versão nova — assim, se o backend ainda não conhecer o filtro, recalculamos localmente a partir de `dadosFiltrados` e os cards continuam corretos.
+Hoje o `ApplyComponentDialog` filtra `compatiblePages = PAGE_REGISTRY.filter(...)`. Páginas não listadas (ex.: `Estoque`, `Conciliação EDocs`, `BOM`, `Onde Usa`, `Engenharia Produção`, `Sugestão Min/Max`, `Auditoria Tributária`, `Contas Receber`, `Compras / Custos do Produto`, `Número de Série`, e as sub-páginas de Produção) simplesmente não aparecem como destino. Além disso, mesmo as páginas listadas só aceitam widgets que casem com o `schema` declarado.
 
 ## Plano
 
-### 1. `docs/backend-painel-compras-dashboard.md` — especificação para o backend
+### 1. Catálogo único de páginas alvo
 
-Substituir a nota atual ("esses filtros são client-side") por uma seção **CRÍTICA** exigindo paridade lista x dashboard, e documentar:
+Em vez de manter um `PAGE_REGISTRY` curto + um `screenCatalog.ts` separado, gerar a lista de páginas alvo a partir de uma fonte única:
 
-- Tabela de chaves canônicas vs labels aceitos para `tipo_despesa`:
-  - `MATERIA_PRIMA` ↔ Matéria-prima (aceitar variações com/sem acento, hífen, underscore, caixa).
-  - `USO_CONSUMO` ↔ Uso e consumo.
-  - `DESPESAS_GERAIS` ↔ Despesas gerais.
-  - `SERVICOS` ↔ Serviços.
-- Regras de derivação server-side de `tipo_despesa_calc` (mesma lógica de `getTipoDespesa`):
-  1. Se ERP já tem `tipo_despesa` → normaliza.
-  2. `tipo_item ∈ {SERVICO,S}` → `SERVICOS`.
-  3. `descricao_item` contém EPI/FERRAMENTA/MANUTEN/CONSUMO/etc. → `USO_CONSUMO`.
-  4. `origem_material`/`codigo_familia`/`descricao_item` contém ACO/AÇO/CHAPA/PERFIL/etc. → `MATERIA_PRIMA`.
-  5. default → `DESPESAS_GERAIS`.
-- Regras de `projeto_macro` (mesma lógica de `getProjetoMacro`): `numero_projeto >= 600` → ESTRUTURAL ZORTEA; origens {110…250} → GENIUS; etc.
-- `mes_competencia`: filtro por `SUBSTRING(COALESCE(mes_competencia,data_emissao,data_recebimento),1,7) = :mes`.
-- `condicao_pagamento`: casa (case-insensitive contains) contra código OU descrição.
-- `somente_pendentes=true` → `WHERE saldo_pendente > 0` em **ambos** os endpoints.
-- Exigência: a coluna calculada `tipo_despesa_calc` deve ser materializada na CTE base, para que tanto o `WHERE` quanto os `GROUP BY` (`por_tipo_despesa`) usem a mesma classificação.
+- Manter as 7 entradas atuais com schema rico (continuam suportando auto-mapeamento de campos conhecidos).
+- Adicionar entradas **genéricas** para todas as demais páginas listadas em `src/pages/` (incluindo `producao/*`).
+- Cada entrada genérica declara as 3 seções padrão (`kpis`, `charts`, `tables`) aceitando todos os `WidgetKind`, e schema vazio (mapeamento manual / livre).
 
-### 2. `src/pages/PainelComprasPage.tsx` — voltar a enviar os filtros
+### 2. Schema livre quando a página não publica dados
 
-Em `buildParams()` (linhas 170-176), substituir o bloco que **deleta** os campos por um bloco que apenas remove valores vazios/sentinelas, igual aos demais filtros:
+No `ApplyComponentDialog`, quando o `page.schema` estiver vazio:
+- Permitir **digitar livremente** o nome do campo (input texto em vez de Select), pois o usuário pode passar qualquer chave que a página vier a publicar no futuro.
+- Mostrar aviso "esta página ainda não publica dados; o widget será renderizado em branco até que dados sejam expostos via `PageDataProvider`".
 
-```ts
-if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
-if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
-if (!params.mes_competencia) delete params.mes_competencia;
-if (!params.condicao_pagamento) delete params.condicao_pagamento;
+### 3. `<PageDataProvider>` + `<UserWidgetsSlot>` em todas as páginas
+
+Adicionar a infraestrutura mínima em cada página que ainda não tem:
+
+- `EstoquePage`, `ConciliacaoEdocsPage`, `BomPage`, `OndeUsaPage`, `EngenhariaProducaoPage`, `SugestaoMinMaxPage`, `AuditoriaTributariaPage`, `ContasReceberPage`, `ComprasProdutoPage`, `NumeroSeriePage`, `DemonstrativoComprasRecebimentosPage`, `AuditoriaApontamentoGeniusPage`.
+- Sub-páginas de produção: `ExpedidoObraPage`, `LeadTimeProducaoPage`, `NaoCarregadosPage`, `ProduzidoPeriodoPage`, `RelatorioSemanalObraPage`, `SaldoPatioPage`.
+
+Cada página recebe:
+```tsx
+<PageDataProvider value={{ pageKey: '<key>', kpis, series, rows }}>
+  ...conteúdo...
+  <UserWidgetsSlot section="kpis"  cols={4} />
+  <UserWidgetsSlot section="charts" cols={3} />
+  <UserWidgetsSlot section="tables" cols={2} />
+</PageDataProvider>
 ```
 
-Assim o backend novo (com a especificação acima implementada) passa a receber o filtro e devolver agregados consistentes com a lista.
+Quando a página não tiver `kpis`/`series` óbvios, passa `{}` mesmo — o widget renderiza vazio mas o slot existe.
 
-### 3. Manter o fallback client-side (sem mudanças)
+### 4. Compatibilidade
 
-`kpisGerencial`, `gerencialCharts` e o useMemo `kpis` já recalculam localmente quando `gerencialActive` é true. Esse caminho continua funcionando como **rede de segurança**: enquanto o backend não publicar a versão nova, o frontend ainda mostra os números certos somando `dadosFiltrados`.
-
-Quando o backend implementar a especificação, esse fallback simplesmente deixa de ser exercitado (porque `dashboard.kpis` já virá filtrado corretamente) — não precisa remover nada.
-
-### 4. Comunicação ao time de backend
-
-Sinalizar ao time que a doc atualizada em `docs/backend-painel-compras-dashboard.md` agora exige paridade lista x dashboard e que devem implementar a derivação `tipo_despesa_calc` na CTE base.
+- Páginas já registradas mantêm schemas atuais (auto-map continua funcionando).
+- Filtro `compatiblePages` no diálogo deixa de filtrar — todas as páginas aparecem.
+- Permissões por tela (`profile_screens`) continuam controlando quem vê o quê.
 
 ## Arquivos afetados
 
-- `docs/backend-painel-compras-dashboard.md` (especificação completa)
-- `src/pages/PainelComprasPage.tsx` (reativa envio de `tipo_despesa` / `projeto_macro` / `mes_competencia` / `condicao_pagamento`)
+- `src/lib/bi/pageRegistry.ts` — adicionar entradas genéricas para ~18 páginas.
+- `src/components/bi/runtime/ApplyComponentDialog.tsx` — input livre quando schema vazio; remover filtro de compatibilidade restrito.
+- `src/pages/*` (~12 páginas) e `src/pages/producao/*` (~6 páginas) — adicionar `PageDataProvider` + 3 `UserWidgetsSlot`.
 
 ## Resultado esperado
 
-- **Hoje (antes do backend atualizar):** cards e gráficos continuam corretos via fallback client-side (já em vigor).
-- **Depois do backend atualizar:** mesmos cards e gráficos passam a vir do agregado server-side, sem amostragem e sem teto de 50k linhas, refletindo 100% da base filtrada — exatamente o comportamento que você descreveu.
+No `/biblioteca-bi`, ao clicar em "Aplicar este componente" em **qualquer** card, o seletor de página mostra **todas** as telas do sistema. Após salvar, o widget aparece na página escolhida (com dados reais quando a página publicar via `PageDataProvider`, ou em branco aguardando mapeamento manual/dados futuros).
