@@ -235,6 +235,28 @@ export interface PainelComprasResponse extends PaginatedResponse<any> {
   };
 }
 
+export interface PainelComprasDashboardResponse {
+  kpis: {
+    valor_comprado: number;
+    valor_recebido: number;
+    valor_pendente: number;
+    quantidade_ocs: number;
+    quantidade_itens: number;
+    quantidade_fornecedores: number;
+    ticket_medio_oc: number;
+    percentual_recebido: number;
+  };
+  graficos: {
+    por_mes: Array<{ mes: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
+    por_tipo_despesa: Array<{ tipo: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
+    por_centro_custo: Array<{ centro_custo: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
+    por_projeto: Array<{ numero_projeto?: string; projeto?: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
+    por_fornecedor: Array<{ fornecedor: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
+    comprado_recebido_pendente: Array<{ mes: string; comprado: number; recebido: number; pendente: number }>;
+  };
+  drill: any[];
+}
+
 
 export interface BomResponse {
   cabecalho: {
