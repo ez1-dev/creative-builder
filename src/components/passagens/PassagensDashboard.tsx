@@ -1124,15 +1124,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.numero_bilhete ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.localizador ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
-                    <TableCell className={cellCls}>{formatDate(r.data_volta)}</TableCell>
                     <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.tipo_despesa}</TableCell>
                     <TableCell className={`${cellCls} text-right font-medium`}>{formatCurrency(r.valor)}</TableCell>
                     {!readOnly && (onEdit || onDelete) && (
                       <TableCell>
