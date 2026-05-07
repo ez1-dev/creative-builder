@@ -136,11 +136,21 @@ export function ApplyComponentDialog({
         </DialogHeader>
 
         {authed === false && (
-          <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <div>
-              Você não está autenticado. <a href="/login" className="underline font-semibold">Faça login</a> para aplicar componentes.
+          <div className="flex items-start justify-between gap-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 text-sm">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-destructive" />
+              <div className="text-destructive">
+                <div className="font-semibold">Você precisa estar autenticado</div>
+                <div className="text-xs opacity-90">Para aplicar componentes em páginas, faça login primeiro.</div>
+              </div>
             </div>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => { window.location.href = `/login?redirect=${encodeURIComponent('/biblioteca-bi')}`; }}
+            >
+              Entrar agora
+            </Button>
           </div>
         )}
 
