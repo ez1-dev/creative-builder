@@ -972,6 +972,7 @@ export default function FaturamentoGeniusPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </PageDataProvider>
   );
 }
 
