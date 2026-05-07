@@ -45,6 +45,7 @@ export function ApplyComponentDialog({
   const [ordem, setOrdem] = useState<number>(0);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [authed, setAuthed] = useState<boolean | null>(null);
 
   // Preset on open
   useEffect(() => {
