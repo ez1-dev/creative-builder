@@ -117,7 +117,10 @@ export default function PainelComprasPage() {
     projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
+  const [dadosAgregados, setDadosAgregados] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingAgregado, setLoadingAgregado] = useState(false);
+  const TAMANHO_AGREGADO = 50000;
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
