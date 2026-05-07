@@ -1267,7 +1267,7 @@ export default function PainelComprasPage() {
                 Exibindo todos os {data.total_registros.toLocaleString('pt-BR')} registros do filtro — paginação desativada.
               </div>
             )}
-            <DataTable columns={columns} data={dadosFiltrados} loading={loading} />
+            <DataTable columns={columns} data={dadosListaFiltrados} loading={loading} />
             {tamanhoPagina !== 'todos' && (
               <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
             )}
