@@ -188,9 +188,27 @@ export default function PainelComprasPage() {
   }, [filters.mostrar_valor_total_oc]);
 
   const chartData = useMemo(() => {
-    if (data?.graficos) return data.graficos;
+    const gerencialActive =
+      (filters.projeto_macro && filters.projeto_macro !== 'TODOS') ||
+      (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') ||
+      !!filters.mes_competencia ||
+      !!filters.condicao_pagamento;
+    if (data?.graficos && !gerencialActive) return data.graficos;
     if (!data?.dados?.length) return null;
-    const dados = data.dados;
+    const dados = gerencialActive
+      ? data.dados.map((d: any) => enrichRow(d)).filter((d: any) => {
+          if (filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+          if (filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+          if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+          if (filters.condicao_pagamento) {
+            const q = filters.condicao_pagamento.toLowerCase();
+            const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+            const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+            if (!cp.includes(q) && !dcp.includes(q)) return false;
+          }
+          return true;
+        })
+      : data.dados;
 
     // Top Fornecedores by valor_liquido
     const fornMap = new Map<string, number>();
