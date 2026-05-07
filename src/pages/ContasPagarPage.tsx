@@ -26,6 +26,8 @@ import {
   TrendingUp, Calendar, Receipt, CreditCard, Landmark,
 } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 /* ─── Status helpers ─── */
 const statusLabel: Record<string, string> = {
