@@ -78,6 +78,9 @@ export default function EngenhariaProducaoPage() {
 
   const erpReady = useErpReady();
 
+  const [resumo, setResumo] = useState<ResumoGerencial | null>(null);
+  const [resumoIndisponivel, setResumoIndisponivel] = useState(false);
+
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
@@ -85,6 +88,11 @@ export default function EngenhariaProducaoPage() {
       const result = await api.get<PaginatedResponse<any>>('/api/producao/engenharia-x-producao', { ...filters, pagina: page, tamanho_pagina: 100 });
       setData(result);
       setPagina(page);
+      if (page === 1) {
+        const r = extrairResumo(result);
+        setResumo(r);
+        setResumoIndisponivel(!r);
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -98,6 +106,13 @@ export default function EngenhariaProducaoPage() {
     title: 'Engenharia x Produção',
     module: 'engenharia-producao',
     filters,
+    kpis: resumo ? {
+      'Total Registros': formatNumber(resumo.total_registros, 0),
+      'Kg Previsto': formatNumber(resumo.kg_engenharia, 1),
+      'Kg Produzido': formatNumber(resumo.kg_produzido, 1),
+      'Kg Expedido': formatNumber(resumo.kg_expedido, 1),
+      'Kg Pátio': formatNumber(resumo.kg_patio, 1),
+    } : undefined,
     summary: data
       ? `${data.total_registros} projetos comparados; página ${pagina}/${data.total_paginas}`
       : undefined,
@@ -106,6 +121,7 @@ export default function EngenhariaProducaoPage() {
   const clearFilters = () => {
     setFilters({ numero_projeto: '', numero_desenho: '', revisao: '', cliente: '', cidade: '' });
     setData(null); setPagina(1);
+    setResumo(null); setResumoIndisponivel(false);
   };
 
   return (
@@ -123,6 +139,23 @@ export default function EngenhariaProducaoPage() {
         <div><Label className="text-xs">Cliente</Label><Input value={filters.cliente} onChange={(e) => setFilters(f => ({ ...f, cliente: e.target.value }))} className="h-8 text-xs" /></div>
         <div><Label className="text-xs">Cidade</Label><Input value={filters.cidade} onChange={(e) => setFilters(f => ({ ...f, cidade: e.target.value }))} className="h-8 text-xs" /></div>
       </FilterPanel>
+
+      {data && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página`} icon={<Package className="h-5 w-5" />} index={0} />
+            <KPICard title="Kg Previsto" value={resumo ? `${formatNumber(resumo.kg_engenharia, 1)} Kg` : '—'} subtitle="Total geral do filtro" icon={<Factory className="h-5 w-5" />} variant="info" index={1} />
+            <KPICard title="Kg Produzido" value={resumo ? `${formatNumber(resumo.kg_produzido, 1)} Kg` : '—'} subtitle="Total geral do filtro" icon={<Factory className="h-5 w-5" />} variant="success" index={2} />
+            <KPICard title="Kg Expedido" value={resumo ? `${formatNumber(resumo.kg_expedido, 1)} Kg` : '—'} subtitle="Total geral do filtro" icon={<Truck className="h-5 w-5" />} variant="success" index={3} />
+            <KPICard title="Kg Pátio" value={resumo ? `${formatNumber(resumo.kg_patio, 1)} Kg` : '—'} subtitle="Total geral do filtro" icon={<Warehouse className="h-5 w-5" />} variant="warning" index={4} />
+          </div>
+          {resumoIndisponivel && (
+            <p className="text-xs text-muted-foreground italic">
+              Resumo gerencial indisponível neste endpoint — atualize o backend para retornar <code>resumo</code> global (totais sem paginação).
+            </p>
+          )}
+        </>
+      )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
