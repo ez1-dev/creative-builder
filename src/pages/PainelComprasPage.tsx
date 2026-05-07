@@ -79,9 +79,21 @@ const baseColumns: Column<any>[] = [
   { key: 'percentual_desconto', header: '% Desc.', align: 'right', render: (v) => v ? `${formatNumber(v, 2)}%` : '-' },
   { key: 'valor_desconto_total', header: 'Vlr. Desconto', align: 'right' as const, render: (v: any) => formatCurrency(v) },
   { key: 'valor_liquido', header: 'Vlr. Líquido', align: 'right', render: (v) => formatCurrency(v) },
-  { key: 'situacao_oc', header: 'Situação', render: (v) => situacaoLabel(v) },
-  { key: 'numero_nf', header: 'Nº NF', render: (v: any) => v || '-' },
-  { key: 'dias_atraso', header: 'Dias Atraso', align: 'right', render: (v) => v > 0 ? <span className="text-destructive font-semibold">{v}</span> : '-' },
+  { key: 'situacao_oc', header: 'Situação', render: (v) => {
+    const s = String(v ?? '');
+    const label = situacaoLabel(v);
+    let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'secondary';
+    let extra = '';
+    if (s === '4') { variant = 'default'; extra = 'bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] hover:bg-[hsl(var(--success))]'; }
+    else if (s === '1' || s === '2') { variant = 'default'; extra = 'bg-[hsl(var(--info))] text-[hsl(var(--info-foreground))] hover:bg-[hsl(var(--info))]'; }
+    else if (s === '3') { variant = 'default'; extra = 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))] hover:bg-[hsl(var(--warning))]'; }
+    else if (s === '5') { variant = 'destructive'; }
+    return <Badge variant={variant} className={extra}>{label}</Badge>;
+  } },
+  { key: 'numero_nf', header: 'NF', render: (v: any) => v
+    ? <Badge variant="outline" className="gap-1 border-[hsl(var(--success))]/40 text-[hsl(var(--success))]"><Link2 className="h-3 w-3" />{v}</Badge>
+    : <Badge variant="outline" className="gap-1 border-[hsl(var(--warning))]/40 text-[hsl(var(--warning))]"><Unlink className="h-3 w-3" />sem NF</Badge> },
+  { key: 'dias_atraso', header: 'Dias Atraso', align: 'right', render: (v) => v > 0 ? <Badge variant="destructive">{v}</Badge> : '-' },
 ];
 
 export default function PainelComprasPage() {
