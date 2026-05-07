@@ -119,6 +119,10 @@ export default function PainelComprasPage() {
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
       if (!params.observacao_oc) delete params.observacao_oc;
+      if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
+      if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
+      if (!params.mes_competencia) delete params.mes_competencia;
+      if (!params.condicao_pagamento) delete params.condicao_pagamento;
       const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
 
 
