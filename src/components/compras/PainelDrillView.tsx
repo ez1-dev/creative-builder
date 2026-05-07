@@ -31,11 +31,18 @@ export type PainelDrillSeed = { nivel: Nivel; chave: string; label: string; nonc
 interface Props {
   dados: any[];
   seed?: PainelDrillSeed;
+  clearSignal?: number;
 }
 
-export function PainelDrillView({ dados, seed }: Props) {
+export function PainelDrillView({ dados, seed, clearSignal }: Props) {
   const [stack, setStack] = useState<Step[]>([]);
   const lastSeedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (clearSignal == null) return;
+    setStack([]);
+    lastSeedRef.current = null;
+  }, [clearSignal]);
 
   useEffect(() => {
     if (!seed) return;
