@@ -510,6 +510,23 @@ export default function PainelComprasPage() {
   const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
+    // Quando o endpoint dashboard responder, usamos seus KPIs (base completa filtrada).
+    if (dashboard) {
+      const k = dashboard.kpis;
+      // Maior fornecedor: usa o topo de por_fornecedor (já agregado no backend).
+      const topForn = [...(dashboard.graficos?.por_fornecedor ?? [])]
+        .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+      return {
+        comprado: k.valor_comprado || 0,
+        pendente: k.valor_pendente || 0,
+        recebido: k.valor_recebido ?? null,
+        qtdOcs: k.quantidade_ocs || 0,
+        qtdItens: k.quantidade_itens || 0,
+        qtdFornecedores: k.quantidade_fornecedores || 0,
+        ticketMedio: k.ticket_medio_oc || 0,
+        maiorFornecedor: topForn ? { nome: topForn.fornecedor || '—', valor: topForn.valor || 0 } : null,
+      };
+    }
     if (!dadosFiltrados.length) return null;
     const ocs = new Set<any>();
     const fornecedores = new Set<any>();
@@ -535,9 +552,23 @@ export default function PainelComprasPage() {
       ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
     };
-  }, [dadosFiltrados, data]);
+  }, [dadosFiltrados, data, dashboard]);
 
   const gerencialCharts = useMemo(() => {
+    if (dashboard) {
+      const g = dashboard.graficos;
+      const map = (rows: any[] | undefined, labelKey: string) =>
+        (rows || []).map((r) => ({ label: String(r[labelKey] ?? '—'), valor: Number(r.valor || 0) }));
+      const porMes = map(g.por_mes, 'mes').sort((a, b) => a.label.localeCompare(b.label));
+      const porTipoDespesa = map(g.por_tipo_despesa, 'tipo').sort((a, b) => b.valor - a.valor);
+      const porCentroCusto = map(g.por_centro_custo, 'centro_custo').sort((a, b) => b.valor - a.valor).slice(0, 10);
+      const porProjeto = (g.por_projeto || [])
+        .map((r) => ({ label: String(r.projeto ?? r.numero_projeto ?? '—'), valor: Number(r.valor || 0) }))
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
+      if (!porMes.length && !porTipoDespesa.length && !porCentroCusto.length && !porProjeto.length) return null;
+      return { porMes, porTipoDespesa, porCentroCusto, porProjeto };
+    }
     if (!dadosFiltrados.length) return null;
     const agg = (key: string) => {
       const m = new Map<string, number>();
@@ -553,7 +584,7 @@ export default function PainelComprasPage() {
       porCentroCusto: agg('centro_custo').slice(0, 10),
       porProjeto: agg('numero_projeto').slice(0, 10),
     };
-  }, [dadosFiltrados]);
+  }, [dadosFiltrados, dashboard]);
 
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
