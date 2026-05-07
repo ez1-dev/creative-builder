@@ -252,6 +252,9 @@ export default function BiComponentsDemoPage() {
         <CatalogSidebar active={active} onJump={jumpTo} />
 
         <div className="flex-1 space-y-10 min-w-0">
+          {/* ===== MEUS WIDGETS APLICADOS ===== */}
+          <MyWidgetsPanel />
+
           {/* ===== AI SUGGESTER ===== */}
           <ComponentSuggester onJumpToSection={jumpTo} />
 
