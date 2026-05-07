@@ -64,7 +64,9 @@ export function AppSidebar() {
 
   const isProducaoActive = location.pathname.startsWith('/producao');
 
+  const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi']);
   const isVisible = (url: string) => {
+    if (ALWAYS_VISIBLE.has(url)) return true;
     if (loading) return false;
     if (!hasPermissions) return true;
     return canView(url);
