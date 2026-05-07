@@ -46,13 +46,14 @@ export default function EstoquePage() {
   useAiFilters('estoque', setFilters, () => search(1));
   const trackSearch = useSearchTracking('estoque');
 
-  const search = useCallback(async (page = 1) => {
+  const search = useCallback(async (page = 1, sizeOverride?: PageSize) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const { situacao, ...rest } = filters;
-      const tp = pageSize === 'todos' ? 100000 : pageSize;
-      const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...rest, situacao_cadastro: situacao, pagina: pageSize === 'todos' ? 1 : page, tamanho_pagina: tp });
+      const size = sizeOverride ?? pageSize;
+      const tp = size === 'todos' ? 100000 : size;
+      const result = await api.get<PaginatedResponse<any>>('/api/estoque', { ...rest, situacao_cadastro: situacao, pagina: size === 'todos' ? 1 : page, tamanho_pagina: tp });
       setData(result);
       setPagina(page);
       if (page === 1) trackSearch(filters, result?.total_registros);
@@ -112,7 +113,7 @@ export default function EstoquePage() {
         </div>
       )}
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} pageSize={pageSize} onPageSizeChange={(s) => { setPageSize(s); if (s === 'todos') toast.info('Carregando todos os registros — pode levar alguns segundos.'); setTimeout(() => search(1), 0); }} />}      <BiAutoSlots pageKey="estoque" />
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} pageSize={pageSize} onPageSizeChange={(s) => { setPageSize(s); if (s === 'todos') toast.info('Carregando todos os registros — pode levar alguns segundos.'); search(1, s); }} />}      <BiAutoSlots pageKey="estoque" />
     </div>
   );
 }
