@@ -119,6 +119,14 @@ export function ApplyComponentDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {authed === false && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                Você não está autenticado. <a href="/login" className="underline font-semibold">Faça login</a> para aplicar componentes às páginas.
+              </div>
+            </div>
+          )}
           {/* Página */}
           <div className="space-y-1">
             <Label className="text-xs">Página alvo</Label>
