@@ -441,6 +441,10 @@ export default function PainelComprasPage() {
     if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
     if (!p.codigo_motivo_oc || p.codigo_motivo_oc === 'TODOS') delete p.codigo_motivo_oc;
     if (!p.observacao_oc) delete p.observacao_oc;
+    if (!p.projeto_macro || p.projeto_macro === 'TODOS') delete p.projeto_macro;
+    if (!p.tipo_despesa || p.tipo_despesa === 'TODOS') delete p.tipo_despesa;
+    if (!p.mes_competencia) delete p.mes_competencia;
+    if (!p.condicao_pagamento) delete p.condicao_pagamento;
     return p;
   }, [filters]);
 
