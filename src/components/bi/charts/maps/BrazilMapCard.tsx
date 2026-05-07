@@ -42,8 +42,9 @@ export function BrazilMapCard({ data, valueFormatter = (v) => String(v), geoUrl 
             <Geographies geography={geo}>
               {({ geographies }: any) =>
                 geographies.map((g: any) => {
-                  const uf = g.properties?.sigla || g.properties?.SIGLA_UF || g.properties?.UF || '';
-                  const item = map.get(String(uf).toUpperCase());
+                  const code = String(g.properties?.codarea ?? g.properties?.sigla ?? '');
+                  const uf = UF_BY_CODE[code] ?? code;
+                  const item = map.get(uf.toUpperCase());
                   const intensity = item ? item.valor / max : 0;
                   return (
                     <Geography
