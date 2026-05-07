@@ -398,66 +398,13 @@ export default function PainelComprasPage() {
       (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') ||
       !!filters.mes_competencia ||
       !!filters.condicao_pagamento;
-    // Quando há filtro gerencial, ignoramos `totais`/`resumo` do backend (não conhecem esses filtros).
-    const totais = gerencialActive ? undefined : ((data as any)?.totais as Record<string, any> | undefined);
-    const resumo = gerencialActive ? undefined : ((data as any)?.resumo as Record<string, any> | undefined);
+    // Quando há filtro gerencial client-side, o backend agregado não conhece
+    // esses recortes — não exibimos KPIs detalhados parciais.
+    if (gerencialActive) return null;
 
-    // Fallback client-side. Quando filtro gerencial está ativo, soma sobre dadosFiltrados.
-    let fallback: Record<string, any> | null = null;
-    const baseDados: any[] = gerencialActive
-      ? (Array.isArray((globalThis as any).__nope) ? [] : [])
-      : (Array.isArray(data.dados) ? data.dados : []);
-    // Use dadosFiltrados via closure (definido depois? não — dadosFiltrados está fora deste useMemo).
-    // Para evitar dependência circular, recomputamos rapidamente aqui:
-    const dadosParaFallback = gerencialActive
-      ? data.dados.map((d: any) => enrichRow(d)).filter((d: any) => {
-          if (filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
-          if (filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
-          if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
-          if (filters.condicao_pagamento) {
-            const q = filters.condicao_pagamento.toLowerCase();
-            const cp = String(d.condicao_pagamento ?? '').toLowerCase();
-            const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
-            if (!cp.includes(q) && !dcp.includes(q)) return false;
-          }
-          return true;
-        })
-      : baseDados;
-    if (dadosParaFallback.length > 0) {
-      const dados = dadosParaFallback;
-      const uniqueOcs = new Set(dados.map((d: any) => d.numero_oc));
-      const uniqueFornecedores = new Set(dados.map((d: any) => d.fantasia_fornecedor).filter(Boolean));
-      const valorBruto = dados.reduce((s: number, d: any) => s + (d.valor_bruto || d.quantidade_pedida * d.preco_unitario || 0), 0);
-      const valorLiquido = dados.reduce((s: number, d: any) => s + (d.valor_liquido || 0), 0);
-      const valorDesconto = dados.reduce((s: number, d: any) => s + (d.valor_desconto_total || 0), 0);
-      const valorPendente = dados.reduce((s: number, d: any) => s + ((d.saldo_pendente || 0) * (d.preco_unitario || 0)), 0);
-      const itensPendentes = dados.filter((d: any) => (d.saldo_pendente || 0) > 0).length;
-      const itensAtrasados = dados.filter((d: any) => (d.dias_atraso || 0) > 0).length;
-      const ocsAtrasadas = new Set(dados.filter((d: any) => (d.dias_atraso || 0) > 0).map((d: any) => d.numero_oc)).size;
-      const maiorAtraso = Math.max(0, ...dados.map((d: any) => d.dias_atraso || 0));
-      const itensProduto = dados.filter((d: any) => d.tipo_item === 'PRODUTO' || d.tipo_item === 'P').length;
-      const itensServico = dados.filter((d: any) => d.tipo_item === 'SERVICO' || d.tipo_item === 'S').length;
-      const totalLinhas = dados.length;
-      fallback = {
-        total_ocs: uniqueOcs.size,
-        valor_bruto_total: valorBruto,
-        valor_liquido_total: valorLiquido,
-        valor_desconto_total: valorDesconto,
-        total_fornecedores: uniqueFornecedores.size,
-        valor_pendente_total: valorPendente,
-        itens_pendentes: itensPendentes,
-        itens_atrasados: itensAtrasados,
-        ocs_atrasadas: ocsAtrasadas,
-        maior_atraso_dias: maiorAtraso,
-        ticket_medio_item: totalLinhas > 0 ? valorLiquido / totalLinhas : 0,
-        impostos_totais: dados.reduce((s: number, d: any) => s + (d.impostos || 0), 0),
-        total_linhas: totalLinhas,
-        itens_produto: itensProduto,
-        itens_servico: itensServico,
-      };
-    }
-
-    if (!totais && !resumo && !fallback) return null;
+    const totais = (data as any)?.totais as Record<string, any> | undefined;
+    const resumo = (data as any)?.resumo as Record<string, any> | undefined;
+    if (!totais && !resumo) return null;
 
     // Normaliza aliases do backend para o schema esperado pelos cards.
     const totaisNorm: Record<string, any> = { ...(totais ?? {}) };
@@ -471,9 +418,7 @@ export default function PainelComprasPage() {
       totaisNorm.valor_liquido_total = totais.valor_total;
     }
 
-    // Merge por prioridade: totais > resumo > fallback.
-    // Só preenche se ainda não houver valor — campos ausentes em `totais`
-    // caem para `resumo`/fallback em vez de ficarem vazios nos cards.
+    // Merge por prioridade: totais > resumo. KPIs vêm exclusivamente do agregado da API.
     const merge = (...sources: (Record<string, any> | null | undefined)[]) => {
       const out: Record<string, any> = {};
       for (const src of sources) {
@@ -485,7 +430,7 @@ export default function PainelComprasPage() {
       return out;
     };
 
-    return merge(totaisNorm, resumo, fallback);
+    return merge(totaisNorm, resumo);
   }, [data, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
 
   // Base paginada (Lista Detalhada)
