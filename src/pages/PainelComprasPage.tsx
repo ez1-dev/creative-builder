@@ -612,7 +612,7 @@ export default function PainelComprasPage() {
       porCentroCusto: agg('centro_custo').slice(0, 10),
       porProjeto: agg('numero_projeto').slice(0, 10),
     };
-  }, [dadosFiltrados, dashboard]);
+  }, [dadosFiltrados, dashboard, gerencialActive]);
 
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
