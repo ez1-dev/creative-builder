@@ -580,10 +580,10 @@ export default function PainelComprasPage() {
       valorBruto: null, valorLiquido: null,
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
     };
-  }, [dadosFiltrados, data, dashboard]);
+  }, [dadosFiltrados, data, dashboard, gerencialActive]);
 
   const gerencialCharts = useMemo(() => {
-    if (dashboard) {
+    if (dashboard && !gerencialActive) {
       const g = dashboard.graficos;
       const map = (rows: any[] | undefined, labelKey: string) =>
         (rows || []).map((r) => ({ label: String(r[labelKey] ?? '—'), valor: Number(r.valor || 0) }));
