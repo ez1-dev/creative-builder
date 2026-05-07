@@ -268,7 +268,7 @@ export default function DemonstrativoComprasRecebimentosPage() {
             <SelectContent>
               <SelectItem value="TODOS">Todos</SelectItem>
               <SelectItem value="GENIUS">Genius</SelectItem>
-              <SelectItem value="ESTRUTURAL">Estrutural</SelectItem>
+              <SelectItem value="ESTRUTURAL ZORTEA">Estrutural Zortea</SelectItem>
               <SelectItem value="OUTROS">Outros</SelectItem>
             </SelectContent>
           </Select>
