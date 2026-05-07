@@ -334,6 +334,74 @@ export default function PainelComprasPage() {
     return merge(totaisNorm, resumo, fallback);
   }, [data]);
 
+  // Enriquecimento client-side: adiciona projeto_macro / tipo_despesa_calc / mes_competencia_calc.
+  const dadosEnriquecidos = useMemo(() => {
+    if (!data?.dados?.length) return [] as any[];
+    return data.dados.map((d: any) => enrichRow(d));
+  }, [data]);
+
+  // Filtragem client-side adicional (caso o backend ainda não suporte os novos filtros).
+  const dadosFiltrados = useMemo(() => {
+    return dadosEnriquecidos.filter((d) => {
+      if (filters.projeto_macro && filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+      if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+      if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+      if (filters.condicao_pagamento) {
+        const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+        const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+        const q = filters.condicao_pagamento.toLowerCase();
+        if (!cp.includes(q) && !dcp.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
+
+  const kpisGerencial = useMemo(() => {
+    if (!dadosFiltrados.length) return null;
+    const ocs = new Set<any>();
+    const fornecedores = new Set<any>();
+    let comprado = 0;
+    let pendente = 0;
+    const fornMap = new Map<string, number>();
+    dadosFiltrados.forEach((d: any) => {
+      ocs.add(d.numero_oc);
+      if (d.fantasia_fornecedor) fornecedores.add(d.fantasia_fornecedor);
+      const v = d.valor_liquido || 0;
+      comprado += v;
+      pendente += (d.saldo_pendente || 0) * (d.preco_unitario || 0);
+      const k = d.fantasia_fornecedor || '—';
+      fornMap.set(k, (fornMap.get(k) || 0) + v);
+    });
+    const recebido = (data as any)?.totais?.valor_recebido_total
+      ?? (data as any)?.resumo?.valor_recebido_total
+      ?? null;
+    const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
+    return {
+      comprado, pendente, recebido,
+      qtdOcs: ocs.size, qtdItens: dadosFiltrados.length, qtdFornecedores: fornecedores.size,
+      ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
+      maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
+    };
+  }, [dadosFiltrados, data]);
+
+  const gerencialCharts = useMemo(() => {
+    if (!dadosFiltrados.length) return null;
+    const agg = (key: string) => {
+      const m = new Map<string, number>();
+      dadosFiltrados.forEach((d: any) => {
+        const k = String(d[key] ?? '—');
+        m.set(k, (m.get(k) || 0) + (d.valor_liquido || 0));
+      });
+      return [...m.entries()].map(([label, valor]) => ({ label, valor })).sort((a, b) => b.valor - a.valor);
+    };
+    return {
+      porMes: agg('mes_competencia_calc').sort((a, b) => a.label.localeCompare(b.label)),
+      porTipoDespesa: agg('tipo_despesa_calc'),
+      porCentroCusto: agg('centro_custo').slice(0, 10),
+      porProjeto: agg('numero_projeto').slice(0, 10),
+    };
+  }, [dadosFiltrados]);
+
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;
     const dados = data.dados;
