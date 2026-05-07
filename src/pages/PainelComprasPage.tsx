@@ -122,6 +122,7 @@ export default function PainelComprasPage() {
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
   const [drillSeed, setDrillSeed] = useState<{ nivel: any; chave: string; label: string; nonce: number } | null>(null);
+  const [clearDrillSignal, setClearDrillSignal] = useState(0);
   const drillRef = useRef<HTMLDivElement>(null);
   const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
     if (chave == null || chave === '') return;
@@ -129,6 +130,10 @@ export default function PainelComprasPage() {
     setDrillSeed({ nivel, chave: ch, label: label ?? ch, nonce: Date.now() });
     setActiveTab('drill');
     setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
+  const clearDrill = useCallback(() => {
+    setDrillSeed(null);
+    setClearDrillSignal((n) => n + 1);
   }, []);
 
   const erpReady = useErpReady();
