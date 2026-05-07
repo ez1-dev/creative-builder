@@ -180,8 +180,11 @@ function ChartCard({
 export default function NotasRecebimentoPage() {
   const [filters, setFilters] = useState({ ...initialFilters });
   const [data, setData] = useState<NotasRecebimentoResponse | null>(null);
+  const [dadosAgregados, setDadosAgregados] = useState<NotasRecebimentoResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingAgregado, setLoadingAgregado] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const TAMANHO_AGREGADO = 50000;
   const [activeTab, setActiveTab] = useState<'lista' | 'drill'>('lista');
   const [drillSeed, setDrillSeed] = useState<{ nivel: string; chave: string; label: string; nonce: number } | null>(null);
   const drillRef = useRef<HTMLDivElement>(null);
