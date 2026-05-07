@@ -1,14 +1,19 @@
-# Esclarecer escopo do filtro "Mês" no diálogo de importação
+## Remover colunas da lista de registros
 
-## Diagnóstico
-O arquivo importado (`RELATORIO ABRIL PASSAGENS.xlsx`) contém **apenas linhas de abril/2026** (68 registros, datas 2026-04-06 a 2026-04-29). O filtro "Mês: Todos / Ano: 2026" filtra apenas linhas presentes na planilha — não busca dados de outros meses. O comportamento está correto; o que falta é deixar isso **explícito na UI** para evitar a confusão de "só veio abril".
+No arquivo `src/components/passagens/PassagensDashboard.tsx`, remover da tabela as colunas:
+- Nº Bilhete (`numero_bilhete`)
+- Localizador (`localizador`)
+- Data Volta (`data_volta`)
+- Tipo (`tipo_despesa`)
 
-## Mudança
-**`src/components/passagens/ImportarPassagensDialog.tsx`** — adicionar, logo acima do bloco de filtros Mês/Ano, um aviso âmbar:
+### Alterações
 
-> ⚠ Os filtros abaixo selecionam linhas **dentro deste arquivo**. Para importar outros meses, abra a planilha correspondente (ex.: `RELATORIO MAIO PASSAGENS.xlsx`) e repita a importação.
+1. **Cabeçalho (linhas 1060–1068)**: remover os 4 `<TableHead>` correspondentes.
+2. **Linha agrupada por colaborador (1104–1112)**: remover as 4 `<TableCell>` correspondentes.
+3. **Linha normal (1135–1143)**: remover as 4 `<TableCell>` correspondentes.
+4. **Contagem de colunas (linha 1045)**: ajustar `baseCols` de `15/16` para `11/12` (4 a menos).
+5. Comentário (1043–1044) atualizado para refletir as colunas restantes.
 
-E, no rótulo do card "Total no arquivo", trocar para "Linhas no arquivo (apenas este arquivo)" para reforçar.
-
-## Sem mudanças em backend/schema
-Apenas texto na UI.
+Observações:
+- Os campos continuam existindo no banco, no formulário de cadastro/edição, no agrupamento e nas exportações CSV/XLSX — só somem da exibição da tabela principal.
+- Filtro "Tipo" no topo é mantido (apenas a coluna some da tabela). Se preferir remover o filtro também, me avise.
