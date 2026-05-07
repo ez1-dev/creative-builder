@@ -978,9 +978,7 @@ export default function NotasRecebimentoPage() {
                 </div>
                 <TabsContent value="lista" className="mt-3 space-y-2">
                   <DataTable columns={columns} data={dadosLista} loading={loading} emptyMessage="Nenhuma nota fiscal encontrada para os filtros aplicados." />
-                  {data.total_paginas > 1 && (
-                    <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
-                  )}
+                  <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} pageSize={pageSize} onPageSizeChange={(s) => { setPageSize(s); if (s === 'todos') toast.info('Carregando todos os registros — pode levar alguns segundos.'); search(1, s); }} />
                 </TabsContent>
                 <TabsContent value="drill" className="mt-3 space-y-2">
                   <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" seed={drillSeed} resumoGlobal={dashboard ? { valor_recebido: dashboard.kpis.valor_recebido || 0, qtd_nfs: dashboard.kpis.quantidade_nfs || 0, qtd_itens: dashboard.kpis.quantidade_itens || 0 } : undefined} />
