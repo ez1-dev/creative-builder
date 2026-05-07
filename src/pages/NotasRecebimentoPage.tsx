@@ -681,7 +681,7 @@ export default function NotasRecebimentoPage() {
                   <div className="relative">
                     <ResponsiveContainer width="100%" height={280}>
                       <PieChart>
-                        <Pie data={charts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2}>
+                        <Pie data={charts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={2} cursor="pointer" onClick={(d: any) => openDrill('tipo_despesa_calc', d?.chave ?? d?.label, d?.label)}>
                           {charts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                         </Pie>
                         <Tooltip
