@@ -50,6 +50,8 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 const fmtBRL = (v: number | null | undefined) => {
   if (v === null || v === undefined) return '-';
