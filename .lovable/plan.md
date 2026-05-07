@@ -1,56 +1,36 @@
-## Problema identificado
+## Reorganizar disposição dos filtros do Painel de Compras
 
-Na tela **Notas Fiscais de Recebimento → Drill-down Gerencial**, ao filtrar `Projeto Macro = GENIUS` e abrir Mês `2026-05 → Projeto`, o drill mostra apenas **R$ 33.061,00 / 4 NFs / 12 itens**.
+Hoje o painel mostra ~25 filtros achatados num único grid de 5 colunas, sem qualquer agrupamento — fica difícil escanear, e a linha das checkboxes ("Somente pendentes" / "Mostrar valor total da OC") ficou solta no meio dos campos gerenciais (vide screenshot enviado).
 
-O cabeçalho da tela mostra `250.403 registros · página 1/2505`, mas o drill recebe `dados` derivado de `dadosBrutos = data.dados` — que contém **apenas as 100 linhas da página atual** retornadas por `/api/notas-recebimento` (linha 208: `tamanho_pagina: 100`).
+### Solução
 
-Ou seja: o "Valor Recebido" do drill não é o total real da base filtrada, é só a soma da página visível. Os mesmos 12 itens / 4 NFs comprovam isso (são exatamente os registros GENIUS dentro das 100 linhas atuais).
+Agrupar os filtros em **seções com cabeçalho discreto** (uppercase, tracking, separador) dentro do mesmo `FilterPanel`, mantendo todos os campos atuais, comportamento e estado.
 
-Mesma limitação afeta:
-- KPIs (Qtd NFs, Total Recebido, Fornecedores, etc.)
-- Gráficos (por mês, fornecedor, projeto, CC, etc.)
-- Drill-down completo
+#### Novo componente
+- **`src/components/erp/FilterSection.tsx`** — wrapper reutilizável que renderiza um título de seção + grid interno. `col-span-full` para ocupar toda a largura do grid do `FilterPanel`. Configurável (`cols={3|4|5|6}`).
 
-## Solução proposta
+#### Reorganização em `src/pages/PainelComprasPage.tsx`
 
-Carregar **uma agregação completa** para alimentar KPIs/gráficos/drill, mantendo a paginação só para a "Lista Detalhada".
+Ordem das seções (do mais usado/gerencial → operacional → opções):
 
-### Estratégia: fetch agregado em paralelo à listagem
+1. **Visão Gerencial** (5 col) — Projeto Macro, Tipo de Despesa, Mês (YYYY-MM), Cond. Pagamento, Situação da OC
+2. **Período** (4 col) — Emissão de, Emissão até, Entrega de, Entrega até
+3. **Identificação** (5 col) — Nº OC, Item, Código Produto, Descrição Item, Tipo OC
+4. **Entidades & Local** (5 col) — Fornecedor, Projeto, Centro de Custo, Família, Origem, Depósito (vai pra 6 cols nesta seção)
+5. **Classificação & Desconto** (4 col) — Tipo Item, Transação, Desconto, Obs./Valor Desconto
+6. **Opções** (linha simples) — checkboxes "Somente pendentes" e "Mostrar valor total da OC", separados por divisor para não competir com os campos.
 
-Quando a busca é executada, disparar **dois requests** ao backend FastAPI:
+Cada seção usa `<FilterSection title="..." icon={<Lucide />}>` com ícones já importados (`Briefcase`, `Calendar`, `FileText`, `Building2`, `Layers`, `Settings`).
 
-1. **Listagem paginada** (já existe): `/api/notas-recebimento?...&pagina=N&tamanho_pagina=100` → continua alimentando a aba **Lista Detalhada** + paginação.
-2. **Dataset gerencial** (novo): `/api/notas-recebimento?...&pagina=1&tamanho_pagina=50000` (ou parâmetro `agregado=true` se preferirmos endpoint dedicado) → alimenta **KPIs, gráficos e drill**.
+Nenhum estado, handler, validação ou request sofre mudança — só a ordem visual e o agrupamento via wrapper.
 
-Justificativa: a base tem 250k linhas no pior caso (sem filtros). Com filtros aplicados pelo usuário (Projeto Macro, Mês, etc.) o volume cai drasticamente. Limitar a 50k cobre praticamente todos os cenários filtrados sem travar o front. Quando o resultado bater no teto, exibimos um aviso claro de amostragem.
+### Aplicar o mesmo padrão a `NotasRecebimentoPage`?
 
-### Arquivos a alterar
+Sim, em sequência (mesma técnica), para manter consistência visual entre os dois dashboards principais. Seções: Gerencial / Período / NF / Entidades / Item / Valores.
 
-**`src/pages/NotasRecebimentoPage.tsx`**
-- Novo state `dadosAgregados` separado de `data` (paginado).
-- `search()`: dispara o GET paginado (tamanho 100) **e** o GET agregado (tamanho 50000) em paralelo via `Promise.all`.
-- `dadosBrutos` para a Lista Detalhada permanece `data.dados`.
-- Criar `dadosBrutosAgregados = dadosAgregados?.dados ?? []` e usá-lo em:
-  - `dadosEnriquecidos` / `dados` (filtros client-side de Projeto Macro, Tipo Despesa, Mês, Cond. Pagto)
-  - `kpis`
-  - `charts`
-  - `<GenericDrillView dados={dados} ... />`
-- A `<DataTable>` da aba "Lista Detalhada" continua usando o conjunto **paginado** (renomear para `dadosLista`) para não quebrar paginação.
-- Aviso visual quando `dadosAgregados.total_registros > 50000`: chip "Amostra: 50.000 de N registros — refine os filtros para ver totais exatos".
+### Arquivos
+- **criar** `src/components/erp/FilterSection.tsx`
+- **editar** `src/pages/PainelComprasPage.tsx` (apenas o bloco entre `<FilterPanel ...>` e `</FilterPanel>`)
+- **editar** `src/pages/NotasRecebimentoPage.tsx` (mesmo escopo, opcional — confirmo aplicar)
 
-**`src/pages/PainelComprasPage.tsx`** (mesmo problema)
-- Aplicar idêntica separação: paginado para tabela + agregado para KPIs/gráficos/drill.
-
-**`src/components/erp/GenericDrillView.tsx`** e **`src/components/compras/PainelDrillView.tsx`**
-- Sem mudanças de lógica; apenas passarão a receber o dataset agregado.
-
-### Backend (não bloqueante)
-
-Idealmente o FastAPI exporia `/api/notas-recebimento/agregado?...` que retorna apenas as colunas necessárias para drill (sem paginar), reduzindo payload. Vou documentar a sugestão em `docs/backend-projeto-macro.md` (ou novo `docs/backend-agregacao.md`) — porém a correção do front **não depende** disso: usar `tamanho_pagina=50000` no endpoint atual já resolve.
-
-### Validação manual após implementação
-
-1. Filtrar Projeto Macro = GENIUS, sem mês → confirmar que Total Recebido bate com soma esperada.
-2. Drill em Mês 2026-05 → Projeto: validar que os valores agora refletem o total da base, não só a página.
-3. Lista Detalhada continua paginando 100 em 100.
-4. Sem filtros (250k registros): aviso de amostragem aparece e drill mostra os 50k topo.
+Sem mudanças de comportamento, exportação, drill, KPI, paginação ou backend.
