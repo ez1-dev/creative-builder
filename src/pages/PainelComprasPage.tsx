@@ -942,6 +942,15 @@ export default function PainelComprasPage() {
 
       <ActiveFilterChips chips={activeChips} onClearAll={clearFilters} />
 
+      {amostragemAtivaCompras && (
+        <div className="rounded-md border border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
+          Amostra de {TAMANHO_AGREGADO.toLocaleString('pt-BR')} de {totalAgregadoCompras.toLocaleString('pt-BR')} registros aplicados aos KPIs, gráficos e drill-down. Refine os filtros para totais exatos.
+        </div>
+      )}
+      {loadingAgregado && data && (
+        <div className="px-1 text-xs text-muted-foreground">Carregando agregação completa para KPIs e drill-down…</div>
+      )}
+
       {data && kpis && (
         <>
           {!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
