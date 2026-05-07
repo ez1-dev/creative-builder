@@ -286,7 +286,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== KPIs ===== */}
           <section id="kpis" className="scroll-mt-4 space-y-3">
             <DashboardSection title="KPIs" icon={<TrendingUp className="h-4 w-4" />}>
-              <DemoBlock name="KpiGrid + KpiCard (variants)">
+              <DemoBlock name="KpiGrid + KpiCard (variants)" applyId="kpi-card">
                 <KpiGrid cols={4}>
                   <KpiCard title="Receita" value={1820000} format="currency" variant="info"
                     icon={<DollarSign className="h-4 w-4" />} trend={{ value: 12.4 }} />
@@ -305,7 +305,7 @@ export default function BiComponentsDemoPage() {
                   <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
                 </KpiGrid>
               </DemoBlock>
-              <DemoBlock name="KpiSparklineCard / KpiTargetCard">
+              <DemoBlock name="KpiSparklineCard / KpiTargetCard" applyId="kpi-sparkline">
                 <KpiGrid cols={4}>
                   <KpiSparklineCard title="Compras" value={1820000} format="currency" trend={12.4}
                     series={mesesData.map((m) => m.valor)} />
@@ -329,36 +329,54 @@ export default function BiComponentsDemoPage() {
           <section id="charts" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Gráficos" icon={<BarChart3 className="h-4 w-4" />}>
               <ChartGrid>
-                <BarChartCard title="Compras por mês" subtitle="Barras com média"
-                  data={mesesData} showAverage />
-                <LineChartCard title="Tendência mensal" data={mesesData} />
-                <AreaChartCard title="Área acumulada" data={mesesData} />
-                <DonutChartCard title="Tipos de despesa" data={tiposDespesa} />
-                <PieChartCard title="Distribuição (pizza)" data={tiposDespesa} />
+                <WithApply componentId="bar-chart">
+                  <BarChartCard title="Compras por mês" subtitle="Barras com média"
+                    data={mesesData} showAverage />
+                </WithApply>
+                <WithApply componentId="line-chart">
+                  <LineChartCard title="Tendência mensal" data={mesesData} />
+                </WithApply>
+                <WithApply componentId="area-chart">
+                  <AreaChartCard title="Área acumulada" data={mesesData} />
+                </WithApply>
+                <WithApply componentId="donut-chart">
+                  <DonutChartCard title="Tipos de despesa" data={tiposDespesa} />
+                </WithApply>
+                <WithApply componentId="pie-chart">
+                  <PieChartCard title="Distribuição (pizza)" data={tiposDespesa} />
+                </WithApply>
                 <StackedBarChartCard title="Recebido x Pendente" data={mesesData} series={stackedSeries} />
                 <ComboChartCard title="Compras x Recebido" data={mesesData}
                   barKey="valor" barLabel="Compras" lineKey="recebido" lineLabel="Recebido" />
-                <RankingChartCard title="Top fornecedores" subtitle="Ranking horizontal"
-                  data={fornecedoresRanking} topN={7} />
-                <HorizontalBarChartCard title="Barras horizontais" data={fornecedoresRanking.slice(0,6)} />
+                <WithApply componentId="ranking-chart">
+                  <RankingChartCard title="Top fornecedores" subtitle="Ranking horizontal"
+                    data={fornecedoresRanking} topN={7} />
+                </WithApply>
+                <WithApply componentId="horizontal-bar-chart">
+                  <HorizontalBarChartCard title="Barras horizontais" data={fornecedoresRanking.slice(0,6)} />
+                </WithApply>
                 <GaugeChartCard title="Atingimento de meta" value={78} max={100} label="78% da meta" />
                 <ProgressChartCard title="Metas por categoria" items={[
                   { label: 'Matéria Prima', value: 4200000, target: 5000000, format: 'currency' },
                   { label: 'Serviços', value: 1100000, target: 1000000, format: 'currency' },
                   { label: 'Logística', value: 320000, target: 600000, format: 'currency' },
                 ]} />
-                <TreemapChartCard title="Treemap — categorias"
-                  data={tiposDespesa.map((t) => ({ name: t.label, value: t.valor }))} />
-                <RadarChartCard title="Avaliação de fornecedores"
-                  data={[
-                    { axis: 'Preço', acme: 80, sul: 60 },
-                    { axis: 'Qualidade', acme: 90, sul: 75 },
-                    { axis: 'Prazo', acme: 70, sul: 85 },
-                    { axis: 'Atend.', acme: 85, sul: 70 },
-                    { axis: 'Pós-venda', acme: 65, sul: 80 },
-                  ]}
-                  series={[{ dataKey: 'acme', label: 'Acme Aço' }, { dataKey: 'sul', label: 'Metalúrgica Sul' }]}
-                />
+                <WithApply componentId="treemap-chart">
+                  <TreemapChartCard title="Treemap — categorias"
+                    data={tiposDespesa.map((t) => ({ name: t.label, value: t.valor }))} />
+                </WithApply>
+                <WithApply componentId="radar-chart">
+                  <RadarChartCard title="Avaliação de fornecedores"
+                    data={[
+                      { axis: 'Preço', acme: 80, sul: 60 },
+                      { axis: 'Qualidade', acme: 90, sul: 75 },
+                      { axis: 'Prazo', acme: 70, sul: 85 },
+                      { axis: 'Atend.', acme: 85, sul: 70 },
+                      { axis: 'Pós-venda', acme: 65, sul: 80 },
+                    ]}
+                    series={[{ dataKey: 'acme', label: 'Acme Aço' }, { dataKey: 'sul', label: 'Metalúrgica Sul' }]}
+                  />
+                </WithApply>
                 <ScatterChartCard title="Prazo x Valor (dispersão)"
                   xLabel="Prazo (dias)" yLabel="Valor (R$ k)"
                   data={[
@@ -373,13 +391,15 @@ export default function BiComponentsDemoPage() {
                     { label: 'Devolução', value: -120000 },
                     { label: 'Final', value: 0, isTotal: true },
                   ]} />
-                <FunnelChartCard title="Funil de cotação"
-                  data={[
-                    { name: 'Cotações', value: 480 },
-                    { name: 'Aprovadas', value: 320 },
-                    { name: 'Pedidos', value: 240 },
-                    { name: 'Recebidas', value: 180 },
-                  ]} />
+                <WithApply componentId="funnel-chart">
+                  <FunnelChartCard title="Funil de cotação"
+                    data={[
+                      { name: 'Cotações', value: 480 },
+                      { name: 'Aprovadas', value: 320 },
+                      { name: 'Pedidos', value: 240 },
+                      { name: 'Recebidas', value: 180 },
+                    ]} />
+                </WithApply>
                 <HeatmapChartCard title="Compras por dia × hora"
                   data={Array.from({ length: 35 }, (_, i) => ({
                     row: ['Seg','Ter','Qua','Qui','Sex'][i % 5],
