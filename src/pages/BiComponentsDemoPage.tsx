@@ -321,9 +321,114 @@ export default function BiComponentsDemoPage() {
                   { label: 'Serviços', value: 1100000, target: 1000000, format: 'currency' },
                   { label: 'Logística', value: 320000, target: 600000, format: 'currency' },
                 ]} />
+                <TreemapChartCard title="Treemap — categorias"
+                  data={tiposDespesa.map((t) => ({ name: t.label, value: t.valor }))} />
+                <RadarChartCard title="Avaliação de fornecedores"
+                  data={[
+                    { axis: 'Preço', acme: 80, sul: 60 },
+                    { axis: 'Qualidade', acme: 90, sul: 75 },
+                    { axis: 'Prazo', acme: 70, sul: 85 },
+                    { axis: 'Atend.', acme: 85, sul: 70 },
+                    { axis: 'Pós-venda', acme: 65, sul: 80 },
+                  ]}
+                  series={[{ dataKey: 'acme', label: 'Acme Aço' }, { dataKey: 'sul', label: 'Metalúrgica Sul' }]}
+                />
+                <ScatterChartCard title="Prazo x Valor (dispersão)"
+                  xLabel="Prazo (dias)" yLabel="Valor (R$ k)"
+                  data={[
+                    { x: 5, y: 120, z: 200 }, { x: 10, y: 280, z: 400 }, { x: 15, y: 180, z: 300 },
+                    { x: 22, y: 540, z: 800 }, { x: 30, y: 320, z: 500 }, { x: 45, y: 720, z: 1000 },
+                  ]} />
+                <WaterfallChartCard title="Variação de saldo"
+                  data={[
+                    { label: 'Inicial', value: 1000000, isTotal: true },
+                    { label: 'Compras', value: -480000 },
+                    { label: 'Recebido', value: 720000 },
+                    { label: 'Devolução', value: -120000 },
+                    { label: 'Final', value: 0, isTotal: true },
+                  ]} />
+                <FunnelChartCard title="Funil de cotação"
+                  data={[
+                    { name: 'Cotações', value: 480 },
+                    { name: 'Aprovadas', value: 320 },
+                    { name: 'Pedidos', value: 240 },
+                    { name: 'Recebidas', value: 180 },
+                  ]} />
+                <HeatmapChartCard title="Compras por dia × hora"
+                  data={Array.from({ length: 35 }, (_, i) => ({
+                    row: ['Seg','Ter','Qua','Qui','Sex'][i % 5],
+                    col: `${8 + Math.floor(i/5)}h`,
+                    value: Math.floor(Math.random() * 50),
+                  }))} />
+                <CalendarHeatmapCard title="Atividade diária"
+                  data={Array.from({ length: 90 }, (_, i) => {
+                    const d = new Date(); d.setDate(d.getDate() - i);
+                    return { date: d.toISOString().slice(0, 10), value: Math.floor(Math.random() * 12) };
+                  })} />
               </ChartGrid>
+              <DemoBlock name="SparklineCard" description="Micro-gráfico inline">
+                <div className="flex gap-4 rounded-md border bg-card p-3">
+                  <div className="flex-1">
+                    <div className="text-[11px] text-muted-foreground">Compras (6m)</div>
+                    <SparklineCard data={mesesData.map((m) => m.valor)} />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[11px] text-muted-foreground">Recebido (6m)</div>
+                    <SparklineCard data={mesesData.map((m) => m.recebido)} color="hsl(142,70%,40%)" />
+                  </div>
+                </div>
+              </DemoBlock>
             </DashboardSection>
           </section>
+
+          {/* ===== MAPS ===== */}
+          <section id="maps" className="scroll-mt-4 space-y-3">
+            <DashboardSection title="Mapas" icon={<Map className="h-4 w-4" />}>
+              <DemoBlock name="BrazilMapCard" description="Choropleth dos estados — escala automática por valor">
+                <BrazilMapCard
+                  title="Compras por UF"
+                  data={[
+                    { uf: 'SP', valor: 3200000 }, { uf: 'MG', valor: 1800000 }, { uf: 'RS', valor: 1100000 },
+                    { uf: 'PR', valor: 870000 }, { uf: 'SC', valor: 740000 }, { uf: 'BA', valor: 520000 },
+                    { uf: 'GO', valor: 410000 }, { uf: 'PE', valor: 320000 }, { uf: 'CE', valor: 240000 },
+                    { uf: 'RJ', valor: 980000 }, { uf: 'DF', valor: 180000 },
+                  ]}
+                  valueFormatter={(v) => formatCurrency(v)}
+                />
+              </DemoBlock>
+            </DashboardSection>
+          </section>
+
+          {/* ===== TREE ===== */}
+          <section id="tree" className="scroll-mt-4 space-y-3">
+            <DashboardSection title="Hierarquia / Árvore" icon={<Network className="h-4 w-4" />}>
+              <DemoBlock name="TreeView" description="Lista hierárquica genérica (BOM, organograma, taxonomia)">
+                <div className="rounded-md border bg-card p-3">
+                  <TreeView defaultExpanded nodes={[
+                    { id: '1', label: 'Diretoria Industrial', value: '12 áreas', children: [
+                      { id: '1.1', label: 'Engenharia', value: '4 setores', children: [
+                        { id: '1.1.1', label: 'Projetos', value: '8 pessoas' },
+                        { id: '1.1.2', label: 'Processos', value: '5 pessoas' },
+                      ]},
+                      { id: '1.2', label: 'Produção', value: '6 setores' },
+                    ]},
+                    { id: '2', label: 'Diretoria Comercial', value: '3 áreas' },
+                  ]} />
+                </div>
+              </DemoBlock>
+              <DemoBlock name="Timeline" description="Eventos cronológicos — log de aprovações, histórico">
+                <div className="rounded-md border bg-card p-3">
+                  <Timeline events={[
+                    { id: '1', title: 'OC criada', timestamp: '15/04 10:23', description: 'Aberta por João Silva' },
+                    { id: '2', title: 'Aprovação financeira', timestamp: '15/04 14:10', color: 'hsl(142,70%,40%)' },
+                    { id: '3', title: 'Enviada ao fornecedor', timestamp: '16/04 08:45' },
+                    { id: '4', title: 'Recebimento parcial', timestamp: '22/04 11:30', color: 'hsl(38,92%,50%)' },
+                  ]} />
+                </div>
+              </DemoBlock>
+            </DashboardSection>
+          </section>
+
 
           {/* ===== TABLES ===== */}
           <section id="tables" className="scroll-mt-4 space-y-3">
