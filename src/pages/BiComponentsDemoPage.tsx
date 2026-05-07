@@ -100,7 +100,7 @@ const SECTIONS = [
   { id: 'badges',  label: 'Badges',     icon: Tag },
 ];
 
-function DemoBlock({ name, children, description, span, applyId }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3; applyId?: string }) {
+function DemoBlock({ name, children, description, span, applyId, nonApplicable }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3; applyId?: string; nonApplicable?: boolean }) {
   const colSpan = span === 3 ? 'lg:col-span-3' : span === 2 ? 'lg:col-span-2' : '';
   return (
     <div className={`group space-y-2 rounded-xl border border-border/60 bg-card/50 p-3 transition-all hover:border-primary/40 hover:bg-card hover:shadow-sm ${colSpan}`}>
@@ -109,7 +109,11 @@ function DemoBlock({ name, children, description, span, applyId }: { name: strin
           <code className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary truncate">{name}</code>
           {description && <span className="text-[11px] text-muted-foreground truncate">{description}</span>}
         </div>
-        {applyId && <ApplyComponentButton componentId={applyId} />}
+        {applyId
+          ? <ApplyComponentButton componentId={applyId} />
+          : nonApplicable
+            ? <span className="text-[10px] text-muted-foreground italic whitespace-nowrap">uso direto via import</span>
+            : null}
       </div>
       {children}
     </div>
@@ -331,10 +335,10 @@ export default function BiComponentsDemoPage() {
 
           <section id="layout" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Layout & estrutura" icon={<LayoutDashboard className="h-4 w-4" />}>
-              <DemoBlock name="DashboardTabs" description="Navegação entre visões dentro de uma página">
+              <DemoBlock name="DashboardTabs" description="Navegação entre visões dentro de uma página" nonApplicable>
                 <DashboardTabs tabs={tabContent} />
               </DemoBlock>
-              <DemoBlock name="DashboardGrid (cols=4)" description="Grid responsivo automático">
+              <DemoBlock name="DashboardGrid (cols=4)" description="Grid responsivo automático" nonApplicable>
                 <DashboardGrid cols={4}>
                   {[1,2,3,4].map((i) => (
                     <div key={i} className="rounded-md border bg-muted/30 p-4 text-center text-xs text-muted-foreground">Slot {i}</div>
@@ -359,12 +363,14 @@ export default function BiComponentsDemoPage() {
                     icon={<Users className="h-4 w-4" />} status="atraso" tooltip="Soma de notas com vencimento ultrapassado." />
                 </KpiGrid>
               </DemoBlock>
-              <DemoBlock name="KpiComparisonCard / KpiVariationCard / KpiStatusCard">
-                <KpiGrid cols={3}>
-                  <KpiComparisonCard title="Faturamento" current={1820000} previous={1620000} />
-                  <KpiVariationCard title="Variação MoM" variation={12.34} subtitle="Junho vs Maio" />
-                  <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
-                </KpiGrid>
+              <DemoBlock name="KpiComparisonCard" applyId="kpi-comparison">
+                <KpiComparisonCard title="Faturamento" current={1820000} previous={1620000} />
+              </DemoBlock>
+              <DemoBlock name="KpiVariationCard" applyId="kpi-variation">
+                <KpiVariationCard title="Variação MoM" variation={12.34} subtitle="Junho vs Maio" />
+              </DemoBlock>
+              <DemoBlock name="KpiStatusCard" applyId="kpi-status">
+                <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
               </DemoBlock>
               <DemoBlock name="KpiSparklineCard / KpiTargetCard" applyId="kpi-sparkline">
                 <KpiGrid cols={4}>
@@ -376,7 +382,7 @@ export default function BiComponentsDemoPage() {
                   <KpiTargetCard title="% Recebimento" value={84.1} target={95} format="percent" subtitle="Meta SLA" />
                 </KpiGrid>
               </DemoBlock>
-              <DemoBlock name="KpiCard loading">
+              <DemoBlock name="KpiCard loading" nonApplicable>
                 <KpiGrid cols={3}>
                   <KpiCard title="Carregando..." value={null} loading />
                   <KpiCard title="Carregando..." value={null} loading />
@@ -406,9 +412,13 @@ export default function BiComponentsDemoPage() {
                 <WithApply componentId="pie-chart">
                   <PieChartCard title="Distribuição (pizza)" data={tiposDespesa} />
                 </WithApply>
-                <StackedBarChartCard title="Recebido x Pendente" data={mesesData} series={stackedSeries} />
-                <ComboChartCard title="Compras x Recebido" data={mesesData}
-                  barKey="valor" barLabel="Compras" lineKey="recebido" lineLabel="Recebido" />
+                <WithApply componentId="stacked-bar-chart">
+                  <StackedBarChartCard title="Recebido x Pendente" data={mesesData} series={stackedSeries} />
+                </WithApply>
+                <WithApply componentId="combo-chart">
+                  <ComboChartCard title="Compras x Recebido" data={mesesData}
+                    barKey="valor" barLabel="Compras" lineKey="recebido" lineLabel="Recebido" />
+                </WithApply>
                 <WithApply componentId="ranking-chart">
                   <RankingChartCard title="Top fornecedores" subtitle="Ranking horizontal"
                     data={fornecedoresRanking} topN={7} />
@@ -416,12 +426,16 @@ export default function BiComponentsDemoPage() {
                 <WithApply componentId="horizontal-bar-chart">
                   <HorizontalBarChartCard title="Barras horizontais" data={fornecedoresRanking.slice(0,6)} />
                 </WithApply>
-                <GaugeChartCard title="Atingimento de meta" value={78} max={100} label="78% da meta" />
-                <ProgressChartCard title="Metas por categoria" items={[
-                  { label: 'Matéria Prima', value: 4200000, target: 5000000, format: 'currency' },
-                  { label: 'Serviços', value: 1100000, target: 1000000, format: 'currency' },
-                  { label: 'Logística', value: 320000, target: 600000, format: 'currency' },
-                ]} />
+                <WithApply componentId="gauge-chart">
+                  <GaugeChartCard title="Atingimento de meta" value={78} max={100} label="78% da meta" />
+                </WithApply>
+                <WithApply componentId="progress-chart">
+                  <ProgressChartCard title="Metas por categoria" items={[
+                    { label: 'Matéria Prima', value: 4200000, target: 5000000, format: 'currency' },
+                    { label: 'Serviços', value: 1100000, target: 1000000, format: 'currency' },
+                    { label: 'Logística', value: 320000, target: 600000, format: 'currency' },
+                  ]} />
+                </WithApply>
                 <WithApply componentId="treemap-chart">
                   <TreemapChartCard title="Treemap — categorias"
                     data={tiposDespesa.map((t) => ({ name: t.label, value: t.valor }))} />
@@ -438,20 +452,24 @@ export default function BiComponentsDemoPage() {
                     series={[{ dataKey: 'acme', label: 'Acme Aço' }, { dataKey: 'sul', label: 'Metalúrgica Sul' }]}
                   />
                 </WithApply>
-                <ScatterChartCard title="Prazo x Valor (dispersão)"
-                  xLabel="Prazo (dias)" yLabel="Valor (R$ k)"
-                  data={[
-                    { x: 5, y: 120, z: 200 }, { x: 10, y: 280, z: 400 }, { x: 15, y: 180, z: 300 },
-                    { x: 22, y: 540, z: 800 }, { x: 30, y: 320, z: 500 }, { x: 45, y: 720, z: 1000 },
-                  ]} />
-                <WaterfallChartCard title="Variação de saldo"
-                  data={[
-                    { label: 'Inicial', value: 1000000, isTotal: true },
-                    { label: 'Compras', value: -480000 },
-                    { label: 'Recebido', value: 720000 },
-                    { label: 'Devolução', value: -120000 },
-                    { label: 'Final', value: 0, isTotal: true },
-                  ]} />
+                <WithApply componentId="scatter-chart">
+                  <ScatterChartCard title="Prazo x Valor (dispersão)"
+                    xLabel="Prazo (dias)" yLabel="Valor (R$ k)"
+                    data={[
+                      { x: 5, y: 120, z: 200 }, { x: 10, y: 280, z: 400 }, { x: 15, y: 180, z: 300 },
+                      { x: 22, y: 540, z: 800 }, { x: 30, y: 320, z: 500 }, { x: 45, y: 720, z: 1000 },
+                    ]} />
+                </WithApply>
+                <WithApply componentId="waterfall-chart">
+                  <WaterfallChartCard title="Variação de saldo"
+                    data={[
+                      { label: 'Inicial', value: 1000000, isTotal: true },
+                      { label: 'Compras', value: -480000 },
+                      { label: 'Recebido', value: 720000 },
+                      { label: 'Devolução', value: -120000 },
+                      { label: 'Final', value: 0, isTotal: true },
+                    ]} />
+                </WithApply>
                 <WithApply componentId="funnel-chart">
                   <FunnelChartCard title="Funil de cotação"
                     data={[
@@ -461,19 +479,23 @@ export default function BiComponentsDemoPage() {
                       { name: 'Recebidas', value: 180 },
                     ]} />
                 </WithApply>
-                <HeatmapChartCard title="Compras por dia × hora"
-                  data={Array.from({ length: 35 }, (_, i) => ({
-                    row: ['Seg','Ter','Qua','Qui','Sex'][i % 5],
-                    col: `${8 + Math.floor(i/5)}h`,
-                    value: Math.floor(Math.random() * 50),
-                  }))} />
-                <CalendarHeatmapCard title="Atividade diária"
-                  data={Array.from({ length: 90 }, (_, i) => {
-                    const d = new Date(); d.setDate(d.getDate() - i);
-                    return { date: d.toISOString().slice(0, 10), value: Math.floor(Math.random() * 12) };
-                  })} />
+                <WithApply componentId="heatmap-chart">
+                  <HeatmapChartCard title="Compras por dia × hora"
+                    data={Array.from({ length: 35 }, (_, i) => ({
+                      row: ['Seg','Ter','Qua','Qui','Sex'][i % 5],
+                      col: `${8 + Math.floor(i/5)}h`,
+                      value: Math.floor(Math.random() * 50),
+                    }))} />
+                </WithApply>
+                <WithApply componentId="calendar-heatmap">
+                  <CalendarHeatmapCard title="Atividade diária"
+                    data={Array.from({ length: 90 }, (_, i) => {
+                      const d = new Date(); d.setDate(d.getDate() - i);
+                      return { date: d.toISOString().slice(0, 10), value: Math.floor(Math.random() * 12) };
+                    })} />
+                </WithApply>
               </ChartGrid>
-              <DemoBlock name="SparklineCard" description="Micro-gráfico inline">
+              <DemoBlock name="SparklineCard" description="Micro-gráfico inline" applyId="sparkline">
                 <div className="flex gap-4 rounded-md border bg-card p-3">
                   <div className="flex-1">
                     <div className="text-[11px] text-muted-foreground">Compras (6m)</div>
@@ -491,7 +513,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== MAPS ===== */}
           <section id="maps" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Mapas" icon={<Map className="h-4 w-4" />}>
-              <DemoBlock name="BrazilMapCard" description="Choropleth dos estados — escala automática por valor">
+              <DemoBlock name="BrazilMapCard" description="Choropleth dos estados — escala automática por valor" applyId="brazil-map">
                 <BrazilMapCard
                   title="Compras por UF"
                   data={[
@@ -509,7 +531,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== TREE ===== */}
           <section id="tree" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Hierarquia / Árvore" icon={<Network className="h-4 w-4" />}>
-              <DemoBlock name="TreeView" description="Lista hierárquica genérica (BOM, organograma, taxonomia)">
+              <DemoBlock name="TreeView" description="Lista hierárquica genérica (BOM, organograma, taxonomia)" applyId="tree-view">
                 <div className="rounded-md border bg-card p-3">
                   <TreeView defaultExpanded nodes={[
                     { id: '1', label: 'Diretoria Industrial', value: '12 áreas', children: [
@@ -523,7 +545,7 @@ export default function BiComponentsDemoPage() {
                   ]} />
                 </div>
               </DemoBlock>
-              <DemoBlock name="Timeline" description="Eventos cronológicos — log de aprovações, histórico">
+              <DemoBlock name="Timeline" description="Eventos cronológicos — log de aprovações, histórico" applyId="timeline">
                 <div className="rounded-md border bg-card p-3">
                   <Timeline events={[
                     { id: '1', title: 'OC criada', timestamp: '15/04 10:23', description: 'Aberta por João Silva' },
@@ -547,7 +569,7 @@ export default function BiComponentsDemoPage() {
                   pagination={{ pagina: 1, totalPaginas: 5, totalRegistros: 47, onPageChange: () => {} }}
                 />
               </DemoBlock>
-              <DemoBlock name="DrillDownTable" description="Hierarquia colapsável Tipo → Centro → Fornecedor">
+              <DemoBlock name="DrillDownTable" description="Hierarquia colapsável Tipo → Centro → Fornecedor" applyId="drill-down-table">
                 <DrillDownTable
                   data={drillRows}
                   levels={[
@@ -558,17 +580,17 @@ export default function BiComponentsDemoPage() {
                 />
               </DemoBlock>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <DemoBlock name="RankingTable">
+                <DemoBlock name="RankingTable" applyId="ranking-table">
                   <RankingTable data={fornecedoresRanking.slice(0, 6)} />
                 </DemoBlock>
-                <DemoBlock name="SummaryTable + total">
+                <DemoBlock name="SummaryTable + total" applyId="summary-table">
                   <SummaryTable rows={[
                     { label: 'Compras', value: 7580000, format: 'currency' },
                     { label: 'Recebido', value: 6840000, format: 'currency' },
                     { label: 'Pendente', value: 740000, format: 'currency' },
                   ]} total={{ label: 'Saldo', value: 6100000, format: 'currency', bold: true }} />
                 </DemoBlock>
-                <DemoBlock name="ComparisonTable" span={2}>
+                <DemoBlock name="ComparisonTable" span={2} applyId="comparison-table">
                   <ComparisonTable rows={[
                     { label: 'Compras', current: 7580000, previous: 6420000, format: 'currency' },
                     { label: 'Recebimentos', current: 6840000, previous: 5980000, format: 'currency' },
@@ -582,7 +604,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== FILTERS ===== */}
           <section id="filters" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Filtros" icon={<Filter className="h-4 w-4" />}>
-              <DemoBlock name="DashboardFilters (painel completo)">
+              <DemoBlock name="DashboardFilters (painel completo)" nonApplicable>
                 <DashboardFilters onApply={() => {}} onClear={() => setChips([])} onRefresh={() => {}}>
                   <DateRangeFilter startValue={start} endValue={end} onStartChange={setStart} onEndChange={setEnd} />
                   <SelectFilter label="Tipo de despesa" value={tipo} onChange={setTipo} options={[
@@ -594,7 +616,7 @@ export default function BiComponentsDemoPage() {
                   <SearchFilter value={search} onChange={setSearch} placeholder="Buscar..." />
                 </DashboardFilters>
               </DemoBlock>
-              <DemoBlock name="FilterBar (barra horizontal)">
+              <DemoBlock name="FilterBar (barra horizontal)" nonApplicable>
                 <FilterBar>
                   <SelectFilter label="Tipo" value={tipo} onChange={setTipo} options={[
                     { value: 'all', label: 'Todos' },
@@ -603,14 +625,14 @@ export default function BiComponentsDemoPage() {
                   <SearchFilter value={search} onChange={setSearch} />
                 </FilterBar>
               </DemoBlock>
-              <DemoBlock name="FilterChips" description="Chips removíveis representando filtros ativos">
+              <DemoBlock name="FilterChips" description="Chips removíveis representando filtros ativos" nonApplicable>
                 <FilterChips
                   chips={chips}
                   onRemove={(k) => setChips(chips.filter((c) => c.key !== k))}
                   onClearAll={() => setChips([])}
                 />
               </DemoBlock>
-              <DemoBlock name="AdvancedFiltersPanel">
+              <DemoBlock name="AdvancedFiltersPanel" nonApplicable>
                 <AdvancedFiltersPanel>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <SelectFilter label="Origem" value="all" onChange={() => {}} options={[{ value: 'all', label: 'Todas' }]} />
@@ -624,14 +646,14 @@ export default function BiComponentsDemoPage() {
           {/* ===== DRILL ===== */}
           <section id="drill" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Drill-down" icon={<MousePointerClick className="h-4 w-4" />}>
-              <DemoBlock name="DrillBreadcrumb">
+              <DemoBlock name="DrillBreadcrumb" nonApplicable>
                 <DrillBreadcrumb
                   path={drillPath}
                   onJumpTo={(d) => setDrillPath(d < 0 ? [] : drillPath.slice(0, d + 1))}
                   onClear={() => setDrillPath([])}
                 />
               </DemoBlock>
-              <DemoBlock name="DrillLevelSelector" description="Próximo nível disponível para drill">
+              <DemoBlock name="DrillLevelSelector" description="Próximo nível disponível para drill" nonApplicable>
                 <DrillLevelSelector
                   levels={[
                     { key: 'centro', label: 'Centro de Custo' },
@@ -649,19 +671,19 @@ export default function BiComponentsDemoPage() {
           <section id="states" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Estados visuais" icon={<AlertCircle className="h-4 w-4" />}>
               <DashboardGrid cols={2}>
-                <DemoBlock name="LoadingState (spinner)">
+                <DemoBlock name="LoadingState (spinner)" nonApplicable>
                   <div className="rounded-md border bg-card"><LoadingState height={140} /></div>
                 </DemoBlock>
-                <DemoBlock name="LoadingState (skeleton)">
+                <DemoBlock name="LoadingState (skeleton)" nonApplicable>
                   <div className="rounded-md border bg-card"><LoadingState height={140} variant="skeleton" /></div>
                 </DemoBlock>
-                <DemoBlock name="EmptyState">
+                <DemoBlock name="EmptyState" nonApplicable>
                   <div className="rounded-md border bg-card"><EmptyState /></div>
                 </DemoBlock>
-                <DemoBlock name="NoDataState">
+                <DemoBlock name="NoDataState" nonApplicable>
                   <div className="rounded-md border bg-card"><NoDataState height={140} /></div>
                 </DemoBlock>
-                <DemoBlock name="ErrorState" span={2}>
+                <DemoBlock name="ErrorState" span={2} nonApplicable>
                   <div className="rounded-md border bg-card"><ErrorState message="Falha ao carregar dados do servidor." height={140} /></div>
                 </DemoBlock>
               </DashboardGrid>
@@ -671,14 +693,14 @@ export default function BiComponentsDemoPage() {
           {/* ===== BADGES ===== */}
           <section id="badges" className="scroll-mt-4 space-y-3">
             <DashboardSection title="StatusBadge" icon={<Tag className="h-4 w-4" />}>
-              <DemoBlock name="StatusBadge — todas as variantes" description="Padrão para status em tabelas e KPIs">
+              <DemoBlock name="StatusBadge — todas as variantes" description="Padrão para status em tabelas e KPIs" applyId="status-badge">
                 <div className="flex flex-wrap gap-2 rounded-md border bg-card p-3">
                   {(['recebido','pendente','parcial','cancelado','atraso','sem-nf','com-nf','sem-oc','com-oc','positivo','negativo','neutro'] as BiStatus[]).map((s) => (
                     <StatusBadge key={s} status={s} />
                   ))}
                 </div>
               </DemoBlock>
-              <DemoBlock name="Formatadores" description="formatCurrency, formatNumber, abbreviateNumber">
+              <DemoBlock name="Formatadores" description="formatCurrency, formatNumber, abbreviateNumber" nonApplicable>
                 <div className="grid grid-cols-3 gap-3 rounded-md border bg-card p-3 text-xs">
                   <div><div className="text-muted-foreground">formatCurrency</div><div className="font-mono font-semibold">{formatCurrency(1234567.89)}</div></div>
                   <div><div className="text-muted-foreground">formatNumber</div><div className="font-mono font-semibold">{formatNumber(1234567, 0)}</div></div>
