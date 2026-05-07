@@ -8,6 +8,8 @@ import { PaginationControl } from "@/components/erp/PaginationControl";
 import { ExportButton } from "@/components/erp/ExportButton";
 import { KPICard } from "@/components/erp/KPICard";
 import { ComboboxFilter } from "@/components/erp/ComboboxFilter";
+import { UserWidgetsSlot } from '@/components/bi';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -523,6 +525,22 @@ export default function NotasRecebimentoPage() {
   }, [filters]);
 
   return (
+    <PageDataProvider
+      pageKey="notas-recebimento"
+      kpis={kpis ? {
+        total_recebido: kpis.valorRecebido ?? 0,
+        qtde_notas: kpis.totalNfs ?? 0,
+        pendentes: kpis.valorBruto ? (kpis.valorBruto - kpis.valorRecebido) : 0,
+        media_recebida: kpis.valorMedioNf ?? 0,
+      } : null}
+      series={dashboard ? {
+        recebido_por_mes: ((dashboard as any).graficos?.por_mes ?? []).map((p: any) => ({ label: p.mes ?? p.label, valor: p.valor ?? 0 })),
+        top_fornecedores: ((dashboard as any).graficos?.por_fornecedor ?? []).map((p: any) => ({ label: p.fornecedor ?? p.label, valor: p.valor ?? 0 })),
+        recebido_por_uf:  ((dashboard as any).graficos?.por_uf ?? []).map((p: any) => ({ label: p.uf ?? p.label, valor: p.valor ?? 0 })),
+      } : null}
+      rows={dados}
+      filtros={filters}
+    >
     <div className="space-y-4 p-4">
       <ErpConnectionAlert />
       <PageHeader
