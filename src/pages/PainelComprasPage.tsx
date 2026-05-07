@@ -721,9 +721,10 @@ export default function PainelComprasPage() {
       )}
 
       {data && (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'dashboard' | 'lista')} className="w-full">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'dashboard' | 'lista' | 'drill')} className="w-full">
           <TabsList>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="drill">Drill-down Gerencial</TabsTrigger>
             <TabsTrigger value="lista">Lista Detalhada</TabsTrigger>
           </TabsList>
 
