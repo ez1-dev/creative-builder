@@ -29,6 +29,7 @@ const modules = [
   { title: 'Estrutura Multinível', url: '/bom', icon: GitBranch },
   { title: 'Consulta Compras/Custos', url: '/compras-produto', icon: ShoppingCart },
   { title: 'Painel de Compras', url: '/painel-compras', icon: BarChart3 },
+  { title: 'Demonstrativo Compras e Receb.', url: '/demonstrativo-compras-recebimentos', icon: GitCompare },
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
   { title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck },
   { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
