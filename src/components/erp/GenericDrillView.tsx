@@ -30,7 +30,7 @@ interface Props {
 
 type Step = { nivel: string; chave: string; label: string };
 
-export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey, seed }: Props) {
+export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey, seed, resumoGlobal }: Props) {
   const [stack, setStack] = useState<Step[]>([]);
   const lastSeedRef = useRef<string | null>(null);
 
