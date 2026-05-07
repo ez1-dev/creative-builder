@@ -786,6 +786,21 @@ export default function PainelComprasPage() {
               Atenção: o backend não retornou totais agregados. Os cards estão somando apenas a página atual ({data.dados.length} de {data.total_registros.toLocaleString('pt-BR')} registros). Selecione "Todos" no canto superior direito para ver os valores completos.
             </div>
           )}
+          {kpisGerencial && (
+            <div>
+              <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Visão Gerencial</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
+                <KPICard index={0} title="Total Comprado" value={formatCurrency(kpisGerencial.comprado)} variant="info" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma do valor líquido dos itens filtrados" />
+                <KPICard index={1} title="Total Pendente" value={formatCurrency(kpisGerencial.pendente)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Saldo pendente x preço unitário dos itens filtrados" />
+                <KPICard index={2} title="Total Recebido" value={kpisGerencial.recebido != null ? formatCurrency(kpisGerencial.recebido) : '--'} variant="success" icon={<TrendingUp className="h-5 w-5" />} tooltip="Disponível quando o backend retornar valor_recebido_total" />
+                <KPICard index={3} title="Qtd OCs" value={kpisGerencial.qtdOcs} icon={<ShoppingCart className="h-5 w-5" />} />
+                <KPICard index={4} title="Qtd Itens" value={kpisGerencial.qtdItens} icon={<Package className="h-5 w-5" />} />
+                <KPICard index={5} title="Qtd Fornecedores" value={kpisGerencial.qtdFornecedores} icon={<Layers className="h-5 w-5" />} />
+                <KPICard index={6} title="Ticket Médio/OC" value={formatCurrency(kpisGerencial.ticketMedio)} variant="info" icon={<TrendingUp className="h-5 w-5" />} />
+                <KPICard index={7} title="Maior Fornecedor" value={kpisGerencial.maiorFornecedor ? formatCurrency(kpisGerencial.maiorFornecedor.valor) : '--'} icon={<Layers className="h-5 w-5" />} tooltip={kpisGerencial.maiorFornecedor?.nome ?? ''} />
+              </div>
+            </div>
+          )}
           <div>
             <h3 className="mb-3 text-sm font-semibold text-muted-foreground uppercase tracking-wider">Indicadores Financeiros</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
