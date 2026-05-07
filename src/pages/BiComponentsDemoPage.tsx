@@ -1,15 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Layers, Palette, Filter, Table2, BarChart3, MousePointerClick, AlertCircle, Tag, LayoutDashboard } from 'lucide-react';
+import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Layers, Palette, Filter, Table2, BarChart3, MousePointerClick, AlertCircle, Tag, LayoutDashboard, Map, Network, Clock, Sparkles } from 'lucide-react';
 import {
   // layout
   DashboardPage, DashboardHeader, DashboardSection, DashboardGrid, ChartGrid, DashboardTabs,
+  Timeline,
   // kpis
-  KpiCard, KpiGrid, KpiComparisonCard, KpiVariationCard, KpiStatusCard,
+  KpiCard, KpiGrid, KpiComparisonCard, KpiVariationCard, KpiStatusCard, KpiSparklineCard, KpiTargetCard,
   // charts
   BarChartCard, HorizontalBarChartCard, LineChartCard, AreaChartCard, PieChartCard,
   DonutChartCard, StackedBarChartCard, ComboChartCard, RankingChartCard,
   GaugeChartCard, ProgressChartCard,
+  TreemapChartCard, RadarChartCard, ScatterChartCard, HeatmapChartCard,
+  WaterfallChartCard, FunnelChartCard, SparklineCard, CalendarHeatmapCard,
+  // maps
+  BrazilMapCard,
+  // tree
+  TreeView,
   // tables
   DataTableBI, DrillDownTable, RankingTable, SummaryTable, ComparisonTable,
   // filters
@@ -21,6 +28,10 @@ import {
   LoadingState, EmptyState, ErrorState, NoDataState,
   // badges
   StatusBadge,
+  // templates
+  ComprasDashboardTemplate,
+  // ai
+  ComponentSuggester,
   // utils
   formatCurrency, formatNumber, abbreviateNumber,
   type Column,
