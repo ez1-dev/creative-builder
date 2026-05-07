@@ -91,7 +91,7 @@ export default function PainelComprasPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'lista'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'codigo_familia', origemKey: 'origem_material' });
