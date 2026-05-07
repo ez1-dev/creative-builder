@@ -980,7 +980,7 @@ export default function NotasRecebimentoPage() {
                   )}
                 </TabsContent>
                 <TabsContent value="drill" className="mt-3 space-y-2">
-                  <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" seed={drillSeed} />
+                  <GenericDrillView dados={dados} niveis={NIVEIS_DRILL} metrics={METRICS_DRILL} primaryMetricKey="valor_recebido" seed={drillSeed} resumoGlobal={dashboard ? { valor_recebido: dashboard.kpis.valor_recebido || 0, qtd_nfs: dashboard.kpis.quantidade_nfs || 0, qtd_itens: dashboard.kpis.quantidade_itens || 0 } : undefined} />
                 </TabsContent>
               </Tabs>
             </CardHeader>
