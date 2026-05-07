@@ -276,18 +276,39 @@ export default function BiComponentsDemoPage() {
 
   return (
     <DashboardPage>
-      <DashboardHeader
-        title={useLocation().pathname === '/biblioteca-bi' ? 'Biblioteca BI — Componentes' : 'Catálogo de Componentes BI'}
-        description="Biblioteca interna padronizada para dashboards, KPIs, gráficos, filtros e drill-down do sistema ERP. Todos os exemplos usam dados controlados (mock) — nenhum endpoint é chamado nesta tela."
-        actions={<StatusBadge status="positivo" label="v1.0 — Fase 1 concluída" />}
-      />
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-sm">
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+        <div className="absolute right-12 bottom-0 h-24 w-24 rounded-full bg-primary/5 blur-2xl" />
+        <div className="relative flex flex-wrap items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-md">
+            <Sparkles className="h-6 w-6" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <h1 className="text-xl font-bold tracking-tight">
+              {useLocation().pathname === '/biblioteca-bi' ? 'Biblioteca BI — Componentes' : 'Catálogo de Componentes BI'}
+            </h1>
+            <p className="text-sm text-muted-foreground max-w-3xl">
+              Biblioteca interna padronizada para dashboards, KPIs, gráficos, filtros e drill-down do sistema ERP. Todos os exemplos usam dados controlados (mock) — nenhum endpoint é chamado nesta tela.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <StatusBadge status="positivo" label="v1.0 — Fase 1 concluída" />
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">
+                {SECTIONS.length} seções
+              </span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                Aplicável em qualquer página
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <MobileNav active={active} onJump={jumpTo} />
 
       <div className="flex gap-4">
         <CatalogSidebar active={active} onJump={jumpTo} />
 
-        <div className="flex-1 space-y-10 min-w-0">
+        <div className="flex-1 space-y-12 min-w-0">
           {/* ===== MEUS WIDGETS APLICADOS ===== */}
           <MyWidgetsPanel />
 
