@@ -130,6 +130,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
       series: [
         { key: 'por_revenda', label: 'Por Revenda' },
         { key: 'por_anomes',  label: 'Por Mês' },
+        { key: 'por_origem',  label: 'Por Origem' },
       ],
     },
   },
