@@ -878,6 +878,9 @@ export default function FaturamentoGeniusPage() {
             <KpiClickable kpiKey="quantidade_produtos"><KPICard title="Produtos" value={fmtNum(kpis.quantidade_produtos)} icon={<Package className="h-4 w-4" />} index={4} /></KpiClickable>
           </KpiGroup>
 
+          <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+          <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold tracking-tight">Faturamento por Revenda</CardTitle>
