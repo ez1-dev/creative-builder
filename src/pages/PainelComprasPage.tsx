@@ -236,12 +236,17 @@ export default function PainelComprasPage() {
     title: 'Painel de Compras',
     module: 'painel-compras',
     filters,
-    kpis: data && (data as any).resumo ? {
+    kpis: dashboard ? {
+      'Total OCs': dashboard.kpis.quantidade_ocs ?? '-',
+      'Valor Comprado': formatCurrency(dashboard.kpis.valor_comprado ?? 0),
+      'Valor Pendente': formatCurrency(dashboard.kpis.valor_pendente ?? 0),
+      'Itens Atrasados': dashboard.kpis.itens_atrasados ?? '-',
+    } : (data && (data as any).resumo ? {
       'Total OCs': (data as any).resumo.total_ocs ?? '-',
       'Valor Líquido': formatCurrency((data as any).resumo.valor_liquido_total ?? 0),
       'Valor Pendente': formatCurrency((data as any).resumo.valor_pendente_total ?? 0),
       'Itens Atrasados': (data as any).resumo.itens_atrasados ?? 0,
-    } : undefined,
+    } : undefined),
     summary: data
       ? `${data.total_registros} linhas de OC; página ${pagina}/${data.total_paginas}`
       : undefined,
