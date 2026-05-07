@@ -8,14 +8,44 @@ function decodeJwtPayload(token: string): Record<string, unknown> {
   return JSON.parse(json);
 }
 
+function escHtml(s: string): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Allowlist of accepted app origins for the back-link in error pages.
+const ALLOWED_ORIGINS = new Set<string>([
+  "https://ez-erp-ia.lovable.app",
+  "https://id-preview--f53f5f3e-218b-4392-b75e-159397053246.lovable.app",
+]);
+
+function safeOriginOrEmpty(origin: string): string {
+  if (!origin) return "";
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== "https:" && u.protocol !== "http:") return "";
+    if (ALLOWED_ORIGINS.has(`${u.protocol}//${u.host}`)) return `${u.protocol}//${u.host}`;
+    // Allow lovable.app subdomains (preview/published)
+    if (u.host.endsWith(".lovable.app")) return `${u.protocol}//${u.host}`;
+    return "";
+  } catch {
+    return "";
+  }
+}
+
 function htmlError(message: string, origin: string): Response {
-  const safeOrigin = origin || "/";
+  const safeOrigin = safeOriginOrEmpty(origin);
+  const backHref = safeOrigin ? `${safeOrigin}/login` : "/login";
   const body = `<!doctype html><html><head><meta charset="utf-8"><title>Erro de autenticação</title>
 <style>body{font-family:system-ui,sans-serif;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
 .box{background:#1e293b;padding:2rem;border-radius:8px;max-width:480px;text-align:center}
 a{color:#60a5fa}</style></head><body><div class="box">
-<h2>Falha no login Microsoft</h2><p>${message}</p>
-<p><a href="${safeOrigin}/login">Voltar para a tela de login</a></p>
+<h2>Falha no login Microsoft</h2><p>${escHtml(message)}</p>
+<p><a href="${escHtml(backHref)}">Voltar para a tela de login</a></p>
 </div></body></html>`;
   return new Response(body, { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
