@@ -15,6 +15,7 @@ import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, Weight, Hash, Truck } from 'lucide-react';
 import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
+import { BiAutoSlots } from '@/components/bi';
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
@@ -117,7 +118,7 @@ export default function ExpedidoObraPage() {
       )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-expedido-obra" />
     </div>
   );
 }

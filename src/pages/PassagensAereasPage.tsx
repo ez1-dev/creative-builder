@@ -25,6 +25,7 @@ import { ShareLinksDialog } from '@/components/passagens/ShareLinksDialog';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { ImportarPassagensDialog } from '@/components/passagens/ImportarPassagensDialog';
 import { geocodeCidade, nomeNormalizado } from '@/components/passagens/cidadesBrasil';
+import { BiAutoSlots } from '@/components/bi';
 
 const PATH = '/passagens-aereas';
 
@@ -298,7 +299,7 @@ export default function PassagensAereasPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>      <BiAutoSlots pageKey="passagens-aereas" />
     </div>
   );
 }

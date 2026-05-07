@@ -20,6 +20,7 @@ import { ExportPdfButton } from '@/components/erp/ExportPdfButton';
 import { gerarRelatorioSemanalObraPdf } from '@/lib/pdf/relatorioSemanalObraPdf';
 import { useAuth } from '@/contexts/AuthContext';
 import { extrairResumo } from '@/lib/drillResumo';
+import { BiAutoSlots } from '@/components/bi';
 
 interface KpiTotals {
   totalObras: number;
@@ -370,7 +371,7 @@ export default function RelatorioSemanalObraPage() {
           totalRegistros={data.total_registros}
           onPageChange={(p) => search(p)}
         />
-      )}
+      )}      <BiAutoSlots pageKey="producao-relatorio-semanal-obra" />
     </div>
   );
 }

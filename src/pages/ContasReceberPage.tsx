@@ -25,6 +25,7 @@ import {
   TrendingUp, Calendar, Receipt, CreditCard, Landmark,
 } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { BiAutoSlots } from '@/components/bi';
 
 /* ─── Status helpers ─── */
 const statusLabel: Record<string, string> = {
@@ -450,7 +451,7 @@ export default function ContasReceberPage() {
             />
           )}
         </>
-      )}
+      )}      <BiAutoSlots pageKey="contas-receber" />
     </div>
   );
 }

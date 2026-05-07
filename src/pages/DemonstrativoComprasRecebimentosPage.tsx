@@ -22,6 +22,7 @@ import {
   PieChart, Pie, Cell, CartesianGrid,
 } from 'recharts';
 import {
+import { BiAutoSlots } from '@/components/bi';
   ShoppingCart, Receipt, GitCompare, DollarSign, AlertTriangle,
   TrendingUp, FileText, Users, ChevronRight, Home,
 } from 'lucide-react';
@@ -586,7 +587,7 @@ function Breadcrumb({ stack, currentNivel, onClick }: BreadcrumbProps) {
           <ChevronRight className="h-3 w-3" />
           {NIVEL_LABEL[currentNivel]}
         </span>
-      )}
+      )}      <BiAutoSlots pageKey="demonstrativo-compras-recebimentos" />
     </div>
   );
 }
