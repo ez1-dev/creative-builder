@@ -1040,9 +1040,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )
           ) : (() => {
             const hasActions = !readOnly && (onEdit || onDelete);
-            // Colunas: Data, [Colab?], C.Custo, Projeto/Obra, Fornecedor, Cia, Bilhete, Localizador,
-            // Origem, Destino, UF, Data Ida, Data Volta, Motivo, Tipo, Valor
-            const baseCols = agruparColab ? 15 : 16;
+            // Colunas: Data, [Colab?], C.Custo, Projeto/Obra, Fornecedor, Cia,
+            // Origem, Destino, UF, Data Ida, Motivo, Valor
+            const baseCols = agruparColab ? 11 : 12;
             const totalCols = baseCols + (hasActions ? 1 : 0);
             const cellCls = "whitespace-nowrap text-xs px-2 py-1.5";
             const headCls = "whitespace-nowrap text-xs px-2";
@@ -1057,15 +1057,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   <TableHead className={headCls}>Projeto / Obra</TableHead>
                   <TableHead className={headCls}>Fornecedor</TableHead>
                   <TableHead className={headCls}>Cia Aérea</TableHead>
-                  <TableHead className={headCls}>Nº Bilhete</TableHead>
-                  <TableHead className={headCls}>Localizador</TableHead>
                   <TableHead className={headCls}>Origem</TableHead>
                   <TableHead className={headCls}>Destino</TableHead>
                   <TableHead className={headCls}>UF</TableHead>
                   <TableHead className={headCls}>Data Ida</TableHead>
-                  <TableHead className={headCls}>Data Volta</TableHead>
                   <TableHead className={headCls}>Motivo da Viagem</TableHead>
-                  <TableHead className={headCls}>Tipo</TableHead>
                   <TableHead className={`${headCls} text-right`}>Valor</TableHead>
                   {hasActions && <TableHead className="w-24">Ações</TableHead>}
                 </TableRow>
@@ -1101,15 +1097,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                             <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
-                            <TableCell className={cellCls}>{r.numero_bilhete ?? '-'}</TableCell>
-                            <TableCell className={cellCls}>{r.localizador ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
-                            <TableCell className={cellCls}>{formatDate(r.data_volta)}</TableCell>
                             <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
-                            <TableCell className={cellCls}>{r.tipo_despesa}</TableCell>
                             <TableCell className={`${cellCls} text-right`}>{formatCurrency(r.valor)}</TableCell>
                             {hasActions && (
                               <TableCell>
@@ -1132,15 +1124,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.numero_bilhete ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.localizador ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.destino ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.uf_destino ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{formatDate(r.data_ida)}</TableCell>
-                    <TableCell className={cellCls}>{formatDate(r.data_volta)}</TableCell>
                     <TableCell className={cellCls}>{r.motivo_viagem ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.tipo_despesa}</TableCell>
                     <TableCell className={`${cellCls} text-right font-medium`}>{formatCurrency(r.valor)}</TableCell>
                     {!readOnly && (onEdit || onDelete) && (
                       <TableCell>
