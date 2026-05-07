@@ -1,23 +1,14 @@
-# Expandir tabela "Registros" de Passagens Aéreas
+# Esclarecer escopo do filtro "Mês" no diálogo de importação
 
-## Objetivo
-Mostrar na lista de registros todas as colunas pedidas:
-`data_registro, colaborador, centro_custo, projeto_obra, fornecedor, cia_aerea, numero_bilhete, localizador, origem, destino, uf_destino, data_ida, data_volta, motivo_viagem, tipo_despesa, valor`.
+## Diagnóstico
+O arquivo importado (`RELATORIO ABRIL PASSAGENS.xlsx`) contém **apenas linhas de abril/2026** (68 registros, datas 2026-04-06 a 2026-04-29). O filtro "Mês: Todos / Ano: 2026" filtra apenas linhas presentes na planilha — não busca dados de outros meses. O comportamento está correto; o que falta é deixar isso **explícito na UI** para evitar a confusão de "só veio abril".
 
-## Observação importante sobre `cep_destino`
-A tabela `passagens_aereas` **não tem** o campo `cep_destino` — só existe `uf_destino` (UF derivada automaticamente do destino). Vou usar `uf_destino` no lugar. Se você realmente quiser CEP, preciso adicionar uma coluna nova no banco e popular via geocoder; me avise.
+## Mudança
+**`src/components/passagens/ImportarPassagensDialog.tsx`** — adicionar, logo acima do bloco de filtros Mês/Ano, um aviso âmbar:
 
-## Mudanças
+> ⚠ Os filtros abaixo selecionam linhas **dentro deste arquivo**. Para importar outros meses, abra a planilha correspondente (ex.: `RELATORIO MAIO PASSAGENS.xlsx`) e repita a importação.
 
-### `src/components/passagens/PassagensDashboard.tsx` (card "Registros")
-1. Substituir o `<TableHeader>` atual (7 colunas) por 16 colunas, na ordem solicitada.
-2. Renderizar todas as células correspondentes em:
-   - Modo lista (`pagedRows.map`)
-   - Modo agrupado por colaborador (`g.registros.map`) — esconde a coluna "Colaborador" como já faz hoje
-3. Ajustar `baseCols` / `colSpan` do cabeçalho de grupo, do "Subtotal" do footer e dos estados "Carregando…/Nenhum registro".
-4. Tornar a tabela rolável horizontalmente (wrapper `overflow-x-auto`) e aplicar `whitespace-nowrap` nas células para evitar quebra.
-5. Larguras: usar `text-xs`/`px-2 py-1.5` mais compactos só nesse card para caber bem; coluna Valor permanece alinhada à direita.
-6. Origem e Destino voltam a ser **duas colunas separadas** (hoje aparecem como "Origem → Destino" combinado).
+E, no rótulo do card "Total no arquivo", trocar para "Linhas no arquivo (apenas este arquivo)" para reforçar.
 
-### Sem mudanças em backend, schema ou exportação.
-Exportações CSV/XLSX já contêm todos os campos.
+## Sem mudanças em backend/schema
+Apenas texto na UI.
