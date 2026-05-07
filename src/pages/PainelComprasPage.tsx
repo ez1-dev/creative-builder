@@ -1067,7 +1067,7 @@ export default function PainelComprasPage() {
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="label" width={100} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="valor" fill="hsl(142,70%,40%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('centro_custo', d?.label, d?.label)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
