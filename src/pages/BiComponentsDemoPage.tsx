@@ -32,6 +32,8 @@ import {
   ComprasDashboardTemplate,
   // ai
   ComponentSuggester,
+  // runtime: aplicar em páginas
+  ApplyComponentButton,
   // utils
   formatCurrency, formatNumber, abbreviateNumber,
   type Column,
@@ -93,13 +95,16 @@ const SECTIONS = [
   { id: 'badges',  label: 'Badges',     icon: Tag },
 ];
 
-function DemoBlock({ name, children, description, span }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3 }) {
+function DemoBlock({ name, children, description, span, applyId }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3; applyId?: string }) {
   const colSpan = span === 3 ? 'lg:col-span-3' : span === 2 ? 'lg:col-span-2' : '';
   return (
     <div className={`space-y-1.5 ${colSpan}`}>
-      <div className="flex items-baseline justify-between gap-2">
-        <code className="text-[11px] font-semibold text-primary">{name}</code>
-        {description && <span className="text-[11px] text-muted-foreground">{description}</span>}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-baseline gap-2 min-w-0">
+          <code className="text-[11px] font-semibold text-primary truncate">{name}</code>
+          {description && <span className="text-[11px] text-muted-foreground truncate">{description}</span>}
+        </div>
+        {applyId && <ApplyComponentButton componentId={applyId} />}
       </div>
       {children}
     </div>
