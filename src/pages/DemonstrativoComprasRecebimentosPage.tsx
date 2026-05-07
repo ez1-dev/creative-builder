@@ -25,6 +25,7 @@ import {
   ShoppingCart, Receipt, GitCompare, DollarSign, AlertTriangle,
   TrendingUp, FileText, Users, ChevronRight, Home,
 } from 'lucide-react';
+import { BiAutoSlots } from '@/components/bi';
 
 const COLORS = [
   'hsl(215,70%,45%)', 'hsl(142,70%,40%)', 'hsl(38,92%,50%)', 'hsl(0,72%,51%)',
@@ -586,7 +587,7 @@ function Breadcrumb({ stack, currentNivel, onClick }: BreadcrumbProps) {
           <ChevronRight className="h-3 w-3" />
           {NIVEL_LABEL[currentNivel]}
         </span>
-      )}
+      )}      <BiAutoSlots pageKey="demonstrativo-compras-recebimentos" />
     </div>
   );
 }

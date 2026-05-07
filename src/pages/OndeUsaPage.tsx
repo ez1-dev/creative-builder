@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { Database, Box, Hash } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { BiAutoSlots } from '@/components/bi';
 
 const columns: Column<any>[] = [
   { key: 'codigo_componente', header: 'Cód. Componente' },
@@ -94,7 +95,7 @@ export default function OndeUsaPage() {
         </div>
       )}
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="onde-usa" />
     </div>
   );
 }

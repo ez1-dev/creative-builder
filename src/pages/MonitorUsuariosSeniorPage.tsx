@@ -33,6 +33,7 @@ import { BackendStatusCard, type BackendStatus } from '@/components/erp/BackendS
 import { UpdateApiUrlDialog } from '@/components/erp/UpdateApiUrlDialog';
 import { ApplyRulesDialog } from '@/components/erp/ApplyRulesDialog';
 import { useSeniorDisconnectRules } from '@/hooks/useSeniorDisconnectRules';
+import { BiAutoSlots } from '@/components/bi';
 
 interface SessaoSenior {
   numsec: number | string;
@@ -893,7 +894,7 @@ export default function MonitorUsuariosSeniorPage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>      <BiAutoSlots pageKey="monitor-usuarios-senior" />
     </div>
   );
 }

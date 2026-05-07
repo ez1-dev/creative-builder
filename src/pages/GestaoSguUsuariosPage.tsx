@@ -10,6 +10,7 @@ import { SguAplicarDuplicacaoTab } from '@/components/sgu/SguAplicarDuplicacaoTa
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import GestaoSguUsuariosFallback from './GestaoSguUsuariosFallback';
+import { BiAutoSlots } from '@/components/bi';
 
 const PATH = '/gestao-sgu-usuarios';
 
@@ -61,6 +62,7 @@ export default function GestaoSguUsuariosPage() {
             </Alert>
           </TabsContent>
         </Tabs>
+        <BiAutoSlots pageKey="gestao-sgu-usuarios" />
       </div>
     </SguProvider>
   );

@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { formatCurrency } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { BiAutoSlots } from '@/components/bi';
 
 const statusBadge = (status: string) => {
   switch (status) {
@@ -250,7 +251,7 @@ export default function ConciliacaoEdocsPage() {
       )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="conciliacao-edocs" />
     </div>
   );
 }

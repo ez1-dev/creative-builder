@@ -16,6 +16,7 @@ import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { KPICard } from '@/components/erp/KPICard';
 import { Package, ArrowUpFromLine, Truck, Warehouse } from 'lucide-react';
 import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
+import { BiAutoSlots } from '@/components/bi';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -131,7 +132,7 @@ export default function SaldoPatioPage() {
       )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-saldo-patio" />
     </div>
   );
 }

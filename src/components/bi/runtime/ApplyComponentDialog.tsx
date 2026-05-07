@@ -188,25 +188,40 @@ export function ApplyComponentDialog({
                 </div>
                 {def.inputs.map((inp) => {
                   const opts = fieldOptions(inp.source);
+                  const hasOptions = opts.length > 0;
                   return (
                     <div key={inp.key} className="space-y-1">
                       <Label className="text-xs">
                         {inp.label} {inp.required && <span className="text-destructive">*</span>}
                       </Label>
-                      <Select
-                        value={mapping[inp.key] ?? ''}
-                        onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}
-                      >
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione campo…" /></SelectTrigger>
-                        <SelectContent>
-                          {opts.map((o: any) => (
-                            <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {hasOptions ? (
+                        <Select
+                          value={mapping[inp.key] ?? ''}
+                          onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione campo…" /></SelectTrigger>
+                          <SelectContent>
+                            {opts.map((o: any) => (
+                              <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          className="h-8 text-xs"
+                          placeholder={`Nome do campo (${inp.source})`}
+                          value={mapping[inp.key] ?? ''}
+                          onChange={(e) => setMapping((m) => ({ ...m, [inp.key]: e.target.value }))}
+                        />
+                      )}
                     </div>
                   );
                 })}
+                {(!page?.schema.kpis?.length && !page?.schema.series?.length && !page?.schema.rows) && (
+                  <div className="text-[10px] text-muted-foreground italic pt-1">
+                    Esta página aceita qualquer componente. Digite manualmente o nome do campo de dados — ele será resolvido em runtime quando a página publicar dados.
+                  </div>
+                )}
               </div>
             )}
 

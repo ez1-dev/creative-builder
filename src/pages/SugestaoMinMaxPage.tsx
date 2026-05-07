@@ -21,6 +21,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { gerarDemoMovimentacao, gerarDemoSugestao } from '@/lib/demoMovimentacao';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { BiAutoSlots } from '@/components/bi';
 
 const MISSING_ENDPOINT_MSG: Record<string, string> = {
   movimentacao: 'Endpoint /api/estoque/movimentacao ainda não publicado no ERP. Veja docs/backend-sugestao-minmax.md.',
@@ -366,7 +367,7 @@ export default function SugestaoMinMaxPage() {
       )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => (mode === 'sugestao' ? fetchSugestao(p) : fetchMovimentacao(p))} />}
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => (mode === 'sugestao' ? fetchSugestao(p) : fetchMovimentacao(p))} />}      <BiAutoSlots pageKey="sugestao-min-max" />
     </div>
   );
 }

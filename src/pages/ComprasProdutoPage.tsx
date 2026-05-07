@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Database, FolderTree, DollarSign, Receipt } from 'lucide-react';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { BiAutoSlots } from '@/components/bi';
 
 const columns: Column<any>[] = [
   { key: 'codigo', header: 'Código' },
@@ -121,7 +122,7 @@ export default function ComprasProdutoPage() {
         </div>
       )}
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="compras-produto" />
     </div>
   );
 }

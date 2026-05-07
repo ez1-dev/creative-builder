@@ -15,6 +15,7 @@ import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { AlertTriangle, GitBranch, ChevronDown, ChevronRight, Expand, Shrink } from 'lucide-react';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
+import { BiAutoSlots } from '@/components/bi';
 
 const levelColors: Record<number, string> = {
   1: 'bg-green-100',
@@ -220,7 +221,7 @@ export default function BomPage() {
           </div>
           <DataTable columns={columns} data={visibleRows} loading={loading} rowClassName={getBomRowClassName} />
         </>
-      )}
+      )}      <BiAutoSlots pageKey="bom" />
     </div>
   );
 }

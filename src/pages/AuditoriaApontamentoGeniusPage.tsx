@@ -53,6 +53,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { BiAutoSlots } from '@/components/bi';
 
 // ─── Normalizador do payload da API /api/apontamentos-producao ─────────────
 // O backend pode variar nomes de campos entre versões. Esta função garante
@@ -2942,6 +2943,8 @@ function OpLinhasInline({
           </tbody>
         </table>
       </div>
+      <BiAutoSlots pageKey="auditoria-apontamento-genius" />
+
     </div>
   );
 }
