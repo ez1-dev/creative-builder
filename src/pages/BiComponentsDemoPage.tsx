@@ -111,6 +111,17 @@ function DemoBlock({ name, children, description, span, applyId }: { name: strin
   );
 }
 
+function WithApply({ componentId, children }: { componentId: string; children: React.ReactNode }) {
+  return (
+    <div className="group/apply relative">
+      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/apply:opacity-100">
+        <ApplyComponentButton componentId={componentId} label="Aplicar" />
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function CatalogSidebar({ active, onJump }: { active: string; onJump: (id: string) => void }) {
   return (
     <nav className="sticky top-4 hidden h-fit w-56 shrink-0 space-y-0.5 rounded-md border bg-card p-2 lg:block">
