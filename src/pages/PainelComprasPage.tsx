@@ -119,6 +119,8 @@ export default function PainelComprasPage() {
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
   const [dadosAgregados, setDadosAgregados] = useState<PainelComprasResponse | null>(null);
+  const [dashboard, setDashboard] = useState<PainelComprasDashboardResponse | null>(null);
+  const [usandoFallbackAgregado, setUsandoFallbackAgregado] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingAgregado, setLoadingAgregado] = useState(false);
   const TAMANHO_AGREGADO = 50000;
