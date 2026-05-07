@@ -184,23 +184,49 @@ export default function PainelComprasPage() {
       setLoading(false);
     }
 
-    // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página e quando o tamanho atual for menor.
+    // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página.
+    // Tenta primeiro o endpoint dashboard real (sem paginação). Em caso de erro,
+    // cai de volta para o endpoint paginado com tamanho_pagina=TAMANHO_AGREGADO.
     const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
     const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
-    if (page === 1 && tamanhoNumerico < TAMANHO_AGREGADO) {
+    if (page === 1) {
       setLoadingAgregado(true);
       try {
-        const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
-        setDadosAgregados(aggregated);
+        const dash = await api.get<PainelComprasDashboardResponse>(
+          '/api/painel-compras-dashboard',
+          buildParams(1, 0),
+        );
+        setDashboard(dash);
+        setUsandoFallbackAgregado(false);
+        // Mantém o agregado paginado como apoio para drill detalhado e listas auxiliares.
+        if (tamanhoNumerico < TAMANHO_AGREGADO) {
+          try {
+            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+            setDadosAgregados(aggregated);
+          } catch {
+            setDadosAgregados(null);
+          }
+        } else {
+          setDadosAgregados(null);
+        }
       } catch (e: any) {
-        console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e?.message);
-        setDadosAgregados(null);
+        console.warn('Endpoint /api/painel-compras-dashboard indisponível, usando fallback paginado:', e?.message);
+        setDashboard(null);
+        setUsandoFallbackAgregado(true);
+        if (tamanhoNumerico < TAMANHO_AGREGADO) {
+          try {
+            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+            setDadosAgregados(aggregated);
+          } catch (e2: any) {
+            console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e2?.message);
+            setDadosAgregados(null);
+          }
+        } else {
+          setDadosAgregados(null);
+        }
       } finally {
         setLoadingAgregado(false);
       }
-    } else if (page === 1) {
-      // Quando o usuário pediu "todos" / tamanho >= teto, o próprio result já é a base completa.
-      setDadosAgregados(null);
     }
   }, [filters, erpReady, trackSearch, tamanhoPagina]);
 
