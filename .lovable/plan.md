@@ -1,61 +1,172 @@
-# Endpoint agregado do Painel de Compras
+# BI Components Library — biblioteca interna de dashboards
 
-## Objetivo
-Mesmo padrão aplicado em Notas Fiscais de Recebimento, agora para `/painel-compras`: KPIs/gráficos/drill passam a vir de um endpoint agregado real, sem paginação. A `Lista Detalhada` continua paginada por `/api/painel-compras`.
+Padronizar todas as telas analíticas do ERP em torno de uma única lib visual e funcional, com catálogo navegável e migração inicial de Painel de Compras + Notas Fiscais de Recebimento.
 
-## Parte 1 — Backend FastAPI (fora deste repositório)
+## Estratégia
 
-Especificação em `docs/backend-painel-compras-dashboard.md`.
+Entrega em **3 fases** dentro deste turno:
 
-**Novo endpoint:** `GET /api/painel-compras-dashboard`
+1. **Fase 1 – Núcleo da lib** (pasta `src/components/bi/`): formatadores, estados, KPIs, charts, tabelas, filtros, drill, layout. Componentes puros, sem dependência de página específica, todos com `loading` / `error` / `empty` padronizados.
+2. **Fase 2 – Catálogo `/bi-components-demo`**: rota nova protegida, com seções demonstrando cada componente usando dados de exemplo controlados (mock só nessa rota).
+3. **Fase 3 – Adoção incremental** em `PainelComprasPage` e `NotasRecebimentoPage`: substituir gradualmente os blocos visuais hoje hardcoded pelos novos componentes da lib, **sem alterar APIs nem filtros existentes** (continua chamando `/api/painel-compras-dashboard`, `/api/notas-recebimento-dashboard`, etc.).
 
-- Sem `pagina`, `tamanho_pagina`, `LIMIT`, `OFFSET`.
-- Reaproveita exatamente a mesma query base e filtros do `GET /api/painel-compras`.
-- Filtros: `fornecedor`, `numero_oc`, `codigo_item`, `descricao_item`, `centro_custo`, `numero_projeto`, `tipo_oc`, `transacao`, `data_emissao_ini/fim`, `data_entrega_ini/fim`, `tipo_item`, `valor_min/max`, `origem_material`, `familia`, `coddep`, `somente_pendentes`, `agrupar_por_fornecedor`, `situacao_oc` (CSV), `codigo_motivo_oc`, `observacao_oc`, `mostrar_valor_total_oc`, `projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`.
-- Todos os agregados via `GROUP BY`.
+## Fase 1 — Estrutura de arquivos
 
-**Resposta:**
-```json
-{
-  "kpis": {
-    "valor_comprado": 0, "valor_recebido": 0, "valor_pendente": 0,
-    "quantidade_ocs": 0, "quantidade_itens": 0, "quantidade_fornecedores": 0,
-    "ticket_medio_oc": 0, "percentual_recebido": 0
-  },
-  "graficos": {
-    "por_mes": [{ "mes": "2026-01", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
-    "por_tipo_despesa": [{ "tipo": "Matéria-prima", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
-    "por_centro_custo": [{ "centro_custo": "...", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
-    "por_projeto": [{ "numero_projeto": "...", "projeto": "...", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
-    "por_fornecedor": [{ "fornecedor": "...", "valor": 0, "qtd_ocs": 0, "qtd_itens": 0 }],
-    "comprado_recebido_pendente": [{ "mes": "2026-01", "comprado": 0, "recebido": 0, "pendente": 0 }]
-  },
-  "drill": []
+```text
+src/components/bi/
+  index.ts                              ← barrel (re-export tudo)
+  utils/
+    formatters.ts                       ← formatCurrency, formatNumber, formatPercent,
+                                          formatDateBR, abbreviateNumber, percentVariation,
+                                          statusColor, statusLabel
+    chartHelpers.ts                     ← paletas, gradientes, tickFormatter, sortBy, topN
+    dashboardHelpers.ts                 ← buildKpiList, mapBucket, drillNavigator
+  states/
+    LoadingState.tsx                    ← skeleton + spinner contextual
+    EmptyState.tsx                      ← ícone + título + descrição + CTA opcional
+    ErrorState.tsx                      ← mensagem + retry
+    NoDataState.tsx                     ← variação de Empty para gráficos
+  kpis/
+    KpiCard.tsx                         ← title/value/icon/format/variant/trend/onClick/loading/tooltip
+    KpiGrid.tsx                         ← grid responsivo (auto-fit) que aceita KpiCard[]
+    KpiComparisonCard.tsx               ← valor atual vs período anterior
+    KpiVariationCard.tsx                ← destaque de variação % com ícone up/down
+    KpiStatusCard.tsx                   ← KPI + badge de status
+  charts/
+    ChartCardShell.tsx                  ← wrapper comum (header, toolbar, expand, export PNG, loading, empty, error)
+    BarChartCard.tsx
+    HorizontalBarChartCard.tsx
+    LineChartCard.tsx
+    AreaChartCard.tsx
+    PieChartCard.tsx
+    DonutChartCard.tsx
+    StackedBarChartCard.tsx
+    ComboChartCard.tsx                  ← barras + linha
+    RankingChartCard.tsx                ← barras horizontais com posição/medalha
+    GaugeChartCard.tsx                  ← RadialBar (recharts)
+    ProgressChartCard.tsx               ← barra de progresso meta
+  tables/
+    DataTableBI.tsx                     ← wrapper sobre DataTable atual + busca, ordenação, paginação client/server, badges, formatos, ações por linha, export
+    DrillDownTable.tsx                  ← agrupamento hierárquico expansível, suporta níveis dinâmicos
+    RankingTable.tsx                    ← top-N com posição, valor, % e barra inline
+    SummaryTable.tsx                    ← totais e subtotais
+    ComparisonTable.tsx                 ← período A vs B + variação
+  filters/
+    DashboardFilters.tsx                ← container recolhível com Aplicar/Limpar/Atualizar
+    FilterBar.tsx                       ← linha horizontal compacta (filtros principais)
+    AdvancedFiltersPanel.tsx            ← grupo expansível
+    FilterChips.tsx                     ← chips dos filtros ativos com remover individual
+    DateRangeFilter.tsx
+    SelectFilter.tsx                    ← reusa shadcn Select
+    MultiSelectFilter.tsx               ← reusa Combobox/Popover
+    SearchFilter.tsx                    ← input com debounce
+  drill/
+    DrillBreadcrumb.tsx                 ← níveis clicáveis + voltar + limpar
+    DrillLevelSelector.tsx              ← chips para escolher próximo nível
+    DrillTable.tsx                      ← tabela conectada ao breadcrumb (estado controlado)
+  layout/
+    DashboardPage.tsx                   ← <main> com padding e gaps padrão + slots
+    DashboardHeader.tsx                 ← título, subtítulo, descrição, ações (export/refresh)
+    DashboardSection.tsx                ← seção com título + ícone + opcional toolbar
+    DashboardGrid.tsx                   ← grid responsivo configurável (cols={1..6})
+    ChartGrid.tsx                       ← preset 2/3 colunas para gráficos
+    DashboardTabs.tsx                   ← wrapper sobre Tabs com persistência opcional
+    DashboardToolbar.tsx                ← barra de ações (refresh, export, fullscreen)
+  badges/
+    StatusBadge.tsx                     ← variantes: recebido, pendente, parcial, cancelado, atraso, semNF, comNF, semOC, comOC, positivo, negativo, neutro
+```
+
+## Contratos chave
+
+```ts
+// formatters
+formatCurrency(1250000) // "R$ 1.250.000,00"
+formatPercent(0.1535)   // "15,35%"
+formatNumber(10500)     // "10.500"
+formatDateBR("2026-05-07") // "07/05/2026"
+abbreviateNumber(1250000)  // "R$ 1,25 mi"
+
+// KpiCard
+type KpiFormat = "currency" | "number" | "percent" | "quantity" | "raw";
+interface KpiCardProps {
+  title: string;
+  value: number | string;
+  format?: KpiFormat;
+  subtitle?: string;
+  icon?: ReactNode;
+  variant?: "default" | "info" | "success" | "warning" | "danger";
+  trend?: { value: number; label?: string }; // delta % vs período anterior
+  status?: "ok" | "alert" | "neutral";
+  loading?: boolean;
+  tooltip?: string;
+  onClick?: () => void;
+}
+
+// Charts genéricos
+interface ChartCardProps<T> {
+  title: string;
+  subtitle?: string;
+  icon?: ReactNode;
+  data: T[];
+  loading?: boolean;
+  error?: string | null;
+  emptyMessage?: string;
+  height?: number;
+  onItemClick?: (item: T) => void;
+  valueFormatter?: (v: number) => string;
+  expandable?: boolean;
+  exportable?: boolean;
+}
+
+// Drill
+interface DrillLevel { key: string; label: string }
+interface DrillState {
+  levels: DrillLevel[];
+  path: Array<{ levelKey: string; value: string; label: string }>;
 }
 ```
 
-Definições: `valor_comprado=SUM(valor_liquido)`, `valor_recebido=SUM(valor_recebido)` (ou `SUM(qtd_recebida*preco_unitario)`), `valor_pendente=SUM(saldo_pendente*preco_unitario)`, `quantidade_ocs=COUNT(DISTINCT numero_oc)`, `ticket_medio_oc=valor_comprado/qtd_ocs`, `percentual_recebido=valor_recebido/valor_comprado*100`.
+## Fase 2 — Catálogo `/bi-components-demo`
 
-## Parte 2 — Documentação
+- Nova rota em `src/App.tsx` protegida pelo mesmo `ProtectedRoute` das demais.
+- Página `src/pages/BiComponentsDemoPage.tsx` com `<DashboardTabs>`:
+  - **KPIs**: grid demonstrando todas as variantes (default/info/success/warning/danger), com/sem trend, com/sem status, loading, click handler.
+  - **Gráficos**: cada `*ChartCard` com dataset de exemplo (mock local, comentado como demo-only), incluindo estados loading/empty/error.
+  - **Tabelas**: `DataTableBI`, `RankingTable`, `SummaryTable`, `ComparisonTable`, `DrillDownTable`.
+  - **Filtros**: `DashboardFilters` + `FilterChips` + `DateRangeFilter` + `MultiSelectFilter` interativos.
+  - **Drill-down**: navegação Projeto Macro → Projeto → Centro de Custo → Mês → Fornecedor com mock.
+  - **Dashboard completo**: composição de tudo em uma página exemplo (Painel Demo).
+- Adicionar item no `AppSidebar` em uma seção "Desenvolvimento" / "Componentes" (visível só para admins) — ou apenas link direto sem item de menu, decidido durante a implementação.
 
-Criar `docs/backend-painel-compras-dashboard.md` com o contrato completo, lista de filtros e exemplos de SQL.
+## Fase 3 — Migração inicial
 
-## Parte 3 — Frontend (`src/pages/PainelComprasPage.tsx`)
+### `src/pages/PainelComprasPage.tsx`
+Sem mexer em filtros, busca, exportação ou nas chamadas a `/api/painel-compras` e `/api/painel-compras-dashboard`:
+- Substituir o bloco de KPIs gerenciais por `<KpiGrid>` + `<KpiCard>` (mapeando `kpisGerencial`).
+- Trocar `<ChartCard>` local pelos `BarChartCard` / `DonutChartCard` / `RankingChartCard` da lib.
+- Trocar drill atual pelo `<DrillBreadcrumb>` + `<DrillDownTable>`.
+- Banner de amostragem migra para `<EmptyState variant="warning">` ou um `Alert` da lib.
 
-1. Adicionar tipo `PainelComprasDashboardResponse` em `src/lib/api.ts`.
-2. Em `search()`:
-   - Manter primeiro request a `/api/painel-compras` paginado (alimenta Lista Detalhada).
-   - Quando `page === 1`, chamar `/api/painel-compras-dashboard` (sem paginação).
-   - Em caso de erro/404, cair de volta para o request paginado com `tamanho_pagina=50000` (comportamento atual) e setar `usandoFallbackAgregado=true`.
-3. Adicionar estado `dashboard` substituindo o `dadosAgregados` como fonte preferencial de KPIs/gráficos/drill.
-4. Em `kpisGerencial` e `gerencialCharts`: preferir dados de `dashboard` quando disponível; manter cálculo client-side como fallback.
-5. Banner amarelo de amostragem só aparece em fallback (`usandoFallbackAgregado && totalAgregado > 50000`).
-6. Trocar página da tabela continua chamando só o endpoint paginado — KPIs/gráficos não recalculam.
-7. Trocar filtros + Pesquisar dispara os dois endpoints.
-8. `<DataTable>` continua usando `dadosListaFiltrados` (sem mudança).
-9. Drill-down: usa `dashboard.drill` quando presente; senão usa `dadosFiltrados` como hoje.
+### `src/pages/NotasRecebimentoPage.tsx`
+Mesma adaptação, mantendo intactos: filtros, paginação da Lista Detalhada, exportação, chamadas a `/api/notas-recebimento` e `/api/notas-recebimento-dashboard`.
 
-## Resultado
-- KPIs/gráficos/drill sempre na base completa filtrada (sem teto de 50k).
-- Lista Detalhada paginada e independente.
-- Fallback transparente enquanto o backend não atualiza.
+## Restrições reforçadas
+
+- Zero mock fora de `/bi-components-demo`.
+- Zero remoção de filtro/feature existente.
+- Zero alteração no contrato de API ou em `src/integrations/supabase/{client,types}.ts`.
+- Cores via tokens semânticos (`hsl(var(--primary))` etc.), nunca hardcoded.
+- Componentes recebem dados por props — nenhum chama `api` diretamente.
+- Lib é client-only e tree-shakeable via barrel `index.ts`.
+
+## Critério de aceite
+
+- `/bi-components-demo` renderiza todos os componentes em todos os estados (loading/empty/error/normal).
+- Painel de Compras e Notas Fiscais de Recebimento continuam funcionando com os mesmos filtros e dados, agora visualmente uniformes.
+- Cada novo componente da lib é importável via `import { KpiCard, BarChartCard, ... } from "@/components/bi"`.
+
+## Escopo deixado para próximas iterações (não nesta entrega)
+
+- `HeatmapChartCard` e `FunnelChartCard` (recharts não suporta nativamente — exigem nova dependência; será proposto separadamente).
+- Migração de Estoque, Financeiro, Produção, Projetos, Custos, Vendas (próximos PRs, depois que Compras + Recebimentos estiverem validados).
+- Storybook formal — por enquanto a página `/bi-components-demo` cumpre o papel de catálogo.
