@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { Button } from '@/components/ui/button';
+import { Lock } from 'lucide-react';
 import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Layers, Palette, Filter, Table2, BarChart3, MousePointerClick, AlertCircle, Tag, LayoutDashboard, Map, Network, Clock, Sparkles } from 'lucide-react';
 import {
   // layout
@@ -171,6 +175,10 @@ function MobileNav({ active, onJump }: { active: string; onJump: (id: string) =>
 }
 
 export default function BiComponentsDemoPage() {
+  const { isAuthenticated } = useAuth();
+  const { canView, hasPermissions, loading: permLoading } = useUserPermissions();
+  const blocked = isAuthenticated && !permLoading && hasPermissions && !canView('/biblioteca-bi');
+
   const [active, setActive] = useState('layout');
 
   // filter state (controlled, local)
@@ -237,6 +245,28 @@ export default function BiComponentsDemoPage() {
       ]} />
     ) },
   ]), []);
+
+  return (
+    <DashboardPage>
+      <DashboardHeader
+  if (blocked) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center p-6">
+        <div className="max-w-sm rounded-lg border bg-card p-8 text-center shadow-md space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Lock className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <h2 className="text-lg font-semibold">Sem acesso à Biblioteca BI</h2>
+          <p className="text-sm text-muted-foreground">
+            Seu perfil não tem permissão para acessar esta tela. Solicite ao administrador a liberação em <strong>Configurações → Permissões por Tela</strong>.
+          </p>
+          <Button asChild variant="outline" className="w-full">
+            <Link to="/estoque">Voltar ao início</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardPage>
