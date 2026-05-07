@@ -731,7 +731,7 @@ export default function NotasRecebimentoPage() {
                       <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="label" width={130} className="text-xs" tick={{ fontSize: 10 }} />
                       <Tooltip formatter={(v: number) => formatCurrency(v)} contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
-                      <Bar dataKey="valor" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="valor" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('codigo_centro_custo', d?.chave, d?.label)} />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartCard>
