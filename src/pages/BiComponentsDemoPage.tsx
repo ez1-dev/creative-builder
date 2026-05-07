@@ -103,10 +103,10 @@ const SECTIONS = [
 function DemoBlock({ name, children, description, span, applyId }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3; applyId?: string }) {
   const colSpan = span === 3 ? 'lg:col-span-3' : span === 2 ? 'lg:col-span-2' : '';
   return (
-    <div className={`space-y-1.5 ${colSpan}`}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className={`group space-y-2 rounded-xl border border-border/60 bg-card/50 p-3 transition-all hover:border-primary/40 hover:bg-card hover:shadow-sm ${colSpan}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap border-b border-dashed border-border/60 pb-2">
         <div className="flex items-baseline gap-2 min-w-0">
-          <code className="text-[11px] font-semibold text-primary truncate">{name}</code>
+          <code className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary truncate">{name}</code>
           {description && <span className="text-[11px] text-muted-foreground truncate">{description}</span>}
         </div>
         {applyId && <ApplyComponentButton componentId={applyId} />}
@@ -118,8 +118,8 @@ function DemoBlock({ name, children, description, span, applyId }: { name: strin
 
 function WithApply({ componentId, children }: { componentId: string; children: React.ReactNode }) {
   return (
-    <div className="relative">
-      <div className="absolute right-1.5 top-1.5 z-10">
+    <div className="relative group">
+      <div className="absolute right-2 top-2 z-10 opacity-70 transition-opacity group-hover:opacity-100">
         <ApplyComponentButton componentId={componentId} label="Aplicar" />
       </div>
       {children}
@@ -129,9 +129,11 @@ function WithApply({ componentId, children }: { componentId: string; children: R
 
 function CatalogSidebar({ active, onJump }: { active: string; onJump: (id: string) => void }) {
   return (
-    <nav className="sticky top-4 hidden h-fit w-56 shrink-0 space-y-0.5 rounded-md border bg-card p-2 lg:block">
-      <div className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <nav className="sticky top-4 hidden h-fit w-60 shrink-0 space-y-1 rounded-xl border bg-gradient-to-b from-card to-card/60 p-3 shadow-sm lg:block">
+      <div className="flex items-center gap-1.5 px-2 pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <LayoutDashboard className="h-3 w-3" />
         Catálogo
+        <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] text-primary">{SECTIONS.length}</span>
       </div>
       {SECTIONS.map((s) => {
         const Icon = s.icon;
@@ -140,11 +142,14 @@ function CatalogSidebar({ active, onJump }: { active: string; onJump: (id: strin
           <button
             key={s.id}
             onClick={() => onJump(s.id)}
-            className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs transition-colors ${
-              isActive ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground hover:bg-accent/50'
+            className={`relative flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-all ${
+              isActive
+                ? 'bg-gradient-to-r from-primary/15 to-primary/5 font-semibold text-primary shadow-sm'
+                : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
             }`}
           >
-            <Icon className="h-3.5 w-3.5" />
+            {isActive && <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary" />}
+            <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-primary' : ''}`} />
             {s.label}
           </button>
         );
@@ -155,17 +160,21 @@ function CatalogSidebar({ active, onJump }: { active: string; onJump: (id: strin
 
 function MobileNav({ active, onJump }: { active: string; onJump: (id: string) => void }) {
   return (
-    <div className="flex gap-1.5 overflow-x-auto rounded-md border bg-card p-1.5 lg:hidden">
+    <div className="sticky top-2 z-20 flex gap-1.5 overflow-x-auto rounded-xl border bg-card/95 p-1.5 shadow-sm backdrop-blur lg:hidden">
       {SECTIONS.map((s) => {
+        const Icon = s.icon;
         const isActive = active === s.id;
         return (
           <button
             key={s.id}
             onClick={() => onJump(s.id)}
-            className={`shrink-0 rounded-sm px-2.5 py-1 text-xs ${
-              isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'
+            className={`flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+              isActive
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-muted/60 text-muted-foreground hover:bg-accent hover:text-foreground'
             }`}
           >
+            <Icon className="h-3 w-3" />
             {s.label}
           </button>
         );
