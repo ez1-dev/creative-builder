@@ -459,7 +459,7 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
 
               <div className="grid grid-cols-2 gap-2 text-center text-sm md:grid-cols-4">
                 <div className="rounded-md border p-2">
-                  <div className="text-xs text-muted-foreground">Total no arquivo</div>
+                  <div className="text-xs text-muted-foreground">Linhas neste arquivo</div>
                   <div className="text-lg font-semibold">{rows.length}</div>
                 </div>
                 <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2">
