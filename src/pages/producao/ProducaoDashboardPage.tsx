@@ -3,19 +3,18 @@ import { api } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
-import { KPICard } from '@/components/erp/KPICard';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
-import { AlertTriangle, Clock, SearchX, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Clock, SearchX, RefreshCw, Package, TrendingUp, Truck, Warehouse, Layers, AlertCircle, Hourglass } from 'lucide-react';
 import { DashboardCharts } from './components/DashboardCharts';
+import { KpiGrid, KpiCard, LoadingState } from '@/components/bi';
 
 interface DashboardResumo {
   kg_engenharia: number;
