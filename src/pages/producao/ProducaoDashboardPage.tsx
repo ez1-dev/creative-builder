@@ -3,19 +3,18 @@ import { api } from '@/lib/api';
 import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionAlert';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
-import { KPICard } from '@/components/erp/KPICard';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/format';
 import { toast } from 'sonner';
 import { useAiFilters } from '@/hooks/useAiFilters';
 import { useAiPageContext } from '@/hooks/useAiPageContext';
-import { AlertTriangle, Clock, SearchX, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Clock, SearchX, RefreshCw, Package, TrendingUp, Truck, Warehouse, Layers, AlertCircle, Hourglass } from 'lucide-react';
 import { DashboardCharts } from './components/DashboardCharts';
+import { KpiGrid, KpiCard, LoadingState } from '@/components/bi';
 
 interface DashboardResumo {
   kg_engenharia: number;
@@ -269,23 +268,32 @@ export default function ProducaoDashboardPage() {
 
       {resumo && status === 'success' && (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7">
-            <KPICard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info" tooltip="Peso previsto em engenharia" details={buildProjectDetails(data!.top_projetos_patio, 'kg_engenharia')} />
-            <KPICard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success" tooltip="Total produzido (entrada estoque)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_produzido')} />
-            <KPICard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success" tooltip="Total expedido (romaneio)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_expedido')} />
-            <KPICard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning" tooltip="Saldo em pátio (produzido − expedido)" details={buildProjectDetails(data!.top_projetos_patio, 'kg_patio')} />
-            <KPICard title="Qtd Cargas" value={resumo.quantidade_cargas} />
-            <KPICard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="destructive" />
-            <KPICard title="Aguardando Prod." value={resumo.projetos_aguardando_producao} tooltip="Projetos aguardando início de produção" details={buildStatusDetails(data!.top_projetos_patio, 'AGUARDANDO')} />
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <KPICard title="Em Produção" value={resumo.projetos_em_producao} variant="info" tooltip="Projetos em fase de produção ou sem entrada em estoque" details={buildStatusDetails(data!.top_projetos_patio, 'PRODUÇÃO', 'SEM ENTRADA')} />
-            <KPICard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning" tooltip="Projetos com expedição parcial" details={buildStatusDetails(data!.top_projetos_patio, 'PARCIAL')} />
-            <KPICard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success" tooltip="Projetos totalmente expedidos" details={buildStatusDetails(data!.top_projetos_patio, 'TOTALMENTE EXPEDIDO')} />
-            <KPICard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
-            <KPICard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
-            <KPICard title="LT Total (dias)" value={resumo.leadtime_medio_total} />
-          </div>
+          <KpiGrid cols={7}>
+            <KpiCard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info"
+              icon={<Layers className="h-4 w-4" />} tooltip="Peso previsto em engenharia" />
+            <KpiCard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success"
+              icon={<Package className="h-4 w-4" />} tooltip="Total produzido (entrada estoque)" />
+            <KpiCard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success"
+              icon={<Truck className="h-4 w-4" />} tooltip="Total expedido (romaneio)" />
+            <KpiCard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning"
+              icon={<Warehouse className="h-4 w-4" />} tooltip="Saldo em pátio (produzido − expedido)" />
+            <KpiCard title="Qtd Cargas" value={resumo.quantidade_cargas} icon={<Truck className="h-4 w-4" />} />
+            <KpiCard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="danger"
+              icon={<AlertCircle className="h-4 w-4" />} />
+            <KpiCard title="Aguardando Prod." value={resumo.projetos_aguardando_producao}
+              icon={<Hourglass className="h-4 w-4" />} tooltip="Projetos aguardando início de produção" />
+          </KpiGrid>
+          <KpiGrid cols={6}>
+            <KpiCard title="Em Produção" value={resumo.projetos_em_producao} variant="info"
+              tooltip="Projetos em fase de produção ou sem entrada em estoque" />
+            <KpiCard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning"
+              tooltip="Projetos com expedição parcial" />
+            <KpiCard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success"
+              tooltip="Projetos totalmente expedidos" />
+            <KpiCard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
+            <KpiCard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
+            <KpiCard title="LT Total (dias)" value={resumo.leadtime_medio_total} variant="info" />
+          </KpiGrid>
 
           <DashboardCharts data={data!} />
         </>
