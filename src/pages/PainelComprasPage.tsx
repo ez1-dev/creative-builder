@@ -153,7 +153,7 @@ export default function PainelComprasPage() {
   const search = useCallback(async (page = 1, tamanhoOverride?: typeof tamanhoPagina) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
-    const buildParams = (p: number, size: number) => {
+    const buildParams = (p: number, size: number, opts?: { stripClassificacoes?: boolean }) => {
       const params: any = { ...filters, pagina: p, tamanho_pagina: size };
       if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
       else delete params.valor_min;
@@ -167,14 +167,21 @@ export default function PainelComprasPage() {
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
       if (!params.observacao_oc) delete params.observacao_oc;
-      // Enviados ao backend; quando ele aplicar a derivação server-side
-      // (ver docs/backend-painel-compras-dashboard.md), o dashboard passa a
-      // refletir 100% da base filtrada. Enquanto isso, o frontend mantém um
-      // fallback client-side em kpisGerencial / gerencialCharts.
-      if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
-      if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
-      if (!params.mes_competencia) delete params.mes_competencia;
-      if (!params.condicao_pagamento) delete params.condicao_pagamento;
+      // Classificações derivadas no frontend (tipo_despesa, projeto_macro,
+      // mes_competencia, condicao_pagamento). O backend agregado não conhece
+      // essas derivações — para o dashboard SEMPRE removemos para garantir que
+      // a base completa seja retornada e o filtro seja aplicado client-side.
+      if (opts?.stripClassificacoes) {
+        delete params.projeto_macro;
+        delete params.tipo_despesa;
+        delete params.mes_competencia;
+        delete params.condicao_pagamento;
+      } else {
+        if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
+        if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
+        if (!params.mes_competencia) delete params.mes_competencia;
+        if (!params.condicao_pagamento) delete params.condicao_pagamento;
+      }
       return params;
     };
     try {
