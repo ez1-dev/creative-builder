@@ -19,6 +19,7 @@ import { MetaEntregaSemanalChart } from './MetaEntregaSemanalChart';
 import { ExportPdfButton } from '@/components/erp/ExportPdfButton';
 import { gerarRelatorioSemanalObraPdf } from '@/lib/pdf/relatorioSemanalObraPdf';
 import { useAuth } from '@/contexts/AuthContext';
+import { extrairResumo } from '@/lib/drillResumo';
 
 interface KpiTotals {
   totalObras: number;
