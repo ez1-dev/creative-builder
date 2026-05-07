@@ -48,11 +48,22 @@ const situacaoLabel = (s: number | string) => {
 };
 
 const baseColumns: Column<any>[] = [
+  { key: 'projeto_macro', header: 'Projeto Macro' },
+  { key: 'numero_projeto', header: 'Projeto' },
+  { key: 'centro_custo', header: 'Centro Custo' },
+  { key: 'tipo_despesa_calc', header: 'Tipo de Despesa' },
+  { key: 'mes_competencia_calc', header: 'Mês' },
   { key: 'numero_oc', header: 'Nº OC' },
   { key: 'codigo_item', header: 'Item' },
   { key: 'descricao_item', header: 'Descrição' },
   { key: 'tipo_item', header: 'Tipo' },
   { key: 'fantasia_fornecedor', header: 'Fornecedor' },
+  { key: 'condicao_pagamento', header: 'Cond. Pagto', render: (v: any, row: any) => {
+    const cod = v ?? '';
+    const desc = row?.descricao_condicao_pagamento ?? '';
+    if (!cod && !desc) return '-';
+    return desc ? `${cod} - ${desc}` : String(cod);
+  } },
   { key: 'transacao', header: 'Transação' },
   { key: 'data_emissao', header: 'Emissão', render: (v) => formatDate(v) },
   { key: 'data_entrega', header: 'Entrega', render: (v) => formatDate(v) },
