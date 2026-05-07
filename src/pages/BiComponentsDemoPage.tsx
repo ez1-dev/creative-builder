@@ -196,7 +196,7 @@ export default function BiComponentsDemoPage() {
       </KpiGrid>
     ) },
     { value: 'detalhe', label: 'Detalhamento', content: (
-      <RankingTable rows={fornecedoresRanking.slice(0, 5)} />
+      <RankingTable data={fornecedoresRanking.slice(0, 5)} />
     ) },
     { value: 'comparacao', label: 'Comparação', content: (
       <ComparisonTable rows={[
@@ -316,7 +316,7 @@ export default function BiComponentsDemoPage() {
               </DemoBlock>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <DemoBlock name="RankingTable">
-                  <RankingTable rows={fornecedoresRanking.slice(0, 6)} />
+                  <RankingTable data={fornecedoresRanking.slice(0, 6)} />
                 </DemoBlock>
                 <DemoBlock name="SummaryTable + total">
                   <SummaryTable rows={[
