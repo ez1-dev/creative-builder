@@ -1,69 +1,23 @@
-## Objetivo
+# Expandir tabela "Registros" de Passagens Aéreas
 
-Permitir aplicar **todos** os componentes visíveis no catálogo `/biblioteca-bi`. Hoje só ~12 itens têm botão "Aplicar" porque o `COMPONENT_REGISTRY` cobre apenas parte dos componentes da biblioteca.
+## Objetivo
+Mostrar na lista de registros todas as colunas pedidas:
+`data_registro, colaborador, centro_custo, projeto_obra, fornecedor, cia_aerea, numero_bilhete, localizador, origem, destino, uf_destino, data_ida, data_volta, motivo_viagem, tipo_despesa, valor`.
+
+## Observação importante sobre `cep_destino`
+A tabela `passagens_aereas` **não tem** o campo `cep_destino` — só existe `uf_destino` (UF derivada automaticamente do destino). Vou usar `uf_destino` no lugar. Se você realmente quiser CEP, preciso adicionar uma coluna nova no banco e popular via geocoder; me avise.
 
 ## Mudanças
 
-### 1. `src/lib/bi/componentRegistry.tsx` — ampliar registry
+### `src/components/passagens/PassagensDashboard.tsx` (card "Registros")
+1. Substituir o `<TableHeader>` atual (7 colunas) por 16 colunas, na ordem solicitada.
+2. Renderizar todas as células correspondentes em:
+   - Modo lista (`pagedRows.map`)
+   - Modo agrupado por colaborador (`g.registros.map`) — esconde a coluna "Colaborador" como já faz hoje
+3. Ajustar `baseCols` / `colSpan` do cabeçalho de grupo, do "Subtotal" do footer e dos estados "Carregando…/Nenhum registro".
+4. Tornar a tabela rolável horizontalmente (wrapper `overflow-x-auto`) e aplicar `whitespace-nowrap` nas células para evitar quebra.
+5. Larguras: usar `text-xs`/`px-2 py-1.5` mais compactos só nesse card para caber bem; coluna Valor permanece alinhada à direita.
+6. Origem e Destino voltam a ser **duas colunas separadas** (hoje aparecem como "Origem → Destino" combinado).
 
-Adicionar entradas para todos os componentes faltantes, cada um com `id`, `kind`, `inputs`, `autoMap` e `render`:
-
-**KPIs faltantes (`kind: 'kpi'`):**
-- `kpi-comparison` → KpiComparisonCard (input: `current` + `previous` em kpis)
-- `kpi-variation` → KpiVariationCard (input: variação numérica)
-- `kpi-status` → KpiStatusCard (input: kpi + status fixo via options)
-
-**Charts faltantes (`kind: 'chart'`):**
-- `stacked-bar-chart` → StackedBarChartCard (série multi-key)
-- `combo-chart` → ComboChartCard (barra + linha)
-- `gauge-chart` → GaugeChartCard (kpi único, 0–100)
-- `progress-chart` → ProgressChartCard (lista de metas)
-- `scatter-chart` → ScatterChartCard (série x/y)
-- `heatmap-chart` → HeatmapChartCard
-- `waterfall-chart` → WaterfallChartCard
-- `calendar-heatmap` → CalendarHeatmapCard (série diária)
-
-**Mapas (`kind: 'map'`):**
-- `brazil-map` → BrazilMapCard (série uf/valor)
-
-**Hierarquia (`kind: 'tree'`):**
-- `tree-view` → TreeView (rows hierárquicas)
-- `timeline` → Timeline (rows com timestamp/title)
-
-**Tabelas (`kind: 'table'`):**
-- `ranking-table` → RankingTable
-- `summary-table` → SummaryTable
-- `comparison-table` → ComparisonTable
-- `drill-down-table` → DrillDownTable
-
-**Badges (`kind: 'kpi'` reaproveitando):**
-- `status-badge` → StatusBadge (status fixo via options)
-
-Cada entrada usa `SERIES_LIKE` (ou variação) para normalizar dados. Quando o componente exigir formato muito específico (heatmap row/col, scatter x/y, calendar date/value), o `render` faz a transformação inline a partir de `ctx.series[mapping.series]` ou `ctx.rows`.
-
-### 2. `src/pages/BiComponentsDemoPage.tsx` — vincular DemoBlocks
-
-Adicionar `applyId="..."` em cada `<DemoBlock>` (ou `<WithApply componentId="...">` para os que ficam dentro de `<ChartGrid>`) para os componentes acima. Lista de blocos a marcar:
-
-- KPIs: `KpiComparisonCard / KpiVariationCard / KpiStatusCard` (separar em 3 DemoBlocks com 3 applyIds, ou usar 1 applyId representativo). Solução escolhida: separar em sub-blocos.
-- Charts: StackedBar, Combo, Gauge, Progress, Scatter, Waterfall, Heatmap, CalendarHeatmap, Sparkline.
-- Maps: BrazilMapCard.
-- Tree: TreeView, Timeline.
-- Tables: RankingTable, SummaryTable, ComparisonTable, DrillDownTable.
-- Badges: StatusBadge.
-
-### 3. Blocos que **continuam sem botão** (intencional)
-
-Componentes de composição/UI puros — não fazem sentido como widget isolado em uma página:
-
-- `DashboardTabs`, `DashboardGrid` (containers)
-- Toda a seção "Filtros" (DashboardFilters, FilterBar, FilterChips, AdvancedFiltersPanel, DateRangeFilter, SelectFilter, MultiSelectFilter, SearchFilter)
-- Toda a seção "Drill-down" (DrillBreadcrumb, DrillLevelSelector — fazem parte do estado da página)
-- Toda a seção "Estados" (LoadingState, EmptyState, ErrorState, NoDataState)
-- "Formatadores" (helpers utilitários)
-
-Esses ganharão um pequeno selo `<span>` cinza com texto "uso direto via import" ao lado do nome, deixando claro ao usuário que não há botão "Aplicar" porque não é um widget.
-
-## Resultado
-
-Todos os cards visuais do catálogo (KPIs, Gráficos, Mapas, Hierarquia, Tabelas, Badges) terão botão **Aplicar** funcional. Os cards utilitários (Filtros/Drill/Estados/Formatadores) continuam sem botão, mas com um selo explicando o motivo.
+### Sem mudanças em backend, schema ou exportação.
+Exportações CSV/XLSX já contêm todos os campos.
