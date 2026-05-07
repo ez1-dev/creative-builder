@@ -288,7 +288,7 @@ export default function PainelComprasPage() {
       .sort((a, b) => a.periodo_entrega.localeCompare(b.periodo_entrega));
 
     return { top_fornecedores, situacoes, tipos, familias, origens, entregas_por_mes };
-  }, [data]);
+  }, [data, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
 
   const kpis = useMemo(() => {
     if (!data) return null;
