@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, ArrowLeft, X, ChevronDown } from 'lucide-react';
 import { formatCurrency, formatNumber } from '@/lib/format';
@@ -15,17 +15,31 @@ export type DrillMetric = {
   distinctOf?: (row: any) => any;
 };
 
+export type DrillSeed = { nivel: string; chave: string; label: string; nonce?: number } | null;
+
 interface Props {
   dados: any[];
   niveis: DrillNivel[];
   metrics: DrillMetric[];
   primaryMetricKey?: string;
+  /** Quando muda, posiciona o drill iniciando neste nível/valor. */
+  seed?: DrillSeed;
 }
 
 type Step = { nivel: string; chave: string; label: string };
 
-export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey }: Props) {
+export function GenericDrillView({ dados, niveis, metrics, primaryMetricKey, seed }: Props) {
   const [stack, setStack] = useState<Step[]>([]);
+  const lastSeedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!seed) return;
+    if (!niveis.some((n) => n.key === seed.nivel)) return;
+    const sig = `${seed.nivel}::${seed.chave}::${seed.nonce ?? ''}`;
+    if (lastSeedRef.current === sig) return;
+    lastSeedRef.current = sig;
+    setStack([{ nivel: seed.nivel, chave: seed.chave, label: seed.label }]);
+  }, [seed, niveis]);
 
   const filtrados = useMemo(() => {
     return dados.filter((d) => stack.every((s) => String(d[s.nivel] ?? '') === s.chave));
