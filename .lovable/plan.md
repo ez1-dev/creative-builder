@@ -1,66 +1,32 @@
-## Objetivo
+## Causa raiz
 
-Antes de salvar um widget pelo modal **Aplicar componente**, o usuário verá uma seção de pré-visualização mostrando exatamente o que vai chegar à página alvo: filtros ativos no momento, campos mapeados e um preview visual do componente renderizado com dados reais (ou amostra quando não houver).
+A rota `/biblioteca-bi` está **sem proteção de autenticação** em `src/App.tsx` (linhas 85–86), enquanto todas as outras páginas usam `<ProtectedRoute>`. Você abre o catálogo deslogado, clica em **Aplicar**, e:
 
-## Mudanças
+1. O dialog detecta `supabase.auth.getUser() === null` e mostra o aviso amarelo "Você não está autenticado".
+2. O botão **Aplicar à página** fica desabilitado (`canSave` exige `authed === true`).
+3. Mesmo se passasse, o insert em `bi_user_widgets` seria rejeitado pelo RLS (`auth.uid() = user_id`).
 
-### 1. `src/components/bi/runtime/ApplyComponentDialog.tsx`
-Adicionar bloco **"Pré-visualização"** abaixo do mapeamento, contendo:
+Confirmado por evidência: você está em `/login` agora, e `SELECT count(*) FROM bi_user_widgets` = **0 registros**. A tabela e a RLS estão corretas — o problema é só de sessão expirada + rota desprotegida.
 
-- **Resumo de dados de origem** (compacto, em pills):
-  - Página alvo + rota
-  - Seção alvo + tipos aceitos
-  - Para cada campo mapeado: `label do input → label do campo da página` com badge do tipo (kpi/série/linhas) e prévia do valor/contagem (ex.: `Total Compras → R$ 1.2M`, `Compras por Mês → 12 pontos`, `Linhas → 487 registros`).
-  - Filtros ativos: lista de chips lidos via `usePageData()` quando o dialog está aberto sobre uma página piloto; quando aberto a partir de `/biblioteca-bi` (sem contexto), mostrar mensagem "Os filtros ativos da página alvo serão aplicados automaticamente."
+## Correção
 
-- **Preview visual** do componente:
-  - Renderizar `def.render({...})` dentro de um container `border rounded p-2 bg-muted/10` com altura limitada (`max-h-56 overflow-hidden`).
-  - Construir `ctx` para o render:
-    1. Se houver `usePageData()` ativo e `pageKey` selecionado bate com o contexto → usar `kpis/series/rows` reais.
-    2. Caso contrário → buscar amostra via novo helper `fetchPagePreviewData(pageKey)` (ver item 3) com cache simples por sessão.
-    3. Fallback final → dados sintéticos derivados do `schema` (KPIs com valores aleatórios estáveis por seed do key, séries com 6 pontos mock, 5 linhas mock).
-  - Indicador no rodapé do preview: `Fonte: dados reais | amostra | mock` para o usuário saber.
+Envolver `/biblioteca-bi` (e o alias `/bi-components-demo`) com `<ProtectedRoute path="/biblioteca-bi">`, igual às demais páginas. Resultado: ao abrir o link você é redirecionado para `/login`; após autenticar, volta ao catálogo já com sessão ativa, o aviso amarelo some e o botão **Aplicar à página** funciona normalmente.
 
-- Tudo dentro de `<details open>` para o usuário poder colapsar.
+## Arquivo a editar
 
-### 2. `src/lib/bi/previewData.ts` (novo)
-Helper único responsável por compor os dados de preview:
+- `src/App.tsx` linhas 85–86: trocar
+  ```tsx
+  <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
+  <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
+  ```
+  por:
+  ```tsx
+  <Route path="/bi-components-demo" element={<ProtectedRoute path="/biblioteca-bi"><BiComponentsDemoPage /></ProtectedRoute>} />
+  <Route path="/biblioteca-bi" element={<ProtectedRoute path="/biblioteca-bi"><BiComponentsDemoPage /></ProtectedRoute>} />
+  ```
 
-```ts
-export function buildPreviewCtx(
-  page: BiPageDef,
-  liveCtx: PageDataValue | null,
-): { kpis; series; rows; source: 'live' | 'mock' }
-```
+Sem mudanças de schema, RLS, ou dialog. Só uma linha de roteamento.
 
-- Se `liveCtx?.pageKey === page.key` e tem dados → retorna `{...liveCtx, source: 'live'}`.
-- Senão → gera mocks determinísticos a partir do `page.schema` (números fixos por hash do key para o preview ser estável).
+## Verificação
 
-Sem chamada de rede no MVP — fica aberto para depois plugar fetch real por página.
-
-### 3. `src/components/bi/runtime/ApplyComponentDialog.tsx` — layout
-Reorganizar o `DialogContent` para `max-w-2xl` e duas colunas em md+:
-
-```text
-+------------------------------+----------------------------+
-| Página / Seção               | Pré-visualização           |
-| Mapeamento                   |  - Resumo (chips)          |
-| Título / Largura             |  - Render do componente    |
-+------------------------------+----------------------------+
-```
-
-Em telas pequenas, empilha (preview embaixo).
-
-### 4. Atualização cosmética
-- `ApplyComponentDialog` passa a usar `usePageData()` (import de `@/lib/bi/PageDataContext`) — quando o dialog é aberto a partir de uma página piloto via `<ApplyComponentButton/>` embutido, captura filtros automaticamente. Em `/biblioteca-bi` o context será null e cai no mock.
-
-## Arquivos
-
-- editar `src/components/bi/runtime/ApplyComponentDialog.tsx`
-- criar `src/lib/bi/previewData.ts`
-
-Sem alterações de schema, RLS, registry de páginas/componentes ou páginas piloto.
-
-## Resultado esperado
-
-No modal, abaixo do mapeamento, aparece "Pré-visualização" mostrando: chips com página/seção/campos mapeados/filtros, e um render real do componente com os dados que ele receberá. O usuário decide salvar com confiança porque vê antes o que vai aparecer.
+Após aplicar: abrir `/biblioteca-bi` deslogado → redireciona para `/login` → após login, retorna ao catálogo, o banner amarelo do dialog desaparece e o **Aplicar à página** salva normalmente em `bi_user_widgets`.
