@@ -518,10 +518,16 @@ export default function PainelComprasPage() {
   const totalAgregadoCompras = dadosAgregados?.total_registros ?? 0;
   const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
+  const gerencialActive =
+    (filters.projeto_macro && filters.projeto_macro !== 'TODOS') ||
+    (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') ||
+    !!filters.mes_competencia ||
+    !!filters.condicao_pagamento;
+
   const kpisGerencial = useMemo(() => {
-    // Quando o endpoint /api/painel-compras-dashboard responde, usamos exclusivamente
-    // seus KPIs (base completa filtrada, sem paginação). Sem somar `dadosFiltrados`.
-    if (dashboard) {
+    // Quando há filtro gerencial (classificações client-side), o backend não
+    // conhece esses campos — recalculamos a partir de dadosFiltrados.
+    if (dashboard && !gerencialActive) {
       const k = dashboard.kpis;
       const topBackend = k.maior_fornecedor
         ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
