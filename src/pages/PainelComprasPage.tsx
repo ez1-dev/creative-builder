@@ -148,15 +148,12 @@ export default function PainelComprasPage() {
   const search = useCallback(async (page = 1, tamanhoOverride?: typeof tamanhoPagina) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
-    try {
-      const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
-      const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
-      const params: any = { ...filters, pagina: page, tamanho_pagina: tamanhoNumerico };
+    const buildParams = (p: number, size: number) => {
+      const params: any = { ...filters, pagina: p, tamanho_pagina: size };
       if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
-      // situacao_oc: backend aceita CSV (ex.: "1" ou "1,2,3").
       const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
       if (situacoesSel.length > 0) params.situacao_oc = situacoesSel.join(',');
       else delete params.situacao_oc;
@@ -169,9 +166,12 @@ export default function PainelComprasPage() {
       if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
       if (!params.mes_competencia) delete params.mes_competencia;
       if (!params.condicao_pagamento) delete params.condicao_pagamento;
-      const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
-
-
+      return params;
+    };
+    try {
+      const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
+      const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
+      const result = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(page, tamanhoNumerico));
       setData(result);
       setPagina(page);
       if (page === 1) trackSearch(filters, (result as any)?.total_registros);
@@ -179,6 +179,25 @@ export default function PainelComprasPage() {
       toast.error(e.message);
     } finally {
       setLoading(false);
+    }
+
+    // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página e quando o tamanho atual for menor.
+    const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
+    const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
+    if (page === 1 && tamanhoNumerico < TAMANHO_AGREGADO) {
+      setLoadingAgregado(true);
+      try {
+        const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+        setDadosAgregados(aggregated);
+      } catch (e: any) {
+        console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e?.message);
+        setDadosAgregados(null);
+      } finally {
+        setLoadingAgregado(false);
+      }
+    } else if (page === 1) {
+      // Quando o usuário pediu "todos" / tamanho >= teto, o próprio result já é a base completa.
+      setDadosAgregados(null);
     }
   }, [filters, erpReady, trackSearch, tamanhoPagina]);
 
