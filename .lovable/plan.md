@@ -1,83 +1,155 @@
-# Garantir KPIs globais — Painel de Compras & NF de Recebimento
+# Biblioteca BI — Expansão de Componentes + Dashboard Pré-Pronto + IA Sugestões
 
-## Diagnóstico
+## Objetivo
+Transformar `/biblioteca-bi` em um catálogo completo padrão indústria, adicionando componentes que faltam (mapas, hierarquia, novos gráficos), um **Dashboard Pré-Pronto** demonstrando composição real, e um **assistente IA contextual** que analisa o módulo escolhido e sugere quais componentes/visualizações usar.
 
-Ambas as telas já chamam endpoints `*-dashboard` agregados. Porém, hoje os KPIs ainda misturam dados da amostra (50k linhas paginadas) quando o backend não expõe certos campos:
+---
 
-**`src/pages/NotasRecebimentoPage.tsx`** (`kpis` em ~L348-407):
-- Mesmo com `dashboard` presente, calcula `valorBruto`, `qtdRecebida`, `maiorFornecedor`, `nfsComOc`, `nfsSemOc`, `pctComOc`, `pctSemOc` somando o array `dados` (que é a amostra agregada de 50k, não a base completa).
-- Comentário no código admite explicitamente: "Para indicadores que o backend ainda não expõe, usamos a amostra como aproximação."
+## 1. Novos componentes a adicionar à lib `src/components/bi/`
 
-**`src/pages/PainelComprasPage.tsx`** (`kpisGerencial` em ~L512-555):
-- Quando `dashboard` está presente, usa apenas KPIs do backend. Correto.
-- Maior fornecedor é derivado do `por_fornecedor` do dashboard. Correto.
-- Fallback (sem dashboard) ainda calcula tudo a partir de `dadosFiltrados` (até 50k). Aceitável apenas como degradação, mas atualmente nunca exibe aviso de amostragem se total ≤ 50k.
+### Gráficos (charts/)
+- **TreemapChartCard** — hierarquia por área (recharts `Treemap`). Útil para participação de fornecedores/categorias.
+- **SankeyChartCard** — fluxo entre origens/destinos (recharts `Sankey`). Ex: orçamento → centro → projeto.
+- **RadarChartCard** — comparação multi-dimensão (recharts `RadarChart`). Ex: avaliação de fornecedores.
+- **ScatterChartCard** — dispersão x/y (recharts `ScatterChart`). Ex: prazo x valor.
+- **HeatmapChartCard** — matriz de calor (grid div + escala HSL). Ex: vendas por dia da semana × hora.
+- **WaterfallChartCard** — composição entrada/saída (recharts `BarChart` com offsets). Ex: variação de saldo.
+- **FunnelChartCard** — funil de conversão (recharts `FunnelChart`). Ex: cotação → pedido → recebimento.
+- **BulletChartCard** — meta vs atual com ranges qualitativos (composto custom).
+- **SparklineCard** — micro-gráfico inline para KPIs (recharts `LineChart` minimal).
 
-**Tipos (`src/lib/api.ts`)** estão incompletos para cobrir 100% dos KPIs que o usuário listou.
+### Mapas (charts/maps/)
+- **BrazilMapCard** — choropleth dos estados usando `public/geo/brasil-uf.json` (já existe). API: `data: { uf: 'SP', valor: 1200 }[]`, escala automática, tooltip com formatador customizável. Reaproveitar lógica de `MapaDestinosCard.tsx`.
+- **BrazilCitiesMapCard** — bolhas em coordenadas (lat/lng) sobre o mapa do Brasil. Reaproveitar `cidadesBrasil.ts` para resolver cidade→coords.
+- **WorldMapCard** (opcional, fase 2 — fica no plano mas não implemento agora se ficar pesado).
 
-## Mudanças
+### Hierarquia / Árvore (tree/)
+- **TreeView** — árvore expansível genérica com chevron (lista aninhada). Para taxonomias, BOM, estrutura organizacional.
+- **OrgChartCard** — organograma horizontal/vertical simples (CSS grid + linhas). Para hierarquia de áreas/responsáveis.
+- **TreemapTable** — tabela hierárquica com indentação + barras de proporção (já temos `DrillDownTable`, este é variante "compacto com bar inline").
 
-### 1. Backend (FastAPI) — atualizar specs e implementação
+### KPIs adicionais (kpis/)
+- **KpiSparklineCard** — KPI grande + sparkline embutido + variação.
+- **KpiTargetCard** — KPI com barra de progresso até a meta (separado do `ProgressChartCard` que é multi-item).
 
-**`docs/backend-notas-recebimento-dashboard.md`** — ampliar `kpis` para incluir TODOS os campos do KPI:
-```json
-"kpis": {
-  "quantidade_nfs", "quantidade_itens", "quantidade_fornecedores",
-  "valor_bruto_total", "valor_liquido_total", "quantidade_recebida_total",
-  "valor_medio_nf",
-  "nfs_com_oc", "nfs_sem_oc", "pct_com_oc", "pct_sem_oc",
-  "maior_fornecedor": { "codigo": "...", "nome": "...", "valor": 0 },
-  "total_produtos", "total_servicos",
-  "total_digitadas", "total_fechadas", "total_canceladas"
-}
+### Outros
+- **Timeline** (layout/) — eventos cronológicos verticais. Ex: histórico de uma OC, log de aprovações.
+- **CalendarHeatmap** (charts/) — estilo "GitHub contributions". Ex: atividade diária.
+
+Atualizar `src/components/bi/index.ts` com todos os exports.
+
+---
+
+## 2. Página `/biblioteca-bi` — reorganização
+
+Adicionar novas seções na sidebar do catálogo (`SECTIONS`):
+- **Mapas** (Map icon)
+- **Hierarquia / Árvore** (Network icon)
+- **Linha do Tempo** (Clock icon)
+- **Dashboards Prontos** (LayoutDashboard icon) — nova seção destaque
+
+Cada novo componente terá um `<DemoBlock>` com mock controlado, igual ao padrão existente.
+
+---
+
+## 3. Dashboard Pré-Pronto (template demonstrativo)
+
+Nova subseção **"Dashboard Pronto — Gestão de Compras"** dentro da página, mostrando composição real de ~10 componentes trabalhando juntos com mock unificado:
+
 ```
-Calcular tudo na query agregada (sem OFFSET/FETCH), seguindo o padrão `sql_resumo` da conciliação EDocs (descrito na seção 3 do pedido).
-
-**`docs/backend-painel-compras-dashboard.md`** — ampliar `kpis`:
-```json
-"kpis": {
-  "valor_comprado", "valor_recebido", "valor_pendente",
-  "quantidade_ocs", "quantidade_itens", "quantidade_fornecedores",
-  "ticket_medio_oc", "percentual_recebido",
-  "valor_bruto_total", "valor_liquido_total",
-  "itens_pendentes", "itens_atrasados", "maior_atraso_dias",
-  "maior_fornecedor": { "codigo": "...", "nome": "...", "valor": 0 }
-}
+┌─────────────────────────────────────────────────┐
+│ Header + FilterBar (período, tipo, fornecedor)  │
+├──────────────┬──────────────┬───────────────────┤
+│ KpiCard x4 (Compras / Recebido / Pendente / %)  │
+├──────────────┴──────────────┴───────────────────┤
+│ ComboChartCard (mensal)  │  DonutChartCard      │
+│                          │  (tipos despesa)     │
+├──────────────────────────┼───────────────────────┤
+│ BrazilMapCard (UF)       │  RankingChartCard    │
+│                          │  (top fornecedores)  │
+├──────────────────────────┴───────────────────────┤
+│ TreemapChartCard (categoria → subcategoria)     │
+├──────────────────────────────────────────────────┤
+│ DrillDownTable (Tipo → Centro → Fornecedor)     │
+└──────────────────────────────────────────────────┘
 ```
 
-Em ambos: docs reforçam que `sql_resumo` roda primeiro, sem paginação, e retorna apenas o objeto `kpis` + buckets de gráficos.
+Servirá como exemplo "copie e adapte" para novos módulos.
 
-### 2. `src/lib/api.ts` — ampliar interfaces
+Arquivo: `src/components/bi/templates/ComprasDashboardTemplate.tsx` (exportado pela lib).
 
-Atualizar `PainelComprasDashboardResponse.kpis` e `NotasRecebimentoDashboardResponse.kpis` com todos os novos campos opcionais (mantendo retrocompatibilidade com `?:`).
+---
 
-### 3. `src/pages/NotasRecebimentoPage.tsx`
+## 4. Assistente IA — "Sugestor de Componentes por Módulo"
 
-Reescrever o `useMemo` `kpis` (L348-407):
-- Quando `dashboard` está presente: ler **exclusivamente** de `dashboard.kpis` (sem somar `dados`). Para campos ausentes no backend, exibir `'--'`.
-- Quando em fallback (`!dashboard`): seguir cálculo client-side atual sobre o agregado, mas sempre exibir o aviso `amostragemAtiva` quando `totalAgregado >= TAMANHO_AGREGADO`.
-- Remover a mistura `dashboard.kpis + dados.reduce(...)`.
+### UX
+Um card destacado no topo da página `/biblioteca-bi`:
 
-### 4. `src/pages/PainelComprasPage.tsx`
+```
+┌─ Assistente de Composição ──────────────────────┐
+│ Descreva o módulo/dashboard que você quer       │
+│ construir e sugiro os componentes ideais:       │
+│ [ textarea: "ex: dashboard de RH com headcount, │
+│    turnover e absenteísmo por filial" ]         │
+│ [ Selecione módulo: combo opcional pré-definido]│
+│ [ Botão: Analisar e sugerir ]                   │
+│                                                  │
+│ → Resultado: lista de componentes recomendados, │
+│   cada um com link "Ver exemplo" que rola até   │
+│   o DemoBlock correspondente, + um esqueleto    │
+│   JSX pronto para copiar.                       │
+└──────────────────────────────────────────────────┘
+```
 
-Reescrever `kpisGerencial` (L512-555):
-- Quando `dashboard` presente: mapear todos os campos novos (`itens_pendentes`, `itens_atrasados`, `maior_atraso`, `maior_fornecedor`) direto de `dashboard.kpis`.
-- Manter fallback client-side sobre `dadosFiltrados`, mas exibir aviso de amostragem quando o fallback estiver ativo e `totalAgregadoCompras >= TAMANHO_AGREGADO`.
-- Verificar contexto AI (`useAiPageContext`, L239-244): hoje lê `(data as any).resumo` (paginado). Trocar para `dashboard?.kpis` quando disponível.
+### Implementação
+- **Edge function**: `supabase/functions/biblioteca-bi-suggest/index.ts`
+  - Recebe `{ description: string, modulo?: string }`
+  - Chama Lovable AI Gateway (`google/gemini-3-flash-preview`) com system prompt contendo o **catálogo completo de componentes** da lib + descrição de quando usar cada um
+  - Usa **tool calling** (structured output) para retornar:
+    ```ts
+    {
+      analysis: string,           // resumo do que entendeu
+      recommendations: Array<{
+        component: string,        // ex: "BrazilMapCard"
+        reason: string,
+        section: string,          // ex: "maps" — para fazer scroll
+      }>,
+      skeletonJsx: string,        // código JSX pronto para colar
+    }
+    ```
+  - Tratar 429/402 e retornar erro amigável
+- **Frontend**: novo componente `src/components/bi/ai/ComponentSuggester.tsx`
+  - Form + chamada via `supabase.functions.invoke`
+  - Renderiza recomendações como cards clicáveis (scroll para `#section`)
+  - Bloco de código com botão "Copiar JSX"
+- **Sem persistência** — sugestão é stateless por enquanto
 
-### 5. Critérios de aceite (validação manual após implementação)
+---
 
-- Filtrar 1.000 registros, paginar a tabela: KPIs permanecem idênticos entre páginas.
-- Alterar filtro: KPIs e tabela recalculam (ambas chamadas refeitas).
-- Aviso de amostragem só aparece em fallback genuíno (endpoint dashboard indisponível) e total > 50k.
-- Exportação continua usando `tamanho_pagina=todos` na rota paginada (sem alteração).
+## 5. Detalhes técnicos
 
-## Arquivos tocados
+- **Recharts** já está no projeto (usado em todos os charts) — Treemap, Sankey, Radar, Scatter, Funnel são módulos nativos. Sem novas dependências.
+- **Mapa**: reaproveitar `public/geo/brasil-uf.json` e padrão de `MapaDestinosCard.tsx` (react-simple-maps já está em uso lá). Verificar antes de implementar — se não estiver, usar SVG path direto do GeoJSON com d3-geo (que é leve).
+- **Cores**: usar `BI_PALETTE` de `chartHelpers.ts` em todos os novos charts.
+- **Estados**: cada novo card herda `ChartCardShell` para ter loading/error/empty consistente.
+- **Tokens semânticos**: sem cores hardcoded — usar `hsl(var(--primary))` etc.
+- **Sem mexer** em `src/integrations/supabase/{client,types}.ts` ou `.env`.
 
-- `docs/backend-notas-recebimento-dashboard.md` (atualização da spec)
-- `docs/backend-painel-compras-dashboard.md` (atualização da spec)
-- `src/lib/api.ts` (ampliar interfaces)
-- `src/pages/NotasRecebimentoPage.tsx` (refatorar `kpis`)
-- `src/pages/PainelComprasPage.tsx` (refatorar `kpisGerencial` + AI context)
+---
 
-Sem novas rotas, sem migração de banco, sem mudança em autenticação. A implementação no FastAPI fica a cargo do time de backend, guiada pelos docs atualizados.
+## 6. Ordem de execução
+
+1. Criar componentes faltantes em `src/components/bi/` (charts, maps, tree, layout)
+2. Atualizar `src/components/bi/index.ts` com exports
+3. Adicionar novas seções e DemoBlocks em `BiComponentsDemoPage.tsx`
+4. Criar `ComprasDashboardTemplate.tsx` e adicionar seção "Dashboard Pronto"
+5. Criar edge function `biblioteca-bi-suggest`
+6. Criar `ComponentSuggester.tsx` e plugar no topo da página
+
+---
+
+## Fora do escopo (fica para fase 2)
+- Mapa-mundi (WorldMapCard)
+- Persistência das sugestões da IA
+- Geração visual interativa de dashboard (drag-drop) — já existe em outro lugar (`mem://features/dashboard-builder`)
+- Integração das sugestões da IA diretamente em outros módulos do ERP
