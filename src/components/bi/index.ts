@@ -71,3 +71,4 @@ export * from './runtime/ApplyComponentButton';
 export * from './runtime/UserWidgetsSlot';
 export * from './runtime/UserWidgetFrame';
 export * from './runtime/MyWidgetsPanel';
+export * from './runtime/BiAutoSlots';
