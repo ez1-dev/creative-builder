@@ -83,12 +83,26 @@ GET /api/notas-recebimento-dashboard
 
 ### Definições
 
-- `valor_recebido` / `valor` = `SUM(valor_liquido)`.
+- `valor_recebido` / `valor_liquido_total` / `valor` = `SUM(valor_liquido)`.
+- `valor_bruto_total` = `SUM(valor_bruto)`.
+- `quantidade_recebida_total` = `SUM(quantidade_recebida)`.
 - `quantidade_itens` = `COUNT(*)` de itens (linhas da NF).
 - `quantidade_nfs` = `COUNT(DISTINCT codigo_empresa || codigo_filial || numero_nf || serie_nf || codigo_fornecedor)`.
 - `quantidade_fornecedores` = `COUNT(DISTINCT codigo_fornecedor)`.
-- `valor_medio_nf` = `valor_recebido / quantidade_nfs` (0 quando não houver NF).
+- `valor_medio_nf` = `valor_recebido / NULLIF(quantidade_nfs, 0)`.
+- `nfs_com_oc` = NFs distintas com `numero_oc_origem` não nulo / não zero.
+- `nfs_sem_oc` = `quantidade_nfs - nfs_com_oc`.
+- `pct_com_oc` / `pct_sem_oc` = razão x 100 sobre `quantidade_nfs`.
+- `maior_fornecedor` = fornecedor com maior `SUM(valor_liquido)` (campos `codigo`, `nome`, `valor`).
+- `total_produtos` / `total_servicos` = contagem de itens com `tipo_item` = PRODUTO / SERVICO.
+- `total_digitadas` / `total_fechadas` / `total_canceladas` = contagem de NFs distintas por `situacao_nf`.
 - `por_mes.mes` = `to_char(data_emissao, 'YYYY-MM')` (ou `mes_competencia` quando existir).
+
+> **Padrão técnico obrigatório (igual à conciliação ERP x EDocs):**
+> 1. Construir CTE/base com TODOS os filtros aplicados.
+> 2. `sql_resumo` roda **sem** `OFFSET` / `FETCH` e produz o objeto `kpis`.
+> 3. `sql_dados` (do endpoint paginado) roda **com** `OFFSET` / `FETCH` apenas para a tabela.
+> 4. Front-end usa `kpis` deste endpoint para os cards e `dados` do endpoint paginado para a tabela. Nunca somar o array paginado para gerar totais.
 
 ### Ordenação sugerida
 
