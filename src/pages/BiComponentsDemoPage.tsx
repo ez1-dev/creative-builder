@@ -113,8 +113,8 @@ function DemoBlock({ name, children, description, span, applyId }: { name: strin
 
 function WithApply({ componentId, children }: { componentId: string; children: React.ReactNode }) {
   return (
-    <div className="group/apply relative">
-      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover/apply:opacity-100">
+    <div className="relative">
+      <div className="absolute right-1.5 top-1.5 z-10">
         <ApplyComponentButton componentId={componentId} label="Aplicar" />
       </div>
       {children}
