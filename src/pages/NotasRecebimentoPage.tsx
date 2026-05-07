@@ -4,7 +4,7 @@ import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionA
 import { PageHeader } from "@/components/erp/PageHeader";
 import { FilterPanel } from "@/components/erp/FilterPanel";
 import { DataTable, Column } from "@/components/erp/DataTable";
-import { PaginationControl } from "@/components/erp/PaginationControl";
+import { PaginationControl, type PageSize } from "@/components/erp/PaginationControl";
 import { ExportButton } from "@/components/erp/ExportButton";
 import { KPICard } from "@/components/erp/KPICard";
 import { ComboboxFilter } from "@/components/erp/ComboboxFilter";
@@ -187,6 +187,7 @@ export default function NotasRecebimentoPage() {
   const [loading, setLoading] = useState(false);
   const [loadingAgregado, setLoadingAgregado] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(100);
   const TAMANHO_AGREGADO = 50000;
   const [usandoFallbackAgregado, setUsandoFallbackAgregado] = useState(false);
   const [activeTab, setActiveTab] = useState<'lista' | 'drill'>('lista');
@@ -208,7 +209,7 @@ export default function NotasRecebimentoPage() {
   const erpReady = useErpReady();
 
   const search = useCallback(
-    async (page = 1) => {
+    async (page = 1, sizeOverride?: PageSize) => {
       if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
       setLoading(true);
       const buildParams = (extra?: Record<string, any>) => {
@@ -232,9 +233,11 @@ export default function NotasRecebimentoPage() {
       };
       try {
         // Listagem paginada — alimenta a aba "Lista Detalhada"
+        const size = sizeOverride ?? pageSize;
+        const tp = size === 'todos' ? 100000 : size;
         const result = await api.get<NotasRecebimentoResponse>(
           "/api/notas-recebimento",
-          buildParams({ pagina: page, tamanho_pagina: 100 }),
+          buildParams({ pagina: size === 'todos' ? 1 : page, tamanho_pagina: tp }),
         );
         setData(result);
         setPagina(page);
@@ -286,7 +289,7 @@ export default function NotasRecebimentoPage() {
         }
       }
     },
-    [filters, erpReady],
+    [filters, erpReady, pageSize],
   );
 
   const clearFilters = () => setFilters({ ...initialFilters });
