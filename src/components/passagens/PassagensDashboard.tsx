@@ -1055,7 +1055,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   {!agruparColab && <TableHead className={headCls}>Colaborador</TableHead>}
                   <TableHead className={headCls}>C. Custo</TableHead>
                   
-                  <TableHead className={headCls}>Fornecedor</TableHead>
+                  
                   <TableHead className={headCls}>Cia Aérea</TableHead>
                   <TableHead className={headCls}>Origem</TableHead>
                   <TableHead className={headCls}>Destino</TableHead>
