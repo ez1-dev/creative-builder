@@ -1050,7 +1050,7 @@ export default function PainelComprasPage() {
                       <h3 className="mb-3 text-sm font-semibold">Compras por Tipo de Despesa</h3>
                       <ResponsiveContainer width="100%" height={250}>
                         <PieChart>
-                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label>
+                          <Pie data={gerencialCharts.porTipoDespesa} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={80} label cursor="pointer" onClick={(d: any) => openDrill('tipo_despesa_calc', d?.label, d?.label)}>
                             {gerencialCharts.porTipoDespesa.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
