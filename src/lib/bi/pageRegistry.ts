@@ -104,6 +104,102 @@ export const PAGE_REGISTRY: BiPageDef[] = [
       ],
     },
   },
+  {
+    key: 'faturamento-genius',
+    label: 'Faturamento Genius',
+    route: '/faturamento-genius',
+    sections: [
+      { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
+      { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
+    ],
+    schema: {
+      kpis: [
+        { key: 'valor_total',         label: 'Faturamento',    format: 'currency' },
+        { key: 'fat_liquido',         label: 'Fat. Líquido',   format: 'currency' },
+        { key: 'valor_devolucao',     label: 'Devolução',      format: 'currency' },
+        { key: 'valor_impostos',      label: 'Impostos',       format: 'currency' },
+        { key: 'valor_custo',         label: 'Custo',          format: 'currency' },
+        { key: 'valor_comissao',      label: 'Comissão',       format: 'currency' },
+        { key: 'margem_bruta',        label: 'Margem Bruta',   format: 'currency' },
+        { key: 'margem_percentual',   label: 'Margem %',       format: 'percent'  },
+        { key: 'quantidade_notas',    label: 'Qtde Notas',     format: 'number'   },
+        { key: 'quantidade_pedidos',  label: 'Qtde Pedidos',   format: 'number'   },
+        { key: 'quantidade_clientes', label: 'Qtde Clientes',  format: 'number'   },
+        { key: 'quantidade_produtos', label: 'Qtde Produtos',  format: 'number'   },
+      ],
+      series: [
+        { key: 'por_revenda', label: 'Por Revenda' },
+        { key: 'por_anomes',  label: 'Por Mês' },
+      ],
+    },
+  },
+  {
+    key: 'estoque-min-max',
+    label: 'Estoque Min/Max',
+    route: '/estoque-min-max',
+    sections: [
+      { key: 'kpis',   label: 'Linha de KPIs',      accepts: ['kpi'],   cols: 4 },
+      { key: 'tables', label: 'Tabelas auxiliares', accepts: ['table'], cols: 2 },
+    ],
+    schema: {
+      kpis: [
+        { key: 'abaixo_minimo',         label: 'Abaixo do Mínimo', format: 'number' },
+        { key: 'acima_maximo',          label: 'Acima do Máximo',  format: 'number' },
+        { key: 'sem_politica',          label: 'Sem Política',     format: 'number' },
+        { key: 'ok',                    label: 'Itens OK',         format: 'number' },
+        { key: 'sugestao_minimo_total', label: 'Sugestão Mínimo',  format: 'number' },
+        { key: 'sugestao_maximo_total', label: 'Sugestão Máximo',  format: 'number' },
+      ],
+      rows: { key: 'dados', label: 'Itens de estoque', fields: ['codigo', 'descricao', 'saldo_atual', 'estoque_minimo', 'estoque_maximo', 'status'] },
+    },
+  },
+  {
+    key: 'contas-pagar',
+    label: 'Contas a Pagar',
+    route: '/contas-pagar',
+    sections: [
+      { key: 'kpis',   label: 'Linha de KPIs',      accepts: ['kpi'],   cols: 4 },
+      { key: 'tables', label: 'Tabelas auxiliares', accepts: ['table'], cols: 2 },
+    ],
+    schema: {
+      kpis: [
+        { key: 'total_titulos',        label: 'Total Títulos',     format: 'number'   },
+        { key: 'total_fornecedores',   label: 'Fornecedores',      format: 'number'   },
+        { key: 'valor_original_total', label: 'Valor Original',    format: 'currency' },
+        { key: 'valor_aberto_total',   label: 'Valor Aberto',      format: 'currency' },
+        { key: 'valor_pago_total',     label: 'Valor Pago',        format: 'currency' },
+        { key: 'titulos_vencidos',     label: 'Títulos Vencidos',  format: 'number'   },
+        { key: 'valor_vencido_total',  label: 'Valor Vencido',     format: 'currency' },
+        { key: 'valor_a_vencer_7d',    label: 'A Vencer 7 dias',   format: 'currency' },
+        { key: 'valor_a_vencer_30d',   label: 'A Vencer 30 dias',  format: 'currency' },
+        { key: 'ticket_medio',         label: 'Ticket Médio',      format: 'currency' },
+        { key: 'maior_atraso_dias',    label: 'Maior Atraso',      format: 'number'   },
+      ],
+      rows: { key: 'dados', label: 'Títulos', fields: ['nome_fornecedor', 'numero_titulo', 'data_vencimento', 'valor_aberto', 'status_titulo'] },
+    },
+  },
+  {
+    key: 'auditoria-apontamento-genius',
+    label: 'Auditoria de Apontamentos',
+    route: '/auditoria-apontamento-genius',
+    sections: [
+      { key: 'kpis',   label: 'Linha de KPIs',      accepts: ['kpi'],   cols: 4 },
+      { key: 'tables', label: 'Tabelas auxiliares', accepts: ['table'], cols: 2 },
+    ],
+    schema: {
+      kpis: [
+        { key: 'total_apontamentos', label: 'Total Apontamentos', format: 'number' },
+        { key: 'total_horas',        label: 'Total Horas',        format: 'number' },
+        { key: 'inconsistencias',    label: 'Inconsistências',    format: 'number' },
+        { key: 'sem_inicio',         label: 'Sem Início',         format: 'number' },
+        { key: 'sem_fim',            label: 'Sem Fim',            format: 'number' },
+        { key: 'acima_8h',           label: 'Acima de 8h',        format: 'number' },
+        { key: 'operadores',         label: 'Operadores',         format: 'number' },
+        { key: 'ops_distintas',      label: 'OPs Distintas',      format: 'number' },
+      ],
+      rows: { key: 'dados', label: 'Apontamentos', fields: ['numero_op', 'nome_operador', 'data_movimento', 'horas_realizadas', 'status_movimento'] },
+    },
+  },
 ];
 
 export function getPage(key: string): BiPageDef | undefined {
