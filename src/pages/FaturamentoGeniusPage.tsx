@@ -689,6 +689,13 @@ export default function FaturamentoGeniusPage() {
   );
 
   return (
+    <PageDataProvider
+      pageKey="faturamento-genius"
+      kpis={kpis ?? null}
+      series={{ por_revenda: porRevenda, por_anomes: porMes }}
+      rows={filteredRows}
+      filtros={filters}
+    >
     <div className="space-y-4">
       <PageHeader
         title="Faturamento Genius"
