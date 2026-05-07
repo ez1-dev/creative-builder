@@ -816,7 +816,7 @@ export default function PainelComprasPage() {
       kpis={dashboard ? {
         total_compras: dashboard.kpis?.valor_comprado ?? 0,
         total_recebido: dashboard.kpis?.valor_recebido ?? 0,
-        ticket_medio: dashboard.kpis?.ticket_medio ?? 0,
+        ticket_medio: dashboard.kpis?.ticket_medio_oc ?? 0,
         qtde_notas: dashboard.kpis?.quantidade_ocs ?? 0,
       } : null}
       series={dashboard ? {
