@@ -326,7 +326,8 @@ export default function NotasRecebimentoPage() {
   );
 
   const totalAgregado = dadosAgregados?.total_registros ?? 0;
-  const amostragemAtiva = totalAgregado > TAMANHO_AGREGADO;
+  // Aviso de amostragem só faz sentido no fallback paginado (sem o endpoint dashboard real)
+  const amostragemAtiva = usandoFallbackAgregado && totalAgregado > TAMANHO_AGREGADO;
 
   const transacaoOptions = useMemo(() => {
     const unique = [...new Set(dados.map((d: any) => d.transacao).filter(Boolean))].sort();
@@ -345,6 +346,39 @@ export default function NotasRecebimentoPage() {
   }, [dados]);
 
   const kpis = useMemo(() => {
+    // Quando o endpoint /api/notas-recebimento-dashboard responde, usamos seus KPIs (base completa filtrada).
+    // Caso contrário, calculamos client-side a partir de `dados` (fallback paginado em até 50k linhas).
+    if (dashboard) {
+      const k = dashboard.kpis;
+      const totalNfs = k.quantidade_nfs || 0;
+      const valorRecebido = k.valor_recebido || 0;
+      // Para indicadores que o backend ainda não expõe, usamos a amostra como aproximação.
+      const valorBruto = dados.reduce((acc: number, d: any) => acc + Number(d.valor_bruto || 0), 0);
+      const qtdRecebida = dados.reduce((acc: number, d: any) => acc + Number(d.quantidade_recebida || 0), 0);
+      const fornMap = new Map<string, number>();
+      dados.forEach((d: any) => {
+        const kk = d.nome_fornecedor || d.codigo_fornecedor || '—';
+        fornMap.set(kk, (fornMap.get(kk) || 0) + Number(d.valor_liquido || 0));
+      });
+      const top = [...fornMap.entries()].sort((a, b) => b[1] - a[1])[0];
+      const nfsComOc = new Set(dados.filter((d: any) => d.numero_oc_origem && d.numero_oc_origem !== 0).map((d: any) => `${d.numero_nf}|${d.serie_nf}`)).size;
+      const nfsSampleSet = new Set(dados.map((d: any) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
+      const nfsSemOc = Math.max(nfsSampleSet - nfsComOc, 0);
+      const baseOc = nfsSampleSet || 1;
+      return {
+        totalNfs,
+        totalItens: k.quantidade_itens || 0,
+        totalFornecedores: k.quantidade_fornecedores || 0,
+        valorRecebido,
+        valorBruto,
+        qtdRecebida,
+        valorMedioNf: k.valor_medio_nf || 0,
+        maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
+        nfsComOc, nfsSemOc,
+        pctComOc: (nfsComOc / baseOc) * 100,
+        pctSemOc: (nfsSemOc / baseOc) * 100,
+      };
+    }
     const totalNfs = new Set(dados.map((d: any) => `${d.codigo_empresa}|${d.codigo_filial}|${d.numero_nf}|${d.serie_nf}`)).size;
     const totalItens = dados.length;
     const totalFornecedores = new Set(dados.map((d: any) => d.codigo_fornecedor).filter(Boolean)).size;
@@ -370,9 +404,51 @@ export default function NotasRecebimentoPage() {
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
       nfsComOc, nfsSemOc, pctComOc, pctSemOc,
     };
-  }, [dados]);
+  }, [dados, dashboard]);
 
   const charts = useMemo(() => {
+    // Preferir buckets do endpoint agregado (cobrem 100% da base filtrada).
+    if (dashboard) {
+      const g = dashboard.graficos;
+      const mapBucket = (
+        rows: any[] | undefined,
+        chaveKey: string,
+        labelKey?: string,
+      ) => (rows || []).map((r) => ({
+        chave: String(r[chaveKey] ?? r[labelKey ?? chaveKey] ?? '—'),
+        label: String(r[labelKey ?? chaveKey] ?? r[chaveKey] ?? '—'),
+        valor: Number(r.valor || 0),
+      }));
+      const porMes = mapBucket(g.por_mes, 'mes', 'mes')
+        .sort((a, b) => a.label.localeCompare(b.label));
+      const mediaMes = porMes.length ? porMes.reduce((s, x) => s + x.valor, 0) / porMes.length : 0;
+      const porTipoDespesa = mapBucket(g.por_tipo_despesa, 'tipo', 'tipo')
+        .sort((a, b) => b.valor - a.valor);
+      const porCentroCusto = mapBucket(g.por_centro_custo, 'codigo_centro_custo', 'centro_custo')
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
+      const porProjeto = mapBucket(g.por_projeto, 'numero_projeto', 'projeto')
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
+      const topFornecedores = mapBucket(g.por_fornecedor, 'fornecedor', 'fornecedor')
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
+      const porTransacao = mapBucket(g.por_transacao_nf, 'transacao', 'transacao')
+        .sort((a, b) => b.valor - a.valor)
+        .slice(0, 10);
+      if (!porMes.length && !porTipoDespesa.length && !topFornecedores.length) return null;
+      return {
+        porMes, mediaMes,
+        porTipoDespesa,
+        topFornecedores,
+        porCentroCusto,
+        porProjeto,
+        porTransacao,
+        totalFornecedores: (g.por_fornecedor || []).length,
+        totalProjetos: (g.por_projeto || []).length,
+        totalCC: (g.por_centro_custo || []).length,
+      };
+    }
     if (!dados.length) return null;
     /** keyForChave: campo usado para abrir o drill; keyForLabel: campo exibido. */
     const agg = (keyForChave: string, keyForLabel?: string) => {
@@ -401,7 +477,7 @@ export default function NotasRecebimentoPage() {
       totalProjetos: new Set(dados.map((d: any) => d.nome_projeto || d.numero_projeto).filter(Boolean)).size,
       totalCC: new Set(dados.map((d: any) => d.descricao_centro_custo || d.codigo_centro_custo).filter(Boolean)).size,
     };
-  }, [dados]);
+  }, [dados, dashboard]);
 
   const set = (key: string, value: string) => setFilters((f) => ({ ...f, [key]: value }));
 
