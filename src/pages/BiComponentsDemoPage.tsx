@@ -412,9 +412,13 @@ export default function BiComponentsDemoPage() {
                 <WithApply componentId="pie-chart">
                   <PieChartCard title="Distribuição (pizza)" data={tiposDespesa} />
                 </WithApply>
-                <StackedBarChartCard title="Recebido x Pendente" data={mesesData} series={stackedSeries} />
-                <ComboChartCard title="Compras x Recebido" data={mesesData}
-                  barKey="valor" barLabel="Compras" lineKey="recebido" lineLabel="Recebido" />
+                <WithApply componentId="stacked-bar-chart">
+                  <StackedBarChartCard title="Recebido x Pendente" data={mesesData} series={stackedSeries} />
+                </WithApply>
+                <WithApply componentId="combo-chart">
+                  <ComboChartCard title="Compras x Recebido" data={mesesData}
+                    barKey="valor" barLabel="Compras" lineKey="recebido" lineLabel="Recebido" />
+                </WithApply>
                 <WithApply componentId="ranking-chart">
                   <RankingChartCard title="Top fornecedores" subtitle="Ranking horizontal"
                     data={fornecedoresRanking} topN={7} />
@@ -422,12 +426,16 @@ export default function BiComponentsDemoPage() {
                 <WithApply componentId="horizontal-bar-chart">
                   <HorizontalBarChartCard title="Barras horizontais" data={fornecedoresRanking.slice(0,6)} />
                 </WithApply>
-                <GaugeChartCard title="Atingimento de meta" value={78} max={100} label="78% da meta" />
-                <ProgressChartCard title="Metas por categoria" items={[
-                  { label: 'Matéria Prima', value: 4200000, target: 5000000, format: 'currency' },
-                  { label: 'Serviços', value: 1100000, target: 1000000, format: 'currency' },
-                  { label: 'Logística', value: 320000, target: 600000, format: 'currency' },
-                ]} />
+                <WithApply componentId="gauge-chart">
+                  <GaugeChartCard title="Atingimento de meta" value={78} max={100} label="78% da meta" />
+                </WithApply>
+                <WithApply componentId="progress-chart">
+                  <ProgressChartCard title="Metas por categoria" items={[
+                    { label: 'Matéria Prima', value: 4200000, target: 5000000, format: 'currency' },
+                    { label: 'Serviços', value: 1100000, target: 1000000, format: 'currency' },
+                    { label: 'Logística', value: 320000, target: 600000, format: 'currency' },
+                  ]} />
+                </WithApply>
                 <WithApply componentId="treemap-chart">
                   <TreemapChartCard title="Treemap — categorias"
                     data={tiposDespesa.map((t) => ({ name: t.label, value: t.valor }))} />
@@ -444,20 +452,24 @@ export default function BiComponentsDemoPage() {
                     series={[{ dataKey: 'acme', label: 'Acme Aço' }, { dataKey: 'sul', label: 'Metalúrgica Sul' }]}
                   />
                 </WithApply>
-                <ScatterChartCard title="Prazo x Valor (dispersão)"
-                  xLabel="Prazo (dias)" yLabel="Valor (R$ k)"
-                  data={[
-                    { x: 5, y: 120, z: 200 }, { x: 10, y: 280, z: 400 }, { x: 15, y: 180, z: 300 },
-                    { x: 22, y: 540, z: 800 }, { x: 30, y: 320, z: 500 }, { x: 45, y: 720, z: 1000 },
-                  ]} />
-                <WaterfallChartCard title="Variação de saldo"
-                  data={[
-                    { label: 'Inicial', value: 1000000, isTotal: true },
-                    { label: 'Compras', value: -480000 },
-                    { label: 'Recebido', value: 720000 },
-                    { label: 'Devolução', value: -120000 },
-                    { label: 'Final', value: 0, isTotal: true },
-                  ]} />
+                <WithApply componentId="scatter-chart">
+                  <ScatterChartCard title="Prazo x Valor (dispersão)"
+                    xLabel="Prazo (dias)" yLabel="Valor (R$ k)"
+                    data={[
+                      { x: 5, y: 120, z: 200 }, { x: 10, y: 280, z: 400 }, { x: 15, y: 180, z: 300 },
+                      { x: 22, y: 540, z: 800 }, { x: 30, y: 320, z: 500 }, { x: 45, y: 720, z: 1000 },
+                    ]} />
+                </WithApply>
+                <WithApply componentId="waterfall-chart">
+                  <WaterfallChartCard title="Variação de saldo"
+                    data={[
+                      { label: 'Inicial', value: 1000000, isTotal: true },
+                      { label: 'Compras', value: -480000 },
+                      { label: 'Recebido', value: 720000 },
+                      { label: 'Devolução', value: -120000 },
+                      { label: 'Final', value: 0, isTotal: true },
+                    ]} />
+                </WithApply>
                 <WithApply componentId="funnel-chart">
                   <FunnelChartCard title="Funil de cotação"
                     data={[
@@ -467,19 +479,23 @@ export default function BiComponentsDemoPage() {
                       { name: 'Recebidas', value: 180 },
                     ]} />
                 </WithApply>
-                <HeatmapChartCard title="Compras por dia × hora"
-                  data={Array.from({ length: 35 }, (_, i) => ({
-                    row: ['Seg','Ter','Qua','Qui','Sex'][i % 5],
-                    col: `${8 + Math.floor(i/5)}h`,
-                    value: Math.floor(Math.random() * 50),
-                  }))} />
-                <CalendarHeatmapCard title="Atividade diária"
-                  data={Array.from({ length: 90 }, (_, i) => {
-                    const d = new Date(); d.setDate(d.getDate() - i);
-                    return { date: d.toISOString().slice(0, 10), value: Math.floor(Math.random() * 12) };
-                  })} />
+                <WithApply componentId="heatmap-chart">
+                  <HeatmapChartCard title="Compras por dia × hora"
+                    data={Array.from({ length: 35 }, (_, i) => ({
+                      row: ['Seg','Ter','Qua','Qui','Sex'][i % 5],
+                      col: `${8 + Math.floor(i/5)}h`,
+                      value: Math.floor(Math.random() * 50),
+                    }))} />
+                </WithApply>
+                <WithApply componentId="calendar-heatmap">
+                  <CalendarHeatmapCard title="Atividade diária"
+                    data={Array.from({ length: 90 }, (_, i) => {
+                      const d = new Date(); d.setDate(d.getDate() - i);
+                      return { date: d.toISOString().slice(0, 10), value: Math.floor(Math.random() * 12) };
+                    })} />
+                </WithApply>
               </ChartGrid>
-              <DemoBlock name="SparklineCard" description="Micro-gráfico inline">
+              <DemoBlock name="SparklineCard" description="Micro-gráfico inline" applyId="sparkline">
                 <div className="flex gap-4 rounded-md border bg-card p-3">
                   <div className="flex-1">
                     <div className="text-[11px] text-muted-foreground">Compras (6m)</div>
