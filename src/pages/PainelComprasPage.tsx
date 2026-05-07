@@ -510,12 +510,18 @@ export default function PainelComprasPage() {
   const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
-    // Quando o endpoint dashboard responder, usamos seus KPIs (base completa filtrada).
+    // Quando o endpoint /api/painel-compras-dashboard responde, usamos exclusivamente
+    // seus KPIs (base completa filtrada, sem paginação). Sem somar `dadosFiltrados`.
     if (dashboard) {
       const k = dashboard.kpis;
-      // Maior fornecedor: usa o topo de por_fornecedor (já agregado no backend).
-      const topForn = [...(dashboard.graficos?.por_fornecedor ?? [])]
-        .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+      const topBackend = k.maior_fornecedor
+        ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
+        : null;
+      const topForn = topBackend ?? (() => {
+        const t = [...(dashboard.graficos?.por_fornecedor ?? [])]
+          .sort((a, b) => (b.valor || 0) - (a.valor || 0))[0];
+        return t ? { nome: t.fornecedor || '—', valor: t.valor || 0 } : null;
+      })();
       return {
         comprado: k.valor_comprado || 0,
         pendente: k.valor_pendente || 0,
@@ -524,7 +530,12 @@ export default function PainelComprasPage() {
         qtdItens: k.quantidade_itens || 0,
         qtdFornecedores: k.quantidade_fornecedores || 0,
         ticketMedio: k.ticket_medio_oc || 0,
-        maiorFornecedor: topForn ? { nome: topForn.fornecedor || '—', valor: topForn.valor || 0 } : null,
+        itensPendentes: k.itens_pendentes ?? null,
+        itensAtrasados: k.itens_atrasados ?? null,
+        maiorAtrasoDias: k.maior_atraso_dias ?? null,
+        valorBruto: k.valor_bruto_total ?? null,
+        valorLiquido: k.valor_liquido_total ?? null,
+        maiorFornecedor: topForn,
       };
     }
     if (!dadosFiltrados.length) return null;
@@ -550,6 +561,8 @@ export default function PainelComprasPage() {
       comprado, pendente, recebido,
       qtdOcs: ocs.size, qtdItens: dadosFiltrados.length, qtdFornecedores: fornecedores.size,
       ticketMedio: ocs.size > 0 ? comprado / ocs.size : 0,
+      itensPendentes: null, itensAtrasados: null, maiorAtrasoDias: null,
+      valorBruto: null, valorLiquido: null,
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
     };
   }, [dadosFiltrados, data, dashboard]);
