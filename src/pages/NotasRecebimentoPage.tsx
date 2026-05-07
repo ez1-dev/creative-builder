@@ -574,9 +574,9 @@ export default function NotasRecebimentoPage() {
               </CardContent>
             </Card>
 
-            <KPICard index={0} title="Qtd NFs" value={kpis.totalNfs} icon={<FileText className="h-5 w-5" />} />
-            <KPICard index={1} title="Itens Recebidos" value={kpis.totalItens} icon={<Package className="h-5 w-5" />} />
-            <KPICard index={2} title="Fornecedores" value={kpis.totalFornecedores} icon={<Users className="h-5 w-5" />} />
+            <KPICard index={0} title="Qtd NFs" value={kpis.totalNfs} icon={<FileText className="h-5 w-5" />} onClick={openDrillRoot} />
+            <KPICard index={1} title="Itens Recebidos" value={kpis.totalItens} icon={<Package className="h-5 w-5" />} onClick={openDrillRoot} />
+            <KPICard index={2} title="Fornecedores" value={kpis.totalFornecedores} icon={<Users className="h-5 w-5" />} onClick={() => openDrill('nome_fornecedor', '', '')} />
             <KPICard
               index={3}
               title="Maior Fornecedor"
@@ -584,6 +584,7 @@ export default function NotasRecebimentoPage() {
               subtitle={kpis.maiorFornecedor?.nome}
               variant="info"
               icon={<Layers className="h-5 w-5" />}
+              onClick={kpis.maiorFornecedor ? () => openDrill('nome_fornecedor', kpis.maiorFornecedor!.nome, kpis.maiorFornecedor!.nome) : undefined}
             />
           </div>
 
