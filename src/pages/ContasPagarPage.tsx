@@ -470,6 +470,10 @@ export default function ContasPagarPage() {
         </>
       )}
 
+      {kpis && (
+        <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+      )}
+
       {data && (
         <>
           {modoArvoreAtivo && arvoreData ? (
@@ -497,8 +501,11 @@ export default function ContasPagarPage() {
               onPageChange={(p) => search(p)}
             />
           )}
+
+          <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
         </>
       )}
     </div>
+    </PageDataProvider>
   );
 }
