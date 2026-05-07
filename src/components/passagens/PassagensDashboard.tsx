@@ -1120,7 +1120,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
                     <TableCell className={`${cellCls} font-medium`}>{r.colaborador}</TableCell>
                     <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
+                    
                     <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
