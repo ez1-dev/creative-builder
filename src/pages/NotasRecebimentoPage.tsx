@@ -183,6 +183,15 @@ export default function NotasRecebimentoPage() {
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
   const [activeTab, setActiveTab] = useState<'lista' | 'drill'>('lista');
+  const [drillSeed, setDrillSeed] = useState<{ nivel: string; chave: string; label: string; nonce: number } | null>(null);
+  const drillRef = useRef<HTMLDivElement>(null);
+  const openDrill = useCallback((nivel: string, chave: any, label?: string) => {
+    if (chave == null || chave === '') return;
+    const ch = String(chave);
+    setDrillSeed({ nivel, chave: ch, label: label ?? ch, nonce: Date.now() });
+    setActiveTab('drill');
+    setTimeout(() => drillRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }, []);
 
   const erpReady = useErpReady();
 
