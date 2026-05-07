@@ -1,56 +1,56 @@
-## Objetivo
+## Problema identificado
 
-Aplicar à tela `Painel de Compras` o mesmo padrão executivo de ERP/BI já usado na `Notas Fiscais de Recebimento` (cards modernos, filtros recolhíveis, chips ativos, gráficos padronizados, drill com breadcrumb claro, tabela limpa) — **sem alterar lógica de negócio, endpoints, cálculos, drill ou export**.
+Na tela **Notas Fiscais de Recebimento → Drill-down Gerencial**, ao filtrar `Projeto Macro = GENIUS` e abrir Mês `2026-05 → Projeto`, o drill mostra apenas **R$ 33.061,00 / 4 NFs / 12 itens**.
 
-## Mudanças
+O cabeçalho da tela mostra `250.403 registros · página 1/2505`, mas o drill recebe `dados` derivado de `dadosBrutos = data.dados` — que contém **apenas as 100 linhas da página atual** retornadas por `/api/notas-recebimento` (linha 208: `tamanho_pagina: 100`).
 
-### 1. Componentes reutilizáveis
+Ou seja: o "Valor Recebido" do drill não é o total real da base filtrada, é só a soma da página visível. Os mesmos 12 itens / 4 NFs comprovam isso (são exatamente os registros GENIUS dentro das 100 linhas atuais).
 
-- **`src/components/erp/ChartCard.tsx`** (novo, extraído do que já existe em `NotasRecebimentoPage`): wrapper com header (ícone + título + contador opcional) e área de gráfico, padronizando aparência.
-- **`src/components/erp/ActiveFilterChips.tsx`** (novo, extraído da implementação em Notas): barra de chips removíveis, recebe `chips: { key, label, value, onRemove }[]`.
+Mesma limitação afeta:
+- KPIs (Qtd NFs, Total Recebido, Fornecedores, etc.)
+- Gráficos (por mês, fornecedor, projeto, CC, etc.)
+- Drill-down completo
 
-Ambos serão consumidos depois também por `NotasRecebimentoPage` numa próxima passagem (não nesta).
+## Solução proposta
 
-### 2. `src/pages/PainelComprasPage.tsx` — redesign visual
+Carregar **uma agregação completa** para alimentar KPIs/gráficos/drill, mantendo a paginação só para a "Lista Detalhada".
 
-- **PageHeader**: título "Painel de Compras" e subtítulo "Compras por projeto, centro de custo, tipo de despesa, fornecedor e recebimento". Ações no topo:
-  - Atualizar (`search(pagina)`)
-  - Limpar filtros (existente `clearFilters`)
-  - Limpar drill (`setDrillSeed(null)` + reset do stack via prop em `PainelDrillView` — adicionar callback opcional `onClearDrill`)
-  - Seletor "Registros"
-  - ExportButton (já existe)
-- **FilterPanel**: `defaultOpen={false}` quando já houver dados. Mantém todos os filtros atuais; nenhum é removido.
-- **ActiveFilterChips** abaixo do FilterPanel, listando filtros aplicados (Projeto Macro, Tipo Despesa, Mês, Cond. Pagto, Fornecedor, Projeto, CC, Situação OC, datas, Transação, Tipo OC, Tipo Item, Família, Origem, Item, Descrição, Desconto, Somente pendentes).
-- **KPI Hero** (visão executiva, substitui a primeira linha):
-  - Card primário (gradient sutil, `border-l-4 border-primary`) com **Total Comprado** + Ticket Médio/OC.
-  - Card de **Recebido vs Pendente** com duas barras de progresso (success/warning) mostrando `% Recebido` quando `recebido != null`; senão só Pendente vs Comprado.
-  - KPICards menores: Qtd OCs, Qtd Itens, Qtd Fornecedores, Maior Fornecedor (todos clicáveis usando o `openDrill`/`openDrillRoot` já implementado).
-- **Painel "Status de OCs / Vínculo NF"** (novo card, abaixo dos KPIs):
-  - Barras de progresso para: OCs com NF, OCs sem NF, OCs totalmente recebidas, parcialmente recebidas, pendentes, itens atrasados.
-  - Os valores derivam de `kpis` / `chartData?.situacoes` / `dadosFiltrados` que já existem (sem novo endpoint).
-- **Operacionais detalhados**: mover os KPIs financeiros existentes (Valor Bruto, Desconto, Impostos, Itens Atrasados etc.) para um `<details>` recolhível "Indicadores Operacionais Detalhados" — preserva todos os KPIs atuais, apenas reduz ruído inicial.
-- **Gráficos**: envolver cada `ResponsiveContainer` em `ChartCard`. Layout `grid lg:grid-cols-3 xl:grid-cols-3`:
-  - Compras por Mês (col-span-2) com `linearGradient` + `ReferenceLine` da média.
-  - Tipo de Despesa: PieChart com `innerRadius` (donut) e total no centro.
-  - Top Fornecedores, Top CCs, Top Projetos, Famílias, Origens: ChartCards padronizados.
-  - **Comparativo Comprado x Recebido x Pendente** (novo gráfico de barras agrupadas por mês) — só renderiza se houver `valor_recebido` na linha; caso contrário fica oculto (sem mock).
-- **Tabela**: trocar coluna `situacao_oc` para usar `<Badge>` colorido (success=Liquidado, info=Aberto, warning=Suspenso, destructive=Cancelado, default demais). Coluna `numero_nf`: badge `Link2` (success) quando preenchido, `Unlink` (warning) quando vazio. Coluna `dias_atraso > 0`: badge destructive. Cabeçalho fixo via `sticky top-0` e hover já existente no `DataTable`. Manter todas as colunas atuais.
-- **Drill-down** (`PainelDrillView`): nada na lógica. Adicionar: chip "Nível atual" destacado no breadcrumb (badge primary) e indicação "Próximo: <nivel>" ao lado. Já existe seed via clique em gráfico.
-- **Estados visuais**:
-  - Loading: skeleton dos KPIs/gráficos.
-  - Estado vazio (após pesquisa): card centralizado "Nenhum resultado para os filtros aplicados" com botão "Limpar filtros".
-  - Erro: já é tratado via toast — manter; adicionar mensagem inline quando `data === null` após erro.
+### Estratégia: fetch agregado em paralelo à listagem
 
-### 3. Nada de quebra
-- Endpoints, parâmetros, drill, export, autenticação e filtros mantidos exatamente como estão.
-- Sem mocks: indicadores que dependem de campos opcionais (`valor_recebido`) só aparecem se vierem.
-- Tabela mantém todas as colunas atuais (apenas badges + condicionais visuais).
+Quando a busca é executada, disparar **dois requests** ao backend FastAPI:
 
-## Validação
-1. Filtros alteram KPIs, gráficos e tabela.
-2. Limpar filtros funciona e não altera o drill.
-3. Limpar drill funciona e não altera filtros.
-4. Drill segue a ordem completa.
-5. Export respeita filtros.
-6. Layout responsivo (lg/xl/notebook).
-7. Nenhuma funcionalidade prévia removida.
+1. **Listagem paginada** (já existe): `/api/notas-recebimento?...&pagina=N&tamanho_pagina=100` → continua alimentando a aba **Lista Detalhada** + paginação.
+2. **Dataset gerencial** (novo): `/api/notas-recebimento?...&pagina=1&tamanho_pagina=50000` (ou parâmetro `agregado=true` se preferirmos endpoint dedicado) → alimenta **KPIs, gráficos e drill**.
+
+Justificativa: a base tem 250k linhas no pior caso (sem filtros). Com filtros aplicados pelo usuário (Projeto Macro, Mês, etc.) o volume cai drasticamente. Limitar a 50k cobre praticamente todos os cenários filtrados sem travar o front. Quando o resultado bater no teto, exibimos um aviso claro de amostragem.
+
+### Arquivos a alterar
+
+**`src/pages/NotasRecebimentoPage.tsx`**
+- Novo state `dadosAgregados` separado de `data` (paginado).
+- `search()`: dispara o GET paginado (tamanho 100) **e** o GET agregado (tamanho 50000) em paralelo via `Promise.all`.
+- `dadosBrutos` para a Lista Detalhada permanece `data.dados`.
+- Criar `dadosBrutosAgregados = dadosAgregados?.dados ?? []` e usá-lo em:
+  - `dadosEnriquecidos` / `dados` (filtros client-side de Projeto Macro, Tipo Despesa, Mês, Cond. Pagto)
+  - `kpis`
+  - `charts`
+  - `<GenericDrillView dados={dados} ... />`
+- A `<DataTable>` da aba "Lista Detalhada" continua usando o conjunto **paginado** (renomear para `dadosLista`) para não quebrar paginação.
+- Aviso visual quando `dadosAgregados.total_registros > 50000`: chip "Amostra: 50.000 de N registros — refine os filtros para ver totais exatos".
+
+**`src/pages/PainelComprasPage.tsx`** (mesmo problema)
+- Aplicar idêntica separação: paginado para tabela + agregado para KPIs/gráficos/drill.
+
+**`src/components/erp/GenericDrillView.tsx`** e **`src/components/compras/PainelDrillView.tsx`**
+- Sem mudanças de lógica; apenas passarão a receber o dataset agregado.
+
+### Backend (não bloqueante)
+
+Idealmente o FastAPI exporia `/api/notas-recebimento/agregado?...` que retorna apenas as colunas necessárias para drill (sem paginar), reduzindo payload. Vou documentar a sugestão em `docs/backend-projeto-macro.md` (ou novo `docs/backend-agregacao.md`) — porém a correção do front **não depende** disso: usar `tamanho_pagina=50000` no endpoint atual já resolve.
+
+### Validação manual após implementação
+
+1. Filtrar Projeto Macro = GENIUS, sem mês → confirmar que Total Recebido bate com soma esperada.
+2. Drill em Mês 2026-05 → Projeto: validar que os valores agora refletem o total da base, não só a página.
+3. Lista Detalhada continua paginando 100 em 100.
+4. Sem filtros (250k registros): aviso de amostragem aparece e drill mostra os 50k topo.

@@ -117,7 +117,10 @@ export default function PainelComprasPage() {
     projeto_macro: 'TODOS', tipo_despesa: 'TODOS', mes_competencia: '', condicao_pagamento: '',
   });
   const [data, setData] = useState<PainelComprasResponse | null>(null);
+  const [dadosAgregados, setDadosAgregados] = useState<PainelComprasResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingAgregado, setLoadingAgregado] = useState(false);
+  const TAMANHO_AGREGADO = 50000;
   const [pagina, setPagina] = useState(1);
   const [tamanhoPagina, setTamanhoPagina] = useState<'100' | '250' | '500' | '1000' | 'todos'>('100');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'lista' | 'drill'>('dashboard');
@@ -145,15 +148,12 @@ export default function PainelComprasPage() {
   const search = useCallback(async (page = 1, tamanhoOverride?: typeof tamanhoPagina) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
-    try {
-      const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
-      const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
-      const params: any = { ...filters, pagina: page, tamanho_pagina: tamanhoNumerico };
+    const buildParams = (p: number, size: number) => {
+      const params: any = { ...filters, pagina: p, tamanho_pagina: size };
       if (params.valor_min) params.valor_min = parseFloat(params.valor_min);
       else delete params.valor_min;
       if (params.valor_max) params.valor_max = parseFloat(params.valor_max);
       else delete params.valor_max;
-      // situacao_oc: backend aceita CSV (ex.: "1" ou "1,2,3").
       const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
       if (situacoesSel.length > 0) params.situacao_oc = situacoesSel.join(',');
       else delete params.situacao_oc;
@@ -166,9 +166,12 @@ export default function PainelComprasPage() {
       if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
       if (!params.mes_competencia) delete params.mes_competencia;
       if (!params.condicao_pagamento) delete params.condicao_pagamento;
-      const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
-
-
+      return params;
+    };
+    try {
+      const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
+      const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
+      const result = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(page, tamanhoNumerico));
       setData(result);
       setPagina(page);
       if (page === 1) trackSearch(filters, (result as any)?.total_registros);
@@ -176,6 +179,25 @@ export default function PainelComprasPage() {
       toast.error(e.message);
     } finally {
       setLoading(false);
+    }
+
+    // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página e quando o tamanho atual for menor.
+    const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
+    const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
+    if (page === 1 && tamanhoNumerico < TAMANHO_AGREGADO) {
+      setLoadingAgregado(true);
+      try {
+        const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+        setDadosAgregados(aggregated);
+      } catch (e: any) {
+        console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e?.message);
+        setDadosAgregados(null);
+      } finally {
+        setLoadingAgregado(false);
+      }
+    } else if (page === 1) {
+      // Quando o usuário pediu "todos" / tamanho >= teto, o próprio result já é a base completa.
+      setDadosAgregados(null);
     }
   }, [filters, erpReady, trackSearch, tamanhoPagina]);
 
@@ -419,27 +441,44 @@ export default function PainelComprasPage() {
     return merge(totaisNorm, resumo, fallback);
   }, [data, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
 
-  // Enriquecimento client-side: adiciona projeto_macro / tipo_despesa_calc / mes_competencia_calc.
-  const dadosEnriquecidos = useMemo(() => {
+  // Base paginada (Lista Detalhada)
+  const dadosEnriquecidosLista = useMemo(() => {
     if (!data?.dados?.length) return [] as any[];
     return data.dados.map((d: any) => enrichRow(d));
   }, [data]);
 
-  // Filtragem client-side adicional (caso o backend ainda não suporte os novos filtros).
-  const dadosFiltrados = useMemo(() => {
-    return dadosEnriquecidos.filter((d) => {
-      if (filters.projeto_macro && filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
-      if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
-      if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
-      if (filters.condicao_pagamento) {
-        const cp = String(d.condicao_pagamento ?? '').toLowerCase();
-        const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
-        const q = filters.condicao_pagamento.toLowerCase();
-        if (!cp.includes(q) && !dcp.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento]);
+  // Base agregada (KPIs/gráficos/drill). Cai para a paginada se ainda não chegou.
+  const baseAgregadaBruta = dadosAgregados?.dados?.length ? dadosAgregados.dados : (data?.dados ?? []);
+  const dadosEnriquecidos = useMemo(
+    () => baseAgregadaBruta.map((d: any) => enrichRow(d)),
+    [baseAgregadaBruta],
+  );
+
+  const filtroCliente = (d: any) => {
+    if (filters.projeto_macro && filters.projeto_macro !== 'TODOS' && d.projeto_macro !== filters.projeto_macro) return false;
+    if (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS' && d.tipo_despesa_calc !== filters.tipo_despesa) return false;
+    if (filters.mes_competencia && d.mes_competencia_calc !== filters.mes_competencia) return false;
+    if (filters.condicao_pagamento) {
+      const cp = String(d.condicao_pagamento ?? '').toLowerCase();
+      const dcp = String(d.descricao_condicao_pagamento ?? '').toLowerCase();
+      const q = filters.condicao_pagamento.toLowerCase();
+      if (!cp.includes(q) && !dcp.includes(q)) return false;
+    }
+    return true;
+  };
+
+  const dadosFiltrados = useMemo(
+    () => dadosEnriquecidos.filter(filtroCliente),
+    [dadosEnriquecidos, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento],
+  );
+
+  const dadosListaFiltrados = useMemo(
+    () => dadosEnriquecidosLista.filter(filtroCliente),
+    [dadosEnriquecidosLista, filters.projeto_macro, filters.tipo_despesa, filters.mes_competencia, filters.condicao_pagamento],
+  );
+
+  const totalAgregadoCompras = dadosAgregados?.total_registros ?? 0;
+  const amostragemAtivaCompras = totalAgregadoCompras > TAMANHO_AGREGADO;
 
   const kpisGerencial = useMemo(() => {
     if (!dadosFiltrados.length) return null;
@@ -903,6 +942,15 @@ export default function PainelComprasPage() {
 
       <ActiveFilterChips chips={activeChips} onClearAll={clearFilters} />
 
+      {amostragemAtivaCompras && (
+        <div className="rounded-md border border-[hsl(var(--warning))] bg-[hsl(var(--warning))]/10 px-3 py-2 text-xs text-[hsl(var(--warning))]">
+          Amostra de {TAMANHO_AGREGADO.toLocaleString('pt-BR')} de {totalAgregadoCompras.toLocaleString('pt-BR')} registros aplicados aos KPIs, gráficos e drill-down. Refine os filtros para totais exatos.
+        </div>
+      )}
+      {loadingAgregado && data && (
+        <div className="px-1 text-xs text-muted-foreground">Carregando agregação completa para KPIs e drill-down…</div>
+      )}
+
       {data && kpis && (
         <>
           {!(data as any).totais && !data.resumo && tamanhoPagina !== 'todos' && data.total_paginas > 1 && (
@@ -1228,7 +1276,7 @@ export default function PainelComprasPage() {
                 Exibindo todos os {data.total_registros.toLocaleString('pt-BR')} registros do filtro — paginação desativada.
               </div>
             )}
-            <DataTable columns={columns} data={dadosFiltrados} loading={loading} />
+            <DataTable columns={columns} data={dadosListaFiltrados} loading={loading} />
             {tamanhoPagina !== 'todos' && (
               <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />
             )}
