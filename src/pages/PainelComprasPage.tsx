@@ -207,14 +207,14 @@ export default function PainelComprasPage() {
       try {
         const dash = await api.get<PainelComprasDashboardResponse>(
           '/api/painel-compras-dashboard',
-          buildParams(1, 0),
+          buildParams(1, 0, { stripClassificacoes: true }),
         );
         setDashboard(dash);
         setUsandoFallbackAgregado(false);
         // Mantém o agregado paginado como apoio para drill detalhado e listas auxiliares.
         if (tamanhoNumerico < TAMANHO_AGREGADO) {
           try {
-            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO, { stripClassificacoes: true }));
             setDadosAgregados(aggregated);
           } catch {
             setDadosAgregados(null);
@@ -228,7 +228,7 @@ export default function PainelComprasPage() {
         setUsandoFallbackAgregado(true);
         if (tamanhoNumerico < TAMANHO_AGREGADO) {
           try {
-            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO));
+            const aggregated = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, TAMANHO_AGREGADO, { stripClassificacoes: true }));
             setDadosAgregados(aggregated);
           } catch (e2: any) {
             console.warn('Falha ao carregar dataset agregado do Painel de Compras:', e2?.message);
