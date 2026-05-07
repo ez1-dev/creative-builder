@@ -382,7 +382,7 @@ export default function BiComponentsDemoPage() {
                   <KpiTargetCard title="% Recebimento" value={84.1} target={95} format="percent" subtitle="Meta SLA" />
                 </KpiGrid>
               </DemoBlock>
-              <DemoBlock name="KpiCard loading">
+              <DemoBlock name="KpiCard loading" nonApplicable>
                 <KpiGrid cols={3}>
                   <KpiCard title="Carregando..." value={null} loading />
                   <KpiCard title="Carregando..." value={null} loading />
@@ -513,7 +513,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== MAPS ===== */}
           <section id="maps" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Mapas" icon={<Map className="h-4 w-4" />}>
-              <DemoBlock name="BrazilMapCard" description="Choropleth dos estados — escala automática por valor">
+              <DemoBlock name="BrazilMapCard" description="Choropleth dos estados — escala automática por valor" applyId="brazil-map">
                 <BrazilMapCard
                   title="Compras por UF"
                   data={[
@@ -531,7 +531,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== TREE ===== */}
           <section id="tree" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Hierarquia / Árvore" icon={<Network className="h-4 w-4" />}>
-              <DemoBlock name="TreeView" description="Lista hierárquica genérica (BOM, organograma, taxonomia)">
+              <DemoBlock name="TreeView" description="Lista hierárquica genérica (BOM, organograma, taxonomia)" applyId="tree-view">
                 <div className="rounded-md border bg-card p-3">
                   <TreeView defaultExpanded nodes={[
                     { id: '1', label: 'Diretoria Industrial', value: '12 áreas', children: [
@@ -545,7 +545,7 @@ export default function BiComponentsDemoPage() {
                   ]} />
                 </div>
               </DemoBlock>
-              <DemoBlock name="Timeline" description="Eventos cronológicos — log de aprovações, histórico">
+              <DemoBlock name="Timeline" description="Eventos cronológicos — log de aprovações, histórico" applyId="timeline">
                 <div className="rounded-md border bg-card p-3">
                   <Timeline events={[
                     { id: '1', title: 'OC criada', timestamp: '15/04 10:23', description: 'Aberta por João Silva' },
@@ -569,7 +569,7 @@ export default function BiComponentsDemoPage() {
                   pagination={{ pagina: 1, totalPaginas: 5, totalRegistros: 47, onPageChange: () => {} }}
                 />
               </DemoBlock>
-              <DemoBlock name="DrillDownTable" description="Hierarquia colapsável Tipo → Centro → Fornecedor">
+              <DemoBlock name="DrillDownTable" description="Hierarquia colapsável Tipo → Centro → Fornecedor" applyId="drill-down-table">
                 <DrillDownTable
                   data={drillRows}
                   levels={[
@@ -580,17 +580,17 @@ export default function BiComponentsDemoPage() {
                 />
               </DemoBlock>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <DemoBlock name="RankingTable">
+                <DemoBlock name="RankingTable" applyId="ranking-table">
                   <RankingTable data={fornecedoresRanking.slice(0, 6)} />
                 </DemoBlock>
-                <DemoBlock name="SummaryTable + total">
+                <DemoBlock name="SummaryTable + total" applyId="summary-table">
                   <SummaryTable rows={[
                     { label: 'Compras', value: 7580000, format: 'currency' },
                     { label: 'Recebido', value: 6840000, format: 'currency' },
                     { label: 'Pendente', value: 740000, format: 'currency' },
                   ]} total={{ label: 'Saldo', value: 6100000, format: 'currency', bold: true }} />
                 </DemoBlock>
-                <DemoBlock name="ComparisonTable" span={2}>
+                <DemoBlock name="ComparisonTable" span={2} applyId="comparison-table">
                   <ComparisonTable rows={[
                     { label: 'Compras', current: 7580000, previous: 6420000, format: 'currency' },
                     { label: 'Recebimentos', current: 6840000, previous: 5980000, format: 'currency' },
@@ -604,7 +604,7 @@ export default function BiComponentsDemoPage() {
           {/* ===== FILTERS ===== */}
           <section id="filters" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Filtros" icon={<Filter className="h-4 w-4" />}>
-              <DemoBlock name="DashboardFilters (painel completo)">
+              <DemoBlock name="DashboardFilters (painel completo)" nonApplicable>
                 <DashboardFilters onApply={() => {}} onClear={() => setChips([])} onRefresh={() => {}}>
                   <DateRangeFilter startValue={start} endValue={end} onStartChange={setStart} onEndChange={setEnd} />
                   <SelectFilter label="Tipo de despesa" value={tipo} onChange={setTipo} options={[
@@ -616,7 +616,7 @@ export default function BiComponentsDemoPage() {
                   <SearchFilter value={search} onChange={setSearch} placeholder="Buscar..." />
                 </DashboardFilters>
               </DemoBlock>
-              <DemoBlock name="FilterBar (barra horizontal)">
+              <DemoBlock name="FilterBar (barra horizontal)" nonApplicable>
                 <FilterBar>
                   <SelectFilter label="Tipo" value={tipo} onChange={setTipo} options={[
                     { value: 'all', label: 'Todos' },
@@ -625,14 +625,14 @@ export default function BiComponentsDemoPage() {
                   <SearchFilter value={search} onChange={setSearch} />
                 </FilterBar>
               </DemoBlock>
-              <DemoBlock name="FilterChips" description="Chips removíveis representando filtros ativos">
+              <DemoBlock name="FilterChips" description="Chips removíveis representando filtros ativos" nonApplicable>
                 <FilterChips
                   chips={chips}
                   onRemove={(k) => setChips(chips.filter((c) => c.key !== k))}
                   onClearAll={() => setChips([])}
                 />
               </DemoBlock>
-              <DemoBlock name="AdvancedFiltersPanel">
+              <DemoBlock name="AdvancedFiltersPanel" nonApplicable>
                 <AdvancedFiltersPanel>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     <SelectFilter label="Origem" value="all" onChange={() => {}} options={[{ value: 'all', label: 'Todas' }]} />
@@ -646,14 +646,14 @@ export default function BiComponentsDemoPage() {
           {/* ===== DRILL ===== */}
           <section id="drill" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Drill-down" icon={<MousePointerClick className="h-4 w-4" />}>
-              <DemoBlock name="DrillBreadcrumb">
+              <DemoBlock name="DrillBreadcrumb" nonApplicable>
                 <DrillBreadcrumb
                   path={drillPath}
                   onJumpTo={(d) => setDrillPath(d < 0 ? [] : drillPath.slice(0, d + 1))}
                   onClear={() => setDrillPath([])}
                 />
               </DemoBlock>
-              <DemoBlock name="DrillLevelSelector" description="Próximo nível disponível para drill">
+              <DemoBlock name="DrillLevelSelector" description="Próximo nível disponível para drill" nonApplicable>
                 <DrillLevelSelector
                   levels={[
                     { key: 'centro', label: 'Centro de Custo' },
@@ -671,19 +671,19 @@ export default function BiComponentsDemoPage() {
           <section id="states" className="scroll-mt-4 space-y-3">
             <DashboardSection title="Estados visuais" icon={<AlertCircle className="h-4 w-4" />}>
               <DashboardGrid cols={2}>
-                <DemoBlock name="LoadingState (spinner)">
+                <DemoBlock name="LoadingState (spinner)" nonApplicable>
                   <div className="rounded-md border bg-card"><LoadingState height={140} /></div>
                 </DemoBlock>
-                <DemoBlock name="LoadingState (skeleton)">
+                <DemoBlock name="LoadingState (skeleton)" nonApplicable>
                   <div className="rounded-md border bg-card"><LoadingState height={140} variant="skeleton" /></div>
                 </DemoBlock>
-                <DemoBlock name="EmptyState">
+                <DemoBlock name="EmptyState" nonApplicable>
                   <div className="rounded-md border bg-card"><EmptyState /></div>
                 </DemoBlock>
-                <DemoBlock name="NoDataState">
+                <DemoBlock name="NoDataState" nonApplicable>
                   <div className="rounded-md border bg-card"><NoDataState height={140} /></div>
                 </DemoBlock>
-                <DemoBlock name="ErrorState" span={2}>
+                <DemoBlock name="ErrorState" span={2} nonApplicable>
                   <div className="rounded-md border bg-card"><ErrorState message="Falha ao carregar dados do servidor." height={140} /></div>
                 </DemoBlock>
               </DashboardGrid>
@@ -693,14 +693,14 @@ export default function BiComponentsDemoPage() {
           {/* ===== BADGES ===== */}
           <section id="badges" className="scroll-mt-4 space-y-3">
             <DashboardSection title="StatusBadge" icon={<Tag className="h-4 w-4" />}>
-              <DemoBlock name="StatusBadge — todas as variantes" description="Padrão para status em tabelas e KPIs">
+              <DemoBlock name="StatusBadge — todas as variantes" description="Padrão para status em tabelas e KPIs" applyId="status-badge">
                 <div className="flex flex-wrap gap-2 rounded-md border bg-card p-3">
                   {(['recebido','pendente','parcial','cancelado','atraso','sem-nf','com-nf','sem-oc','com-oc','positivo','negativo','neutro'] as BiStatus[]).map((s) => (
                     <StatusBadge key={s} status={s} />
                   ))}
                 </div>
               </DemoBlock>
-              <DemoBlock name="Formatadores" description="formatCurrency, formatNumber, abbreviateNumber">
+              <DemoBlock name="Formatadores" description="formatCurrency, formatNumber, abbreviateNumber" nonApplicable>
                 <div className="grid grid-cols-3 gap-3 rounded-md border bg-card p-3 text-xs">
                   <div><div className="text-muted-foreground">formatCurrency</div><div className="font-mono font-semibold">{formatCurrency(1234567.89)}</div></div>
                   <div><div className="text-muted-foreground">formatNumber</div><div className="font-mono font-semibold">{formatNumber(1234567, 0)}</div></div>
