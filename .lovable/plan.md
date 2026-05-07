@@ -1,56 +1,46 @@
-## Evolução do Painel de Compras
+## Revisão final do Painel de Compras
 
-Mantendo o `src/pages/PainelComprasPage.tsx` atual (não removo nada — todos os KPIs, gráficos e a "Lista Detalhada" continuam funcionando), vou **adicionar** uma nova aba "Drill-down Gerencial" e ampliar filtros, KPIs e colunas para atender a análise por Projeto Macro / Projeto / CC / Tipo de Despesa / Mês / Fornecedor / OC / Item.
+Validei os 10 pontos no código atual (`src/pages/PainelComprasPage.tsx`, `src/components/compras/PainelDrillView.tsx`, `src/lib/comprasClassificacao.ts`). Resultado:
 
-### Arquivos
+| # | Critério | Status | Ação |
+|---|----------|--------|------|
+| 1 | Filtros alteram KPIs/gráficos/tabela | **Parcial** | Os novos filtros (`projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`) só afetam **Visão Gerencial**, **Análise Gerencial** e **Drill**. KPIs antigos, gráficos antigos e Lista Detalhada ainda leem `data.dados` cru — precisa passar `dadosFiltrados`. |
+| 2 | Ordem do drill | OK | `NIVEIS` em `PainelDrillView.tsx` já segue Projeto Macro → Projeto → CC → Tipo Despesa → Mês → Fornecedor → OC → Item. |
+| 3 | Breadcrumb volta níveis | OK | `goTo(idx)` corta o stack até o índice clicado; "Voltar nível" e "Limpar drill" funcionam. |
+| 4 | Limpar filtros não apaga drill indevidamente | **Falha** | `clearFilters` chama `setData(null)` → o `<PainelDrillView>` desmonta e perde o stack. Precisa **não** zerar `data` (manter resultado atual) ou — preferível — manter o comportamento atual mas remontar uma busca quando o usuário clicar em "Pesquisar". Solução: remover `setData(null)` do `clearFilters`; o usuário aciona "Pesquisar" depois. |
+| 5 | Limpar drill não apaga filtros | OK | `setStack([])` no `PainelDrillView` é estado isolado; não toca em `filters`. |
+| 6 | Tabela mostra Cond. Pagto / Tipo Despesa / Projeto Macro | **Falha** | `baseColumns` não inclui essas colunas. Adicionar. |
+| 7 | Sem dados mockados | OK | Tudo deriva de `api.get('/api/painel-compras')`. |
+| 8 | Export respeita filtros | OK | `exportParams` (linhas 430-449) inclui `projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento` (já adicionados). |
+| 9 | Layout responsivo | OK | KPIs `grid-cols-2 md:grid-cols-4 xl:grid-cols-8`; gráficos `lg:grid-cols-2 xl:grid-cols-3`. |
+| 10 | Não perdeu funcionalidades | OK | Todos os filtros, KPIs, gráficos, paginação, multi-situação e checkbox "Mostrar valor total OC" continuam. |
 
-**Novo:**
-- `src/lib/comprasClassificacao.ts` — funções puras `getProjetoMacro(row)` e `getTipoDespesa(row)`. Usam `row.projeto_macro` / `row.tipo_despesa` quando vierem da API; caso contrário aplicam regras provisórias:
-  - Projeto macro: nome do projeto contendo `GENIUS|GENI` → Genius, `ESTRUT` → Estrutural, senão Outros.
-  - Tipo de despesa: `tipo_item === 'SERVICO'|'S'` → Serviços; `origem_material/familia` em lista de matéria-prima → Matéria-prima; descrição contendo `EPI|FERRAMENTA|BROCA|DISCO|LIXA|MANUTEN|CONSUMO` → Uso e consumo; senão Despesas gerais.
-- `src/components/compras/PainelDrillView.tsx` — componente que recebe `dados: any[]`, mantém `stack: CrumbStep[]`, monta breadcrumb + tabela agregada do nível atual; níveis fixos `projeto_macro → numero_projeto → centro_custo → tipo_despesa → mes_competencia → fornecedor → numero_oc → item`. Cada linha mostra Comprado, Pendente, Qtd OCs, Qtd itens. Botões "Voltar nível" e "Limpar drill".
+### Alterações propostas (somente `src/pages/PainelComprasPage.tsx`)
 
-**Alterar:**
-- `src/pages/PainelComprasPage.tsx`:
-  - **Filtros novos** no `FilterPanel` (campos opcionais; só são enviados ao backend quando preenchidos):
-    - `projeto_macro` (Select: Todos/Genius/Estrutural/Outros) — também aplicado client-side via `getProjetoMacro` para compatibilidade.
-    - `tipo_despesa` (Select: Todos/Matéria-prima/Uso e consumo/Despesas gerais/Serviços) — idem, client-side via `getTipoDespesa`.
-    - `mes_competencia` (Input `YYYY-MM`).
-    - `condicao_pagamento` (Input texto).
-  - **Pré-processamento** dos `data.dados`: enriquecer cada linha com `projeto_macro` e `tipo_despesa_calc` antes de alimentar tabela/charts/drill (memoizado).
-  - **Filtragem client-side** adicional por `projeto_macro` e `tipo_despesa` aplicada sobre `dadosEnriquecidos` antes de montar gráficos/drill (garante que filtros funcionem mesmo se backend ainda não suportar).
-  - **Novo grupo de KPIs "Visão Gerencial"** (sem remover os atuais): Total comprado (`valor_liquido_total`), Total pendente (`valor_pendente_total`), Total recebido (placeholder vindo de `kpis.valor_recebido_total` — mostra `--` se ausente), Qtd OCs, Qtd itens, Qtd fornecedores, Ticket médio/OC (`valor_liquido_total / total_ocs`), Maior fornecedor (top de `chartData.top_fornecedores`).
-  - **Colunas novas na tabela** (entre as atuais, sem quebrar): Projeto macro, Mês (derivado de `data_emissao` `YYYY-MM`), Tipo de despesa, Condição pagto (`condicao_pagamento` + `descricao_condicao_pagamento`).
-  - **Nova aba** "Drill-down Gerencial" entre "Dashboard" e "Lista Detalhada", renderizando `<PainelDrillView dados={dadosFiltradosEnriquecidos} />`.
-  - **Gráficos novos** dentro do "Dashboard" (após os atuais, respeitando `dadosFiltradosEnriquecidos`):
-    - Compras por mês (BarChart sobre `data_emissao` agrupado por `YYYY-MM`).
-    - Compras por tipo de despesa (Pie sobre `tipo_despesa_calc`).
-    - Compras por centro de custo (BarChart vertical top 10).
-    - Compras por projeto (BarChart vertical top 10).
-    - Top 10 fornecedores por valor comprado já existe — mantido.
-  - **Export**: incluir os novos filtros (`projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`) em `exportParams` e na chamada `search` (params enviados ao backend para quando ele suportar; client-side já filtra para a UI).
+**A. Tabela (item 6) — `baseColumns`:**
+Adicionar antes de `Nº OC` as colunas:
+- `projeto_macro` ("Projeto Macro")
+- `numero_projeto` ("Projeto")
+- `centro_custo` ("Centro Custo")
+- `tipo_despesa_calc` ("Tipo de Despesa")
+- `mes_competencia_calc` ("Mês")
 
-### Drill-down (na nova aba)
+E após `fantasia_fornecedor`:
+- `condicao_pagamento` ("Cond. Pagto") com render `cod - descricao_condicao_pagamento`.
 
-Estado local ao componente `PainelDrillView`:
-- `nivelOrder = ['projeto_macro','numero_projeto','centro_custo','tipo_despesa','mes_competencia','fornecedor','numero_oc','codigo_item']`
-- `stack: { nivel, chave, label }[]` controla o caminho.
-- Para cada nível, agrupa `dadosFiltrados` pela chave do nível e calcula totais.
-- Clicar uma linha → push step + avança para o próximo nível.
-- Breadcrumb: `Início > Genius > Projeto 663 > CC 1201 > ...` (cada item clicável → corta o stack até aquele índice).
-- Botão **Voltar nível** (pop) e **Limpar drill** (zera stack).
+**B. Lista Detalhada usa dados enriquecidos+filtrados (item 1):**
+Trocar `<DataTable ... data={data.dados} />` por `data={dadosFiltrados}` (já memoizado, contém `projeto_macro` / `tipo_despesa_calc` / `mes_competencia_calc` para as novas colunas funcionarem).
 
-### Estados
+**C. KPIs antigos e gráficos antigos respeitam novos filtros (item 1):**
+- `kpis` (useMemo): trocar a fonte do fallback de `data.dados` para `dadosFiltrados` para que totais somem o conjunto filtrado quando os novos filtros estiverem ativos. Manter prioridade `totais > resumo > fallback` (totais do backend continuam ganhando se vierem).
+- `chartData` (useMemo): se `data?.graficos` existir e algum dos novos filtros estiver ativo (`projeto_macro`/`tipo_despesa`/`mes_competencia`/`condicao_pagamento` ≠ vazio/'TODOS'), recomputar a partir de `dadosFiltrados` em vez de usar `data.graficos` (porque o backend ainda não conhece esses filtros). Caso contrário, manter o comportamento atual.
 
-Loading/erro/vazio já são tratados pelo `search()` atual. Mantenho `ErpConnectionAlert`, toasts e `DataTable` com `emptyMessage`.
+**D. `clearFilters` (item 4):**
+Remover `setData(null); setPagina(1);` do final. Apenas zera o objeto `filters`. Se o usuário quiser refazer a busca, clica em "Pesquisar". Isso preserva o drill aberto na aba Drill-down (que vive em `dadosFiltrados`/`data`).
 
-### Regras importantes mantidas
+**E. Botão "Limpar Filtros Gerenciais" no `FilterPanel` (UX, item 4 e 5):**
+Adicionar um pequeno botão `ghost` ao lado dos novos filtros que reseta apenas `projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento` para deixar claro a separação dos novos filtros do drill.
 
-- Não removo nada do que já existe (KPIs, gráficos, lista, paginação, multi-situação, "Mostrar valor total OC").
-- Sem dados mockados — tudo deriva de `data.dados` retornado por `/api/painel-compras`.
-- Filtros novos `projeto_macro`/`tipo_despesa`/`mes_competencia`/`condicao_pagamento` são enviados ao backend (só quando preenchidos) **e** aplicados no client para garantir que funcionem antes do backend implementar.
-- Padrão visual: tokens semânticos do design system (sem cores hardcoded), `KPICard`, `DataTable`, `FilterPanel`, `Tabs`, `recharts` — mesma stack já usada na página.
-- Responsivo: KPIs `grid-cols-2 md:grid-cols-4 xl:grid-cols-6`; gráficos `lg:grid-cols-2 xl:grid-cols-3` (já é o padrão).
+### Validação após mudanças
 
-### Documentação
-- `docs/backend-painel-compras-gerencial.md` — descreve os campos extras esperados no payload (`projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`, `descricao_condicao_pagamento`, `valor_recebido_total`) para o time de backend evoluir o endpoint.
+Após editar, rodo `bunx tsc --noEmit` para garantir build limpa. Não há mudança de banco nem de configuração.
