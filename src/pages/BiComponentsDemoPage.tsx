@@ -100,7 +100,7 @@ const SECTIONS = [
   { id: 'badges',  label: 'Badges',     icon: Tag },
 ];
 
-function DemoBlock({ name, children, description, span, applyId }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3; applyId?: string }) {
+function DemoBlock({ name, children, description, span, applyId, nonApplicable }: { name: string; description?: string; children: React.ReactNode; span?: 1 | 2 | 3; applyId?: string; nonApplicable?: boolean }) {
   const colSpan = span === 3 ? 'lg:col-span-3' : span === 2 ? 'lg:col-span-2' : '';
   return (
     <div className={`group space-y-2 rounded-xl border border-border/60 bg-card/50 p-3 transition-all hover:border-primary/40 hover:bg-card hover:shadow-sm ${colSpan}`}>
@@ -109,7 +109,11 @@ function DemoBlock({ name, children, description, span, applyId }: { name: strin
           <code className="rounded bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary truncate">{name}</code>
           {description && <span className="text-[11px] text-muted-foreground truncate">{description}</span>}
         </div>
-        {applyId && <ApplyComponentButton componentId={applyId} />}
+        {applyId
+          ? <ApplyComponentButton componentId={applyId} />
+          : nonApplicable
+            ? <span className="text-[10px] text-muted-foreground italic whitespace-nowrap">uso direto via import</span>
+            : null}
       </div>
       {children}
     </div>
