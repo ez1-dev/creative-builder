@@ -1,29 +1,27 @@
 
 ## Objetivo
 
-Refinar o visual da página `/biblioteca-bi` (Biblioteca BI — Componentes) sem alterar funcionalidades.
+Adicionar a opção **"Mostrar Todos"** (junto com 100/250/500/1000) no rodapé das páginas com paginação, começando por: **Notas de Recebimento**, **Estoque**, **Conciliação EDocs**, **Onde Usa**, e **Painel de Compras** (que já tem o seletor no topo — apenas reaproveita).
 
-## Mudanças (apenas estética em `src/pages/BiComponentsDemoPage.tsx`)
+## Mudanças
 
-1. **Header**
-   - Acrescentar gradiente sutil ao fundo do header e um ícone decorativo grande à esquerda do título (`Sparkles`/`Library`).
-   - Adicionar contadores resumo em badges (Nº de componentes, seções).
+### 1. `src/components/erp/PaginationControl.tsx`
+Tornar o componente reutilizável adicionando seletor opcional de tamanho de página:
+- Novas props opcionais: `pageSize`, `onPageSizeChange`, `pageSizeOptions` (default `[100, 250, 500, 1000, 'todos']`).
+- Quando `pageSize === 'todos'`: oculta navegação de páginas e exibe "Mostrando todos os N registros".
+- Mantém retrocompatibilidade total — páginas que não passam as novas props seguem como hoje.
 
-2. **Sidebar de catálogo (desktop)**
-   - Aumentar largura para `w-60`, fundo em gradiente `from-card to-card/60`, sombra leve.
-   - Item ativo com barra lateral à esquerda + gradiente horizontal + ícone colorido.
-   - Cabeçalho da sidebar com badge contendo a quantidade de seções.
+### 2. Páginas que vão ganhar o seletor
+Em cada uma destas páginas, adicionar `useState` para `pageSize` (default 100), passar para a chamada `api.get(..., { tamanho_pagina: pageSize === 'todos' ? 100000 : pageSize })`, e passar `pageSize` + `onPageSizeChange` ao `<PaginationControl>`. Quando o usuário escolhe "Todos", mostrar `toast.info` avisando que pode demorar.
 
-3. **Nav mobile**
-   - Sticky no topo com blur, ícones nos botões.
+- `src/pages/EstoquePage.tsx`
+- `src/pages/OndeUsaPage.tsx`
+- `src/pages/ConciliacaoEdocsPage.tsx`
+- `src/pages/NotasRecebimentoPage.tsx`
 
-4. **DemoBlock**
-   - Cada bloco vira um card real (`rounded-xl border bg-card/50`) com hover que destaca borda e adiciona sombra.
-   - Nome do componente em badge azul (`bg-primary/10`).
-   - Linha tracejada separando o cabeçalho do conteúdo.
+### 3. Painel de Compras
+Já tem seletor próprio no topo com a opção "Todos". Sem alteração.
 
-5. **WithApply** — botão "Aplicar" só fica 100% opaco no hover do gráfico.
+## Resultado
 
-6. **Seções** — `DashboardSection` ganha espaçamento maior entre seções (`space-y-12`).
-
-Sem alteração de lógica, dados, rotas ou registries. Apenas classes Tailwind/tokens semânticos do design system (sem cores hardcoded).
+Em cada página listada, ao final da tabela aparece "Mostrar: [100 ▾]" com opções 100/250/500/1000/Todos. Escolher "Todos" carrega todos os registros do filtro de uma vez (limite técnico 100.000) e oculta os botões de navegação.

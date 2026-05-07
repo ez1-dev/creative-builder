@@ -6,7 +6,7 @@ import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionA
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
-import { PaginationControl } from '@/components/erp/PaginationControl';
+import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
@@ -115,11 +115,14 @@ export default function ConciliacaoEdocsPage() {
   const [data, setData] = useState<ConciliacaoEdocsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(100);
 
   const erpReady = useErpReady();
 
-  const buildParams = (page = 1) => {
-    const params: Record<string, any> = { pagina: page, tamanho_pagina: 100 };
+  const buildParams = (page = 1, sizeOverride?: PageSize) => {
+    const size = sizeOverride ?? pageSize;
+    const tp = size === 'todos' ? 100000 : size;
+    const params: Record<string, any> = { pagina: size === 'todos' ? 1 : page, tamanho_pagina: tp };
     if (filters.tipo_nota && filters.tipo_nota !== 'TODOS') params.tipo_nota = filters.tipo_nota;
     if (filters.data_ini) params.data_ini = filters.data_ini;
     if (filters.data_fim) params.data_fim = filters.data_fim;
@@ -138,11 +141,11 @@ export default function ConciliacaoEdocsPage() {
     return params;
   };
 
-  const search = useCallback(async (page = 1) => {
+  const search = useCallback(async (page = 1, sizeOverride?: PageSize) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
-      const result = await api.get<ConciliacaoEdocsResponse>('/api/notas-edocs-conciliacao', buildParams(page));
+      const result = await api.get<ConciliacaoEdocsResponse>('/api/notas-edocs-conciliacao', buildParams(page, sizeOverride));
       setData(result);
       setPagina(page);
     } catch (e: any) {
@@ -150,7 +153,7 @@ export default function ConciliacaoEdocsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, pageSize]);
 
   const clearFilters = () => { setFilters(initialFilters); setData(null); setPagina(1); };
 
@@ -251,7 +254,7 @@ export default function ConciliacaoEdocsPage() {
       )}
 
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="conciliacao-edocs" />
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} pageSize={pageSize} onPageSizeChange={(s) => { setPageSize(s); if (s === 'todos') toast.info('Carregando todos os registros — pode levar alguns segundos.'); search(1, s); }} />}      <BiAutoSlots pageKey="conciliacao-edocs" />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionA
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, Column } from '@/components/erp/DataTable';
-import { PaginationControl } from '@/components/erp/PaginationControl';
+import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
 import { ExportButton } from '@/components/erp/ExportButton';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
@@ -36,15 +36,18 @@ export default function OndeUsaPage() {
   const [data, setData] = useState<PaginatedResponse<any> | null>(null);
   const [loading, setLoading] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(100);
 
   const erpReady = useErpReady();
 
-  const search = useCallback(async (page = 1) => {
+  const search = useCallback(async (page = 1, sizeOverride?: PageSize) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
     setLoading(true);
     try {
       const { situacao, ...rest } = filters;
-      const result = await api.get<PaginatedResponse<any>>('/api/onde-usa', { ...rest, situacao_cadastro: situacao, pagina: page, tamanho_pagina: 100 });
+      const size = sizeOverride ?? pageSize;
+      const tp = size === 'todos' ? 100000 : size;
+      const result = await api.get<PaginatedResponse<any>>('/api/onde-usa', { ...rest, situacao_cadastro: situacao, pagina: size === 'todos' ? 1 : page, tamanho_pagina: tp });
       setData(result);
       setPagina(page);
     } catch (e: any) {
@@ -52,7 +55,7 @@ export default function OndeUsaPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters, erpReady]);
+  }, [filters, erpReady, pageSize]);
 
   useAiFilters('onde-usa', setFilters, () => search(1));
 
@@ -95,7 +98,7 @@ export default function OndeUsaPage() {
         </div>
       )}
       <DataTable columns={columns} data={data?.dados || []} loading={loading} />
-      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="onde-usa" />
+      {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} pageSize={pageSize} onPageSizeChange={(s) => { setPageSize(s); if (s === 'todos') toast.info('Carregando todos os registros — pode levar alguns segundos.'); search(1, s); }} />}      <BiAutoSlots pageKey="onde-usa" />
     </div>
   );
 }
