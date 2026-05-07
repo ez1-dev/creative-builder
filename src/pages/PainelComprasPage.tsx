@@ -920,7 +920,7 @@ export default function PainelComprasPage() {
                           <XAxis type="number" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} className="text-xs" />
                           <YAxis type="category" dataKey="fantasia_fornecedor" width={120} className="text-xs" tick={{ fontSize: 10 }} />
                           <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                          <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="valor_liquido_total" fill="hsl(215,70%,45%)" radius={[0, 4, 4, 0]} cursor="pointer" onClick={(d: any) => openDrill('fantasia_fornecedor', d?.fantasia_fornecedor, d?.fantasia_fornecedor)} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
