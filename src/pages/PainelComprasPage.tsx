@@ -167,10 +167,12 @@ export default function PainelComprasPage() {
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
       if (!params.codigo_motivo_oc || params.codigo_motivo_oc === 'TODOS') delete params.codigo_motivo_oc;
       if (!params.observacao_oc) delete params.observacao_oc;
-      if (!params.projeto_macro || params.projeto_macro === 'TODOS') delete params.projeto_macro;
-      if (!params.tipo_despesa || params.tipo_despesa === 'TODOS') delete params.tipo_despesa;
-      if (!params.mes_competencia) delete params.mes_competencia;
-      if (!params.condicao_pagamento) delete params.condicao_pagamento;
+      // Filtros calculados client-side (enrichRow): nunca enviar ao backend,
+      // pois ele desconhece esses campos e zeraria os agregados.
+      delete params.projeto_macro;
+      delete params.tipo_despesa;
+      delete params.mes_competencia;
+      delete params.condicao_pagamento;
       return params;
     };
     try {
@@ -516,10 +518,16 @@ export default function PainelComprasPage() {
   const totalAgregadoCompras = dadosAgregados?.total_registros ?? 0;
   const amostragemAtivaCompras = usandoFallbackAgregado && totalAgregadoCompras > TAMANHO_AGREGADO;
 
+  const gerencialActive =
+    (filters.projeto_macro && filters.projeto_macro !== 'TODOS') ||
+    (filters.tipo_despesa && filters.tipo_despesa !== 'TODOS') ||
+    !!filters.mes_competencia ||
+    !!filters.condicao_pagamento;
+
   const kpisGerencial = useMemo(() => {
-    // Quando o endpoint /api/painel-compras-dashboard responde, usamos exclusivamente
-    // seus KPIs (base completa filtrada, sem paginação). Sem somar `dadosFiltrados`.
-    if (dashboard) {
+    // Quando há filtro gerencial (classificações client-side), o backend não
+    // conhece esses campos — recalculamos a partir de dadosFiltrados.
+    if (dashboard && !gerencialActive) {
       const k = dashboard.kpis;
       const topBackend = k.maior_fornecedor
         ? { nome: k.maior_fornecedor.nome || k.maior_fornecedor.codigo || '—', valor: k.maior_fornecedor.valor || 0 }
@@ -572,10 +580,10 @@ export default function PainelComprasPage() {
       valorBruto: null, valorLiquido: null,
       maiorFornecedor: top ? { nome: top[0], valor: top[1] } : null,
     };
-  }, [dadosFiltrados, data, dashboard]);
+  }, [dadosFiltrados, data, dashboard, gerencialActive]);
 
   const gerencialCharts = useMemo(() => {
-    if (dashboard) {
+    if (dashboard && !gerencialActive) {
       const g = dashboard.graficos;
       const map = (rows: any[] | undefined, labelKey: string) =>
         (rows || []).map((r) => ({ label: String(r[labelKey] ?? '—'), valor: Number(r.valor || 0) }));
@@ -604,7 +612,7 @@ export default function PainelComprasPage() {
       porCentroCusto: agg('centro_custo').slice(0, 10),
       porProjeto: agg('numero_projeto').slice(0, 10),
     };
-  }, [dadosFiltrados, dashboard]);
+  }, [dadosFiltrados, dashboard, gerencialActive]);
 
   const drillDetails = useMemo(() => {
     if (!data?.dados?.length) return {} as Record<string, { label: string; value: string }[] | undefined>;

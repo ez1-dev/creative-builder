@@ -20,8 +20,12 @@ GET /api/painel-compras-dashboard
 `data_entrega_ini`, `data_entrega_fim`, `tipo_item`, `valor_min`, `valor_max`,
 `origem_material`, `familia`, `coddep`, `somente_pendentes`,
 `agrupar_por_fornecedor`, `situacao_oc` (lista CSV), `codigo_motivo_oc`,
-`observacao_oc`, `mostrar_valor_total_oc`,
-`projeto_macro`, `tipo_despesa`, `mes_competencia`, `condicao_pagamento`.
+`observacao_oc`, `mostrar_valor_total_oc`.
+
+> **Nota:** os filtros `projeto_macro`, `tipo_despesa`, `mes_competencia` e
+> `condicao_pagamento` são **classificações derivadas no frontend**
+> (`src/lib/comprasClassificacao.ts`) e **não** são enviados ao backend.
+> O frontend aplica esses filtros localmente após receber os dados.
 
 ## Resposta
 
