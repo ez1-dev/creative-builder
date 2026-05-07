@@ -1,103 +1,154 @@
-# Aplicar Biblioteca BI nas páginas existentes
+# Componentes BI injetáveis em páginas reais
 
-## Objetivo
-Migrar páginas-chave do ERP para usar os componentes padronizados da `@/components/bi`, eliminando duplicação visual, ganhando consistência (cores, estados de loading/erro/vazio, drill-down, filtros) e facilitando manutenção. Criar também um **guia de uso** (referência rápida) e padrão de migração reutilizável.
-
----
-
-## Fase 1 — Páginas piloto (alto impacto, dashboards puros)
-
-Migrar 3 páginas representativas que já são dashboards e são as mais visíveis:
-
-### 1.1 `/painel-compras` (`PainelComprasPage.tsx`)
-- KPIs gerenciais → `KpiGrid` + `KpiCard` (variants info/success/warning/danger) + `KpiSparklineCard` para os 4 principais
-- Cards de "maior fornecedor", "maior atraso" → `KpiStatusCard`
-- Gráfico Top fornecedores → `RankingChartCard`
-- Top famílias / origens → `HorizontalBarChartCard`
-- Distribuição por tipo de item → `DonutChartCard`
-- Drill-down atual → `DrillDownTable` da lib
-- Tabela paginada → `DataTableBI`
-- Filtros → `FilterBar` + `DateRangeFilter` + `MultiSelectFilter` + `SearchFilter`
-- Estados → `LoadingState`, `ErrorState`, `NoDataState` em todos os cards (via `ChartCardShell`)
-- **NÃO mexer** na lógica de fetch / kpis recém-corrigida — só na camada visual
-
-### 1.2 `/notas-recebimento`
-- Mesma abordagem: KPIs (`KpiCard` + `KpiSparklineCard`), gráficos (Combo, Donut, Ranking), `DataTableBI`
-- Adicionar `BrazilMapCard` se houver dado de UF do fornecedor (verificar)
-- Status NFs → `StatusBadge` (`recebido`, `pendente`, `cancelado`, `com-oc`, `sem-oc`)
-
-### 1.3 `/producao/dashboard` (`ProducaoDashboardPage.tsx`)
-- Cargas por período → `BarChartCard` ou `ComboChartCard`
-- Status dos projetos → `DonutChartCard` ou `StackedBarChartCard`
-- Top saldo pátio → `RankingChartCard`
-- KPIs → `KpiGrid`
-- Adicionar `KpiTargetCard` para meta semanal (já existe meta no módulo)
+Hoje o `/biblioteca-bi` é apenas um catálogo visual com mock. A proposta transforma cada componente em um **widget aplicável** a páginas reais do ERP: o usuário clica no card, escolhe **página + seção (slot)**, mapeia campos de dados, e o componente passa a renderizar lá usando os filtros e datasets daquela página — responsivo e persistido por usuário.
 
 ---
 
-## Fase 2 — Páginas tabulares (DataTableBI + filtros padrão)
+## Como funciona (fluxo do usuário)
 
-Migrações menores, mais mecânicas — substituem `DataTable` legacy por `DataTableBI`:
-
-- `/contas-pagar` — KPIs no topo (`KpiGrid`), `FilterBar`, `DataTableBI`, `StatusBadge` para situação
-- `/contas-receber` — idem
-- `/estoque` — `KpiCard` (saldo total / valor total / SKUs ativos), `DataTableBI`, `KpiTargetCard` para "% cobertura min/max"
-- `/compras-produto` — `RankingChartCard` top produtos + `DataTableBI`
-
----
-
-## Fase 3 — Guia + padronização
-
-### 3.1 Documentação
-Criar `docs/biblioteca-bi-guia-uso.md` com:
-- Visão geral dos componentes
-- Padrão de página dashboard (template em código)
-- Exemplos de "antes/depois" das migrações da Fase 1
-- Quando usar cada componente
-- Como conectar dados de endpoint paginado (KPIs do dashboard, dados da tabela)
-
-### 3.2 Hook utilitário
-Criar `src/hooks/useDashboardData.ts` — hook genérico que encapsula o padrão repetido em todas as páginas:
-- Recebe URL do endpoint dashboard + URL do endpoint list paginado
-- Retorna `{ kpis, charts, dadosPaginados, loading, error, refresh, filtros }`
-- Já conhece o padrão "kpis sempre globais, dados sempre paginados"
-- Reduz boilerplate em ~50% nas próximas migrações
-
-### 3.3 Template de página
-Criar `src/components/bi/templates/PaginaDashboardTemplate.tsx` — esqueleto comentado de uma página padrão que dev pode copiar como ponto de partida.
+1. Em `/biblioteca-bi`, cada componente do catálogo ganha um botão **"Aplicar em página…"**.
+2. Abre um modal **"Onde incluir este componente?"** com:
+   - **Página alvo** (combo): Painel de Compras, NF Recebimento, Produção, Faturamento Genius, Estoque, Passagens Aéreas, etc.
+   - **Seção / slot** (combo dependente): "Linha de KPIs", "Linha de gráficos", "Tabela auxiliar", "Sidebar". Os slots disponíveis vêm do registry da página.
+   - **Título do widget**, ordem (arrastar para reordenar depois), largura (`1/2/3/4` cols).
+   - **Mapeamento de dados** (auto-sugerido): combos populados com os campos publicados pela página (ex.: `kpis.total_compras`, `series.compras_por_mes`, `dados[].fornecedor`). Mapeamento auto via heurística + ajuste manual.
+   - **Pré-visualização ao vivo** usando os dados reais da página alvo (busca leve do dashboard endpoint).
+3. **Salvar** persiste em Lovable Cloud, vinculado ao usuário.
+4. Na página alvo, o widget aparece no slot escolhido, recebe `filtros` e `dataset` da página, recalcula ao mudar filtros, e é responsivo (grid `cols`/`span`).
+5. Em cada widget renderizado: menu `⋮` para **editar mapeamento, mover, redimensionar, remover**.
 
 ---
 
-## Fase 4 — Backlog (ficam catalogadas, não implementadas agora)
+## Arquitetura
 
-Páginas que farão sentido migrar depois (Fase 5+, a combinar):
-- `/passagens-aereas` — já tem dashboard próprio bem desenhado, migração de baixa prioridade
-- `/faturamento-genius` — tem auditoria complexa, requer análise dedicada
-- `/engenharia-producao`
-- `/sugestao-min-max`
-- `/demonstrativo-compras-recebimentos`
+```text
+┌─ Página real (PainelComprasPage) ───────────────────────────┐
+│  useDashboardData() ──► { dashboard, dados, filtros }        │
+│                                                              │
+│  <PageDataProvider pageKey="painel-compras"                  │
+│                    schema={SCHEMA} data={...} filtros={...}> │
+│    ...layout fixo da página...                               │
+│    <UserWidgetsSlot section="kpis" />     ← injeção          │
+│    <UserWidgetsSlot section="charts" />                      │
+│    <UserWidgetsSlot section="tables" />                      │
+│  </PageDataProvider>                                         │
+└──────────────────────────────────────────────────────────────┘
+
+Biblioteca BI (catálogo)
+  └─ <Card componente> ─► [Aplicar em página…] ─► <ApplyComponentDialog />
+        └─ salva em bi_user_widgets
+
+UserWidgetsSlot
+  └─ lê bi_user_widgets do usuário p/ (pageKey, section)
+  └─ resolve componente por id, injeta props mapeadas a partir do PageDataProvider
+```
 
 ---
 
-## Ordem de execução desta entrega
+## Itens a construir
 
-1. Criar `docs/biblioteca-bi-guia-uso.md` com padrão de uso
-2. Criar `useDashboardData` hook
-3. Criar `PaginaDashboardTemplate.tsx` na lib
-4. Migrar `PainelComprasPage` (mantendo lógica intacta, só camada visual)
-5. Migrar `NotasRecebimentoPage`
-6. Migrar `ProducaoDashboardPage`
-7. Em cada migração: rodar visualmente no preview e ajustar
+### 1. Registry de páginas alvo
+`src/lib/bi/pageRegistry.ts` — declara cada página candidata:
+```ts
+{
+  key: 'painel-compras',
+  label: 'Painel de Compras',
+  route: '/painel-compras',
+  sections: [
+    { key: 'kpis',   label: 'Linha de KPIs',    accepts: ['kpi'] },
+    { key: 'charts', label: 'Linha de gráficos', accepts: ['chart','map','tree'] },
+    { key: 'tables', label: 'Tabelas auxiliares', accepts: ['table'] },
+  ],
+  // schema dos dados publicados pela página (campos que aparecem no mapeamento)
+  schema: {
+    kpis:   ['total_compras','total_recebido','ticket_medio','qtde_notas'],
+    series: ['compras_por_mes','top_fornecedores','tipos_despesa'],
+    rows:   { source:'dados', fields:['fornecedor','tipo','centro','valor_liquido','status'] },
+  }
+}
+```
 
-## Princípios da migração
-- **Não tocar** em lógica de fetch, filtros aplicados ao backend, ou cálculos de KPIs corrigidos recentemente
-- **Não tocar** em arquivos auto-gerados (`supabase/client.ts`, `types.ts`, `.env`)
-- Preservar comportamentos existentes (export, IA chat context, drill, paginação)
-- Usar **apenas tokens semânticos** do design system — sem cores hardcoded
-- Cada PR de migração mantém testes existentes passando
+### 2. Registry de componentes
+`src/lib/bi/componentRegistry.ts` — declara cada componente exportado pela lib com:
+- `id`, `kind` (`kpi|chart|map|tree|table`), `label`, `Component`, `defaultSpan`
+- `propsSchema`: quais inputs ele precisa (`value:number`, `series:Point[]`, `data:Row[]`)
+- `autoMap(pageSchema)`: heurística que sugere mapeamento inicial.
 
-## Fora do escopo
-- Refatorar lógica de negócio
-- Mudar contratos de endpoint
-- Mexer em telas de configuração / admin
-- Migrar todas as páginas do ERP de uma vez (seria entrega muito grande)
+### 3. PageDataProvider + hook
+`src/lib/bi/PageDataContext.tsx`:
+- Provider expõe `{ pageKey, schema, kpis, series, rows, filtros, refresh }`.
+- `useResolvedProps(componentId, mapping)` → resolve as props finais a partir do contexto.
+
+### 4. Slot de injeção
+`src/components/bi/runtime/UserWidgetsSlot.tsx`:
+- Carrega widgets persistidos para `(user, pageKey, section)`.
+- Renderiza dentro de `DashboardGrid`/`KpiGrid` respeitando `span` de cada widget.
+- Cada widget envolto em `<UserWidgetFrame>` com menu `⋮` (editar/mover/remover).
+
+### 5. Modal "Aplicar em página"
+`src/components/bi/runtime/ApplyComponentDialog.tsx`:
+- Steps: **Página → Seção → Mapeamento → Pré-visualização → Salvar**.
+- Filtra páginas/seções pelo `kind` do componente (KPI só vai em seção `accepts: ['kpi']`).
+- Pré-visualização usa `useDashboardData` apontando para o endpoint da página alvo, aplicando filtros default.
+
+### 6. Botão no catálogo
+Atualizar `BiComponentsDemoPage.tsx` (e `DemoBlock`) para mostrar um botão **"Aplicar em página…"** em cada exemplo, abrindo o modal pré-preenchido com o componente correspondente.
+
+### 7. Editor / reordenação na página alvo
+Modo "edição de dashboard" toggle no header da página: quando ligado, slots ficam com bordas, suporta drag-to-reorder (`@dnd-kit/sortable` — já é padrão), redimensionar `span`, e botão "+" para abrir o catálogo já filtrado para aquela seção.
+
+### 8. Persistência (Lovable Cloud)
+Nova tabela:
+```sql
+create table public.bi_user_widgets (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  page_key text not null,
+  section text not null,
+  component_id text not null,
+  title text,
+  span smallint not null default 1,
+  ordem int not null default 0,
+  mapping jsonb not null default '{}'::jsonb,
+  options jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.bi_user_widgets enable row level security;
+-- policies: select/insert/update/delete WHERE user_id = auth.uid()
+create index on public.bi_user_widgets (user_id, page_key, section, ordem);
+```
+
+### 9. Páginas alvo (Fase 1)
+Instrumentar 3 páginas para aceitar widgets injetados:
+- `PainelComprasPage` — slots `kpis`, `charts`, `tables`.
+- `NotasRecebimentoPage` — mesmos slots.
+- `producao/ProducaoDashboardPage` — `kpis`, `charts`.
+
+Demais páginas entram em fase posterior (mesma instrumentação, ~10 min/página).
+
+### 10. Documentação
+Adicionar seção em `docs/biblioteca-bi-guia-uso.md`: "Como tornar uma página alvo de widgets" (registrar no `pageRegistry`, envolver em `PageDataProvider`, plotar `UserWidgetsSlot`).
+
+---
+
+## Princípios
+
+- **Sem mexer na lógica** das páginas (fetch, filtros, KPIs continuam idênticos).
+- **Filtros são propagados automaticamente**: o widget recebe `filtros` via context, então recalcula naturalmente quando o usuário filtra.
+- **Responsivo por padrão**: widgets renderizam dentro dos grids existentes (`KpiGrid`, `ChartGrid`) que já são mobile-first.
+- **Por usuário**: cada um monta seu painel; nada vaza entre contas (RLS).
+- **Reversível**: remover widget não afeta nada do layout fixo da página.
+
+---
+
+## Entregáveis (PR único, fase 1)
+
+1. Migration `bi_user_widgets` + policies RLS.
+2. `pageRegistry`, `componentRegistry`, `PageDataContext`.
+3. `UserWidgetsSlot`, `UserWidgetFrame`, `ApplyComponentDialog`, `EditDashboardToggle`.
+4. Botão "Aplicar em página…" em todos os blocos do catálogo.
+5. Instrumentação das 3 páginas piloto (`Painel Compras`, `NF Recebimento`, `Produção`).
+6. Doc atualizada.
+
+Fase 2 (depois): drag-to-reorder visual, duplicar widget, exportar/importar layout, compartilhar dashboard com outro usuário.
