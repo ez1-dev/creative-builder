@@ -1040,9 +1040,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )
           ) : (() => {
             const hasActions = !readOnly && (onEdit || onDelete);
-            // Colunas: Data, [Colab?], C.Custo, Projeto/Obra, Fornecedor, Cia,
+            // Colunas: Data, [Colab?], C.Custo, Fornecedor, Cia,
             // Origem, Destino, UF, Data Ida, Motivo, Valor
-            const baseCols = agruparColab ? 11 : 12;
+            const baseCols = agruparColab ? 10 : 11;
             const totalCols = baseCols + (hasActions ? 1 : 0);
             const cellCls = "whitespace-nowrap text-xs px-2 py-1.5";
             const headCls = "whitespace-nowrap text-xs px-2";
@@ -1054,7 +1054,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   <TableHead className={headCls}>Data</TableHead>
                   {!agruparColab && <TableHead className={headCls}>Colaborador</TableHead>}
                   <TableHead className={headCls}>C. Custo</TableHead>
-                  <TableHead className={headCls}>Projeto / Obra</TableHead>
+                  
                   <TableHead className={headCls}>Fornecedor</TableHead>
                   <TableHead className={headCls}>Cia Aérea</TableHead>
                   <TableHead className={headCls}>Origem</TableHead>
@@ -1094,7 +1094,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                           <TableRow key={r.id} className="bg-background border-l-2 border-l-muted">
                             <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
                             <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
-                            <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
                             <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
@@ -1121,7 +1120,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     <TableCell className={cellCls}>{formatDate(r.data_registro)}</TableCell>
                     <TableCell className={`${cellCls} font-medium`}>{r.colaborador}</TableCell>
                     <TableCell className={cellCls}>{r.centro_custo ?? '-'}</TableCell>
-                    <TableCell className={cellCls}>{r.projeto_obra ?? '-'}</TableCell>
+                    
                     <TableCell className={cellCls}>{r.fornecedor ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.cia_aerea ?? '-'}</TableCell>
                     <TableCell className={cellCls}>{r.origem ?? '-'}</TableCell>
