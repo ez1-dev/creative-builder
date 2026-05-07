@@ -261,6 +261,25 @@ export interface NotasRecebimentoResponse extends PaginatedResponse<any> {
   };
 }
 
+export interface NotasRecebimentoDashboardResponse {
+  kpis: {
+    valor_recebido: number;
+    quantidade_nfs: number;
+    quantidade_itens: number;
+    quantidade_fornecedores: number;
+    valor_medio_nf: number;
+  };
+  graficos: {
+    por_mes: Array<{ mes: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+    por_tipo_despesa: Array<{ tipo: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+    por_centro_custo: Array<{ codigo_centro_custo?: string; centro_custo?: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+    por_projeto: Array<{ numero_projeto?: string; projeto?: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+    por_fornecedor: Array<{ codigo_fornecedor?: string; fornecedor?: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+    por_transacao_nf: Array<{ transacao: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+  };
+  drill: any[];
+}
+
 export interface ConciliacaoEdocsResponse extends PaginatedResponse<any> {
   resumo: {
     total_registros: number;
