@@ -161,20 +161,12 @@ export default function DemonstrativoComprasRecebimentosPage() {
       setStates((s) => ({ ...s, [origem]: { ...s[origem], loading: true } }));
       try {
         const merged = mergeFiltersWithStack(filters, stack);
-        const params: Record<string, any> = {
-          origem,
-          nivel,
-          ...Object.fromEntries(
-            Object.entries(merged).filter(([k, v]) => v && v !== 'TODOS' && k !== 'projeto_macro' ? true : k === 'projeto_macro' && v !== 'TODOS'),
-          ),
-        };
-        // include projeto_macro filter only when not TODOS
-        if (merged.projeto_macro && merged.projeto_macro !== 'TODOS') {
-          params.projeto_macro = merged.projeto_macro;
-        }
-        if (merged.tipo_despesa && merged.tipo_despesa !== 'TODOS') {
-          params.tipo_despesa = merged.tipo_despesa;
-        }
+        const params: Record<string, any> = { origem, nivel };
+        Object.entries(merged).forEach(([k, v]) => {
+          if (v === undefined || v === null || v === '') return;
+          if (v === 'TODOS') return;
+          params[k] = v;
+        });
         const result = await api.get<DemonstrativoResponse>(
           '/api/demonstrativo-compras-recebimentos',
           params,
@@ -459,13 +451,13 @@ function TabContent({ origem, state, onDrillClick, onBreadcrumb }: TabContentPro
   return (
     <>
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <KPICard title="Total comprado" value={formatCurrency(kpis?.valor_comprado ?? 0)} icon={<ShoppingCart className="h-4 w-4" />} variant="info" />
-        <KPICard title="Total recebido" value={formatCurrency(kpis?.valor_recebido ?? 0)} icon={<Receipt className="h-4 w-4" />} variant="success" />
-        <KPICard title="Saldo pendente" value={formatCurrency(kpis?.valor_pendente ?? 0)} icon={<AlertTriangle className="h-4 w-4" />} variant="warning" />
-        <KPICard title="Diferença C x R" value={formatCurrency(kpis?.diferenca_comprado_recebido ?? 0)} icon={<TrendingUp className="h-4 w-4" />} variant="default" />
-        <KPICard title="Qtd. documentos" value={formatNumber(kpis?.qtd_documentos ?? 0, 0)} icon={<FileText className="h-4 w-4" />} />
-        <KPICard title="Qtd. fornecedores" value={formatNumber(kpis?.qtd_fornecedores ?? 0, 0)} icon={<Users className="h-4 w-4" />} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <KPICard title="Total comprado" value={kpis ? formatCurrency(kpis.valor_comprado) : '--'} icon={<ShoppingCart className="h-4 w-4" />} variant="info" />
+        <KPICard title="Total recebido" value={kpis ? formatCurrency(kpis.valor_recebido) : '--'} icon={<Receipt className="h-4 w-4" />} variant="success" />
+        <KPICard title="Saldo pendente" value={kpis ? formatCurrency(kpis.valor_pendente) : '--'} icon={<AlertTriangle className="h-4 w-4" />} variant="warning" />
+        <KPICard title="Diferença C x R" value={kpis ? formatCurrency(kpis.diferenca_comprado_recebido) : '--'} icon={<TrendingUp className="h-4 w-4" />} variant="default" />
+        <KPICard title="Qtd. documentos" value={kpis ? formatNumber(kpis.qtd_documentos, 0) : '--'} icon={<FileText className="h-4 w-4" />} />
+        <KPICard title="Qtd. fornecedores" value={kpis ? formatNumber(kpis.qtd_fornecedores, 0) : '--'} icon={<Users className="h-4 w-4" />} />
       </div>
 
       {/* Charts */}
