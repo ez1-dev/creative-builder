@@ -428,6 +428,9 @@ export function ImportarPassagensDialog({ open, onOpenChange, onImported }: Prop
 
           {rows.length > 0 && !parsing && (
             <>
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-xs text-amber-900 dark:text-amber-200">
+                <strong>Atenção:</strong> os filtros abaixo apenas selecionam linhas <em>dentro deste arquivo</em>. Para importar outros meses, abra a planilha correspondente (ex.: <em>RELATORIO MAIO PASSAGENS.xlsx</em>) e repita a importação.
+              </div>
               <div className="flex flex-wrap items-end gap-3 rounded-md border bg-muted/30 p-3">
                 <CalendarRange className="h-4 w-4 text-muted-foreground" />
                 <div className="flex-1 min-w-[140px]">
