@@ -513,11 +513,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedUF([]);
   };
 
-  // Dados base para destaques cruzados (mantém compat com filtros do topo)
-  const mapaData = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC],
-  );
+
 
   // Cores para destaque condicional
   const primaryColor = 'hsl(var(--primary))';
