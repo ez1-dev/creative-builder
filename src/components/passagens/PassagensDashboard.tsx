@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
