@@ -114,6 +114,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
+    // Limpa lixo stale que pode quebrar requests pré-login (ex: token ERP expirado de versões antigas do app desktop)
+    try {
+      const tok = localStorage.getItem('erp_token');
+      if (tok && (tok.length < 10 || tok === 'undefined' || tok === 'null')) {
+        localStorage.removeItem('erp_token');
+      }
+    } catch {}
+
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
