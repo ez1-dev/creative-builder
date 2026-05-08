@@ -120,6 +120,56 @@ Regras:
 
 A aba **Validação** em `/etl` no Lovable mostra esses totais lado a lado e o diff em verde/amarelo/vermelho.
 
+## Shadow mode — endpoints `/api/bi/*` paralelos (etapa atual)
+
+**Não trocar** os endpoints atuais ainda. Criar endpoints **paralelos** lendo só de `bi_*`, para comparar ERP × BI sem risco para o frontend principal.
+
+### Endpoints novos (sem alterar os legacy)
+
+| Endpoint shadow                            | Fonte             | Espelha                                  |
+|--------------------------------------------|-------------------|------------------------------------------|
+| `GET /api/bi/painel-compras`               | `bi_compras`      | `/api/painel-compras`                    |
+| `GET /api/bi/painel-compras-dashboard`     | `bi_compras`      | `/api/painel-compras-dashboard`          |
+| `GET /api/bi/notas-recebimento`            | `bi_recebimentos` | `/api/notas-recebimento`                 |
+| `GET /api/bi/notas-recebimento-dashboard`  | `bi_recebimentos` | `/api/notas-recebimento-dashboard`       |
+| `GET /api/export/bi/painel-compras`        | `bi_compras`      | `/api/export/painel-compras`             |
+| `GET /api/export/bi/notas-recebimento`     | `bi_recebimentos` | `/api/export/notas-recebimento`          |
+| `GET /api/bi/validar-painel-compras`       | ambas             | comparação ERP × BI                      |
+| `GET /api/bi/validar-notas-recebimento`    | ambas             | comparação ERP × BI                      |
+
+### Contrato de `/api/bi/validar-*`
+
+Aceitam os mesmos query params do dashboard correspondente (`data_inicio`, `data_fim`, `tipo_despesa`, `somente_pendentes`, `fornecedor`, `projeto_macro`, ...) e retornam:
+
+```json
+{
+  "filtros": { "data_inicio": "2026-01-01", "data_fim": "2026-01-31", "tipo_despesa": "MATERIA_PRIMA", "somente_pendentes": true },
+  "erp": { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0, "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 },
+  "bi":  { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0, "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 },
+  "diferencas": { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0, "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 }
+}
+```
+
+Para `validar-notas-recebimento`: trocar `valor_pendente`/`qtd_ocs` por `valor_total`/`qtd_nfs`. Regra: `diferencas[k] = bi[k] - erp[k]`.
+
+### Caso obrigatório de validação
+
+```
+?data_inicio=2026-01-01&data_fim=2026-01-31&tipo_despesa=MATERIA_PRIMA&somente_pendentes=true
+```
+
+Os 6 KPIs precisam bater ou ter divergência explicável (NF cancelada, item estornado, etc.).
+
+## Cutover faseado (depois da validação shadow)
+
+Só ligar `USE_BI_ANALYTICS=true` quando o caso obrigatório bater. Ordem:
+
+1. Dashboards agregados (`*-dashboard`) → BI.
+2. Listas paginadas (`/api/painel-compras`, `/api/notas-recebimento`) → BI.
+3. Exportações → BI.
+4. Watermark incremental (cron `*/15 * * * *`); reprocessamento manual segue via `/api/etl/reprocessar`.
+5. Manter fallback ERP por 7 dias antes de remover `query_erp_*`.
+
 ## Endpoints HTTP que o frontend chama
 
 O frontend Lovable chama o FastAPI em:

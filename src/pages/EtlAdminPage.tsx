@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,12 @@ type LogRow = {
 type FilaRow = {
   id: string; tarefa_codigo: string; status: string; prioridade: number;
   params: any; created_at: string; picked_at: string | null; finished_at: string | null;
+};
+type ValidacaoResp = {
+  filtros?: Record<string, any>;
+  erp: Record<string, number>;
+  bi: Record<string, number>;
+  diferencas?: Record<string, number>;
 };
 
 const statusColor: Record<string, string> = {
@@ -421,11 +427,15 @@ function ValidacaoTab() {
   const [loading, setLoading] = useState(false);
   const [dataIni, setDataIni] = useState("2026-01-01");
   const [dataFim, setDataFim] = useState("2026-01-31");
-  const [diff, setDiff] = useState<{
-    compras?: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } };
-    receb?: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } };
-  }>({});
+  const [tipoDespesa, setTipoDespesa] = useState<string>("");
+  const [projetoMacro, setProjetoMacro] = useState<string>("");
+  const [somentePendentes, setSomentePendentes] = useState(false);
   const [comparando, setComparando] = useState(false);
+  const [resultado, setResultado] = useState<{
+    compras?: ValidacaoResp;
+    receb?: ValidacaoResp;
+    erros?: { compras?: string; receb?: string };
+  }>({});
 
   const loadResumo = async () => {
     setLoading(true);
@@ -460,40 +470,41 @@ function ValidacaoTab() {
   };
   useEffect(() => { loadResumo(); }, []);
 
+  const filtros = () => {
+    const f: Record<string, any> = { data_inicio: dataIni, data_fim: dataFim };
+    if (tipoDespesa) f.tipo_despesa = tipoDespesa;
+    if (projetoMacro) f.projeto_macro = projetoMacro;
+    if (somentePendentes) f.somente_pendentes = true;
+    return f;
+  };
+
   const compararComErp = async () => {
     setComparando(true);
-    try {
-      const [erpCompras, erpReceb, biC, biR] = await Promise.all([
-        api.get<any>("/api/painel-compras-dashboard", { data_inicio: dataIni, data_fim: dataFim }).catch(() => null),
-        api.get<any>("/api/notas-recebimento-dashboard", { data_inicio: dataIni, data_fim: dataFim }).catch(() => null),
-        supabase.from("bi_compras").select("valor_liquido")
-          .gte("data_emissao", dataIni).lte("data_emissao", dataFim),
-        supabase.from("bi_recebimentos").select("valor_liquido")
-          .gte("data_recebimento", dataIni).lte("data_recebimento", dataFim)
-          .eq("tipo_movimento", "RECEBIMENTO"),
-      ]);
-      const sumBi = (rows: any[] | null) => ({
-        qtd: rows?.length ?? 0,
-        total: (rows ?? []).reduce((s, r) => s + Number(r.valor_liquido ?? 0), 0),
-      });
-      const erpVals = (d: any) => ({
-        qtd: Number(d?.kpis?.qtd ?? d?.totais?.qtd ?? d?.kpis?.quantidade ?? 0),
-        total: Number(d?.kpis?.total ?? d?.totais?.valor_liquido ?? d?.kpis?.valor_liquido ?? 0),
-      });
-      setDiff({
-        compras: { bi: sumBi(biC.data as any), erp: erpVals(erpCompras) },
-        receb: { bi: sumBi(biR.data as any), erp: erpVals(erpReceb) },
-      });
-      toast({ title: "Comparação concluída" });
-    } catch (e: any) {
-      toast({ title: "Erro na comparação", description: e?.message ?? "Erro", variant: "destructive" });
-    } finally {
-      setComparando(false);
-    }
+    const params = filtros();
+    const [c, r] = await Promise.all([
+      api.get<ValidacaoResp>("/api/bi/validar-painel-compras", params).then(d => ({ ok: true, d } as const)).catch((e: any) => ({ ok: false, msg: e?.message ?? "Erro" } as const)),
+      api.get<ValidacaoResp>("/api/bi/validar-notas-recebimento", params).then(d => ({ ok: true, d } as const)).catch((e: any) => ({ ok: false, msg: e?.message ?? "Erro" } as const)),
+    ]);
+    setResultado({
+      compras: c.ok ? c.d : undefined,
+      receb: r.ok ? r.d : undefined,
+      erros: { compras: c.ok ? undefined : (c as any).msg, receb: r.ok ? undefined : (r as any).msg },
+    });
+    setComparando(false);
+    if (c.ok || r.ok) toast({ title: "Comparação concluída" });
+  };
+
+  const aplicarCasoObrigatorio = () => {
+    setDataIni("2026-01-01");
+    setDataFim("2026-01-31");
+    setTipoDespesa("MATERIA_PRIMA");
+    setProjetoMacro("");
+    setSomentePendentes(true);
   };
 
   const fmtMoney = (n: number) =>
-    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtNum = (n: number) => Number(n ?? 0).toLocaleString("pt-BR");
 
   const diffPct = (bi: number, erp: number) => {
     if (!erp) return bi === 0 ? 0 : 100;
@@ -506,32 +517,42 @@ function ValidacaoTab() {
     return "text-destructive";
   };
 
-  const renderDiffBlock = (
-    label: string,
-    d: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } } | undefined,
-  ) => {
-    if (!d) return null;
-    const pTotal = diffPct(d.bi.total, d.erp.total);
-    const pQtd = diffPct(d.bi.qtd, d.erp.qtd);
+  const renderDiffBlock = (label: string, resp: ValidacaoResp | undefined, erro: string | undefined) => {
     return (
       <Card>
         <CardHeader><CardTitle className="text-base">{label}</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Métrica</div>
-            <div className="font-medium">BI</div>
-            <div className="font-medium">ERP</div>
-            <div>Quantidade</div>
-            <div className="font-mono">{d.bi.qtd}</div>
-            <div className="font-mono">{d.erp.qtd}</div>
-            <div>Valor líquido</div>
-            <div className="font-mono">{fmtMoney(d.bi.total)}</div>
-            <div className="font-mono">{fmtMoney(d.erp.total)}</div>
-          </div>
-          <div className="pt-2 border-t border-border flex gap-4 text-xs">
-            <span>Diff qtd: <span className={`font-mono font-semibold ${diffClass(pQtd)}`}>{pQtd.toFixed(2)}%</span></span>
-            <span>Diff total: <span className={`font-mono font-semibold ${diffClass(pTotal)}`}>{pTotal.toFixed(2)}%</span></span>
-          </div>
+          {erro && (
+            <div className="text-xs text-destructive border border-destructive/30 rounded p-2">
+              Endpoint indisponível: {erro}
+            </div>
+          )}
+          {resp && (() => {
+            const keys = Object.keys(resp.erp ?? {});
+            const isMoney = (k: string) => k.startsWith("valor");
+            return (
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <div className="font-medium">Métrica</div>
+                <div className="font-medium">ERP</div>
+                <div className="font-medium">BI</div>
+                <div className="font-medium">Diff %</div>
+                {keys.map(k => {
+                  const erp = Number((resp.erp as any)?.[k] ?? 0);
+                  const bi = Number((resp.bi as any)?.[k] ?? 0);
+                  const pct = diffPct(bi, erp);
+                  return (
+                    <Fragment key={k}>
+                      <div className="font-mono">{k}</div>
+                      <div className="font-mono">{isMoney(k) ? fmtMoney(erp) : fmtNum(erp)}</div>
+                      <div className="font-mono">{isMoney(k) ? fmtMoney(bi) : fmtNum(bi)}</div>
+                      <div className={`font-mono font-semibold ${diffClass(pct)}`}>{pct.toFixed(2)}%</div>
+                    </Fragment>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {!resp && !erro && <div className="text-xs text-muted-foreground">Sem dados. Clique em Comparar.</div>}
         </CardContent>
       </Card>
     );
@@ -604,21 +625,57 @@ function ValidacaoTab() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Comparar BI × ERP</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <CardTitle>Comparar ERP × BI (shadow mode)</CardTitle>
+          <Button variant="outline" size="sm" onClick={aplicarCasoObrigatorio}>
+            Caso obrigatório (jan/2026, Matéria-prima, pendentes)
+          </Button>
+        </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-3 max-w-2xl">
+          <p className="text-xs text-muted-foreground">
+            Consome <code className="font-mono">/api/bi/validar-painel-compras</code> e <code className="font-mono">/api/bi/validar-notas-recebimento</code> no FastAPI.
+            Cada endpoint roda os mesmos filtros nas duas fontes e devolve ERP × BI lado a lado. Os dashboards principais continuam intocados.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div><Label>Data início</Label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
             <div><Label>Data fim</Label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
-            <div className="flex items-end"><Button onClick={compararComErp} disabled={comparando}><Play className="h-4 w-4 mr-1" />Comparar</Button></div>
+            <div>
+              <Label>Tipo despesa</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={tipoDespesa} onChange={e => setTipoDespesa(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="MATERIA_PRIMA">Matéria-prima</option>
+                <option value="USO_CONSUMO">Uso e consumo</option>
+                <option value="DESPESAS_GERAIS">Despesas gerais</option>
+                <option value="SERVICOS">Serviços</option>
+              </select>
+            </div>
+            <div>
+              <Label>Projeto macro</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={projetoMacro} onChange={e => setProjetoMacro(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="GENIUS">GENIUS</option>
+                <option value="ESTRUTURAL ZORTEA">ESTRUTURAL ZORTEA</option>
+                <option value="OUTROS">OUTROS</option>
+              </select>
+            </div>
+            <div className="flex items-end gap-2">
+              <Switch checked={somentePendentes} onCheckedChange={setSomentePendentes} />
+              <Label className="text-xs">Somente pendentes</Label>
+            </div>
+          </div>
+          <div>
+            <Button onClick={compararComErp} disabled={comparando}><Play className="h-4 w-4 mr-1" />Comparar</Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Tolerância recomendada: <span className="text-emerald-600 font-medium">verde &lt; 0,5%</span> •
+            Tolerância: <span className="text-emerald-600 font-medium">verde &lt; 0,5%</span> •
             <span className="text-amber-600 font-medium"> amarelo &lt; 2%</span> •
             <span className="text-destructive font-medium"> vermelho ≥ 2%</span>.
           </p>
-          <div className="grid grid-cols-2 gap-4">
-            {renderDiffBlock("Compras (painel-compras-dashboard)", diff.compras)}
-            {renderDiffBlock("Recebimentos (notas-recebimento-dashboard)", diff.receb)}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {renderDiffBlock("Compras (validar-painel-compras)", resultado.compras, resultado.erros?.compras)}
+            {renderDiffBlock("Recebimentos (validar-notas-recebimento)", resultado.receb, resultado.erros?.receb)}
           </div>
         </CardContent>
       </Card>

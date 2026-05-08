@@ -1,150 +1,104 @@
 
-# Validação ETL V1 + cutover controlado por feature flag
+# Shadow mode: endpoints BI paralelos + aba Validação consumindo `/api/bi/validar-*`
 
-Foco: garantir que `bi_compras` e `bi_recebimentos` reflitam o ERP **antes** de qualquer dashboard apontar para a camada BI. Os endpoints atuais continuam consultando o ERP. A troca acontece só depois da validação, atrás da flag `USE_BI_ANALYTICS`.
-
----
-
-## 1. Configuração do backend FastAPI (sem mudança no Lovable)
-
-Variáveis de ambiente que precisam existir no servidor onde rodam as rotas `/api/painel-compras*` e onde vai morar o ETL:
-
-- `SUPABASE_URL` = mesma URL do Lovable Cloud (já conhecida)
-- `SUPABASE_SERVICE_ROLE_KEY` = secret já existente neste projeto (`SUPABASE_SERVICE_ROLE_KEY`)
-- `USE_BI_ANALYTICS` = `false` por enquanto (flag de cutover)
-
-`SUPABASE_SERVICE_ROLE_KEY` **só** no backend. Nada disso vai para o React.
+Não vamos trocar nenhum dashboard agora. A flag `USE_BI_ANALYTICS` fica para depois. Esta etapa cria endpoints **paralelos** `/api/bi/*` (lendo só `bi_compras`/`bi_recebimentos`) e endpoints de comparação `/api/bi/validar-*`. O frontend ganha uma aba Validação que consome esses endpoints e mostra ERP × BI lado a lado.
 
 ---
 
-## 2. Correção em `ATU_RECEBIMENTOS` — usar a mesma base do `consultar_notas_recebimento`
+## 1. Backend FastAPI (fora do Lovable, lista de tarefas para o time)
 
-O documento `docs/backend-etl-bi.md` precisa deixar explícito:
+Criar, **sem alterar** os endpoints atuais:
 
-- **Não** ler de `E140NFV` / `E140IPV` (essas são saídas/vendas).
-- **Ler exatamente** das tabelas que o endpoint atual `/api/notas-recebimento` já usa — base de NF de **entrada/recebimento** (família `E440*`: `E440NFC` cabeçalho, `E440IPC` itens, `E440ISC` impostos, e equivalentes de devolução/cancelamento que o backend já cobre).
-- Critério: o ETL **deve reaproveitar a mesma query** que `consultar_notas_recebimento` já valida em produção, só trocando paginação por watermark. Isso elimina divergência por fonte diferente.
-- Atualizar a seção "Tarefas iniciais → ATU_RECEBIMENTOS" com essa orientação e remover qualquer menção a `E140*`.
+| Novo endpoint                              | Fonte             | Espelha contrato de                          |
+|--------------------------------------------|-------------------|----------------------------------------------|
+| `GET /api/bi/painel-compras`               | `bi_compras`      | `/api/painel-compras`                        |
+| `GET /api/bi/painel-compras-dashboard`     | `bi_compras`      | `/api/painel-compras-dashboard`              |
+| `GET /api/bi/notas-recebimento`            | `bi_recebimentos` | `/api/notas-recebimento`                     |
+| `GET /api/bi/notas-recebimento-dashboard`  | `bi_recebimentos` | `/api/notas-recebimento-dashboard`           |
+| `GET /api/export/bi/painel-compras`        | `bi_compras`      | `/api/export/painel-compras`                 |
+| `GET /api/export/bi/notas-recebimento`     | `bi_recebimentos` | `/api/export/notas-recebimento`              |
+| `GET /api/bi/validar-painel-compras`       | ambas             | resposta `{erp, bi, diferencas, filtros}`    |
+| `GET /api/bi/validar-notas-recebimento`    | ambas             | idem                                         |
 
-Saída desta etapa: `docs/backend-etl-bi.md` v2 e nota equivalente em `.lovable/plan.md`.
+Endpoints legacy continuam intocados, lendo do ERP.
 
----
+### Contrato dos `/api/bi/validar-*`
 
-## 3. Sequência de validação (executada pelo time do FastAPI, não pelo Lovable)
+Aceitam os mesmos query params do dashboard correspondente (`data_inicio`, `data_fim`, `tipo_despesa`, `somente_pendentes`, `fornecedor`, `projeto_macro`, etc.) e devolvem:
 
-### 3.1 ATU_COMPRAS — janela pequena
-
-```text
-POST /api/etl/reprocessar
-{ "tarefa": "ATU_COMPRAS", "data_ini": "2026-01-01", "data_fim": "2026-01-31" }
+```json
+{
+  "filtros": { "...": "..." },
+  "erp": { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0,
+           "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 },
+  "bi":  { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0,
+           "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 },
+  "diferencas": { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0,
+                  "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 }
+}
 ```
 
-Conferências (executadas via SQL no Supabase pelo Lovable após carga, com `supabase--read_query`):
+Para recebimentos: trocar `valor_pendente`/`qtd_ocs` por `valor_total`/`qtd_nfs`. Regra: `diferencas[k] = bi[k] - erp[k]`.
 
-- `SELECT COUNT(*), SUM(valor_liquido), SUM(quantidade) FROM bi_compras WHERE data_emissao BETWEEN '2026-01-01' AND '2026-01-31';`
-- Comparar com `GET /api/painel-compras-dashboard?data_inicio=2026-01-01&data_fim=2026-01-31` (totais atuais lidos do ERP).
-- Tolerância: divergência > 0,5% bloqueia avanço.
+### Caso obrigatório de validação
 
-### 3.2 ATU_RECEBIMENTOS — janela pequena (após correção da fonte)
-
-```text
-POST /api/etl/reprocessar
-{ "tarefa": "ATU_RECEBIMENTOS", "data_ini": "2026-01-01", "data_fim": "2026-01-31" }
+```
+?data_inicio=2026-01-01&data_fim=2026-01-31&tipo_despesa=MATERIA_PRIMA&somente_pendentes=true
 ```
 
-Conferências:
-
-- `SELECT COUNT(*), SUM(valor_liquido) FROM bi_recebimentos WHERE data_recebimento BETWEEN '2026-01-01' AND '2026-01-31' AND tipo_movimento = 'RECEBIMENTO';`
-- Comparar com `GET /api/notas-recebimento-dashboard?data_inicio=...`.
-- Validar separadamente `DEVOLUCAO`, `ESTORNO`, `CANCELAMENTO` (contagem deve bater com flags do ERP).
-
-### 3.3 Tela de apoio no Lovable
-
-Criar uma sub-aba **"Validação"** dentro de `/etl` com cards somente leitura:
-
-- Totais de `bi_compras` e `bi_recebimentos` por mês (últimos 6 meses).
-- Última execução de cada tarefa (`etl_execucoes` mais recente por `tarefa_codigo`).
-- Botão "Comparar com ERP" → chama `/api/painel-compras-dashboard` e `/api/notas-recebimento-dashboard` no modo **antigo** (sempre ERP) e mostra lado a lado com o BI.
-- Status visual: verde se diff < 0,5%, amarelo até 2%, vermelho acima.
+Os 6 KPIs precisam bater ou ter divergência explicável.
 
 ---
 
-## 4. Feature flag `USE_BI_ANALYTICS` (sem mudar contrato dos endpoints)
+## 2. Mudanças no Lovable (este loop, modo build)
 
-Backend FastAPI:
+### 2.1 `docs/backend-etl-bi.md`
 
-```python
-USE_BI = os.getenv("USE_BI_ANALYTICS", "false").lower() == "true"
+Adicionar seção **"Shadow mode — endpoints `/api/bi/*` paralelos"** com:
+- Tabela dos 8 endpoints novos.
+- Contrato dos `/api/bi/validar-*` (JSON acima).
+- Caso obrigatório de validação (Matéria-prima + somente pendentes).
+- Ordem do cutover faseado pós-validação: dashboards → listas → exports → watermark, mantendo fallback ERP por 7 dias.
 
-def fonte_compras(filtros):
-    if USE_BI:
-        if supabase.count("bi_compras") == 0:
-            raise HTTPException(409, "Base analítica ainda não populada. "
-                                     "Execute a tarefa ETL correspondente.")
-        return query_bi_compras(filtros)
-    return query_erp_compras(filtros)  # comportamento atual, intacto
-```
+### 2.2 `src/pages/EtlAdminPage.tsx` — aba Validação
 
-Aplicar a mesma estrutura nas 4 rotas:
+Refatorar a aba **Validação** (que hoje compara `bi_*` direto via supabase-js × dashboards atuais) para passar a consumir `/api/bi/validar-painel-compras` e `/api/bi/validar-notas-recebimento`. Vantagens: a aritmética (qtd_ocs distinct, qtd_fornecedores distinct, somente_pendentes) fica no FastAPI usando o mesmo motor de filtros, evitando reimplementar lógica no frontend.
 
-- `GET /api/painel-compras`
-- `GET /api/painel-compras-dashboard`
-- `GET /api/notas-recebimento`
-- `GET /api/notas-recebimento-dashboard`
+Mudanças concretas:
+- Trocar `compararComErp` por `Promise.all` chamando `api.get('/api/bi/validar-painel-compras', filtros)` e `api.get('/api/bi/validar-notas-recebimento', filtros)`.
+- Adicionar campos de filtro extras no formulário: `tipo_despesa` (select MATERIA_PRIMA/USO_CONSUMO/DESPESAS_GERAIS/SERVICOS/—), `somente_pendentes` (switch), `projeto_macro` (select GENIUS/ESTRUTURAL ZORTEA/OUTROS/—).
+- Renderizar tabela 3 colunas (ERP / BI / Diff) com os 6 KPIs, sinalizados verde (<0,5%) / amarelo (<2%) / vermelho (≥2%).
+- Botão de atalho "Caso obrigatório (jan/2026, Matéria-prima, pendentes)" que preenche os filtros.
+- Manter os 2 cards "bi_compras / bi_recebimentos — últimos meses" lendo direto do Cloud (úteis para ver se o ETL populou).
+- Manter os cards de "Última execução" por tarefa.
+- Tratar resposta de erro do FastAPI (404/500) com mensagem amigável "Endpoint /api/bi/validar-* não disponível ainda no backend".
 
-Regras:
+### 2.3 Sem mudança em outros lugares
 
-- `USE_BI_ANALYTICS=false` (default) → tudo continua como hoje, lendo do ERP. Nenhum risco para usuários.
-- `USE_BI_ANALYTICS=true` → lê das tabelas `bi_*`.
-- Se a tabela `bi_*` correspondente estiver vazia, **não cair silenciosamente para o ERP**: devolver erro 409 com a mensagem `"Base analítica ainda não populada. Execute a tarefa ETL correspondente."` para o frontend exibir banner amarelo. Isso evita máscara de bugs.
-- **Não remover** as funções `query_erp_compras` / `query_erp_recebimentos`. Elas seguem como caminho default por pelo menos 1 semana após o cutover.
-
-Frontend (Lovable):
-
-- Sem mudança de contrato: `useDashboardData` continua chamando os mesmos endpoints.
-- Adicionar tratamento do 409 com mensagem amigável (banner usando `EmptyState` do `@/components/bi`).
+- `useDashboardData`, `PainelComprasPage`, `NotasRecebimentoPage`, exportações: **não tocar**. Continuam usando os endpoints atuais.
+- Nenhuma migração no Cloud.
+- Sem flag `USE_BI_ANALYTICS` no frontend ainda — ela vive só no backend e só é ligada na próxima fase.
 
 ---
 
-## 5. Plano de cutover seguro
+## 3. Sequência operacional (depois do build)
 
-```text
-Fase A (agora)  → USE_BI_ANALYTICS=false. ETL roda. /etl/Validação compara totais.
-Fase B          → após 2 janelas validadas com diff < 0,5%, ligar USE_BI_ANALYTICS=true em homologação.
-Fase C          → 48h em produção com monitoramento de etl_execucoes (sem ERROR) e logs do FastAPI.
-Fase D          → manter fallback ERP por 7 dias. Depois remover query_erp_* e o flag.
-```
-
-Em qualquer fase, basta setar `USE_BI_ANALYTICS=false` para reverter sem deploy de código.
-
----
-
-## 6. Mudanças concretas neste loop (modo build)
-
-Quando o plano for aprovado, o Lovable vai:
-
-1. **Atualizar `docs/backend-etl-bi.md`**:
-   - Corrigir fonte de `ATU_RECEBIMENTOS` para `E440NFC/E440IPC/E440ISC` (mesma base de `consultar_notas_recebimento`); remover qualquer referência a `E140*`.
-   - Adicionar seção "Feature flag `USE_BI_ANALYTICS`" com o contrato de erro 409.
-   - Adicionar seção "Sequência de validação V1" com as queries e tolerâncias.
-2. **Atualizar `.lovable/plan.md`** refletindo o faseamento Fase A → D.
-3. **Adicionar aba "Validação" em `src/pages/EtlAdminPage.tsx`** com:
-   - Tabela de totais mensais (lendo `bi_compras` e `bi_recebimentos` via Supabase com RLS de admin).
-   - Botão "Comparar com ERP" que chama os endpoints atuais e renderiza diff (componente reutilizando `DataTableBI` e `KpiCard`).
-   - Indicadores verde/amarelo/vermelho.
-4. **Frontend resiliente ao 409**: helper em `src/lib/api.ts` para detectar `409` com mensagem `"Base analítica ainda não populada"` e exibir `EmptyState` no lugar do dashboard.
-
-Não vamos:
-- Apontar dashboards para `bi_*` neste loop.
-- Remover queries do ERP.
-- Mexer em RLS das tabelas `bi_*` (já estão corretas: read-only para `authenticated`, escrita só service role).
+1. Time do FastAPI implanta os 8 endpoints novos.
+2. Disparar via aba `/etl` → Ações:
+   - `ATU_COMPRAS` 2026-01-01 → 2026-01-31.
+   - `ATU_RECEBIMENTOS` 2026-01-01 → 2026-01-31.
+3. Conferir contagens em `/etl` → Validação (cards mensais).
+4. Rodar o caso obrigatório (botão de atalho) e checar os 6 KPIs.
+5. Se diff ≤ 0,5% em 2 janelas: marcar fase 1 do cutover como pronta (próximo loop liga a flag, começando pelos endpoints `*-dashboard`).
+6. Se diff > 0,5%: abrir tarefa de correção (geralmente projeto_macro, tipo_despesa_calc ou filtro `somente_pendentes` divergindo).
 
 ---
 
-## 7. O que precisa do time do FastAPI (fora do Lovable)
+## 4. O que NÃO fazer neste loop
 
-- Implementar/ajustar `tasks/atu_recebimentos.py` para consumir as mesmas tabelas que `consultar_notas_recebimento` usa hoje.
-- Configurar `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`.
-- Disparar os dois reprocessamentos de janela 2026-01-01 → 2026-01-31.
-- Após Lovable validar diffs, ligar `USE_BI_ANALYTICS=true` em homolog.
+- Não trocar `/api/painel-compras` nem `/api/notas-recebimento` para `bi_*`.
+- Não remover queries do ERP.
+- Não ligar `USE_BI_ANALYTICS`.
+- Não mexer em exportações dos painéis.
+- Não criar edge function: tudo isso vive no FastAPI externo, não no Lovable Cloud.
 
