@@ -120,6 +120,11 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
   }
 
   const handleLayoutChange = (next: Layout) => {
+    // No modo de visualização (incluindo link compartilhado), o layout salvo
+    // é a fonte única da verdade — não sobrescrevemos com o que o
+    // react-grid-layout recalcula, pois isso brigava com o efeito de
+    // ressincronização e causava tremor nos blocos.
+    if (!editing) return;
     // Sincroniza estado local a partir do grid (drag/resize por arrasto).
     setLocalLayout((prev) => {
       const updated = { ...prev };

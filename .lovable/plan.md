@@ -1,27 +1,24 @@
 # Plano
 
 ## Objetivo
-Fazer a visualização compartilhada respeitar exatamente a disposição dos gráficos salva pelo administrador.
+Eliminar o tremor/bug visual nos gráficos do dashboard de Passagens Aéreas (modo visualização e link compartilhado), mantendo a correção que faz o link respeitar o layout salvo pelo administrador.
 
-## O que vou ajustar
-1. Corrigir a sincronização do grid de Passagens Aéreas para que, quando o layout vier do backend, o componente público atualize as posições/tamanhos renderizados em vez de continuar com o layout padrão em memória.
-2. Preservar o comportamento atual do modo de edição, sem quebrar arraste, resize e salvamento do layout pelo administrador.
-3. Validar o fluxo do link compartilhado sem senha e com senha para garantir que ambos usem a mesma disposição salva.
+## Causa
+Após a última mudança, o grid passou a ter duas fontes ressincronizando o estado local de layout ao mesmo tempo:
+1. O efeito novo, que aplica o layout salvo no banco sempre que ele muda fora do modo de edição.
+2. O `handleLayoutChange` interno do `react-grid-layout`, que continua disparando no modo de visualização e sobrescrevendo o estado com posições recalculadas pela própria biblioteca.
 
-## Causa identificada
-O hook de layout está carregando os widgets salvos do backend, mas o componente `PassagensLayoutGrid` só reinicializa seu `localLayout` quando muda o conjunto de tipos de widgets ou quando sai do modo de edição. Quando apenas as coordenadas `x/y/w/h` mudam (mesmos widgets, nova disposição), ele mantém em memória a versão anterior, que normalmente é a padrão.
+Quando essas duas fontes discordam (ex.: compactação vertical do grid vs. layout salvo), o componente entra num ciclo de reaplicação que aparece como “tremor” na tela.
 
 ## Implementação
-- Atualizar a lógica de sincronização interna em `PassagensLayoutGrid.tsx` para detectar mudanças reais de layout vindas do backend no modo leitura/compartilhado.
-- Fazer a ressincornização ser segura: no modo de edição, continuar preservando alterações locais; fora da edição, sempre refletir o layout persistido.
-- Se necessário, ajustar a chave de comparação/sincronização para incluir geometria dos widgets, não apenas seus tipos.
+- Restringir a sincronização local feita pelo `react-grid-layout` para acontecer apenas no modo de edição (drag/resize/cliques nos botões de redimensionar).
+- Manter no modo de visualização/compartilhado uma fonte única da verdade: o layout que vem do banco.
+- Garantir que o efeito de ressincronização continue refletindo mudanças reais de geometria salvas pelo administrador, sem entrar em loop.
 
 ## Validação
-- Conferir se um layout salvo pelo administrador aparece igual ao abrir o link compartilhado.
-- Conferir se links protegidos por senha continuam carregando o mesmo layout após a senha correta.
-- Conferir que o editor continua permitindo arrastar/redimensionar e salvar normalmente.
+- Abrir o dashboard como administrador (modo leitura) e confirmar que os gráficos não tremem nem mudam de posição sozinhos.
+- Entrar em modo de edição, mover/redimensionar blocos, salvar e verificar que o layout salvo aparece estável depois.
+- Abrir o link compartilhado (com e sem senha) e confirmar que a disposição é exatamente a salva pelo admin, sem tremor.
 
-## Detalhes técnicos
-- Arquivo principal: `src/components/passagens/PassagensLayoutGrid.tsx`
-- Possível verificação complementar: `src/pages/PassagensAereasCompartilhadoPage.tsx` e `src/hooks/usePassagensLayout.ts`
-- Sem mudança de regra de negócio nem de banco; foco no consumo/renderização do layout salvo.
+## Arquivos
+- `src/components/passagens/PassagensLayoutGrid.tsx`
