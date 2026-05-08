@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/select';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
-import { usePageData } from '@/lib/bi/PageDataContext';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
@@ -34,10 +33,13 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onAdd: (value: NewChartValue) => void;
+  kpis?: Record<string, any>;
+  series?: Record<string, any>;
+  rows?: any[];
 }
 
-export function AddChartDialog({ open, onOpenChange, onAdd }: Props) {
-  const ctx = usePageData();
+export function AddChartDialog({ open, onOpenChange, onAdd, kpis, series, rows }: Props) {
+  const ctx = { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] };
   const page = getPage('passagens-aereas');
   const seriesOptions = page?.schema.series ?? [];
 
