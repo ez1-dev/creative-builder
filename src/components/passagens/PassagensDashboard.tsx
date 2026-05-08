@@ -845,7 +845,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-motivo-viagem') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-motivo-viagem': (
+        <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
             <ResponsiveContainer width="100%" height={isCompact ? 300 : 460} className="[&_.recharts-surface]:overflow-visible [&_.recharts-wrapper]:overflow-visible">
