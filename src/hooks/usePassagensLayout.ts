@@ -98,14 +98,21 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           setWidgets(PASSAGENS_DEFAULT_WIDGETS);
           return;
         }
-        const rows = (data ?? []).map((r: any) => ({
-          id: r.widget_id,
-          type: r.widget_type,
-          title: r.widget_title,
-          position: r.widget_position ?? 0,
-          layout: (r.widget_layout ?? {}) as WidgetLayout,
-          hidden: Boolean((r.widget_config ?? {})?.hidden),
-        }));
+        const rows = (data ?? []).map((r: any) => {
+          const cfg = (r.widget_config ?? {}) as any;
+          return {
+            id: r.widget_id,
+            type: r.widget_type,
+            title: r.widget_title,
+            position: r.widget_position ?? 0,
+            layout: (r.widget_layout ?? {}) as WidgetLayout,
+            hidden: Boolean(cfg.hidden),
+            componentId: cfg.componentId,
+            mapping: cfg.mapping,
+            options: cfg.options,
+            customTitle: cfg.customTitle,
+          } as PassagensWidget;
+        });
         setWidgets(mergeWithDefaults(rows));
       } else {
         // Autenticado
