@@ -1,34 +1,26 @@
-## Objetivo
-Forçar os KPIs do Painel de Compras a virem **sempre** do retorno agregado da API (`/api/painel-compras-dashboard` ou `data.totais`/`data.resumo`). Remover o cálculo client-side que hoje soma `data.dados` da página atual e produz valores parciais quando a API não retorna agregados.
+## Problema
 
-## Arquivo
-`src/pages/PainelComprasPage.tsx`
+Os KPIs do Painel de Compras não estão aparecendo porque todo o bloco (hero + cards gerenciais + detalhados) está dentro do guard `{data && kpis && (...)}` na linha 1013 de `src/pages/PainelComprasPage.tsx`. Como `kpis` agora só é populado quando o backend retorna `totais`/`resumo` no endpoint paginado, e o `kpisGerencial` vem de outra fonte (`dashboard`, do endpoint `/api/painel-compras-dashboard`), os cards gerenciais ficam ocultos mesmo quando o dashboard chega normalmente.
 
-## Mudanças
+## Solução
 
-### 1. `kpisGerencial` (cards principais — linhas ~536-592)
-- Manter o ramo que lê de `dashboard.kpis` quando disponível.
-- **Remover** o fallback que soma `dadosFiltrados` (forEach somando `valor_liquido`, `saldo_pendente`, sets de OCs/fornecedores).
-- Quando não houver `dashboard`, retornar `null` → cards de hero/qtd ficam ocultos (já há guarda `{kpisGerencial && ...}`).
-- Para filtros gerenciais client-side (projeto_macro/tipo_despesa/mes/cond_pagto), **não recalcular**: também retornar `null` e exibir aviso de que KPIs refletem somente a base agregada da API.
+Separar os dois grupos de KPIs em guards independentes, cada um amarrado à sua fonte real.
 
-### 2. `kpis` (KPIs detalhados — linhas ~394-489)
-- Remover todo o bloco de `fallback` (cálculo a partir de `dadosParaFallback` somando bruto/líquido/desconto/pendente/atrasos etc).
-- Manter apenas `merge(totaisNorm, resumo)` vindo do backend.
-- Se nem `totais` nem `resumo` existirem → retornar `null` (cards ocultos automaticamente pelo guard `{data && kpis && ...}`).
-- Manter a normalização de aliases (`qtd_registros`→`total_linhas` etc).
+### `src/pages/PainelComprasPage.tsx`
 
-### 3. Aviso amarelo (linhas ~1092-1096)
-- Atualizar texto: em vez de "cards somando apenas a página atual", informar que "o backend não retornou totais agregados — KPIs indisponíveis. Recarregue ou ajuste filtros".
-- Esse aviso passa a aparecer quando `!data.totais && !data.resumo && !dashboard`.
+1. **Hero + Qtd cards (linhas 1013-1086):** trocar o guard externo `{data && kpis && (` por `{data && kpisGerencial && (` e remover apenas o `</> ... )}` correspondente. Esses blocos só dependem de `kpisGerencial`.
 
-### 4. Lista Detalhada (aba "lista")
-- **Não muda nada**. Continua filtrando localmente via `dadosListaFiltrados` para a tabela apenas. Não recalcula KPIs (já não recalculava).
+2. **`<details>` "Indicadores Operacionais Detalhados" (linhas 1088-1125):** mover para fora do guard anterior e envolver com `{data && kpis && (...)}` próprio. Esse bloco depende de `kpis` (totais/resumo do paginado).
 
-### 5. Gráficos (`chartData`, `gerencialCharts`)
-- **Fora de escopo** desta mudança. Continuam como estão (usando `dashboard.graficos` quando disponível, fallback client-side caso contrário). Se quiser estender o "API-only" para gráficos também, peça em seguida.
+3. **Aviso amarelo "KPIs indisponíveis" (linha 1007):** ajustar para `{data && !kpis && !kpisGerencial && !loadingAgregado && (...)}` — só aparece quando NENHUMA das duas fontes voltou.
 
-## Resumo do efeito
-- KPIs **nunca** mais refletem soma da página atual.
-- Quando a API agregada falhar, cards ficam ocultos e o aviso explica o motivo, em vez de mostrar números parciais enganosos.
-- Lista Detalhada e gráficos seguem inalterados nesta etapa.
+4. **`useAiPageContext` (linhas 248-261):** já está correto (usa dashboard com fallback para `data.resumo`). Sem alterações.
+
+5. Sem mudanças em `kpis`, `kpisGerencial`, `gerencialActive` ou nas regras de cálculo — apenas o JSX é reorganizado.
+
+## Efeito
+
+- Quando `/api/painel-compras-dashboard` responder, os cards gerenciais (Total Comprado, Recebido vs Pendente, Qtd OCs/Itens/Fornecedores, Maior Fornecedor) aparecem mesmo se o paginado não trouxer `totais`/`resumo`.
+- Quando o paginado trouxer `totais`/`resumo`, o painel "Indicadores Operacionais Detalhados" aparece mesmo se o dashboard falhar.
+- O aviso "KPIs indisponíveis" só aparece se ambas as fontes falharem.
+- Filtros gerenciais client-side continuam zerando KPIs (regra mantida da última iteração).
