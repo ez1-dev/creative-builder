@@ -19,7 +19,7 @@ export default function AppLayout() {
   const location = useLocation();
   const allowFallback = PUBLIC_FALLBACK_PATHS.has(location.pathname);
 
-  if (loading) return null;
+  if (loading) return <AppLoadingScreen label="Verificando sua sessão…" />;
 
   if (!isAuthenticated) {
     if (allowFallback) return <Outlet />;
