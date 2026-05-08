@@ -59,6 +59,21 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetTypesKey]);
 
+  // Ressincroniza localLayout com o w.layout vindo do banco quando saímos
+  // do modo de edição (ex.: após Save -> load() recarrega widgets).
+  const prevEditing = useRef(editing);
+  useEffect(() => {
+    if (prevEditing.current && !editing) {
+      const fresh: Record<string, { x: number; y: number; w: number; h: number }> = {};
+      orderedWidgets.forEach((w) => {
+        fresh[w.type] = { x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h };
+      });
+      setLocalLayout(fresh);
+    }
+    prevEditing.current = editing;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, widgetTypesKey]);
+
   const layoutItems: LayoutItem[] = useMemo(
     () =>
       orderedWidgets.map((w) => {
