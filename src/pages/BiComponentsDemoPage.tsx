@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { Button } from '@/components/ui/button';
 import { Lock } from 'lucide-react';
-import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Layers, Palette, Filter, Table2, BarChart3, MousePointerClick, AlertCircle, Tag, LayoutDashboard, Map, Network, Clock, Sparkles } from 'lucide-react';
+import { DollarSign, Package, ShoppingCart, Users, TrendingUp, Layers, Palette, Filter, Table2, BarChart3, MousePointerClick, AlertCircle, Tag, LayoutDashboard, Network, Clock, Sparkles } from 'lucide-react';
 import {
   // layout
   DashboardPage, DashboardHeader, DashboardSection, DashboardGrid, ChartGrid, DashboardTabs,
@@ -17,8 +17,6 @@ import {
   GaugeChartCard, ProgressChartCard,
   TreemapChartCard, RadarChartCard, ScatterChartCard, HeatmapChartCard,
   WaterfallChartCard, FunnelChartCard, SparklineCard, CalendarHeatmapCard,
-  // maps
-  BrazilMapCard,
   // tree
   TreeView,
   // tables
@@ -506,24 +504,6 @@ export default function BiComponentsDemoPage() {
                     <SparklineCard data={mesesData.map((m) => m.recebido)} color="hsl(142,70%,40%)" />
                   </div>
                 </div>
-              </DemoBlock>
-            </DashboardSection>
-          </section>
-
-          {/* ===== MAPS ===== */}
-          <section id="maps" className="scroll-mt-4 space-y-3">
-            <DashboardSection title="Mapas" icon={<Map className="h-4 w-4" />}>
-              <DemoBlock name="BrazilMapCard" description="Choropleth dos estados — escala automática por valor" applyId="brazil-map">
-                <BrazilMapCard
-                  title="Compras por UF"
-                  data={[
-                    { uf: 'SP', valor: 3200000 }, { uf: 'MG', valor: 1800000 }, { uf: 'RS', valor: 1100000 },
-                    { uf: 'PR', valor: 870000 }, { uf: 'SC', valor: 740000 }, { uf: 'BA', valor: 520000 },
-                    { uf: 'GO', valor: 410000 }, { uf: 'PE', valor: 320000 }, { uf: 'CE', valor: 240000 },
-                    { uf: 'RJ', valor: 980000 }, { uf: 'DF', valor: 180000 },
-                  ]}
-                  valueFormatter={(v) => formatCurrency(v)}
-                />
               </DemoBlock>
             </DashboardSection>
           </section>

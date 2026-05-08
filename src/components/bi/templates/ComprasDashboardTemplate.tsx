@@ -11,7 +11,7 @@ import { ComboChartCard } from '../charts/ComboChartCard';
 import { DonutChartCard } from '../charts/DonutChartCard';
 import { RankingChartCard } from '../charts/RankingChartCard';
 import { TreemapChartCard } from '../charts/TreemapChartCard';
-import { BrazilMapCard } from '../charts/maps/BrazilMapCard';
+
 import { DrillDownTable } from '../tables/DrillDownTable';
 
 const meses = [
@@ -85,8 +85,7 @@ export function ComprasDashboardTemplate() {
         <DonutChartCard title="Tipos de despesa" data={tipos} />
       </ChartGrid>
 
-      <DashboardGrid cols={2}>
-        <BrazilMapCard title="Compras por UF" data={ufs} valueFormatter={(v) => `R$ ${(v/1_000_000).toFixed(1)}M`} />
+      <DashboardGrid cols={1}>
         <RankingChartCard title="Top fornecedores" data={fornecedores} topN={5} />
       </DashboardGrid>
 
