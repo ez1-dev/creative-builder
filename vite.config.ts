@@ -6,10 +6,12 @@ import pkg from "./package.json";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Caminhos relativos para que o build funcione tanto no navegador (HTTP)
-  // quanto dentro do Electron (file://) — sem isso os assets dão 404 no
-  // desktop e a janela abre completamente preta.
-  base: './',
+  // Para o web (preview/published) usar base absoluto "/" — caso contrário,
+  // ao entrar num deep link como /auth/callback ou /painel-compras o navegador
+  // tenta carregar ./assets/... a partir do path atual e dá 404, deixando a
+  // tela completamente branca após o login Microsoft.
+  // Para o Electron (file://) usamos base relativo via `vite build --mode electron`.
+  base: mode === 'electron' ? './' : '/',
   server: {
     host: "::",
     port: 8080,
