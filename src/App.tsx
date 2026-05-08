@@ -37,6 +37,7 @@ import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
 import BiComponentsDemoPage from "@/pages/BiComponentsDemoPage";
+import EtlAdminPage from "@/pages/EtlAdminPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
