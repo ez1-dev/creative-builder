@@ -19,13 +19,13 @@ interface Props {
   configurableTypes?: string[];
   /** Callback para excluir permanentemente um bloco custom-*. */
   onDelete?: (type: string) => void;
-
+}
 
 const MIN_W = 3;
 const MIN_H = 2;
 const MAX_W = 12;
 
-export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide }: Props) {
+export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete }: Props) {
   const [isCompact, setIsCompact] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
   );
