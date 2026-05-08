@@ -847,6 +847,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         />
           ),
           } : {}),
+          ...(canSeeVisual('passagens.mapa-choropleth-uf') ? {
+          'mapa-choropleth-uf': (
+        <BrazilChoroplethMap
+          title="Valor por Estado"
+          dados={mapaUF}
+          valueFormatter={formatCurrency}
+          selectedUF={selectedUF}
+          onSelectUF={(uf) => setSelectedUF((prev) => toggleItem(prev, uf))}
+        />
+          ),
+          } : {}),
           ...(canSeeVisual('passagens.mapa-destinos') ? {
           'mapa-destinos': (
         <div className="grid grid-cols-1 gap-4">
