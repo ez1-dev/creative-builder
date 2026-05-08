@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import AppLoadingScreen from '@/components/AppLoadingScreen';
 
 // Rotas que renderizam sua própria UI de fallback quando não autenticado/aprovado,
 // em vez de redirecionar para /login.
