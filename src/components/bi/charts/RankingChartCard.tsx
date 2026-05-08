@@ -67,6 +67,16 @@ export function RankingChartCard({
           );
         })}
       </ol>
+      {showTotal && visible.length > 0 && (
+        <div className="mt-2 flex items-center justify-between border-t pt-2 text-xs">
+          <span className="text-muted-foreground">
+            Total ({visible.length} de {total})
+          </span>
+          <span className="font-semibold tabular-nums text-foreground">
+            {valueFormatter(visibleSum)}
+          </span>
+        </div>
+      )}
       {showToggle && (
         <div className="mt-2 flex justify-center">
           <button
