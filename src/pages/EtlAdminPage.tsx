@@ -413,6 +413,219 @@ function LogsTab({ execId, setExecId }: { execId: string; setExecId: (s: string)
   );
 }
 
+// ---------- Validação ----------
+function ValidacaoTab() {
+  const [biCompras, setBiCompras] = useState<{ mes: string; qtd: number; total: number }[]>([]);
+  const [biReceb, setBiReceb] = useState<{ mes: string; qtd: number; total: number }[]>([]);
+  const [ultimasExec, setUltimasExec] = useState<Record<string, Execucao>>({});
+  const [loading, setLoading] = useState(false);
+  const [dataIni, setDataIni] = useState("2026-01-01");
+  const [dataFim, setDataFim] = useState("2026-01-31");
+  const [diff, setDiff] = useState<{
+    compras?: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } };
+    receb?: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } };
+  }>({});
+  const [comparando, setComparando] = useState(false);
+
+  const loadResumo = async () => {
+    setLoading(true);
+    const [{ data: comp }, { data: rec }, { data: exec }] = await Promise.all([
+      supabase.from("bi_compras").select("mes_competencia, valor_liquido").not("mes_competencia", "is", null),
+      supabase.from("bi_recebimentos").select("mes_competencia, valor_liquido").not("mes_competencia", "is", null),
+      supabase.from("etl_execucoes").select("*").order("iniciado_em", { ascending: false }).limit(50),
+    ]);
+    const agrupar = (rows: any[] | null) => {
+      const map = new Map<string, { qtd: number; total: number }>();
+      (rows ?? []).forEach((r: any) => {
+        const m = (r.mes_competencia ?? "").substring(0, 7);
+        if (!m) return;
+        const cur = map.get(m) ?? { qtd: 0, total: 0 };
+        cur.qtd += 1;
+        cur.total += Number(r.valor_liquido ?? 0);
+        map.set(m, cur);
+      });
+      return Array.from(map.entries())
+        .sort((a, b) => b[0].localeCompare(a[0]))
+        .slice(0, 6)
+        .map(([mes, v]) => ({ mes, ...v }));
+    };
+    setBiCompras(agrupar(comp));
+    setBiReceb(agrupar(rec));
+    const lastByCode: Record<string, Execucao> = {};
+    ((exec as any[]) ?? []).forEach((e: Execucao) => {
+      if (!lastByCode[e.tarefa_codigo]) lastByCode[e.tarefa_codigo] = e;
+    });
+    setUltimasExec(lastByCode);
+    setLoading(false);
+  };
+  useEffect(() => { loadResumo(); }, []);
+
+  const compararComErp = async () => {
+    setComparando(true);
+    try {
+      const [erpCompras, erpReceb, biC, biR] = await Promise.all([
+        api.get<any>("/api/painel-compras-dashboard", { data_inicio: dataIni, data_fim: dataFim }).catch(() => null),
+        api.get<any>("/api/notas-recebimento-dashboard", { data_inicio: dataIni, data_fim: dataFim }).catch(() => null),
+        supabase.from("bi_compras").select("valor_liquido")
+          .gte("data_emissao", dataIni).lte("data_emissao", dataFim),
+        supabase.from("bi_recebimentos").select("valor_liquido")
+          .gte("data_recebimento", dataIni).lte("data_recebimento", dataFim)
+          .eq("tipo_movimento", "RECEBIMENTO"),
+      ]);
+      const sumBi = (rows: any[] | null) => ({
+        qtd: rows?.length ?? 0,
+        total: (rows ?? []).reduce((s, r) => s + Number(r.valor_liquido ?? 0), 0),
+      });
+      const erpVals = (d: any) => ({
+        qtd: Number(d?.kpis?.qtd ?? d?.totais?.qtd ?? d?.kpis?.quantidade ?? 0),
+        total: Number(d?.kpis?.total ?? d?.totais?.valor_liquido ?? d?.kpis?.valor_liquido ?? 0),
+      });
+      setDiff({
+        compras: { bi: sumBi(biC.data as any), erp: erpVals(erpCompras) },
+        receb: { bi: sumBi(biR.data as any), erp: erpVals(erpReceb) },
+      });
+      toast({ title: "Comparação concluída" });
+    } catch (e: any) {
+      toast({ title: "Erro na comparação", description: e?.message ?? "Erro", variant: "destructive" });
+    } finally {
+      setComparando(false);
+    }
+  };
+
+  const fmtMoney = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const diffPct = (bi: number, erp: number) => {
+    if (!erp) return bi === 0 ? 0 : 100;
+    return ((bi - erp) / erp) * 100;
+  };
+  const diffClass = (pct: number) => {
+    const a = Math.abs(pct);
+    if (a < 0.5) return "text-emerald-600";
+    if (a < 2) return "text-amber-600";
+    return "text-destructive";
+  };
+
+  const renderDiffBlock = (
+    label: string,
+    d: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } } | undefined,
+  ) => {
+    if (!d) return null;
+    const pTotal = diffPct(d.bi.total, d.erp.total);
+    const pQtd = diffPct(d.bi.qtd, d.erp.qtd);
+    return (
+      <Card>
+        <CardHeader><CardTitle className="text-base">{label}</CardTitle></CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="font-medium">Métrica</div>
+            <div className="font-medium">BI</div>
+            <div className="font-medium">ERP</div>
+            <div>Quantidade</div>
+            <div className="font-mono">{d.bi.qtd}</div>
+            <div className="font-mono">{d.erp.qtd}</div>
+            <div>Valor líquido</div>
+            <div className="font-mono">{fmtMoney(d.bi.total)}</div>
+            <div className="font-mono">{fmtMoney(d.erp.total)}</div>
+          </div>
+          <div className="pt-2 border-t border-border flex gap-4 text-xs">
+            <span>Diff qtd: <span className={`font-mono font-semibold ${diffClass(pQtd)}`}>{pQtd.toFixed(2)}%</span></span>
+            <span>Diff total: <span className={`font-mono font-semibold ${diffClass(pTotal)}`}>{pTotal.toFixed(2)}%</span></span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader><CardTitle>Status da camada analítica</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Esta aba é usada para validar a carga ETL <strong>antes</strong> de ligar
+            a flag <code className="font-mono">USE_BI_ANALYTICS</code> no backend.
+            Os dashboards atuais continuam lendo direto do ERP.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {(["ATU_COMPRAS", "ATU_RECEBIMENTOS"] as const).map(code => {
+              const e = ultimasExec[code];
+              return (
+                <div key={code} className="border border-border rounded-md p-3">
+                  <div className="font-mono text-sm">{code}</div>
+                  {e ? (
+                    <div className="text-xs text-muted-foreground space-y-1 mt-1">
+                      <div>Última: {fmtDate(e.iniciado_em)} <StatusBadge status={e.status} /></div>
+                      <div>Lidas {e.linhas_lidas ?? 0} • Ins {e.linhas_inseridas ?? 0} • Atu {e.linhas_atualizadas ?? 0}</div>
+                      {e.erro_resumo && <div className="text-destructive">{e.erro_resumo}</div>}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground mt-1">Nenhuma execução registrada</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <Button variant="outline" size="sm" onClick={loadResumo} disabled={loading}>
+            <RefreshCw className="h-4 w-4 mr-1" />Atualizar
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-base">bi_compras — últimos meses</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>Mês</TableHead><TableHead>Qtd</TableHead><TableHead>Valor líquido</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {biCompras.map(r => (
+                  <TableRow key={r.mes}><TableCell className="font-mono">{r.mes}</TableCell><TableCell>{r.qtd}</TableCell><TableCell className="font-mono">{fmtMoney(r.total)}</TableCell></TableRow>
+                ))}
+                {biCompras.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Base ainda não populada</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle className="text-base">bi_recebimentos — últimos meses</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>Mês</TableHead><TableHead>Qtd</TableHead><TableHead>Valor líquido</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {biReceb.map(r => (
+                  <TableRow key={r.mes}><TableCell className="font-mono">{r.mes}</TableCell><TableCell>{r.qtd}</TableCell><TableCell className="font-mono">{fmtMoney(r.total)}</TableCell></TableRow>
+                ))}
+                {biReceb.length === 0 && <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Base ainda não populada</TableCell></TableRow>}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle>Comparar BI × ERP</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-3 gap-3 max-w-2xl">
+            <div><Label>Data início</Label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
+            <div><Label>Data fim</Label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
+            <div className="flex items-end"><Button onClick={compararComErp} disabled={comparando}><Play className="h-4 w-4 mr-1" />Comparar</Button></div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Tolerância recomendada: <span className="text-emerald-600 font-medium">verde &lt; 0,5%</span> •
+            <span className="text-amber-600 font-medium"> amarelo &lt; 2%</span> •
+            <span className="text-destructive font-medium"> vermelho ≥ 2%</span>.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {renderDiffBlock("Compras (painel-compras-dashboard)", diff.compras)}
+            {renderDiffBlock("Recebimentos (notas-recebimento-dashboard)", diff.receb)}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function EtlAdminPage() {
   const [tab, setTab] = useState("tarefas");
   const [execId, setExecId] = useState("");
@@ -428,6 +641,7 @@ export default function EtlAdminPage() {
           <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
           <TabsTrigger value="conexoes">Conexões</TabsTrigger>
           <TabsTrigger value="acoes">Ações</TabsTrigger>
+          <TabsTrigger value="validacao">Validação</TabsTrigger>
           <TabsTrigger value="fila">Fila Integrador</TabsTrigger>
           <TabsTrigger value="execucoes">Execuções</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -435,6 +649,7 @@ export default function EtlAdminPage() {
         <TabsContent value="tarefas"><TarefasTab /></TabsContent>
         <TabsContent value="conexoes"><ConexoesTab /></TabsContent>
         <TabsContent value="acoes"><AcoesTab /></TabsContent>
+        <TabsContent value="validacao"><ValidacaoTab /></TabsContent>
         <TabsContent value="fila"><FilaTab /></TabsContent>
         <TabsContent value="execucoes"><ExecucoesTab onOpenLogs={(id) => { setExecId(id); setTab("logs"); }} /></TabsContent>
         <TabsContent value="logs"><LogsTab execId={execId} setExecId={setExecId} /></TabsContent>
