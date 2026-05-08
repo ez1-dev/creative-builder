@@ -1023,7 +1023,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
-        <Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-uf') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-uf': (
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
               <span>Top Estados (UF) de Destino {selectedUF.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
