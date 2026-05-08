@@ -16,7 +16,6 @@ import {
 } from '@/components/ui/select';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
-import { usePageData } from '@/lib/bi/PageDataContext';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
