@@ -1,64 +1,33 @@
-# Melhorar a forma de arrastar os gráficos
+# Corrigir layout do link compartilhado (senha)
 
-Hoje, no modo de edição do dashboard de Passagens Aéreas, o card inteiro é uma área de arraste. Isso causa três problemas:
+## Problema
 
-1. Qualquer clique/toque dentro do gráfico pode iniciar um arraste acidental.
-2. Não existe um indicador visual claro de "pegue aqui para arrastar".
-3. O cursor não muda, o feedback durante o arraste é fraco e o placeholder do react-grid-layout usa cor padrão (não combina com o tema).
+Quando o link tem senha, o dashboard público mostra o layout padrão em vez do layout salvo pelo administrador.
 
-## O que mudar
+Motivo: na hora de criar o link com senha, o que vai para a coluna `token` é o `effectiveToken` (`SHA-256(publicToken + senha)`), enquanto a URL compartilhada carrega o `publicToken`. A RPC `get_passagens_layout_via_token` recebe o token da URL, não encontra a linha pelo `effectiveToken`, falha em `validate_share_token` e o hook cai no fallback `PASSAGENS_DEFAULT_WIDGETS`.
 
-### 1. Drag handle dedicado (`PassagensLayoutGrid.tsx`)
+## Correção
 
-- Adicionar uma pequena barra superior no card (visível só em modo edição) com um ícone `GripVertical` + título do bloco, alinhada à esquerda — espelhando a barra de botões da direita.
-- Configurar o react-grid-layout com `draggableHandle=".drag-handle"` em vez de depender de `draggableCancel`. Assim só a alça arrasta; o resto do card fica livre para scroll, hover, tooltips do Recharts, seleção de texto etc.
-- Cursor: `cursor-grab` na alça, `cursor-grabbing` enquanto arrasta (via classe `react-draggable-dragging` que o RGL já aplica).
-- Manter o `tabIndex`/teclado para redimensionar (já existe).
+Carregar o layout usando o **mesmo token efetivo** que já é usado para carregar os dados — ou seja, só depois que o usuário digita a senha (ou imediatamente, quando não há senha).
 
-### 2. Feedback visual durante edição e arraste (`index.css`)
+### Arquivo: `src/pages/PassagensAereasCompartilhadoPage.tsx`
 
-- Estilizar `.react-grid-placeholder` com `bg-primary/15`, `border-2 border-dashed border-primary/60` e `rounded-lg` — segue tokens do design system.
-- Adicionar leve `box-shadow` e `scale(1.01)` no item enquanto `react-draggable-dragging`, para reforçar que está sendo movido.
-- Item em hover no modo `is-editing` ganha um realce sutil na alça (já temos o ring no card).
+- Adicionar `effectiveToken` no estado, inicializando como `null`.
+- Quando `requiresPassword === false`: setar `effectiveToken = token` ao montar.
+- Em `handlePasswordSubmit` (e em `loadData`): após calcular `effective`, fazer `setEffectiveToken(effective)`.
+- Passar `shareToken={effectiveToken ?? token}` para `<PassagensDashboard>` (em vez de `token`). Como o componente só é renderizado quando `state === 'ok'`, `effectiveToken` já estará definido nesse ponto.
 
-### 3. Pequenos ajustes
+### Sem mudanças no hook nem no banco
 
-- Aumentar `margin` do grid de `[16,16]` para `[12,12]` durante edição para o ghost/placeholder ficar mais previsível (opcional, manter atual se preferir).
-- Garantir que a barra de botões da direita continua com `data-no-drag` (já está) — agora redundante com `draggableHandle`, mas inofensivo.
+`usePassagensLayout` e a RPC continuam iguais. A correção é apenas o token correto chegar ao hook.
 
-## Detalhes técnicos
+## Validação
 
-Arquivos:
-
-- `src/components/passagens/PassagensLayoutGrid.tsx`
-  - Importar `GripVertical` de `lucide-react`.
-  - Passar `draggableHandle=".drag-handle"` no `<ResponsiveGrid>` e remover (ou manter) `draggableCancel`.
-  - Renderizar, dentro de cada item quando `editing`, um header:
-    ```tsx
-    <div className="drag-handle absolute left-2 top-2 z-20 flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs font-medium shadow-md backdrop-blur cursor-grab active:cursor-grabbing select-none">
-      <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
-      <span className="max-w-[160px] truncate">{w.title}</span>
-    </div>
-    ```
-  - Adicionar `pt-9` (ou similar) no container do bloco quando `editing`, para a alça não cobrir o conteúdo.
-
-- `src/index.css`
-  - Adicionar regras:
-    ```css
-    .react-grid-placeholder {
-      background: hsl(var(--primary) / 0.15) !important;
-      border: 2px dashed hsl(var(--primary) / 0.6);
-      border-radius: 0.5rem;
-      opacity: 1 !important;
-    }
-    .layout.is-editing .react-grid-item.react-draggable-dragging {
-      box-shadow: 0 10px 30px -10px hsl(var(--primary) / 0.4);
-      z-index: 30;
-    }
-    .layout.is-editing .drag-handle:hover { background: hsl(var(--accent)); }
-    ```
+1. Criar link **sem senha** como admin, ajustar layout, salvar, abrir o link em aba anônima → layout deve refletir o ajuste (já funciona, garantir que continua).
+2. Criar link **com senha**, ajustar layout, salvar, abrir em aba anônima e digitar a senha → layout agora deve refletir o ajuste do admin.
+3. Senha errada continua barrando acesso (a RPC de dados ainda valida).
 
 ## Fora do escopo
 
-- Não alterar a lógica de salvar layout, RLS ou comportamento de redimensionamento por botões/teclado.
-- Não mexer em `BiblioBI` nem outros dashboards (apenas Passagens Aéreas usa este componente hoje).
+- Não mexer nas regras de RLS, na RPC pública ou no fluxo de geração de link.
+- Não mexer em `usePassagensLayout`, `PassagensDashboard` ou `PassagensLayoutGrid`.

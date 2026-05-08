@@ -23,6 +23,7 @@ export default function PassagensAereasCompartilhadoPage() {
   const [data, setData] = useState<Passagem[]>([]);
   const [hiddenVisuals, setHiddenVisuals] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [effectiveToken, setEffectiveToken] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token) { setState('invalid'); return; }
@@ -30,6 +31,7 @@ export default function PassagensAereasCompartilhadoPage() {
       setState('password');
     } else {
       // Sem senha: o token na URL já é o token efetivo
+      setEffectiveToken(token);
       loadData(token);
     }
   }, [token, requiresPassword]);
@@ -55,6 +57,7 @@ export default function PassagensAereasCompartilhadoPage() {
   const handlePasswordSubmit = async () => {
     if (!password) return;
     const effective = await deriveEffectiveToken(token, password);
+    setEffectiveToken(effective);
     await loadData(effective);
   };
 
@@ -121,7 +124,7 @@ export default function PassagensAereasCompartilhadoPage() {
           </div>
         </header>
         <main className="max-w-7xl mx-auto p-2 sm:p-4">
-          <PassagensDashboard data={data} readOnly shareToken={token} onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
+          <PassagensDashboard data={data} readOnly shareToken={effectiveToken ?? token} onExport={exportPassagensCsv} onExportXlsx={exportPassagensXlsx} />
         </main>
         <footer className="text-center text-[11px] sm:text-xs text-muted-foreground py-4 px-3">
           EZ ERP IA · Acesso somente leitura
