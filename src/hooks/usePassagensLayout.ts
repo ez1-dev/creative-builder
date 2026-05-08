@@ -80,6 +80,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           title: r.widget_title,
           position: r.widget_position ?? 0,
           layout: (r.widget_layout ?? {}) as WidgetLayout,
+          hidden: Boolean((r.widget_config ?? {})?.hidden),
         }));
         setWidgets(mergeWithDefaults(rows));
       } else {
