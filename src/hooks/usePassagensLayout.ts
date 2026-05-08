@@ -15,6 +15,28 @@ export interface PassagensWidget {
   position: number;
   layout: WidgetLayout;
   hidden?: boolean;
+  /** Quando definido, sobrescreve o renderizador canônico pelo componente do COMPONENT_REGISTRY. */
+  componentId?: string;
+  /** Mapeamento de inputs -> chaves do PageDataContext (ex.: { series: 'evolucao_mensal' }). */
+  mapping?: Record<string, string>;
+  /** Opções extras do componente (ex.: topN do ranking). */
+  options?: Record<string, any>;
+  /** Título customizado (sobrescreve `title`). */
+  customTitle?: string;
+}
+
+export interface SaveLayoutItem {
+  type: string;
+  layout: WidgetLayout;
+  hidden?: boolean;
+  /** null limpa o override; undefined = não mexe. */
+  componentId?: string | null;
+  mapping?: Record<string, string> | null;
+  options?: Record<string, any> | null;
+  customTitle?: string | null;
+  /** Para widgets novos (custom-*): título e position de criação. */
+  title?: string;
+  position?: number;
 }
 
 /**
@@ -58,9 +80,10 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
 
   const mergeWithDefaults = useCallback((rows: PassagensWidget[]): PassagensWidget[] => {
     const byType = new Map(rows.map((r) => [r.type, r]));
-    return PASSAGENS_DEFAULT_WIDGETS.map((d) => byType.get(d.type) ?? d).sort(
-      (a, b) => a.position - b.position,
-    );
+    // Inclui defaults faltantes + qualquer custom-* presente em rows
+    const fromDefaults = PASSAGENS_DEFAULT_WIDGETS.map((d) => byType.get(d.type) ?? d);
+    const customs = rows.filter((r) => !PASSAGENS_DEFAULT_WIDGETS.some((d) => d.type === r.type));
+    return [...fromDefaults, ...customs].sort((a, b) => a.position - b.position);
   }, []);
 
   const load = useCallback(async () => {
@@ -75,14 +98,21 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           setWidgets(PASSAGENS_DEFAULT_WIDGETS);
           return;
         }
-        const rows = (data ?? []).map((r: any) => ({
-          id: r.widget_id,
-          type: r.widget_type,
-          title: r.widget_title,
-          position: r.widget_position ?? 0,
-          layout: (r.widget_layout ?? {}) as WidgetLayout,
-          hidden: Boolean((r.widget_config ?? {})?.hidden),
-        }));
+        const rows = (data ?? []).map((r: any) => {
+          const cfg = (r.widget_config ?? {}) as any;
+          return {
+            id: r.widget_id,
+            type: r.widget_type,
+            title: r.widget_title,
+            position: r.widget_position ?? 0,
+            layout: (r.widget_layout ?? {}) as WidgetLayout,
+            hidden: Boolean(cfg.hidden),
+            componentId: cfg.componentId,
+            mapping: cfg.mapping,
+            options: cfg.options,
+            customTitle: cfg.customTitle,
+          } as PassagensWidget;
+        });
         setWidgets(mergeWithDefaults(rows));
       } else {
         // Autenticado
@@ -110,14 +140,21 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           .select('id, type, title, position, layout, config')
           .eq('dashboard_id', dash.id)
           .order('position');
-        const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => ({
-          id: r.id,
-          type: r.type,
-          title: r.title,
-          position: r.position ?? 0,
-          layout: (r.layout ?? {}) as WidgetLayout,
-          hidden: Boolean((r.config ?? {})?.hidden),
-        }));
+        const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => {
+          const cfg = (r.config ?? {}) as any;
+          return {
+            id: r.id,
+            type: r.type,
+            title: r.title,
+            position: r.position ?? 0,
+            layout: (r.layout ?? {}) as WidgetLayout,
+            hidden: Boolean(cfg.hidden),
+            componentId: cfg.componentId,
+            mapping: cfg.mapping,
+            options: cfg.options,
+            customTitle: cfg.customTitle,
+          };
+        });
         setWidgets(mergeWithDefaults(mapped));
       }
     } finally {
@@ -136,9 +173,8 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
    * widgets com seus novos x/y/w/h.
    */
   const saveLayout = useCallback(
-    async (next: { type: string; layout: WidgetLayout; hidden?: boolean }[]) => {
-      // 1) Localiza ou cria o dashboard default — sem chamar a RPC de defaults
-      //    (que apaga widgets de tipos não whitelisted e pode descartar edições).
+    async (next: SaveLayoutItem[]) => {
+      // 1) Localiza ou cria o dashboard default
       let id: string | null = null;
       const { data: dash } = await supabase
         .from('dashboards')
@@ -150,7 +186,6 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
       if (dash?.id) {
         id = dash.id;
       } else {
-        // Primeira vez: usa a RPC para criar dashboard + widgets default
         const { data: dashId, error: rpcError } = await supabase.rpc(
           'upsert_passagens_dashboard_default',
         );
@@ -169,12 +204,39 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         (existing ?? []).map((r: any) => [r.type, { id: r.id, config: r.config ?? {} }]),
       );
 
+      // helper para mesclar mudanças no JSONB config
+      const mergeConfig = (
+        prev: any,
+        item: SaveLayoutItem,
+      ): Record<string, any> => {
+        const cfg: Record<string, any> = { ...(prev ?? {}) };
+        cfg.hidden = Boolean(item.hidden);
+        if (item.componentId !== undefined) {
+          if (item.componentId === null) delete cfg.componentId;
+          else cfg.componentId = item.componentId;
+        }
+        if (item.mapping !== undefined) {
+          if (item.mapping === null) delete cfg.mapping;
+          else cfg.mapping = item.mapping;
+        }
+        if (item.options !== undefined) {
+          if (item.options === null) delete cfg.options;
+          else cfg.options = item.options;
+        }
+        if (item.customTitle !== undefined) {
+          if (item.customTitle === null || item.customTitle === '') delete cfg.customTitle;
+          else cfg.customTitle = item.customTitle;
+        }
+        return cfg;
+      };
+
       // 3) Update (ou insert quando não existir) — sequencial para coletar erros
       const errors: string[] = [];
       let untouched = 0;
-      for (const { type, layout, hidden } of next) {
+      for (const item of next) {
+        const { type, layout } = item;
         const ex = byType.get(type);
-        const nextConfig = { ...((ex?.config) ?? {}), hidden: Boolean(hidden) };
+        const nextConfig = mergeConfig(ex?.config, item);
         if (ex) {
           const { data: updated, error: upErr } = await supabase
             .from('dashboard_widgets')
@@ -195,8 +257,8 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             .insert({
               dashboard_id: id,
               type,
-              title: def?.title ?? type,
-              position: def?.position ?? 99,
+              title: item.title ?? def?.title ?? type,
+              position: item.position ?? def?.position ?? 99,
               layout: layout as any,
               config: nextConfig as any,
             });
@@ -230,5 +292,12 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
     await load();
   }, [load]);
 
-  return { widgets, dashboardId, loading, isAdmin, saveLayout, resetLayout, reload: load };
+  /** Remove um widget custom-* do banco permanentemente. */
+  const deleteWidget = useCallback(async (widgetId: string) => {
+    const { error } = await supabase.from('dashboard_widgets').delete().eq('id', widgetId);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  return { widgets, dashboardId, loading, isAdmin, saveLayout, resetLayout, deleteWidget, reload: load };
 }

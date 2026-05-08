@@ -1,51 +1,87 @@
-## Diagnóstico
+## Resumo
 
-Olhei os dados no banco: existe layout customizado salvo (ex.: `chart-top-uf` com `hidden:true`, alturas/posições diferentes do default), então em algum momento o save funcionou. Mas as edições novas voltam ao recarregar — sintoma típico de **erro silencioso** no `update`.
+Hoje o "Editar layout" em `/passagens-aereas` só move/redimensiona/oculta blocos. Quero estender para um **construtor visual completo** onde o admin pode (a) trocar o tipo de visualização dos gráficos existentes e (b) adicionar novos gráficos customizados, tudo persistido globalmente.
 
-Olhando `src/hooks/usePassagensLayout.ts` no `saveLayout`:
+A boa notícia: o projeto já tem essa engenharia — o registry da Biblioteca BI (`src/lib/bi/componentRegistry.tsx`, `pageRegistry.ts`, `ApplyComponentDialog`, `PageDataContext`) cobre 24 tipos de gráfico com mapping de séries e auto-fill. Vou conectar isso ao layout salvo em `dashboard_widgets`.
 
-```ts
-await Promise.all(next.map(async ({ type, layout, hidden }) => {
-  const ex = byType.get(type);
-  if (!ex) return;                              // 1) pula sem avisar
-  await supabase.from('dashboard_widgets')
-    .update({ layout, config: nextConfig })
-    .eq('id', ex.id);                           // 2) erro nunca capturado
-}));
+## Fluxo proposto
+
+**Modo edição**, em cada bloco que é um gráfico, aparece um botão ⚙️ ao lado dos +/-/X. Ao clicar abre um diálogo:
+
+```
+┌─ Configurar gráfico ──────────────────────────┐
+│ Tipo:    [ Barras vertical ▼ ]                │
+│           ├ Barras horizontal                 │
+│           ├ Linhas / Área                     │
+│           ├ Pizza / Rosca                     │
+│           └ Ranking, Funnel, Treemap, etc.    │
+│                                               │
+│ Série:   [ Top Centros de Custo ▼ ]           │
+│ Título:  [ Custos por CC                  ]   │
+│                                               │
+│           [ Cancelar ]  [ Aplicar ]           │
+└───────────────────────────────────────────────┘
 ```
 
-Dois problemas:
+E o "+ Adicionar bloco" do toolbar ganha duas opções:
+- **Restaurar bloco oculto** (igual hoje)
+- **Novo gráfico…** → abre catálogo dos 24 tipos da Biblioteca BI; após escolher, abre o mesmo diálogo para mapear série/título.
 
-1. **Erros do Postgres/RLS são engolidos** — a chamada nunca lê `error`, então mesmo que a RLS bloqueie ou o JSON seja inválido, o `await saveLayout()` resolve sem throw e o componente exibe "Layout salvo".
-2. **A RPC `upsert_passagens_dashboard_default` é chamada toda vez no início do save** e ela contém um `DELETE FROM dashboard_widgets WHERE type NOT IN (...)`. Se o cliente envia um tipo que não está na whitelist da função (ex.: edição feita antes do deploy mais novo da função), o widget é apagado a cada save — fonte recorrente de "volta ao anterior".
+Tudo salvo em `dashboard_widgets.config` (já é JSONB) e persistido globalmente.
 
-## Correção
+## Implementação
 
-### 1. Capturar erros no `saveLayout` (fonte do silêncio)
+### 1. Registrar página de Passagens no PAGE_REGISTRY
+`src/lib/bi/pageRegistry.ts`: adicionar entrada `passagens-aereas` com:
+- `kpis`: total_geral, ticket_medio, total_registros, colaboradores_unicos
+- `series`: evolucao_mensal, por_motivo, top_cc, top_cidades, top_uf, top_destinos_valor
+- `rows`: passagens (campos colaborador, cc, projeto, valor…)
 
-Em `src/hooks/usePassagensLayout.ts`:
-- Trocar `Promise.all(map(async...))` por loop que coleta `{ data, error }` de cada update.
-- Se `error` ocorrer, fazer `throw new Error(...)` com a mensagem agregada para o componente exibir no toast vermelho.
-- Adicionar `.select('id')` no update para detectar quando 0 linhas foram afetadas (sinal de RLS bloqueando).
+### 2. Expor dados via PageDataContext em `PassagensDashboard.tsx`
+Embrulhar a área dos blocos com `<PageDataProvider value={{ kpis, series, rows }}>` populando os `useMemo` já calculados (totalGeral, evolucao, motivosData, topCC, topCidades, etc.). Sem mudar visuais; só publica o que já existe.
 
-### 2. Tornar o save independente da RPC de defaults
+### 3. Estender `dashboard_widgets.config`
+Schema lógico (sem migração — é JSONB livre):
+```ts
+{
+  hidden?: boolean,
+  componentId?: string,   // id do COMPONENT_REGISTRY (ex.: "bar-chart")
+  mapping?: Record<string, string>,
+  options?: Record<string, any>,
+  customTitle?: string
+}
+```
+Sem `componentId` → renderiza o bloco canônico atual (compatível). Com `componentId` → renderiza via `COMPONENT_REGISTRY[id].render({ title, mapping, ctx, options })`.
 
-A RPC só serve para **garantir** que o dashboard e seus widgets existam. Não precisa rodar em todo save.
-- Chamar `upsert_passagens_dashboard_default` apenas quando `byType` retornar vazio (primeira vez).
-- Se algum `type` do payload não está em `byType` após o fetch, fazer `INSERT` direto (em vez de pular silenciosamente).
+### 4. Tipos `custom-*` para blocos novos
+Novos blocos adicionados pelo usuário usam `type = "custom-{nanoid}"`. A RPC `upsert_passagens_dashboard_default` é ajustada para **preservar** registros com prefixo `custom-` (em vez de deletar tudo fora da whitelist).
 
-### 3. Garantir que widgets ocultos preservem layout
+### 5. UI no `PassagensLayoutGrid`
+- Adicionar botão Settings ao toolbar de edição quando o bloco é configurável (ou seja, está em uma whitelist `CONFIGURABLE_TYPES = [chart-evolucao-mensal, chart-motivo-viagem, chart-top-cc, chart-top-cidades, chart-top-uf, custom-*]`).
+- KPIs, MapaDestinosCard e tabela-registros permanecem fixos (não configuráveis) — são componentes complexos com cross-filter próprio.
 
-No `PassagensDashboard.tsx`, o `pendingLayout` só contém widgets visíveis (o grid filtra `hidden`). O save já tenta cobrir os ocultos via `widgets.find(...)`. Vou validar e — se necessário — adicionar fallback para o `layout` default canônico quando o widget oculto ainda não tem registro no banco.
+### 6. Diálogos
+- **`ConfigureChartDialog`** novo — versão simplificada do `ApplyComponentDialog` voltada para um único bloco de Passagens. Reusa `MAPPING_FIELDS` e `autoMap` do registry.
+- **`AddChartDialog`** novo — lista os tipos do registry filtrados por `kind === 'chart'`; ao escolher chama o ConfigureChartDialog.
 
-### 4. Validação rápida pós-fix
+### 7. Hook `usePassagensLayout`
+- Tipo `PassagensWidget` ganha `componentId`, `mapping`, `options`, `customTitle` (vindos do `config`).
+- `saveLayout` (já corrigido) aceita esses campos e persiste em `config`.
+- `mergeWithDefaults` preserva blocos `custom-*` mesmo se não estão nos defaults.
 
-Após o ajuste:
-- Fazer 3 edições (mover, redimensionar, ocultar), salvar, dar F5, conferir persistência via tela e via `dashboard_widgets`.
-- Se ainda falhar, o novo erro/toast vai dizer exatamente qual update foi rejeitado (RLS, tipo inválido, etc.) e atacamos o caso real.
+### 8. Migração SQL
+Atualizar `upsert_passagens_dashboard_default` para que o `DELETE` preserve `type LIKE 'custom-%'`. Sem mudanças em colunas.
 
 ## Detalhes técnicos
 
-- Sem mudança de schema do banco; nenhuma migração necessária nesta etapa.
-- Sem alteração de UI/UX — apenas tratamento de erro e ordem de chamadas no hook.
-- Arquivos afetados: `src/hooks/usePassagensLayout.ts` (principal). Ajuste menor em `PassagensDashboard.tsx` apenas se a etapa 3 exigir.
+- Arquivos novos: `src/components/passagens/ConfigureChartDialog.tsx`, `src/components/passagens/AddChartDialog.tsx`.
+- Arquivos modificados: `src/lib/bi/pageRegistry.ts`, `src/hooks/usePassagensLayout.ts`, `src/components/passagens/PassagensLayoutGrid.tsx`, `src/components/passagens/PassagensDashboard.tsx`.
+- 1 migração: ajuste do filtro DELETE na RPC para preservar `custom-*`.
+- Compatível com layouts existentes: blocos sem `componentId` continuam renderizando como hoje.
+- Compartilhamento via link público (`/compartilhado`) já lê `widget_config` via RPC — basta adicionar leitura dos novos campos.
+
+## Fora de escopo nesta etapa
+
+- Permitir cada usuário ter sua própria configuração (você optou por compartilhada).
+- Editar mapping/título de KPIs individualmente, MapaDestinosCard e tabela-registros (continuam como blocos fixos).
+- Construtor multi-aba — o dashboard de Passagens permanece com uma aba só.

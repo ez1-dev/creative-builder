@@ -204,6 +204,37 @@ export const PAGE_REGISTRY: BiPageDef[] = [
       rows: { key: 'dados', label: 'Apontamentos', fields: ['numero_op', 'nome_operador', 'data_movimento', 'horas_realizadas', 'status_movimento'] },
     },
   },
+  {
+    key: 'passagens-aereas',
+    label: 'Passagens Aéreas',
+    route: '/passagens-aereas',
+    sections: [
+      { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
+      { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
+      { key: 'tables', label: 'Tabelas auxiliares',accepts: ['table'],                cols: 2 },
+    ],
+    schema: {
+      kpis: [
+        { key: 'total_geral',          label: 'Total Geral',     format: 'currency' },
+        { key: 'total_registros',      label: 'Qtd Registros',   format: 'number'   },
+        { key: 'ticket_medio',         label: 'Ticket Médio',    format: 'currency' },
+        { key: 'colaboradores_unicos', label: 'Colaboradores',   format: 'number'   },
+      ],
+      series: [
+        { key: 'evolucao_mensal',     label: 'Evolução Mensal (R$)' },
+        { key: 'por_motivo',          label: 'Por Motivo de Viagem (R$)' },
+        { key: 'top_centros_custo',   label: 'Top Centros de Custo (R$)' },
+        { key: 'top_cidades_qtd',     label: 'Top Cidades de Destino (qtd)' },
+        { key: 'top_cidades_valor',   label: 'Top Cidades de Destino (R$)' },
+        { key: 'top_uf_qtd',          label: 'Top Estados/UF (qtd)' },
+        { key: 'top_uf_valor',        label: 'Top Estados/UF (R$)' },
+        { key: 'por_tipo_despesa',    label: 'Por Tipo de Despesa (R$)' },
+        { key: 'por_cia_aerea',       label: 'Por Cia Aérea (R$)' },
+        { key: 'top_colaboradores',   label: 'Top Colaboradores (R$)' },
+      ],
+      rows: { key: 'dados', label: 'Passagens', fields: ['colaborador', 'centro_custo', 'destino', 'uf_destino', 'motivo_viagem', 'tipo_despesa', 'valor', 'data_registro'] },
+    },
+  },
 ];
 
 /** Seções padrão usadas por páginas genéricas (sem schema rico). */
@@ -228,7 +259,7 @@ const GENERIC_PAGES: BiPageDef[] = [
   { key: 'demonstrativo-compras-recebimentos',label: 'Demonstrativo Compras/Recebimentos',   route: '/demonstrativo-compras-recebimentos' },
   { key: 'monitor-usuarios-senior',           label: 'Monitor Usuários Senior',              route: '/monitor-usuarios-senior' },
   { key: 'gestao-sgu-usuarios',               label: 'Gestão SGU — Usuários',                route: '/gestao-sgu-usuarios' },
-  { key: 'passagens-aereas',                  label: 'Passagens Aéreas',                     route: '/passagens-aereas' },
+  
   { key: 'producao-expedido-obra',            label: 'Produção — Expedido por Obra',         route: '/producao/expedido-obra' },
   { key: 'producao-lead-time',                label: 'Produção — Lead Time',                 route: '/producao/lead-time' },
   { key: 'producao-nao-carregados',           label: 'Produção — Não Carregados',            route: '/producao/nao-carregados' },
