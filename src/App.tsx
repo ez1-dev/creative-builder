@@ -39,7 +39,7 @@ import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRe
 import BiComponentsDemoPage from "@/pages/BiComponentsDemoPage";
 import EtlAdminPage from "@/pages/EtlAdminPage";
 import NotFound from "@/pages/NotFound";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
 import { AiPageContextProvider } from "@/contexts/AiPageContext";
 
