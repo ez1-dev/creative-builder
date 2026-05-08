@@ -228,7 +228,7 @@ const GENERIC_PAGES: BiPageDef[] = [
   { key: 'demonstrativo-compras-recebimentos',label: 'Demonstrativo Compras/Recebimentos',   route: '/demonstrativo-compras-recebimentos' },
   { key: 'monitor-usuarios-senior',           label: 'Monitor Usuários Senior',              route: '/monitor-usuarios-senior' },
   { key: 'gestao-sgu-usuarios',               label: 'Gestão SGU — Usuários',                route: '/gestao-sgu-usuarios' },
-  { key: 'passagens-aereas',                  label: 'Passagens Aéreas',                     route: '/passagens-aereas' },
+  
   { key: 'producao-expedido-obra',            label: 'Produção — Expedido por Obra',         route: '/producao/expedido-obra' },
   { key: 'producao-lead-time',                label: 'Produção — Lead Time',                 route: '/producao/lead-time' },
   { key: 'producao-nao-carregados',           label: 'Produção — Não Carregados',            route: '/producao/nao-carregados' },
