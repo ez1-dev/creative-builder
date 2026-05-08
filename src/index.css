@@ -144,3 +144,23 @@
     display: inline-block;
   }
 }
+
+/* React Grid Layout - drag/resize feedback */
+.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.15) !important;
+  border: 2px dashed hsl(var(--primary) / 0.6);
+  border-radius: 0.5rem;
+  opacity: 1 !important;
+  transition: all 120ms ease;
+}
+.layout.is-editing .react-grid-item.react-draggable-dragging {
+  box-shadow: 0 10px 30px -10px hsl(var(--primary) / 0.5);
+  z-index: 30;
+  cursor: grabbing !important;
+}
+.layout.is-editing .react-grid-item.react-draggable-dragging .drag-handle {
+  cursor: grabbing !important;
+}
+.layout.is-editing .drag-handle:hover {
+  background: hsl(var(--accent));
+}

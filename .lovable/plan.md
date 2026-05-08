@@ -1,41 +1,64 @@
-## Diagnóstico
-"Editar layout" em `/passagens-aereas` aparece só para **admin do sistema**. Dois pontos travam a Maiane:
+# Melhorar a forma de arrastar os gráficos
 
-1. **Frontend** — `src/components/passagens/PassagensDashboard.tsx` (linha 125):
-   ```ts
-   const canEditLayout = !readOnly && isAdmin && !shareToken;
-   ```
-   `isAdmin` vem de `usePassagensLayout`, que chama `rpc('is_admin', …)`. Maiane não é admin → botão não aparece.
+Hoje, no modo de edição do dashboard de Passagens Aéreas, o card inteiro é uma área de arraste. Isso causa três problemas:
 
-2. **Backend (RLS)** — Mesmo se o botão aparecesse, o `dashboard_widgets` do dashboard padrão (`owner_id IS NULL`) só permite escrita pela política **"Admins manage widgets of default dashboards"** (`is_admin(auth.uid())`). Qualquer UPDATE/INSERT/DELETE feito pela Maiane voltaria com erro.
+1. Qualquer clique/toque dentro do gráfico pode iniciar um arraste acidental.
+2. Não existe um indicador visual claro de "pegue aqui para arrastar".
+3. O cursor não muda, o feedback durante o arraste é fraco e o placeholder do react-grid-layout usa cor padrão (não combina com o tema).
 
-A função `can_edit_passagens(_uid)` já existe e já é usada pelas políticas de `passagens_aereas` (CRUD da tabela). Vamos reutilizar para o layout.
+## O que mudar
 
-## Plano
+### 1. Drag handle dedicado (`PassagensLayoutGrid.tsx`)
 
-### 1. Migração de banco — afrouxar RLS para o dashboard padrão de passagens-aereas
-Criar política adicional em `dashboard_widgets` (e `dashboards`, se necessário) permitindo gerenciar widgets quando:
-- `dashboards.module = 'passagens-aereas'`
-- `dashboards.owner_id IS NULL`
-- `can_edit_passagens(auth.uid()) = true`
+- Adicionar uma pequena barra superior no card (visível só em modo edição) com um ícone `GripVertical` + título do bloco, alinhada à esquerda — espelhando a barra de botões da direita.
+- Configurar o react-grid-layout com `draggableHandle=".drag-handle"` em vez de depender de `draggableCancel`. Assim só a alça arrasta; o resto do card fica livre para scroll, hover, tooltips do Recharts, seleção de texto etc.
+- Cursor: `cursor-grab` na alça, `cursor-grabbing` enquanto arrasta (via classe `react-draggable-dragging` que o RGL já aplica).
+- Manter o `tabIndex`/teclado para redimensionar (já existe).
 
-Manter as políticas existentes intactas (admins continuam podendo). Não mexer em outros módulos.
+### 2. Feedback visual durante edição e arraste (`index.css`)
 
-### 2. Frontend — `usePassagensLayout`
-- Substituir a verificação `is_admin` pela `can_edit_passagens` (que já retorna true para admins também).
-- Renomear o retorno `isAdmin` → `canEditLayout` (mantendo retrocompat: exporta os dois enquanto migramos consumidores).
+- Estilizar `.react-grid-placeholder` com `bg-primary/15`, `border-2 border-dashed border-primary/60` e `rounded-lg` — segue tokens do design system.
+- Adicionar leve `box-shadow` e `scale(1.01)` no item enquanto `react-draggable-dragging`, para reforçar que está sendo movido.
+- Item em hover no modo `is-editing` ganha um realce sutil na alça (já temos o ring no card).
 
-### 3. Frontend — `PassagensDashboard.tsx`
-- Trocar `isAdmin` por `canEditLayout` na linha 125.
-- Verificar outros usos de `isAdmin` no arquivo (e.g., share, force_user_logout) — manter `isAdmin` real para o que **for exclusivo de admin** (links de compartilhamento já têm sua própria função `can_manage_passagens_share`). Avaliar item a item antes de trocar.
+### 3. Pequenos ajustes
 
-### 4. Validação
-- Maiane logada → vê botão "Editar layout", consegue arrastar widgets, salvar e o save **não dá erro de RLS**.
-- Outro usuário sem `can_edit` em `/passagens-aereas` continua **sem** o botão.
-- Admin continua funcionando como antes.
-- Link público (shareToken) continua read-only — `canEditLayout` é gated por `!shareToken`.
+- Aumentar `margin` do grid de `[16,16]` para `[12,12]` durante edição para o ghost/placeholder ficar mais previsível (opcional, manter atual se preferir).
+- Garantir que a barra de botões da direita continua com `data-no-drag` (já está) — agora redundante com `draggableHandle`, mas inofensivo.
 
-## Arquivos
-- Migração SQL (nova)
-- `src/hooks/usePassagensLayout.ts`
-- `src/components/passagens/PassagensDashboard.tsx`
+## Detalhes técnicos
+
+Arquivos:
+
+- `src/components/passagens/PassagensLayoutGrid.tsx`
+  - Importar `GripVertical` de `lucide-react`.
+  - Passar `draggableHandle=".drag-handle"` no `<ResponsiveGrid>` e remover (ou manter) `draggableCancel`.
+  - Renderizar, dentro de cada item quando `editing`, um header:
+    ```tsx
+    <div className="drag-handle absolute left-2 top-2 z-20 flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs font-medium shadow-md backdrop-blur cursor-grab active:cursor-grabbing select-none">
+      <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
+      <span className="max-w-[160px] truncate">{w.title}</span>
+    </div>
+    ```
+  - Adicionar `pt-9` (ou similar) no container do bloco quando `editing`, para a alça não cobrir o conteúdo.
+
+- `src/index.css`
+  - Adicionar regras:
+    ```css
+    .react-grid-placeholder {
+      background: hsl(var(--primary) / 0.15) !important;
+      border: 2px dashed hsl(var(--primary) / 0.6);
+      border-radius: 0.5rem;
+      opacity: 1 !important;
+    }
+    .layout.is-editing .react-grid-item.react-draggable-dragging {
+      box-shadow: 0 10px 30px -10px hsl(var(--primary) / 0.4);
+      z-index: 30;
+    }
+    .layout.is-editing .drag-handle:hover { background: hsl(var(--accent)); }
+    ```
+
+## Fora do escopo
+
+- Não alterar a lógica de salvar layout, RLS ou comportamento de redimensionamento por botões/teclado.
+- Não mexer em `BiblioBI` nem outros dashboards (apenas Passagens Aéreas usa este componente hoje).
