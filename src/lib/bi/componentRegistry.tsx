@@ -155,6 +155,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       <BarChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -170,6 +171,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       <HorizontalBarChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -212,7 +214,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <DonutChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+      <DonutChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
+      />
     ),
   },
   {
@@ -223,7 +229,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <PieChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+      <PieChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
+      />
     ),
   },
   {
@@ -238,6 +248,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
         topN={Number(options?.topN ?? 10)}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
       />
     ),
   },
