@@ -28,10 +28,11 @@ export interface PassagensWidget {
  * - tabela-registros: tabela completa de registros + filtros + export
  */
 export const PASSAGENS_DEFAULT_WIDGETS: PassagensWidget[] = [
-  { id: 'kpis-row',         type: 'kpis-row',         title: 'KPIs',             position: 0, layout: { x: 0, y: 0,  w: 12, h: 3  } },
-  { id: 'mapa-destinos',    type: 'mapa-destinos',    title: 'Mapa de Destinos', position: 1, layout: { x: 0, y: 3,  w: 12, h: 7  } },
-  { id: 'charts-row',       type: 'charts-row',       title: 'Gráficos',         position: 2, layout: { x: 0, y: 10, w: 12, h: 12 } },
-  { id: 'tabela-registros', type: 'tabela-registros', title: 'Registros',        position: 3, layout: { x: 0, y: 22, w: 12, h: 10 } },
+  { id: 'kpis-row',         type: 'kpis-row',         title: 'KPIs',                 position: 0, layout: { x: 0, y: 0,  w: 12, h: 3  } },
+  { id: 'mapa-cidades',     type: 'mapa-cidades',     title: 'Mapa de Viagens',      position: 1, layout: { x: 0, y: 3,  w: 12, h: 8  } },
+  { id: 'mapa-destinos',    type: 'mapa-destinos',    title: 'Top Destinos',         position: 2, layout: { x: 0, y: 11, w: 12, h: 7  } },
+  { id: 'charts-row',       type: 'charts-row',       title: 'Gráficos',             position: 3, layout: { x: 0, y: 18, w: 12, h: 12 } },
+  { id: 'tabela-registros', type: 'tabela-registros', title: 'Registros',            position: 4, layout: { x: 0, y: 30, w: 12, h: 10 } },
 ];
 
 interface Options {
