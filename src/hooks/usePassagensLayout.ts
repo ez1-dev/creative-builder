@@ -29,8 +29,9 @@ export const PASSAGENS_DEFAULT_WIDGETS: PassagensWidget[] = [
   { id: 'chart-motivo-viagem',   type: 'chart-motivo-viagem',   title: 'Por Motivo de Viagem',   position: 2, layout: { x: 6, y: 3,  w: 6,  h: 8  } },
   { id: 'chart-top-cc',          type: 'chart-top-cc',          title: 'Top Centros de Custo',   position: 3, layout: { x: 0, y: 11, w: 12, h: 8  } },
   { id: 'chart-top-cidades',     type: 'chart-top-cidades',     title: 'Top Cidades de Destino', position: 4, layout: { x: 0, y: 19, w: 6,  h: 8  } },
-  { id: 'chart-top-uf',          type: 'chart-top-uf',          title: 'Top Estados (UF)',       position: 5, layout: { x: 6, y: 19, w: 6,  h: 8  } },
-  { id: 'tabela-registros',      type: 'tabela-registros',      title: 'Registros',              position: 6, layout: { x: 0, y: 27, w: 12, h: 10 } },
+  { id: 'chart-top-uf',              type: 'chart-top-uf',              title: 'Top Estados (UF)',       position: 5, layout: { x: 6, y: 19, w: 6,  h: 8  } },
+  { id: 'chart-top-destinos-valor',  type: 'chart-top-destinos-valor',  title: 'Top Destinos por Valor', position: 6, layout: { x: 0, y: 27, w: 6,  h: 10 } },
+  { id: 'tabela-registros',          type: 'tabela-registros',          title: 'Registros',              position: 7, layout: { x: 0, y: 37, w: 12, h: 10 } },
 ];
 
 interface Options {

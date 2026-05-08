@@ -1,44 +1,39 @@
-## Objetivo
-No modo "Editar layout" do `/passagens-aereas`, permitir **remover qualquer bloco da tela** (KPIs, gráficos, tabela) e depois **trazer de volta** se quiser. Não é exclusão definitiva — é "ocultar do dashboard".
+## Restaurar widget "Top destinos por valor"
 
-## Como vai funcionar
+Esse card existia antes (`MapaDestinosCard.tsx`, removido no commit fd6d96b junto com o mapa) e ranqueia as cidades de destino por valor total, com badge de valor, contagem de passagens e botão "Mostrar mais". Vou trazer só o card (sem o mapa) e integrá-lo ao dashboard de Passagens como um bloco individual, editável/oculto/redimensionável como os demais.
 
-### Modo edição
-- Cada bloco ganha um **botão X (ocultar)** na barrinha de controles do canto superior direito (ao lado dos botões de redimensionar).
-- Clicar oculta o bloco imediatamente da grid (em estado pendente — só persiste ao Salvar).
-- Aparece um botão **"+ Adicionar bloco"** no topo (na barra cinza ao lado de Cancelar/Restaurar/Salvar) com um menu listando todos os blocos atualmente ocultos. Clicar adiciona de volta na grid (vai pro final).
+### Passos
 
-### Persistência
-- O estado oculto/visível é **por dashboard** (continua compartilhado, igual ao layout hoje).
-- "Restaurar padrão" volta todos os 7 blocos canônicos para o dashboard.
-- Link público (`/compartilhado`): respeita o que está visível no dashboard padrão (blocos ocultos não aparecem).
+1. **Recriar componente** `src/components/passagens/MapaDestinosCard.tsx` exatamente como o original (já contém toda a lógica de agregação por cidade, geocoding e UI ranqueada igual à imagem).
 
-## Onde mexer
+2. **Catálogo de visuais** (`src/lib/visualCatalog.ts`)
+   - Adicionar entrada `passagens.chart-top-destinos-valor` → `'Gráfico: Top Destinos por Valor'`.
 
-### 1. `dashboard_widgets` (sem migration de schema)
-- Já existe a coluna `config jsonb`. Vou guardar `{ "hidden": true }` ali quando o bloco estiver oculto.
-- Bloco oculto **continua existindo** na tabela (com seu layout salvo) — só não é renderizado.
+3. **Layout default** (`src/hooks/usePassagensLayout.ts`)
+   - Adicionar widget `chart-top-destinos-valor` no `PASSAGENS_DEFAULT_WIDGETS`, posicionado logo após `chart-top-uf` (ex.: `position: 6`, `y: 27`, `w: 6`, `h: 10`), e empurrar `tabela-registros` para baixo.
 
-### 2. `src/hooks/usePassagensLayout.ts`
-- Tipo `PassagensWidget` ganha `hidden?: boolean` (lido de `config.hidden`).
-- `mergeWithDefaults` preserva `hidden` quando vem do banco.
-- `saveLayout(next)` passa a aceitar também flag `hidden` por bloco e grava em `config`.
-- Novo método `toggleHidden(type, hidden)` simplifica o botão "ocultar/mostrar".
+4. **Migration** (`supabase/migrations/...`)
+   - Atualizar `upsert_passagens_dashboard_default()` para incluir o novo bloco com o mesmo layout default, mantendo idempotência (usuário pode ter layout salvo — apenas insere se não existir).
 
-### 3. `src/components/passagens/PassagensLayoutGrid.tsx`
-- No filtro de `orderedWidgets`, ignorar blocos com `hidden === true`.
-- Adicionar botão **X** (ícone `EyeOff` do lucide) na barrinha flutuante de cada bloco, ao lado dos botões de tamanho — só aparece em modo edição.
-- Callback `onHide(type)` é propagada para o pai.
+5. **Dashboard** (`src/components/passagens/PassagensDashboard.tsx`)
+   - Importar `MapaDestinosCard`.
+   - Adicionar entrada no map de blocos:
+     ```ts
+     ...(canSeeVisual('passagens.chart-top-destinos-valor') ? {
+       'chart-top-destinos-valor': (
+         <MapaDestinosCard
+           data={filteredData}
+           selectedDestino={selectedDestino}
+           onSelectDestino={(c) => toggleSelection(setSelectedDestino, c)}
+         />
+       ),
+     } : {})
+     ```
+   - O bloco entra automaticamente no `PassagensLayoutGrid`, herdando edição individual, ocultar/restaurar e redimensionar.
 
-### 4. `src/components/passagens/PassagensDashboard.tsx`
-- Estado pendente passa a incluir `hidden` por bloco (não só layout).
-- Acima da grid, na barra de edição, adicionar dropdown **"+ Adicionar bloco"** que lista os blocos ocultos (pelo `title` do `PASSAGENS_DEFAULT_WIDGETS` ou do banco).
-- Toast de salvar: "Layout salvo para todos os usuários."
-- Toast de restaurar: limpa também o `hidden`.
+### Observações
 
-### 5. `src/lib/visualCatalog.ts`
-- Sem mudanças. Permissões visuais (`profile_visuals`) e ocultação por edição são coisas distintas: permissão é por perfil/usuário, ocultação aqui é decisão de layout do dashboard.
-
-## Fora de escopo
-- **Excluir definitivamente** o bloco do banco: não recomendo — se o admin clicar errado, perde o layout. Prefiro o modelo "ocultar/mostrar". Se você quiser exclusão definitiva mesmo, me avise e troco para `DELETE FROM dashboard_widgets`.
-- Layout por usuário: continua compartilhado (como hoje).
+- **Não** vou trazer de volta o mapa/coropleto (`MapaCidadesViagens`, `BrazilChoroplethMap`, `geo/brasil-uf.json`) — apenas o card de ranking que aparece na imagem.
+- Reaproveita `cidadesBrasil.ts` (já existe no projeto).
+- Usuários com layout já salvo verão o bloco aparecer ao final do grid (a migration garante isso); admins podem reposicioná-lo via "Editar layout".
+- Clicar num destino continua aplicando o filtro cruzado (`selectedDestino`), mantendo coerência com o gráfico "Top 10 Cidades de Destino".

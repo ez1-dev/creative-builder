@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -1134,6 +1135,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-destinos-valor') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-destinos-valor': (
+            <MapaDestinosCard
+              data={filtered}
+              selectedDestino={selectedDestino}
+              onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
+            />
           ),
           } : {}),
           'tabela-registros': (
