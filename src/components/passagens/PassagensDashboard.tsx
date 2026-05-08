@@ -1137,6 +1137,15 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </Card>
           ),
           } : {}),
+          ...((canSeeVisual('passagens.chart-top-destinos-valor') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-destinos-valor': (
+            <MapaDestinosCard
+              data={filteredData}
+              selectedDestino={selectedDestino}
+              onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
+            />
+          ),
+          } : {}),
           'tabela-registros': (
       <Card>
         <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
