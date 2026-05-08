@@ -818,10 +818,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
           ),
-          ...(canSeeVisual('passagens.kpis-charts') ? {
-          'charts-row': (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+          ...((canSeeVisual('passagens.chart-evolucao-mensal') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-evolucao-mensal': (
+        <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
             <ResponsiveContainer width="100%" height={isCompact ? 220 : 260}>
@@ -846,7 +845,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-motivo-viagem') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-motivo-viagem': (
+        <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Por Motivo de Viagem {selectedMotivo.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
             <ResponsiveContainer width="100%" height={isCompact ? 300 : 460} className="[&_.recharts-surface]:overflow-visible [&_.recharts-wrapper]:overflow-visible">
@@ -930,7 +933,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-cc') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-cc': (
+        <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
             <ResponsiveContainer width="100%" height={isMobile ? 360 : isCompact ? 400 : 420}>
@@ -961,7 +968,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-cidades') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-cidades': (
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
               <span>Top 10 Cidades de Destino {selectedDestino.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
@@ -1012,7 +1023,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
-        <Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-uf') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-uf': (
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
               <span>Top Estados (UF) de Destino {selectedUF.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
@@ -1057,7 +1072,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
-      </div>
           ),
           } : {}),
           'tabela-registros': (

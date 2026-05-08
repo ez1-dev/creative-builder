@@ -17,7 +17,12 @@ export const VISUAL_CATALOG: VisualGroup[] = [
   {
     module: 'Passagens Aéreas',
     items: [
-      { key: 'passagens.kpis-charts', label: 'Gráficos (Evolução, Motivo, Centros de Custo)' },
+      { key: 'passagens.kpis-charts', label: 'Gráficos (todos — chave de retrocompatibilidade)' },
+      { key: 'passagens.chart-evolucao-mensal', label: 'Gráfico: Evolução Mensal' },
+      { key: 'passagens.chart-motivo-viagem',   label: 'Gráfico: Por Motivo de Viagem' },
+      { key: 'passagens.chart-top-cc',          label: 'Gráfico: Top Centros de Custo' },
+      { key: 'passagens.chart-top-cidades',     label: 'Gráfico: Top Cidades de Destino' },
+      { key: 'passagens.chart-top-uf',          label: 'Gráfico: Top Estados (UF)' },
     ],
   },
   {
