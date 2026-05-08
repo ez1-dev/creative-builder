@@ -140,14 +140,21 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           .select('id, type, title, position, layout, config')
           .eq('dashboard_id', dash.id)
           .order('position');
-        const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => ({
-          id: r.id,
-          type: r.type,
-          title: r.title,
-          position: r.position ?? 0,
-          layout: (r.layout ?? {}) as WidgetLayout,
-          hidden: Boolean((r.config ?? {})?.hidden),
-        }));
+        const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => {
+          const cfg = (r.config ?? {}) as any;
+          return {
+            id: r.id,
+            type: r.type,
+            title: r.title,
+            position: r.position ?? 0,
+            layout: (r.layout ?? {}) as WidgetLayout,
+            hidden: Boolean(cfg.hidden),
+            componentId: cfg.componentId,
+            mapping: cfg.mapping,
+            options: cfg.options,
+            customTitle: cfg.customTitle,
+          };
+        });
         setWidgets(mergeWithDefaults(mapped));
       }
     } finally {
