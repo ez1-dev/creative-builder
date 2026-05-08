@@ -56,6 +56,300 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_centros_custo: {
+        Row: {
+          codigo: string
+          descricao: string | null
+          responsavel: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          descricao?: string | null
+          responsavel?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          descricao?: string | null
+          responsavel?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bi_compras: {
+        Row: {
+          centro_custo: string | null
+          codigo_familia: string | null
+          codigo_fornecedor: string | null
+          codigo_item: string | null
+          codigo_motivo_oc: string | null
+          condicao_pagamento: string | null
+          data_emissao: string | null
+          data_entrega: string | null
+          descricao_item: string | null
+          erp_updated_at: string | null
+          etl_updated_at: string
+          id: string
+          mes_competencia: string | null
+          nome_fornecedor: string | null
+          nome_projeto: string | null
+          numero_oc: string
+          numero_projeto: string | null
+          observacao_oc: string | null
+          origem_material: string | null
+          preco_unitario: number | null
+          projeto_macro: string | null
+          quantidade: number | null
+          quantidade_recebida: number | null
+          saldo_pendente: number | null
+          sequencia_item: number
+          situacao_oc: string | null
+          tipo_despesa: string | null
+          tipo_despesa_calc: string | null
+          tipo_item: string | null
+          valor_bruto: number | null
+          valor_liquido: number | null
+          valor_pendente: number | null
+          valor_recebido: number | null
+        }
+        Insert: {
+          centro_custo?: string | null
+          codigo_familia?: string | null
+          codigo_fornecedor?: string | null
+          codigo_item?: string | null
+          codigo_motivo_oc?: string | null
+          condicao_pagamento?: string | null
+          data_emissao?: string | null
+          data_entrega?: string | null
+          descricao_item?: string | null
+          erp_updated_at?: string | null
+          etl_updated_at?: string
+          id?: string
+          mes_competencia?: string | null
+          nome_fornecedor?: string | null
+          nome_projeto?: string | null
+          numero_oc: string
+          numero_projeto?: string | null
+          observacao_oc?: string | null
+          origem_material?: string | null
+          preco_unitario?: number | null
+          projeto_macro?: string | null
+          quantidade?: number | null
+          quantidade_recebida?: number | null
+          saldo_pendente?: number | null
+          sequencia_item: number
+          situacao_oc?: string | null
+          tipo_despesa?: string | null
+          tipo_despesa_calc?: string | null
+          tipo_item?: string | null
+          valor_bruto?: number | null
+          valor_liquido?: number | null
+          valor_pendente?: number | null
+          valor_recebido?: number | null
+        }
+        Update: {
+          centro_custo?: string | null
+          codigo_familia?: string | null
+          codigo_fornecedor?: string | null
+          codigo_item?: string | null
+          codigo_motivo_oc?: string | null
+          condicao_pagamento?: string | null
+          data_emissao?: string | null
+          data_entrega?: string | null
+          descricao_item?: string | null
+          erp_updated_at?: string | null
+          etl_updated_at?: string
+          id?: string
+          mes_competencia?: string | null
+          nome_fornecedor?: string | null
+          nome_projeto?: string | null
+          numero_oc?: string
+          numero_projeto?: string | null
+          observacao_oc?: string | null
+          origem_material?: string | null
+          preco_unitario?: number | null
+          projeto_macro?: string | null
+          quantidade?: number | null
+          quantidade_recebida?: number | null
+          saldo_pendente?: number | null
+          sequencia_item?: number
+          situacao_oc?: string | null
+          tipo_despesa?: string | null
+          tipo_despesa_calc?: string | null
+          tipo_item?: string | null
+          valor_bruto?: number | null
+          valor_liquido?: number | null
+          valor_pendente?: number | null
+          valor_recebido?: number | null
+        }
+        Relationships: []
+      }
+      bi_fornecedores: {
+        Row: {
+          ativo: boolean
+          cidade: string | null
+          cnpj: string | null
+          codigo: string
+          nome: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cidade?: string | null
+          cnpj?: string | null
+          codigo: string
+          nome?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cidade?: string | null
+          cnpj?: string | null
+          codigo?: string
+          nome?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bi_projetos: {
+        Row: {
+          cliente: string | null
+          nome_projeto: string | null
+          numero_projeto: string
+          projeto_macro: string | null
+          updated_at: string
+        }
+        Insert: {
+          cliente?: string | null
+          nome_projeto?: string | null
+          numero_projeto: string
+          projeto_macro?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cliente?: string | null
+          nome_projeto?: string | null
+          numero_projeto?: string
+          projeto_macro?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bi_recebimentos: {
+        Row: {
+          cancelada: boolean
+          centro_custo: string | null
+          codigo_fornecedor: string | null
+          codigo_item: string | null
+          data_emissao_nf: string | null
+          data_recebimento: string | null
+          descricao_item: string | null
+          erp_updated_at: string | null
+          estornada: boolean
+          etl_updated_at: string
+          id: string
+          mes_competencia: string | null
+          nome_fornecedor: string | null
+          nome_projeto: string | null
+          numero_nf: string
+          numero_oc_origem: string | null
+          numero_projeto: string | null
+          projeto_macro: string | null
+          quantidade: number | null
+          sequencia_item: number
+          sequencia_oc_origem: number | null
+          serie: string | null
+          tipo_despesa: string | null
+          tipo_despesa_calc: string | null
+          tipo_movimento: string
+          valor_bruto: number | null
+          valor_liquido: number | null
+        }
+        Insert: {
+          cancelada?: boolean
+          centro_custo?: string | null
+          codigo_fornecedor?: string | null
+          codigo_item?: string | null
+          data_emissao_nf?: string | null
+          data_recebimento?: string | null
+          descricao_item?: string | null
+          erp_updated_at?: string | null
+          estornada?: boolean
+          etl_updated_at?: string
+          id?: string
+          mes_competencia?: string | null
+          nome_fornecedor?: string | null
+          nome_projeto?: string | null
+          numero_nf: string
+          numero_oc_origem?: string | null
+          numero_projeto?: string | null
+          projeto_macro?: string | null
+          quantidade?: number | null
+          sequencia_item: number
+          sequencia_oc_origem?: number | null
+          serie?: string | null
+          tipo_despesa?: string | null
+          tipo_despesa_calc?: string | null
+          tipo_movimento?: string
+          valor_bruto?: number | null
+          valor_liquido?: number | null
+        }
+        Update: {
+          cancelada?: boolean
+          centro_custo?: string | null
+          codigo_fornecedor?: string | null
+          codigo_item?: string | null
+          data_emissao_nf?: string | null
+          data_recebimento?: string | null
+          descricao_item?: string | null
+          erp_updated_at?: string | null
+          estornada?: boolean
+          etl_updated_at?: string
+          id?: string
+          mes_competencia?: string | null
+          nome_fornecedor?: string | null
+          nome_projeto?: string | null
+          numero_nf?: string
+          numero_oc_origem?: string | null
+          numero_projeto?: string | null
+          projeto_macro?: string | null
+          quantidade?: number | null
+          sequencia_item?: number
+          sequencia_oc_origem?: number | null
+          serie?: string | null
+          tipo_despesa?: string | null
+          tipo_despesa_calc?: string | null
+          tipo_movimento?: string
+          valor_bruto?: number | null
+          valor_liquido?: number | null
+        }
+        Relationships: []
+      }
+      bi_tipo_despesa: {
+        Row: {
+          codigo: string
+          label: string
+          regra_origem: string
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          label: string
+          regra_origem?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          label?: string
+          regra_origem?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bi_user_widgets: {
         Row: {
           component_id: string
@@ -122,6 +416,30 @@ export type Database = {
           id?: string
           nome?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      dashboard_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          filtros_hash: string | null
+          payload: Json
+          valid_until: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          filtros_hash?: string | null
+          payload: Json
+          valid_until: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          filtros_hash?: string | null
+          payload?: Json
+          valid_until?: string
         }
         Relationships: []
       }
@@ -229,6 +547,260 @@ export type Database = {
           module?: string
           status_code?: number | null
           user_email?: string | null
+        }
+        Relationships: []
+      }
+      etl_conexoes: {
+        Row: {
+          codigo: string
+          created_at: string
+          database: string | null
+          enabled: boolean
+          host: string | null
+          id: string
+          observacoes: string | null
+          porta: number | null
+          secret_key: string | null
+          tipo: string
+          updated_at: string
+          usuario: string | null
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          database?: string | null
+          enabled?: boolean
+          host?: string | null
+          id?: string
+          observacoes?: string | null
+          porta?: number | null
+          secret_key?: string | null
+          tipo: string
+          updated_at?: string
+          usuario?: string | null
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          database?: string | null
+          enabled?: boolean
+          host?: string | null
+          id?: string
+          observacoes?: string | null
+          porta?: number | null
+          secret_key?: string | null
+          tipo?: string
+          updated_at?: string
+          usuario?: string | null
+        }
+        Relationships: []
+      }
+      etl_execucoes: {
+        Row: {
+          acionado_por: string
+          erro_resumo: string | null
+          id: string
+          iniciado_em: string
+          linhas_atualizadas: number | null
+          linhas_inseridas: number | null
+          linhas_lidas: number | null
+          linhas_rejeitadas: number | null
+          params_executados: Json | null
+          status: string
+          tarefa_codigo: string
+          tarefa_id: string | null
+          terminado_em: string | null
+          user_id: string | null
+        }
+        Insert: {
+          acionado_por?: string
+          erro_resumo?: string | null
+          id?: string
+          iniciado_em?: string
+          linhas_atualizadas?: number | null
+          linhas_inseridas?: number | null
+          linhas_lidas?: number | null
+          linhas_rejeitadas?: number | null
+          params_executados?: Json | null
+          status?: string
+          tarefa_codigo: string
+          tarefa_id?: string | null
+          terminado_em?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          acionado_por?: string
+          erro_resumo?: string | null
+          id?: string
+          iniciado_em?: string
+          linhas_atualizadas?: number | null
+          linhas_inseridas?: number | null
+          linhas_lidas?: number | null
+          linhas_rejeitadas?: number | null
+          params_executados?: Json | null
+          status?: string
+          tarefa_codigo?: string
+          tarefa_id?: string | null
+          terminado_em?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_execucoes_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "etl_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      etl_fila_integrador: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          execucao_id: string | null
+          finished_at: string | null
+          id: string
+          params: Json
+          picked_at: string | null
+          prioridade: number
+          status: string
+          tarefa_codigo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          execucao_id?: string | null
+          finished_at?: string | null
+          id?: string
+          params?: Json
+          picked_at?: string | null
+          prioridade?: number
+          status?: string
+          tarefa_codigo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          execucao_id?: string | null
+          finished_at?: string | null
+          id?: string
+          params?: Json
+          picked_at?: string | null
+          prioridade?: number
+          status?: string
+          tarefa_codigo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_fila_integrador_execucao_id_fkey"
+            columns: ["execucao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_execucoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      etl_logs: {
+        Row: {
+          contexto: Json | null
+          created_at: string
+          execucao_id: string | null
+          id: string
+          mensagem: string
+          nivel: string
+        }
+        Insert: {
+          contexto?: Json | null
+          created_at?: string
+          execucao_id?: string | null
+          id?: string
+          mensagem: string
+          nivel?: string
+        }
+        Update: {
+          contexto?: Json | null
+          created_at?: string
+          execucao_id?: string | null
+          id?: string
+          mensagem?: string
+          nivel?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_logs_execucao_id_fkey"
+            columns: ["execucao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_execucoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      etl_tarefas: {
+        Row: {
+          codigo: string
+          conexao_id: string | null
+          created_at: string
+          cron: string | null
+          descricao: string | null
+          enabled: boolean
+          id: string
+          nome: string
+          params: Json
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          conexao_id?: string | null
+          created_at?: string
+          cron?: string | null
+          descricao?: string | null
+          enabled?: boolean
+          id?: string
+          nome: string
+          params?: Json
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          conexao_id?: string | null
+          created_at?: string
+          cron?: string | null
+          descricao?: string | null
+          enabled?: boolean
+          id?: string
+          nome?: string
+          params?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_tarefas_conexao_id_fkey"
+            columns: ["conexao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_conexoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      etl_watermark: {
+        Row: {
+          tarefa_codigo: string
+          tipo: string
+          ultimo_valor: string | null
+          updated_at: string
+        }
+        Insert: {
+          tarefa_codigo: string
+          tipo?: string
+          ultimo_valor?: string | null
+          updated_at?: string
+        }
+        Update: {
+          tarefa_codigo?: string
+          tipo?: string
+          ultimo_valor?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
