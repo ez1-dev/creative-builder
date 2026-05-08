@@ -15,6 +15,28 @@ export interface PassagensWidget {
   position: number;
   layout: WidgetLayout;
   hidden?: boolean;
+  /** Quando definido, sobrescreve o renderizador canônico pelo componente do COMPONENT_REGISTRY. */
+  componentId?: string;
+  /** Mapeamento de inputs -> chaves do PageDataContext (ex.: { series: 'evolucao_mensal' }). */
+  mapping?: Record<string, string>;
+  /** Opções extras do componente (ex.: topN do ranking). */
+  options?: Record<string, any>;
+  /** Título customizado (sobrescreve `title`). */
+  customTitle?: string;
+}
+
+export interface SaveLayoutItem {
+  type: string;
+  layout: WidgetLayout;
+  hidden?: boolean;
+  /** null limpa o override; undefined = não mexe. */
+  componentId?: string | null;
+  mapping?: Record<string, string> | null;
+  options?: Record<string, any> | null;
+  customTitle?: string | null;
+  /** Para widgets novos (custom-*): título e position de criação. */
+  title?: string;
+  position?: number;
 }
 
 /**
