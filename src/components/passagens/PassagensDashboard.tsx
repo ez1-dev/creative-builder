@@ -921,7 +921,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     ]);
                     pendingDeletes.forEach((t) => allTypes.delete(t));
                     const newWidgetsByType = new Map(pendingNewWidgets.map((nw) => [nw.type, nw]));
-                    const payload = Array.from(allTypes).map((type) => {
+                    // Recalcula position usando a ordem visual do grid (y, depois x),
+                    // para que o layout salvo seja a fonte de verdade ao recarregar.
+                    const orderedTypes = Array.from(allTypes).sort((a, b) => {
+                      const la = layoutByType.get(a) ?? effectiveWidgets.find((w) => w.type === a)?.layout ?? { x: 0, y: 0, w: 12, h: 4 };
+                      const lb = layoutByType.get(b) ?? effectiveWidgets.find((w) => w.type === b)?.layout ?? { x: 0, y: 0, w: 12, h: 4 };
+                      if (la.y !== lb.y) return la.y - lb.y;
+                      return la.x - lb.x;
+                    });
+                    const positionByType = new Map(orderedTypes.map((t, i) => [t, i] as const));
+                    const payload = orderedTypes.map((type) => {
                       const layout = layoutByType.get(type)
                         ?? effectiveWidgets.find((w) => w.type === type)?.layout
                         ?? { x: 0, y: 0, w: 12, h: 4 };
@@ -937,7 +946,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         options: cfg === null ? null : (cfg?.options ?? nw?.options ?? undefined),
                         customTitle: cfg === null ? null : (cfg?.customTitle ?? nw?.title ?? undefined),
                         title: nw?.title ?? ew?.title,
-                        position: ew?.position,
+                        position: positionByType.get(type) ?? ew?.position ?? 99,
                       };
                     });
                     await saveLayout(payload);

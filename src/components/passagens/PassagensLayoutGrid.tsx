@@ -38,7 +38,12 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
   const orderedWidgets = useMemo(
     () =>
       [...widgets]
-        .sort((a, b) => a.position - b.position)
+        .sort((a, b) => {
+          // Ordena pela posição visual real (y, depois x). Empate: position.
+          if (a.layout.y !== b.layout.y) return a.layout.y - b.layout.y;
+          if (a.layout.x !== b.layout.x) return a.layout.x - b.layout.x;
+          return a.position - b.position;
+        })
         .filter((w) => blocks[w.type] && !w.hidden),
     [widgets, blocks],
   );
