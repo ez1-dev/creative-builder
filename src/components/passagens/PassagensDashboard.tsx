@@ -626,14 +626,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     colaboradores_unicos: colaboradoresUnicos,
   }), [totalGeral, totalRegistros, ticketMedio, colaboradoresUnicos]);
 
-  // ===== Estados dos diálogos de configuração =====
-  const [configureType, setConfigureType] = useState<string | null>(null);
-  const [addChartOpen, setAddChartOpen] = useState(false);
-  // Customizações pendentes (aplicadas só após "Salvar layout")
-  const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
-  const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
-  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
-
   // Tipos canônicos que aceitam reconfiguração de gráfico
   const CONFIGURABLE_CANONICAL = useMemo(
     () => ['chart-evolucao-mensal', 'chart-motivo-viagem', 'chart-top-cc', 'chart-top-cidades', 'chart-top-uf'],
