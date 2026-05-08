@@ -1,0 +1,168 @@
+# ETL — Camada analítica BI no Lovable Cloud (Supabase)
+
+> Especificação para o time do FastAPI. Frontend Lovable já tem as tabelas, RLS e a tela `/etl`. Falta o serviço de ETL real.
+
+## Arquitetura
+
+```text
+ERP Senior (SQL Server / Oracle)
+        │  pyodbc / oracledb
+        ▼
+FastAPI ETL  ──► Supabase (tabelas bi_*) via service role
+        │              │
+        │              ▼
+        │       /api/painel-compras*, /api/notas-recebimento*
+        │              │
+        ▼              ▼
+   etl_logs        Lovable / React
+```
+
+Frontend **nunca** acessa o ERP. As APIs agregadas passam a consultar `bi_compras` / `bi_recebimentos` no Supabase.
+
+## Variáveis de ambiente do backend
+
+- `SUPABASE_URL` (mesma URL do projeto Lovable Cloud)
+- `SUPABASE_SERVICE_ROLE_KEY` (somente backend; bypassa RLS)
+- `SENIOR_DB_HOST`, `SENIOR_DB_PORT`, `SENIOR_DB_USER`, `SENIOR_DB_PASSWORD`, `SENIOR_DB_DATABASE`
+- (ou equivalentes por conexão configurada em `etl_conexoes`)
+
+## Tabelas que o backend usa
+
+Já criadas no Supabase. Nomes e contratos:
+
+### Fatos (escrita pelo ETL)
+- `bi_compras` — chave única `(numero_oc, sequencia_item)`. UPSERT.
+- `bi_recebimentos` — chave única `(numero_nf, serie, sequencia_item, codigo_fornecedor)`. UPSERT.
+
+### Dimensões (escrita pelo ETL)
+- `bi_fornecedores` (PK `codigo`)
+- `bi_projetos` (PK `numero_projeto`, com `projeto_macro` já classificado)
+- `bi_centros_custo` (PK `codigo`)
+- `bi_tipo_despesa` (já populada com 4 categorias)
+
+### Orquestração (leitura/escrita do ETL)
+- `etl_tarefas` — definição (`codigo`, `cron`, `enabled`, `params`, `conexao_id`)
+- `etl_conexoes` — `secret_key` é o NOME da env var no backend; senha NUNCA é gravada
+- `etl_execucoes` — uma linha por execução; status `RUNNING|SUCCESS|ERROR|CANCELLED`
+- `etl_logs` — logs detalhados, FK para execução
+- `etl_watermark` — `(tarefa_codigo, ultimo_valor, tipo)`. Tipo `TIMESTAMP|ID|MES`
+- `etl_fila_integrador` — fila de reprocessamento manual
+
+## Tarefas iniciais
+
+### ATU_COMPRAS (cron `*/15 * * * *`)
+
+1. Lê `etl_watermark` da tarefa (timestamp do último `data_alteracao` processado).
+2. Query no ERP filtrando `data_alteracao > watermark` (ou janela de `params.janela_dias` no primeiro carregamento).
+3. Para cada linha: aplica classificação **idêntica** a `src/lib/comprasClassificacao.ts`:
+   - `projeto_macro` (regras em `docs/backend-projeto-macro.md`)
+   - `tipo_despesa_calc` (regras em `docs/backend-painel-compras-dashboard.md` § "Classificação de tipo_despesa")
+4. Calcula:
+   - `valor_bruto = quantidade * preco_unitario` (ou campo do ERP)
+   - `valor_liquido` = bruto menos descontos
+   - `valor_recebido = quantidade_recebida * preco_unitario`
+   - `valor_pendente = saldo_pendente * preco_unitario`
+   - `mes_competencia = SUBSTRING(COALESCE(mes_competencia, data_emissao, data_recebimento), 1, 7)`
+5. UPSERT em `bi_compras` em batches de `params.batch_size` (default 2000) com `on_conflict="numero_oc,sequencia_item"`.
+6. Atualiza watermark com `MAX(data_alteracao)` processado.
+
+### ATU_RECEBIMENTOS (cron `*/15 * * * *`)
+
+Mesma estrutura. Diferenças:
+- Watermark sobre `data_alteracao` da NF.
+- Determinar `tipo_movimento`:
+  - `RECEBIMENTO` (default)
+  - `DEVOLUCAO` se flag de devolução
+  - `ESTORNO` se `estornada = true`
+  - `CANCELAMENTO` se `cancelada = true`
+- Vincular `numero_oc_origem`, `sequencia_oc_origem` (campos já existem nas NFs do Senior).
+- UPSERT com chave `(numero_nf, serie, sequencia_item, codigo_fornecedor)`.
+
+## Endpoints HTTP que o frontend chama
+
+O frontend Lovable chama o FastAPI em:
+
+### `POST /api/etl/executar`
+Body: `{ "tarefa": "ATU_COMPRAS", "acionado_por": "MANUAL" }`
+- Cria linha em `etl_execucoes` (`acionado_por="MANUAL"`).
+- Dispara a tarefa imediatamente (não enfileira).
+- Retorna `{ "execucao_id": "..." }`.
+
+### `POST /api/etl/reprocessar`
+Body: `{ "tarefa": "ATU_COMPRAS", "data_ini": "2026-01-01", "data_fim": "2026-04-30" }`
+- Insere em `etl_fila_integrador` (`status="PENDENTE"`).
+- Worker do backend consome a fila, ignora watermark e processa apenas o intervalo.
+
+> Os listings (tarefas, execuções, logs, fila, conexões) o frontend já lê direto do Supabase via RLS de admin. Não precisa expor `GET /api/etl/*`.
+
+## Reescrita das APIs agregadas
+
+Trocar a fonte (sem mudar contrato):
+
+### `GET /api/painel-compras`
+```sql
+SELECT *, COUNT(*) OVER() AS total_registros
+FROM bi_compras
+WHERE <filtros aplicados como em painel-compras hoje>
+ORDER BY data_emissao DESC
+LIMIT :tamanho_pagina OFFSET (:pagina - 1) * :tamanho_pagina
+```
+
+### `GET /api/painel-compras-dashboard`
+Sem `LIMIT`. Calcula `kpis`, `graficos.*`, `drill` com `SUM`/`COUNT`/`GROUP BY` sobre `bi_compras` (sem precisar reclassificar, porque `projeto_macro` e `tipo_despesa_calc` já vêm prontos).
+
+### `GET /api/notas-recebimento`
+Idem, contra `bi_recebimentos` paginado.
+
+### `GET /api/notas-recebimento-dashboard`
+Idem, agregações sem paginação.
+
+> **Cache opcional:** antes de calcular o dashboard, hash dos filtros + lookup em `dashboard_cache`. Se `valid_until > now()`, retorna o `payload` direto. TTL sugerido: 5 minutos para queries sem filtro de fornecedor/OC, 60 s para filtros específicos. Limpar entradas vencidas em job separado.
+
+## Fluxo padrão de execução (pseudo-código)
+
+```python
+def run(tarefa_codigo: str, acionado_por: str = "SCHEDULER", janela: tuple | None = None):
+    exec_id = supa.insert("etl_execucoes", {
+        "tarefa_codigo": tarefa_codigo,
+        "status": "RUNNING",
+        "acionado_por": acionado_por,
+    }).id
+
+    try:
+        wm = supa.select_one("etl_watermark", tarefa_codigo=tarefa_codigo)
+        rows = senior.extract(tarefa_codigo, watermark=wm.ultimo_valor, janela=janela)
+        log(exec_id, "INFO", f"extraídas {len(rows)} linhas")
+
+        transformed = [transform(tarefa_codigo, r) for r in rows]
+        ins, upd = supa.upsert_batch(target_table_for(tarefa_codigo), transformed,
+                                     on_conflict=conflict_key(tarefa_codigo))
+
+        if not janela:  # só avança watermark em execução normal
+            new_wm = max(r["erp_updated_at"] for r in rows)
+            supa.update("etl_watermark", tarefa_codigo=tarefa_codigo,
+                        ultimo_valor=new_wm.isoformat())
+
+        supa.update("etl_execucoes", id=exec_id, status="SUCCESS",
+                    terminado_em=now(), linhas_lidas=len(rows),
+                    linhas_inseridas=ins, linhas_atualizadas=upd)
+    except Exception as e:
+        log(exec_id, "ERROR", str(e), {"trace": traceback.format_exc()})
+        supa.update("etl_execucoes", id=exec_id, status="ERROR",
+                    terminado_em=now(), erro_resumo=str(e)[:500])
+        raise
+```
+
+## Segurança
+
+- `service_role` apenas no backend. Nunca no React/JS público.
+- Senhas de banco em env vars do servidor (ou secret manager). `etl_conexoes.secret_key` guarda só o **nome** da variável.
+- Logs **não** podem persistir senhas, connection strings completas ou payloads sensíveis.
+- Endpoints `POST /api/etl/*` exigem usuário admin (validar JWT do Supabase + checar `is_admin(auth.uid())`, igual rotas administrativas atuais).
+
+## Retenção
+
+Sugestão de jobs de limpeza no próprio FastAPI:
+- `etl_logs` > 30 dias → DELETE
+- `etl_execucoes` > 90 dias → DELETE
+- `dashboard_cache` `valid_until < now() - interval '1 day'` → DELETE
