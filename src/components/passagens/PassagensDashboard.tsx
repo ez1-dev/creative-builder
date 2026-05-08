@@ -91,6 +91,7 @@ interface Props {
 
 export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly, shareToken }: Props) {
   const isMobile = useIsMobile();
+  const { canSeeVisual } = useUserVisuals();
   // Threshold "compact" para layouts até tablet inclusive (< 1024px):
   // KPI "Registros" e tabela usam a versão empilhada/cards para evitar
   // sobreposição do Select e overflow horizontal da tabela.
