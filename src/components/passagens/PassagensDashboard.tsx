@@ -441,6 +441,43 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 15);
   }, [filtered, selectedMes, selectedMotivo, selectedDestino, selectedUF]);
 
+  // Top 10 Cidades de Destino — ignora apenas selectedDestino (próprio eixo)
+  const porCidade = useMemo(() => {
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, uf: true });
+    const map = new Map<string, { label: string; qtd: number; valor: number }>();
+    base.forEach((r) => {
+      if (!r.destino) return;
+      const norm = nomeNormalizado(r.destino);
+      if (!norm) return;
+      const cur = map.get(norm) ?? { label: r.destino.trim(), qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += Number(r.valor || 0);
+      map.set(norm, cur);
+    });
+    return Array.from(map.entries())
+      .map(([, v]) => ({ name: v.label, qtd: v.qtd, valor: v.valor }))
+      .sort((a, b) => b.qtd - a.qtd)
+      .slice(0, 10);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedUF]);
+
+  // Top Estados (UF) de Destino — ignora apenas selectedUF (próprio eixo)
+  const porUF = useMemo(() => {
+    const base = applyCross(filtered, { mes: true, motivo: true, cc: true, destino: true });
+    const map = new Map<string, { qtd: number; valor: number }>();
+    base.forEach((r) => {
+      const uf = (r.uf_destino ?? '').toUpperCase();
+      if (!uf) return;
+      const cur = map.get(uf) ?? { qtd: 0, valor: 0 };
+      cur.qtd += 1;
+      cur.valor += Number(r.valor || 0);
+      map.set(uf, cur);
+    });
+    return Array.from(map.entries())
+      .map(([name, v]) => ({ name, qtd: v.qtd, valor: v.valor }))
+      .sort((a, b) => b.qtd - a.qtd);
+  }, [filtered, selectedMes, selectedMotivo, selectedCC, selectedDestino]);
+
+
   const hasCrossFilter = selectedMes.length > 0 || selectedMotivo.length > 0 || selectedCC.length > 0 || selectedDestino.length > 0 || selectedUF.length > 0;
   const hasTopFilter = !!filtroColaborador || !!filtroCC || filtroMotivo !== 'todos' || filtroTipo !== 'todos' || filtroMes !== 'todos' || !!dataInicio || !!dataFim;
   const countAtivos = (filtroColaborador ? 1 : 0) + (filtroCC ? 1 : 0) + (filtroMotivo !== 'todos' ? 1 : 0) + (filtroTipo !== 'todos' ? 1 : 0) + (filtroMes !== 'todos' ? 1 : 0) + (dataInicio ? 1 : 0) + (dataFim ? 1 : 0);
