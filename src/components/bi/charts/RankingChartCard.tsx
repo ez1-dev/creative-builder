@@ -23,6 +23,7 @@ export function RankingChartCard({
   topN = 10,
   step,
   expandable = true,
+  showTotal = true,
   onItemClick,
   height = 320,
   ...shell
@@ -43,6 +44,7 @@ export function RankingChartCard({
   const remaining = total - visibleCount;
   const isExpanded = visibleCount >= total && total > initial;
   const showToggle = expandable && total > initial;
+  const visibleSum = visible.reduce((s, d) => s + (d.valor || 0), 0);
 
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!visible.length}>
