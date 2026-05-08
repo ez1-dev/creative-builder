@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import GridLayout, { WidthProvider, type Layout, type LayoutItem } from 'react-grid-layout/legacy';
-import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2 } from 'lucide-react';
+import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PassagensWidget } from '@/hooks/usePassagensLayout';
@@ -177,6 +177,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
       isResizable={editing}
       compactType="vertical"
       preventCollision={false}
+      draggableHandle=".drag-handle"
       draggableCancel="button, a, input, select, textarea, [role='combobox'], [data-no-drag]"
       onLayoutChange={handleLayoutChange}
       onDragStop={handleStop}
@@ -193,9 +194,18 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
             onKeyDown={(e) => handleKeyDown(e, w.type)}
             className={cn(
               'overflow-auto relative outline-none',
-              editing && 'rounded-lg ring-2 ring-primary/40 ring-offset-2 ring-offset-background focus-visible:ring-primary',
+              editing && 'rounded-lg ring-2 ring-primary/40 ring-offset-2 ring-offset-background focus-visible:ring-primary pt-10',
             )}
           >
+            {editing && (
+              <div
+                className="drag-handle absolute left-2 top-2 z-20 flex items-center gap-1.5 rounded-md border bg-background/95 px-2 py-1 text-xs font-medium shadow-md backdrop-blur cursor-grab active:cursor-grabbing select-none max-w-[55%]"
+                title="Arraste para mover este bloco"
+              >
+                <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="truncate">{w.title}</span>
+              </div>
+            )}
             {editing && (
               <div
                 data-no-drag
