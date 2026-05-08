@@ -1,56 +1,39 @@
-## Diagnóstico atual
+## Problema
 
-Encontrei um indício forte de que **o salvamento no backend está acontecendo**, mas a tela pode estar **recarregando/ordenando de forma diferente do que foi salvo**.
+Os gráficos adicionados/trocados pela biblioteca BI (ex.: "Top Destinos por Valor" agora usando `ranking-chart`) **não disparam o cross-filter** da página. Os gráficos canônicos (Evolução Mensal, Motivo, Top UF nativo, etc.) já filtram a página inteira no clique porque estão cabeados diretamente nos `setSelected...`. Já os componentes vindos do `componentRegistry` apenas exibem dados — o clique não chega ao estado de filtros da página.
 
-Evidências:
-- O dashboard padrão de Passagens já tem widgets persistidos no banco com `layout` alterado.
-- Há também configurações salvas, como bloco oculto e gráfico trocado para `ranking-chart`.
-- Ou seja: o problema mais provável **não é o botão Salvar em si**, e sim a forma como o layout salvo é reaplicado na interface.
+## Causa
 
-## Causa mais provável
+Em `src/lib/bi/componentRegistry.tsx`, os `render(...)` de `ranking-chart`, `bar-chart`, `horizontal-bar-chart`, `pie-chart` etc. **não recebem nem encaminham** `onItemClick`. O contexto passado em `PassagensDashboard` (`ctx: { kpis, series, rows }`) também não inclui um handler de clique. Resultado: o item clicado não vira filtro.
 
-1. **O grid salva `x/y/w/h`, mas a tela ainda ordena por `position`.**
-   - No hook `usePassagensLayout`, os widgets são carregados e ordenados por `position`.
-   - No modo de edição, o usuário altera principalmente `layout` (`x`, `y`, `w`, `h`).
-   - Se `position` não for recalculado junto, a tela pode parecer “voltar” para a ordem antiga após recarregar.
+## Plano
 
-2. **No layout compacto/mobile, a tela ignora o grid salvo e usa só a ordem da lista.**
-   - Em `PassagensLayoutGrid`, quando a viewport é compacta, os blocos são renderizados em sequência.
-   - Essa sequência depende da ordenação atual dos widgets, não do `x/y` salvo.
-   - Resultado: no desktop pode parecer parcialmente certo, mas no compacto aparenta que “não manteve”.
+1. **Estender o contexto de render do registry**
+   - Adicionar campo opcional `onItemClick?: (seriesKey: string, datum: { name: string; value: number }) => void` no tipo de `ctx` (ou nas props de `render`).
+   - Cada chart do registry passa `onItemClick={(d) => ctx.onItemClick?.(mapping.series, d)}` para o componente subjacente (`RankingChartCard`, `BarChartCard`, `HorizontalBarChartCard`, `PieChartCard`, `DonutChartCard`).
 
-3. **O hook sempre trabalha no dashboard padrão global.**
-   - Hoje o fluxo busca `module = 'passagens-aereas'`, `owner_id = null`, `is_default = true`.
-   - Se existir expectativa de manter outro layout/visão, ele não está sendo carregado daqui.
+2. **Mapear seriesKey → cross-filter no `PassagensDashboard`**
+   - No bloco que renderiza widgets com `componentId` (linhas ~1646), passar um `onItemClick` que faz roteamento:
+     - `evolucao_mensal` → toggle em `selectedMes`
+     - `por_motivo` → toggle em `selectedMotivo`
+     - `top_cidades_qtd` / `top_cidades_valor` / `top_destinos_valor` → toggle em `selectedDestino`
+     - `top_uf_qtd` / `top_uf_valor` → toggle em `selectedUF` (uppercase)
+     - `top_cc` (se aplicável) → toggle em `selectedCC`
+   - Reusar o helper `toggleItem` já existente.
 
-## Plano de correção
+3. **Feedback visual mínimo**
+   - Manter o cursor pointer já presente nos componentes.
+   - Os badges de cross-filter no topo da página já mostram a seleção ativa, então o usuário enxerga o impacto no clique.
 
-1. **Sincronizar ordem visual com persistência**
-   - Recalcular e salvar `position` com base na ordem real do grid ao clicar em **Salvar layout**.
-
-2. **Carregar e renderizar o layout com a mesma lógica**
-   - Garantir que a tela use o layout salvo como fonte principal de verdade, inclusive fora do modo edição.
-   - No compacto, derivar a ordem a partir do layout persistido, não de `position` antigo.
-
-3. **Validar o dashboard-alvo do load/save**
-   - Confirmar que o mesmo dashboard é usado para carregar e salvar.
-   - Se necessário, corrigir para não cair sempre no padrão errado.
-
-4. **Testar o fluxo completo**
-   - Arrastar/redimensionar bloco canônico
-   - Ocultar/restaurar bloco
-   - Criar gráfico customizado
-   - Salvar, sair do modo edição e recarregar a página
-   - Verificar desktop e compacto
+4. **Validação**
+   - Em `/passagens-aereas`: clicar em uma UF no Ranking "Top Destinos por Valor" deve filtrar KPIs, demais gráficos e a tabela.
+   - Clicar de novo no mesmo item deve remover o filtro.
+   - Repetir o teste trocando o tipo do bloco (barras horizontais, barras, pizza) via "Configurar gráfico".
 
 ## Detalhes técnicos
 
-Arquivos que eu ajustaria:
-- `src/hooks/usePassagensLayout.ts`
-- `src/components/passagens/PassagensLayoutGrid.tsx`
-- `src/components/passagens/PassagensDashboard.tsx`
+Arquivos afetados:
+- `src/lib/bi/componentRegistry.tsx` — aceitar e propagar `onItemClick` em chart-likes.
+- `src/components/passagens/PassagensDashboard.tsx` — passar `onItemClick` no `ctx` do `def.render(...)` e fazer o roteamento por `seriesKey`.
 
-Foco da implementação:
-- persistir `position` junto com `layout`
-- parar de depender de uma ordenação incompatível com o grid salvo
-- garantir consistência entre edição, reload e renderização responsiva
+Sem mudanças de schema, sem migrações — alteração puramente de frontend/presentation.

@@ -48,9 +48,28 @@ export interface BiComponentDef {
   render: (args: {
     title?: string;
     mapping: Record<string, string>;
-    ctx: { kpis: Record<string, any>; series: Record<string, any>; rows: any[] };
+    ctx: {
+      kpis: Record<string, any>;
+      series: Record<string, any>;
+      rows: any[];
+      /** Callback opcional disparado ao clicar em um item de chart. seriesKey identifica a série mapeada. */
+      onItemClick?: (seriesKey: string, datum: { name: string; value: number; label?: string; valor?: number }) => void;
+    };
     options: Record<string, any>;
   }) => ReactNode;
+}
+
+/** Helper interno: monta o handler de clique a partir do ctx, normalizando datum para { name, value }. */
+function makeClickHandler(
+  ctx: { onItemClick?: (seriesKey: string, datum: any) => void },
+  seriesKey: string,
+) {
+  if (!ctx.onItemClick || !seriesKey) return undefined;
+  return (d: any) => {
+    const name = d?.name ?? d?.label ?? '';
+    const value = Number(d?.value ?? d?.valor ?? 0);
+    ctx.onItemClick!(seriesKey, { name: String(name), value, label: d?.label, valor: d?.valor });
+  };
 }
 
 const SERIES_LIKE = (s: any): { label: string; valor: number }[] => {
@@ -136,6 +155,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       <BarChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -151,6 +171,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       <HorizontalBarChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -193,7 +214,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <DonutChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+      <DonutChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
+      />
     ),
   },
   {
@@ -204,7 +229,11 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
     render: ({ title, mapping, ctx }) => (
-      <PieChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+      <PieChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
+      />
     ),
   },
   {
@@ -219,6 +248,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
         topN={Number(options?.topN ?? 10)}
+        onItemClick={makeClickHandler(ctx, mapping.series)}
       />
     ),
   },

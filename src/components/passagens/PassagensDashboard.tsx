@@ -1660,7 +1660,39 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 const node = def.render({
                   title: w.customTitle || w.title,
                   mapping: w.mapping ?? {},
-                  ctx: { kpis: kpiPayload, series: seriesPayload, rows: crossFiltered },
+                  ctx: {
+                    kpis: kpiPayload,
+                    series: seriesPayload,
+                    rows: crossFiltered,
+                    onItemClick: (seriesKey, datum) => {
+                      const name = String(datum?.name ?? datum?.label ?? '');
+                      if (!name) return;
+                      switch (seriesKey) {
+                        case 'evolucao_mensal':
+                          setSelectedMes((prev) => toggleItem(prev, name));
+                          break;
+                        case 'por_motivo':
+                          setSelectedMotivo((prev) => toggleItem(prev, name));
+                          break;
+                        case 'top_cidades_qtd':
+                        case 'top_cidades_valor':
+                        case 'top_destinos_valor':
+                          setSelectedDestino((prev) => toggleItem(prev, name));
+                          break;
+                        case 'top_uf_qtd':
+                        case 'top_uf_valor':
+                          setSelectedUF((prev) => toggleItem(prev, name.toUpperCase()));
+                          break;
+                        case 'top_cc':
+                        case 'top_cc_valor':
+                        case 'top_cc_qtd':
+                          setSelectedCC((prev) => toggleItem(prev, name));
+                          break;
+                        default:
+                          break;
+                      }
+                    },
+                  },
                   options: w.options ?? {},
                 });
                 return [w.type, node];
