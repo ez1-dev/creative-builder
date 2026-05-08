@@ -933,7 +933,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-cc') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-cc': (
+        <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Top {isMobile ? 10 : 15} Centros de Custo {selectedCC.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
             <ResponsiveContainer width="100%" height={isMobile ? 360 : isCompact ? 400 : 420}>
