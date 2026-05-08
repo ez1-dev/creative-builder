@@ -966,22 +966,24 @@ export default function EtlAdminPage() {
         <p className="text-sm text-muted-foreground">Carga incremental do ERP para a base analítica do Lovable Cloud.</p>
       </div>
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
           <TabsTrigger value="conexoes">Conexões</TabsTrigger>
           <TabsTrigger value="acoes">Ações</TabsTrigger>
-          <TabsTrigger value="validacao">Validação</TabsTrigger>
           <TabsTrigger value="fila">Fila Integrador</TabsTrigger>
           <TabsTrigger value="execucoes">Execuções</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="validacao">Validação ERP × BI</TabsTrigger>
+          <TabsTrigger value="config">Configuração BI</TabsTrigger>
         </TabsList>
         <TabsContent value="tarefas"><TarefasTab /></TabsContent>
         <TabsContent value="conexoes"><ConexoesTab /></TabsContent>
         <TabsContent value="acoes"><AcoesTab /></TabsContent>
-        <TabsContent value="validacao"><ValidacaoTab /></TabsContent>
         <TabsContent value="fila"><FilaTab /></TabsContent>
         <TabsContent value="execucoes"><ExecucoesTab onOpenLogs={(id) => { setExecId(id); setTab("logs"); }} /></TabsContent>
         <TabsContent value="logs"><LogsTab execId={execId} setExecId={setExecId} /></TabsContent>
+        <TabsContent value="validacao"><ValidacaoTab /></TabsContent>
+        <TabsContent value="config"><ConfiguracaoBiTab /></TabsContent>
       </Tabs>
     </div>
   );
