@@ -955,6 +955,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       )}
 
+      <PageDataProvider
+        pageKey="passagens-aereas"
+        kpis={kpiPayload}
+        series={seriesPayload}
+        rows={crossFiltered}
+      >
       <PassagensLayoutGrid
         widgets={effectiveWidgets}
         editing={editingLayout}
@@ -965,6 +971,23 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             next.add(type);
             return next;
           });
+        } : undefined}
+        configurableTypes={CONFIGURABLE_CANONICAL}
+        onConfigure={editingLayout ? (type) => setConfigureType(type) : undefined}
+        onDelete={editingLayout ? (type) => {
+          if (type.startsWith('custom-')) {
+            // Se for novo (ainda não persistido) — remove do pendingNewWidgets
+            const isNew = pendingNewWidgets.some((nw) => nw.type === type);
+            if (isNew) {
+              setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
+            } else {
+              setPendingDeletes((prev) => {
+                const next = new Set(prev);
+                next.add(type);
+                return next;
+              });
+            }
+          }
         } : undefined}
         blocks={{
           'kpis-row': (
