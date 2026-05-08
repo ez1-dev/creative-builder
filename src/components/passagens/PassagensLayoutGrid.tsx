@@ -226,6 +226,21 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+                {onHide && (
+                  <>
+                    <div className="h-4 w-px bg-border" />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-destructive hover:text-destructive"
+                      title="Ocultar bloco do dashboard"
+                      onClick={(e) => { e.stopPropagation(); onHide(w.type); }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
               </div>
             )}
             {blocks[w.type]}
