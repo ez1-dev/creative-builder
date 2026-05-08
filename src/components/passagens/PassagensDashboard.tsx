@@ -339,17 +339,30 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
 
   const groupOption = GROUP_OPTIONS.find((g) => g.value === groupBy)!;
   const grupos = useMemo(() => {
-    const map = new Map<string, { qtd: number; valor: number }>();
+    const map = new Map<string, { label: string; qtd: number; valor: number }>();
     crossFiltered.forEach((r) => {
-      const raw = (r as any)[groupBy];
-      const key = (typeof raw === 'string' ? raw.trim() : raw) || groupOption.empty;
-      const cur = map.get(key) ?? { qtd: 0, valor: 0 };
+      let key: string;
+      let label: string;
+      if (groupBy === 'cidade_destino') {
+        const raw = (r.destino ?? '').trim();
+        if (!raw) { key = groupOption.empty; label = groupOption.empty; }
+        else { key = nomeNormalizado(raw); label = raw; }
+      } else if (groupBy === 'uf_destino') {
+        const raw = (r.uf_destino ?? '').trim().toUpperCase();
+        key = raw || groupOption.empty;
+        label = key;
+      } else {
+        const raw = (r as any)[groupBy];
+        key = (typeof raw === 'string' ? raw.trim() : raw) || groupOption.empty;
+        label = key;
+      }
+      const cur = map.get(key) ?? { label, qtd: 0, valor: 0 };
       cur.qtd += 1;
       cur.valor += Number(r.valor || 0);
       map.set(key, cur);
     });
-    return Array.from(map.entries())
-      .map(([nome, v]) => ({ nome, ...v }))
+    return Array.from(map.values())
+      .map((v) => ({ nome: v.label, qtd: v.qtd, valor: v.valor }))
       .sort((a, b) => b.valor - a.valor);
   }, [crossFiltered, groupBy, groupOption.empty]);
   const gruposCount = grupos.length;
