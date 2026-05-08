@@ -420,29 +420,59 @@ function LogsTab({ execId, setExecId }: { execId: string; setExecId: (s: string)
 }
 
 // ---------- Validação ----------
+type Modulo = "compras" | "recebimentos";
+
+const TIPOS_DESPESA = [
+  { v: "MATERIA_PRIMA", l: "Matéria-prima" },
+  { v: "USO_CONSUMO", l: "Uso e consumo" },
+  { v: "DESPESAS_GERAIS", l: "Despesas gerais" },
+  { v: "SERVICOS", l: "Serviços" },
+];
+
+const TRANSACOES_NF = [
+  { v: "RECEBIMENTO", l: "Recebimento" },
+  { v: "DEVOLUCAO", l: "Devolução" },
+  { v: "ESTORNO", l: "Estorno" },
+  { v: "CANCELAMENTO", l: "Cancelamento" },
+];
+
 function ValidacaoTab() {
+  const [modulo, setModulo] = useState<Modulo>("compras");
   const [biCompras, setBiCompras] = useState<{ mes: string; qtd: number; total: number }[]>([]);
   const [biReceb, setBiReceb] = useState<{ mes: string; qtd: number; total: number }[]>([]);
   const [ultimasExec, setUltimasExec] = useState<Record<string, Execucao>>({});
+  const [ultimaCarga, setUltimaCarga] = useState<{ compras: string | null; receb: string | null }>({ compras: null, receb: null });
+  const [counts, setCounts] = useState<{ compras: number; receb: number }>({ compras: 0, receb: 0 });
   const [loading, setLoading] = useState(false);
+
   const [dataIni, setDataIni] = useState("2026-01-01");
   const [dataFim, setDataFim] = useState("2026-01-31");
-  const [tipoDespesa, setTipoDespesa] = useState<string>("");
-  const [projetoMacro, setProjetoMacro] = useState<string>("");
+  const [tipoDespesa, setTipoDespesa] = useState("");
+  const [projetoMacro, setProjetoMacro] = useState("");
+  const [projeto, setProjeto] = useState("");
+  const [centroCusto, setCentroCusto] = useState("");
+  const [fornecedor, setFornecedor] = useState("");
   const [somentePendentes, setSomentePendentes] = useState(false);
+  const [transacaoNf, setTransacaoNf] = useState("");
+
+  const [opcoes, setOpcoes] = useState<{
+    projetosMacro: string[]; projetos: { numero: string; nome: string | null }[];
+    centros: { codigo: string; descricao: string | null }[];
+    fornecedores: { codigo: string; nome: string | null }[];
+  }>({ projetosMacro: [], projetos: [], centros: [], fornecedores: [] });
+
   const [comparando, setComparando] = useState(false);
-  const [resultado, setResultado] = useState<{
-    compras?: ValidacaoResp;
-    receb?: ValidacaoResp;
-    erros?: { compras?: string; receb?: string };
-  }>({});
+  const [resultado, setResultado] = useState<{ resp?: ValidacaoResp; erro?: string }>({});
 
   const loadResumo = async () => {
     setLoading(true);
-    const [{ data: comp }, { data: rec }, { data: exec }] = await Promise.all([
-      supabase.from("bi_compras").select("mes_competencia, valor_liquido").not("mes_competencia", "is", null),
-      supabase.from("bi_recebimentos").select("mes_competencia, valor_liquido").not("mes_competencia", "is", null),
+    const [{ data: comp }, { data: rec }, { data: exec }, projs, centros, forns] = await Promise.all([
+      supabase.from("bi_compras").select("mes_competencia, valor_liquido, etl_updated_at, projeto_macro"),
+      supabase.from("bi_recebimentos").select("mes_competencia, valor_liquido, etl_updated_at"),
       supabase.from("etl_execucoes").select("*").order("iniciado_em", { ascending: false }).limit(50),
+      supabase.from("bi_projetos").select("numero_projeto, nome_projeto, projeto_macro").order("numero_projeto").limit(500),
+      supabase.from("bi_centros_custo").select("codigo, descricao").order("codigo").limit(500),
+      supabase.from("bi_fornecedores").select("codigo, nome").eq("ativo", true).order("nome").limit(500),
     ]);
     const agrupar = (rows: any[] | null) => {
       const map = new Map<string, { qtd: number; total: number }>();
@@ -454,18 +484,33 @@ function ValidacaoTab() {
         cur.total += Number(r.valor_liquido ?? 0);
         map.set(m, cur);
       });
-      return Array.from(map.entries())
-        .sort((a, b) => b[0].localeCompare(a[0]))
-        .slice(0, 6)
-        .map(([mes, v]) => ({ mes, ...v }));
+      return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6).map(([mes, v]) => ({ mes, ...v }));
     };
+    const maxEtl = (rows: any[] | null) =>
+      (rows ?? []).reduce((max: string | null, r: any) => {
+        const v = r.etl_updated_at as string | null;
+        if (!v) return max;
+        return !max || v > max ? v : max;
+      }, null as string | null);
+
     setBiCompras(agrupar(comp));
     setBiReceb(agrupar(rec));
+    setCounts({ compras: comp?.length ?? 0, receb: rec?.length ?? 0 });
+    setUltimaCarga({ compras: maxEtl(comp), receb: maxEtl(rec) });
+
     const lastByCode: Record<string, Execucao> = {};
     ((exec as any[]) ?? []).forEach((e: Execucao) => {
       if (!lastByCode[e.tarefa_codigo]) lastByCode[e.tarefa_codigo] = e;
     });
     setUltimasExec(lastByCode);
+
+    const macros = Array.from(new Set(((comp as any[]) ?? []).map(r => r.projeto_macro).filter(Boolean))) as string[];
+    setOpcoes({
+      projetosMacro: macros.sort(),
+      projetos: ((projs.data as any[]) ?? []).map(p => ({ numero: p.numero_projeto, nome: p.nome_projeto })),
+      centros: ((centros.data as any[]) ?? []).map(c => ({ codigo: c.codigo, descricao: c.descricao })),
+      fornecedores: ((forns.data as any[]) ?? []).map(f => ({ codigo: f.codigo, nome: f.nome })),
+    });
     setLoading(false);
   };
   useEffect(() => { loadResumo(); }, []);
@@ -474,114 +519,126 @@ function ValidacaoTab() {
     const f: Record<string, any> = { data_inicio: dataIni, data_fim: dataFim };
     if (tipoDespesa) f.tipo_despesa = tipoDespesa;
     if (projetoMacro) f.projeto_macro = projetoMacro;
-    if (somentePendentes) f.somente_pendentes = true;
+    if (projeto) f.projeto = projeto;
+    if (centroCusto) f.centro_custo = centroCusto;
+    if (fornecedor) f.fornecedor = fornecedor;
+    if (modulo === "compras" && somentePendentes) f.somente_pendentes = true;
+    if (modulo === "recebimentos" && transacaoNf) f.tipo_movimento = transacaoNf;
     return f;
   };
 
-  const compararComErp = async () => {
+  const validar = async () => {
     setComparando(true);
-    const params = filtros();
-    const [c, r] = await Promise.all([
-      api.get<ValidacaoResp>("/api/bi/validar-painel-compras", params).then(d => ({ ok: true, d } as const)).catch((e: any) => ({ ok: false, msg: e?.message ?? "Erro" } as const)),
-      api.get<ValidacaoResp>("/api/bi/validar-notas-recebimento", params).then(d => ({ ok: true, d } as const)).catch((e: any) => ({ ok: false, msg: e?.message ?? "Erro" } as const)),
-    ]);
-    setResultado({
-      compras: c.ok ? c.d : undefined,
-      receb: r.ok ? r.d : undefined,
-      erros: { compras: c.ok ? undefined : (c as any).msg, receb: r.ok ? undefined : (r as any).msg },
-    });
-    setComparando(false);
-    if (c.ok || r.ok) toast({ title: "Comparação concluída" });
+    setResultado({});
+    const endpoint = modulo === "compras" ? "/api/bi/validar-painel-compras" : "/api/bi/validar-notas-recebimento";
+    try {
+      const d = await api.get<ValidacaoResp>(endpoint, filtros());
+      setResultado({ resp: d });
+      toast({ title: "Comparação concluída" });
+    } catch (e: any) {
+      setResultado({ erro: e?.message ?? "Erro" });
+      toast({ title: "Falha ao validar", description: e?.message ?? "Erro", variant: "destructive" });
+    } finally {
+      setComparando(false);
+    }
   };
 
   const aplicarCasoObrigatorio = () => {
-    setDataIni("2026-01-01");
-    setDataFim("2026-01-31");
-    setTipoDespesa("MATERIA_PRIMA");
-    setProjetoMacro("");
-    setSomentePendentes(true);
+    setModulo("compras"); setDataIni("2026-01-01"); setDataFim("2026-01-31");
+    setTipoDespesa("MATERIA_PRIMA"); setProjetoMacro(""); setProjeto("");
+    setCentroCusto(""); setFornecedor(""); setSomentePendentes(true);
   };
 
-  const fmtMoney = (n: number) =>
-    Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtMoney = (n: number) => Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtNum = (n: number) => Number(n ?? 0).toLocaleString("pt-BR");
-
-  const diffPct = (bi: number, erp: number) => {
-    if (!erp) return bi === 0 ? 0 : 100;
-    return ((bi - erp) / erp) * 100;
-  };
-  const diffClass = (pct: number) => {
+  const diffPct = (bi: number, erp: number) => (!erp ? (bi === 0 ? 0 : 100) : ((bi - erp) / erp) * 100);
+  const diffClass = (diff: number, pct: number) => {
+    if (diff === 0) return "text-emerald-600";
     const a = Math.abs(pct);
-    if (a < 0.5) return "text-emerald-600";
     if (a < 2) return "text-amber-600";
     return "text-destructive";
   };
 
-  const renderDiffBlock = (label: string, resp: ValidacaoResp | undefined, erro: string | undefined) => {
+  const KEYS_COMPRAS = ["valor_bruto", "valor_liquido", "valor_pendente", "qtd_ocs", "qtd_itens", "qtd_fornecedores"];
+  const KEYS_RECEB = ["valor_bruto", "valor_liquido", "valor_total", "qtd_nfs", "qtd_itens", "qtd_fornecedores"];
+  const LABELS: Record<string, string> = {
+    valor_bruto: "Valor bruto", valor_liquido: "Valor líquido", valor_pendente: "Valor pendente",
+    valor_total: "Valor total", qtd_ocs: "Qtd documentos", qtd_nfs: "Qtd documentos",
+    qtd_itens: "Qtd itens", qtd_fornecedores: "Qtd fornecedores",
+  };
+
+  const renderResultado = () => {
+    if (resultado.erro) {
+      return <div className="text-sm text-destructive border border-destructive/30 rounded p-3">Endpoint indisponível: {resultado.erro}</div>;
+    }
+    if (!resultado.resp) {
+      return <div className="text-sm text-muted-foreground">Sem dados. Defina os filtros e clique em Validar.</div>;
+    }
+    const keys = modulo === "compras" ? KEYS_COMPRAS : KEYS_RECEB;
+    const isMoney = (k: string) => k.startsWith("valor");
     return (
-      <Card>
-        <CardHeader><CardTitle className="text-base">{label}</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {erro && (
-            <div className="text-xs text-destructive border border-destructive/30 rounded p-2">
-              Endpoint indisponível: {erro}
-            </div>
-          )}
-          {resp && (() => {
-            const keys = Object.keys(resp.erp ?? {});
-            const isMoney = (k: string) => k.startsWith("valor");
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Métrica</TableHead>
+            <TableHead className="text-right">ERP</TableHead>
+            <TableHead className="text-right">BI</TableHead>
+            <TableHead className="text-right">Diferença</TableHead>
+            <TableHead className="text-right">Diff %</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {keys.map(k => {
+            const erp = Number((resultado.resp!.erp as any)?.[k] ?? 0);
+            const bi = Number((resultado.resp!.bi as any)?.[k] ?? 0);
+            const diff = bi - erp;
+            const pct = diffPct(bi, erp);
+            const cls = diffClass(diff, pct);
             return (
-              <div className="grid grid-cols-4 gap-2 text-xs">
-                <div className="font-medium">Métrica</div>
-                <div className="font-medium">ERP</div>
-                <div className="font-medium">BI</div>
-                <div className="font-medium">Diff %</div>
-                {keys.map(k => {
-                  const erp = Number((resp.erp as any)?.[k] ?? 0);
-                  const bi = Number((resp.bi as any)?.[k] ?? 0);
-                  const pct = diffPct(bi, erp);
-                  return (
-                    <Fragment key={k}>
-                      <div className="font-mono">{k}</div>
-                      <div className="font-mono">{isMoney(k) ? fmtMoney(erp) : fmtNum(erp)}</div>
-                      <div className="font-mono">{isMoney(k) ? fmtMoney(bi) : fmtNum(bi)}</div>
-                      <div className={`font-mono font-semibold ${diffClass(pct)}`}>{pct.toFixed(2)}%</div>
-                    </Fragment>
-                  );
-                })}
-              </div>
+              <TableRow key={k}>
+                <TableCell className="font-medium">{LABELS[k] ?? k}</TableCell>
+                <TableCell className="text-right font-mono">{isMoney(k) ? fmtMoney(erp) : fmtNum(erp)}</TableCell>
+                <TableCell className="text-right font-mono">{isMoney(k) ? fmtMoney(bi) : fmtNum(bi)}</TableCell>
+                <TableCell className={`text-right font-mono ${cls}`}>{isMoney(k) ? fmtMoney(diff) : fmtNum(diff)}</TableCell>
+                <TableCell className={`text-right font-mono font-semibold ${cls}`}>{pct.toFixed(2)}%</TableCell>
+              </TableRow>
             );
-          })()}
-          {!resp && !erro && <div className="text-xs text-muted-foreground">Sem dados. Clique em Comparar.</div>}
-        </CardContent>
-      </Card>
+          })}
+        </TableBody>
+      </Table>
     );
   };
+
+  const baseVazia = (modulo === "compras" ? counts.compras : counts.receb) === 0;
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader><CardTitle>Status da camada analítica</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Esta aba é usada para validar a carga ETL <strong>antes</strong> de ligar
-            a flag <code className="font-mono">USE_BI_ANALYTICS</code> no backend.
-            Os dashboards atuais continuam lendo direto do ERP.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            {(["ATU_COMPRAS", "ATU_RECEBIMENTOS"] as const).map(code => {
-              const e = ultimasExec[code];
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {([
+              { code: "ATU_COMPRAS" as const, label: "bi_compras", count: counts.compras, ultima: ultimaCarga.compras },
+              { code: "ATU_RECEBIMENTOS" as const, label: "bi_recebimentos", count: counts.receb, ultima: ultimaCarga.receb },
+            ]).map(t => {
+              const e = ultimasExec[t.code];
               return (
-                <div key={code} className="border border-border rounded-md p-3">
-                  <div className="font-mono text-sm">{code}</div>
+                <div key={t.code} className="border border-border rounded-md p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="font-mono text-sm">{t.code}</div>
+                    {t.count === 0 && <Badge variant="secondary" className="bg-amber-500/20 text-amber-700 dark:text-amber-300">Vazia</Badge>}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {t.label}: <span className="font-mono">{fmtNum(t.count)}</span> linhas •
+                    Última carga: <span className="font-mono">{fmtDate(t.ultima)}</span>
+                  </div>
                   {e ? (
-                    <div className="text-xs text-muted-foreground space-y-1 mt-1">
-                      <div>Última: {fmtDate(e.iniciado_em)} <StatusBadge status={e.status} /></div>
-                      <div>Lidas {e.linhas_lidas ?? 0} • Ins {e.linhas_inseridas ?? 0} • Atu {e.linhas_atualizadas ?? 0}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Última execução: {fmtDate(e.iniciado_em)} <StatusBadge status={e.status} />
                       {e.erro_resumo && <div className="text-destructive">{e.erro_resumo}</div>}
                     </div>
                   ) : (
-                    <div className="text-xs text-muted-foreground mt-1">Nenhuma execução registrada</div>
+                    <div className="text-xs text-muted-foreground">Nenhuma execução registrada</div>
                   )}
                 </div>
               );
@@ -593,7 +650,111 @@ function ValidacaoTab() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4">
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <CardTitle>Validação ERP × BI</CardTitle>
+          <Button variant="outline" size="sm" onClick={aplicarCasoObrigatorio}>
+            Caso obrigatório (jan/2026, Matéria-prima, pendentes)
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Compara <strong>ERP atual</strong> com <strong>base analítica</strong> via <code className="font-mono">/api/bi/validar-*</code>.
+            Os dashboards principais continuam intocados.
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <Label>Módulo</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={modulo} onChange={e => { setModulo(e.target.value as Modulo); setResultado({}); }}>
+                <option value="compras">Painel de Compras</option>
+                <option value="recebimentos">Notas Fiscais de Recebimento</option>
+              </select>
+            </div>
+            <div><Label>Data início</Label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
+            <div><Label>Data fim</Label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
+            <div>
+              <Label>Tipo despesa</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={tipoDespesa} onChange={e => setTipoDespesa(e.target.value)}>
+                <option value="">Todos</option>
+                {TIPOS_DESPESA.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Projeto macro</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={projetoMacro} onChange={e => setProjetoMacro(e.target.value)}>
+                <option value="">Todos</option>
+                {opcoes.projetosMacro.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Projeto</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={projeto} onChange={e => setProjeto(e.target.value)}>
+                <option value="">Todos</option>
+                {opcoes.projetos.map(p => <option key={p.numero} value={p.numero}>{p.numero} {p.nome ? `— ${p.nome}` : ""}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Centro de custo</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={centroCusto} onChange={e => setCentroCusto(e.target.value)}>
+                <option value="">Todos</option>
+                {opcoes.centros.map(c => <option key={c.codigo} value={c.codigo}>{c.codigo} {c.descricao ? `— ${c.descricao}` : ""}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>Fornecedor</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={fornecedor} onChange={e => setFornecedor(e.target.value)}>
+                <option value="">Todos</option>
+                {opcoes.fornecedores.map(f => <option key={f.codigo} value={f.codigo}>{f.codigo} {f.nome ? `— ${f.nome}` : ""}</option>)}
+              </select>
+            </div>
+            {modulo === "compras" ? (
+              <div className="flex items-end gap-2">
+                <Switch checked={somentePendentes} onCheckedChange={setSomentePendentes} />
+                <Label className="text-xs">Somente pendentes</Label>
+              </div>
+            ) : (
+              <div>
+                <Label>Transação NF</Label>
+                <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                  value={transacaoNf} onChange={e => setTransacaoNf(e.target.value)}>
+                  <option value="">Todas</option>
+                  {TRANSACOES_NF.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {baseVazia && (
+            <div className="text-xs text-amber-700 dark:text-amber-300 border border-amber-500/30 bg-amber-500/10 rounded p-2">
+              Base <code className="font-mono">{modulo === "compras" ? "bi_compras" : "bi_recebimentos"}</code> ainda não populada.
+              Execute o ETL na aba <strong>Ações</strong> antes de validar.
+            </div>
+          )}
+
+          <div>
+            <Button onClick={validar} disabled={comparando}>
+              <Play className="h-4 w-4 mr-1" />{comparando ? "Validando..." : "Validar"}
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            <span className="text-emerald-600 font-medium">Verde</span> = igual •
+            <span className="text-amber-600 font-medium"> amarelo</span> &lt; 2% •
+            <span className="text-destructive font-medium"> vermelho</span> ≥ 2%.
+          </p>
+
+          {renderResultado()}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-base">bi_compras — últimos meses</CardTitle></CardHeader>
           <CardContent>
@@ -623,59 +784,170 @@ function ValidacaoTab() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
 
+// ---------- Configuração BI ----------
+type ConfigRow = { chave: string; valor: string; descricao: string | null; atualizado_em: string; atualizado_por: string | null };
+
+function ConfiguracaoBiTab() {
+  const [rows, setRows] = useState<Record<string, ConfigRow>>({});
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState<string | null>(null);
+  const [counts, setCounts] = useState<{ compras: number; receb: number }>({ compras: 0, receb: 0 });
+  const [ultimasExec, setUltimasExec] = useState<Record<string, Execucao>>({});
+  const [ttlDraft, setTtlDraft] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    const [{ data: cfg }, { count: cCompras }, { count: cReceb }, { data: exec }] = await Promise.all([
+      supabase.from("etl_configuracoes_bi").select("*"),
+      supabase.from("bi_compras").select("*", { count: "exact", head: true }),
+      supabase.from("bi_recebimentos").select("*", { count: "exact", head: true }),
+      supabase.from("etl_execucoes").select("*").order("iniciado_em", { ascending: false }).limit(50),
+    ]);
+    const map: Record<string, ConfigRow> = {};
+    ((cfg as any[]) ?? []).forEach(r => { map[r.chave] = r; });
+    setRows(map);
+    setTtlDraft(map.DASHBOARD_CACHE_TTL_MINUTES?.valor ?? "5");
+    setCounts({ compras: cCompras ?? 0, receb: cReceb ?? 0 });
+    const last: Record<string, Execucao> = {};
+    ((exec as any[]) ?? []).forEach((e: Execucao) => { if (!last[e.tarefa_codigo]) last[e.tarefa_codigo] = e; });
+    setUltimasExec(last);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const salvar = async (chave: string, valor: string, descricao?: string) => {
+    setSaving(chave);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("etl_configuracoes_bi").upsert({
+      chave, valor, descricao: descricao ?? rows[chave]?.descricao ?? null,
+      atualizado_por: user?.id ?? null, atualizado_em: new Date().toISOString(),
+    }, { onConflict: "chave" });
+    setSaving(null);
+    if (error) {
+      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Configuração salva", description: `${chave} = ${valor}` });
+    load();
+  };
+
+  const get = (k: string) => rows[k]?.valor;
+  const isOn = (k: string) => get(k) === "true";
+
+  const FlagRow = ({ chave, label, descricao, disabled, warn }: { chave: string; label: string; descricao: string; disabled?: boolean; warn?: string }) => (
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-border last:border-0">
+      <div className="space-y-1">
+        <div className="font-medium text-sm">{label}</div>
+        <div className="text-xs text-muted-foreground">{descricao}</div>
+        <div className="text-xs font-mono text-muted-foreground">{chave}</div>
+        {warn && <div className="text-xs text-amber-700 dark:text-amber-300">{warn}</div>}
+        {rows[chave] && (
+          <div className="text-xs text-muted-foreground">Atualizado em {fmtDate(rows[chave].atualizado_em)}</div>
+        )}
+      </div>
+      <Switch
+        checked={isOn(chave)}
+        onCheckedChange={(v) => salvar(chave, v ? "true" : "false")}
+        disabled={disabled || saving === chave}
+      />
+    </div>
+  );
+
+  const compEmpty = counts.compras === 0;
+  const recEmpty = counts.receb === 0;
+
+  return (
+    <div className="space-y-4">
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-3">
-          <CardTitle>Comparar ERP × BI (shadow mode)</CardTitle>
-          <Button variant="outline" size="sm" onClick={aplicarCasoObrigatorio}>
-            Caso obrigatório (jan/2026, Matéria-prima, pendentes)
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Configuração do BI Analítico</CardTitle>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className="h-4 w-4 mr-1" />Atualizar
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <p className="text-xs text-muted-foreground">
-            Consome <code className="font-mono">/api/bi/validar-painel-compras</code> e <code className="font-mono">/api/bi/validar-notas-recebimento</code> no FastAPI.
-            Cada endpoint roda os mesmos filtros nas duas fontes e devolve ERP × BI lado a lado. Os dashboards principais continuam intocados.
+            Estas chaves vivem em <code className="font-mono">etl_configuracoes_bi</code> e são lidas pelo backend FastAPI a cada requisição
+            (cache curto). Mudanças têm efeito imediato. Apenas administradores podem alterar.
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div><Label>Data início</Label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
-            <div><Label>Data fim</Label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
-            <div>
-              <Label>Tipo despesa</Label>
-              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
-                value={tipoDespesa} onChange={e => setTipoDespesa(e.target.value)}>
-                <option value="">Todos</option>
-                <option value="MATERIA_PRIMA">Matéria-prima</option>
-                <option value="USO_CONSUMO">Uso e consumo</option>
-                <option value="DESPESAS_GERAIS">Despesas gerais</option>
-                <option value="SERVICOS">Serviços</option>
-              </select>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Cutover dos dashboards</CardTitle></CardHeader>
+          <CardContent>
+            <FlagRow
+              chave="USE_BI_ANALYTICS_COMPRAS"
+              label="BI Analítico — Painel de Compras"
+              descricao={`Quando ligado, /api/painel-compras* lê de bi_compras. Linhas atuais: ${counts.compras.toLocaleString("pt-BR")}.`}
+              warn={compEmpty ? "Base bi_compras está vazia. Rode ATU_COMPRAS antes de ligar." : undefined}
+            />
+            <FlagRow
+              chave="USE_BI_ANALYTICS_RECEBIMENTOS"
+              label="BI Analítico — Notas de Recebimento"
+              descricao={`Quando ligado, /api/notas-recebimento* lê de bi_recebimentos. Linhas atuais: ${counts.receb.toLocaleString("pt-BR")}.`}
+              warn={recEmpty ? "Base bi_recebimentos está vazia. Rode ATU_RECEBIMENTOS antes de ligar." : undefined}
+            />
+            <FlagRow
+              chave="FALLBACK_TO_ERP_WHEN_BI_EMPTY"
+              label="Fallback para ERP se BI vazio"
+              descricao="Se BI estiver vazio, cai pro ERP. Desligado = retorna HTTP 409."
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Cache de dashboards</CardTitle></CardHeader>
+          <CardContent>
+            <FlagRow
+              chave="USE_DASHBOARD_CACHE"
+              label="Habilitar cache"
+              descricao="Quando ligado, dashboards consultam dashboard_cache antes de recomputar."
+            />
+            <div className="flex items-end gap-2 pt-3">
+              <div className="flex-1">
+                <Label>TTL (minutos)</Label>
+                <Input type="number" min={1} value={ttlDraft} onChange={e => setTtlDraft(e.target.value)} />
+                <div className="text-xs font-mono text-muted-foreground mt-1">DASHBOARD_CACHE_TTL_MINUTES</div>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => salvar("DASHBOARD_CACHE_TTL_MINUTES", String(Math.max(1, parseInt(ttlDraft || "5", 10))))}
+                disabled={saving === "DASHBOARD_CACHE_TTL_MINUTES"}
+              >
+                Salvar TTL
+              </Button>
             </div>
-            <div>
-              <Label>Projeto macro</Label>
-              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
-                value={projetoMacro} onChange={e => setProjetoMacro(e.target.value)}>
-                <option value="">Todos</option>
-                <option value="GENIUS">GENIUS</option>
-                <option value="ESTRUTURAL ZORTEA">ESTRUTURAL ZORTEA</option>
-                <option value="OUTROS">OUTROS</option>
-              </select>
-            </div>
-            <div className="flex items-end gap-2">
-              <Switch checked={somentePendentes} onCheckedChange={setSomentePendentes} />
-              <Label className="text-xs">Somente pendentes</Label>
-            </div>
-          </div>
-          <div>
-            <Button onClick={compararComErp} disabled={comparando}><Play className="h-4 w-4 mr-1" />Comparar</Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Tolerância: <span className="text-emerald-600 font-medium">verde &lt; 0,5%</span> •
-            <span className="text-amber-600 font-medium"> amarelo &lt; 2%</span> •
-            <span className="text-destructive font-medium"> vermelho ≥ 2%</span>.
-          </p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {renderDiffBlock("Compras (validar-painel-compras)", resultado.compras, resultado.erros?.compras)}
-            {renderDiffBlock("Recebimentos (validar-notas-recebimento)", resultado.receb, resultado.erros?.receb)}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Status das tarefas ETL</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(["ATU_COMPRAS", "ATU_RECEBIMENTOS"] as const).map(code => {
+              const e = ultimasExec[code];
+              return (
+                <div key={code} className="border border-border rounded-md p-3 space-y-1">
+                  <div className="font-mono text-sm">{code}</div>
+                  {e ? (
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div>Última: {fmtDate(e.iniciado_em)} <StatusBadge status={e.status} /></div>
+                      <div>Lidas {e.linhas_lidas ?? 0} • Ins {e.linhas_inseridas ?? 0} • Atu {e.linhas_atualizadas ?? 0}</div>
+                      {e.erro_resumo && <div className="text-destructive">{e.erro_resumo}</div>}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Nenhuma execução registrada</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -694,22 +966,24 @@ export default function EtlAdminPage() {
         <p className="text-sm text-muted-foreground">Carga incremental do ERP para a base analítica do Lovable Cloud.</p>
       </div>
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="tarefas">Tarefas</TabsTrigger>
           <TabsTrigger value="conexoes">Conexões</TabsTrigger>
           <TabsTrigger value="acoes">Ações</TabsTrigger>
-          <TabsTrigger value="validacao">Validação</TabsTrigger>
           <TabsTrigger value="fila">Fila Integrador</TabsTrigger>
           <TabsTrigger value="execucoes">Execuções</TabsTrigger>
           <TabsTrigger value="logs">Logs</TabsTrigger>
+          <TabsTrigger value="validacao">Validação ERP × BI</TabsTrigger>
+          <TabsTrigger value="config">Configuração BI</TabsTrigger>
         </TabsList>
         <TabsContent value="tarefas"><TarefasTab /></TabsContent>
         <TabsContent value="conexoes"><ConexoesTab /></TabsContent>
         <TabsContent value="acoes"><AcoesTab /></TabsContent>
-        <TabsContent value="validacao"><ValidacaoTab /></TabsContent>
         <TabsContent value="fila"><FilaTab /></TabsContent>
         <TabsContent value="execucoes"><ExecucoesTab onOpenLogs={(id) => { setExecId(id); setTab("logs"); }} /></TabsContent>
         <TabsContent value="logs"><LogsTab execId={execId} setExecId={setExecId} /></TabsContent>
+        <TabsContent value="validacao"><ValidacaoTab /></TabsContent>
+        <TabsContent value="config"><ConfiguracaoBiTab /></TabsContent>
       </Tabs>
     </div>
   );

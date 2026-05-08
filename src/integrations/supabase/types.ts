@@ -595,6 +595,30 @@ export type Database = {
         }
         Relationships: []
       }
+      etl_configuracoes_bi: {
+        Row: {
+          atualizado_em: string
+          atualizado_por: string | null
+          chave: string
+          descricao: string | null
+          valor: string
+        }
+        Insert: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave: string
+          descricao?: string | null
+          valor: string
+        }
+        Update: {
+          atualizado_em?: string
+          atualizado_por?: string | null
+          chave?: string
+          descricao?: string | null
+          valor?: string
+        }
+        Relationships: []
+      }
       etl_execucoes: {
         Row: {
           acionado_por: string

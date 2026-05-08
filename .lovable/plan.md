@@ -1,104 +1,95 @@
+## Central de Controle do ETL e BI Analítico — `/etl`
 
-# Shadow mode: endpoints BI paralelos + aba Validação consumindo `/api/bi/validar-*`
+Evoluir a página `/etl` para ser a Central de Controle, com 8 abas: Tarefas, Conexões, Ações, Fila Integrador, Execuções, Logs (já existem) + reformulação completa de **Validação ERP × BI** + nova aba **Configuração BI**.
 
-Não vamos trocar nenhum dashboard agora. A flag `USE_BI_ANALYTICS` fica para depois. Esta etapa cria endpoints **paralelos** `/api/bi/*` (lendo só `bi_compras`/`bi_recebimentos`) e endpoints de comparação `/api/bi/validar-*`. O frontend ganha uma aba Validação que consome esses endpoints e mostra ERP × BI lado a lado.
+### 1. Migração — nova tabela `etl_configuracoes_bi`
 
----
-
-## 1. Backend FastAPI (fora do Lovable, lista de tarefas para o time)
-
-Criar, **sem alterar** os endpoints atuais:
-
-| Novo endpoint                              | Fonte             | Espelha contrato de                          |
-|--------------------------------------------|-------------------|----------------------------------------------|
-| `GET /api/bi/painel-compras`               | `bi_compras`      | `/api/painel-compras`                        |
-| `GET /api/bi/painel-compras-dashboard`     | `bi_compras`      | `/api/painel-compras-dashboard`              |
-| `GET /api/bi/notas-recebimento`            | `bi_recebimentos` | `/api/notas-recebimento`                     |
-| `GET /api/bi/notas-recebimento-dashboard`  | `bi_recebimentos` | `/api/notas-recebimento-dashboard`           |
-| `GET /api/export/bi/painel-compras`        | `bi_compras`      | `/api/export/painel-compras`                 |
-| `GET /api/export/bi/notas-recebimento`     | `bi_recebimentos` | `/api/export/notas-recebimento`              |
-| `GET /api/bi/validar-painel-compras`       | ambas             | resposta `{erp, bi, diferencas, filtros}`    |
-| `GET /api/bi/validar-notas-recebimento`    | ambas             | idem                                         |
-
-Endpoints legacy continuam intocados, lendo do ERP.
-
-### Contrato dos `/api/bi/validar-*`
-
-Aceitam os mesmos query params do dashboard correspondente (`data_inicio`, `data_fim`, `tipo_despesa`, `somente_pendentes`, `fornecedor`, `projeto_macro`, etc.) e devolvem:
-
-```json
-{
-  "filtros": { "...": "..." },
-  "erp": { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0,
-           "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 },
-  "bi":  { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0,
-           "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 },
-  "diferencas": { "valor_bruto": 0, "valor_liquido": 0, "valor_pendente": 0,
-                  "qtd_ocs": 0, "qtd_itens": 0, "qtd_fornecedores": 0 }
-}
+```sql
+CREATE TABLE public.etl_configuracoes_bi (
+  chave text PRIMARY KEY,
+  valor text NOT NULL,
+  descricao text,
+  atualizado_em timestamptz NOT NULL DEFAULT now(),
+  atualizado_por uuid
+);
+ALTER TABLE public.etl_configuracoes_bi ENABLE ROW LEVEL SECURITY;
+-- Admins gerenciam; autenticados leem (backend usa service role)
+CREATE POLICY "Admins manage etl_config_bi" ON public.etl_configuracoes_bi
+  FOR ALL TO authenticated USING (is_admin(auth.uid())) WITH CHECK (is_admin(auth.uid()));
+CREATE POLICY "Authenticated read etl_config_bi" ON public.etl_configuracoes_bi
+  FOR SELECT TO authenticated USING (true);
 ```
 
-Para recebimentos: trocar `valor_pendente`/`qtd_ocs` por `valor_total`/`qtd_nfs`. Regra: `diferencas[k] = bi[k] - erp[k]`.
+Seeds iniciais (todos com `valor='false'` ou padrão seguro):
+- `USE_BI_ANALYTICS_COMPRAS` = `false`
+- `USE_BI_ANALYTICS_RECEBIMENTOS` = `false`
+- `USE_DASHBOARD_CACHE` = `false`
+- `DASHBOARD_CACHE_TTL_MINUTES` = `5`
+- `FALLBACK_TO_ERP_WHEN_BI_EMPTY` = `true`
 
-### Caso obrigatório de validação
+### 2. Reformular aba **Validação ERP × BI** (`ValidacaoTab`)
+
+Nova UI com seletor de **Módulo** (Compras / Recebimentos) + filtros completos:
 
 ```
-?data_inicio=2026-01-01&data_fim=2026-01-31&tipo_despesa=MATERIA_PRIMA&somente_pendentes=true
+[Módulo: Compras ▾] [Período ini] [Período fim]
+[Projeto macro ▾] [Projeto] [Centro de custo] [Tipo despesa ▾] [Fornecedor]
+[Somente pendentes] (compras) | [Transação NF ▾] (recebimentos)
+[Validar]
 ```
 
-Os 6 KPIs precisam bater ou ter divergência explicável.
+- Combos `Projeto macro`, `Projeto`, `Centro de custo`, `Fornecedor` populados a partir das tabelas `bi_projetos`, `bi_centros_custo`, `bi_fornecedores`.
+- Ao clicar **Validar**, chama:
+  - `GET /api/bi/validar-painel-compras` (Compras)
+  - `GET /api/bi/validar-notas-recebimento` (Recebimentos)
+- Renderiza 3 colunas lado a lado: **ERP**, **BI**, **Diferença**, com 6 linhas (valor bruto, líquido, pendente, qtd documentos, itens, fornecedores). Para recebimentos: `valor_pendente`→`valor_total`, `qtd_ocs`→`qtd_nfs`.
+- Indicadores: verde se diff = 0, amarelo se |diff%| < 2%, vermelho ≥ 2%.
+- Mantém o painel "Status da camada analítica" (última execução de `ATU_COMPRAS`/`ATU_RECEBIMENTOS` + tabelas `bi_compras`/`bi_recebimentos` últimos meses). Adiciona **data da última carga ETL** por tabela (max `etl_updated_at`).
+- Aviso amarelo se `bi_compras` ou `bi_recebimentos` estiver vazia, com link para a aba Ações.
 
----
+### 3. Nova aba **Configuração BI** (`ConfiguracaoBiTab`)
 
-## 2. Mudanças no Lovable (este loop, modo build)
+Lê e grava `etl_configuracoes_bi`. Layout em cards:
 
-### 2.1 `docs/backend-etl-bi.md`
+**Cutover dos dashboards**
+- Switch `USE_BI_ANALYTICS_COMPRAS`
+- Switch `USE_BI_ANALYTICS_RECEBIMENTOS`
+- Switch `FALLBACK_TO_ERP_WHEN_BI_EMPTY`
 
-Adicionar seção **"Shadow mode — endpoints `/api/bi/*` paralelos"** com:
-- Tabela dos 8 endpoints novos.
-- Contrato dos `/api/bi/validar-*` (JSON acima).
-- Caso obrigatório de validação (Matéria-prima + somente pendentes).
-- Ordem do cutover faseado pós-validação: dashboards → listas → exports → watermark, mantendo fallback ERP por 7 dias.
+**Cache de dashboards**
+- Switch `USE_DASHBOARD_CACHE`
+- Input numérico `DASHBOARD_CACHE_TTL_MINUTES`
 
-### 2.2 `src/pages/EtlAdminPage.tsx` — aba Validação
+**Status**
+- Para cada flag de cutover: mostra contagem de linhas e última carga da tabela correspondente; bloqueia ativação com aviso se a base estiver vazia.
+- Mostra "Última execução" das tarefas `ATU_COMPRAS` / `ATU_RECEBIMENTOS`.
 
-Refatorar a aba **Validação** (que hoje compara `bi_*` direto via supabase-js × dashboards atuais) para passar a consumir `/api/bi/validar-painel-compras` e `/api/bi/validar-notas-recebimento`. Vantagens: a aritmética (qtd_ocs distinct, qtd_fornecedores distinct, somente_pendentes) fica no FastAPI usando o mesmo motor de filtros, evitando reimplementar lógica no frontend.
+Cada `Switch`/`Input` faz `upsert` em `etl_configuracoes_bi` com `atualizado_por = auth.uid()`. Apenas admins editam (RLS); o backend FastAPI consulta a tabela via service role para decidir a fonte (em vez da env var `USE_BI_ANALYTICS`).
 
-Mudanças concretas:
-- Trocar `compararComErp` por `Promise.all` chamando `api.get('/api/bi/validar-painel-compras', filtros)` e `api.get('/api/bi/validar-notas-recebimento', filtros)`.
-- Adicionar campos de filtro extras no formulário: `tipo_despesa` (select MATERIA_PRIMA/USO_CONSUMO/DESPESAS_GERAIS/SERVICOS/—), `somente_pendentes` (switch), `projeto_macro` (select GENIUS/ESTRUTURAL ZORTEA/OUTROS/—).
-- Renderizar tabela 3 colunas (ERP / BI / Diff) com os 6 KPIs, sinalizados verde (<0,5%) / amarelo (<2%) / vermelho (≥2%).
-- Botão de atalho "Caso obrigatório (jan/2026, Matéria-prima, pendentes)" que preenche os filtros.
-- Manter os 2 cards "bi_compras / bi_recebimentos — últimos meses" lendo direto do Cloud (úteis para ver se o ETL populou).
-- Manter os cards de "Última execução" por tarefa.
-- Tratar resposta de erro do FastAPI (404/500) com mensagem amigável "Endpoint /api/bi/validar-* não disponível ainda no backend".
+Toast informativo: "Configuração salva. O backend lê esse valor a cada requisição — efeito imediato após próximo refresh dos endpoints."
 
-### 2.3 Sem mudança em outros lugares
+### 4. Reordenar tabs
 
-- `useDashboardData`, `PainelComprasPage`, `NotasRecebimentoPage`, exportações: **não tocar**. Continuam usando os endpoints atuais.
-- Nenhuma migração no Cloud.
-- Sem flag `USE_BI_ANALYTICS` no frontend ainda — ela vive só no backend e só é ligada na próxima fase.
+```
+Tarefas | Conexões | Ações | Fila Integrador | Execuções | Logs | Validação ERP × BI | Configuração BI
+```
 
----
+### 5. Atualizar `docs/backend-etl-bi.md`
 
-## 3. Sequência operacional (depois do build)
+Substituir a seção "Feature flag `USE_BI_ANALYTICS`" por:
+- Backend lê flags da tabela `etl_configuracoes_bi` (cache em memória 30s).
+- Mapeamento: `USE_BI_ANALYTICS_COMPRAS` → `/api/painel-compras*`; `USE_BI_ANALYTICS_RECEBIMENTOS` → `/api/notas-recebimento*`; `FALLBACK_TO_ERP_WHEN_BI_EMPTY` controla se cai pro ERP ou retorna 409 quando `bi_*` vazia; `USE_DASHBOARD_CACHE` + `DASHBOARD_CACHE_TTL_MINUTES` controlam `dashboard_cache`.
+- Frontend NÃO troca dashboards — só a flag controla. Endpoints atuais permanecem.
 
-1. Time do FastAPI implanta os 8 endpoints novos.
-2. Disparar via aba `/etl` → Ações:
-   - `ATU_COMPRAS` 2026-01-01 → 2026-01-31.
-   - `ATU_RECEBIMENTOS` 2026-01-01 → 2026-01-31.
-3. Conferir contagens em `/etl` → Validação (cards mensais).
-4. Rodar o caso obrigatório (botão de atalho) e checar os 6 KPIs.
-5. Se diff ≤ 0,5% em 2 janelas: marcar fase 1 do cutover como pronta (próximo loop liga a flag, começando pelos endpoints `*-dashboard`).
-6. Se diff > 0,5%: abrir tarefa de correção (geralmente projeto_macro, tipo_despesa_calc ou filtro `somente_pendentes` divergindo).
+### 6. Memória
 
----
+Atualizar `mem://features/etl-bi.md` para registrar:
+- Flags vivem em `etl_configuracoes_bi` (Cloud), não em env var.
+- Página `/etl` é a Central de Controle com 8 abas.
 
-## 4. O que NÃO fazer neste loop
+### Detalhes técnicos
 
-- Não trocar `/api/painel-compras` nem `/api/notas-recebimento` para `bi_*`.
-- Não remover queries do ERP.
-- Não ligar `USE_BI_ANALYTICS`.
-- Não mexer em exportações dos painéis.
-- Não criar edge function: tudo isso vive no FastAPI externo, não no Lovable Cloud.
-
+- Componentes existentes (`Switch`, `Tabs`, `Table`, `Input`, `Label`, `Card`, `Button`) cobrem tudo — sem novas libs.
+- Acesso à `/etl` já é restrito a admins (RLS bloqueia escrita de qualquer forma).
+- O frontend nunca chama o ERP direto: a comparação ERP × BI é feita pelo FastAPI nos endpoints `/api/bi/validar-*`.
+- Sem mudança nos endpoints de dashboard atuais. O cutover é controlado 100% pela aba Configuração BI.
