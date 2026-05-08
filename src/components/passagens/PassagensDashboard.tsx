@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { VisualGate } from '@/components/VisualGate';
+import { useUserVisuals } from '@/hooks/useUserVisuals';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
