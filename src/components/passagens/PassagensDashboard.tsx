@@ -1636,7 +1636,56 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </CardContent>
       </Card>
           ),
+          // Renderiza overrides de blocos canônicos com componentId customizado
+          // e blocos custom-* novos via COMPONENT_REGISTRY
+          ...Object.fromEntries(
+            effectiveWidgets
+              .filter((w) => Boolean(w.componentId))
+              .map((w) => {
+                const def = getComponent(w.componentId!);
+                if (!def) return [w.type, null];
+                const node = def.render({
+                  title: w.customTitle || w.title,
+                  mapping: w.mapping ?? {},
+                  ctx: { kpis: kpiPayload, series: seriesPayload, rows: crossFiltered },
+                  options: w.options ?? {},
+                });
+                return [w.type, node];
+              }),
+          ),
         }}
+      />
+      </PageDataProvider>
+
+      {configureTarget && (
+        <ConfigureChartDialog
+          open={Boolean(configureType)}
+          onOpenChange={(v) => { if (!v) setConfigureType(null); }}
+          initial={configureTarget.initial}
+          blockType={configureType ?? ''}
+          fallbackTitle={configureTarget.widget?.title}
+          canResetToDefault={configureType ? CONFIGURABLE_CANONICAL.includes(configureType) : false}
+          onApply={(next) => {
+            if (!configureType) return;
+            const t = configureType;
+            setPendingConfig((prev) => ({ ...prev, [t]: next }));
+            setPendingNewWidgets((prev) => prev.map((nw) =>
+              nw.type === t
+                ? { ...nw, componentId: next.componentId, mapping: next.mapping, options: next.options, title: next.customTitle || nw.title }
+                : nw,
+            ));
+          }}
+          onResetToDefault={() => {
+            if (!configureType) return;
+            const t = configureType;
+            setPendingConfig((prev) => ({ ...prev, [t]: null }));
+          }}
+        />
+      )}
+      <AddChartDialog
+        open={addChartOpen}
+        onOpenChange={setAddChartOpen}
+        onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
       />
 
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
