@@ -48,9 +48,28 @@ export interface BiComponentDef {
   render: (args: {
     title?: string;
     mapping: Record<string, string>;
-    ctx: { kpis: Record<string, any>; series: Record<string, any>; rows: any[] };
+    ctx: {
+      kpis: Record<string, any>;
+      series: Record<string, any>;
+      rows: any[];
+      /** Callback opcional disparado ao clicar em um item de chart. seriesKey identifica a série mapeada. */
+      onItemClick?: (seriesKey: string, datum: { name: string; value: number; label?: string; valor?: number }) => void;
+    };
     options: Record<string, any>;
   }) => ReactNode;
+}
+
+/** Helper interno: monta o handler de clique a partir do ctx, normalizando datum para { name, value }. */
+function makeClickHandler(
+  ctx: { onItemClick?: (seriesKey: string, datum: any) => void },
+  seriesKey: string,
+) {
+  if (!ctx.onItemClick || !seriesKey) return undefined;
+  return (d: any) => {
+    const name = d?.name ?? d?.label ?? '';
+    const value = Number(d?.value ?? d?.valor ?? 0);
+    ctx.onItemClick!(seriesKey, { name: String(name), value, label: d?.label, valor: d?.valor });
+  };
 }
 
 const SERIES_LIKE = (s: any): { label: string; valor: number }[] => {
