@@ -3,6 +3,7 @@ import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { LogOut, ShieldAlert } from 'lucide-react';
+import AppLoadingScreen from '@/components/AppLoadingScreen';
 
 // Rotas que mostram a própria UI de "sem permissão" em vez de redirecionar.
 const SELF_HANDLED_FORBIDDEN = new Set<string>(['/gestao-sgu-usuarios']);
@@ -31,8 +32,11 @@ function NoAccessScreen() {
 }
 
 export function ProtectedRoute({ path, children }: { path: string; children: React.ReactNode }) {
-  const { canView, loading, hasPermissions, firstAllowedPath } = useUserPermissions();
-  if (loading) return null;
+  const { canView, loading, hasPermissions, firstAllowedPath, isAdmin } = useUserPermissions();
+  if (loading) return <AppLoadingScreen label="Carregando permissões…" />;
+
+  // Admin sempre passa, mesmo que o catálogo de permissões tenha vindo vazio por algum motivo.
+  if (isAdmin) return <>{children}</>;
 
   if (!hasPermissions) {
     if (SELF_HANDLED_FORBIDDEN.has(path)) return <>{children}</>;
@@ -52,8 +56,9 @@ export function ProtectedRoute({ path, children }: { path: string; children: Rea
 
 /** Componente para a rota raiz "/" — manda para a primeira tela permitida do usuário. */
 export function PostLoginRedirect() {
-  const { loading, firstAllowedPath, hasPermissions } = useUserPermissions();
-  if (loading) return null;
+  const { loading, firstAllowedPath, hasPermissions, isAdmin } = useUserPermissions();
+  if (loading) return <AppLoadingScreen label="Preparando seu painel…" />;
+  if (isAdmin) return <Navigate to={firstAllowedPath ?? '/estoque'} replace />;
   if (!hasPermissions || !firstAllowedPath) return <NoAccessScreen />;
   return <Navigate to={firstAllowedPath} replace />;
 }

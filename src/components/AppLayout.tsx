@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import AppLoadingScreen from '@/components/AppLoadingScreen';
 
 // Rotas que renderizam sua própria UI de fallback quando não autenticado/aprovado,
 // em vez de redirecionar para /login.
@@ -18,7 +19,7 @@ export default function AppLayout() {
   const location = useLocation();
   const allowFallback = PUBLIC_FALLBACK_PATHS.has(location.pathname);
 
-  if (loading) return null;
+  if (loading) return <AppLoadingScreen label="Verificando sua sessão…" />;
 
   if (!isAuthenticated) {
     if (allowFallback) return <Outlet />;

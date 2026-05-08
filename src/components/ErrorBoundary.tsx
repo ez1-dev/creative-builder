@@ -1,7 +1,8 @@
 import { Component, ReactNode } from 'react';
 import { logError } from '@/lib/errorLogger';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   children: ReactNode;
@@ -38,6 +39,12 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ hasError: false, message: null });
   };
 
+  handleSair = async () => {
+    try { await supabase.auth.signOut(); } catch {}
+    try { localStorage.clear(); } catch {}
+    if (typeof window !== 'undefined') window.location.href = '/login';
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -49,16 +56,19 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Ocorreu um erro inesperado ao renderizar a tela. Tente recarregar a página. Se o problema
-              persistir, abra o console (F12) para ver detalhes técnicos.
+              persistir, abra o console (F12) para ver detalhes técnicos ou clique em Sair para limpar a sessão.
             </p>
             {this.state.message && (
               <pre className="text-xs bg-muted p-2 rounded max-h-32 overflow-auto mb-4 text-foreground">
                 {this.state.message}
               </pre>
             )}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={this.handleReload} variant="default">Recarregar</Button>
               <Button onClick={this.handleReset} variant="outline">Tentar novamente</Button>
+              <Button onClick={this.handleSair} variant="ghost" className="gap-2">
+                <LogOut className="h-4 w-4" /> Sair
+              </Button>
             </div>
           </div>
         </div>
