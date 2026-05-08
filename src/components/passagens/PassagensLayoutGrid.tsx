@@ -50,9 +50,17 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
 
   // Estado local do layout para refletir cliques imediatamente nos botões +/-.
   const [localLayout, setLocalLayout] = useState<Record<string, { x: number; y: number; w: number; h: number }>>({});
-  // Sincroniza apenas quando o conjunto de widgets muda (entrou/saiu),
-  // preservando ajustes em memória durante drag/resize/cliques nos botões.
+  // Chave que reflete tanto o conjunto de widgets quanto a geometria salva.
+  // Quando o backend devolve novas posições/tamanhos para os mesmos widgets
+  // (ex.: link compartilhado abre o layout do admin), a chave muda e força
+  // ressincronização do localLayout.
   const widgetTypesKey = orderedWidgets.map((w) => w.type).join('|');
+  const widgetGeometryKey = orderedWidgets
+    .map((w) => `${w.type}:${w.layout.x},${w.layout.y},${w.layout.w},${w.layout.h}`)
+    .join('|');
+
+  // Sincroniza quando o conjunto de widgets muda (entrou/saiu).
+  // Em modo edição, preserva ajustes locais (drag/resize/botões +/-).
   useEffect(() => {
     setLocalLayout((prev) => {
       const next: typeof prev = {};
@@ -64,11 +72,13 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetTypesKey]);
 
-  // Ressincroniza localLayout com o w.layout vindo do banco quando saímos
-  // do modo de edição (ex.: após Save -> load() recarrega widgets).
+  // Fora do modo de edição (visualização normal e link compartilhado),
+  // o layout vindo do banco é a fonte da verdade — sempre que ele mudar,
+  // refletimos na renderização.
   const prevEditing = useRef(editing);
   useEffect(() => {
-    if (prevEditing.current && !editing) {
+    const justExitedEditing = prevEditing.current && !editing;
+    if (!editing || justExitedEditing) {
       const fresh: Record<string, { x: number; y: number; w: number; h: number }> = {};
       orderedWidgets.forEach((w) => {
         fresh[w.type] = { x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h };
@@ -77,7 +87,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     }
     prevEditing.current = editing;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, widgetTypesKey]);
+  }, [editing, widgetGeometryKey]);
 
   const layoutItems: LayoutItem[] = useMemo(
     () =>
