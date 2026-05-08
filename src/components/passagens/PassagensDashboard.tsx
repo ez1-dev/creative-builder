@@ -538,6 +538,95 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const primaryColor = 'hsl(var(--primary))';
   const dimOpacity = 0.3;
 
+  // ===== Séries para a Biblioteca BI / configurador de gráficos =====
+  const seriesPayload = useMemo(() => {
+    // Top destinos por valor
+    const topDestinosValor = porCidade
+      .slice()
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 10)
+      .map((c) => ({ name: c.name, value: c.valor }));
+    // Por tipo de despesa
+    const tipoMap = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = r.tipo_despesa || 'Não informado';
+      tipoMap.set(k, (tipoMap.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const porTipoDespesa = Array.from(tipoMap.entries()).map(([name, value]) => ({ name, value }));
+    // Por cia aérea
+    const ciaMap = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = (r.cia_aerea ?? '').trim() || 'Não informada';
+      ciaMap.set(k, (ciaMap.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const porCiaAerea = Array.from(ciaMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    // Top colaboradores
+    const colabMap = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = (r.colaborador ?? '').trim().toUpperCase() || 'Sem colaborador';
+      colabMap.set(k, (colabMap.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const topColaboradores = Array.from(colabMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+
+    return {
+      evolucao_mensal: porMes.map((p) => ({ name: p.mes, value: p.valor })),
+      por_motivo: porMotivo,
+      top_centros_custo: porCentroCusto,
+      top_cidades_qtd: porCidade.map((c) => ({ name: c.name, value: c.qtd })),
+      top_cidades_valor: porCidade.map((c) => ({ name: c.name, value: c.valor })),
+      top_uf_qtd: porUF.map((u) => ({ name: u.name, value: u.qtd })),
+      top_uf_valor: porUF.map((u) => ({ name: u.name, value: u.valor })),
+      top_destinos_valor: topDestinosValor,
+      por_tipo_despesa: porTipoDespesa,
+      por_cia_aerea: porCiaAerea,
+      top_colaboradores: topColaboradores,
+    };
+  }, [porMes, porMotivo, porCentroCusto, porCidade, porUF, crossFiltered]);
+
+  const kpiPayload = useMemo(() => ({
+    total_geral: totalGeral,
+    total_registros: totalRegistros,
+    ticket_medio: ticketMedio,
+    colaboradores_unicos: colaboradoresUnicos,
+  }), [totalGeral, totalRegistros, ticketMedio, colaboradoresUnicos]);
+
+  // ===== Estados dos diálogos de configuração =====
+  const [configureType, setConfigureType] = useState<string | null>(null);
+  const [addChartOpen, setAddChartOpen] = useState(false);
+  // Customizações pendentes (aplicadas só após "Salvar layout")
+  const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
+  const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+
+  // Tipos canônicos que aceitam reconfiguração de gráfico
+  const CONFIGURABLE_CANONICAL = useMemo(
+    () => ['chart-evolucao-mensal', 'chart-motivo-viagem', 'chart-top-cc', 'chart-top-cidades', 'chart-top-uf'],
+    [],
+  );
+
+  // Widget alvo para o ConfigureChartDialog
+  const configureTarget = useMemo(() => {
+    if (!configureType) return null;
+    const pending = pendingConfig[configureType];
+    const widget = effectiveWidgets.find((w) => w.type === configureType);
+    return {
+      widget,
+      initial: pending !== undefined
+        ? (pending ?? {}) as Partial<ConfigureChartValue>
+        : ({
+            componentId: widget?.componentId,
+            mapping: widget?.mapping,
+            customTitle: widget?.customTitle,
+            options: widget?.options,
+          } as Partial<ConfigureChartValue>),
+    };
+  }, [configureType, pendingConfig, effectiveWidgets]);
+
   return (
     <div className="space-y-4">
       <Card>
