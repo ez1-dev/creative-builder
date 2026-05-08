@@ -1004,126 +1004,123 @@ export default function PainelComprasPage() {
         <div className="px-1 text-xs text-muted-foreground">Carregando agregação completa para KPIs e drill-down…</div>
       )}
 
-      {data && !kpis && !dashboard && !loadingAgregado && (
+      {data && !kpis && !kpisGerencial && !loadingAgregado && (
         <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
           Atenção: o backend não retornou totais agregados — KPIs indisponíveis nesta consulta. Ajuste os filtros e tente novamente.
         </div>
       )}
 
+      {data && kpisGerencial && (() => {
+        const totalBase = kpisGerencial.comprado || 1;
+        const recebidoVal = kpisGerencial.recebido ?? 0;
+        const pendenteVal = kpisGerencial.pendente ?? 0;
+        const pctRecebido = kpisGerencial.recebido != null ? Math.min(100, (recebidoVal / totalBase) * 100) : null;
+        const pctPendente = Math.min(100, (pendenteVal / totalBase) * 100);
+        return (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {/* Hero: Total Comprado */}
+            <Card className="border-l-4 border-l-primary bg-gradient-to-br from-primary/5 to-transparent lg:col-span-1">
+              <CardContent className="flex h-full flex-col justify-between p-5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Comprado</p>
+                  <DollarSign className="h-5 w-5 text-primary" />
+                </div>
+                <p className="mt-3 text-3xl font-bold tabular-nums">{formatCurrency(kpisGerencial.comprado)}</p>
+                <div className="mt-3 flex flex-wrap gap-x-4 text-xs text-muted-foreground">
+                  <span>Ticket médio/OC: <span className="font-medium text-foreground tabular-nums">{formatCurrency(kpisGerencial.ticketMedio)}</span></span>
+                  <span>OCs: <span className="font-medium text-foreground">{kpisGerencial.qtdOcs}</span></span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recebido vs Pendente */}
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  Recebimento vs Pendência
+                  <span className="ml-auto text-xs font-normal text-muted-foreground">base: total comprado</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pctRecebido != null && (
+                  <div>
+                    <div className="mb-1 flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-2"><Link2 className="h-3 w-3 text-[hsl(var(--success))]" /> Recebido</span>
+                      <span className="tabular-nums"><span className="font-semibold text-foreground">{formatCurrency(recebidoVal)}</span><span className="text-muted-foreground"> ({pctRecebido.toFixed(1)}%)</span></span>
+                    </div>
+                    <Progress value={pctRecebido} className="h-2 [&>div]:bg-[hsl(var(--success))]" />
+                  </div>
+                )}
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2"><Clock className="h-3 w-3 text-[hsl(var(--warning))]" /> Pendente</span>
+                    <span className="tabular-nums"><span className="font-semibold text-foreground">{formatCurrency(pendenteVal)}</span><span className="text-muted-foreground"> ({pctPendente.toFixed(1)}%)</span></span>
+                  </div>
+                  <Progress value={pctPendente} className="h-2 [&>div]:bg-[hsl(var(--warning))]" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
+      {data && kpisGerencial && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
+          <KPICard index={0} title="Qtd OCs" value={kpisGerencial.qtdOcs} icon={<ShoppingCart className="h-5 w-5" />} onClick={() => setActiveTab('lista')} />
+          <KPICard index={1} title="Qtd Itens" value={kpisGerencial.qtdItens} icon={<Package className="h-5 w-5" />} onClick={() => setActiveTab('lista')} />
+          <KPICard index={2} title="Qtd Fornecedores" value={kpisGerencial.qtdFornecedores} icon={<Layers className="h-5 w-5" />} onClick={() => { setDrillSeed(null); setActiveTab('drill'); }} />
+          <KPICard
+            index={3}
+            title="Maior Fornecedor"
+            value={kpisGerencial.maiorFornecedor ? formatCurrency(kpisGerencial.maiorFornecedor.valor) : '--'}
+            subtitle={kpisGerencial.maiorFornecedor?.nome}
+            variant="info"
+            icon={<Layers className="h-5 w-5" />}
+            onClick={kpisGerencial.maiorFornecedor ? () => openDrill('fantasia_fornecedor', kpisGerencial.maiorFornecedor!.nome, kpisGerencial.maiorFornecedor!.nome) : undefined}
+          />
+        </div>
+      )}
+
       {data && kpis && (
-        <>
-
-          {kpisGerencial && (() => {
-            const totalBase = kpisGerencial.comprado || 1;
-            const recebidoVal = kpisGerencial.recebido ?? 0;
-            const pendenteVal = kpisGerencial.pendente ?? 0;
-            const pctRecebido = kpisGerencial.recebido != null ? Math.min(100, (recebidoVal / totalBase) * 100) : null;
-            const pctPendente = Math.min(100, (pendenteVal / totalBase) * 100);
-            return (
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-                {/* Hero: Total Comprado */}
-                <Card className="border-l-4 border-l-primary bg-gradient-to-br from-primary/5 to-transparent lg:col-span-1">
-                  <CardContent className="flex h-full flex-col justify-between p-5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Comprado</p>
-                      <DollarSign className="h-5 w-5 text-primary" />
-                    </div>
-                    <p className="mt-3 text-3xl font-bold tabular-nums">{formatCurrency(kpisGerencial.comprado)}</p>
-                    <div className="mt-3 flex flex-wrap gap-x-4 text-xs text-muted-foreground">
-                      <span>Ticket médio/OC: <span className="font-medium text-foreground tabular-nums">{formatCurrency(kpisGerencial.ticketMedio)}</span></span>
-                      <span>OCs: <span className="font-medium text-foreground">{kpisGerencial.qtdOcs}</span></span>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Recebido vs Pendente */}
-                <Card className="lg:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                      Recebimento vs Pendência
-                      <span className="ml-auto text-xs font-normal text-muted-foreground">base: total comprado</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {pctRecebido != null && (
-                      <div>
-                        <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-2"><Link2 className="h-3 w-3 text-[hsl(var(--success))]" /> Recebido</span>
-                          <span className="tabular-nums"><span className="font-semibold text-foreground">{formatCurrency(recebidoVal)}</span><span className="text-muted-foreground"> ({pctRecebido.toFixed(1)}%)</span></span>
-                        </div>
-                        <Progress value={pctRecebido} className="h-2 [&>div]:bg-[hsl(var(--success))]" />
-                      </div>
-                    )}
-                    <div>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="flex items-center gap-2"><Clock className="h-3 w-3 text-[hsl(var(--warning))]" /> Pendente</span>
-                        <span className="tabular-nums"><span className="font-semibold text-foreground">{formatCurrency(pendenteVal)}</span><span className="text-muted-foreground"> ({pctPendente.toFixed(1)}%)</span></span>
-                      </div>
-                      <Progress value={pctPendente} className="h-2 [&>div]:bg-[hsl(var(--warning))]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            );
-          })()}
-
-          {kpisGerencial && (
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
-              <KPICard index={0} title="Qtd OCs" value={kpisGerencial.qtdOcs} icon={<ShoppingCart className="h-5 w-5" />} onClick={() => setActiveTab('lista')} />
-              <KPICard index={1} title="Qtd Itens" value={kpisGerencial.qtdItens} icon={<Package className="h-5 w-5" />} onClick={() => setActiveTab('lista')} />
-              <KPICard index={2} title="Qtd Fornecedores" value={kpisGerencial.qtdFornecedores} icon={<Layers className="h-5 w-5" />} onClick={() => { setDrillSeed(null); setActiveTab('drill'); }} />
-              <KPICard
-                index={3}
-                title="Maior Fornecedor"
-                value={kpisGerencial.maiorFornecedor ? formatCurrency(kpisGerencial.maiorFornecedor.valor) : '--'}
-                subtitle={kpisGerencial.maiorFornecedor?.nome}
-                variant="info"
-                icon={<Layers className="h-5 w-5" />}
-                onClick={kpisGerencial.maiorFornecedor ? () => openDrill('fantasia_fornecedor', kpisGerencial.maiorFornecedor!.nome, kpisGerencial.maiorFornecedor!.nome) : undefined}
-              />
-            </div>
-          )}
-
-          <details className="group rounded-md border bg-card">
-            <summary className="flex cursor-pointer items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/30">
-              <span>Indicadores Operacionais Detalhados</span>
-              <span className="text-xs font-normal">clique para expandir</span>
-            </summary>
-            <div className="space-y-4 border-t p-3">
-              <div>
-                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Financeiros</h3>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                  <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={chartData?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
-                  <KPICard index={1} title="Valor Bruto" value={formatCurrency(kpis.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" details={drillDetails.valorBruto} />
-                  <KPICard index={2} title="Desconto Total" value={formatCurrency(kpis.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" details={drillDetails.desconto} />
-                  <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(kpis.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(kpis.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(kpis.valor_liquido_total) }]} />
-                  <KPICard index={4} title="Impostos Totais" value={formatCurrency(kpis.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} tooltip="Soma de IPI, ICMS, ISS e outros impostos" details={drillDetails.impostos} />
-                  <KPICard index={5} title="Fornecedores" value={kpis.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de fornecedores distintos" details={drillDetails.fornecedores} />
-                </div>
-              </div>
-              <div>
-                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pendência</h3>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                  <KPICard index={6} title="Valor Pendente" value={formatCurrency(kpis.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" details={drillDetails.valorPendente} />
-                  <KPICard index={7} title="Itens Pendentes" value={kpis.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" details={drillDetails.itensPendentes} />
-                  <KPICard index={8} title="Itens Atrasados" value={kpis.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" details={drillDetails.itensAtrasados} />
-                  <KPICard index={9} title="OCs Atrasadas" value={kpis.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" details={drillDetails.ocsAtrasadas} />
-                  <KPICard index={10} title="Maior Atraso" value={`${kpis.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" details={drillDetails.maiorAtraso} />
-                  <KPICard index={11} title="Ticket Médio/Item" value={formatCurrency(kpis.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
-                </div>
-              </div>
-              <div>
-                <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Contagem de Itens</h3>
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
-                  <KPICard index={12} title="Total Linhas" value={kpis.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" details={drillDetails.totalLinhas} />
-                  <KPICard index={13} title="Itens Produto" value={kpis.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={kpis.total_linhas ? [{ label: 'Produtos', value: `${kpis.itens_produto ?? 0} (${((kpis.itens_produto ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${kpis.itens_servico ?? 0} (${((kpis.itens_servico ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
-                  <KPICard index={14} title="Itens Serviço" value={kpis.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" details={drillDetails.itensServico} />
-                </div>
+        <details className="group rounded-md border bg-card">
+          <summary className="flex cursor-pointer items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/30">
+            <span>Indicadores Operacionais Detalhados</span>
+            <span className="text-xs font-normal">clique para expandir</span>
+          </summary>
+          <div className="space-y-4 border-t p-3">
+            <div>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Financeiros</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                <KPICard index={0} title="Total OCs" value={kpis.total_ocs} icon={<ShoppingCart className="h-5 w-5" />} tooltip="Quantidade total de Ordens de Compra" details={chartData?.situacoes?.map((s: any) => ({ label: situacaoLabel(s.situacao_oc), value: String(s.quantidade_itens) }))} />
+                <KPICard index={1} title="Valor Bruto" value={formatCurrency(kpis.valor_bruto_total)} variant="default" icon={<DollarSign className="h-5 w-5" />} tooltip="Soma dos valores brutos antes de descontos" details={drillDetails.valorBruto} />
+                <KPICard index={2} title="Desconto Total" value={formatCurrency(kpis.valor_desconto_total)} variant="warning" icon={<Percent className="h-5 w-5" />} tooltip="Soma de todos os descontos aplicados" details={drillDetails.desconto} />
+                <KPICard index={3} title="Valor Líquido" value={formatCurrency(kpis.valor_liquido_total)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor bruto menos descontos" details={[{ label: 'Valor Bruto', value: formatCurrency(kpis.valor_bruto_total) }, { label: 'Descontos', value: formatCurrency(kpis.valor_desconto_total) }, { label: 'Valor Líquido', value: formatCurrency(kpis.valor_liquido_total) }]} />
+                <KPICard index={4} title="Impostos Totais" value={formatCurrency(kpis.impostos_totais)} variant="default" icon={<Receipt className="h-5 w-5" />} tooltip="Soma de IPI, ICMS, ISS e outros impostos" details={drillDetails.impostos} />
+                <KPICard index={5} title="Fornecedores" value={kpis.total_fornecedores} variant="default" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de fornecedores distintos" details={drillDetails.fornecedores} />
               </div>
             </div>
-          </details>
-        </>
+            <div>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pendência</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                <KPICard index={6} title="Valor Pendente" value={formatCurrency(kpis.valor_pendente_total)} variant="warning" icon={<Clock className="h-5 w-5" />} tooltip="Valor total de itens ainda não recebidos" details={drillDetails.valorPendente} />
+                <KPICard index={7} title="Itens Pendentes" value={kpis.itens_pendentes} variant="warning" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens com saldo pendente de recebimento" details={drillDetails.itensPendentes} />
+                <KPICard index={8} title="Itens Atrasados" value={kpis.itens_atrasados} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Itens cuja data de entrega já passou e ainda possuem saldo" details={drillDetails.itensAtrasados} />
+                <KPICard index={9} title="OCs Atrasadas" value={kpis.ocs_atrasadas ?? '-'} variant="destructive" icon={<AlertTriangle className="h-5 w-5" />} tooltip="Quantidade de OCs com pelo menos um item atrasado" details={drillDetails.ocsAtrasadas} />
+                <KPICard index={10} title="Maior Atraso" value={`${kpis.maior_atraso_dias} dias`} variant="destructive" icon={<Clock className="h-5 w-5" />} tooltip="Maior número de dias de atraso entre todos os itens pendentes" details={drillDetails.maiorAtraso} />
+                <KPICard index={11} title="Ticket Médio/Item" value={formatCurrency(kpis.ticket_medio_item)} variant="info" icon={<TrendingUp className="h-5 w-5" />} tooltip="Valor líquido total dividido pelo número de itens" />
+              </div>
+            </div>
+            <div>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Contagem de Itens</h3>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+                <KPICard index={12} title="Total Linhas" value={kpis.total_linhas ?? '-'} icon={<FileText className="h-5 w-5" />} tooltip="Total de linhas de itens nas ordens de compra" details={drillDetails.totalLinhas} />
+                <KPICard index={13} title="Itens Produto" value={kpis.itens_produto ?? '-'} variant="info" icon={<Package className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Produto" details={kpis.total_linhas ? [{ label: 'Produtos', value: `${kpis.itens_produto ?? 0} (${((kpis.itens_produto ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }, { label: 'Serviços', value: `${kpis.itens_servico ?? 0} (${((kpis.itens_servico ?? 0) / kpis.total_linhas * 100).toFixed(1)}%)` }] : undefined} />
+                <KPICard index={14} title="Itens Serviço" value={kpis.itens_servico ?? '-'} variant="success" icon={<Layers className="h-5 w-5" />} tooltip="Quantidade de itens classificados como Serviço" details={drillDetails.itensServico} />
+              </div>
+            </div>
+          </div>
+        </details>
       )}
 
       {data && (
