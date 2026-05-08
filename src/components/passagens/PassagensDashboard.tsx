@@ -968,7 +968,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </ResponsiveContainer>
           </CardContent>
         </Card>
-        <Card>
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-top-cidades') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-top-cidades': (
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="text-sm flex items-center justify-between gap-2">
               <span>Top 10 Cidades de Destino {selectedDestino.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
