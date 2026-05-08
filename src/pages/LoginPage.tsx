@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,16 +8,17 @@ import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Logotipo Microsoft (4 quadrados) inline
-function MicrosoftLogo({ className = 'h-5 w-5' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 23 23" className={className} aria-hidden="true">
+const MicrosoftLogo = forwardRef<SVGSVGElement, { className?: string }>(
+  ({ className = 'h-5 w-5' }, ref) => (
+    <svg ref={ref} viewBox="0 0 23 23" className={className} aria-hidden="true">
       <rect x="1" y="1" width="10" height="10" fill="#F25022" />
       <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
       <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
       <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
     </svg>
-  );
-}
+  )
+);
+MicrosoftLogo.displayName = 'MicrosoftLogo';
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
