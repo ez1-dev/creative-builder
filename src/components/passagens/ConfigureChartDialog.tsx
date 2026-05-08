@@ -19,7 +19,6 @@ import {
 } from '@/components/ui/select';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
-import { usePageData } from '@/lib/bi/PageDataContext';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
 
 const COLOR_AWARE_TYPES = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
@@ -44,6 +43,9 @@ interface Props {
   canResetToDefault?: boolean;
   onApply: (next: ConfigureChartValue) => void;
   onResetToDefault?: () => void;
+  kpis?: Record<string, any>;
+  series?: Record<string, any>;
+  rows?: any[];
 }
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
@@ -51,8 +53,9 @@ const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
 export function ConfigureChartDialog({
   open, onOpenChange, initial, blockType, fallbackTitle,
   canResetToDefault, onApply, onResetToDefault,
+  kpis, series, rows,
 }: Props) {
-  const ctx = usePageData();
+  const ctx = { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] };
   const page = getPage('passagens-aereas');
 
   const [componentId, setComponentId] = useState<string>(initial?.componentId ?? CHART_COMPONENTS[0]?.id ?? 'bar-chart');
