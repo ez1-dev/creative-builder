@@ -232,6 +232,33 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+                {onConfigure && (configurableTypes?.includes(w.type) || w.type.startsWith('custom-')) && (
+                  <>
+                    <div className="h-4 w-px bg-border" />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      title="Configurar gráfico (tipo, série e título)"
+                      onClick={(e) => { e.stopPropagation(); onConfigure(w.type); }}
+                    >
+                      <Settings className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                )}
+                {onDelete && w.type.startsWith('custom-') && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 text-destructive hover:text-destructive"
+                    title="Excluir bloco permanentemente"
+                    onClick={(e) => { e.stopPropagation(); onDelete(w.type); }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 {onHide && (
                   <>
                     <div className="h-4 w-px bg-border" />
