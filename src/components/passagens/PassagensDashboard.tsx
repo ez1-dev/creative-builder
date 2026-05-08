@@ -1072,7 +1072,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             )}
           </CardContent>
         </Card>
-      </div>
           ),
           } : {}),
           'tabela-registros': (
