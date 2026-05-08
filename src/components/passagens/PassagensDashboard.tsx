@@ -112,7 +112,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }, []);
 
   // === Layout customizável (drag & drop, salvo globalmente) ===
-  const { widgets, isAdmin, saveLayout, resetLayout } = usePassagensLayout({
+  const { widgets, isAdmin, saveLayout, resetLayout, deleteWidget } = usePassagensLayout({
     shareToken: shareToken ?? null,
   });
   const [editingLayout, setEditingLayout] = useState(false);
