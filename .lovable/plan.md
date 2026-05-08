@@ -1,32 +1,28 @@
 ## Objetivo
-Dar acesso total (visualizar + editar + gerenciar compartilhamento) à página `/passagens-aereas` apenas para **MAIANE.SAURIN@EZORTEA.COM.BR**, sem torná-la administradora do sistema e sem afetar os demais usuários do perfil "Compras".
+No gráfico **Ranking** (`RankingChartCard`, usado por "Top Destinos por Valor" e demais rankings da Biblioteca BI), permitir que o usuário expanda a lista progressivamente em vez de ficar limitado ao `topN` fixo.
 
-## Estado atual
-- Profile: `maiane.saurin@ezortea.com.br` (id `773d24a4…`), `erp_user = MAIANE.SAURIN@EZORTEA.COM.BR`
-- Vínculo atual em `user_access`: perfil **Compras** (`a433425a-…`)
-- Perfis de acesso (`access_profiles`) são compartilhados entre usuários, então não dá para simplesmente editar "Compras".
+## Comportamento proposto
+- Mostrar inicialmente `topN` itens (default `10`, mantido).
+- Se houver mais itens disponíveis no `data`, exibir um botão discreto **"Ver mais (+N)"** ao final da lista.
+  - Cada clique revela mais um lote (`step = topN`, ou `10` por padrão).
+  - Quando todos os itens estiverem visíveis, alternar para **"Ver menos"** que volta ao `topN` inicial.
+- Contagem mostrada no botão: `"Ver mais (+X de Y)"`, onde `X` é quantos virão e `Y` é o total restante. Ajuda a entender o tamanho da lista.
+- Estado controlado internamente (`useState`), reseta quando `data` muda (via `useEffect` com dependência no length).
+- Acessibilidade: `<button type="button">` com `aria-expanded` e foco visível usando tokens do design system.
+- Performance: nada muda em relação ao cálculo `sorted`; apenas a fatia exibida cresce.
 
-## Passos (somente dados, sem mudança de schema)
-
-1. **Criar novo perfil de acesso dedicado**
-   - `INSERT INTO access_profiles (name, description)` → nome: `Passagens Aéreas - Acesso Total (Maiane)`.
-
-2. **Configurar `profile_screens` desse novo perfil**
-   - Inserir uma linha para `/passagens-aereas` com `can_view = true` e `can_edit = true`.
-   - (Apenas essa tela — nada mais é liberado por esse perfil.)
-
-3. **Vincular o perfil novo ao login da Maiane em `user_access`**
-   - `INSERT INTO user_access (user_login, profile_id)` com `user_login = 'MAIANE.SAURIN@EZORTEA.COM.BR'`.
-   - Ela mantém o vínculo "Compras" existente; o sistema soma as permissões das duas linhas.
-
-4. **Habilitar criação de links de compartilhamento para não-admins (se ainda não estiver)**
-   - A função `can_manage_passagens_share` exige `app_settings.passagens_share_allow_non_admin = 'true'` + `can_edit` na tela.
-   - Verificar/`UPSERT` em `app_settings` a chave `passagens_share_allow_non_admin = 'true'` para que ela também consiga gerar links de compartilhamento. Como esse setting já vale para qualquer usuário com `can_edit` em `/passagens-aereas`, confirmo com você antes de aplicar — se preferir manter restrito só a admins, pulamos este passo.
+## Arquivos a alterar
+- `src/components/bi/charts/RankingChartCard.tsx`
+  - Nova prop opcional `expandable?: boolean` (default `true`) e `step?: number` (default = `topN`).
+  - Adicionar estado `visibleCount`, lógica de expand/collapse, botão no rodapé do `<ol>`.
+  - Manter API atual (`topN`, `onItemClick`, `valueFormatter`) intacta — sem breaking change.
 
 ## Validação
-- Logar como Maiane → menu mostra Passagens Aéreas, botões de novo/editar/excluir habilitados.
-- Outros usuários do perfil "Compras" continuam **sem** edição em Passagens Aéreas.
-- Ela **não** ganha acesso a nenhuma outra tela administrativa.
+- `/passagens-aereas` → card "Top Destinos por Valor": clicar em "Ver mais" deve revelar mais destinos; clicar de novo até esgotar; "Ver menos" volta a 10.
+- Cross-filter por clique no item continua funcionando (não acionar pelo botão).
+- Demais rankings da Biblioteca BI (catálogo / `BiComponentsDemoPage`) ganham o mesmo comportamento automaticamente.
+- Caso a altura do card fique apertada, o `ChartCardShell` já lida com scroll interno — confirmar visualmente.
 
-## Pergunta antes de executar
-Quer que eu também ative o `passagens_share_allow_non_admin` (passo 4) para que ela consiga **gerar/gerenciar links de compartilhamento públicos**? Ou manter isso restrito a admins?
+## Fora do escopo
+- Não mexer em outros tipos de gráfico (bar/pie/etc.).
+- Não persistir o "expandido" entre sessões.
