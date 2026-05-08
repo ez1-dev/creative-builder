@@ -818,10 +818,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
           ),
-          ...(canSeeVisual('passagens.kpis-charts') ? {
-          'charts-row': (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+          ...((canSeeVisual('passagens.chart-evolucao-mensal') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-evolucao-mensal': (
+        <Card className="h-full">
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
           <CardContent className="p-3 sm:p-6">
             <ResponsiveContainer width="100%" height={isCompact ? 220 : 260}>
