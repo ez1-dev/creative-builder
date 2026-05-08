@@ -137,35 +137,83 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
    */
   const saveLayout = useCallback(
     async (next: { type: string; layout: WidgetLayout; hidden?: boolean }[]) => {
-      // Garante que existe a linha default + widgets
-      const { data: dashId, error: rpcError } = await supabase.rpc(
-        'upsert_passagens_dashboard_default',
-      );
-      if (rpcError) throw rpcError;
-      const id = dashId as string;
+      // 1) Localiza ou cria o dashboard default — sem chamar a RPC de defaults
+      //    (que apaga widgets de tipos não whitelisted e pode descartar edições).
+      let id: string | null = null;
+      const { data: dash } = await supabase
+        .from('dashboards')
+        .select('id')
+        .eq('module', 'passagens-aereas')
+        .is('owner_id', null)
+        .eq('is_default', true)
+        .maybeSingle();
+      if (dash?.id) {
+        id = dash.id;
+      } else {
+        // Primeira vez: usa a RPC para criar dashboard + widgets default
+        const { data: dashId, error: rpcError } = await supabase.rpc(
+          'upsert_passagens_dashboard_default',
+        );
+        if (rpcError) throw rpcError;
+        id = dashId as string;
+      }
       setDashboardId(id);
 
-      // Busca widgets atuais para mapear type -> {id, config}
-      const { data: existing } = await supabase
+      // 2) Busca widgets atuais para mapear type -> {id, config}
+      const { data: existing, error: fetchErr } = await supabase
         .from('dashboard_widgets')
         .select('id, type, config')
         .eq('dashboard_id', id);
+      if (fetchErr) throw fetchErr;
       const byType = new Map<string, { id: string; config: any }>(
         (existing ?? []).map((r: any) => [r.type, { id: r.id, config: r.config ?? {} }]),
       );
 
-      // Atualiza um a um (são poucos)
-      await Promise.all(
-        next.map(async ({ type, layout, hidden }) => {
-          const ex = byType.get(type);
-          if (!ex) return;
-          const nextConfig = { ...(ex.config ?? {}), hidden: Boolean(hidden) };
-          await supabase
+      // 3) Update (ou insert quando não existir) — sequencial para coletar erros
+      const errors: string[] = [];
+      let untouched = 0;
+      for (const { type, layout, hidden } of next) {
+        const ex = byType.get(type);
+        const nextConfig = { ...((ex?.config) ?? {}), hidden: Boolean(hidden) };
+        if (ex) {
+          const { data: updated, error: upErr } = await supabase
             .from('dashboard_widgets')
             .update({ layout: layout as any, config: nextConfig as any })
-            .eq('id', ex.id);
-        }),
-      );
+            .eq('id', ex.id)
+            .select('id');
+          if (upErr) {
+            errors.push(`${type}: ${upErr.message}`);
+          } else if (!updated || updated.length === 0) {
+            untouched += 1;
+            errors.push(`${type}: nenhuma linha atualizada (verifique permissões)`);
+          }
+        } else {
+          // Widget ainda não existe no banco — cria
+          const def = PASSAGENS_DEFAULT_WIDGETS.find((d) => d.type === type);
+          const { error: insErr } = await supabase
+            .from('dashboard_widgets')
+            .insert({
+              dashboard_id: id,
+              type,
+              title: def?.title ?? type,
+              position: def?.position ?? 99,
+              layout: layout as any,
+              config: nextConfig as any,
+            });
+          if (insErr) errors.push(`${type} (insert): ${insErr.message}`);
+        }
+      }
+
+      if (errors.length > 0) {
+        // Loga detalhes para debug e lança erro consolidado para o componente
+        // eslint-disable-next-line no-console
+        console.error('[usePassagensLayout] saveLayout errors:', errors, { untouched });
+        throw new Error(
+          errors.length === 1
+            ? errors[0]
+            : `Falha ao salvar ${errors.length} bloco(s). Primeiro erro: ${errors[0]}`,
+        );
+      }
 
       await load();
     },
