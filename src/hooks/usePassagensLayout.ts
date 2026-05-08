@@ -80,9 +80,10 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
 
   const mergeWithDefaults = useCallback((rows: PassagensWidget[]): PassagensWidget[] => {
     const byType = new Map(rows.map((r) => [r.type, r]));
-    return PASSAGENS_DEFAULT_WIDGETS.map((d) => byType.get(d.type) ?? d).sort(
-      (a, b) => a.position - b.position,
-    );
+    // Inclui defaults faltantes + qualquer custom-* presente em rows
+    const fromDefaults = PASSAGENS_DEFAULT_WIDGETS.map((d) => byType.get(d.type) ?? d);
+    const customs = rows.filter((r) => !PASSAGENS_DEFAULT_WIDGETS.some((d) => d.type === r.type));
+    return [...fromDefaults, ...customs].sort((a, b) => a.position - b.position);
   }, []);
 
   const load = useCallback(async () => {
