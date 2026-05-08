@@ -625,21 +625,57 @@ function ValidacaoTab() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Comparar BI × ERP</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between gap-3">
+          <CardTitle>Comparar ERP × BI (shadow mode)</CardTitle>
+          <Button variant="outline" size="sm" onClick={aplicarCasoObrigatorio}>
+            Caso obrigatório (jan/2026, Matéria-prima, pendentes)
+          </Button>
+        </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-3 max-w-2xl">
+          <p className="text-xs text-muted-foreground">
+            Consome <code className="font-mono">/api/bi/validar-painel-compras</code> e <code className="font-mono">/api/bi/validar-notas-recebimento</code> no FastAPI.
+            Cada endpoint roda os mesmos filtros nas duas fontes e devolve ERP × BI lado a lado. Os dashboards principais continuam intocados.
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div><Label>Data início</Label><Input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} /></div>
             <div><Label>Data fim</Label><Input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} /></div>
-            <div className="flex items-end"><Button onClick={compararComErp} disabled={comparando}><Play className="h-4 w-4 mr-1" />Comparar</Button></div>
+            <div>
+              <Label>Tipo despesa</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={tipoDespesa} onChange={e => setTipoDespesa(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="MATERIA_PRIMA">Matéria-prima</option>
+                <option value="USO_CONSUMO">Uso e consumo</option>
+                <option value="DESPESAS_GERAIS">Despesas gerais</option>
+                <option value="SERVICOS">Serviços</option>
+              </select>
+            </div>
+            <div>
+              <Label>Projeto macro</Label>
+              <select className="w-full h-10 rounded-md border border-input bg-background px-2 text-sm"
+                value={projetoMacro} onChange={e => setProjetoMacro(e.target.value)}>
+                <option value="">Todos</option>
+                <option value="GENIUS">GENIUS</option>
+                <option value="ESTRUTURAL ZORTEA">ESTRUTURAL ZORTEA</option>
+                <option value="OUTROS">OUTROS</option>
+              </select>
+            </div>
+            <div className="flex items-end gap-2">
+              <Switch checked={somentePendentes} onCheckedChange={setSomentePendentes} />
+              <Label className="text-xs">Somente pendentes</Label>
+            </div>
+          </div>
+          <div>
+            <Button onClick={compararComErp} disabled={comparando}><Play className="h-4 w-4 mr-1" />Comparar</Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Tolerância recomendada: <span className="text-emerald-600 font-medium">verde &lt; 0,5%</span> •
+            Tolerância: <span className="text-emerald-600 font-medium">verde &lt; 0,5%</span> •
             <span className="text-amber-600 font-medium"> amarelo &lt; 2%</span> •
             <span className="text-destructive font-medium"> vermelho ≥ 2%</span>.
           </p>
-          <div className="grid grid-cols-2 gap-4">
-            {renderDiffBlock("Compras (painel-compras-dashboard)", diff.compras)}
-            {renderDiffBlock("Recebimentos (notas-recebimento-dashboard)", diff.receb)}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {renderDiffBlock("Compras (validar-painel-compras)", resultado.compras, resultado.erros?.compras)}
+            {renderDiffBlock("Recebimentos (validar-notas-recebimento)", resultado.receb, resultado.erros?.receb)}
           </div>
         </CardContent>
       </Card>
