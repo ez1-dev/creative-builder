@@ -11,6 +11,7 @@ export interface RankingChartCardProps extends Omit<ChartCardShellProps, 'childr
   topN?: number;
   step?: number;
   expandable?: boolean;
+  showTotal?: boolean;
   onItemClick?: (d: BarChartDatum) => void;
 }
 
@@ -22,6 +23,7 @@ export function RankingChartCard({
   topN = 10,
   step,
   expandable = true,
+  showTotal = true,
   onItemClick,
   height = 320,
   ...shell
@@ -42,6 +44,7 @@ export function RankingChartCard({
   const remaining = total - visibleCount;
   const isExpanded = visibleCount >= total && total > initial;
   const showToggle = expandable && total > initial;
+  const visibleSum = visible.reduce((s, d) => s + (d.valor || 0), 0);
 
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!visible.length}>
@@ -67,6 +70,16 @@ export function RankingChartCard({
           );
         })}
       </ol>
+      {showTotal && visible.length > 0 && (
+        <div className="mt-2 flex items-center justify-between border-t pt-2 text-xs">
+          <span className="text-muted-foreground">
+            Total ({visible.length} de {total})
+          </span>
+          <span className="font-semibold tabular-nums text-foreground">
+            {valueFormatter(visibleSum)}
+          </span>
+        </div>
+      )}
       {showToggle && (
         <div className="mt-2 flex justify-center">
           <button

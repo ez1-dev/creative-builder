@@ -1,27 +1,24 @@
-## Diagnóstico
-Conferi no banco e a permissão está correta para **MAIANE.SAURIN@EZORTEA.COM.BR**:
+## Objetivo
+Mostrar um **total** no rodapé do `RankingChartCard` (ex.: "Top Destinos por Valor"), refletindo a soma dos itens **atualmente visíveis** na lista (respeitando o estado de "Ver mais / Ver menos" implementado anteriormente).
 
-| Perfil | screen_path | can_view | can_edit |
-|---|---|---|---|
-| Compras | /passagens-aereas | true | true |
-| Passagens Aéreas - Acesso Total (Maiane) | /passagens-aereas | true | true |
+## Comportamento
+- Abaixo dos itens (e antes/junto do botão "Ver mais"), exibir uma linha:
+  - Esquerda: rótulo `"Total ({n} de {total})"` mostrando quantos itens estão visíveis em relação ao total disponível.
+  - Direita: soma de `valor` dos itens visíveis, formatada com `valueFormatter` (default `formatCurrency`).
+- O total é **dinâmico**: ao clicar em "Ver mais" o número de itens e o valor somado crescem; ao clicar em "Ver menos" voltam ao `topN`.
+- Visual sutil: separador acima (border-top), texto pequeno, peso semibold no valor; usar tokens `text-muted-foreground` / `text-foreground`. Sem cores hardcoded.
+- Se a lista estiver vazia, o total não aparece (já tratado por `isEmpty`).
+- Nova prop opcional `showTotal?: boolean` (default `true`) caso algum lugar queira esconder.
 
-Ou seja, os dois perfis vinculados a ela já têm `can_edit = true` em `/passagens-aereas`. O hook `useUserPermissions` faz `OR` entre os perfis, então `canEdit('/passagens-aereas')` deve retornar `true` e `editAllowed` em `PassagensAereasPage` deve mostrar os botões "Novo / Editar / Excluir".
+## Arquivo
+- `src/components/bi/charts/RankingChartCard.tsx` — adicionar:
+  - cálculo `visibleSum = visible.reduce((s, d) => s + d.valor, 0)`
+  - bloco JSX no rodapé com o total + contagem.
 
-## Causa provável
-A Maiane está com a sessão antiga em cache. O hook `useUserPermissions` só busca permissões quando `erpUser` muda (no login). Mudanças em `user_access` / `profile_screens` feitas com a sessão dela aberta **não disparam refetch automaticamente**.
+## Validação
+- `/passagens-aereas` → "Top Destinos por Valor": com 10 itens, total bate com a soma de PA+PR+...+PI; ao clicar "Ver mais", total cresce.
+- Outros rankings da Biblioteca BI ganham o total automaticamente.
 
-## Ação recomendada (sem código)
-1. Pedir para a Maiane fazer **logout e login novamente** (ou hard refresh `Ctrl+Shift+R`). Isso por si só deve fazer o botão Editar aparecer.
-
-## Se mesmo após relogin não aparecer
-Investigar e corrigir um dos pontos abaixo:
-- **`erpUser` no AuthContext** pode estar com case/trim diferente do `user_login` em `user_access`. A consulta `ilike(user_login, erpUser)` funciona, mas vale logar `erpUser` no console dela e comparar.
-- **Realtime de permissões**: opcional adicionar uma assinatura ou um botão "Atualizar permissões" que rechame `fetchPerms`. Hoje não existe; só recarrega no login.
-
-## Plano de código (somente se relogin não resolver)
-- Adicionar refetch no `useUserPermissions` quando a aba volta ao foco (`visibilitychange`) **ou**
-- Forçar logout dela via `force_user_logout(_user_id)` (já existe a function) para garantir nova sessão.
-
-## Próximo passo
-Confirmar com você: ela já tentou logout/login? Se sim, capturar no console dela o valor de `erpUser` e o array `permissions` retornado pelo hook para irmos direto na causa.
+## Fora do escopo
+- Não tocar em outros componentes (bar/pie/etc.).
+- Não persistir estado.
