@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import GridLayout, { WidthProvider, type Layout, type LayoutItem } from 'react-grid-layout/legacy';
-import { Minus, Plus, MoveHorizontal, MoveVertical, X } from 'lucide-react';
+import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PassagensWidget } from '@/hooks/usePassagensLayout';
@@ -13,7 +13,13 @@ interface Props {
   editing: boolean;
   onLayoutChange?: (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => void;
   onHide?: (type: string) => void;
-}
+  /** Callback para abrir o diálogo de configuração de um bloco. */
+  onConfigure?: (type: string) => void;
+  /** Tipos que podem ser configurados (mostram botão ⚙️). */
+  configurableTypes?: string[];
+  /** Callback para excluir permanentemente um bloco custom-*. */
+  onDelete?: (type: string) => void;
+
 
 const MIN_W = 3;
 const MIN_H = 2;
