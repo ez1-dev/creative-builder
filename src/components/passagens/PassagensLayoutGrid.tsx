@@ -35,13 +35,19 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
 
   // Estado local do layout para refletir cliques imediatamente nos botões +/-.
   const [localLayout, setLocalLayout] = useState<Record<string, { x: number; y: number; w: number; h: number }>>({});
+  // Sincroniza apenas quando o conjunto de widgets muda (entrou/saiu),
+  // preservando ajustes em memória durante drag/resize/cliques nos botões.
+  const widgetTypesKey = orderedWidgets.map((w) => w.type).join('|');
   useEffect(() => {
-    const next: typeof localLayout = {};
-    orderedWidgets.forEach((w) => {
-      next[w.type] = { x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h };
+    setLocalLayout((prev) => {
+      const next: typeof prev = {};
+      orderedWidgets.forEach((w) => {
+        next[w.type] = prev[w.type] ?? { x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h };
+      });
+      return next;
     });
-    setLocalLayout(next);
-  }, [orderedWidgets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetTypesKey]);
 
   const layoutItems: LayoutItem[] = useMemo(
     () =>
