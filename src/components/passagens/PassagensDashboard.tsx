@@ -824,6 +824,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
           ),
+          ...(canSeeVisual('passagens.mapa-cidades') ? {
+          'mapa-cidades': (
+        <MapaCidadesViagens
+          data={mapaData}
+          selectedDestino={selectedDestino}
+          selectedUF={selectedUF}
+          onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
+          onSelectUF={(uf) => setSelectedUF((prev) => toggleItem(prev, uf))}
+        />
+          ),
+          } : {}),
           ...(canSeeVisual('passagens.mapa-destinos') ? {
           'mapa-destinos': (
         <div className="grid grid-cols-1 gap-4">
