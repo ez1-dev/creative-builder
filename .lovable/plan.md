@@ -1,31 +1,46 @@
 ## Objetivo
 
-No modo "Editar layout" do dashboard de Passagens Aéreas, adicionar botões **+** / **−** sobrepostos a cada bloco para aumentar/diminuir rapidamente o tamanho, sem precisar arrastar a alça de resize do canto.
+Melhorar a UX de redimensionamento dos blocos no modo "Editar layout" do dashboard de Passagens Aéreas:
 
-Hoje só existe a alça de resize padrão do `react-grid-layout` (canto inferior direito), que é pouco descoberta e difícil em telas menores.
+1. Garantir que `localLayout` permanece consistente durante drag/resize por arrasto, para que os botões `+`/`−` clicados imediatamente após um arrasto partam do tamanho real (e não de um estado defasado).
+2. Adicionar atalhos de teclado quando um bloco estiver focado (Tab para focar, setas para redimensionar).
 
 ## Onde
 
 `src/components/passagens/PassagensLayoutGrid.tsx`
 
-## Como
+## Mudanças
 
-1. Estender `Props` com um callback `onResizeStep?: (type: string, deltaW: number, deltaH: number) => void` (opcional). Quando ausente, calcula novo layout localmente e emite via `onLayoutChange` já existente.
+### 1. Sincronização durante arrasto
 
-2. Para cada bloco, quando `editing === true`, renderizar uma barra flutuante no canto superior direito (absolute, `data-no-drag`, `z-10`) com 4 botões pequenos (icon-only, `variant="secondary"`, `size="icon"`):
-   - **Largura −** (`Minus`) — `w = max(minW, w - 1)`
-   - **Largura +** (`Plus`) — `w = min(12, w + 1)`
-   - **Altura −** — `h = max(minH, h - 1)`
-   - **Altura +** — `h = h + 1`
-   
-   Tooltip explicando "Diminuir/Aumentar largura/altura".
+Hoje `onLayoutChange` do `react-grid-layout` dispara em cada frame de arrasto e já atualizamos `localLayout`. O risco é o `useEffect` que reseta `localLayout` quando `orderedWidgets` muda — adicionar guarda: só sincroniza do props quando o conjunto de `type`s mudou (entrou/saiu widget) ou quando o `localLayout` ainda está vazio. Caso contrário, mantém os valores ajustados em memória até o próximo carregamento real do hook.
 
-3. Ao clicar, montar o novo `layoutItems` em estado local e disparar o mesmo `handleLayoutChange` que já é usado no drag/resize, garantindo persistência via `onLayoutChange` (que o `PassagensDashboard` já liga ao `saveLayout`).
+Adicionar também handlers `onResizeStop` e `onDragStop` que forçam o emit final (idempotente, mas garante persistência mesmo se o último delta foi filtrado pelo dedupe via `lastEmitted`).
 
-4. Usar `e.stopPropagation()` no clique e `data-no-drag` no container para não conflitar com o drag.
+### 2. Atalhos de teclado
 
-5. Sem mudanças no banco, hook `usePassagensLayout`, ou layout default — apenas UI dentro do grid quando `editing`.
+Tornar cada wrapper de bloco focável (`tabIndex={0}` quando `editing`) e adicionar `onKeyDown`:
+
+- `ArrowRight` → largura +1
+- `ArrowLeft`  → largura −1
+- `ArrowDown`  → altura +1
+- `ArrowUp`    → altura −1
+- `Shift + setas` → passo de 2 (acelerador)
+
+Cada handler chama o mesmo `stepResize(type, dW, dH)` já existente e faz `e.preventDefault()` para não rolar a página. Ignora teclas se o foco estiver em `input/textarea/select/button` dentro do bloco (verifica `e.target` vs `e.currentTarget`).
+
+Adicionar dica visual: quando `editing` e o bloco está focado (`focus-visible:ring-primary`), mostrar um pequeno chip "Setas para redimensionar · Shift = passo 2" no rodapé do bloco. Reaproveitar tokens existentes (sem cores hardcoded).
+
+### 3. Acessibilidade
+
+- `role="group"` + `aria-label={`Bloco ${w.title}. Use setas para redimensionar.`}` no wrapper.
+- Botões `+`/`−` já têm `title`; adicionar `aria-label` equivalente.
+
+## Sem mudanças em
+
+- Banco, hook `usePassagensLayout`, layout default ou outras telas. Apenas o componente de grid.
 
 ## Resultado
 
-Em modo edição, cada widget mostra 4 botões discretos (`−` / `+` largura, `−` / `+` altura) no topo. Um clique já redimensiona em uma "unidade" da grade (1 coluna ou 1 linha = 60px), com persistência automática igual ao resize por arrasto.
+- Após arrastar/redimensionar um bloco, clicar em `+`/`−` continua a partir do tamanho real.
+- Com o bloco focado (Tab), as setas redimensionam; Shift acelera. A persistência usa o mesmo caminho (`onLayoutChange` → `saveLayout`).
