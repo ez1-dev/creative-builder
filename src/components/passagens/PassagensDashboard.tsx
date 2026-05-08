@@ -114,8 +114,21 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [pendingLayout, setPendingLayout] = useState<
     { type: string; layout: { x: number; y: number; w: number; h: number } }[] | null
   >(null);
+  // Conjunto de tipos ocultos pendentes (sobrescreve widgets[].hidden enquanto edita).
+  const [pendingHidden, setPendingHidden] = useState<Set<string> | null>(null);
   const [savingLayout, setSavingLayout] = useState(false);
   const canEditLayout = !readOnly && isAdmin && !shareToken;
+
+  // Widgets a renderizar: aplica o pendingHidden quando estiver editando.
+  const effectiveWidgets = useMemo(() => {
+    if (!pendingHidden) return widgets;
+    return widgets.map((w) => ({ ...w, hidden: pendingHidden.has(w.type) }));
+  }, [widgets, pendingHidden]);
+
+  const hiddenList = useMemo(
+    () => effectiveWidgets.filter((w) => w.hidden),
+    [effectiveWidgets],
+  );
 
   const [filtroColaborador, setFiltroColaborador] = useState('');
   const [filtroCC, setFiltroCC] = useState('');
