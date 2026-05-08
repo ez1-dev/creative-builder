@@ -459,17 +459,41 @@ export default function ConfiguracoesPage() {
 
   // ---- Usuários ----
   const handleAddUser = async () => {
-    if (!newUserLogin.trim() || !newUserProfileId) return;
-    const { error } = await supabase.from('user_access').insert({ user_login: newUserLogin.trim().toUpperCase(), profile_id: newUserProfileId });
-    if (error?.code === '23505') {
-      toast.error('Usuário já possui este perfil');
+    if (!newUserLogin.trim() || newUserProfileIds.length === 0) {
+      toast.error('Selecione um usuário e ao menos um perfil');
       return;
     }
-    toast.success('Acesso atribuído');
+    const login = newUserLogin.trim().toUpperCase();
+    const existing = new Set(
+      userAccess
+        .filter(ua => ua.user_login.toUpperCase() === login)
+        .map(ua => ua.profile_id),
+    );
+    const toInsert = newUserProfileIds
+      .filter(pid => !existing.has(pid))
+      .map(pid => ({ user_login: login, profile_id: pid }));
+
+    if (toInsert.length === 0) {
+      toast.info('Usuário já possui os perfis selecionados');
+      return;
+    }
+
+    const { error } = await supabase.from('user_access').insert(toInsert);
+    if (error) {
+      toast.error('Erro ao atribuir perfis');
+      return;
+    }
+    toast.success(`${toInsert.length} perfil(is) atribuído(s)`);
     setUserDialogOpen(false);
     setNewUserLogin('');
-    setNewUserProfileId('');
+    setNewUserProfileIds([]);
     fetchData();
+  };
+
+  const openAddProfilesFor = (login: string) => {
+    setNewUserLogin(login);
+    setNewUserProfileIds([]);
+    setUserDialogOpen(true);
   };
 
   const handleRemoveUser = async (id: string) => {
