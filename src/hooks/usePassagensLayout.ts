@@ -292,5 +292,12 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
     await load();
   }, [load]);
 
-  return { widgets, dashboardId, loading, isAdmin, saveLayout, resetLayout, reload: load };
+  /** Remove um widget custom-* do banco permanentemente. */
+  const deleteWidget = useCallback(async (widgetId: string) => {
+    const { error } = await supabase.from('dashboard_widgets').delete().eq('id', widgetId);
+    if (error) throw error;
+    await load();
+  }, [load]);
+
+  return { widgets, dashboardId, loading, isAdmin, saveLayout, resetLayout, deleteWidget, reload: load };
 }
