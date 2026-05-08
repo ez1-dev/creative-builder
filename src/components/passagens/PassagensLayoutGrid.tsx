@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import GridLayout, { WidthProvider, type Layout, type LayoutItem } from 'react-grid-layout/legacy';
-import { Minus, Plus, MoveHorizontal, MoveVertical } from 'lucide-react';
+import { Minus, Plus, MoveHorizontal, MoveVertical, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PassagensWidget } from '@/hooks/usePassagensLayout';
@@ -12,6 +12,7 @@ interface Props {
   blocks: Record<string, ReactNode>;
   editing: boolean;
   onLayoutChange?: (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => void;
+  onHide?: (type: string) => void;
 }
 
 const MIN_W = 3;
