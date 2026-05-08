@@ -1,56 +1,44 @@
 ## Objetivo
-Permitir que o "Editar layout" do dashboard `/passagens-aereas` movimente e redimensione **cada gráfico individualmente**, em vez de tratar todos como um único bloco "charts-row".
+No modo "Editar layout" do `/passagens-aereas`, permitir **remover qualquer bloco da tela** (KPIs, gráficos, tabela) e depois **trazer de volta** se quiser. Não é exclusão definitiva — é "ocultar do dashboard".
 
-## Situação atual
-Hoje o grid tem só **3 blocos** que podem ser movidos/redimensionados:
-- `kpis-row` (todos os KPIs juntos)
-- `charts-row` (5 gráficos travados num grid interno fixo)
-- `tabela-registros`
+## Como vai funcionar
 
-No modo "Editar layout" o usuário consegue mover apenas os 3 blocos — não tem como, por exemplo, deixar "Evolução Mensal" ocupando 12 colunas em cima e os outros 4 gráficos abaixo em 3 colunas cada.
+### Modo edição
+- Cada bloco ganha um **botão X (ocultar)** na barrinha de controles do canto superior direito (ao lado dos botões de redimensionar).
+- Clicar oculta o bloco imediatamente da grid (em estado pendente — só persiste ao Salvar).
+- Aparece um botão **"+ Adicionar bloco"** no topo (na barra cinza ao lado de Cancelar/Restaurar/Salvar) com um menu listando todos os blocos atualmente ocultos. Clicar adiciona de volta na grid (vai pro final).
 
-## Mudança proposta
-Quebrar o `charts-row` em **5 blocos independentes**, cada um arrastável e redimensionável:
-- `chart-evolucao-mensal` (Evolução Mensal)
-- `chart-motivo-viagem` (Por Motivo de Viagem)
-- `chart-top-cc` (Top Centros de Custo)
-- `chart-top-cidades` (Top Cidades de Destino)
-- `chart-top-uf` (Top Estados/UF de Destino)
-
-Continuam existindo `kpis-row` e `tabela-registros` como blocos próprios.
-
-Layout default sugerido (grid de 12 colunas):
-```text
-y=0  kpis-row              w=12 h=3
-y=3  chart-evolucao-mensal w=6  h=8
-y=3  chart-motivo-viagem   w=6  h=8
-y=11 chart-top-cc          w=12 h=8
-y=19 chart-top-cidades     w=6  h=8
-y=19 chart-top-uf          w=6  h=8
-y=27 tabela-registros      w=12 h=10
-```
+### Persistência
+- O estado oculto/visível é **por dashboard** (continua compartilhado, igual ao layout hoje).
+- "Restaurar padrão" volta todos os 7 blocos canônicos para o dashboard.
+- Link público (`/compartilhado`): respeita o que está visível no dashboard padrão (blocos ocultos não aparecem).
 
 ## Onde mexer
 
-### 1. `src/components/passagens/PassagensDashboard.tsx`
-- No mapa `blocks` que hoje tem `'charts-row'`: remover essa entrada e criar 5 entradas (`chart-evolucao-mensal`, `chart-motivo-viagem`, `chart-top-cc`, `chart-top-cidades`, `chart-top-uf`), cada uma renderizando **apenas o `<Card>` correspondente** (sem o `<div className="grid …">` externo).
-- A `VisualGate` de cada card passa a usar uma chave própria (ex.: `passagens.chart-evolucao-mensal`) — manter o agrupamento atual `passagens.kpis-charts` como fallback de leitura para não quebrar permissões existentes.
+### 1. `dashboard_widgets` (sem migration de schema)
+- Já existe a coluna `config jsonb`. Vou guardar `{ "hidden": true }` ali quando o bloco estiver oculto.
+- Bloco oculto **continua existindo** na tabela (com seu layout salvo) — só não é renderizado.
 
 ### 2. `src/hooks/usePassagensLayout.ts`
-- Substituir em `PASSAGENS_DEFAULT_WIDGETS` o item `charts-row` pelos 5 novos itens com o layout sugerido acima e `position` recalculado.
-- `mergeWithDefaults` já lida com falta de tipos no banco, então usuários antigos pegam o default automaticamente.
+- Tipo `PassagensWidget` ganha `hidden?: boolean` (lido de `config.hidden`).
+- `mergeWithDefaults` preserva `hidden` quando vem do banco.
+- `saveLayout(next)` passa a aceitar também flag `hidden` por bloco e grava em `config`.
+- Novo método `toggleHidden(type, hidden)` simplifica o botão "ocultar/mostrar".
 
-### 3. `src/lib/visualCatalog.ts`
-- Adicionar as 5 chaves `passagens.chart-*` para aparecerem no painel de permissões visuais.
+### 3. `src/components/passagens/PassagensLayoutGrid.tsx`
+- No filtro de `orderedWidgets`, ignorar blocos com `hidden === true`.
+- Adicionar botão **X** (ícone `EyeOff` do lucide) na barrinha flutuante de cada bloco, ao lado dos botões de tamanho — só aparece em modo edição.
+- Callback `onHide(type)` é propagada para o pai.
 
-### 4. Banco (migration)
-- Reescrever `upsert_passagens_dashboard_default()`: lista canônica passa a ser `kpis-row + 5 charts + tabela-registros` (com x/y/w/h conforme acima).
-- `DELETE FROM dashboard_widgets WHERE type='charts-row'` para limpar widgets antigos do default.
-- Chamar `upsert_passagens_dashboard_default()` para repovoar.
+### 4. `src/components/passagens/PassagensDashboard.tsx`
+- Estado pendente passa a incluir `hidden` por bloco (não só layout).
+- Acima da grid, na barra de edição, adicionar dropdown **"+ Adicionar bloco"** que lista os blocos ocultos (pelo `title` do `PASSAGENS_DEFAULT_WIDGETS` ou do banco).
+- Toast de salvar: "Layout salvo para todos os usuários."
+- Toast de restaurar: limpa também o `hidden`.
 
-### 5. `PassagensLayoutGrid.tsx`
-- Sem mudanças estruturais — ele já desenha um bloco por widget. Só vai passar a receber 7 blocos em vez de 3.
+### 5. `src/lib/visualCatalog.ts`
+- Sem mudanças. Permissões visuais (`profile_visuals`) e ocultação por edição são coisas distintas: permissão é por perfil/usuário, ocultação aqui é decisão de layout do dashboard.
 
-## Fora do escopo (só pra confirmar)
-- **Não** estou tornando o layout "por usuário" agora (sua pergunta anterior ficou ambígua). Continua um layout só, gerenciado pelo admin via "Editar layout". Se quiser também tornar individual por usuário, me avise que faço num passo seguinte.
-- **Não** estou quebrando os KPIs em 4 cards independentes — só os gráficos. Posso fazer com os KPIs depois se quiser.
+## Fora de escopo
+- **Excluir definitivamente** o bloco do banco: não recomendo — se o admin clicar errado, perde o layout. Prefiro o modelo "ocultar/mostrar". Se você quiser exclusão definitiva mesmo, me avise e troco para `DELETE FROM dashboard_widgets`.
+- Layout por usuário: continua compartilhado (como hoje).
