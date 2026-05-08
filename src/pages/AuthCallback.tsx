@@ -15,7 +15,7 @@ export default function AuthCallback() {
       if (!mounted) return;
       if (data.session) {
         toast.success('Login realizado com sucesso!');
-        navigate('/estoque', { replace: true });
+        navigate('/', { replace: true });
       } else {
         toast.error('Não foi possível concluir o login.');
         navigate('/login', { replace: true });
