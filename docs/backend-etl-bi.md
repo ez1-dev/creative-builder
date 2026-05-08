@@ -84,28 +84,41 @@ Mesma estrutura do ATU_COMPRAS. Diferenças:
 - Vincular `numero_oc_origem`, `sequencia_oc_origem` a partir dos campos do E440IPC que apontam para a OC origem.
 - UPSERT com chave `(numero_nf, serie, sequencia_item, codigo_fornecedor)`.
 
-## Feature flag `USE_BI_ANALYTICS`
+## Feature flags em `etl_configuracoes_bi`
 
-Cutover controlado, sem mudar contrato dos endpoints existentes:
+As flags vivem na tabela `etl_configuracoes_bi` no Lovable Cloud (não em env var). O backend lê via service role com cache curto (~30s) e a tela `/etl` aba **Configuração BI** controla os valores.
+
+Chaves:
+
+| Chave                           | Tipo  | Default  | Efeito                                                                 |
+|---------------------------------|-------|----------|------------------------------------------------------------------------|
+| `USE_BI_ANALYTICS_COMPRAS`      | bool  | `false`  | `/api/painel-compras*` lê de `bi_compras` quando `true`                |
+| `USE_BI_ANALYTICS_RECEBIMENTOS` | bool  | `false`  | `/api/notas-recebimento*` lê de `bi_recebimentos` quando `true`        |
+| `FALLBACK_TO_ERP_WHEN_BI_EMPTY` | bool  | `true`   | Se BI vazio: `true` cai pro ERP, `false` retorna HTTP 409              |
+| `USE_DASHBOARD_CACHE`           | bool  | `false`  | Habilita lookup em `dashboard_cache` antes de recomputar               |
+| `DASHBOARD_CACHE_TTL_MINUTES`   | int   | `5`      | TTL do cache em minutos                                                |
 
 ```python
-USE_BI = os.getenv("USE_BI_ANALYTICS", "false").lower() == "true"
+def get_flag(chave: str, default: str) -> str:
+    # cache 30s em memória; consulta supabase.from("etl_configuracoes_bi")
+    return _cache.get_or_load(chave, default)
 
 def fonte_compras(filtros):
-    if USE_BI:
+    if get_flag("USE_BI_ANALYTICS_COMPRAS", "false") == "true":
         if supabase.count("bi_compras") == 0:
-            raise HTTPException(409,
-                "Base analítica ainda não populada. Execute a tarefa ETL correspondente.")
+            if get_flag("FALLBACK_TO_ERP_WHEN_BI_EMPTY", "true") == "true":
+                return query_erp_compras(filtros)
+            raise HTTPException(409, "Base analítica ainda não populada.")
         return query_bi_compras(filtros)
-    return query_erp_compras(filtros)  # comportamento atual, intacto
+    return query_erp_compras(filtros)
 ```
 
 Aplicar em: `/api/painel-compras`, `/api/painel-compras-dashboard`, `/api/notas-recebimento`, `/api/notas-recebimento-dashboard`.
 
 Regras:
-- `USE_BI_ANALYTICS=false` (default) → lê do ERP, comportamento atual preservado.
-- `USE_BI_ANALYTICS=true` → lê de `bi_*`. Se a tabela estiver vazia, retorna **HTTP 409** com a mensagem acima (não cair silenciosamente para o ERP — evita mascarar bugs).
+- Apenas administradores escrevem na tabela (RLS). Backend usa service role para ler.
 - **Não remover** `query_erp_compras` / `query_erp_recebimentos` por pelo menos 7 dias após o cutover.
+- Mudança de flag tem efeito imediato após o TTL do cache em memória.
 
 ## Sequência de validação V1 (antes de ligar a flag)
 
