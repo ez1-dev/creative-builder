@@ -124,11 +124,42 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [savingLayout, setSavingLayout] = useState(false);
   const canEditLayout = !readOnly && isAdmin && !shareToken;
 
-  // Widgets a renderizar: aplica o pendingHidden quando estiver editando.
+  // Widgets a renderizar: aplica pendingHidden + pendingDeletes + pendingNewWidgets +
+  // pendingConfig (overrides em memória até "Salvar").
+  // Esses estados são definidos mais abaixo, mas o useMemo lê via closure quando renderiza.
+  // (declarações forward — usaremos `any` no bloco para resolução de ordem)
   const effectiveWidgets = useMemo(() => {
-    if (!pendingHidden) return widgets;
-    return widgets.map((w) => ({ ...w, hidden: pendingHidden.has(w.type) }));
-  }, [widgets, pendingHidden]);
+    const base = widgets.map((w) => {
+      const hidden = pendingHidden ? pendingHidden.has(w.type) : Boolean(w.hidden);
+      const cfg = pendingConfig?.[w.type];
+      if (cfg === null || cfg === undefined) return { ...w, hidden };
+      return {
+        ...w,
+        hidden,
+        componentId: cfg.componentId ?? w.componentId,
+        mapping: cfg.mapping ?? w.mapping,
+        options: cfg.options ?? w.options,
+        customTitle: cfg.customTitle ?? w.customTitle,
+      };
+    });
+    // Filtra deleções pendentes (custom-*)
+    const filtered = base.filter((w) => !pendingDeletes?.has(w.type));
+    // Anexa novos widgets pendentes
+    const maxPos = filtered.reduce((m, w) => Math.max(m, w.position), 0);
+    const news = (pendingNewWidgets ?? []).map((nw, i) => ({
+      id: nw.type,
+      type: nw.type,
+      title: nw.title,
+      position: maxPos + 1 + i,
+      layout: { x: 0, y: 999 + i * 8, w: 6, h: 8 },
+      componentId: nw.componentId,
+      mapping: nw.mapping,
+      options: nw.options,
+      customTitle: nw.title,
+    }));
+    return [...filtered, ...news];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes]);
 
   const hiddenList = useMemo(
     () => effectiveWidgets.filter((w) => w.hidden),
