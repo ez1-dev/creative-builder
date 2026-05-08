@@ -106,7 +106,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         setDashboardId(dash.id);
         const { data: rows } = await supabase
           .from('dashboard_widgets')
-          .select('id, type, title, position, layout')
+          .select('id, type, title, position, layout, config')
           .eq('dashboard_id', dash.id)
           .order('position');
         const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => ({
@@ -115,6 +115,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           title: r.title,
           position: r.position ?? 0,
           layout: (r.layout ?? {}) as WidgetLayout,
+          hidden: Boolean((r.config ?? {})?.hidden),
         }));
         setWidgets(mergeWithDefaults(mapped));
       }
