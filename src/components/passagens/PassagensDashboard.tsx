@@ -513,22 +513,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedUF([]);
   };
 
-  // Dados para o mapa: respeita filtros do topo + outros cross-filters, exceto o próprio destino
+  // Dados base para destaques cruzados (mantém compat com filtros do topo)
   const mapaData = useMemo(
     () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
     [filtered, selectedMes, selectedMotivo, selectedCC],
   );
-
-  // Agregação por UF para o mapa coroplético
-  const mapaUF = useMemo(() => {
-    const m = new Map<string, number>();
-    mapaData.forEach((p) => {
-      const uf = (p.uf_destino ?? '').toUpperCase().trim();
-      if (!uf) return;
-      m.set(uf, (m.get(uf) ?? 0) + Number(p.valor || 0));
-    });
-    return Array.from(m.entries()).map(([uf, valor]) => ({ uf, valor }));
-  }, [mapaData]);
 
   // Cores para destaque condicional
   const primaryColor = 'hsl(var(--primary))';
