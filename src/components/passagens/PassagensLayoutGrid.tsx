@@ -91,6 +91,20 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
     emit(next);
   };
 
+  // Garante emit ao final do arrasto/resize (mesmo se já foi emitido durante).
+  const handleStop = (next: Layout) => {
+    setLocalLayout((prev) => {
+      const updated = { ...prev };
+      next.forEach((l) => {
+        updated[l.i] = { x: l.x, y: l.y, w: l.w, h: l.h };
+      });
+      return updated;
+    });
+    // Reseta dedupe para garantir persistência final.
+    lastEmitted.current = '';
+    emit(next);
+  };
+
   const stepResize = (type: string, dW: number, dH: number) => {
     setLocalLayout((prev) => {
       const cur = prev[type];
@@ -99,7 +113,6 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
       const h = Math.max(MIN_H, cur.h + dH);
       if (w === cur.w && h === cur.h) return prev;
       const updated = { ...prev, [type]: { ...cur, w, h } };
-      // Emite para o pai usando o estado atualizado.
       const layoutOut: Layout = orderedWidgets.map((wd) => {
         const l = updated[wd.type] ?? wd.layout;
         return { i: wd.type, x: l.x, y: l.y, w: l.w, h: l.h };
@@ -107,6 +120,20 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
       emit(layoutOut);
       return updated;
     });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, type: string) => {
+    if (!editing) return;
+    // Só ativa quando o foco está no wrapper (evita disparar dentro de inputs/buttons internos).
+    if (e.target !== e.currentTarget) return;
+    const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 2 : 1;
+    if (e.key === 'ArrowRight') stepResize(type, +step, 0);
+    else if (e.key === 'ArrowLeft') stepResize(type, -step, 0);
+    else if (e.key === 'ArrowDown') stepResize(type, 0, +step);
+    else if (e.key === 'ArrowUp') stepResize(type, 0, -step);
   };
 
   return (
@@ -122,15 +149,21 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
       preventCollision={false}
       draggableCancel="button, a, input, select, textarea, [role='combobox'], [data-no-drag]"
       onLayoutChange={handleLayoutChange}
+      onDragStop={handleStop}
+      onResizeStop={handleStop}
     >
       {orderedWidgets.map((w) => {
         const cur = localLayout[w.type] ?? w.layout;
         return (
           <div
             key={w.type}
+            role="group"
+            aria-label={editing ? `${w.title}. Use as setas do teclado para redimensionar. Shift acelera.` : w.title}
+            tabIndex={editing ? 0 : -1}
+            onKeyDown={(e) => handleKeyDown(e, w.type)}
             className={cn(
-              'overflow-auto relative',
-              editing && 'rounded-lg ring-2 ring-primary/40 ring-offset-2 ring-offset-background',
+              'overflow-auto relative outline-none',
+              editing && 'rounded-lg ring-2 ring-primary/40 ring-offset-2 ring-offset-background focus-visible:ring-primary',
             )}
           >
             {editing && (
