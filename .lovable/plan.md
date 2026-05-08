@@ -1,28 +1,27 @@
-## Objetivo
-No gráfico **Ranking** (`RankingChartCard`, usado por "Top Destinos por Valor" e demais rankings da Biblioteca BI), permitir que o usuário expanda a lista progressivamente em vez de ficar limitado ao `topN` fixo.
+## Diagnóstico
+Conferi no banco e a permissão está correta para **MAIANE.SAURIN@EZORTEA.COM.BR**:
 
-## Comportamento proposto
-- Mostrar inicialmente `topN` itens (default `10`, mantido).
-- Se houver mais itens disponíveis no `data`, exibir um botão discreto **"Ver mais (+N)"** ao final da lista.
-  - Cada clique revela mais um lote (`step = topN`, ou `10` por padrão).
-  - Quando todos os itens estiverem visíveis, alternar para **"Ver menos"** que volta ao `topN` inicial.
-- Contagem mostrada no botão: `"Ver mais (+X de Y)"`, onde `X` é quantos virão e `Y` é o total restante. Ajuda a entender o tamanho da lista.
-- Estado controlado internamente (`useState`), reseta quando `data` muda (via `useEffect` com dependência no length).
-- Acessibilidade: `<button type="button">` com `aria-expanded` e foco visível usando tokens do design system.
-- Performance: nada muda em relação ao cálculo `sorted`; apenas a fatia exibida cresce.
+| Perfil | screen_path | can_view | can_edit |
+|---|---|---|---|
+| Compras | /passagens-aereas | true | true |
+| Passagens Aéreas - Acesso Total (Maiane) | /passagens-aereas | true | true |
 
-## Arquivos a alterar
-- `src/components/bi/charts/RankingChartCard.tsx`
-  - Nova prop opcional `expandable?: boolean` (default `true`) e `step?: number` (default = `topN`).
-  - Adicionar estado `visibleCount`, lógica de expand/collapse, botão no rodapé do `<ol>`.
-  - Manter API atual (`topN`, `onItemClick`, `valueFormatter`) intacta — sem breaking change.
+Ou seja, os dois perfis vinculados a ela já têm `can_edit = true` em `/passagens-aereas`. O hook `useUserPermissions` faz `OR` entre os perfis, então `canEdit('/passagens-aereas')` deve retornar `true` e `editAllowed` em `PassagensAereasPage` deve mostrar os botões "Novo / Editar / Excluir".
 
-## Validação
-- `/passagens-aereas` → card "Top Destinos por Valor": clicar em "Ver mais" deve revelar mais destinos; clicar de novo até esgotar; "Ver menos" volta a 10.
-- Cross-filter por clique no item continua funcionando (não acionar pelo botão).
-- Demais rankings da Biblioteca BI (catálogo / `BiComponentsDemoPage`) ganham o mesmo comportamento automaticamente.
-- Caso a altura do card fique apertada, o `ChartCardShell` já lida com scroll interno — confirmar visualmente.
+## Causa provável
+A Maiane está com a sessão antiga em cache. O hook `useUserPermissions` só busca permissões quando `erpUser` muda (no login). Mudanças em `user_access` / `profile_screens` feitas com a sessão dela aberta **não disparam refetch automaticamente**.
 
-## Fora do escopo
-- Não mexer em outros tipos de gráfico (bar/pie/etc.).
-- Não persistir o "expandido" entre sessões.
+## Ação recomendada (sem código)
+1. Pedir para a Maiane fazer **logout e login novamente** (ou hard refresh `Ctrl+Shift+R`). Isso por si só deve fazer o botão Editar aparecer.
+
+## Se mesmo após relogin não aparecer
+Investigar e corrigir um dos pontos abaixo:
+- **`erpUser` no AuthContext** pode estar com case/trim diferente do `user_login` em `user_access`. A consulta `ilike(user_login, erpUser)` funciona, mas vale logar `erpUser` no console dela e comparar.
+- **Realtime de permissões**: opcional adicionar uma assinatura ou um botão "Atualizar permissões" que rechame `fetchPerms`. Hoje não existe; só recarrega no login.
+
+## Plano de código (somente se relogin não resolver)
+- Adicionar refetch no `useUserPermissions` quando a aba volta ao foco (`visibilitychange`) **ou**
+- Forçar logout dela via `force_user_logout(_user_id)` (já existe a function) para garantir nova sessão.
+
+## Próximo passo
+Confirmar com você: ela já tentou logout/login? Se sim, capturar no console dela o valor de `erpUser` e o array `permissions` retornado pelo hook para irmos direto na causa.
