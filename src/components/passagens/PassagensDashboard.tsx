@@ -124,6 +124,14 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [savingLayout, setSavingLayout] = useState(false);
   const canEditLayout = !readOnly && isAdmin && !shareToken;
 
+  // ===== Estados dos diálogos de configuração / customização =====
+  const [configureType, setConfigureType] = useState<string | null>(null);
+  const [addChartOpen, setAddChartOpen] = useState(false);
+  // Customizações pendentes (aplicadas só após "Salvar layout")
+  const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
+  const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+
   // Widgets a renderizar: aplica pendingHidden + pendingDeletes + pendingNewWidgets +
   // pendingConfig (overrides em memória até "Salvar").
   // Esses estados são definidos mais abaixo, mas o useMemo lê via closure quando renderiza.
