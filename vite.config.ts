@@ -6,6 +6,10 @@ import pkg from "./package.json";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Caminhos relativos para que o build funcione tanto no navegador (HTTP)
+  // quanto dentro do Electron (file://) — sem isso os assets dão 404 no
+  // desktop e a janela abre completamente preta.
+  base: './',
   server: {
     host: "::",
     port: 8080,

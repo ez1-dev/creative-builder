@@ -1,24 +1,24 @@
-# Plano
+## Diagnóstico
 
-## Objetivo
-Eliminar o tremor/bug visual nos gráficos do dashboard de Passagens Aéreas (modo visualização e link compartilhado), mantendo a correção que faz o link respeitar o layout salvo pelo administrador.
+A tela preta no app desktop (Electron) acontece porque o Vite está construindo o app com `base: '/'` (padrão). No navegador isso funciona, mas dentro do Electron o `index.html` é carregado via protocolo `file://`, e os caminhos absolutos como `/assets/index-xxx.js` não resolvem — o HTML carrega vazio (tela preta), enquanto a versão web continua normal. Isso bate exatamente com o sintoma: só quebra no desktop, e começou após uma nova build/instalador ser distribuída.
 
-## Causa
-Após a última mudança, o grid passou a ter duas fontes ressincronizando o estado local de layout ao mesmo tempo:
-1. O efeito novo, que aplica o layout salvo no banco sempre que ele muda fora do modo de edição.
-2. O `handleLayoutChange` interno do `react-grid-layout`, que continua disparando no modo de visualização e sobrescrevendo o estado com posições recalculadas pela própria biblioteca.
+O `vite.config.ts` atual não define `base`, então qualquer rebuild gera os mesmos caminhos absolutos quebrados no Electron.
 
-Quando essas duas fontes discordam (ex.: compactação vertical do grid vs. layout salvo), o componente entra num ciclo de reaplicação que aparece como “tremor” na tela.
+## Plano
 
-## Implementação
-- Restringir a sincronização local feita pelo `react-grid-layout` para acontecer apenas no modo de edição (drag/resize/cliques nos botões de redimensionar).
-- Manter no modo de visualização/compartilhado uma fonte única da verdade: o layout que vem do banco.
-- Garantir que o efeito de ressincronização continue refletindo mudanças reais de geometria salvas pelo administrador, sem entrar em loop.
+1. Ajustar `vite.config.ts` para usar `base: './'`, gerando caminhos relativos compatíveis com Electron (`file://`) e mantendo o funcionamento normal no navegador e no preview Lovable.
+2. Garantir que o roteamento client-side continue funcionando dentro do Electron (rotas internas como `/login` precisam ser tratadas pelo React Router e não pelo `file://`). Se necessário, documentar uso de `HashRouter` apenas no build desktop, ou um fallback no `main.cjs` do Electron — sem alterar o comportamento da versão web.
+3. Após o ajuste, o usuário precisa **gerar um novo instalador** do Electron e redistribuir aos usuários — a build atualmente instalada continuará preta até ser substituída.
 
-## Validação
-- Abrir o dashboard como administrador (modo leitura) e confirmar que os gráficos não tremem nem mudam de posição sozinhos.
-- Entrar em modo de edição, mover/redimensionar blocos, salvar e verificar que o layout salvo aparece estável depois.
-- Abrir o link compartilhado (com e sem senha) e confirmar que a disposição é exatamente a salva pelo admin, sem tremor.
+## Detalhes técnicos
 
-## Arquivos
-- `src/components/passagens/PassagensLayoutGrid.tsx`
+- Arquivo alterado: `vite.config.ts` — adicionar `base: './'` no objeto retornado por `defineConfig`.
+- Nenhum código de aplicação muda; é só configuração de build.
+- Versão web publicada (`ez-erp-ia.lovable.app`) continua funcionando normalmente, pois caminhos relativos resolvem do mesmo jeito sob HTTP.
+- Se houver `HashRouter` x `BrowserRouter`: manter `BrowserRouter` para web; se o Electron tiver problema de rota ao recarregar, alternativa segura é trocar para `HashRouter` apenas no build empacotado, mas só faço isso se o sintoma persistir.
+
+## Validação após implementar
+
+- Rodar uma nova build (`vite build`) e reempacotar o Electron.
+- Abrir o instalador novo: a janela "Sapiens Control Center" deve mostrar a tela de login normalmente, sem ficar preta.
+- Conferir no console do Electron (Ctrl+Shift+I) que não há mais erros 404 nos arquivos `assets/*.js` e `assets/*.css`.
