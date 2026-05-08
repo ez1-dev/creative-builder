@@ -17,8 +17,10 @@ import {
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { usePageData } from '@/lib/bi/PageDataContext';
+import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
+const COLOR_AWARE_TYPES = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
 
 export interface NewChartValue {
   type: string; // custom-<timestamp>
