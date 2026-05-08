@@ -23,6 +23,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'passagens.chart-top-cc',          label: 'Gráfico: Top Centros de Custo' },
       { key: 'passagens.chart-top-cidades',     label: 'Gráfico: Top Cidades de Destino' },
       { key: 'passagens.chart-top-uf',          label: 'Gráfico: Top Estados (UF)' },
+      { key: 'passagens.chart-top-destinos-valor', label: 'Gráfico: Top Destinos por Valor' },
     ],
   },
   {
