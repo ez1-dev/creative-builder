@@ -37,6 +37,12 @@ type FilaRow = {
   id: string; tarefa_codigo: string; status: string; prioridade: number;
   params: any; created_at: string; picked_at: string | null; finished_at: string | null;
 };
+type ValidacaoResp = {
+  filtros?: Record<string, any>;
+  erp: Record<string, number>;
+  bi: Record<string, number>;
+  diferencas?: Record<string, number>;
+};
 
 const statusColor: Record<string, string> = {
   RUNNING: "bg-blue-500/20 text-blue-700 dark:text-blue-300",
