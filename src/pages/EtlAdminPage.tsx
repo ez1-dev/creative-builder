@@ -411,6 +411,7 @@ function LogsTab({ execId, setExecId }: { execId: string; setExecId: (s: string)
       </CardContent>
     </Card>
   );
+}
 
 // ---------- Validação ----------
 function ValidacaoTab() {
