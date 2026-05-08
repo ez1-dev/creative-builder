@@ -1,33 +1,58 @@
-## Problema
-No editor de layout de `/passagens-aereas`, o bloco **"Top Destinos por Valor"** não exibe o botão ⚙️ "Configurar gráfico".
+## Problemas
 
-## Causa
-Em `src/components/passagens/PassagensDashboard.tsx` (linha 639-642), a lista `CONFIGURABLE_CANONICAL` controla quais blocos canônicos exibem o botão de configuração. O tipo `chart-top-destinos-valor` foi esquecido nessa lista — apesar de a série `top_destinos_valor` já estar registrada no `pageRegistry` e exposta pelo `PageDataProvider`.
+**1. Pré-visualização vazia** no "Adicionar novo gráfico" (e também no "Configurar gráfico").
+- Causa: em `PassagensDashboard.tsx`, `<AddChartDialog>` e `<ConfigureChartDialog>` estão renderizados **fora** do `<PageDataProvider>` (que fecha na linha 1658). O hook `usePageData()` retorna `null`, então `previewNode` nunca é construído e o painel mostra "Selecione tipo e série…".
 
-## Correção
-Adicionar `'chart-top-destinos-valor'` ao array `CONFIGURABLE_CANONICAL`:
+**2. Sem seletor de cor** das barras/linhas no novo gráfico.
+- Os componentes BI (`BarChartCard`, `HorizontalBarChartCard`, `LineChartCard`, `AreaChartCard`) já aceitam prop `color` (default `hsl(var(--primary))`), mas o `componentRegistry.tsx` não repassa nenhum valor vindo de `options`.
 
-```ts
-const CONFIGURABLE_CANONICAL = useMemo(
-  () => [
-    'chart-evolucao-mensal',
-    'chart-motivo-viagem',
-    'chart-top-cc',
-    'chart-top-cidades',
-    'chart-top-uf',
-    'chart-top-destinos-valor', // ← adicionar
-  ],
-  [],
-);
+## Correções
+
+### A. Mover os dialogs para dentro do PageDataProvider
+Em `src/components/passagens/PassagensDashboard.tsx`:
+- Mover os blocos `{configureTarget && <ConfigureChartDialog … />}` e `<AddChartDialog … />` para **antes** do fechamento `</PageDataProvider>` (linha 1658). Assim o contexto fica disponível para a pré-visualização.
+
+### B. Repassar `options.color` no registry
+Em `src/lib/bi/componentRegistry.tsx`, atualizar os render() dos charts que aceitam `color`:
+- `bar-chart`, `horizontal-bar-chart`, `line-chart`, `area-chart`, `ranking-chart`.
+- Padrão: quando `options?.color` não for informado, **não passar a prop** (deixa o default do componente, que é `hsl(var(--primary))` — a cor padrão da página).
+
+```tsx
+render: ({ title, mapping, ctx, options }) => (
+  <BarChartCard
+    title={title || mapping.series}
+    data={SERIES_LIKE(ctx.series?.[mapping.series])}
+    {...(options?.color ? { color: options.color } : {})}
+  />
+),
 ```
 
+### C. Adicionar seletor de cor no AddChartDialog
+Em `src/components/passagens/AddChartDialog.tsx`:
+- Novo state `color: string` (default `'hsl(var(--primary))'`).
+- Mostrar o campo somente quando o `componentId` selecionado suportar cor única (set: `bar-chart`, `horizontal-bar-chart`, `line-chart`, `area-chart`, `ranking-chart`).
+- UI: presets baseados em **tokens semânticos** do design system (Primário, Sucesso, Warning, Destructive, Accent, Muted) + `<input type="color">` para escolha livre. Cada preset traduz para a string `hsl(var(--primary))` etc. Padrão = "Padrão da página" (= `hsl(var(--primary))`).
+- Incluir `color` em `options` ao montar o `NewChartValue`.
+- Repassar `options.color` ao `def.render()` do preview.
+
+### D. (Opcional, mesmo dialog) Espelhar o seletor no ConfigureChartDialog
+Permite editar a cor de gráficos já existentes. Mesma lógica — mantém retrocompatibilidade quando `options.color` for indefinido.
+
 ## Arquivos afetados
-- `src/components/passagens/PassagensDashboard.tsx` (1 linha)
+- `src/components/passagens/PassagensDashboard.tsx` — reposicionar dialogs.
+- `src/lib/bi/componentRegistry.tsx` — repassar `options.color` em 5 charts.
+- `src/components/passagens/AddChartDialog.tsx` — campo cor + persistência.
+- `src/components/passagens/ConfigureChartDialog.tsx` — campo cor (mesma UI).
 
 ## Validação
-1. Entrar em modo de edição em `/passagens-aereas`.
-2. Verificar que o bloco "Top Destinos por Valor" agora mostra o botão ⚙️.
-3. Abrir o ConfigureChartDialog, trocar tipo de gráfico/série, salvar e recarregar para confirmar persistência.
+1. Em `/passagens-aereas` modo edição → "+ Novo gráfico":
+   - Selecionar tipo e série → **pré-visualização aparece**.
+   - Trocar cor (preset Sucesso, depois color picker custom) → preview reflete imediatamente.
+   - Sem escolher cor → preview usa azul padrão (`--primary`).
+2. Adicionar e salvar layout → recarregar página → cor persistida.
+3. Abrir "Configurar gráfico" num bloco existente → editar cor → salvar → recarregar → mantém cor.
+4. Bloco sem `options.color` continua azul padrão (sem regressão).
 
 ## Fora de escopo
-Outros blocos não configuráveis intencionalmente (KPIs, mapa, tabela) permanecem como estão.
+- Cor por categoria (paleta multi-série) em donut/pie/treemap — esses já têm paletas próprias.
+- Persistência de paleta global da página.
