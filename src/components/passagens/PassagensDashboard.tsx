@@ -26,6 +26,7 @@ import { useUserVisuals } from '@/hooks/useUserVisuals';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
