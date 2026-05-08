@@ -1667,6 +1667,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           blockType={configureType ?? ''}
           fallbackTitle={configureTarget.widget?.title}
           canResetToDefault={configureType ? CONFIGURABLE_CANONICAL.includes(configureType) : false}
+          kpis={kpiPayload}
+          series={seriesPayload}
+          rows={crossFiltered}
           onApply={(next) => {
             if (!configureType) return;
             const t = configureType;
@@ -1687,6 +1690,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       <AddChartDialog
         open={addChartOpen}
         onOpenChange={setAddChartOpen}
+        kpis={kpiPayload}
+        series={seriesPayload}
+        rows={crossFiltered}
         onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
       />
       </PageDataProvider>
