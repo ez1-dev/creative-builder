@@ -132,8 +132,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <BarChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+    render: ({ title, mapping, ctx, options }) => (
+      <BarChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        {...(options?.color ? { color: options.color as string } : {})}
+      />
     ),
   },
   {
@@ -143,8 +147,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <HorizontalBarChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+    render: ({ title, mapping, ctx, options }) => (
+      <HorizontalBarChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        {...(options?.color ? { color: options.color as string } : {})}
+      />
     ),
   },
   {
@@ -154,8 +162,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <LineChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+    render: ({ title, mapping, ctx, options }) => (
+      <LineChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        {...(options?.color ? { color: options.color as string } : {})}
+      />
     ),
   },
   {
@@ -165,8 +177,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <AreaChartCard title={title || mapping.series} data={SERIES_LIKE(ctx.series?.[mapping.series])} />
+    render: ({ title, mapping, ctx, options }) => (
+      <AreaChartCard
+        title={title || mapping.series}
+        data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        {...(options?.color ? { color: options.color as string } : {})}
+      />
     ),
   },
   {

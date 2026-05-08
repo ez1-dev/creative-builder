@@ -1655,8 +1655,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           ),
         }}
       />
-      </PageDataProvider>
-
       {configureTarget && (
         <ConfigureChartDialog
           open={Boolean(configureType)}
@@ -1687,6 +1685,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         onOpenChange={setAddChartOpen}
         onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
       />
+      </PageDataProvider>
 
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">

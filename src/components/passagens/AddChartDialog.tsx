@@ -17,8 +17,10 @@ import {
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { usePageData } from '@/lib/bi/PageDataContext';
+import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
+const COLOR_AWARE_TYPES = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
 
 export interface NewChartValue {
   type: string; // custom-<timestamp>
@@ -43,6 +45,7 @@ export function AddChartDialog({ open, onOpenChange, onAdd }: Props) {
   const [seriesKey, setSeriesKey] = useState<string>('');
   const [title, setTitle] = useState<string>('');
   const [topN, setTopN] = useState<string>('10');
+  const [color, setColor] = useState<string>(DEFAULT_CHART_COLOR);
 
   useEffect(() => {
     if (!open) return;
@@ -50,34 +53,42 @@ export function AddChartDialog({ open, onOpenChange, onAdd }: Props) {
     setSeriesKey(seriesOptions[0]?.key ?? '');
     setTitle('');
     setTopN('10');
+    setColor(DEFAULT_CHART_COLOR);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const def = useMemo(() => getComponent(componentId), [componentId]);
+  const supportsColor = COLOR_AWARE_TYPES.has(componentId);
 
   const previewNode = useMemo(() => {
     if (!def || !seriesKey || !ctx) return null;
     try {
+      const options: Record<string, any> = {};
+      if (def.id === 'ranking-chart') options.topN = Number(topN) || 10;
+      if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
       return def.render({
         title: title || def.label,
         mapping: { series: seriesKey },
         ctx: { kpis: ctx.kpis, series: ctx.series, rows: ctx.rows },
-        options: def.id === 'ranking-chart' ? { topN: Number(topN) || 10 } : {},
+        options,
       });
     } catch (e) {
       return <div className="text-xs text-destructive">Erro: {(e as Error).message}</div>;
     }
-  }, [def, seriesKey, title, topN, ctx]);
+  }, [def, seriesKey, title, topN, ctx, color, supportsColor]);
 
   const handleAdd = () => {
     if (!def || !seriesKey) return;
     const finalTitle = title.trim() || def.label;
+    const options: Record<string, any> = {};
+    if (def.id === 'ranking-chart') options.topN = Number(topN) || 10;
+    if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
     onAdd({
       type: `custom-${Date.now()}`,
       title: finalTitle,
       componentId: def.id,
       mapping: { series: seriesKey },
-      options: def.id === 'ranking-chart' ? { topN: Number(topN) || 10 } : undefined,
+      options: Object.keys(options).length > 0 ? options : undefined,
     });
     onOpenChange(false);
   };
@@ -129,6 +140,9 @@ export function AddChartDialog({ open, onOpenChange, onAdd }: Props) {
                 <Label className="text-xs">Top N</Label>
                 <Input type="number" min={1} max={50} value={topN} onChange={(e) => setTopN(e.target.value)} />
               </div>
+            )}
+            {supportsColor && (
+              <ChartColorPicker value={color} onChange={setColor} />
             )}
           </div>
 
