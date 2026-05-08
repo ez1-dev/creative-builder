@@ -1,39 +1,32 @@
-## Problema
+## Objetivo
+Dar acesso total (visualizar + editar + gerenciar compartilhamento) à página `/passagens-aereas` apenas para **MAIANE.SAURIN@EZORTEA.COM.BR**, sem torná-la administradora do sistema e sem afetar os demais usuários do perfil "Compras".
 
-Os gráficos adicionados/trocados pela biblioteca BI (ex.: "Top Destinos por Valor" agora usando `ranking-chart`) **não disparam o cross-filter** da página. Os gráficos canônicos (Evolução Mensal, Motivo, Top UF nativo, etc.) já filtram a página inteira no clique porque estão cabeados diretamente nos `setSelected...`. Já os componentes vindos do `componentRegistry` apenas exibem dados — o clique não chega ao estado de filtros da página.
+## Estado atual
+- Profile: `maiane.saurin@ezortea.com.br` (id `773d24a4…`), `erp_user = MAIANE.SAURIN@EZORTEA.COM.BR`
+- Vínculo atual em `user_access`: perfil **Compras** (`a433425a-…`)
+- Perfis de acesso (`access_profiles`) são compartilhados entre usuários, então não dá para simplesmente editar "Compras".
 
-## Causa
+## Passos (somente dados, sem mudança de schema)
 
-Em `src/lib/bi/componentRegistry.tsx`, os `render(...)` de `ranking-chart`, `bar-chart`, `horizontal-bar-chart`, `pie-chart` etc. **não recebem nem encaminham** `onItemClick`. O contexto passado em `PassagensDashboard` (`ctx: { kpis, series, rows }`) também não inclui um handler de clique. Resultado: o item clicado não vira filtro.
+1. **Criar novo perfil de acesso dedicado**
+   - `INSERT INTO access_profiles (name, description)` → nome: `Passagens Aéreas - Acesso Total (Maiane)`.
 
-## Plano
+2. **Configurar `profile_screens` desse novo perfil**
+   - Inserir uma linha para `/passagens-aereas` com `can_view = true` e `can_edit = true`.
+   - (Apenas essa tela — nada mais é liberado por esse perfil.)
 
-1. **Estender o contexto de render do registry**
-   - Adicionar campo opcional `onItemClick?: (seriesKey: string, datum: { name: string; value: number }) => void` no tipo de `ctx` (ou nas props de `render`).
-   - Cada chart do registry passa `onItemClick={(d) => ctx.onItemClick?.(mapping.series, d)}` para o componente subjacente (`RankingChartCard`, `BarChartCard`, `HorizontalBarChartCard`, `PieChartCard`, `DonutChartCard`).
+3. **Vincular o perfil novo ao login da Maiane em `user_access`**
+   - `INSERT INTO user_access (user_login, profile_id)` com `user_login = 'MAIANE.SAURIN@EZORTEA.COM.BR'`.
+   - Ela mantém o vínculo "Compras" existente; o sistema soma as permissões das duas linhas.
 
-2. **Mapear seriesKey → cross-filter no `PassagensDashboard`**
-   - No bloco que renderiza widgets com `componentId` (linhas ~1646), passar um `onItemClick` que faz roteamento:
-     - `evolucao_mensal` → toggle em `selectedMes`
-     - `por_motivo` → toggle em `selectedMotivo`
-     - `top_cidades_qtd` / `top_cidades_valor` / `top_destinos_valor` → toggle em `selectedDestino`
-     - `top_uf_qtd` / `top_uf_valor` → toggle em `selectedUF` (uppercase)
-     - `top_cc` (se aplicável) → toggle em `selectedCC`
-   - Reusar o helper `toggleItem` já existente.
+4. **Habilitar criação de links de compartilhamento para não-admins (se ainda não estiver)**
+   - A função `can_manage_passagens_share` exige `app_settings.passagens_share_allow_non_admin = 'true'` + `can_edit` na tela.
+   - Verificar/`UPSERT` em `app_settings` a chave `passagens_share_allow_non_admin = 'true'` para que ela também consiga gerar links de compartilhamento. Como esse setting já vale para qualquer usuário com `can_edit` em `/passagens-aereas`, confirmo com você antes de aplicar — se preferir manter restrito só a admins, pulamos este passo.
 
-3. **Feedback visual mínimo**
-   - Manter o cursor pointer já presente nos componentes.
-   - Os badges de cross-filter no topo da página já mostram a seleção ativa, então o usuário enxerga o impacto no clique.
+## Validação
+- Logar como Maiane → menu mostra Passagens Aéreas, botões de novo/editar/excluir habilitados.
+- Outros usuários do perfil "Compras" continuam **sem** edição em Passagens Aéreas.
+- Ela **não** ganha acesso a nenhuma outra tela administrativa.
 
-4. **Validação**
-   - Em `/passagens-aereas`: clicar em uma UF no Ranking "Top Destinos por Valor" deve filtrar KPIs, demais gráficos e a tabela.
-   - Clicar de novo no mesmo item deve remover o filtro.
-   - Repetir o teste trocando o tipo do bloco (barras horizontais, barras, pizza) via "Configurar gráfico".
-
-## Detalhes técnicos
-
-Arquivos afetados:
-- `src/lib/bi/componentRegistry.tsx` — aceitar e propagar `onItemClick` em chart-likes.
-- `src/components/passagens/PassagensDashboard.tsx` — passar `onItemClick` no `ctx` do `def.render(...)` e fazer o roteamento por `seriesKey`.
-
-Sem mudanças de schema, sem migrações — alteração puramente de frontend/presentation.
+## Pergunta antes de executar
+Quer que eu também ative o `passagens_share_allow_non_admin` (passo 4) para que ela consiga **gerar/gerenciar links de compartilhamento públicos**? Ou manter isso restrito a admins?
