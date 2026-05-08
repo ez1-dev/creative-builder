@@ -19,7 +19,7 @@ const MIN_W = 3;
 const MIN_H = 2;
 const MAX_W = 12;
 
-export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }: Props) {
+export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide }: Props) {
   const [isCompact, setIsCompact] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
   );
@@ -30,7 +30,10 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange }
   }, []);
 
   const orderedWidgets = useMemo(
-    () => [...widgets].sort((a, b) => a.position - b.position).filter((w) => blocks[w.type]),
+    () =>
+      [...widgets]
+        .sort((a, b) => a.position - b.position)
+        .filter((w) => blocks[w.type] && !w.hidden),
     [widgets, blocks],
   );
 
