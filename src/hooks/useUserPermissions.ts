@@ -84,5 +84,20 @@ export function useUserPermissions() {
 
   const hasPermissions = permissions.length > 0;
 
-  return { permissions, loading, canView, canEdit, canUseAi, isAdmin, hasPermissions };
+  // Ordem de prioridade para landing page pós-login.
+  const PRIORITY_PATHS = [
+    '/painel-compras',
+    '/compras-produto',
+    '/notas-recebimento',
+    '/estoque',
+    '/passagens-aereas',
+    '/faturamento-genius',
+  ];
+  const viewablePaths = permissions.filter((p) => p.can_view).map((p) => p.screen_path);
+  const firstAllowedPath =
+    PRIORITY_PATHS.find((p) => viewablePaths.includes(p)) ??
+    [...viewablePaths].sort()[0] ??
+    null;
+
+  return { permissions, loading, canView, canEdit, canUseAi, isAdmin, hasPermissions, firstAllowedPath };
 }

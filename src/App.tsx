@@ -39,7 +39,7 @@ import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRe
 import BiComponentsDemoPage from "@/pages/BiComponentsDemoPage";
 import EtlAdminPage from "@/pages/EtlAdminPage";
 import NotFound from "@/pages/NotFound";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
 import { AiPageContextProvider } from "@/contexts/AiPageContext";
 
@@ -61,7 +61,7 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/passagens-aereas/compartilhado" element={<PassagensAereasCompartilhadoPage />} />
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/estoque" replace />} />
+              <Route path="/" element={<PostLoginRedirect />} />
               <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />
               <Route path="/estoque-min-max" element={<ProtectedRoute path="/estoque-min-max"><EstoqueMinMaxPage /></ProtectedRoute>} />
               <Route path="/sugestao-min-max" element={<ProtectedRoute path="/sugestao-min-max"><SugestaoMinMaxPage /></ProtectedRoute>} />

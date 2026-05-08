@@ -1,24 +1,43 @@
+# Tela branca pós-login — MAIANE.SAURIN
+
 ## Diagnóstico
 
-A tela preta no app desktop (Electron) acontece porque o Vite está construindo o app com `base: '/'` (padrão). No navegador isso funciona, mas dentro do Electron o `index.html` é carregado via protocolo `file://`, e os caminhos absolutos como `/assets/index-xxx.js` não resolvem — o HTML carrega vazio (tela preta), enquanto a versão web continua normal. Isso bate exatamente com o sintoma: só quebra no desktop, e começou após uma nova build/instalador ser distribuída.
+Confirmado no banco:
 
-O `vite.config.ts` atual não define `base`, então qualquer rebuild gera os mesmos caminhos absolutos quebrados no Electron.
+- A usuária `maiane.saurin@ezortea.com.br` **existe**, está **aprovada** e tem `erp_user` vinculado.
+- Os perfis de acesso dela liberam: `/compras-produto`, `/notas-recebimento`, `/painel-compras`, `/passagens-aereas`. **Não tem permissão em `/estoque`**.
+- O fluxo de login força redirecionamento para `/estoque` (em `LoginPage` e `AuthCallback`).
+- O `ProtectedRoute` (src/components/ProtectedRoute.tsx) faz: se o usuário tem permissões mas não pode ver a rota, redireciona de volta para `/estoque` → cai no mesmo bloqueio → **loop / tela branca**.
 
-## Plano
+O 404 em `/api/fornecedores` que apareceu no log é **consequência**, não causa: alguma tela tenta carregar fornecedores enquanto a navegação está travada.
 
-1. Ajustar `vite.config.ts` para usar `base: './'`, gerando caminhos relativos compatíveis com Electron (`file://`) e mantendo o funcionamento normal no navegador e no preview Lovable.
-2. Garantir que o roteamento client-side continue funcionando dentro do Electron (rotas internas como `/login` precisam ser tratadas pelo React Router e não pelo `file://`). Se necessário, documentar uso de `HashRouter` apenas no build desktop, ou um fallback no `main.cjs` do Electron — sem alterar o comportamento da versão web.
-3. Após o ajuste, o usuário precisa **gerar um novo instalador** do Electron e redistribuir aos usuários — a build atualmente instalada continuará preta até ser substituída.
+## O que vamos mudar
+
+Tudo é frontend (presentation), nenhuma regra de negócio nem schema muda.
+
+### 1. Função utilitária `getFirstAllowedPath`
+Em `src/hooks/useUserPermissions.ts`, expor `firstAllowedPath` (primeira rota com `can_view = true`, em ordem alfabética estável; preferindo uma lista priorizada: `/painel-compras`, `/compras-produto`, `/notas-recebimento`, `/passagens-aereas`, depois qualquer outra).
+
+### 2. `ProtectedRoute` deixa de mandar pra `/estoque`
+- Se o usuário tem permissões mas não pode ver a rota → redireciona para `firstAllowedPath`.
+- Se o usuário **não tem nenhuma permissão** → renderiza uma tela "Sem acesso liberado" (mesmo padrão visual do "Acesso Pendente" em `AppLayout`), com botão **Sair**. Sem isso, qualquer rota fica em branco.
+
+### 3. Redirecionos pós-login dinâmicos
+- `LoginPage.tsx`: ao detectar `isAuthenticated`, navegar para `firstAllowedPath` (fallback `/login` se não houver nenhuma).
+- `AuthCallback.tsx`: idem após confirmar a sessão Microsoft.
+- `Index.tsx` (rota `/`): mesmo destino dinâmico.
+
+### 4. Bônus rápido: warning do `MicrosoftLogo`
+O console mostra "Function components cannot be given refs" porque o `Button` do shadcn passa `ref` para o filho via `Slot`-like. Envolver `MicrosoftLogo` em `React.forwardRef` para silenciar o warning (não é a causa da tela branca, mas aparece no log relacionado à mesma página).
 
 ## Detalhes técnicos
 
-- Arquivo alterado: `vite.config.ts` — adicionar `base: './'` no objeto retornado por `defineConfig`.
-- Nenhum código de aplicação muda; é só configuração de build.
-- Versão web publicada (`ez-erp-ia.lovable.app`) continua funcionando normalmente, pois caminhos relativos resolvem do mesmo jeito sob HTTP.
-- Se houver `HashRouter` x `BrowserRouter`: manter `BrowserRouter` para web; se o Electron tiver problema de rota ao recarregar, alternativa segura é trocar para `HashRouter` apenas no build empacotado, mas só faço isso se o sintoma persistir.
+- Não tocar em `src/integrations/supabase/*` nem `.env`.
+- Manter `PUBLIC_FALLBACK_PATHS` em `AppLayout` intacto.
+- A nova tela "Sem acesso liberado" reaproveita classes Tailwind/tokens já usados no bloco "Acesso Pendente".
+- Validação: após o build, simular usuário sem `/estoque` → deve cair direto em `/painel-compras` (no caso da MAIANE) sem flash branco.
 
-## Validação após implementar
+## Fora do escopo
 
-- Rodar uma nova build (`vite build`) e reempacotar o Electron.
-- Abrir o instalador novo: a janela "Sapiens Control Center" deve mostrar a tela de login normalmente, sem ficar preta.
-- Conferir no console do Electron (Ctrl+Shift+I) que não há mais erros 404 nos arquivos `assets/*.js` e `assets/*.css`.
+- Não vou alterar nada do backend FastAPI nem do endpoint `/api/fornecedores` — o 404 some sozinho assim que ela parar de ser jogada para uma rota proibida.
+- Não vou mexer no Electron / vite.config.ts (já corrigido na rodada anterior).
