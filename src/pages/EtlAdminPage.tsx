@@ -488,7 +488,7 @@ function ValidacaoTab() {
     setResultado({
       compras: c.ok ? c.d : undefined,
       receb: r.ok ? r.d : undefined,
-      erros: { compras: c.ok ? undefined : c.msg, receb: r.ok ? undefined : r.msg },
+      erros: { compras: c.ok ? undefined : (c as any).msg, receb: r.ok ? undefined : (r as any).msg },
     });
     setComparando(false);
     if (c.ok || r.ok) toast({ title: "Comparação concluída" });
