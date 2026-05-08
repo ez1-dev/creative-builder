@@ -32,6 +32,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
+import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
+import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { getComponent } from '@/lib/bi/componentRegistry';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -108,7 +112,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }, []);
 
   // === Layout customizável (drag & drop, salvo globalmente) ===
-  const { widgets, isAdmin, saveLayout, resetLayout } = usePassagensLayout({
+  const { widgets, isAdmin, saveLayout, resetLayout, deleteWidget } = usePassagensLayout({
     shareToken: shareToken ?? null,
   });
   const [editingLayout, setEditingLayout] = useState(false);
@@ -120,11 +124,51 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const [savingLayout, setSavingLayout] = useState(false);
   const canEditLayout = !readOnly && isAdmin && !shareToken;
 
-  // Widgets a renderizar: aplica o pendingHidden quando estiver editando.
+  // ===== Estados dos diálogos de configuração / customização =====
+  const [configureType, setConfigureType] = useState<string | null>(null);
+  const [addChartOpen, setAddChartOpen] = useState(false);
+  // Customizações pendentes (aplicadas só após "Salvar layout")
+  const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
+  const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+
+  // Widgets a renderizar: aplica pendingHidden + pendingDeletes + pendingNewWidgets +
+  // pendingConfig (overrides em memória até "Salvar").
+  // Esses estados são definidos mais abaixo, mas o useMemo lê via closure quando renderiza.
+  // (declarações forward — usaremos `any` no bloco para resolução de ordem)
   const effectiveWidgets = useMemo(() => {
-    if (!pendingHidden) return widgets;
-    return widgets.map((w) => ({ ...w, hidden: pendingHidden.has(w.type) }));
-  }, [widgets, pendingHidden]);
+    const base = widgets.map((w) => {
+      const hidden = pendingHidden ? pendingHidden.has(w.type) : Boolean(w.hidden);
+      const cfg = pendingConfig?.[w.type];
+      if (cfg === null || cfg === undefined) return { ...w, hidden };
+      return {
+        ...w,
+        hidden,
+        componentId: cfg.componentId ?? w.componentId,
+        mapping: cfg.mapping ?? w.mapping,
+        options: cfg.options ?? w.options,
+        customTitle: cfg.customTitle ?? w.customTitle,
+      };
+    });
+    // Filtra deleções pendentes (custom-*)
+    const filtered = base.filter((w) => !pendingDeletes?.has(w.type));
+    // Anexa novos widgets pendentes
+    const maxPos = filtered.reduce((m, w) => Math.max(m, w.position), 0);
+    const news = (pendingNewWidgets ?? []).map((nw, i) => ({
+      id: nw.type,
+      type: nw.type,
+      title: nw.title,
+      position: maxPos + 1 + i,
+      layout: { x: 0, y: 999 + i * 8, w: 6, h: 8 },
+      hidden: false,
+      componentId: nw.componentId,
+      mapping: nw.mapping,
+      options: nw.options,
+      customTitle: nw.title,
+    }));
+    return [...filtered, ...news];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes]);
 
   const hiddenList = useMemo(
     () => effectiveWidgets.filter((w) => w.hidden),
@@ -534,6 +578,87 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   const primaryColor = 'hsl(var(--primary))';
   const dimOpacity = 0.3;
 
+  // ===== Séries para a Biblioteca BI / configurador de gráficos =====
+  const seriesPayload = useMemo(() => {
+    // Top destinos por valor
+    const topDestinosValor = porCidade
+      .slice()
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 10)
+      .map((c) => ({ name: c.name, value: c.valor }));
+    // Por tipo de despesa
+    const tipoMap = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = r.tipo_despesa || 'Não informado';
+      tipoMap.set(k, (tipoMap.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const porTipoDespesa = Array.from(tipoMap.entries()).map(([name, value]) => ({ name, value }));
+    // Por cia aérea
+    const ciaMap = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = (r.cia_aerea ?? '').trim() || 'Não informada';
+      ciaMap.set(k, (ciaMap.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const porCiaAerea = Array.from(ciaMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+    // Top colaboradores
+    const colabMap = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = (r.colaborador ?? '').trim().toUpperCase() || 'Sem colaborador';
+      colabMap.set(k, (colabMap.get(k) ?? 0) + Number(r.valor || 0));
+    });
+    const topColaboradores = Array.from(colabMap.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 15);
+
+    return {
+      evolucao_mensal: porMes.map((p) => ({ name: p.mes, value: p.valor })),
+      por_motivo: porMotivo,
+      top_centros_custo: porCentroCusto,
+      top_cidades_qtd: porCidade.map((c) => ({ name: c.name, value: c.qtd })),
+      top_cidades_valor: porCidade.map((c) => ({ name: c.name, value: c.valor })),
+      top_uf_qtd: porUF.map((u) => ({ name: u.name, value: u.qtd })),
+      top_uf_valor: porUF.map((u) => ({ name: u.name, value: u.valor })),
+      top_destinos_valor: topDestinosValor,
+      por_tipo_despesa: porTipoDespesa,
+      por_cia_aerea: porCiaAerea,
+      top_colaboradores: topColaboradores,
+    };
+  }, [porMes, porMotivo, porCentroCusto, porCidade, porUF, crossFiltered]);
+
+  const kpiPayload = useMemo(() => ({
+    total_geral: totalGeral,
+    total_registros: totalRegistros,
+    ticket_medio: ticketMedio,
+    colaboradores_unicos: colaboradoresUnicos,
+  }), [totalGeral, totalRegistros, ticketMedio, colaboradoresUnicos]);
+
+  // Tipos canônicos que aceitam reconfiguração de gráfico
+  const CONFIGURABLE_CANONICAL = useMemo(
+    () => ['chart-evolucao-mensal', 'chart-motivo-viagem', 'chart-top-cc', 'chart-top-cidades', 'chart-top-uf'],
+    [],
+  );
+
+  // Widget alvo para o ConfigureChartDialog
+  const configureTarget = useMemo(() => {
+    if (!configureType) return null;
+    const pending = pendingConfig[configureType];
+    const widget = effectiveWidgets.find((w) => w.type === configureType);
+    return {
+      widget,
+      initial: pending !== undefined
+        ? (pending ?? {}) as Partial<ConfigureChartValue>
+        : ({
+            componentId: widget?.componentId,
+            mapping: widget?.mapping,
+            customTitle: widget?.customTitle,
+            options: widget?.options,
+          } as Partial<ConfigureChartValue>),
+    };
+  }, [configureType, pendingConfig, effectiveWidgets]);
+
   return (
     <div className="space-y-4">
       <Card>
@@ -730,13 +855,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </Button>
           ) : (
             <>
-              <span className="text-xs font-medium text-primary">Modo edição: arraste, redimensione ou oculte blocos</span>
+              <span className="text-xs font-medium text-primary">Modo edição: arraste, redimensione, configure ou oculte blocos</span>
               <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAddChartOpen(true)}>
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Novo gráfico
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="outline" disabled={hiddenList.length === 0}>
                       <Plus className="mr-1.5 h-4 w-4" />
-                      Adicionar bloco{hiddenList.length > 0 ? ` (${hiddenList.length})` : ''}
+                      Restaurar bloco{hiddenList.length > 0 ? ` (${hiddenList.length})` : ''}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -756,30 +885,65 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button size="sm" variant="ghost" onClick={() => { setEditingLayout(false); setPendingLayout(null); setPendingHidden(null); }} disabled={savingLayout}>Cancelar</Button>
+                <Button size="sm" variant="ghost" onClick={() => {
+                  setEditingLayout(false);
+                  setPendingLayout(null);
+                  setPendingHidden(null);
+                  setPendingConfig({});
+                  setPendingNewWidgets([]);
+                  setPendingDeletes(new Set());
+                }} disabled={savingLayout}>Cancelar</Button>
                 <Button size="sm" variant="outline" disabled={savingLayout} onClick={async () => {
-                  if (!confirm('Restaurar o layout padrão para todos os usuários? Todos os blocos voltam a aparecer.')) return;
+                  if (!confirm('Restaurar o layout padrão para todos os usuários? Blocos canônicos voltam a aparecer (gráficos customizados são preservados).')) return;
                   setSavingLayout(true);
-                  try { await resetLayout(); setEditingLayout(false); setPendingLayout(null); setPendingHidden(null); toast.success('Layout restaurado.'); }
-                  catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
+                  try {
+                    await resetLayout();
+                    setEditingLayout(false);
+                    setPendingLayout(null); setPendingHidden(null);
+                    setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    toast.success('Layout restaurado.');
+                  } catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
                   finally { setSavingLayout(false); }
                 }}>Restaurar padrão</Button>
                 <Button size="sm" disabled={savingLayout} onClick={async () => {
                   setSavingLayout(true);
                   try {
-                    // Combina layout pendente (ou atual) com flag hidden pendente
-                    const baseLayout = pendingLayout ?? widgets.map((w) => ({ type: w.type, layout: w.layout }));
+                    const baseLayout = pendingLayout ?? effectiveWidgets.map((w) => ({ type: w.type, layout: w.layout }));
                     const hiddenSet = pendingHidden ?? new Set<string>();
-                    // Garante que blocos ocultos também sejam enviados (preservando seu último layout)
                     const layoutByType = new Map(baseLayout.map((b) => [b.type, b.layout]));
-                    const allTypes = new Set<string>([...layoutByType.keys(), ...widgets.map((w) => w.type)]);
-                    const payload = Array.from(allTypes).map((type) => ({
-                      type,
-                      layout: layoutByType.get(type) ?? widgets.find((w) => w.type === type)?.layout ?? { x: 0, y: 0, w: 12, h: 4 },
-                      hidden: hiddenSet.has(type),
-                    }));
+                    const allTypes = new Set<string>([
+                      ...layoutByType.keys(),
+                      ...effectiveWidgets.map((w) => w.type),
+                    ]);
+                    pendingDeletes.forEach((t) => allTypes.delete(t));
+                    const newWidgetsByType = new Map(pendingNewWidgets.map((nw) => [nw.type, nw]));
+                    const payload = Array.from(allTypes).map((type) => {
+                      const layout = layoutByType.get(type)
+                        ?? effectiveWidgets.find((w) => w.type === type)?.layout
+                        ?? { x: 0, y: 0, w: 12, h: 4 };
+                      const cfg = pendingConfig[type];
+                      const nw = newWidgetsByType.get(type);
+                      const ew = effectiveWidgets.find((w) => w.type === type);
+                      return {
+                        type,
+                        layout,
+                        hidden: hiddenSet.has(type),
+                        componentId: cfg === null ? null : (cfg?.componentId ?? nw?.componentId),
+                        mapping: cfg === null ? null : (cfg?.mapping ?? nw?.mapping ?? undefined),
+                        options: cfg === null ? null : (cfg?.options ?? nw?.options ?? undefined),
+                        customTitle: cfg === null ? null : (cfg?.customTitle ?? nw?.title ?? undefined),
+                        title: nw?.title ?? ew?.title,
+                        position: ew?.position,
+                      };
+                    });
                     await saveLayout(payload);
-                    setEditingLayout(false); setPendingLayout(null); setPendingHidden(null);
+                    for (const t of pendingDeletes) {
+                      const w = widgets.find((x) => x.type === t);
+                      if (w?.id) await deleteWidget(w.id);
+                    }
+                    setEditingLayout(false);
+                    setPendingLayout(null); setPendingHidden(null);
+                    setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
                     toast.success('Layout salvo para todos os usuários.');
                   }
                   catch (e: any) { toast.error(e?.message ?? 'Falha ao salvar layout'); }
@@ -791,6 +955,12 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </div>
       )}
 
+      <PageDataProvider
+        pageKey="passagens-aereas"
+        kpis={kpiPayload}
+        series={seriesPayload}
+        rows={crossFiltered}
+      >
       <PassagensLayoutGrid
         widgets={effectiveWidgets}
         editing={editingLayout}
@@ -801,6 +971,23 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             next.add(type);
             return next;
           });
+        } : undefined}
+        configurableTypes={CONFIGURABLE_CANONICAL}
+        onConfigure={editingLayout ? (type) => setConfigureType(type) : undefined}
+        onDelete={editingLayout ? (type) => {
+          if (type.startsWith('custom-')) {
+            // Se for novo (ainda não persistido) — remove do pendingNewWidgets
+            const isNew = pendingNewWidgets.some((nw) => nw.type === type);
+            if (isNew) {
+              setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
+            } else {
+              setPendingDeletes((prev) => {
+                const next = new Set(prev);
+                next.add(type);
+                return next;
+              });
+            }
+          }
         } : undefined}
         blocks={{
           'kpis-row': (
@@ -1449,7 +1636,56 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         </CardContent>
       </Card>
           ),
+          // Renderiza overrides de blocos canônicos com componentId customizado
+          // e blocos custom-* novos via COMPONENT_REGISTRY
+          ...Object.fromEntries(
+            effectiveWidgets
+              .filter((w) => Boolean(w.componentId))
+              .map((w) => {
+                const def = getComponent(w.componentId!);
+                if (!def) return [w.type, null];
+                const node = def.render({
+                  title: w.customTitle || w.title,
+                  mapping: w.mapping ?? {},
+                  ctx: { kpis: kpiPayload, series: seriesPayload, rows: crossFiltered },
+                  options: w.options ?? {},
+                });
+                return [w.type, node];
+              }),
+          ),
         }}
+      />
+      </PageDataProvider>
+
+      {configureTarget && (
+        <ConfigureChartDialog
+          open={Boolean(configureType)}
+          onOpenChange={(v) => { if (!v) setConfigureType(null); }}
+          initial={configureTarget.initial}
+          blockType={configureType ?? ''}
+          fallbackTitle={configureTarget.widget?.title}
+          canResetToDefault={configureType ? CONFIGURABLE_CANONICAL.includes(configureType) : false}
+          onApply={(next) => {
+            if (!configureType) return;
+            const t = configureType;
+            setPendingConfig((prev) => ({ ...prev, [t]: next }));
+            setPendingNewWidgets((prev) => prev.map((nw) =>
+              nw.type === t
+                ? { ...nw, componentId: next.componentId, mapping: next.mapping, options: next.options, title: next.customTitle || nw.title }
+                : nw,
+            ));
+          }}
+          onResetToDefault={() => {
+            if (!configureType) return;
+            const t = configureType;
+            setPendingConfig((prev) => ({ ...prev, [t]: null }));
+          }}
+        />
+      )}
+      <AddChartDialog
+        open={addChartOpen}
+        onOpenChange={setAddChartOpen}
+        onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
       />
 
       <Sheet open={groupSheetOpen} onOpenChange={setGroupSheetOpen}>
