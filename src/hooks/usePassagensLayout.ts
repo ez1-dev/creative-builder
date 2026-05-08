@@ -14,6 +14,7 @@ export interface PassagensWidget {
   title: string;
   position: number;
   layout: WidgetLayout;
+  hidden?: boolean;
 }
 
 /**
