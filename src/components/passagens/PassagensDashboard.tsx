@@ -1140,7 +1140,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           ...((canSeeVisual('passagens.chart-top-destinos-valor') || canSeeVisual('passagens.kpis-charts')) ? {
           'chart-top-destinos-valor': (
             <MapaDestinosCard
-              data={filteredData}
+              data={filtered}
               selectedDestino={selectedDestino}
               onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
             />
