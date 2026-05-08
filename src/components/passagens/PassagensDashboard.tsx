@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { VisualGate } from '@/components/VisualGate';
+import { useUserVisuals } from '@/hooks/useUserVisuals';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -90,6 +91,7 @@ interface Props {
 
 export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, onExportXlsx, readOnly, shareToken }: Props) {
   const isMobile = useIsMobile();
+  const { canSeeVisual } = useUserVisuals();
   // Threshold "compact" para layouts até tablet inclusive (< 1024px):
   // KPI "Registros" e tabela usam a versão empilhada/cards para evitar
   // sobreposição do Select e overflow horizontal da tabela.
@@ -821,8 +823,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
           ),
+          ...(canSeeVisual('passagens.mapa-destinos') ? {
           'mapa-destinos': (
-      <VisualGate visualKey="passagens.mapa-destinos">
         <div className="grid grid-cols-1 gap-4">
           <MapaDestinosCard
             data={mapaData}
@@ -830,10 +832,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
           />
         </div>
-      </VisualGate>
           ),
+          } : {}),
+          ...(canSeeVisual('passagens.kpis-charts') ? {
           'charts-row': (
-      <VisualGate visualKey="passagens.kpis-charts">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
@@ -1072,8 +1074,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
       </div>
-      </VisualGate>
           ),
+          } : {}),
           'tabela-registros': (
       <Card>
         <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">

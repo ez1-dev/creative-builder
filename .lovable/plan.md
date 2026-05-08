@@ -1,46 +1,43 @@
 ## Objetivo
 
-Melhorar a UX de redimensionamento dos blocos no modo "Editar layout" do dashboard de Passagens Aéreas:
-
-1. Garantir que `localLayout` permanece consistente durante drag/resize por arrasto, para que os botões `+`/`−` clicados imediatamente após um arrasto partam do tamanho real (e não de um estado defasado).
-2. Adicionar atalhos de teclado quando um bloco estiver focado (Tab para focar, setas para redimensionar).
+Eliminar o espaço vazio no dashboard de Passagens Aéreas quando o usuário não tem permissão para um widget. Hoje o `react-grid-layout` reserva o espaço de cada widget mesmo quando o `<VisualGate>` retorna `null`, resultando em uma área grande em branco entre KPIs e o próximo bloco visível.
 
 ## Onde
 
-`src/components/passagens/PassagensLayoutGrid.tsx`
+`src/components/passagens/PassagensDashboard.tsx`
 
-## Mudanças
+## Como
 
-### 1. Sincronização durante arrasto
+1. Importar `useUserVisuals` (já usado pelo `VisualGate`):
+   ```ts
+   import { useUserVisuals } from '@/hooks/useUserVisuals';
+   ```
 
-Hoje `onLayoutChange` do `react-grid-layout` dispara em cada frame de arrasto e já atualizamos `localLayout`. O risco é o `useEffect` que reseta `localLayout` quando `orderedWidgets` muda — adicionar guarda: só sincroniza do props quando o conjunto de `type`s mudou (entrou/saiu widget) ou quando o `localLayout` ainda está vazio. Caso contrário, mantém os valores ajustados em memória até o próximo carregamento real do hook.
+2. Dentro do `PassagensDashboard`, chamar uma vez:
+   ```ts
+   const { canSeeVisual } = useUserVisuals();
+   ```
 
-Adicionar também handlers `onResizeStop` e `onDragStop` que forçam o emit final (idempotente, mas garante persistência mesmo se o último delta foi filtrado pelo dedupe via `lastEmitted`).
+3. Construir o objeto `blocks` condicionalmente — só inclui chaves cujos visuais o usuário pode ver. Para cada bloco com `<VisualGate visualKey="X">`:
+   - Em vez de sempre incluir `'mapa-destinos': (<VisualGate ...>...</VisualGate>)`, fazer:
+     ```ts
+     ...(canSeeVisual('passagens.mapa-destinos') ? { 'mapa-destinos': (<>...</>) } : {})
+     ```
+   - Idem para `'charts-row'` (key `passagens.kpis-charts`).
+   - O bloco renderizado por dentro deixa de precisar do `<VisualGate>` (a checagem virou pré-condição da chave).
 
-### 2. Atalhos de teclado
+4. `'kpis-row'` e `'tabela-registros'` continuam sempre presentes (não estão atrás de `VisualGate`).
 
-Tornar cada wrapper de bloco focável (`tabIndex={0}` quando `editing`) e adicionar `onKeyDown`:
+5. Como `PassagensLayoutGrid.orderedWidgets` já filtra `widgets` por `blocks[w.type]`, widgets sem chave somem da grade. O `compactType="vertical"` então sobe os blocos seguintes, fechando o gap.
 
-- `ArrowRight` → largura +1
-- `ArrowLeft`  → largura −1
-- `ArrowDown`  → altura +1
-- `ArrowUp`    → altura −1
-- `Shift + setas` → passo de 2 (acelerador)
-
-Cada handler chama o mesmo `stepResize(type, dW, dH)` já existente e faz `e.preventDefault()` para não rolar a página. Ignora teclas se o foco estiver em `input/textarea/select/button` dentro do bloco (verifica `e.target` vs `e.currentTarget`).
-
-Adicionar dica visual: quando `editing` e o bloco está focado (`focus-visible:ring-primary`), mostrar um pequeno chip "Setas para redimensionar · Shift = passo 2" no rodapé do bloco. Reaproveitar tokens existentes (sem cores hardcoded).
-
-### 3. Acessibilidade
-
-- `role="group"` + `aria-label={`Bloco ${w.title}. Use setas para redimensionar.`}` no wrapper.
-- Botões `+`/`−` já têm `title`; adicionar `aria-label` equivalente.
+6. Manter `useUserVisuals.loading` em conta: enquanto carrega, `canSeeVisual` retorna `false`. Para evitar piscar, condicionar o render do grid a `!loading` (ou seguir comportamento atual do `VisualGate` que já retorna null no loading — preferir o segundo para não atrasar KPIs/tabela). Vamos manter os 4 blocos sempre que `loading` for false; durante loading, omitir só os blocos sob gate, igual ao comportamento atual.
 
 ## Sem mudanças em
 
-- Banco, hook `usePassagensLayout`, layout default ou outras telas. Apenas o componente de grid.
+- Layout salvo no banco (`x/y/w/h` permanecem; `compactType` cuida de fechar o vazio).
+- Hook `usePassagensLayout`, `PassagensLayoutGrid`, ou `VisualGate`.
+- Permissões/cadastro de visuais.
 
 ## Resultado
 
-- Após arrastar/redimensionar um bloco, clicar em `+`/`−` continua a partir do tamanho real.
-- Com o bloco focado (Tab), as setas redimensionam; Shift acelera. A persistência usa o mesmo caminho (`onLayoutChange` → `saveLayout`).
+Quando o usuário não pode ver `passagens.kpis-charts` ou `passagens.mapa-destinos`, esses widgets desaparecem totalmente da grade. Os blocos visíveis sobem e ocupam o espaço, eliminando o gap em branco visto no print.
