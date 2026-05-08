@@ -241,9 +241,12 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         const ex = byType.get(type);
         const nextConfig = mergeConfig(ex?.config, item);
         if (ex) {
+          const updatePayload: any = { layout: layout as any, config: nextConfig as any };
+          if (typeof item.position === 'number') updatePayload.position = item.position;
+          if (typeof item.title === 'string' && item.title.length > 0) updatePayload.title = item.title;
           const { data: updated, error: upErr } = await supabase
             .from('dashboard_widgets')
-            .update({ layout: layout as any, config: nextConfig as any })
+            .update(updatePayload)
             .eq('id', ex.id)
             .select('id');
           if (upErr) {

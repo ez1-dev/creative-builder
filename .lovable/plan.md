@@ -1,28 +1,56 @@
-## Objetivo
-Fazer a pré-visualização voltar a aparecer ao selecionar tipo e série nos diálogos de gráfico de Passagens Aéreas.
+## Diagnóstico atual
 
-## O que vou ajustar
-1. Garantir que o preview receba dados mesmo dentro do diálogo
-- Remover a dependência frágil do contexto visual do diálogo/portal.
-- Passar os dados necessários do dashboard para os diálogos de forma explícita, para o preview não depender de `usePageData()` estar acessível naquele ponto da árvore.
+Encontrei um indício forte de que **o salvamento no backend está acontecendo**, mas a tela pode estar **recarregando/ordenando de forma diferente do que foi salvo**.
 
-2. Tornar a inicialização do preview mais confiável
-- Revisar a sincronização de `componentId`, `seriesKey`, título e cor quando o modal abre.
-- Garantir fallback válido para a primeira série disponível quando existir schema/dados carregados.
+Evidências:
+- O dashboard padrão de Passagens já tem widgets persistidos no banco com `layout` alterado.
+- Há também configurações salvas, como bloco oculto e gráfico trocado para `ranking-chart`.
+- Ou seja: o problema mais provável **não é o botão Salvar em si**, e sim a forma como o layout salvo é reaplicado na interface.
 
-3. Tratar estados vazios sem “sumir” o gráfico
-- Se houver série selecionada mas os dados estiverem vazios, manter a área de preview renderizada com estado vazio do componente em vez da mensagem genérica.
-- Reservar a mensagem “Selecione tipo e série para visualizar” apenas para ausência real de seleção.
+## Causa mais provável
 
-4. Validar os dois fluxos
-- Conferir tanto “Adicionar novo gráfico” quanto “Configurar gráfico”, porque hoje os dois usam a mesma lógica de preview.
+1. **O grid salva `x/y/w/h`, mas a tela ainda ordena por `position`.**
+   - No hook `usePassagensLayout`, os widgets são carregados e ordenados por `position`.
+   - No modo de edição, o usuário altera principalmente `layout` (`x`, `y`, `w`, `h`).
+   - Se `position` não for recalculado junto, a tela pode parecer “voltar” para a ordem antiga após recarregar.
 
-## Arquivos previstos
-- `src/components/passagens/AddChartDialog.tsx`
-- `src/components/passagens/ConfigureChartDialog.tsx`
-- `src/components/passagens/PassagensDashboard.tsx`
+2. **No layout compacto/mobile, a tela ignora o grid salvo e usa só a ordem da lista.**
+   - Em `PassagensLayoutGrid`, quando a viewport é compacta, os blocos são renderizados em sequência.
+   - Essa sequência depende da ordenação atual dos widgets, não do `x/y` salvo.
+   - Resultado: no desktop pode parecer parcialmente certo, mas no compacto aparenta que “não manteve”.
+
+3. **O hook sempre trabalha no dashboard padrão global.**
+   - Hoje o fluxo busca `module = 'passagens-aereas'`, `owner_id = null`, `is_default = true`.
+   - Se existir expectativa de manter outro layout/visão, ele não está sendo carregado daqui.
+
+## Plano de correção
+
+1. **Sincronizar ordem visual com persistência**
+   - Recalcular e salvar `position` com base na ordem real do grid ao clicar em **Salvar layout**.
+
+2. **Carregar e renderizar o layout com a mesma lógica**
+   - Garantir que a tela use o layout salvo como fonte principal de verdade, inclusive fora do modo edição.
+   - No compacto, derivar a ordem a partir do layout persistido, não de `position` antigo.
+
+3. **Validar o dashboard-alvo do load/save**
+   - Confirmar que o mesmo dashboard é usado para carregar e salvar.
+   - Se necessário, corrigir para não cair sempre no padrão errado.
+
+4. **Testar o fluxo completo**
+   - Arrastar/redimensionar bloco canônico
+   - Ocultar/restaurar bloco
+   - Criar gráfico customizado
+   - Salvar, sair do modo edição e recarregar a página
+   - Verificar desktop e compacto
 
 ## Detalhes técnicos
-- Hoje o preview só renderiza quando `def && seriesKey && ctx`.
-- O `ctx` vem de `usePageData()`, mas os diálogos são renderizados via portal e esse acoplamento é o candidato mais provável para o estado nulo/intermitente.
-- Vou substituir essa dependência por props com `kpis`, `series` e `rows`, mantendo o mesmo renderer do `componentRegistry` para não mudar o comportamento dos gráficos em si.
+
+Arquivos que eu ajustaria:
+- `src/hooks/usePassagensLayout.ts`
+- `src/components/passagens/PassagensLayoutGrid.tsx`
+- `src/components/passagens/PassagensDashboard.tsx`
+
+Foco da implementação:
+- persistir `position` junto com `layout`
+- parar de depender de uma ordenação incompatível com o grid salvo
+- garantir consistência entre edição, reload e renderização responsiva
