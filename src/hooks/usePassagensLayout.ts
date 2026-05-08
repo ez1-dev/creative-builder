@@ -14,6 +14,7 @@ export interface PassagensWidget {
   title: string;
   position: number;
   layout: WidgetLayout;
+  hidden?: boolean;
 }
 
 /**
@@ -79,6 +80,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           title: r.widget_title,
           position: r.widget_position ?? 0,
           layout: (r.widget_layout ?? {}) as WidgetLayout,
+          hidden: Boolean((r.widget_config ?? {})?.hidden),
         }));
         setWidgets(mergeWithDefaults(rows));
       } else {
@@ -104,7 +106,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         setDashboardId(dash.id);
         const { data: rows } = await supabase
           .from('dashboard_widgets')
-          .select('id, type, title, position, layout')
+          .select('id, type, title, position, layout, config')
           .eq('dashboard_id', dash.id)
           .order('position');
         const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => ({
@@ -113,6 +115,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
           title: r.title,
           position: r.position ?? 0,
           layout: (r.layout ?? {}) as WidgetLayout,
+          hidden: Boolean((r.config ?? {})?.hidden),
         }));
         setWidgets(mergeWithDefaults(mapped));
       }
@@ -132,8 +135,8 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
    * widgets com seus novos x/y/w/h.
    */
   const saveLayout = useCallback(
-    async (next: { type: string; layout: WidgetLayout }[]) => {
-      // Garante que existe a linha default + 8 widgets
+    async (next: { type: string; layout: WidgetLayout; hidden?: boolean }[]) => {
+      // Garante que existe a linha default + widgets
       const { data: dashId, error: rpcError } = await supabase.rpc(
         'upsert_passagens_dashboard_default',
       );
@@ -141,24 +144,25 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
       const id = dashId as string;
       setDashboardId(id);
 
-      // Busca widgets atuais para mapear type -> id
+      // Busca widgets atuais para mapear type -> {id, config}
       const { data: existing } = await supabase
         .from('dashboard_widgets')
-        .select('id, type')
+        .select('id, type, config')
         .eq('dashboard_id', id);
-      const idByType = new Map<string, string>(
-        (existing ?? []).map((r: any) => [r.type, r.id]),
+      const byType = new Map<string, { id: string; config: any }>(
+        (existing ?? []).map((r: any) => [r.type, { id: r.id, config: r.config ?? {} }]),
       );
 
       // Atualiza um a um (são poucos)
       await Promise.all(
-        next.map(async ({ type, layout }) => {
-          const wid = idByType.get(type);
-          if (!wid) return;
+        next.map(async ({ type, layout, hidden }) => {
+          const ex = byType.get(type);
+          if (!ex) return;
+          const nextConfig = { ...(ex.config ?? {}), hidden: Boolean(hidden) };
           await supabase
             .from('dashboard_widgets')
-            .update({ layout: layout as any })
-            .eq('id', wid);
+            .update({ layout: layout as any, config: nextConfig as any })
+            .eq('id', ex.id);
         }),
       );
 
