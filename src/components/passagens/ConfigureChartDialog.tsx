@@ -163,6 +163,9 @@ export function ConfigureChartDialog({
                 <Input type="number" min={1} max={50} value={topN} onChange={(e) => setTopN(e.target.value)} />
               </div>
             )}
+            {supportsColor && (
+              <ChartColorPicker value={color} onChange={setColor} />
+            )}
           </div>
 
           <div className="rounded-md border bg-muted/30 p-3 min-h-[260px]">
