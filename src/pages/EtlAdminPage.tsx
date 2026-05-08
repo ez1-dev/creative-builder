@@ -421,11 +421,15 @@ function ValidacaoTab() {
   const [loading, setLoading] = useState(false);
   const [dataIni, setDataIni] = useState("2026-01-01");
   const [dataFim, setDataFim] = useState("2026-01-31");
-  const [diff, setDiff] = useState<{
-    compras?: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } };
-    receb?: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } };
-  }>({});
+  const [tipoDespesa, setTipoDespesa] = useState<string>("");
+  const [projetoMacro, setProjetoMacro] = useState<string>("");
+  const [somentePendentes, setSomentePendentes] = useState(false);
   const [comparando, setComparando] = useState(false);
+  const [resultado, setResultado] = useState<{
+    compras?: ValidacaoResp;
+    receb?: ValidacaoResp;
+    erros?: { compras?: string; receb?: string };
+  }>({});
 
   const loadResumo = async () => {
     setLoading(true);
@@ -460,40 +464,41 @@ function ValidacaoTab() {
   };
   useEffect(() => { loadResumo(); }, []);
 
+  const filtros = () => {
+    const f: Record<string, any> = { data_inicio: dataIni, data_fim: dataFim };
+    if (tipoDespesa) f.tipo_despesa = tipoDespesa;
+    if (projetoMacro) f.projeto_macro = projetoMacro;
+    if (somentePendentes) f.somente_pendentes = true;
+    return f;
+  };
+
   const compararComErp = async () => {
     setComparando(true);
-    try {
-      const [erpCompras, erpReceb, biC, biR] = await Promise.all([
-        api.get<any>("/api/painel-compras-dashboard", { data_inicio: dataIni, data_fim: dataFim }).catch(() => null),
-        api.get<any>("/api/notas-recebimento-dashboard", { data_inicio: dataIni, data_fim: dataFim }).catch(() => null),
-        supabase.from("bi_compras").select("valor_liquido")
-          .gte("data_emissao", dataIni).lte("data_emissao", dataFim),
-        supabase.from("bi_recebimentos").select("valor_liquido")
-          .gte("data_recebimento", dataIni).lte("data_recebimento", dataFim)
-          .eq("tipo_movimento", "RECEBIMENTO"),
-      ]);
-      const sumBi = (rows: any[] | null) => ({
-        qtd: rows?.length ?? 0,
-        total: (rows ?? []).reduce((s, r) => s + Number(r.valor_liquido ?? 0), 0),
-      });
-      const erpVals = (d: any) => ({
-        qtd: Number(d?.kpis?.qtd ?? d?.totais?.qtd ?? d?.kpis?.quantidade ?? 0),
-        total: Number(d?.kpis?.total ?? d?.totais?.valor_liquido ?? d?.kpis?.valor_liquido ?? 0),
-      });
-      setDiff({
-        compras: { bi: sumBi(biC.data as any), erp: erpVals(erpCompras) },
-        receb: { bi: sumBi(biR.data as any), erp: erpVals(erpReceb) },
-      });
-      toast({ title: "Comparação concluída" });
-    } catch (e: any) {
-      toast({ title: "Erro na comparação", description: e?.message ?? "Erro", variant: "destructive" });
-    } finally {
-      setComparando(false);
-    }
+    const params = filtros();
+    const [c, r] = await Promise.all([
+      api.get<ValidacaoResp>("/api/bi/validar-painel-compras", params).then(d => ({ ok: true, d } as const)).catch((e: any) => ({ ok: false, msg: e?.message ?? "Erro" } as const)),
+      api.get<ValidacaoResp>("/api/bi/validar-notas-recebimento", params).then(d => ({ ok: true, d } as const)).catch((e: any) => ({ ok: false, msg: e?.message ?? "Erro" } as const)),
+    ]);
+    setResultado({
+      compras: c.ok ? c.d : undefined,
+      receb: r.ok ? r.d : undefined,
+      erros: { compras: c.ok ? undefined : c.msg, receb: r.ok ? undefined : r.msg },
+    });
+    setComparando(false);
+    if (c.ok || r.ok) toast({ title: "Comparação concluída" });
+  };
+
+  const aplicarCasoObrigatorio = () => {
+    setDataIni("2026-01-01");
+    setDataFim("2026-01-31");
+    setTipoDespesa("MATERIA_PRIMA");
+    setProjetoMacro("");
+    setSomentePendentes(true);
   };
 
   const fmtMoney = (n: number) =>
-    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    Number(n ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const fmtNum = (n: number) => Number(n ?? 0).toLocaleString("pt-BR");
 
   const diffPct = (bi: number, erp: number) => {
     if (!erp) return bi === 0 ? 0 : 100;
@@ -506,32 +511,42 @@ function ValidacaoTab() {
     return "text-destructive";
   };
 
-  const renderDiffBlock = (
-    label: string,
-    d: { bi: { qtd: number; total: number }; erp: { qtd: number; total: number } } | undefined,
-  ) => {
-    if (!d) return null;
-    const pTotal = diffPct(d.bi.total, d.erp.total);
-    const pQtd = diffPct(d.bi.qtd, d.erp.qtd);
+  const renderDiffBlock = (label: string, resp: ValidacaoResp | undefined, erro: string | undefined) => {
     return (
       <Card>
         <CardHeader><CardTitle className="text-base">{label}</CardTitle></CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="font-medium">Métrica</div>
-            <div className="font-medium">BI</div>
-            <div className="font-medium">ERP</div>
-            <div>Quantidade</div>
-            <div className="font-mono">{d.bi.qtd}</div>
-            <div className="font-mono">{d.erp.qtd}</div>
-            <div>Valor líquido</div>
-            <div className="font-mono">{fmtMoney(d.bi.total)}</div>
-            <div className="font-mono">{fmtMoney(d.erp.total)}</div>
-          </div>
-          <div className="pt-2 border-t border-border flex gap-4 text-xs">
-            <span>Diff qtd: <span className={`font-mono font-semibold ${diffClass(pQtd)}`}>{pQtd.toFixed(2)}%</span></span>
-            <span>Diff total: <span className={`font-mono font-semibold ${diffClass(pTotal)}`}>{pTotal.toFixed(2)}%</span></span>
-          </div>
+          {erro && (
+            <div className="text-xs text-destructive border border-destructive/30 rounded p-2">
+              Endpoint indisponível: {erro}
+            </div>
+          )}
+          {resp && (() => {
+            const keys = Object.keys(resp.erp ?? {});
+            const isMoney = (k: string) => k.startsWith("valor");
+            return (
+              <div className="grid grid-cols-4 gap-2 text-xs">
+                <div className="font-medium">Métrica</div>
+                <div className="font-medium">ERP</div>
+                <div className="font-medium">BI</div>
+                <div className="font-medium">Diff %</div>
+                {keys.map(k => {
+                  const erp = Number((resp.erp as any)?.[k] ?? 0);
+                  const bi = Number((resp.bi as any)?.[k] ?? 0);
+                  const pct = diffPct(bi, erp);
+                  return (
+                    <Fragment key={k}>
+                      <div className="font-mono">{k}</div>
+                      <div className="font-mono">{isMoney(k) ? fmtMoney(erp) : fmtNum(erp)}</div>
+                      <div className="font-mono">{isMoney(k) ? fmtMoney(bi) : fmtNum(bi)}</div>
+                      <div className={`font-mono font-semibold ${diffClass(pct)}`}>{pct.toFixed(2)}%</div>
+                    </Fragment>
+                  );
+                })}
+              </div>
+            );
+          })()}
+          {!resp && !erro && <div className="text-xs text-muted-foreground">Sem dados. Clique em Comparar.</div>}
         </CardContent>
       </Card>
     );
