@@ -1,7 +1,8 @@
 import { Component, ReactNode } from 'react';
 import { logError } from '@/lib/errorLogger';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, LogOut } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Props {
   children: ReactNode;
