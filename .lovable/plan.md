@@ -1,33 +1,27 @@
-# Corrigir layout do link compartilhado (senha)
+# Plano
 
-## Problema
+## Objetivo
+Fazer a visualização compartilhada respeitar exatamente a disposição dos gráficos salva pelo administrador.
 
-Quando o link tem senha, o dashboard público mostra o layout padrão em vez do layout salvo pelo administrador.
+## O que vou ajustar
+1. Corrigir a sincronização do grid de Passagens Aéreas para que, quando o layout vier do backend, o componente público atualize as posições/tamanhos renderizados em vez de continuar com o layout padrão em memória.
+2. Preservar o comportamento atual do modo de edição, sem quebrar arraste, resize e salvamento do layout pelo administrador.
+3. Validar o fluxo do link compartilhado sem senha e com senha para garantir que ambos usem a mesma disposição salva.
 
-Motivo: na hora de criar o link com senha, o que vai para a coluna `token` é o `effectiveToken` (`SHA-256(publicToken + senha)`), enquanto a URL compartilhada carrega o `publicToken`. A RPC `get_passagens_layout_via_token` recebe o token da URL, não encontra a linha pelo `effectiveToken`, falha em `validate_share_token` e o hook cai no fallback `PASSAGENS_DEFAULT_WIDGETS`.
+## Causa identificada
+O hook de layout está carregando os widgets salvos do backend, mas o componente `PassagensLayoutGrid` só reinicializa seu `localLayout` quando muda o conjunto de tipos de widgets ou quando sai do modo de edição. Quando apenas as coordenadas `x/y/w/h` mudam (mesmos widgets, nova disposição), ele mantém em memória a versão anterior, que normalmente é a padrão.
 
-## Correção
-
-Carregar o layout usando o **mesmo token efetivo** que já é usado para carregar os dados — ou seja, só depois que o usuário digita a senha (ou imediatamente, quando não há senha).
-
-### Arquivo: `src/pages/PassagensAereasCompartilhadoPage.tsx`
-
-- Adicionar `effectiveToken` no estado, inicializando como `null`.
-- Quando `requiresPassword === false`: setar `effectiveToken = token` ao montar.
-- Em `handlePasswordSubmit` (e em `loadData`): após calcular `effective`, fazer `setEffectiveToken(effective)`.
-- Passar `shareToken={effectiveToken ?? token}` para `<PassagensDashboard>` (em vez de `token`). Como o componente só é renderizado quando `state === 'ok'`, `effectiveToken` já estará definido nesse ponto.
-
-### Sem mudanças no hook nem no banco
-
-`usePassagensLayout` e a RPC continuam iguais. A correção é apenas o token correto chegar ao hook.
+## Implementação
+- Atualizar a lógica de sincronização interna em `PassagensLayoutGrid.tsx` para detectar mudanças reais de layout vindas do backend no modo leitura/compartilhado.
+- Fazer a ressincornização ser segura: no modo de edição, continuar preservando alterações locais; fora da edição, sempre refletir o layout persistido.
+- Se necessário, ajustar a chave de comparação/sincronização para incluir geometria dos widgets, não apenas seus tipos.
 
 ## Validação
+- Conferir se um layout salvo pelo administrador aparece igual ao abrir o link compartilhado.
+- Conferir se links protegidos por senha continuam carregando o mesmo layout após a senha correta.
+- Conferir que o editor continua permitindo arrastar/redimensionar e salvar normalmente.
 
-1. Criar link **sem senha** como admin, ajustar layout, salvar, abrir o link em aba anônima → layout deve refletir o ajuste (já funciona, garantir que continua).
-2. Criar link **com senha**, ajustar layout, salvar, abrir em aba anônima e digitar a senha → layout agora deve refletir o ajuste do admin.
-3. Senha errada continua barrando acesso (a RPC de dados ainda valida).
-
-## Fora do escopo
-
-- Não mexer nas regras de RLS, na RPC pública ou no fluxo de geração de link.
-- Não mexer em `usePassagensLayout`, `PassagensDashboard` ou `PassagensLayoutGrid`.
+## Detalhes técnicos
+- Arquivo principal: `src/components/passagens/PassagensLayoutGrid.tsx`
+- Possível verificação complementar: `src/pages/PassagensAereasCompartilhadoPage.tsx` e `src/hooks/usePassagensLayout.ts`
+- Sem mudança de regra de negócio nem de banco; foco no consumo/renderização do layout salvo.
