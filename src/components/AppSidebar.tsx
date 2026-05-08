@@ -42,6 +42,7 @@ const modules = [
   { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
   { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
+  { title: 'ETL — Integrador BI', url: '/etl', icon: Database },
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
