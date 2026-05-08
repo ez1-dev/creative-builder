@@ -241,7 +241,7 @@ export default function ConfiguracoesPage() {
   const [profileName, setProfileName] = useState('');
   const [profileDesc, setProfileDesc] = useState('');
   const [newUserLogin, setNewUserLogin] = useState('');
-  const [newUserProfileId, setNewUserProfileId] = useState('');
+  const [newUserProfileIds, setNewUserProfileIds] = useState<string[]>([]);
   const [passagensShareAllowNonAdmin, setPassagensShareAllowNonAdmin] = useState(false);
 
   // Visuais (gráficos e mapas) por perfil — chave canônica: visual_key denied = can_view false
