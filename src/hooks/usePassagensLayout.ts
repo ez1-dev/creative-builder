@@ -118,8 +118,8 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         // Autenticado
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: adminCheck } = await supabase.rpc('is_admin', { _uid: user.id });
-          setIsAdmin(Boolean(adminCheck));
+          const { data: editCheck } = await supabase.rpc('can_edit_passagens', { _uid: user.id });
+          setIsAdmin(Boolean(editCheck));
         }
         const { data: dash } = await supabase
           .from('dashboards')

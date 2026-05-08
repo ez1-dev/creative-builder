@@ -1,41 +1,41 @@
-## Contexto
-A tabela `user_access` já suporta múltiplos perfis por usuário (cada par `user_login + profile_id` é uma linha — foi assim que a Maiane ficou com **Compras** e **Passagens Aéreas - Acesso Total (Maiane)**). O hook `useUserPermissions` faz `OR` entre perfis. Então o backend já está pronto.
+## Diagnóstico
+"Editar layout" em `/passagens-aereas` aparece só para **admin do sistema**. Dois pontos travam a Maiane:
 
-O que falta é UX clara em `Configurações → Usuários`: hoje a tabela mostra uma linha por vínculo, e o diálogo "Atribuir Perfil a Usuário" só atribui **um** perfil por vez.
+1. **Frontend** — `src/components/passagens/PassagensDashboard.tsx` (linha 125):
+   ```ts
+   const canEditLayout = !readOnly && isAdmin && !shareToken;
+   ```
+   `isAdmin` vem de `usePassagensLayout`, que chama `rpc('is_admin', …)`. Maiane não é admin → botão não aparece.
 
-## Objetivo
-Tornar evidente que um usuário pode ter **vários perfis** simultaneamente, e tornar a atribuição múltipla rápida.
+2. **Backend (RLS)** — Mesmo se o botão aparecesse, o `dashboard_widgets` do dashboard padrão (`owner_id IS NULL`) só permite escrita pela política **"Admins manage widgets of default dashboards"** (`is_admin(auth.uid())`). Qualquer UPDATE/INSERT/DELETE feito pela Maiane voltaria com erro.
 
-## Mudanças no `src/pages/ConfiguracoesPage.tsx`
+A função `can_edit_passagens(_uid)` já existe e já é usada pelas políticas de `passagens_aereas` (CRUD da tabela). Vamos reutilizar para o layout.
 
-### 1) Diálogo "Atribuir Perfil a Usuário" — multi-perfil
-- Trocar o `<Select>` único de Perfil por uma lista de **checkboxes** (componente `Checkbox` do shadcn) com todos os perfis disponíveis.
-- Filtrar opções já atribuídas ao usuário escolhido (continuam visíveis mas pré-marcadas e desabilitadas, com legenda "já atribuído").
-- Botão "Atribuir": insere todos os perfis marcados em um `insert([...])` único.
-- Mensagem de toast: "N perfis atribuídos".
+## Plano
 
-### 2) Tabela "Atribuição de Usuários" — agrupada por usuário
-- Reagrupar `userAccess` por `user_login` antes de renderizar.
-- Colunas: **Usuário | Perfis (badges) | Última atribuição | Ações**.
-- Cada perfil vira um `<Badge>` com botãozinho "x" que remove apenas aquele vínculo (`user_access.id`).
-- Ação extra na linha: botão **"+ Adicionar perfil"** que abre o mesmo diálogo já com o usuário pré-selecionado e mostra apenas perfis ainda não vinculados.
+### 1. Migração de banco — afrouxar RLS para o dashboard padrão de passagens-aereas
+Criar política adicional em `dashboard_widgets` (e `dashboards`, se necessário) permitindo gerenciar widgets quando:
+- `dashboards.module = 'passagens-aereas'`
+- `dashboards.owner_id IS NULL`
+- `can_edit_passagens(auth.uid()) = true`
 
-### 3) Estado local
-- Trocar `newUserProfileId: string` por `newUserProfileIds: string[]`.
-- `handleAddUser`: validar `newUserLogin` e `newUserProfileIds.length > 0`; fazer um único `insert` com array.
-- Manter `handleRemoveUser(id)` por vínculo individual (já existe).
+Manter as políticas existentes intactas (admins continuam podendo). Não mexer em outros módulos.
 
-### 4) Detalhes de UI
-- Usar tokens semânticos (`text-muted-foreground`, `badge variant="secondary"`, `text-destructive`) — sem cores hardcoded.
-- Lista de checkboxes em `max-h-64 overflow-auto` para listas grandes de perfis.
-- Acessibilidade: cada checkbox com `<Label>` clicável.
+### 2. Frontend — `usePassagensLayout`
+- Substituir a verificação `is_admin` pela `can_edit_passagens` (que já retorna true para admins também).
+- Renomear o retorno `isAdmin` → `canEditLayout` (mantendo retrocompat: exporta os dois enquanto migramos consumidores).
 
-## Validação
-- Atribuir Maiane → marcar Compras + Passagens Aéreas Acesso Total numa só ação → tabela mostra os dois badges na mesma linha.
-- Remover apenas um badge → o outro continua.
-- Botão "+ Adicionar perfil" na linha de outro usuário abre diálogo já filtrado.
-- `useUserPermissions` continua somando permissões.
+### 3. Frontend — `PassagensDashboard.tsx`
+- Trocar `isAdmin` por `canEditLayout` na linha 125.
+- Verificar outros usos de `isAdmin` no arquivo (e.g., share, force_user_logout) — manter `isAdmin` real para o que **for exclusivo de admin** (links de compartilhamento já têm sua própria função `can_manage_passagens_share`). Avaliar item a item antes de trocar.
 
-## Fora do escopo
-- Não mexer no schema do banco (já suporta o caso).
-- Não mudar o fluxo de Aprovações nem de Telas/Visuais.
+### 4. Validação
+- Maiane logada → vê botão "Editar layout", consegue arrastar widgets, salvar e o save **não dá erro de RLS**.
+- Outro usuário sem `can_edit` em `/passagens-aereas` continua **sem** o botão.
+- Admin continua funcionando como antes.
+- Link público (shareToken) continua read-only — `canEditLayout` é gated por `!shareToken`.
+
+## Arquivos
+- Migração SQL (nova)
+- `src/hooks/usePassagensLayout.ts`
+- `src/components/passagens/PassagensDashboard.tsx`
