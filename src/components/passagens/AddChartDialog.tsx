@@ -33,10 +33,13 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onAdd: (value: NewChartValue) => void;
+  kpis?: Record<string, any>;
+  series?: Record<string, any>;
+  rows?: any[];
 }
 
-export function AddChartDialog({ open, onOpenChange, onAdd }: Props) {
-  const ctx = usePageData();
+export function AddChartDialog({ open, onOpenChange, onAdd, kpis, series, rows }: Props) {
+  const ctx = { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] };
   const page = getPage('passagens-aereas');
   const seriesOptions = page?.schema.series ?? [];
 
