@@ -908,7 +908,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                 <Button size="sm" disabled={savingLayout} onClick={async () => {
                   setSavingLayout(true);
                   try {
-                    const baseLayout = pendingLayout ?? effectiveWidgets.map((w) => ({ type: w.type, layout: w.layout }));
+                    const overrides = new Map((pendingLayout ?? []).map((b) => [b.type, b.layout] as const));
+                    const baseLayout = effectiveWidgets.map((w) => ({
+                      type: w.type,
+                      layout: overrides.get(w.type) ?? w.layout,
+                    }));
                     const hiddenSet = pendingHidden ?? new Set<string>();
                     const layoutByType = new Map(baseLayout.map((b) => [b.type, b.layout]));
                     const allTypes = new Set<string>([
