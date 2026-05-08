@@ -21,9 +21,6 @@ import {
 } from 'recharts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
-import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
-import { MapaCidadesViagens } from '@/components/passagens/MapaCidadesViagens';
-import { BrazilChoroplethMap } from '@/components/maps/BrazilChoroplethMap';
 import { VisualGate } from '@/components/VisualGate';
 import { useUserVisuals } from '@/hooks/useUserVisuals';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
