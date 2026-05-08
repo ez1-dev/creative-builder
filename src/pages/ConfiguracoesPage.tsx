@@ -817,22 +817,30 @@ export default function ConfiguracoesPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-base">Atribuição de Usuários</CardTitle>
-              <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+              <Dialog open={userDialogOpen} onOpenChange={(open) => {
+                setUserDialogOpen(open);
+                if (!open) {
+                  setNewUserLogin('');
+                  setNewUserProfileIds([]);
+                }
+              }}>
                 <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Atribuir Acesso</Button>
+                  <Button size="sm" onClick={() => { setNewUserLogin(''); setNewUserProfileIds([]); }}>
+                    <Plus className="h-4 w-4 mr-1" /> Atribuir Acesso
+                  </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Atribuir Perfil a Usuário</DialogTitle>
+                    <DialogTitle>Atribuir Perfis a Usuário</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-3">
                     <div>
                       <Label>Usuário</Label>
-                      <Select value={newUserLogin} onValueChange={setNewUserLogin}>
+                      <Select value={newUserLogin} onValueChange={(v) => { setNewUserLogin(v); setNewUserProfileIds([]); }}>
                         <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
                         <SelectContent>
                           {approvedUsers
-                            .filter(u => u.erp_user && !userAccess.some(ua => ua.user_login.toUpperCase() === u.erp_user!.toUpperCase() && ua.profile_id === newUserProfileId))
+                            .filter(u => !!u.erp_user)
                             .map(u => (
                               <SelectItem key={u.id} value={u.erp_user!}>
                                 {u.display_name || u.email || u.erp_user} ({u.erp_user})
@@ -842,19 +850,49 @@ export default function ConfiguracoesPage() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Perfil de Acesso</Label>
-                      <Select value={newUserProfileId} onValueChange={setNewUserProfileId}>
-                        <SelectTrigger><SelectValue placeholder="Selecione um perfil" /></SelectTrigger>
-                        <SelectContent>
-                          {profiles.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>Perfis de Acesso</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais perfis. As permissões serão somadas.</p>
+                      <div className="max-h-64 overflow-auto rounded-md border p-2 space-y-1">
+                        {profiles.map(p => {
+                          const alreadyAssigned = !!newUserLogin && userAccess.some(
+                            ua => ua.user_login.toUpperCase() === newUserLogin.toUpperCase() && ua.profile_id === p.id,
+                          );
+                          const checked = alreadyAssigned || newUserProfileIds.includes(p.id);
+                          return (
+                            <div
+                              key={p.id}
+                              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-accent/40"
+                            >
+                              <Checkbox
+                                id={`profile-${p.id}`}
+                                checked={checked}
+                                disabled={alreadyAssigned}
+                                onCheckedChange={(c) => {
+                                  setNewUserProfileIds(prev =>
+                                    c ? [...prev, p.id] : prev.filter(id => id !== p.id),
+                                  );
+                                }}
+                              />
+                              <Label
+                                htmlFor={`profile-${p.id}`}
+                                className={`flex-1 cursor-pointer text-sm ${alreadyAssigned ? 'text-muted-foreground' : ''}`}
+                              >
+                                {p.name}
+                                {alreadyAssigned && <span className="ml-2 text-xs">(já atribuído)</span>}
+                              </Label>
+                            </div>
+                          );
+                        })}
+                        {profiles.length === 0 && (
+                          <p className="text-sm text-muted-foreground py-2 text-center">Nenhum perfil cadastrado</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button onClick={handleAddUser}>Atribuir</Button>
+                    <Button onClick={handleAddUser} disabled={!newUserLogin || newUserProfileIds.length === 0}>
+                      Atribuir {newUserProfileIds.length > 0 ? `(${newUserProfileIds.length})` : ''}
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -864,25 +902,62 @@ export default function ConfiguracoesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Usuário</TableHead>
-                    <TableHead>Perfil</TableHead>
-                    <TableHead>Atribuído em</TableHead>
-                    <TableHead className="w-16">Ação</TableHead>
+                    <TableHead>Perfis</TableHead>
+                    <TableHead>Última atribuição</TableHead>
+                    <TableHead className="w-32">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {userAccess.map(ua => (
-                    <TableRow key={ua.id}>
-                      <TableCell className="font-medium">{ua.user_login}</TableCell>
-                      <TableCell><Badge variant="secondary">{getProfileName(ua.profile_id)}</Badge></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{new Date(ua.created_at).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => handleRemoveUser(ua.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {userAccess.length === 0 && (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum usuário atribuído</TableCell></TableRow>
-                  )}
+                  {(() => {
+                    const grouped = new Map<string, { login: string; rows: UserAccess[]; latest: string }>();
+                    for (const ua of userAccess) {
+                      const key = ua.user_login.toUpperCase();
+                      const cur = grouped.get(key);
+                      if (cur) {
+                        cur.rows.push(ua);
+                        if (ua.created_at > cur.latest) cur.latest = ua.created_at;
+                      } else {
+                        grouped.set(key, { login: ua.user_login, rows: [ua], latest: ua.created_at });
+                      }
+                    }
+                    const list = Array.from(grouped.values()).sort((a, b) => a.login.localeCompare(b.login));
+                    if (list.length === 0) {
+                      return (
+                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum usuário atribuído</TableCell></TableRow>
+                      );
+                    }
+                    return list.map(g => (
+                      <TableRow key={g.login}>
+                        <TableCell className="font-medium align-top">{g.login}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1.5">
+                            {g.rows.map(r => (
+                              <Badge key={r.id} variant="secondary" className="gap-1 pr-1">
+                                <span>{getProfileName(r.profile_id)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveUser(r.id)}
+                                  className="ml-1 rounded-sm px-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  aria-label={`Remover ${getProfileName(r.profile_id)}`}
+                                  title="Remover este perfil"
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground align-top">
+                          {new Date(g.latest).toLocaleDateString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="align-top">
+                          <Button variant="outline" size="sm" onClick={() => openAddProfilesFor(g.login)}>
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Perfil
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ));
+                  })()}
                 </TableBody>
               </Table>
             </CardContent>
