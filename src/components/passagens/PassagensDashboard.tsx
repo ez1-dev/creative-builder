@@ -960,6 +960,102 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between gap-2">
+              <span>Top 10 Cidades de Destino {selectedDestino.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
+              {selectedDestino.length > 0 && (
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setSelectedDestino([])}>
+                  <X className="mr-1 h-3 w-3" />Limpar
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6">
+            {porCidade.length === 0 ? (
+              <div className="flex h-[260px] items-center justify-center text-xs text-muted-foreground">
+                Sem registros com cidade de destino informada.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={isCompact ? 300 : 360}>
+                <BarChart data={porCidade} layout="vertical">
+                  <XAxis type="number" fontSize={11} allowDecimals={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    fontSize={isMobile ? 10 : 11}
+                    width={isMobile ? 90 : isCompact ? 110 : 140}
+                    tickFormatter={(v: string) => (v.length > (isMobile ? 12 : isCompact ? 16 : 22) ? `${v.slice(0, isMobile ? 12 : isCompact ? 16 : 22)}…` : v)}
+                  />
+                  <RTooltip
+                    formatter={(v: number, _n, p: any) => {
+                      if (p?.dataKey === 'qtd') return [`${v} ${v === 1 ? 'viagem' : 'viagens'}`, 'Quantidade'];
+                      return [formatCurrency(v), 'Valor'];
+                    }}
+                  />
+                  <Bar
+                    dataKey="qtd"
+                    cursor="pointer"
+                    onClick={(d: any) => setSelectedDestino((prev) => toggleItem(prev, d.name))}
+                  >
+                    {porCidade.map((entry) => {
+                      const norm = nomeNormalizado(entry.name);
+                      const dim = selectedDestino.length > 0 && !selectedDestino.some((s) => nomeNormalizado(s) === norm);
+                      return (
+                        <Cell key={entry.name} fill={primaryColor} fillOpacity={dim ? dimOpacity : 1} />
+                      );
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center justify-between gap-2">
+              <span>Top Estados (UF) de Destino {selectedUF.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</span>
+              {selectedUF.length > 0 && (
+                <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={() => setSelectedUF([])}>
+                  <X className="mr-1 h-3 w-3" />Limpar
+                </Button>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6">
+            {porUF.length === 0 ? (
+              <div className="flex h-[260px] items-center justify-center text-xs text-muted-foreground">
+                Sem registros com UF de destino informada.
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={isCompact ? 300 : 360}>
+                <BarChart data={porUF}>
+                  <XAxis dataKey="name" fontSize={11} interval={0} />
+                  <YAxis fontSize={11} allowDecimals={false} />
+                  <RTooltip
+                    formatter={(v: number, _n, p: any) => {
+                      if (p?.dataKey === 'qtd') return [`${v} ${v === 1 ? 'viagem' : 'viagens'}`, 'Quantidade'];
+                      return [formatCurrency(v), 'Valor'];
+                    }}
+                  />
+                  <Bar
+                    dataKey="qtd"
+                    cursor="pointer"
+                    onClick={(d: any) => setSelectedUF((prev) => toggleItem(prev, d.name))}
+                  >
+                    {porUF.map((entry) => (
+                      <Cell
+                        key={entry.name}
+                        fill={primaryColor}
+                        fillOpacity={selectedUF.length > 0 && !selectedUF.includes(entry.name) ? dimOpacity : 1}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
       </div>
       </VisualGate>
           ),
