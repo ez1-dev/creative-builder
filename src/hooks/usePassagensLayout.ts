@@ -233,6 +233,9 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
       // 3) Update (ou insert quando não existir) — sequencial para coletar erros
       const errors: string[] = [];
       let untouched = 0;
+      let saved = 0;
+      // eslint-disable-next-line no-console
+      console.debug('[usePassagensLayout] saveLayout payload', { dashboardId: id, count: next.length, items: next });
       for (const item of next) {
         const { type, layout } = item;
         const ex = byType.get(type);
@@ -245,9 +248,15 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             .select('id');
           if (upErr) {
             errors.push(`${type}: ${upErr.message}`);
+            // eslint-disable-next-line no-console
+            console.error('[usePassagensLayout] update err', type, upErr);
           } else if (!updated || updated.length === 0) {
             untouched += 1;
             errors.push(`${type}: nenhuma linha atualizada (verifique permissões)`);
+            // eslint-disable-next-line no-console
+            console.warn('[usePassagensLayout] update 0 rows', type, { id: ex.id, layout, nextConfig });
+          } else {
+            saved += 1;
           }
         } else {
           // Widget ainda não existe no banco — cria
@@ -262,9 +271,17 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
               layout: layout as any,
               config: nextConfig as any,
             });
-          if (insErr) errors.push(`${type} (insert): ${insErr.message}`);
+          if (insErr) {
+            errors.push(`${type} (insert): ${insErr.message}`);
+            // eslint-disable-next-line no-console
+            console.error('[usePassagensLayout] insert err', type, insErr);
+          } else {
+            saved += 1;
+          }
         }
       }
+      // eslint-disable-next-line no-console
+      console.debug('[usePassagensLayout] saveLayout done', { saved, untouched, errors: errors.length });
 
       if (errors.length > 0) {
         // Loga detalhes para debug e lança erro consolidado para o componente
