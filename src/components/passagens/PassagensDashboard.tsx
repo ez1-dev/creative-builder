@@ -1074,8 +1074,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
           </CardContent>
         </Card>
       </div>
-      </VisualGate>
           ),
+          } : {}),
           'tabela-registros': (
       <Card>
         <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
