@@ -173,9 +173,8 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
    * widgets com seus novos x/y/w/h.
    */
   const saveLayout = useCallback(
-    async (next: { type: string; layout: WidgetLayout; hidden?: boolean }[]) => {
-      // 1) Localiza ou cria o dashboard default — sem chamar a RPC de defaults
-      //    (que apaga widgets de tipos não whitelisted e pode descartar edições).
+    async (next: SaveLayoutItem[]) => {
+      // 1) Localiza ou cria o dashboard default
       let id: string | null = null;
       const { data: dash } = await supabase
         .from('dashboards')
@@ -187,7 +186,6 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
       if (dash?.id) {
         id = dash.id;
       } else {
-        // Primeira vez: usa a RPC para criar dashboard + widgets default
         const { data: dashId, error: rpcError } = await supabase.rpc(
           'upsert_passagens_dashboard_default',
         );
@@ -206,12 +204,39 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         (existing ?? []).map((r: any) => [r.type, { id: r.id, config: r.config ?? {} }]),
       );
 
+      // helper para mesclar mudanças no JSONB config
+      const mergeConfig = (
+        prev: any,
+        item: SaveLayoutItem,
+      ): Record<string, any> => {
+        const cfg: Record<string, any> = { ...(prev ?? {}) };
+        cfg.hidden = Boolean(item.hidden);
+        if (item.componentId !== undefined) {
+          if (item.componentId === null) delete cfg.componentId;
+          else cfg.componentId = item.componentId;
+        }
+        if (item.mapping !== undefined) {
+          if (item.mapping === null) delete cfg.mapping;
+          else cfg.mapping = item.mapping;
+        }
+        if (item.options !== undefined) {
+          if (item.options === null) delete cfg.options;
+          else cfg.options = item.options;
+        }
+        if (item.customTitle !== undefined) {
+          if (item.customTitle === null || item.customTitle === '') delete cfg.customTitle;
+          else cfg.customTitle = item.customTitle;
+        }
+        return cfg;
+      };
+
       // 3) Update (ou insert quando não existir) — sequencial para coletar erros
       const errors: string[] = [];
       let untouched = 0;
-      for (const { type, layout, hidden } of next) {
+      for (const item of next) {
+        const { type, layout } = item;
         const ex = byType.get(type);
-        const nextConfig = { ...((ex?.config) ?? {}), hidden: Boolean(hidden) };
+        const nextConfig = mergeConfig(ex?.config, item);
         if (ex) {
           const { data: updated, error: upErr } = await supabase
             .from('dashboard_widgets')
@@ -232,8 +257,8 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             .insert({
               dashboard_id: id,
               type,
-              title: def?.title ?? type,
-              position: def?.position ?? 99,
+              title: item.title ?? def?.title ?? type,
+              position: item.position ?? def?.position ?? 99,
               layout: layout as any,
               config: nextConfig as any,
             });
