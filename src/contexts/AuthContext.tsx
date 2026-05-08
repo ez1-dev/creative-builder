@@ -27,55 +27,87 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (userId: string) => {
+    const withTimeout = <T,>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
+      new Promise((resolve, reject) => {
+        const t = setTimeout(() => reject(new Error(`[Auth] timeout: ${label}`)), ms);
+        Promise.resolve(p).then(
+          (v) => { clearTimeout(t); resolve(v); },
+          (e) => { clearTimeout(t); reject(e); },
+        );
+      });
+
     try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('display_name, erp_user, approved')
-        .eq('id', userId)
-        .maybeSingle();
-      if (data) {
-        setDisplayName(data.display_name);
-        setErpUser(data.erp_user);
-        setApproved(data.approved ?? false);
+      let profileData: { display_name: string | null; erp_user: string | null; approved: boolean | null } | null = null;
+      try {
+        const { data } = await withTimeout(
+          supabase.from('profiles').select('display_name, erp_user, approved').eq('id', userId).maybeSingle(),
+          8000,
+          'profiles',
+        );
+        profileData = data ?? null;
+      } catch (e) {
+        console.warn('[Auth] profile fetch failed:', e);
+      }
 
-          if (data.erp_user) {
-            // Login automático na API ERP com credenciais globais do banco
-            try {
-              const { data: settings } = await supabase
-                .from('app_settings')
-                .select('key, value')
-                .in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']);
-              const settingsMap = Object.fromEntries((settings || []).map(s => [s.key, s.value]));
-              const apiUrl = settingsMap['erp_api_url'];
-              if (apiUrl) setApiBaseUrl(apiUrl);
-              const apiUser = settingsMap['erp_api_user'];
-              const apiPass = settingsMap['erp_api_pass'];
-              if (apiUser && apiPass) {
-                await api.login(apiUser, apiPass);
-                setErpConnected(true);
-              } else {
-                console.warn('Credenciais da API ERP não configuradas no banco');
-                setErpConnected(false);
-              }
-            } catch (e) {
-              console.warn('Login automático na API ERP falhou:', e);
-              setErpConnected(false);
-            }
+      if (!profileData) {
+        console.warn('[Auth] no profile row for user', userId);
+        setDisplayName(null);
+        setErpUser(null);
+        setApproved(false);
+        return;
+      }
 
-          const { data: accesses } = await supabase
-            .from('user_access')
-            .select('profile_id, access_profiles!inner(name)')
-            .ilike('user_login', data.erp_user);
-          const isAdmin = (accesses ?? []).some(
-            (a: any) => a.access_profiles?.name === 'Administrador'
+      setDisplayName(profileData.display_name);
+      setErpUser(profileData.erp_user);
+      setApproved(profileData.approved ?? false);
+      console.log('[Auth] profile loaded', { erp_user: profileData.erp_user, approved: profileData.approved });
+
+      if (profileData.erp_user) {
+        // Login automático na API ERP com credenciais globais do banco
+        try {
+          const { data: settings } = await withTimeout(
+            supabase.from('app_settings').select('key, value').in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']),
+            8000,
+            'app_settings',
           );
-          if (isAdmin) {
-            localStorage.setItem('erp_is_admin', 'true');
+          const settingsMap = Object.fromEntries((settings || []).map((s) => [s.key, s.value]));
+          const apiUrl = settingsMap['erp_api_url'];
+          if (apiUrl) setApiBaseUrl(apiUrl);
+          const apiUser = settingsMap['erp_api_user'];
+          const apiPass = settingsMap['erp_api_pass'];
+          if (apiUser && apiPass) {
+            await withTimeout(api.login(apiUser, apiPass), 10000, 'erp.login');
+            setErpConnected(true);
+            console.log('[Auth] erp api ok');
           } else {
-            localStorage.removeItem('erp_is_admin');
+            console.warn('[Auth] credenciais da API ERP não configuradas no banco');
+            setErpConnected(false);
           }
+        } catch (e) {
+          console.warn('[Auth] login automático na API ERP falhou (não fatal):', e);
+          setErpConnected(false);
+        }
+
+        try {
+          const { data: accesses } = await withTimeout(
+            supabase
+              .from('user_access')
+              .select('profile_id, access_profiles!inner(name)')
+              .ilike('user_login', profileData.erp_user),
+            8000,
+            'user_access',
+          );
+          const isAdmin = (accesses ?? []).some(
+            (a: any) => a.access_profiles?.name === 'Administrador',
+          );
+          if (isAdmin) localStorage.setItem('erp_is_admin', 'true');
+          else localStorage.removeItem('erp_is_admin');
+        } catch (e) {
+          console.warn('[Auth] check admin falhou (não fatal):', e);
         }
       }
+    } catch (e) {
+      console.error('[Auth] fetchProfile erro inesperado:', e);
     } finally {
       setLoading(false);
     }
