@@ -823,8 +823,8 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
           ),
+          ...(canSeeVisual('passagens.mapa-destinos') ? {
           'mapa-destinos': (
-      <VisualGate visualKey="passagens.mapa-destinos">
         <div className="grid grid-cols-1 gap-4">
           <MapaDestinosCard
             data={mapaData}
@@ -832,10 +832,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
           />
         </div>
-      </VisualGate>
           ),
+          } : {}),
+          ...(canSeeVisual('passagens.kpis-charts') ? {
           'charts-row': (
-      <VisualGate visualKey="passagens.kpis-charts">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-sm">Evolução Mensal {selectedMes.length > 0 && <span className="text-xs font-normal text-muted-foreground">(clique para adicionar/remover)</span>}</CardTitle></CardHeader>
