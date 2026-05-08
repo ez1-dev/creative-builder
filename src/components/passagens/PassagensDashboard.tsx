@@ -720,26 +720,67 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       {canEditLayout && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
           {!editingLayout ? (
-            <Button size="sm" variant="outline" onClick={() => setEditingLayout(true)}>
+            <Button size="sm" variant="outline" onClick={() => {
+              setPendingHidden(new Set(widgets.filter((w) => w.hidden).map((w) => w.type)));
+              setEditingLayout(true);
+            }}>
               <Layers className="mr-1.5 h-4 w-4" />
               Editar layout
             </Button>
           ) : (
             <>
-              <span className="text-xs font-medium text-primary">Modo edição: arraste ou redimensione os blocos</span>
+              <span className="text-xs font-medium text-primary">Modo edição: arraste, redimensione ou oculte blocos</span>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="ghost" onClick={() => { setEditingLayout(false); setPendingLayout(null); }} disabled={savingLayout}>Cancelar</Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={hiddenList.length === 0}>
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Adicionar bloco{hiddenList.length > 0 ? ` (${hiddenList.length})` : ''}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {hiddenList.map((w) => (
+                      <DropdownMenuItem
+                        key={w.type}
+                        onClick={() => {
+                          setPendingHidden((prev) => {
+                            const next = new Set(prev ?? []);
+                            next.delete(w.type);
+                            return next;
+                          });
+                        }}
+                      >
+                        {w.title || w.type}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="sm" variant="ghost" onClick={() => { setEditingLayout(false); setPendingLayout(null); setPendingHidden(null); }} disabled={savingLayout}>Cancelar</Button>
                 <Button size="sm" variant="outline" disabled={savingLayout} onClick={async () => {
-                  if (!confirm('Restaurar o layout padrão para todos os usuários?')) return;
+                  if (!confirm('Restaurar o layout padrão para todos os usuários? Todos os blocos voltam a aparecer.')) return;
                   setSavingLayout(true);
-                  try { await resetLayout(); setEditingLayout(false); setPendingLayout(null); toast.success('Layout restaurado.'); }
+                  try { await resetLayout(); setEditingLayout(false); setPendingLayout(null); setPendingHidden(null); toast.success('Layout restaurado.'); }
                   catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
                   finally { setSavingLayout(false); }
                 }}>Restaurar padrão</Button>
                 <Button size="sm" disabled={savingLayout} onClick={async () => {
-                  if (!pendingLayout) { setEditingLayout(false); return; }
                   setSavingLayout(true);
-                  try { await saveLayout(pendingLayout); setEditingLayout(false); setPendingLayout(null); toast.success('Layout salvo para todos os usuários.'); }
+                  try {
+                    // Combina layout pendente (ou atual) com flag hidden pendente
+                    const baseLayout = pendingLayout ?? widgets.map((w) => ({ type: w.type, layout: w.layout }));
+                    const hiddenSet = pendingHidden ?? new Set<string>();
+                    // Garante que blocos ocultos também sejam enviados (preservando seu último layout)
+                    const layoutByType = new Map(baseLayout.map((b) => [b.type, b.layout]));
+                    const allTypes = new Set<string>([...layoutByType.keys(), ...widgets.map((w) => w.type)]);
+                    const payload = Array.from(allTypes).map((type) => ({
+                      type,
+                      layout: layoutByType.get(type) ?? widgets.find((w) => w.type === type)?.layout ?? { x: 0, y: 0, w: 12, h: 4 },
+                      hidden: hiddenSet.has(type),
+                    }));
+                    await saveLayout(payload);
+                    setEditingLayout(false); setPendingLayout(null); setPendingHidden(null);
+                    toast.success('Layout salvo para todos os usuários.');
+                  }
                   catch (e: any) { toast.error(e?.message ?? 'Falha ao salvar layout'); }
                   finally { setSavingLayout(false); }
                 }}>{savingLayout ? 'Salvando...' : 'Salvar'}</Button>
@@ -750,9 +791,16 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       )}
 
       <PassagensLayoutGrid
-        widgets={widgets}
+        widgets={effectiveWidgets}
         editing={editingLayout}
         onLayoutChange={setPendingLayout}
+        onHide={editingLayout ? (type) => {
+          setPendingHidden((prev) => {
+            const next = new Set(prev ?? []);
+            next.add(type);
+            return next;
+          });
+        } : undefined}
         blocks={{
           'kpis-row': (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
