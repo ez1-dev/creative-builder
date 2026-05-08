@@ -23,6 +23,7 @@ import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { MapaCidadesViagens } from '@/components/passagens/MapaCidadesViagens';
+import { BrazilChoroplethMap } from '@/components/maps/BrazilChoroplethMap';
 import { VisualGate } from '@/components/VisualGate';
 import { useUserVisuals } from '@/hooks/useUserVisuals';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
@@ -520,6 +521,17 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
     [filtered, selectedMes, selectedMotivo, selectedCC],
   );
+
+  // Agregação por UF para o mapa coroplético
+  const mapaUF = useMemo(() => {
+    const m = new Map<string, number>();
+    mapaData.forEach((p) => {
+      const uf = (p.uf_destino ?? '').toUpperCase().trim();
+      if (!uf) return;
+      m.set(uf, (m.get(uf) ?? 0) + Number(p.valor || 0));
+    });
+    return Array.from(m.entries()).map(([uf, valor]) => ({ uf, valor }));
+  }, [mapaData]);
 
   // Cores para destaque condicional
   const primaryColor = 'hsl(var(--primary))';
