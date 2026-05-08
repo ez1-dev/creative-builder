@@ -43,8 +43,6 @@ GRÁFICOS (section: "charts"):
 - SparklineCard — micro-gráfico inline
 - CalendarHeatmapCard — heatmap de calendário (estilo GitHub)
 
-MAPAS (section: "maps"):
-- BrazilMapCard — choropleth dos estados do Brasil
 
 TABELAS (section: "tables"):
 - DataTableBI — tabela com paginação
@@ -79,11 +77,10 @@ ${CATALOG}
 
 REGRAS:
 - Use SEMPRE os nomes EXATOS dos componentes acima.
-- Use o "section" exato (layout, kpis, charts, maps, tables, tree, filters, drill, states, badges, templates) — esse valor é usado para navegação na página.
+- Use o "section" exato (layout, kpis, charts, tables, tree, filters, drill, states, badges, templates) — esse valor é usado para navegação na página.
 - Recomende entre 5 e 10 componentes, priorizando os mais relevantes para o caso descrito.
 - Para cada recomendação, justifique brevemente em português (1 frase).
 - Inclua um KPI grid no topo, gráficos no meio, tabela detalhe no final — esse é o padrão.
-- Se o caso envolver geografia (estados, regiões, filiais por estado), inclua BrazilMapCard.
 - Gere um esqueleto JSX simples (apenas a estrutura, sem props completas) que o desenvolvedor pode copiar.
 - Responda em português.`;
 

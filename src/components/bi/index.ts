@@ -36,7 +36,7 @@ export * from './charts/WaterfallChartCard';
 export * from './charts/FunnelChartCard';
 export * from './charts/SparklineCard';
 export * from './charts/CalendarHeatmapCard';
-export * from './charts/maps/BrazilMapCard';
+
 export * from './tree/TreeView';
 export * from './layout/Timeline';
 export * from './kpis/KpiSparklineCard';

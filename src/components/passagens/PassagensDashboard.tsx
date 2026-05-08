@@ -21,9 +21,6 @@ import {
 } from 'recharts';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ColaboradorCombobox } from '@/components/passagens/ColaboradorCombobox';
-import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
-import { MapaCidadesViagens } from '@/components/passagens/MapaCidadesViagens';
-import { BrazilChoroplethMap } from '@/components/maps/BrazilChoroplethMap';
 import { VisualGate } from '@/components/VisualGate';
 import { useUserVisuals } from '@/hooks/useUserVisuals';
 import { nomeNormalizado } from '@/components/passagens/cidadesBrasil';
@@ -516,22 +513,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     setSelectedUF([]);
   };
 
-  // Dados para o mapa: respeita filtros do topo + outros cross-filters, exceto o próprio destino
-  const mapaData = useMemo(
-    () => applyCross(filtered, { mes: true, motivo: true, cc: true }),
-    [filtered, selectedMes, selectedMotivo, selectedCC],
-  );
 
-  // Agregação por UF para o mapa coroplético
-  const mapaUF = useMemo(() => {
-    const m = new Map<string, number>();
-    mapaData.forEach((p) => {
-      const uf = (p.uf_destino ?? '').toUpperCase().trim();
-      if (!uf) return;
-      m.set(uf, (m.get(uf) ?? 0) + Number(p.valor || 0));
-    });
-    return Array.from(m.entries()).map(([uf, valor]) => ({ uf, valor }));
-  }, [mapaData]);
 
   // Cores para destaque condicional
   const primaryColor = 'hsl(var(--primary))';
@@ -836,39 +818,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         <KPICard title="Ticket Médio" value={formatCurrency(ticketMedio)} icon={<TrendingUp className="h-5 w-5" />} variant="warning" index={3} />
       </div>
           ),
-          ...(canSeeVisual('passagens.mapa-cidades') ? {
-          'mapa-cidades': (
-        <MapaCidadesViagens
-          data={mapaData}
-          selectedDestino={selectedDestino}
-          selectedUF={selectedUF}
-          onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
-          onSelectUF={(uf) => setSelectedUF((prev) => toggleItem(prev, uf))}
-        />
-          ),
-          } : {}),
-          ...(canSeeVisual('passagens.mapa-choropleth-uf') ? {
-          'mapa-choropleth-uf': (
-        <BrazilChoroplethMap
-          title="Valor por Estado"
-          dados={mapaUF}
-          valueFormatter={formatCurrency}
-          selectedUF={selectedUF}
-          onSelectUF={(uf) => setSelectedUF((prev) => toggleItem(prev, uf))}
-        />
-          ),
-          } : {}),
-          ...(canSeeVisual('passagens.mapa-destinos') ? {
-          'mapa-destinos': (
-        <div className="grid grid-cols-1 gap-4">
-          <MapaDestinosCard
-            data={mapaData}
-            selectedDestino={selectedDestino}
-            onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
-          />
-        </div>
-          ),
-          } : {}),
           ...(canSeeVisual('passagens.kpis-charts') ? {
           'charts-row': (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

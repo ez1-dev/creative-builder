@@ -17,7 +17,7 @@ import {
   TreemapChartCard, RadarChartCard, SparklineCard,
   StackedBarChartCard, ComboChartCard, GaugeChartCard, ProgressChartCard,
   ScatterChartCard, HeatmapChartCard, WaterfallChartCard, CalendarHeatmapCard,
-  BrazilMapCard,
+  
   TreeView,
   Timeline,
   DataTableBI, ChartCardShell,
@@ -484,23 +484,6 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     },
   },
 
-  // ===== Maps =====
-  {
-    id: 'brazil-map',
-    kind: 'map',
-    label: 'Mapa do Brasil (UF)',
-    defaultSpan: 2,
-    inputs: [{ key: 'series', label: 'Série (uf/valor)', source: 'series', required: true }],
-    autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
-      const raw = ctx.series?.[mapping.series];
-      const arr = Array.isArray(raw) ? raw : [];
-      const data = arr
-        .map((p: any) => ({ uf: String(p.uf ?? p.label ?? '').toUpperCase(), valor: Number(p.valor ?? p.value ?? 0) }))
-        .filter((p) => p.uf);
-      return <BrazilMapCard title={title || 'Por UF'} data={data} />;
-    },
-  },
 
   // ===== Hierarquia =====
   {
