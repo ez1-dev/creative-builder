@@ -68,15 +68,57 @@ Já criadas no Supabase. Nomes e contratos:
 
 ### ATU_RECEBIMENTOS (cron `*/15 * * * *`)
 
-Mesma estrutura. Diferenças:
-- Watermark sobre `data_alteracao` da NF.
+> ⚠️ **Fonte correta**: usar a MESMA base que o endpoint `consultar_notas_recebimento` (`/api/notas-recebimento`) já consulta hoje em produção — família **`E440NFC` (cabeçalho de NF de entrada) + `E440IPC` (itens) + `E440ISC` (impostos)** e tabelas equivalentes para devolução/cancelamento.
+>
+> **NÃO** usar `E140NFV` / `E140IPV` — essas são notas de **saída/venda** e produziriam números errados no BI.
+>
+> Critério prático: reaproveitar a query SQL de `consultar_notas_recebimento`, trocando paginação por filtro de watermark (`data_alteracao > :watermark`). Isso garante paridade automática entre o BI e o endpoint atual.
+
+Mesma estrutura do ATU_COMPRAS. Diferenças:
+- Watermark sobre `data_alteracao` da NF (E440NFC).
 - Determinar `tipo_movimento`:
   - `RECEBIMENTO` (default)
   - `DEVOLUCAO` se flag de devolução
   - `ESTORNO` se `estornada = true`
   - `CANCELAMENTO` se `cancelada = true`
-- Vincular `numero_oc_origem`, `sequencia_oc_origem` (campos já existem nas NFs do Senior).
+- Vincular `numero_oc_origem`, `sequencia_oc_origem` a partir dos campos do E440IPC que apontam para a OC origem.
 - UPSERT com chave `(numero_nf, serie, sequencia_item, codigo_fornecedor)`.
+
+## Feature flag `USE_BI_ANALYTICS`
+
+Cutover controlado, sem mudar contrato dos endpoints existentes:
+
+```python
+USE_BI = os.getenv("USE_BI_ANALYTICS", "false").lower() == "true"
+
+def fonte_compras(filtros):
+    if USE_BI:
+        if supabase.count("bi_compras") == 0:
+            raise HTTPException(409,
+                "Base analítica ainda não populada. Execute a tarefa ETL correspondente.")
+        return query_bi_compras(filtros)
+    return query_erp_compras(filtros)  # comportamento atual, intacto
+```
+
+Aplicar em: `/api/painel-compras`, `/api/painel-compras-dashboard`, `/api/notas-recebimento`, `/api/notas-recebimento-dashboard`.
+
+Regras:
+- `USE_BI_ANALYTICS=false` (default) → lê do ERP, comportamento atual preservado.
+- `USE_BI_ANALYTICS=true` → lê de `bi_*`. Se a tabela estiver vazia, retorna **HTTP 409** com a mensagem acima (não cair silenciosamente para o ERP — evita mascarar bugs).
+- **Não remover** `query_erp_compras` / `query_erp_recebimentos` por pelo menos 7 dias após o cutover.
+
+## Sequência de validação V1 (antes de ligar a flag)
+
+1. Configurar `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` no backend (somente backend).
+2. `POST /api/etl/reprocessar { "tarefa": "ATU_COMPRAS", "data_ini": "2026-01-01", "data_fim": "2026-01-31" }`.
+3. Conferir no Supabase: `SELECT COUNT(*), SUM(valor_liquido), SUM(quantidade) FROM bi_compras WHERE data_emissao BETWEEN '2026-01-01' AND '2026-01-31';`.
+4. Comparar com `GET /api/painel-compras-dashboard?data_inicio=2026-01-01&data_fim=2026-01-31` (ainda lendo do ERP). **Tolerância: divergência ≤ 0,5%**.
+5. `POST /api/etl/reprocessar { "tarefa": "ATU_RECEBIMENTOS", "data_ini": "2026-01-01", "data_fim": "2026-01-31" }`.
+6. `SELECT COUNT(*), SUM(valor_liquido) FROM bi_recebimentos WHERE data_recebimento BETWEEN '2026-01-01' AND '2026-01-31' AND tipo_movimento = 'RECEBIMENTO';`.
+7. Comparar com `GET /api/notas-recebimento-dashboard?data_inicio=...`. Validar `DEVOLUCAO`/`ESTORNO`/`CANCELAMENTO` separadamente.
+8. Só após 2 janelas validadas com diff ≤ 0,5% em homologação, ligar `USE_BI_ANALYTICS=true`.
+
+A aba **Validação** em `/etl` no Lovable mostra esses totais lado a lado e o diff em verde/amarelo/vermelho.
 
 ## Endpoints HTTP que o frontend chama
 
