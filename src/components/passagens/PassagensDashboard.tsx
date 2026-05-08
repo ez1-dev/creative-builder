@@ -32,6 +32,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
+import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
+import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { getComponent } from '@/lib/bi/componentRegistry';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
