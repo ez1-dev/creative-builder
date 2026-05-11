@@ -437,9 +437,99 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       </VisualGate>
     ),
     'tabela-registros': (
-      <Card className="p-3">
-        <DataTableBI columns={cols} data={crossFiltered} loading={loading}
-          emptyMessage="Nenhum registro de manutenção encontrado" />
+      <Card>
+        <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-sm min-w-0 truncate">Registros ({displayRows.length})</CardTitle>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto">
+            <div className="relative w-full sm:w-auto">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="h-8 w-full pl-7 text-xs sm:w-[200px]"
+              />
+            </div>
+            <Select value={ordenacao} onValueChange={(v) => setOrdenacao(v as typeof ordenacao)}>
+              <SelectTrigger className="h-8 w-full text-xs sm:w-[180px]" aria-label="Ordenar">
+                <ArrowUpDown className="mr-1 h-3 w-3" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="data_desc" className="text-xs">Data (mais recente)</SelectItem>
+                <SelectItem value="data_asc" className="text-xs">Data (mais antiga)</SelectItem>
+                <SelectItem value="placa_az" className="text-xs">Placa (A→Z)</SelectItem>
+                <SelectItem value="placa_za" className="text-xs">Placa (Z→A)</SelectItem>
+                <SelectItem value="valor_desc" className="text-xs">Valor (maior)</SelectItem>
+                <SelectItem value="valor_asc" className="text-xs">Valor (menor)</SelectItem>
+                <SelectItem value="motorista_az" className="text-xs">Motorista (A→Z)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant={agruparMot ? 'default' : 'outline'}
+              className="h-8 flex-1 text-xs sm:flex-none"
+              onClick={() => setAgruparMot((v) => !v)}
+            >
+              <Users className="mr-1 h-3.5 w-3.5" />
+              <span className="sm:hidden">Agrupar</span>
+              <span className="hidden sm:inline">Agrupar Motorista</span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={exportCSV} disabled={displayRows.length === 0}>
+              <Download className="mr-1 h-3.5 w-3.5" />
+              <span className="sm:hidden">CSV</span>
+              <span className="hidden sm:inline">Exportar CSV</span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={exportXLSX} disabled={displayRows.length === 0}>
+              <Download className="mr-1 h-3.5 w-3.5" />
+              <span className="sm:hidden">Excel</span>
+              <span className="hidden sm:inline">Exportar Excel</span>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3">
+          {agruparMot ? (
+            loading ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
+            ) : displayRows.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Nenhum registro</div>
+            ) : (
+              <div className="space-y-2">
+                {gruposMot.map((g) => {
+                  const aberto = gruposAbertos.has(g.motorista);
+                  return (
+                    <div key={g.motorista} className="rounded-md border">
+                      <button
+                        type="button"
+                        onClick={() => setGruposAbertos((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(g.motorista)) next.delete(g.motorista); else next.add(g.motorista);
+                          return next;
+                        })}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-accent/40"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium">
+                          {aberto ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                          {g.motorista}
+                          <Badge variant="secondary" className="ml-1">{g.rows.length}</Badge>
+                        </span>
+                        <span className="font-semibold">{formatCurrency(g.total)}</span>
+                      </button>
+                      {aberto && (
+                        <div className="border-t p-2">
+                          <DataTableBI columns={cols} data={g.rows} loading={false} emptyMessage="—" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <DataTableBI columns={cols} data={displayRows} loading={loading}
+              emptyMessage="Nenhum registro de manutenção encontrado" />
+          )}
+        </CardContent>
       </Card>
     ),
     // Widgets customizados / overrides via registry
