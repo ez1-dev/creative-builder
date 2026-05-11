@@ -15,6 +15,17 @@ export interface VisualGroup {
 
 export const VISUAL_CATALOG: VisualGroup[] = [
   {
+    module: 'Manutenção de Frota',
+    items: [
+      { key: 'frota.chart-evolucao-mensal',  label: 'Gráfico: Evolução Mensal' },
+      { key: 'frota.chart-segmento',         label: 'Gráfico: Distribuição por Segmento' },
+      { key: 'frota.chart-top-veiculos',     label: 'Gráfico: Top Veículos por Valor' },
+      { key: 'frota.chart-top-fornecedores', label: 'Gráfico: Top Fornecedores' },
+      { key: 'frota.chart-top-cc',           label: 'Gráfico: Top Centros de Custo' },
+      { key: 'frota.chart-top-motoristas',   label: 'Gráfico: Top Motoristas' },
+    ],
+  },
+  {
     module: 'Passagens Aéreas',
     items: [
       { key: 'passagens.kpis-charts', label: 'Gráficos (todos — chave de retrocompatibilidade)' },

@@ -48,6 +48,7 @@ const ALL_SCREENS = [
   { path: '/producao/engenharia', name: 'Produção - Eng. x Produção' },
   { path: '/producao/relatorio-semanal-obra', name: 'Produção - Relatório Semanal Obra' },
   { path: '/passagens-aereas', name: 'Passagens Aéreas' },
+  { path: '/frota', name: 'Manutenção de Frota' },
   { path: '/monitor-usuarios-senior', name: 'Monitor de Usuários Senior' },
   { path: '/gestao-sgu-usuarios', name: 'Gestão SGU - Usuários ERP Senior' },
   { path: '/configuracoes', name: 'Configurações' },
