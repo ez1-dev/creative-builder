@@ -46,6 +46,8 @@ interface Props {
   kpis?: Record<string, any>;
   series?: Record<string, any>;
   rows?: any[];
+  /** pageKey do PAGE_REGISTRY para listar séries disponíveis. Padrão: passagens-aereas. */
+  pageKey?: string;
 }
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
@@ -53,10 +55,10 @@ const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
 export function ConfigureChartDialog({
   open, onOpenChange, initial, blockType, fallbackTitle,
   canResetToDefault, onApply, onResetToDefault,
-  kpis, series, rows,
+  kpis, series, rows, pageKey = 'passagens-aereas',
 }: Props) {
   const ctx = { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] };
-  const page = getPage('passagens-aereas');
+  const page = getPage(pageKey);
 
   const [componentId, setComponentId] = useState<string>(initial?.componentId ?? CHART_COMPONENTS[0]?.id ?? 'bar-chart');
   const [seriesKey, setSeriesKey] = useState<string>(initial?.mapping?.series ?? '');

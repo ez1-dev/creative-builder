@@ -235,6 +235,33 @@ export const PAGE_REGISTRY: BiPageDef[] = [
       rows: { key: 'dados', label: 'Passagens', fields: ['colaborador', 'centro_custo', 'destino', 'uf_destino', 'motivo_viagem', 'tipo_despesa', 'valor', 'data_registro'] },
     },
   },
+  {
+    key: 'frota',
+    label: 'Manutenção de Frota',
+    route: '/frota',
+    sections: [
+      { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
+      { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
+      { key: 'tables', label: 'Tabelas auxiliares',accepts: ['table'],                cols: 2 },
+    ],
+    schema: {
+      kpis: [
+        { key: 'total_gasto',         label: 'Total Gasto',        format: 'currency' },
+        { key: 'total_manutencoes',   label: 'Qtd Manutenções',    format: 'number'   },
+        { key: 'ticket_medio',        label: 'Ticket Médio',       format: 'currency' },
+        { key: 'veiculos_atendidos',  label: 'Veículos Atendidos', format: 'number'   },
+      ],
+      series: [
+        { key: 'evolucao_mensal',     label: 'Evolução Mensal (R$)' },
+        { key: 'por_segmento',        label: 'Por Segmento (R$)' },
+        { key: 'top_veiculos',        label: 'Top Veículos (R$)' },
+        { key: 'top_fornecedores',    label: 'Top Fornecedores (R$)' },
+        { key: 'top_centros_custo',   label: 'Top Centros de Custo (R$)' },
+        { key: 'top_motoristas',      label: 'Top Motoristas (R$)' },
+      ],
+      rows: { key: 'dados', label: 'Manutenções', fields: ['data', 'placa', 'veiculo_descricao', 'fornecedor', 'descricao', 'valor', 'motorista', 'centro_custo', 'segmento'] },
+    },
+  },
 ];
 
 /** Seções padrão usadas por páginas genéricas (sem schema rico). */

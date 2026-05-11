@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
-  DashboardPage, KpiGrid, KpiCard,
+  KpiGrid, KpiCard,
   BarChartCard, PieChartCard, RankingChartCard,
   FilterBar, SelectFilter, SearchFilter,
   DataTableBI, type Column,
@@ -10,10 +11,22 @@ import {
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pencil, Trash2, Wrench, DollarSign, Truck, Hash, X, Layers } from 'lucide-react';
+import {
+  Pencil, Trash2, Wrench, DollarSign, Truck, Hash,
+  X, Layers, Plus,
+} from 'lucide-react';
 import { VisualGate } from '@/components/VisualGate';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { useFrotaLayout } from '@/hooks/useFrotaLayout';
+import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
+import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { getComponent } from '@/lib/bi/componentRegistry';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export interface ManutencaoFrota {
   id: string;
@@ -36,6 +49,10 @@ interface Props {
   loading?: boolean;
   onEdit?: (r: ManutencaoFrota) => void;
   onDelete?: (id: string) => void;
+  /** Quando definido, carrega o layout via RPC pública. */
+  shareToken?: string | null;
+  /** Página é apenas leitura (link compartilhado). */
+  readOnly?: boolean;
 }
 
 const MESES_ORDER = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -49,19 +66,74 @@ const ALL_DRILL_LEVELS: { key: keyof ManutencaoFrota; label: string }[] = [
   { key: 'descricao', label: 'Descrição' },
 ];
 
+const CONFIGURABLE_CANONICAL = [
+  'chart-evolucao-mensal',
+  'chart-segmento',
+  'chart-top-veiculos',
+  'chart-top-fornecedores',
+  'chart-top-cc',
+  'chart-top-motoristas',
+];
+
 function toggleItem(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
 
-export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
-  // FilterBar
+export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, readOnly }: Props) {
+  // ===== Layout customizável =====
+  const { widgets, canEdit, saveLayout, resetLayout, deleteWidget } = useFrotaLayout({
+    shareToken: shareToken ?? null,
+  });
+  const canEditLayout = !readOnly && canEdit && !shareToken;
+
+  const [editingLayout, setEditingLayout] = useState(false);
+  const [pendingLayout, setPendingLayout] = useState<
+    { type: string; layout: { x: number; y: number; w: number; h: number } }[] | null
+  >(null);
+  const [pendingHidden, setPendingHidden] = useState<Set<string> | null>(null);
+  const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
+  const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+  const [savingLayout, setSavingLayout] = useState(false);
+  const [configureType, setConfigureType] = useState<string | null>(null);
+  const [addChartOpen, setAddChartOpen] = useState(false);
+
+  const effectiveWidgets = useMemo(() => {
+    const base = widgets.map((w) => {
+      const hidden = pendingHidden ? pendingHidden.has(w.type) : Boolean(w.hidden);
+      const cfg = pendingConfig?.[w.type];
+      if (cfg === null || cfg === undefined) return { ...w, hidden };
+      return {
+        ...w, hidden,
+        componentId: cfg.componentId ?? w.componentId,
+        mapping: cfg.mapping ?? w.mapping,
+        options: cfg.options ?? w.options,
+        customTitle: cfg.customTitle ?? w.customTitle,
+      };
+    });
+    const filtered = base.filter((w) => !pendingDeletes?.has(w.type));
+    const maxPos = filtered.reduce((m, w) => Math.max(m, w.position), 0);
+    const news = (pendingNewWidgets ?? []).map((nw, i) => ({
+      id: nw.type, type: nw.type, title: nw.title,
+      position: maxPos + 1 + i,
+      layout: { x: 0, y: 999 + i * 8, w: 6, h: 8 },
+      hidden: false,
+      componentId: nw.componentId, mapping: nw.mapping, options: nw.options,
+      customTitle: nw.title,
+    }));
+    return [...filtered, ...news];
+  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes]);
+
+  const hiddenList = useMemo(() => effectiveWidgets.filter((w) => w.hidden), [effectiveWidgets]);
+
+  // ===== Filtros da FilterBar =====
   const [segmento, setSegmento] = useState('all');
   const [centroCusto, setCentroCusto] = useState('all');
   const [placa, setPlaca] = useState('all');
   const [motorista, setMotorista] = useState('all');
   const [busca, setBusca] = useState('');
 
-  // Cross-filter (multi-seleção por clique)
+  // ===== Cross-filter =====
   const [selMes, setSelMes] = useState<string[]>([]);
   const [selSegmento, setSelSegmento] = useState<string[]>([]);
   const [selPlaca, setSelPlaca] = useState<string[]>([]);
@@ -69,17 +141,19 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
   const [selCC, setSelCC] = useState<string[]>([]);
   const [selMotorista, setSelMotorista] = useState<string[]>([]);
 
-  // Drill-down hierárquico
+  // ===== Drill-down =====
   const [drillLevels, setDrillLevels] = useState<string[]>([
     'segmento', 'centro_custo', 'placa', 'fornecedor',
   ]);
+  const toggleDrillLevel = (key: string) => {
+    setDrillLevels((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  };
 
   const optsSeg = useMemo(() => uniqueOpts(data.map((r) => r.segmento)), [data]);
   const optsCC = useMemo(() => uniqueOpts(data.map((r) => r.centro_custo)), [data]);
   const optsPlaca = useMemo(() => uniqueOpts(data.map((r) => r.placa)), [data]);
   const optsMot = useMemo(() => uniqueOpts(data.map((r) => r.motorista)), [data]);
 
-  // 1ª camada: filtros do FilterBar + busca
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return data.filter((r) => {
@@ -96,18 +170,15 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
     });
   }, [data, segmento, centroCusto, placa, motorista, busca]);
 
-  // 2ª camada: cross-filter (clique nos gráficos)
-  const crossFiltered = useMemo(() => {
-    return filtered.filter((r) => {
-      if (selMes.length && !selMes.includes(r.mes ?? '?')) return false;
-      if (selSegmento.length && !selSegmento.includes(r.segmento ?? 'NÃO INFORMADO')) return false;
-      if (selPlaca.length && !selPlaca.includes(r.placa ?? '—')) return false;
-      if (selFornecedor.length && !selFornecedor.includes(r.fornecedor ?? '—')) return false;
-      if (selCC.length && !selCC.includes(r.centro_custo ?? '—')) return false;
-      if (selMotorista.length && !selMotorista.includes(r.motorista ?? '—')) return false;
-      return true;
-    });
-  }, [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista]);
+  const crossFiltered = useMemo(() => filtered.filter((r) => {
+    if (selMes.length && !selMes.includes(r.mes ?? '?')) return false;
+    if (selSegmento.length && !selSegmento.includes(r.segmento ?? 'NÃO INFORMADO')) return false;
+    if (selPlaca.length && !selPlaca.includes(r.placa ?? '—')) return false;
+    if (selFornecedor.length && !selFornecedor.includes(r.fornecedor ?? '—')) return false;
+    if (selCC.length && !selCC.includes(r.centro_custo ?? '—')) return false;
+    if (selMotorista.length && !selMotorista.includes(r.motorista ?? '—')) return false;
+    return true;
+  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista]);
 
   const totalAtivos =
     selMes.length + selSegmento.length + selPlaca.length +
@@ -129,10 +200,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
 
   const porMes = useMemo(() => {
     const m = new Map<string, number>();
-    crossFiltered.forEach((r) => {
-      const key = r.mes ?? '?';
-      m.set(key, (m.get(key) ?? 0) + (r.valor || 0));
-    });
+    crossFiltered.forEach((r) => m.set(r.mes ?? '?', (m.get(r.mes ?? '?') ?? 0) + (r.valor || 0)));
     return Array.from(m.entries())
       .sort((a, b) => MESES_ORDER.indexOf(a[0]) - MESES_ORDER.indexOf(b[0]))
       .map(([label, valor]) => ({ label, valor }));
@@ -152,6 +220,22 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
   const topCC = useMemo(() => topBy(crossFiltered, (r) => r.centro_custo || '—'), [crossFiltered]);
   const topMotoristas = useMemo(() => topBy(crossFiltered, (r) => r.motorista || '—'), [crossFiltered]);
 
+  const kpiPayload = useMemo(() => ({
+    total_gasto: kpis.total,
+    total_manutencoes: kpis.qtd,
+    ticket_medio: kpis.ticket,
+    veiculos_atendidos: kpis.veiculos,
+  }), [kpis]);
+
+  const seriesPayload = useMemo(() => ({
+    evolucao_mensal: porMes.map((p) => ({ name: p.label, value: p.valor })),
+    por_segmento: porSegmento.map((p) => ({ name: p.label, value: p.valor })),
+    top_veiculos: topVeiculos.map((p) => ({ name: p.label, value: p.valor })),
+    top_fornecedores: topFornecedores.map((p) => ({ name: p.label, value: p.valor })),
+    top_centros_custo: topCC.map((p) => ({ name: p.label, value: p.valor })),
+    top_motoristas: topMotoristas.map((p) => ({ name: p.label, value: p.valor })),
+  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas]);
+
   const drillLevelsConfig = useMemo(
     () => drillLevels
       .map((k) => ALL_DRILL_LEVELS.find((l) => l.key === k))
@@ -159,12 +243,6 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
       .map((l) => ({ key: l!.key as string, label: l!.label })),
     [drillLevels],
   );
-
-  const toggleDrillLevel = (key: string) => {
-    setDrillLevels((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
-  };
 
   const cols: Column<ManutencaoFrota>[] = [
     { key: 'data', header: 'Data', sortable: true, render: (_v, r) => formatDate(r.data) },
@@ -195,28 +273,155 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
     }] : []),
   ];
 
+  // configureTarget para o ConfigureChartDialog
+  const configureTarget = useMemo(() => {
+    if (!configureType) return null;
+    const pending = pendingConfig[configureType];
+    const widget = effectiveWidgets.find((w) => w.type === configureType);
+    return {
+      widget,
+      initial: pending !== undefined
+        ? (pending ?? {}) as Partial<ConfigureChartValue>
+        : ({
+            componentId: widget?.componentId,
+            mapping: widget?.mapping,
+            customTitle: widget?.customTitle,
+            options: widget?.options,
+          } as Partial<ConfigureChartValue>),
+    };
+  }, [configureType, pendingConfig, effectiveWidgets]);
+
+  // ===== Blocos =====
+  const blocks: Record<string, React.ReactNode> = {
+    'kpis-row': (
+      <KpiGrid cols={4}>
+        <KpiCard title="Total gasto" value={kpis.total} format="currency"
+          variant="info" icon={<DollarSign className="h-4 w-4" />} loading={loading} />
+        <KpiCard title="Manutenções" value={kpis.qtd} format="number"
+          variant="default" icon={<Wrench className="h-4 w-4" />} loading={loading} />
+        <KpiCard title="Ticket médio" value={kpis.ticket} format="currency"
+          variant="default" icon={<Hash className="h-4 w-4" />} loading={loading} />
+        <KpiCard title="Veículos atendidos" value={kpis.veiculos} format="number"
+          variant="success" icon={<Truck className="h-4 w-4" />} loading={loading} />
+      </KpiGrid>
+    ),
+    'chart-evolucao-mensal': (
+      <VisualGate visualKey="frota.chart-evolucao-mensal">
+        <BarChartCard
+          title="Evolução mensal (R$)"
+          subtitle="Clique numa barra para filtrar pelo mês"
+          data={porMes} loading={loading}
+          onItemClick={(d) => setSelMes((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'chart-segmento': (
+      <VisualGate visualKey="frota.chart-segmento">
+        <PieChartCard
+          title="Distribuição por Segmento"
+          subtitle="Clique numa fatia para filtrar"
+          data={porSegmento} loading={loading} donut
+          onItemClick={(d) => setSelSegmento((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'chart-top-veiculos': (
+      <VisualGate visualKey="frota.chart-top-veiculos">
+        <RankingChartCard
+          title="Top Veículos por Valor"
+          subtitle="Clique para filtrar pelo veículo"
+          data={topVeiculos} topN={10} loading={loading}
+          onItemClick={(d) => setSelPlaca((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'chart-top-fornecedores': (
+      <VisualGate visualKey="frota.chart-top-fornecedores">
+        <RankingChartCard
+          title="Top Fornecedores"
+          subtitle="Clique para filtrar pelo fornecedor"
+          data={topFornecedores} topN={10} loading={loading}
+          onItemClick={(d) => setSelFornecedor((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'chart-top-cc': (
+      <VisualGate visualKey="frota.chart-top-cc">
+        <RankingChartCard
+          title="Top Centros de Custo"
+          subtitle="Clique para filtrar pelo C.Custo"
+          data={topCC} topN={10} loading={loading}
+          onItemClick={(d) => setSelCC((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'chart-top-motoristas': (
+      <VisualGate visualKey="frota.chart-top-motoristas">
+        <RankingChartCard
+          title="Top Motoristas"
+          subtitle="Clique para filtrar pelo motorista"
+          data={topMotoristas} topN={10} loading={loading}
+          onItemClick={(d) => setSelMotorista((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'tabela-registros': (
+      <Card className="p-3">
+        <DataTableBI columns={cols} data={crossFiltered} loading={loading}
+          emptyMessage="Nenhum registro de manutenção encontrado" />
+      </Card>
+    ),
+    // Widgets customizados / overrides via registry
+    ...Object.fromEntries(
+      effectiveWidgets
+        .filter((w) => Boolean(w.componentId))
+        .map((w) => {
+          const def = getComponent(w.componentId!);
+          if (!def) return [w.type, null];
+          const node = def.render({
+            title: w.customTitle || w.title,
+            mapping: w.mapping ?? {},
+            ctx: {
+              kpis: kpiPayload,
+              series: seriesPayload,
+              rows: crossFiltered,
+              onItemClick: (seriesKey, datum) => {
+                const name = String(datum?.name ?? datum?.label ?? '');
+                if (!name) return;
+                switch (seriesKey) {
+                  case 'evolucao_mensal':    setSelMes((p) => toggleItem(p, name)); break;
+                  case 'por_segmento':       setSelSegmento((p) => toggleItem(p, name)); break;
+                  case 'top_veiculos':       setSelPlaca((p) => toggleItem(p, name)); break;
+                  case 'top_fornecedores':   setSelFornecedor((p) => toggleItem(p, name)); break;
+                  case 'top_centros_custo':  setSelCC((p) => toggleItem(p, name)); break;
+                  case 'top_motoristas':     setSelMotorista((p) => toggleItem(p, name)); break;
+                  default: break;
+                }
+              },
+            } as any,
+            options: w.options ?? {},
+          });
+          return [w.type, node];
+        }),
+    ),
+  };
+
   return (
-    <DashboardPage>
+    <div className="space-y-4">
+      {/* FilterBar */}
       <FilterBar>
-        <SelectFilter
-          label="Segmento" value={segmento} onChange={setSegmento}
-          options={[{ value: 'all', label: 'Todos' }, ...optsSeg]}
-        />
-        <SelectFilter
-          label="Placa" value={placa} onChange={setPlaca}
-          options={[{ value: 'all', label: 'Todas' }, ...optsPlaca]}
-        />
-        <SelectFilter
-          label="Centro de Custo" value={centroCusto} onChange={setCentroCusto}
-          options={[{ value: 'all', label: 'Todos' }, ...optsCC]}
-        />
-        <SelectFilter
-          label="Motorista" value={motorista} onChange={setMotorista}
-          options={[{ value: 'all', label: 'Todos' }, ...optsMot]}
-        />
+        <SelectFilter label="Segmento" value={segmento} onChange={setSegmento}
+          options={[{ value: 'all', label: 'Todos' }, ...optsSeg]} />
+        <SelectFilter label="Placa" value={placa} onChange={setPlaca}
+          options={[{ value: 'all', label: 'Todas' }, ...optsPlaca]} />
+        <SelectFilter label="Centro de Custo" value={centroCusto} onChange={setCentroCusto}
+          options={[{ value: 'all', label: 'Todos' }, ...optsCC]} />
+        <SelectFilter label="Motorista" value={motorista} onChange={setMotorista}
+          options={[{ value: 'all', label: 'Todos' }, ...optsMot]} />
         <SearchFilter value={busca} onChange={setBusca} placeholder="Buscar..." />
       </FilterBar>
 
+      {/* Chips de cross-filter */}
       {totalAtivos > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
           <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
@@ -232,68 +437,205 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
         </div>
       )}
 
-      <KpiGrid cols={4}>
-        <KpiCard title="Total gasto" value={kpis.total} format="currency"
-          variant="info" icon={<DollarSign className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Manutenções" value={kpis.qtd} format="number"
-          variant="default" icon={<Wrench className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Ticket médio" value={kpis.ticket} format="currency"
-          variant="default" icon={<Hash className="h-4 w-4" />} loading={loading} />
-        <KpiCard title="Veículos atendidos" value={kpis.veiculos} format="number"
-          variant="success" icon={<Truck className="h-4 w-4" />} loading={loading} />
-      </KpiGrid>
+      {/* Toolbar de edição de layout */}
+      {canEditLayout && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+          {!editingLayout ? (
+            <Button size="sm" variant="outline" onClick={() => {
+              setPendingHidden(new Set(widgets.filter((w) => w.hidden).map((w) => w.type)));
+              setEditingLayout(true);
+            }}>
+              <Layers className="mr-1.5 h-4 w-4" />
+              Editar layout
+            </Button>
+          ) : (
+            <>
+              <span className="text-xs font-medium text-primary">
+                Modo edição: arraste, redimensione, configure ou oculte blocos
+              </span>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setAddChartOpen(true)}>
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Novo gráfico
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={hiddenList.length === 0}>
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Restaurar bloco{hiddenList.length > 0 ? ` (${hiddenList.length})` : ''}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {hiddenList.map((w) => (
+                      <DropdownMenuItem
+                        key={w.type}
+                        onClick={() => {
+                          setPendingHidden((prev) => {
+                            const next = new Set(prev ?? []);
+                            next.delete(w.type);
+                            return next;
+                          });
+                        }}
+                      >
+                        {w.title || w.type}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button size="sm" variant="ghost" onClick={() => {
+                  setEditingLayout(false);
+                  setPendingLayout(null); setPendingHidden(null);
+                  setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                }} disabled={savingLayout}>Cancelar</Button>
+                <Button size="sm" variant="outline" disabled={savingLayout} onClick={async () => {
+                  if (!confirm('Restaurar o layout padrão para todos os usuários? Blocos canônicos voltam a aparecer (gráficos customizados são preservados).')) return;
+                  setSavingLayout(true);
+                  try {
+                    await resetLayout();
+                    setEditingLayout(false);
+                    setPendingLayout(null); setPendingHidden(null);
+                    setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    toast.success('Layout restaurado.');
+                  } catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
+                  finally { setSavingLayout(false); }
+                }}>Restaurar padrão</Button>
+                <Button size="sm" disabled={savingLayout} onClick={async () => {
+                  setSavingLayout(true);
+                  try {
+                    const overrides = new Map((pendingLayout ?? []).map((b) => [b.type, b.layout] as const));
+                    const baseLayout = effectiveWidgets.map((w) => ({
+                      type: w.type,
+                      layout: overrides.get(w.type) ?? w.layout,
+                    }));
+                    const hiddenSet = pendingHidden ?? new Set<string>();
+                    const layoutByType = new Map(baseLayout.map((b) => [b.type, b.layout]));
+                    const allTypes = new Set<string>([
+                      ...layoutByType.keys(),
+                      ...effectiveWidgets.map((w) => w.type),
+                    ]);
+                    pendingDeletes.forEach((t) => allTypes.delete(t));
+                    const newWidgetsByType = new Map(pendingNewWidgets.map((nw) => [nw.type, nw]));
+                    const orderedTypes = Array.from(allTypes).sort((a, b) => {
+                      const la = layoutByType.get(a) ?? effectiveWidgets.find((w) => w.type === a)?.layout ?? { x: 0, y: 0, w: 12, h: 4 };
+                      const lb = layoutByType.get(b) ?? effectiveWidgets.find((w) => w.type === b)?.layout ?? { x: 0, y: 0, w: 12, h: 4 };
+                      if (la.y !== lb.y) return la.y - lb.y;
+                      return la.x - lb.x;
+                    });
+                    const positionByType = new Map(orderedTypes.map((t, i) => [t, i] as const));
+                    const payload = orderedTypes.map((type) => {
+                      const layout = layoutByType.get(type)
+                        ?? effectiveWidgets.find((w) => w.type === type)?.layout
+                        ?? { x: 0, y: 0, w: 12, h: 4 };
+                      const cfg = pendingConfig[type];
+                      const nw = newWidgetsByType.get(type);
+                      const ew = effectiveWidgets.find((w) => w.type === type);
+                      return {
+                        type, layout,
+                        hidden: hiddenSet.has(type),
+                        componentId: cfg === null ? null : (cfg?.componentId ?? nw?.componentId),
+                        mapping: cfg === null ? null : (cfg?.mapping ?? nw?.mapping ?? undefined),
+                        options: cfg === null ? null : (cfg?.options ?? nw?.options ?? undefined),
+                        customTitle: cfg === null ? null : (cfg?.customTitle ?? nw?.title ?? undefined),
+                        title: nw?.title ?? ew?.title,
+                        position: positionByType.get(type) ?? ew?.position ?? 99,
+                      };
+                    });
+                    await saveLayout(payload);
+                    for (const t of pendingDeletes) {
+                      const w = widgets.find((x) => x.type === t);
+                      if (w?.id) await deleteWidget(w.id);
+                    }
+                    setEditingLayout(false);
+                    setPendingLayout(null); setPendingHidden(null);
+                    setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    toast.success('Layout salvo para todos os usuários.');
+                  } catch (e: any) { toast.error(e?.message ?? 'Falha ao salvar layout'); }
+                  finally { setSavingLayout(false); }
+                }}>{savingLayout ? 'Salvando...' : 'Salvar'}</Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <VisualGate visualKey="frota.chart-evolucao-mensal">
-          <BarChartCard
-            title="Evolução mensal (R$)"
-            subtitle="Clique numa barra para filtrar pelo mês"
-            data={porMes} loading={loading}
-            onItemClick={(d) => setSelMes((prev) => toggleItem(prev, d.label))}
-          />
-        </VisualGate>
-        <VisualGate visualKey="frota.chart-segmento">
-          <PieChartCard
-            title="Distribuição por Segmento"
-            subtitle="Clique numa fatia para filtrar"
-            data={porSegmento} loading={loading} donut
-            onItemClick={(d) => setSelSegmento((prev) => toggleItem(prev, d.label))}
-          />
-        </VisualGate>
-        <VisualGate visualKey="frota.chart-top-veiculos">
-          <RankingChartCard
-            title="Top Veículos por Valor"
-            subtitle="Clique para filtrar pelo veículo"
-            data={topVeiculos} topN={10} loading={loading}
-            onItemClick={(d) => setSelPlaca((prev) => toggleItem(prev, d.label))}
-          />
-        </VisualGate>
-        <VisualGate visualKey="frota.chart-top-fornecedores">
-          <RankingChartCard
-            title="Top Fornecedores"
-            subtitle="Clique para filtrar pelo fornecedor"
-            data={topFornecedores} topN={10} loading={loading}
-            onItemClick={(d) => setSelFornecedor((prev) => toggleItem(prev, d.label))}
-          />
-        </VisualGate>
-        <VisualGate visualKey="frota.chart-top-cc">
-          <RankingChartCard
-            title="Top Centros de Custo"
-            subtitle="Clique para filtrar pelo C.Custo"
-            data={topCC} topN={10} loading={loading}
-            onItemClick={(d) => setSelCC((prev) => toggleItem(prev, d.label))}
-          />
-        </VisualGate>
-        <VisualGate visualKey="frota.chart-top-motoristas">
-          <RankingChartCard
-            title="Top Motoristas"
-            subtitle="Clique para filtrar pelo motorista"
-            data={topMotoristas} topN={10} loading={loading}
-            onItemClick={(d) => setSelMotorista((prev) => toggleItem(prev, d.label))}
-          />
-        </VisualGate>
-      </div>
+      {/* Grid de widgets */}
+      <PageDataProvider
+        pageKey="frota"
+        kpis={kpiPayload}
+        series={seriesPayload}
+        rows={crossFiltered}
+      >
+        <PassagensLayoutGrid
+          widgets={effectiveWidgets as any}
+          editing={editingLayout}
+          onLayoutChange={setPendingLayout}
+          onHide={editingLayout ? (type) => {
+            setPendingHidden((prev) => {
+              const next = new Set(prev ?? []);
+              next.add(type);
+              return next;
+            });
+          } : undefined}
+          configurableTypes={CONFIGURABLE_CANONICAL}
+          onConfigure={editingLayout ? (type) => setConfigureType(type) : undefined}
+          onDelete={editingLayout ? (type) => {
+            if (type.startsWith('custom-')) {
+              const isNew = pendingNewWidgets.some((nw) => nw.type === type);
+              if (isNew) {
+                setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
+              } else {
+                setPendingDeletes((prev) => {
+                  const next = new Set(prev);
+                  next.add(type);
+                  return next;
+                });
+              }
+            }
+          } : undefined}
+          blocks={blocks}
+        />
 
+        {configureTarget && (
+          <ConfigureChartDialog
+            open={Boolean(configureType)}
+            onOpenChange={(v) => { if (!v) setConfigureType(null); }}
+            initial={configureTarget.initial}
+            blockType={configureType ?? ''}
+            fallbackTitle={configureTarget.widget?.title}
+            canResetToDefault={configureType ? CONFIGURABLE_CANONICAL.includes(configureType) : false}
+            kpis={kpiPayload}
+            series={seriesPayload}
+            rows={crossFiltered}
+            pageKey="frota"
+            onApply={(next) => {
+              if (!configureType) return;
+              const t = configureType;
+              setPendingConfig((prev) => ({ ...prev, [t]: next }));
+              setPendingNewWidgets((prev) => prev.map((nw) =>
+                nw.type === t
+                  ? { ...nw, componentId: next.componentId, mapping: next.mapping, options: next.options, title: next.customTitle || nw.title }
+                  : nw,
+              ));
+            }}
+            onResetToDefault={() => {
+              if (!configureType) return;
+              const t = configureType;
+              setPendingConfig((prev) => ({ ...prev, [t]: null }));
+            }}
+          />
+        )}
+        <AddChartDialog
+          open={addChartOpen}
+          onOpenChange={setAddChartOpen}
+          kpis={kpiPayload}
+          series={seriesPayload}
+          rows={crossFiltered}
+          pageKey="frota"
+          onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
+        />
+      </PageDataProvider>
+
+      {/* Drill-down hierárquico — bloco fixo abaixo do grid */}
       <VisualGate visualKey="frota.drill-hierarquico">
         <Card className="p-3 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -332,12 +674,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete }: Props) {
           )}
         </Card>
       </VisualGate>
-
-      <Card className="p-3">
-        <DataTableBI columns={cols} data={crossFiltered} loading={loading}
-          emptyMessage="Nenhum registro de manutenção encontrado" />
-      </Card>
-    </DashboardPage>
+    </div>
   );
 }
 
