@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import {
   KpiGrid, KpiCard,
   BarChartCard, PieChartCard, RankingChartCard,
-  FilterBar, SelectFilter, SearchFilter,
+  FilterBar, MultiSelectFilter, SearchFilter,
   DataTableBI, type Column,
   DrillDownTable,
   formatCurrency,
@@ -127,10 +127,10 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const hiddenList = useMemo(() => effectiveWidgets.filter((w) => w.hidden), [effectiveWidgets]);
 
   // ===== Filtros da FilterBar =====
-  const [segmento, setSegmento] = useState('all');
-  const [centroCusto, setCentroCusto] = useState('all');
-  const [placa, setPlaca] = useState('all');
-  const [motorista, setMotorista] = useState('all');
+  const [segmento, setSegmento] = useState<string[]>([]);
+  const [centroCusto, setCentroCusto] = useState<string[]>([]);
+  const [placa, setPlaca] = useState<string[]>([]);
+  const [motorista, setMotorista] = useState<string[]>([]);
   const [busca, setBusca] = useState('');
 
   // ===== Cross-filter =====
@@ -157,10 +157,10 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const filtered = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return data.filter((r) => {
-      if (segmento !== 'all' && (r.segmento ?? '') !== segmento) return false;
-      if (centroCusto !== 'all' && (r.centro_custo ?? '') !== centroCusto) return false;
-      if (placa !== 'all' && r.placa !== placa) return false;
-      if (motorista !== 'all' && (r.motorista ?? '') !== motorista) return false;
+      if (segmento.length && !segmento.includes(r.segmento ?? '')) return false;
+      if (centroCusto.length && !centroCusto.includes(r.centro_custo ?? '')) return false;
+      if (placa.length && !placa.includes(r.placa)) return false;
+      if (motorista.length && !motorista.includes(r.motorista ?? '')) return false;
       if (q) {
         const hay = [r.placa, r.veiculo_descricao, r.fornecedor, r.descricao, r.motorista, r.centro_custo]
           .map((v) => (v ?? '').toLowerCase()).join(' | ');
@@ -187,7 +187,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const limparTudo = () => {
     setSelMes([]); setSelSegmento([]); setSelPlaca([]);
     setSelFornecedor([]); setSelCC([]); setSelMotorista([]);
-    setSegmento('all'); setCentroCusto('all'); setPlaca('all'); setMotorista('all');
+    setSegmento([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
 
@@ -410,14 +410,14 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     <div className="space-y-4">
       {/* FilterBar */}
       <FilterBar>
-        <SelectFilter label="Segmento" value={segmento} onChange={setSegmento}
-          options={[{ value: 'all', label: 'Todos' }, ...optsSeg]} />
-        <SelectFilter label="Placa" value={placa} onChange={setPlaca}
-          options={[{ value: 'all', label: 'Todas' }, ...optsPlaca]} />
-        <SelectFilter label="Centro de Custo" value={centroCusto} onChange={setCentroCusto}
-          options={[{ value: 'all', label: 'Todos' }, ...optsCC]} />
-        <SelectFilter label="Motorista" value={motorista} onChange={setMotorista}
-          options={[{ value: 'all', label: 'Todos' }, ...optsMot]} />
+        <MultiSelectFilter label="Segmento" values={segmento} onChange={setSegmento}
+          options={optsSeg} placeholder="Todos" />
+        <MultiSelectFilter label="Placa" values={placa} onChange={setPlaca}
+          options={optsPlaca} placeholder="Todas" />
+        <MultiSelectFilter label="Centro de Custo" values={centroCusto} onChange={setCentroCusto}
+          options={optsCC} placeholder="Todos" />
+        <MultiSelectFilter label="Motorista" values={motorista} onChange={setMotorista}
+          options={optsMot} placeholder="Todos" />
         <SearchFilter value={busca} onChange={setBusca} placeholder="Buscar..." />
       </FilterBar>
 
