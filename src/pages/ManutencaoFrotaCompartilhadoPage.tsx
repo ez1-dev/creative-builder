@@ -116,7 +116,7 @@ export default function ManutencaoFrotaCompartilhadoPage() {
           </div>
         </header>
         <main className="max-w-7xl mx-auto p-2 sm:p-4">
-          <FrotaDashboard data={data} />
+          <FrotaDashboard data={data} shareToken={token} readOnly />
         </main>
         <footer className="text-center text-[11px] sm:text-xs text-muted-foreground py-4 px-3">
           EZ ERP IA · Acesso somente leitura
