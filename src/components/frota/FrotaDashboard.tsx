@@ -3,18 +3,21 @@ import { toast } from 'sonner';
 import {
   KpiGrid, KpiCard,
   BarChartCard, PieChartCard, RankingChartCard,
-  FilterBar, MultiSelectFilter, SearchFilter,
+  FilterBar, MultiSelectFilter,
   DataTableBI, type Column,
   DrillDownTable,
   formatCurrency,
 } from '@/components/bi';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
   Pencil, Trash2, Wrench, DollarSign, Truck, Hash,
-  X, Layers, Plus,
+  X, Layers, Plus, Search, ArrowUpDown, Users, Download, ChevronDown, ChevronRight,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { VisualGate } from '@/components/VisualGate';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -132,6 +135,9 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const [placa, setPlaca] = useState<string[]>([]);
   const [motorista, setMotorista] = useState<string[]>([]);
   const [busca, setBusca] = useState('');
+  const [ordenacao, setOrdenacao] = useState<'data_desc' | 'data_asc' | 'placa_az' | 'placa_za' | 'valor_desc' | 'valor_asc' | 'motorista_az'>('data_desc');
+  const [agruparMot, setAgruparMot] = useState(false);
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
 
   // ===== Cross-filter =====
   const [selMes, setSelMes] = useState<string[]>([]);
@@ -291,6 +297,71 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     };
   }, [configureType, pendingConfig, effectiveWidgets]);
 
+  // ===== Ordenação + agrupamento da tabela de Registros =====
+  const displayRows = useMemo(() => {
+    const arr = [...crossFiltered];
+    const cmpDate = (a: ManutencaoFrota, b: ManutencaoFrota) =>
+      (a.data || '').localeCompare(b.data || '');
+    const cmpStr = (av?: string | null, bv?: string | null) =>
+      (av ?? '').localeCompare(bv ?? '', 'pt-BR');
+    switch (ordenacao) {
+      case 'data_asc': arr.sort(cmpDate); break;
+      case 'data_desc': arr.sort((a, b) => cmpDate(b, a)); break;
+      case 'placa_az': arr.sort((a, b) => cmpStr(a.placa, b.placa)); break;
+      case 'placa_za': arr.sort((a, b) => cmpStr(b.placa, a.placa)); break;
+      case 'valor_desc': arr.sort((a, b) => (b.valor || 0) - (a.valor || 0)); break;
+      case 'valor_asc': arr.sort((a, b) => (a.valor || 0) - (b.valor || 0)); break;
+      case 'motorista_az': arr.sort((a, b) => cmpStr(a.motorista, b.motorista)); break;
+    }
+    return arr;
+  }, [crossFiltered, ordenacao]);
+
+  const gruposMot = useMemo(() => {
+    const map = new Map<string, { motorista: string; rows: ManutencaoFrota[]; total: number }>();
+    displayRows.forEach((r) => {
+      const k = r.motorista ?? '— Sem motorista —';
+      const g = map.get(k) ?? { motorista: k, rows: [], total: 0 };
+      g.rows.push(r);
+      g.total += r.valor || 0;
+      map.set(k, g);
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [displayRows]);
+
+  const exportRowsToObjects = (rows: ManutencaoFrota[]) =>
+    rows.map((r) => ({
+      Data: r.data ? formatDate(r.data) : '',
+      Placa: r.placa,
+      Veículo: r.veiculo_descricao ?? '',
+      Fornecedor: r.fornecedor ?? '',
+      Descrição: r.descricao ?? '',
+      KM: r.quilometragem ?? '',
+      Valor: r.valor ?? 0,
+      Motorista: r.motorista ?? '',
+      'Centro de Custo': r.centro_custo ?? '',
+      Segmento: r.segmento ?? '',
+    }));
+
+  const exportCSV = () => {
+    const data = exportRowsToObjects(displayRows);
+    if (!data.length) return;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `manutencao-frota-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+  const exportXLSX = () => {
+    const data = exportRowsToObjects(displayRows);
+    if (!data.length) return;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+    XLSX.writeFile(wb, `manutencao-frota-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   // ===== Blocos =====
   const blocks: Record<string, React.ReactNode> = {
     'kpis-row': (
@@ -366,9 +437,99 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       </VisualGate>
     ),
     'tabela-registros': (
-      <Card className="p-3">
-        <DataTableBI columns={cols} data={crossFiltered} loading={loading}
-          emptyMessage="Nenhum registro de manutenção encontrado" />
+      <Card>
+        <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-sm min-w-0 truncate">Registros ({displayRows.length})</CardTitle>
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 md:w-auto">
+            <div className="relative w-full sm:w-auto">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar..."
+                className="h-8 w-full pl-7 text-xs sm:w-[200px]"
+              />
+            </div>
+            <Select value={ordenacao} onValueChange={(v) => setOrdenacao(v as typeof ordenacao)}>
+              <SelectTrigger className="h-8 w-full text-xs sm:w-[180px]" aria-label="Ordenar">
+                <ArrowUpDown className="mr-1 h-3 w-3" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="data_desc" className="text-xs">Data (mais recente)</SelectItem>
+                <SelectItem value="data_asc" className="text-xs">Data (mais antiga)</SelectItem>
+                <SelectItem value="placa_az" className="text-xs">Placa (A→Z)</SelectItem>
+                <SelectItem value="placa_za" className="text-xs">Placa (Z→A)</SelectItem>
+                <SelectItem value="valor_desc" className="text-xs">Valor (maior)</SelectItem>
+                <SelectItem value="valor_asc" className="text-xs">Valor (menor)</SelectItem>
+                <SelectItem value="motorista_az" className="text-xs">Motorista (A→Z)</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant={agruparMot ? 'default' : 'outline'}
+              className="h-8 flex-1 text-xs sm:flex-none"
+              onClick={() => setAgruparMot((v) => !v)}
+            >
+              <Users className="mr-1 h-3.5 w-3.5" />
+              <span className="sm:hidden">Agrupar</span>
+              <span className="hidden sm:inline">Agrupar Motorista</span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={exportCSV} disabled={displayRows.length === 0}>
+              <Download className="mr-1 h-3.5 w-3.5" />
+              <span className="sm:hidden">CSV</span>
+              <span className="hidden sm:inline">Exportar CSV</span>
+            </Button>
+            <Button size="sm" variant="outline" className="h-8 flex-1 text-xs sm:flex-none" onClick={exportXLSX} disabled={displayRows.length === 0}>
+              <Download className="mr-1 h-3.5 w-3.5" />
+              <span className="sm:hidden">Excel</span>
+              <span className="hidden sm:inline">Exportar Excel</span>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-3">
+          {agruparMot ? (
+            loading ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Carregando...</div>
+            ) : displayRows.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground">Nenhum registro</div>
+            ) : (
+              <div className="space-y-2">
+                {gruposMot.map((g) => {
+                  const aberto = gruposAbertos.has(g.motorista);
+                  return (
+                    <div key={g.motorista} className="rounded-md border">
+                      <button
+                        type="button"
+                        onClick={() => setGruposAbertos((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(g.motorista)) next.delete(g.motorista); else next.add(g.motorista);
+                          return next;
+                        })}
+                        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs hover:bg-accent/40"
+                      >
+                        <span className="flex items-center gap-1.5 font-medium">
+                          {aberto ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                          {g.motorista}
+                          <Badge variant="secondary" className="ml-1">{g.rows.length}</Badge>
+                        </span>
+                        <span className="font-semibold">{formatCurrency(g.total)}</span>
+                      </button>
+                      {aberto && (
+                        <div className="border-t p-2">
+                          <DataTableBI columns={cols} data={g.rows} loading={false} emptyMessage="—" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <DataTableBI columns={cols} data={displayRows} loading={loading}
+              emptyMessage="Nenhum registro de manutenção encontrado" />
+          )}
+        </CardContent>
       </Card>
     ),
     // Widgets customizados / overrides via registry
@@ -418,7 +579,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           options={optsCC} placeholder="Todos" />
         <MultiSelectFilter label="Motorista" values={motorista} onChange={setMotorista}
           options={optsMot} placeholder="Todos" />
-        <SearchFilter value={busca} onChange={setBusca} placeholder="Buscar..." />
+        
         <div className="flex items-end">
           <Button
             size="sm"
