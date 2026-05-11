@@ -1,51 +1,52 @@
-# Gráficos interativos — Manutenção de Frota
+# Editor de dashboard em Manutenção de Frota
 
-Objetivo: ao clicar em uma barra/fatia/linha de qualquer gráfico no dashboard `/frota`, o valor vira um filtro ativo. Todos os demais gráficos, KPIs e tabela são recalculados imediatamente. Também adicionar uma visão de **drill-down hierárquico** para explorar gastos por níveis.
+Replicar para `/frota` toda a experiência de edição que existe em `/passagens-aereas`: layout editável (drag-drop, redimensionar, ocultar/restaurar), criação de gráficos customizados via biblioteca BI, configuração de gráficos e persistência por banco. O botão "Editar registro" já existe na coluna Ações — mantido.
 
-## Comportamento
+## Visão geral
 
-1. **Cross-filter por clique** (estilo Power BI / igual ao módulo Passagens Aéreas):
-   - Clicar em uma barra de "Evolução mensal" → adiciona/remove o mês ao filtro de mês.
-   - Clicar em uma fatia de "Distribuição por Segmento" → adiciona/remove o segmento.
-   - Clicar em uma barra dos rankings (Top Veículos, Fornecedores, Centros de Custo, Motoristas) → adiciona/remove o item ao filtro correspondente.
-   - Os filtros aplicados via clique se somam aos filtros do `FilterBar` (Segmento, Placa, C.Custo, Motorista, Busca).
-   - Múltiplos cliques no mesmo gráfico = multi-seleção (toggle).
-   - A barra/fatia selecionada fica destacada; as outras ficam esmaecidas.
+Hoje `FrotaDashboard` é estático (grid fixo de cards). Vamos trocá-lo por um `FrotaLayoutGrid` análogo ao `PassagensLayoutGrid`, alimentado por um hook `useFrotaLayout`, que lê/grava o layout em `dashboards`/`dashboard_widgets` com `module = 'frota'`. Os 8 dados/charts atuais viram **widgets canônicos**; usuário com permissão de edição em `/frota` pode mover, redimensionar, ocultar, restaurar e adicionar gráficos customizados (mesmo `AddChartDialog` / `ConfigureChartDialog` da biblioteca BI).
 
-2. **Chips de filtros ativos** acima dos KPIs:
-   - Mostram cada seleção (Mês: jan, Segmento: PNEU, Veículo: ABC-1234, …) com um "x" para remover individualmente.
-   - Botão "Limpar tudo" reseta cross-filter + FilterBar.
+## 1. Backend (Cloud)
 
-3. **Recalcular tudo a partir do `crossFiltered`**:
-   - KPIs (Total, Manutenções, Ticket médio, Veículos atendidos).
-   - Todos os gráficos.
-   - Tabela inferior.
+Migração única:
 
-4. **Drill-down hierárquico** (novo card no fim do grid):
-   - Tabela expansível com níveis configuráveis pelo usuário: Segmento → Centro de Custo → Placa → Fornecedor → Descrição.
-   - Cada nível mostra contagem e valor total. Expandir abre o próximo nível.
-   - Usa o componente `DrillDownTable` já existente em `src/components/bi/tables/DrillDownTable.tsx`.
-   - Um seletor de ordem dos níveis (drag-free, apenas chips clicáveis) permite escolher a hierarquia desejada.
-   - Respeita o `crossFiltered` (ou seja, drill e cross-filter combinam).
+- `upsert_frota_dashboard_default()` — espelho do equivalente de passagens, registra os 8 widgets canônicos no dashboard default do módulo `frota`.
+- `get_frota_layout_via_token(_token)` — retorna o layout salvo para acesso público (link compartilhado).
+- Políticas RLS adicionais em `dashboards` e `dashboard_widgets` (já têm RLS, basta adicionar):
+  - `Frota editors manage default frota dashboard` (ALL) — `module = 'frota' AND owner_id IS NULL AND can_edit_frota(auth.uid())`.
+  - `Frota editors manage default frota widgets` (ALL) análogo, joinando com `dashboards`.
+- Garantir entradas no `visualCatalog` / `screenCatalog` que já existem (`frota.chart-*`) cobrindo todos os widgets canônicos.
 
-## Mudanças técnicas (apenas frontend)
+## 2. Frontend
 
-Arquivo: `src/components/frota/FrotaDashboard.tsx`
+Arquivos novos (espelho dos de passagens):
 
-- Adicionar states de multi-seleção: `selMes`, `selSegmento`, `selPlaca`, `selFornecedor`, `selCC`, `selMotorista` (todos `string[]`).
-- Calcular `crossFiltered` a partir de `filtered` aplicando essas seleções (mesmo pattern do `PassagensDashboard.tsx`, linhas 293–310).
-- KPIs e todos os gráficos passam a consumir `crossFiltered`.
-- Passar `onItemClick` para cada `BarChartCard` / `RankingChartCard` chamando um helper `toggleItem(arr, value)`.
-- Substituir `DonutChartCard` "Distribuição por Segmento" por `PieChartCard` (que aceita `onClick`) **ou** adicionar suporte a `onItemClick` no `DonutChartCard`. Caminho mais simples: trocar por `PieChartCard` já existente na lib BI.
-- Renderizar um bloco de chips de filtros ativos (componente leve inline, igual passagens linhas 800–845).
-- Adicionar card `Drill-down hierárquico` usando `DrillDownTable` com `levels` controlados por estado local e seletor de ordem.
-- Destaque visual da seleção: usar prop `activeLabels` quando suportada pelos chart cards; se não suportada, manter apenas o efeito via chips + filtragem (sem mudar a lib BI).
+- `src/hooks/useFrotaLayout.ts` — copy/paste de `usePassagensLayout.ts` substituindo `passagens-aereas` por `frota`, `can_edit_passagens` por `can_edit_frota`, `get_passagens_layout_via_token` por `get_frota_layout_via_token`, `upsert_passagens_dashboard_default` por `upsert_frota_dashboard_default`, e ajustando `FROTA_DEFAULT_WIDGETS` com os 8 tipos canônicos:
+  - `kpis-row`, `chart-evolucao-mensal`, `chart-segmento`, `chart-top-veiculos`, `chart-top-fornecedores`, `chart-top-cc`, `chart-top-motoristas`, `tabela-registros`.
+- `src/components/frota/FrotaLayoutGrid.tsx` — grid (react-grid-layout) reaproveitando o mesmo padrão de `PassagensLayoutGrid`, com slot para renderizar cada widget por tipo.
+- `src/components/frota/AddChartDialog.tsx` e `ConfigureChartDialog.tsx` — versões idênticas às de passagens, alimentadas pelo `COMPONENT_REGISTRY` da biblioteca BI; chaves de mapping referenciam datasets do dataset Frota (evolução mensal, por segmento, top veículos, top fornecedores, top centros de custo, top motoristas, registros).
+
+Mudanças em arquivos existentes:
+
+- `src/components/frota/FrotaDashboard.tsx`:
+  - Manter toda lógica de filtros, cross-filter e drill-down já implementada.
+  - Em vez do JSX fixo dos cards, montar um `PageDataContext` com os datasets (`kpis`, `porMes`, `porSegmento`, `topVeiculos`, `topFornecedores`, `topCC`, `topMotoristas`, `crossFiltered`, `cols`) e renderizar via `FrotaLayoutGrid`.
+  - Manter o card "Drill-down hierárquico" como widget canônico opcional (ou bloco fixo abaixo do grid — definição final no implementador).
+  - Adicionar a barra de modo "Editar layout" com botões: Editar/Cancelar/Salvar, Novo gráfico, Restaurar bloco, Restaurar padrão (lógica idêntica ao trecho de passagens linhas 846–945).
+- `src/pages/ManutencaoFrotaPage.tsx`: nenhuma mudança estrutural, pois o dashboard mantém a mesma interface (`data`, `loading`, `onEdit`, `onDelete`).
+- `src/pages/ManutencaoFrotaCompartilhadoPage.tsx`: passar `shareToken` para o `useFrotaLayout` quando renderizar o dashboard via link público, exatamente como faz `PassagensAereasCompartilhadoPage`.
+
+## 3. Permissões e visibilidade
+
+- Reuso integral do sistema atual: edição liberada por `can_edit_frota`. Quem só tem `can_view` enxerga o dashboard com o layout salvo, sem botões de edição.
+- Para o link público compartilhado, os widgets ocultos via `hidden_visuals` continuam respeitados, agora junto com o layout salvo (mesmo comportamento de passagens).
+
+## Detalhe técnico
+
+Por causa do volume de código (~2 700 linhas em passagens), o implementador deve **copiar e adaptar arquivo por arquivo**, sem tentar generalizar agora. Mais à frente, depois que Frota estiver no ar, vale extrair um `useModuleDashboardLayout(module)` genérico — mas isso é um refator separado, fora do escopo desta entrega.
 
 ## Fora de escopo
 
-- Não mexer no backend, migrations, RLS ou na página compartilhada (pode ser feito num passo seguinte se desejado).
-- Não alterar a biblioteca `@/components/bi` além do estritamente necessário (idealmente nenhuma alteração).
-
-## Observação
-
-Quer que o **link público compartilhado** (`ManutencaoFrotaCompartilhadoPage`) também receba o mesmo comportamento de cross-filter e drill nesta mesma rodada? Posso incluir.
+- Não criar tabela de catálogo de veículos.
+- Não mexer no `ImportarFrotaDialog` nem no `FrotaShareLinksDialog`.
+- Não tocar nas migrações já existentes.
