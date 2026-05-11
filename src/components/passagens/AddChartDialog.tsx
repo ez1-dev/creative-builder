@@ -36,11 +36,13 @@ interface Props {
   kpis?: Record<string, any>;
   series?: Record<string, any>;
   rows?: any[];
+  /** pageKey do PAGE_REGISTRY para listar séries disponíveis. Padrão: passagens-aereas. */
+  pageKey?: string;
 }
 
-export function AddChartDialog({ open, onOpenChange, onAdd, kpis, series, rows }: Props) {
+export function AddChartDialog({ open, onOpenChange, onAdd, kpis, series, rows, pageKey = 'passagens-aereas' }: Props) {
   const ctx = { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] };
-  const page = getPage('passagens-aereas');
+  const page = getPage(pageKey);
   const seriesOptions = page?.schema.series ?? [];
 
   const [componentId, setComponentId] = useState<string>('bar-chart');
