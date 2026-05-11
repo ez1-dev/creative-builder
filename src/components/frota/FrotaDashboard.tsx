@@ -424,7 +424,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           options={optsCC} placeholder="Todos" />
         <MultiSelectFilter label="Motorista" values={motorista} onChange={setMotorista}
           options={optsMot} placeholder="Todos" />
-        <SearchFilter value={busca} onChange={setBusca} placeholder="Buscar..." />
+        
         <div className="flex items-end">
           <Button
             size="sm"
