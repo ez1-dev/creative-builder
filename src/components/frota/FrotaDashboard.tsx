@@ -135,6 +135,9 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const [placa, setPlaca] = useState<string[]>([]);
   const [motorista, setMotorista] = useState<string[]>([]);
   const [busca, setBusca] = useState('');
+  const [ordenacao, setOrdenacao] = useState<'data_desc' | 'data_asc' | 'placa_az' | 'placa_za' | 'valor_desc' | 'valor_asc' | 'motorista_az'>('data_desc');
+  const [agruparMot, setAgruparMot] = useState(false);
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
 
   // ===== Cross-filter =====
   const [selMes, setSelMes] = useState<string[]>([]);
