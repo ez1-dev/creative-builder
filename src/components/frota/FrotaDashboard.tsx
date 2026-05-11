@@ -419,6 +419,17 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         <MultiSelectFilter label="Motorista" values={motorista} onChange={setMotorista}
           options={optsMot} placeholder="Todos" />
         <SearchFilter value={busca} onChange={setBusca} placeholder="Buscar..." />
+        <div className="flex items-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1 text-xs"
+            onClick={limparTudo}
+            disabled={segmento.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
+          >
+            <X className="h-3 w-3" /> Limpar filtros
+          </Button>
+        </div>
       </FilterBar>
 
       {/* Chips de cross-filter */}

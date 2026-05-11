@@ -1,25 +1,16 @@
-## Objetivo
+## Adicionar botão "Limpar filtros" na FilterBar do `/frota`
 
-Permitir seleção múltipla nos filtros da barra superior do `/frota`: **Segmento**, **Placa**, **Centro de Custo** e **Motorista** (o campo "Buscar" permanece como está, texto livre).
+Hoje o botão "Limpar tudo" só aparece quando há cross-filter (clique em gráficos). Se o usuário usa apenas os filtros multi-select da barra (Segmento, Placa, Centro de Custo, Motorista) ou o "Buscar", não há atalho visível para limpar.
 
-## Mudanças (apenas em `src/components/frota/FrotaDashboard.tsx`)
+### Mudança (apenas em `src/components/frota/FrotaDashboard.tsx`)
 
-1. **Estado** — trocar os 4 estados `useState<string>('all')` por `useState<string[]>([])`:
-   - `segmento` → `segmentoSel: string[]`
-   - `placa` → `placaSel: string[]`
-   - `centroCusto` → `centroCustoSel: string[]`
-   - `motorista` → `motoristaSel: string[]`
+1. Adicionar um botão **"Limpar filtros"** dentro da `FilterBar`, ao lado do `SearchFilter` (linha ~421).
+2. O botão chama a função `limparTudo` já existente (que zera multi-selects da barra, busca e cross-filters de gráficos).
+3. O botão fica **desabilitado** quando não há nada a limpar: `segmento.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0`.
+4. Estilo discreto: `variant="ghost"` ou `outline`, ícone `X` do lucide-react, tamanho `sm`, alinhado à direita.
 
-2. **Filtro `filtered`** — substituir as comparações `=== 'all'` por verificações `array.length === 0 || array.includes(valor)`.
+### Fora de escopo
 
-3. **Limpeza (`clearCross`)** — resetar os arrays para `[]` em vez de `'all'`.
-
-4. **UI da `FilterBar`** — trocar os 4 `<SelectFilter>` por `<MultiSelectFilter>` (já existe em `src/components/bi/filters/MultiSelectFilter.tsx`), usando as mesmas options (`optsSeg`, `optsPlaca`, `optsCC`, `optsMot`) sem o item "Todos/Todas" (o placeholder já indica "Todos" quando nada está selecionado).
-
-5. **Cross-filter por clique nos gráficos** — manter intacto. Os arrays `selSegmento`, `selPlaca`, `selCC`, `selMotorista` (filtros vindos de clique) continuam separados dos filtros da barra; ambos se aplicam em cadeia, como hoje.
-
-## Fora de escopo
-
-- Não alterar gráficos, layout, edição de dashboard, drill-down, exportações nem o backend.
-- Não mexer no campo "Buscar".
-- Não alterar `PassagensDashboard` nem componentes compartilhados.
+- Não alterar a lógica de filtros, gráficos, layout ou cross-filter.
+- Não mexer em `PassagensDashboard` nem componentes compartilhados.
+- O bloco de chips "Filtros ativos" continua mostrando seu próprio "Limpar tudo" como hoje (redundância intencional para quando há cross-filter de cliques).
