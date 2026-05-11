@@ -39,6 +39,7 @@ const modules = [
   { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
   { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
   { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
+  { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
   { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
   { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },

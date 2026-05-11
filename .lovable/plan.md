@@ -1,87 +1,114 @@
-## Diagnóstico atualizado da MAIANE
 
-Verifiquei o banco e ela **não tem mais problema de permissão**:
+# Módulo Manutenção de Frota
 
-- Tem 3 perfis incluindo `Administrador`.
-- `can_view = true` em todas as 35 telas, inclusive `/estoque` e `/painel-compras`.
-- Os 404 em `/api/fornecedores` que aparecem no log NÃO causam tela branca — `useFornecedores` engole o erro silenciosamente.
+Criar um módulo novo, com a mesma arquitetura do **Passagens Aéreas**: tabela própria no Lovable Cloud, página única com cadastro/edição manual, importação por planilha, dashboard BI com filtros, controle de permissão por perfil e compartilhamento via link público.
 
-Como ela vê branco **tanto no app desktop quanto no navegador**, e sempre **depois do callback Microsoft**, o fix do `firstAllowedPath` (rodada anterior) já resolveu o caso "redireciona pra rota proibida". O que sobra é uma das duas coisas:
+## Campos do registro (baseado na planilha enviada)
 
-1. Algum ponto do app que retorna `null` durante `loading` e **trava nesse estado** (rede lenta, falha em fetch do perfil, profile fetch que nunca completa para um caso específico).
-2. Algum erro silencioso depois do login que não estoura no `ErrorBoundary` global (só hooks travados), deixando a tela vazia.
+| Campo | Tipo | Origem na planilha |
+|---|---|---|
+| `data` | date | Dia |
+| `mes` | text (jan, fev…) | MÊS (derivado de `data`) |
+| `placa` | text | Placa |
+| `veiculo_descricao` | text | parte após o "-" da Placa (ex.: "CAMINHÃO IVECO STRALIS") |
+| `fornecedor` | text | FORNECEDOR |
+| `descricao` | text | DESCRIÇÃO |
+| `quilometragem` | numeric (nullable) | QUILOMETRAGEM (KM) |
+| `valor` | numeric | VALOR |
+| `motorista` | text | MOTORISTA |
+| `centro_custo` | text | C.CUSTO |
+| `segmento` | text (FROTA/OBRA) | Segmento |
+| `observacoes` | text | (opcional, manual) |
+| `created_by`, `created_at`, `updated_at` | padrão | — |
 
-Como você pediu mudanças defensivas (sem print do console dela disponível), vou blindar todos os pontos onde hoje a app pode mostrar branco indefinidamente.
+Catálogos auxiliares (preencher conforme dados):
+- **veículos** (placa única + descrição) — combobox no formulário.
+- **motoristas** — combobox.
+- **fornecedores** — combobox livre.
 
-## O que vamos mudar
+## Backend (Lovable Cloud)
 
-Tudo é frontend. Nenhuma regra de negócio, nenhum schema.
+Migração com:
 
-### 1. Trocar todo `return null` de loading por um `LoadingScreen` com timeout
+1. Tabela `manutencao_frota` (campos acima) + índices em `data`, `placa`, `centro_custo`, `segmento`.
+2. Tabela `manutencao_frota_share_links` (espelho de `passagens_aereas_share_links`).
+3. RLS:
+   - SELECT: admin **ou** usuário com `profile_screens.screen_path = '/frota'`.
+   - INSERT/UPDATE/DELETE: `can_edit_frota(uid)` (admin ou `can_edit=true` na tela `/frota`).
+4. Funções `SECURITY DEFINER` espelhando passagens:
+   - `can_edit_frota`, `can_manage_frota_share`
+   - `create_frota_share_link`, `validate_frota_share_token`, `get_frota_share_link_meta`, `get_frota_via_token`, `get_frota_layout_via_token`, `get_frota_share_link_visuals`
+   - `upsert_frota_dashboard_default` (widgets canônicos).
+5. Trigger `normalize_frota_upper` (placa, motorista e centro de custo em UPPER/trim).
+6. Cadastro no `screenCatalog` (`/frota` → "Manutenção de Frota") e no `visualCatalog` (chaves dos gráficos).
 
-Hoje 4 lugares mostram literalmente nada enquanto carregam:
+## Frontend
 
-- `src/components/AppLayout.tsx` — `if (loading) return null;`
-- `src/components/ProtectedRoute.tsx` — `if (loading) return null;` (no `ProtectedRoute` e no `PostLoginRedirect`)
-- `src/pages/AuthCallback.tsx` — já tem spinner ✓ (manter)
+Estrutura idêntica à `PassagensAereasPage`:
 
-Criar `src/components/AppLoadingScreen.tsx`:
-- Mostra spinner + texto "Carregando…" no mesmo gradiente azul do login (consistência visual + zero chance de "branco").
-- Recebe um `timeoutMs` (padrão 12 s). Após o timeout, mostra:
-  - Mensagem "Estamos demorando mais do que o normal."
-  - Botão **Recarregar** (`window.location.reload()`).
-  - Botão **Sair** (limpa Supabase auth + `localStorage` e força ir pra `/login`).
-- Usa só tokens semânticos do design system.
+- `src/pages/ManutencaoFrotaPage.tsx` — header, filtros, dashboard, tabela e dialog de cadastro.
+- `src/pages/ManutencaoFrotaCompartilhadoPage.tsx` — link público com token + senha.
+- `src/components/frota/`:
+  - `FrotaDashboard.tsx` — usa biblioteca BI (`@/components/bi`).
+  - `ImportarFrotaDialog.tsx` — upload da mesma planilha (.xlsx) com pré-visualização e mapeamento.
+  - `VeiculoCombobox.tsx`, `MotoristaCombobox.tsx` (padrão `ColaboradorCombobox`).
+  - `ShareLinksDialog.tsx` (reuso/adaptação do de passagens).
+  - `MapaDestinosCard.tsx` → não se aplica; substituir por gráficos de frota.
+- Rotas em `src/App.tsx`: `/frota` (protegida) e `/frota/share/:token` (pública).
+- Item no `AppSidebar` com ícone `Truck` (lucide-react).
 
-Substituir os 3 `return null` acima por `<AppLoadingScreen />`.
+### Dashboard (widgets canônicos)
 
-### 2. Endurecer o `AuthContext.fetchProfile` contra travar
+KPIs: **Total gasto**, **Nº de manutenções**, **Ticket médio**, **Veículos atendidos**.
 
-Em `src/contexts/AuthContext.tsx`:
+Gráficos:
+- Evolução mensal (linha/barra).
+- Top veículos por valor.
+- Top fornecedores por valor.
+- Distribuição por **Segmento** (FROTA × OBRA) — donut.
+- Top centros de custo.
+- Top motoristas por valor.
+- Tabela de registros (com export PDF/Excel via componentes já existentes).
 
-- Envolver `fetchProfile` num `try/catch/finally` real (hoje só tem `try/finally` e qualquer throw silencioso continua até o `finally`, mas a query interna do `app_settings` ou `user_access` pode rejeitar e cair fora do `setLoading(false)` se a Promise nunca resolver — adicionar **timeout de 8 s por query** com `Promise.race`).
-- Se o profile não vier (`data == null`) → ainda assim `setApproved(false)`, `setLoading(false)` e logar `console.warn`.
-- O `api.login` ERP já é não-fatal (try/catch interno), manter.
-- Adicionar log claro no console (`[Auth] profile loaded`, `[Auth] erp api ok/fail`, `[Auth] permissions ready`) pra próximo print do DevTools dela render diagnóstico em segundos.
+Todos os gráficos passam pelo `VisualGate` com chaves `frota.*` para serem controláveis por perfil.
 
-### 3. Endurecer o `useUserPermissions`
+### Importação da planilha
 
-Em `src/hooks/useUserPermissions.ts`:
+Mantém o layout enviado:
+- Pula linha de cabeçalho.
+- Converte `Dia` para `date`, deriva `mes` automaticamente.
+- Faz split da `Placa` em `placa` (antes do "-") e `veiculo_descricao` (depois).
+- Permite revisar e descartar linhas antes de salvar (igual `ImportarPassagensDialog`).
 
-- Adicionar timeout (8 s) nas duas queries.
-- Se uma query falhar, NÃO deixar `loading=true` para sempre — `setLoading(false)` + `permissions=[]`.
-- Se `firstAllowedPath` ficou `null` E `isAdmin=true` (caso da MAIANE) → fallback para `/estoque` (admin sempre tem acesso a tudo na regra `is_admin`, inclusive RLS, não faz sentido mostrar "sem acesso").
+## Permissões
 
-### 4. Limpar estado stale do ERP no boot
-
-Na entrada do `AuthProvider` (uma única vez no mount), antes de `getSession`, remover chaves antigas que podem quebrar:
-
-- `localStorage.removeItem('erp_token')` se existir e estiver expirado / com formato inválido.
-- Manter `erp_is_admin` (escrito pelo próprio fluxo).
-
-Isso ajuda quem instalou o app desktop antigo: caso traga lixo do localStorage que faz `api.get` falhar antes do login automático.
-
-### 5. ErrorBoundary mais útil
-
-Em `src/components/ErrorBoundary.tsx`, adicionar um terceiro botão **Sair** que faz `supabase.auth.signOut()` + `localStorage.clear()` + redireciona para `/login`. Caso algum erro de render trave o app pós-login, o usuário consegue se livrar sem reinstalar.
+Adicionar `/frota` ao catálogo de telas em `Configurações` → "Telas por Perfil" para conceder acesso via `profile_screens` (admins sempre veem). Cadastrar entradas no `VISUAL_CATALOG` para liberar/ocultar gráficos por perfil ou por link público.
 
 ## Detalhes técnicos
 
-- Arquivos editados: `src/contexts/AuthContext.tsx`, `src/components/AppLayout.tsx`, `src/components/ProtectedRoute.tsx`, `src/hooks/useUserPermissions.ts`, `src/components/ErrorBoundary.tsx`.
-- Arquivo novo: `src/components/AppLoadingScreen.tsx`.
-- Não tocar em `vite.config.ts`, Electron, Supabase client, `.env`, edge functions ou backend FastAPI.
-- Não mexer no fluxo do Microsoft callback em si (`/auth/callback`) — já tem spinner próprio.
-- Continuar usando tokens semânticos (`bg-card`, `text-foreground`, `bg-gradient-...` já existente do login).
+- Hook `useFrotaData` (paralelo ao `useDashboardData`) consultando `manutencao_frota` direto via `supabase.from(...)` com filtros (período, placa, segmento, centro de custo, motorista, fornecedor).
+- Reuso integral da biblioteca BI: `DashboardPage`, `KpiGrid`, `BarChartCard`, `DonutChartCard`, `RankingChartCard`, `DataTableBI`, `FilterBar`.
+- Sem dependência de ETL/FastAPI — módulo 100% Cloud, igual passagens.
 
-## Como isso resolve o caso da MAIANE
+```
+src/
+  pages/
+    ManutencaoFrotaPage.tsx
+    ManutencaoFrotaCompartilhadoPage.tsx
+  components/frota/
+    FrotaDashboard.tsx
+    ImportarFrotaDialog.tsx
+    VeiculoCombobox.tsx
+    MotoristaCombobox.tsx
+    ShareLinksDialog.tsx
+supabase/migrations/<timestamp>_frota.sql
+```
 
-- Se ela travar no carregamento (rede ruim no momento exato), em vez de tela branca eterna ela **vê o spinner** e em ≤12 s aparece **botão Sair / Recarregar**.
-- Se algum erro silencioso quebrar render, o `ErrorBoundary` agora oferece **Sair** sem reinstalar.
-- Se a query de permissões retornar vazia transitoriamente para uma admin, o fallback manda para `/estoque` em vez da tela "Sem acesso liberado".
-- Os `console.log` adicionados permitem diagnosticar em 5 s se ela mandar print do DevTools.
+## Perguntas antes de implementar
 
-## Fora do escopo
+1. **Rota e nome**: posso usar `/frota` e o nome **"Manutenção de Frota"** no menu (ícone caminhão)? Ou prefere outro nome (ex.: "Frota EZM")?
+2. **Compartilhamento público**: replicar o esquema de link com token + senha + visuais ocultáveis (igual passagens), ou o módulo será **interno apenas**?
+3. **Importação**: além do upload da planilha .xlsx no mesmo layout enviado, quer também **cadastro manual** com formulário (igual passagens) — confirmo os dois?
+4. **Catálogo de veículos**: criar tabela `frota_veiculos` (placa, descrição, ativo) para alimentar o combobox e padronizar nomes — ou deixar campo livre digitado por enquanto?
 
-- Backend FastAPI / `/api/fornecedores` (não causa branco).
-- Mudanças no Supabase auth ou no fluxo OAuth Microsoft.
-- Build novo do Electron (já temos o fix `base: './'` da rodada anterior — seguir distribuindo o instalador atualizado).
+Posso responder/seguir com defaults sensatos (sim/sim/sim/sim) se preferir.

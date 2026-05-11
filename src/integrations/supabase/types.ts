@@ -828,6 +828,108 @@ export type Database = {
         }
         Relationships: []
       }
+      manutencao_frota: {
+        Row: {
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          fornecedor: string | null
+          id: string
+          mes: string | null
+          motorista: string | null
+          observacoes: string | null
+          placa: string
+          quilometragem: number | null
+          segmento: string | null
+          updated_at: string
+          valor: number
+          veiculo_descricao: string | null
+        }
+        Insert: {
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          fornecedor?: string | null
+          id?: string
+          mes?: string | null
+          motorista?: string | null
+          observacoes?: string | null
+          placa: string
+          quilometragem?: number | null
+          segmento?: string | null
+          updated_at?: string
+          valor?: number
+          veiculo_descricao?: string | null
+        }
+        Update: {
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          fornecedor?: string | null
+          id?: string
+          mes?: string | null
+          motorista?: string | null
+          observacoes?: string | null
+          placa?: string
+          quilometragem?: number | null
+          segmento?: string | null
+          updated_at?: string
+          valor?: number
+          veiculo_descricao?: string | null
+        }
+        Relationships: []
+      }
+      manutencao_frota_share_links: {
+        Row: {
+          access_count: number
+          active: boolean
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          hidden_visuals: string[]
+          id: string
+          last_accessed_at: string | null
+          nome: string
+          password_hash: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          access_count?: number
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          hidden_visuals?: string[]
+          id?: string
+          last_accessed_at?: string | null
+          nome: string
+          password_hash?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          access_count?: number
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          hidden_visuals?: string[]
+          id?: string
+          last_accessed_at?: string | null
+          nome?: string
+          password_hash?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       passagens_aereas: {
         Row: {
           centro_custo: string | null
@@ -1326,12 +1428,24 @@ export type Database = {
       }
     }
     Functions: {
+      can_edit_frota: { Args: { _uid: string }; Returns: boolean }
       can_edit_passagens: { Args: { _uid: string }; Returns: boolean }
+      can_manage_frota_share: { Args: { _uid: string }; Returns: boolean }
       can_manage_passagens_share: { Args: { _uid: string }; Returns: boolean }
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_navegacao_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
+      create_frota_share_link: {
+        Args: {
+          _expires_at?: string
+          _hidden_visuals?: string[]
+          _nome: string
+          _password?: string
+          _token: string
+        }
+        Returns: string
+      }
       create_passagens_share_link:
         | {
             Args: {
@@ -1353,6 +1467,46 @@ export type Database = {
             Returns: string
           }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
+      get_frota_share_link_meta: {
+        Args: { _token: string }
+        Returns: {
+          exists_link: boolean
+          expired: boolean
+          nome: string
+          requires_password: boolean
+        }[]
+      }
+      get_frota_share_link_visuals: {
+        Args: { _token: string }
+        Returns: string[]
+      }
+      get_frota_via_token: {
+        Args: { _password?: string; _token: string }
+        Returns: {
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          fornecedor: string | null
+          id: string
+          mes: string | null
+          motorista: string | null
+          observacoes: string | null
+          placa: string
+          quilometragem: number | null
+          segmento: string | null
+          updated_at: string
+          valor: number
+          veiculo_descricao: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "manutencao_frota"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_passagens_layout_via_token: {
         Args: { _token: string }
         Returns: {
@@ -1408,6 +1562,10 @@ export type Database = {
       get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
       is_admin: { Args: { _uid: string }; Returns: boolean }
       upsert_passagens_dashboard_default: { Args: never; Returns: string }
+      validate_frota_share_token: {
+        Args: { _password?: string; _token: string }
+        Returns: boolean
+      }
       validate_share_token: {
         Args: { _password?: string; _token: string }
         Returns: boolean
