@@ -8,13 +8,16 @@ import {
   DrillDownTable,
   formatCurrency,
 } from '@/components/bi';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import {
   Pencil, Trash2, Wrench, DollarSign, Truck, Hash,
-  X, Layers, Plus,
+  X, Layers, Plus, Search, ArrowUpDown, Users, Download, ChevronDown, ChevronRight,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { VisualGate } from '@/components/VisualGate';
 import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
