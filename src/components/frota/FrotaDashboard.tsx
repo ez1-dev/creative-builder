@@ -297,6 +297,71 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     };
   }, [configureType, pendingConfig, effectiveWidgets]);
 
+  // ===== Ordenação + agrupamento da tabela de Registros =====
+  const displayRows = useMemo(() => {
+    const arr = [...crossFiltered];
+    const cmpDate = (a: ManutencaoFrota, b: ManutencaoFrota) =>
+      (a.data || '').localeCompare(b.data || '');
+    const cmpStr = (av?: string | null, bv?: string | null) =>
+      (av ?? '').localeCompare(bv ?? '', 'pt-BR');
+    switch (ordenacao) {
+      case 'data_asc': arr.sort(cmpDate); break;
+      case 'data_desc': arr.sort((a, b) => cmpDate(b, a)); break;
+      case 'placa_az': arr.sort((a, b) => cmpStr(a.placa, b.placa)); break;
+      case 'placa_za': arr.sort((a, b) => cmpStr(b.placa, a.placa)); break;
+      case 'valor_desc': arr.sort((a, b) => (b.valor || 0) - (a.valor || 0)); break;
+      case 'valor_asc': arr.sort((a, b) => (a.valor || 0) - (b.valor || 0)); break;
+      case 'motorista_az': arr.sort((a, b) => cmpStr(a.motorista, b.motorista)); break;
+    }
+    return arr;
+  }, [crossFiltered, ordenacao]);
+
+  const gruposMot = useMemo(() => {
+    const map = new Map<string, { motorista: string; rows: ManutencaoFrota[]; total: number }>();
+    displayRows.forEach((r) => {
+      const k = r.motorista ?? '— Sem motorista —';
+      const g = map.get(k) ?? { motorista: k, rows: [], total: 0 };
+      g.rows.push(r);
+      g.total += r.valor || 0;
+      map.set(k, g);
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [displayRows]);
+
+  const exportRowsToObjects = (rows: ManutencaoFrota[]) =>
+    rows.map((r) => ({
+      Data: r.data ? formatDate(r.data) : '',
+      Placa: r.placa,
+      Veículo: r.veiculo_descricao ?? '',
+      Fornecedor: r.fornecedor ?? '',
+      Descrição: r.descricao ?? '',
+      KM: r.quilometragem ?? '',
+      Valor: r.valor ?? 0,
+      Motorista: r.motorista ?? '',
+      'Centro de Custo': r.centro_custo ?? '',
+      Segmento: r.segmento ?? '',
+    }));
+
+  const exportCSV = () => {
+    const data = exportRowsToObjects(displayRows);
+    if (!data.length) return;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `manutencao-frota-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+  const exportXLSX = () => {
+    const data = exportRowsToObjects(displayRows);
+    if (!data.length) return;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Registros');
+    XLSX.writeFile(wb, `manutencao-frota-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   // ===== Blocos =====
   const blocks: Record<string, React.ReactNode> = {
     'kpis-row': (
