@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import {
   KpiGrid, KpiCard,
   BarChartCard, PieChartCard, RankingChartCard,
-  FilterBar, MultiSelectFilter, SearchFilter,
+  FilterBar, MultiSelectFilter,
   DataTableBI, type Column,
   DrillDownTable,
   formatCurrency,
