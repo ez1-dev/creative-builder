@@ -1,114 +1,51 @@
+# Gráficos interativos — Manutenção de Frota
 
-# Módulo Manutenção de Frota
+Objetivo: ao clicar em uma barra/fatia/linha de qualquer gráfico no dashboard `/frota`, o valor vira um filtro ativo. Todos os demais gráficos, KPIs e tabela são recalculados imediatamente. Também adicionar uma visão de **drill-down hierárquico** para explorar gastos por níveis.
 
-Criar um módulo novo, com a mesma arquitetura do **Passagens Aéreas**: tabela própria no Lovable Cloud, página única com cadastro/edição manual, importação por planilha, dashboard BI com filtros, controle de permissão por perfil e compartilhamento via link público.
+## Comportamento
 
-## Campos do registro (baseado na planilha enviada)
+1. **Cross-filter por clique** (estilo Power BI / igual ao módulo Passagens Aéreas):
+   - Clicar em uma barra de "Evolução mensal" → adiciona/remove o mês ao filtro de mês.
+   - Clicar em uma fatia de "Distribuição por Segmento" → adiciona/remove o segmento.
+   - Clicar em uma barra dos rankings (Top Veículos, Fornecedores, Centros de Custo, Motoristas) → adiciona/remove o item ao filtro correspondente.
+   - Os filtros aplicados via clique se somam aos filtros do `FilterBar` (Segmento, Placa, C.Custo, Motorista, Busca).
+   - Múltiplos cliques no mesmo gráfico = multi-seleção (toggle).
+   - A barra/fatia selecionada fica destacada; as outras ficam esmaecidas.
 
-| Campo | Tipo | Origem na planilha |
-|---|---|---|
-| `data` | date | Dia |
-| `mes` | text (jan, fev…) | MÊS (derivado de `data`) |
-| `placa` | text | Placa |
-| `veiculo_descricao` | text | parte após o "-" da Placa (ex.: "CAMINHÃO IVECO STRALIS") |
-| `fornecedor` | text | FORNECEDOR |
-| `descricao` | text | DESCRIÇÃO |
-| `quilometragem` | numeric (nullable) | QUILOMETRAGEM (KM) |
-| `valor` | numeric | VALOR |
-| `motorista` | text | MOTORISTA |
-| `centro_custo` | text | C.CUSTO |
-| `segmento` | text (FROTA/OBRA) | Segmento |
-| `observacoes` | text | (opcional, manual) |
-| `created_by`, `created_at`, `updated_at` | padrão | — |
+2. **Chips de filtros ativos** acima dos KPIs:
+   - Mostram cada seleção (Mês: jan, Segmento: PNEU, Veículo: ABC-1234, …) com um "x" para remover individualmente.
+   - Botão "Limpar tudo" reseta cross-filter + FilterBar.
 
-Catálogos auxiliares (preencher conforme dados):
-- **veículos** (placa única + descrição) — combobox no formulário.
-- **motoristas** — combobox.
-- **fornecedores** — combobox livre.
+3. **Recalcular tudo a partir do `crossFiltered`**:
+   - KPIs (Total, Manutenções, Ticket médio, Veículos atendidos).
+   - Todos os gráficos.
+   - Tabela inferior.
 
-## Backend (Lovable Cloud)
+4. **Drill-down hierárquico** (novo card no fim do grid):
+   - Tabela expansível com níveis configuráveis pelo usuário: Segmento → Centro de Custo → Placa → Fornecedor → Descrição.
+   - Cada nível mostra contagem e valor total. Expandir abre o próximo nível.
+   - Usa o componente `DrillDownTable` já existente em `src/components/bi/tables/DrillDownTable.tsx`.
+   - Um seletor de ordem dos níveis (drag-free, apenas chips clicáveis) permite escolher a hierarquia desejada.
+   - Respeita o `crossFiltered` (ou seja, drill e cross-filter combinam).
 
-Migração com:
+## Mudanças técnicas (apenas frontend)
 
-1. Tabela `manutencao_frota` (campos acima) + índices em `data`, `placa`, `centro_custo`, `segmento`.
-2. Tabela `manutencao_frota_share_links` (espelho de `passagens_aereas_share_links`).
-3. RLS:
-   - SELECT: admin **ou** usuário com `profile_screens.screen_path = '/frota'`.
-   - INSERT/UPDATE/DELETE: `can_edit_frota(uid)` (admin ou `can_edit=true` na tela `/frota`).
-4. Funções `SECURITY DEFINER` espelhando passagens:
-   - `can_edit_frota`, `can_manage_frota_share`
-   - `create_frota_share_link`, `validate_frota_share_token`, `get_frota_share_link_meta`, `get_frota_via_token`, `get_frota_layout_via_token`, `get_frota_share_link_visuals`
-   - `upsert_frota_dashboard_default` (widgets canônicos).
-5. Trigger `normalize_frota_upper` (placa, motorista e centro de custo em UPPER/trim).
-6. Cadastro no `screenCatalog` (`/frota` → "Manutenção de Frota") e no `visualCatalog` (chaves dos gráficos).
+Arquivo: `src/components/frota/FrotaDashboard.tsx`
 
-## Frontend
+- Adicionar states de multi-seleção: `selMes`, `selSegmento`, `selPlaca`, `selFornecedor`, `selCC`, `selMotorista` (todos `string[]`).
+- Calcular `crossFiltered` a partir de `filtered` aplicando essas seleções (mesmo pattern do `PassagensDashboard.tsx`, linhas 293–310).
+- KPIs e todos os gráficos passam a consumir `crossFiltered`.
+- Passar `onItemClick` para cada `BarChartCard` / `RankingChartCard` chamando um helper `toggleItem(arr, value)`.
+- Substituir `DonutChartCard` "Distribuição por Segmento" por `PieChartCard` (que aceita `onClick`) **ou** adicionar suporte a `onItemClick` no `DonutChartCard`. Caminho mais simples: trocar por `PieChartCard` já existente na lib BI.
+- Renderizar um bloco de chips de filtros ativos (componente leve inline, igual passagens linhas 800–845).
+- Adicionar card `Drill-down hierárquico` usando `DrillDownTable` com `levels` controlados por estado local e seletor de ordem.
+- Destaque visual da seleção: usar prop `activeLabels` quando suportada pelos chart cards; se não suportada, manter apenas o efeito via chips + filtragem (sem mudar a lib BI).
 
-Estrutura idêntica à `PassagensAereasPage`:
+## Fora de escopo
 
-- `src/pages/ManutencaoFrotaPage.tsx` — header, filtros, dashboard, tabela e dialog de cadastro.
-- `src/pages/ManutencaoFrotaCompartilhadoPage.tsx` — link público com token + senha.
-- `src/components/frota/`:
-  - `FrotaDashboard.tsx` — usa biblioteca BI (`@/components/bi`).
-  - `ImportarFrotaDialog.tsx` — upload da mesma planilha (.xlsx) com pré-visualização e mapeamento.
-  - `VeiculoCombobox.tsx`, `MotoristaCombobox.tsx` (padrão `ColaboradorCombobox`).
-  - `ShareLinksDialog.tsx` (reuso/adaptação do de passagens).
-  - `MapaDestinosCard.tsx` → não se aplica; substituir por gráficos de frota.
-- Rotas em `src/App.tsx`: `/frota` (protegida) e `/frota/share/:token` (pública).
-- Item no `AppSidebar` com ícone `Truck` (lucide-react).
+- Não mexer no backend, migrations, RLS ou na página compartilhada (pode ser feito num passo seguinte se desejado).
+- Não alterar a biblioteca `@/components/bi` além do estritamente necessário (idealmente nenhuma alteração).
 
-### Dashboard (widgets canônicos)
+## Observação
 
-KPIs: **Total gasto**, **Nº de manutenções**, **Ticket médio**, **Veículos atendidos**.
-
-Gráficos:
-- Evolução mensal (linha/barra).
-- Top veículos por valor.
-- Top fornecedores por valor.
-- Distribuição por **Segmento** (FROTA × OBRA) — donut.
-- Top centros de custo.
-- Top motoristas por valor.
-- Tabela de registros (com export PDF/Excel via componentes já existentes).
-
-Todos os gráficos passam pelo `VisualGate` com chaves `frota.*` para serem controláveis por perfil.
-
-### Importação da planilha
-
-Mantém o layout enviado:
-- Pula linha de cabeçalho.
-- Converte `Dia` para `date`, deriva `mes` automaticamente.
-- Faz split da `Placa` em `placa` (antes do "-") e `veiculo_descricao` (depois).
-- Permite revisar e descartar linhas antes de salvar (igual `ImportarPassagensDialog`).
-
-## Permissões
-
-Adicionar `/frota` ao catálogo de telas em `Configurações` → "Telas por Perfil" para conceder acesso via `profile_screens` (admins sempre veem). Cadastrar entradas no `VISUAL_CATALOG` para liberar/ocultar gráficos por perfil ou por link público.
-
-## Detalhes técnicos
-
-- Hook `useFrotaData` (paralelo ao `useDashboardData`) consultando `manutencao_frota` direto via `supabase.from(...)` com filtros (período, placa, segmento, centro de custo, motorista, fornecedor).
-- Reuso integral da biblioteca BI: `DashboardPage`, `KpiGrid`, `BarChartCard`, `DonutChartCard`, `RankingChartCard`, `DataTableBI`, `FilterBar`.
-- Sem dependência de ETL/FastAPI — módulo 100% Cloud, igual passagens.
-
-```
-src/
-  pages/
-    ManutencaoFrotaPage.tsx
-    ManutencaoFrotaCompartilhadoPage.tsx
-  components/frota/
-    FrotaDashboard.tsx
-    ImportarFrotaDialog.tsx
-    VeiculoCombobox.tsx
-    MotoristaCombobox.tsx
-    ShareLinksDialog.tsx
-supabase/migrations/<timestamp>_frota.sql
-```
-
-## Perguntas antes de implementar
-
-1. **Rota e nome**: posso usar `/frota` e o nome **"Manutenção de Frota"** no menu (ícone caminhão)? Ou prefere outro nome (ex.: "Frota EZM")?
-2. **Compartilhamento público**: replicar o esquema de link com token + senha + visuais ocultáveis (igual passagens), ou o módulo será **interno apenas**?
-3. **Importação**: além do upload da planilha .xlsx no mesmo layout enviado, quer também **cadastro manual** com formulário (igual passagens) — confirmo os dois?
-4. **Catálogo de veículos**: criar tabela `frota_veiculos` (placa, descrição, ativo) para alimentar o combobox e padronizar nomes — ou deixar campo livre digitado por enquanto?
-
-Posso responder/seguir com defaults sensatos (sim/sim/sim/sim) se preferir.
+Quer que o **link público compartilhado** (`ManutencaoFrotaCompartilhadoPage`) também receba o mesmo comportamento de cross-filter e drill nesta mesma rodada? Posso incluir.
