@@ -7,20 +7,30 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ArrowRight, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { seniorApi } from '@/lib/senior/api';
-import type { Identificador, SituacaoIdentificador } from '@/lib/senior/types';
+import type { SituacaoIdentificador } from '@/lib/senior/types';
 import { AvisoErpBanner } from './AvisoErpBanner';
 import { SituacaoBadge } from './SituacaoBadge';
 
+export interface IdentTarget {
+  codemp: number;
+  modsis: string;
+  idereg: string;
+  codtns?: string | null;
+  situacao?: SituacaoIdentificador;
+  codreg?: number | null;
+}
+
 export function AlterarSituacaoDialog({ ident, onClose, onDone }: {
-  ident: Identificador; onClose: () => void; onDone: () => void;
+  ident: IdentTarget; onClose: () => void; onDone: () => void;
 }) {
-  const [nova, setNova] = useState<SituacaoIdentificador>(ident.situacao);
+  const situacaoAtual: SituacaoIdentificador = ident.situacao ?? 'A';
+  const [nova, setNova] = useState<SituacaoIdentificador>(situacaoAtual);
   const [motivo, setMotivo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
   const [saving, setSaving] = useState(false);
-  const mudou = nova !== ident.situacao;
+  const mudou = nova !== situacaoAtual;
   const disabled = !motivo.trim() || !confirmar || saving || !mudou;
-  const cruzaAtivacao = mudou && (ident.situacao === 'A' || nova === 'A');
+  const cruzaAtivacao = mudou && (situacaoAtual === 'A' || nova === 'A');
 
   const submit = async () => {
     setSaving(true);
@@ -59,7 +69,7 @@ export function AlterarSituacaoDialog({ ident, onClose, onDone }: {
             <div className="mt-3 flex items-center justify-center gap-3 border-t pt-3">
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase text-muted-foreground">Atual</span>
-                <SituacaoBadge value={ident.situacao} />
+                <SituacaoBadge value={situacaoAtual} />
               </div>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-col items-center">

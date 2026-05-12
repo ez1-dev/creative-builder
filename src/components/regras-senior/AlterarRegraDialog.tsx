@@ -6,11 +6,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import { seniorApi } from '@/lib/senior/api';
-import type { Identificador } from '@/lib/senior/types';
 import { AvisoErpBanner } from './AvisoErpBanner';
 
+export interface RegraVinculoTarget {
+  codemp: number;
+  modsis: string;
+  idereg: string;
+  codtns?: string | null;
+  codreg?: number | null;
+}
+
 export function AlterarRegraDialog({ ident, onClose, onDone }: {
-  ident: Identificador; onClose: () => void; onDone: () => void;
+  ident: RegraVinculoTarget; onClose: () => void; onDone: () => void;
 }) {
   const [novo, setNovo] = useState<string>(ident.codreg != null ? String(ident.codreg) : '');
   const [motivo, setMotivo] = useState('');
