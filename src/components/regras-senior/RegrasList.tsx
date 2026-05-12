@@ -192,6 +192,9 @@ export function RegrasList() {
                     onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/negocio`, { state: { regra: r } })}>
                     <BookOpen className="mr-2 h-4 w-4" />Regra de negócio
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setVerCodigo(r)}>
+                    <Code2 className="mr-2 h-4 w-4" />Ver código LSP
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={semIdPortal}
                     onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/editor`)}>
