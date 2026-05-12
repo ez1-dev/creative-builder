@@ -1,69 +1,51 @@
-# Plano: Ajustes no frontend Regras Senior para casar com a FastAPI
+# Plano: Aceitar regras vindas da E098REG na tela Regras LSP
 
-O backend já existe (rotas `/api/senior/*` corretas) e o `seniorApi` já chama esses paths. O que falta é: normalizar respostas (`dados`/`items`), aceitar campos UPPER do banco, traduzir paginação e melhorar mensagens 404/vazias. **Nenhuma mudança em rotas, layout ou auth.**
+Backend vai passar a retornar em `GET /api/senior/regras` registros sem `ID_REGRA` (são vínculos reais do ERP, origem `E098REG`). Hoje o mapper assume `id` truthy; precisa gerar um id sintético e exibir badge de origem.
 
-## 1. `src/lib/senior/api.ts` — normalização e paginação
+## 1. `src/lib/senior/types.ts`
 
-- Em `unwrapList`, incluir a chave **`dados`** (que é o que o backend retorna), além de `items/data/results/rows`.
-- Criar helper `toApiPaging(f)` que converte `{ page, pageSize }` em `{ pagina, tamanho_pagina }` antes de enviar como query string. Aplicar nos endpoints de lista (`listarRegras`, `listarIdentificadores`, `listarAuditoria`, `listarVersoes`, `listarSnapshots`).
-- Manter o `safe(...)` que já está no `listarSnapshots`/`listarVersoes` e estender ao `listarAuditoria` e `listarIdentificadores` para retornar `[]` em 404 (sem quebrar a tela) — o toast de erro continua aparecendo.
-
-## 2. `src/lib/senior/types.ts` — aceitar campos UPPER
-
-A API devolve `ID_REGRA`, `NOME_REGRA`, `CODREG_ERP`, `MODSIS`, `IDEREG`, `CODTNS`, `STATUS_REGRA`, `DATA_CRIACAO`, `USUARIO_CRIACAO`, `AMBIENTE`, `TICKET`, etc.
-
-Criar um mapper único em `src/lib/senior/mappers.ts`:
+Adicionar campos opcionais em `RegraLSP`:
 
 ```ts
-export const mapRegra = (r: any): RegraLSP => ({
-  id: r.id ?? r.ID_REGRA,
-  nome_regra: r.nome_regra ?? r.NOME_REGRA,
-  codreg_erp: r.codreg_erp ?? r.CODREG_ERP ?? null,
-  modsis: r.modsis ?? r.MODSIS ?? null,
-  idereg: r.idereg ?? r.IDEREG ?? null,
-  codtns: r.codtns ?? r.CODTNS ?? null,
-  descricao: r.descricao ?? r.DESCRICAO ?? null,
-  ambiente: r.ambiente ?? r.AMBIENTE ?? null,
-  ticket: r.ticket ?? r.TICKET ?? null,
-  motivo: r.motivo ?? r.MOTIVO ?? null,
-  fonte_lsp: r.fonte_lsp ?? r.FONTE_LSP ?? null,
-  status_regra: r.status_regra ?? r.STATUS_REGRA,
-  criado_por: r.criado_por ?? r.USUARIO_CRIACAO ?? null,
-  criado_em: r.criado_em ?? r.DATA_CRIACAO ?? null,
-  atualizado_em: r.atualizado_em ?? r.DATA_ATUALIZACAO ?? null,
-});
+origem?: 'E098REG' | 'PORTAL' | string | null;
+codemp?: number | null;
+id_regra?: number | string | null;  // id real no portal (pode ser null)
 ```
 
-Equivalentes para `mapIdentificador`, `mapAuditoria`, `mapVersao`, `mapSnapshot`. Aplicar nos retornos do `seniorApi` (`.map(mapRegra)` após `unwrapList`).
+Manter `status_regra: StatusRegra` mas estender o tipo para aceitar os valores que o backend devolve da E098REG: `'ATIVA' | 'INATIVA' | 'TESTE_X' | 'OUTRA'` além dos atuais. Como o badge precisa entender ambos, ampliar o union.
 
-## 3. Mensagens vazias amigáveis
+## 2. `src/lib/senior/mappers.ts` — `mapRegra`
 
-- `RegrasList`: `emptyMessage="Nenhuma regra cadastrada ainda."`
-- `IdentificadoresList`: `emptyMessage="Nenhum identificador encontrado."`
-- `AuditoriaList`: já existe — trocar para `"Nenhuma alteração registrada ainda."`
-- `SnapshotsList`: manter atual.
+- Gerar id sintético quando `ID_REGRA` for `null`:
+  ```
+  id = ID_REGRA ?? `${ORIGEM ?? 'E098REG'}-${CODEMP}-${MODSIS}-${IDEREG}-${CODREG_ERP}`
+  ```
+- Adicionar `origem`, `codemp`, `id_regra` no objeto retornado.
+- Normalizar `status_regra` vindo do ERP (`'ATIVA'/'INATIVA'/'TESTE_X'`) — manter como veio; o badge passa a tratar.
 
-## 4. Tratamento 401 / 404 no `src/lib/api.ts`
+## 3. `src/components/regras-senior/StatusRegraBadge.tsx`
 
-- 401: já existe (toast + erro). Adicionar redirect para `/login` quando o erro vier de endpoints `/api/senior/*` e não houver sessão ativa.
-- 404: enriquecer a mensagem para `"Endpoint não encontrado na API. Verifique se o backend foi atualizado e reiniciado."` (apenas para paths `/api/senior/*`).
+Adicionar entradas no mapa de status para `ATIVA`, `INATIVA`, `TESTE_X`, `OUTRA` (cores via tokens semânticos: success/muted/warning/secondary). Sem cor hardcoded.
 
-## 5. Base URL
+## 4. `src/components/regras-senior/RegrasList.tsx`
 
-O projeto já usa `VITE_API_BASE_URL`/`VITE_API_URL` em `getApiBaseUrl()`. **Não vou renomear para `VITE_ERP_API_URL`** para não quebrar o resto do app — vou apenas garantir o `.replace(/\/$/, '')` no `getApiBaseUrl()` para tolerar barra final.
+- Nova coluna **Origem**: badge "ERP Senior" para `origem === 'E098REG'`, "Portal" para `'PORTAL'`. Componente inline `OrigemBadge` usando `Badge` do shadcn com classes `bg-primary/10 text-primary` (E098REG) e `bg-accent/30 text-accent-foreground` (PORTAL) — tudo via tokens.
+- Coluna **ID** passa a mostrar `id_regra ?? '—'` (porque o `id` agora pode ser sintético).
+- Ações que dependem de `id_regra` real (editar, alterar status, exportar TXT, ver detalhes) ficam desabilitadas quando `r.origem === 'E098REG'` e `id_regra == null`, com tooltip "Disponível apenas para regras criadas no portal". O botão Ver detalhes pode continuar habilitado se quisermos só visualizar — mantemos desabilitado por enquanto, pois `GET /regras/:id` exige id real.
+
+## 5. (Opcional, não bloqueante) `RegrasSeniorDashboard`
+
+Se o resumo for impactado, deixar como está — escopo é a lista. Sem mudanças.
 
 ## Arquivos a alterar
 
-- `src/lib/api.ts` — strip trailing slash; mensagem 404 específica para `/api/senior/*`.
-- `src/lib/senior/api.ts` — `unwrapList` aceita `dados`; helper `toApiPaging`; `safe` em `listarAuditoria` e `listarIdentificadores`; aplicar mappers.
-- `src/lib/senior/mappers.ts` (novo) — mappers UPPER → camelCase tipado.
-- `src/components/regras-senior/RegrasList.tsx` — emptyMessage.
-- `src/components/regras-senior/IdentificadoresList.tsx` — emptyMessage.
-- `src/components/regras-senior/AuditoriaList.tsx` — emptyMessage.
+- `src/lib/senior/types.ts` — campos novos + status union ampliado
+- `src/lib/senior/mappers.ts` — id sintético, origem, codemp, id_regra
+- `src/components/regras-senior/StatusRegraBadge.tsx` — novos valores
+- `src/components/regras-senior/RegrasList.tsx` — coluna Origem, ID ajustado, ações condicionais
 
 ## Fora de escopo
 
-- Não criar/remover rotas.
-- Não mexer em autenticação Lovable Cloud.
-- Não recriar componentes do módulo.
-- Não alterar `.env` (gerenciado pelo usuário em Configurações).
+- Não mexer no backend (já está sendo ajustado pelo usuário).
+- Não alterar tela de Identificadores (já mostra os 211 corretamente).
+- Não mudar layout/rotas/auth.
