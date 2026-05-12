@@ -135,6 +135,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
 
   // ===== Filtros da FilterBar =====
   const [segmento, setSegmento] = useState<string[]>([]);
+  const [tipoVeiculo, setTipoVeiculo] = useState<string[]>([]);
   const [centroCusto, setCentroCusto] = useState<string[]>([]);
   const [placa, setPlaca] = useState<string[]>([]);
   const [motorista, setMotorista] = useState<string[]>([]);
