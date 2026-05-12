@@ -50,8 +50,26 @@ export const seniorApi = {
     (await safe(getList<any>(`${BASE}/regras/${id}/versoes`), [] as any[])).map(mapVersao),
 
   // Identificadores
-  listarIdentificadores: async (f?: IdentificadorFiltros) =>
-    (await safe(getList<any>(`${BASE}/identificadores`, f), [] as any[])).map(mapIdentificador),
+  listarIdentificadores: async (f?: IdentificadorFiltros) => {
+    const PAGE_SIZE = 500;
+    const MAX_PAGES = 20;
+    const acc: any[] = [];
+    let pagina = 1;
+    while (pagina <= MAX_PAGES) {
+      const resp: any = await safe(
+        api.get<any>(`${BASE}/identificadores`, toApiPaging({ ...(f || {}), page: pagina, pageSize: PAGE_SIZE })),
+        null,
+      );
+      if (resp == null) break;
+      if (Array.isArray(resp)) { acc.push(...resp); break; }
+      const dados = unwrapList<any>(resp);
+      acc.push(...dados);
+      const totalPaginas = Number(resp?.total_paginas ?? resp?.totalPaginas ?? 1);
+      if (!Number.isFinite(totalPaginas) || pagina >= totalPaginas) break;
+      pagina += 1;
+    }
+    return acc.map(mapIdentificador);
+  },
   alterarSituacao: (p: AlterarSituacaoPayload) =>
     api.post(`${BASE}/identificadores/alterar-situacao`, p),
   alterarRegraVinculada: (p: AlterarRegraPayload) =>
