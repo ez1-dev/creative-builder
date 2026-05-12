@@ -1,51 +1,34 @@
-# Plano: Aceitar regras vindas da E098REG na tela Regras LSP
+# Plano: Refinos finais na tela Regras LSP para E098REG
 
-Backend vai passar a retornar em `GET /api/senior/regras` registros sem `ID_REGRA` (são vínculos reais do ERP, origem `E098REG`). Hoje o mapper assume `id` truthy; precisa gerar um id sintético e exibir badge de origem.
+Status atual: o grosso já foi feito (mapper UPPER, id sintético, badge Origem, ações condicionais por `id_regra`, `unwrapList` aceita `dados`). Restam apenas refinamentos pedidos no prompt.
 
-## 1. `src/lib/senior/types.ts`
+## 1. `src/components/regras-senior/RegrasList.tsx`
 
-Adicionar campos opcionais em `RegraLSP`:
+- **Adicionar coluna "Empresa"** (`codemp`) entre Origem e Nome.
+- **Reordenar/renomear "Cód ERP" → "Código Regra"** (alinhar com a spec).
+- **Botão "Ver identificador"** sempre habilitado: navega para `/regras-senior/identificadores?codemp=<>&modsis=<>&idereg=<>`. Mantém os botões de editar/exportar/status desabilitados quando `id_regra == null`. Ícone `Link2` ou `ExternalLink`.
+- **emptyMessage** → `"Nenhuma regra encontrada. Cadastre uma regra no portal ou verifique se existem identificadores com regra vinculada na E098REG."`
+
+## 2. `src/components/regras-senior/IdentificadoresList.tsx`
+
+Já aceita querystring `codemp`/`modsis`/`idereg`? Conferir: hoje os filtros são lidos só via `useState` inicial, sem `useSearchParams`. Adicionar:
 
 ```ts
-origem?: 'E098REG' | 'PORTAL' | string | null;
-codemp?: number | null;
-id_regra?: number | string | null;  // id real no portal (pode ser null)
+const [sp] = useSearchParams();
+const [codemp, setCodemp] = useState(sp.get('codemp') ?? '');
+const [modsis, setModsis] = useState(sp.get('modsis') ?? '');
+const [idereg, setIdereg] = useState(sp.get('idereg') ?? '');
 ```
 
-Manter `status_regra: StatusRegra` mas estender o tipo para aceitar os valores que o backend devolve da E098REG: `'ATIVA' | 'INATIVA' | 'TESTE_X' | 'OUTRA'` além dos atuais. Como o badge precisa entender ambos, ampliar o union.
-
-## 2. `src/lib/senior/mappers.ts` — `mapRegra`
-
-- Gerar id sintético quando `ID_REGRA` for `null`:
-  ```
-  id = ID_REGRA ?? `${ORIGEM ?? 'E098REG'}-${CODEMP}-${MODSIS}-${IDEREG}-${CODREG_ERP}`
-  ```
-- Adicionar `origem`, `codemp`, `id_regra` no objeto retornado.
-- Normalizar `status_regra` vindo do ERP (`'ATIVA'/'INATIVA'/'TESTE_X'`) — manter como veio; o badge passa a tratar.
-
-## 3. `src/components/regras-senior/StatusRegraBadge.tsx`
-
-Adicionar entradas no mapa de status para `ATIVA`, `INATIVA`, `TESTE_X`, `OUTRA` (cores via tokens semânticos: success/muted/warning/secondary). Sem cor hardcoded.
-
-## 4. `src/components/regras-senior/RegrasList.tsx`
-
-- Nova coluna **Origem**: badge "ERP Senior" para `origem === 'E098REG'`, "Portal" para `'PORTAL'`. Componente inline `OrigemBadge` usando `Badge` do shadcn com classes `bg-primary/10 text-primary` (E098REG) e `bg-accent/30 text-accent-foreground` (PORTAL) — tudo via tokens.
-- Coluna **ID** passa a mostrar `id_regra ?? '—'` (porque o `id` agora pode ser sintético).
-- Ações que dependem de `id_regra` real (editar, alterar status, exportar TXT, ver detalhes) ficam desabilitadas quando `r.origem === 'E098REG'` e `id_regra == null`, com tooltip "Disponível apenas para regras criadas no portal". O botão Ver detalhes pode continuar habilitado se quisermos só visualizar — mantemos desabilitado por enquanto, pois `GET /regras/:id` exige id real.
-
-## 5. (Opcional, não bloqueante) `RegrasSeniorDashboard`
-
-Se o resumo for impactado, deixar como está — escopo é a lista. Sem mudanças.
-
-## Arquivos a alterar
-
-- `src/lib/senior/types.ts` — campos novos + status union ampliado
-- `src/lib/senior/mappers.ts` — id sintético, origem, codemp, id_regra
-- `src/components/regras-senior/StatusRegraBadge.tsx` — novos valores
-- `src/components/regras-senior/RegrasList.tsx` — coluna Origem, ID ajustado, ações condicionais
+Para que o botão "Ver identificador" caia já filtrado.
 
 ## Fora de escopo
 
-- Não mexer no backend (já está sendo ajustado pelo usuário).
-- Não alterar tela de Identificadores (já mostra os 211 corretamente).
-- Não mudar layout/rotas/auth.
+- Não criar tela de detalhe de regra E098REG (ações de detalhe ficam desabilitadas — basta o link para o identificador).
+- Não mexer em login/rotas/layout.
+- Não alterar tipos novamente (já cobrem `origem`, `id_regra`, `codemp`).
+
+## Arquivos
+
+- `src/components/regras-senior/RegrasList.tsx`
+- `src/components/regras-senior/IdentificadoresList.tsx`

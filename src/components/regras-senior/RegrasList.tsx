@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
-import { Plus, FileDown, Eye, Pencil, RotateCw } from 'lucide-react';
+import { Plus, FileDown, Eye, Pencil, RotateCw, ExternalLink } from 'lucide-react';
 import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, StatusRegra } from '@/lib/senior/types';
 import { StatusRegraBadge, STATUS_REGRA_OPTS } from './StatusRegraBadge';
@@ -67,11 +67,13 @@ export function RegrasList() {
   const columns: Column<RegraLSP>[] = useMemo(() => [
     { key: 'id_regra', header: 'ID', sortable: true, render: (v) => v ?? '—' },
     { key: 'origem', header: 'Origem', render: (v) => <OrigemBadge value={v as string} /> },
+    { key: 'codemp', header: 'Empresa', align: 'right', sortable: true, render: (v) => v ?? '—' },
     { key: 'nome_regra', header: 'Nome', sortable: true },
-    { key: 'codreg_erp', header: 'Cód ERP', sortable: true },
+    { key: 'codreg_erp', header: 'Código Regra', sortable: true },
     { key: 'modsis', header: 'Módulo' },
     { key: 'idereg', header: 'Identificador' },
     { key: 'codtns', header: 'Transação' },
+    { key: 'descricao', header: 'Descrição' },
     { key: 'status_regra', header: 'Status', render: (v) => <StatusRegraBadge value={v} /> },
     { key: 'ambiente', header: 'Ambiente' },
     { key: 'ticket', header: 'Ticket' },
@@ -85,8 +87,16 @@ export function RegrasList() {
       render: (_v, r) => {
         const semIdPortal = r.id_regra == null;
         const tooltip = semIdPortal ? 'Disponível apenas para regras criadas no portal' : '';
+        const idQs = new URLSearchParams();
+        if (r.codemp != null) idQs.set('codemp', String(r.codemp));
+        if (r.modsis) idQs.set('modsis', r.modsis);
+        if (r.idereg) idQs.set('idereg', r.idereg);
         return (
           <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" title="Ver identificador"
+              onClick={() => navigate(`/regras-senior/identificadores?${idQs.toString()}`)}>
+              <ExternalLink className="h-4 w-4" />
+            </Button>
             <Button size="icon" variant="ghost" title={tooltip || 'Ver detalhes'} disabled={semIdPortal}
               onClick={() => navigate(`/regras-senior/regras/${r.id_regra}`)}>
               <Eye className="h-4 w-4" />
@@ -152,7 +162,7 @@ export function RegrasList() {
         columns={columns}
         data={data}
         loading={loading}
-        emptyMessage="Nenhuma regra cadastrada ainda."
+        emptyMessage="Nenhuma regra encontrada. Cadastre uma regra no portal ou verifique se existem identificadores com regra vinculada na E098REG."
         enableSearch={false}
       />
 
