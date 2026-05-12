@@ -154,6 +154,9 @@ export function RegrasList() {
                     }}>
                     <BookOpen className="mr-2 h-4 w-4" />Regra de negócio
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setVerCodigo(r)}>
+                    <Code2 className="mr-2 h-4 w-4" />Ver código LSP
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setAlterarSit(r)}>
                     <Power className="mr-2 h-4 w-4" />Alterar situação
                   </DropdownMenuItem>
