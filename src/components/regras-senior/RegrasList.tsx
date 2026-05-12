@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
 import { Plus, FileDown, Eye, Pencil, RotateCw } from 'lucide-react';
 import { seniorApi } from '@/lib/senior/api';
@@ -12,6 +13,14 @@ import { StatusRegraBadge, STATUS_REGRA_OPTS } from './StatusRegraBadge';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { toast } from 'sonner';
 import { AlterarStatusRegraDialog } from './AlterarStatusRegraDialog';
+
+function OrigemBadge({ value }: { value?: string | null }) {
+  if (value === 'PORTAL') {
+    return <Badge variant="outline" className="bg-accent/30 text-accent-foreground border-accent">Portal</Badge>;
+  }
+  // default E098REG / ERP
+  return <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">ERP Senior</Badge>;
+}
 
 const STATUS_OPTS: { value: StatusRegra | ''; label: string }[] = [
   { value: '', label: 'Todos status' },
