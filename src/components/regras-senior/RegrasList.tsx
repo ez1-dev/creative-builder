@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
-import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2, BookOpen } from 'lucide-react';
+import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2, BookOpen, Code2 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator,
