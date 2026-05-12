@@ -34,6 +34,7 @@ export interface RegraLSP {
   ambiente?: AmbienteRegra | null;
   ticket?: string | null;
   motivo?: string | null;
+  observacao?: string | null;
   fonte_lsp?: string | null;
   status_regra: StatusRegra;
   criado_por?: string | null;

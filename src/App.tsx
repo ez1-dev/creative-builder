@@ -45,6 +45,7 @@ import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
 import RegraDetalhePage from "@/pages/regras-senior/RegraDetalhePage";
 import RegraEditorPage from "@/pages/regras-senior/RegraEditorPage";
+import RegraNegocioPage from "@/pages/regras-senior/RegraNegocioPage";
 import IdentificadoresPage from "@/pages/regras-senior/IdentificadoresPage";
 import AuditoriaPage from "@/pages/regras-senior/AuditoriaPage";
 import SnapshotsPage from "@/pages/regras-senior/SnapshotsPage";
@@ -104,6 +105,7 @@ const App = () => (
               <Route path="/regras-senior/regras/nova" element={<ProtectedRoute path="/regras-senior/regras/nova"><RegraNovaPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras/:id" element={<ProtectedRoute path="/regras-senior/regras"><RegraDetalhePage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras/:id/editor" element={<ProtectedRoute path="/regras-senior/regras"><RegraEditorPage /></ProtectedRoute>} />
+              <Route path="/regras-senior/regras/:id/negocio" element={<ProtectedRoute path="/regras-senior/regras"><RegraNegocioPage /></ProtectedRoute>} />
               <Route path="/regras-senior/identificadores" element={<ProtectedRoute path="/regras-senior/identificadores"><IdentificadoresPage /></ProtectedRoute>} />
               <Route path="/regras-senior/auditoria" element={<ProtectedRoute path="/regras-senior/auditoria"><AuditoriaPage /></ProtectedRoute>} />
               <Route path="/regras-senior/snapshots" element={<ProtectedRoute path="/regras-senior/snapshots"><SnapshotsPage /></ProtectedRoute>} />
