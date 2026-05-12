@@ -161,6 +161,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   };
 
   const optsSeg = useMemo(() => uniqueOpts(data.map((r) => r.segmento)), [data]);
+  const optsTipo = useMemo(() => uniqueOpts(data.map((r) => r.tipo_veiculo)), [data]);
   const optsCC = useMemo(() => uniqueOpts(data.map((r) => r.centro_custo)), [data]);
   const optsPlaca = useMemo(() => uniqueOpts(data.map((r) => r.placa)), [data]);
   const optsMot = useMemo(() => uniqueOpts(data.map((r) => r.motorista)), [data]);
@@ -169,17 +170,18 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     const q = busca.trim().toLowerCase();
     return data.filter((r) => {
       if (segmento.length && !segmento.includes(r.segmento ?? '')) return false;
+      if (tipoVeiculo.length && !tipoVeiculo.includes(r.tipo_veiculo ?? '')) return false;
       if (centroCusto.length && !centroCusto.includes(r.centro_custo ?? '')) return false;
       if (placa.length && !placa.includes(r.placa)) return false;
       if (motorista.length && !motorista.includes(r.motorista ?? '')) return false;
       if (q) {
-        const hay = [r.placa, r.veiculo_descricao, r.fornecedor, r.descricao, r.motorista, r.centro_custo]
+        const hay = [r.placa, r.veiculo_descricao, r.fornecedor, r.descricao, r.motorista, r.centro_custo, r.tipo_veiculo]
           .map((v) => (v ?? '').toLowerCase()).join(' | ');
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, segmento, centroCusto, placa, motorista, busca]);
+  }, [data, segmento, tipoVeiculo, centroCusto, placa, motorista, busca]);
 
   const crossFiltered = useMemo(() => filtered.filter((r) => {
     if (selMes.length && !selMes.includes(r.mes ?? '?')) return false;
