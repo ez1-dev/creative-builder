@@ -50,7 +50,7 @@ export const seniorApi = {
     (await safe(getList<any>(`${BASE}/regras/${id}/versoes`), [] as any[])).map(mapVersao),
 
   // Código LSP (E098REG / Portal)
-  obterCodigoRegra: (params: { codreg: string | number; modsis: string; idereg: string; codtns?: string }) =>
+  obterCodigoRegra: (params: { codreg: string | number; modsis: string; idereg: string; codtns?: string; codemp?: number }) =>
     api.get<{
       fonte_disponivel: boolean;
       fonte_lsp?: string;
@@ -59,16 +59,46 @@ export const seniorApi = {
       modsis?: string;
       idereg?: string;
       codtns?: string;
+      nome_regra?: string;
+      hash?: string;
+      id_regra?: number | string | null;
     }>(`${BASE}/regras/codigo`, params as any),
   importarFonteRegra: (payload: {
+    codemp?: number | null;
     codreg_erp: string | number;
     modsis: string;
     idereg: string;
     codtns: string;
     nome_regra: string;
+    descricao?: string | null;
     fonte_lsp: string;
     motivo: string;
+    ticket?: string | null;
+    importar_para_portal?: boolean;
   }) => api.post<any>(`${BASE}/regras/importar-fonte`, payload),
+  importarLoteRegras: (payload: {
+    texto_lote: string;
+    motivo: string;
+    ambiente: 'HOMOLOGACAO' | 'PRODUCAO';
+    ticket?: string | null;
+    origem_fonte?: string;
+    importar_para_portal?: boolean;
+  }) => api.post<{
+    total_detectado?: number;
+    importadas?: number;
+    atualizadas?: number;
+    erros?: number;
+    itens?: Array<{
+      codreg_erp?: string | number;
+      nome_regra?: string;
+      modsis?: string;
+      idereg?: string;
+      descricao?: string;
+      id_regra?: number | string | null;
+      alertas?: string[];
+      erro?: string;
+    }>;
+  }>(`${BASE}/regras/importar-lote`, payload),
 
   // Identificadores
   listarIdentificadores: async (f?: IdentificadorFiltros) => {

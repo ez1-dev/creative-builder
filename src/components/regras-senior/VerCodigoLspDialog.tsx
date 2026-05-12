@@ -21,6 +21,9 @@ type CodigoResp = {
   modsis?: string;
   idereg?: string;
   codtns?: string;
+  nome_regra?: string;
+  hash?: string;
+  id_regra?: number | string | null;
 };
 
 function Field({ label, value }: { label: string; value: any }) {
@@ -55,17 +58,25 @@ export function VerCodigoLspDialog({
         modsis: regra.modsis ?? '',
         idereg: regra.idereg ?? '',
         codtns: regra.codtns ?? undefined,
+        codemp: regra.codemp ?? undefined,
       });
       setResp(r);
     } catch (e: any) {
+      const status = Number(e?.statusCode ?? 0);
       const msg = String(e?.message ?? '');
-      const is422 = msg.includes('422') || msg.includes('int_parsing') || msg.toLowerCase().includes('id_regra');
-      if (is422) {
+      if (status === 401) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        onClose();
+        navigate('/login');
+        return;
+      }
+      if (status === 422 || msg.includes('int_parsing') || msg.toLowerCase().includes('id_regra')) {
         setErro(
-          'O endpoint /api/senior/regras/codigo ainda não está disponível no backend. ' +
-          'Peça ao time de backend para registrar a rota ANTES de /regras/{id_regra} ' +
-          '(ou tipar o parâmetro como int, ex: /regras/{id_regra:int}).'
+          'Erro ao buscar código LSP. Verifique se o backend foi atualizado com as rotas fixas antes das rotas paramétricas ' +
+          '(ex.: /regras/codigo precisa vir antes de /regras/{id_regra}).'
         );
+      } else if (status === 404) {
+        setErro('Fonte LSP não encontrado.');
       } else {
         setErro(msg || 'Erro ao obter código LSP.');
       }
@@ -87,13 +98,12 @@ export function VerCodigoLspDialog({
     }
   };
 
-  const clonarOuEditar = () => {
-    if (regra.origem === 'PORTAL' && regra.id_regra != null) {
-      onClose();
-      navigate(`/regras-senior/regras/${regra.id_regra}/editor`);
-    } else {
-      setOpenClonar(true);
-    }
+  const idPortal = (resp?.id_regra ?? regra.id_regra) ?? null;
+
+  const editarNoPortal = () => {
+    if (idPortal == null) return;
+    onClose();
+    navigate(`/regras-senior/regras/${idPortal}/editor`);
   };
 
   return (
@@ -119,16 +129,23 @@ export function VerCodigoLspDialog({
             </Alert>
           ) : resp?.fonte_disponivel ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Field label="Código da regra" value={resp.codreg ?? regra.codreg_erp} />
                 <Field label="Módulo" value={resp.modsis ?? regra.modsis} />
                 <Field label="Identificador" value={resp.idereg ?? regra.idereg} />
                 <Field label="Transação" value={resp.codtns ?? regra.codtns} />
+                <Field label="Nome" value={resp.nome_regra ?? regra.nome_regra} />
                 <div>
                   <div className="text-[11px] uppercase text-muted-foreground">Origem da fonte</div>
                   <Badge variant="outline" className="bg-accent/30 text-accent-foreground border-accent mt-1">
                     {resp.origem_fonte ?? 'PORTAL'}
                   </Badge>
+                </div>
+                <div className="md:col-span-2">
+                  <div className="text-[11px] uppercase text-muted-foreground">Hash</div>
+                  <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded break-all">
+                    {resp.hash ?? '—'}
+                  </code>
                 </div>
               </div>
 
@@ -157,10 +174,11 @@ export function VerCodigoLspDialog({
                 <Button variant="outline" onClick={copiar}>
                   <Copy className="mr-2 h-4 w-4" /> Copiar código
                 </Button>
-                <Button onClick={clonarOuEditar}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {regra.origem === 'PORTAL' ? 'Editar no portal' : 'Clonar/Editar no portal'}
-                </Button>
+                {idPortal != null && (
+                  <Button onClick={editarNoPortal}>
+                    <Pencil className="mr-2 h-4 w-4" /> Editar no portal
+                  </Button>
+                )}
               </>
             )}
             {!loading && !erro && resp && !resp.fonte_disponivel && (
@@ -168,7 +186,7 @@ export function VerCodigoLspDialog({
                 <FileUp className="mr-2 h-4 w-4" /> Importar fonte LSP
               </Button>
             )}
-            <Button variant="ghost" onClick={onClose}>Voltar</Button>
+            <Button variant="ghost" onClick={onClose}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -177,7 +195,7 @@ export function VerCodigoLspDialog({
         <ImportarFonteLspDialog
           regra={regra}
           onClose={() => setOpenImportar(false)}
-          onImported={() => { setOpenImportar(false); carregar(); }}
+          onImported={() => { setOpenImportar(false); onAfterClonar?.(); carregar(); }}
         />
       )}
       {openClonar && (

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
-import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2, BookOpen, Code2 } from 'lucide-react';
+import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2, BookOpen, Code2, Upload } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator,
@@ -22,6 +22,7 @@ import { AlterarRegraDialog } from './AlterarRegraDialog';
 import { ClonarParaPortalDialog } from './ClonarParaPortalDialog';
 import { VerVersoesDialog } from './VerVersoesDialog';
 import { VerCodigoLspDialog } from './VerCodigoLspDialog';
+import { ImportarLoteRegrasDialog } from './ImportarLoteRegrasDialog';
 
 function OrigemBadge({ value }: { value?: string | null }) {
   if (value === 'PORTAL') {
@@ -49,6 +50,7 @@ export function RegrasList() {
   const [clonar, setClonar] = useState<RegraLSP | null>(null);
   const [verVersoes, setVerVersoes] = useState<RegraLSP | null>(null);
   const [verCodigo, setVerCodigo] = useState<RegraLSP | null>(null);
+  const [openLote, setOpenLote] = useState(false);
 
   const carregar = async () => {
     setLoading(true);
@@ -229,6 +231,7 @@ export function RegrasList() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={carregar}><RotateCw className="mr-1 h-4 w-4" />Atualizar</Button>
+            <Button variant="outline" size="sm" onClick={() => setOpenLote(true)}><Upload className="mr-1 h-4 w-4" />Importar lote</Button>
             <Button size="sm" onClick={() => navigate('/regras-senior/regras/nova')}><Plus className="mr-1 h-4 w-4" />Nova regra</Button>
           </>
         }
@@ -319,6 +322,12 @@ export function RegrasList() {
           regra={verCodigo}
           onClose={() => setVerCodigo(null)}
           onAfterClonar={() => { setVerCodigo(null); carregar(); }}
+        />
+      )}
+      {openLote && (
+        <ImportarLoteRegrasDialog
+          onClose={() => setOpenLote(false)}
+          onDone={() => { setOpenLote(false); carregar(); }}
         />
       )}
     </div>
