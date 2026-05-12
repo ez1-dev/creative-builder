@@ -97,33 +97,81 @@ export function RegrasList() {
     {
       key: '__acoes', header: 'Ações',
       render: (_v, r) => {
+        const isErp = r.origem === 'E098REG';
         const semIdPortal = r.id_regra == null;
-        const tooltip = semIdPortal ? 'Disponível apenas para regras criadas no portal' : '';
         const idQs = new URLSearchParams();
         if (r.codemp != null) idQs.set('codemp', String(r.codemp));
         if (r.modsis) idQs.set('modsis', r.modsis);
         if (r.idereg) idQs.set('idereg', r.idereg);
+
+        const validar = async () => {
+          if (r.id_regra == null) return;
+          const res = await seniorApi.validarRegra(r.id_regra);
+          const avisos = res?.avisos ?? [];
+          if (avisos.length === 0) toast.success('Regra válida.');
+          else toast.message('Validação concluída', { description: avisos.map(a => `[${a.nivel}] ${a.mensagem}`).join('\n') });
+        };
+
         return (
-          <div className="flex items-center gap-1">
-            <Button size="icon" variant="ghost" title="Ver identificador"
-              onClick={() => navigate(`/regras-senior/identificadores?${idQs.toString()}`)}>
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-            <Button size="icon" variant="ghost" title={tooltip || 'Ver detalhes'} disabled={semIdPortal}
-              onClick={() => navigate(`/regras-senior/regras/${r.id_regra}`)}>
-              <Eye className="h-4 w-4" />
-            </Button>
-            <Button size="icon" variant="ghost" title={tooltip || 'Editar'} disabled={semIdPortal}
-              onClick={() => navigate(`/regras-senior/regras/${r.id_regra}?edit=1`)}>
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button size="icon" variant="ghost" title={tooltip || 'Exportar TXT'} disabled={semIdPortal}
-              onClick={() => exportarTxt(r)}>
-              <FileDown className="h-4 w-4" />
-            </Button>
-            <Button size="sm" variant="outline" disabled={semIdPortal} title={tooltip}
-              onClick={() => setAlterar(r)}>Status</Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" aria-label="Ações"><MoreHorizontal className="h-4 w-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {isErp ? (
+                <>
+                  <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">ERP Senior</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    disabled={semIdPortal}
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}`)}>
+                    <Eye className="mr-2 h-4 w-4" />Ver detalhes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setAlterarSit(r)}>
+                    <Power className="mr-2 h-4 w-4" />Alterar situação
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setAlterarReg(r)}>
+                    <GitBranch className="mr-2 h-4 w-4" />Alterar regra vinculada
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setClonar(r)}>
+                    <Copy className="mr-2 h-4 w-4" />Clonar para portal
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate(`/regras-senior/auditoria?${idQs.toString()}`)}>
+                    <History className="mr-2 h-4 w-4" />Ver auditoria
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled className="text-xs">
+                    Fonte LSP não disponível no portal
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Portal</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    disabled={semIdPortal}
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}`)}>
+                    <Eye className="mr-2 h-4 w-4" />Ver detalhes
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={semIdPortal}
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}?edit=1`)}>
+                    <Pencil className="mr-2 h-4 w-4" />Editar fonte LSP
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={semIdPortal} onClick={validar}>
+                    <FileCheck2 className="mr-2 h-4 w-4" />Validar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={semIdPortal} onClick={() => exportarTxt(r)}>
+                    <FileDown className="mr-2 h-4 w-4" />Exportar TXT
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={semIdPortal} onClick={() => setAlterar(r)}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />Alterar status
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={semIdPortal} onClick={() => setVerVersoes(r)}>
+                    <History className="mr-2 h-4 w-4" />Ver versões
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
