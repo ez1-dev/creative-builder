@@ -330,5 +330,6 @@ export function RegrasList() {
           onDone={() => { setOpenLote(false); carregar(); }}
         />
       )}
+    </div>
   );
 }
