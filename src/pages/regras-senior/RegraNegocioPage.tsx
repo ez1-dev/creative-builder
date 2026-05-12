@@ -47,6 +47,7 @@ export default function RegraNegocioPage() {
   const [versoes, setVersoes] = useState<RegraVersao[]>([]);
   const [validacoes, setValidacoes] = useState<{ nivel: string; mensagem: string }[]>([]);
   const [openClonar, setOpenClonar] = useState(false);
+  const [openCodigo, setOpenCodigo] = useState(false);
 
   const isErp = id === 'erp' || regra?.origem === 'E098REG';
 
