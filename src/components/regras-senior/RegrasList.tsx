@@ -169,7 +169,7 @@ export function RegrasList() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={semIdPortal}
-                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}?edit=1`)}>
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/editor`)}>
                     <Pencil className="mr-2 h-4 w-4" />Editar fonte LSP
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={semIdPortal} onClick={validar}>
