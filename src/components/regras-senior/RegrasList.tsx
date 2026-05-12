@@ -12,7 +12,7 @@ import { StatusRegraBadge } from './StatusRegraBadge';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { toast } from 'sonner';
 import { AlterarStatusRegraDialog } from './AlterarStatusRegraDialog';
-import { api } from '@/lib/api';
+
 
 const STATUS_OPTS: { value: StatusRegra | ''; label: string }[] = [
   { value: '', label: 'Todos status' },
