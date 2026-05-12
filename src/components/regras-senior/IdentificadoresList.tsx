@@ -173,9 +173,13 @@ export function IdentificadoresList() {
         </CardContent>
       </Card>
 
+      <div className="text-xs text-muted-foreground px-1">
+        Mostrando {filtered.length} de {data.length} registros
+      </div>
+
       <DataTableBI<Identificador>
         columns={columns}
-        data={data}
+        data={filtered}
         loading={loading}
         emptyMessage="Nenhum identificador encontrado."
       />
