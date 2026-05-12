@@ -50,6 +50,7 @@ export function RegrasList() {
   const [clonar, setClonar] = useState<RegraLSP | null>(null);
   const [verVersoes, setVerVersoes] = useState<RegraLSP | null>(null);
   const [verCodigo, setVerCodigo] = useState<RegraLSP | null>(null);
+  const [openLote, setOpenLote] = useState(false);
 
   const carregar = async () => {
     setLoading(true);
