@@ -64,7 +64,8 @@ const ALIASES: Record<string, string[]> = {
   valor: ['valor', 'total', 'valortotal'],
   motorista: ['motorista'],
   centro_custo: ['ccusto', 'centrocusto', 'cc'],
-  segmento: ['segmento', 'tipo'],
+  segmento: ['segmento'],
+  tipo_veiculo: ['tipoveiculo', 'tipodeveiculo', 'tipo'],
 };
 
 function buildMap(rawKeys: string[]) {
