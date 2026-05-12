@@ -16,9 +16,7 @@ export const seniorApi = {
   obterRegra: (id: number | string) => api.get<RegraLSP>(`${BASE}/regras/${id}`),
   criarRegra: (body: Partial<RegraLSP>) => api.post<RegraLSP>(`${BASE}/regras`, body),
   atualizarRegra: (id: number | string, body: Partial<RegraLSP>) =>
-    (api as any).request
-      ? (api as any).request(`${BASE}/regras/${id}`, { method: 'PUT', body: JSON.stringify(body) })
-      : api.post<RegraLSP>(`${BASE}/regras/${id}`, body),
+    api.post<RegraLSP>(`${BASE}/regras/${id}`, body),
   alterarStatusRegra: (id: number | string, novo_status: StatusRegra, motivo: string) =>
     api.post<RegraLSP>(`${BASE}/regras/${id}/status`, { novo_status, motivo }),
   exportarRegraTxtUrl: (id: number | string) => api.getExportUrl(`${BASE}/regras/${id}/export`),
