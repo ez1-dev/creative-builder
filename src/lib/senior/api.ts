@@ -11,12 +11,27 @@ const safe = async <T,>(p: Promise<T>, fallback: T): Promise<T> => {
   try { return await p; } catch { return fallback; }
 };
 
+/** Aceita tanto T[] quanto { items|data|results|rows: T[] } e sempre devolve T[]. */
+const unwrapList = <T,>(resp: any): T[] => {
+  if (Array.isArray(resp)) return resp as T[];
+  if (resp && typeof resp === 'object') {
+    if (Array.isArray(resp.items)) return resp.items as T[];
+    if (Array.isArray(resp.data)) return resp.data as T[];
+    if (Array.isArray(resp.results)) return resp.results as T[];
+    if (Array.isArray(resp.rows)) return resp.rows as T[];
+  }
+  return [];
+};
+
+const getList = async <T,>(url: string, params?: any): Promise<T[]> =>
+  unwrapList<T>(await api.get<any>(url, params));
+
 export const seniorApi = {
   // Dashboard
   resumo: () => safe(api.get<DashboardResumo>(`${BASE}/resumo`), null as unknown as DashboardResumo),
 
   // Regras LSP
-  listarRegras: (f?: RegraFiltros) => api.get<RegraLSP[]>(`${BASE}/regras`, f),
+  listarRegras: (f?: RegraFiltros) => getList<RegraLSP>(`${BASE}/regras`, f),
   obterRegra: (id: number | string) => api.get<RegraLSP>(`${BASE}/regras/${id}`),
   criarRegra: (body: Partial<RegraLSP>) => api.post<RegraLSP>(`${BASE}/regras`, body),
   atualizarRegra: (id: number | string, body: Partial<RegraLSP>) =>
