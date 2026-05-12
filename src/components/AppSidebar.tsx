@@ -58,6 +58,13 @@ const producaoSubItems = [
   { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: GitCompare },
 ];
 
+const regrasSeniorSubItems = [
+  { title: 'Dashboard', url: '/regras-senior', icon: LayoutDashboard },
+  { title: 'Regras LSP', url: '/regras-senior/regras', icon: FileText },
+  { title: 'Identificadores', url: '/regras-senior/identificadores', icon: ShieldCheck },
+  { title: 'Auditoria', url: '/regras-senior/auditoria', icon: History },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
