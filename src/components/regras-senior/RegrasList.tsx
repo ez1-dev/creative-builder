@@ -314,6 +314,13 @@ export function RegrasList() {
       {verVersoes && verVersoes.id_regra != null && (
         <VerVersoesDialog regraId={verVersoes.id_regra} onClose={() => setVerVersoes(null)} />
       )}
+      {verCodigo && (
+        <VerCodigoLspDialog
+          regra={verCodigo}
+          onClose={() => setVerCodigo(null)}
+          onAfterClonar={() => { setVerCodigo(null); carregar(); }}
+        />
+      )}
     </div>
   );
 }
