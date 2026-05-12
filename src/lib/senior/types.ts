@@ -1,4 +1,16 @@
-export type StatusRegra = 'rascunho' | 'em_revisao' | 'aprovada' | 'rejeitada' | 'arquivada';
+export type StatusRegra =
+  | 'rascunho'
+  | 'em_revisao'
+  | 'aprovada'
+  | 'rejeitada'
+  | 'exportada'
+  | 'compilada_homologacao'
+  | 'testada_homologacao'
+  | 'publicada_producao'
+  | 'ativa'
+  | 'inativa'
+  | 'arquivada';
+
 export type SituacaoIdentificador = 'A' | 'I' | 'X';
 export type AmbienteRegra = 'producao' | 'homologacao' | 'desenvolvimento';
 
@@ -24,6 +36,15 @@ export interface RegraFiltros {
   texto?: string;
   status_regra?: StatusRegra | '';
   idereg?: string;
+}
+
+export interface RegraVersao {
+  id: number | string;
+  versao: number;
+  status_regra: StatusRegra;
+  criado_em: string;
+  criado_por?: string | null;
+  motivo?: string | null;
 }
 
 export interface Identificador {
@@ -53,6 +74,14 @@ export interface AuditoriaEntry {
   usuario: string;
   acao: string;
   alvo?: string;
+  codemp?: number | null;
+  modsis?: string | null;
+  idereg?: string | null;
+  regra_anterior?: number | null;
+  regra_nova?: number | null;
+  situacao_anterior?: SituacaoIdentificador | null;
+  situacao_nova?: SituacaoIdentificador | null;
+  resultado?: 'sucesso' | 'erro' | string;
   detalhes?: Record<string, any>;
   motivo?: string | null;
 }
@@ -62,9 +91,11 @@ export interface DashboardResumo {
   rascunho: number;
   em_revisao: number;
   aprovadas: number;
+  exportadas?: number;
   identificadores_ativos: number;
   identificadores_inativos: number;
   identificadores_teste: number;
+  alteradas_hoje?: number;
   ultimas_alteracoes: AuditoriaEntry[];
 }
 
@@ -86,4 +117,16 @@ export interface AlterarRegraPayload {
   novo_codreg: number;
   motivo: string;
   confirmar: true;
+}
+
+export interface SnapshotEntry {
+  id: number | string;
+  data: string;
+  usuario?: string | null;
+  qtde_registros: number;
+  arquivo?: string | null;
+}
+
+export interface ValidacaoRegra {
+  avisos: { nivel: 'info' | 'warning' | 'error'; mensagem: string }[];
 }
