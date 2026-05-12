@@ -40,6 +40,12 @@ import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
 import BiComponentsDemoPage from "@/pages/BiComponentsDemoPage";
 import EtlAdminPage from "@/pages/EtlAdminPage";
+import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
+import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
+import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
+import RegraDetalhePage from "@/pages/regras-senior/RegraDetalhePage";
+import IdentificadoresPage from "@/pages/regras-senior/IdentificadoresPage";
+import AuditoriaPage from "@/pages/regras-senior/AuditoriaPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -90,6 +96,13 @@ const App = () => (
               <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
               <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
               <Route path="/etl" element={<ProtectedRoute path="/etl"><EtlAdminPage /></ProtectedRoute>} />
+              {/* Regras Senior */}
+              <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
+              <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />
+              <Route path="/regras-senior/regras/nova" element={<ProtectedRoute path="/regras-senior/regras/nova"><RegraNovaPage /></ProtectedRoute>} />
+              <Route path="/regras-senior/regras/:id" element={<ProtectedRoute path="/regras-senior/regras"><RegraDetalhePage /></ProtectedRoute>} />
+              <Route path="/regras-senior/identificadores" element={<ProtectedRoute path="/regras-senior/identificadores"><IdentificadoresPage /></ProtectedRoute>} />
+              <Route path="/regras-senior/auditoria" element={<ProtectedRoute path="/regras-senior/auditoria"><AuditoriaPage /></ProtectedRoute>} />
               {/* Produção */}
               <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
               <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
