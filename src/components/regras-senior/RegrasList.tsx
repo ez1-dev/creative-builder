@@ -48,6 +48,7 @@ export function RegrasList() {
   const [alterarReg, setAlterarReg] = useState<RegraLSP | null>(null);
   const [clonar, setClonar] = useState<RegraLSP | null>(null);
   const [verVersoes, setVerVersoes] = useState<RegraLSP | null>(null);
+  const [verCodigo, setVerCodigo] = useState<RegraLSP | null>(null);
 
   const carregar = async () => {
     setLoading(true);
