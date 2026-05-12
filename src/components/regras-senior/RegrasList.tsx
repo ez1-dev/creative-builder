@@ -137,6 +137,21 @@ export function RegrasList() {
                     onClick={() => navigate(`/regras-senior/regras/${r.id_regra}`)}>
                     <Eye className="mr-2 h-4 w-4" />Ver detalhes
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (r.id_regra != null) navigate(`/regras-senior/regras/${r.id_regra}/negocio`, { state: { regra: r } });
+                      else {
+                        const qs = new URLSearchParams();
+                        if (r.codemp != null) qs.set('codemp', String(r.codemp));
+                        if (r.modsis) qs.set('modsis', r.modsis);
+                        if (r.idereg) qs.set('idereg', r.idereg);
+                        if (r.codtns) qs.set('codtns', r.codtns);
+                        if (r.codreg_erp != null) qs.set('codreg', String(r.codreg_erp));
+                        navigate(`/regras-senior/regras/erp/negocio?${qs.toString()}`, { state: { regra: r } });
+                      }
+                    }}>
+                    <BookOpen className="mr-2 h-4 w-4" />Regra de negócio
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setAlterarSit(r)}>
                     <Power className="mr-2 h-4 w-4" />Alterar situação
                   </DropdownMenuItem>
