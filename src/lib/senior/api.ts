@@ -41,23 +41,23 @@ export const seniorApi = {
   exportarRegraTxtUrl: (id: number | string) => api.getExportUrl(`${BASE}/regras/${id}/export`),
   validarRegra: (id: number | string) =>
     safe(api.post<ValidacaoRegra>(`${BASE}/regras/${id}/validar`), { avisos: [] }),
-  listarVersoes: (id: number | string) =>
-    safe(api.get<RegraVersao[]>(`${BASE}/regras/${id}/versoes`), [] as RegraVersao[]),
+  listarVersoes: async (id: number | string) =>
+    safe(getList<RegraVersao>(`${BASE}/regras/${id}/versoes`), [] as RegraVersao[]),
 
   // Identificadores
   listarIdentificadores: (f?: IdentificadorFiltros) =>
-    api.get<Identificador[]>(`${BASE}/identificadores`, f),
+    getList<Identificador>(`${BASE}/identificadores`, f),
   alterarSituacao: (p: AlterarSituacaoPayload) =>
     api.post(`${BASE}/identificadores/alterar-situacao`, p),
   alterarRegraVinculada: (p: AlterarRegraPayload) =>
     api.post(`${BASE}/identificadores/alterar-regra`, p),
   gerarSnapshot: () => api.post<SnapshotEntry>(`${BASE}/identificadores/snapshot`),
   listarSnapshots: () =>
-    safe(api.get<SnapshotEntry[]>(`${BASE}/identificadores/snapshots`), [] as SnapshotEntry[]),
+    safe(getList<SnapshotEntry>(`${BASE}/identificadores/snapshots`), [] as SnapshotEntry[]),
   downloadSnapshotUrl: (id: number | string) =>
     api.getExportUrl(`${BASE}/identificadores/snapshots/${id}`),
 
   // Auditoria
   listarAuditoria: (f?: { de?: string; ate?: string; acao?: string; usuario?: string; codemp?: number; modsis?: string; idereg?: string }) =>
-    api.get<AuditoriaEntry[]>(`${BASE}/auditoria`, f),
+    getList<AuditoriaEntry>(`${BASE}/auditoria`, f),
 };
