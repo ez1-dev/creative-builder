@@ -143,6 +143,11 @@ export function RegrasList() {
                   <DropdownMenuItem onClick={() => setAlterarReg(r)}>
                     <GitBranch className="mr-2 h-4 w-4" />Alterar regra vinculada
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={semIdPortal}
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/editor`)}>
+                    <Pencil className="mr-2 h-4 w-4" />Abrir editor
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setClonar(r)}>
                     <Copy className="mr-2 h-4 w-4" />Clonar para portal
                   </DropdownMenuItem>
