@@ -9,6 +9,7 @@ import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, RegraVersao } from '@/lib/senior/types';
 import { StatusRegraBadge } from '@/components/regras-senior/StatusRegraBadge';
 import { ClonarParaPortalDialog } from '@/components/regras-senior/ClonarParaPortalDialog';
+import { VerCodigoLspDialog } from '@/components/regras-senior/VerCodigoLspDialog';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { analisarFonteLsp, type LspAnalise, type LspRisco } from '@/lib/senior/lspAnalyzer';
 
