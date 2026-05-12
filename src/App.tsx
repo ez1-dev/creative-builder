@@ -44,6 +44,7 @@ import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboa
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
 import RegraDetalhePage from "@/pages/regras-senior/RegraDetalhePage";
+import RegraEditorPage from "@/pages/regras-senior/RegraEditorPage";
 import IdentificadoresPage from "@/pages/regras-senior/IdentificadoresPage";
 import AuditoriaPage from "@/pages/regras-senior/AuditoriaPage";
 import SnapshotsPage from "@/pages/regras-senior/SnapshotsPage";
