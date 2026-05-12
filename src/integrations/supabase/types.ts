@@ -843,6 +843,7 @@ export type Database = {
           placa: string
           quilometragem: number | null
           segmento: string | null
+          tipo_veiculo: string | null
           updated_at: string
           valor: number
           veiculo_descricao: string | null
@@ -861,6 +862,7 @@ export type Database = {
           placa: string
           quilometragem?: number | null
           segmento?: string | null
+          tipo_veiculo?: string | null
           updated_at?: string
           valor?: number
           veiculo_descricao?: string | null
@@ -879,6 +881,7 @@ export type Database = {
           placa?: string
           quilometragem?: number | null
           segmento?: string | null
+          tipo_veiculo?: string | null
           updated_at?: string
           valor?: number
           veiculo_descricao?: string | null
@@ -1507,6 +1510,7 @@ export type Database = {
           placa: string
           quilometragem: number | null
           segmento: string | null
+          tipo_veiculo: string | null
           updated_at: string
           valor: number
           veiculo_descricao: string | null

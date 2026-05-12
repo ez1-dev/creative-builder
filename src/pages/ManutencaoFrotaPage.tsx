@@ -24,11 +24,13 @@ import { ImportarFrotaDialog } from '@/components/frota/ImportarFrotaDialog';
 
 const PATH = '/frota';
 
+const TIPO_OPTS = ['LEVE', 'CAMINHÃO', 'CARRETA', 'GUINDASTE', 'CAÇAMBA', 'MUCK', 'OUTRO'];
+
 const emptyForm = (): Partial<ManutencaoFrota> => ({
   data: new Date().toISOString().slice(0, 10),
   placa: '', veiculo_descricao: '', fornecedor: '', descricao: '',
   quilometragem: null, valor: 0, motorista: '', centro_custo: '',
-  segmento: 'FROTA', observacoes: '',
+  segmento: 'FROTA', tipo_veiculo: 'LEVE', observacoes: '',
 });
 
 export default function ManutencaoFrotaPage() {
@@ -88,6 +90,7 @@ export default function ManutencaoFrotaPage() {
       motorista: form.motorista || null,
       centro_custo: form.centro_custo || null,
       segmento: form.segmento || null,
+      tipo_veiculo: form.tipo_veiculo || null,
       observacoes: form.observacoes || null,
     };
     if (editing) {
@@ -190,6 +193,15 @@ export default function ManutencaoFrotaPage() {
                 <SelectContent>
                   <SelectItem value="FROTA">FROTA</SelectItem>
                   <SelectItem value="OBRA">OBRA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo de Veículo</Label>
+              <Select value={form.tipo_veiculo ?? 'LEVE'} onValueChange={(v) => setForm({ ...form, tipo_veiculo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPO_OPTS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

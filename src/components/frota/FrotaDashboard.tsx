@@ -44,8 +44,11 @@ export interface ManutencaoFrota {
   motorista: string | null;
   centro_custo: string | null;
   segmento: string | null;
+  tipo_veiculo: string | null;
   observacoes: string | null;
 }
+
+export const TIPO_VEICULO_OPTIONS = ['LEVE', 'CAMINHÃO', 'CARRETA', 'GUINDASTE', 'CAÇAMBA', 'MUCK', 'OUTRO'] as const;
 
 interface Props {
   data: ManutencaoFrota[];
@@ -62,6 +65,7 @@ const MESES_ORDER = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'se
 
 const ALL_DRILL_LEVELS: { key: keyof ManutencaoFrota; label: string }[] = [
   { key: 'segmento', label: 'Segmento' },
+  { key: 'tipo_veiculo', label: 'Tipo de Veículo' },
   { key: 'centro_custo', label: 'Centro de Custo' },
   { key: 'placa', label: 'Placa' },
   { key: 'fornecedor', label: 'Fornecedor' },
@@ -131,6 +135,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
 
   // ===== Filtros da FilterBar =====
   const [segmento, setSegmento] = useState<string[]>([]);
+  const [tipoVeiculo, setTipoVeiculo] = useState<string[]>([]);
   const [centroCusto, setCentroCusto] = useState<string[]>([]);
   const [placa, setPlaca] = useState<string[]>([]);
   const [motorista, setMotorista] = useState<string[]>([]);
@@ -156,6 +161,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   };
 
   const optsSeg = useMemo(() => uniqueOpts(data.map((r) => r.segmento)), [data]);
+  const optsTipo = useMemo(() => uniqueOpts(data.map((r) => r.tipo_veiculo)), [data]);
   const optsCC = useMemo(() => uniqueOpts(data.map((r) => r.centro_custo)), [data]);
   const optsPlaca = useMemo(() => uniqueOpts(data.map((r) => r.placa)), [data]);
   const optsMot = useMemo(() => uniqueOpts(data.map((r) => r.motorista)), [data]);
@@ -164,17 +170,18 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     const q = busca.trim().toLowerCase();
     return data.filter((r) => {
       if (segmento.length && !segmento.includes(r.segmento ?? '')) return false;
+      if (tipoVeiculo.length && !tipoVeiculo.includes(r.tipo_veiculo ?? '')) return false;
       if (centroCusto.length && !centroCusto.includes(r.centro_custo ?? '')) return false;
       if (placa.length && !placa.includes(r.placa)) return false;
       if (motorista.length && !motorista.includes(r.motorista ?? '')) return false;
       if (q) {
-        const hay = [r.placa, r.veiculo_descricao, r.fornecedor, r.descricao, r.motorista, r.centro_custo]
+        const hay = [r.placa, r.veiculo_descricao, r.fornecedor, r.descricao, r.motorista, r.centro_custo, r.tipo_veiculo]
           .map((v) => (v ?? '').toLowerCase()).join(' | ');
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [data, segmento, centroCusto, placa, motorista, busca]);
+  }, [data, segmento, tipoVeiculo, centroCusto, placa, motorista, busca]);
 
   const crossFiltered = useMemo(() => filtered.filter((r) => {
     if (selMes.length && !selMes.includes(r.mes ?? '?')) return false;
@@ -193,7 +200,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const limparTudo = () => {
     setSelMes([]); setSelSegmento([]); setSelPlaca([]);
     setSelFornecedor([]); setSelCC([]); setSelMotorista([]);
-    setSegmento([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
+    setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
 
@@ -268,6 +275,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     { key: 'motorista', header: 'Motorista', sortable: true },
     { key: 'centro_custo', header: 'C.Custo' },
     { key: 'segmento', header: 'Segmento' },
+    { key: 'tipo_veiculo', header: 'Tipo' },
     ...((onEdit || onDelete) ? [{
       key: '__acoes' as any, header: 'Ações', align: 'right' as const,
       render: (_v: any, r: ManutencaoFrota) => (
@@ -340,6 +348,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       Motorista: r.motorista ?? '',
       'Centro de Custo': r.centro_custo ?? '',
       Segmento: r.segmento ?? '',
+      'Tipo de Veículo': r.tipo_veiculo ?? '',
     }));
 
   const exportCSV = () => {
@@ -573,6 +582,8 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       <FilterBar>
         <MultiSelectFilter label="Segmento" values={segmento} onChange={setSegmento}
           options={optsSeg} placeholder="Todos" />
+        <MultiSelectFilter label="Tipo de Veículo" values={tipoVeiculo} onChange={setTipoVeiculo}
+          options={optsTipo} placeholder="Todos" />
         <MultiSelectFilter label="Placa" values={placa} onChange={setPlaca}
           options={optsPlaca} placeholder="Todas" />
         <MultiSelectFilter label="Centro de Custo" values={centroCusto} onChange={setCentroCusto}
@@ -586,7 +597,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
             variant="outline"
             className="h-8 gap-1 text-xs"
             onClick={limparTudo}
-            disabled={segmento.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
+            disabled={segmento.length + tipoVeiculo.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
           >
             <X className="h-3 w-3" /> Limpar filtros
           </Button>

@@ -28,6 +28,19 @@ interface ParsedRow {
   motorista: string | null;
   centro_custo: string | null;
   segmento: string | null;
+  tipo_veiculo: string | null;
+}
+
+function classifyTipo(desc: string | null | undefined, placa?: string): string {
+  const s = ((desc ?? '') + ' ' + (placa ?? '')).toUpperCase();
+  if (!s.trim()) return 'OUTRO';
+  if (/GUINDASTE/.test(s)) return 'GUINDASTE';
+  if (/MUCK/.test(s)) return 'MUCK';
+  if (/CA[ÇC]AMBA/.test(s)) return 'CAÇAMBA';
+  if (/CARRETA/.test(s)) return 'CARRETA';
+  if (/(CAMINH[ÃA]O|ATEGO|STRALIS|S-?WAY|L220|MERCEDE[SZ]|IVECO|VOLVO)/.test(s)) return 'CAMINHÃO';
+  if (/(STRADA|GOL|SW4|VOLCANO|FREEDOM|FIAT|VW)/.test(s)) return 'LEVE';
+  return 'OUTRO';
 }
 
 interface RowResult {
@@ -51,7 +64,8 @@ const ALIASES: Record<string, string[]> = {
   valor: ['valor', 'total', 'valortotal'],
   motorista: ['motorista'],
   centro_custo: ['ccusto', 'centrocusto', 'cc'],
-  segmento: ['segmento', 'tipo'],
+  segmento: ['segmento'],
+  tipo_veiculo: ['tipoveiculo', 'tipodeveiculo', 'tipo'],
 };
 
 function buildMap(rawKeys: string[]) {
@@ -169,6 +183,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
 
         const { placa, veiculo_descricao } = splitPlaca(placaRaw!);
         const segmentoRaw = strOrNull(get(raw, 'segmento'));
+        const tipoRaw = strOrNull(get(raw, 'tipo_veiculo'));
         const data: ParsedRow = {
           data: dataNorm,
           placa,
@@ -180,6 +195,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
           motorista: strOrNull(get(raw, 'motorista')),
           centro_custo: strOrNull(get(raw, 'centro_custo')),
           segmento: segmentoRaw ? segmentoRaw.toUpperCase() : null,
+          tipo_veiculo: tipoRaw ? tipoRaw.toUpperCase() : classifyTipo(veiculo_descricao, placa),
         };
         return { linha, ok: true, data };
       }).filter((r) => r.erro !== '__empty__');
