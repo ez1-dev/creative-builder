@@ -233,6 +233,43 @@ export function RegrasList() {
           onDone={() => { setAlterar(null); carregar(); }}
         />
       )}
+      {alterarSit && alterarSit.codemp != null && alterarSit.modsis && alterarSit.idereg && (
+        <AlterarSituacaoDialog
+          ident={{
+            codemp: alterarSit.codemp,
+            modsis: alterarSit.modsis,
+            idereg: alterarSit.idereg,
+            codtns: alterarSit.codtns ?? '',
+            situacao: 'A',
+            codreg: alterarSit.codreg_erp ?? null,
+          }}
+          onClose={() => setAlterarSit(null)}
+          onDone={() => { setAlterarSit(null); carregar(); }}
+        />
+      )}
+      {alterarReg && alterarReg.codemp != null && alterarReg.modsis && alterarReg.idereg && (
+        <AlterarRegraDialog
+          ident={{
+            codemp: alterarReg.codemp,
+            modsis: alterarReg.modsis,
+            idereg: alterarReg.idereg,
+            codtns: alterarReg.codtns ?? '',
+            codreg: alterarReg.codreg_erp ?? null,
+          }}
+          onClose={() => setAlterarReg(null)}
+          onDone={() => { setAlterarReg(null); carregar(); }}
+        />
+      )}
+      {clonar && (
+        <ClonarParaPortalDialog
+          regra={clonar}
+          onClose={() => setClonar(null)}
+          onDone={() => carregar()}
+        />
+      )}
+      {verVersoes && verVersoes.id_regra != null && (
+        <VerVersoesDialog regraId={verVersoes.id_regra} onClose={() => setVerVersoes(null)} />
+      )}
     </div>
   );
 }
