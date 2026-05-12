@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,10 +18,11 @@ import { useIsSeniorAdmin } from '@/hooks/useIsSeniorAdmin';
 
 export function IdentificadoresList() {
   const navigate = useNavigate();
+  const [sp] = useSearchParams();
   const { isSeniorAdmin } = useIsSeniorAdmin();
-  const [codemp, setCodemp] = useState('');
-  const [modsis, setModsis] = useState('');
-  const [idereg, setIdereg] = useState('');
+  const [codemp, setCodemp] = useState(sp.get('codemp') ?? '');
+  const [modsis, setModsis] = useState(sp.get('modsis') ?? '');
+  const [idereg, setIdereg] = useState(sp.get('idereg') ?? '');
   const [situacao, setSituacao] = useState<SituacaoIdentificador | ''>('');
   const [codreg, setCodreg] = useState('');
   const [texto, setTexto] = useState('');
