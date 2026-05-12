@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
-import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2, BookOpen } from 'lucide-react';
+import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2, BookOpen, Code2 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator,
@@ -21,6 +21,7 @@ import { AlterarSituacaoDialog } from './AlterarSituacaoDialog';
 import { AlterarRegraDialog } from './AlterarRegraDialog';
 import { ClonarParaPortalDialog } from './ClonarParaPortalDialog';
 import { VerVersoesDialog } from './VerVersoesDialog';
+import { VerCodigoLspDialog } from './VerCodigoLspDialog';
 
 function OrigemBadge({ value }: { value?: string | null }) {
   if (value === 'PORTAL') {
@@ -47,6 +48,7 @@ export function RegrasList() {
   const [alterarReg, setAlterarReg] = useState<RegraLSP | null>(null);
   const [clonar, setClonar] = useState<RegraLSP | null>(null);
   const [verVersoes, setVerVersoes] = useState<RegraLSP | null>(null);
+  const [verCodigo, setVerCodigo] = useState<RegraLSP | null>(null);
 
   const carregar = async () => {
     setLoading(true);
@@ -152,6 +154,9 @@ export function RegrasList() {
                     }}>
                     <BookOpen className="mr-2 h-4 w-4" />Regra de negócio
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setVerCodigo(r)}>
+                    <Code2 className="mr-2 h-4 w-4" />Ver código LSP
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setAlterarSit(r)}>
                     <Power className="mr-2 h-4 w-4" />Alterar situação
                   </DropdownMenuItem>
@@ -186,6 +191,9 @@ export function RegrasList() {
                     disabled={semIdPortal}
                     onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/negocio`, { state: { regra: r } })}>
                     <BookOpen className="mr-2 h-4 w-4" />Regra de negócio
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setVerCodigo(r)}>
+                    <Code2 className="mr-2 h-4 w-4" />Ver código LSP
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={semIdPortal}
@@ -305,6 +313,13 @@ export function RegrasList() {
       )}
       {verVersoes && verVersoes.id_regra != null && (
         <VerVersoesDialog regraId={verVersoes.id_regra} onClose={() => setVerVersoes(null)} />
+      )}
+      {verCodigo && (
+        <VerCodigoLspDialog
+          regra={verCodigo}
+          onClose={() => setVerCodigo(null)}
+          onAfterClonar={() => { setVerCodigo(null); carregar(); }}
+        />
       )}
     </div>
   );

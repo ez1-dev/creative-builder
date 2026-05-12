@@ -9,6 +9,7 @@ import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, RegraVersao } from '@/lib/senior/types';
 import { StatusRegraBadge } from '@/components/regras-senior/StatusRegraBadge';
 import { ClonarParaPortalDialog } from '@/components/regras-senior/ClonarParaPortalDialog';
+import { VerCodigoLspDialog } from '@/components/regras-senior/VerCodigoLspDialog';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { analisarFonteLsp, type LspAnalise, type LspRisco } from '@/lib/senior/lspAnalyzer';
 
@@ -46,6 +47,7 @@ export default function RegraNegocioPage() {
   const [versoes, setVersoes] = useState<RegraVersao[]>([]);
   const [validacoes, setValidacoes] = useState<{ nivel: string; mensagem: string }[]>([]);
   const [openClonar, setOpenClonar] = useState(false);
+  const [openCodigo, setOpenCodigo] = useState(false);
 
   const isErp = id === 'erp' || regra?.origem === 'E098REG';
 
@@ -104,6 +106,11 @@ export default function RegraNegocioPage() {
             <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
               <ArrowLeft className="mr-1 h-4 w-4" />Voltar
             </Button>
+            {regra && (
+              <Button variant="outline" size="sm" onClick={() => setOpenCodigo(true)}>
+                <Code2 className="mr-1 h-4 w-4" />Ver código LSP
+              </Button>
+            )}
             {regra?.origem === 'PORTAL' && regra.id_regra != null && (
               <Button size="sm" onClick={() => navigate(`/regras-senior/regras/${regra.id_regra}/editor`)}>
                 <Pencil className="mr-1 h-4 w-4" />Abrir editor
@@ -291,6 +298,13 @@ export default function RegraNegocioPage() {
 
       {openClonar && regra && (
         <ClonarParaPortalDialog regra={regra} onClose={() => setOpenClonar(false)} />
+      )}
+      {openCodigo && regra && (
+        <VerCodigoLspDialog
+          regra={regra}
+          onClose={() => setOpenCodigo(false)}
+          onAfterClonar={() => setOpenCodigo(false)}
+        />
       )}
     </div>
   );
