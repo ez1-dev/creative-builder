@@ -106,6 +106,11 @@ export default function RegraNegocioPage() {
             <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
               <ArrowLeft className="mr-1 h-4 w-4" />Voltar
             </Button>
+            {regra && (
+              <Button variant="outline" size="sm" onClick={() => setOpenCodigo(true)}>
+                <Code2 className="mr-1 h-4 w-4" />Ver código LSP
+              </Button>
+            )}
             {regra?.origem === 'PORTAL' && regra.id_regra != null && (
               <Button size="sm" onClick={() => navigate(`/regras-senior/regras/${regra.id_regra}/editor`)}>
                 <Pencil className="mr-1 h-4 w-4" />Abrir editor
