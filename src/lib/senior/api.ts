@@ -49,6 +49,27 @@ export const seniorApi = {
   listarVersoes: async (id: number | string) =>
     (await safe(getList<any>(`${BASE}/regras/${id}/versoes`), [] as any[])).map(mapVersao),
 
+  // Código LSP (E098REG / Portal)
+  obterCodigoRegra: (params: { codreg: string | number; modsis: string; idereg: string; codtns?: string }) =>
+    api.get<{
+      fonte_disponivel: boolean;
+      fonte_lsp?: string;
+      origem_fonte?: string;
+      codreg?: string | number;
+      modsis?: string;
+      idereg?: string;
+      codtns?: string;
+    }>(`${BASE}/regras/codigo`, params as any),
+  importarFonteRegra: (payload: {
+    codreg_erp: string | number;
+    modsis: string;
+    idereg: string;
+    codtns: string;
+    nome_regra: string;
+    fonte_lsp: string;
+    motivo: string;
+  }) => api.post<any>(`${BASE}/regras/importar-fonte`, payload),
+
   // Identificadores
   listarIdentificadores: async (f?: IdentificadorFiltros) => {
     const PAGE_SIZE = 500;
