@@ -183,6 +183,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
 
         const { placa, veiculo_descricao } = splitPlaca(placaRaw!);
         const segmentoRaw = strOrNull(get(raw, 'segmento'));
+        const tipoRaw = strOrNull(get(raw, 'tipo_veiculo'));
         const data: ParsedRow = {
           data: dataNorm,
           placa,
@@ -194,6 +195,7 @@ export function ImportarFrotaDialog({ open, onOpenChange, onImported }: Props) {
           motorista: strOrNull(get(raw, 'motorista')),
           centro_custo: strOrNull(get(raw, 'centro_custo')),
           segmento: segmentoRaw ? segmentoRaw.toUpperCase() : null,
+          tipo_veiculo: tipoRaw ? tipoRaw.toUpperCase() : classifyTipo(veiculo_descricao, placa),
         };
         return { linha, ok: true, data };
       }).filter((r) => r.erro !== '__empty__');
