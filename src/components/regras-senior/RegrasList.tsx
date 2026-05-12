@@ -184,6 +184,11 @@ export function RegrasList() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={semIdPortal}
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/negocio`, { state: { regra: r } })}>
+                    <BookOpen className="mr-2 h-4 w-4" />Regra de negócio
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={semIdPortal}
                     onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/editor`)}>
                     <Pencil className="mr-2 h-4 w-4" />Editar fonte LSP
                   </DropdownMenuItem>
