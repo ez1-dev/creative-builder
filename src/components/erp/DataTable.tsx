@@ -200,7 +200,7 @@ export function DataTable<T extends Record<string, any>>({
           </div>
           {debouncedSearch.trim() && (
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Exibindo {sortedData.length} de {data.length}
+              Exibindo {sortedData.length} de {safeData.length}
             </span>
           )}
         </div>
