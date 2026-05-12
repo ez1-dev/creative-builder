@@ -1,108 +1,56 @@
-# Ver regra de negócio
+# Identificadores — corrigir filtros
 
-Adicionar uma visão de **regra de negócio** (resumo conceitual da regra) acessível pela tela Regras LSP, funcionando tanto para registros do ERP Senior (E098REG) quanto do portal.
+## Diagnóstico
 
-## 1. Nova rota e página
+Em `/regras-senior/identificadores`, dois sintomas:
 
-**Rota:** `/regras-senior/regras/:id/negocio`
-**Arquivo:** `src/pages/regras-senior/RegraNegocioPage.tsx`
+1. **Lista corta resultados em 100** — o backend retorna paginado: `{ pagina:1, tamanho_pagina:100, total:169, total_paginas:2, dados:[…100] }`. O frontend só consome `dados` da primeira página, então com `situacao=A` (169 itens) o usuário enxerga só 100 e parece que filtros somem registros.
+2. **Filtros locais (`texto`, `codreg`, e possivelmente `modsis`/`idereg`/`codemp` com match parcial) podem não ser respeitados pelo backend**, dependendo da implementação. Hoje o frontend confia 100% na API; se um param não for suportado, o filtro vira no-op.
 
-A rota aceita dois modos:
+A chamada com `situacao=I` retorna 42/42, então `situacao` está OK. Os demais parâmetros precisam de uma rede de segurança no cliente.
 
-- **Portal**: `:id` é o `id_regra` numérico. Busca a regra com `seniorApi.obterRegra(id)`.
-- **ERP Senior** (id_regra nulo): usa `:id = "erp"` + query string com chave composta
-  `?codemp=&modsis=&idereg=&codtns=&codreg=`. Busca via `seniorApi.listarRegras` filtrando por essa chave e pega o primeiro registro de origem `E098REG`. Como fallback, pode aceitar os campos via `location.state` quando navegado direto da listagem.
+## Correções
 
-A página tem 2 layouts conforme `origem`:
+### 1. `seniorApi.listarIdentificadores` — buscar todas as páginas
 
-### Para E098REG
+Em `src/lib/senior/api.ts`:
 
-Cabeçalho com **OrigemBadge "ERP Senior"** + botão **Voltar**.
+- Passar `tamanho_pagina=500` no primeiro request.
+- Se a resposta vier como `{ total_paginas, pagina, dados }` e `total_paginas > 1`, fazer requests sequenciais para as páginas restantes e concatenar `dados`.
+- Limite de segurança: no máximo 20 páginas (10 000 itens).
+- Funcionar igualmente quando o backend retorna array puro (sem paginação) — comportamento atual via `unwrapList`.
 
-Cards lado a lado (responsivo, grid 2-3 colunas):
-- Empresa, Módulo, Identificador, Transação, Código da regra, Descrição, Observação (OBSREG), Situação (`status_regra`), Origem.
+Implementação: helper interno `getListAllPages(url, params)` específico para esta rota; `listarRegras` e demais ficam inalteradas.
 
-Banner amarelo:
-> "Este registro vem da E098REG. Ele mostra o vínculo do identificador com o código da regra. Para visualizar a lógica completa da regra, importe ou clone o fonte LSP para o portal."
+### 2. `IdentificadoresList` — filtragem client-side como fallback
 
-Seção **"Resumo da regra de negócio"** mostrando `descricao` e `observacao` (OBSREG) em formato legível (prose). Se ambos vazios, exibir "Sem descrição/observação cadastrada na E098REG."
+Em `src/components/regras-senior/IdentificadoresList.tsx`:
 
-Botão CTA: **"Clonar para portal / Importar fonte LSP"** → abre `ClonarParaPortalDialog` existente.
+- Manter o envio dos filtros para a API (servidor reduz payload quando souber).
+- Após receber `data`, aplicar `useMemo` que filtra novamente em memória usando os mesmos campos do formulário:
+  - `codemp` → igualdade numérica.
+  - `modsis` → `includes` case-insensitive.
+  - `idereg` → `includes` case-insensitive.
+  - `codtns` (já não tem campo, ignorar).
+  - `codreg` → igualdade numérica.
+  - `situacao` → igualdade.
+  - `texto` → `includes` case-insensitive em `idereg + descricao + observacao + modsis + codreg`.
+- Passar o array filtrado para a `DataTableBI`.
+- Manter `Atualizar`/`Filtrar` recarregando do backend; o filtro client-side roda automaticamente quando qualquer input muda, sem precisar clicar em Filtrar (UX mais previsível).
 
-### Para PORTAL
+### 3. Indicar total real
 
-Cabeçalho com **OrigemBadge "Portal"**, status, nome, ambiente + botão **Voltar** + botão **"Abrir editor"** (link para `/regras-senior/regras/:id/editor`).
+Acima da tabela, exibir um pequeno contador: `Mostrando X de Y registros` para deixar claro quando há filtro local ativo.
 
-Seções (cards verticais):
-1. **Resumo da regra** — descrição + observação (OBSREG, quando existir) + dados-chave (módulo, identificador, transação, código ERP).
-2. **Fonte LSP** — bloco `<pre>` monoespaçado, somente leitura, com scroll, e link "Editar no editor".
-3. **Validações encontradas** — lista derivada de `seniorApi.validarRegra(id)` (avisos por nível).
-4. **Tabelas consultadas / alteradas** — extraídas do fonte LSP via parser regex (ver §3).
-5. **Mensagens (GeraLog / Mensagem)** — extraídas via parser.
-6. **Comandos ExecSQL / ExecSQLEx** — extraídos via parser; cada comando em bloco `<pre>` com badge `SQL`.
-7. **Riscos** — heurística simples a partir dos achados do parser (ver §3).
-8. **Histórico de versões** — usa `seniorApi.listarVersoes(id)`; tabela compacta (versão, status, data, autor, motivo).
+## Fora do escopo
 
-## 2. Ajustes na listagem `RegrasList.tsx`
-
-No `DropdownMenu` de ações, adicionar item **"Regra de negócio"** (ícone `BookOpen`) **para ambas as origens**, **sempre habilitado** (mesmo quando `id_regra` é null, pois usamos a chave composta):
-
-- Portal → `navigate('/regras-senior/regras/' + id_regra + '/negocio')`
-- E098REG com `id_regra` → mesmo destino acima
-- E098REG sem `id_regra` → `navigate('/regras-senior/regras/erp/negocio?codemp=&modsis=&idereg=&codtns=&codreg=' + codreg_erp, { state: { regra } })`
-
-Posicionar logo após "Ver detalhes". Não esconder/remover nenhuma linha por `id_regra` null (manter o comportamento atual de só desabilitar ações que dependem de id_regra).
-
-## 3. Parser LSP (cliente)
-
-Arquivo: `src/lib/senior/lspAnalyzer.ts`. Função `analisarFonteLsp(src: string)` retorna:
-
-```text
-{
-  tabelas_consultadas: string[]   // de SELECT ... FROM <tab>, JOIN <tab>, "SELECT" ... "FROM" "tab"
-  tabelas_alteradas: string[]     // INSERT INTO, UPDATE, DELETE FROM
-  mensagens: string[]             // GeraLog(...) e Mensagem(...) — captura argumentos string
-  comandos_sql: string[]          // conteúdo de ExecSQL(...)/ExecSQLEx(...)
-  riscos: { nivel: 'info'|'warning'|'error'; mensagem: string }[]
-}
-```
-
-Regras de risco (heurísticas simples):
-- `DELETE` sem `WHERE` → error
-- `UPDATE` sem `WHERE` → error
-- `DROP|TRUNCATE` → error
-- `ExecSQL` com concatenação de string + variável → warning
-- Mais de N tabelas alteradas → info
-
-Sem dependências externas; só regex tolerantes ao formato LSP.
-
-## 4. Tipos e mapeamento
-
-`src/lib/senior/types.ts`: adicionar `observacao?: string | null` em `RegraLSP`.
-`src/lib/senior/mappers.ts`: incluir `observacao: r?.observacao ?? r?.OBSREG ?? null`.
-
-## 5. Roteamento
-
-`src/App.tsx`: nova rota acima da existente do editor:
-
-```text
-<Route path="/regras-senior/regras/:id/negocio"
-       element={<ProtectedRoute path="/regras-senior/regras"><RegraNegocioPage /></ProtectedRoute>} />
-```
-
-## 6. Fora do escopo
-
-- Backend dedicado de análise LSP (a heurística de tabelas/riscos é client-side).
-- Edição de OBSREG (somente exibição).
-- Mudanças em rotas existentes, autenticação ou layout global.
+- Paginação visual (manter "carregar tudo" com limite de 500–10 000).
+- Alterações no backend; tudo é resolvido no frontend.
+- Mudanças em `RegrasList`, autenticação ou rotas.
 
 ## Arquivos
 
 ```text
-NOVO  src/pages/regras-senior/RegraNegocioPage.tsx
-NOVO  src/lib/senior/lspAnalyzer.ts
-EDIT  src/App.tsx                                       (registrar rota)
-EDIT  src/components/regras-senior/RegrasList.tsx       (item "Regra de negócio")
-EDIT  src/lib/senior/types.ts                           (observacao)
-EDIT  src/lib/senior/mappers.ts                         (OBSREG → observacao)
+EDIT  src/lib/senior/api.ts                                  (paginação completa)
+EDIT  src/components/regras-senior/IdentificadoresList.tsx   (filtro client-side + contador)
 ```

@@ -63,6 +63,26 @@ export function IdentificadoresList() {
     }
   };
 
+  const filtered = useMemo(() => {
+    const empN = codemp ? Number(codemp) : null;
+    const cReg = codreg ? Number(codreg) : null;
+    const m = modsis.trim().toLowerCase();
+    const ide = idereg.trim().toLowerCase();
+    const t = texto.trim().toLowerCase();
+    return data.filter((r) => {
+      if (empN != null && Number(r.codemp) !== empN) return false;
+      if (m && !(r.modsis ?? '').toLowerCase().includes(m)) return false;
+      if (ide && !(r.idereg ?? '').toLowerCase().includes(ide)) return false;
+      if (cReg != null && Number(r.codreg ?? -1) !== cReg) return false;
+      if (situacao && r.situacao !== situacao) return false;
+      if (t) {
+        const hay = `${r.idereg ?? ''} ${r.descricao ?? ''} ${r.observacao ?? ''} ${r.modsis ?? ''} ${r.codreg ?? ''}`.toLowerCase();
+        if (!hay.includes(t)) return false;
+      }
+      return true;
+    });
+  }, [data, codemp, modsis, idereg, codreg, situacao, texto]);
+
   const columns: Column<Identificador>[] = useMemo(() => [
     { key: 'codemp', header: 'Empresa', sortable: true },
     { key: 'modsis', header: 'Módulo' },
@@ -153,9 +173,13 @@ export function IdentificadoresList() {
         </CardContent>
       </Card>
 
+      <div className="text-xs text-muted-foreground px-1">
+        Mostrando {filtered.length} de {data.length} registros
+      </div>
+
       <DataTableBI<Identificador>
         columns={columns}
-        data={data}
+        data={filtered}
         loading={loading}
         emptyMessage="Nenhum identificador encontrado."
       />
