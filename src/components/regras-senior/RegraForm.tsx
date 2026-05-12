@@ -128,6 +128,17 @@ export function RegraForm({ mode }: { mode: 'create' | 'edit' }) {
         }
       />
       <AvisoErpBanner />
+      {mode === 'edit' && regra && (
+        <RegraWorkflowToolbar
+          regra={regra}
+          onChanged={recarregar}
+          onValidar={validarRiscos}
+          onVerVersoes={() => setVersoesOpen(true)}
+        />
+      )}
+      {versoesOpen && id && (
+        <VerVersoesDialog regraId={id} onClose={() => setVersoesOpen(false)} />
+      )}
 
       <Card>
         <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
