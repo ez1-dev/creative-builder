@@ -8,19 +8,14 @@ import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
 import { Plus, FileDown, Eye, Pencil, RotateCw } from 'lucide-react';
 import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, StatusRegra } from '@/lib/senior/types';
-import { StatusRegraBadge } from './StatusRegraBadge';
+import { StatusRegraBadge, STATUS_REGRA_OPTS } from './StatusRegraBadge';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { toast } from 'sonner';
 import { AlterarStatusRegraDialog } from './AlterarStatusRegraDialog';
 
-
 const STATUS_OPTS: { value: StatusRegra | ''; label: string }[] = [
   { value: '', label: 'Todos status' },
-  { value: 'rascunho', label: 'Rascunho' },
-  { value: 'em_revisao', label: 'Em revisão' },
-  { value: 'aprovada', label: 'Aprovada' },
-  { value: 'rejeitada', label: 'Rejeitada' },
-  { value: 'arquivada', label: 'Arquivada' },
+  ...STATUS_REGRA_OPTS,
 ];
 
 export function RegrasList() {

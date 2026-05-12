@@ -12,6 +12,8 @@ import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, AmbienteRegra } from '@/lib/senior/types';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { AvisoErpBanner } from './AvisoErpBanner';
+import { RegraWorkflowToolbar } from './RegraWorkflowToolbar';
+import { VerVersoesDialog } from './VerVersoesDialog';
 
 const schema = z.object({
   nome_regra: z.string().trim().min(1, 'Informe o nome').max(200),
@@ -44,11 +46,15 @@ export function RegraForm({ mode }: { mode: 'create' | 'edit' }) {
   const [form, setForm] = useState<FormState>(empty);
   const [loading, setLoading] = useState(mode === 'edit');
   const [saving, setSaving] = useState(false);
+  const [regra, setRegra] = useState<RegraLSP | null>(null);
+  const [versoesOpen, setVersoesOpen] = useState(false);
 
-  useEffect(() => {
+  const recarregar = () => {
     if (mode !== 'edit' || !id) return;
+    setLoading(true);
     seniorApi.obterRegra(id)
       .then((r: RegraLSP) => {
+        setRegra(r);
         setForm({
           nome_regra: r.nome_regra ?? '',
           codreg_erp: r.codreg_erp != null ? String(r.codreg_erp) : '',
@@ -59,7 +65,23 @@ export function RegraForm({ mode }: { mode: 'create' | 'edit' }) {
       })
       .catch((e) => toast.error(e?.message ?? 'Erro ao carregar regra'))
       .finally(() => setLoading(false));
-  }, [id, mode]);
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { recarregar(); }, [id, mode]);
+
+  const validarRiscos = async () => {
+    if (!id) return;
+    const r = await seniorApi.validarRegra(id);
+    if (!r?.avisos?.length) {
+      toast.success('Nenhum risco identificado.');
+    } else {
+      r.avisos.forEach((a) => {
+        const fn = a.nivel === 'error' ? toast.error : a.nivel === 'warning' ? toast.warning : toast.info;
+        fn(a.mensagem);
+      });
+    }
+  };
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -106,6 +128,17 @@ export function RegraForm({ mode }: { mode: 'create' | 'edit' }) {
         }
       />
       <AvisoErpBanner />
+      {mode === 'edit' && regra && (
+        <RegraWorkflowToolbar
+          regra={regra}
+          onChanged={recarregar}
+          onValidar={validarRiscos}
+          onVerVersoes={() => setVersoesOpen(true)}
+        />
+      )}
+      {versoesOpen && id && (
+        <VerVersoesDialog regraId={id} onClose={() => setVersoesOpen(false)} />
+      )}
 
       <Card>
         <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +14,11 @@ import { PageHeader } from '@/components/erp/PageHeader';
 import { AlterarSituacaoDialog } from './AlterarSituacaoDialog';
 import { AlterarRegraDialog } from './AlterarRegraDialog';
 import { AvisoErpBanner } from './AvisoErpBanner';
+import { useIsSeniorAdmin } from '@/hooks/useIsSeniorAdmin';
 
 export function IdentificadoresList() {
+  const navigate = useNavigate();
+  const { isSeniorAdmin } = useIsSeniorAdmin();
   const [codemp, setCodemp] = useState('');
   const [modsis, setModsis] = useState('');
   const [idereg, setIdereg] = useState('');
@@ -52,6 +56,7 @@ export function IdentificadoresList() {
     try {
       await seniorApi.gerarSnapshot();
       toast.success('Snapshot gerado com sucesso.');
+      navigate('/regras-senior/snapshots');
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao gerar snapshot');
     }
@@ -70,19 +75,24 @@ export function IdentificadoresList() {
       key: '__acoes', header: 'Ações',
       render: (_v, r) => (
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" onClick={() => setAlterarSit(r)}>
+          <Button size="sm" variant="outline" disabled={!isSeniorAdmin}
+            title={isSeniorAdmin ? 'Alterar situação' : 'Somente administradores'}
+            onClick={() => setAlterarSit(r)}>
             <Power className="mr-1 h-3.5 w-3.5" />Situação
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setAlterarReg(r)}>
+          <Button size="sm" variant="outline" disabled={!isSeniorAdmin}
+            title={isSeniorAdmin ? 'Alterar regra vinculada' : 'Somente administradores'}
+            onClick={() => setAlterarReg(r)}>
             <GitBranch className="mr-1 h-3.5 w-3.5" />Regra
           </Button>
-          <Button size="icon" variant="ghost" title="Ver log">
+          <Button size="icon" variant="ghost" title="Ver log"
+            onClick={() => navigate(`/regras-senior/auditoria?codemp=${r.codemp}&modsis=${encodeURIComponent(r.modsis)}&idereg=${encodeURIComponent(r.idereg)}`)}>
             <History className="h-4 w-4" />
           </Button>
         </div>
       ),
     },
-  ], []);
+  ], [isSeniorAdmin, navigate]);
 
   return (
     <div className="space-y-3">
@@ -92,7 +102,10 @@ export function IdentificadoresList() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={carregar}><RotateCw className="mr-1 h-4 w-4" />Atualizar</Button>
-            <Button size="sm" onClick={snapshot}><Camera className="mr-1 h-4 w-4" />Gerar Snapshot</Button>
+            <Button size="sm" onClick={snapshot} disabled={!isSeniorAdmin}
+              title={isSeniorAdmin ? 'Gerar snapshot' : 'Somente administradores'}>
+              <Camera className="mr-1 h-4 w-4" />Gerar Snapshot
+            </Button>
           </>
         }
       />

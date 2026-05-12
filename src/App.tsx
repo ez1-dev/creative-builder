@@ -46,6 +46,7 @@ import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
 import RegraDetalhePage from "@/pages/regras-senior/RegraDetalhePage";
 import IdentificadoresPage from "@/pages/regras-senior/IdentificadoresPage";
 import AuditoriaPage from "@/pages/regras-senior/AuditoriaPage";
+import SnapshotsPage from "@/pages/regras-senior/SnapshotsPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -103,6 +104,7 @@ const App = () => (
               <Route path="/regras-senior/regras/:id" element={<ProtectedRoute path="/regras-senior/regras"><RegraDetalhePage /></ProtectedRoute>} />
               <Route path="/regras-senior/identificadores" element={<ProtectedRoute path="/regras-senior/identificadores"><IdentificadoresPage /></ProtectedRoute>} />
               <Route path="/regras-senior/auditoria" element={<ProtectedRoute path="/regras-senior/auditoria"><AuditoriaPage /></ProtectedRoute>} />
+              <Route path="/regras-senior/snapshots" element={<ProtectedRoute path="/regras-senior/snapshots"><SnapshotsPage /></ProtectedRoute>} />
               {/* Produção */}
               <Route path="/producao/dashboard" element={<ProtectedRoute path="/producao/dashboard"><ProducaoDashboardPage /></ProtectedRoute>} />
               <Route path="/producao/produzido" element={<ProtectedRoute path="/producao/produzido"><ProduzidoPeriodoPage /></ProtectedRoute>} />
