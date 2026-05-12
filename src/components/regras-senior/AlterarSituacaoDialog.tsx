@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ArrowRight, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { seniorApi } from '@/lib/senior/api';
 import type { Identificador, SituacaoIdentificador } from '@/lib/senior/types';
 import { AvisoErpBanner } from './AvisoErpBanner';
+import { SituacaoBadge } from './SituacaoBadge';
 
 export function AlterarSituacaoDialog({ ident, onClose, onDone }: {
   ident: Identificador; onClose: () => void; onDone: () => void;
@@ -16,7 +18,9 @@ export function AlterarSituacaoDialog({ ident, onClose, onDone }: {
   const [motivo, setMotivo] = useState('');
   const [confirmar, setConfirmar] = useState(false);
   const [saving, setSaving] = useState(false);
-  const disabled = !motivo.trim() || !confirmar || saving || nova === ident.situacao;
+  const mudou = nova !== ident.situacao;
+  const disabled = !motivo.trim() || !confirmar || saving || !mudou;
+  const cruzaAtivacao = mudou && (ident.situacao === 'A' || nova === 'A');
 
   const submit = async () => {
     setSaving(true);
@@ -40,9 +44,38 @@ export function AlterarSituacaoDialog({ ident, onClose, onDone }: {
         </DialogHeader>
         <div className="space-y-3">
           <AvisoErpBanner />
-          <div className="text-xs text-muted-foreground">
-            Empresa {ident.codemp} · {ident.modsis} · Transação {ident.codtns ?? '—'}
+
+          <div className="rounded-md border bg-muted/30 p-3 text-xs">
+            <div className="grid grid-cols-2 gap-y-1">
+              <div className="text-muted-foreground">Identificador</div>
+              <div className="font-medium">{ident.idereg}</div>
+              <div className="text-muted-foreground">Empresa</div>
+              <div className="font-medium">{ident.codemp}</div>
+              <div className="text-muted-foreground">Módulo</div>
+              <div className="font-medium">{ident.modsis}</div>
+              <div className="text-muted-foreground">Transação</div>
+              <div className="font-medium">{ident.codtns ?? '—'}</div>
+            </div>
+            <div className="mt-3 flex items-center justify-center gap-3 border-t pt-3">
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase text-muted-foreground">Atual</span>
+                <SituacaoBadge value={ident.situacao} />
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase text-muted-foreground">Nova</span>
+                <SituacaoBadge value={nova} />
+              </div>
+            </div>
           </div>
+
+          {cruzaAtivacao && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <span>Transição A↔I afeta o comportamento do ERP e pode exigir reinício do Middleware.</span>
+            </div>
+          )}
+
           <div>
             <label className="mb-2 block text-xs text-muted-foreground">Nova situação</label>
             <RadioGroup value={nova} onValueChange={(v) => setNova(v as SituacaoIdentificador)} className="flex gap-4">
@@ -64,7 +97,7 @@ export function AlterarSituacaoDialog({ ident, onClose, onDone }: {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={submit} disabled={disabled}>{saving ? 'Salvando…' : 'Confirmar'}</Button>
+          <Button onClick={submit} disabled={disabled}>{saving ? 'Salvando…' : 'Confirmar alteração'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
