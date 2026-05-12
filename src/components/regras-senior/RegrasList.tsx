@@ -324,6 +324,11 @@ export function RegrasList() {
           onAfterClonar={() => { setVerCodigo(null); carregar(); }}
         />
       )}
-    </div>
+      {openLote && (
+        <ImportarLoteRegrasDialog
+          onClose={() => setOpenLote(false)}
+          onDone={() => { setOpenLote(false); carregar(); }}
+        />
+      )}
   );
 }
