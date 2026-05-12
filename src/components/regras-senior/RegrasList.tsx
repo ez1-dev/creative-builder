@@ -22,6 +22,7 @@ import { AlterarRegraDialog } from './AlterarRegraDialog';
 import { ClonarParaPortalDialog } from './ClonarParaPortalDialog';
 import { VerVersoesDialog } from './VerVersoesDialog';
 import { VerCodigoLspDialog } from './VerCodigoLspDialog';
+import { ImportarLoteRegrasDialog } from './ImportarLoteRegrasDialog';
 
 function OrigemBadge({ value }: { value?: string | null }) {
   if (value === 'PORTAL') {
