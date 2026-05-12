@@ -98,13 +98,12 @@ export function VerCodigoLspDialog({
     }
   };
 
-  const clonarOuEditar = () => {
-    if (regra.origem === 'PORTAL' && regra.id_regra != null) {
-      onClose();
-      navigate(`/regras-senior/regras/${regra.id_regra}/editor`);
-    } else {
-      setOpenClonar(true);
-    }
+  const idPortal = (resp?.id_regra ?? regra.id_regra) ?? null;
+
+  const editarNoPortal = () => {
+    if (idPortal == null) return;
+    onClose();
+    navigate(`/regras-senior/regras/${idPortal}/editor`);
   };
 
   return (
@@ -130,16 +129,23 @@ export function VerCodigoLspDialog({
             </Alert>
           ) : resp?.fonte_disponivel ? (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <Field label="Código da regra" value={resp.codreg ?? regra.codreg_erp} />
                 <Field label="Módulo" value={resp.modsis ?? regra.modsis} />
                 <Field label="Identificador" value={resp.idereg ?? regra.idereg} />
                 <Field label="Transação" value={resp.codtns ?? regra.codtns} />
+                <Field label="Nome" value={resp.nome_regra ?? regra.nome_regra} />
                 <div>
                   <div className="text-[11px] uppercase text-muted-foreground">Origem da fonte</div>
                   <Badge variant="outline" className="bg-accent/30 text-accent-foreground border-accent mt-1">
                     {resp.origem_fonte ?? 'PORTAL'}
                   </Badge>
+                </div>
+                <div className="md:col-span-2">
+                  <div className="text-[11px] uppercase text-muted-foreground">Hash</div>
+                  <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded break-all">
+                    {resp.hash ?? '—'}
+                  </code>
                 </div>
               </div>
 
@@ -168,10 +174,11 @@ export function VerCodigoLspDialog({
                 <Button variant="outline" onClick={copiar}>
                   <Copy className="mr-2 h-4 w-4" /> Copiar código
                 </Button>
-                <Button onClick={clonarOuEditar}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  {regra.origem === 'PORTAL' ? 'Editar no portal' : 'Clonar/Editar no portal'}
-                </Button>
+                {idPortal != null && (
+                  <Button onClick={editarNoPortal}>
+                    <Pencil className="mr-2 h-4 w-4" /> Editar no portal
+                  </Button>
+                )}
               </>
             )}
             {!loading && !erro && resp && !resp.fonte_disponivel && (
@@ -179,7 +186,7 @@ export function VerCodigoLspDialog({
                 <FileUp className="mr-2 h-4 w-4" /> Importar fonte LSP
               </Button>
             )}
-            <Button variant="ghost" onClick={onClose}>Voltar</Button>
+            <Button variant="ghost" onClick={onClose}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -188,7 +195,7 @@ export function VerCodigoLspDialog({
         <ImportarFonteLspDialog
           regra={regra}
           onClose={() => setOpenImportar(false)}
-          onImported={() => { setOpenImportar(false); carregar(); }}
+          onImported={() => { setOpenImportar(false); onAfterClonar?.(); carregar(); }}
         />
       )}
       {openClonar && (
