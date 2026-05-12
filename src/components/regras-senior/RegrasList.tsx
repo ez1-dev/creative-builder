@@ -87,6 +87,17 @@ export function RegrasList() {
     { key: 'codtns', header: 'Transação' },
     { key: 'descricao', header: 'Descrição' },
     { key: 'status_regra', header: 'Status', render: (v) => <StatusRegraBadge value={v} /> },
+    {
+      key: 'fonte_lsp', header: 'Fonte LSP',
+      render: (_v, r) => {
+        if (r.origem === 'E098REG') {
+          return <Badge variant="outline" className="bg-warning/10 text-warning-foreground border-warning/30">Fonte não importado</Badge>;
+        }
+        return r.fonte_lsp
+          ? <Badge variant="outline" className="bg-accent/30 text-accent-foreground border-accent">Fonte disponível</Badge>
+          : <Badge variant="outline" className="bg-muted text-muted-foreground">Sem fonte</Badge>;
+      },
+    },
     { key: 'ambiente', header: 'Ambiente' },
     { key: 'ticket', header: 'Ticket' },
     { key: 'criado_por', header: 'Criado por' },
