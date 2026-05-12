@@ -582,6 +582,8 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       <FilterBar>
         <MultiSelectFilter label="Segmento" values={segmento} onChange={setSegmento}
           options={optsSeg} placeholder="Todos" />
+        <MultiSelectFilter label="Tipo de Veículo" values={tipoVeiculo} onChange={setTipoVeiculo}
+          options={optsTipo} placeholder="Todos" />
         <MultiSelectFilter label="Placa" values={placa} onChange={setPlaca}
           options={optsPlaca} placeholder="Todas" />
         <MultiSelectFilter label="Centro de Custo" values={centroCusto} onChange={setCentroCusto}
@@ -595,7 +597,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
             variant="outline"
             className="h-8 gap-1 text-xs"
             onClick={limparTudo}
-            disabled={segmento.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
+            disabled={segmento.length + tipoVeiculo.length + placa.length + centroCusto.length + motorista.length + busca.length + totalAtivos === 0}
           >
             <X className="h-3 w-3" /> Limpar filtros
           </Button>
