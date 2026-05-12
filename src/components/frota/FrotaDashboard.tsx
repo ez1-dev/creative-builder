@@ -200,7 +200,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const limparTudo = () => {
     setSelMes([]); setSelSegmento([]); setSelPlaca([]);
     setSelFornecedor([]); setSelCC([]); setSelMotorista([]);
-    setSegmento([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
+    setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
 
