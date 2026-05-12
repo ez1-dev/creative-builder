@@ -6,13 +6,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DataTableBI, Column } from '@/components/bi/tables/DataTableBI';
-import { Plus, FileDown, Eye, Pencil, RotateCw, ExternalLink } from 'lucide-react';
+import { Plus, RotateCw, MoreHorizontal, Eye, Pencil, FileDown, CheckCircle2, GitBranch, History, Copy, Power, FileCheck2 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, StatusRegra } from '@/lib/senior/types';
 import { StatusRegraBadge, STATUS_REGRA_OPTS } from './StatusRegraBadge';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { toast } from 'sonner';
 import { AlterarStatusRegraDialog } from './AlterarStatusRegraDialog';
+import { AlterarSituacaoDialog } from './AlterarSituacaoDialog';
+import { AlterarRegraDialog } from './AlterarRegraDialog';
+import { ClonarParaPortalDialog } from './ClonarParaPortalDialog';
+import { VerVersoesDialog } from './VerVersoesDialog';
 
 function OrigemBadge({ value }: { value?: string | null }) {
   if (value === 'PORTAL') {
@@ -35,6 +43,10 @@ export function RegrasList() {
   const [data, setData] = useState<RegraLSP[]>([]);
   const [loading, setLoading] = useState(false);
   const [alterar, setAlterar] = useState<RegraLSP | null>(null);
+  const [alterarSit, setAlterarSit] = useState<RegraLSP | null>(null);
+  const [alterarReg, setAlterarReg] = useState<RegraLSP | null>(null);
+  const [clonar, setClonar] = useState<RegraLSP | null>(null);
+  const [verVersoes, setVerVersoes] = useState<RegraLSP | null>(null);
 
   const carregar = async () => {
     setLoading(true);
