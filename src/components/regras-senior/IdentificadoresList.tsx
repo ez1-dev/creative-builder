@@ -102,7 +102,10 @@ export function IdentificadoresList() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={carregar}><RotateCw className="mr-1 h-4 w-4" />Atualizar</Button>
-            <Button size="sm" onClick={snapshot}><Camera className="mr-1 h-4 w-4" />Gerar Snapshot</Button>
+            <Button size="sm" onClick={snapshot} disabled={!isSeniorAdmin}
+              title={isSeniorAdmin ? 'Gerar snapshot' : 'Somente administradores'}>
+              <Camera className="mr-1 h-4 w-4" />Gerar Snapshot
+            </Button>
           </>
         }
       />
