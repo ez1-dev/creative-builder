@@ -1,66 +1,74 @@
-# Plano: Ações condicionais por origem na tela Regras LSP
+# Editor de Regras LSP
 
-Objetivo: cada linha da lista mostra ações diferentes conforme `origem === 'E098REG'` (ERP) ou `'PORTAL'`. Os dialogs de "Alterar situação" e "Alterar regra vinculada" já existem (usados em Identificadores) — só precisam ser reaproveitados a partir de um objeto `RegraLSP`. Falta criar o "Clonar para portal".
+Adicionar um editor dedicado para o fonte LSP das regras do portal, mantendo a separação clara entre registros vindos do ERP Senior (E098REG) — que só têm vínculo — e regras do portal — que têm fonte editável.
 
-## 1. Reutilização dos dialogs existentes
+## 1. Nova página: editor de fonte LSP
 
-`AlterarSituacaoDialog` e `AlterarRegraDialog` recebem hoje um `Identificador`. Vou adaptar as props para aceitar também `RegraLSP` via helper local que extrai `{ codemp, modsis, idereg, codtns, situacao? }`.
+**Rota:** `/regras-senior/regras/:id/editor`
+**Arquivo:** `src/pages/regras-senior/RegraEditorPage.tsx`
+**Registro:** adicionar `<Route>` em `src/App.tsx` logo após a rota `/regras-senior/regras/:id`.
 
-Abordagem mínima: criar pequenos wrappers em `RegrasList.tsx` que montam um objeto compatível com `Identificador` a partir da `RegraLSP` (gerar `situacao: 'A'` default, já que o backend ignora — só usa para preencher o radio inicial, vamos usar `'A'`).
+Layout:
 
-## 2. Novo dialog `ClonarParaPortalDialog.tsx`
+```text
++-----------------------------------------------------------+
+| << Voltar    Regra: <nome>        [Badge Portal/ERP]      |
+| Cód ERP  Módulo  Identificador  Transação  Status  Amb.   |
+| Ticket  Motivo                                             |
++-----------------------------------------------------------+
+| 001 | ...                                                  |
+| 002 | ...   (textarea monoespaçado, min-h-[600px])         |
+| ... |                                                      |
++-----------------------------------------------------------+
+| [Salvar] [Validar] [Exportar TXT]                         |
++-----------------------------------------------------------+
+```
 
-Campos pré-preenchidos a partir da `RegraLSP`:
-- Nome da regra (editável, default `regra.nome_regra`)
-- Código ERP (read-only, `regra.codreg_erp`)
-- Empresa (read-only, `regra.codemp`)
-- Módulo (read-only, `regra.modsis`)
-- Identificador (read-only, `regra.idereg`)
-- Transação (read-only, `regra.codtns`)
-- Descrição (editável)
-- Ticket (editável, opcional)
-- Motivo (obrigatório)
-- Fonte LSP (textarea grande, vazia, opcional — a regra pode ser criada sem fonte e o usuário cola depois)
+Comportamento:
+- `useEffect` chama `seniorApi.obterRegra(id)` ao montar. Em erro, faz fallback: tenta achar a regra na última listagem em memória via querystring `?from=list` (opcional) ou apenas mostra toast "Não foi possível carregar a regra".
+- Se `origem === 'E098REG'`: exibe banner amarelo "Fonte LSP ainda não importado para o portal. Este registro vem da E098REG e representa apenas o vínculo do identificador com o código da regra." + botão **Clonar para Portal** (abre `ClonarParaPortalDialog`). Editor e botão Salvar ficam desabilitados.
+- Se `origem === 'PORTAL'`: editor habilitado. Campos editáveis: `nome_regra`, `descricao`, `ticket`, `motivo`, `fonte_lsp`. Outros (codemp/modsis/idereg/codtns/codreg_erp/ambiente/status) só leitura.
+- **Salvar** → `seniorApi.atualizarRegra(id, payload)` com o payload exato pedido pelo usuário.
+- **Validar** → `seniorApi.validarRegra(id)`; toast com avisos.
+- **Exportar TXT** → `window.open(seniorApi.exportarRegraTxtUrl(id))`.
+- **Voltar** → `navigate(-1)` ou `/regras-senior/regras`.
 
-Submit: `seniorApi.criarRegra({ nome_regra, codreg_erp, codemp, modsis, idereg, codtns, descricao, ambiente: 'homologacao', ticket, motivo, fonte_lsp })`.
+Numeração de linhas: componente simples `LineNumberedTextarea` interno — div à esquerda com números sincronizados via `onScroll` ao textarea. Fonte `font-mono text-xs`, `min-h-[600px]`, `whitespace-pre`.
 
-Após sucesso: toast, fechar dialog, `carregar()` na lista e redirecionar para `/regras-senior/regras/<novo_id>?edit=1` (se a resposta vier com `id_regra` ou `id`).
+## 2. Ajustes na listagem `RegrasList.tsx`
 
-## 3. Menu de ações na `RegrasList.tsx`
+Adicionar coluna **Fonte LSP** entre Status e Ambiente:
+- Portal → badge verde "Fonte disponível" (`r.fonte_lsp` presente) ou cinza "Sem fonte" (Portal sem fonte ainda).
+- E098REG → badge amarelo "Fonte não importado".
 
-Trocar a fileira de botões por um `DropdownMenu` (já existe em `@/components/ui/dropdown-menu`). Trigger: `Button variant="ghost" size="icon"` com `MoreHorizontal`.
+Ajustar dropdown de ações:
+- **Portal**: já existe "Editar fonte LSP" — trocar destino para `/regras-senior/regras/${id_regra}/editor` em vez de `?edit=1`. Demais ações (Validar, Exportar TXT, Ver Versões, Alterar status) permanecem.
+- **E098REG**: adicionar item **"Abrir editor"** que navega para `/regras-senior/regras/${id_regra}/editor` quando `id_regra != null`; quando `id_regra == null`, abre um pequeno alert dialog com a mensagem padrão e CTA "Clonar para Portal". Manter "Clonar para portal" como já está.
 
-**Itens quando `origem === 'PORTAL'`:**
-- Ver detalhes → `navigate(/regras-senior/regras/:id_regra)`
-- Editar fonte LSP → `navigate(/regras-senior/regras/:id_regra?edit=1)`
-- Validar → chama `seniorApi.validarRegra` e mostra toast com avisos
-- Exportar TXT → `seniorApi.exportarRegraTxtUrl`
-- Alterar status → abre `AlterarStatusRegraDialog`
-- Ver versões → abre `VerVersoesDialog`
+## 3. Modal Clonar para Portal
 
-**Itens quando `origem === 'E098REG'`:**
-- Ver detalhes (desabilitado se `id_regra == null`, com tooltip)
-- Alterar situação → abre `AlterarSituacaoDialog` adaptado
-- Alterar regra vinculada → abre `AlterarRegraDialog` adaptado
-- Clonar para portal → abre novo `ClonarParaPortalDialog`
-- Ver auditoria → `navigate(/regras-senior/auditoria?codemp=&modsis=&idereg=)`
+`ClonarParaPortalDialog.tsx` já existe e cobre os campos pedidos. Ajustes mínimos:
+- Após sucesso, redirecionar para `/regras-senior/regras/${novoId}/editor` (hoje vai para `?edit=1`).
+- Garantir `ambiente: 'homologacao'` (já está).
 
-Itens de fonte LSP (Editar/Validar/Exportar TXT/Ver versões) não aparecem no menu E098REG. Em vez disso, exibir um item disabled no topo do menu com texto "Fonte LSP não disponível no portal" e tooltip explicativo.
+## 4. Detalhes técnicos
 
-## 4. Aviso em detalhe (futuro)
+- Nenhuma alteração em `senior/api.ts`, `senior/types.ts` ou rotas existentes além do `<Route>` novo do editor.
+- `seniorApi.atualizarRegra` já chama `POST /api/senior/regras/:id` — compatível com o payload solicitado.
+- Sem mudanças em login, autenticação ou layout global.
+- Tudo usando tokens semânticos do design system (badges via `bg-primary/10`, `bg-accent/30`, etc.).
 
-A página de detalhe (`RegraDetalhePage`) só é alcançada quando há `id_regra`, então o aviso entra como `<AvisoErpBanner>` exibido condicionalmente quando `origem === 'E098REG'` no header do detalhe. **Fora do escopo desta entrega** porque hoje E098REG sem `id_regra` nem chega lá — vamos deixar marcado como follow-up.
+## Arquivos
 
-## Arquivos a alterar/criar
+```text
+NOVO  src/pages/regras-senior/RegraEditorPage.tsx
+EDIT  src/App.tsx                                    (registrar rota)
+EDIT  src/components/regras-senior/RegrasList.tsx    (coluna Fonte + ações)
+EDIT  src/components/regras-senior/ClonarParaPortalDialog.tsx (redirect)
+```
 
-- `src/components/regras-senior/ClonarParaPortalDialog.tsx` (novo)
-- `src/components/regras-senior/AlterarSituacaoDialog.tsx` — aceitar prop alternativa `target: Identificador | { codemp, modsis, idereg, codtns, situacao? }`. Ajuste retrocompatível.
-- `src/components/regras-senior/AlterarRegraDialog.tsx` — mesma flexibilização.
-- `src/components/regras-senior/RegrasList.tsx` — substituir botões por `DropdownMenu` com dois conjuntos de itens, abrir os dialogs adequados.
-- (sem mudanças em backend, types, mappers ou rotas)
+## Fora do escopo
 
-## Fora de escopo
-
-- Banner de aviso na página de detalhe (registros E098REG sem `id_regra` ainda não têm rota de detalhe).
-- Importação de TXT na clonagem (somente colar/digitar fonte LSP por enquanto).
-- Não mexer em login/rotas/layout geral.
+- Editor com syntax highlight real (Monaco/CodeMirror) — fica como evolução; agora é textarea com numeração simples.
+- Importação de TXT durante a clonagem.
+- Alterações em autenticação, rotas existentes, ou layout do app.

@@ -87,6 +87,17 @@ export function RegrasList() {
     { key: 'codtns', header: 'Transação' },
     { key: 'descricao', header: 'Descrição' },
     { key: 'status_regra', header: 'Status', render: (v) => <StatusRegraBadge value={v} /> },
+    {
+      key: 'fonte_lsp', header: 'Fonte LSP',
+      render: (_v, r) => {
+        if (r.origem === 'E098REG') {
+          return <Badge variant="outline" className="bg-warning/10 text-warning-foreground border-warning/30">Fonte não importado</Badge>;
+        }
+        return r.fonte_lsp
+          ? <Badge variant="outline" className="bg-accent/30 text-accent-foreground border-accent">Fonte disponível</Badge>
+          : <Badge variant="outline" className="bg-muted text-muted-foreground">Sem fonte</Badge>;
+      },
+    },
     { key: 'ambiente', header: 'Ambiente' },
     { key: 'ticket', header: 'Ticket' },
     { key: 'criado_por', header: 'Criado por' },
@@ -132,6 +143,11 @@ export function RegrasList() {
                   <DropdownMenuItem onClick={() => setAlterarReg(r)}>
                     <GitBranch className="mr-2 h-4 w-4" />Alterar regra vinculada
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={semIdPortal}
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/editor`)}>
+                    <Pencil className="mr-2 h-4 w-4" />Abrir editor
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setClonar(r)}>
                     <Copy className="mr-2 h-4 w-4" />Clonar para portal
                   </DropdownMenuItem>
@@ -153,7 +169,7 @@ export function RegrasList() {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     disabled={semIdPortal}
-                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}?edit=1`)}>
+                    onClick={() => navigate(`/regras-senior/regras/${r.id_regra}/editor`)}>
                     <Pencil className="mr-2 h-4 w-4" />Editar fonte LSP
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled={semIdPortal} onClick={validar}>

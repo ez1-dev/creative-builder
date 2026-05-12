@@ -40,7 +40,7 @@ export function ClonarParaPortalDialog({ regra, onClose, onDone }: {
       onDone?.();
       onClose();
       const novoId = (nova as any)?.id_regra ?? (nova as any)?.id;
-      if (novoId) navigate(`/regras-senior/regras/${novoId}?edit=1`);
+      if (novoId) navigate(`/regras-senior/regras/${novoId}/editor`);
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao clonar regra');
     } finally { setSaving(false); }
