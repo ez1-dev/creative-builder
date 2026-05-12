@@ -123,7 +123,7 @@ export function AuditoriaList() {
         columns={columns}
         data={data}
         loading={loading}
-        emptyMessage="Nenhum registro de auditoria."
+        emptyMessage="Nenhuma alteração registrada ainda."
       />
     </div>
   );

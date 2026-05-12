@@ -134,7 +134,7 @@ export function RegrasList() {
         columns={columns}
         data={data}
         loading={loading}
-        emptyMessage="Nenhuma regra encontrada."
+        emptyMessage="Nenhuma regra cadastrada ainda."
         enableSearch={false}
       />
 
