@@ -90,6 +90,7 @@ export default function ManutencaoFrotaPage() {
       motorista: form.motorista || null,
       centro_custo: form.centro_custo || null,
       segmento: form.segmento || null,
+      tipo_veiculo: form.tipo_veiculo || null,
       observacoes: form.observacoes || null,
     };
     if (editing) {
