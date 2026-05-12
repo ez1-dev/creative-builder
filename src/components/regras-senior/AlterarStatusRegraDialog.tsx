@@ -9,13 +9,8 @@ import { seniorApi } from '@/lib/senior/api';
 import type { RegraLSP, StatusRegra } from '@/lib/senior/types';
 import { AvisoErpBanner } from './AvisoErpBanner';
 
-const OPTS: { value: StatusRegra; label: string }[] = [
-  { value: 'rascunho', label: 'Rascunho' },
-  { value: 'em_revisao', label: 'Em revisão' },
-  { value: 'aprovada', label: 'Aprovada' },
-  { value: 'rejeitada', label: 'Rejeitada' },
-  { value: 'arquivada', label: 'Arquivada' },
-];
+import { STATUS_REGRA_OPTS } from './StatusRegraBadge';
+const OPTS = STATUS_REGRA_OPTS;
 
 export function AlterarStatusRegraDialog({ regra, onClose, onDone }: {
   regra: RegraLSP; onClose: () => void; onDone: () => void;
