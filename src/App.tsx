@@ -103,6 +103,7 @@ const App = () => (
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras/nova" element={<ProtectedRoute path="/regras-senior/regras/nova"><RegraNovaPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras/:id" element={<ProtectedRoute path="/regras-senior/regras"><RegraDetalhePage /></ProtectedRoute>} />
+              <Route path="/regras-senior/regras/:id/editor" element={<ProtectedRoute path="/regras-senior/regras"><RegraEditorPage /></ProtectedRoute>} />
               <Route path="/regras-senior/identificadores" element={<ProtectedRoute path="/regras-senior/identificadores"><IdentificadoresPage /></ProtectedRoute>} />
               <Route path="/regras-senior/auditoria" element={<ProtectedRoute path="/regras-senior/auditoria"><AuditoriaPage /></ProtectedRoute>} />
               <Route path="/regras-senior/snapshots" element={<ProtectedRoute path="/regras-senior/snapshots"><SnapshotsPage /></ProtectedRoute>} />
