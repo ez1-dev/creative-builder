@@ -29,6 +29,7 @@ export const mapRegra = (r: any): RegraLSP => {
     ambiente: (r?.ambiente ?? r?.AMBIENTE ?? null) as AmbienteRegra | null,
     ticket: r?.ticket ?? r?.TICKET ?? null,
     motivo: r?.motivo ?? r?.MOTIVO ?? null,
+    observacao: r?.observacao ?? r?.OBSREG ?? r?.OBSERVACAO ?? null,
     fonte_lsp: r?.fonte_lsp ?? r?.FONTE_LSP ?? null,
     status_regra: (r?.status_regra ?? r?.STATUS_REGRA) as StatusRegra,
     criado_por: r?.criado_por ?? r?.USUARIO_CRIACAO ?? null,
