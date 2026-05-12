@@ -4,6 +4,9 @@ import type {
   AuditoriaEntry, DashboardResumo, AlterarSituacaoPayload, AlterarRegraPayload,
   StatusRegra, SnapshotEntry, ValidacaoRegra, RegraVersao,
 } from './types';
+import {
+  mapRegra, mapIdentificador, mapAuditoria, mapVersao, mapSnapshot, toApiPaging,
+} from './mappers';
 
 const BASE = '/api/senior';
 
@@ -11,10 +14,11 @@ const safe = async <T,>(p: Promise<T>, fallback: T): Promise<T> => {
   try { return await p; } catch { return fallback; }
 };
 
-/** Aceita tanto T[] quanto { items|data|results|rows: T[] } e sempre devolve T[]. */
+/** Aceita T[], { items|data|results|rows|dados: T[] } e sempre devolve T[]. */
 const unwrapList = <T,>(resp: any): T[] => {
   if (Array.isArray(resp)) return resp as T[];
   if (resp && typeof resp === 'object') {
+    if (Array.isArray(resp.dados)) return resp.dados as T[];
     if (Array.isArray(resp.items)) return resp.items as T[];
     if (Array.isArray(resp.data)) return resp.data as T[];
     if (Array.isArray(resp.results)) return resp.results as T[];
@@ -24,40 +28,41 @@ const unwrapList = <T,>(resp: any): T[] => {
 };
 
 const getList = async <T,>(url: string, params?: any): Promise<T[]> =>
-  unwrapList<T>(await api.get<any>(url, params));
+  unwrapList<T>(await api.get<any>(url, toApiPaging(params)));
 
 export const seniorApi = {
   // Dashboard
   resumo: () => safe(api.get<DashboardResumo>(`${BASE}/resumo`), null as unknown as DashboardResumo),
 
   // Regras LSP
-  listarRegras: (f?: RegraFiltros) => getList<RegraLSP>(`${BASE}/regras`, f),
-  obterRegra: (id: number | string) => api.get<RegraLSP>(`${BASE}/regras/${id}`),
-  criarRegra: (body: Partial<RegraLSP>) => api.post<RegraLSP>(`${BASE}/regras`, body),
-  atualizarRegra: (id: number | string, body: Partial<RegraLSP>) =>
-    api.post<RegraLSP>(`${BASE}/regras/${id}`, body),
-  alterarStatusRegra: (id: number | string, novo_status: StatusRegra, motivo: string) =>
-    api.post<RegraLSP>(`${BASE}/regras/${id}/status`, { novo_status, motivo }),
+  listarRegras: async (f?: RegraFiltros) =>
+    (await safe(getList<any>(`${BASE}/regras`, f), [] as any[])).map(mapRegra),
+  obterRegra: async (id: number | string) => mapRegra(await api.get<any>(`${BASE}/regras/${id}`)),
+  criarRegra: async (body: Partial<RegraLSP>) => mapRegra(await api.post<any>(`${BASE}/regras`, body)),
+  atualizarRegra: async (id: number | string, body: Partial<RegraLSP>) =>
+    mapRegra(await api.post<any>(`${BASE}/regras/${id}`, body)),
+  alterarStatusRegra: async (id: number | string, novo_status: StatusRegra, motivo: string) =>
+    mapRegra(await api.post<any>(`${BASE}/regras/${id}/status`, { novo_status, motivo })),
   exportarRegraTxtUrl: (id: number | string) => api.getExportUrl(`${BASE}/regras/${id}/export`),
   validarRegra: (id: number | string) =>
     safe(api.post<ValidacaoRegra>(`${BASE}/regras/${id}/validar`), { avisos: [] }),
   listarVersoes: async (id: number | string) =>
-    safe(getList<RegraVersao>(`${BASE}/regras/${id}/versoes`), [] as RegraVersao[]),
+    (await safe(getList<any>(`${BASE}/regras/${id}/versoes`), [] as any[])).map(mapVersao),
 
   // Identificadores
-  listarIdentificadores: (f?: IdentificadorFiltros) =>
-    getList<Identificador>(`${BASE}/identificadores`, f),
+  listarIdentificadores: async (f?: IdentificadorFiltros) =>
+    (await safe(getList<any>(`${BASE}/identificadores`, f), [] as any[])).map(mapIdentificador),
   alterarSituacao: (p: AlterarSituacaoPayload) =>
     api.post(`${BASE}/identificadores/alterar-situacao`, p),
   alterarRegraVinculada: (p: AlterarRegraPayload) =>
     api.post(`${BASE}/identificadores/alterar-regra`, p),
-  gerarSnapshot: () => api.post<SnapshotEntry>(`${BASE}/identificadores/snapshot`),
-  listarSnapshots: () =>
-    safe(getList<SnapshotEntry>(`${BASE}/identificadores/snapshots`), [] as SnapshotEntry[]),
+  gerarSnapshot: async () => mapSnapshot(await api.post<any>(`${BASE}/identificadores/snapshot`)),
+  listarSnapshots: async () =>
+    (await safe(getList<any>(`${BASE}/identificadores/snapshots`), [] as any[])).map(mapSnapshot),
   downloadSnapshotUrl: (id: number | string) =>
     api.getExportUrl(`${BASE}/identificadores/snapshots/${id}`),
 
   // Auditoria
-  listarAuditoria: (f?: { de?: string; ate?: string; acao?: string; usuario?: string; codemp?: number; modsis?: string; idereg?: string }) =>
-    getList<AuditoriaEntry>(`${BASE}/auditoria`, f),
+  listarAuditoria: async (f?: { de?: string; ate?: string; acao?: string; usuario?: string; codemp?: number; modsis?: string; idereg?: string }) =>
+    (await safe(getList<any>(`${BASE}/auditoria`, f), [] as any[])).map(mapAuditoria),
 };
