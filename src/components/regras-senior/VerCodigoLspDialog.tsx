@@ -42,11 +42,13 @@ export function VerCodigoLspDialog({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [resp, setResp] = useState<CodigoResp | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [openImportar, setOpenImportar] = useState(false);
   const [openClonar, setOpenClonar] = useState(false);
 
   const carregar = async () => {
     setLoading(true);
+    setErro(null);
     try {
       const r = await seniorApi.obterCodigoRegra({
         codreg: regra.codreg_erp ?? '',
@@ -56,8 +58,18 @@ export function VerCodigoLspDialog({
       });
       setResp(r);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao obter código LSP');
-      setResp({ fonte_disponivel: false });
+      const msg = String(e?.message ?? '');
+      const is422 = msg.includes('422') || msg.includes('int_parsing') || msg.toLowerCase().includes('id_regra');
+      if (is422) {
+        setErro(
+          'O endpoint /api/senior/regras/codigo ainda não está disponível no backend. ' +
+          'Peça ao time de backend para registrar a rota ANTES de /regras/{id_regra} ' +
+          '(ou tipar o parâmetro como int, ex: /regras/{id_regra:int}).'
+        );
+      } else {
+        setErro(msg || 'Erro ao obter código LSP.');
+      }
+      setResp(null);
     } finally {
       setLoading(false);
     }
@@ -99,6 +111,12 @@ export function VerCodigoLspDialog({
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
             </div>
+          ) : erro ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Não foi possível carregar o código LSP</AlertTitle>
+              <AlertDescription className="whitespace-pre-wrap">{erro}</AlertDescription>
+            </Alert>
           ) : resp?.fonte_disponivel ? (
             <div className="space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -129,7 +147,12 @@ export function VerCodigoLspDialog({
           )}
 
           <DialogFooter className="gap-2">
-            {!loading && resp?.fonte_disponivel && (
+            {!loading && erro && (
+              <Button variant="outline" onClick={carregar}>
+                <Loader2 className="mr-2 h-4 w-4" /> Tentar novamente
+              </Button>
+            )}
+            {!loading && !erro && resp?.fonte_disponivel && (
               <>
                 <Button variant="outline" onClick={copiar}>
                   <Copy className="mr-2 h-4 w-4" /> Copiar código
@@ -140,7 +163,7 @@ export function VerCodigoLspDialog({
                 </Button>
               </>
             )}
-            {!loading && resp && !resp.fonte_disponivel && (
+            {!loading && !erro && resp && !resp.fonte_disponivel && (
               <Button onClick={() => setOpenImportar(true)}>
                 <FileUp className="mr-2 h-4 w-4" /> Importar fonte LSP
               </Button>
