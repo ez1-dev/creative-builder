@@ -2,10 +2,15 @@ import { logError } from './errorLogger';
 
 let _apiBaseUrl: string | null = null;
 
+const stripTrailingSlash = (u: string) => u.replace(/\/$/, '');
+
 const getApiBaseUrl = () => {
-  if (_apiBaseUrl) return _apiBaseUrl;
-  const envBase = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
-  if (envBase) return envBase;
+  if (_apiBaseUrl) return stripTrailingSlash(_apiBaseUrl);
+  const envBase =
+    (import.meta as any).env?.VITE_API_BASE_URL ||
+    (import.meta as any).env?.VITE_API_URL ||
+    (import.meta as any).env?.VITE_ERP_API_URL;
+  if (envBase) return stripTrailingSlash(envBase);
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
   return 'http://localhost:8000';
 };
