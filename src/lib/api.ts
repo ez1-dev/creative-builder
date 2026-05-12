@@ -127,6 +127,9 @@ class ApiClient {
       } else {
         msg = `Erro ${response.status}`;
       }
+      if (response.status === 404 && endpoint.startsWith('/api/senior/')) {
+        msg = 'Endpoint não encontrado na API. Verifique se o backend foi atualizado e reiniciado.';
+      }
       logError({ module: endpoint, message: msg, statusCode: response.status, details: error });
       const err: any = new Error(msg);
       err.statusCode = response.status;
