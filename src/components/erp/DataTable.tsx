@@ -177,7 +177,7 @@ export function DataTable<T extends Record<string, any>>({
 
   return (
     <div data-ai-avoid="datatable" className="space-y-2">
-      {enableSearch && data.length > 0 && (
+      {enableSearch && safeData.length > 0 && (
         <div className="flex items-center gap-3">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
