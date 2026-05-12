@@ -299,6 +299,13 @@ export default function RegraNegocioPage() {
       {openClonar && regra && (
         <ClonarParaPortalDialog regra={regra} onClose={() => setOpenClonar(false)} />
       )}
+      {openCodigo && regra && (
+        <VerCodigoLspDialog
+          regra={regra}
+          onClose={() => setOpenCodigo(false)}
+          onAfterClonar={() => setOpenCodigo(false)}
+        />
+      )}
     </div>
   );
 }
