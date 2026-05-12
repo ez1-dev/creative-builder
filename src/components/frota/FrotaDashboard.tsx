@@ -348,6 +348,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       Motorista: r.motorista ?? '',
       'Centro de Custo': r.centro_custo ?? '',
       Segmento: r.segmento ?? '',
+      'Tipo de Veículo': r.tipo_veiculo ?? '',
     }));
 
   const exportCSV = () => {
