@@ -111,6 +111,12 @@ export function VerCodigoLspDialog({
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando…
             </div>
+          ) : erro ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Não foi possível carregar o código LSP</AlertTitle>
+              <AlertDescription className="whitespace-pre-wrap">{erro}</AlertDescription>
+            </Alert>
           ) : resp?.fonte_disponivel ? (
             <div className="space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -141,7 +147,12 @@ export function VerCodigoLspDialog({
           )}
 
           <DialogFooter className="gap-2">
-            {!loading && resp?.fonte_disponivel && (
+            {!loading && erro && (
+              <Button variant="outline" onClick={carregar}>
+                <Loader2 className="mr-2 h-4 w-4" /> Tentar novamente
+              </Button>
+            )}
+            {!loading && !erro && resp?.fonte_disponivel && (
               <>
                 <Button variant="outline" onClick={copiar}>
                   <Copy className="mr-2 h-4 w-4" /> Copiar código
@@ -152,7 +163,7 @@ export function VerCodigoLspDialog({
                 </Button>
               </>
             )}
-            {!loading && resp && !resp.fonte_disponivel && (
+            {!loading && !erro && resp && !resp.fonte_disponivel && (
               <Button onClick={() => setOpenImportar(true)}>
                 <FileUp className="mr-2 h-4 w-4" /> Importar fonte LSP
               </Button>
