@@ -114,17 +114,19 @@ export function DataTable<T extends Record<string, any>>({
     return last;
   }, [columns]);
 
+  const safeData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+
   const filteredData = useMemo(() => {
-    if (!debouncedSearch.trim()) return data;
+    if (!debouncedSearch.trim()) return safeData;
     const term = debouncedSearch.toLowerCase();
-    return data.filter((row) =>
+    return safeData.filter((row) =>
       columns.some((col) => {
         const val = row[col.key];
         if (val == null) return false;
         return String(val).toLowerCase().includes(term);
       })
     );
-  }, [data, debouncedSearch, columns]);
+  }, [safeData, debouncedSearch, columns]);
 
   const sortedData = useMemo(() => {
     if (!sortKey || !sortDir) return filteredData;
@@ -175,7 +177,7 @@ export function DataTable<T extends Record<string, any>>({
 
   return (
     <div data-ai-avoid="datatable" className="space-y-2">
-      {enableSearch && data.length > 0 && (
+      {enableSearch && safeData.length > 0 && (
         <div className="flex items-center gap-3">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -198,7 +200,7 @@ export function DataTable<T extends Record<string, any>>({
           </div>
           {debouncedSearch.trim() && (
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              Exibindo {sortedData.length} de {data.length}
+              Exibindo {sortedData.length} de {safeData.length}
             </span>
           )}
         </div>
