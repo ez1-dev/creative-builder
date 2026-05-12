@@ -24,11 +24,13 @@ import { ImportarFrotaDialog } from '@/components/frota/ImportarFrotaDialog';
 
 const PATH = '/frota';
 
+const TIPO_OPTS = ['LEVE', 'CAMINHÃO', 'CARRETA', 'GUINDASTE', 'CAÇAMBA', 'MUCK', 'OUTRO'];
+
 const emptyForm = (): Partial<ManutencaoFrota> => ({
   data: new Date().toISOString().slice(0, 10),
   placa: '', veiculo_descricao: '', fornecedor: '', descricao: '',
   quilometragem: null, valor: 0, motorista: '', centro_custo: '',
-  segmento: 'FROTA', observacoes: '',
+  segmento: 'FROTA', tipo_veiculo: 'LEVE', observacoes: '',
 });
 
 export default function ManutencaoFrotaPage() {
