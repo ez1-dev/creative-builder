@@ -21,6 +21,7 @@ import { AlterarSituacaoDialog } from './AlterarSituacaoDialog';
 import { AlterarRegraDialog } from './AlterarRegraDialog';
 import { ClonarParaPortalDialog } from './ClonarParaPortalDialog';
 import { VerVersoesDialog } from './VerVersoesDialog';
+import { VerCodigoLspDialog } from './VerCodigoLspDialog';
 
 function OrigemBadge({ value }: { value?: string | null }) {
   if (value === 'PORTAL') {
