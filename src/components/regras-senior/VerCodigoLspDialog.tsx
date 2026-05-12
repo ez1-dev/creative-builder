@@ -58,17 +58,25 @@ export function VerCodigoLspDialog({
         modsis: regra.modsis ?? '',
         idereg: regra.idereg ?? '',
         codtns: regra.codtns ?? undefined,
+        codemp: regra.codemp ?? undefined,
       });
       setResp(r);
     } catch (e: any) {
+      const status = Number(e?.statusCode ?? 0);
       const msg = String(e?.message ?? '');
-      const is422 = msg.includes('422') || msg.includes('int_parsing') || msg.toLowerCase().includes('id_regra');
-      if (is422) {
+      if (status === 401) {
+        toast.error('Sessão expirada. Faça login novamente.');
+        onClose();
+        navigate('/login');
+        return;
+      }
+      if (status === 422 || msg.includes('int_parsing') || msg.toLowerCase().includes('id_regra')) {
         setErro(
-          'O endpoint /api/senior/regras/codigo ainda não está disponível no backend. ' +
-          'Peça ao time de backend para registrar a rota ANTES de /regras/{id_regra} ' +
-          '(ou tipar o parâmetro como int, ex: /regras/{id_regra:int}).'
+          'Erro ao buscar código LSP. Verifique se o backend foi atualizado com as rotas fixas antes das rotas paramétricas ' +
+          '(ex.: /regras/codigo precisa vir antes de /regras/{id_regra}).'
         );
+      } else if (status === 404) {
+        setErro('Fonte LSP não encontrado.');
       } else {
         setErro(msg || 'Erro ao obter código LSP.');
       }
