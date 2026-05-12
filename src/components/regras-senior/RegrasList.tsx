@@ -65,7 +65,8 @@ export function RegrasList() {
   };
 
   const columns: Column<RegraLSP>[] = useMemo(() => [
-    { key: 'id', header: 'ID', sortable: true },
+    { key: 'id_regra', header: 'ID', sortable: true, render: (v) => v ?? '—' },
+    { key: 'origem', header: 'Origem', render: (v) => <OrigemBadge value={v as string} /> },
     { key: 'nome_regra', header: 'Nome', sortable: true },
     { key: 'codreg_erp', header: 'Cód ERP', sortable: true },
     { key: 'modsis', header: 'Módulo' },
@@ -81,20 +82,28 @@ export function RegrasList() {
     },
     {
       key: '__acoes', header: 'Ações',
-      render: (_v, r) => (
-        <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" title="Ver detalhes" onClick={() => navigate(`/regras-senior/regras/${r.id}`)}>
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button size="icon" variant="ghost" title="Editar" onClick={() => navigate(`/regras-senior/regras/${r.id}?edit=1`)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button size="icon" variant="ghost" title="Exportar TXT" onClick={() => exportarTxt(r)}>
-            <FileDown className="h-4 w-4" />
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAlterar(r)}>Status</Button>
-        </div>
-      ),
+      render: (_v, r) => {
+        const semIdPortal = r.id_regra == null;
+        const tooltip = semIdPortal ? 'Disponível apenas para regras criadas no portal' : '';
+        return (
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" title={tooltip || 'Ver detalhes'} disabled={semIdPortal}
+              onClick={() => navigate(`/regras-senior/regras/${r.id_regra}`)}>
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" title={tooltip || 'Editar'} disabled={semIdPortal}
+              onClick={() => navigate(`/regras-senior/regras/${r.id_regra}?edit=1`)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" title={tooltip || 'Exportar TXT'} disabled={semIdPortal}
+              onClick={() => exportarTxt(r)}>
+              <FileDown className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="outline" disabled={semIdPortal} title={tooltip}
+              onClick={() => setAlterar(r)}>Status</Button>
+          </div>
+        );
+      },
     },
   ], [navigate]);
 
