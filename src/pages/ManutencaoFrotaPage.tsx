@@ -196,6 +196,15 @@ export default function ManutencaoFrotaPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label>Tipo de Veículo</Label>
+              <Select value={form.tipo_veiculo ?? 'LEVE'} onValueChange={(v) => setForm({ ...form, tipo_veiculo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPO_OPTS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="md:col-span-3"><Label>Descrição do veículo</Label><Input value={form.veiculo_descricao ?? ''} onChange={(e) => setForm({ ...form, veiculo_descricao: e.target.value })} placeholder="CAMINHÃO IVECO STRALIS" /></div>
             <div className="md:col-span-2"><Label>Fornecedor</Label><Input value={form.fornecedor ?? ''} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} /></div>
             <div><Label>Valor (R$) *</Label><Input type="number" step="0.01" value={form.valor ?? 0} onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })} /></div>
