@@ -21,6 +21,9 @@ type CodigoResp = {
   modsis?: string;
   idereg?: string;
   codtns?: string;
+  nome_regra?: string;
+  hash?: string;
+  id_regra?: number | string | null;
 };
 
 function Field({ label, value }: { label: string; value: any }) {
