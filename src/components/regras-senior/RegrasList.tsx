@@ -231,6 +231,7 @@ export function RegrasList() {
         actions={
           <>
             <Button variant="outline" size="sm" onClick={carregar}><RotateCw className="mr-1 h-4 w-4" />Atualizar</Button>
+            <Button variant="outline" size="sm" onClick={() => setOpenLote(true)}><Upload className="mr-1 h-4 w-4" />Importar lote</Button>
             <Button size="sm" onClick={() => navigate('/regras-senior/regras/nova')}><Plus className="mr-1 h-4 w-4" />Nova regra</Button>
           </>
         }
