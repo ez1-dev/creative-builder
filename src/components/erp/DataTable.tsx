@@ -114,17 +114,19 @@ export function DataTable<T extends Record<string, any>>({
     return last;
   }, [columns]);
 
+  const safeData = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+
   const filteredData = useMemo(() => {
-    if (!debouncedSearch.trim()) return data;
+    if (!debouncedSearch.trim()) return safeData;
     const term = debouncedSearch.toLowerCase();
-    return data.filter((row) =>
+    return safeData.filter((row) =>
       columns.some((col) => {
         const val = row[col.key];
         if (val == null) return false;
         return String(val).toLowerCase().includes(term);
       })
     );
-  }, [data, debouncedSearch, columns]);
+  }, [safeData, debouncedSearch, columns]);
 
   const sortedData = useMemo(() => {
     if (!sortKey || !sortDir) return filteredData;
