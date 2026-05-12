@@ -1,74 +1,108 @@
-# Editor de Regras LSP
+# Ver regra de negócio
 
-Adicionar um editor dedicado para o fonte LSP das regras do portal, mantendo a separação clara entre registros vindos do ERP Senior (E098REG) — que só têm vínculo — e regras do portal — que têm fonte editável.
+Adicionar uma visão de **regra de negócio** (resumo conceitual da regra) acessível pela tela Regras LSP, funcionando tanto para registros do ERP Senior (E098REG) quanto do portal.
 
-## 1. Nova página: editor de fonte LSP
+## 1. Nova rota e página
 
-**Rota:** `/regras-senior/regras/:id/editor`
-**Arquivo:** `src/pages/regras-senior/RegraEditorPage.tsx`
-**Registro:** adicionar `<Route>` em `src/App.tsx` logo após a rota `/regras-senior/regras/:id`.
+**Rota:** `/regras-senior/regras/:id/negocio`
+**Arquivo:** `src/pages/regras-senior/RegraNegocioPage.tsx`
 
-Layout:
+A rota aceita dois modos:
 
-```text
-+-----------------------------------------------------------+
-| << Voltar    Regra: <nome>        [Badge Portal/ERP]      |
-| Cód ERP  Módulo  Identificador  Transação  Status  Amb.   |
-| Ticket  Motivo                                             |
-+-----------------------------------------------------------+
-| 001 | ...                                                  |
-| 002 | ...   (textarea monoespaçado, min-h-[600px])         |
-| ... |                                                      |
-+-----------------------------------------------------------+
-| [Salvar] [Validar] [Exportar TXT]                         |
-+-----------------------------------------------------------+
-```
+- **Portal**: `:id` é o `id_regra` numérico. Busca a regra com `seniorApi.obterRegra(id)`.
+- **ERP Senior** (id_regra nulo): usa `:id = "erp"` + query string com chave composta
+  `?codemp=&modsis=&idereg=&codtns=&codreg=`. Busca via `seniorApi.listarRegras` filtrando por essa chave e pega o primeiro registro de origem `E098REG`. Como fallback, pode aceitar os campos via `location.state` quando navegado direto da listagem.
 
-Comportamento:
-- `useEffect` chama `seniorApi.obterRegra(id)` ao montar. Em erro, faz fallback: tenta achar a regra na última listagem em memória via querystring `?from=list` (opcional) ou apenas mostra toast "Não foi possível carregar a regra".
-- Se `origem === 'E098REG'`: exibe banner amarelo "Fonte LSP ainda não importado para o portal. Este registro vem da E098REG e representa apenas o vínculo do identificador com o código da regra." + botão **Clonar para Portal** (abre `ClonarParaPortalDialog`). Editor e botão Salvar ficam desabilitados.
-- Se `origem === 'PORTAL'`: editor habilitado. Campos editáveis: `nome_regra`, `descricao`, `ticket`, `motivo`, `fonte_lsp`. Outros (codemp/modsis/idereg/codtns/codreg_erp/ambiente/status) só leitura.
-- **Salvar** → `seniorApi.atualizarRegra(id, payload)` com o payload exato pedido pelo usuário.
-- **Validar** → `seniorApi.validarRegra(id)`; toast com avisos.
-- **Exportar TXT** → `window.open(seniorApi.exportarRegraTxtUrl(id))`.
-- **Voltar** → `navigate(-1)` ou `/regras-senior/regras`.
+A página tem 2 layouts conforme `origem`:
 
-Numeração de linhas: componente simples `LineNumberedTextarea` interno — div à esquerda com números sincronizados via `onScroll` ao textarea. Fonte `font-mono text-xs`, `min-h-[600px]`, `whitespace-pre`.
+### Para E098REG
+
+Cabeçalho com **OrigemBadge "ERP Senior"** + botão **Voltar**.
+
+Cards lado a lado (responsivo, grid 2-3 colunas):
+- Empresa, Módulo, Identificador, Transação, Código da regra, Descrição, Observação (OBSREG), Situação (`status_regra`), Origem.
+
+Banner amarelo:
+> "Este registro vem da E098REG. Ele mostra o vínculo do identificador com o código da regra. Para visualizar a lógica completa da regra, importe ou clone o fonte LSP para o portal."
+
+Seção **"Resumo da regra de negócio"** mostrando `descricao` e `observacao` (OBSREG) em formato legível (prose). Se ambos vazios, exibir "Sem descrição/observação cadastrada na E098REG."
+
+Botão CTA: **"Clonar para portal / Importar fonte LSP"** → abre `ClonarParaPortalDialog` existente.
+
+### Para PORTAL
+
+Cabeçalho com **OrigemBadge "Portal"**, status, nome, ambiente + botão **Voltar** + botão **"Abrir editor"** (link para `/regras-senior/regras/:id/editor`).
+
+Seções (cards verticais):
+1. **Resumo da regra** — descrição + observação (OBSREG, quando existir) + dados-chave (módulo, identificador, transação, código ERP).
+2. **Fonte LSP** — bloco `<pre>` monoespaçado, somente leitura, com scroll, e link "Editar no editor".
+3. **Validações encontradas** — lista derivada de `seniorApi.validarRegra(id)` (avisos por nível).
+4. **Tabelas consultadas / alteradas** — extraídas do fonte LSP via parser regex (ver §3).
+5. **Mensagens (GeraLog / Mensagem)** — extraídas via parser.
+6. **Comandos ExecSQL / ExecSQLEx** — extraídos via parser; cada comando em bloco `<pre>` com badge `SQL`.
+7. **Riscos** — heurística simples a partir dos achados do parser (ver §3).
+8. **Histórico de versões** — usa `seniorApi.listarVersoes(id)`; tabela compacta (versão, status, data, autor, motivo).
 
 ## 2. Ajustes na listagem `RegrasList.tsx`
 
-Adicionar coluna **Fonte LSP** entre Status e Ambiente:
-- Portal → badge verde "Fonte disponível" (`r.fonte_lsp` presente) ou cinza "Sem fonte" (Portal sem fonte ainda).
-- E098REG → badge amarelo "Fonte não importado".
+No `DropdownMenu` de ações, adicionar item **"Regra de negócio"** (ícone `BookOpen`) **para ambas as origens**, **sempre habilitado** (mesmo quando `id_regra` é null, pois usamos a chave composta):
 
-Ajustar dropdown de ações:
-- **Portal**: já existe "Editar fonte LSP" — trocar destino para `/regras-senior/regras/${id_regra}/editor` em vez de `?edit=1`. Demais ações (Validar, Exportar TXT, Ver Versões, Alterar status) permanecem.
-- **E098REG**: adicionar item **"Abrir editor"** que navega para `/regras-senior/regras/${id_regra}/editor` quando `id_regra != null`; quando `id_regra == null`, abre um pequeno alert dialog com a mensagem padrão e CTA "Clonar para Portal". Manter "Clonar para portal" como já está.
+- Portal → `navigate('/regras-senior/regras/' + id_regra + '/negocio')`
+- E098REG com `id_regra` → mesmo destino acima
+- E098REG sem `id_regra` → `navigate('/regras-senior/regras/erp/negocio?codemp=&modsis=&idereg=&codtns=&codreg=' + codreg_erp, { state: { regra } })`
 
-## 3. Modal Clonar para Portal
+Posicionar logo após "Ver detalhes". Não esconder/remover nenhuma linha por `id_regra` null (manter o comportamento atual de só desabilitar ações que dependem de id_regra).
 
-`ClonarParaPortalDialog.tsx` já existe e cobre os campos pedidos. Ajustes mínimos:
-- Após sucesso, redirecionar para `/regras-senior/regras/${novoId}/editor` (hoje vai para `?edit=1`).
-- Garantir `ambiente: 'homologacao'` (já está).
+## 3. Parser LSP (cliente)
 
-## 4. Detalhes técnicos
+Arquivo: `src/lib/senior/lspAnalyzer.ts`. Função `analisarFonteLsp(src: string)` retorna:
 
-- Nenhuma alteração em `senior/api.ts`, `senior/types.ts` ou rotas existentes além do `<Route>` novo do editor.
-- `seniorApi.atualizarRegra` já chama `POST /api/senior/regras/:id` — compatível com o payload solicitado.
-- Sem mudanças em login, autenticação ou layout global.
-- Tudo usando tokens semânticos do design system (badges via `bg-primary/10`, `bg-accent/30`, etc.).
+```text
+{
+  tabelas_consultadas: string[]   // de SELECT ... FROM <tab>, JOIN <tab>, "SELECT" ... "FROM" "tab"
+  tabelas_alteradas: string[]     // INSERT INTO, UPDATE, DELETE FROM
+  mensagens: string[]             // GeraLog(...) e Mensagem(...) — captura argumentos string
+  comandos_sql: string[]          // conteúdo de ExecSQL(...)/ExecSQLEx(...)
+  riscos: { nivel: 'info'|'warning'|'error'; mensagem: string }[]
+}
+```
+
+Regras de risco (heurísticas simples):
+- `DELETE` sem `WHERE` → error
+- `UPDATE` sem `WHERE` → error
+- `DROP|TRUNCATE` → error
+- `ExecSQL` com concatenação de string + variável → warning
+- Mais de N tabelas alteradas → info
+
+Sem dependências externas; só regex tolerantes ao formato LSP.
+
+## 4. Tipos e mapeamento
+
+`src/lib/senior/types.ts`: adicionar `observacao?: string | null` em `RegraLSP`.
+`src/lib/senior/mappers.ts`: incluir `observacao: r?.observacao ?? r?.OBSREG ?? null`.
+
+## 5. Roteamento
+
+`src/App.tsx`: nova rota acima da existente do editor:
+
+```text
+<Route path="/regras-senior/regras/:id/negocio"
+       element={<ProtectedRoute path="/regras-senior/regras"><RegraNegocioPage /></ProtectedRoute>} />
+```
+
+## 6. Fora do escopo
+
+- Backend dedicado de análise LSP (a heurística de tabelas/riscos é client-side).
+- Edição de OBSREG (somente exibição).
+- Mudanças em rotas existentes, autenticação ou layout global.
 
 ## Arquivos
 
 ```text
-NOVO  src/pages/regras-senior/RegraEditorPage.tsx
-EDIT  src/App.tsx                                    (registrar rota)
-EDIT  src/components/regras-senior/RegrasList.tsx    (coluna Fonte + ações)
-EDIT  src/components/regras-senior/ClonarParaPortalDialog.tsx (redirect)
+NOVO  src/pages/regras-senior/RegraNegocioPage.tsx
+NOVO  src/lib/senior/lspAnalyzer.ts
+EDIT  src/App.tsx                                       (registrar rota)
+EDIT  src/components/regras-senior/RegrasList.tsx       (item "Regra de negócio")
+EDIT  src/lib/senior/types.ts                           (observacao)
+EDIT  src/lib/senior/mappers.ts                         (OBSREG → observacao)
 ```
-
-## Fora do escopo
-
-- Editor com syntax highlight real (Monaco/CodeMirror) — fica como evolução; agora é textarea com numeração simples.
-- Importação de TXT durante a clonagem.
-- Alterações em autenticação, rotas existentes, ou layout do app.
