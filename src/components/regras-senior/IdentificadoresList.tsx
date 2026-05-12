@@ -56,6 +56,7 @@ export function IdentificadoresList() {
     try {
       await seniorApi.gerarSnapshot();
       toast.success('Snapshot gerado com sucesso.');
+      navigate('/regras-senior/snapshots');
     } catch (e: any) {
       toast.error(e?.message ?? 'Erro ao gerar snapshot');
     }
