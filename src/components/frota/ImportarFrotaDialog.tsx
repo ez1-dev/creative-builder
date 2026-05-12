@@ -28,6 +28,19 @@ interface ParsedRow {
   motorista: string | null;
   centro_custo: string | null;
   segmento: string | null;
+  tipo_veiculo: string | null;
+}
+
+function classifyTipo(desc: string | null | undefined, placa?: string): string {
+  const s = ((desc ?? '') + ' ' + (placa ?? '')).toUpperCase();
+  if (!s.trim()) return 'OUTRO';
+  if (/GUINDASTE/.test(s)) return 'GUINDASTE';
+  if (/MUCK/.test(s)) return 'MUCK';
+  if (/CA[ÇC]AMBA/.test(s)) return 'CAÇAMBA';
+  if (/CARRETA/.test(s)) return 'CARRETA';
+  if (/(CAMINH[ÃA]O|ATEGO|STRALIS|S-?WAY|L220|MERCEDE[SZ]|IVECO|VOLVO)/.test(s)) return 'CAMINHÃO';
+  if (/(STRADA|GOL|SW4|VOLCANO|FREEDOM|FIAT|VW)/.test(s)) return 'LEVE';
+  return 'OUTRO';
 }
 
 interface RowResult {
