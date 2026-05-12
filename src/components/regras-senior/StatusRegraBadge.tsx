@@ -13,7 +13,18 @@ const map: Record<StatusRegra, { label: string; cls: string }> = {
   ativa: { label: 'Ativa', cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' },
   inativa: { label: 'Inativa', cls: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30' },
   arquivada: { label: 'Arquivada', cls: 'bg-muted text-muted-foreground border-border' },
+  // valores ERP (E098REG.SITREG)
+  ATIVA: { label: 'Ativa (ERP)', cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' },
+  INATIVA: { label: 'Inativa (ERP)', cls: 'bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30' },
+  TESTE_X: { label: 'Teste X (ERP)', cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30' },
+  OUTRA: { label: 'Outra', cls: 'bg-muted text-muted-foreground border-border' },
 };
+
+const PORTAL_STATUS: StatusRegra[] = [
+  'rascunho','em_revisao','aprovada','rejeitada','exportada',
+  'compilada_homologacao','testada_homologacao','publicada_producao',
+  'ativa','inativa','arquivada',
+];
 
 export function StatusRegraBadge({ value }: { value: StatusRegra }) {
   const cfg = map[value] ?? { label: String(value), cls: 'bg-muted text-muted-foreground' };
@@ -21,4 +32,4 @@ export function StatusRegraBadge({ value }: { value: StatusRegra }) {
 }
 
 export const STATUS_REGRA_OPTS: { value: StatusRegra; label: string }[] =
-  (Object.entries(map) as [StatusRegra, { label: string }][]).map(([value, v]) => ({ value, label: v.label }));
+  PORTAL_STATUS.map((value) => ({ value, label: map[value].label }));

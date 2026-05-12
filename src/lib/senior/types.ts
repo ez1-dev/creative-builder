@@ -9,13 +9,22 @@ export type StatusRegra =
   | 'publicada_producao'
   | 'ativa'
   | 'inativa'
-  | 'arquivada';
+  | 'arquivada'
+  // valores vindos diretamente do ERP (E098REG.SITREG)
+  | 'ATIVA'
+  | 'INATIVA'
+  | 'TESTE_X'
+  | 'OUTRA';
 
 export type SituacaoIdentificador = 'A' | 'I' | 'X';
-export type AmbienteRegra = 'producao' | 'homologacao' | 'desenvolvimento';
+export type AmbienteRegra = 'producao' | 'homologacao' | 'desenvolvimento' | 'ERP' | string;
+export type OrigemRegra = 'E098REG' | 'PORTAL' | string;
 
 export interface RegraLSP {
   id: number | string;
+  id_regra?: number | string | null;
+  codemp?: number | null;
+  origem?: OrigemRegra | null;
   nome_regra: string;
   codreg_erp?: number | null;
   modsis?: string | null;

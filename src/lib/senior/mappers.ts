@@ -4,23 +4,38 @@ import type {
 } from './types';
 
 /** Normaliza linha vinda do backend (que pode usar nomes em UPPER do SQL Server). */
-export const mapRegra = (r: any): RegraLSP => ({
-  id: r?.id ?? r?.ID_REGRA ?? r?.id_regra,
-  nome_regra: r?.nome_regra ?? r?.NOME_REGRA ?? '',
-  codreg_erp: r?.codreg_erp ?? r?.CODREG_ERP ?? null,
-  modsis: r?.modsis ?? r?.MODSIS ?? null,
-  idereg: r?.idereg ?? r?.IDEREG ?? null,
-  codtns: r?.codtns ?? r?.CODTNS ?? null,
-  descricao: r?.descricao ?? r?.DESCRICAO ?? null,
-  ambiente: (r?.ambiente ?? r?.AMBIENTE ?? null) as AmbienteRegra | null,
-  ticket: r?.ticket ?? r?.TICKET ?? null,
-  motivo: r?.motivo ?? r?.MOTIVO ?? null,
-  fonte_lsp: r?.fonte_lsp ?? r?.FONTE_LSP ?? null,
-  status_regra: (r?.status_regra ?? r?.STATUS_REGRA) as StatusRegra,
-  criado_por: r?.criado_por ?? r?.USUARIO_CRIACAO ?? null,
-  criado_em: r?.criado_em ?? r?.DATA_CRIACAO ?? null,
-  atualizado_em: r?.atualizado_em ?? r?.DATA_ATUALIZACAO ?? null,
-});
+export const mapRegra = (r: any): RegraLSP => {
+  const idRegra = r?.id_regra ?? r?.ID_REGRA ?? null;
+  const origem = r?.origem ?? r?.ORIGEM ?? (idRegra == null ? 'E098REG' : 'PORTAL');
+  const codemp = r?.codemp ?? r?.CODEMP ?? null;
+  const modsis = r?.modsis ?? r?.MODSIS ?? null;
+  const idereg = r?.idereg ?? r?.IDEREG ?? null;
+  const codregErp = r?.codreg_erp ?? r?.CODREG_ERP ?? null;
+  const id =
+    r?.id ??
+    idRegra ??
+    `${origem ?? 'E098REG'}-${codemp ?? 0}-${modsis ?? ''}-${idereg ?? ''}-${codregErp ?? 0}`;
+  return {
+    id,
+    id_regra: idRegra,
+    codemp,
+    origem,
+    nome_regra: r?.nome_regra ?? r?.NOME_REGRA ?? '',
+    codreg_erp: codregErp,
+    modsis,
+    idereg,
+    codtns: r?.codtns ?? r?.CODTNS ?? null,
+    descricao: r?.descricao ?? r?.DESCRICAO ?? null,
+    ambiente: (r?.ambiente ?? r?.AMBIENTE ?? null) as AmbienteRegra | null,
+    ticket: r?.ticket ?? r?.TICKET ?? null,
+    motivo: r?.motivo ?? r?.MOTIVO ?? null,
+    fonte_lsp: r?.fonte_lsp ?? r?.FONTE_LSP ?? null,
+    status_regra: (r?.status_regra ?? r?.STATUS_REGRA) as StatusRegra,
+    criado_por: r?.criado_por ?? r?.USUARIO_CRIACAO ?? null,
+    criado_em: r?.criado_em ?? r?.DATA_CRIACAO ?? null,
+    atualizado_em: r?.atualizado_em ?? r?.DATA_ATUALIZACAO ?? null,
+  };
+};
 
 export const mapIdentificador = (r: any): Identificador => ({
   codemp: r?.codemp ?? r?.CODEMP,
