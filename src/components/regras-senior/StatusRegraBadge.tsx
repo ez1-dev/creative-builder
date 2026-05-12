@@ -32,4 +32,4 @@ export function StatusRegraBadge({ value }: { value: StatusRegra }) {
 }
 
 export const STATUS_REGRA_OPTS: { value: StatusRegra; label: string }[] =
-  (Object.entries(map) as [StatusRegra, { label: string }][]).map(([value, v]) => ({ value, label: v.label }));
+  PORTAL_STATUS.map((value) => ({ value, label: map[value].label }));
