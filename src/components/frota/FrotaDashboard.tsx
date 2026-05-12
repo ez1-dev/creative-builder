@@ -44,8 +44,11 @@ export interface ManutencaoFrota {
   motorista: string | null;
   centro_custo: string | null;
   segmento: string | null;
+  tipo_veiculo: string | null;
   observacoes: string | null;
 }
+
+export const TIPO_VEICULO_OPTIONS = ['LEVE', 'CAMINHÃO', 'CARRETA', 'GUINDASTE', 'CAÇAMBA', 'MUCK', 'OUTRO'] as const;
 
 interface Props {
   data: ManutencaoFrota[];
