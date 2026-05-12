@@ -63,6 +63,7 @@ const regrasSeniorSubItems = [
   { title: 'Regras LSP', url: '/regras-senior/regras', icon: FileText },
   { title: 'Identificadores', url: '/regras-senior/identificadores', icon: ShieldCheck },
   { title: 'Auditoria', url: '/regras-senior/auditoria', icon: History },
+  { title: 'Snapshots', url: '/regras-senior/snapshots', icon: Database },
 ];
 
 export function AppSidebar() {
