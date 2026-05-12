@@ -42,11 +42,13 @@ export function VerCodigoLspDialog({
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [resp, setResp] = useState<CodigoResp | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [openImportar, setOpenImportar] = useState(false);
   const [openClonar, setOpenClonar] = useState(false);
 
   const carregar = async () => {
     setLoading(true);
+    setErro(null);
     try {
       const r = await seniorApi.obterCodigoRegra({
         codreg: regra.codreg_erp ?? '',
@@ -56,8 +58,18 @@ export function VerCodigoLspDialog({
       });
       setResp(r);
     } catch (e: any) {
-      toast.error(e?.message ?? 'Erro ao obter código LSP');
-      setResp({ fonte_disponivel: false });
+      const msg = String(e?.message ?? '');
+      const is422 = msg.includes('422') || msg.includes('int_parsing') || msg.toLowerCase().includes('id_regra');
+      if (is422) {
+        setErro(
+          'O endpoint /api/senior/regras/codigo ainda não está disponível no backend. ' +
+          'Peça ao time de backend para registrar a rota ANTES de /regras/{id_regra} ' +
+          '(ou tipar o parâmetro como int, ex: /regras/{id_regra:int}).'
+        );
+      } else {
+        setErro(msg || 'Erro ao obter código LSP.');
+      }
+      setResp(null);
     } finally {
       setLoading(false);
     }
