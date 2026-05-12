@@ -275,6 +275,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     { key: 'motorista', header: 'Motorista', sortable: true },
     { key: 'centro_custo', header: 'C.Custo' },
     { key: 'segmento', header: 'Segmento' },
+    { key: 'tipo_veiculo', header: 'Tipo' },
     ...((onEdit || onDelete) ? [{
       key: '__acoes' as any, header: 'Ações', align: 'right' as const,
       render: (_v: any, r: ManutencaoFrota) => (
