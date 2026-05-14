@@ -438,9 +438,12 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       <VisualGate visualKey="frota.chart-top-veiculos">
         <RankingChartCard
           title="Top Veículos por Valor"
-          subtitle="Clique para filtrar pelo veículo"
+          subtitle="Placa — descrição. Clique para filtrar pelo veículo"
           data={topVeiculos} topN={10} loading={loading}
-          onItemClick={(d) => setSelPlaca((prev) => toggleItem(prev, d.label))}
+          onItemClick={(d) => {
+            const placaKey = (d as any).placa ?? String(d.label).split(' — ')[0];
+            setSelPlaca((prev) => toggleItem(prev, placaKey));
+          }}
         />
       </VisualGate>
     ),
