@@ -80,6 +80,7 @@ const CONFIGURABLE_CANONICAL = [
   'chart-top-fornecedores',
   'chart-top-cc',
   'chart-top-motoristas',
+  'chart-tipo-veiculo',
 ];
 
 function toggleItem(arr: string[], value: string): string[] {
