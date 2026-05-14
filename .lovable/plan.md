@@ -1,27 +1,36 @@
-## Importação de 232 registros — Manutenção de Máquinas
+## Objetivo
 
-Importar diretamente no banco os 232 registros da planilha `MANUTENÇÃO_DE_MAQUINAS._EZM_COM_QUANTIDADE_2026.xlsx`, aplicando a mesma classificação automática de `tipo_maquina` usada no `ImportarMaquinasDialog`.
+Melhorar o dashboard de **Manutenção de Frota** mostrando a descrição do veículo junto com a placa e adicionando uma visão por tipo de veículo.
 
-### Mapeamento de colunas
-| Planilha | Coluna `manutencao_maquinas` |
-|---|---|
-| DATA | `data` |
-| MÊS | `mes` (normalizado: janeiro→jan, fevereiro→fev, …) |
-| FORNECEDOR | `fornecedor` |
-| DESCRIÇÃO | `descricao` |
-| QUANTIDADE | `quantidade` |
-| MAQUINA | `maquina` |
-| ORDEM DE COMPRA | `ordem_compra` |
-| NOTA FISCAL | `nota_fiscal` |
-| VALOR | `valor` |
-| C.CUSTO | `centro_custo` |
+## O que muda
 
-`tipo_maquina` derivado do campo MAQUINA via regras (PONTE → PONTE ROLANTE, SOLDA/MIG/TIG → SOLDA, LASER/CORTE → LASER, COMPRESSOR → COMPRESSOR, EMPILHADEIRA → EMPILHADEIRA, PINTURA → PINTURA, SERRA → SERRA; fallback OUTROS).
+### 1. Gráfico "Top Veículos por Valor"
+Hoje exibe apenas a placa (ex.: `RDV2H41`). Passa a exibir **placa + descrição**, ex.:
 
-### Execução
-1. Ler `/tmp/maq.xlsx` com Python.
-2. Gerar um único `INSERT INTO public.manutencao_maquinas (...) VALUES (...), (...), …` com as 232 linhas.
-3. Executar via `supabase--insert`. O trigger `normalize_maquinas_upper` cuida de uppercase + recomputa `mes` se necessário.
+```
+RDV2H41 — CAMINHÃO IVECO STRALIS         R$ 80.964,01
+MIU8272 — VW DELIVERY                    R$ 58.179,27
+EMPILHADEIRA                             R$ 15.145,00
+```
 
-### Fora de escopo
-Nenhuma mudança de schema, código frontend, RPC ou layout de dashboard.
+Quando o veículo não tiver descrição cadastrada, mostra só a placa (comportamento atual). O clique continua filtrando pela placa.
+
+### 2. Novo gráfico "Manutenções por Tipo de Veículo"
+Gráfico de pizza/donut agregando o valor por `tipo_veiculo` (LEVE, CAMINHÃO, CARRETA, GUINDASTE, CAÇAMBA, MUCK, OUTRO). Clique cross-filtra o restante do dashboard pelo tipo selecionado, igual aos outros gráficos.
+
+### 3. Coluna "Tipo" da tabela
+Já existe — sem alteração.
+
+## Detalhes técnicos
+
+- Arquivo único: `src/components/frota/FrotaDashboard.tsx`.
+- `topVeiculos`: passa a agrupar por `placa` mas trazer também a `veiculo_descricao` mais frequente daquela placa para compor o label `"<placa> — <descricao>"`.
+- Novo `topTipos = topBy(crossFiltered, r => r.tipo_veiculo || 'NÃO INFORMADO')` + um `RankingChart`/`PieChart` (mesmo padrão dos demais cards do dashboard).
+- Cross-filter: novo estado `selTipoVeiculo` integrado ao `crossFiltered` existente.
+- Sem mudanças de schema, RPC, importador ou exportação.
+
+## Fora do escopo
+
+- Cadastro de tipo de veículo (já existe).
+- Mudança no importador de planilha.
+- Mudanças nas demais telas (Máquinas, Passagens).
