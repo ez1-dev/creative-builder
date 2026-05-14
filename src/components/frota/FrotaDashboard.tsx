@@ -231,10 +231,35 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     return Array.from(m.entries()).map(([label, valor]) => ({ label, valor }));
   }, [crossFiltered]);
 
-  const topVeiculos = useMemo(() => topBy(crossFiltered, (r) => r.placa || '—'), [crossFiltered]);
+  // Top veículos com label "PLACA — DESCRIÇÃO" (mantém placa pura como meta para cross-filter)
+  const topVeiculos = useMemo(() => {
+    const m = new Map<string, { valor: number; descCount: Map<string, number> }>();
+    crossFiltered.forEach((r) => {
+      const placaKey = r.placa || '—';
+      const cur = m.get(placaKey) ?? { valor: 0, descCount: new Map() };
+      cur.valor += r.valor || 0;
+      const d = (r.veiculo_descricao || '').trim();
+      if (d) cur.descCount.set(d, (cur.descCount.get(d) ?? 0) + 1);
+      m.set(placaKey, cur);
+    });
+    return Array.from(m.entries())
+      .map(([placa, info]) => {
+        const topDesc = Array.from(info.descCount.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+        return { label: topDesc ? `${placa} — ${topDesc}` : placa, valor: info.valor, placa };
+      })
+      .sort((a, b) => b.valor - a.valor);
+  }, [crossFiltered]);
   const topFornecedores = useMemo(() => topBy(crossFiltered, (r) => r.fornecedor || '—'), [crossFiltered]);
   const topCC = useMemo(() => topBy(crossFiltered, (r) => r.centro_custo || '—'), [crossFiltered]);
   const topMotoristas = useMemo(() => topBy(crossFiltered, (r) => r.motorista || '—'), [crossFiltered]);
+  const porTipo = useMemo(() => {
+    const m = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = r.tipo_veiculo || 'NÃO INFORMADO';
+      m.set(k, (m.get(k) ?? 0) + (r.valor || 0));
+    });
+    return Array.from(m.entries()).map(([label, valor]) => ({ label, valor }));
+  }, [crossFiltered]);
 
   const kpiPayload = useMemo(() => ({
     total_gasto: kpis.total,
@@ -250,7 +275,8 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     top_fornecedores: topFornecedores.map((p) => ({ name: p.label, value: p.valor })),
     top_centros_custo: topCC.map((p) => ({ name: p.label, value: p.valor })),
     top_motoristas: topMotoristas.map((p) => ({ name: p.label, value: p.valor })),
-  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas]);
+    por_tipo_veiculo: porTipo.map((p) => ({ name: p.label, value: p.valor })),
+  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas, porTipo]);
 
   const drillLevelsConfig = useMemo(
     () => drillLevels
