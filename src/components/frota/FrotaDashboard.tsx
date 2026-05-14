@@ -607,6 +607,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
                   case 'top_fornecedores':   setSelFornecedor((p) => toggleItem(p, name)); break;
                   case 'top_centros_custo':  setSelCC((p) => toggleItem(p, name)); break;
                   case 'top_motoristas':     setSelMotorista((p) => toggleItem(p, name)); break;
+                  case 'por_tipo_veiculo':   setSelTipo((p) => toggleItem(p, name)); break;
                   default: break;
                 }
               },
