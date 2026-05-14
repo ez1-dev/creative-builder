@@ -80,6 +80,7 @@ const CONFIGURABLE_CANONICAL = [
   'chart-top-fornecedores',
   'chart-top-cc',
   'chart-top-motoristas',
+  'chart-tipo-veiculo',
 ];
 
 function toggleItem(arr: string[], value: string): string[] {
@@ -151,6 +152,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const [selFornecedor, setSelFornecedor] = useState<string[]>([]);
   const [selCC, setSelCC] = useState<string[]>([]);
   const [selMotorista, setSelMotorista] = useState<string[]>([]);
+  const [selTipo, setSelTipo] = useState<string[]>([]);
 
   // ===== Drill-down =====
   const [drillLevels, setDrillLevels] = useState<string[]>([
@@ -190,16 +192,17 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     if (selFornecedor.length && !selFornecedor.includes(r.fornecedor ?? '—')) return false;
     if (selCC.length && !selCC.includes(r.centro_custo ?? '—')) return false;
     if (selMotorista.length && !selMotorista.includes(r.motorista ?? '—')) return false;
+    if (selTipo.length && !selTipo.includes(r.tipo_veiculo ?? 'NÃO INFORMADO')) return false;
     return true;
-  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista]);
+  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista, selTipo]);
 
   const totalAtivos =
     selMes.length + selSegmento.length + selPlaca.length +
-    selFornecedor.length + selCC.length + selMotorista.length;
+    selFornecedor.length + selCC.length + selMotorista.length + selTipo.length;
 
   const limparTudo = () => {
     setSelMes([]); setSelSegmento([]); setSelPlaca([]);
-    setSelFornecedor([]); setSelCC([]); setSelMotorista([]);
+    setSelFornecedor([]); setSelCC([]); setSelMotorista([]); setSelTipo([]);
     setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
@@ -228,10 +231,35 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     return Array.from(m.entries()).map(([label, valor]) => ({ label, valor }));
   }, [crossFiltered]);
 
-  const topVeiculos = useMemo(() => topBy(crossFiltered, (r) => r.placa || '—'), [crossFiltered]);
+  // Top veículos com label "PLACA — DESCRIÇÃO" (mantém placa pura como meta para cross-filter)
+  const topVeiculos = useMemo(() => {
+    const m = new Map<string, { valor: number; descCount: Map<string, number> }>();
+    crossFiltered.forEach((r) => {
+      const placaKey = r.placa || '—';
+      const cur = m.get(placaKey) ?? { valor: 0, descCount: new Map() };
+      cur.valor += r.valor || 0;
+      const d = (r.veiculo_descricao || '').trim();
+      if (d) cur.descCount.set(d, (cur.descCount.get(d) ?? 0) + 1);
+      m.set(placaKey, cur);
+    });
+    return Array.from(m.entries())
+      .map(([placa, info]) => {
+        const topDesc = Array.from(info.descCount.entries()).sort((a, b) => b[1] - a[1])[0]?.[0];
+        return { label: topDesc ? `${placa} — ${topDesc}` : placa, valor: info.valor, placa };
+      })
+      .sort((a, b) => b.valor - a.valor);
+  }, [crossFiltered]);
   const topFornecedores = useMemo(() => topBy(crossFiltered, (r) => r.fornecedor || '—'), [crossFiltered]);
   const topCC = useMemo(() => topBy(crossFiltered, (r) => r.centro_custo || '—'), [crossFiltered]);
   const topMotoristas = useMemo(() => topBy(crossFiltered, (r) => r.motorista || '—'), [crossFiltered]);
+  const porTipo = useMemo(() => {
+    const m = new Map<string, number>();
+    crossFiltered.forEach((r) => {
+      const k = r.tipo_veiculo || 'NÃO INFORMADO';
+      m.set(k, (m.get(k) ?? 0) + (r.valor || 0));
+    });
+    return Array.from(m.entries()).map(([label, valor]) => ({ label, valor }));
+  }, [crossFiltered]);
 
   const kpiPayload = useMemo(() => ({
     total_gasto: kpis.total,
@@ -247,7 +275,8 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     top_fornecedores: topFornecedores.map((p) => ({ name: p.label, value: p.valor })),
     top_centros_custo: topCC.map((p) => ({ name: p.label, value: p.valor })),
     top_motoristas: topMotoristas.map((p) => ({ name: p.label, value: p.valor })),
-  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas]);
+    por_tipo_veiculo: porTipo.map((p) => ({ name: p.label, value: p.valor })),
+  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas, porTipo]);
 
   const drillLevelsConfig = useMemo(
     () => drillLevels
@@ -409,9 +438,12 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
       <VisualGate visualKey="frota.chart-top-veiculos">
         <RankingChartCard
           title="Top Veículos por Valor"
-          subtitle="Clique para filtrar pelo veículo"
+          subtitle="Placa — descrição. Clique para filtrar pelo veículo"
           data={topVeiculos} topN={10} loading={loading}
-          onItemClick={(d) => setSelPlaca((prev) => toggleItem(prev, d.label))}
+          onItemClick={(d) => {
+            const placaKey = (d as any).placa ?? String(d.label).split(' — ')[0];
+            setSelPlaca((prev) => toggleItem(prev, placaKey));
+          }}
         />
       </VisualGate>
     ),
@@ -442,6 +474,16 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           subtitle="Clique para filtrar pelo motorista"
           data={topMotoristas} topN={10} loading={loading}
           onItemClick={(d) => setSelMotorista((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
+    'chart-tipo-veiculo': (
+      <VisualGate visualKey="frota.chart-tipo-veiculo">
+        <PieChartCard
+          title="Manutenções por Tipo de Veículo"
+          subtitle="Clique numa fatia para filtrar pelo tipo"
+          data={porTipo} loading={loading} donut
+          onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
         />
       </VisualGate>
     ),
@@ -565,6 +607,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
                   case 'top_fornecedores':   setSelFornecedor((p) => toggleItem(p, name)); break;
                   case 'top_centros_custo':  setSelCC((p) => toggleItem(p, name)); break;
                   case 'top_motoristas':     setSelMotorista((p) => toggleItem(p, name)); break;
+                  case 'por_tipo_veiculo':   setSelTipo((p) => toggleItem(p, name)); break;
                   default: break;
                 }
               },
@@ -614,6 +657,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           {renderChips('Fornecedor', selFornecedor, (v) => setSelFornecedor((p) => p.filter((x) => x !== v)))}
           {renderChips('C.Custo', selCC, (v) => setSelCC((p) => p.filter((x) => x !== v)))}
           {renderChips('Motorista', selMotorista, (v) => setSelMotorista((p) => p.filter((x) => x !== v)))}
+          {renderChips('Tipo', selTipo, (v) => setSelTipo((p) => p.filter((x) => x !== v)))}
           <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" onClick={limparTudo}>
             <X className="h-3 w-3" /> Limpar tudo
           </Button>

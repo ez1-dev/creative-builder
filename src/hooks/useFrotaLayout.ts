@@ -18,7 +18,8 @@ export const FROTA_DEFAULT_WIDGETS: FrotaWidget[] = [
   { id: 'chart-top-fornecedores',  type: 'chart-top-fornecedores',  title: 'Top Fornecedores',      position: 4, layout: { x: 6, y: 11, w: 6,  h: 8  } },
   { id: 'chart-top-cc',            type: 'chart-top-cc',            title: 'Top Centros de Custo',  position: 5, layout: { x: 0, y: 19, w: 6,  h: 8  } },
   { id: 'chart-top-motoristas',    type: 'chart-top-motoristas',    title: 'Top Motoristas',        position: 6, layout: { x: 6, y: 19, w: 6,  h: 8  } },
-  { id: 'tabela-registros',        type: 'tabela-registros',        title: 'Registros',             position: 7, layout: { x: 0, y: 27, w: 12, h: 10 } },
+  { id: 'chart-tipo-veiculo',      type: 'chart-tipo-veiculo',      title: 'Por Tipo de Veículo',   position: 7, layout: { x: 0, y: 27, w: 12, h: 8  } },
+  { id: 'tabela-registros',        type: 'tabela-registros',        title: 'Registros',             position: 8, layout: { x: 0, y: 35, w: 12, h: 10 } },
 ];
 
 interface Options { shareToken?: string | null; enabled?: boolean; }
