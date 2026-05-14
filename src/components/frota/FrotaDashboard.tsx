@@ -192,16 +192,17 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     if (selFornecedor.length && !selFornecedor.includes(r.fornecedor ?? '—')) return false;
     if (selCC.length && !selCC.includes(r.centro_custo ?? '—')) return false;
     if (selMotorista.length && !selMotorista.includes(r.motorista ?? '—')) return false;
+    if (selTipo.length && !selTipo.includes(r.tipo_veiculo ?? 'NÃO INFORMADO')) return false;
     return true;
-  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista]);
+  }), [filtered, selMes, selSegmento, selPlaca, selFornecedor, selCC, selMotorista, selTipo]);
 
   const totalAtivos =
     selMes.length + selSegmento.length + selPlaca.length +
-    selFornecedor.length + selCC.length + selMotorista.length;
+    selFornecedor.length + selCC.length + selMotorista.length + selTipo.length;
 
   const limparTudo = () => {
     setSelMes([]); setSelSegmento([]); setSelPlaca([]);
-    setSelFornecedor([]); setSelCC([]); setSelMotorista([]);
+    setSelFornecedor([]); setSelCC([]); setSelMotorista([]); setSelTipo([]);
     setSegmento([]); setTipoVeiculo([]); setCentroCusto([]); setPlaca([]); setMotorista([]);
     setBusca('');
   };
