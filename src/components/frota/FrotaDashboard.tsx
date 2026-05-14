@@ -477,6 +477,16 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
         />
       </VisualGate>
     ),
+    'chart-tipo-veiculo': (
+      <VisualGate visualKey="frota.chart-tipo-veiculo">
+        <PieChartCard
+          title="Manutenções por Tipo de Veículo"
+          subtitle="Clique numa fatia para filtrar pelo tipo"
+          data={porTipo} loading={loading} donut
+          onItemClick={(d) => setSelTipo((prev) => toggleItem(prev, d.label))}
+        />
+      </VisualGate>
+    ),
     'tabela-registros': (
       <Card>
         <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
