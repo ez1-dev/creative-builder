@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -40,6 +40,7 @@ const modules = [
   { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
   { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
   { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
+  { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
   { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
   { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },

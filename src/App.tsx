@@ -35,6 +35,8 @@ import PassagensAereasPage from "@/pages/PassagensAereasPage";
 import PassagensAereasCompartilhadoPage from "@/pages/PassagensAereasCompartilhadoPage";
 import ManutencaoFrotaPage from "@/pages/ManutencaoFrotaPage";
 import ManutencaoFrotaCompartilhadoPage from "@/pages/ManutencaoFrotaCompartilhadoPage";
+import ManutencaoMaquinasPage from "@/pages/ManutencaoMaquinasPage";
+import ManutencaoMaquinasCompartilhadoPage from "@/pages/ManutencaoMaquinasCompartilhadoPage";
 import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
@@ -72,6 +74,7 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/passagens-aereas/compartilhado" element={<PassagensAereasCompartilhadoPage />} />
             <Route path="/frota/compartilhado" element={<ManutencaoFrotaCompartilhadoPage />} />
+            <Route path="/manutencao-maquinas/compartilhado" element={<ManutencaoMaquinasCompartilhadoPage />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<PostLoginRedirect />} />
               <Route path="/estoque" element={<ProtectedRoute path="/estoque"><EstoquePage /></ProtectedRoute>} />
@@ -92,6 +95,7 @@ const App = () => (
               <Route path="/contas-receber" element={<ProtectedRoute path="/contas-receber"><ContasReceberPage /></ProtectedRoute>} />
               <Route path="/passagens-aereas" element={<ProtectedRoute path="/passagens-aereas"><PassagensAereasPage /></ProtectedRoute>} />
               <Route path="/frota" element={<ProtectedRoute path="/frota"><ManutencaoFrotaPage /></ProtectedRoute>} />
+              <Route path="/manutencao-maquinas" element={<ProtectedRoute path="/manutencao-maquinas"><ManutencaoMaquinasPage /></ProtectedRoute>} />
               <Route path="/monitor-usuarios-senior" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/usuarios-conectados" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />
