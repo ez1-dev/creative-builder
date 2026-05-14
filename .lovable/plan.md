@@ -1,36 +1,22 @@
-# Adicionar Tipo de Veículo em Manutenção de Frota
+## Atualizar colunas da tabela de Notas Fiscais de Recebimento
 
-## Banco de dados (Lovable Cloud)
+A tela `src/pages/NotasRecebimentoPage.tsx` não usa `renderTabelaNotasRecebimento` nem `<th colSpan={23}>` — ela usa o componente `DataTable` com um array `columns`. Não há cabeçalho manual nem `colspan` para atualizar. A adaptação fiel ao pedido é apenas estender o array de colunas.
 
-Migração na tabela `manutencao_frota`:
-- Adicionar coluna `tipo_veiculo text` (nullable).
-- Atualizar trigger `normalize_frota_upper` para normalizar `tipo_veiculo` em UPPER/trim.
-- Backfill auto-classificando os registros existentes a partir de `veiculo_descricao`:
-  - contém `GUINDASTE` → `GUINDASTE`
-  - contém `MUCK` → `MUCK`
-  - contém `CAÇAMBA` / `CACAMBA` → `CAÇAMBA`
-  - contém `CARRETA` → `CARRETA`
-  - contém `CAMINHÃO` / `CAMINHAO` ou `ATEGO`, `STRALIS`, `S-WAY`, `L220` → `CAMINHÃO`
-  - contém `STRADA`, `GOL`, `SW4`, `VOLCANO`, `FREEDOM` → `LEVE`
-  - resto / `null` → `OUTRO`
+### Mudanças
 
-## Frontend
+**`src/pages/NotasRecebimentoPage.tsx`** (array `columns`, ~linha 78–84):
 
-**`src/pages/ManutencaoFrotaPage.tsx`**
-- Incluir `tipo_veiculo` em `emptyForm` (default `'LEVE'`) e no `payload` do `handleSave`.
-- Adicionar `<Select>` "Tipo de veículo" no formulário (Novo/Editar) com as opções:  
-  `LEVE`, `CAMINHÃO`, `CARRETA`, `GUINDASTE`, `CAÇAMBA`, `MUCK`, `OUTRO`.
-- Posicioná-lo na primeira linha do grid, ao lado de Segmento.
+1. Renomear o header da coluna `descricao_item` de `"Descrição"` para `"Descrição Item"`.
+2. Adicionar nova coluna logo após `descricao_item`:
+   - `{ key: "descricao_lancamento", header: "Descrição Lançamento" }`
+3. Adicionar nova coluna logo após:
+   - `{ key: "descricao_cadastro_produto_servico", header: "Descrição Cadastro" }`
+4. Renomear o header da coluna `descricao_centro_custo` de `"Desc. Centro Custo"` para `"Descrição CCU"`.
 
-**`src/components/frota/FrotaDashboard.tsx`**
-- Adicionar `tipo_veiculo?: string | null` em `ManutencaoFrota`.
-- Novo filtro multi-select "Tipo de veículo" no painel de filtros.
-- Nova coluna "Tipo" na tabela de registros.
-- Novo card opcional **"Gasto por Tipo de Veículo"** (gráfico de barras), com chave de visual key `chart-tipo-veiculo` (registrado para que possa ser ocultado em compartilhamento e no `upsert_frota_dashboard_default`).
+Atualizar também `FILTER_LABELS.descricao_item` para `"Descrição Item"` (consistência dos chips).
 
-**`src/components/frota/ImportarFrotaDialog.tsx`**
-- Aceitar coluna opcional `tipo` / `tipo_veiculo` na planilha; se ausente, aplicar a mesma auto-classificação do backfill.
+### Fora de escopo
 
-## Fora do escopo
-- Não muda permissões, RLS, links de compartilhamento, nem o backend FastAPI/ETL.
-- Não altera a tela compartilhada além de receber o novo campo automaticamente via `select *`.
+- `exportarNotasRecebimentoExcel` — não alterar (export é resolvida pelo backend `/api/export/notas-recebimento`).
+- Não há `colspan` 23 na tela (DataTable controla colSpan automaticamente via `columns.length`), portanto não há nada a alterar manualmente.
+- Sem mudanças em filtros, drill, KPIs, ou backend.
