@@ -152,6 +152,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
   const [selFornecedor, setSelFornecedor] = useState<string[]>([]);
   const [selCC, setSelCC] = useState<string[]>([]);
   const [selMotorista, setSelMotorista] = useState<string[]>([]);
+  const [selTipo, setSelTipo] = useState<string[]>([]);
 
   // ===== Drill-down =====
   const [drillLevels, setDrillLevels] = useState<string[]>([
