@@ -13,6 +13,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/configuracoes':             { codigo: 'CONFIG',       nome: 'Configurações' },
   '/passagens-aereas':          { codigo: 'PASSAGENS',    nome: 'Passagens Aéreas' },
   '/frota':                     { codigo: 'FROTA',        nome: 'Manutenção de Frota' },
+  '/manutencao-maquinas':       { codigo: 'MAQUINAS',     nome: 'Manutenção de Máquinas' },
   '/monitor-usuarios-senior':   { codigo: 'MON_SR',       nome: 'Monitor Usuários Senior' },
   '/faturamento-genius':        { codigo: 'FAT_GENIUS',   nome: 'Faturamento Genius' },
   '/gestao-sgu-usuarios':       { codigo: 'SGU_USR',      nome: 'Gestão SGU - Usuários ERP Senior' },

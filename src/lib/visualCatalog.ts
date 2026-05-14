@@ -26,6 +26,18 @@ export const VISUAL_CATALOG: VisualGroup[] = [
     ],
   },
   {
+    module: 'Manutenção de Máquinas',
+    items: [
+      { key: 'maquinas.chart-evolucao-mensal',  label: 'Gráfico: Evolução Mensal' },
+      { key: 'maquinas.chart-tipo-maquina',     label: 'Gráfico: Por Tipo de Máquina' },
+      { key: 'maquinas.chart-top-maquinas',     label: 'Gráfico: Top Máquinas' },
+      { key: 'maquinas.chart-top-fornecedores', label: 'Gráfico: Top Fornecedores' },
+      { key: 'maquinas.chart-top-cc',           label: 'Gráfico: Top Centros de Custo' },
+      { key: 'maquinas.chart-top-descricoes',   label: 'Gráfico: Top Descrições' },
+      { key: 'maquinas.drill-hierarquico',      label: 'Drill-down hierárquico' },
+    ],
+  },
+  {
     module: 'Passagens Aéreas',
     items: [
       { key: 'passagens.kpis-charts', label: 'Gráficos (todos — chave de retrocompatibilidade)' },

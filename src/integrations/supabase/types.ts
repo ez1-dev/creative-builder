@@ -933,6 +933,108 @@ export type Database = {
         }
         Relationships: []
       }
+      manutencao_maquinas: {
+        Row: {
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          fornecedor: string | null
+          id: string
+          maquina: string
+          mes: string | null
+          nota_fiscal: string | null
+          observacoes: string | null
+          ordem_compra: string | null
+          quantidade: number | null
+          tipo_maquina: string | null
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          fornecedor?: string | null
+          id?: string
+          maquina: string
+          mes?: string | null
+          nota_fiscal?: string | null
+          observacoes?: string | null
+          ordem_compra?: string | null
+          quantidade?: number | null
+          tipo_maquina?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Update: {
+          centro_custo?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          descricao?: string | null
+          fornecedor?: string | null
+          id?: string
+          maquina?: string
+          mes?: string | null
+          nota_fiscal?: string | null
+          observacoes?: string | null
+          ordem_compra?: string | null
+          quantidade?: number | null
+          tipo_maquina?: string | null
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      manutencao_maquinas_share_links: {
+        Row: {
+          access_count: number
+          active: boolean
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          hidden_visuals: string[]
+          id: string
+          last_accessed_at: string | null
+          nome: string
+          password_hash: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          access_count?: number
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          hidden_visuals?: string[]
+          id?: string
+          last_accessed_at?: string | null
+          nome: string
+          password_hash?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          access_count?: number
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          hidden_visuals?: string[]
+          id?: string
+          last_accessed_at?: string | null
+          nome?: string
+          password_hash?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       passagens_aereas: {
         Row: {
           centro_custo: string | null
@@ -1432,14 +1534,26 @@ export type Database = {
     }
     Functions: {
       can_edit_frota: { Args: { _uid: string }; Returns: boolean }
+      can_edit_maquinas: { Args: { _uid: string }; Returns: boolean }
       can_edit_passagens: { Args: { _uid: string }; Returns: boolean }
       can_manage_frota_share: { Args: { _uid: string }; Returns: boolean }
+      can_manage_maquinas_share: { Args: { _uid: string }; Returns: boolean }
       can_manage_passagens_share: { Args: { _uid: string }; Returns: boolean }
       cleanup_old_error_logs: { Args: never; Returns: undefined }
       cleanup_old_navegacao_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
       create_frota_share_link: {
+        Args: {
+          _expires_at?: string
+          _hidden_visuals?: string[]
+          _nome: string
+          _password?: string
+          _token: string
+        }
+        Returns: string
+      }
+      create_maquinas_share_link: {
         Args: {
           _expires_at?: string
           _hidden_visuals?: string[]
@@ -1522,6 +1636,57 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_maquinas_layout_via_token: {
+        Args: { _token: string }
+        Returns: {
+          widget_config: Json
+          widget_id: string
+          widget_layout: Json
+          widget_position: number
+          widget_title: string
+          widget_type: string
+        }[]
+      }
+      get_maquinas_share_link_meta: {
+        Args: { _token: string }
+        Returns: {
+          exists_link: boolean
+          expired: boolean
+          nome: string
+          requires_password: boolean
+        }[]
+      }
+      get_maquinas_share_link_visuals: {
+        Args: { _token: string }
+        Returns: string[]
+      }
+      get_maquinas_via_token: {
+        Args: { _password?: string; _token: string }
+        Returns: {
+          centro_custo: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          descricao: string | null
+          fornecedor: string | null
+          id: string
+          maquina: string
+          mes: string | null
+          nota_fiscal: string | null
+          observacoes: string | null
+          ordem_compra: string | null
+          quantidade: number | null
+          tipo_maquina: string | null
+          updated_at: string
+          valor: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "manutencao_maquinas"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_passagens_layout_via_token: {
         Args: { _token: string }
         Returns: {
@@ -1577,8 +1742,13 @@ export type Database = {
       get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
       is_admin: { Args: { _uid: string }; Returns: boolean }
       upsert_frota_dashboard_default: { Args: never; Returns: string }
+      upsert_maquinas_dashboard_default: { Args: never; Returns: string }
       upsert_passagens_dashboard_default: { Args: never; Returns: string }
       validate_frota_share_token: {
+        Args: { _password?: string; _token: string }
+        Returns: boolean
+      }
+      validate_maquinas_share_token: {
         Args: { _password?: string; _token: string }
         Returns: boolean
       }
