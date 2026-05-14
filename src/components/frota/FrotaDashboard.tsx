@@ -657,6 +657,7 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
           {renderChips('Fornecedor', selFornecedor, (v) => setSelFornecedor((p) => p.filter((x) => x !== v)))}
           {renderChips('C.Custo', selCC, (v) => setSelCC((p) => p.filter((x) => x !== v)))}
           {renderChips('Motorista', selMotorista, (v) => setSelMotorista((p) => p.filter((x) => x !== v)))}
+          {renderChips('Tipo', selTipo, (v) => setSelTipo((p) => p.filter((x) => x !== v)))}
           <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" onClick={limparTudo}>
             <X className="h-3 w-3" /> Limpar tudo
           </Button>
