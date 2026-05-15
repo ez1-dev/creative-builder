@@ -523,7 +523,7 @@ export interface OpJatoPesoResponse extends PaginatedResponse<OpJatoPesoItem> {
     ops_com_peso?: number;
     ops_sem_peso?: number;
     ops_peso_parcial?: number;
-    ops_ciclo_bom?: number;
+    ops_com_ciclo?: number;
     ops_sem_componentes?: number;
     [key: string]: any;
   };

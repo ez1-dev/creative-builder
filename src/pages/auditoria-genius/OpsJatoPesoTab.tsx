@@ -149,7 +149,7 @@ export function OpsJatoPesoTab() {
       'OPs com Peso': resumo.ops_com_peso ?? 0,
       'OPs sem Peso': resumo.ops_sem_peso ?? 0,
       'OPs Peso Parcial': resumo.ops_peso_parcial ?? 0,
-      'OPs Ciclo BOM': resumo.ops_ciclo_bom ?? 0,
+      'OPs com Ciclo': resumo.ops_com_ciclo ?? 0,
       'OPs sem Componentes': resumo.ops_sem_componentes ?? 0,
     },
     summary: data
@@ -371,8 +371,8 @@ export function OpsJatoPesoTab() {
           variant="warning"
         />
         <KPICard
-          title="OPs Ciclo BOM"
-          value={formatNumber(Number(resumo.ops_ciclo_bom ?? 0), 0)}
+          title="OPs com Ciclo"
+          value={formatNumber(Number(resumo.ops_com_ciclo ?? 0), 0)}
           variant="destructive"
         />
         <KPICard
