@@ -484,3 +484,126 @@ export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<an
   };
   debug?: AuditoriaApontGeniusDebug;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OPs Pintura/Jato (auditoria-apontamento-genius/ops-jato-peso)
+// ─────────────────────────────────────────────────────────────────────────────
+export type StatusPesoOp =
+  | 'OK'
+  | 'PESO_ZERO'
+  | 'PESO_PARCIAL'
+  | 'SEM_COMPONENTES_E900CMO'
+  | 'PRODUZIDO_SEM_MODELO'
+  | 'CICLO_BOM'
+  | 'SEM_CONVERSAO_UNIDADE';
+
+export interface OpJatoPesoItem {
+  origem?: string | number;
+  numero_op?: string | number;
+  codigo_produto?: string;
+  descricao_produto?: string;
+  situacao_op?: string;
+  data_jato?: string;
+  qtd_apontamentos_jato?: number;
+  qtd_componentes_diretos?: number;
+  qtd_componentes_finais?: number;
+  qtd_componentes_expandidos?: number;
+  nivel_maximo?: number;
+  peso_kg_direto?: number;
+  peso_kg_multinivel?: number;
+  status_peso?: StatusPesoOp | string;
+  [key: string]: any;
+}
+
+export interface OpJatoPesoResponse extends PaginatedResponse<OpJatoPesoItem> {
+  resumo?: {
+    total_ops?: number;
+    peso_total_kg_multinivel?: number;
+    peso_total_kg_direto?: number;
+    ops_com_peso?: number;
+    ops_sem_peso?: number;
+    ops_peso_parcial?: number;
+    ops_ciclo_bom?: number;
+    ops_sem_componentes?: number;
+    [key: string]: any;
+  };
+}
+
+export interface OpJatoComponente {
+  nivel?: number;
+  codigo_pai?: string;
+  codigo_componente?: string;
+  descricao_componente?: string;
+  derivacao?: string;
+  origem_componente?: string | number;
+  tipo_produto?: string;
+  quantidade_nivel?: number;
+  quantidade_acumulada?: number;
+  unidade?: string;
+  peso_unitario?: number;
+  peso_calculado?: number;
+  foi_expandido?: boolean;
+  componente_final?: boolean;
+  ciclo_detectado?: boolean;
+  caminho?: string;
+  [key: string]: any;
+}
+
+export interface OpJatoComponentesResponse {
+  origem?: string | number;
+  numero_op?: string | number;
+  codigo_produto?: string;
+  descricao_produto?: string;
+  peso_kg_direto?: number;
+  peso_kg_multinivel?: number;
+  nivel_maximo?: number;
+  qtd_componentes_finais?: number;
+  componentes: OpJatoComponente[];
+  [key: string]: any;
+}
+
+export interface OpsJatoPesoFilters {
+  codemp?: string | number;
+  data_ini?: string;
+  data_fim?: string;
+  origem?: string;
+  numero_op?: string;
+  codigo_produto?: string;
+  situacao_op?: string;
+  somente_com_peso?: boolean;
+  somente_sem_peso?: boolean;
+  somente_peso_parcial?: boolean;
+  pagina?: number;
+  tamanho_pagina?: number;
+  usar_multinivel?: boolean;
+}
+
+function jatoQueryParams(f: OpsJatoPesoFilters): Record<string, any> {
+  const out: Record<string, any> = {};
+  Object.entries(f).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === '') return;
+    if (typeof v === 'boolean') {
+      if (v) out[k] = 'true';
+      return;
+    }
+    out[k] = v;
+  });
+  return out;
+}
+
+export async function getOpsJatoPeso(filters: OpsJatoPesoFilters): Promise<OpJatoPesoResponse> {
+  return api.get<OpJatoPesoResponse>(
+    '/api/auditoria-apontamento-genius/ops-jato-peso',
+    jatoQueryParams({ usar_multinivel: true, ...filters }),
+  );
+}
+
+export async function getOpsJatoPesoComponentes(
+  origem: string | number,
+  numero_op: string | number,
+): Promise<OpJatoComponentesResponse> {
+  return api.get<OpJatoComponentesResponse>(
+    `/api/auditoria-apontamento-genius/ops-jato-peso/${encodeURIComponent(String(origem))}/${encodeURIComponent(String(numero_op))}/componentes`,
+  );
+}
+

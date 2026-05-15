@@ -15,6 +15,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { OpsJatoPesoTab } from './auditoria-genius/OpsJatoPesoTab';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -1333,6 +1335,12 @@ export default function AuditoriaApontamentoGeniusPage() {
           </div>
         }
       />
+      <Tabs defaultValue="apontamentos" className="w-full">
+        <TabsList>
+          <TabsTrigger value="apontamentos">Apontamentos</TabsTrigger>
+          <TabsTrigger value="jato">OPs Pintura/Jato</TabsTrigger>
+        </TabsList>
+        <TabsContent value="apontamentos" className="space-y-4 mt-4">
       <FilterPanel
         onSearch={() => buscarAuditoriaApontamentoGenius(1)}
         onClear={limparTelaAuditoriaApontamentoGenius}
@@ -2058,6 +2066,11 @@ export default function AuditoriaApontamentoGeniusPage() {
           setTimeout(() => buscarRef.current?.(1), 0);
         }}
       />
+        </TabsContent>
+        <TabsContent value="jato" className="mt-4">
+          <OpsJatoPesoTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
