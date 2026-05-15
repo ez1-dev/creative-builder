@@ -1333,6 +1333,12 @@ export default function AuditoriaApontamentoGeniusPage() {
           </div>
         }
       />
+      <Tabs defaultValue="apontamentos" className="w-full">
+        <TabsList>
+          <TabsTrigger value="apontamentos">Apontamentos</TabsTrigger>
+          <TabsTrigger value="jato">OPs Pintura/Jato</TabsTrigger>
+        </TabsList>
+        <TabsContent value="apontamentos" className="space-y-4 mt-4">
       <FilterPanel
         onSearch={() => buscarAuditoriaApontamentoGenius(1)}
         onClear={limparTelaAuditoriaApontamentoGenius}
