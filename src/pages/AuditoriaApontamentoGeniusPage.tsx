@@ -2064,6 +2064,11 @@ export default function AuditoriaApontamentoGeniusPage() {
           setTimeout(() => buscarRef.current?.(1), 0);
         }}
       />
+        </TabsContent>
+        <TabsContent value="jato" className="mt-4">
+          <OpsJatoPesoTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
