@@ -1,19 +1,21 @@
-## Ajuste nos KPIs da aba "OPs Pintura/Jato"
+## Problema
 
-A lista oficial de KPIs usa `resumo.ops_com_ciclo`, mas a implementação atual lê `resumo.ops_ciclo_bom` e rotula como "OPs Ciclo BOM". Os outros 6 campos já batem com a especificação.
+O módulo **Manutenção de Máquinas** (rota `/manutencao-maquinas`) não aparece em **Configurações → Permissões por Tela** porque está faltando na constante `AVAILABLE_SCREENS` de `src/pages/ConfiguracoesPage.tsx` (linhas 40-56). A rota existe (`ManutencaoMaquinasPage`) e já é tratada em `screenCatalog.ts` e no `useUserPermissions`, só não está exposta no editor de perfis.
 
-### Alterações em `src/pages/auditoria-genius/OpsJatoPesoTab.tsx`
+## Mudança
 
-1. **Tipo `OpsJatoPesoResponse.resumo`** (em `src/lib/api.ts`): renomear `ops_ciclo_bom` → `ops_com_ciclo`.
-2. **KpiGroup**: renomear o card "OPs Ciclo BOM" para **"OPs com Ciclo"**, lendo `resumo.ops_com_ciclo`.
-3. **`useAiPageContext.kpis`**: trocar a chave `'OPs Ciclo BOM'` por `'OPs com Ciclo'` apontando para `resumo.ops_com_ciclo`.
-4. Manter ordem dos 7 KPIs exatamente como na especificação:
-   1. Total de OPs
-   2. Peso Total Multinível
-   3. OPs com Peso
-   4. OPs sem Peso
-   5. OPs com Peso Parcial
-   6. OPs com Ciclo
-   7. OPs sem Componentes
+Arquivo: `src/pages/ConfiguracoesPage.tsx`
 
-Nenhuma outra alteração (filtros, tabela, drawer, export) — somente nomes/campos dos KPIs.
+Adicionar uma entrada logo após a linha de Manutenção de Frota:
+
+```ts
+{ path: '/frota', name: 'Manutenção de Frota' },
+{ path: '/manutencao-maquinas', name: 'Manutenção de Máquinas' },
+```
+
+Nenhuma outra alteração necessária — após o deploy, basta marcar a permissão (visualizar/editar) para cada perfil que deve acessar o módulo.
+
+## Fora de escopo
+
+- Nenhuma alteração em backend, banco ou em outras telas.
+- Permissões existentes não são afetadas; a tela continuará liberada para Administradores automaticamente.
