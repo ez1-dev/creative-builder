@@ -646,3 +646,138 @@ export async function getBalancoPatrimonial(
 }
 
 
+
+// ============================================================
+// Demonstrativo de Compras e Recebimentos
+// ============================================================
+export type DemonstrativoOrigem = 'TODOS' | 'COMPRAS' | 'RECEBIMENTOS';
+export type DemonstrativoNivel =
+  | 'projeto_macro' | 'numero_projeto' | 'centro_custo' | 'tipo_despesa'
+  | 'mes_competencia' | 'fornecedor' | 'documento' | 'item'
+  | 'transacao' | 'deposito';
+
+export interface DemonstrativoFilters {
+  data_ini?: string;
+  data_fim?: string;
+  origem?: DemonstrativoOrigem;
+  nivel?: DemonstrativoNivel;
+  projeto_macro?: string;
+  numero_projeto?: string;
+  centro_custo?: string;
+  tipo_despesa?: string;
+  mes_competencia?: string;
+  fornecedor?: string;
+  condicao_pagamento?: string;
+  transacao?: string;
+  descricao_item?: string;
+  deposito?: string;
+  familia?: string;
+  origem_material?: string;
+  numero_oc?: string;
+  numero_nf?: string;
+  documento?: string;
+  tipo_item?: string;
+  incluir_detalhe?: boolean;
+  limite_detalhe?: number;
+}
+
+export interface DemonstrativoKpis {
+  valor_comprado: number;
+  valor_recebido: number;
+  valor_pendente: number;
+  diferenca_comprado_recebido: number;
+  qtd_linhas: number;
+  qtd_fornecedores: number;
+  qtd_documentos: number;
+}
+
+export interface DemonstrativoDrillRow {
+  chave: string;
+  label: string;
+  valor_comprado?: number;
+  valor_recebido?: number;
+  valor_pendente?: number;
+  diferenca_comprado_recebido?: number;
+  qtd_linhas?: number;
+  qtd_fornecedores?: number;
+  qtd_documentos?: number;
+}
+
+export interface DemonstrativoSerieItem {
+  chave?: string;
+  label?: string;
+  mes?: string;
+  valor_comprado?: number;
+  valor_recebido?: number;
+  valor_pendente?: number;
+  valor?: number;
+}
+
+export interface DemonstrativoGraficos {
+  comprado_recebido_pendente?: DemonstrativoSerieItem[];
+  por_projeto_macro?: DemonstrativoSerieItem[];
+  por_mes?: DemonstrativoSerieItem[];
+  por_centro_custo?: DemonstrativoSerieItem[];
+  por_projeto?: DemonstrativoSerieItem[];
+  por_tipo_despesa?: DemonstrativoSerieItem[];
+  por_fornecedor?: DemonstrativoSerieItem[];
+  por_transacao?: DemonstrativoSerieItem[];
+}
+
+export interface DemonstrativoDetalheRow {
+  origem_dado?: string;
+  projeto_macro?: string;
+  mes_competencia?: string;
+  numero_projeto?: string;
+  nome_projeto?: string;
+  codigo_centro_custo?: string;
+  descricao_centro_custo?: string;
+  tipo_despesa?: string;
+  codigo_fornecedor?: string;
+  nome_fornecedor?: string;
+  documento?: string;
+  numero_oc?: string;
+  numero_nf?: string;
+  serie_nf?: string;
+  tipo_item?: string;
+  sequencia_item?: string | number;
+  codigo_item?: string;
+  descricao_item?: string;
+  derivacao?: string;
+  unidade_medida?: string;
+  codigo_familia?: string;
+  origem_material?: string;
+  transacao?: string;
+  deposito?: string;
+  quantidade_pedida?: number;
+  quantidade_recebida?: number;
+  quantidade_pendente?: number;
+  valor_bruto?: number;
+  valor_comprado?: number;
+  valor_recebido?: number;
+  valor_pendente?: number;
+  diferenca_comprado_recebido?: number;
+  [k: string]: any;
+}
+
+export interface DemonstrativoResposta {
+  atualizado_em?: string;
+  kpis: DemonstrativoKpis;
+  kpis_dashboard?: Record<string, any>;
+  graficos?: DemonstrativoGraficos;
+  drill: DemonstrativoDrillRow[];
+  nivel: DemonstrativoNivel;
+  proximo_nivel?: DemonstrativoNivel | null;
+  detalhe?: DemonstrativoDetalheRow[];
+  filtros_aplicados?: Record<string, any>;
+  observacao?: string;
+}
+
+export async function getDemonstrativoComprasRecebimentos(
+  filters: DemonstrativoFilters,
+): Promise<DemonstrativoResposta> {
+  return api.get<DemonstrativoResposta>(
+    '/api/demonstrativo-compras-recebimentos',
+    filters as Record<string, any>,
+  );
+}
