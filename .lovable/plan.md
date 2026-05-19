@@ -1,58 +1,42 @@
-# Demonstrativo de Compras e Recebimentos — Refatoração
+# Erro 22007 — conversão nvarchar → datetime no Demonstrativo
 
-A tela já existe (`src/pages/DemonstrativoComprasRecebimentosPage.tsx`). O backend evoluiu: novos parâmetros, novos níveis de drill, bloco `graficos`, `kpis_dashboard`, novas colunas em `drill` e `detalhe`, e novos campos no schema do detalhe. Vou alinhar o frontend a esse contrato sem remover Painel de Compras nem Recebimento.
+A mensagem `[22007] ... conversão de um tipo de dados nvarchar em um tipo de dados datetime resultou em um valor fora do intervalo (242)` vem do **SQL Server**, na execução da query do endpoint `GET /api/demonstrativo-compras-recebimentos`. Não é erro de frontend — o backend FastAPI está enviando uma string que o driver ODBC não consegue converter para `datetime`.
+
+Causas típicas:
+- `data_ini` / `data_fim` chegando vazios e o SQL concatenando algo como `CONVERT(datetime, '')`.
+- `mes_competencia` recebido como `YYYY-MM` e usado direto em conversão para `datetime` (precisa virar `YYYY-MM-01`).
+- Defaults no backend tipo `'0001-01-01'` ou `'9999-12-31'` fora do range aceito pelo `datetime` (1753-9999).
+- Filtros novos (`numero_oc`, `numero_nf`, `documento`, `tipo_item`, `familia`, `origem_material`, `deposito`) sendo interpretados como data em alguma cláusula errada.
 
 ## Escopo
 
-1. Atualizar tipos da resposta e do request.
-2. Trocar inputs livres por autocompletes ERP em Fornecedor, Centro de Custo, Depósito e Transação (reusando `AutocompleteAsync` + `useCadastrosErp` já criados).
-3. Acrescentar filtros novos: Depósito, Família, Origem material, Documento, Nº OC, Nº NF, Tipo de item (Produto/Serviço), Nível do drill.
-4. Substituir gráficos atuais pelos do bloco `graficos` retornado pela API.
-5. Atualizar KPIs para usar exclusivamente `kpis` da API (7 cards exigidos).
-6. Drill-down passa a usar fluxo: `projeto_macro → numero_projeto → centro_custo → tipo_despesa → fornecedor → documento → item` (a transição preenche o filtro correspondente e troca o nível). Adicionar botão "Voltar nível".
-7. "Ver detalhe": toggle que chama API com `incluir_detalhe=true&limite_detalhe=500`. Quando vier `detalhe`, mostrar grid com todas as colunas do schema novo.
-8. Estados loading/erro/vazio padronizados (componentes BI `LoadingState`, `ErrorState`, `EmptyState`).
-9. Service `getDemonstrativoComprasRecebimentos(params)` em `src/lib/api.ts`.
+1. **Frontend — defensivo**: enviar `data_ini`/`data_fim` apenas quando forem datas válidas no formato `YYYY-MM-DD` e `mes_competencia` apenas no formato `YYYY-MM` (regex). Mostrar toast quando o usuário digitar algo inválido. Isso evita gatilhar o erro por entrada mal formada.
+2. **Documentação backend**: criar/atualizar `docs/backend-demonstrativo-erro-22007.md` listando os pontos a corrigir no FastAPI:
+   - Receber `data_ini`/`data_fim` como `Optional[date]` (Pydantic) — qualquer string fora do `YYYY-MM-DD` cai em 422 antes do SQL.
+   - Construir o `WHERE` com placeholders parametrizados (`?` no pyodbc) em vez de concatenar strings — evita injeção e conversões implícitas.
+   - Tratar `mes_competencia` como `YYYY-MM`: derivar `inicio = data(yyyy, mm, 1)` e `fim = último dia do mês`; nunca passar `'2026-05'` direto em `CONVERT(datetime, ...)`.
+   - Validar que defaults não usem `'0001-01-01'` (fora do range `datetime`). Usar `datetime2` ou aplicar limites `>= 1900-01-01`.
+   - Garantir que os novos filtros opcionais (`numero_oc`, `numero_nf`, `documento`, `tipo_item`, `deposito`, `familia`, `origem_material`, `transacao`) sejam aplicados como `nvarchar` no `WHERE`, nunca como `datetime`.
+3. **Apoio ao diagnóstico**: ao receber 500 nesse endpoint, mostrar no frontend uma mensagem amigável + link "Tentar novamente" (já temos `ErrorState`), e logar `filtros_aplicados` enviados para facilitar reproduzir.
 
 ## Detalhes técnicos
 
-### `src/lib/api.ts`
-Adicionar interfaces:
-- `DemonstrativoFilters` com todos os params listados.
-- `DemonstrativoKpis`, `DemonstrativoGraficos` (com cada série tipada como `{ chave, label, valor_comprado, valor_recebido, valor_pendente }[]` e `por_mes` com `mes`), `DemonstrativoDrillRow` (chave, label, valor_comprado, valor_recebido, valor_pendente, diferenca_comprado_recebido, qtd_linhas, qtd_fornecedores, qtd_documentos), `DemonstrativoDetalheRow` (campos do passo 14).
-- `DemonstrativoResposta` com `atualizado_em, kpis, kpis_dashboard?, graficos, drill, nivel, proximo_nivel?, detalhe, filtros_aplicados, observacao`.
-- `getDemonstrativoComprasRecebimentos(params)` chamando `api.get('/api/demonstrativo-compras-recebimentos', clean(params))`.
-
 ### `src/pages/DemonstrativoComprasRecebimentosPage.tsx`
-- Substituir 3 abas (COMPRAS / RECEBIMENTOS / TODOS) por **um único contexto** controlado por filtro `origem` (mantendo Tabs apenas como atalho visual para alternar). Reaproveitar lógica `stack/currentNivel` já existente.
-- `NIVEL_ORDER` passa a incluir `transacao` e `deposito` no enum (mas o fluxo padrão do drill segue a sequência do passo 10).
-- Adaptar `mergeFiltersWithStack` para gravar a chave no campo certo (`projeto_macro` quando nível `projeto_macro`, etc.).
-- Trocar 4 inputs/combos por `<AutocompleteAsync>` com fetchers de `useCadastrosErp` (Fornecedor, CC, Depósito, Transação). Para Família, Origem material, Documento, Nº OC, Nº NF, Descrição: inputs texto. Tipo de item: `Select` (Todos/Produto/Serviço). Nível: `Select` com os 10 níveis.
-- KPIs: grid 7 cards (`KpiGrid cols={7}` da lib BI) usando `kpis` direto. Sem cálculos no frontend.
-- Gráficos (lib `@/components/bi/charts`):
-  - `BarChartCard` Comprado x Recebido x Pendente (a partir de `graficos.comprado_recebido_pendente`).
-  - `LineChartCard` `graficos.por_mes`.
-  - `PieChartCard` `graficos.por_tipo_despesa`.
-  - `BarChartCard` horizontal `graficos.por_fornecedor` (top N).
-  - `BarChartCard` horizontal `graficos.por_centro_custo`.
-  - `BarChartCard` `graficos.por_projeto_macro`.
-- Tabela drill: colunas conforme passo 9 (chave, label, valor_comprado, valor_recebido, valor_pendente, diferenca_comprado_recebido, qtd_linhas, qtd_fornecedores, qtd_documentos). Linha clicável dispara `handleDrillClick`.
-- Botão "Voltar nível" (desabilitado quando stack vazio) e "Limpar filtros" (mantém data_ini, data_fim, origem=TODOS).
-- Toggle "Ver detalhe" → re-fetch com `incluir_detalhe=true&limite_detalhe=500`.
-- Grid de detalhe usa `DataTableBI` com todas as colunas do passo 14, valores monetários via `formatCurrency`.
-- Loading/erro/vazio: `LoadingState`/`ErrorState`/`NoDataState` da lib BI; toast já existente para erro de rede.
-- Remover `useFornecedores`, `BiAutoSlots` e helpers locais agora obsoletos.
+- Adicionar `sanitizeFilters(filters)` chamado dentro de `buildParams()`:
+  - `data_ini`, `data_fim`: aceitar apenas se `/^\d{4}-\d{2}-\d{2}$/` e `!Number.isNaN(Date.parse(v))`; caso contrário descartar.
+  - `mes_competencia`: aceitar apenas se `/^\d{4}-(0[1-9]|1[0-2])$/`; caso contrário descartar.
+  - `tipo_item`: aceitar apenas `PRODUTO`/`SERVICO`/`''`.
+- Em `fetchData`, quando o erro `statusCode === 500` e mensagem contiver `22007`/`datetime`, mostrar toast: "O backend rejeitou os filtros de data. Confira período inicial/final e mês competência."
 
-### Não muda
-- Roteamento, sidebar, permissões (a tela já está cadastrada).
-- Painel de Compras, Recebimento e demais módulos.
-- `ExportButton` segue apontando para `/api/export/demonstrativo-compras-recebimentos` com os params atuais.
+### `docs/backend-demonstrativo-erro-22007.md` (novo)
+- Diagnóstico do erro 22007.
+- Checklist de correção no FastAPI/pyodbc com exemplos de `WHERE` parametrizado.
+- Exemplo de Pydantic model com `Optional[date]` e validador para `mes_competencia`.
 
-### Fora de escopo
-- Implementação dos endpoints `/api/cadastros/*` (assumidos já existentes; o autocomplete degrada para vazio quando 404/500).
-- Persistência de preferências de filtro / layout do dashboard.
+## Fora de escopo
+- Alterar código do backend FastAPI (não está no repo).
+- Mudar layout/visual ou outros módulos.
 
 ## Arquivos afetados
-- `src/lib/api.ts` (acrescentar tipos + função).
-- `src/pages/DemonstrativoComprasRecebimentosPage.tsx` (refatoração principal).
-- `docs/backend-demonstrativo-compras-recebimentos.md` (atualizar contrato — novos params e novo shape de resposta).
+- `src/pages/DemonstrativoComprasRecebimentosPage.tsx` (sanitização + mensagem amigável).
+- `docs/backend-demonstrativo-erro-22007.md` (novo guia para o backend).

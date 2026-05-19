@@ -128,6 +128,13 @@ export default function DemonstrativoComprasRecebimentosPage() {
       params.incluir_detalhe = true;
       params.limite_detalhe = 500;
     }
+    // Sanitização: evita disparar erro 22007 (nvarchar→datetime) no backend SQL Server
+    const isIsoDate = (v: any) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+    const isYearMonth = (v: any) => typeof v === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(v);
+    if (!isIsoDate(params.data_ini)) delete params.data_ini;
+    if (!isIsoDate(params.data_fim)) delete params.data_fim;
+    if (params.mes_competencia && !isYearMonth(params.mes_competencia)) delete params.mes_competencia;
+    if (params.tipo_item && !['PRODUTO', 'SERVICO'].includes(params.tipo_item)) delete params.tipo_item;
     // remove vazios
     (Object.keys(params) as (keyof DemonstrativoFilters)[]).forEach((k) => {
       const v = params[k];
@@ -145,7 +152,12 @@ export default function DemonstrativoComprasRecebimentosPage() {
       setData(result);
     } catch (e: any) {
       if (e?.statusCode !== 401 && !e?.isNetworkError) {
-        toast.error(e?.message || 'Falha ao carregar demonstrativo');
+        const msg: string = e?.message || '';
+        if (/22007|datetime/i.test(msg)) {
+          toast.error('O backend rejeitou os filtros de data. Confira período inicial/final e mês competência (YYYY-MM).');
+        } else {
+          toast.error(msg || 'Falha ao carregar demonstrativo');
+        }
       }
       setError(e?.message || 'Erro ao carregar dados');
       setData(null);
@@ -153,6 +165,7 @@ export default function DemonstrativoComprasRecebimentosPage() {
       setLoading(false);
     }
   }, [erpReady, buildParams]);
+
 
   useEffect(() => {
     if (erpReady) fetchData();
