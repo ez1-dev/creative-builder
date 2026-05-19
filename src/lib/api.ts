@@ -607,3 +607,42 @@ export async function getOpsJatoPesoComponentes(
   );
 }
 
+// ===== Contabilidade — Balanço Patrimonial =====
+export interface BalancoPatrimonialFilters {
+  anomes_ini?: string | number;
+  anomes_fim?: string | number;
+  codigo_empresa?: string | number;
+  codigo_filial?: string | number;
+  conta?: string;
+  grupo?: string;
+  subgrupo?: string;
+  pagina?: number;
+  por_pagina?: number;
+}
+
+export interface BalancoPatrimonialItem {
+  anomes?: string | number;
+  codigo_empresa?: string | number;
+  codigo_filial?: string | number;
+  conta?: string;
+  grupo?: string;
+  subgrupo?: string;
+  saldo?: number;
+  [k: string]: any;
+}
+
+export interface BalancoPatrimonialResposta {
+  itens: BalancoPatrimonialItem[];
+  pagina: number;
+  total_paginas: number;
+  total_registros: number;
+  [k: string]: any;
+}
+
+export async function getBalancoPatrimonial(
+  filters: BalancoPatrimonialFilters,
+): Promise<BalancoPatrimonialResposta> {
+  return api.get<BalancoPatrimonialResposta>('/api/contabilidade/balanco', filters as Record<string, any>);
+}
+
+
