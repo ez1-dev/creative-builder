@@ -12,6 +12,8 @@ import { UserWidgetsSlot } from '@/components/bi';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { useErpOptions } from '@/hooks/useErpOptions';
 import { useFornecedores } from '@/hooks/useFornecedores';
+import { AutocompleteAsync } from '@/components/erp/AutocompleteAsync';
+import { fetchFornecedoresCadastro, fetchCentrosCusto, fetchDepositos, fetchTransacoesCompras } from '@/hooks/useCadastrosErp';
 import { KPICard } from '@/components/erp/KPICard';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -945,12 +947,12 @@ export default function PainelComprasPage() {
 
         {/* 4) Entidades & Local */}
         <FilterSection title="Entidades & Local" icon={<Layers className="h-3.5 w-3.5" />} cols={6}>
-          <div><Label className="text-xs">Fornecedor</Label><ComboboxFilter value={filters.fornecedor} onChange={(v) => setFilters(f => ({ ...f, fornecedor: v }))} options={fornecedoresOptions} placeholder="Buscar fornecedor..." loading={fornecedoresLoading} /></div>
+          <div><Label className="text-xs">Fornecedor</Label><AutocompleteAsync value={filters.fornecedor} onChange={(v) => setFilters(f => ({ ...f, fornecedor: v }))} fetcher={fetchFornecedoresCadastro} placeholder="Buscar fornecedor..." /></div>
           <div><Label className="text-xs">Projeto</Label><Input value={filters.numero_projeto} onChange={(e) => setFilters(f => ({ ...f, numero_projeto: e.target.value }))} className="h-8 text-xs" /></div>
-          <div><Label className="text-xs">Centro Custo</Label><Input value={filters.centro_custo} onChange={(e) => setFilters(f => ({ ...f, centro_custo: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Centro Custo</Label><AutocompleteAsync value={filters.centro_custo} onChange={(v) => setFilters(f => ({ ...f, centro_custo: v }))} fetcher={fetchCentrosCusto} placeholder="Buscar centro de custo..." /></div>
           <div><Label className="text-xs">Família</Label><ComboboxFilter value={filters.familia} onChange={(v) => setFilters(f => ({ ...f, familia: v }))} options={familias} placeholder="Família" loading={optionsLoading} /></div>
           <div><Label className="text-xs">Origem</Label><ComboboxFilter value={filters.origem_material} onChange={(v) => setFilters(f => ({ ...f, origem_material: v }))} options={origens} placeholder="Origem" loading={optionsLoading} /></div>
-          <div><Label className="text-xs">Depósito</Label><Input value={filters.coddep} onChange={(e) => setFilters(f => ({ ...f, coddep: e.target.value }))} placeholder="Depósito" className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Depósito</Label><AutocompleteAsync value={filters.coddep} onChange={(v) => setFilters(f => ({ ...f, coddep: v }))} fetcher={fetchDepositos} placeholder="Buscar depósito..." /></div>
         </FilterSection>
 
         {/* 5) Classificação & Desconto */}
@@ -966,7 +968,7 @@ export default function PainelComprasPage() {
               </SelectContent>
             </Select>
           </div>
-          <div><Label className="text-xs">Transação</Label><Input value={filters.transacao} onChange={(e) => setFilters(f => ({ ...f, transacao: e.target.value }))} className="h-8 text-xs" /></div>
+          <div><Label className="text-xs">Transação</Label><AutocompleteAsync value={filters.transacao} onChange={(v) => setFilters(f => ({ ...f, transacao: v }))} fetcher={fetchTransacoesCompras} placeholder="Buscar transação..." /></div>
           <div>
             <Label className="text-xs">Desconto</Label>
             <Select value={filters.codigo_motivo_oc} onValueChange={(v) => setFilters(f => ({ ...f, codigo_motivo_oc: v }))}>
