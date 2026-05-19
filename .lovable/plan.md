@@ -1,61 +1,51 @@
-# Plano — Módulo Contabilidade → Balanço Patrimonial
+# Plano — Painel de Compras: filtros como autocomplete do cadastro Senior
 
 ## Objetivo
-Criar tela `/contabilidade/balanco` consumindo `GET /api/contabilidade/balanco` (e export `/api/export/contabilidade/balanco`) com filtros, KPIs analíticos no topo e tabela paginada com export Excel. Adicionar item no menu lateral e na lista de permissões por tela.
+Trocar os 4 inputs livres (Fornecedor, Centro de Custo, Depósito, Transação) do `PainelComprasPage` por um combobox tipo autocomplete que busca em endpoints REST de cadastros do ERP Senior. A seleção envia **apenas o código** para o filtro existente (`fornecedor`, `centro_custo`, `coddep`/`deposito`, `transacao`).
 
-## Arquivos a criar / alterar
+## Backend esperado (a ser implementado no FastAPI)
+Quatro novos endpoints retornando array `[{ codigo, descricao, label, ... }]`. Suportam query `?q=` (filtro por código OU descrição, case-insensitive, LIKE) e limit padrão 50.
 
-### 1. `src/pages/contabilidade/BalancoPatrimonialPage.tsx` (novo)
-- Layout com `PageHeader` ("Contabilidade — Balanço Patrimonial").
-- `FilterPanel` com:
-  - `anomes_ini` / `anomes_fim` (input numérico AAAAMM, default = ano corrente jan→dez)
-  - `codigo_empresa`, `codigo_filial` (input numérico opcional)
-  - `conta`, `grupo`, `subgrupo` (input texto opcional)
-- Botão "Pesquisar" dispara fetch via `api.get('/api/contabilidade/balanco', { params })` com `pagina` / `por_pagina` (default 100).
-- `ExportButton` apontando para `/api/export/contabilidade/balanco` repassando os mesmos filtros.
-- `KpiGroup` no topo com cards calculados sobre o conjunto retornado da página atual (e total quando o backend devolver agregados):
-  - Total Ativo (sum saldo onde grupo ILIKE '%ATIVO%')
-  - Total Passivo (sum saldo onde grupo ILIKE '%PASSIVO%')
-  - Patrimônio Líquido (sum saldo onde grupo ILIKE '%PATRIM%')
-  - Qtde de contas distintas
-  - Observação no card: "valores referentes à página/filtro atual" quando paginado.
-- `DataTableBI` com colunas: anomes, codigo_empresa, codigo_filial, conta, grupo, subgrupo, saldo (formatado BR, alinhado à direita). Paginação integrada usando `pagina/totalPaginas/totalRegistros` retornados pela API.
-- Tratamento de erro padrão via `toast` quando backend offline (mesma mensagem dos outros módulos).
+| Endpoint | Tabela | Campos | label |
+|---|---|---|---|
+| `GET /api/cadastros/fornecedores?q=` | `E095FOR` (ativos: `SitFor='A'` se existir) | `codigo=CodFor`, `descricao=NomFor`, `fantasia=ApeFor` | `"CodFor - NomFor"` |
+| `GET /api/cadastros/centros-custo?q=` | `E044CCU` | `codigo=CodCcu`, `descricao=DesCcu` | `"CodCcu - DesCcu"` |
+| `GET /api/cadastros/depositos?q=` | `E205DEP` | `codigo=CodDep`, `descricao=DesDep` | `"CodDep - DesDep"` |
+| `GET /api/cadastros/transacoes-compras?q=` | `E001TNS` filtrando transações de compras (ex.: `IdePrc IN ('1','C')` ou via uso em `E140IPD`) | `codigo=CodTns`, `descricao=DesTns` | `"CodTns - DesTns"` |
 
-### 2. `src/lib/api.ts`
-- Adicionar tipos `BalancoPatrimonialItem` e `BalancoPatrimonialResposta` e função `getBalancoPatrimonial(params)` retornando `{ itens, pagina, total_paginas, total_registros }`.
-- Função auxiliar `getBalancoColunas()` chamando `/api/contabilidade/balanco/colunas` (útil para debug; pode ser exposto como botão "Ver colunas da view" apenas para admin — opcional, não incluído no MVP).
+Criar `docs/backend-cadastros-autocomplete.md` documentando assinatura, exemplos de resposta, SQL de referência e necessidade de índice por (codigo, descricao). **Nada de implementação backend feita pelo Lovable** — apenas a doc + o consumo no frontend.
 
-### 3. `src/App.tsx`
-- Importar `BalancoPatrimonialPage`.
-- Adicionar `<Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />`.
+## Frontend
 
-### 4. `src/components/AppSidebar.tsx`
-- Adicionar entrada no array `modules` antes de "Configurações":
-  ```ts
-  { title: 'Contabilidade — Balanço', url: '/contabilidade/balanco', icon: Landmark },
-  ```
-  (usa o ícone `Landmark` já importado; se preferir distinguir de Contas a Pagar, troco por `BookOpen` ou `Scale`.)
+### 1. Novo componente `src/components/erp/AutocompleteAsync.tsx`
+Combobox genérico para "search-as-you-type" com fetch debounced (300ms), baseado em `Popover` + `Command` (mesmo estilo do `ComboboxFilter` atual).
+- Props: `value: string` (código atual), `onChange(code: string)`, `fetcher: (q: string) => Promise<Option[]>`, `placeholder`, `loadingInitialLabel?: string`.
+- `Option = { codigo: string; descricao: string; label: string; fantasia?: string }`.
+- Exibe `label` na lista, mostra o `label` do item selecionado no botão (cache local da última seleção para evitar refetch só pra mostrar nome).
+- Botão "X" para limpar (chama `onChange('')`).
+- Busca casa por `codigo` ou `descricao`.
 
-### 5. `src/lib/screenCatalog.ts`
-- Acrescentar em `EXACT`:
-  ```ts
-  '/contabilidade/balanco': { codigo: 'CONT_BAL', nome: 'Contabilidade — Balanço Patrimonial' },
-  ```
-- Adicionar entrada `PREFIX` para `/contabilidade` agrupando logs futuros.
+### 2. Novo hook `src/hooks/useCadastrosErp.ts`
+Exporta funções fetcher (todas usam `api.get` com `?q=`):
+- `fetchFornecedores(q)`, `fetchCentrosCusto(q)`, `fetchDepositos(q)`, `fetchTransacoesCompras(q)`.
+Cada uma normaliza a resposta para `Option[]`. Inclui in-memory cache LRU pequeno por (endpoint, q) com TTL 5 min para reduzir chamadas. Em caso de 404/500 retorna `[]` (não quebra a tela; toast silencioso só em erro de rede).
 
-### 6. `src/pages/ConfiguracoesPage.tsx`
-- Adicionar em `AVAILABLE_SCREENS`:
-  ```ts
-  { path: '/contabilidade/balanco', name: 'Contabilidade — Balanço Patrimonial' },
-  ```
-  posicionado logo após "Contas a Receber".
+### 3. `src/pages/PainelComprasPage.tsx`
+- Remover o uso de `useFornecedores` (que retornava `fantasia` como value) e a normalização atual para fornecedor.
+- Trocar os 4 inputs/combobox nas linhas 948, 950, 953 e 969 por `AutocompleteAsync` apontando para o fetcher correspondente.
+- `filters.fornecedor`, `filters.centro_custo`, `filters.coddep`, `filters.transacao` passam a guardar **apenas o código** (ex.: `'12345'`). Os chips ativos (`ActiveFilterChips`) continuam mostrando o código + label cacheado.
+- Manter botão "Limpar" do filtro global e o "X" individual.
+- Sem mudanças nas chamadas para `/api/painel-compras*` — o backend já recebe esses 4 campos com o nome correto; só muda o valor (passa de "nome do fornecedor" para `CodFor`).
 
-## Não incluído neste MVP
-- Aba de Conciliação Comercial × Contábil (`/api/contabilidade/conciliacao-comercial-contabil`) — fica para próxima iteração quando você pedir.
-- Endpoint de diagnóstico `/balanco/colunas` não recebe UI dedicada (pode ser chamado via DevTools se precisar validar).
-- Nenhuma mudança no backend FastAPI, no Lovable Cloud, ou em tabelas `bi_*` — frontend consome direto a API publicada.
-- Sem drill-down/gráficos avançados; só KPIs simples + tabela. Posso evoluir para gráficos (Treemap por grupo, barras por mês) quando você confirmar formato dos dados retornados.
+### 4. Sem mudanças em
+- `useFornecedores` legado (deixar arquivo, ainda usado para popular dropdown derivado dos dados retornados em outros lugares? Conferir: hoje só é usado no `PainelComprasPage`. Se ficar órfão, deletar.) → confirmarei na implementação e removo se ninguém mais usar.
+- Outras páginas/contas/etc. — escopo restrito ao painel.
 
-## Pré-requisito de teste
-Antes de validar a tela, rodar `GET /api/contabilidade/balanco/colunas` no backend e confirmar que os nomes `anomes, codigo_empresa, codigo_filial, conta, grupo, subgrupo, saldo` batem com a view. Se divergirem, ajusto as `Column` no `DataTableBI` e os agregadores dos KPIs em uma rodada rápida.
+## Pontos importantes
+- O endpoint do painel atualmente recebe `coddep` (não `deposito`). Vou manter `coddep` no envio para não quebrar nada; se o backend padronizar para `deposito`, basta renomear a chave no `filters`.
+- O combobox de fornecedor antigo enviava a fantasia como filtro string — isso mudará para o `CodFor`. **Verificar se o backend do painel já filtra por código quando o valor é numérico** — espero que sim (campo `CodFor` é numérico); se filtrar só por substring no nome, a troca rebaixa resultados. A doc `backend-cadastros-autocomplete.md` deixará claro que o `fornecedor` no `/api/painel-compras` deve aceitar `CodFor`.
+
+## Fora de escopo
+- Implementação real dos 4 endpoints FastAPI (cabe ao backend).
+- Mexer em filtros de outras telas (Contas a Pagar, Estoque etc.) — embora o `AutocompleteAsync` fique disponível para reúso futuro.
+- Mudança no esquema de logs/tracking.
