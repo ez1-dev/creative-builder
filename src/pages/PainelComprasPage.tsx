@@ -147,7 +147,7 @@ export default function PainelComprasPage() {
 
   const erpReady = useErpReady();
   const { familias, origens, loading: optionsLoading } = useErpOptions(erpReady, data?.dados, { familiaKey: 'codigo_familia', origemKey: 'origem_material' });
-  const { fornecedores: fornecedoresOptions, loading: fornecedoresLoading } = useFornecedores(erpReady, data?.dados);
+  
 
   const trackSearch = useSearchTracking('painel-compras');
 
