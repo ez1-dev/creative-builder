@@ -1,42 +1,83 @@
-# Erro 22007 — conversão nvarchar → datetime no Demonstrativo
+# Erro 42S02 — `#BASE_DEM` inválido no Demonstrativo
 
-A mensagem `[22007] ... conversão de um tipo de dados nvarchar em um tipo de dados datetime resultou em um valor fora do intervalo (242)` vem do **SQL Server**, na execução da query do endpoint `GET /api/demonstrativo-compras-recebimentos`. Não é erro de frontend — o backend FastAPI está enviando uma string que o driver ODBC não consegue converter para `datetime`.
+## Diagnóstico
 
-Causas típicas:
-- `data_ini` / `data_fim` chegando vazios e o SQL concatenando algo como `CONVERT(datetime, '')`.
-- `mes_competencia` recebido como `YYYY-MM` e usado direto em conversão para `datetime` (precisa virar `YYYY-MM-01`).
-- Defaults no backend tipo `'0001-01-01'` ou `'9999-12-31'` fora do range aceito pelo `datetime` (1753-9999).
-- Filtros novos (`numero_oc`, `numero_nf`, `documento`, `tipo_item`, `familia`, `origem_material`, `deposito`) sendo interpretados como data em alguma cláusula errada.
+```
+('42S02', "[42S02] ... Nome de objeto '#BASE_DEM' inválido. (208)")
+```
 
-## Escopo
+Erro do **SQL Server**, vindo do backend FastAPI no endpoint `GET /api/demonstrativo-compras-recebimentos`. O código 42S02 / 208 significa "tabela/objeto não existe". A query final do endpoint referencia a tabela temporária `#BASE_DEM`, mas ela não foi criada na mesma conexão/sessão antes do `SELECT`.
 
-1. **Frontend — defensivo**: enviar `data_ini`/`data_fim` apenas quando forem datas válidas no formato `YYYY-MM-DD` e `mes_competencia` apenas no formato `YYYY-MM` (regex). Mostrar toast quando o usuário digitar algo inválido. Isso evita gatilhar o erro por entrada mal formada.
-2. **Documentação backend**: criar/atualizar `docs/backend-demonstrativo-erro-22007.md` listando os pontos a corrigir no FastAPI:
-   - Receber `data_ini`/`data_fim` como `Optional[date]` (Pydantic) — qualquer string fora do `YYYY-MM-DD` cai em 422 antes do SQL.
-   - Construir o `WHERE` com placeholders parametrizados (`?` no pyodbc) em vez de concatenar strings — evita injeção e conversões implícitas.
-   - Tratar `mes_competencia` como `YYYY-MM`: derivar `inicio = data(yyyy, mm, 1)` e `fim = último dia do mês`; nunca passar `'2026-05'` direto em `CONVERT(datetime, ...)`.
-   - Validar que defaults não usem `'0001-01-01'` (fora do range `datetime`). Usar `datetime2` ou aplicar limites `>= 1900-01-01`.
-   - Garantir que os novos filtros opcionais (`numero_oc`, `numero_nf`, `documento`, `tipo_item`, `deposito`, `familia`, `origem_material`, `transacao`) sejam aplicados como `nvarchar` no `WHERE`, nunca como `datetime`.
-3. **Apoio ao diagnóstico**: ao receber 500 nesse endpoint, mostrar no frontend uma mensagem amigável + link "Tentar novamente" (já temos `ErrorState`), e logar `filtros_aplicados` enviados para facilitar reproduzir.
+Não é problema do frontend — nenhum payload do cliente cria/derruba temp tables. Os filtros foram sanitizados na correção anterior (erro 22007) e seguem corretos.
 
-## Detalhes técnicos
+## Causas típicas no backend (pyodbc + SQL Server)
 
-### `src/pages/DemonstrativoComprasRecebimentosPage.tsx`
-- Adicionar `sanitizeFilters(filters)` chamado dentro de `buildParams()`:
-  - `data_ini`, `data_fim`: aceitar apenas se `/^\d{4}-\d{2}-\d{2}$/` e `!Number.isNaN(Date.parse(v))`; caso contrário descartar.
-  - `mes_competencia`: aceitar apenas se `/^\d{4}-(0[1-9]|1[0-2])$/`; caso contrário descartar.
-  - `tipo_item`: aceitar apenas `PRODUTO`/`SERVICO`/`''`.
-- Em `fetchData`, quando o erro `statusCode === 500` e mensagem contiver `22007`/`datetime`, mostrar toast: "O backend rejeitou os filtros de data. Confira período inicial/final e mês competência."
+1. **Conexões diferentes para CREATE e SELECT** — temp tables locais (`#nome`) vivem só na sessão que as criou. Se o pool do pyodbc devolver outra conexão entre o `CREATE TABLE #BASE_DEM` e o `SELECT ... FROM #BASE_DEM`, a segunda enxerga "objeto inválido".
+2. **`executemany` / múltiplos `cursor.execute` sem `cursor.nextset()`** — o batch que cria a `#BASE_DEM` retorna mensagens (ex.: `SET NOCOUNT ON` ausente, `PRINT`, contagens) e o pyodbc consome o resultado errado, ignorando o `CREATE`.
+3. **Erro silencioso no `CREATE TABLE #BASE_DEM ... SELECT ...`** — alguma das colunas/CTEs falha (ex.: filtro novo `tipo_item`, `numero_oc`, `familia` referenciando coluna inexistente), o `CREATE` aborta e o `SELECT` seguinte explode com 42S02.
+4. **Quebra do SQL em pedaços com `GO`** — `GO` é separador do SSMS, não comando T-SQL; se o backend manda o script inteiro com `GO`, pyodbc executa só o primeiro bloco.
+5. **Uso de `with pyodbc.connect(...) as conn:` reabrindo conexão entre passos** — temp table some no `commit`/reconnect.
 
-### `docs/backend-demonstrativo-erro-22007.md` (novo)
-- Diagnóstico do erro 22007.
-- Checklist de correção no FastAPI/pyodbc com exemplos de `WHERE` parametrizado.
-- Exemplo de Pydantic model com `Optional[date]` e validador para `mes_competencia`.
+## Escopo desta tarefa
 
-## Fora de escopo
-- Alterar código do backend FastAPI (não está no repo).
-- Mudar layout/visual ou outros módulos.
+Apenas documentação para o time de backend, já que o código FastAPI não está neste repo. Sem mudanças visuais ou de lógica no frontend.
+
+1. Criar `docs/backend-demonstrativo-erro-42s02.md` com:
+   - Diagnóstico do erro e do código 208.
+   - Checklist de correção (mesma conexão/cursor, `SET NOCOUNT ON`, evitar `GO`, validar `CREATE` antes do `SELECT`).
+   - Alternativas recomendadas: usar **table variable** (`DECLARE @base TABLE(...)`) ou **CTE** quando os dados couberem em memória; ou criar **tabela temporária global** `##base_dem_<uuid>` e dropar no `finally`.
+   - Snippet pyodbc mostrando padrão correto (um único `cursor.execute` com o script completo ou conexão dedicada por request).
+   - Como reproduzir: rodar `GET /api/demonstrativo-compras-recebimentos?origem=TODOS&nivel=projeto_macro` e ativar log de SQL para ver onde o `CREATE` foi engolido.
+2. Atualizar `.lovable/plan.md` com o novo erro investigado e apontar para o doc.
+
+## Snippet de referência (vai no doc)
+
+```python
+# Padrão seguro: mesma conexão, mesmo cursor, SET NOCOUNT, batch único
+SQL = """
+SET NOCOUNT ON;
+
+IF OBJECT_ID('tempdb..#BASE_DEM') IS NOT NULL DROP TABLE #BASE_DEM;
+
+SELECT ...
+INTO #BASE_DEM
+FROM E140NFI nfi
+JOIN E140NFC nfc ON ...
+WHERE nfc.DatEmi BETWEEN ? AND ?;
+
+SELECT ... FROM #BASE_DEM
+WHERE (? IS NULL OR projeto_macro = ?)
+ORDER BY ...;
+"""
+
+with get_conn() as conn:           # uma conexão por request
+    cur = conn.cursor()             # um único cursor
+    cur.execute(SQL, [data_ini, data_fim, projeto_macro, projeto_macro])
+    rows = cur.fetchall()
+```
+
+Pontos críticos:
+- `SET NOCOUNT ON` no topo evita pyodbc consumir contagens em vez do resultado.
+- Nada de `GO` — quebra o batch em chamadas separadas.
+- Não usar pool com `autocommit=True` que recicla conexão entre passos.
+- Se o backend faz paginação/contagem em chamadas separadas, **recriar a `#BASE_DEM` em cada cursor.execute** ou trocar para `##global` / tabela real `etl_demonstrativo_tmp` com chave de sessão.
+
+## Mitigação no frontend
+
+Já temos `ErrorState` mostrando a mensagem do backend. Vou adicionar, junto da heurística do 22007, mais um caso amigável: quando `statusCode === 500` e a mensagem contiver `42S02` ou `#BASE_DEM` ou `Nome de objeto`, exibir toast:
+
+> "O backend não conseguiu montar a tabela temporária do demonstrativo. Reenvie a requisição em alguns segundos; se persistir, o time de backend precisa revisar o endpoint (ver `docs/backend-demonstrativo-erro-42s02.md`)."
+
+Isso ajuda o usuário a saber que não é input dele.
 
 ## Arquivos afetados
-- `src/pages/DemonstrativoComprasRecebimentosPage.tsx` (sanitização + mensagem amigável).
-- `docs/backend-demonstrativo-erro-22007.md` (novo guia para o backend).
+
+- `docs/backend-demonstrativo-erro-42s02.md` (novo).
+- `.lovable/plan.md` (atualizar com o novo erro).
+- `src/pages/DemonstrativoComprasRecebimentosPage.tsx` (apenas estender o tratamento amigável de erro 500 — sem mudar layout nem lógica de filtros).
+
+## Fora de escopo
+
+- Alterar o backend FastAPI (não está neste repo).
+- Mudanças visuais ou de comportamento da tela além da mensagem de erro.
+- Outros módulos.
