@@ -155,6 +155,8 @@ export default function DemonstrativoComprasRecebimentosPage() {
         const msg: string = e?.message || '';
         if (/22007|datetime/i.test(msg)) {
           toast.error('O backend rejeitou os filtros de data. Confira período inicial/final e mês competência (YYYY-MM).');
+        } else if (/42S02|#BASE_DEM|Nome de objeto/i.test(msg)) {
+          toast.error('O backend não conseguiu montar a tabela temporária do demonstrativo (#BASE_DEM). Tente novamente em alguns segundos; se persistir, o time de backend precisa revisar o endpoint (docs/backend-demonstrativo-erro-42s02.md).');
         } else {
           toast.error(msg || 'Falha ao carregar demonstrativo');
         }
