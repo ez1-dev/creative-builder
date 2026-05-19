@@ -1,51 +1,58 @@
-# Plano — Painel de Compras: filtros como autocomplete do cadastro Senior
+# Demonstrativo de Compras e Recebimentos — Refatoração
 
-## Objetivo
-Trocar os 4 inputs livres (Fornecedor, Centro de Custo, Depósito, Transação) do `PainelComprasPage` por um combobox tipo autocomplete que busca em endpoints REST de cadastros do ERP Senior. A seleção envia **apenas o código** para o filtro existente (`fornecedor`, `centro_custo`, `coddep`/`deposito`, `transacao`).
+A tela já existe (`src/pages/DemonstrativoComprasRecebimentosPage.tsx`). O backend evoluiu: novos parâmetros, novos níveis de drill, bloco `graficos`, `kpis_dashboard`, novas colunas em `drill` e `detalhe`, e novos campos no schema do detalhe. Vou alinhar o frontend a esse contrato sem remover Painel de Compras nem Recebimento.
 
-## Backend esperado (a ser implementado no FastAPI)
-Quatro novos endpoints retornando array `[{ codigo, descricao, label, ... }]`. Suportam query `?q=` (filtro por código OU descrição, case-insensitive, LIKE) e limit padrão 50.
+## Escopo
 
-| Endpoint | Tabela | Campos | label |
-|---|---|---|---|
-| `GET /api/cadastros/fornecedores?q=` | `E095FOR` (ativos: `SitFor='A'` se existir) | `codigo=CodFor`, `descricao=NomFor`, `fantasia=ApeFor` | `"CodFor - NomFor"` |
-| `GET /api/cadastros/centros-custo?q=` | `E044CCU` | `codigo=CodCcu`, `descricao=DesCcu` | `"CodCcu - DesCcu"` |
-| `GET /api/cadastros/depositos?q=` | `E205DEP` | `codigo=CodDep`, `descricao=DesDep` | `"CodDep - DesDep"` |
-| `GET /api/cadastros/transacoes-compras?q=` | `E001TNS` filtrando transações de compras (ex.: `IdePrc IN ('1','C')` ou via uso em `E140IPD`) | `codigo=CodTns`, `descricao=DesTns` | `"CodTns - DesTns"` |
+1. Atualizar tipos da resposta e do request.
+2. Trocar inputs livres por autocompletes ERP em Fornecedor, Centro de Custo, Depósito e Transação (reusando `AutocompleteAsync` + `useCadastrosErp` já criados).
+3. Acrescentar filtros novos: Depósito, Família, Origem material, Documento, Nº OC, Nº NF, Tipo de item (Produto/Serviço), Nível do drill.
+4. Substituir gráficos atuais pelos do bloco `graficos` retornado pela API.
+5. Atualizar KPIs para usar exclusivamente `kpis` da API (7 cards exigidos).
+6. Drill-down passa a usar fluxo: `projeto_macro → numero_projeto → centro_custo → tipo_despesa → fornecedor → documento → item` (a transição preenche o filtro correspondente e troca o nível). Adicionar botão "Voltar nível".
+7. "Ver detalhe": toggle que chama API com `incluir_detalhe=true&limite_detalhe=500`. Quando vier `detalhe`, mostrar grid com todas as colunas do schema novo.
+8. Estados loading/erro/vazio padronizados (componentes BI `LoadingState`, `ErrorState`, `EmptyState`).
+9. Service `getDemonstrativoComprasRecebimentos(params)` em `src/lib/api.ts`.
 
-Criar `docs/backend-cadastros-autocomplete.md` documentando assinatura, exemplos de resposta, SQL de referência e necessidade de índice por (codigo, descricao). **Nada de implementação backend feita pelo Lovable** — apenas a doc + o consumo no frontend.
+## Detalhes técnicos
 
-## Frontend
+### `src/lib/api.ts`
+Adicionar interfaces:
+- `DemonstrativoFilters` com todos os params listados.
+- `DemonstrativoKpis`, `DemonstrativoGraficos` (com cada série tipada como `{ chave, label, valor_comprado, valor_recebido, valor_pendente }[]` e `por_mes` com `mes`), `DemonstrativoDrillRow` (chave, label, valor_comprado, valor_recebido, valor_pendente, diferenca_comprado_recebido, qtd_linhas, qtd_fornecedores, qtd_documentos), `DemonstrativoDetalheRow` (campos do passo 14).
+- `DemonstrativoResposta` com `atualizado_em, kpis, kpis_dashboard?, graficos, drill, nivel, proximo_nivel?, detalhe, filtros_aplicados, observacao`.
+- `getDemonstrativoComprasRecebimentos(params)` chamando `api.get('/api/demonstrativo-compras-recebimentos', clean(params))`.
 
-### 1. Novo componente `src/components/erp/AutocompleteAsync.tsx`
-Combobox genérico para "search-as-you-type" com fetch debounced (300ms), baseado em `Popover` + `Command` (mesmo estilo do `ComboboxFilter` atual).
-- Props: `value: string` (código atual), `onChange(code: string)`, `fetcher: (q: string) => Promise<Option[]>`, `placeholder`, `loadingInitialLabel?: string`.
-- `Option = { codigo: string; descricao: string; label: string; fantasia?: string }`.
-- Exibe `label` na lista, mostra o `label` do item selecionado no botão (cache local da última seleção para evitar refetch só pra mostrar nome).
-- Botão "X" para limpar (chama `onChange('')`).
-- Busca casa por `codigo` ou `descricao`.
+### `src/pages/DemonstrativoComprasRecebimentosPage.tsx`
+- Substituir 3 abas (COMPRAS / RECEBIMENTOS / TODOS) por **um único contexto** controlado por filtro `origem` (mantendo Tabs apenas como atalho visual para alternar). Reaproveitar lógica `stack/currentNivel` já existente.
+- `NIVEL_ORDER` passa a incluir `transacao` e `deposito` no enum (mas o fluxo padrão do drill segue a sequência do passo 10).
+- Adaptar `mergeFiltersWithStack` para gravar a chave no campo certo (`projeto_macro` quando nível `projeto_macro`, etc.).
+- Trocar 4 inputs/combos por `<AutocompleteAsync>` com fetchers de `useCadastrosErp` (Fornecedor, CC, Depósito, Transação). Para Família, Origem material, Documento, Nº OC, Nº NF, Descrição: inputs texto. Tipo de item: `Select` (Todos/Produto/Serviço). Nível: `Select` com os 10 níveis.
+- KPIs: grid 7 cards (`KpiGrid cols={7}` da lib BI) usando `kpis` direto. Sem cálculos no frontend.
+- Gráficos (lib `@/components/bi/charts`):
+  - `BarChartCard` Comprado x Recebido x Pendente (a partir de `graficos.comprado_recebido_pendente`).
+  - `LineChartCard` `graficos.por_mes`.
+  - `PieChartCard` `graficos.por_tipo_despesa`.
+  - `BarChartCard` horizontal `graficos.por_fornecedor` (top N).
+  - `BarChartCard` horizontal `graficos.por_centro_custo`.
+  - `BarChartCard` `graficos.por_projeto_macro`.
+- Tabela drill: colunas conforme passo 9 (chave, label, valor_comprado, valor_recebido, valor_pendente, diferenca_comprado_recebido, qtd_linhas, qtd_fornecedores, qtd_documentos). Linha clicável dispara `handleDrillClick`.
+- Botão "Voltar nível" (desabilitado quando stack vazio) e "Limpar filtros" (mantém data_ini, data_fim, origem=TODOS).
+- Toggle "Ver detalhe" → re-fetch com `incluir_detalhe=true&limite_detalhe=500`.
+- Grid de detalhe usa `DataTableBI` com todas as colunas do passo 14, valores monetários via `formatCurrency`.
+- Loading/erro/vazio: `LoadingState`/`ErrorState`/`NoDataState` da lib BI; toast já existente para erro de rede.
+- Remover `useFornecedores`, `BiAutoSlots` e helpers locais agora obsoletos.
 
-### 2. Novo hook `src/hooks/useCadastrosErp.ts`
-Exporta funções fetcher (todas usam `api.get` com `?q=`):
-- `fetchFornecedores(q)`, `fetchCentrosCusto(q)`, `fetchDepositos(q)`, `fetchTransacoesCompras(q)`.
-Cada uma normaliza a resposta para `Option[]`. Inclui in-memory cache LRU pequeno por (endpoint, q) com TTL 5 min para reduzir chamadas. Em caso de 404/500 retorna `[]` (não quebra a tela; toast silencioso só em erro de rede).
+### Não muda
+- Roteamento, sidebar, permissões (a tela já está cadastrada).
+- Painel de Compras, Recebimento e demais módulos.
+- `ExportButton` segue apontando para `/api/export/demonstrativo-compras-recebimentos` com os params atuais.
 
-### 3. `src/pages/PainelComprasPage.tsx`
-- Remover o uso de `useFornecedores` (que retornava `fantasia` como value) e a normalização atual para fornecedor.
-- Trocar os 4 inputs/combobox nas linhas 948, 950, 953 e 969 por `AutocompleteAsync` apontando para o fetcher correspondente.
-- `filters.fornecedor`, `filters.centro_custo`, `filters.coddep`, `filters.transacao` passam a guardar **apenas o código** (ex.: `'12345'`). Os chips ativos (`ActiveFilterChips`) continuam mostrando o código + label cacheado.
-- Manter botão "Limpar" do filtro global e o "X" individual.
-- Sem mudanças nas chamadas para `/api/painel-compras*` — o backend já recebe esses 4 campos com o nome correto; só muda o valor (passa de "nome do fornecedor" para `CodFor`).
+### Fora de escopo
+- Implementação dos endpoints `/api/cadastros/*` (assumidos já existentes; o autocomplete degrada para vazio quando 404/500).
+- Persistência de preferências de filtro / layout do dashboard.
 
-### 4. Sem mudanças em
-- `useFornecedores` legado (deixar arquivo, ainda usado para popular dropdown derivado dos dados retornados em outros lugares? Conferir: hoje só é usado no `PainelComprasPage`. Se ficar órfão, deletar.) → confirmarei na implementação e removo se ninguém mais usar.
-- Outras páginas/contas/etc. — escopo restrito ao painel.
-
-## Pontos importantes
-- O endpoint do painel atualmente recebe `coddep` (não `deposito`). Vou manter `coddep` no envio para não quebrar nada; se o backend padronizar para `deposito`, basta renomear a chave no `filters`.
-- O combobox de fornecedor antigo enviava a fantasia como filtro string — isso mudará para o `CodFor`. **Verificar se o backend do painel já filtra por código quando o valor é numérico** — espero que sim (campo `CodFor` é numérico); se filtrar só por substring no nome, a troca rebaixa resultados. A doc `backend-cadastros-autocomplete.md` deixará claro que o `fornecedor` no `/api/painel-compras` deve aceitar `CodFor`.
-
-## Fora de escopo
-- Implementação real dos 4 endpoints FastAPI (cabe ao backend).
-- Mexer em filtros de outras telas (Contas a Pagar, Estoque etc.) — embora o `AutocompleteAsync` fique disponível para reúso futuro.
-- Mudança no esquema de logs/tracking.
+## Arquivos afetados
+- `src/lib/api.ts` (acrescentar tipos + função).
+- `src/pages/DemonstrativoComprasRecebimentosPage.tsx` (refatoração principal).
+- `docs/backend-demonstrativo-compras-recebimentos.md` (atualizar contrato — novos params e novo shape de resposta).
