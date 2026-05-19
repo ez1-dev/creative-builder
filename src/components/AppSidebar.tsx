@@ -38,6 +38,7 @@ const modules = [
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
   { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
   { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
+  { title: 'Contabilidade — Balanço', url: '/contabilidade/balanco', icon: Landmark },
   { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
   { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
   { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
