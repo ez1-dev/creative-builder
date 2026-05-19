@@ -26,22 +26,25 @@ export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
   const [preview, setPreview] = useState(false);
+  const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
 
   const consultar = async () => {
-    if (!filtros.num_orp && !filtros.cod_emp) {
-      toast.info('Informe ao menos Empresa ou Número da O.P.');
+    if (!filtros.cod_emp || !filtros.cod_ori || !filtros.num_orp) {
+      toast.info('Informe Empresa, Origem e Nº da O.P.');
       return;
     }
+    setLastConsulta({ ...filtros });
     await fetchData(filtros);
   };
 
   const limpar = () => {
     setFiltros(EMPTY);
     setPreview(false);
+    setLastConsulta(null);
     reset();
   };
 
