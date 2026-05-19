@@ -139,16 +139,35 @@ export default function ImpressaoOrdemProducaoPage() {
       {!loading && error && (
         <Card className="no-print">
           <CardContent className="space-y-2 p-6 text-center">
-            <p className="text-sm font-medium text-destructive">{error}</p>
+            {/Not Found|404/i.test(error) ? (
+              <>
+                <p className="text-sm font-medium text-destructive">
+                  Endpoint indisponível no backend (<code>/api/producao/ordem-producao/impressao</code>).
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Solicite ao time de backend implementar conforme <code>docs/backend-impressao-ordem-producao.md</code>.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-medium text-destructive">{error}</p>
+            )}
             <Button size="sm" variant="outline" onClick={retry}>Tentar novamente</Button>
           </CardContent>
         </Card>
       )}
 
-      {!loading && !error && !data?.cabecalho && (
+      {!loading && !error && !data?.cabecalho && lastConsulta && (
         <Card className="no-print">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            Ordem de produção não encontrada.
+            Ordem de produção não encontrada para Empresa {lastConsulta.cod_emp} / Origem {lastConsulta.cod_ori} / OP {lastConsulta.num_orp}.
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && !data?.cabecalho && !lastConsulta && (
+        <Card className="no-print">
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Informe os filtros e clique em Consultar.
           </CardContent>
         </Card>
       )}
