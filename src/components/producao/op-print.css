@@ -1,0 +1,167 @@
+/* Impressão de Ordem de Produção - layout fiel ao MCAP700.GER (Senior).
+   Monocromático intencional: preto puro em fundo branco. */
+
+.op-sheet {
+  background: #fff;
+  color: #000;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-size: 10px;
+  line-height: 1.25;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 8mm;
+  box-sizing: border-box;
+}
+
+.op-sheet--preview {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.op-sheet * { box-sizing: border-box; }
+
+.op-sheet .op-box {
+  border: 1px solid #000;
+  padding: 4px 6px;
+}
+
+.op-sheet .op-row {
+  display: flex;
+  gap: 8px;
+}
+
+.op-sheet .op-grid-2col {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px;
+}
+
+.op-sheet .op-kv {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  column-gap: 6px;
+  row-gap: 2px;
+}
+
+.op-sheet .op-kv > .k { font-weight: bold; }
+.op-sheet .op-kv > .v { word-break: break-word; }
+
+.op-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5px;
+}
+.op-sheet th,
+.op-sheet td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+  text-align: left;
+  vertical-align: top;
+}
+.op-sheet th { background: #fff; font-weight: bold; }
+
+.op-sheet .op-section-title {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 10px;
+  margin: 6px 0 2px;
+  border-bottom: 1px solid #000;
+}
+
+.op-sheet .op-stage-bar {
+  border: 1px solid #000;
+  padding: 3px 6px;
+  font-weight: bold;
+  margin: 6px 0 4px;
+}
+
+.op-sheet .op-operation {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  margin: 6px 0;
+  page-break-inside: avoid;
+}
+
+.op-sheet .op-operation .op-row-barcode {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.op-sheet .op-rev-grid {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  border: 1px solid #000;
+}
+.op-sheet .op-rev-grid > div {
+  border: 1px solid #000;
+  padding: 3px 4px;
+  text-align: center;
+}
+.op-sheet .op-rev-grid .lbl { font-weight: bold; }
+
+.op-sheet .op-footer {
+  margin-top: 8px;
+  border-top: 1px solid #000;
+  padding-top: 3px;
+  font-size: 8.5px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.op-sheet .op-responsability {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  margin-top: 8px;
+  font-style: italic;
+  text-align: center;
+}
+
+.op-sheet .op-narrativas {
+  white-space: pre-wrap;
+  border-top: 1px dashed #000;
+  margin-top: 3px;
+  padding-top: 3px;
+}
+
+.op-sheet .op-barcode { display: block; }
+.op-sheet .op-barcode-caption {
+  font-family: "Courier New", monospace;
+  text-align: center;
+  font-size: 9px;
+}
+
+.op-sheet .op-apontamento-cell-check {
+  width: 18px;
+  height: 14px;
+  display: inline-block;
+  border: 1px solid #000;
+}
+
+.op-sheet .op-apontamento-row td { height: 22px; }
+
+/* Empilha colunas estreitas */
+.op-sheet .col-w-narrow { width: 60px; }
+.op-sheet .col-w-medium { width: 100px; }
+
+@media print {
+  body { background: #fff !important; }
+  .no-print { display: none !important; }
+  .op-sheet {
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 6mm !important;
+    width: auto !important;
+    min-height: auto !important;
+  }
+  .op-operation,
+  .op-sheet table tr { page-break-inside: avoid; }
+  thead { display: table-header-group; }
+}
+
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}

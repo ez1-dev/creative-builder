@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -58,6 +58,7 @@ const producaoSubItems = [
   { title: 'Itens Não Carregados', url: '/producao/nao-carregados', icon: PackageX },
   { title: 'Lead Time Produção', url: '/producao/leadtime', icon: Clock },
   { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: GitCompare },
+  { title: 'Impressão de OP', url: '/producao/impressao-op', icon: Printer },
 ];
 
 const regrasSeniorSubItems = [
