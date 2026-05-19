@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 import {
   KpiCard, KpiGrid,
-  BarChartCard, LineChartCard, PieChartCard, HorizontalBarChartCard,
+  BarChartCard, PieChartCard, HorizontalBarChartCard,
   StackedBarChartCard,
   LoadingState, ErrorState, NoDataState,
 } from '@/components/bi';
