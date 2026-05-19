@@ -49,6 +49,7 @@ const ALL_SCREENS = [
   { path: '/producao/leadtime', name: 'Produção - Lead Time' },
   { path: '/producao/engenharia', name: 'Produção - Eng. x Produção' },
   { path: '/producao/relatorio-semanal-obra', name: 'Produção - Relatório Semanal Obra' },
+  { path: '/producao/impressao-op', name: 'Produção - Impressão de Ordem de Produção' },
   { path: '/passagens-aereas', name: 'Passagens Aéreas' },
   { path: '/frota', name: 'Manutenção de Frota' },
   { path: '/manutencao-maquinas', name: 'Manutenção de Máquinas' },
