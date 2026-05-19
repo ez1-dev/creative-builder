@@ -31,6 +31,7 @@ const ALL_SCREENS = [
   { path: '/bom', name: 'Estrutura (BOM)' },
   { path: '/compras-produto', name: 'Compras / Custos' },
   { path: '/painel-compras', name: 'Painel de Compras' },
+  { path: '/demonstrativo-compras-recebimentos', name: 'Demonstrativo de Compras e Recebimentos' },
   { path: '/auditoria-tributaria', name: 'Auditoria Tributária' },
   { path: '/auditoria-apontamento-genius', name: 'Auditoria Apont. Genius' },
   { path: '/faturamento-genius', name: 'Faturamento Genius' },
