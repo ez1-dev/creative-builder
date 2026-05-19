@@ -16,14 +16,9 @@ const EMPTY: ImpressaoOpFiltros = {
   cod_emp: '',
   cod_ori: '',
   num_orp: '',
-  sit_orp: '',
-  data_geracao: '',
-  agrupamento: '',
   listar_componentes: 'S',
   listar_desenho: 'N',
-  pasta_desenhos: '',
   cod_etg: '',
-  etg_cor: '',
   cod_cre: '',
 };
 
@@ -103,7 +98,7 @@ export default function ImpressaoOrdemProducaoPage() {
       {!preview && (
         <Card className="no-print">
           <CardContent className="p-3">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
               <Field label="Empresa">
                 <Input value={filtros.cod_emp} onChange={(e) => set('cod_emp', e.target.value)} className="h-8" />
               </Field>
@@ -113,29 +108,14 @@ export default function ImpressaoOrdemProducaoPage() {
               <Field label="Nº O.P.">
                 <Input value={filtros.num_orp} onChange={(e) => set('num_orp', e.target.value)} className="h-8" />
               </Field>
-              <Field label="Situação">
-                <Input value={filtros.sit_orp} onChange={(e) => set('sit_orp', e.target.value)} className="h-8" placeholder="Ex.: E, L, A, F" />
-              </Field>
-              <Field label="Data de Geração">
-                <Input type="date" value={filtros.data_geracao} onChange={(e) => set('data_geracao', e.target.value)} className="h-8" />
-              </Field>
-              <Field label="Agrupamento / Rel. Produção">
-                <Input value={filtros.agrupamento} onChange={(e) => set('agrupamento', e.target.value)} className="h-8" />
-              </Field>
               <Field label="Listar Componentes">
                 <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
               </Field>
               <Field label="Listar Desenho">
                 <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
               </Field>
-              <Field label="Pasta de Desenhos">
-                <Input value={filtros.pasta_desenhos} onChange={(e) => set('pasta_desenhos', e.target.value)} className="h-8" />
-              </Field>
-              <Field label="Operação (cod_etg)">
+              <Field label="Estágio">
                 <Input value={filtros.cod_etg} onChange={(e) => set('cod_etg', e.target.value)} className="h-8" />
-              </Field>
-              <Field label="Cor Impressão CR">
-                <Input value={filtros.etg_cor} onChange={(e) => set('etg_cor', e.target.value)} className="h-8" />
               </Field>
               <Field label="Centro de Recurso">
                 <Input value={filtros.cod_cre} onChange={(e) => set('cod_cre', e.target.value)} className="h-8" />
@@ -145,7 +125,6 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
-      {/* Conteúdo principal */}
       {loading && (
         <Card className="no-print">
           <CardContent className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
@@ -172,9 +151,7 @@ export default function ImpressaoOrdemProducaoPage() {
       )}
 
       {data?.cabecalho && (
-        <div>
-          <OpPrintSheet data={data} preview={preview} usuario={displayName ?? erpUser ?? null} />
-        </div>
+        <OpPrintSheet data={data} preview={preview} usuario={displayName ?? erpUser ?? null} />
       )}
     </div>
   );
