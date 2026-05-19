@@ -13,6 +13,7 @@ export interface OpCabecalho {
   inicio_previsto?: string;
   periodo?: string;
   situacao?: string;
+  situacao_descricao?: string;
   agrupamento?: string;
   revisao?: string;
 }
@@ -39,6 +40,7 @@ export interface OpOperacao {
   descricao_operacao?: string;
   fornecedor?: string;
   servico?: string;
+  descricao_servico?: string;
   tmp_unit?: number | string;
   tmp_total?: number | string;
   unidade_medida?: string;
@@ -59,13 +61,8 @@ export interface ImpressaoOpFiltros {
   cod_emp?: string;
   cod_ori?: string;
   num_orp?: string;
-  sit_orp?: string;
-  data_geracao?: string;
-  agrupamento?: string;
   listar_componentes?: 'S' | 'N' | '';
   listar_desenho?: 'S' | 'N' | '';
-  pasta_desenhos?: string;
   cod_etg?: string;
-  etg_cor?: string;
   cod_cre?: string;
 }
