@@ -11,7 +11,6 @@ import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 import { UserWidgetsSlot } from '@/components/bi';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { useErpOptions } from '@/hooks/useErpOptions';
-import { useFornecedores } from '@/hooks/useFornecedores';
 import { AutocompleteAsync } from '@/components/erp/AutocompleteAsync';
 import { fetchFornecedoresCadastro, fetchCentrosCusto, fetchDepositos, fetchTransacoesCompras } from '@/hooks/useCadastrosErp';
 import { KPICard } from '@/components/erp/KPICard';
