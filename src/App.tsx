@@ -42,6 +42,7 @@ import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
 import BiComponentsDemoPage from "@/pages/BiComponentsDemoPage";
 import EtlAdminPage from "@/pages/EtlAdminPage";
+import BalancoPatrimonialPage from "@/pages/contabilidade/BalancoPatrimonialPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
@@ -103,6 +104,7 @@ const App = () => (
               <Route path="/bi-components-demo" element={<BiComponentsDemoPage />} />
               <Route path="/biblioteca-bi" element={<BiComponentsDemoPage />} />
               <Route path="/etl" element={<ProtectedRoute path="/etl"><EtlAdminPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               {/* Regras Senior */}
               <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />

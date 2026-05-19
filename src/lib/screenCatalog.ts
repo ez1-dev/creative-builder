@@ -19,10 +19,12 @@ const EXACT: Record<string, ScreenInfo> = {
   '/gestao-sgu-usuarios':       { codigo: 'SGU_USR',      nome: 'Gestão SGU - Usuários ERP Senior' },
   '/demonstrativo-compras-recebimentos': { codigo: 'DEM_COMP_REC', nome: 'Demonstrativo de Compras e Recebimentos' },
   '/biblioteca-bi':             { codigo: 'BIBLIO_BI',    nome: 'Biblioteca BI' },
+  '/contabilidade/balanco':     { codigo: 'CONT_BAL',     nome: 'Contabilidade — Balanço Patrimonial' },
 };
 
 const PREFIX: Array<[string, ScreenInfo]> = [
   ['/passagens-aereas/share',   { codigo: 'PASSAGENS_SHARE', nome: 'Passagens Aéreas — Link Público' }],
+  ['/contabilidade',            { codigo: 'CONT',            nome: 'Contabilidade' }],
   ['/configuracoes',            { codigo: 'CONFIG',          nome: 'Configurações' }],
   ['/dashboard',                { codigo: 'DASH',            nome: 'Dashboard' }],
 ];
