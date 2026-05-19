@@ -26,22 +26,25 @@ export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
   const [preview, setPreview] = useState(false);
+  const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
 
   const consultar = async () => {
-    if (!filtros.num_orp && !filtros.cod_emp) {
-      toast.info('Informe ao menos Empresa ou Número da O.P.');
+    if (!filtros.cod_emp || !filtros.cod_ori || !filtros.num_orp) {
+      toast.info('Informe Empresa, Origem e Nº da O.P.');
       return;
     }
+    setLastConsulta({ ...filtros });
     await fetchData(filtros);
   };
 
   const limpar = () => {
     setFiltros(EMPTY);
     setPreview(false);
+    setLastConsulta(null);
     reset();
   };
 
@@ -136,16 +139,35 @@ export default function ImpressaoOrdemProducaoPage() {
       {!loading && error && (
         <Card className="no-print">
           <CardContent className="space-y-2 p-6 text-center">
-            <p className="text-sm font-medium text-destructive">{error}</p>
+            {/Not Found|404/i.test(error) ? (
+              <>
+                <p className="text-sm font-medium text-destructive">
+                  Endpoint indisponível no backend (<code>/api/producao/ordem-producao/impressao</code>).
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Solicite ao time de backend implementar conforme <code>docs/backend-impressao-ordem-producao.md</code>.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-medium text-destructive">{error}</p>
+            )}
             <Button size="sm" variant="outline" onClick={retry}>Tentar novamente</Button>
           </CardContent>
         </Card>
       )}
 
-      {!loading && !error && !data?.cabecalho && (
+      {!loading && !error && !data?.cabecalho && lastConsulta && (
         <Card className="no-print">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            Ordem de produção não encontrada.
+            Ordem de produção não encontrada para Empresa {lastConsulta.cod_emp} / Origem {lastConsulta.cod_ori} / OP {lastConsulta.num_orp}.
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && !data?.cabecalho && !lastConsulta && (
+        <Card className="no-print">
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Informe os filtros e clique em Consultar.
           </CardContent>
         </Card>
       )}
