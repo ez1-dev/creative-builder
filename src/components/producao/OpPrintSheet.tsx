@@ -137,7 +137,7 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
                   <div className="k">Centro Rec.:</div><div className="v">{op.cod_cre ?? '-'} {op.descricao_centro_recurso ?? ''}</div>
                   <div className="k">Operação:</div><div className="v">{op.cod_opr ?? '-'} {op.descricao_operacao ?? ''}</div>
                   {op.fornecedor && (<><div className="k">Fornecedor:</div><div className="v">{op.fornecedor}</div></>)}
-                  {op.servico && (<><div className="k">Serviço:</div><div className="v">{op.servico}</div></>)}
+                  {(op.servico || op.descricao_servico) && (<><div className="k">Serviço:</div><div className="v">{[op.servico, op.descricao_servico].filter(Boolean).join(' ')}</div></>)}
                   <div className="k">Tmp Unit:</div><div className="v">{op.tmp_unit ?? '-'}</div>
                   <div className="k">Tmp Total:</div><div className="v">{op.tmp_total ?? '-'}</div>
                   <div className="k">U.M.:</div><div className="v">{op.unidade_medida ?? '-'}</div>
