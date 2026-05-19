@@ -14,6 +14,15 @@ function fmtNow() {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function fmtDate(s?: string) {
+  if (!s) return '-';
+  // tenta ISO yyyy-mm-dd ou yyyy-mm-ddTHH:mm
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  // dd/mm/yyyy já vem formatado
+  return s;
+}
+
 export function OpPrintSheet({ data, preview = false, usuario }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
@@ -41,11 +50,8 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
       <div className="op-grid-2col">
         <div>
           <div style={{ fontWeight: 'bold', fontSize: 10 }}>Origem/O.P.</div>
-          <Barcode value={opCode} height={36} displayValue={false} />
-          <div className="op-barcode-caption">
-            {(cab.cod_ori ?? '')}
-            {String(cab.num_orp ?? '').padStart(9, '0')}
-          </div>
+          <Barcode value={cab.codigo_barras_op ?? opCode} height={36} displayValue={false} />
+          <div className="op-barcode-caption">{cab.codigo_barras_op ?? opCode}</div>
         </div>
         <div style={{ textAlign: 'right', fontSize: 9.5 }}>
           <div>Página: 1/1</div>
@@ -63,10 +69,10 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
             {cab.produto ?? ''}
             {cab.produto_descricao ? ` - ${cab.produto_descricao}` : cab.descricao_produto ? ` - ${cab.descricao_produto}` : ''}
           </div>
-          <div className="k">Início Prev.:</div><div className="v">{cab.inicio_previsto ?? '-'}</div>
+          <div className="k">Início Prev.:</div><div className="v">{fmtDate(cab.inicio_previsto)}</div>
           <div className="k">Pedido:</div><div className="v">{cab.pedido ?? '-'}</div>
           <div className="k">Período:</div><div className="v">{cab.periodo ?? '-'}</div>
-          <div className="k">Situação:</div><div className="v">{cab.situacao ?? '-'}</div>
+          <div className="k">Situação:</div><div className="v">{cab.situacao_descricao ?? cab.situacao ?? '-'}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div className="op-rev-grid">
