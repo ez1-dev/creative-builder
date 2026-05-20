@@ -79,10 +79,11 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
-  const { canView, hasPermissions, loading } = useUserPermissions();
+  const { canView, hasPermissions, loading, isAdmin } = useUserPermissions();
 
   const isProducaoActive = location.pathname.startsWith('/producao');
   const isRegrasSeniorActive = location.pathname.startsWith('/regras-senior');
+  const isRelatoriosActive = location.pathname.startsWith('/relatorios');
 
   const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi']);
   const isVisible = (url: string) => {
@@ -97,6 +98,7 @@ export function AppSidebar() {
   const showProducaoGroup = visibleProducao.length > 0;
   const visibleRegrasSenior = regrasSeniorSubItems.filter((m) => isVisible(m.url));
   const showRegrasSeniorGroup = visibleRegrasSenior.length > 0;
+  const showRelatoriosGroup = isAdmin;
 
   return (
     <Sidebar collapsible="icon">
