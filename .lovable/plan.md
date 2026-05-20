@@ -1,45 +1,33 @@
 ## Problema
 
-O backend `/api/producao/ordem-producao/{opcoes,impressao}` recebe `cod_emp` e `num_orp` como **string** (vindos dos selects/autocomplete), mas espera **integer**, retornando 422 (`Input should be a valid integer`).
+No campo **Origem**, apenas a opção "100 - Origem 100" pode ser selecionada — as demais aparecem mas não selecionam. O console mostra "Encountered two children with the same key" no `SelectBuscavel`/cmdk.
 
-## Correção (somente frontend, sem mudar contratos)
+Causa: o backend retorna `origens` com `cod_ori` repetido (a mesma origem aparece várias vezes, uma por empresa/combinação). O `SelectBuscavel` usa `opt.value` como `key` do React e como `value` do `CommandItem` do cmdk; chaves duplicadas fazem o React/cmdk colapsar itens, e o cmdk passa a casar todas as seleções com o primeiro item — efetivamente só "funciona" o primeiro `cod_ori` da lista.
 
-Coerção numérica na camada de chamada da API, mantendo `string` no estado dos filtros (o resto do código já assume string).
+## Correção (somente frontend)
 
-### 1. `src/hooks/useOpcoesImpressaoOp.ts`
-No `fetchOpcoes`, normalizar params antes do `api.get`:
-- `cod_emp` → `Number(cod_emp)` se não vazio, senão omitir
-- `num_orp` → `Number(num_orp)` se não vazio, senão omitir
-- `cod_ori`, `cod_etg`, `cod_cre`, `q` → enviar só se truthy
-- `limite_ops` → já numérico
+### `src/components/producao/SelectBuscavel.tsx`
+Deduplicar `options` por `value` antes de filtrar/renderizar, mantendo o primeiro `label`:
 
-Assim todas as chamadas em cascata (`reloadBase`, `reloadByEmpresa`, `reloadByOrigem`, `reloadEstagios`, `reloadCres`, `searchOps`) ficam corrigidas de uma vez.
-
-### 2. `src/hooks/useImpressaoOrdemProducao.ts`
-No `fetchData`, montar payload tipado:
 ```ts
-const payload = {
-  cod_emp: Number(filters.cod_emp),
-  cod_ori: filters.cod_ori,
-  num_orp: Number(filters.num_orp),
-  listar_componentes: filters.listar_componentes,
-  listar_desenho: filters.listar_desenho,
-  ...(filters.cod_etg ? { cod_etg: filters.cod_etg } : {}),
-  ...(filters.cod_cre ? { cod_cre: filters.cod_cre } : {}),
-};
+const unique = useMemo(() => {
+  const seen = new Set<string>();
+  const out: SelectOption[] = [];
+  for (const o of options) {
+    if (!seen.has(o.value)) { seen.add(o.value); out.push(o); }
+  }
+  return out;
+}, [options]);
 ```
-e usar em `api.get(..., payload)`.
 
-### 3. Validação adicional em `ImpressaoOrdemProducaoPage.consultar`
-Antes de chamar `fetchData`, checar `Number.isFinite(Number(filtros.cod_emp))` e idem para `num_orp`; se inválido, toast e abort. (defensivo)
+Usar `unique` em `selected` e `filtered`. Resolve o warning de keys duplicadas e o bug de seleção para Empresa, Origem, Estágio e Centro de Recurso de uma vez.
 
 ### Fora de escopo
-- Mudar tipos das interfaces (`cod_emp: string | number` continua).
-- Backend.
-- Layout/A4/código de barras.
+- Backend / contrato da API.
+- OpAutocomplete (usa `num_orp` que é único).
+- Layout, tokens, validações.
 
 ## Validação
-1. Abrir `/producao/impressao-op` → `opcoes?limite_ops=80` deve retornar 200 (sem cod_emp).
-2. Selecionar Empresa → request com `cod_emp=1` (numérico) → 200.
-3. Selecionar OP → Consultar → `/impressao?cod_emp=1&cod_ori=210&num_orp=86993...` → 200.
-4. Conferir no console que não há mais 422 `Input should be a valid integer`.
+1. `/producao/impressao-op` → abrir Origem → todas as origens distintas devem aparecer uma única vez e cada uma deve selecionar corretamente.
+2. Console: sem warning "two children with the same key".
+3. Repetir para Empresa, Estágio, Centro de Recurso.
