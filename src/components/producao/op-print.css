@@ -407,34 +407,22 @@
   text-align: center;
 }
 
-/* ===== Rotação automática de desenhos paisagem ===== */
+/* ===== Desenhos =====
+   A rotação para retrato é feita pela API via url_impressao.
+   As classes .rotated / .rotate-90 são fallback inerte caso a API
+   não envie url_impressao em algum desenho. */
 .drawing-frame {
   width: 190mm;
   height: 270mm;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible;
-}
-.drawing-frame.rotated {
-  width: 190mm;
-  height: 270mm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: visible;
+  overflow: hidden;
 }
 .drawing-image {
   max-width: 190mm;
   max-height: 270mm;
-  object-fit: contain;
-}
-.drawing-image.rotate-90 {
-  transform: rotate(90deg);
-  transform-origin: center center;
-  max-width: 270mm;
-  max-height: 190mm;
-  width: 270mm;
+  width: auto;
   height: auto;
   object-fit: contain;
 }
@@ -446,20 +434,14 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
   .drawing-image {
     max-width: 190mm !important;
     max-height: 270mm !important;
-    object-fit: contain !important;
-  }
-  .drawing-image.rotate-90 {
-    transform: rotate(90deg) !important;
-    transform-origin: center center !important;
-    max-width: 270mm !important;
-    max-height: 190mm !important;
-    width: 270mm !important;
+    width: auto !important;
     height: auto !important;
     object-fit: contain !important;
   }
 }
+
