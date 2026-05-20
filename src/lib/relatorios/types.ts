@@ -46,9 +46,10 @@ export interface RelatorioColuna {
   titulo: string | null;
   visivel: boolean;
   ordem: number;
-  tipo: string | null;
+  tipo: ColunaTipo | string | null;
   formato: string | null;
   alinhamento: ColunaAlinhamento;
+  largura: number | null;
   totalizar: boolean;
   agrupar: boolean;
 }
