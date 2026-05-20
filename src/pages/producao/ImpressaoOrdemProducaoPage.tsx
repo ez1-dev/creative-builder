@@ -468,11 +468,8 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Selecione ao menos uma OP.');
       return;
     }
-    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
-      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
-      return;
-    }
     setLoteLoading(true);
+
     try {
 
       const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
@@ -495,9 +492,8 @@ export default function ImpressaoOrdemProducaoPage() {
               };
               if (filtros.incluir_desenhos === 'S') {
                 payload.incluir_desenhos = 'S';
-                if (filtros.pasta_desenhos) payload.pasta_desenhos = filtros.pasta_desenhos;
-                payload.formatos_desenho = buildFormatosString(formatosDesenho) || 'JPG,PNG,PDF';
               }
+
 
               const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
               return res ?? null;
@@ -517,7 +513,9 @@ export default function ImpressaoOrdemProducaoPage() {
       reset();
       if (falhas > 0) toast.warning(`${falhas} OP(s) falharam ao carregar. Imprimindo ${ordens.length}.`);
       else toast.success(`Imprimindo ${ordens.length} OP(s)...`);
-      setTimeout(() => window.print(), 300);
+      await aguardarDesenhosProntos();
+      window.print();
+
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao imprimir selecionadas.');
     } finally {
