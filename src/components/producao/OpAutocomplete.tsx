@@ -18,6 +18,8 @@ const formatOp = (op: OpcaoOp) =>
   op.label ||
   [
     [op.cod_ori, op.num_orp].filter(Boolean).join(' / '),
+    op.num_ped,
+    op.rel_prd,
     op.produto,
     op.descricao_produto,
   ].filter(Boolean).join(' - ');

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, Printer, FileDown, Search, Eraser, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useImpressaoOrdemProducao } from '@/hooks/useImpressaoOrdemProducao';
@@ -15,10 +16,14 @@ import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectB
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { useAuth } from '@/contexts/AuthContext';
 
+const DEFAULT_EMPRESA = '1';
+
 const EMPTY: ImpressaoOpFiltros = {
-  cod_emp: '',
+  cod_emp: DEFAULT_EMPRESA,
   cod_ori: '',
   num_orp: '',
+  num_ped: '',
+  rel_prd: '',
   listar_componentes: 'S',
   listar_desenho: 'N',
   cod_etg: '',
@@ -34,7 +39,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
-  useEffect(() => { void opcoes.reloadBase(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { void opcoes.reloadBase(DEFAULT_EMPRESA); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
@@ -47,6 +52,14 @@ export default function ImpressaoOrdemProducaoPage() {
     value: String(o.value ?? o.codigo ?? o.cod_ori ?? ''),
     label: o.label || `${o.codigo ?? o.cod_ori}${o.descricao ? ' - ' + o.descricao : ''}`,
   }));
+  const pedidoOpts: SelectOption[] = opcoes.pedidos.map((p: any) => ({
+    value: String(p.value ?? p.num_ped ?? ''),
+    label: p.label || String(p.num_ped ?? ''),
+  }));
+  const relatorioOpts: SelectOption[] = opcoes.relatoriosProducao.map((r: any) => ({
+    value: String(r.value ?? r.rel_prd ?? ''),
+    label: r.label || String(r.rel_prd ?? ''),
+  }));
   const estagioOpts: SelectOption[] = opcoes.estagios.map((e: any) => ({
     value: String(e.value ?? e.codigo ?? e.cod_etg ?? ''),
     label: e.label || `${e.codigo ?? e.cod_etg}${e.descricao ? ' - ' + e.descricao : ''}`,
@@ -57,17 +70,27 @@ export default function ImpressaoOrdemProducaoPage() {
   }));
 
   const onChangeEmpresa = async (v: string) => {
-    setFiltros({ ...EMPTY, listar_componentes: filtros.listar_componentes, listar_desenho: filtros.listar_desenho, cod_emp: v });
+    setFiltros({ ...EMPTY, cod_emp: v, listar_componentes: filtros.listar_componentes, listar_desenho: filtros.listar_desenho });
     setOpLabel('');
-    if (v) { try { await opcoes.reloadByEmpresa(v); } catch (e: any) { toast.error(e?.message || 'Falha ao carregar origens'); } }
-    else { void opcoes.reloadBase(); }
+    try { await opcoes.reloadBase(v || DEFAULT_EMPRESA); }
+    catch (e: any) { toast.error(e?.message || 'Falha ao carregar opções'); }
   };
 
-  const onChangeOrigem = async (v: string) => {
-    setFiltros((f) => ({ ...f, cod_ori: v, num_orp: '', cod_etg: '', cod_cre: '' }));
+  const onChangePedido = async (v: string) => {
+    setFiltros((f) => ({ ...f, num_ped: v, rel_prd: '', cod_ori: '', num_orp: '', cod_etg: '', cod_cre: '' }));
     setOpLabel('');
     if (filtros.cod_emp && v) {
-      try { await opcoes.reloadByOrigem(filtros.cod_emp, v); } catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs'); }
+      try { await opcoes.reloadByPedido(filtros.cod_emp, v); }
+      catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do pedido'); }
+    }
+  };
+
+  const onChangeRelatorio = async (v: string) => {
+    setFiltros((f) => ({ ...f, rel_prd: v, num_ped: '', cod_ori: '', num_orp: '', cod_etg: '', cod_cre: '' }));
+    setOpLabel('');
+    if (filtros.cod_emp && v) {
+      try { await opcoes.reloadByRelatorio(filtros.cod_emp, v); }
+      catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do relatório'); }
     }
   };
 
@@ -80,10 +103,16 @@ export default function ImpressaoOrdemProducaoPage() {
     const cod_emp = String(op.cod_emp ?? filtros.cod_emp ?? '');
     const cod_ori = String(op.cod_ori ?? filtros.cod_ori ?? '');
     const num_orp = String(op.num_orp ?? '');
-    setFiltros((f) => ({ ...f, cod_emp, cod_ori, num_orp, cod_etg: '', cod_cre: '' }));
+    const num_ped = op.num_ped ? String(op.num_ped) : (filtros.num_ped || '');
+    const rel_prd = op.rel_prd ? String(op.rel_prd) : (filtros.rel_prd || '');
+    if (cod_ori === '100') {
+      toast.error('Origem 100 não é permitida.');
+      return;
+    }
+    setFiltros((f) => ({ ...f, cod_emp, cod_ori, num_orp, num_ped, rel_prd, cod_etg: '', cod_cre: '' }));
     setOpLabel(op.label || `${cod_ori} / ${num_orp}${op.produto ? ' - ' + op.produto : ''}${op.descricao_produto ? ' - ' + op.descricao_produto : ''}`);
     if (cod_emp && cod_ori && num_orp) {
-      try { await opcoes.reloadEstagios(cod_emp, cod_ori, num_orp); } catch (e: any) { toast.error(e?.message || 'Falha ao carregar estágios'); }
+      try { await opcoes.reloadOpContexto(cod_emp, cod_ori, num_orp); } catch (e: any) { toast.error(e?.message || 'Falha ao carregar estágios'); }
     }
   };
 
@@ -96,30 +125,39 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   const searchOpsFetcher = useCallback(
-    (q: string) => opcoes.searchOps(q, filtros.cod_emp || undefined, filtros.cod_ori || undefined),
-    [opcoes.searchOps, filtros.cod_emp, filtros.cod_ori],
+    (q: string) => opcoes.searchOps(q, {
+      cod_emp: filtros.cod_emp || undefined,
+      num_ped: filtros.num_ped || undefined,
+      rel_prd: filtros.rel_prd || undefined,
+    }),
+    [opcoes.searchOps, filtros.cod_emp, filtros.num_ped, filtros.rel_prd],
   );
 
-  const consultar = async () => {
-    if (!filtros.num_orp) {
-      toast.info('Informe ou selecione uma Ordem de Produção.');
+  const consultar = async (override?: Partial<ImpressaoOpFiltros>) => {
+    const eff = { ...filtros, ...(override || {}) };
+    if (!eff.num_orp || !eff.cod_ori) {
+      toast.info('Selecione uma Ordem de Produção.');
       return;
     }
-    if (!Number.isFinite(Number(filtros.cod_emp)) || !Number.isFinite(Number(filtros.num_orp))) {
+    if (String(eff.cod_ori) === '100') {
+      toast.error('Origem 100 não é permitida.');
+      return;
+    }
+    if (!Number.isFinite(Number(eff.cod_emp)) || !Number.isFinite(Number(eff.num_orp))) {
       toast.error('Empresa e Nº O.P. devem ser numéricos.');
       return;
     }
-    setLastConsulta({ ...filtros });
-    await fetchData(filtros);
+    setLastConsulta({ ...eff });
+    await fetchData(eff);
   };
 
   const limpar = () => {
-    setFiltros(EMPTY);
+    setFiltros({ ...EMPTY });
     setOpLabel('');
     setPreview(false);
     setLastConsulta(null);
     reset();
-    void opcoes.reloadBase();
+    void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
 
   const imprimir = () => {
@@ -133,6 +171,37 @@ export default function ImpressaoOrdemProducaoPage() {
     setTimeout(() => window.print(), 200);
   };
 
+  // Lista de OPs (grid) — só quando filtra por Pedido OU Relatório e não há OP escolhida
+  const showGrid = useMemo(
+    () => Boolean((filtros.num_ped || filtros.rel_prd) && !filtros.num_orp),
+    [filtros.num_ped, filtros.rel_prd, filtros.num_orp],
+  );
+  const opsFiltradas = useMemo(() => {
+    let list = opcoes.ops;
+    if (filtros.cod_ori) list = list.filter((o) => String(o.cod_ori ?? '') === filtros.cod_ori);
+    return list;
+  }, [opcoes.ops, filtros.cod_ori]);
+
+  const handleRowVisualizar = async (op: OpcaoOp) => {
+    await onSelectOp(op);
+    await consultar({
+      cod_emp: String(op.cod_emp ?? filtros.cod_emp ?? ''),
+      cod_ori: String(op.cod_ori ?? ''),
+      num_orp: String(op.num_orp ?? ''),
+    });
+    setPreview(true);
+  };
+
+  const handleRowImprimir = async (op: OpcaoOp) => {
+    await onSelectOp(op);
+    await consultar({
+      cod_emp: String(op.cod_emp ?? filtros.cod_emp ?? ''),
+      cod_ori: String(op.cod_ori ?? ''),
+      num_orp: String(op.num_orp ?? ''),
+    });
+    setTimeout(() => window.print(), 200);
+  };
+
   return (
     <div className="space-y-3">
       <div className="no-print">
@@ -141,7 +210,7 @@ export default function ImpressaoOrdemProducaoPage() {
           description="MCAP700.GER - Genius - Ordem de Produção p/ Operações"
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={consultar} disabled={loading}>
+              <Button size="sm" onClick={() => consultar()} disabled={loading}>
                 {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Search className="mr-1 h-3 w-3" />}
                 Consultar
               </Button>
@@ -165,15 +234,23 @@ export default function ImpressaoOrdemProducaoPage() {
 
       {!preview && (
         <Card className="no-print">
-          <CardContent className="p-3">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          <CardContent className="p-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               <Field label="Empresa">
                 <SelectBuscavel value={filtros.cod_emp || ''} onChange={onChangeEmpresa} options={empresaOpts} placeholder="Empresa..." />
               </Field>
-              <Field label="Origem">
-                <SelectBuscavel value={filtros.cod_ori || ''} onChange={onChangeOrigem} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
+              <Field label="Pedido">
+                <SelectBuscavel value={filtros.num_ped || ''} onChange={onChangePedido} options={pedidoOpts} placeholder="Pedido..." disabled={!filtros.cod_emp} />
               </Field>
-              <Field label="Nº O.P.">
+              <Field label="Relatório de Produção">
+                <SelectBuscavel value={filtros.rel_prd || ''} onChange={onChangeRelatorio} options={relatorioOpts} placeholder="Relatório..." disabled={!filtros.cod_emp} />
+              </Field>
+              <Field label="Origem">
+                <SelectBuscavel value={filtros.cod_ori || ''} onChange={(v) => set('cod_ori', v)} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <Field label="Ordem de Produção">
                 <OpAutocomplete
                   value={filtros.num_orp || ''}
                   displayLabel={opLabel}
@@ -181,19 +258,85 @@ export default function ImpressaoOrdemProducaoPage() {
                   fetcher={searchOpsFetcher}
                 />
               </Field>
-              <Field label="Listar Componentes">
-                <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
-              </Field>
-              <Field label="Listar Desenho">
-                <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
-              </Field>
               <Field label="Estágio">
                 <SelectBuscavel value={filtros.cod_etg || ''} onChange={onChangeEstagio} options={estagioOpts} placeholder="Estágio..." disabled={!filtros.num_orp} />
               </Field>
               <Field label="Centro de Recurso">
                 <SelectBuscavel value={filtros.cod_cre || ''} onChange={(v) => set('cod_cre', v)} options={creOpts} placeholder="Centro..." disabled={!filtros.num_orp} />
               </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Listar Componentes">
+                  <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
+                </Field>
+                <Field label="Listar Desenho">
+                  <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
+                </Field>
+              </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {showGrid && !preview && (
+        <Card className="no-print">
+          <CardContent className="p-0">
+            {opcoes.loading ? (
+              <div className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando ordens de produção...
+              </div>
+            ) : opsFiltradas.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                Nenhuma ordem de produção encontrada para os filtros selecionados.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Origem</TableHead>
+                      <TableHead>OP</TableHead>
+                      <TableHead>Pedido</TableHead>
+                      <TableHead>Rel. Produção</TableHead>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead className="text-right">Qtde</TableHead>
+                      <TableHead>Un.</TableHead>
+                      <TableHead>Situação</TableHead>
+                      <TableHead>Geração</TableHead>
+                      <TableHead>Início Prev.</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {opsFiltradas.map((op, idx) => (
+                      <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
+                        <TableCell>{op.cod_ori}</TableCell>
+                        <TableCell className="font-mono">{op.num_orp}</TableCell>
+                        <TableCell>{op.num_ped ?? ''}</TableCell>
+                        <TableCell>{op.rel_prd ?? ''}</TableCell>
+                        <TableCell>{op.produto ?? ''}</TableCell>
+                        <TableCell className="max-w-[280px] truncate">{op.descricao_produto ?? ''}</TableCell>
+                        <TableCell className="text-right">{op.quantidade ?? ''}</TableCell>
+                        <TableCell>{op.unidade ?? ''}</TableCell>
+                        <TableCell>{op.situacao ?? ''}</TableCell>
+                        <TableCell>{op.data_geracao ?? ''}</TableCell>
+                        <TableCell>{op.inicio_previsto ?? ''}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => handleRowVisualizar(op)} title="Visualizar">
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => handleRowImprimir(op)} title="Imprimir">
+                              <Printer className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -234,10 +377,10 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
-      {!loading && !error && !data?.cabecalho && !lastConsulta && (
+      {!loading && !error && !data?.cabecalho && !lastConsulta && !showGrid && (
         <Card className="no-print">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            Selecione uma Ordem de Produção e clique em Consultar.
+            Selecione um Pedido, Relatório de Produção ou uma OP e clique em Consultar.
           </CardContent>
         </Card>
       )}
