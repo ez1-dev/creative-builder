@@ -1257,6 +1257,7 @@ export type Database = {
           created_at: string
           formato: string | null
           id: string
+          largura: number | null
           ordem: number
           relatorio_id: string
           tipo: string | null
@@ -1271,6 +1272,7 @@ export type Database = {
           created_at?: string
           formato?: string | null
           id?: string
+          largura?: number | null
           ordem?: number
           relatorio_id: string
           tipo?: string | null
@@ -1285,6 +1287,7 @@ export type Database = {
           created_at?: string
           formato?: string | null
           id?: string
+          largura?: number | null
           ordem?: number
           relatorio_id?: string
           tipo?: string | null

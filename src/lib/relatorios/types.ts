@@ -1,6 +1,7 @@
 export type RelatorioStatus = 'rascunho' | 'publicado' | 'inativo';
 export type ParametroTipo = 'texto' | 'numero' | 'data' | 'lista' | 'booleano';
 export type ColunaAlinhamento = 'esquerda' | 'centro' | 'direita';
+export type ColunaTipo = 'texto' | 'numero' | 'moeda' | 'data' | 'data_hora' | 'percentual' | 'booleano';
 export type LayoutTipo =
   | 'tabela_simples'
   | 'tabela_agrupada'
@@ -45,9 +46,10 @@ export interface RelatorioColuna {
   titulo: string | null;
   visivel: boolean;
   ordem: number;
-  tipo: string | null;
+  tipo: ColunaTipo | string | null;
   formato: string | null;
   alinhamento: ColunaAlinhamento;
+  largura: number | null;
   totalizar: boolean;
   agrupar: boolean;
 }

@@ -19,12 +19,15 @@ import type {
   RelatorioParametro,
 } from '@/lib/relatorios/types';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
+import { inferTipoFromColuna } from '@/lib/relatorios/format';
+import type { ColunaAlinhamento } from '@/lib/relatorios/types';
 import { DadosGeraisTab } from './tabs/DadosGeraisTab';
 import { SqlTab } from './tabs/SqlTab';
 import { ParametersEditor } from './ParametersEditor';
 import { ColumnsEditor } from './ColumnsEditor';
 import { LayoutEditor } from './LayoutEditor';
 import { ReportPreview } from './ReportPreview';
+import { ReportExecutionHistory } from './ReportExecutionHistory';
 
 interface Props {
   id: string | null;
@@ -65,6 +68,8 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
   const [parametros, setParametros] = useState<ParamDraft[]>([]);
   const [colunas, setColunas] = useState<ColDraft[]>([]);
   const [layout, setLayout] = useState<RelatorioLayout>(emptyLayout(''));
+  const [lastPreviewCols, setLastPreviewCols] = useState<{ cols: string[]; sample?: Record<string, unknown> } | null>(null);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -135,19 +140,55 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     setParametros([...next, ...manuais.map((p, i) => ({ ...p, ordem: next.length + i }))]);
   }
 
-  function handleColumnsFromPreview(cols: string[]) {
+  function handleColumnsFromPreview(cols: string[], sample?: Record<string, unknown>) {
+    setLastPreviewCols({ cols, sample });
     if (colunas.length > 0) return;
-    setColunas(cols.map((c, idx) => ({
-      campo: c,
-      titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
-      visivel: true,
-      ordem: idx,
-      tipo: 'texto',
-      formato: null,
-      alinhamento: 'esquerda' as const,
-      totalizar: false,
-      agrupar: false,
-    })));
+    setColunas(cols.map((c, idx) => {
+      const tipo = inferTipoFromColuna(c, sample?.[c]);
+      return {
+        campo: c,
+        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+        visivel: true,
+        ordem: idx,
+        tipo,
+        formato: null,
+        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
+        largura: null,
+        totalizar: false,
+        agrupar: false,
+      };
+    }));
+  }
+
+  function handleRestoreColumns() {
+    if (!lastPreviewCols) {
+      toast.error('Execute a pré-visualização antes de restaurar.');
+      return;
+    }
+    const { cols, sample } = lastPreviewCols;
+    setColunas(cols.map((c, idx) => {
+      const tipo = inferTipoFromColuna(c, sample?.[c]);
+      return {
+        campo: c,
+        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+        visivel: true,
+        ordem: idx,
+        tipo,
+        formato: null,
+        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
+        largura: null,
+        totalizar: false,
+        agrupar: false,
+      };
+    }));
+  }
+
+  async function handleSaveColumnsOnly() {
+    if (!relatorio.id) {
+      toast.error('Salve o relatório antes de salvar a configuração de colunas.');
+      return;
+    }
+    await saveColunas(relatorio.id, colunas);
   }
 
   if (loading) {
@@ -185,6 +226,7 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
           <TabsTrigger value="colunas">Colunas</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
           <TabsTrigger value="preview">Pré-visualização</TabsTrigger>
+          {relatorio.id && <TabsTrigger value="historico">Histórico</TabsTrigger>}
         </TabsList>
         <div className="flex-1 overflow-auto pt-4">
           <TabsContent value="geral">
@@ -202,7 +244,13 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
             <ParametersEditor parametros={parametros} onChange={setParametros} />
           </TabsContent>
           <TabsContent value="colunas">
-            <ColumnsEditor colunas={colunas} onChange={setColunas} />
+            <ColumnsEditor
+              colunas={colunas}
+              onChange={setColunas}
+              onSave={handleSaveColumnsOnly}
+              onRestoreDefault={handleRestoreColumns}
+              canSave={!!relatorio.id}
+            />
           </TabsContent>
           <TabsContent value="layout">
             <LayoutEditor layout={layout} colunas={colunas} onChange={setLayout} />
@@ -211,9 +259,16 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
             <ReportPreview
               relatorio={relatorio}
               parametros={parametros}
+              colunasConfig={colunas}
               onColumnsDetected={handleColumnsFromPreview}
+              onExecucaoGravada={() => setHistoryRefresh((n) => n + 1)}
             />
           </TabsContent>
+          {relatorio.id && (
+            <TabsContent value="historico">
+              <ReportExecutionHistory relatorioId={relatorio.id} refreshKey={historyRefresh} />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
     </div>

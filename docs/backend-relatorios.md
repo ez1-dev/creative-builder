@@ -110,3 +110,35 @@ Como o backend roda via ngrok, todas as requisições do frontend incluem:
 ```
 ngrok-skip-browser-warning: true
 ```
+
+## Segunda Onda — Aditivos
+
+### `PUT /api/relatorios/{id}/colunas` (contrato conceitual)
+
+Salva a configuração de colunas. No frontend isto é feito direto no Lovable Cloud via `saveColunas`. Documentado para futura migração caso o FastAPI passe a centralizar.
+
+```json
+{
+  "colunas_config": [
+    { "campo": "col1", "titulo": "Coluna 1", "visivel": true, "ordem": 0,
+      "tipo": "moeda", "formato": null, "alinhamento": "direita",
+      "largura": 120, "totalizar": true, "agrupar": false }
+  ]
+}
+```
+
+### `GET /api/relatorios/{id}/execucoes` (contrato conceitual)
+
+Lista as últimas execuções de um relatório. Hoje no frontend: `listExecucoesPorRelatorio` (Cloud).
+
+### Exportações — `Content-Disposition`
+
+`POST /api/relatorios/{id}/exportar/{excel|csv}` deve responder com header:
+
+```
+Content-Disposition: attachment; filename="codigo_relatorio_2026-05-20.xlsx"
+```
+
+O frontend extrai o `filename` e usa no download. Fallback: `{codigo}.{ext}`.
+
+A coluna `tipo` aceita: `texto | numero | moeda | data | data_hora | percentual`. A exportação deve aplicar `titulo`, `alinhamento`, `formato`, `largura` e gerar uma linha de TOTAL com soma das colunas `totalizar=true`.
