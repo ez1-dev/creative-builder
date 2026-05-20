@@ -1,6 +1,8 @@
 import { Barcode } from './Barcode';
-import type { OpImpressao, OpOperacao, OpComponente } from '@/lib/producao/opImpressao';
+import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
+import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from '@/lib/producao/opImpressao';
 import './op-print.css';
+
 
 interface Props {
   data: OpImpressao;
