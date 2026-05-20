@@ -19,6 +19,12 @@ export function SqlTab({ sql, onChange, onDetectParams, onPreview }: Props) {
   const [erro, setErro] = useState<string | null>(null);
 
   async function handleValidar() {
+    if (!sql?.trim()) {
+      setStatus('erro');
+      setErro('Informe o SQL do relatório antes de continuar.');
+      toast.error('Informe o SQL do relatório antes de continuar.');
+      return;
+    }
     const local = checkSqlSafe(sql);
     if (local) {
       setStatus('erro');
