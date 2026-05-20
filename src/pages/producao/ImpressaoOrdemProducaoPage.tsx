@@ -110,7 +110,7 @@ export default function ImpressaoOrdemProducaoPage() {
   // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
   // e exibição de status por desenho na tabela de preview.
   const desenhoUrls = useMemo(
-    () => (data?.desenhos ?? []).map((d) => d.url).filter(Boolean) as string[],
+    () => (data?.desenhos ?? []).map((d) => d.url_impressao || d.url).filter(Boolean) as string[],
     [data?.desenhos],
   );
   const blobStates = useAuthedBlobUrls(desenhoUrls);
