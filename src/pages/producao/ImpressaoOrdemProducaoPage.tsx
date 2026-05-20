@@ -606,20 +606,24 @@ export default function ImpressaoOrdemProducaoPage() {
     }
   };
 
-  const imprimirSelecionadas = async () => {
-    const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)));
+  const [loteFalhas, setLoteFalhas] = [
+    // placeholder replaced below
+  ] as any;
+
+  const visualizarSelecionadas = async () => {
+    const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)))
+      .filter((o) => String(o.cod_ori ?? '') !== '100' && String(o.sit_orp ?? '') !== 'C');
     if (!alvos.length) {
-      toast.info('Selecione ao menos uma OP.');
+      toast.info('Selecione ao menos uma OP válida (não cancelada e origem ≠ 100).');
       return;
     }
     setLoteLoading(true);
-
+    setFalhasLote([]);
     try {
-
       const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
       const listar_desenho = (filtros.listar_desenho as 'S' | 'N') || 'N';
       const ordens: OpImpressao[] = [];
-      let falhas = 0;
+      const falhas: { cod_ori: string; num_orp: string }[] = [];
       const concurrency = 6;
       for (let i = 0; i < alvos.length; i += concurrency) {
         const slice = alvos.slice(i, i + concurrency);
@@ -634,38 +638,56 @@ export default function ImpressaoOrdemProducaoPage() {
                 listar_desenho,
                 quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
               };
-              if (filtros.incluir_desenhos === 'S') {
-                payload.incluir_desenhos = 'S';
-              }
-
-
+              if (filtros.cod_etg) payload.cod_etg = filtros.cod_etg;
+              if (filtros.cod_cre) payload.cod_cre = filtros.cod_cre;
+              if (filtros.incluir_desenhos === 'S') payload.incluir_desenhos = 'S';
               const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
-              return res ?? null;
+              return { ok: true as const, op, res };
             } catch {
-              falhas += 1;
-              return null;
+              return { ok: false as const, op };
             }
           }),
         );
-        for (const r of results) if (r) ordens.push(r);
+        for (const r of results) {
+          if (r.ok && r.res) ordens.push(r.res);
+          else falhas.push({ cod_ori: String(r.op.cod_ori ?? ''), num_orp: String(r.op.num_orp ?? '') });
+        }
       }
       if (!ordens.length) {
-        toast.error('Nenhuma OP pôde ser carregada para impressão.');
+        toast.error('Nenhuma OP pôde ser carregada.');
+        setFalhasLote(falhas);
         return;
       }
-      setLote({ quantidade_ops: ordens.length, ordens });
       reset();
-      if (falhas > 0) toast.warning(`${falhas} OP(s) falharam ao carregar. Imprimindo ${ordens.length}.`);
-      else toast.success(`Imprimindo ${ordens.length} OP(s)...`);
-      await aguardarDesenhosProntos();
-      window.print();
-
+      setSelectedRowKey(null);
+      setLote({ quantidade_ops: ordens.length, ordens });
+      setPreview(true);
+      setFalhasLote(falhas);
+      if (falhas.length > 0) toast.warning(`${falhas.length} OP(s) falharam. ${ordens.length} carregadas.`);
+      else toast.success(`${ordens.length} OP(s) carregadas. Revise e clique em Imprimir visualização.`);
     } catch (e: any) {
-      toast.error(e?.message || 'Falha ao imprimir selecionadas.');
+      toast.error(e?.message || 'Falha ao carregar OPs selecionadas.');
     } finally {
       setLoteLoading(false);
     }
   };
+
+  const imprimirVisualizacao = async () => {
+    if (!lote || lote.ordens.length === 0) {
+      toast.info('Visualize as OPs antes de imprimir.');
+      return;
+    }
+    await aguardarDesenhosProntos();
+    window.print();
+  };
+
+  const limparSelecao = () => {
+    setSelectedKeys(new Set());
+    setLote(null);
+    setFalhasLote([]);
+    setPreview(false);
+  };
+
 
   const toggleOne = (key: string, checked: boolean) => {
     setSelectedKeys((prev) => {
