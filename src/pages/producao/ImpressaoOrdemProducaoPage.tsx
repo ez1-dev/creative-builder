@@ -444,6 +444,7 @@ export default function ImpressaoOrdemProducaoPage() {
                 num_orp: Number(op.num_orp ?? 0),
                 listar_componentes,
                 listar_desenho,
+                quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
               };
               if (filtros.incluir_desenhos === 'S') {
                 payload.incluir_desenhos = 'S';
