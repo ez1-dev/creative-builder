@@ -896,24 +896,26 @@ export default function ImpressaoOrdemProducaoPage() {
         </div>
       )}
 
-      {lote && lote.ordens.length > 0 && (
-        <OpPrintBatch
-          ordens={lote.ordens}
-          preview={preview}
-          usuario={displayName ?? erpUser ?? null}
-          quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
-        />
-      )}
+      <div className="print-root">
+        {lote && lote.ordens.length > 0 && (
+          <OpPrintBatch
+            ordens={lote.ordens}
+            preview={preview}
+            usuario={displayName ?? erpUser ?? null}
+            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+          />
+        )}
 
-      {!lote && data?.cabecalho && (
-        <OpPrintSheet
-          data={data}
-          preview={preview}
-          usuario={displayName ?? erpUser ?? null}
-          quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
-          blobStates={blobStates}
-        />
-      )}
+        {!lote && data?.cabecalho && (
+          <OpPrintSheet
+            data={data}
+            preview={preview}
+            usuario={displayName ?? erpUser ?? null}
+            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+            blobStates={blobStates}
+          />
+        )}
+      </div>
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
         <DialogContent className="max-w-2xl">
