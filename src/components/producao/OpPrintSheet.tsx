@@ -48,6 +48,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }, {});
   const etgKeys = Object.keys(compsPorEtg);
 
+  const quebrarComponentes =
+    data?.layout_componentes?.quebrar_componentes_em_pagina_separada
+    ?? (componentes.length > 7);
+
   const renderHeader = () => (
     <>
       <div className="op-title">Ordens de Produção - GENIUS</div>
@@ -128,9 +132,53 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     );
   };
 
+  const renderIndicacaoComponentesSeparados = () => (
+    <div className="op-componentes-indicacao">Componentes impressos em página separada</div>
+  );
+
+  const renderComponentesPage = () => {
+    if (componentes.length === 0) return null;
+    return (
+      <div className={`op-sheet componentes-page ${preview ? 'op-sheet--preview' : ''}`}>
+        {renderHeader()}
+        <div className="op-section-title">RELAÇÃO DE COMPONENTES NECESSÁRIOS</div>
+        {etgKeys.map((etg) => (
+          <div key={`compsep-${etg}`}>
+            {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
+            <table>
+              <thead>
+                <tr>
+                  <th className="col-w-medium">Código</th>
+                  <th>Descrição</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'right' }}>Qtde. Prev.</th>
+                  <th className="col-w-narrow">UN</th>
+                  <th className="col-w-narrow">Dep.</th>
+                  <th className="col-w-medium">Endereço</th>
+                </tr>
+              </thead>
+              <tbody>
+                {compsPorEtg[etg].map((c, i) => (
+                  <tr key={`csep-${etg}-${i}`}>
+                    <td>{c.codigo_componente ?? ''}</td>
+                    <td>{c.descricao_componente ?? ''}</td>
+                    <td style={{ textAlign: 'right' }}>{c.quantidade_prevista ?? ''}</td>
+                    <td>{c.unidade_medida ?? ''}</td>
+                    <td>{c.deposito ?? ''}</td>
+                    <td>{c.endereco ?? ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderOperacao = (op: OpOperacao, i: number) => (
     <div className="op-operation" key={`op-${i}`}>
       <div className="op-row-barcode">
+
         <div style={{ minWidth: 180 }}>
           <Barcode value={op.codigo_barras_operacao ?? `${op.cod_etg ?? ''}${op.seq_rot ?? ''}`} height={28} displayValue={false} />
           <div className="op-barcode-caption">{op.codigo_barras_operacao ?? ''}</div>
@@ -275,13 +323,21 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     }
     return (
       <>
+        {quebrarComponentes && (
+          <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+            {renderHeader()}
+            {renderIndicacaoComponentesSeparados()}
+            {renderFooter()}
+          </div>
+        )}
+        {quebrarComponentes && renderComponentesPage()}
         {operacoes.map((op, i) => (
           <div
             key={`opp-${i}`}
             className={`op-sheet operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
           >
             {renderHeader()}
-            {renderComponentes()}
+            {!quebrarComponentes && renderComponentes()}
             <div className="op-section-title">Operação</div>
             {renderOperacao(op, i)}
             {renderFooter()}
@@ -294,6 +350,31 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }
 
   // Modo padrão: tudo numa página
+  if (quebrarComponentes) {
+    return (
+      <>
+        <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+          {renderHeader()}
+          {renderIndicacaoComponentesSeparados()}
+          {renderFooter()}
+        </div>
+        {renderComponentesPage()}
+        <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+          {renderHeader()}
+          {operacoes.length > 0 && (
+            <>
+              <div className="op-section-title">Operações</div>
+              {operacoes.map((op, i) => renderOperacao(op, i))}
+            </>
+          )}
+          {renderFooter()}
+          {renderPreviewDesenhosResumo()}
+        </div>
+        {renderDesenhos()}
+      </>
+    );
+  }
+
   return (
     <>
       <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
