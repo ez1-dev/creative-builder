@@ -398,6 +398,8 @@ export default function ImpressaoOrdemProducaoPage() {
         cod_etg: filtros.cod_etg || undefined,
         listar_componentes: (filtros.listar_componentes as 'S' | 'N') || 'S',
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
+        incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
+        pasta_desenhos: filtros.pasta_desenhos || undefined,
       });
 
 
