@@ -1,6 +1,7 @@
 export type RelatorioStatus = 'rascunho' | 'publicado' | 'inativo';
 export type ParametroTipo = 'texto' | 'numero' | 'data' | 'lista' | 'booleano';
 export type ColunaAlinhamento = 'esquerda' | 'centro' | 'direita';
+export type ColunaTipo = 'texto' | 'numero' | 'moeda' | 'data' | 'data_hora' | 'percentual' | 'booleano';
 export type LayoutTipo =
   | 'tabela_simples'
   | 'tabela_agrupada'
