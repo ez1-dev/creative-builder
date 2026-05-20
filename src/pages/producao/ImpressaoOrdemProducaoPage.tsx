@@ -37,6 +37,8 @@ const EMPTY: ImpressaoOpFiltros = {
   listar_desenho: 'N',
   cod_etg: '',
   cod_cre: '',
+  incluir_desenhos: 'N',
+  pasta_desenhos: '',
 };
 
 export default function ImpressaoOrdemProducaoPage() {
