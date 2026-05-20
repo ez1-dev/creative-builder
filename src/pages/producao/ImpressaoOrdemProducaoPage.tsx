@@ -413,6 +413,68 @@ export default function ImpressaoOrdemProducaoPage() {
     }
   };
 
+  const imprimirSelecionadas = async () => {
+    const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)));
+    if (!alvos.length) {
+      toast.info('Selecione ao menos uma OP.');
+      return;
+    }
+    setLoteLoading(true);
+    try {
+      const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
+      const listar_desenho = (filtros.listar_desenho as 'S' | 'N') || 'N';
+      const ordens: OpImpressao[] = [];
+      let falhas = 0;
+      const concurrency = 6;
+      for (let i = 0; i < alvos.length; i += concurrency) {
+        const slice = alvos.slice(i, i + concurrency);
+        const results = await Promise.all(
+          slice.map(async (op) => {
+            try {
+              const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', {
+                cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
+                cod_ori: String(op.cod_ori ?? ''),
+                num_orp: Number(op.num_orp ?? 0),
+                listar_componentes,
+                listar_desenho,
+              });
+              return res ?? null;
+            } catch {
+              falhas += 1;
+              return null;
+            }
+          }),
+        );
+        for (const r of results) if (r) ordens.push(r);
+      }
+      if (!ordens.length) {
+        toast.error('Nenhuma OP pôde ser carregada para impressão.');
+        return;
+      }
+      setLote({ quantidade_ops: ordens.length, ordens });
+      reset();
+      if (falhas > 0) toast.warning(`${falhas} OP(s) falharam ao carregar. Imprimindo ${ordens.length}.`);
+      else toast.success(`Imprimindo ${ordens.length} OP(s)...`);
+      setTimeout(() => window.print(), 300);
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao imprimir selecionadas.');
+    } finally {
+      setLoteLoading(false);
+    }
+  };
+
+  const toggleOne = (key: string, checked: boolean) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(key); else next.delete(key);
+      return next;
+    });
+  };
+  const toggleAll = (checked: boolean) => {
+    if (!checked) { setSelectedKeys(new Set()); return; }
+    setSelectedKeys(new Set(opsFiltradas.map(opKey)));
+  };
+
   return (
     <div className="space-y-4">
       {/* Header — breadcrumb + command bar */}
