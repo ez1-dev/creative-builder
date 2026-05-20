@@ -19,7 +19,21 @@ export function useOpcoesImpressaoOp() {
   const [loading, setLoading] = useState(false);
 
   const fetchOpcoes = useCallback(async (params: OpcoesImpressaoParams = {}) => {
-    return api.get<OpcoesImpressao>('/api/producao/ordem-producao/opcoes', params as any);
+    const q: Record<string, any> = {};
+    if (params.cod_emp !== undefined && params.cod_emp !== '' && params.cod_emp !== null) {
+      const n = Number(params.cod_emp);
+      if (Number.isFinite(n)) q.cod_emp = n;
+    }
+    if (params.num_orp !== undefined && params.num_orp !== '' && params.num_orp !== null) {
+      const n = Number(params.num_orp);
+      if (Number.isFinite(n)) q.num_orp = n;
+    }
+    if (params.cod_ori) q.cod_ori = params.cod_ori;
+    if (params.cod_etg) q.cod_etg = params.cod_etg;
+    if (params.cod_cre) q.cod_cre = params.cod_cre;
+    if (params.q) q.q = params.q;
+    if (params.limite_ops !== undefined) q.limite_ops = params.limite_ops;
+    return api.get<OpcoesImpressao>('/api/producao/ordem-producao/opcoes', q);
   }, []);
 
   const reloadBase = useCallback(async () => {

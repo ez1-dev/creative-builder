@@ -1,66 +1,45 @@
+## Problema
 
-## Objetivo
+O backend `/api/producao/ordem-producao/{opcoes,impressao}` recebe `cod_emp` e `num_orp` como **string** (vindos dos selects/autocomplete), mas espera **integer**, retornando 422 (`Input should be a valid integer`).
 
-Na tela `/producao/impressao-op`, substituir os inputs de texto livre por selects pesquisáveis alimentados pelo endpoint `GET /api/producao/ordem-producao/opcoes`, com recargas em cascata conforme o usuário escolhe Empresa → Origem → OP → Estágio → Centro de Recurso.
+## Correção (somente frontend, sem mudar contratos)
 
-## Mudanças no frontend
+Coerção numérica na camada de chamada da API, mantendo `string` no estado dos filtros (o resto do código já assume string).
 
-### 1. Novo tipo + hook de opções
+### 1. `src/hooks/useOpcoesImpressaoOp.ts`
+No `fetchOpcoes`, normalizar params antes do `api.get`:
+- `cod_emp` → `Number(cod_emp)` se não vazio, senão omitir
+- `num_orp` → `Number(num_orp)` se não vazio, senão omitir
+- `cod_ori`, `cod_etg`, `cod_cre`, `q` → enviar só se truthy
+- `limite_ops` → já numérico
 
-Criar `src/lib/producao/opcoesImpressao.ts`:
+Assim todas as chamadas em cascata (`reloadBase`, `reloadByEmpresa`, `reloadByOrigem`, `reloadEstagios`, `reloadCres`, `searchOps`) ficam corrigidas de uma vez.
 
-- `OpcaoEmpresa { cod_emp, nome_emp }`
-- `OpcaoOrigem { cod_ori, descricao }`
-- `OpcaoOp { cod_emp, cod_ori, num_orp, produto, descricao_produto, label }`
-- `OpcaoEstagio { cod_etg, descricao }`
-- `OpcaoCentroRecurso { cod_cre, descricao }`
-- `OpcoesImpressao { empresas, origens, ordens_producao, estagios, centros_recurso }`
-- `OpcoesParams { cod_emp?, cod_ori?, num_orp?, cod_etg?, cod_cre?, q?, limite_ops? }`
+### 2. `src/hooks/useImpressaoOrdemProducao.ts`
+No `fetchData`, montar payload tipado:
+```ts
+const payload = {
+  cod_emp: Number(filters.cod_emp),
+  cod_ori: filters.cod_ori,
+  num_orp: Number(filters.num_orp),
+  listar_componentes: filters.listar_componentes,
+  listar_desenho: filters.listar_desenho,
+  ...(filters.cod_etg ? { cod_etg: filters.cod_etg } : {}),
+  ...(filters.cod_cre ? { cod_cre: filters.cod_cre } : {}),
+};
+```
+e usar em `api.get(..., payload)`.
 
-Criar `src/hooks/useOpcoesImpressaoOp.ts`:
+### 3. Validação adicional em `ImpressaoOrdemProducaoPage.consultar`
+Antes de chamar `fetchData`, checar `Number.isFinite(Number(filtros.cod_emp))` e idem para `num_orp`; se inválido, toast e abort. (defensivo)
 
-- Função `fetchOpcoes(params)` que chama `api.get('/api/producao/ordem-producao/opcoes', params)`.
-- Estado local para cada lista, mais flag de loading por campo.
-- Helpers `reloadBase`, `reloadByEmpresa`, `reloadByOrigem`, `reloadEstagios(num_orp)`, `reloadCres(num_orp, cod_etg)`.
-- `searchOps(q)` debounced (300 ms) usado pelo autocomplete de OP. Sempre envia `limite_ops=80`.
-
-### 2. Reescrever filtros em `ImpressaoOrdemProducaoPage.tsx`
-
-Substituir os 7 `<Input>` por componentes pesquisáveis:
-
-- **Empresa** — Combobox com `empresas`. Label `cod_emp - nome_emp`. Ao mudar: limpar Origem/OP/Estágio/Centro e chamar `reloadByEmpresa(cod_emp)`.
-- **Origem** — Combobox com `origens`. Habilitado quando há empresa. Ao mudar: limpar OP/Estágio/Centro e chamar `reloadByOrigem(cod_emp, cod_ori)`.
-- **Número da O.P.** — Autocomplete assíncrono (reusar padrão de `AutocompleteAsync.tsx` com fetcher custom). Pesquisa por `q`, exibe `"{cod_ori} / {num_orp} - {produto} - {descricao_produto}"`. Ao selecionar, popular `cod_emp`/`cod_ori`/`num_orp` no estado de filtros (sobrescrevendo empresa/origem se vierem da OP) e chamar `reloadEstagios(num_orp)` + `reloadCres(num_orp)`.
-- **Listar Componentes / Listar Desenho** — manter Select S/N existente.
-- **Estágio** — Combobox com `estagios`. Label `cod_etg - descricao`. Ao mudar: chamar `reloadCres(num_orp, cod_etg)`.
-- **Centro de Recurso** — Combobox com `centros_recurso`. Label `cod_cre - descricao`.
-
-Componente reutilizável local `SelectBuscavel` (Popover + Command, padrão do `AutocompleteAsync`) — adicionar dentro de `src/components/producao/SelectBuscavel.tsx` para suportar lista síncrona com busca em memória, ou reaproveitar `AutocompleteAsync` passando um fetcher que filtra in-memory.
-
-### 3. Carga inicial
-
-No `useEffect` da página, chamar `reloadBase()` → `GET /opcoes?limite_ops=80`. Mostrar skeleton/loader leve nos selects enquanto carrega.
-
-### 4. Validação do botão Consultar
-
-Em `consultar()`: se `!filtros.num_orp` → `toast.info('Informe ou selecione uma Ordem de Produção.')`. Como Empresa/Origem agora vêm sempre da OP selecionada (ou do select), validar apenas `num_orp`. Manter chamada existente a `fetchData(filtros)`.
-
-### 5. Limpar
-
-Em `limpar()`: resetar estado e recarregar `reloadBase()` para repopular listas-base.
-
-## Fora de escopo
-
-- Backend FastAPI (assumimos endpoint `/opcoes` já existe ou será implementado em paralelo). Se 404, manter a mensagem de erro atual.
-- Layout do A4 de impressão, código de barras e demais regras já entregues.
-- Permissões, sidebar e design tokens.
+### Fora de escopo
+- Mudar tipos das interfaces (`cod_emp: string | number` continua).
+- Backend.
+- Layout/A4/código de barras.
 
 ## Validação
-
-1. Abrir `/producao/impressao-op` → ver chamada `GET /opcoes?limite_ops=80` no Network e selects populados.
-2. Selecionar Empresa → nova chamada com `cod_emp`.
-3. Selecionar Origem → nova chamada com `cod_emp&cod_ori`.
-4. Digitar 3 chars no campo OP → chamada com `q=` e dropdown com `Origem / OP - Produto - Descrição`.
-5. Selecionar OP → Estágio recarrega; selecionar Estágio → Centro recarrega.
-6. Clicar Consultar sem OP → toast "Informe ou selecione uma Ordem de Produção."
-7. Com OP selecionada → chamada a `/impressao` com todos os parâmetros e folha A4 renderizada.
+1. Abrir `/producao/impressao-op` → `opcoes?limite_ops=80` deve retornar 200 (sem cod_emp).
+2. Selecionar Empresa → request com `cod_emp=1` (numérico) → 200.
+3. Selecionar OP → Consultar → `/impressao?cod_emp=1&cod_ori=210&num_orp=86993...` → 200.
+4. Conferir no console que não há mais 422 `Input should be a valid integer`.
