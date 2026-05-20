@@ -664,10 +664,28 @@ export default function ImpressaoOrdemProducaoPage() {
                     className="h-8 text-xs"
                     value={filtros.pasta_desenhos || ''}
                     onChange={(e) => set('pasta_desenhos', e.target.value)}
-                    placeholder="Ex.: /mnt/desenhos_op  •  C:\Desenhos\OP"
+                    placeholder={DEFAULT_PASTA_DESENHOS}
                     disabled={filtros.incluir_desenhos !== 'S'}
                   />
                 </Field>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs">Formatos dos desenhos</Label>
+                  <div className="flex flex-wrap items-center gap-3 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+                    {(['jpg', 'png', 'pdf'] as const).map((k) => (
+                      <label key={k} className="flex items-center gap-1.5">
+                        <Checkbox
+                          checked={formatosDesenho[k]}
+                          disabled={filtros.incluir_desenhos !== 'S'}
+                          onCheckedChange={(c) =>
+                            setFormatosDesenho((f) => ({ ...f, [k]: c === true }))
+                          }
+                        />
+                        <span>{k.toUpperCase()}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <label className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
                   <Checkbox
                     checked={filtros.quebrar_por_operacao === 'S'}
