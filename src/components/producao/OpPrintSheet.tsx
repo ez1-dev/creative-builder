@@ -445,30 +445,65 @@ function isPdf(d: OpDesenho): boolean {
   return ext === 'PDF' || tipo === 'PDF' || mime.includes('pdf');
 }
 
-function DrawingPage({ drawing, index }: { drawing: OpDesenho; index: number }) {
-  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
-  const pdf = isPdf(drawing);
+function DrawingPage({
+  drawing,
+  index,
+  precomputed,
+}: {
+  drawing: OpDesenho;
+  index: number;
+  precomputed?: { status: 'loading' | 'ok' | 'error'; blobUrl: string | null; error: string | null };
+}) {
+  return precomputed
+    ? <DrawingPageFromState drawing={drawing} index={index} state={precomputed} />
+    : <DrawingPageStandalone drawing={drawing} index={index} />;
+}
 
+function renderDrawingBody(
+  drawing: OpDesenho,
+  index: number,
+  blobUrl: string | null,
+  loading: boolean,
+  error: string | null,
+) {
+  const pdf = isPdf(drawing);
   return (
     <div className="op-drawing-page">
       {loading && <div className="op-drawing-missing">Carregando desenho...</div>}
       {!loading && error && <div className="op-drawing-missing">Falha ao carregar: {error}</div>}
       {!loading && !error && blobUrl && pdf && (
-        <iframe
-          src={blobUrl}
-          title={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
-        />
+        <iframe src={blobUrl} title={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
       )}
       {!loading && !error && blobUrl && !pdf && (
-        <img
-          src={blobUrl}
-          alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
-        />
+        <img src={blobUrl} alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
       )}
       {!loading && !error && !blobUrl && (
         <div className="op-drawing-missing">Desenho indisponível.</div>
       )}
     </div>
+  );
+}
+
+function DrawingPageStandalone({ drawing, index }: { drawing: OpDesenho; index: number }) {
+  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
+  return renderDrawingBody(drawing, index, blobUrl, loading, error);
+}
+
+function DrawingPageFromState({
+  drawing,
+  index,
+  state,
+}: {
+  drawing: OpDesenho;
+  index: number;
+  state: { status: 'loading' | 'ok' | 'error'; blobUrl: string | null; error: string | null };
+}) {
+  return renderDrawingBody(
+    drawing,
+    index,
+    state.blobUrl,
+    state.status === 'loading',
+    state.status === 'error' ? state.error : null,
   );
 }
 
