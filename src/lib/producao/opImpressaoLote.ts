@@ -32,6 +32,10 @@ export async function fetchImpressaoLote(params: ImpressaoOpLoteParams): Promise
   if (params.sit_orp && String(params.sit_orp).toUpperCase() !== 'C') q.sit_orp = params.sit_orp;
   if (params.cod_cre) q.cod_cre = params.cod_cre;
   if (params.cod_etg) q.cod_etg = params.cod_etg;
+  if (params.incluir_desenhos === 'S') {
+    q.incluir_desenhos = 'S';
+    if (params.pasta_desenhos) q.pasta_desenhos = params.pasta_desenhos;
+  }
 
 
   const res = await api.get<ImpressaoOpLoteResponse>('/api/producao/ordem-producao/impressao/lote', q);
