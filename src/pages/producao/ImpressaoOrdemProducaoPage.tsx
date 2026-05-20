@@ -887,8 +887,13 @@ export default function ImpressaoOrdemProducaoPage() {
                         const k = opKey(op);
                         const checked = selectedKeys.has(k);
                         return (
-                        <TableRow key={`${k}-${idx}`} data-state={checked ? 'selected' : undefined}>
-                          <TableCell>
+                        <TableRow
+                          key={`${k}-${idx}`}
+                          data-state={selectedRowKey === k || checked ? 'selected' : undefined}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleRowSelect(op)}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={checked}
                               onCheckedChange={(c) => toggleOne(k, c === true)}
@@ -907,7 +912,7 @@ export default function ImpressaoOrdemProducaoPage() {
                           <TableCell>{op.cod_cre || filtros.cod_cre || '—'}</TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
                               <Button size="sm" variant="ghost" onClick={() => handleRowVisualizar(op)} title="Visualizar">
                                 <Eye className="h-3 w-3" />
