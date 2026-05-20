@@ -55,6 +55,7 @@ function emptyLayout(relatorioId: string): RelatorioLayout {
 }
 
 export function ReportEditor({ id, onClose, onSaved }: Props) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('geral');
@@ -65,12 +66,14 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     permite_excel: true,
     permite_pdf: true,
     permite_csv: true,
+    tipo_fonte: 'sql',
   });
   const [parametros, setParametros] = useState<ParamDraft[]>([]);
   const [colunas, setColunas] = useState<ColDraft[]>([]);
   const [layout, setLayout] = useState<RelatorioLayout>(emptyLayout(''));
   const [lastPreviewCols, setLastPreviewCols] = useState<{ cols: string[]; sample?: Record<string, unknown> } | null>(null);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const isApiRest = relatorio.tipo_fonte === 'api_rest';
 
   useEffect(() => {
     if (!id) return;
