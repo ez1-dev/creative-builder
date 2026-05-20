@@ -1,90 +1,41 @@
 ## Objetivo
 
-Adicionar suporte a impressão de desenhos da OP: novo campo de texto "Caminho da pasta de desenhos", checkbox "Incluir desenhos", envio dos parâmetros `incluir_desenhos=S` e `pasta_desenhos=<URL encoded>` para os endpoints individual e em lote, e renderização das imagens de desenho em páginas A4 separadas após cada OP.
+No bloco de cada operação da impressão da OP, o campo **Próx. Oper.** hoje mostra apenas o código (ex.: `2108`). O usuário quer ver **código + nome** (ex.: `2108 TORNEAR (CNC)`), igual ao campo "Operação".
 
-## Mudanças na UI (`src/pages/producao/ImpressaoOrdemProducaoPage.tsx`)
+## Abordagem
 
-No grupo "Refinamento" do card de filtros, adicionar:
+Resolver no frontend, sem mudar o backend. O valor de `proxima_operacao` corresponde ao `cod_opr` de outra operação já presente em `data.operacoes`. Basta cruzar.
 
-1. **Checkbox "Incluir desenhos"** (componente `Checkbox` do shadcn já importado).
-2. **Input de texto "Caminho da pasta de desenhos"** (placeholder com exemplos: `/mnt/desenhos_op`, `C:\Desenhos\OP`). Habilitado somente quando o checkbox estiver marcado.
+## Mudanças
 
-Os dois controles substituem visualmente o select atual "Desenhos (S/N)" — o checkbox passa a controlar `listar_desenho` ('S'/'N') e também o novo `incluir_desenhos`.
+**`src/components/producao/OpPrintSheet.tsx`**
 
-Estado novo no componente:
-- `incluirDesenhos: boolean` (default `false`)
-- `pastaDesenhos: string` (default `''`)
+1. Antes do `operacoes.map(...)`, construir um índice:
+   ```ts
+   const opPorCodigo = new Map(
+     operacoes
+       .filter(o => o.cod_opr)
+       .map(o => [String(o.cod_opr), o.descricao_operacao ?? ''])
+   );
+   ```
+2. Substituir a célula atual:
+   ```tsx
+   <div className="v">{op.proxima_operacao ?? '—'}</div>
+   ```
+   por uma versão que concatena descrição quando encontrada:
+   ```tsx
+   <div className="v">
+     {op.proxima_operacao
+       ? [op.proxima_operacao, opPorCodigo.get(String(op.proxima_operacao))]
+           .filter(Boolean).join(' ')
+       : '—'}
+   </div>
+   ```
 
-Persistir os dois também no objeto `EMPTY`/`filtros` estendido (campos opcionais).
-
-## Mudanças no contrato de filtros (`src/lib/producao/opImpressao.ts`)
-
-Adicionar a `ImpressaoOpFiltros`:
-```ts
-incluir_desenhos?: 'S' | 'N' | '';
-pasta_desenhos?: string;
-```
-
-Adicionar a `OpImpressao`:
-```ts
-desenhos?: OpDesenho[];
-```
-
-Novo tipo:
-```ts
-export interface OpDesenho {
-  ordem?: number;
-  nome_arquivo?: string;
-  tipo?: string;
-  pasta?: string;
-  url?: string;
-}
-```
-
-## Mudanças no hook individual (`src/hooks/useImpressaoOrdemProducao.ts`)
-
-Quando `filters.incluir_desenhos === 'S'`, adicionar ao payload:
-- `incluir_desenhos: 'S'`
-- `pasta_desenhos: encodeURIComponent(filters.pasta_desenhos)` somente se preenchido.
-
-(Como o helper `api.get` já costuma encodar query params, validar o comportamento de `src/lib/api.ts` para evitar dupla codificação — se `api.get` já faz `encodeURIComponent`, passar a string crua; caso contrário, encodar manualmente. Aplicar a opção que evita dupla codificação.)
-
-## Mudanças no lote (`src/lib/producao/opImpressaoLote.ts`)
-
-Adicionar em `ImpressaoOpLoteParams`:
-- `incluir_desenhos?: 'S' | 'N'`
-- `pasta_desenhos?: string`
-
-Em `fetchImpressaoLote`, anexar `incluir_desenhos` e `pasta_desenhos` à query quando preenchidos (mesma regra de encoding acima).
-
-Atualizar também a chamada paralela em `imprimirSelecionadas` (dentro de `ImpressaoOrdemProducaoPage.tsx`) para enviar os novos parâmetros.
-
-E em `imprimirTodas`, repassar `incluir_desenhos` e `pasta_desenhos`.
-
-## Renderização dos desenhos na impressão
-
-Em `src/components/producao/OpPrintSheet.tsx`:
-
-- Após o bloco de RESPONSABILIDADE/FOOTER da OP, mapear `data.desenhos ?? []` e renderizar **uma página A4 por desenho** dentro da mesma sheet, usando uma `<div className="op-drawing-page">` com:
-  - cabeçalho curto: nome do arquivo + pasta
-  - `<img src={desenho.url} alt={desenho.nome_arquivo} className="op-drawing-img" />`
-
-Em `src/components/producao/op-print.css`:
-
-- Adicionar `.op-drawing-page { page-break-before: always; break-before: page; display: flex; flex-direction: column; align-items: center; }`
-- `.op-drawing-img { max-width: 100%; max-height: 260mm; object-fit: contain; }`
-- Pequeno header `.op-drawing-header` com nome do arquivo e pasta.
-
-Para impressão em lote (`OpPrintBatch.tsx`), nenhuma mudança — cada `OpPrintSheet` já cuida dos seus desenhos.
+Se `proxima_operacao` não bater com nenhum `cod_opr` (última operação ou rota incomum), mantém apenas o código — sem quebrar.
 
 ## Fora do escopo
 
-- Upload de desenhos ou listagem por outro meio (somente o caminho manual).
-- Mudanças no backend (apenas consumo do contrato `desenhos[]` já documentado).
-- Alteração no documento `docs/backend-impressao-ordem-producao.md`.
-
-## Detalhes técnicos
-
-- O checkbox controla simultaneamente `listar_desenho` (compat com flag antiga) e `incluir_desenhos`. Quando desmarcado, ambos viram `'N'` e `pasta_desenhos` não é enviado.
-- Validação: se o checkbox está marcado e a pasta está vazia, ainda assim mandar `incluir_desenhos=S` (caso o backend tenha um default), mas exibir um `toast.info` discreto sugerindo informar a pasta.
-- `encodeURIComponent` aplicado apenas se `api.get` não já fizer encoding — verificar `src/lib/api.ts` na implementação.
+- Alterações no backend / contrato `/api/producao/ordem-producao/impressao`.
+- Mudanças no CSS de impressão.
+- Outros campos do bloco de operação.

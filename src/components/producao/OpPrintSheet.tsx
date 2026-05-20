@@ -47,6 +47,13 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
   }, {});
   const etgKeys = Object.keys(compsPorEtg);
 
+  // Índice cod_opr -> descricao para resolver "Próx. Oper."
+  const opPorCodigo = new Map(
+    operacoes
+      .filter((o) => o.cod_opr != null && String(o.cod_opr) !== '')
+      .map((o) => [String(o.cod_opr), o.descricao_operacao ?? ''])
+  );
+
   return (
     <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
       <div className="op-title">Ordens de Produção - GENIUS</div>
