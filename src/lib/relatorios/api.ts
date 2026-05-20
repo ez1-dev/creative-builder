@@ -156,9 +156,38 @@ export async function listExecucoes(filters?: { relatorioId?: string; userId?: s
   return (data ?? []) as (RelatorioExecucao & { relatorios?: { nome: string; codigo: string } })[];
 }
 
-export async function gravarExecucao(input: Omit<RelatorioExecucao, 'id' | 'executado_em' | 'executado_por'>) {
+export async function listExecucoesPorRelatorio(relatorioId: string, limit = 100) {
+  const { data, error } = await supabase
+    .from('relatorio_execucoes')
+    .select('*')
+    .eq('relatorio_id', relatorioId)
+    .order('executado_em', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const rows = (data ?? []) as RelatorioExecucao[];
+  // Enriquecer com nome do usuário
+  const userIds = Array.from(new Set(rows.map((r) => r.executado_por).filter(Boolean) as string[]));
+  let nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: profs } = await supabase
+      .from('profiles')
+      .select('id, display_name, email, erp_user')
+      .in('id', userIds);
+    nameById = new Map(
+      (profs ?? []).map((p: any) => [p.id, p.display_name || p.erp_user || p.email || p.id]),
+    );
+  }
+  return rows.map((r) => ({
+    ...r,
+    executado_por_nome: r.executado_por ? nameById.get(r.executado_por) ?? null : null,
+  }));
+}
+
+export async function gravarExecucao(input: Omit<RelatorioExecucao, 'id' | 'executado_em' | 'executado_por'> & { arquivo?: string | null }) {
   const { data: user } = await supabase.auth.getUser();
-  const payload = { ...input, executado_por: user.user?.id ?? null };
+  const { arquivo, ...rest } = input;
+  const parametros = arquivo ? { ...(input.parametros ?? {}), __arquivo: arquivo } : input.parametros;
+  const payload = { ...rest, parametros, executado_por: user.user?.id ?? null };
   const { error } = await supabase.from('relatorio_execucoes').insert(payload as any);
   if (error) throw error;
 }
@@ -197,11 +226,18 @@ export async function executarRelatorio(id: string, parametros: Record<string, u
   return postFastApi<PreviewResult>(`/api/relatorios/${id}/executar`, { parametros });
 }
 
+function extractFilename(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback;
+  const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  return m?.[1] ? decodeURIComponent(m[1]) : fallback;
+}
+
 export async function exportarRelatorio(
   id: string,
   formato: 'excel' | 'csv' | 'pdf',
   parametros: Record<string, unknown>,
-): Promise<Blob> {
+  fallbackCodigo = 'relatorio',
+): Promise<{ blob: Blob; filename: string }> {
   const token = localStorage.getItem('erp_token');
   const res = await fetch(`${getApiUrl()}/api/relatorios/${id}/exportar/${formato}`, {
     method: 'POST',
@@ -213,5 +249,7 @@ export async function exportarRelatorio(
     body: JSON.stringify({ parametros }),
   });
   if (!res.ok) throw new Error(`Falha ao exportar (${res.status})`);
-  return await res.blob();
+  const ext = formato === 'excel' ? 'xlsx' : formato;
+  const filename = extractFilename(res.headers.get('content-disposition'), `${fallbackCodigo}.${ext}`);
+  return { blob: await res.blob(), filename };
 }
