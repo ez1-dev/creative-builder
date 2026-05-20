@@ -984,6 +984,34 @@ export default function ImpressaoOrdemProducaoPage() {
         </div>
       )}
 
+      {showGrid && selectedRowKey && (
+        <Card className="no-print">
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Visualização da Ordem de Produção</h2>
+              {data?.cabecalho && (
+                <p className="text-xs text-muted-foreground">
+                  Origem {data.cabecalho.cod_ori} / OP {data.cabecalho.num_orp_formatado ?? data.cabecalho.num_orp}
+                  {data.cabecalho.produto ? ` • ${data.cabecalho.produto}` : ''}
+                  {data.cabecalho.descricao_produto ? ` - ${data.cabecalho.descricao_produto}` : ''}
+                </p>
+              )}
+            </div>
+            {loading && (
+              <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando visualização da OP...
+              </div>
+            )}
+            {!loading && error && (
+              <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                <p className="font-medium text-destructive">Não foi possível carregar a visualização da OP.</p>
+                <Button size="sm" variant="outline" onClick={retry}>Tentar novamente</Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="print-root">
         {lote && lote.ordens.length > 0 && (
           <OpPrintBatch
@@ -997,7 +1025,7 @@ export default function ImpressaoOrdemProducaoPage() {
         {!lote && data?.cabecalho && (
           <OpPrintSheet
             data={data}
-            preview={preview}
+            preview={preview || !!selectedRowKey}
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
             blobStates={blobStates}
