@@ -1249,6 +1249,257 @@ export type Database = {
         }
         Relationships: []
       }
+      relatorio_colunas: {
+        Row: {
+          agrupar: boolean
+          alinhamento: string
+          campo: string
+          created_at: string
+          formato: string | null
+          id: string
+          ordem: number
+          relatorio_id: string
+          tipo: string | null
+          titulo: string | null
+          totalizar: boolean
+          visivel: boolean
+        }
+        Insert: {
+          agrupar?: boolean
+          alinhamento?: string
+          campo: string
+          created_at?: string
+          formato?: string | null
+          id?: string
+          ordem?: number
+          relatorio_id: string
+          tipo?: string | null
+          titulo?: string | null
+          totalizar?: boolean
+          visivel?: boolean
+        }
+        Update: {
+          agrupar?: boolean
+          alinhamento?: string
+          campo?: string
+          created_at?: string
+          formato?: string | null
+          id?: string
+          ordem?: number
+          relatorio_id?: string
+          tipo?: string | null
+          titulo?: string | null
+          totalizar?: boolean
+          visivel?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_colunas_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: false
+            referencedRelation: "relatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorio_execucoes: {
+        Row: {
+          erro: string | null
+          executado_em: string
+          executado_por: string | null
+          formato: string
+          id: string
+          parametros: Json
+          qtd_linhas: number | null
+          relatorio_id: string
+          status: string
+          tempo_ms: number | null
+        }
+        Insert: {
+          erro?: string | null
+          executado_em?: string
+          executado_por?: string | null
+          formato?: string
+          id?: string
+          parametros?: Json
+          qtd_linhas?: number | null
+          relatorio_id: string
+          status?: string
+          tempo_ms?: number | null
+        }
+        Update: {
+          erro?: string | null
+          executado_em?: string
+          executado_por?: string | null
+          formato?: string
+          id?: string
+          parametros?: Json
+          qtd_linhas?: number | null
+          relatorio_id?: string
+          status?: string
+          tempo_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_execucoes_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: false
+            referencedRelation: "relatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorio_layout: {
+        Row: {
+          agrupar_por: string | null
+          config: Json
+          mostrar_data_hora: boolean
+          mostrar_filtros: boolean
+          mostrar_totais: boolean
+          mostrar_usuario: boolean
+          relatorio_id: string
+          subtitulo: string | null
+          tipo: string
+          titulo: string | null
+          updated_at: string
+        }
+        Insert: {
+          agrupar_por?: string | null
+          config?: Json
+          mostrar_data_hora?: boolean
+          mostrar_filtros?: boolean
+          mostrar_totais?: boolean
+          mostrar_usuario?: boolean
+          relatorio_id: string
+          subtitulo?: string | null
+          tipo?: string
+          titulo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agrupar_por?: string | null
+          config?: Json
+          mostrar_data_hora?: boolean
+          mostrar_filtros?: boolean
+          mostrar_totais?: boolean
+          mostrar_usuario?: boolean
+          relatorio_id?: string
+          subtitulo?: string | null
+          tipo?: string
+          titulo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_layout_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: true
+            referencedRelation: "relatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorio_parametros: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          nome: string
+          obrigatorio: boolean
+          ordem: number
+          relatorio_id: string
+          sql_lista: string | null
+          tipo: string
+          valor_padrao: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          nome: string
+          obrigatorio?: boolean
+          ordem?: number
+          relatorio_id: string
+          sql_lista?: string | null
+          tipo?: string
+          valor_padrao?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          nome?: string
+          obrigatorio?: boolean
+          ordem?: number
+          relatorio_id?: string
+          sql_lista?: string | null
+          tipo?: string
+          valor_padrao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorio_parametros_relatorio_id_fkey"
+            columns: ["relatorio_id"]
+            isOneToOne: false
+            referencedRelation: "relatorios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relatorios: {
+        Row: {
+          categoria: string | null
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          fonte_dados: string | null
+          id: string
+          modulo: string | null
+          nome: string
+          permite_csv: boolean
+          permite_excel: boolean
+          permite_pdf: boolean
+          sql_query: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string | null
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          fonte_dados?: string | null
+          id?: string
+          modulo?: string | null
+          nome: string
+          permite_csv?: boolean
+          permite_excel?: boolean
+          permite_pdf?: boolean
+          sql_query?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string | null
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          fonte_dados?: string | null
+          id?: string
+          modulo?: string | null
+          nome?: string
+          permite_csv?: boolean
+          permite_excel?: boolean
+          permite_pdf?: boolean
+          sql_query?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       senior_disconnect_rules: {
         Row: {
           created_at: string
