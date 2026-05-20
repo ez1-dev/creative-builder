@@ -508,7 +508,7 @@ export default function ImpressaoOrdemProducaoPage() {
                   </span>
                 </div>
                 <Field label="Centro de Recurso">
-                  <SelectBuscavel value={filtros.cod_cre || ''} onChange={(v) => set('cod_cre', v)} options={creOpts} placeholder="Centro..." disabled={!filtros.num_orp} />
+                  <SelectBuscavel value={filtros.cod_cre || ''} onChange={onChangeCentroRecurso} options={creOpts} placeholder="Centro..." disabled={!filtros.cod_emp} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Componentes">
