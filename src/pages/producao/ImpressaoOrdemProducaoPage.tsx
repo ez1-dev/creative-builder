@@ -936,6 +936,20 @@ export default function ImpressaoOrdemProducaoPage() {
                           <TableCell>{pick(op.unidade, op.un, op.unidade_medida)}</TableCell>
                           <TableCell>{pick(op.situacao_descricao, op.situacao)}</TableCell>
                           <TableCell>{op.cod_cre || filtros.cod_cre || '—'}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {(op.tem_observacao === 'S' || Number(op.qtd_observacoes ?? 0) > 0) ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleVerObservacoes(op)}
+                                title="Ver observações"
+                              >
+                                <MessageSquare className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
