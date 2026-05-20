@@ -49,6 +49,7 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
 
   return (
     <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+      <div className="op-title">Ordens de Produção - GENIUS</div>
       {/* CABEÇALHO */}
       <div className="op-header-top">
         <div style={{ fontWeight: 'bold', fontSize: 10 }}>Origem/O.P.</div>
