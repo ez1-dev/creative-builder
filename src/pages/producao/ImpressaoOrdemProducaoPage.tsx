@@ -436,13 +436,18 @@ export default function ImpressaoOrdemProducaoPage() {
         const results = await Promise.all(
           slice.map(async (op) => {
             try {
-              const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', {
+              const payload: Record<string, any> = {
                 cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
                 cod_ori: String(op.cod_ori ?? ''),
                 num_orp: Number(op.num_orp ?? 0),
                 listar_componentes,
                 listar_desenho,
-              });
+              };
+              if (filtros.incluir_desenhos === 'S') {
+                payload.incluir_desenhos = 'S';
+                if (filtros.pasta_desenhos) payload.pasta_desenhos = filtros.pasta_desenhos;
+              }
+              const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
               return res ?? null;
             } catch {
               falhas += 1;
