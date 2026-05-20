@@ -401,6 +401,7 @@ export default function ImpressaoOrdemProducaoPage() {
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
         incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
         pasta_desenhos: filtros.pasta_desenhos || undefined,
+        quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
       });
 
 
