@@ -13,6 +13,7 @@ export interface ImpressaoOpLoteParams {
   listar_desenho?: 'S' | 'N';
   incluir_desenhos?: 'S' | 'N';
   pasta_desenhos?: string;
+  quebrar_por_operacao?: 'S' | 'N';
 }
 
 export interface ImpressaoOpLoteResponse {
