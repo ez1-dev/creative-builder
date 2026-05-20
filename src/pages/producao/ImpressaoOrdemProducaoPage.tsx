@@ -611,19 +611,46 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
             ) : (
               <>
-                {opsFiltradas.length > 1 && (
-                  <div className="flex items-center justify-between gap-2 border-b p-3">
-                    <span className="text-xs text-muted-foreground">{opsFiltradas.length} OPs encontradas</span>
-                    <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+                  <span className="text-xs text-muted-foreground">
+                    {opsFiltradas.length} OP(s) encontradas
+                    {selectedKeys.size > 0 && ` • ${selectedKeys.size} selecionada(s)`}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={imprimirSelecionadas}
+                      disabled={loteLoading || selectedKeys.size === 0}
+                    >
                       {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
-                      Imprimir todas
+                      Imprimir selecionadas
                     </Button>
+                    {opsFiltradas.length > 1 && (
+                      <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                        {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
+                        Imprimir todas
+                      </Button>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={
+                              opsFiltradas.length > 0 && selectedKeys.size === opsFiltradas.length
+                                ? true
+                                : selectedKeys.size > 0
+                                  ? 'indeterminate'
+                                  : false
+                            }
+                            onCheckedChange={(c) => toggleAll(c === true)}
+                            aria-label="Selecionar todas"
+                          />
+                        </TableHead>
                         <TableHead>Origem</TableHead>
                         <TableHead>OP</TableHead>
                         <TableHead>Pedido</TableHead>
@@ -639,8 +666,18 @@ export default function ImpressaoOrdemProducaoPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {opsFiltradas.map((op, idx) => (
-                        <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
+                      {opsFiltradas.map((op, idx) => {
+                        const k = opKey(op);
+                        const checked = selectedKeys.has(k);
+                        return (
+                        <TableRow key={`${k}-${idx}`} data-state={checked ? 'selected' : undefined}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(c) => toggleOne(k, c === true)}
+                              aria-label={`Selecionar OP ${op.num_orp ?? ''}`}
+                            />
+                          </TableCell>
                           <TableCell>{op.cod_ori ?? ''}</TableCell>
                           <TableCell className="font-mono">{op.num_orp ?? ''}</TableCell>
                           <TableCell>{op.num_ped ?? ''}</TableCell>
@@ -663,7 +700,8 @@ export default function ImpressaoOrdemProducaoPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
