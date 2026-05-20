@@ -510,23 +510,35 @@ export default function ImpressaoOrdemProducaoPage() {
     return '';
   };
 
+  const handleRowSelect = async (op: OpcaoOp) => {
+    const cod_emp = String(op.cod_emp ?? filtros.cod_emp ?? '');
+    const cod_ori = String(op.cod_ori ?? '');
+    const num_orp = String(op.num_orp ?? '');
+    if (cod_ori === '100') { toast.error('Origem 100 não é permitida.'); return; }
+    if (String(op.sit_orp ?? '').toUpperCase() === 'C') { toast.error('OP cancelada não pode ser selecionada.'); return; }
+    setSelectedRowKey(opKey(op));
+    setLote(null);
+    const eff: ImpressaoOpFiltros = {
+      cod_emp,
+      cod_ori,
+      num_orp,
+      listar_componentes: 'S',
+      listar_desenho: 'N',
+      incluir_desenhos: 'S',
+      quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
+      cod_etg: filtros.cod_etg || '',
+      cod_cre: filtros.cod_cre || '',
+    };
+    setLastConsulta(eff);
+    await fetchData(eff);
+  };
+
   const handleRowVisualizar = async (op: OpcaoOp) => {
-    await onSelectOp(op);
-    await consultar({
-      cod_emp: String(op.cod_emp ?? filtros.cod_emp ?? ''),
-      cod_ori: String(op.cod_ori ?? ''),
-      num_orp: String(op.num_orp ?? ''),
-    });
-    setPreview(true);
+    await handleRowSelect(op);
   };
 
   const handleRowImprimir = async (op: OpcaoOp) => {
-    await onSelectOp(op);
-    await consultar({
-      cod_emp: String(op.cod_emp ?? filtros.cod_emp ?? ''),
-      cod_ori: String(op.cod_ori ?? ''),
-      num_orp: String(op.num_orp ?? ''),
-    });
+    await handleRowSelect(op);
     setTimeout(() => window.print(), 200);
   };
 
