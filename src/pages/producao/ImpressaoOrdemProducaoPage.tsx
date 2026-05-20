@@ -139,6 +139,7 @@ export default function ImpressaoOrdemProducaoPage() {
   // Limpa seleção sempre que filtros principais/refinamento mudam
   useEffect(() => {
     setSelectedKeys(new Set());
+    setSelectedRowKey(null);
   }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp, filtros.cod_pro]);
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
