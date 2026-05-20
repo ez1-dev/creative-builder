@@ -660,6 +660,7 @@ export default function ImpressaoOrdemProducaoPage() {
                         <TableHead className="text-right">Qtde</TableHead>
                         <TableHead>Un.</TableHead>
                         <TableHead>Situação</TableHead>
+                        <TableHead>C. Recurso</TableHead>
                         <TableHead>Geração</TableHead>
                         <TableHead>Início Prev.</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -687,6 +688,7 @@ export default function ImpressaoOrdemProducaoPage() {
                           <TableCell className="text-right">{pick(op.quantidade, op.qtde, op.qtd_prevista)}</TableCell>
                           <TableCell>{pick(op.unidade, op.un, op.unidade_medida)}</TableCell>
                           <TableCell>{pick(op.situacao_descricao, op.situacao)}</TableCell>
+                          <TableCell>{op.cod_cre || filtros.cod_cre || '—'}</TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
                           <TableCell className="text-right">
