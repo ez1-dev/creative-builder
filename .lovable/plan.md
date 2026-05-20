@@ -1,31 +1,41 @@
 ## Objetivo
 
-Permitir que selecionar **Origem** sozinha carregue automaticamente todas as OPs daquela origem na grid da tela `/producao/impressao-op`, sem exigir Pedido, Relatório de Produção ou Nº OP.
+Tornar **Centro de Recurso** (`cod_cre`) um filtro de refinamento livre na tela `/producao/impressao-op` — selecionável a qualquer momento (sem exigir OP), recarregando a grid e respeitado por "Imprimir todas".
 
 ## Arquivos a alterar
 
-- `src/hooks/useOpcoesImpressaoOp.ts` — adicionar `reloadByOrigem(cod_emp, cod_ori, ctx?)` que chama `/api/producao/ordem-producao/opcoes` com `cod_ori`, opcionalmente `sit_orp` e `q`, `limite_ops=200`. Atualiza `ops`, `estagios`, `centros_recurso`. Também estender `reloadBySituacao` para repassar `cod_ori` quando presente, e `searchOps` para incluir `cod_ori` no contexto.
-- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`:
-  - Novo handler `onChangeOrigem(v)`: define `cod_ori`, limpa `num_orp/cod_etg/cod_cre` (mantém Pedido/Relatório/Situação). Se `v` vazio → recarrega base. Caso contrário chama `reloadByOrigem` combinando com `sit_orp`/`num_ped`/`rel_prd` atuais (origem pode ser usada sozinha ou combinada).
-  - Atualizar `onChangeSituacao` para também repassar `cod_ori` quando setado.
-  - Atualizar `searchOpsFetcher` para incluir `cod_ori`.
-  - Expandir `showGrid` para `Boolean((num_ped || rel_prd || cod_ori) && !num_orp)` — assim a grid aparece quando apenas Origem está selecionada.
-  - `imprimirTodas`: aceitar também o caso "somente Origem" — passar `cod_ori` adiante. Atualizar mensagem.
-  - Mensagem do estado vazio inicial: incluir "Origem" como ponto de partida válido.
-- `src/lib/producao/opImpressaoLote.ts` — aceitar `cod_ori` opcional e enviar no querystring para `/impressao/lote` (alternativo a `num_ped`/`rel_prd`).
-- `docs/backend-impressao-ordem-producao.md` — registrar:
-  - `/opcoes` pode ser chamado apenas com `cod_emp` + `cod_ori` (+ `sit_orp` ou `q` opcionais) com `limite_ops` até 200.
-  - `/impressao/lote` passa a aceitar `cod_ori` como filtro alternativo a `num_ped`/`rel_prd`.
+### `src/hooks/useOpcoesImpressaoOp.ts`
+- Estender `OpcoesImpressaoParams` (já aceita `cod_cre`/`cod_etg`) — sem mudança de tipos.
+- Novo `reloadByCentroRecurso(cod_emp, cod_cre, ctx?)` onde `ctx` aceita `cod_ori`, `num_ped`, `rel_prd`, `sit_orp`, `cod_etg`, `q`. Chama `/opcoes` com esses campos + `limite_ops=200`. Atualiza apenas `ops` (não mexer em estágios/centros para não esvaziar o select). Mantém saneamento (`sanitizeOps`, sem `cod_ori=100`, sem `sit_orp='C'`).
+- Estender `SearchOpsContext` com `cod_cre` e `cod_etg`; `searchOps` repassa ambos.
+- Estender `reloadByOrigem` / `reloadByPedido` / `reloadByRelatorio` / `reloadBySituacao` para aceitar `cod_cre` e `cod_etg` no `ctx` e repassar à API (mantendo assinatura compatível via parâmetro opcional).
+
+### `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+- Novo handler `onChangeCentroRecurso(v)`:
+  - `setFiltros({ ...f, cod_cre: v, num_orp: '' })` (libera OP escolhida; mantém estágio).
+  - Não selecionar automaticamente OP.
+  - Se vazio → re-disparar a carga conforme o filtro principal ativo (origem/pedido/relatório/situação) **sem** `cod_cre`.
+  - Se preenchido → chamar `reloadByCentroRecurso(cod_emp, v, { cod_ori, num_ped, rel_prd, sit_orp, cod_etg })`.
+- Atualizar `onChangeEstagio` para não exigir `num_orp`: quando há `cod_cre` ativo, recarregar grid com `cod_etg + cod_cre` (sem alterar lista de centros). Quando há OP escolhida, manter comportamento atual (`reloadCres`).
+- Atualizar `onChangeOrigem` / `onChangePedido` / `onChangeRelatorio` / `onChangeSituacao` para repassar `cod_cre` e `cod_etg` correntes no contexto da chamada.
+- Atualizar `searchOpsFetcher` para incluir `cod_cre` e `cod_etg`.
+- Expandir `showGrid` para também aparecer com `cod_cre` (ou `cod_etg`) sozinho: `(num_ped || rel_prd || cod_ori || cod_cre || cod_etg) && !num_orp`.
+- Remover `disabled={!filtros.num_orp}` dos selects Estágio e Centro de Recurso — passar a desabilitar só quando `!filtros.cod_emp`.
+- `imprimirTodas`: permitir disparo quando houver pelo menos um entre `cod_ori`, `num_ped`, `rel_prd`, `cod_cre`. Encaminhar `cod_cre` (e `cod_etg`) ao `fetchImpressaoLote`.
+
+### `src/lib/producao/opImpressaoLote.ts`
+- Adicionar `cod_cre?: string` e `cod_etg?: string` em `ImpressaoOpLoteParams` e enviar no query string.
+
+### `docs/backend-impressao-ordem-producao.md`
+- Em `/opcoes`: documentar `cod_cre` (e `cod_etg`) como filtros de refinamento combináveis com qualquer outro filtro principal. Exemplos espelhando a mensagem do usuário.
+- Em `/impressao/lote`: adicionar `cod_cre` e `cod_etg` à tabela de parâmetros (opcionais, combináveis).
 
 ## Regras preservadas
+- `cod_ori = 100` continua bloqueada.
+- OPs `sit_orp = 'C'` continuam excluídas.
+- Nenhuma OP é selecionada automaticamente; usuário escolhe na grid.
+- Colunas e mapeamentos da grid permanecem inalterados.
 
-- `cod_ori = 100` continua bloqueada (`dropOri100Origens` / validações já existentes).
-- OPs com `sit_orp = 'C'` continuam excluídas no client (`sanitizeOps`) — backend deve manter exclusão também.
-- Grid mantém colunas e mapeamentos já definidos (Origem, OP, Pedido, Rel. Produção, Produto, Descrição, Qtde, Un., Situação, Geração, Início Prev., Ações).
-- Nenhuma OP é selecionada automaticamente; usuário escolhe na grid (Visualizar/Imprimir) ou usa "Imprimir todas".
-- Origem combinável com Situação, Pedido, Relatório e busca textual `q`.
-
-## Fora do escopo
-
-- Mudanças visuais no layout do filtro (mantém Command bar compacta atual).
-- Alterações no backend FastAPI (apenas documentação).
+## Fora de escopo
+- Layout/visual da tela.
+- Implementação no backend FastAPI (apenas documentação).
