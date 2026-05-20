@@ -1,56 +1,33 @@
-## Objetivo
+## Ajuste no campo "Próx. Oper." da impressão de OP
 
-Quando `quebrar_por_operacao = S`, repetir os desenhos da OP **após cada operação** (cada desenho em página A4 própria). Manter o comportamento atual quando `= N`.
+### Objetivo
+Exibir código + descrição da próxima operação no layout de impressão, conforme novos campos retornados pela API.
 
-## Mudança principal
+### Mudanças
 
-`src/components/producao/OpPrintSheet.tsx` — branch `if (quebrarPorOperacao)` (linhas ~356–394):
+**1. `src/lib/producao/opImpressao.ts`** — Adicionar novos campos opcionais em `OpOperacao`:
+- `proxima_operacao_codigo?: string`
+- `proxima_operacao_descricao?: string`
+- (`proxima_operacao_label` já existe)
+- Manter `proxima_operacao` para compatibilidade.
 
-Hoje renderiza todas as páginas de operação e, no final, **uma única vez**, `renderDesenhos()`. Trocar por: para cada operação, renderizar a página da operação **e em seguida** renderizar os desenhos logo após.
-
+**2. `src/components/producao/OpPrintSheet.tsx`** (linha 208) — Substituir:
 ```tsx
-{operacoes.map((op, i) => (
-  <React.Fragment key={`opp-${i}`}>
-    <div className={`op-sheet operation-single-page ${preview ? 'op-sheet--preview' : ''}`}>
-      {renderHeader()}
-      {!quebrarComponentes && renderComponentes()}
-      <div className="op-section-title">Operação</div>
-      {renderOperacao(op, i)}
-      {renderFooter()}
-    </div>
-    {renderDesenhosParaOperacao(i)}
-  </React.Fragment>
-))}
-{renderPreviewDesenhosResumo()}
+<div className="v">{op.proxima_operacao_label ?? op.proxima_operacao ?? '—'}</div>
 ```
+por lógica com fallback:
+```tsx
+const proxLabel = (() => {
+  if (op.proxima_operacao_label?.trim()) return op.proxima_operacao_label;
+  const cod = op.proxima_operacao_codigo?.trim();
+  const desc = op.proxima_operacao_descricao?.trim();
+  if (cod && desc) return `${cod} - ${desc}`;
+  if (cod) return cod;
+  return '—';
+})();
+```
+Não usar mais `op.proxima_operacao` como fonte primária (apenas tipo legado).
 
-Onde `renderDesenhosParaOperacao(opIndex)` é igual ao atual `renderDesenhos()`, porém:
-- usa keys únicas (`drw-${opIndex}-${i}`) para evitar colisões de React key entre operações.
-- só renderiza se `desenhos.length > 0` (nada na área impressa quando vazio — mensagem permanece só no preview, via `renderPreviewDesenhosResumo`, que continua sendo chamado uma única vez no fim).
-
-Remover a chamada única `{renderDesenhos()}` antes do resumo de preview neste branch.
-
-## Modo padrão (`quebrar_por_operacao = N`)
-
-Não alterar. As duas branches existentes (`quebrarComponentes` e default) continuam chamando `renderDesenhos()` + `renderPreviewDesenhosResumo()` uma única vez ao final.
-
-## CSS — `src/components/producao/op-print.css`
-
-Garantir as regras pedidas (a maioria já existe; conferir/ajustar):
-- `.op-print-page, .op-operation-page`: `width:210mm; min-height:297mm; page-break-after:always; break-after:page;`
-- `.op-drawing-page`: `width:210mm; height:297mm; page-break-after:always; break-after:page; display:flex; align-items:center; justify-content:center; overflow:hidden; background:white;`
-- `.op-drawing-page img`: `max-width:190mm; max-height:270mm; object-fit:contain;`
-- `.op-drawing-page object, .op-drawing-page iframe`: `width:190mm; height:270mm; border:none;`
-- `.op-print-page:last-child, .op-operation-page:last-child, .op-drawing-page:last-child`: `page-break-after:auto; break-after:auto;`
-
-Aplicar a classe `op-operation-page` também na div `op-sheet operation-single-page` (somando classes) para conformidade com o seletor pedido — manter `op-sheet` para manter estilos visuais.
-
-## Pré-impressão (já existente, sem mudança)
-
-A página `ImpressaoOrdemProducaoPage` já chama `aguardarDesenhosProntos()` antes de `window.print()` e `useAuthedBlobUrls` já faz fetch com token → blobUrl. Como o mesmo desenho será reutilizado em várias páginas, o blobUrl precomputado (`blobStates`) é compartilhado por todas as instâncias de `DrawingPage` — sem duplicação de download.
-
-## Fora de escopo
-
-- Filtro Produto (3 edições pendentes da conversa anterior — tratar em outro turno).
-- Mudanças no backend, no `useAuthedBlobUrls` ou no `OpPrintBatch`.
-- Layout interno de cabeçalho/rodapé/operação.
+### Fora de escopo
+- Backend / contrato da API (apenas consumir os campos novos).
+- Demais campos da operação e outros layouts.
