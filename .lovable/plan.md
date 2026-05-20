@@ -1,51 +1,48 @@
-## Diagnóstico
 
-O frontend já implementa exatamente o que o seu prompt descreve:
+## Objetivo
 
-| Requisito do prompt | Status atual no Lovable |
-|---|---|
-| Fazer `fetch` com `Authorization: Bearer` em vez de `<img src>` direto | ✅ `src/hooks/useAuthedBlobUrl.ts` faz fetch com token + `ngrok-skip-browser-warning` e gera `URL.createObjectURL` |
-| Renderizar via blob URL (`<img>` JPG/PNG, `<iframe>` PDF) | ✅ `DrawingPage` em `src/components/producao/OpPrintSheet.tsx` |
-| Aguardar todos desenhos carregarem antes de `window.print()` | ✅ `aguardarDesenhosProntos()` em `ImpressaoOrdemProducaoPage.tsx` (linhas 47–78) espera `<img>.complete`/`load` e `<iframe> load`, com timeout de 10s |
-| CSS A4 `.op-drawing-page` / `.op-print-page` com `page-break-after` | ✅ presente em `op-print.css` |
-| Mostrar "Nenhum desenho encontrado…" só no preview | ✅ `renderPreviewDesenhosResumo()` com `no-print` |
+Garantir que, na tela "Impressão de Ordem de Produção", ativar **Incluir desenhos** não desconfigure o layout da OP nem traga a chrome do app (header/sidebar) para a impressão. Desenhos devem ser sempre páginas A4 independentes, depois da OP e da página de componentes. A mensagem "Nenhum desenho encontrado…" só pode aparecer no preview, nunca no papel.
 
-Não há ajuste pendente no Lovable para esse fluxo. O `useAuthedBlobUrl` já cobre o "ponto decisivo (#6)" do seu prompt.
+## Mudanças
 
-## Onde está o problema, com alta probabilidade
+### 1. `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+- Envolver TUDO que é imprimível em um único container `<div className="print-root">…</div>`:
+  - O `OpPrintBatch` (quando há `lote`)
+  - O `OpPrintSheet` (quando há `data`)
+- Manter o restante da página (PageHeader, filtros, grid, dialog de diagnóstico, banners) fora desse `.print-root`. Esses elementos já têm `no-print`, mas o isolamento por `visibility: hidden` blindará casos onde algum componente externo (toasts, sheet) escape.
 
-Como a parte do frontend está correta, o motivo de "os desenhos não aparecerem" é **um destes dois lados da API**, exatamente como você listou:
+### 2. `src/components/producao/OpPrintSheet.tsx`
+- Remover `renderPreviewDesenhosResumo()` de dentro das `<div className="op-sheet …">` (hoje aparece dentro do último op-sheet e dentro do modo `quebrarPorOperacao`). Ele continua sendo renderizado, mas como irmão das páginas, sempre com `no-print`, para nunca sair no papel.
+- A ordem de renderização final por OP passa a ser sempre:
+  ```text
+  [op-sheet principal]
+  [componentes-page]   (se quebrarComponentes)
+  [op-drawing-page]…   (se houver desenhos)
+  [resumo de desenhos no-print]   (só preview)
+  ```
+- Garantir que nenhum `DrawingPage` ou indicador de desenho seja inserido dentro de um `op-sheet`.
 
-1. **A API não está enxergando** `\\EZORTEA-SRVSENI\Senior\Sapiens\Pasta de Desenho\02-JPG_OP`
-   → o endpoint `/api/producao/ordem-producao/impressao?...&incluir_desenhos=S` retorna `"desenhos": []`.
-2. **A API retorna `desenhos[]` com `url` que dá 401/403/404** quando o frontend chama com Bearer
-   → nesse caso veríamos `Falha ao carregar: HTTP xxx` no preview de cada desenho.
+### 3. `src/components/producao/op-print.css`
+- Reescrever bloco `@media print` com as regras de isolamento:
+  - `body *` → `visibility: hidden`; `.print-root, .print-root *` → `visibility: visible` + posicionamento absoluto e largura 210mm.
+  - Esconder `header, nav, aside, .app-header, .topbar, .sidebar, .filters, .print-actions, .preview-message, .drawing-empty-message, .no-print`.
+  - `.op-print-page, .componentes-page, .op-drawing-page`: `width:210mm; min-height:297mm; height:auto; box-sizing:border-box; padding:8mm 10mm; margin:0; background:white; page-break-after:always; break-after:page; overflow:hidden`.
+  - `:last-child` dessas classes → `page-break-after:auto`.
+  - `.op-drawing-page` flex centralizado; `img` `max-width:190mm; max-height:270mm; object-fit:contain`; `iframe/object` `190mm × 270mm; border:none`.
+  - `.componentes-page table, .op-main-content, .operation-block, .op-drawing-content` → `page-break-inside:avoid`.
+- Ajustar a regra **fora** de `@media print` que hoje fixa `.op-drawing-page { height: 297mm }` para `min-height: 297mm; height: auto;` (evita corte do desenho no preview).
+- Remover a duplicação atual de regras `.op-print-page` / `.componentes-page` no fim do arquivo (já existem no topo) para não conflitar.
 
-## Como confirmar em 2 minutos
+### 4. Validação (não há mudança de código, só checagem)
+- Verificar visualmente no preview que:
+  - Sem desenhos: layout idêntico ao atual.
+  - Com 1+ desenhos: cada desenho ocupa uma página A4, sempre depois da OP / página de componentes.
+  - Mensagem "Nenhum desenho encontrado…" aparece só no preview e somente como bloco `no-print` fora da `op-sheet`.
+- Verificar no diálogo de impressão do navegador que:
+  - Não aparece header/sidebar do app.
+  - As quebras de página são uma por seção lógica.
 
-1. Abra o DevTools → Network durante "Pré-visualizar" com `incluir_desenhos=S` e:
-   - Veja a resposta de `/api/producao/ordem-producao/impressao` → o array `desenhos` está preenchido?
-   - Se sim, veja a chamada `GET /api/producao/ordem-producao/desenho?arquivo=…` (vai aparecer com `Authorization: Bearer`) → status 200, 401 ou 404?
-2. Em paralelo, no backend, criar o endpoint `/api/producao/ordem-producao/desenhos/diagnostico` que você descreveu e chamar:
-   ```
-   /api/producao/ordem-producao/desenhos/diagnostico?cod_emp=1&cod_ori=250&num_orp=1112
-   ```
-   Conferir `pasta_existe`, `qtd_arquivos_pasta`, `desenhos_encontrados`.
+## Fora de escopo
 
-## Possíveis pequenas melhorias no frontend (opcionais)
-
-Caso queira deixar o diagnóstico ainda mais transparente no Lovable, posso (se você aprovar este plano):
-
-1. **Mostrar status por desenho no preview**: na tabela "Desenhos encontrados", adicionar uma coluna "Status" que reflita `loading` / `OK` / `Falha: <msg>` consumindo o estado do `useAuthedBlobUrl` por linha (via componente wrapper). Hoje o erro só aparece dentro da página A4 do próprio desenho.
-2. **Botão "Testar diagnóstico"** ao lado do checkbox "Incluir desenhos", que chama `GET /api/producao/ordem-producao/desenhos/diagnostico?cod_emp&cod_ori&num_orp` e exibe um modal/JSON com `pasta_existe`, `qtd_arquivos_pasta`, `desenhos_encontrados`. Isso só funciona depois que você criar o endpoint no backend.
-3. **Mensagem mais clara** quando `data.desenhos` vier preenchido mas todos os blobs falharem, do tipo: "A API listou N desenho(s) mas nenhum pôde ser baixado — verifique permissões/token do endpoint `/desenho`."
-
-Fora isso, **não há nada para corrigir no Lovable** — o pacote do prompt #6 já está implementado.
-
-## Resposta direta
-
-- ✅ Lovable: já faz `fetch` com Bearer, gera blob URL, espera os desenhos antes do `window.print()`.
-- ⏳ Próximo passo: aplicar os itens #1–#5 do seu plano no backend FastAPI (criar `/desenhos/diagnostico`, fixar `PASTA_DESENHOS_OP_PADRAO`, atualizar `localizar_desenhos_produto`, endpoint `/desenho` e injetar `desenhos` no `/impressao`).
-- Depois, rodar o checklist (itens #7.1–#7.4) para isolar se é problema de pasta/SMB ou de token.
-
-Me diga qual das três melhorias opcionais do frontend você quer e eu implemento — ou, se preferir, primeiro aplique os ajustes da API e voltamos aqui só se ainda houver problema visual no Lovable.
+- Nenhuma mudança no backend, no `useAuthedBlobUrls` ou no fluxo de fetch autenticado dos desenhos.
+- Nenhuma mudança na lógica de "mais de 7 componentes → página separada" (já implementada).
