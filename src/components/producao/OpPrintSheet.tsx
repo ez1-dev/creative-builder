@@ -469,18 +469,27 @@ function renderDrawingBody(
   error: string | null,
 ) {
   const pdf = isPdf(drawing);
+  const shouldRotate =
+    drawing.rotacionar_para_retrato === true ||
+    Number(drawing.rotacao_recomendada) === 90;
   return (
     <div className="op-drawing-page">
-      {loading && <div className="op-drawing-missing">Carregando desenho...</div>}
-      {!loading && error && <div className="op-drawing-missing">Falha ao carregar: {error}</div>}
+      {loading && <div className="op-drawing-missing no-print">Carregando desenho...</div>}
+      {!loading && error && <div className="op-drawing-missing no-print">Falha ao carregar: {error}</div>}
       {!loading && !error && blobUrl && pdf && (
         <iframe src={blobUrl} title={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
       )}
       {!loading && !error && blobUrl && !pdf && (
-        <img src={blobUrl} alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
+        <div className={`drawing-frame${shouldRotate ? ' rotated' : ''}`}>
+          <img
+            className={`drawing-image${shouldRotate ? ' rotate-90' : ''}`}
+            src={blobUrl}
+            alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          />
+        </div>
       )}
       {!loading && !error && !blobUrl && (
-        <div className="op-drawing-missing">Desenho indisponível.</div>
+        <div className="op-drawing-missing no-print">Desenho indisponível.</div>
       )}
     </div>
   );
