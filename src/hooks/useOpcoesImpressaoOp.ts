@@ -188,35 +188,3 @@ export function useOpcoesImpressaoOp() {
     reloadBase, reloadByPedido, reloadByRelatorio, reloadByOrigem, reloadBySituacao, reloadOpContexto, reloadCres, searchOps,
   };
 }
-
-
-  const reloadOpContexto = useCallback(async (cod_emp: string, cod_ori: string, num_orp: string) => {
-    const res = await fetchOpcoes({ cod_emp, cod_ori, num_orp });
-    setEstagios(res.estagios ?? []);
-    setCentrosRecurso(res.centros_recurso ?? []);
-  }, [fetchOpcoes]);
-
-  const reloadCres = useCallback(async (cod_emp: string, cod_ori: string, num_orp: string, cod_etg?: string) => {
-    const res = await fetchOpcoes({ cod_emp, cod_ori, num_orp, cod_etg });
-    setCentrosRecurso(res.centros_recurso ?? []);
-  }, [fetchOpcoes]);
-
-  const searchOps = useCallback(async (q: string, ctx: SearchOpsContext = {}): Promise<OpcaoOp[]> => {
-    const res = await fetchOpcoes({
-      cod_emp: ctx.cod_emp,
-      num_ped: ctx.num_ped,
-      rel_prd: ctx.rel_prd,
-      sit_orp: ctx.sit_orp,
-      q,
-      limite_ops: 80,
-    });
-    const list = sanitizeOps(res.ordens_producao ?? []);
-    setOps(list);
-    return list;
-  }, [fetchOpcoes]);
-
-  return {
-    empresas, origens, pedidos, relatoriosProducao, situacoes, ops, estagios, centrosRecurso, loading,
-    reloadBase, reloadByPedido, reloadByRelatorio, reloadBySituacao, reloadOpContexto, reloadCres, searchOps,
-  };
-}
