@@ -27,6 +27,8 @@ const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
 
 const DEFAULT_EMPRESA = '1';
 
+const DEFAULT_PASTA_DESENHOS = '\\\\EZORTEA-SRVSENI\\Senior\\Sapiens\\Pasta de Desenho\\02-JPG_OP\\';
+
 const EMPTY: ImpressaoOpFiltros = {
   cod_emp: DEFAULT_EMPRESA,
   cod_ori: '',
@@ -39,13 +41,27 @@ const EMPTY: ImpressaoOpFiltros = {
   cod_etg: '',
   cod_cre: '',
   incluir_desenhos: 'N',
-  pasta_desenhos: '',
+  pasta_desenhos: DEFAULT_PASTA_DESENHOS,
+  formatos_desenho: 'JPG,PNG,PDF',
   quebrar_por_operacao: 'N',
 };
+
+type FormatosDesenho = { jpg: boolean; png: boolean; pdf: boolean };
+const DEFAULT_FORMATOS: FormatosDesenho = { jpg: true, png: true, pdf: true };
+const buildFormatosString = (f: FormatosDesenho) => {
+  const arr: string[] = [];
+  if (f.jpg) arr.push('JPG');
+  if (f.png) arr.push('PNG');
+  if (f.pdf) arr.push('PDF');
+  return arr.join(',');
+};
+
 
 export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
+  const [formatosDesenho, setFormatosDesenho] = useState<FormatosDesenho>(DEFAULT_FORMATOS);
+
   const [opLabel, setOpLabel] = useState<string>('');
   const [preview, setPreview] = useState(false);
   const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
