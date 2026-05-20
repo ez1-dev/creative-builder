@@ -290,6 +290,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             {renderFooter()}
           </div>
         ))}
+        {renderPreviewDesenhosResumo()}
         {renderDesenhos()}
       </>
     );
@@ -297,17 +298,69 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   // Modo padrão: tudo numa página
   return (
-    <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
-      {renderHeader()}
-      {renderComponentes()}
-      {operacoes.length > 0 && (
-        <>
-          <div className="op-section-title">Operações</div>
-          {operacoes.map((op, i) => renderOperacao(op, i))}
-        </>
-      )}
-      {renderFooter()}
+    <>
+      <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+        {renderHeader()}
+        {renderComponentes()}
+        {operacoes.length > 0 && (
+          <>
+            <div className="op-section-title">Operações</div>
+            {operacoes.map((op, i) => renderOperacao(op, i))}
+          </>
+        )}
+        {renderFooter()}
+        {renderPreviewDesenhosResumo()}
+      </div>
       {renderDesenhos()}
+    </>
+  );
+}
+
+function isPdf(d: OpDesenho): boolean {
+  const ext = String(d.extensao ?? '').toUpperCase();
+  const mime = String(d.mime_type ?? '').toLowerCase();
+  const tipo = String(d.tipo ?? '').toUpperCase();
+  return ext === 'PDF' || tipo === 'PDF' || mime.includes('pdf');
+}
+
+function DrawingPage({ drawing, index }: { drawing: OpDesenho; index: number }) {
+  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
+  const pdf = isPdf(drawing);
+  const rotacao = Number(drawing.rotacao_recomendada ?? 0);
+  const isLandscape = String(drawing.orientacao ?? '').toUpperCase() === 'PAISAGEM';
+  const rotate90 = rotacao === 90 || isLandscape;
+  const rotateClass = rotate90 ? ' rotate-90' : '';
+
+  return (
+    <div className="op-drawing-page">
+      <div className="op-drawing-meta">
+        <strong>{drawing.nome_arquivo ?? `Desenho ${index + 1}`}</strong>
+        {drawing.extensao ? <span> — {drawing.extensao}</span> : null}
+        {drawing.orientacao ? <span> — {drawing.orientacao}</span> : null}
+        {rotate90 ? <span> — rotacionado 90°</span> : null}
+      </div>
+      <div className="op-drawing-content">
+        {loading && <div className="op-drawing-missing">Carregando desenho...</div>}
+        {!loading && error && <div className="op-drawing-missing">Falha ao carregar: {error}</div>}
+        {!loading && !error && blobUrl && pdf && (
+          <iframe
+            className={`pdf-drawing-frame${rotateClass}`}
+            src={blobUrl}
+            title={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          />
+        )}
+        {!loading && !error && blobUrl && !pdf && (
+          <img
+            className={`op-drawing-img${rotateClass}`}
+            src={blobUrl}
+            alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          />
+        )}
+        {!loading && !error && !blobUrl && (
+          <div className="op-drawing-missing">Desenho indisponível.</div>
+        )}
+      </div>
     </div>
   );
 }
+
