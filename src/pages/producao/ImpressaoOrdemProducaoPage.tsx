@@ -196,12 +196,14 @@ export default function ImpressaoOrdemProducaoPage() {
   const searchOpsFetcher = useCallback(
     (q: string) => opcoes.searchOps(q, {
       cod_emp: filtros.cod_emp || undefined,
+      cod_ori: filtros.cod_ori || undefined,
       num_ped: filtros.num_ped || undefined,
       rel_prd: filtros.rel_prd || undefined,
       sit_orp: filtros.sit_orp || undefined,
     }),
-    [opcoes.searchOps, filtros.cod_emp, filtros.num_ped, filtros.rel_prd, filtros.sit_orp],
+    [opcoes.searchOps, filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp],
   );
+
 
   const consultar = async (override?: Partial<ImpressaoOpFiltros>) => {
     const eff = { ...filtros, ...(override || {}) };
