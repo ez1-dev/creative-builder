@@ -97,6 +97,8 @@ export default function ImpressaoOrdemProducaoPage() {
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
+
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
   const [obsError, setObsError] = useState<string | null>(null);
@@ -606,20 +608,23 @@ export default function ImpressaoOrdemProducaoPage() {
     }
   };
 
-  const imprimirSelecionadas = async () => {
-    const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)));
+  // (loteFalhas state declared near top via setFalhasLote)
+
+
+  const visualizarSelecionadas = async () => {
+    const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)))
+      .filter((o) => String(o.cod_ori ?? '') !== '100' && String(o.sit_orp ?? '') !== 'C');
     if (!alvos.length) {
-      toast.info('Selecione ao menos uma OP.');
+      toast.info('Selecione ao menos uma OP válida (não cancelada e origem ≠ 100).');
       return;
     }
     setLoteLoading(true);
-
+    setFalhasLote([]);
     try {
-
       const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
       const listar_desenho = (filtros.listar_desenho as 'S' | 'N') || 'N';
       const ordens: OpImpressao[] = [];
-      let falhas = 0;
+      const falhas: { cod_ori: string; num_orp: string }[] = [];
       const concurrency = 6;
       for (let i = 0; i < alvos.length; i += concurrency) {
         const slice = alvos.slice(i, i + concurrency);
@@ -634,38 +639,56 @@ export default function ImpressaoOrdemProducaoPage() {
                 listar_desenho,
                 quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
               };
-              if (filtros.incluir_desenhos === 'S') {
-                payload.incluir_desenhos = 'S';
-              }
-
-
+              if (filtros.cod_etg) payload.cod_etg = filtros.cod_etg;
+              if (filtros.cod_cre) payload.cod_cre = filtros.cod_cre;
+              if (filtros.incluir_desenhos === 'S') payload.incluir_desenhos = 'S';
               const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
-              return res ?? null;
+              return { ok: true as const, op, res };
             } catch {
-              falhas += 1;
-              return null;
+              return { ok: false as const, op };
             }
           }),
         );
-        for (const r of results) if (r) ordens.push(r);
+        for (const r of results) {
+          if (r.ok && r.res) ordens.push(r.res);
+          else falhas.push({ cod_ori: String(r.op.cod_ori ?? ''), num_orp: String(r.op.num_orp ?? '') });
+        }
       }
       if (!ordens.length) {
-        toast.error('Nenhuma OP pôde ser carregada para impressão.');
+        toast.error('Nenhuma OP pôde ser carregada.');
+        setFalhasLote(falhas);
         return;
       }
-      setLote({ quantidade_ops: ordens.length, ordens });
       reset();
-      if (falhas > 0) toast.warning(`${falhas} OP(s) falharam ao carregar. Imprimindo ${ordens.length}.`);
-      else toast.success(`Imprimindo ${ordens.length} OP(s)...`);
-      await aguardarDesenhosProntos();
-      window.print();
-
+      setSelectedRowKey(null);
+      setLote({ quantidade_ops: ordens.length, ordens });
+      setPreview(true);
+      setFalhasLote(falhas);
+      if (falhas.length > 0) toast.warning(`${falhas.length} OP(s) falharam. ${ordens.length} carregadas.`);
+      else toast.success(`${ordens.length} OP(s) carregadas. Revise e clique em Imprimir visualização.`);
     } catch (e: any) {
-      toast.error(e?.message || 'Falha ao imprimir selecionadas.');
+      toast.error(e?.message || 'Falha ao carregar OPs selecionadas.');
     } finally {
       setLoteLoading(false);
     }
   };
+
+  const imprimirVisualizacao = async () => {
+    if (!lote || lote.ordens.length === 0) {
+      toast.info('Visualize as OPs antes de imprimir.');
+      return;
+    }
+    await aguardarDesenhosProntos();
+    window.print();
+  };
+
+  const limparSelecao = () => {
+    setSelectedKeys(new Set());
+    setLote(null);
+    setFalhasLote([]);
+    setPreview(false);
+  };
+
 
   const toggleOne = (key: string, checked: boolean) => {
     setSelectedKeys((prev) => {
@@ -855,26 +878,36 @@ export default function ImpressaoOrdemProducaoPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
                   <span className="text-xs text-muted-foreground">
                     {opsFiltradas.length} OP(s) encontradas
-                    {selectedKeys.size > 0 && ` • ${selectedKeys.size} selecionada(s)`}
+                    {selectedKeys.size > 0
+                      ? ` • ${selectedKeys.size} selecionada(s)`
+                      : ' • Selecione uma ou mais OPs para visualizar.'}
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={imprimirSelecionadas}
+                      onClick={visualizarSelecionadas}
                       disabled={loteLoading || selectedKeys.size === 0}
                     >
-                      {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
-                      Imprimir selecionadas
+                      {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Eye className="mr-1 h-3 w-3" />}
+                      Visualizar selecionadas
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={limparSelecao}
+                      disabled={selectedKeys.size === 0 && !lote}
+                    >
+                      Limpar seleção
                     </Button>
                     {opsFiltradas.length > 1 && (
-                      <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading}>
                         {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
                         Imprimir todas
                       </Button>
                     )}
                   </div>
                 </div>
+
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1052,7 +1085,34 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
+      {lote && lote.ordens.length > 0 && (
+        <Card className="no-print">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Visualização das OPs selecionadas</h2>
+                <p className="text-xs text-muted-foreground">
+                  {lote.quantidade_ops} OP(s) carregadas
+                  {falhasLote.length > 0 ? ` • ${falhasLote.length} falharam` : ''}
+                </p>
+              </div>
+              <Button size="sm" onClick={imprimirVisualizacao}>
+                <Printer className="mr-1 h-3 w-3" /> Imprimir visualização
+              </Button>
+            </div>
+            {falhasLote.length > 0 && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+                {falhasLote.map((f, i) => (
+                  <div key={i}>Não foi possível carregar a OP {f.cod_ori}/{f.num_orp}</div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="print-root">
+
         {lote && lote.ordens.length > 0 && (
           <OpPrintBatch
             ordens={lote.ordens}
