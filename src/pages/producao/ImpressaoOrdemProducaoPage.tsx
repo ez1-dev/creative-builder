@@ -82,7 +82,8 @@ async function aguardarDesenhosProntos(timeoutMs = 10000): Promise<void> {
 export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
-  const [formatosDesenho, setFormatosDesenho] = useState<FormatosDesenho>(DEFAULT_FORMATOS);
+
+
 
   const [opLabel, setOpLabel] = useState<string>('');
   const [preview, setPreview] = useState(false);
