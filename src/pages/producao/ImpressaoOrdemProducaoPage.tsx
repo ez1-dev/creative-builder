@@ -21,6 +21,8 @@ import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao
 import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
+import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
   `${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}`;
@@ -93,6 +95,40 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
+
+  // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
+  // e exibição de status por desenho na tabela de preview.
+  const desenhoUrls = useMemo(
+    () => (data?.desenhos ?? []).map((d) => d.url).filter(Boolean) as string[],
+    [data?.desenhos],
+  );
+  const blobStates = useAuthedBlobUrls(desenhoUrls);
+
+  // Diagnóstico de desenhos
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagData, setDiagData] = useState<any | null>(null);
+  const [diagError, setDiagError] = useState<string | null>(null);
+
+  const rodarDiagnosticoDesenhos = async () => {
+    setDiagOpen(true);
+    setDiagLoading(true);
+    setDiagError(null);
+    setDiagData(null);
+    try {
+      const params: Record<string, any> = {};
+      if (filtros.cod_emp) params.cod_emp = filtros.cod_emp;
+      if (filtros.cod_ori) params.cod_ori = filtros.cod_ori;
+      if (filtros.num_orp) params.num_orp = filtros.num_orp;
+      const resp = await api.get<any>('/api/producao/ordem-producao/desenhos/diagnostico', params);
+      setDiagData(resp);
+    } catch (e: any) {
+      setDiagError(e?.message || 'Falha ao chamar o endpoint de diagnóstico.');
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
 
   useEffect(() => { void opcoes.reloadBase(DEFAULT_EMPRESA); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
@@ -650,22 +686,35 @@ export default function ImpressaoOrdemProducaoPage() {
                   </Field>
                   <div className="flex flex-col gap-1">
                     <Label className="text-xs">Incluir desenhos</Label>
-                    <label className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
-                      <Checkbox
-                        checked={filtros.incluir_desenhos === 'S'}
-                        onCheckedChange={(c) => {
-                          const on = c === true;
-                          setFiltros((f) => ({
-                            ...f,
-                            incluir_desenhos: on ? 'S' : 'N',
-                            listar_desenho: on ? 'S' : 'N',
-                          }));
-                        }}
-                      />
-                      <span>Imprimir desenhos da OP</span>
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex h-8 flex-1 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+                        <Checkbox
+                          checked={filtros.incluir_desenhos === 'S'}
+                          onCheckedChange={(c) => {
+                            const on = c === true;
+                            setFiltros((f) => ({
+                              ...f,
+                              incluir_desenhos: on ? 'S' : 'N',
+                              listar_desenho: on ? 'S' : 'N',
+                            }));
+                          }}
+                        />
+                        <span>Imprimir desenhos da OP</span>
+                      </label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={rodarDiagnosticoDesenhos}
+                        title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
+                      >
+                        Testar diagnóstico
+                      </Button>
+                    </div>
                   </div>
                 </div>
+
 
 
 
@@ -862,11 +911,47 @@ export default function ImpressaoOrdemProducaoPage() {
           preview={preview}
           usuario={displayName ?? erpUser ?? null}
           quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+          blobStates={blobStates}
         />
       )}
+
+      <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico de desenhos</DialogTitle>
+          </DialogHeader>
+          {diagLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Consultando API...
+            </div>
+          )}
+          {diagError && (
+            <div className="rounded-md border border-destructive p-3 text-sm text-destructive">
+              {diagError}
+            </div>
+          )}
+          {diagData && (
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="font-semibold">Pasta:</span> <code className="text-xs">{diagData.pasta_configurada ?? '-'}</code></div>
+                <div><span className="font-semibold">Existe:</span> {String(diagData.pasta_existe ?? '-')}</div>
+                <div><span className="font-semibold">É diretório:</span> {String(diagData.pasta_eh_diretorio ?? '-')}</div>
+                <div><span className="font-semibold">Qtd. arquivos:</span> {diagData.qtd_arquivos_pasta ?? '-'}</div>
+                <div><span className="font-semibold">CodPro:</span> {diagData.cod_pro ?? '-'}</div>
+                <div><span className="font-semibold">Desenhos encontrados:</span> {Array.isArray(diagData.desenhos_encontrados) ? diagData.desenhos_encontrados.length : 0}</div>
+              </div>
+              <details className="rounded-md border bg-muted/30 p-2">
+                <summary className="cursor-pointer text-xs font-semibold">JSON completo</summary>
+                <pre className="mt-2 max-h-80 overflow-auto text-[10px] leading-tight">{JSON.stringify(diagData, null, 2)}</pre>
+              </details>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -1,5 +1,6 @@
 import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
+import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
 import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from '@/lib/producao/opImpressao';
 import './op-print.css';
 
@@ -9,6 +10,8 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean;
+  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai. Se omitido, cada DrawingPage faz seu próprio fetch. */
+  blobStates?: BlobStateMap;
 }
 
 function fmtNow() {
@@ -24,7 +27,7 @@ function fmtDate(s?: string) {
   return s;
 }
 
-export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao = false }: Props) {
+export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao = false, blobStates }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
@@ -269,7 +272,12 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   const renderDesenhos = () =>
     desenhos.map((d, i) => (
-      <DrawingPage key={`drw-${i}`} drawing={d} index={i} />
+      <DrawingPage
+        key={`drw-${i}`}
+        drawing={d}
+        index={i}
+        precomputed={blobStates ? blobStates[d.url] : undefined}
+      />
     ));
 
   const renderPreviewDesenhosResumo = () => {
@@ -281,31 +289,67 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
       );
     }
+    const totalComStatus = blobStates ? desenhos.filter((d) => blobStates[d.url]).length : 0;
+    const totalFalhas = blobStates
+      ? desenhos.filter((d) => blobStates[d.url]?.status === 'error').length
+      : 0;
+    const totalOk = blobStates
+      ? desenhos.filter((d) => blobStates[d.url]?.status === 'ok').length
+      : 0;
+    const todosFalharam =
+      blobStates && totalComStatus === desenhos.length && totalOk === 0 && totalFalhas > 0;
+
     return (
       <div className="no-print op-box" style={{ marginTop: 8 }}>
         <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Desenhos encontrados ({desenhos.length})</div>
+        {todosFalharam && (
+          <div
+            style={{
+              marginBottom: 6,
+              padding: '6px 8px',
+              border: '1px solid hsl(var(--destructive))',
+              color: 'hsl(var(--destructive))',
+              fontSize: 11,
+              borderRadius: 4,
+            }}
+          >
+            A API listou {desenhos.length} desenho(s) mas nenhum pôde ser baixado.
+            Verifique o token e as permissões do endpoint <code>/api/producao/ordem-producao/desenho</code>.
+          </div>
+        )}
         <table>
           <thead>
             <tr>
               <th>#</th>
               <th>Arquivo</th>
               <th>Tipo</th>
+              {blobStates && <th>Status</th>}
             </tr>
           </thead>
           <tbody>
-            {desenhos.map((d, i) => (
-              <tr key={`drw-meta-${i}`}>
-                <td>{i + 1}</td>
-                <td>{d.nome_arquivo ?? '-'}</td>
-                <td>{d.extensao ?? d.tipo ?? d.mime_type ?? '-'}</td>
-              </tr>
-            ))}
+            {desenhos.map((d, i) => {
+              const st = blobStates?.[d.url];
+              let statusLabel: React.ReactNode = '-';
+              if (st) {
+                if (st.status === 'loading') statusLabel = <span style={{ color: 'hsl(var(--muted-foreground))' }}>Carregando…</span>;
+                else if (st.status === 'ok') statusLabel = <span style={{ color: 'hsl(142 76% 36%)' }}>OK</span>;
+                else statusLabel = <span style={{ color: 'hsl(var(--destructive))' }} title={st.error ?? ''}>Falha: {st.error ?? 'erro'}</span>;
+              }
+              return (
+                <tr key={`drw-meta-${i}`}>
+                  <td>{i + 1}</td>
+                  <td>{d.nome_arquivo ?? '-'}</td>
+                  <td>{d.extensao ?? d.tipo ?? d.mime_type ?? '-'}</td>
+                  {blobStates && <td>{statusLabel}</td>}
+                </tr>
+              );
+            })}
           </tbody>
-
         </table>
       </div>
     );
   };
+
 
 
   // Modo: quebra por operação
@@ -401,30 +445,65 @@ function isPdf(d: OpDesenho): boolean {
   return ext === 'PDF' || tipo === 'PDF' || mime.includes('pdf');
 }
 
-function DrawingPage({ drawing, index }: { drawing: OpDesenho; index: number }) {
-  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
-  const pdf = isPdf(drawing);
+function DrawingPage({
+  drawing,
+  index,
+  precomputed,
+}: {
+  drawing: OpDesenho;
+  index: number;
+  precomputed?: { status: 'loading' | 'ok' | 'error'; blobUrl: string | null; error: string | null };
+}) {
+  return precomputed
+    ? <DrawingPageFromState drawing={drawing} index={index} state={precomputed} />
+    : <DrawingPageStandalone drawing={drawing} index={index} />;
+}
 
+function renderDrawingBody(
+  drawing: OpDesenho,
+  index: number,
+  blobUrl: string | null,
+  loading: boolean,
+  error: string | null,
+) {
+  const pdf = isPdf(drawing);
   return (
     <div className="op-drawing-page">
       {loading && <div className="op-drawing-missing">Carregando desenho...</div>}
       {!loading && error && <div className="op-drawing-missing">Falha ao carregar: {error}</div>}
       {!loading && !error && blobUrl && pdf && (
-        <iframe
-          src={blobUrl}
-          title={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
-        />
+        <iframe src={blobUrl} title={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
       )}
       {!loading && !error && blobUrl && !pdf && (
-        <img
-          src={blobUrl}
-          alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
-        />
+        <img src={blobUrl} alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
       )}
       {!loading && !error && !blobUrl && (
         <div className="op-drawing-missing">Desenho indisponível.</div>
       )}
     </div>
+  );
+}
+
+function DrawingPageStandalone({ drawing, index }: { drawing: OpDesenho; index: number }) {
+  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
+  return renderDrawingBody(drawing, index, blobUrl, loading, error);
+}
+
+function DrawingPageFromState({
+  drawing,
+  index,
+  state,
+}: {
+  drawing: OpDesenho;
+  index: number;
+  state: { status: 'loading' | 'ok' | 'error'; blobUrl: string | null; error: string | null };
+}) {
+  return renderDrawingBody(
+    drawing,
+    index,
+    state.blobUrl,
+    state.status === 'loading',
+    state.status === 'error' ? state.error : null,
   );
 }
 
