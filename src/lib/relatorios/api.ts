@@ -73,7 +73,15 @@ export async function createRelatorio(input: Partial<Relatorio>) {
   };
   const { data, error } = await supabase.from('relatorios').insert(payload).select('*').single();
   if (error) throw error;
-  return data as Relatorio;
+  const saved = data as Relatorio;
+  if ((saved.tipo_fonte ?? 'sql') === 'sql' && (saved.sql_query ?? '').trim()) {
+    try {
+      await createRelatorioFastApi(buildFastApiPayload(saved));
+    } catch (e: any) {
+      console.warn('[relatorios] falha ao sincronizar criação com ERP:', e?.message ?? e);
+    }
+  }
+  return saved;
 }
 
 export async function updateRelatorio(id: string, patch: Partial<Relatorio>) {
@@ -84,7 +92,15 @@ export async function updateRelatorio(id: string, patch: Partial<Relatorio>) {
     .select('*')
     .single();
   if (error) throw error;
-  return data as Relatorio;
+  const saved = data as Relatorio;
+  if ((saved.tipo_fonte ?? 'sql') === 'sql' && (saved.sql_query ?? '').trim()) {
+    try {
+      await updateRelatorioFastApi(saved.id, buildFastApiPayload(saved));
+    } catch (e: any) {
+      console.warn('[relatorios] falha ao sincronizar atualização com ERP:', e?.message ?? e);
+    }
+  }
+  return saved;
 }
 
 export async function deleteRelatorio(id: string) {
