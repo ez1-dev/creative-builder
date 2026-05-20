@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, Printer, FileDown, Search, Eraser, Loader2 } from 'lucide-react';
+import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useImpressaoOrdemProducao } from '@/hooks/useImpressaoOrdemProducao';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
