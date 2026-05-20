@@ -376,18 +376,19 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         )}
         {quebrarComponentes && renderComponentesPage()}
         {operacoes.map((op, i) => (
-          <div
-            key={`opp-${i}`}
-            className={`op-sheet operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
-          >
-            {renderHeader()}
-            {!quebrarComponentes && renderComponentes()}
-            <div className="op-section-title">Operação</div>
-            {renderOperacao(op, i)}
-            {renderFooter()}
+          <div key={`opp-wrap-${i}`} style={{ display: 'contents' }}>
+            <div
+              className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
+            >
+              {renderHeader()}
+              {!quebrarComponentes && renderComponentes()}
+              <div className="op-section-title">Operação</div>
+              {renderOperacao(op, i)}
+              {renderFooter()}
+            </div>
+            {desenhos.length > 0 && renderDesenhos(`drw-op${i}`)}
           </div>
         ))}
-        {renderDesenhos()}
         {renderPreviewDesenhosResumo()}
       </>
     );
