@@ -660,6 +660,7 @@ export default function ImpressaoOrdemProducaoPage() {
                         <TableHead className="text-right">Qtde</TableHead>
                         <TableHead>Un.</TableHead>
                         <TableHead>Situação</TableHead>
+                        <TableHead>C. Recurso</TableHead>
                         <TableHead>Geração</TableHead>
                         <TableHead>Início Prev.</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
