@@ -591,10 +591,33 @@ export default function ImpressaoOrdemProducaoPage() {
                   <Field label="Componentes">
                     <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
                   </Field>
-                  <Field label="Desenhos">
-                    <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
-                  </Field>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Incluir desenhos</Label>
+                    <label className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+                      <Checkbox
+                        checked={filtros.incluir_desenhos === 'S'}
+                        onCheckedChange={(c) => {
+                          const on = c === true;
+                          setFiltros((f) => ({
+                            ...f,
+                            incluir_desenhos: on ? 'S' : 'N',
+                            listar_desenho: on ? 'S' : 'N',
+                          }));
+                        }}
+                      />
+                      <span>Imprimir desenhos da OP</span>
+                    </label>
+                  </div>
                 </div>
+                <Field label="Caminho da pasta de desenhos">
+                  <Input
+                    className="h-8 text-xs"
+                    value={filtros.pasta_desenhos || ''}
+                    onChange={(e) => set('pasta_desenhos', e.target.value)}
+                    placeholder="Ex.: /mnt/desenhos_op  •  C:\Desenhos\OP"
+                    disabled={filtros.incluir_desenhos !== 'S'}
+                  />
+                </Field>
               </div>
             </div>
           </CardContent>
