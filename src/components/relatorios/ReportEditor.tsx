@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, X } from 'lucide-react';
+import { Loader2, Save, X, ExternalLink, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   createRelatorio,
