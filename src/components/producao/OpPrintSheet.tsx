@@ -290,12 +290,12 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
       );
     }
-    const totalComStatus = blobStates ? desenhos.filter((d) => blobStates[d.url]).length : 0;
+    const totalComStatus = blobStates ? desenhos.filter((d) => blobStates[getDrawingPrintUrl(d)]).length : 0;
     const totalFalhas = blobStates
-      ? desenhos.filter((d) => blobStates[d.url]?.status === 'error').length
+      ? desenhos.filter((d) => blobStates[getDrawingPrintUrl(d)]?.status === 'error').length
       : 0;
     const totalOk = blobStates
-      ? desenhos.filter((d) => blobStates[d.url]?.status === 'ok').length
+      ? desenhos.filter((d) => blobStates[getDrawingPrintUrl(d)]?.status === 'ok').length
       : 0;
     const todosFalharam =
       blobStates && totalComStatus === desenhos.length && totalOk === 0 && totalFalhas > 0;
@@ -329,7 +329,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           </thead>
           <tbody>
             {desenhos.map((d, i) => {
-              const st = blobStates?.[d.url];
+              const st = blobStates?.[getDrawingPrintUrl(d)];
               let statusLabel: React.ReactNode = '-';
               if (st) {
                 if (st.status === 'loading') statusLabel = <span style={{ color: 'hsl(var(--muted-foreground))' }}>Carregando…</span>;
