@@ -105,6 +105,10 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Informe ou selecione uma Ordem de Produção.');
       return;
     }
+    if (!Number.isFinite(Number(filtros.cod_emp)) || !Number.isFinite(Number(filtros.num_orp))) {
+      toast.error('Empresa e Nº O.P. devem ser numéricos.');
+      return;
+    }
     setLastConsulta({ ...filtros });
     await fetchData(filtros);
   };
