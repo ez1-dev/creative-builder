@@ -96,6 +96,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const [lote, setLote] = useState<ImpressaoOpLoteResponse | null>(null);
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
