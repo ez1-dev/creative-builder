@@ -1,67 +1,56 @@
 ## Objetivo
 
-Adicionar filtro **Produto** (autocomplete pesquisável) na tela `/producao/impressao-op`, integrando-o ao endpoint `/api/producao/ordem-producao/opcoes` e propagando `cod_pro` para as cargas combinadas e para a impressão em lote.
+Quando `quebrar_por_operacao = S`, repetir os desenhos da OP **após cada operação** (cada desenho em página A4 própria). Manter o comportamento atual quando `= N`.
 
-## Mudanças
+## Mudança principal
 
-### 1. `src/lib/producao/opcoesImpressao.ts`
-- Adicionar tipo `OpcaoProduto`:
-  ```ts
-  { codigo: string; value: string; descricao?: string; label?: string; qtd_ops?: number }
-  ```
-- Adicionar `produtos?: OpcaoProduto[]` em `OpcoesImpressao`.
-- Adicionar `cod_pro?: string` em `OpcoesImpressaoParams`.
+`src/components/producao/OpPrintSheet.tsx` — branch `if (quebrarPorOperacao)` (linhas ~356–394):
 
-### 2. `src/hooks/useOpcoesImpressaoOp.ts`
-- Novo estado `produtos: OpcaoProduto[]` (setado em `reloadBase` e nas demais cargas que retornarem `produtos`).
-- Em `fetchOpcoes`: passar `cod_pro` quando presente.
-- Estender `RefinementCtx` para aceitar `cod_pro?: string`.
-- Estender `SearchOpsContext` com `cod_pro`.
-- Adicionar:
-  - `reloadByProduto(cod_emp, cod_pro, ctx?)` chamando `opcoes?cod_emp=..&cod_pro=..&limite_ops=200` (combinando com `cod_ori`, `sit_orp`, `cod_cre`, `cod_etg` quando presentes). Atualiza `ops`, `origens` e mantém estágios/CR conforme padrão atual.
-  - `searchProdutos(q, ctx?)` → `GET opcoes?cod_emp=..&q=..&limite_ops=200`, retorna `res.produtos ?? []`.
-- Demais `reloadBy*` recebem opcionalmente `cod_pro` no `ctx` e o repassam ao `fetchOpcoes` (para combinar Produto + Pedido/Origem/Situação/Estágio/CR).
-- `searchOps` aceita `cod_pro` no contexto.
+Hoje renderiza todas as páginas de operação e, no final, **uma única vez**, `renderDesenhos()`. Trocar por: para cada operação, renderizar a página da operação **e em seguida** renderizar os desenhos logo após.
 
-### 3. `src/components/producao/ProdutoAutocomplete.tsx` (novo)
-Componente análogo a `OpAutocomplete`:
-- Props: `value`, `displayLabel`, `onSelect(produto | null)`, `fetcher(q) => Promise<OpcaoProduto[]>`, `disabled`, `placeholder`.
-- Debounce 300ms; ao abrir vazio, dispara `fetcher('')` (lista inicial).
-- Renderiza `label` ou `${codigo} - ${descricao}` (com `qtd_ops` ao lado quando disponível).
-- Botão "X" para limpar (`onSelect(null)`).
+```tsx
+{operacoes.map((op, i) => (
+  <React.Fragment key={`opp-${i}`}>
+    <div className={`op-sheet operation-single-page ${preview ? 'op-sheet--preview' : ''}`}>
+      {renderHeader()}
+      {!quebrarComponentes && renderComponentes()}
+      <div className="op-section-title">Operação</div>
+      {renderOperacao(op, i)}
+      {renderFooter()}
+    </div>
+    {renderDesenhosParaOperacao(i)}
+  </React.Fragment>
+))}
+{renderPreviewDesenhosResumo()}
+```
 
-### 4. `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
-- Estender `ImpressaoOpFiltros` (em `src/lib/producao/opImpressao.ts`) com `cod_pro?: string`; incluir `cod_pro: ''` em `EMPTY`.
-- Novo estado `produtoLabel`.
-- Adicionar handler `onChangeProduto(prod | null)`:
-  - Atualiza `filtros.cod_pro` e limpa `num_orp`/`opLabel`.
-  - Se limpou: refaz a carga conforme filtros remanescentes (mesma cascata de `onChangeOrigem` sem `cod_ori`).
-  - Se selecionou: chama `opcoes.reloadByProduto(cod_emp, cod_pro, { cod_ori, sit_orp, cod_cre, cod_etg })`. Não combina com `num_ped`/`rel_prd` (mantém regra alternativa: limpar `num_ped`/`rel_prd` ao escolher produto? — **manter ambos**: produto pode ser combinado com pedido/relatório; apenas pedido↔relatório continuam mutuamente exclusivos).
-- Propagar `cod_pro` nos demais handlers (`onChangeOrigem`, `onChangeSituacao`, `onChangeCentroRecurso`, `onChangeEstagio`) ao montar `ref`/`ctx`.
-- `searchOpsFetcher`: incluir `cod_pro` no contexto.
-- `searchProdutosFetcher` (novo `useCallback`): `(q) => opcoes.searchProdutos(q, { cod_emp: filtros.cod_emp })`.
-- `useEffect` de limpeza de `selectedKeys`: incluir `filtros.cod_pro`.
-- `showGrid`: incluir `filtros.cod_pro` na condição (`cod_pro` sozinho já deve mostrar a grid).
-- `imprimirTodas`:
-  - Permitir disparo quando há `cod_pro` (ajustar guard).
-  - Passar `cod_pro` em `fetchImpressaoLote`.
-- `limpar`: já cobre via `EMPTY`.
+Onde `renderDesenhosParaOperacao(opIndex)` é igual ao atual `renderDesenhos()`, porém:
+- usa keys únicas (`drw-${opIndex}-${i}`) para evitar colisões de React key entre operações.
+- só renderiza se `desenhos.length > 0` (nada na área impressa quando vazio — mensagem permanece só no preview, via `renderPreviewDesenhosResumo`, que continua sendo chamado uma única vez no fim).
 
-### 5. UI do formulário (mesmo arquivo)
-- Adicionar `Field "Produto"` no **Grupo 2 — Contexto da Produção** (entre Origem e Ordem de Produção), usando `ProdutoAutocomplete`. Mantém grid 2 colunas (Produto ocupa uma coluna; reorganizar para: Origem | Produto | Situação | Ordem de Produção | Estágio).
-- Desabilitar quando `!filtros.cod_emp`.
+Remover a chamada única `{renderDesenhos()}` antes do resumo de preview neste branch.
 
-### 6. `src/lib/producao/opImpressaoLote.ts`
-- Adicionar `cod_pro?: string` em `ImpressaoOpLoteParams`.
-- Em `fetchImpressaoLote`: `if (params.cod_pro) q.cod_pro = params.cod_pro;`.
+## Modo padrão (`quebrar_por_operacao = N`)
 
-### 7. Regras preservadas
-- Filtro continua excluindo `cod_ori === '100'` e `sit_orp === 'C'`.
-- `num_ped` ↔ `rel_prd` continuam alternativos entre si.
-- Produto pode aparecer combinado com Origem, Pedido, Relatório, Situação, Estágio, Centro de Recurso.
-- Grid: mantém colunas atuais (já incluem todas as listadas no pedido). Sem auto-seleção de primeira OP. Ações "Visualizar"/"Imprimir" por linha continuam funcionando. "Imprimir todas" passa a respeitar `cod_pro`.
+Não alterar. As duas branches existentes (`quebrarComponentes` e default) continuam chamando `renderDesenhos()` + `renderPreviewDesenhosResumo()` uma única vez ao final.
+
+## CSS — `src/components/producao/op-print.css`
+
+Garantir as regras pedidas (a maioria já existe; conferir/ajustar):
+- `.op-print-page, .op-operation-page`: `width:210mm; min-height:297mm; page-break-after:always; break-after:page;`
+- `.op-drawing-page`: `width:210mm; height:297mm; page-break-after:always; break-after:page; display:flex; align-items:center; justify-content:center; overflow:hidden; background:white;`
+- `.op-drawing-page img`: `max-width:190mm; max-height:270mm; object-fit:contain;`
+- `.op-drawing-page object, .op-drawing-page iframe`: `width:190mm; height:270mm; border:none;`
+- `.op-print-page:last-child, .op-operation-page:last-child, .op-drawing-page:last-child`: `page-break-after:auto; break-after:auto;`
+
+Aplicar a classe `op-operation-page` também na div `op-sheet operation-single-page` (somando classes) para conformidade com o seletor pedido — manter `op-sheet` para manter estilos visuais.
+
+## Pré-impressão (já existente, sem mudança)
+
+A página `ImpressaoOrdemProducaoPage` já chama `aguardarDesenhosProntos()` antes de `window.print()` e `useAuthedBlobUrls` já faz fetch com token → blobUrl. Como o mesmo desenho será reutilizado em várias páginas, o blobUrl precomputado (`blobStates`) é compartilhado por todas as instâncias de `DrawingPage` — sem duplicação de download.
 
 ## Fora de escopo
-- Backend / endpoints novos.
-- Mudanças no layout de impressão.
-- Mudanças no `useImpressaoOrdemProducao` (fetch individual de OP).
+
+- Filtro Produto (3 edições pendentes da conversa anterior — tratar em outro turno).
+- Mudanças no backend, no `useAuthedBlobUrls` ou no `OpPrintBatch`.
+- Layout interno de cabeçalho/rodapé/operação.

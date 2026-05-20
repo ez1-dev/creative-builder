@@ -208,13 +208,15 @@
 .op-sheet .col-w-narrow { width: 60px; }
 .op-sheet .col-w-medium { width: 100px; }
 
-.op-print-page {
+.op-print-page,
+.op-operation-page {
   width: 210mm;
   min-height: 297mm;
   page-break-after: always;
   break-after: page;
 }
-.op-print-page:last-child {
+.op-print-page:last-child,
+.op-operation-page:last-child {
   page-break-after: auto;
   break-after: auto;
 }
@@ -315,6 +317,7 @@
   }
 
   .op-print-page,
+  .op-operation-page,
   .componentes-page,
   .op-drawing-page {
     width: 210mm !important;
@@ -330,6 +333,7 @@
   }
 
   .op-print-page:last-child,
+  .op-operation-page:last-child,
   .componentes-page:last-child,
   .op-drawing-page:last-child {
     page-break-after: auto !important;
