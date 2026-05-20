@@ -1,145 +1,111 @@
-## Visão geral
+# Segunda Onda — Desenvolvimento de Relatórios
 
-Novo módulo **Desenvolvimento de Relatórios**: cadastro/edição/preview/publicação de relatórios SQL para qualquer módulo do ERP. Metadados (relatório, parâmetros, colunas, layout, execuções) ficam no Lovable Cloud com RLS restrita a admins. Execução de SQL contra o ERP é delegada ao backend FastAPI via 2 endpoints novos (`/preview` e `/{id}/executar`); o frontend nunca acessa o ERP direto.
+Refinar o módulo já criado (`/relatorios/desenvolvimento`) para entregar configuração avançada de colunas, exportações com download automático, histórico embutido no editor, duplicação e preview com totalizadores, cabeçalho fixo e avisos.
 
-3 rotas / 3 itens de menu:
+## Escopo
 
-- `/relatorios/desenvolvimento` — ReportBuilderPage (lista + editor)
-- `/relatorios/publicados` — Relatórios Publicados (executor para usuários)
-- `/relatorios/execucoes` — Histórico de Execuções
+### 1. Banco — Lovable Cloud (1 migration)
 
-## Backend (Lovable Cloud)
+Apenas um pequeno ajuste em `relatorio_colunas`:
 
-Tabelas em `public.*` com RLS exigindo `has_role(auth.uid(),'admin')` para mutações; leitura de publicados liberada a autenticados.
+- Adicionar coluna `largura integer NULL` (largura em px ou %, opcional).
 
-```text
-relatorios
-  id uuid pk, codigo text unique, nome text, descricao text,
-  modulo text, categoria text, fonte_dados text,
-  sql_query text, status text check in ('rascunho','publicado','inativo') default 'rascunho',
-  permite_excel bool, permite_pdf bool, permite_csv bool,
-  created_by uuid, created_at, updated_at
+Demais campos (`campo`, `titulo`, `visivel`, `ordem`, `tipo`, `formato`, `alinhamento`, `totalizar`, `agrupar`) já existem. Nenhuma RLS nova é necessária — políticas atuais (admin gerencia, usuários leem se relatório está publicado) seguem valendo.
 
-relatorio_parametros
-  id uuid pk, relatorio_id uuid fk cascade,
-  nome text, label text, tipo text, obrigatorio bool,
-  valor_padrao text, ordem int, sql_lista text
+### 2. Tipos e API (`src/lib/relatorios/`)
 
-relatorio_colunas
-  id uuid pk, relatorio_id uuid fk cascade,
-  campo text, titulo text, visivel bool, ordem int,
-  tipo text, formato text, alinhamento text,
-  totalizar bool, agrupar bool
+`types.ts`
+- Estreitar `RelatorioColuna.tipo` para `'texto' | 'numero' | 'moeda' | 'data' | 'data_hora' | 'percentual'` (com fallback string para compatibilidade).
+- Adicionar `largura: number | null`.
+- Adicionar tipo `RelatorioExecucaoEnriquecida` que junta `executado_por_nome` (resolvido via `profiles`).
 
-relatorio_layout
-  relatorio_id uuid pk fk cascade,
-  tipo text check in ('tabela_simples','tabela_agrupada','cards','grafico','tabela_grafico'),
-  titulo text, subtitulo text,
-  mostrar_filtros bool, mostrar_totais bool,
-  mostrar_data_hora bool, mostrar_usuario bool,
-  agrupar_por text, config jsonb
+`api.ts`
+- Manter `saveColunas` no Cloud (CRUD de metadata fica em Cloud por arquitetura). Adicionar wrapper opcional `salvarConfigColunas(id, colunas_config)` que equivale conceitualmente ao `PUT /api/relatorios/{id}/colunas` documentado.
+- Manter `duplicarRelatorio` em Cloud (já existe).
+- Ajustar `exportarRelatorio` para também ler `Content-Disposition` e devolver `{ blob, filename }` e gravar execução com `formato` e `tempo_ms` no Cloud.
+- Adicionar `listExecucoesPorRelatorio(id)` que faz join com `profiles` para resolver nome do usuário e ordena DESC.
+- `gravarExecucao` ganha campo opcional `arquivo` (string nullable) — armazenado em `parametros.arquivo` (sem migrar schema para não inflar tabela).
 
-relatorio_execucoes
-  id uuid pk, relatorio_id uuid fk, executado_por uuid,
-  executado_em timestamptz default now(),
-  parametros jsonb, qtd_linhas int, tempo_ms int,
-  status text, erro text, formato text
-```
+### 3. Editor de Colunas (`ColumnsEditor.tsx`)
 
-Trigger `update_updated_at` em `relatorios`. RLS:
-- `relatorios SELECT`: autenticado vê `publicado`; admin vê tudo.
-- `relatorios INSERT/UPDATE/DELETE`: admin.
-- Tabelas filhas: idem (via has_role).
-- `relatorio_execucoes`: usuário vê próprias execuções; admin vê todas; INSERT autenticado quando o relatório é visível para ele.
+Reescrever a aba "Colunas":
+- Listar todas as colunas vindas do preview (`onColumnsDetected` já alimenta o estado).
+- Para cada linha: Campo (read-only), Título (input), Visível (switch), Ordem (setas + drag handle), Tipo (select com 6 valores acima), Formato (input livre — ex.: `dd/MM/yyyy`, `#,##0.00`), Alinhamento (select), Largura (input numérico, opcional), Totalizar (switch), Agrupar (switch).
+- Botões no topo: **Salvar configuração de colunas** (grava só colunas via `saveColunas`) e **Restaurar padrão** (re-executa preview e regenera colunas com defaults sensatos por tipo inferido).
+- Visual: tabela com sticky header dentro de container scrollável.
 
-## Backend FastAPI (especificação — não vou implementar, vou documentar)
+### 4. Preview avançado (`ReportPreview.tsx`)
 
-Documento em `docs/backend-relatorios.md` cobrindo:
+- Receber `colunasConfig: ColDraft[]` do editor e aplicar:
+  - Filtrar/ordenar pelas configs (somente `visivel`, na ordem definida).
+  - Usar `titulo` como header; aplicar `alinhamento` (`text-left|center|right`) no `<TableHead>` e `<TableCell>`.
+  - Aplicar `largura` via `style={{ width }}` no `<th>`.
+  - Formatação básica por `tipo`:
+    - `numero` → `Intl.NumberFormat('pt-BR')`
+    - `moeda` → `Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' })`
+    - `percentual` → `value*100` com `%`
+    - `data` → `format(d, 'dd/MM/yyyy')`
+    - `data_hora` → `format(d, 'dd/MM/yyyy HH:mm')`
+    - `texto` → toString
+  - Linha de **totalizadores no rodapé** (`<TableFooter>`): soma das colunas com `totalizar=true` e tipos numéricos/moeda/percentual; coluna sem totalizar mostra string vazia, primeira mostra "TOTAL".
+- Rolagem horizontal: wrapper `overflow-x-auto` (não cortar conteúdo). Cabeçalho congelado via `sticky top-0` no `<TableHeader>` e `bg-card` para não vazar.
+- Stats no topo da grid: `X linha(s) • Yms` + aviso amber quando `linhas.length === 100`: "Preview limitado a 100 linhas".
+- Botões **Exportar Excel** e **Exportar CSV** (PDF mantido desabilitado — fica para 3ª onda). Após download, gravar execução no Cloud e disparar `onExecucaoGravada()` callback para o histórico recarregar.
+- Download automático: criar `<a download>` + `URL.createObjectURL(blob)` (já implementado, melhorar com filename do `Content-Disposition`).
 
-- `POST /api/relatorios/validar-sql` → `{ valido, erro, parametros: ['cod_emp', ...], colunas: [{nome,tipo}] }`. Roda EXPLAIN parametrizado; bloqueia comandos != SELECT (regex + parser).
-- `POST /api/relatorios/preview` `{ sql, parametros }` → executa LIMIT 100, retorna `{ colunas, linhas, tempo_ms }`. Bloqueia DML/DDL.
-- `POST /api/relatorios/{id}/executar` `{ parametros }` → busca SQL do Cloud (service role), executa no ERP, grava execução no Cloud, retorna resultado.
-- `POST /api/relatorios/{id}/exportar/{formato}` → mesma execução + stream Excel/CSV/PDF.
+### 5. Aba "Histórico" dentro do editor (`ReportEditor.tsx`)
 
-CRUD (`GET/POST/PUT /api/relatorios`) **não** vai pro FastAPI — fica direto no Cloud via `supabase` client. Removo esses do escopo do FastAPI para não duplicar fonte de verdade.
+Adicionar 7ª aba `Histórico` visível somente quando `relatorio.id` existe.
 
-## Frontend
+Novo componente `ReportExecutionHistory` com colunas:
+| Data/Hora | Usuário | Tipo execução | Formato | Linhas | Tempo | Status | Arquivo | Erro |
 
-### Estrutura
+Regras:
+- Tipo execução: `formato === 'grid' ? 'Preview' : 'Exportação'`.
+- Formato: badge minúsculo (`grid`, `excel`, `csv`, `pdf`).
+- Status: `ok` → badge verde, `erro` → badge vermelho (linha inteira com tinta `text-destructive`).
+- Tempo: `<1000ms` mostra `Xms`; `≥1000ms` mostra `(X/1000).toFixed(2) s`.
+- Arquivo: link "Baixar novamente" se `parametros.arquivo` presente (apenas exibe nome).
+- Erro: tooltip se truncar.
+- Botão de refresh + auto-reload após `onExecucaoGravada` do preview.
 
-```text
-src/pages/relatorios/
-  DesenvolvimentoRelatoriosPage.tsx   (ReportBuilderPage)
-  RelatoriosPublicadosPage.tsx
-  HistoricoExecucoesPage.tsx
-src/components/relatorios/
-  ReportList.tsx
-  ReportEditor.tsx
-  tabs/
-    DadosGeraisTab.tsx
-    SqlTab.tsx           (usa SqlEditor)
-    ParametrosTab.tsx    (ParametersEditor)
-    ColunasTab.tsx       (ColumnsEditor)
-    LayoutTab.tsx        (LayoutEditor)
-    PreviewTab.tsx       (ReportPreview)
-  SqlEditor.tsx          (Monaco, lazy-loaded)
-  ReportExecutionHistory.tsx
-  ReportRunner.tsx       (executor com formulário de parâmetros, usado em /publicados)
-src/lib/relatorios/
-  api.ts                 (CRUD Cloud + chamadas FastAPI preview/executar/exportar)
-  parseSqlParams.ts      (regex /:([a-z_][a-z0-9_]*)/g)
-  types.ts
-  schemas.ts             (zod para forms)
-```
+### 6. Lista de Relatórios (`ReportList.tsx`)
 
-### Telas
+Já tem ação "Duplicar" no `DropdownMenu`. Confirmar:
+- Após duplicar, abrir relatório novo no editor (já implementado em `DesenvolvimentoRelatoriosPage`).
+- Toast "Relatório duplicado em RASCUNHO".
 
-**ReportBuilderPage** (`/relatorios/desenvolvimento`): split layout — `ReportList` à esquerda (tabela com filtros por módulo/categoria/status; colunas: Código, Nome, Módulo, Categoria, Fonte, Status badge, Atualizado em, Ações), `ReportEditor` à direita ao selecionar um item (ou em modal full-screen se preferir). Botão "Novo relatório" abre editor vazio.
+### 7. Página principal (`DesenvolvimentoRelatoriosPage.tsx`)
 
-**ReportEditor**: 6 abas shadcn `Tabs`. Estado controlado por um único hook `useReportEditor(id)` (rascunho local + dirty flag). Salvar exige SQL válida (flag setada pela aba SQL ou no submit chama `validar-sql`).
+Sem mudanças estruturais. Apenas garantir que `reload()` é disparado após duplicação/publicação/inativação (já está).
 
-- **Dados Gerais**: form zod (nome 1-120, descricao 0-1000, modulo enum dinâmico, categoria, fonte_dados, status, 3 toggles export). Código gerado automaticamente (slug do nome + sufixo numérico).
-- **SQL**: `SqlEditor` Monaco (lazy `React.lazy` + Suspense, `@monaco-editor/react`, modo `sql`). Botões `Validar SQL`, `Detectar parâmetros` (chama parseSqlParams local + cria/atualiza linhas em parâmetros), `Pré-visualizar` (muda para aba Preview e executa).
-- **Parâmetros**: tabela editável com colunas Nome, Label, Tipo (texto/número/data/lista), Obrigatório, Valor padrão, Ordem, SQL Lista (textarea quando tipo=lista). Linhas vêm de "Detectar parâmetros" mas editáveis manualmente; ordenação drag-and-drop simples por setas ↑↓.
-- **Colunas**: aparece após primeira preview. Tabela editável: Campo (readonly), Título, Visível, Ordem, Tipo, Formato (date/number/currency), Alinhamento (esq/centro/dir), Totalizar, Agrupar. Estado persistido com o relatório.
-- **Layout**: radio cards com 5 opções (Tabela simples, Tabela agrupada, Cards gerenciais, Gráfico, Tabela + gráfico). Campos: Título, Subtítulo, toggles (Mostrar filtros, totais, data/hora, usuário), Agrupar por (select com colunas detectadas).
-- **Pré-visualização**: form de parâmetros (gerado da aba Parâmetros) → botão Executar Preview → grid (componente `DataTable` simples do projeto) com colunas formatadas, footer mostrando "X linhas • Y ms", banner de erro vermelho se SQL falhar, botões Exportar Excel/CSV/PDF (chamam FastAPI mas só habilitados se status=publicado).
+### 8. Histórico Global (`HistoricoExecucoesPage.tsx`)
 
-**RelatoriosPublicadosPage** (`/relatorios/publicados`): lista só status=publicado, ao clicar abre `ReportRunner` (formulário de parâmetros + executar + grid + exportar).
+- Aproveitar as melhorias visuais (cor por status, tempo em segundos, badge formato, tipo execução derivada).
+- Adicionar filtro simples: `Select` por status (todos/ok/erro) e `Input` por código/nome de relatório.
 
-**HistoricoExecucoesPage** (`/relatorios/execucoes`): tabela de `relatorio_execucoes` com filtros (relatório, usuário, data, status). Admin vê todas; usuário comum vê próprias.
+### 9. Backend FastAPI — atualizar `docs/backend-relatorios.md`
 
-### Menu lateral
+Adicionar seções:
+- `PUT /api/relatorios/{id}/colunas` — contrato conceitual (no frontend é Cloud direto; documentar para futura migração).
+- `GET /api/relatorios/{id}/execucoes` — idem (Cloud por enquanto).
+- Confirmar contrato dos endpoints de exportação: response com `Content-Disposition: attachment; filename="..."` para que o frontend extraia o nome.
 
-Adicionar grupo collapsible **Relatórios** em `AppSidebar.tsx` (padrão do grupo Produção/Regras Senior), com 3 sub-itens. Ícone `FileBarChart2`. Visibilidade gated por admin (`has_role`) via `useUserPermissions` — se usuário não tem `/relatorios/desenvolvimento`, esconder esse item mas mostrar `/publicados` e `/execucoes`.
+## Fora de escopo (3ª onda)
 
-### Rotas em `App.tsx`
+PDF avançado, gráficos, drill-down, permissões por usuário/perfil, agendamento, versionamento de SQL.
 
-3 rotas novas dentro de `AppLayout`, envolvidas em `ProtectedRoute` com o path correspondente.
+## Ordem de implementação
 
-### Detalhes técnicos
+1. Migration: `relatorio_colunas.largura`.
+2. Tipos + ajustes em `api.ts` (filename de download, novo helper de histórico por relatório).
+3. `ColumnsEditor.tsx` reescrito com todos os campos, botões Salvar/Restaurar padrão.
+4. `ReportPreview.tsx`: aplicar config, formatação, totalizadores, sticky header, aviso 100 linhas, callback de execução gravada.
+5. Novo `ReportExecutionHistory.tsx` + aba "Histórico" no `ReportEditor`.
+6. Ajustes visuais no `HistoricoExecucoesPage.tsx` (cor, tempo, filtros).
+7. Atualizar `docs/backend-relatorios.md`.
 
-- **Monaco**: `bun add @monaco-editor/react monaco-editor`. Carregado com `React.lazy` apenas na aba SQL para não pesar o bundle.
-- **parseSqlParams**: regex `/(?<!:):([a-z_][a-z0-9_]*)/gi` retornando set único, preservando ordem de aparição.
-- **Bloqueio de DML no frontend**: heurística regex `/^\s*(insert|update|delete|drop|alter|truncate|create|grant|revoke)\b/im` antes de enviar. Backend FastAPI tem validação autoritativa.
-- **Validação zod** em todos os forms (nome, sql, parâmetros) conforme padrão do projeto.
-- **Sem cores hardcoded**: usar tokens `bg-card`, `text-muted-foreground`, `badge` variants já definidos.
-- **i18n**: textos em pt-BR como o resto do app.
+## Riscos
 
-## Fora de escopo
-
-- Implementação dos endpoints FastAPI (só especificação em `docs/backend-relatorios.md`).
-- Permissões granulares por relatório/usuário (fica para v2; v1 usa apenas admin × autenticado).
-- Versionamento histórico do SQL (mudanças sobrescrevem; `relatorio_execucoes` registra o que rodou).
-- Editor visual de gráficos avançado (layout Gráfico usa preset simples baseado nas colunas; expansão fica para v2).
-- Agendamento de relatórios.
-
-## Ordem de entrega
-
-1. Migração Cloud (4 tabelas + RLS + trigger).
-2. `src/lib/relatorios/` (types, schemas, api, parseSqlParams).
-3. `ReportList` + `DesenvolvimentoRelatoriosPage`.
-4. `ReportEditor` com as 6 abas (instalar Monaco junto da aba SQL).
-5. `RelatoriosPublicadosPage` + `ReportRunner`.
-6. `HistoricoExecucoesPage`.
-7. Sidebar + rotas + `docs/backend-relatorios.md`.
+- Backend FastAPI ainda não implementa `/preview` nem `/exportar/*` — UI fica funcional mas chamadas mostram erro até o backend chegar. Documentado no `.md`.
+- Formatação por tipo é heurística: campos numéricos vindos como string do ERP precisam de coerção tolerante (`Number(v)` com fallback).

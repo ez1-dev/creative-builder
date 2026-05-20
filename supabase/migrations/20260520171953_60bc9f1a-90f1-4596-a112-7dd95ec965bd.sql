@@ -1,0 +1,1 @@
+ALTER TABLE public.relatorio_colunas ADD COLUMN IF NOT EXISTS largura integer NULL;
