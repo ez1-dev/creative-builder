@@ -46,6 +46,8 @@ export interface OpOperacao {
   unidade_medida?: string;
   codigo_barras_operacao?: string;
   proxima_operacao?: string;
+  proxima_operacao_codigo?: string;
+  proxima_operacao_descricao?: string;
   proxima_operacao_label?: string;
   narrativas?: string;
 }
