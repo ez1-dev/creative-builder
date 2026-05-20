@@ -800,12 +800,28 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
+      {filtros.quebrar_por_operacao === 'S' && (lote || data?.cabecalho) && (
+        <div className="no-print rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary">
+          Modo ativo: será impressa uma página por operação.
+        </div>
+      )}
+
       {lote && lote.ordens.length > 0 && (
-        <OpPrintBatch ordens={lote.ordens} preview={preview} usuario={displayName ?? erpUser ?? null} />
+        <OpPrintBatch
+          ordens={lote.ordens}
+          preview={preview}
+          usuario={displayName ?? erpUser ?? null}
+          quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+        />
       )}
 
       {!lote && data?.cabecalho && (
-        <OpPrintSheet data={data} preview={preview} usuario={displayName ?? erpUser ?? null} />
+        <OpPrintSheet
+          data={data}
+          preview={preview}
+          usuario={displayName ?? erpUser ?? null}
+          quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+        />
       )}
     </div>
   );
