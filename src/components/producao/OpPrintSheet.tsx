@@ -72,7 +72,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         <div className="op-kv-2col op-box op-header-data">
           <div className="k">Origem:</div><div className="v">{cab.cod_ori ?? '-'}</div>
           <div className="k">O.P.:</div><div className="v">{cab.num_orp_formatado ?? cab.num_orp ?? '-'}</div>
-          <div className="k">Qtde.:</div><div className="v">{cab.quantidade ?? '-'}</div>
+          <div className="k op-qtde-destaque">Qtde.:</div><div className="v op-qtde-destaque">{cab.quantidade ?? '-'}</div>
           <div className="k">U.M.:</div><div className="v">{cab.unidade_medida ?? '-'}</div>
           <div className="k">Produto:</div>
           <div className="v full">
@@ -195,8 +195,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
           <div className="k">Seq.:</div>
           <div className="v">{op.seq_rot ?? '—'}</div>
-          <div className="k">Operação:</div>
-          <div className="v">{[op.cod_opr, op.descricao_operacao].filter(Boolean).join(' ') || '—'}</div>
+          <div className="k op-operacao-destaque">Operação:</div>
+          <div className="v op-operacao-destaque">{[op.cod_opr, op.descricao_operacao].filter(Boolean).join(' ') || '—'}</div>
 
           <div className="k">Tmp Unit:</div>
           <div className="v">{op.tmp_unit ?? '—'}</div>
@@ -205,8 +205,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? '—'}</div>
-          <div className="k">Próx. Oper.:</div>
-          <div className="v">{(() => {
+          <div className="k op-proxoper-destaque">Próx. Oper.:</div>
+          <div className="v op-proxoper-destaque">{(() => {
             const label = op.proxima_operacao_label?.trim();
             if (label) return label;
             const cod = op.proxima_operacao_codigo?.trim();

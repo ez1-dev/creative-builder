@@ -208,6 +208,54 @@
 .op-sheet .col-w-narrow { width: 60px; }
 .op-sheet .col-w-medium { width: 100px; }
 
+/* ===== Destaques de campos críticos ===== */
+.op-sheet .op-qtde-destaque {
+  font-size: 15px !important;
+  font-weight: bold !important;
+}
+.op-sheet .v.op-qtde-destaque {
+  background: #eee;
+  border: 1px solid #000;
+  padding: 2px 6px;
+  text-align: center;
+}
+
+.op-sheet .op-operacao-destaque,
+.op-sheet .op-proxoper-destaque {
+  font-size: 12.5px !important;
+  font-weight: bold !important;
+}
+.op-sheet .v.op-operacao-destaque,
+.op-sheet .v.op-proxoper-destaque {
+  background: #eee;
+  border: 1px solid #000;
+  padding: 2px 6px;
+}
+
+@media print {
+  .op-sheet .op-qtde-destaque {
+    font-size: 13pt !important;
+    font-weight: bold !important;
+  }
+  .op-sheet .v.op-qtde-destaque {
+    border: 1pt solid #000 !important;
+    background: transparent !important;
+    padding: 2pt 4pt !important;
+    text-align: center !important;
+  }
+  .op-sheet .op-operacao-destaque,
+  .op-sheet .op-proxoper-destaque {
+    font-size: 11pt !important;
+    font-weight: bold !important;
+  }
+  .op-sheet .v.op-operacao-destaque,
+  .op-sheet .v.op-proxoper-destaque {
+    border: 1pt solid #000 !important;
+    background: transparent !important;
+    padding: 1.5pt 3pt !important;
+  }
+}
+
 .op-print-page,
 .op-operation-page {
   width: 196mm;
