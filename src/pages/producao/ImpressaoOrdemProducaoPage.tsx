@@ -294,12 +294,14 @@ export default function ImpressaoOrdemProducaoPage() {
     try {
       const res = await fetchImpressaoLote({
         cod_emp: filtros.cod_emp,
+        cod_ori: filtros.cod_ori || undefined,
         num_ped: filtros.num_ped || undefined,
         rel_prd: filtros.rel_prd || undefined,
         sit_orp: filtros.sit_orp || undefined,
         listar_componentes: (filtros.listar_componentes as 'S' | 'N') || 'S',
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
       });
+
       if (!res.ordens.length) {
         toast.info('Nenhuma OP retornada para impressão.');
         return;
