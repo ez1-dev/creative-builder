@@ -911,11 +911,47 @@ export default function ImpressaoOrdemProducaoPage() {
           preview={preview}
           usuario={displayName ?? erpUser ?? null}
           quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+          blobStates={blobStates}
         />
       )}
+
+      <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Diagnóstico de desenhos</DialogTitle>
+          </DialogHeader>
+          {diagLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Consultando API...
+            </div>
+          )}
+          {diagError && (
+            <div className="rounded-md border border-destructive p-3 text-sm text-destructive">
+              {diagError}
+            </div>
+          )}
+          {diagData && (
+            <div className="space-y-2 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="font-semibold">Pasta:</span> <code className="text-xs">{diagData.pasta_configurada ?? '-'}</code></div>
+                <div><span className="font-semibold">Existe:</span> {String(diagData.pasta_existe ?? '-')}</div>
+                <div><span className="font-semibold">É diretório:</span> {String(diagData.pasta_eh_diretorio ?? '-')}</div>
+                <div><span className="font-semibold">Qtd. arquivos:</span> {diagData.qtd_arquivos_pasta ?? '-'}</div>
+                <div><span className="font-semibold">CodPro:</span> {diagData.cod_pro ?? '-'}</div>
+                <div><span className="font-semibold">Desenhos encontrados:</span> {Array.isArray(diagData.desenhos_encontrados) ? diagData.desenhos_encontrados.length : 0}</div>
+              </div>
+              <details className="rounded-md border bg-muted/30 p-2">
+                <summary className="cursor-pointer text-xs font-semibold">JSON completo</summary>
+                <pre className="mt-2 max-h-80 overflow-auto text-[10px] leading-tight">{JSON.stringify(diagData, null, 2)}</pre>
+              </details>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
