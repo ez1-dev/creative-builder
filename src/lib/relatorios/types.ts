@@ -9,6 +9,8 @@ export type LayoutTipo =
   | 'grafico'
   | 'tabela_grafico';
 
+export type TipoFonte = 'sql' | 'api_rest';
+
 export interface Relatorio {
   id: string;
   codigo: string;
@@ -22,6 +24,9 @@ export interface Relatorio {
   permite_excel: boolean;
   permite_pdf: boolean;
   permite_csv: boolean;
+  tipo_fonte: TipoFonte;
+  endpoint_url: string | null;
+  url_destino: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
