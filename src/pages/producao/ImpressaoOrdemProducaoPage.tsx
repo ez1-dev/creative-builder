@@ -16,6 +16,7 @@ import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
 import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
+import { ProdutoAutocomplete } from '@/components/producao/ProdutoAutocomplete';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao/opImpressaoLote';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,6 +37,7 @@ const EMPTY: ImpressaoOpFiltros = {
   num_ped: '',
   rel_prd: '',
   sit_orp: '',
+  cod_pro: '',
   listar_componentes: 'S',
   listar_desenho: 'N',
   cod_etg: '',
@@ -88,6 +90,7 @@ export default function ImpressaoOrdemProducaoPage() {
 
 
   const [opLabel, setOpLabel] = useState<string>('');
+  const [produtoLabel, setProdutoLabel] = useState<string>('');
   const [preview, setPreview] = useState(false);
   const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
   const [lote, setLote] = useState<ImpressaoOpLoteResponse | null>(null);
@@ -135,7 +138,7 @@ export default function ImpressaoOrdemProducaoPage() {
   // Limpa seleção sempre que filtros principais/refinamento mudam
   useEffect(() => {
     setSelectedKeys(new Set());
-  }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp]);
+  }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp, filtros.cod_pro]);
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
@@ -188,6 +191,7 @@ export default function ImpressaoOrdemProducaoPage() {
         await opcoes.reloadByPedido(filtros.cod_emp, v, filtros.sit_orp || undefined, {
           cod_cre: filtros.cod_cre || undefined,
           cod_etg: filtros.cod_etg || undefined,
+          cod_pro: filtros.cod_pro || undefined,
         });
       } catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do pedido'); }
     }
@@ -202,6 +206,7 @@ export default function ImpressaoOrdemProducaoPage() {
         await opcoes.reloadByRelatorio(filtros.cod_emp, v, filtros.sit_orp || undefined, {
           cod_cre: filtros.cod_cre || undefined,
           cod_etg: filtros.cod_etg || undefined,
+          cod_pro: filtros.cod_pro || undefined,
         });
       } catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do relatório'); }
     }
@@ -216,7 +221,7 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error('Origem 100 não é permitida.');
       return;
     }
-    const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined };
+    const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined, cod_pro: filtros.cod_pro || undefined };
     try {
       if (v) {
         await opcoes.reloadByOrigem(filtros.cod_emp, v, {
@@ -229,6 +234,12 @@ export default function ImpressaoOrdemProducaoPage() {
         await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined, ref);
       } else if (filtros.rel_prd) {
         await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined, ref);
+      } else if (filtros.cod_pro) {
+        await opcoes.reloadByProduto(filtros.cod_emp, filtros.cod_pro, {
+          sit_orp: filtros.sit_orp || undefined,
+          cod_cre: filtros.cod_cre || undefined,
+          cod_etg: filtros.cod_etg || undefined,
+        });
       } else if (filtros.cod_cre || filtros.cod_etg) {
         await opcoes.reloadByCentroRecurso(filtros.cod_emp, filtros.cod_cre || '', {
           sit_orp: filtros.sit_orp || undefined,
@@ -248,7 +259,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setFiltros((f) => ({ ...f, sit_orp: v }));
     setLote(null);
     if (!filtros.cod_emp) return;
-    const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined };
+    const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined, cod_pro: filtros.cod_pro || undefined };
     try {
       if (filtros.cod_ori) {
         await opcoes.reloadByOrigem(filtros.cod_emp, filtros.cod_ori, {
@@ -259,6 +270,7 @@ export default function ImpressaoOrdemProducaoPage() {
         });
       } else if (filtros.num_ped) await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, v || undefined, ref);
       else if (filtros.rel_prd) await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, v || undefined, ref);
+      else if (filtros.cod_pro) await opcoes.reloadByProduto(filtros.cod_emp, filtros.cod_pro, { sit_orp: v || undefined, cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined });
       else if (filtros.cod_cre) await opcoes.reloadByCentroRecurso(filtros.cod_emp, filtros.cod_cre, { sit_orp: v || undefined, cod_etg: filtros.cod_etg || undefined });
       else if (v) await opcoes.reloadBySituacao(filtros.cod_emp, v, ref);
       else await opcoes.reloadBase(filtros.cod_emp);
@@ -266,6 +278,51 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error(e?.message || 'Falha ao carregar OPs');
     }
   };
+
+  const onChangeProduto = async (prod: import('@/lib/producao/opcoesImpressao').OpcaoProduto | null) => {
+    const cod_pro = String(prod?.value ?? prod?.codigo ?? '');
+    setFiltros((f) => ({ ...f, cod_pro, num_orp: '' }));
+    setOpLabel('');
+    setProdutoLabel(prod ? (prod.label || `${prod.codigo}${prod.descricao ? ' - ' + prod.descricao : ''}`) : '');
+    setLote(null);
+    if (!filtros.cod_emp) return;
+    try {
+      if (cod_pro) {
+        await opcoes.reloadByProduto(filtros.cod_emp, cod_pro, {
+          cod_ori: filtros.cod_ori || undefined,
+          num_ped: filtros.num_ped || undefined,
+          rel_prd: filtros.rel_prd || undefined,
+          sit_orp: filtros.sit_orp || undefined,
+          cod_cre: filtros.cod_cre || undefined,
+          cod_etg: filtros.cod_etg || undefined,
+        });
+      } else {
+        // Limpou produto — recarrega pelo filtro principal ativo
+        const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined };
+        if (filtros.cod_ori) {
+          await opcoes.reloadByOrigem(filtros.cod_emp, filtros.cod_ori, {
+            sit_orp: filtros.sit_orp || undefined,
+            num_ped: filtros.num_ped || undefined,
+            rel_prd: filtros.rel_prd || undefined,
+            ...ref,
+          });
+        } else if (filtros.num_ped) {
+          await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined, ref);
+        } else if (filtros.rel_prd) {
+          await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined, ref);
+        } else if (filtros.cod_cre) {
+          await opcoes.reloadByCentroRecurso(filtros.cod_emp, filtros.cod_cre, { sit_orp: filtros.sit_orp || undefined, cod_etg: filtros.cod_etg || undefined });
+        } else if (filtros.sit_orp) {
+          await opcoes.reloadBySituacao(filtros.cod_emp, filtros.sit_orp, ref);
+        } else {
+          await opcoes.reloadBase(filtros.cod_emp);
+        }
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao carregar OPs');
+    }
+  };
+
 
 
   const onSelectOp = async (op: OpcaoOp | null) => {
@@ -311,6 +368,7 @@ export default function ImpressaoOrdemProducaoPage() {
         num_ped: filtros.num_ped || undefined,
         rel_prd: filtros.rel_prd || undefined,
         sit_orp: filtros.sit_orp || undefined,
+        cod_pro: filtros.cod_pro || undefined,
         cod_etg: v || undefined,
       });
     } catch (e: any) { toast.error(e?.message || 'Falha ao recarregar OPs'); }
@@ -328,11 +386,12 @@ export default function ImpressaoOrdemProducaoPage() {
           num_ped: filtros.num_ped || undefined,
           rel_prd: filtros.rel_prd || undefined,
           sit_orp: filtros.sit_orp || undefined,
+          cod_pro: filtros.cod_pro || undefined,
           cod_etg: filtros.cod_etg || undefined,
         });
       } else {
         // Limpou centro de recurso — recarrega pelo filtro principal ativo
-        const ref = { cod_etg: filtros.cod_etg || undefined };
+        const ref = { cod_etg: filtros.cod_etg || undefined, cod_pro: filtros.cod_pro || undefined };
         if (filtros.cod_ori) {
           await opcoes.reloadByOrigem(filtros.cod_emp, filtros.cod_ori, {
             sit_orp: filtros.sit_orp || undefined,
@@ -344,6 +403,8 @@ export default function ImpressaoOrdemProducaoPage() {
           await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined, ref);
         } else if (filtros.rel_prd) {
           await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined, ref);
+        } else if (filtros.cod_pro) {
+          await opcoes.reloadByProduto(filtros.cod_emp, filtros.cod_pro, { sit_orp: filtros.sit_orp || undefined, cod_etg: filtros.cod_etg || undefined });
         } else if (filtros.sit_orp) {
           await opcoes.reloadBySituacao(filtros.cod_emp, filtros.sit_orp, ref);
         } else if (filtros.cod_etg) {
@@ -366,8 +427,14 @@ export default function ImpressaoOrdemProducaoPage() {
       sit_orp: filtros.sit_orp || undefined,
       cod_cre: filtros.cod_cre || undefined,
       cod_etg: filtros.cod_etg || undefined,
+      cod_pro: filtros.cod_pro || undefined,
     }),
-    [opcoes.searchOps, filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg],
+    [opcoes.searchOps, filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.cod_pro],
+  );
+
+  const searchProdutosFetcher = useCallback(
+    (q: string) => opcoes.searchProdutos(q, { cod_emp: filtros.cod_emp || undefined }),
+    [opcoes.searchProdutos, filtros.cod_emp],
   );
 
 
@@ -395,6 +462,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const limpar = () => {
     setFiltros({ ...EMPTY });
     setOpLabel('');
+    setProdutoLabel('');
     setPreview(false);
     setLastConsulta(null);
     setLote(null);
