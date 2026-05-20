@@ -49,12 +49,21 @@ export interface OpOperacao {
   narrativas?: string;
 }
 
+export interface OpDesenho {
+  ordem?: number | string;
+  nome_arquivo?: string;
+  tipo?: string;
+  pasta?: string;
+  url?: string;
+}
+
 export interface OpImpressao {
   cabecalho?: OpCabecalho;
   componentes?: OpComponente[];
   operacoes?: OpOperacao[];
   observacoes?: string[];
   mensagem_responsabilidade?: string;
+  desenhos?: OpDesenho[];
 }
 
 export interface ImpressaoOpFiltros {
