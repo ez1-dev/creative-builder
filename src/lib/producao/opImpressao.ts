@@ -59,6 +59,7 @@ export interface OpDesenho {
   extensao?: string;
   mime_type?: string;
   url?: string;
+  url_impressao?: string;
   largura?: number;
   altura?: number;
   orientacao?: string;

@@ -1,44 +1,39 @@
-## Visualizar OPs selecionadas antes de imprimir
+## Usar `url_impressao` da API e remover rotação CSS dos desenhos
 
 ### Objetivo
-Separar o fluxo de "Imprimir selecionadas" (que hoje carrega e imprime em sequência) em **dois passos**: primeiro **Visualizar selecionadas** (carrega todas as OPs e monta preview consolidado abaixo da grid), depois **Imprimir visualização** (chama `window.print()` somente do preview montado). A grid já tem checkbox, header de "selecionar todas", `toggleOne`, `toggleAll` e contador.
+A API passou a devolver, em cada desenho, uma `url_impressao` que já entrega a imagem **rotacionada para retrato** quando o original é paisagem. O frontend deve consumir essa URL e parar de aplicar `rotate(90deg)` via CSS, que estava distorcendo a impressão.
 
-### Mudanças em `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+### Mudanças
 
-**1. Refatorar `imprimirSelecionadas`** → renomear para `visualizarSelecionadas`:
-- Faz exatamente a mesma carga em lote (loop com `concurrency=6` chamando `/api/producao/ordem-producao/impressao` por OP), com os mesmos params (`listar_componentes`, `listar_desenho`, `incluir_desenhos`, `quebrar_por_operacao`, `cod_etg`, `cod_cre`).
-- Filtra `cod_ori === '100'` e `sit_orp === 'C'` (mesma regra do `handleRowSelect`).
-- Ao final, `setLote({ quantidade_ops, ordens })` + `setPreview(true)` + `reset()` (limpa `data` individual) + `setSelectedRowKey(null)`.
-- Coleta erros por OP em `loteFalhas: { cod_ori, num_orp }[]` (novo state) para mostrar no header do preview.
-- **Não chama `window.print()`**. Mostra toast de sucesso.
+**1. `src/lib/producao/opImpressao.ts`** — Adicionar campo opcional `url_impressao?: string` em `OpDesenho`.
 
-**2. Novo handler `imprimirVisualizacao`**:
-- Se `!lote || lote.ordens.length === 0` → toast "Visualize as OPs antes de imprimir." e retorna.
-- `await aguardarDesenhosProntos()` → `window.print()`.
+**2. `src/components/producao/OpPrintSheet.tsx`**
+- Criar helper `getDrawingPrintUrl(d) = d.url_impressao || d.url`.
+- Em `renderDesenhos`, passar `precomputed={blobStates?.[getDrawingPrintUrl(d)]}` (em vez de `d.url`).
+- `DrawingPageStandalone` deve chamar `useAuthedBlobUrl(getDrawingPrintUrl(drawing))`.
+- Em `renderDrawingBody`:
+  - Calcular `usingPrintUrl = Boolean(drawing.url_impressao)`.
+  - `shouldRotate = !usingPrintUrl && (drawing.rotacionar_para_retrato === true || Number(drawing.rotacao_recomendada) === 90)`.
+  - Quando `usingPrintUrl`, renderizar `<img className="drawing-image" />` sem `rotate-90` e wrapper `drawing-frame` sem `rotated`. A imagem já vem em retrato.
+- Em `renderPreviewDesenhosResumo`, trocar todos os `blobStates[d.url]` por `blobStates[getDrawingPrintUrl(d)]` para o status (OK/Falha/Carregando) refletir o download real.
 
-**3. Novo handler `limparSelecao`**:
-- `setSelectedKeys(new Set())`, `setLote(null)`, `setLoteFalhas([])`, `setPreview(false)`. **Mantém** filtros.
+**3. `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`** — Em `desenhoUrls` (linha 113), mapear `(d) => d.url_impressao || d.url` para que `useAuthedBlobUrls` pré-carregue a URL correta antes do `window.print()` e `aguardarDesenhosProntos` aguarde o blob certo.
 
-**4. Botões na barra acima da grid** (linhas ~855–877). Substituir o atual "Imprimir selecionadas" por:
-- `Visualizar selecionadas` (primary, ícone `Eye`) — `onClick={visualizarSelecionadas}`, `disabled={loteLoading || selectedKeys.size === 0}`.
-- `Limpar seleção` (outline) — `disabled={selectedKeys.size === 0 && !lote}`.
-- Manter `Imprimir todas` como está.
-- Quando `selectedKeys.size === 0`, exibir hint pequeno: "Selecione uma ou mais OPs para visualizar." (no-print, ao lado do contador).
+**4. `src/components/producao/op-print.css`** — Simplificar a seção “Rotação automática de desenhos paisagem”:
+- Manter `.drawing-frame` (sem variante `.rotated`) e `.drawing-image` com `max-width: 190mm; max-height: 270mm; width: auto; height: auto; object-fit: contain;`.
+- Remover (ou deixar como fallback inerte) as regras `.drawing-frame.rotated` e `.drawing-image.rotate-90` que aplicavam `transform: rotate(90deg)`. A rotação agora vem da API; o CSS não precisa girar.
+- Manter `.op-drawing-page` como já está (A4 retrato, centralizado, overflow hidden).
 
-**5. Card de preview consolidado** (novo, antes de `<div className="print-root">`):
-- `className="no-print"`, só aparece quando `lote && lote.ordens.length > 0`.
-- Header: "Visualização das OPs selecionadas" + subtítulo "`lote.quantidade_ops` OP(s) carregadas`{falhas ? ` • ${falhas.length} falharam` : ''}`".
-- Se `loteFalhas.length > 0`: lista compacta "Não foi possível carregar a OP {cod_ori}/{num_orp}".
-- Botão `Imprimir visualização` (primary, ícone `Printer`) — `onClick={imprimirVisualizacao}`.
-- O preview real continua sendo o `<OpPrintBatch>` dentro de `.print-root` (já existe nas linhas 1056–1063). Não duplicar — apenas garantir `preview={true}` quando `lote` ativo.
-
-**6. `print-root`**: confirmar que `<OpPrintBatch>` recebe `preview={preview}` (já recebe). Confirmar que `OpPrintSheet` individual não aparece simultaneamente — o bloco `{!lote && data?.cabecalho && ...}` já garante exclusão mútua.
+### Compatibilidade
+- Se a API ainda não devolver `url_impressao` para algum desenho, o código cai para `drawing.url` e mantém o comportamento atual (sem rotação CSS — assumimos que a API já entrega rotacionado quando aplicável; manter `shouldRotate` apenas como fallback para `drawing.url`, conforme item 2).
 
 ### Não fazer
-- **Não** criar novo endpoint `/impressao/selecionadas`. O usuário sugeriu mas é melhoria futura — manter as N chamadas paralelas atuais que já funcionam (`concurrency=6`).
-- **Não** alterar `OpPrintBatch`, `OpPrintSheet`, CSS de impressão, regra de >7 componentes, quebra por operação, ou desenhos. Tudo isso já é renderizado corretamente por `OpPrintBatch` para cada OP do array.
-- **Não** mexer em `imprimirTodas` (lote por filtro) nem em `handleRowSelect` / `handleRowVisualizar` / `handleRowImprimir` (preview de OP única).
-- **Não** alterar o fluxo de desenhos com token — `aguardarDesenhosProntos` já espera `<img>` carregar antes do print.
+- Não alterar o endpoint da API nem o backend (escopo do prompt anterior, já implementado lá).
+- Não mexer em `OpPrintBatch`, `aguardarDesenhosProntos`, fluxo de “Visualizar selecionadas” nem regras de quebra por operação/componentes.
+- Não alterar `useAuthedBlobUrl(s)`.
 
-### Resumo dos arquivos
-- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` — renomear handler, adicionar `imprimirVisualizacao` e `limparSelecao`, novos botões, novo card "Visualização das OPs selecionadas", state `loteFalhas`.
+### Arquivos
+- `src/lib/producao/opImpressao.ts`
+- `src/components/producao/OpPrintSheet.tsx`
+- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+- `src/components/producao/op-print.css`
