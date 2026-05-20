@@ -1,67 +1,52 @@
-
 ## Objetivo
-Ajustar a tela `Impressão de Ordem de Produção` para nunca exibir OPs canceladas, adicionar filtro de Situação, mostrar a coluna Situação na grid e habilitar impressão em lote (todas as OPs de um Pedido ou Relatório).
+Ajustar a grid de OPs encontradas em `/producao/impressao-op` para usar os campos individuais retornados pela API (fallbacks oficiais), sem depender de `op.label`.
 
 ## Mudanças
 
 ### 1. Tipos (`src/lib/producao/opcoesImpressao.ts`)
-- `OpcaoOp`: adicionar `sit_orp?: string` e `situacao_descricao?: string`.
-- Nova interface `OpcaoSituacao { sit_orp: string; descricao: string; label?: string }`.
-- `OpcoesImpressao`: adicionar `situacoes?: OpcaoSituacao[]`.
-- `OpcoesImpressaoParams`: adicionar `sit_orp?: string`.
+Estender `OpcaoOp` com os campos alternativos retornados pelo backend:
+- `cod_pro?: string`
+- `des_pro?: string`
+- `qtde?: number | string`
+- `qtd_prevista?: number | string`
+- `un?: string`
+- `unidade_medida?: string`
+- `descricao?: string`
 
-### 2. Filtros (`src/lib/producao/opImpressao.ts`)
-- `ImpressaoOpFiltros`: adicionar `sit_orp?: string`.
+(Mantém os já existentes: `produto`, `descricao_produto`, `quantidade`, `unidade`, `situacao`, `sit_orp`, `situacao_descricao`, `num_ped`, `rel_prd`, `data_geracao`, `inicio_previsto`.)
 
-### 3. Hook de opções (`src/hooks/useOpcoesImpressaoOp.ts`)
-- Novo estado `situacoes` populado em `reloadBase` (filtrando `sit_orp !== 'C'`).
-- `fetchOpcoes` passa `sit_orp` na query quando informado.
-- Helper `dropCanceladas(arr)` que remove qualquer item com `sit_orp === 'C'`; aplicar em todos os setters de `ops` (`reloadBase`, `reloadByPedido`, `reloadByRelatorio`, `searchOps`).
-- `reloadByPedido` e `reloadByRelatorio` aceitam `sit_orp?` opcional.
-- Nova função `reloadBySituacao(cod_emp, sit_orp, { num_ped?, rel_prd? })` para uso quando o usuário muda apenas a Situação.
+### 2. Página (`src/pages/producao/ImpressaoOrdemProducaoPage.tsx`)
+Na renderização da grid (`<TableBody>`), substituir cada célula pelos mapeamentos:
 
-### 4. Página (`src/pages/producao/ImpressaoOrdemProducaoPage.tsx`)
-- Adicionar `sit_orp: ''` em `EMPTY` e no estado.
-- Novo Select `Situação` no grid de filtros (4º slot, junto com Empresa/Pedido/Relatório), opções vindas de `opcoes.situacoes`, sem `Cancelada`.
-- `onChangeSituacao(v)`: atualiza filtro e chama o endpoint correspondente:
-  - Se houver `num_ped`: `reloadByPedido(emp, num_ped, v)`
-  - Senão se houver `rel_prd`: `reloadByRelatorio(emp, rel_prd, v)`
-  - Senão: `reloadBySituacao(emp, v)`
-- `onChangePedido` / `onChangeRelatorio` repassam `sit_orp` atual.
-- `searchOpsFetcher` passa `sit_orp`.
-- Grid de OPs:
-  - Nova coluna **Situação** (`op.situacao_descricao ?? op.situacao ?? ''`).
-  - `opsFiltradas` adiciona `.filter(o => String(o.sit_orp ?? '').toUpperCase() !== 'C')` como salvaguarda.
-- Novo botão **Imprimir todas** ao lado da grid, visível apenas quando `opsFiltradas.length > 1` e houver `num_ped` ou `rel_prd`.
+| Coluna             | Expressão                                                        |
+|--------------------|------------------------------------------------------------------|
+| Origem             | `op.cod_ori ?? ''`                                               |
+| OP                 | `op.num_orp ?? ''`                                               |
+| Pedido             | `op.num_ped ?? ''`                                               |
+| Relatório Produção | `op.rel_prd ?? ''`                                               |
+| Produto            | `op.produto ?? op.cod_pro ?? ''`                                 |
+| Descrição          | `op.descricao_produto ?? op.descricao ?? op.des_pro ?? ''`       |
+| Qtde               | `op.quantidade ?? op.qtde ?? op.qtd_prevista ?? ''`              |
+| Un.                | `op.unidade ?? op.un ?? op.unidade_medida ?? ''`                 |
+| Situação           | `op.situacao_descricao ?? op.situacao ?? ''`                     |
+| Data Geração       | `op.data_geracao ?? ''`                                          |
+| Início Previsto    | `op.inicio_previsto ?? ''`                                       |
+| Ações              | botões Visualizar / Imprimir (inalterados)                       |
 
-### 5. Impressão em lote
-- Novo módulo `src/lib/producao/opImpressaoLote.ts` com função `fetchImpressaoLote({ cod_emp, num_ped?, rel_prd?, sit_orp?, listar_componentes, listar_desenho })` chamando `GET /api/producao/ordem-producao/impressao/lote`. Resposta: `{ quantidade_ops, ordens: OpImpressao[] }`.
-- Novo hook leve `useImpressaoOrdemProducaoLote` (loading/erro/dados).
-- Novo componente `src/components/producao/OpPrintBatch.tsx`:
-  - Recebe `ordens: OpImpressao[]`.
-  - Renderiza cada OP envolvida em `<div className="op-print-page">…OpPrintSheet…</div>`.
-- CSS em `src/components/producao/op-print.css`:
-  ```css
-  .op-print-page { page-break-after: always; break-after: page; }
-  .op-print-page:last-child { page-break-after: auto; break-after: auto; }
-  ```
-- Página: ao clicar **Imprimir todas**:
-  1. Chama `fetchImpressaoLote(...)` com `sit_orp` atual e `listar_componentes`/`listar_desenho` do form.
-  2. Salva resultado em estado `lote`.
-  3. Renderiza `<OpPrintBatch>` no lugar de `<OpPrintSheet>` (mantendo `no-print` em filtros/grid/header).
-  4. Após render, `setTimeout(window.print, 200)`.
-  5. Toast com `quantidade_ops` impressas.
+Filtro de segurança em `opsFiltradas` (já existe parcialmente): excluir `String(op.sit_orp ?? op.situacao ?? '').toUpperCase() === 'C'`.
 
-### 6. Saneamento extra (quietly)
-- A runtime error atual mostra `observacoes` chegando como objetos. Em `OpPrintSheet`, normalizar: `const obsList = observacoes.map(o => typeof o === 'string' ? o : (o?.observacao ?? ''))` antes de renderizar.
+Helper local `pick(...vals)` para evitar verbosidade nas células:
+```ts
+const pick = (...vals: any[]) => {
+  for (const v of vals) if (v !== undefined && v !== null && v !== '') return v;
+  return '';
+};
+```
 
-### 7. Documentação (`docs/backend-impressao-ordem-producao.md`)
-- Adicionar seção sobre `sit_orp` em `/opcoes`, `situacoes[]` na resposta e o endpoint `/impressao/lote` com payload de exemplo.
+### 3. Fora de escopo
+- Backend, hook `useOpcoesImpressaoOp`, autocomplete, impressão em lote, demais telas.
 
-## Fora de escopo
-- Backend, layout do `OpPrintSheet` em si, demais telas de produção.
-
-## Regras invioláveis mantidas
-- Nunca enviar `cod_ori=100`.
-- Nunca exibir OP com `sit_orp === 'C'` em selects, autocomplete ou grid.
-- Situação "Cancelada" não aparece no select de Situação.
+### 4. Regras invioláveis mantidas
+- Nunca usar `op.label` para popular células da grid.
+- Nunca exibir OP cancelada (`sit_orp` ou `situacao` = `'C'`).
+- Nunca exibir/enviar `cod_ori = 100`.
