@@ -26,6 +26,7 @@ export async function fetchImpressaoLote(params: ImpressaoOpLoteParams): Promise
     cod_emp: Number(params.cod_emp),
     listar_componentes: params.listar_componentes || 'S',
     listar_desenho: params.listar_desenho || 'N',
+    quebrar_por_operacao: params.quebrar_por_operacao === 'S' ? 'S' : 'N',
   };
   if (params.cod_ori && String(params.cod_ori) !== '100') q.cod_ori = params.cod_ori;
   if (params.num_ped) q.num_ped = params.num_ped;
