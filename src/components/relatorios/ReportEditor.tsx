@@ -226,6 +226,7 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
           <TabsTrigger value="colunas">Colunas</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
           <TabsTrigger value="preview">Pré-visualização</TabsTrigger>
+          {relatorio.id && <TabsTrigger value="historico">Histórico</TabsTrigger>}
         </TabsList>
         <div className="flex-1 overflow-auto pt-4">
           <TabsContent value="geral">
@@ -243,7 +244,13 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
             <ParametersEditor parametros={parametros} onChange={setParametros} />
           </TabsContent>
           <TabsContent value="colunas">
-            <ColumnsEditor colunas={colunas} onChange={setColunas} />
+            <ColumnsEditor
+              colunas={colunas}
+              onChange={setColunas}
+              onSave={handleSaveColumnsOnly}
+              onRestoreDefault={handleRestoreColumns}
+              canSave={!!relatorio.id}
+            />
           </TabsContent>
           <TabsContent value="layout">
             <LayoutEditor layout={layout} colunas={colunas} onChange={setLayout} />
@@ -252,9 +259,16 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
             <ReportPreview
               relatorio={relatorio}
               parametros={parametros}
+              colunasConfig={colunas}
               onColumnsDetected={handleColumnsFromPreview}
+              onExecucaoGravada={() => setHistoryRefresh((n) => n + 1)}
             />
           </TabsContent>
+          {relatorio.id && (
+            <TabsContent value="historico">
+              <ReportExecutionHistory relatorioId={relatorio.id} refreshKey={historyRefresh} />
+            </TabsContent>
+          )}
         </div>
       </Tabs>
     </div>
