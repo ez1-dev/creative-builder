@@ -48,6 +48,16 @@
 .op-sheet .op-kv > .k { font-weight: bold; }
 .op-sheet .op-kv > .v { word-break: break-word; }
 
+.op-sheet .op-kv-2col {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px 1fr;
+  column-gap: 6px;
+  row-gap: 2px;
+}
+.op-sheet .op-kv-2col > .k { font-weight: bold; }
+.op-sheet .op-kv-2col > .v { word-break: break-word; }
+.op-sheet .op-kv-2col > .full { grid-column: 1 / -1; }
+
 .op-sheet table {
   width: 100%;
   border-collapse: collapse;

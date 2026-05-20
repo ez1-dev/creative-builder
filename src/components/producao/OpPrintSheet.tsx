@@ -134,18 +134,38 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
                   <Barcode value={op.codigo_barras_operacao ?? `${op.cod_etg ?? ''}${op.seq_rot ?? ''}`} height={28} displayValue={false} />
                   <div className="op-barcode-caption">{op.codigo_barras_operacao ?? ''}</div>
                 </div>
-                <div className="op-kv" style={{ flex: 1 }}>
-                  <div className="k">Estágio:</div><div className="v">{op.cod_etg ?? '-'} {op.descricao_estagio ?? ''}</div>
-                  <div className="k">Seq.:</div><div className="v">{op.seq_rot ?? '-'}</div>
-                  <div className="k">Centro Rec.:</div><div className="v">{op.cod_cre ?? '-'} {op.descricao_centro_recurso ?? ''}</div>
-                  <div className="k">Operação:</div><div className="v">{op.cod_opr ?? '-'} {op.descricao_operacao ?? ''}</div>
-                  {op.fornecedor && (<><div className="k">Fornecedor:</div><div className="v">{op.fornecedor}</div></>)}
-                  {(op.servico || op.descricao_servico) && (<><div className="k">Serviço:</div><div className="v">{[op.servico, op.descricao_servico].filter(Boolean).join(' ')}</div></>)}
-                  <div className="k">Tmp Unit:</div><div className="v">{op.tmp_unit ?? '-'}</div>
-                  <div className="k">Tmp Total:</div><div className="v">{op.tmp_total ?? '-'}</div>
-                  <div className="k">U.M.:</div><div className="v">{op.unidade_medida ?? '-'}</div>
-                  {op.proxima_operacao && (
-                    <><div className="k">Próx. Oper.:</div><div className="v">{op.proxima_operacao}</div></>
+                <div className="op-kv-2col" style={{ flex: 1 }}>
+                  <div className="k">Estágio:</div>
+                  <div className="v">{[op.cod_etg, op.descricao_estagio].filter(Boolean).join(' ') || '—'}</div>
+                  <div className="k">Centro Rec.:</div>
+                  <div className="v">{[op.cod_cre, op.descricao_centro_recurso].filter(Boolean).join(' ') || '—'}</div>
+
+                  <div className="k">Seq.:</div>
+                  <div className="v">{op.seq_rot ?? '—'}</div>
+                  <div className="k">Operação:</div>
+                  <div className="v">{[op.cod_opr, op.descricao_operacao].filter(Boolean).join(' ') || '—'}</div>
+
+                  <div className="k">Tmp Unit:</div>
+                  <div className="v">{op.tmp_unit ?? '—'}</div>
+                  <div className="k">Tmp Total:</div>
+                  <div className="v">{op.tmp_total ?? '—'}</div>
+
+                  <div className="k">U.M.:</div>
+                  <div className="v">{op.unidade_medida ?? '—'}</div>
+                  <div className="k">Próx. Oper.:</div>
+                  <div className="v">{op.proxima_operacao ?? '—'}</div>
+
+                  {op.fornecedor && (
+                    <>
+                      <div className="k">Fornecedor:</div>
+                      <div className="v full" style={{ gridColumn: '2 / -1' }}>{op.fornecedor}</div>
+                    </>
+                  )}
+                  {(op.servico || op.descricao_servico) && (
+                    <>
+                      <div className="k">Serviço:</div>
+                      <div className="v full" style={{ gridColumn: '2 / -1' }}>{[op.servico, op.descricao_servico].filter(Boolean).join(' ')}</div>
+                    </>
                   )}
                 </div>
               </div>
