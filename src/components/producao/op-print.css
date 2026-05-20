@@ -146,6 +146,15 @@
 .op-sheet .col-w-narrow { width: 60px; }
 .op-sheet .col-w-medium { width: 100px; }
 
+.op-print-page {
+  page-break-after: always;
+  break-after: page;
+}
+.op-print-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
 @media print {
   body { background: #fff !important; }
   .no-print { display: none !important; }

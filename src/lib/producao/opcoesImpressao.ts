@@ -20,6 +20,12 @@ export interface OpcaoRelatorioProducao {
   label?: string;
 }
 
+export interface OpcaoSituacao {
+  sit_orp: string;
+  descricao: string;
+  label?: string;
+}
+
 export interface OpcaoOp {
   cod_emp?: string | number;
   cod_ori?: string;
@@ -31,6 +37,8 @@ export interface OpcaoOp {
   quantidade?: number | string;
   unidade?: string;
   situacao?: string;
+  sit_orp?: string;
+  situacao_descricao?: string;
   data_geracao?: string;
   inicio_previsto?: string;
   label?: string;
@@ -53,6 +61,7 @@ export interface OpcoesImpressao {
   origens?: OpcaoOrigem[];
   pedidos?: OpcaoPedido[];
   relatorios_producao?: OpcaoRelatorioProducao[];
+  situacoes?: OpcaoSituacao[];
   ordens_producao?: OpcaoOp[];
   estagios?: OpcaoEstagio[];
   centros_recurso?: OpcaoCentroRecurso[];
@@ -64,6 +73,7 @@ export interface OpcoesImpressaoParams {
   num_orp?: string | number;
   num_ped?: string;
   rel_prd?: string;
+  sit_orp?: string;
   cod_etg?: string;
   cod_cre?: string;
   q?: string;

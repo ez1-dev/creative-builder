@@ -12,9 +12,11 @@ import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
+import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao/opImpressaoLote';
 
 const DEFAULT_EMPRESA = '1';
 
@@ -24,6 +26,7 @@ const EMPTY: ImpressaoOpFiltros = {
   num_orp: '',
   num_ped: '',
   rel_prd: '',
+  sit_orp: '',
   listar_componentes: 'S',
   listar_desenho: 'N',
   cod_etg: '',
@@ -36,6 +39,8 @@ export default function ImpressaoOrdemProducaoPage() {
   const [opLabel, setOpLabel] = useState<string>('');
   const [preview, setPreview] = useState(false);
   const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
+  const [lote, setLote] = useState<ImpressaoOpLoteResponse | null>(null);
+  const [loteLoading, setLoteLoading] = useState(false);
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
@@ -60,6 +65,12 @@ export default function ImpressaoOrdemProducaoPage() {
     value: String(r.value ?? r.rel_prd ?? ''),
     label: r.label || String(r.rel_prd ?? ''),
   }));
+  const situacaoOpts: SelectOption[] = opcoes.situacoes
+    .filter((s: any) => String(s?.sit_orp ?? '').toUpperCase() !== 'C')
+    .map((s: any) => ({
+      value: String(s.sit_orp ?? s.value ?? ''),
+      label: s.label || `${s.sit_orp} - ${s.descricao ?? ''}`.trim(),
+    }));
   const estagioOpts: SelectOption[] = opcoes.estagios.map((e: any) => ({
     value: String(e.value ?? e.codigo ?? e.cod_etg ?? ''),
     label: e.label || `${e.codigo ?? e.cod_etg}${e.descricao ? ' - ' + e.descricao : ''}`,
@@ -72,6 +83,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const onChangeEmpresa = async (v: string) => {
     setFiltros({ ...EMPTY, cod_emp: v, listar_componentes: filtros.listar_componentes, listar_desenho: filtros.listar_desenho });
     setOpLabel('');
+    setLote(null);
     try { await opcoes.reloadBase(v || DEFAULT_EMPRESA); }
     catch (e: any) { toast.error(e?.message || 'Falha ao carregar opções'); }
   };
@@ -79,8 +91,9 @@ export default function ImpressaoOrdemProducaoPage() {
   const onChangePedido = async (v: string) => {
     setFiltros((f) => ({ ...f, num_ped: v, rel_prd: '', cod_ori: '', num_orp: '', cod_etg: '', cod_cre: '' }));
     setOpLabel('');
+    setLote(null);
     if (filtros.cod_emp && v) {
-      try { await opcoes.reloadByPedido(filtros.cod_emp, v); }
+      try { await opcoes.reloadByPedido(filtros.cod_emp, v, filtros.sit_orp || undefined); }
       catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do pedido'); }
     }
   };
@@ -88,9 +101,24 @@ export default function ImpressaoOrdemProducaoPage() {
   const onChangeRelatorio = async (v: string) => {
     setFiltros((f) => ({ ...f, rel_prd: v, num_ped: '', cod_ori: '', num_orp: '', cod_etg: '', cod_cre: '' }));
     setOpLabel('');
+    setLote(null);
     if (filtros.cod_emp && v) {
-      try { await opcoes.reloadByRelatorio(filtros.cod_emp, v); }
+      try { await opcoes.reloadByRelatorio(filtros.cod_emp, v, filtros.sit_orp || undefined); }
       catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do relatório'); }
+    }
+  };
+
+  const onChangeSituacao = async (v: string) => {
+    setFiltros((f) => ({ ...f, sit_orp: v }));
+    setLote(null);
+    if (!filtros.cod_emp) return;
+    try {
+      if (filtros.num_ped) await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, v || undefined);
+      else if (filtros.rel_prd) await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, v || undefined);
+      else if (v) await opcoes.reloadBySituacao(filtros.cod_emp, v);
+      else await opcoes.reloadBase(filtros.cod_emp);
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao carregar OPs');
     }
   };
 
@@ -107,6 +135,10 @@ export default function ImpressaoOrdemProducaoPage() {
     const rel_prd = op.rel_prd ? String(op.rel_prd) : (filtros.rel_prd || '');
     if (cod_ori === '100') {
       toast.error('Origem 100 não é permitida.');
+      return;
+    }
+    if (String(op.sit_orp ?? '').toUpperCase() === 'C') {
+      toast.error('OP cancelada não pode ser selecionada.');
       return;
     }
     setFiltros((f) => ({ ...f, cod_emp, cod_ori, num_orp, num_ped, rel_prd, cod_etg: '', cod_cre: '' }));
@@ -129,8 +161,9 @@ export default function ImpressaoOrdemProducaoPage() {
       cod_emp: filtros.cod_emp || undefined,
       num_ped: filtros.num_ped || undefined,
       rel_prd: filtros.rel_prd || undefined,
+      sit_orp: filtros.sit_orp || undefined,
     }),
-    [opcoes.searchOps, filtros.cod_emp, filtros.num_ped, filtros.rel_prd],
+    [opcoes.searchOps, filtros.cod_emp, filtros.num_ped, filtros.rel_prd, filtros.sit_orp],
   );
 
   const consultar = async (override?: Partial<ImpressaoOpFiltros>) => {
@@ -147,6 +180,7 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error('Empresa e Nº O.P. devem ser numéricos.');
       return;
     }
+    setLote(null);
     setLastConsulta({ ...eff });
     await fetchData(eff);
   };
@@ -156,6 +190,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setOpLabel('');
     setPreview(false);
     setLastConsulta(null);
+    setLote(null);
     reset();
     void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
@@ -177,7 +212,7 @@ export default function ImpressaoOrdemProducaoPage() {
     [filtros.num_ped, filtros.rel_prd, filtros.num_orp],
   );
   const opsFiltradas = useMemo(() => {
-    let list = opcoes.ops;
+    let list = opcoes.ops.filter((o) => String(o.sit_orp ?? '').toUpperCase() !== 'C');
     if (filtros.cod_ori) list = list.filter((o) => String(o.cod_ori ?? '') === filtros.cod_ori);
     return list;
   }, [opcoes.ops, filtros.cod_ori]);
@@ -200,6 +235,36 @@ export default function ImpressaoOrdemProducaoPage() {
       num_orp: String(op.num_orp ?? ''),
     });
     setTimeout(() => window.print(), 200);
+  };
+
+  const imprimirTodas = async () => {
+    if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd)) {
+      toast.info('Selecione um Pedido ou um Relatório de Produção.');
+      return;
+    }
+    setLoteLoading(true);
+    try {
+      const res = await fetchImpressaoLote({
+        cod_emp: filtros.cod_emp,
+        num_ped: filtros.num_ped || undefined,
+        rel_prd: filtros.rel_prd || undefined,
+        sit_orp: filtros.sit_orp || undefined,
+        listar_componentes: (filtros.listar_componentes as 'S' | 'N') || 'S',
+        listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
+      });
+      if (!res.ordens.length) {
+        toast.info('Nenhuma OP retornada para impressão.');
+        return;
+      }
+      setLote(res);
+      reset();
+      toast.success(`Imprimindo ${res.quantidade_ops} OP(s)...`);
+      setTimeout(() => window.print(), 300);
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao gerar impressão em lote.');
+    } finally {
+      setLoteLoading(false);
+    }
   };
 
   return (
@@ -245,11 +310,14 @@ export default function ImpressaoOrdemProducaoPage() {
               <Field label="Relatório de Produção">
                 <SelectBuscavel value={filtros.rel_prd || ''} onChange={onChangeRelatorio} options={relatorioOpts} placeholder="Relatório..." disabled={!filtros.cod_emp} />
               </Field>
-              <Field label="Origem">
-                <SelectBuscavel value={filtros.cod_ori || ''} onChange={(v) => set('cod_ori', v)} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
+              <Field label="Situação">
+                <SelectBuscavel value={filtros.sit_orp || ''} onChange={onChangeSituacao} options={situacaoOpts} placeholder="Situação..." disabled={!filtros.cod_emp} />
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <Field label="Origem">
+                <SelectBuscavel value={filtros.cod_ori || ''} onChange={(v) => set('cod_ori', v)} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
+              </Field>
               <Field label="Ordem de Produção">
                 <OpAutocomplete
                   value={filtros.num_orp || ''}
@@ -264,14 +332,14 @@ export default function ImpressaoOrdemProducaoPage() {
               <Field label="Centro de Recurso">
                 <SelectBuscavel value={filtros.cod_cre || ''} onChange={(v) => set('cod_cre', v)} options={creOpts} placeholder="Centro..." disabled={!filtros.num_orp} />
               </Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Listar Componentes">
-                  <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
-                </Field>
-                <Field label="Listar Desenho">
-                  <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
-                </Field>
-              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Field label="Listar Componentes">
+                <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
+              </Field>
+              <Field label="Listar Desenho">
+                <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
+              </Field>
             </div>
           </CardContent>
         </Card>
@@ -289,53 +357,64 @@ export default function ImpressaoOrdemProducaoPage() {
                 Nenhuma ordem de produção encontrada para os filtros selecionados.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Origem</TableHead>
-                      <TableHead>OP</TableHead>
-                      <TableHead>Pedido</TableHead>
-                      <TableHead>Rel. Produção</TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead className="text-right">Qtde</TableHead>
-                      <TableHead>Un.</TableHead>
-                      <TableHead>Situação</TableHead>
-                      <TableHead>Geração</TableHead>
-                      <TableHead>Início Prev.</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {opsFiltradas.map((op, idx) => (
-                      <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
-                        <TableCell>{op.cod_ori}</TableCell>
-                        <TableCell className="font-mono">{op.num_orp}</TableCell>
-                        <TableCell>{op.num_ped ?? ''}</TableCell>
-                        <TableCell>{op.rel_prd ?? ''}</TableCell>
-                        <TableCell>{op.produto ?? ''}</TableCell>
-                        <TableCell className="max-w-[280px] truncate">{op.descricao_produto ?? ''}</TableCell>
-                        <TableCell className="text-right">{op.quantidade ?? ''}</TableCell>
-                        <TableCell>{op.unidade ?? ''}</TableCell>
-                        <TableCell>{op.situacao ?? ''}</TableCell>
-                        <TableCell>{op.data_geracao ?? ''}</TableCell>
-                        <TableCell>{op.inicio_previsto ?? ''}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => handleRowVisualizar(op)} title="Visualizar">
-                              <Eye className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => handleRowImprimir(op)} title="Imprimir">
-                              <Printer className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
+              <>
+                {opsFiltradas.length > 1 && (
+                  <div className="flex items-center justify-between gap-2 border-b p-3">
+                    <span className="text-xs text-muted-foreground">{opsFiltradas.length} OPs encontradas</span>
+                    <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                      {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
+                      Imprimir todas
+                    </Button>
+                  </div>
+                )}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Origem</TableHead>
+                        <TableHead>OP</TableHead>
+                        <TableHead>Pedido</TableHead>
+                        <TableHead>Rel. Produção</TableHead>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead className="text-right">Qtde</TableHead>
+                        <TableHead>Un.</TableHead>
+                        <TableHead>Situação</TableHead>
+                        <TableHead>Geração</TableHead>
+                        <TableHead>Início Prev.</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {opsFiltradas.map((op, idx) => (
+                        <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
+                          <TableCell>{op.cod_ori}</TableCell>
+                          <TableCell className="font-mono">{op.num_orp}</TableCell>
+                          <TableCell>{op.num_ped ?? ''}</TableCell>
+                          <TableCell>{op.rel_prd ?? ''}</TableCell>
+                          <TableCell>{op.produto ?? ''}</TableCell>
+                          <TableCell className="max-w-[280px] truncate">{op.descricao_produto ?? ''}</TableCell>
+                          <TableCell className="text-right">{op.quantidade ?? ''}</TableCell>
+                          <TableCell>{op.unidade ?? ''}</TableCell>
+                          <TableCell>{op.situacao_descricao ?? op.situacao ?? ''}</TableCell>
+                          <TableCell>{op.data_geracao ?? ''}</TableCell>
+                          <TableCell>{op.inicio_previsto ?? ''}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => handleRowVisualizar(op)} title="Visualizar">
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleRowImprimir(op)} title="Imprimir">
+                                <Printer className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -369,7 +448,7 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
-      {!loading && !error && !data?.cabecalho && lastConsulta && (
+      {!loading && !error && !data?.cabecalho && !lote && lastConsulta && (
         <Card className="no-print">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
             Ordem de produção não encontrada para Empresa {lastConsulta.cod_emp} / Origem {lastConsulta.cod_ori} / OP {lastConsulta.num_orp}.
@@ -377,7 +456,7 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
-      {!loading && !error && !data?.cabecalho && !lastConsulta && !showGrid && (
+      {!loading && !error && !data?.cabecalho && !lote && !lastConsulta && !showGrid && (
         <Card className="no-print">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
             Selecione um Pedido, Relatório de Produção ou uma OP e clique em Consultar.
@@ -385,7 +464,11 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
-      {data?.cabecalho && (
+      {lote && lote.ordens.length > 0 && (
+        <OpPrintBatch ordens={lote.ordens} preview={preview} usuario={displayName ?? erpUser ?? null} />
+      )}
+
+      {!lote && data?.cabecalho && (
         <OpPrintSheet data={data} preview={preview} usuario={displayName ?? erpUser ?? null} />
       )}
     </div>

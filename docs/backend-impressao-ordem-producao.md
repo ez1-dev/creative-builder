@@ -120,3 +120,62 @@ GET /api/producao/ordem-producao/impressao
 - Layout de impressão: `src/components/producao/OpPrintSheet.tsx`
 
 A tela já trata loading, erro 404 (rota inexistente x OP inexistente) e estado vazio. Basta implementar o endpoint conforme este contrato para liberar o módulo.
+
+---
+
+## Atualizações (Maio/2026)
+
+### `/opcoes` — parâmetros e resposta adicionais
+
+Parâmetros aceitos adicionalmente:
+
+| Parâmetro  | Tipo    | Observação                                                            |
+|------------|---------|-----------------------------------------------------------------------|
+| `sit_orp`  | string  | Filtra OPs por situação (`A`, `L`, `F`, `E`). **Nunca** aceitar `C`. |
+
+A resposta deve incluir o catálogo de situações **sem** `C` (Cancelada):
+
+```json
+{
+  "situacoes": [
+    { "sit_orp": "A", "descricao": "Aberta" },
+    { "sit_orp": "L", "descricao": "Liberada" },
+    { "sit_orp": "F", "descricao": "Finalizada" },
+    { "sit_orp": "E", "descricao": "Encerrada" }
+  ]
+}
+```
+
+Cada item de `ordens_producao` deve trazer `sit_orp` e `situacao_descricao`. O backend deve manter `WHERE SitOrp <> 'C'` em todas as consultas que alimentam essa tela.
+
+### `/impressao/lote` — impressão em lote
+
+```
+GET /api/producao/ordem-producao/impressao/lote
+```
+
+Parâmetros:
+
+| Parâmetro            | Tipo    | Obrigatório | Observação                                       |
+|----------------------|---------|-------------|--------------------------------------------------|
+| `cod_emp`            | int     | sim         | Empresa                                          |
+| `num_ped`            | string  | um deles    | Imprime todas as OPs do pedido                   |
+| `rel_prd`            | string  | um deles    | Imprime todas as OPs do relatório de produção    |
+| `sit_orp`            | string  | não         | Restringe por situação (nunca `C`)              |
+| `listar_componentes` | `S`/`N` | não (def S) |                                                  |
+| `listar_desenho`     | `S`/`N` | não (def N) |                                                  |
+
+Resposta:
+
+```json
+{
+  "quantidade_ops": 3,
+  "ordens": [ { /* OpImpressao */ }, { /* OpImpressao */ }, { /* OpImpressao */ } ]
+}
+```
+
+Regras:
+
+- Excluir OPs com `sit_orp = 'C'`.
+- Excluir OPs com `cod_ori = 100`.
+- Cada item segue exatamente o contrato de `/impressao` (cabeçalho, componentes, operações, observações).
