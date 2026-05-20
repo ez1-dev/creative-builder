@@ -705,56 +705,69 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
+    <div className="mx-auto w-full max-w-[1400px] space-y-6">
       {/* Header — breadcrumb + command bar */}
       <div className="no-print flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
-          <nav className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <nav className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             <span>MCAP700.GER</span>
-            <span className="text-muted-foreground/40">/</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
             <span>Genius</span>
-            <span className="text-muted-foreground/40">/</span>
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
             <span className="text-primary">Produção</span>
           </nav>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Impressão de Ordem de Produção
           </h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Primary action */}
           <Button
             onClick={() => consultar()}
             disabled={loading}
-            className="rounded-lg px-5 py-2.5 font-semibold shadow-sm"
+            className="rounded-md px-5 py-2 font-semibold shadow-sm"
           >
             {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Search className="mr-1.5 h-4 w-4" />}
             Consultar
           </Button>
-          <div className="mx-1 hidden h-8 w-px bg-border md:block" />
-          <Button
-            variant="outline"
-            onClick={() => setPreview((p) => !p)}
-            disabled={!data?.cabecalho}
-            className="rounded-lg"
-          >
-            <Eye className="mr-1.5 h-4 w-4 text-muted-foreground" />
-            {preview ? 'Sair' : 'Visualizar'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={imprimir}
-            className="rounded-lg"
-            title="Para melhor resultado, use papel A4, escala 100% (padrão) e margens padrão/nenhuma."
-          >
-            <Printer className="mr-1.5 h-4 w-4 text-muted-foreground" /> Imprimir
-          </Button>
-          <Button variant="outline" onClick={gerarPdf} className="rounded-lg">
-            <FileDown className="mr-1.5 h-4 w-4 text-muted-foreground" /> Gerar PDF
-          </Button>
+
+          {/* Secondary action group */}
+          <div className="flex items-center gap-1 rounded-md border border-border bg-card p-1 shadow-sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPreview((p) => !p)}
+              disabled={!data?.cabecalho}
+              className="h-8 rounded px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Eye className="mr-1.5 h-4 w-4 opacity-60" />
+              {preview ? 'Sair' : 'Visualizar'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={imprimir}
+              className="h-8 rounded px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Para melhor resultado, use papel A4, escala 100% (padrão) e margens padrão/nenhuma."
+            >
+              <Printer className="mr-1.5 h-4 w-4 opacity-60" /> Imprimir
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={gerarPdf}
+              className="h-8 rounded px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <FileDown className="mr-1.5 h-4 w-4 opacity-60" /> Gerar PDF
+            </Button>
+          </div>
+
+          {/* Destructive action */}
           <Button
             variant="outline"
             onClick={limpar}
-            className="rounded-lg border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive"
+            className="rounded-md border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             <Eraser className="mr-1.5 h-4 w-4" /> Limpar
           </Button>
@@ -764,35 +777,37 @@ export default function ImpressaoOrdemProducaoPage() {
       {!preview && (
         <Card className="no-print overflow-hidden rounded-xl border-border shadow-sm">
           <CardContent className="p-0">
-            <div className="flex flex-wrap divide-y divide-border/60 lg:flex-nowrap lg:divide-x lg:divide-y-0">
+            <div className="grid grid-cols-1 divide-y divide-border/60 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
               {/* Grupo 1 — Origem e Destino */}
-              <div className="min-w-[300px] flex-1 space-y-4 p-6">
-                <div className="mb-5 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              <div className="flex flex-col gap-5 p-6">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Origem e Destino
-                  </span>
+                  </h3>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4">
                   <Field label="Empresa">
                     <SelectBuscavel value={filtros.cod_emp || ''} onChange={onChangeEmpresa} options={empresaOpts} placeholder="Empresa..." />
                   </Field>
-                  <Field label="Pedido">
-                    <SelectBuscavel value={filtros.num_ped || ''} onChange={onChangePedido} options={pedidoOpts} placeholder="Pedido..." disabled={!filtros.cod_emp} />
-                  </Field>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Pedido">
+                      <SelectBuscavel value={filtros.num_ped || ''} onChange={onChangePedido} options={pedidoOpts} placeholder="Pedido..." disabled={!filtros.cod_emp} />
+                    </Field>
+                    <Field label="Relatório de Produção">
+                      <SelectBuscavel value={filtros.rel_prd || ''} onChange={onChangeRelatorio} options={relatorioOpts} placeholder="Relatório..." disabled={!filtros.cod_emp} />
+                    </Field>
+                  </div>
                 </div>
-                <Field label="Relatório de Produção">
-                  <SelectBuscavel value={filtros.rel_prd || ''} onChange={onChangeRelatorio} options={relatorioOpts} placeholder="Relatório..." disabled={!filtros.cod_emp} />
-                </Field>
               </div>
 
               {/* Grupo 2 — Contexto da Produção */}
-              <div className="min-w-[300px] flex-1 space-y-4 p-6">
-                <div className="mb-5 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              <div className="flex flex-col gap-5 p-6">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Contexto da Produção
-                  </span>
+                  </h3>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Origem">
@@ -816,59 +831,66 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
 
               {/* Grupo 3 — Refinamento */}
-              <div className="min-w-[260px] flex-1 space-y-4 p-6">
-                <div className="mb-5 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              <div className="flex flex-col gap-5 p-6">
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Refinamento
-                  </span>
+                  </h3>
                 </div>
-                <Field label="Centro de Recurso">
-                  <SelectBuscavel value={filtros.cod_cre || ''} onChange={onChangeCentroRecurso} options={creOpts} placeholder="Centro..." disabled={!filtros.cod_emp} />
-                </Field>
-                <Field label="Componentes">
-                  <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
-                </Field>
+                <div className="grid gap-4">
+                  <Field label="Centro de Recurso">
+                    <SelectBuscavel value={filtros.cod_cre || ''} onChange={onChangeCentroRecurso} options={creOpts} placeholder="Centro..." disabled={!filtros.cod_emp} />
+                  </Field>
+                  <Field label="Componentes">
+                    <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
+                  </Field>
 
-                <div className="flex flex-col gap-2">
-                  <label className="flex w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground/80">
-                    <Checkbox
-                      checked={filtros.incluir_desenhos === 'S'}
-                      onCheckedChange={(c) => {
-                        const on = c === true;
-                        setFiltros((f) => ({
-                          ...f,
-                          incluir_desenhos: on ? 'S' : 'N',
-                          listar_desenho: on ? 'S' : 'N',
-                        }));
-                      }}
-                    />
-                    <span className="truncate">Imprimir desenhos da OP</span>
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="w-full text-xs"
-                    onClick={rodarDiagnosticoDesenhos}
-                    title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
-                  >
-                    Testar diagnóstico
-                  </Button>
+                  <div className="flex flex-col gap-3 pt-1">
+                    <label className="flex w-full cursor-pointer items-center gap-3 text-sm text-foreground/80">
+                      <Checkbox
+                        checked={filtros.incluir_desenhos === 'S'}
+                        onCheckedChange={(c) => {
+                          const on = c === true;
+                          setFiltros((f) => ({
+                            ...f,
+                            incluir_desenhos: on ? 'S' : 'N',
+                            listar_desenho: on ? 'S' : 'N',
+                          }));
+                        }}
+                      />
+                      <span className="truncate">Imprimir desenhos da OP</span>
+                    </label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 w-full rounded border-primary/30 bg-primary/5 text-xs font-bold uppercase tracking-tight text-primary hover:bg-primary/10 hover:text-primary"
+                      onClick={rodarDiagnosticoDesenhos}
+                      title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
+                    >
+                      Testar diagnóstico
+                    </Button>
+                  </div>
                 </div>
-
-                <label className="mt-1 flex cursor-pointer items-center gap-3 border-t border-border/60 pt-3 text-xs font-medium text-foreground/80">
-                  <Checkbox
-                    checked={filtros.quebrar_por_operacao === 'S'}
-                    onCheckedChange={(c) => set('quebrar_por_operacao', c === true ? 'S' : 'N')}
-                  />
-                  <span>Quebrar uma página por operação / centro de recurso</span>
-                </label>
               </div>
+            </div>
+
+            {/* Card footer — opção global */}
+            <div className="border-t border-border/60 bg-muted/30 px-6 py-4">
+              <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-foreground/80">
+                <Checkbox
+                  checked={filtros.quebrar_por_operacao === 'S'}
+                  onCheckedChange={(c) => set('quebrar_por_operacao', c === true ? 'S' : 'N')}
+                />
+                <span>Quebrar uma página por operação / centro de recurso</span>
+              </label>
             </div>
           </CardContent>
         </Card>
       )}
+
+
 
 
       {showGrid && !preview && (
