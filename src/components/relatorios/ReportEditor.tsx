@@ -68,6 +68,8 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
   const [parametros, setParametros] = useState<ParamDraft[]>([]);
   const [colunas, setColunas] = useState<ColDraft[]>([]);
   const [layout, setLayout] = useState<RelatorioLayout>(emptyLayout(''));
+  const [lastPreviewCols, setLastPreviewCols] = useState<{ cols: string[]; sample?: Record<string, unknown> } | null>(null);
+  const [historyRefresh, setHistoryRefresh] = useState(0);
 
   useEffect(() => {
     if (!id) return;
