@@ -10,6 +10,9 @@ export const relatorioFormSchema = z.object({
   permite_excel: z.boolean(),
   permite_pdf: z.boolean(),
   permite_csv: z.boolean(),
+  tipo_fonte: z.enum(['sql', 'api_rest']),
+  endpoint_url: z.string().trim().max(300).optional().nullable(),
+  url_destino: z.string().trim().max(300).optional().nullable(),
 });
 
 export type RelatorioFormValues = z.infer<typeof relatorioFormSchema>;
