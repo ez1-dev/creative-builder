@@ -1,5 +1,6 @@
 import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
+import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
 import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from '@/lib/producao/opImpressao';
 import './op-print.css';
 
@@ -9,6 +10,8 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean;
+  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai. Se omitido, cada DrawingPage faz seu próprio fetch. */
+  blobStates?: BlobStateMap;
 }
 
 function fmtNow() {
