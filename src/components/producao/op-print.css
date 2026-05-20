@@ -100,17 +100,59 @@
   align-items: flex-start;
 }
 
-.op-sheet .op-rev-grid {
+.op-sheet .op-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+
+.op-sheet .op-header-main {
   display: grid;
-  grid-template-columns: 50px 1fr;
+  grid-template-columns: 180px 1fr 140px;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.op-sheet .op-barcode-box {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.op-sheet .op-header-data {
+  grid-template-columns: 70px 1fr 70px 1fr;
+}
+
+.op-sheet .op-rev-stack {
+  display: flex;
+  flex-direction: column;
   border: 1px solid #000;
 }
-.op-sheet .op-rev-grid > div {
-  border: 1px solid #000;
-  padding: 3px 4px;
+.op-sheet .op-rev-cell {
+  display: flex;
+  flex-direction: column;
   text-align: center;
+  padding: 3px 4px;
+  flex: 1;
+  justify-content: center;
 }
-.op-sheet .op-rev-grid .lbl { font-weight: bold; }
+.op-sheet .op-rev-cell + .op-rev-cell {
+  border-top: 1px solid #000;
+}
+.op-sheet .op-rev-cell .lbl {
+  font-weight: bold;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.op-sheet .op-rev-cell .val {
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 2px;
+}
 
 .op-sheet .op-footer {
   margin-top: 8px;
