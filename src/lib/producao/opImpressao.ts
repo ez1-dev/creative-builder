@@ -80,4 +80,5 @@ export interface ImpressaoOpFiltros {
   cod_cre?: string;
   incluir_desenhos?: 'S' | 'N' | '';
   pasta_desenhos?: string;
+  quebrar_por_operacao?: 'S' | 'N' | '';
 }
