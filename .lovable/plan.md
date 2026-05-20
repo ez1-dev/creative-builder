@@ -1,41 +1,51 @@
 ## Objetivo
 
-Tornar **Centro de Recurso** (`cod_cre`) um filtro de refinamento livre na tela `/producao/impressao-op` — selecionável a qualquer momento (sem exigir OP), recarregando a grid e respeitado por "Imprimir todas".
+Permitir que o usuário **selecione manualmente quais OPs imprimir** na grid de Impressão de Ordem de Produção, em vez de imprimir apenas "uma" ou "todas".
+
+## Comportamento
+
+- Cada linha da grid ganha um **checkbox** à esquerda.
+- Cabeçalho da grid ganha um checkbox "selecionar todas / nenhuma" (aplicado às OPs visíveis após filtros).
+- Barra superior da grid passa a mostrar: `X de Y OPs selecionadas` + botões:
+  - **Imprimir selecionadas** (habilitado quando ≥ 1 selecionada)
+  - **Imprimir todas** (comportamento atual, mantido)
+- Ao clicar em **Imprimir selecionadas**:
+  - Buscar cada OP selecionada via endpoint atual `/api/producao/ordem-producao/impressao` (com `cod_emp`, `cod_ori`, `num_orp` e os flags `listar_componentes` / `listar_desenho` correntes).
+  - Agregar resultados em `ImpressaoOpLoteResponse` (`quantidade_ops` + `ordens[]`).
+  - Setar `lote` no estado e disparar `window.print()` — reusa o componente `OpPrintBatch` já existente.
+- Mudança de filtro (origem, situação, pedido, relatório, centro de recurso, estágio, empresa) e `limpar` zeram a seleção.
+- OPs com `sit_orp = 'C'` continuam excluídas (já filtradas em `opsFiltradas`).
 
 ## Arquivos a alterar
 
-### `src/hooks/useOpcoesImpressaoOp.ts`
-- Estender `OpcoesImpressaoParams` (já aceita `cod_cre`/`cod_etg`) — sem mudança de tipos.
-- Novo `reloadByCentroRecurso(cod_emp, cod_cre, ctx?)` onde `ctx` aceita `cod_ori`, `num_ped`, `rel_prd`, `sit_orp`, `cod_etg`, `q`. Chama `/opcoes` com esses campos + `limite_ops=200`. Atualiza apenas `ops` (não mexer em estágios/centros para não esvaziar o select). Mantém saneamento (`sanitizeOps`, sem `cod_ori=100`, sem `sit_orp='C'`).
-- Estender `SearchOpsContext` com `cod_cre` e `cod_etg`; `searchOps` repassa ambos.
-- Estender `reloadByOrigem` / `reloadByPedido` / `reloadByRelatorio` / `reloadBySituacao` para aceitar `cod_cre` e `cod_etg` no `ctx` e repassar à API (mantendo assinatura compatível via parâmetro opcional).
-
 ### `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
-- Novo handler `onChangeCentroRecurso(v)`:
-  - `setFiltros({ ...f, cod_cre: v, num_orp: '' })` (libera OP escolhida; mantém estágio).
-  - Não selecionar automaticamente OP.
-  - Se vazio → re-disparar a carga conforme o filtro principal ativo (origem/pedido/relatório/situação) **sem** `cod_cre`.
-  - Se preenchido → chamar `reloadByCentroRecurso(cod_emp, v, { cod_ori, num_ped, rel_prd, sit_orp, cod_etg })`.
-- Atualizar `onChangeEstagio` para não exigir `num_orp`: quando há `cod_cre` ativo, recarregar grid com `cod_etg + cod_cre` (sem alterar lista de centros). Quando há OP escolhida, manter comportamento atual (`reloadCres`).
-- Atualizar `onChangeOrigem` / `onChangePedido` / `onChangeRelatorio` / `onChangeSituacao` para repassar `cod_cre` e `cod_etg` correntes no contexto da chamada.
-- Atualizar `searchOpsFetcher` para incluir `cod_cre` e `cod_etg`.
-- Expandir `showGrid` para também aparecer com `cod_cre` (ou `cod_etg`) sozinho: `(num_ped || rel_prd || cod_ori || cod_cre || cod_etg) && !num_orp`.
-- Remover `disabled={!filtros.num_orp}` dos selects Estágio e Centro de Recurso — passar a desabilitar só quando `!filtros.cod_emp`.
-- `imprimirTodas`: permitir disparo quando houver pelo menos um entre `cod_ori`, `num_ped`, `rel_prd`, `cod_cre`. Encaminhar `cod_cre` (e `cod_etg`) ao `fetchImpressaoLote`.
+- Novo estado `selectedKeys: Set<string>` (chave = `${cod_emp}-${cod_ori}-${num_orp}`).
+- Helper `keyOf(op)` reutilizado entre render e ações.
+- Resetar seleção em: `onChangeEmpresa`, `onChangePedido`, `onChangeRelatorio`, `onChangeOrigem`, `onChangeSituacao`, `onChangeCentroRecurso`, `onChangeEstagio`, `onSelectOp` (quando vira modo OP única), `limpar`.
+- Cabeçalho da grid: nova `<TableHead>` com checkbox master (estado indeterminado quando seleção parcial).
+- Cada `<TableRow>`: nova `<TableCell>` com checkbox controlado por `selectedKeys`.
+- Barra acima da tabela:
+  - Texto "X de Y selecionadas" (quando `selectedKeys.size > 0`).
+  - Botão "Imprimir selecionadas" → nova função `imprimirSelecionadas()`.
+  - Manter botão "Imprimir todas".
+- Nova função `imprimirSelecionadas()`:
+  - Monta lista de OPs a partir de `opsFiltradas.filter(o => selectedKeys.has(keyOf(o)))`.
+  - Para cada OP, chama `api.get<OpImpressao>('/api/producao/ordem-producao/impressao', {...})` em paralelo (`Promise.all`) com limite de concorrência simples (ex.: 8) para não estourar o backend.
+  - Constrói `{ quantidade_ops, ordens }` e seta em `lote`.
+  - Tratamento de erro: se alguma falhar, `toast.error` com contagem de falhas e segue imprimindo as que vieram.
+  - `setLoteLoading(true/false)` reaproveitado.
 
-### `src/lib/producao/opImpressaoLote.ts`
-- Adicionar `cod_cre?: string` e `cod_etg?: string` em `ImpressaoOpLoteParams` e enviar no query string.
-
-### `docs/backend-impressao-ordem-producao.md`
-- Em `/opcoes`: documentar `cod_cre` (e `cod_etg`) como filtros de refinamento combináveis com qualquer outro filtro principal. Exemplos espelhando a mensagem do usuário.
-- Em `/impressao/lote`: adicionar `cod_cre` e `cod_etg` à tabela de parâmetros (opcionais, combináveis).
+### Componentes de UI
+- Usar `Checkbox` de `@/components/ui/checkbox` (shadcn já presente).
+- Sem novas dependências, sem alteração de design system.
 
 ## Regras preservadas
-- `cod_ori = 100` continua bloqueada.
-- OPs `sit_orp = 'C'` continuam excluídas.
-- Nenhuma OP é selecionada automaticamente; usuário escolhe na grid.
-- Colunas e mapeamentos da grid permanecem inalterados.
+- `cod_ori = 100` bloqueada.
+- `sit_orp = 'C'` excluída.
+- Layout do `Card` de filtros e do `OpPrintBatch` permanece igual.
+- Nenhuma mudança em backend / hooks / lib de impressão em lote.
 
 ## Fora de escopo
-- Layout/visual da tela.
-- Implementação no backend FastAPI (apenas documentação).
+- Persistir seleção entre navegações.
+- Alterar `fetchImpressaoLote` ou o endpoint `/impressao/lote`.
+- Mudanças visuais nos filtros ou no print sheet.

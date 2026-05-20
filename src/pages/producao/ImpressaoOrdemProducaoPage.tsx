@@ -17,6 +17,12 @@ import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectB
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao/opImpressaoLote';
+import { Checkbox } from '@/components/ui/checkbox';
+import { api } from '@/lib/api';
+import type { OpImpressao } from '@/lib/producao/opImpressao';
+
+const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
+  `${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}`;
 
 const DEFAULT_EMPRESA = '1';
 
@@ -41,10 +47,16 @@ export default function ImpressaoOrdemProducaoPage() {
   const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
   const [lote, setLote] = useState<ImpressaoOpLoteResponse | null>(null);
   const [loteLoading, setLoteLoading] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
   useEffect(() => { void opcoes.reloadBase(DEFAULT_EMPRESA); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
+  // Limpa seleção sempre que filtros principais/refinamento mudam
+  useEffect(() => {
+    setSelectedKeys(new Set());
+  }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp]);
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
@@ -401,6 +413,68 @@ export default function ImpressaoOrdemProducaoPage() {
     }
   };
 
+  const imprimirSelecionadas = async () => {
+    const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)));
+    if (!alvos.length) {
+      toast.info('Selecione ao menos uma OP.');
+      return;
+    }
+    setLoteLoading(true);
+    try {
+      const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
+      const listar_desenho = (filtros.listar_desenho as 'S' | 'N') || 'N';
+      const ordens: OpImpressao[] = [];
+      let falhas = 0;
+      const concurrency = 6;
+      for (let i = 0; i < alvos.length; i += concurrency) {
+        const slice = alvos.slice(i, i + concurrency);
+        const results = await Promise.all(
+          slice.map(async (op) => {
+            try {
+              const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', {
+                cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
+                cod_ori: String(op.cod_ori ?? ''),
+                num_orp: Number(op.num_orp ?? 0),
+                listar_componentes,
+                listar_desenho,
+              });
+              return res ?? null;
+            } catch {
+              falhas += 1;
+              return null;
+            }
+          }),
+        );
+        for (const r of results) if (r) ordens.push(r);
+      }
+      if (!ordens.length) {
+        toast.error('Nenhuma OP pôde ser carregada para impressão.');
+        return;
+      }
+      setLote({ quantidade_ops: ordens.length, ordens });
+      reset();
+      if (falhas > 0) toast.warning(`${falhas} OP(s) falharam ao carregar. Imprimindo ${ordens.length}.`);
+      else toast.success(`Imprimindo ${ordens.length} OP(s)...`);
+      setTimeout(() => window.print(), 300);
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao imprimir selecionadas.');
+    } finally {
+      setLoteLoading(false);
+    }
+  };
+
+  const toggleOne = (key: string, checked: boolean) => {
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(key); else next.delete(key);
+      return next;
+    });
+  };
+  const toggleAll = (checked: boolean) => {
+    if (!checked) { setSelectedKeys(new Set()); return; }
+    setSelectedKeys(new Set(opsFiltradas.map(opKey)));
+  };
+
   return (
     <div className="space-y-4">
       {/* Header — breadcrumb + command bar */}
@@ -537,19 +611,46 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
             ) : (
               <>
-                {opsFiltradas.length > 1 && (
-                  <div className="flex items-center justify-between gap-2 border-b p-3">
-                    <span className="text-xs text-muted-foreground">{opsFiltradas.length} OPs encontradas</span>
-                    <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+                  <span className="text-xs text-muted-foreground">
+                    {opsFiltradas.length} OP(s) encontradas
+                    {selectedKeys.size > 0 && ` • ${selectedKeys.size} selecionada(s)`}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={imprimirSelecionadas}
+                      disabled={loteLoading || selectedKeys.size === 0}
+                    >
                       {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
-                      Imprimir todas
+                      Imprimir selecionadas
                     </Button>
+                    {opsFiltradas.length > 1 && (
+                      <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                        {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
+                        Imprimir todas
+                      </Button>
+                    )}
                   </div>
-                )}
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={
+                              opsFiltradas.length > 0 && selectedKeys.size === opsFiltradas.length
+                                ? true
+                                : selectedKeys.size > 0
+                                  ? 'indeterminate'
+                                  : false
+                            }
+                            onCheckedChange={(c) => toggleAll(c === true)}
+                            aria-label="Selecionar todas"
+                          />
+                        </TableHead>
                         <TableHead>Origem</TableHead>
                         <TableHead>OP</TableHead>
                         <TableHead>Pedido</TableHead>
@@ -565,8 +666,18 @@ export default function ImpressaoOrdemProducaoPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {opsFiltradas.map((op, idx) => (
-                        <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
+                      {opsFiltradas.map((op, idx) => {
+                        const k = opKey(op);
+                        const checked = selectedKeys.has(k);
+                        return (
+                        <TableRow key={`${k}-${idx}`} data-state={checked ? 'selected' : undefined}>
+                          <TableCell>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(c) => toggleOne(k, c === true)}
+                              aria-label={`Selecionar OP ${op.num_orp ?? ''}`}
+                            />
+                          </TableCell>
                           <TableCell>{op.cod_ori ?? ''}</TableCell>
                           <TableCell className="font-mono">{op.num_orp ?? ''}</TableCell>
                           <TableCell>{op.num_ped ?? ''}</TableCell>
@@ -589,7 +700,8 @@ export default function ImpressaoOrdemProducaoPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
