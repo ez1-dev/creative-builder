@@ -686,22 +686,35 @@ export default function ImpressaoOrdemProducaoPage() {
                   </Field>
                   <div className="flex flex-col gap-1">
                     <Label className="text-xs">Incluir desenhos</Label>
-                    <label className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
-                      <Checkbox
-                        checked={filtros.incluir_desenhos === 'S'}
-                        onCheckedChange={(c) => {
-                          const on = c === true;
-                          setFiltros((f) => ({
-                            ...f,
-                            incluir_desenhos: on ? 'S' : 'N',
-                            listar_desenho: on ? 'S' : 'N',
-                          }));
-                        }}
-                      />
-                      <span>Imprimir desenhos da OP</span>
-                    </label>
+                    <div className="flex items-center gap-2">
+                      <label className="flex h-8 flex-1 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+                        <Checkbox
+                          checked={filtros.incluir_desenhos === 'S'}
+                          onCheckedChange={(c) => {
+                            const on = c === true;
+                            setFiltros((f) => ({
+                              ...f,
+                              incluir_desenhos: on ? 'S' : 'N',
+                              listar_desenho: on ? 'S' : 'N',
+                            }));
+                          }}
+                        />
+                        <span>Imprimir desenhos da OP</span>
+                      </label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs"
+                        onClick={rodarDiagnosticoDesenhos}
+                        title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
+                      >
+                        Testar diagnóstico
+                      </Button>
+                    </div>
                   </div>
                 </div>
+
 
 
 
