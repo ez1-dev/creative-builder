@@ -322,10 +322,13 @@ export default function ImpressaoOrdemProducaoPage() {
     setTimeout(() => window.print(), 200);
   };
 
-  // Lista de OPs (grid) — quando filtra por Pedido, Relatório OU Origem e não há OP escolhida
+  // Lista de OPs (grid) — quando há algum filtro principal ou refinamento e não há OP escolhida
   const showGrid = useMemo(
-    () => Boolean((filtros.num_ped || filtros.rel_prd || filtros.cod_ori) && !filtros.num_orp),
-    [filtros.num_ped, filtros.rel_prd, filtros.cod_ori, filtros.num_orp],
+    () => Boolean(
+      (filtros.num_ped || filtros.rel_prd || filtros.cod_ori || filtros.cod_cre || filtros.cod_etg)
+      && !filtros.num_orp,
+    ),
+    [filtros.num_ped, filtros.rel_prd, filtros.cod_ori, filtros.cod_cre, filtros.cod_etg, filtros.num_orp],
   );
 
   const opsFiltradas = useMemo(() => {
@@ -335,6 +338,7 @@ export default function ImpressaoOrdemProducaoPage() {
     if (filtros.cod_ori) list = list.filter((o) => String(o.cod_ori ?? '') === filtros.cod_ori);
     return list;
   }, [opcoes.ops, filtros.cod_ori]);
+
 
   const pick = (...vals: any[]) => {
     for (const v of vals) if (v !== undefined && v !== null && v !== '') return v;
