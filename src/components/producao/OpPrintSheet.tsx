@@ -277,7 +277,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         key={`${keyPrefix}-${i}`}
         drawing={d}
         index={i}
-        precomputed={blobStates ? blobStates[d.url] : undefined}
+        precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
       />
     ));
 
