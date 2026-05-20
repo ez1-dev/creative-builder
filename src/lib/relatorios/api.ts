@@ -230,16 +230,64 @@ async function postFastApi<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function validarSql(sql: string) {
+async function putFastApi<T>(path: string, body: unknown): Promise<T> {
+  const token = localStorage.getItem('erp_token');
+  const res = await fetch(`${getApiUrl()}${path}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`FastAPI ${res.status}: ${txt}`);
+  }
+  return (await res.json()) as T;
+}
+
+const SQL_VAZIO_MSG = 'Informe o SQL do relatório antes de continuar.';
+
+export async function validarSql(sql_base: string, parametros: Record<string, unknown> = {}) {
+  if (!sql_base?.trim()) throw new Error(SQL_VAZIO_MSG);
   return postFastApi<{ valido: boolean; erro?: string; parametros?: string[]; colunas?: { nome: string; tipo: string }[] }>(
     '/api/relatorios/validar-sql',
-    { sql },
+    { sql_base, parametros },
   );
 }
 
-export async function previewSql(sql: string, parametros: Record<string, unknown>): Promise<PreviewResult> {
-  return postFastApi<PreviewResult>('/api/relatorios/preview', { sql, parametros, limite: 100 });
+export async function previewSql(sql_base: string, parametros: Record<string, unknown>): Promise<PreviewResult> {
+  if (!sql_base?.trim()) throw new Error(SQL_VAZIO_MSG);
+  return postFastApi<PreviewResult>('/api/relatorios/preview', { sql_base, parametros, limite: 100 });
 }
+
+function buildFastApiPayload(r: Relatorio) {
+  return {
+    nome: r.nome,
+    descricao: r.descricao ?? null,
+    modulo: r.modulo ?? null,
+    categoria: r.categoria ?? null,
+    fonte_dados: r.fonte_dados ?? 'ERP_SENIOR',
+    sql_base: r.sql_query ?? '',
+    parametros_config: null as unknown,
+    colunas_config: null as unknown,
+    layout_config: null as unknown,
+    status: (r.status ?? 'rascunho').toUpperCase(),
+  };
+}
+
+export async function createRelatorioFastApi(payload: ReturnType<typeof buildFastApiPayload>) {
+  if (!payload.sql_base?.trim()) throw new Error(SQL_VAZIO_MSG);
+  return postFastApi('/api/relatorios', payload);
+}
+
+export async function updateRelatorioFastApi(id: string, payload: ReturnType<typeof buildFastApiPayload>) {
+  if (!payload.sql_base?.trim()) throw new Error(SQL_VAZIO_MSG);
+  return putFastApi(`/api/relatorios/${id}`, payload);
+}
+
 
 export async function executarRelatorio(id: string, parametros: Record<string, unknown>): Promise<PreviewResult> {
   return postFastApi<PreviewResult>(`/api/relatorios/${id}/executar`, { parametros });
