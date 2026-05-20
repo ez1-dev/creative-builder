@@ -351,14 +351,6 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error('Empresa e Nº O.P. devem ser numéricos.');
       return;
     }
-    if (eff.incluir_desenhos === 'S') {
-      const fmt = buildFormatosString(formatosDesenho);
-      if (!fmt) {
-        toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
-        return;
-      }
-      eff.formatos_desenho = fmt;
-    }
     setLote(null);
     setLastConsulta({ ...eff });
     await fetchData(eff);
@@ -366,7 +358,6 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const limpar = () => {
     setFiltros({ ...EMPTY });
-    setFormatosDesenho({ ...DEFAULT_FORMATOS });
     setOpLabel('');
     setPreview(false);
     setLastConsulta(null);
@@ -375,18 +366,19 @@ export default function ImpressaoOrdemProducaoPage() {
     void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
 
-
-
-  const imprimir = () => {
+  const imprimir = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de imprimir.'); return; }
+    await aguardarDesenhosProntos();
     window.print();
   };
 
-  const gerarPdf = () => {
+  const gerarPdf = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
     toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
-    setTimeout(() => window.print(), 200);
+    await aguardarDesenhosProntos();
+    window.print();
   };
+
 
   // Lista de OPs (grid) — quando há algum filtro principal ou refinamento e não há OP escolhida
   const showGrid = useMemo(
