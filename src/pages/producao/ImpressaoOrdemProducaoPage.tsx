@@ -1107,9 +1107,14 @@ export default function ImpressaoOrdemProducaoPage() {
                   {falhasLote.length > 0 ? ` • ${falhasLote.length} falharam` : ''}
                 </p>
               </div>
-              <Button size="sm" onClick={imprimirVisualizacao}>
-                <Printer className="mr-1 h-3 w-3" /> Imprimir visualização
-              </Button>
+              <div className="flex flex-col items-end gap-1">
+                <Button size="sm" onClick={imprimirVisualizacao}>
+                  <Printer className="mr-1 h-3 w-3" /> Imprimir visualização
+                </Button>
+                <p className="text-[10px] text-muted-foreground">
+                  Use A4, escala 100% e margens padrão/nenhuma.
+                </p>
+              </div>
             </div>
             {falhasLote.length > 0 && (
               <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
