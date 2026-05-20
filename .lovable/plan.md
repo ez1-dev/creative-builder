@@ -1,30 +1,46 @@
-## Problema
+## Melhorias no Cabeçalho da Impressão de OP
 
-No bloco **Operações** da impressão, os rótulos e valores estão desalinhados (ex.: "0" aparece solto abaixo de "Operação", "60 / 60 / PC" caem na coluna de rótulos). Isso acontece porque o grid `op-kv` é de 2 colunas (rótulo + valor) e itens condicionais (`fornecedor`, `servico`, `proxima_operacao`) deixam células faltando, quebrando o fluxo do grid.
+Problemas identificados no print atual:
+1. Barcode da Origem/O.P. está pequeno e a legenda fica solta abaixo, desalinhada do box.
+2. Tabela REV/Agrupamento mostra "REV" duplicado (cabeçalho + valor) porque o campo `revisao` está vindo como "REV". Layout também fica desproporcional ao lado do box principal.
+3. Box de dados (Origem, O.P., Qtde., etc.) tem colunas largas demais — sobra muito espaço entre label e valor.
+4. "Página: 1/1" fica isolado no topo direito, sem moldura.
 
-## Solução
+### Alterações em `src/components/producao/OpPrintSheet.tsx`
 
-Em `src/components/producao/OpPrintSheet.tsx`, reorganizar o bloco de cada operação para um layout estável de **2 colunas de pares rótulo/valor** (4 colunas no grid), com ordem fixa:
+**Topo (Origem/O.P. + Página):**
+- Envolver o barcode num bloco mais compacto com borda, juntando título + código + legenda.
+- Mover "Página: 1/1" para a mesma linha do título "Origem/O.P." (canto direito), removendo o bloco solto.
 
-```text
-Estágio:    [valor]            Centro Rec.:  [valor]
-Seq.:       [valor]            Operação:     [valor]
-Tmp Unit:   [valor]            Tmp Total:    [valor]
-U.M.:       [valor]            Próx. Oper.:  [valor ou —]
-Fornecedor: [valor] (linha inteira, só se houver)
-Serviço:    [valor] (linha inteira, só se houver)
-```
+**Linha principal (dados + REV/Agrupamento):**
+- Ajustar `op-grid-2col` para `3fr 1fr` (mais espaço para os dados).
+- Reduzir largura da coluna de labels do `op-kv` de 90px para 70px.
+- Agrupar Origem + O.P. na mesma linha (lado a lado) e Qtde. + U.M. também, economizando linhas verticais.
+- Produto fica em linha cheia (já é).
+- Início Prev. + Pedido lado a lado; Período + Situação lado a lado.
 
-- Sempre renderizar os campos fixos (Estágio, Seq., Centro Rec., Operação, Tmp Unit, Tmp Total, U.M., Próx. Oper.) — usar `—` quando vazio, evitando buracos no grid.
-- Fornecedor e Serviço, quando presentes, ocupam linha inteira (`grid-column: 1 / -1`) abaixo dos pares fixos.
-- Código de barras continua à esquerda; bloco de pares à direita ocupa `flex: 1`.
+**Bloco REV/Agrupamento:**
+- Trocar de tabela 2x2 para layout vertical empilhado mais limpo:
+  ```text
+  ┌─────────────┐
+  │ REV         │  (label)
+  │ {revisao}   │  (valor grande)
+  ├─────────────┤
+  │ Agrupamento │
+  │ {agrup.}    │
+  └─────────────┘
+  ```
+- Isso elimina a duplicação visual de "REV".
 
-## Mudanças
+### Alterações em `src/components/producao/op-print.css`
 
-- **`src/components/producao/OpPrintSheet.tsx`**: refatorar somente o JSX dentro de `operacoes.map(...)` — novo grid `op-kv-2col` (4 colunas: 90px 1fr 90px 1fr) substituindo o `op-kv` atual; tornar campos fixos sempre presentes; mover Fornecedor/Serviço para linhas full-width condicionais.
-- **`src/components/producao/op-print.css`**: adicionar a classe `.op-sheet .op-kv-2col` com `display: grid; grid-template-columns: 90px 1fr 90px 1fr; column-gap: 6px; row-gap: 2px;` e regra `.op-kv-2col > .full { grid-column: 1 / -1; }`.
+- Novo grid `.op-header-top` (flex space-between) para título + página.
+- Novo `.op-barcode-box` com borda envolvendo barcode + legenda.
+- Refinar `.op-kv` para suportar 2 pares por linha quando necessário (reuso de `.op-kv-2col` já existente).
+- Substituir `.op-rev-grid` por `.op-rev-stack` com `display: flex; flex-direction: column;` e divisória interna.
 
-## Fora de escopo
+### Fora de escopo
+- Seção de componentes, operações, observações, rodapé, dados/endpoints.
 
-- Layout do cabeçalho da OP, componentes, observações e tabela de apontamento manual (permanecem iguais).
-- Mudanças em dados/endpoints.
+### Resultado esperado
+Cabeçalho mais denso, sem duplicação visual de "REV", barcode emoldurado e proporções equilibradas entre o box principal e o bloco de revisão.
