@@ -27,7 +27,10 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
-  const observacoes = data?.observacoes ?? [];
+  const observacoesRaw = data?.observacoes ?? [];
+  const observacoes: string[] = (observacoesRaw as any[])
+    .map((o) => (typeof o === 'string' ? o : (o?.observacao ?? '')))
+    .filter((s) => String(s ?? '').trim() !== '');
   const responsabilidade =
     data?.mensagem_responsabilidade ??
     'Ao finalizar o apontamento o operador estará se responsabilizando pela quantidade e qualidade dos produtos informados.';
