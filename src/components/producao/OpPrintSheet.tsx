@@ -75,10 +75,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="k op-qtde-destaque">Qtde.:</div><div className="v op-qtde-destaque">{cab.quantidade ?? '-'}</div>
           <div className="k">U.M.:</div><div className="v">{cab.unidade_medida ?? '-'}</div>
           <div className="k">Produto:</div>
-          <div className="v full">
-            {cab.produto ?? ''}
-            {cab.produto_descricao ? ` - ${cab.produto_descricao}` : cab.descricao_produto ? ` - ${cab.descricao_produto}` : ''}
-          </div>
+          <div className="v full">{(() => {
+            const cod = String(cab.produto ?? '').trim();
+            const desc = String(cab.produto_descricao ?? cab.descricao_produto ?? '').trim();
+            if (!cod && !desc) return '';
+            if (!desc) return cod;
+            // Evita duplicar o código quando a descrição já começa com ele
+            const descSemCod = desc.replace(new RegExp(`^${cod}\\s*-\\s*`), '').trim();
+            return cod ? `${cod} - ${descSemCod || desc}` : desc;
+          })()}</div>
           <div className="k">Início Prev.:</div><div className="v">{fmtDate(cab.inicio_previsto)}</div>
           <div className="k">Pedido:</div><div className="v">{cab.pedido ?? '-'}</div>
           <div className="k">Período:</div><div className="v">{cab.periodo ?? '-'}</div>
@@ -111,8 +116,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'right' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow">UN</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
                   <th className="col-w-narrow">Dep.</th>
                   <th className="col-w-medium">Endereço</th>
                 </tr>
@@ -122,8 +127,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'right' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td>{c.unidade_medida ?? ''}</td>
+                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
+                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
                     <td>{c.deposito ?? ''}</td>
                     <td>{c.endereco ?? ''}</td>
                   </tr>
@@ -154,8 +159,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'right' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow">UN</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
                   <th className="col-w-narrow">Dep.</th>
                   <th className="col-w-medium">Endereço</th>
                 </tr>
@@ -165,8 +170,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`csep-${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'right' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td>{c.unidade_medida ?? ''}</td>
+                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
+                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
                     <td>{c.deposito ?? ''}</td>
                     <td>{c.endereco ?? ''}</td>
                   </tr>
