@@ -50,25 +50,23 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
   return (
     <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
       {/* CABEÇALHO */}
-      <div className="op-grid-2col">
-        <div>
-          <div style={{ fontWeight: 'bold', fontSize: 10 }}>Origem/O.P.</div>
-          <Barcode value={cab.codigo_barras_op ?? opCode} height={36} displayValue={false} />
-          <div className="op-barcode-caption">{cab.codigo_barras_op ?? opCode}</div>
-        </div>
-        <div style={{ textAlign: 'right', fontSize: 9.5 }}>
-          <div>Página: 1/1</div>
-        </div>
+      <div className="op-header-top">
+        <div style={{ fontWeight: 'bold', fontSize: 10 }}>Origem/O.P.</div>
+        <div style={{ fontSize: 9.5 }}>Página: 1/1</div>
       </div>
 
-      <div className="op-grid-2col" style={{ marginTop: 6 }}>
-        <div className="op-kv op-box">
+      <div className="op-header-main">
+        <div className="op-barcode-box">
+          <Barcode value={cab.codigo_barras_op ?? opCode} height={40} displayValue={false} />
+          <div className="op-barcode-caption">{cab.codigo_barras_op ?? opCode}</div>
+        </div>
+        <div className="op-kv-2col op-box op-header-data">
           <div className="k">Origem:</div><div className="v">{cab.cod_ori ?? '-'}</div>
           <div className="k">O.P.:</div><div className="v">{cab.num_orp_formatado ?? cab.num_orp ?? '-'}</div>
           <div className="k">Qtde.:</div><div className="v">{cab.quantidade ?? '-'}</div>
           <div className="k">U.M.:</div><div className="v">{cab.unidade_medida ?? '-'}</div>
           <div className="k">Produto:</div>
-          <div className="v">
+          <div className="v full">
             {cab.produto ?? ''}
             {cab.produto_descricao ? ` - ${cab.produto_descricao}` : cab.descricao_produto ? ` - ${cab.descricao_produto}` : ''}
           </div>
@@ -77,12 +75,14 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
           <div className="k">Período:</div><div className="v">{cab.periodo ?? '-'}</div>
           <div className="k">Situação:</div><div className="v">{cab.situacao_descricao ?? cab.situacao ?? '-'}</div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div className="op-rev-grid">
+        <div className="op-rev-stack">
+          <div className="op-rev-cell">
             <div className="lbl">REV</div>
+            <div className="val">{cab.revisao ?? '-'}</div>
+          </div>
+          <div className="op-rev-cell">
             <div className="lbl">Agrupamento</div>
-            <div>{cab.revisao ?? '-'}</div>
-            <div>{cab.agrupamento ?? '-'}</div>
+            <div className="val">{cab.agrupamento ?? '-'}</div>
           </div>
         </div>
       </div>
