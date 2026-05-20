@@ -34,6 +34,9 @@ export function DadosGeraisTab({ value, onChange }: Props) {
       permite_excel: value.permite_excel ?? true,
       permite_pdf: value.permite_pdf ?? true,
       permite_csv: value.permite_csv ?? true,
+      tipo_fonte: (value.tipo_fonte as any) ?? 'sql',
+      endpoint_url: value.endpoint_url ?? '',
+      url_destino: value.url_destino ?? '',
     },
   });
 
