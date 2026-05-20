@@ -396,7 +396,7 @@ export default function ImpressaoOrdemProducaoPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Origem">
-                    <SelectBuscavel value={filtros.cod_ori || ''} onChange={(v) => set('cod_ori', v)} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
+                    <SelectBuscavel value={filtros.cod_ori || ''} onChange={onChangeOrigem} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
                   </Field>
                   <Field label="Situação">
                     <SelectBuscavel value={filtros.sit_orp || ''} onChange={onChangeSituacao} options={situacaoOpts} placeholder="Situação..." disabled={!filtros.cod_emp} />
