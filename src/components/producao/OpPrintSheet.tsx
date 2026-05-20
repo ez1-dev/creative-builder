@@ -116,8 +116,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'right' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow">UN</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
+                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
                   <th className="col-w-narrow">Dep.</th>
                   <th className="col-w-medium">Endereço</th>
                 </tr>
@@ -127,8 +127,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'right' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td>{c.unidade_medida ?? ''}</td>
+                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
+                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
                     <td>{c.deposito ?? ''}</td>
                     <td>{c.endereco ?? ''}</td>
                   </tr>
