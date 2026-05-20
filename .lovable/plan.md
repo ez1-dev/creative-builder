@@ -1,98 +1,51 @@
-## Objetivo
+## Diagnóstico
 
-Quando a OP tiver mais de 7 componentes (ou quando a API retornar `op.layout_componentes.quebrar_componentes_em_pagina_separada === true`), mover a "Relação de Componentes Necessários" para uma página A4 dedicada, entre o cabeçalho da OP e as operações.
+O frontend já implementa exatamente o que o seu prompt descreve:
 
-## Arquivos alterados
-
-### 1. `src/lib/producao/opImpressao.ts`
-Adicionar campo opcional na interface `OpImpressao`:
-```ts
-layout_componentes?: {
-  quebrar_componentes_em_pagina_separada?: boolean;
-};
-```
-(Não altera comportamento atual; apenas tipagem.)
-
-### 2. `src/components/producao/OpPrintSheet.tsx`
-
-Criar critério único:
-```ts
-const quebrarComponentes =
-  data?.layout_componentes?.quebrar_componentes_em_pagina_separada
-  ?? (componentes.length > 7);
-```
-
-Criar helper `renderComponentesPage()` que retorna um bloco `.componentes-page .op-sheet` contendo:
-- `renderHeader()` (cabeçalho completo da OP repetido)
-- Título "RELAÇÃO DE COMPONENTES NECESSÁRIOS"
-- Tabela atual de componentes (mesmas colunas: Código, Descrição, Qtde. Prev., UN, Dep., Endereço), agrupada por estágio como hoje.
-
-Criar helper `renderIndicacaoComponentesSeparados()` que retorna uma linha discreta no lugar da tabela:
-"Componentes impressos em página separada".
-
-#### Modo padrão (uma página)
-- Se `quebrarComponentes` for false → comportamento atual (cabeçalho + componentes + operações + rodapé).
-- Se `quebrarComponentes` for true:
-  - Página 1: `.op-sheet` com cabeçalho + indicação "Componentes impressos em página separada" + Operações + rodapé. NÃO renderizar `renderComponentes()`.
-  - Página 2: `<div class="op-sheet componentes-page">` com cabeçalho + título + tabela de componentes. Sem operações, sem rodapé operacional (manter apenas o `op-footer` simples para identificação).
-  - Operações continuam na página 1 (não muda a quebra atual).
-  - Ordem de renderização no JSX: Página 1 → Página 2 (componentes) → Desenhos.
-  - Observação: o pedido descreve "Página 1 / Página 2 (componentes) / Página 3 operações". Como a página 1 atual já contém o cabeçalho+dados principais+operações, vou seguir literalmente: separar em três blocos quando `quebrarComponentes` for true:
-    - **Página 1**: cabeçalho + dados principais + indicação ("Componentes impressos em página separada"). Sem operações.
-    - **Página 2**: `.componentes-page` cabeçalho + tabela completa de componentes.
-    - **Página 3+**: cabeçalho + título "Operações" + operações + rodapé. Se `quebrarPorOperacao` estiver marcado, cada operação vai para uma página própria (já existente).
-
-#### Modo `quebrarPorOperacao`
-- Se `quebrarComponentes` for true:
-  - Inserir página de componentes ANTES do loop de operações (após uma página 1 só com cabeçalho + indicação) ou, para evitar página 1 quase vazia, fundir página 1 com a primeira operação? Pedido é claro: página 1 separada. Implementação:
-    - Renderizar uma "página 1" `.op-sheet` só com cabeçalho + indicação + rodapé.
-    - Renderizar `.componentes-page`.
-    - Renderizar cada operação em página própria como hoje (sem `renderComponentes()` dentro).
-- Se `quebrarComponentes` for false: manter código atual (cada operação repete cabeçalho + componentes + operação).
-
-### 3. `src/components/producao/op-print.css`
-Adicionar/garantir os blocos CSS exigidos:
-```css
-.op-print-page {
-  width: 210mm;
-  min-height: 297mm;
-  page-break-after: always;
-  break-after: page;
-}
-.op-print-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
-}
-.componentes-page {
-  width: 210mm;
-  min-height: 297mm;
-  page-break-after: always;
-  break-after: page;
-}
-.componentes-page table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 10px;
-}
-.componentes-page th,
-.componentes-page td {
-  border: 1px solid #000;
-  padding: 2px 4px;
-}
-.componentes-page tr {
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
-```
-A classe `.op-sheet` atual já implementa página A4; adicionaremos `.componentes-page` em conjunto (`<div class="op-sheet componentes-page">`) para reforçar a quebra. Garantir que a página de operações também receba `page-break-before: always` quando precedida pela página de componentes.
-
-## Fora do escopo
-- Backend / endpoint (sem mudanças).
-- Lógica de desenhos, `quebrar_por_operacao`, `incluir_desenhos` (preservados).
-- Impressão em lote (`opImpressaoLote.ts`) — a renderização final usa o mesmo `OpPrintSheet`, então a regra se aplica automaticamente; nenhum ajuste adicional necessário.
-
-## Resumo do critério
-| Condição | Resultado |
+| Requisito do prompt | Status atual no Lovable |
 |---|---|
-| `componentes.length ≤ 7` e sem flag | Layout atual (1 página) |
-| `componentes.length > 7` OU `layout_componentes.quebrar_componentes_em_pagina_separada === true` | Página 1 (cabeçalho + indicação) → Página 2 (componentes) → Página 3+ (operações) |
+| Fazer `fetch` com `Authorization: Bearer` em vez de `<img src>` direto | ✅ `src/hooks/useAuthedBlobUrl.ts` faz fetch com token + `ngrok-skip-browser-warning` e gera `URL.createObjectURL` |
+| Renderizar via blob URL (`<img>` JPG/PNG, `<iframe>` PDF) | ✅ `DrawingPage` em `src/components/producao/OpPrintSheet.tsx` |
+| Aguardar todos desenhos carregarem antes de `window.print()` | ✅ `aguardarDesenhosProntos()` em `ImpressaoOrdemProducaoPage.tsx` (linhas 47–78) espera `<img>.complete`/`load` e `<iframe> load`, com timeout de 10s |
+| CSS A4 `.op-drawing-page` / `.op-print-page` com `page-break-after` | ✅ presente em `op-print.css` |
+| Mostrar "Nenhum desenho encontrado…" só no preview | ✅ `renderPreviewDesenhosResumo()` com `no-print` |
+
+Não há ajuste pendente no Lovable para esse fluxo. O `useAuthedBlobUrl` já cobre o "ponto decisivo (#6)" do seu prompt.
+
+## Onde está o problema, com alta probabilidade
+
+Como a parte do frontend está correta, o motivo de "os desenhos não aparecerem" é **um destes dois lados da API**, exatamente como você listou:
+
+1. **A API não está enxergando** `\\EZORTEA-SRVSENI\Senior\Sapiens\Pasta de Desenho\02-JPG_OP`
+   → o endpoint `/api/producao/ordem-producao/impressao?...&incluir_desenhos=S` retorna `"desenhos": []`.
+2. **A API retorna `desenhos[]` com `url` que dá 401/403/404** quando o frontend chama com Bearer
+   → nesse caso veríamos `Falha ao carregar: HTTP xxx` no preview de cada desenho.
+
+## Como confirmar em 2 minutos
+
+1. Abra o DevTools → Network durante "Pré-visualizar" com `incluir_desenhos=S` e:
+   - Veja a resposta de `/api/producao/ordem-producao/impressao` → o array `desenhos` está preenchido?
+   - Se sim, veja a chamada `GET /api/producao/ordem-producao/desenho?arquivo=…` (vai aparecer com `Authorization: Bearer`) → status 200, 401 ou 404?
+2. Em paralelo, no backend, criar o endpoint `/api/producao/ordem-producao/desenhos/diagnostico` que você descreveu e chamar:
+   ```
+   /api/producao/ordem-producao/desenhos/diagnostico?cod_emp=1&cod_ori=250&num_orp=1112
+   ```
+   Conferir `pasta_existe`, `qtd_arquivos_pasta`, `desenhos_encontrados`.
+
+## Possíveis pequenas melhorias no frontend (opcionais)
+
+Caso queira deixar o diagnóstico ainda mais transparente no Lovable, posso (se você aprovar este plano):
+
+1. **Mostrar status por desenho no preview**: na tabela "Desenhos encontrados", adicionar uma coluna "Status" que reflita `loading` / `OK` / `Falha: <msg>` consumindo o estado do `useAuthedBlobUrl` por linha (via componente wrapper). Hoje o erro só aparece dentro da página A4 do próprio desenho.
+2. **Botão "Testar diagnóstico"** ao lado do checkbox "Incluir desenhos", que chama `GET /api/producao/ordem-producao/desenhos/diagnostico?cod_emp&cod_ori&num_orp` e exibe um modal/JSON com `pasta_existe`, `qtd_arquivos_pasta`, `desenhos_encontrados`. Isso só funciona depois que você criar o endpoint no backend.
+3. **Mensagem mais clara** quando `data.desenhos` vier preenchido mas todos os blobs falharem, do tipo: "A API listou N desenho(s) mas nenhum pôde ser baixado — verifique permissões/token do endpoint `/desenho`."
+
+Fora isso, **não há nada para corrigir no Lovable** — o pacote do prompt #6 já está implementado.
+
+## Resposta direta
+
+- ✅ Lovable: já faz `fetch` com Bearer, gera blob URL, espera os desenhos antes do `window.print()`.
+- ⏳ Próximo passo: aplicar os itens #1–#5 do seu plano no backend FastAPI (criar `/desenhos/diagnostico`, fixar `PASTA_DESENHOS_OP_PADRAO`, atualizar `localizar_desenhos_produto`, endpoint `/desenho` e injetar `desenhos` no `/impressao`).
+- Depois, rodar o checklist (itens #7.1–#7.4) para isolar se é problema de pasta/SMB ou de token.
+
+Me diga qual das três melhorias opcionais do frontend você quer e eu implemento — ou, se preferir, primeiro aplique os ajustes da API e voltamos aqui só se ainda houver problema visual no Lovable.
