@@ -75,7 +75,14 @@ export function ReportList({ relatorios, selectedId, onSelect, onNew, onDuplicat
                 className={selectedId === r.id ? 'bg-primary/5 cursor-pointer' : 'cursor-pointer hover:bg-muted/40'}
               >
                 <TableCell className="font-mono text-xs">{r.codigo}</TableCell>
-                <TableCell className="font-medium">{r.nome}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{r.nome}</span>
+                    {r.tipo_fonte === 'api_rest' && (
+                      <Badge variant="outline" className="text-[10px] py-0 h-4">API</Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell className="text-xs">{r.modulo ?? '—'}</TableCell>
                 <TableCell className="text-xs">{r.categoria ?? '—'}</TableCell>
                 <TableCell className="text-xs">{r.fonte_dados ?? '—'}</TableCell>

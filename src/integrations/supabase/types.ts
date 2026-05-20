@@ -1456,6 +1456,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           descricao: string | null
+          endpoint_url: string | null
           fonte_dados: string | null
           id: string
           modulo: string | null
@@ -1465,7 +1466,9 @@ export type Database = {
           permite_pdf: boolean
           sql_query: string
           status: string
+          tipo_fonte: string
           updated_at: string
+          url_destino: string | null
         }
         Insert: {
           categoria?: string | null
@@ -1473,6 +1476,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          endpoint_url?: string | null
           fonte_dados?: string | null
           id?: string
           modulo?: string | null
@@ -1482,7 +1486,9 @@ export type Database = {
           permite_pdf?: boolean
           sql_query?: string
           status?: string
+          tipo_fonte?: string
           updated_at?: string
+          url_destino?: string | null
         }
         Update: {
           categoria?: string | null
@@ -1490,6 +1496,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           descricao?: string | null
+          endpoint_url?: string | null
           fonte_dados?: string | null
           id?: string
           modulo?: string | null
@@ -1499,7 +1506,9 @@ export type Database = {
           permite_pdf?: boolean
           sql_query?: string
           status?: string
+          tipo_fonte?: string
           updated_at?: string
+          url_destino?: string | null
         }
         Relationships: []
       }

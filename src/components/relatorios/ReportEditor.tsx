@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, X } from 'lucide-react';
+import { Loader2, Save, X, ExternalLink, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   createRelatorio,
@@ -54,6 +55,7 @@ function emptyLayout(relatorioId: string): RelatorioLayout {
 }
 
 export function ReportEditor({ id, onClose, onSaved }: Props) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('geral');
@@ -64,12 +66,14 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     permite_excel: true,
     permite_pdf: true,
     permite_csv: true,
+    tipo_fonte: 'sql',
   });
   const [parametros, setParametros] = useState<ParamDraft[]>([]);
   const [colunas, setColunas] = useState<ColDraft[]>([]);
   const [layout, setLayout] = useState<RelatorioLayout>(emptyLayout(''));
   const [lastPreviewCols, setLastPreviewCols] = useState<{ cols: string[]; sample?: Record<string, unknown> } | null>(null);
   const [historyRefresh, setHistoryRefresh] = useState(0);
+  const isApiRest = relatorio.tipo_fonte === 'api_rest';
 
   useEffect(() => {
     if (!id) return;
@@ -91,11 +95,13 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
       setTab('geral');
       return;
     }
-    const safe = checkSqlSafe(relatorio.sql_query ?? '');
-    if (safe) {
-      toast.error(safe);
-      setTab('sql');
-      return;
+    if (!isApiRest) {
+      const safe = checkSqlSafe(relatorio.sql_query ?? '');
+      if (safe) {
+        toast.error(safe);
+        setTab('sql');
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -207,9 +213,15 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
                 {relatorio.status}
               </Badge>
             )}
+            {isApiRest && <Badge variant="outline">API REST</Badge>}
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {isApiRest && relatorio.url_destino && (
+            <Button onClick={() => navigate(relatorio.url_destino!)} variant="outline" size="sm">
+              <ExternalLink className="h-4 w-4 mr-1" /> Abrir relatório
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={saving} size="sm">
             {saving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
             Salvar
@@ -218,52 +230,77 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
         </div>
       </div>
 
+      {isApiRest && (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm">
+          <Info className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+          <div>
+            <strong>Relatório customizado (API REST).</strong> Esta tela serve apenas como documentação de
+            parâmetros, colunas e layout. A execução acontece em{' '}
+            <code className="font-mono text-xs">{relatorio.url_destino ?? '—'}</code>
+            {relatorio.endpoint_url && (
+              <> consumindo <code className="font-mono text-xs">{relatorio.endpoint_url}</code></>
+            )}
+            .
+          </div>
+        </div>
+      )}
+
       <Tabs value={tab} onValueChange={setTab} className="flex-1 flex flex-col">
         <TabsList>
           <TabsTrigger value="geral">Dados Gerais</TabsTrigger>
-          <TabsTrigger value="sql">SQL</TabsTrigger>
+          {!isApiRest && <TabsTrigger value="sql">SQL</TabsTrigger>}
           <TabsTrigger value="parametros">Parâmetros</TabsTrigger>
           <TabsTrigger value="colunas">Colunas</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
-          <TabsTrigger value="preview">Pré-visualização</TabsTrigger>
+          {!isApiRest && <TabsTrigger value="preview">Pré-visualização</TabsTrigger>}
           {relatorio.id && <TabsTrigger value="historico">Histórico</TabsTrigger>}
         </TabsList>
         <div className="flex-1 overflow-auto pt-4">
           <TabsContent value="geral">
             <DadosGeraisTab value={relatorio} onChange={(p) => setRelatorio((r) => ({ ...r, ...p }))} />
           </TabsContent>
-          <TabsContent value="sql">
-            <SqlTab
-              sql={relatorio.sql_query ?? ''}
-              onChange={(sql) => setRelatorio((r) => ({ ...r, sql_query: sql }))}
-              onDetectParams={handleDetectParams}
-              onPreview={() => setTab('preview')}
-            />
-          </TabsContent>
+          {!isApiRest && (
+            <TabsContent value="sql">
+              <SqlTab
+                sql={relatorio.sql_query ?? ''}
+                onChange={(sql) => setRelatorio((r) => ({ ...r, sql_query: sql }))}
+                onDetectParams={handleDetectParams}
+                onPreview={() => setTab('preview')}
+              />
+            </TabsContent>
+          )}
           <TabsContent value="parametros">
-            <ParametersEditor parametros={parametros} onChange={setParametros} />
+            <fieldset disabled={isApiRest} className="contents">
+              <ParametersEditor parametros={parametros} onChange={setParametros} />
+            </fieldset>
           </TabsContent>
           <TabsContent value="colunas">
-            <ColumnsEditor
-              colunas={colunas}
-              onChange={setColunas}
-              onSave={handleSaveColumnsOnly}
-              onRestoreDefault={handleRestoreColumns}
-              canSave={!!relatorio.id}
-            />
+            <fieldset disabled={isApiRest} className="contents">
+              <ColumnsEditor
+                colunas={colunas}
+                onChange={setColunas}
+                onSave={handleSaveColumnsOnly}
+                onRestoreDefault={handleRestoreColumns}
+                canSave={!isApiRest && !!relatorio.id}
+              />
+            </fieldset>
           </TabsContent>
           <TabsContent value="layout">
-            <LayoutEditor layout={layout} colunas={colunas} onChange={setLayout} />
+            <fieldset disabled={isApiRest} className="contents">
+              <LayoutEditor layout={layout} colunas={colunas} onChange={setLayout} />
+            </fieldset>
           </TabsContent>
-          <TabsContent value="preview">
-            <ReportPreview
-              relatorio={relatorio}
-              parametros={parametros}
-              colunasConfig={colunas}
-              onColumnsDetected={handleColumnsFromPreview}
-              onExecucaoGravada={() => setHistoryRefresh((n) => n + 1)}
-            />
-          </TabsContent>
+          {!isApiRest && (
+            <TabsContent value="preview">
+              <ReportPreview
+                relatorio={relatorio}
+                parametros={parametros}
+                colunasConfig={colunas}
+                onColumnsDetected={handleColumnsFromPreview}
+                onExecucaoGravada={() => setHistoryRefresh((n) => n + 1)}
+              />
+            </TabsContent>
+          )}
           {relatorio.id && (
             <TabsContent value="historico">
               <ReportExecutionHistory relatorioId={relatorio.id} refreshKey={historyRefresh} />

@@ -34,6 +34,9 @@ export function DadosGeraisTab({ value, onChange }: Props) {
       permite_excel: value.permite_excel ?? true,
       permite_pdf: value.permite_pdf ?? true,
       permite_csv: value.permite_csv ?? true,
+      tipo_fonte: (value.tipo_fonte as any) ?? 'sql',
+      endpoint_url: value.endpoint_url ?? '',
+      url_destino: value.url_destino ?? '',
     },
   });
 
@@ -83,6 +86,28 @@ export function DadosGeraisTab({ value, onChange }: Props) {
         <Label htmlFor="fonte">Fonte de dados</Label>
         <Input id="fonte" placeholder="ex: ERP Senior" {...form.register('fonte_dados')} />
       </div>
+      <div>
+        <Label>Tipo de fonte</Label>
+        <Select value={watched.tipo_fonte} onValueChange={(v) => form.setValue('tipo_fonte', v as any)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="sql">SQL</SelectItem>
+            <SelectItem value="api_rest">API REST (customizado)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      {watched.tipo_fonte === 'api_rest' && (
+        <>
+          <div>
+            <Label htmlFor="endpoint_url">Endpoint URL</Label>
+            <Input id="endpoint_url" placeholder="/api/..." {...form.register('endpoint_url')} />
+          </div>
+          <div>
+            <Label htmlFor="url_destino">URL de destino (tela do relatório)</Label>
+            <Input id="url_destino" placeholder="/modulo/pagina" {...form.register('url_destino')} />
+          </div>
+        </>
+      )}
       <div>
         <Label>Status</Label>
         <Select value={watched.status} onValueChange={(v) => form.setValue('status', v as any)}>
