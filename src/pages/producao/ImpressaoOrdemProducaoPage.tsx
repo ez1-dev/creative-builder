@@ -735,7 +735,12 @@ export default function ImpressaoOrdemProducaoPage() {
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             {preview ? 'Sair' : 'Visualizar'}
           </Button>
-          <Button size="sm" variant="outline" onClick={imprimir}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={imprimir}
+            title="Para melhor resultado, use papel A4, escala 100% (padrão) e margens padrão/nenhuma."
+          >
             <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimir
           </Button>
           <Button size="sm" variant="outline" onClick={gerarPdf}>
