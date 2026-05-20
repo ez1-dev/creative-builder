@@ -230,32 +230,71 @@
   break-after: auto;
 }
 
-.op-sheet .op-drawing-page {
+.op-drawing-page {
+  width: 210mm;
+  height: 297mm;
+  page-break-after: always;
+  break-after: page;
   page-break-before: always;
   break-before: page;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
-  padding-top: 4mm;
+  overflow: hidden;
+  background: white;
+  box-sizing: border-box;
+  padding: 6mm;
 }
-.op-sheet .op-drawing-header {
+.op-drawing-page:last-child,
+.op-print-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+.op-drawing-meta {
+  font-family: Arial, sans-serif;
   font-size: 10px;
+  color: #000;
   text-align: center;
   border-bottom: 1px solid #000;
   padding-bottom: 3px;
+  margin-bottom: 4px;
   width: 100%;
 }
-.op-sheet .op-drawing-img {
-  max-width: 100%;
-  max-height: 260mm;
+.op-drawing-content {
+  width: 190mm;
+  height: 270mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.op-drawing-content img,
+.op-drawing-img {
+  max-width: 190mm;
+  max-height: 270mm;
   object-fit: contain;
 }
-.op-sheet .op-drawing-missing {
+.op-drawing-content img.rotate-90,
+.op-drawing-img.rotate-90 {
+  transform: rotate(90deg);
+  max-width: 270mm;
+  max-height: 190mm;
+}
+.pdf-drawing-frame {
+  width: 190mm;
+  height: 270mm;
+  border: none;
+}
+.pdf-drawing-frame.rotate-90 {
+  transform: rotate(90deg);
+  width: 270mm;
+  height: 190mm;
+}
+.op-drawing-missing {
   font-style: italic;
   padding: 20mm 0;
 }
+
 
 @media print {
   body { background: #fff !important; }
