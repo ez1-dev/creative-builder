@@ -448,8 +448,7 @@ function isPdf(d: OpDesenho): boolean {
 }
 
 function getDrawingPrintUrl(d: OpDesenho): string {
-  // PDFs sempre usam a URL original (não passam pelo endpoint de auto-rotação)
-  if (isPdf(d)) return d.url ?? '';
+  // Sempre preferir url_impressao (API já entrega rotacionado/otimizado).
   return d.url_impressao || d.url || '';
 }
 
