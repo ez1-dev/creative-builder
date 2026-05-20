@@ -368,14 +368,6 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     }
     return (
       <>
-        {quebrarComponentes && (
-          <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
-            {renderHeader()}
-            {renderIndicacaoComponentesSeparados()}
-            {renderFooter()}
-          </div>
-        )}
-        {quebrarComponentes && renderComponentesPage()}
         {operacoes.map((op, i) => (
           <div key={`opp-wrap-${i}`} style={{ display: 'contents' }}>
             <div
@@ -390,10 +382,12 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             {desenhos.length > 0 && renderDesenhos(`drw-op${i}`)}
           </div>
         ))}
+        {quebrarComponentes && renderComponentesPage()}
         {renderPreviewDesenhosResumo()}
       </>
     );
   }
+
 
   // Modo padrão: tudo numa página
   if (quebrarComponentes) {
