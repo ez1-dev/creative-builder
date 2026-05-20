@@ -212,10 +212,17 @@ export default function ImpressaoOrdemProducaoPage() {
     [filtros.num_ped, filtros.rel_prd, filtros.num_orp],
   );
   const opsFiltradas = useMemo(() => {
-    let list = opcoes.ops.filter((o) => String(o.sit_orp ?? '').toUpperCase() !== 'C');
+    let list = opcoes.ops.filter(
+      (o) => String(o.sit_orp ?? o.situacao ?? '').toUpperCase() !== 'C',
+    );
     if (filtros.cod_ori) list = list.filter((o) => String(o.cod_ori ?? '') === filtros.cod_ori);
     return list;
   }, [opcoes.ops, filtros.cod_ori]);
+
+  const pick = (...vals: any[]) => {
+    for (const v of vals) if (v !== undefined && v !== null && v !== '') return v;
+    return '';
+  };
 
   const handleRowVisualizar = async (op: OpcaoOp) => {
     await onSelectOp(op);
@@ -388,15 +395,15 @@ export default function ImpressaoOrdemProducaoPage() {
                     <TableBody>
                       {opsFiltradas.map((op, idx) => (
                         <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
-                          <TableCell>{op.cod_ori}</TableCell>
-                          <TableCell className="font-mono">{op.num_orp}</TableCell>
+                          <TableCell>{op.cod_ori ?? ''}</TableCell>
+                          <TableCell className="font-mono">{op.num_orp ?? ''}</TableCell>
                           <TableCell>{op.num_ped ?? ''}</TableCell>
                           <TableCell>{op.rel_prd ?? ''}</TableCell>
-                          <TableCell>{op.produto ?? ''}</TableCell>
-                          <TableCell className="max-w-[280px] truncate">{op.descricao_produto ?? ''}</TableCell>
-                          <TableCell className="text-right">{op.quantidade ?? ''}</TableCell>
-                          <TableCell>{op.unidade ?? ''}</TableCell>
-                          <TableCell>{op.situacao_descricao ?? op.situacao ?? ''}</TableCell>
+                          <TableCell>{pick(op.produto, op.cod_pro)}</TableCell>
+                          <TableCell className="max-w-[280px] truncate">{pick(op.descricao_produto, op.descricao, op.des_pro)}</TableCell>
+                          <TableCell className="text-right">{pick(op.quantidade, op.qtde, op.qtd_prevista)}</TableCell>
+                          <TableCell>{pick(op.unidade, op.un, op.unidade_medida)}</TableCell>
+                          <TableCell>{pick(op.situacao_descricao, op.situacao)}</TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
                           <TableCell className="text-right">

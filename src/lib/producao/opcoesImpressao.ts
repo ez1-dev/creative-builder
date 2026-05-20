@@ -33,9 +33,16 @@ export interface OpcaoOp {
   num_ped?: string;
   rel_prd?: string;
   produto?: string;
+  cod_pro?: string;
   descricao_produto?: string;
+  descricao?: string;
+  des_pro?: string;
   quantidade?: number | string;
+  qtde?: number | string;
+  qtd_prevista?: number | string;
   unidade?: string;
+  un?: string;
+  unidade_medida?: string;
   situacao?: string;
   sit_orp?: string;
   situacao_descricao?: string;
