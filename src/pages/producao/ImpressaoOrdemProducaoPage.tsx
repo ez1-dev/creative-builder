@@ -17,6 +17,12 @@ import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectB
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao/opImpressaoLote';
+import { Checkbox } from '@/components/ui/checkbox';
+import { api } from '@/lib/api';
+import type { OpImpressao } from '@/lib/producao/opImpressao';
+
+const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
+  `${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}`;
 
 const DEFAULT_EMPRESA = '1';
 
