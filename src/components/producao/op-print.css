@@ -209,10 +209,23 @@
 .op-sheet .col-w-medium { width: 100px; }
 
 .op-print-page {
+  width: 210mm;
+  min-height: 297mm;
   page-break-after: always;
   break-after: page;
 }
 .op-print-page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+
+.operation-single-page {
+  page-break-inside: avoid;
+  break-inside: avoid;
+  page-break-after: always;
+  break-after: page;
+}
+.operation-single-page:last-child {
   page-break-after: auto;
   break-after: auto;
 }
