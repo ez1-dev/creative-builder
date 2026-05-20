@@ -231,6 +231,31 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       </div>
       {op.narrativas && <div className="op-narrativas">{op.narrativas}</div>}
 
+      <table style={{ marginTop: 4 }}>
+        <thead>
+          <tr>
+            <th>Início</th>
+            <th>Fim</th>
+            <th>Qtd. Produzida</th>
+            <th>Refugos</th>
+            <th>Operador</th>
+            <th style={{ width: 30, textAlign: 'center' }}>Check</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 5 }).map((_, r) => (
+            <tr key={`apt-old-${i}-${r}`} className="op-apontamento-row">
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td style={{ textAlign: 'center' }}><span className="op-apontamento-cell-check" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
       <table className="op-apontamento-table">
         <thead>
           <tr>

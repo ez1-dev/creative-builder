@@ -1,65 +1,52 @@
 ## Objetivo
 
-Substituir a tabela de apontamento manual atual (5 linhas, 6 colunas) por uma nova tabela com **20 linhas e 9 colunas**, mantendo-a logo abaixo dos dados da operação e antes da mensagem de responsabilidade. Funciona em ambos os modos (com ou sem "Quebrar uma página por operação").
+Restaurar a tabela antiga de apontamento (5 linhas × 6 colunas) e **manter também** a nova tabela (20 linhas × 9 colunas) logo abaixo dela, dentro de cada bloco de operação, antes da mensagem de responsabilidade.
 
-## Arquivos
+## Arquivo
 
-- `src/components/producao/OpPrintSheet.tsx` — substituir o `<table>` atual (linhas ~234–257) dentro de `renderOperacao`.
-- `src/components/producao/op-print.css` — adicionar a classe `.op-apontamento-table` e seus estilos (incluindo `@media print`).
+- `src/components/producao/OpPrintSheet.tsx` — em `renderOperacao` (após o bloco de dados da operação, antes da mensagem de responsabilidade).
 
-## Mudanças
+## Mudança
 
-### 1. `OpPrintSheet.tsx` — bloco da tabela em `renderOperacao`
-
-Trocar a tabela existente por:
+Hoje só existe a tabela nova (`.op-apontamento-table`, 20 linhas / 9 colunas). Vou **reinserir a tabela antiga acima dela**, preservando o markup original:
 
 ```text
-<table className="op-apontamento-table">
+<table style={{ marginTop: 4 }}>
   <thead>
     <tr>
       <th>Início</th>
       <th>Fim</th>
-      <th>Tempo Setup</th>
-      <th>QTD Produzida</th>
-      <th>Refugo</th>
-      <th>Motivo Desvio</th>
+      <th>Qtd. Produzida</th>
+      <th>Refugos</th>
       <th>Operador</th>
-      <th className="check-cell">Check</th>
-      <th>OBS</th>
+      <th style={{ width: 30, textAlign: 'center' }}>Check</th>
     </tr>
   </thead>
   <tbody>
-    {Array.from({ length: 20 }).map((_, r) => (
-      <tr key={`apt-${i}-${r}`}>
+    {Array.from({ length: 5 }).map((_, r) => (
+      <tr key={`apt-old-${i}-${r}`} className="op-apontamento-row">
         <td>&nbsp;</td>
         <td>&nbsp;</td>
         <td>&nbsp;</td>
         <td>&nbsp;</td>
         <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td>&nbsp;</td>
-        <td className="check-cell"><span className="check-box" /></td>
-        <td>&nbsp;</td>
+        <td style={{ textAlign: 'center' }}><span className="op-apontamento-cell-check" /></td>
       </tr>
     ))}
   </tbody>
 </table>
 ```
 
-Remover a tabela antiga de 5 linhas/6 colunas para não duplicar informação.
+Logo em seguida, a tabela nova (`.op-apontamento-table`, 20 linhas × 9 colunas) já existente permanece como está.
 
-### 2. `op-print.css` — adicionar estilos
-
-Adicionar o bloco `.op-apontamento-table` com:
-- `width: 100%`, `border-collapse: collapse`, `table-layout: fixed`, `margin-top: 4px`, `font-size: 8px`
-- Larguras por coluna conforme spec (7/7/10/11/7/17/13/5/23%)
-- `.check-box` 10×10px com borda preta
-- `@media print`: `font-size: 7.5pt`, `page-break-inside: avoid`, `break-inside: avoid`, células com `height: 14px` e `border: 0.5pt solid #000`, `.check-box` 9×9px
-
-A regra `page-break-inside: avoid` na tabela garante que, quando "Quebrar por operação" não estiver ativo e duas operações não couberem na mesma página, o navegador empurra a próxima operação para a página seguinte (item 6 da spec).
+Ordem final dentro do bloco de operação:
+1. Dados da operação
+2. Tabela antiga (5 linhas)
+3. Tabela nova (20 linhas)
+4. Mensagem de responsabilidade
+5. Rodapé
 
 ## Fora de escopo
 
-- Nenhuma alteração de API/fetch.
-- Nenhuma mudança no fluxo de paginação por operação (`OpPrintSheet` já trata isso).
-- Nenhuma alteração nos filtros, cabeçalho da OP, rodapé ou lista de componentes.
+- Sem mudanças no CSS (estilos antigos `.op-apontamento-row` / `.op-apontamento-cell-check` já existem).
+- Sem mudanças em filtros, cabeçalho da OP, paginação ou API.
