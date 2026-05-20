@@ -53,6 +53,9 @@ import RegraNegocioPage from "@/pages/regras-senior/RegraNegocioPage";
 import IdentificadoresPage from "@/pages/regras-senior/IdentificadoresPage";
 import AuditoriaPage from "@/pages/regras-senior/AuditoriaPage";
 import SnapshotsPage from "@/pages/regras-senior/SnapshotsPage";
+import DesenvolvimentoRelatoriosPage from "@/pages/relatorios/DesenvolvimentoRelatoriosPage";
+import RelatoriosPublicadosPage from "@/pages/relatorios/RelatoriosPublicadosPage";
+import HistoricoExecucoesPage from "@/pages/relatorios/HistoricoExecucoesPage";
 import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
@@ -126,6 +129,10 @@ const App = () => (
               <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
               <Route path="/producao/relatorio-semanal-obra" element={<ProtectedRoute path="/producao/relatorio-semanal-obra"><RelatorioSemanalObraPage /></ProtectedRoute>} />
               <Route path="/producao/impressao-op" element={<ProtectedRoute path="/producao/impressao-op"><ImpressaoOrdemProducaoPage /></ProtectedRoute>} />
+              {/* Relatórios */}
+              <Route path="/relatorios/desenvolvimento" element={<ProtectedRoute path="/relatorios/desenvolvimento"><DesenvolvimentoRelatoriosPage /></ProtectedRoute>} />
+              <Route path="/relatorios/publicados" element={<ProtectedRoute path="/relatorios/publicados"><RelatoriosPublicadosPage /></ProtectedRoute>} />
+              <Route path="/relatorios/execucoes" element={<ProtectedRoute path="/relatorios/execucoes"><HistoricoExecucoesPage /></ProtectedRoute>} />
               {/* Redirect old route */}
               <Route path="/engenharia-producao" element={<Navigate to="/producao/engenharia" replace />} />
             </Route>
