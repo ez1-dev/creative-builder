@@ -447,6 +447,12 @@ function isPdf(d: OpDesenho): boolean {
   return ext === 'PDF' || tipo === 'PDF' || mime.includes('pdf');
 }
 
+function getDrawingPrintUrl(d: OpDesenho): string {
+  // PDFs sempre usam a URL original (não passam pelo endpoint de auto-rotação)
+  if (isPdf(d)) return d.url ?? '';
+  return d.url_impressao || d.url || '';
+}
+
 function DrawingPage({
   drawing,
   index,
@@ -469,9 +475,11 @@ function renderDrawingBody(
   error: string | null,
 ) {
   const pdf = isPdf(drawing);
+  const usingPrintUrl = !pdf && Boolean(drawing.url_impressao);
   const shouldRotate =
-    drawing.rotacionar_para_retrato === true ||
-    Number(drawing.rotacao_recomendada) === 90;
+    !usingPrintUrl &&
+    (drawing.rotacionar_para_retrato === true ||
+      Number(drawing.rotacao_recomendada) === 90);
   return (
     <div className="op-drawing-page">
       {loading && <div className="op-drawing-missing no-print">Carregando desenho...</div>}
@@ -496,7 +504,7 @@ function renderDrawingBody(
 }
 
 function DrawingPageStandalone({ drawing, index }: { drawing: OpDesenho; index: number }) {
-  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
+  const { blobUrl, loading, error } = useAuthedBlobUrl(getDrawingPrintUrl(drawing));
   return renderDrawingBody(drawing, index, blobUrl, loading, error);
 }
 
