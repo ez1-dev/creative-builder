@@ -494,7 +494,7 @@ export default function ImpressaoOrdemProducaoPage() {
                     />
                   </Field>
                   <Field label="Estágio">
-                    <SelectBuscavel value={filtros.cod_etg || ''} onChange={onChangeEstagio} options={estagioOpts} placeholder="Estágio..." disabled={!filtros.num_orp} />
+                    <SelectBuscavel value={filtros.cod_etg || ''} onChange={onChangeEstagio} options={estagioOpts} placeholder="Estágio..." disabled={!filtros.cod_emp} />
                   </Field>
                 </div>
               </div>
