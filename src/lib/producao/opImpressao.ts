@@ -68,6 +68,9 @@ export interface OpImpressao {
   observacoes?: string[];
   mensagem_responsabilidade?: string;
   desenhos?: OpDesenho[];
+  layout_componentes?: {
+    quebrar_componentes_em_pagina_separada?: boolean;
+  };
 }
 
 export interface ImpressaoOpFiltros {
