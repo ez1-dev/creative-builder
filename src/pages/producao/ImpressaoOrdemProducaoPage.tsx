@@ -468,6 +468,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setPreview(false);
     setLastConsulta(null);
     setLote(null);
+    setSelectedRowKey(null);
     reset();
     void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
