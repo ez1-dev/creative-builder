@@ -366,8 +366,8 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   const imprimirTodas = async () => {
-    if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd && !filtros.cod_ori)) {
-      toast.info('Selecione um Pedido, Relatório de Produção ou Origem.');
+    if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd && !filtros.cod_ori && !filtros.cod_cre)) {
+      toast.info('Selecione um Pedido, Relatório de Produção, Origem ou Centro de Recurso.');
       return;
     }
 
@@ -379,9 +379,12 @@ export default function ImpressaoOrdemProducaoPage() {
         num_ped: filtros.num_ped || undefined,
         rel_prd: filtros.rel_prd || undefined,
         sit_orp: filtros.sit_orp || undefined,
+        cod_cre: filtros.cod_cre || undefined,
+        cod_etg: filtros.cod_etg || undefined,
         listar_componentes: (filtros.listar_componentes as 'S' | 'N') || 'S',
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
       });
+
 
       if (!res.ordens.length) {
         toast.info('Nenhuma OP retornada para impressão.');
