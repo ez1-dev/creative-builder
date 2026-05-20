@@ -387,8 +387,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             {renderFooter()}
           </div>
         ))}
-        {renderPreviewDesenhosResumo()}
         {renderDesenhos()}
+        {renderPreviewDesenhosResumo()}
       </>
     );
   }
@@ -412,9 +412,9 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             </>
           )}
           {renderFooter()}
-          {renderPreviewDesenhosResumo()}
         </div>
         {renderDesenhos()}
+        {renderPreviewDesenhosResumo()}
       </>
     );
   }
@@ -431,9 +431,9 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           </>
         )}
         {renderFooter()}
-        {renderPreviewDesenhosResumo()}
       </div>
       {renderDesenhos()}
+      {renderPreviewDesenhosResumo()}
     </>
   );
 }
