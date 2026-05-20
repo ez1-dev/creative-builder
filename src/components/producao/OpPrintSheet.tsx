@@ -323,13 +323,21 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     }
     return (
       <>
+        {quebrarComponentes && (
+          <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+            {renderHeader()}
+            {renderIndicacaoComponentesSeparados()}
+            {renderFooter()}
+          </div>
+        )}
+        {quebrarComponentes && renderComponentesPage()}
         {operacoes.map((op, i) => (
           <div
             key={`opp-${i}`}
             className={`op-sheet operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
           >
             {renderHeader()}
-            {renderComponentes()}
+            {!quebrarComponentes && renderComponentes()}
             <div className="op-section-title">Operação</div>
             {renderOperacao(op, i)}
             {renderFooter()}
@@ -342,6 +350,31 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }
 
   // Modo padrão: tudo numa página
+  if (quebrarComponentes) {
+    return (
+      <>
+        <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+          {renderHeader()}
+          {renderIndicacaoComponentesSeparados()}
+          {renderFooter()}
+        </div>
+        {renderComponentesPage()}
+        <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+          {renderHeader()}
+          {operacoes.length > 0 && (
+            <>
+              <div className="op-section-title">Operações</div>
+              {operacoes.map((op, i) => renderOperacao(op, i))}
+            </>
+          )}
+          {renderFooter()}
+          {renderPreviewDesenhosResumo()}
+        </div>
+        {renderDesenhos()}
+      </>
+    );
+  }
+
   return (
     <>
       <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
