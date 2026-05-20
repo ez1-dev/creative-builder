@@ -13,7 +13,16 @@ export function useImpressaoOrdemProducao() {
     setError(null);
     setLastFilters(filters);
     try {
-      const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', filters as any);
+      const payload: Record<string, any> = {
+        cod_emp: Number(filters.cod_emp),
+        cod_ori: filters.cod_ori,
+        num_orp: Number(filters.num_orp),
+        listar_componentes: filters.listar_componentes || 'S',
+        listar_desenho: filters.listar_desenho || 'N',
+      };
+      if (filters.cod_etg) payload.cod_etg = filters.cod_etg;
+      if (filters.cod_cre) payload.cod_cre = filters.cod_cre;
+      const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
       setData(res ?? null);
     } catch (err: any) {
       setError(err?.message || 'Falha ao consultar ordem de produção');
