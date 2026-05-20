@@ -1,85 +1,70 @@
 ## Objetivo
-Corrigir o erro `FastAPI 422: body.sql_base Field required` nas chamadas do módulo Desenvolvimento de Relatórios, padronizar o nome do campo SQL como `sql_base` em todos os payloads enviados ao FastAPI e espelhar create/update no FastAPI além do Lovable Cloud.
 
-## Mudanças em `src/lib/relatorios/api.ts`
+Na impressão de OP (`OpPrintSheet`), substituir as duas tabelas de apontamento (`op-apontamento-old` 6 colunas + `op-apontamento-table` 9 colunas) por **uma única estrutura de apontamento**, com os campos das duas tabelas unidos, quebrada em **4 linhas por entrada**, separadas por **espaço + linha pontilhada fina**, e **replicada dinamicamente** até preencher o espaço útil da página.
 
-### 1. `validarSql` — alterar assinatura e payload
-```ts
-export async function validarSql(sql_base: string, parametros: Record<string, unknown> = {}) {
-  if (!sql_base?.trim()) throw new Error('Informe o SQL do relatório antes de continuar.');
-  return postFastApi(
-    '/api/relatorios/validar-sql',
-    { sql_base, parametros },
-  );
-}
+## Campos (união das duas tabelas, sem duplicar)
+
+Início, Fim, Tempo Setup, Qtd Produzida, Refugo, Motivo Desvio, Operador, Check, OBS.
+
+## Layout de cada entrada (4 linhas)
+
+Cada entrada é um bloco com 4 linhas de células com borda, no padrão "rótulo em cima / espaço para preenchimento manual embaixo":
+
+```
+┌────────────┬────────────┬───────────────┐
+│ Início     │ Fim        │ Tempo Setup   │   ← L1
+├────────────┼────────────┼───────────────┤
+│ QTD Prod.  │ Refugo     │ Operador      │   ← L2
+├────────────┴────────────┴───────────────┤
+│ Motivo Desvio                            │   ← L3
+├──────────────────────────────────┬──────┤
+│ OBS                              │ ☐    │   ← L4 (Check à direita)
+└──────────────────────────────────┴──────┘
 ```
 
-### 2. `previewSql` — alterar payload
-```ts
-export async function previewSql(sql_base: string, parametros: Record<string, unknown>) {
-  if (!sql_base?.trim()) throw new Error('Informe o SQL do relatório antes de continuar.');
-  return postFastApi<PreviewResult>('/api/relatorios/preview', {
-    sql_base, parametros, limite: 100,
-  });
-}
-```
+Cada célula = rótulo pequeno no topo + área em branco abaixo (altura ~7mm) para preenchimento manual, mesma estética das tabelas atuais (borda 0.5pt preta, fundo branco).
 
-### 3. Novas funções para espelhar no FastAPI
+## Separador entre entradas
 
-```ts
-export async function createRelatorioFastApi(payload: { ... }) {
-  if (!payload.sql_base?.trim()) throw new Error('Informe o SQL do relatório antes de continuar.');
-  return postFastApi('/api/relatorios', payload);
-}
+Entre uma entrada e a próxima:
+- ~3mm de espaço vazio
+- 1 linha tracejada fina horizontal (`border-top: 1px dashed #000`)
+- mais ~3mm de espaço
 
-export async function updateRelatorioFastApi(id: string, payload) {
-  if (!payload.sql_base?.trim()) throw new Error('Informe o SQL do relatório antes de continuar.');
-  return putFastApi(`/api/relatorios/${id}`, payload);   // novo helper PUT
-}
-```
+## Replicação dinâmica
 
-Helper genérico `putFastApi` análogo a `postFastApi` (mesmos headers + token + ngrok).
+Renderizar quantas entradas couberem no espaço restante da folha A4 (após cabeçalho, dados da operação e narrativas). Implementação:
 
-### 4. `createRelatorio` / `updateRelatorio` (Cloud) — chamar FastAPI em paralelo
-- Após gravar com sucesso no Cloud, montar payload no formato exigido:
-  ```ts
-  {
-    nome, descricao, modulo, categoria,
-    fonte_dados: relatorio.fonte_dados ?? 'ERP_SENIOR',
-    sql_base: relatorio.sql_query ?? '',
-    parametros_config: parametros,
-    colunas_config: colunas,
-    layout_config: layout,
-    status: relatorio.status?.toUpperCase() ?? 'RASCUNHO',
-  }
-  ```
-- Chamar `createRelatorioFastApi` / `updateRelatorioFastApi` somente quando `sql_base` não estiver vazio (rascunhos sem SQL não chamam FastAPI).
-- Erros do FastAPI não devem reverter o gravar no Cloud: capturar e exibir toast de aviso ("Salvo localmente, falha ao sincronizar com o ERP: …"). O save principal continua sendo o Cloud (RLS/listagem).
+1. Envolver o bloco em um container `.op-apontamento-fill` com `ref`.
+2. `useLayoutEffect` mede a altura disponível (altura da página menos o que já foi renderizado acima dentro do `.op-operation`).
+3. Divide pela altura conhecida de 1 entrada + separador (constante baseada em mm) e renderiza `N` blocos.
+4. Fallback: se medição falhar, usar `N = 6` (valor seguro para A4 retrato com cabeçalho típico).
 
-## Mudanças nas chamadas (call-sites)
+## Arquivos a alterar
 
-### `src/components/relatorios/tabs/SqlTab.tsx`
-- Antes de chamar `validarSql(sql)`, validar `sql.trim()` e mostrar toast `"Informe o SQL do relatório antes de continuar."` em vez de chamar a API.
-- A chamada continua `validarSql(sql)` (segundo parâmetro opcional).
+**`src/components/producao/OpPrintSheet.tsx`**
+- Remover os dois `<table>` (`op-apontamento-old` e `op-apontamento-table`) dentro de `renderOperacao`.
+- Substituir por novo componente interno `<ApontamentoFill operacaoIndex={i} />` que renderiza N entradas (cada uma com as 4 linhas) + separadores tracejados.
+- Adicionar `useLayoutEffect`/`useState` para calcular N.
 
-### `src/components/relatorios/ReportPreview.tsx`
-- Antes de `previewSql(relatorio.sql_query ?? '', typed)`, validar SQL não vazio e mostrar mesmo toast. Não chamar a API se vazio.
+**`src/components/producao/op-print.css`**
+- Novas classes:
+  - `.op-apontamento-fill` — container flex-column, `flex: 1`.
+  - `.op-apt-entry` — grid de 4 linhas com bordas.
+  - `.op-apt-row` — linha do grid (variações `--3col`, `--full`, `--obs-check`).
+  - `.op-apt-cell` — célula com `label` em cima + área em branco (~7mm).
+  - `.op-apt-sep` — separador (`margin: 3mm 0; border-top: 1px dashed #000;`).
+- Remover/zerar regras antigas `.op-apontamento-old`, `.op-apontamento-table`, `.op-apontamento-row`, `.op-apontamento-cell-check`, `.check-cell`, `.check-box` que ficarão sem uso (manter apenas se houver referência externa — verificar com `rg`).
+- Garantir consistência em `@media print` (bordas em pt, sem sombra, altura preservada).
 
-### `src/components/relatorios/ReportEditor.tsx`
-- Em `handleSave` / publicar: o fluxo continua chamando `createRelatorio` / `updateRelatorio` do `api.ts`, que internamente fará o espelhamento no FastAPI. Sem mudanças visíveis aqui além do tratamento de toast já existente.
+## Fora do escopo
 
-## Comportamento da validação de SQL vazio
-- Em `validarSql`, `previewSql`, `createRelatorioFastApi`, `updateRelatorioFastApi`: `if (!sql_base?.trim()) throw new Error('Informe o SQL do relatório antes de continuar.')`.
-- Nos call-sites (SqlTab/ReportPreview), também validar antes para já exibir o toast sem disparar a chamada.
+- Outras tabelas (componentes, cabeçalho, desenhos).
+- Modo "quebrar por operação" usa o mesmo `renderOperacao`, então herda a mudança automaticamente.
+- Backend / payload da API — sem alteração.
 
-## Fora de escopo
-- Mudanças no editor SQL, no schema do Cloud, em RLS ou na listagem.
-- Migrar create/update completamente para o FastAPI (Cloud continua sendo a fonte primária).
-- Endpoint `/api/relatorios/{id}/executar` e exportações (já enviam só `parametros`, não foram citados no erro).
+## Validação
 
-## Resumo dos arquivos a editar
-- `src/lib/relatorios/api.ts` — renomeia `sql` → `sql_base`, adiciona `putFastApi`, `createRelatorioFastApi`, `updateRelatorioFastApi`, e chama-os de dentro de `createRelatorio`/`updateRelatorio` quando há SQL.
-- `src/components/relatorios/tabs/SqlTab.tsx` — validação de SQL vazio antes de chamar a API.
-- `src/components/relatorios/ReportPreview.tsx` — validação de SQL vazio antes de chamar preview.
-
-Nenhuma migração de banco de dados é necessária.
+1. Preview em `/producao/impressao-op` com 1 operação: deve mostrar 1 bloco de apontamento por operação com N entradas preenchendo até o fim da página.
+2. Imprimir / "Salvar como PDF" e conferir que cada entrada tem 4 linhas, separadas por linha pontilhada, sem overflow para nova página.
+3. Testar com `quebrar_por_operacao=S` (1 OP por página) — N maior, pois mais espaço sobra.
