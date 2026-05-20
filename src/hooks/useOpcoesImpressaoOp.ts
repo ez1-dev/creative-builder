@@ -27,10 +27,12 @@ const sanitizeOps = (arr: OpcaoOp[] = []) => dropCanceladas(dropOri100Ops(arr));
 
 export interface SearchOpsContext {
   cod_emp?: string;
+  cod_ori?: string;
   num_ped?: string;
   rel_prd?: string;
   sit_orp?: string;
 }
+
 
 export function useOpcoesImpressaoOp() {
   const [empresas, setEmpresas] = useState<OpcaoEmpresa[]>([]);
