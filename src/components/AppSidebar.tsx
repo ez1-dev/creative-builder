@@ -69,6 +69,12 @@ const regrasSeniorSubItems = [
   { title: 'Snapshots', url: '/regras-senior/snapshots', icon: Database },
 ];
 
+const relatoriosSubItems = [
+  { title: 'Desenvolvimento de Relatórios', url: '/relatorios/desenvolvimento', icon: FileText },
+  { title: 'Relatórios Publicados', url: '/relatorios/publicados', icon: FileCheck },
+  { title: 'Histórico de Execuções', url: '/relatorios/execucoes', icon: History },
+];
+
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
