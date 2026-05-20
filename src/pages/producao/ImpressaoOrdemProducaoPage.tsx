@@ -1230,12 +1230,13 @@ export default function ImpressaoOrdemProducaoPage() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
-      <Label className="text-xs">{label}</Label>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Label className="truncate text-xs font-semibold text-foreground/80">{label}</Label>
       {children}
     </div>
   );
 }
+
 
 function SimpleSN({ value, onChange }: { value: 'S' | 'N' | '' | undefined; onChange: (v: 'S' | 'N') => void }) {
   return (
