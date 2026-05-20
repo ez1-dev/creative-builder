@@ -414,6 +414,10 @@ export default function ImpressaoOrdemProducaoPage() {
       return;
     }
 
+    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
+      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
+      return;
+    }
     setLoteLoading(true);
     try {
       const res = await fetchImpressaoLote({
@@ -428,8 +432,10 @@ export default function ImpressaoOrdemProducaoPage() {
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
         incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
         pasta_desenhos: filtros.pasta_desenhos || undefined,
+        formatos_desenho: filtros.incluir_desenhos === 'S' ? buildFormatosString(formatosDesenho) : undefined,
         quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
       });
+
 
 
       if (!res.ordens.length) {
@@ -476,7 +482,9 @@ export default function ImpressaoOrdemProducaoPage() {
               if (filtros.incluir_desenhos === 'S') {
                 payload.incluir_desenhos = 'S';
                 if (filtros.pasta_desenhos) payload.pasta_desenhos = filtros.pasta_desenhos;
+                payload.formatos_desenho = buildFormatosString(formatosDesenho) || 'JPG,PNG,PDF';
               }
+
               const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
               return res ?? null;
             } catch {
