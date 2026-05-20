@@ -141,6 +141,7 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
   }
 
   function handleColumnsFromPreview(cols: string[], sample?: Record<string, unknown>) {
+    setLastPreviewCols({ cols, sample });
     if (colunas.length > 0) return;
     setColunas(cols.map((c, idx) => {
       const tipo = inferTipoFromColuna(c, sample?.[c]);
@@ -159,7 +160,12 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     }));
   }
 
-  function handleRestoreColumns(cols: string[], sample?: Record<string, unknown>) {
+  function handleRestoreColumns() {
+    if (!lastPreviewCols) {
+      toast.error('Execute a pré-visualização antes de restaurar.');
+      return;
+    }
+    const { cols, sample } = lastPreviewCols;
     setColunas(cols.map((c, idx) => {
       const tipo = inferTipoFromColuna(c, sample?.[c]);
       return {
@@ -175,6 +181,14 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
         agrupar: false,
       };
     }));
+  }
+
+  async function handleSaveColumnsOnly() {
+    if (!relatorio.id) {
+      toast.error('Salve o relatório antes de salvar a configuração de colunas.');
+      return;
+    }
+    await saveColunas(relatorio.id, colunas);
   }
 
   if (loading) {
