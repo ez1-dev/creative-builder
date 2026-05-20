@@ -1085,7 +1085,34 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
+      {lote && lote.ordens.length > 0 && (
+        <Card className="no-print">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">Visualização das OPs selecionadas</h2>
+                <p className="text-xs text-muted-foreground">
+                  {lote.quantidade_ops} OP(s) carregadas
+                  {falhasLote.length > 0 ? ` • ${falhasLote.length} falharam` : ''}
+                </p>
+              </div>
+              <Button size="sm" onClick={imprimirVisualizacao}>
+                <Printer className="mr-1 h-3 w-3" /> Imprimir visualização
+              </Button>
+            </div>
+            {falhasLote.length > 0 && (
+              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+                {falhasLote.map((f, i) => (
+                  <div key={i}>Não foi possível carregar a OP {f.cod_ori}/{f.num_orp}</div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="print-root">
+
         {lote && lote.ordens.length > 0 && (
           <OpPrintBatch
             ordens={lote.ordens}
