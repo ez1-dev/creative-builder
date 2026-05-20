@@ -705,67 +705,75 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-7xl space-y-6">
       {/* Header — breadcrumb + command bar */}
-      <div className="no-print flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+      <div className="no-print flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-2">
+          <nav className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             <span>MCAP700.GER</span>
             <span className="text-muted-foreground/40">/</span>
             <span>Genius</span>
             <span className="text-muted-foreground/40">/</span>
-            <span>Produção</span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            <span className="text-primary">Produção</span>
+          </nav>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
             Impressão de Ordem de Produção
           </h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={() => consultar()} disabled={loading} className="font-semibold shadow-sm">
-            {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Search className="mr-1.5 h-3.5 w-3.5" />}
+          <Button
+            onClick={() => consultar()}
+            disabled={loading}
+            className="rounded-lg px-5 py-2.5 font-semibold shadow-sm"
+          >
+            {loading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Search className="mr-1.5 h-4 w-4" />}
             Consultar
           </Button>
-          <div className="mx-1 hidden h-6 w-px bg-border md:block" />
-          <Button size="sm" variant="outline" onClick={() => setPreview((p) => !p)} disabled={!data?.cabecalho}>
-            <Eye className="mr-1.5 h-3.5 w-3.5" />
+          <div className="mx-1 hidden h-8 w-px bg-border md:block" />
+          <Button
+            variant="outline"
+            onClick={() => setPreview((p) => !p)}
+            disabled={!data?.cabecalho}
+            className="rounded-lg"
+          >
+            <Eye className="mr-1.5 h-4 w-4 text-muted-foreground" />
             {preview ? 'Sair' : 'Visualizar'}
           </Button>
           <Button
-            size="sm"
             variant="outline"
             onClick={imprimir}
+            className="rounded-lg"
             title="Para melhor resultado, use papel A4, escala 100% (padrão) e margens padrão/nenhuma."
           >
-            <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimir
+            <Printer className="mr-1.5 h-4 w-4 text-muted-foreground" /> Imprimir
           </Button>
-          <Button size="sm" variant="outline" onClick={gerarPdf}>
-            <FileDown className="mr-1.5 h-3.5 w-3.5" /> Gerar PDF
+          <Button variant="outline" onClick={gerarPdf} className="rounded-lg">
+            <FileDown className="mr-1.5 h-4 w-4 text-muted-foreground" /> Gerar PDF
           </Button>
           <Button
-            size="sm"
             variant="outline"
             onClick={limpar}
-            className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="rounded-lg border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/15 hover:text-destructive"
           >
-            <Eraser className="mr-1.5 h-3.5 w-3.5" /> Limpar
+            <Eraser className="mr-1.5 h-4 w-4" /> Limpar
           </Button>
         </div>
       </div>
 
       {!preview && (
-        <Card className="no-print overflow-hidden">
+        <Card className="no-print overflow-hidden rounded-xl border-border shadow-sm">
           <CardContent className="p-0">
-            <div className="flex flex-wrap divide-y divide-border lg:flex-nowrap lg:divide-x lg:divide-y-0">
+            <div className="flex flex-wrap divide-y divide-border/60 lg:flex-nowrap lg:divide-x lg:divide-y-0">
               {/* Grupo 1 — Origem e Destino */}
-              <div className="min-w-[300px] flex-1 space-y-3 bg-muted/30 p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <div className="min-w-[300px] flex-1 space-y-4 p-6">
+                <div className="mb-5 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-primary" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                     Origem e Destino
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <Field label="Empresa">
                     <SelectBuscavel value={filtros.cod_emp || ''} onChange={onChangeEmpresa} options={empresaOpts} placeholder="Empresa..." />
                   </Field>
@@ -779,14 +787,14 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
 
               {/* Grupo 2 — Contexto da Produção */}
-              <div className="min-w-[300px] flex-1 space-y-3 p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <div className="min-w-[300px] flex-1 space-y-4 p-6">
+                <div className="mb-5 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                     Contexto da Produção
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <Field label="Origem">
                     <SelectBuscavel value={filtros.cod_ori || ''} onChange={onChangeOrigem} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
                   </Field>
@@ -808,55 +816,48 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
 
               {/* Grupo 3 — Refinamento */}
-              <div className="min-w-[260px] flex-1 space-y-3 p-4">
-                <div className="mb-1 flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <div className="min-w-[260px] flex-1 space-y-4 p-6">
+                <div className="mb-5 flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                     Refinamento
                   </span>
                 </div>
                 <Field label="Centro de Recurso">
                   <SelectBuscavel value={filtros.cod_cre || ''} onChange={onChangeCentroRecurso} options={creOpts} placeholder="Centro..." disabled={!filtros.cod_emp} />
                 </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Componentes">
-                    <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
-                  </Field>
-                  <div className="flex flex-col gap-1">
-                    <Label className="text-xs">Incluir desenhos</Label>
-                    <div className="flex items-center gap-2">
-                      <label className="flex h-8 flex-1 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
-                        <Checkbox
-                          checked={filtros.incluir_desenhos === 'S'}
-                          onCheckedChange={(c) => {
-                            const on = c === true;
-                            setFiltros((f) => ({
-                              ...f,
-                              incluir_desenhos: on ? 'S' : 'N',
-                              listar_desenho: on ? 'S' : 'N',
-                            }));
-                          }}
-                        />
-                        <span>Imprimir desenhos da OP</span>
-                      </label>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs"
-                        onClick={rodarDiagnosticoDesenhos}
-                        title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
-                      >
-                        Testar diagnóstico
-                      </Button>
-                    </div>
-                  </div>
+                <Field label="Componentes">
+                  <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
+                </Field>
+
+                <div className="flex flex-col gap-2">
+                  <label className="flex w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-xs font-medium text-foreground/80">
+                    <Checkbox
+                      checked={filtros.incluir_desenhos === 'S'}
+                      onCheckedChange={(c) => {
+                        const on = c === true;
+                        setFiltros((f) => ({
+                          ...f,
+                          incluir_desenhos: on ? 'S' : 'N',
+                          listar_desenho: on ? 'S' : 'N',
+                        }));
+                      }}
+                    />
+                    <span className="truncate">Imprimir desenhos da OP</span>
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs"
+                    onClick={rodarDiagnosticoDesenhos}
+                    title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
+                  >
+                    Testar diagnóstico
+                  </Button>
                 </div>
 
-
-
-
-                <label className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+                <label className="mt-1 flex cursor-pointer items-center gap-3 border-t border-border/60 pt-3 text-xs font-medium text-foreground/80">
                   <Checkbox
                     checked={filtros.quebrar_por_operacao === 'S'}
                     onCheckedChange={(c) => set('quebrar_por_operacao', c === true ? 'S' : 'N')}
@@ -868,6 +869,7 @@ export default function ImpressaoOrdemProducaoPage() {
           </CardContent>
         </Card>
       )}
+
 
       {showGrid && !preview && (
         <Card className="no-print">
