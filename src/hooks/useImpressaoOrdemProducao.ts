@@ -22,6 +22,10 @@ export function useImpressaoOrdemProducao() {
       };
       if (filters.cod_etg) payload.cod_etg = filters.cod_etg;
       if (filters.cod_cre) payload.cod_cre = filters.cod_cre;
+      if (filters.incluir_desenhos === 'S') {
+        payload.incluir_desenhos = 'S';
+        if (filters.pasta_desenhos) payload.pasta_desenhos = filters.pasta_desenhos;
+      }
       const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
       setData(res ?? null);
     } catch (err: any) {
