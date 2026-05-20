@@ -96,6 +96,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const [lote, setLote] = useState<ImpressaoOpLoteResponse | null>(null);
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
@@ -138,6 +139,7 @@ export default function ImpressaoOrdemProducaoPage() {
   // Limpa seleção sempre que filtros principais/refinamento mudam
   useEffect(() => {
     setSelectedKeys(new Set());
+    setSelectedRowKey(null);
   }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp, filtros.cod_pro]);
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
@@ -466,6 +468,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setPreview(false);
     setLastConsulta(null);
     setLote(null);
+    setSelectedRowKey(null);
     reset();
     void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
@@ -507,23 +510,35 @@ export default function ImpressaoOrdemProducaoPage() {
     return '';
   };
 
+  const handleRowSelect = async (op: OpcaoOp) => {
+    const cod_emp = String(op.cod_emp ?? filtros.cod_emp ?? '');
+    const cod_ori = String(op.cod_ori ?? '');
+    const num_orp = String(op.num_orp ?? '');
+    if (cod_ori === '100') { toast.error('Origem 100 não é permitida.'); return; }
+    if (String(op.sit_orp ?? '').toUpperCase() === 'C') { toast.error('OP cancelada não pode ser selecionada.'); return; }
+    setSelectedRowKey(opKey(op));
+    setLote(null);
+    const eff: ImpressaoOpFiltros = {
+      cod_emp,
+      cod_ori,
+      num_orp,
+      listar_componentes: 'S',
+      listar_desenho: 'N',
+      incluir_desenhos: 'S',
+      quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
+      cod_etg: filtros.cod_etg || '',
+      cod_cre: filtros.cod_cre || '',
+    };
+    setLastConsulta(eff);
+    await fetchData(eff);
+  };
+
   const handleRowVisualizar = async (op: OpcaoOp) => {
-    await onSelectOp(op);
-    await consultar({
-      cod_emp: String(op.cod_emp ?? filtros.cod_emp ?? ''),
-      cod_ori: String(op.cod_ori ?? ''),
-      num_orp: String(op.num_orp ?? ''),
-    });
-    setPreview(true);
+    await handleRowSelect(op);
   };
 
   const handleRowImprimir = async (op: OpcaoOp) => {
-    await onSelectOp(op);
-    await consultar({
-      cod_emp: String(op.cod_emp ?? filtros.cod_emp ?? ''),
-      cod_ori: String(op.cod_ori ?? ''),
-      num_orp: String(op.num_orp ?? ''),
-    });
+    await handleRowSelect(op);
     setTimeout(() => window.print(), 200);
   };
 
@@ -872,8 +887,13 @@ export default function ImpressaoOrdemProducaoPage() {
                         const k = opKey(op);
                         const checked = selectedKeys.has(k);
                         return (
-                        <TableRow key={`${k}-${idx}`} data-state={checked ? 'selected' : undefined}>
-                          <TableCell>
+                        <TableRow
+                          key={`${k}-${idx}`}
+                          data-state={selectedRowKey === k || checked ? 'selected' : undefined}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleRowSelect(op)}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={checked}
                               onCheckedChange={(c) => toggleOne(k, c === true)}
@@ -892,7 +912,7 @@ export default function ImpressaoOrdemProducaoPage() {
                           <TableCell>{op.cod_cre || filtros.cod_cre || '—'}</TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-1">
                               <Button size="sm" variant="ghost" onClick={() => handleRowVisualizar(op)} title="Visualizar">
                                 <Eye className="h-3 w-3" />
@@ -964,6 +984,34 @@ export default function ImpressaoOrdemProducaoPage() {
         </div>
       )}
 
+      {showGrid && selectedRowKey && (
+        <Card className="no-print">
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <h2 className="text-sm font-bold text-foreground">Visualização da Ordem de Produção</h2>
+              {data?.cabecalho && (
+                <p className="text-xs text-muted-foreground">
+                  Origem {data.cabecalho.cod_ori} / OP {data.cabecalho.num_orp_formatado ?? data.cabecalho.num_orp}
+                  {data.cabecalho.produto ? ` • ${data.cabecalho.produto}` : ''}
+                  {data.cabecalho.descricao_produto ? ` - ${data.cabecalho.descricao_produto}` : ''}
+                </p>
+              )}
+            </div>
+            {loading && (
+              <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando visualização da OP...
+              </div>
+            )}
+            {!loading && error && (
+              <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                <p className="font-medium text-destructive">Não foi possível carregar a visualização da OP.</p>
+                <Button size="sm" variant="outline" onClick={retry}>Tentar novamente</Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div className="print-root">
         {lote && lote.ordens.length > 0 && (
           <OpPrintBatch
@@ -977,7 +1025,7 @@ export default function ImpressaoOrdemProducaoPage() {
         {!lote && data?.cabecalho && (
           <OpPrintSheet
             data={data}
-            preview={preview}
+            preview={preview || !!selectedRowKey}
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
             blobStates={blobStates}
