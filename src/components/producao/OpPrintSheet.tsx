@@ -205,7 +205,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? '—'}</div>
           <div className="k">Próx. Oper.:</div>
-          <div className="v">{op.proxima_operacao_label ?? op.proxima_operacao ?? '—'}</div>
+          <div className="v">{(() => {
+            const label = op.proxima_operacao_label?.trim();
+            if (label) return label;
+            const cod = op.proxima_operacao_codigo?.trim();
+            const desc = op.proxima_operacao_descricao?.trim();
+            if (cod && desc) return `${cod} - ${desc}`;
+            if (cod) return cod;
+            return '—';
+          })()}</div>
 
           {op.fornecedor && (
             <>
