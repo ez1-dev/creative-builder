@@ -89,27 +89,35 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   const onChangePedido = async (v: string) => {
-    setFiltros((f) => ({ ...f, num_ped: v, rel_prd: '', cod_ori: '', num_orp: '', cod_etg: '', cod_cre: '' }));
+    setFiltros((f) => ({ ...f, num_ped: v, rel_prd: '', cod_ori: '', num_orp: '' }));
     setOpLabel('');
     setLote(null);
     if (filtros.cod_emp && v) {
-      try { await opcoes.reloadByPedido(filtros.cod_emp, v, filtros.sit_orp || undefined); }
-      catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do pedido'); }
+      try {
+        await opcoes.reloadByPedido(filtros.cod_emp, v, filtros.sit_orp || undefined, {
+          cod_cre: filtros.cod_cre || undefined,
+          cod_etg: filtros.cod_etg || undefined,
+        });
+      } catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do pedido'); }
     }
   };
 
   const onChangeRelatorio = async (v: string) => {
-    setFiltros((f) => ({ ...f, rel_prd: v, num_ped: '', cod_ori: '', num_orp: '', cod_etg: '', cod_cre: '' }));
+    setFiltros((f) => ({ ...f, rel_prd: v, num_ped: '', cod_ori: '', num_orp: '' }));
     setOpLabel('');
     setLote(null);
     if (filtros.cod_emp && v) {
-      try { await opcoes.reloadByRelatorio(filtros.cod_emp, v, filtros.sit_orp || undefined); }
-      catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do relatório'); }
+      try {
+        await opcoes.reloadByRelatorio(filtros.cod_emp, v, filtros.sit_orp || undefined, {
+          cod_cre: filtros.cod_cre || undefined,
+          cod_etg: filtros.cod_etg || undefined,
+        });
+      } catch (e: any) { toast.error(e?.message || 'Falha ao carregar OPs do relatório'); }
     }
   };
 
   const onChangeOrigem = async (v: string) => {
-    setFiltros((f) => ({ ...f, cod_ori: v, num_orp: '', cod_etg: '', cod_cre: '' }));
+    setFiltros((f) => ({ ...f, cod_ori: v, num_orp: '' }));
     setOpLabel('');
     setLote(null);
     if (!filtros.cod_emp) return;
@@ -117,17 +125,24 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error('Origem 100 não é permitida.');
       return;
     }
+    const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined };
     try {
       if (v) {
         await opcoes.reloadByOrigem(filtros.cod_emp, v, {
           sit_orp: filtros.sit_orp || undefined,
           num_ped: filtros.num_ped || undefined,
           rel_prd: filtros.rel_prd || undefined,
+          ...ref,
         });
       } else if (filtros.num_ped) {
-        await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined);
+        await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined, ref);
       } else if (filtros.rel_prd) {
-        await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined);
+        await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined, ref);
+      } else if (filtros.cod_cre || filtros.cod_etg) {
+        await opcoes.reloadByCentroRecurso(filtros.cod_emp, filtros.cod_cre || '', {
+          sit_orp: filtros.sit_orp || undefined,
+          cod_etg: filtros.cod_etg || undefined,
+        });
       } else if (filtros.sit_orp) {
         await opcoes.reloadBySituacao(filtros.cod_emp, filtros.sit_orp);
       } else {
@@ -142,16 +157,19 @@ export default function ImpressaoOrdemProducaoPage() {
     setFiltros((f) => ({ ...f, sit_orp: v }));
     setLote(null);
     if (!filtros.cod_emp) return;
+    const ref = { cod_cre: filtros.cod_cre || undefined, cod_etg: filtros.cod_etg || undefined };
     try {
       if (filtros.cod_ori) {
         await opcoes.reloadByOrigem(filtros.cod_emp, filtros.cod_ori, {
           sit_orp: v || undefined,
           num_ped: filtros.num_ped || undefined,
           rel_prd: filtros.rel_prd || undefined,
+          ...ref,
         });
-      } else if (filtros.num_ped) await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, v || undefined);
-      else if (filtros.rel_prd) await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, v || undefined);
-      else if (v) await opcoes.reloadBySituacao(filtros.cod_emp, v);
+      } else if (filtros.num_ped) await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, v || undefined, ref);
+      else if (filtros.rel_prd) await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, v || undefined, ref);
+      else if (filtros.cod_cre) await opcoes.reloadByCentroRecurso(filtros.cod_emp, filtros.cod_cre, { sit_orp: v || undefined, cod_etg: filtros.cod_etg || undefined });
+      else if (v) await opcoes.reloadBySituacao(filtros.cod_emp, v, ref);
       else await opcoes.reloadBase(filtros.cod_emp);
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao carregar OPs');
@@ -186,10 +204,65 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   const onChangeEstagio = async (v: string) => {
-    setFiltros((f) => ({ ...f, cod_etg: v, cod_cre: '' }));
-    if (filtros.cod_emp && filtros.cod_ori && filtros.num_orp) {
+    setFiltros((f) => ({ ...f, cod_etg: v }));
+    setLote(null);
+    if (!filtros.cod_emp) return;
+    // Caso 1: OP escolhida → atualiza centros disponíveis no contexto da OP
+    if (filtros.cod_ori && filtros.num_orp) {
       try { await opcoes.reloadCres(filtros.cod_emp, filtros.cod_ori, filtros.num_orp, v || undefined); }
       catch (e: any) { toast.error(e?.message || 'Falha ao carregar centros de recurso'); }
+      return;
+    }
+    // Caso 2: filtro de refinamento → recarrega grid combinando filtros principais + estágio
+    try {
+      await opcoes.reloadByCentroRecurso(filtros.cod_emp, filtros.cod_cre || '', {
+        cod_ori: filtros.cod_ori || undefined,
+        num_ped: filtros.num_ped || undefined,
+        rel_prd: filtros.rel_prd || undefined,
+        sit_orp: filtros.sit_orp || undefined,
+        cod_etg: v || undefined,
+      });
+    } catch (e: any) { toast.error(e?.message || 'Falha ao recarregar OPs'); }
+  };
+
+  const onChangeCentroRecurso = async (v: string) => {
+    setFiltros((f) => ({ ...f, cod_cre: v, num_orp: '' }));
+    setOpLabel('');
+    setLote(null);
+    if (!filtros.cod_emp) return;
+    try {
+      if (v) {
+        await opcoes.reloadByCentroRecurso(filtros.cod_emp, v, {
+          cod_ori: filtros.cod_ori || undefined,
+          num_ped: filtros.num_ped || undefined,
+          rel_prd: filtros.rel_prd || undefined,
+          sit_orp: filtros.sit_orp || undefined,
+          cod_etg: filtros.cod_etg || undefined,
+        });
+      } else {
+        // Limpou centro de recurso — recarrega pelo filtro principal ativo
+        const ref = { cod_etg: filtros.cod_etg || undefined };
+        if (filtros.cod_ori) {
+          await opcoes.reloadByOrigem(filtros.cod_emp, filtros.cod_ori, {
+            sit_orp: filtros.sit_orp || undefined,
+            num_ped: filtros.num_ped || undefined,
+            rel_prd: filtros.rel_prd || undefined,
+            ...ref,
+          });
+        } else if (filtros.num_ped) {
+          await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined, ref);
+        } else if (filtros.rel_prd) {
+          await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined, ref);
+        } else if (filtros.sit_orp) {
+          await opcoes.reloadBySituacao(filtros.cod_emp, filtros.sit_orp, ref);
+        } else if (filtros.cod_etg) {
+          await opcoes.reloadByCentroRecurso(filtros.cod_emp, '', { cod_etg: filtros.cod_etg });
+        } else {
+          await opcoes.reloadBase(filtros.cod_emp);
+        }
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao carregar OPs');
     }
   };
 
@@ -200,9 +273,13 @@ export default function ImpressaoOrdemProducaoPage() {
       num_ped: filtros.num_ped || undefined,
       rel_prd: filtros.rel_prd || undefined,
       sit_orp: filtros.sit_orp || undefined,
+      cod_cre: filtros.cod_cre || undefined,
+      cod_etg: filtros.cod_etg || undefined,
     }),
-    [opcoes.searchOps, filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp],
+    [opcoes.searchOps, filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg],
   );
+
+
 
 
   const consultar = async (override?: Partial<ImpressaoOpFiltros>) => {
