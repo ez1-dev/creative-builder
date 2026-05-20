@@ -547,6 +547,26 @@ export default function ImpressaoOrdemProducaoPage() {
     setTimeout(() => window.print(), 200);
   };
 
+  const handleVerObservacoes = async (op: OpcaoOp) => {
+    const cod_emp = String(op.cod_emp ?? filtros.cod_emp ?? '');
+    const cod_ori = String(op.cod_ori ?? '');
+    const num_orp = String(op.num_orp ?? '');
+    setObsTarget({ cod_ori, num_orp });
+    setObsOpen(true);
+    setObsLoading(true);
+    setObsError(null);
+    setObsData([]);
+    try {
+      const res = await api.get<any>('/api/producao/ordem-producao/observacoes', { cod_emp, cod_ori, num_orp });
+      const list = Array.isArray(res) ? res : (res?.observacoes ?? []);
+      setObsData(list);
+    } catch (e: any) {
+      setObsError(e?.message || 'Falha ao carregar observações.');
+    } finally {
+      setObsLoading(false);
+    }
+  };
+
   const imprimirTodas = async () => {
     if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd && !filtros.cod_ori && !filtros.cod_cre)) {
       toast.info('Selecione um Pedido, Relatório de Produção, Origem ou Centro de Recurso.');
