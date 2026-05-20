@@ -1,42 +1,37 @@
-## Observações da OP — fora da impressão, disponíveis na grid
+## Rotação automática de desenhos em paisagem na impressão da OP
 
 ### Objetivo
-
-Remover o bloco "Observações" da área de impressão da OP e expor as observações apenas na grid, via modal sob demanda.
+Quando a API marcar um desenho como paisagem (`rotacionar_para_retrato = true` ou `rotacao_recomendada = 90`), girá-lo 90° e ampliá-lo para preencher o máximo da página A4 retrato. Caso contrário, manter renderização normal. Cada desenho continua em página separada.
 
 ### Mudanças
 
-**1. `src/components/producao/OpPrintSheet.tsx`** — remover o bloco "Observações" do `renderFooter()` (linhas 263–270). O `renderFooter` passa a renderizar apenas `op-responsability` + `op-footer`. Não imprimir observações por padrão.
+**1. `src/lib/producao/opImpressao.ts`** — estender `OpDesenho` com os novos campos opcionais retornados pela API:
+- `largura?: number`
+- `altura?: number`
+- `orientacao?: string`
+- `rotacao_recomendada?: number`
+- `rotacionar_para_retrato?: boolean`
 
-Defesa extra: se algum dia o backend retornar `data.modo_impressao?.imprimir_observacoes === false`, ainda assim nada é renderizado (comportamento agora é sempre `N` por padrão).
+**2. `src/components/producao/OpPrintSheet.tsx` → `renderDrawingBody`**
+- Calcular `shouldRotate = drawing.rotacionar_para_retrato === true || Number(drawing.rotacao_recomendada) === 90`.
+- Para JPG/JPEG/PNG (não-PDF), envolver o `<img>` em uma estrutura:
+  ```
+  <div class="op-drawing-page">
+    <div class={`drawing-frame${shouldRotate ? ' rotated' : ''}`}>
+      <img class={`drawing-image${shouldRotate ? ' rotate-90' : ''}`} ... />
+    </div>
+  </div>
+  ```
+- PDF continua usando `<iframe>` como hoje (sem rotação — não há como rotacionar conteúdo de iframe cross-origin).
+- Remover o texto "Nenhum desenho encontrado" do estado vazio (só renderiza a página vazia ou nada).
 
-**2. `src/lib/producao/opImpressao.ts`** — adicionar tipos opcionais:
-- Em `OpImpressao`: `modo_impressao?: { imprimir_observacoes?: boolean }`.
-- (Os campos `tem_observacao` / `qtd_observacoes` na opção da grid já são `any` em `OpcaoOp`, sem mudança obrigatória.)
+**3. `src/components/producao/op-print.css`** — adicionar as classes `.drawing-frame`, `.drawing-frame.rotated`, `.drawing-image`, `.drawing-image.rotate-90` exatamente conforme spec do usuário (tela e `@media print`). Ajustar `.op-drawing-page` para usar `height: 297mm` fixo + `overflow: hidden` (já existe; alinhar com spec). A rotação fica isolada dentro de `.op-drawing-page` — não afeta a página da OP.
 
-**3. Hook `useImpressaoOrdemProducao` / `handleRowSelect` / `imprimirSelecionadas` / `fetchImpressaoLote`** — não enviar `imprimir_observacoes` (já não enviam). Nada a alterar; apenas confirmar que continua assim. Documentar a regra no comentário do payload.
+**4. Mensagem "Nenhum desenho encontrado"** — em `renderDesenhos` (linhas ~286–289 do `OpPrintSheet.tsx`), remover o bloco que renderiza essa mensagem na impressão. Continua aparecendo o bloco de status apenas no preview (fora de `op-drawing-page`).
 
-**4. `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`** — grid de OPs:
-
-- Nova coluna "Observações" entre "C. Recurso" e "Geração".
-- Conteúdo da célula:
-  - Se `op.tem_observacao === 'S'` ou `Number(op.qtd_observacoes) > 0` → botão ícone "Ver observações" (com `e.stopPropagation()` no `onClick` para não disparar `handleRowSelect`).
-  - Caso contrário → `—`.
-- Novo handler `handleVerObservacoes(op)`:
-  - `setObsTarget({ cod_emp, cod_ori, num_orp })`
-  - `setObsLoading(true)`; chama `api.get('/api/producao/ordem-producao/observacoes', { cod_emp, cod_ori, num_orp })`
-  - guarda em `obsData` (array `{ tipo, sequencia, observacao }`).
-- Novo `<Dialog>` no fim da página (com `className="no-print"` no `DialogContent`):
-  - Título: `Observações da OP {cod_ori}/{num_orp}`.
-  - Loading → "Carregando observações...".
-  - Erro → mensagem destrutiva + botão fechar.
-  - Lista vazia → "Nenhuma observação encontrada."
-  - Caso contrário → `<Table>` com colunas `Tipo`, `Sequência`, `Observação`.
-
-**5. CSS** — não precisa alterar `op-print.css`. O bloco foi removido do JSX, então não ocupa espaço algum na página de impressão.
+**5. Aguardar imagens carregar antes de `window.print()`** — `aguardarDesenhosProntos` em `ImpressaoOrdemProducaoPage.tsx` já espera `img.complete`/`load` dentro de `.op-drawing-page`. Sem mudança.
 
 ### Fora de escopo
-
-- Backend (`/observacoes` será chamado conforme contrato informado pelo usuário; nenhuma mudança aqui).
-- Opção futura "Imprimir observações" — não implementada agora; a flag `imprimir_observacoes` permanece `N` (não enviada).
-- Alterações em `OpPrintBatch` — não renderiza observações; nada a fazer.
+- Rotação de PDFs em iframe (limitação do browser).
+- Mudanças no backend.
+- `OpPrintBatch` — usa o mesmo `OpPrintSheet`, herda automaticamente.
