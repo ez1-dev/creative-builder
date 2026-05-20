@@ -554,7 +554,7 @@ export default function ImpressaoOrdemProducaoPage() {
       {!loading && !error && !data?.cabecalho && !lote && !lastConsulta && !showGrid && (
         <Card className="no-print">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
-            Selecione um Pedido, Relatório de Produção ou uma OP e clique em Consultar.
+            Selecione uma Origem, Pedido, Relatório de Produção ou uma OP e clique em Consultar.
           </CardContent>
         </Card>
       )}
