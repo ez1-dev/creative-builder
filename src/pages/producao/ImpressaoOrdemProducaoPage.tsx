@@ -1106,6 +1106,49 @@ export default function ImpressaoOrdemProducaoPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={obsOpen} onOpenChange={setObsOpen}>
+        <DialogContent className="no-print max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Observações da OP {obsTarget?.cod_ori ?? ''}/{obsTarget?.num_orp ?? ''}
+            </DialogTitle>
+          </DialogHeader>
+          {obsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando observações...
+            </div>
+          )}
+          {!obsLoading && obsError && (
+            <div className="rounded-md border border-destructive p-3 text-sm text-destructive">{obsError}</div>
+          )}
+          {!obsLoading && !obsError && obsData.length === 0 && (
+            <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma observação encontrada.</div>
+          )}
+          {!obsLoading && !obsError && obsData.length > 0 && (
+            <div className="max-h-[60vh] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Tipo</TableHead>
+                    <TableHead className="w-24">Sequência</TableHead>
+                    <TableHead>Observação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {obsData.map((o, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{o.tipo ?? ''}</TableCell>
+                      <TableCell>{o.sequencia ?? ''}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{o.observacao ?? ''}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
