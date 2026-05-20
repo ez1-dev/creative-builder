@@ -1,39 +1,41 @@
-## Usar `url_impressao` da API e remover rotação CSS dos desenhos
+## Layout A4 fixo de impressão da OP (independente do destino)
 
-### Objetivo
-A API passou a devolver, em cada desenho, uma `url_impressao` que já entrega a imagem **rotacionada para retrato** quando o original é paisagem. O frontend deve consumir essa URL e parar de aplicar `rotate(90deg)` via CSS, que estava distorcendo a impressão.
+### Problema
+Hoje a página de impressão usa `width: 210mm` + `padding: 8mm 10mm`, ultrapassando a área útil do A4. O navegador reduz a escala automaticamente, deformando bordas, tabelas e tornando o conteúdo "miúdo" ao imprimir para PDF ou impressora física.
 
-### Mudanças
+### Estratégia
+Margem da página é controlada **só** pelo `@page` (7mm). O conteúdo interno usa **largura útil de 196mm** sem padding lateral. Remover `position: absolute`, `transform`, `zoom` e o padding interno das páginas. Manter o restante do layout intacto.
 
-**1. `src/lib/producao/opImpressao.ts`** — Adicionar campo opcional `url_impressao?: string` em `OpDesenho`.
+### Mudanças em `src/components/producao/op-print.css`
 
-**2. `src/components/producao/OpPrintSheet.tsx`**
-- Criar helper `getDrawingPrintUrl(d) = d.url_impressao || d.url`.
-- Em `renderDesenhos`, passar `precomputed={blobStates?.[getDrawingPrintUrl(d)]}` (em vez de `d.url`).
-- `DrawingPageStandalone` deve chamar `useAuthedBlobUrl(getDrawingPrintUrl(drawing))`.
-- Em `renderDrawingBody`:
-  - Calcular `usingPrintUrl = Boolean(drawing.url_impressao)`.
-  - `shouldRotate = !usingPrintUrl && (drawing.rotacionar_para_retrato === true || Number(drawing.rotacao_recomendada) === 90)`.
-  - Quando `usingPrintUrl`, renderizar `<img className="drawing-image" />` sem `rotate-90` e wrapper `drawing-frame` sem `rotated`. A imagem já vem em retrato.
-- Em `renderPreviewDesenhosResumo`, trocar todos os `blobStates[d.url]` por `blobStates[getDrawingPrintUrl(d)]` para o status (OK/Falha/Carregando) refletir o download real.
+**1. `@page`** — Alterar margem de `8mm` para `7mm`.
 
-**3. `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`** — Em `desenhoUrls` (linha 113), mapear `(d) => d.url_impressao || d.url` para que `useAuthedBlobUrls` pré-carregue a URL correta antes do `window.print()` e `aguardarDesenhosProntos` aguarde o blob certo.
+**2. Estilos base (fora de `@media print`)** — Atualizar `.op-print-page`, `.op-operation-page`, `.op-drawing-page` (e `.componentes-page` se já existir) para `width: 196mm`, `min-height: 283mm`, sem padding lateral. Ajustar `.op-drawing-page img/iframe` para `max-width: 196mm; max-height: 283mm`. Manter `.op-sheet` interno como wrapper de conteúdo sem padding extra.
 
-**4. `src/components/producao/op-print.css`** — Simplificar a seção “Rotação automática de desenhos paisagem”:
-- Manter `.drawing-frame` (sem variante `.rotated`) e `.drawing-image` com `max-width: 190mm; max-height: 270mm; width: auto; height: auto; object-fit: contain;`.
-- Remover (ou deixar como fallback inerte) as regras `.drawing-frame.rotated` e `.drawing-image.rotate-90` que aplicavam `transform: rotate(90deg)`. A rotação agora vem da API; o CSS não precisa girar.
-- Manter `.op-drawing-page` como já está (A4 retrato, centralizado, overflow hidden).
+**3. Bloco `@media print`** — Substituir por:
+- `html, body`: `width: 210mm`, `min-height: 297mm`, sem margem/padding, `-webkit-print-color-adjust: exact`.
+- `.print-root`: **remover `position: absolute`**, usar `position: static`, `width: 100%`, sem padding/margin/transform/zoom.
+- Páginas (`.op-print-page`, `.op-operation-page`, `.componentes-page`, `.op-drawing-page`): `width: 196mm`, `min-height: 283mm`, **sem padding**, `margin: 0 auto`, sem transform.
+- `.op-sheet`: `width: 100%`, `padding: 0`, fontes em `pt` (8.5pt base) para consistência entre destinos.
+- Tabelas: `table-layout: fixed`, bordas `0.5pt solid #000`, `padding: 1.5pt 2pt`.
+- `.op-drawing-page img`: `max-width: 196mm; max-height: 283mm; width: auto; height: auto; object-fit: contain`.
+- Manter regras de quebra de página (`page-break-after: always`, `page-break-inside: avoid` para `.op-operation`, linhas de tabela).
+- Manter `.no-print`, `header`, `nav`, `aside`, `.app-header`, `.sidebar`, `.filters`, `.print-actions` com `display: none`.
 
-### Compatibilidade
-- Se a API ainda não devolver `url_impressao` para algum desenho, o código cai para `drawing.url` e mantém o comportamento atual (sem rotação CSS — assumimos que a API já entrega rotacionado quando aplicável; manter `shouldRotate` apenas como fallback para `drawing.url`, conforme item 2).
+**4. Drawing frame** — Já está com `width: 190mm; height: 270mm`. Atualizar para `width: 196mm; height: 283mm` para casar com a nova área útil (e atualizar `.drawing-image` `max-width/max-height` correspondentes).
+
+### Mudança em `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+Pequeno ajuste de UX no botão/área de ações de impressão: adicionar texto auxiliar abaixo (ou tooltip) com a orientação:
+
+> "Para melhor resultado, use papel A4, escala 100% (padrão) e margens padrão/nenhuma."
+
+Pode ser um `<p className="text-xs text-muted-foreground">` próximo aos botões "Imprimir" / "Imprimir visualização" (no-print).
 
 ### Não fazer
-- Não alterar o endpoint da API nem o backend (escopo do prompt anterior, já implementado lá).
-- Não mexer em `OpPrintBatch`, `aguardarDesenhosProntos`, fluxo de “Visualizar selecionadas” nem regras de quebra por operação/componentes.
-- Não alterar `useAuthedBlobUrl(s)`.
+- Não criar endpoint de PDF na API (mencionado pelo usuário como "solução definitiva futura", fora do escopo agora).
+- Não mexer em `OpPrintSheet.tsx` (estrutura JSX), `OpPrintBatch`, lógica de rotação de desenhos (já corrigida via `url_impressao`), fluxo de "Visualizar selecionadas", quebra por operação/componentes.
+- Não usar `transform: scale()` nem `zoom` em lugar nenhum do print.
 
 ### Arquivos
-- `src/lib/producao/opImpressao.ts`
-- `src/components/producao/OpPrintSheet.tsx`
-- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
 - `src/components/producao/op-print.css`
+- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` (apenas texto de orientação)
