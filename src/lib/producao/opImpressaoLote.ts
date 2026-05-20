@@ -11,6 +11,8 @@ export interface ImpressaoOpLoteParams {
   cod_etg?: string;
   listar_componentes?: 'S' | 'N';
   listar_desenho?: 'S' | 'N';
+  incluir_desenhos?: 'S' | 'N';
+  pasta_desenhos?: string;
 }
 
 export interface ImpressaoOpLoteResponse {
