@@ -1,22 +1,28 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle } from 'lucide-react';
+import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle, Info } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
-import type { PreviewResult, Relatorio, RelatorioParametro } from '@/lib/relatorios/types';
+import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioParametro } from '@/lib/relatorios/types';
+import { alignClass, formatCellValue, toNumberSafe } from '@/lib/relatorios/format';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+type ColDraft = Omit<RelatorioColuna, 'id' | 'relatorio_id'>;
 
 interface Props {
   relatorio: Partial<Relatorio>;
   parametros: Omit<RelatorioParametro, 'id' | 'relatorio_id'>[];
-  onColumnsDetected?: (cols: string[]) => void;
+  colunasConfig?: ColDraft[];
+  onColumnsDetected?: (cols: string[], sample?: Record<string, unknown>) => void;
+  onExecucaoGravada?: () => void;
 }
 
-export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Props) {
+export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsDetected, onExecucaoGravada }: Props) {
   const [paramValues, setParamValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(parametros.map((p) => [p.nome, p.valor_padrao ?? ''])),
   );
@@ -44,7 +50,7 @@ export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Prop
       const res = await previewSql(relatorio.sql_query ?? '', typed);
       setResult(res);
       const cols = res.colunas?.map((c) => c.nome) ?? Object.keys(res.linhas[0] ?? {});
-      onColumnsDetected?.(cols);
+      onColumnsDetected?.(cols, res.linhas[0]);
       if (relatorio.id) {
         await gravarExecucao({
           relatorio_id: relatorio.id,
@@ -55,6 +61,7 @@ export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Prop
           erro: null,
           formato: 'grid',
         }).catch(() => {});
+        onExecucaoGravada?.();
       }
     } catch (e: any) {
       setErro(e.message ?? String(e));
@@ -68,6 +75,7 @@ export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Prop
           erro: e.message ?? String(e),
           formato: 'grid',
         }).catch(() => {});
+        onExecucaoGravada?.();
       }
     } finally {
       setLoading(false);
@@ -79,21 +87,85 @@ export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Prop
       toast.error('Salve o relatório antes de exportar');
       return;
     }
+    const t0 = performance.now();
     try {
-      const blob = await exportarRelatorio(relatorio.id, formato, paramValues);
+      const { blob, filename } = await exportarRelatorio(relatorio.id, formato, paramValues, relatorio.codigo ?? 'relatorio');
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${relatorio.codigo ?? 'relatorio'}.${formato === 'excel' ? 'xlsx' : formato}`;
+      a.download = filename;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(url);
+      await gravarExecucao({
+        relatorio_id: relatorio.id,
+        parametros: paramValues,
+        qtd_linhas: result?.qtd_linhas ?? null,
+        tempo_ms: Math.round(performance.now() - t0),
+        status: 'ok',
+        erro: null,
+        formato,
+        arquivo: filename,
+      }).catch(() => {});
+      onExecucaoGravada?.();
+      toast.success(`Arquivo ${filename} baixado`);
     } catch (e: any) {
       toast.error(`Falha ao exportar: ${e.message}`);
+      if (relatorio.id) {
+        await gravarExecucao({
+          relatorio_id: relatorio.id,
+          parametros: paramValues,
+          qtd_linhas: null,
+          tempo_ms: Math.round(performance.now() - t0),
+          status: 'erro',
+          erro: e.message ?? String(e),
+          formato,
+        }).catch(() => {});
+        onExecucaoGravada?.();
+      }
     }
   }
 
   const podeExportar = relatorio.status === 'publicado';
-  const colunas = result?.colunas?.map((c) => c.nome) ?? (result?.linhas[0] ? Object.keys(result.linhas[0]) : []);
+
+  // Colunas a exibir: usa config se houver, senão pega da resposta
+  const colunasExibir: ColDraft[] = useMemo(() => {
+    if (colunasConfig && colunasConfig.length > 0) {
+      return [...colunasConfig].filter((c) => c.visivel).sort((a, b) => a.ordem - b.ordem);
+    }
+    const cols = result?.colunas?.map((c) => c.nome) ?? (result?.linhas[0] ? Object.keys(result.linhas[0]) : []);
+    return cols.map((c, i) => ({
+      campo: c,
+      titulo: c,
+      visivel: true,
+      ordem: i,
+      tipo: 'texto',
+      formato: null,
+      alinhamento: 'esquerda' as const,
+      largura: null,
+      totalizar: false,
+      agrupar: false,
+    }));
+  }, [colunasConfig, result]);
+
+  const totais = useMemo(() => {
+    if (!result) return {} as Record<string, number>;
+    const t: Record<string, number> = {};
+    for (const c of colunasExibir) {
+      if (!c.totalizar) continue;
+      let acc = 0;
+      for (const row of result.linhas) {
+        const n = toNumberSafe(row[c.campo]);
+        if (n !== null) acc += n;
+      }
+      t[c.campo] = acc;
+    }
+    return t;
+  }, [result, colunasExibir]);
+
+  const temTotalizadores = colunasExibir.some((c) => c.totalizar);
+  const linhasLimitadas = !!result && (result.linhas?.length ?? 0) >= 100;
 
   return (
     <div className="space-y-4">
@@ -120,12 +192,12 @@ export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Prop
         </Button>
         <div className="flex-1" />
         <Button onClick={() => exportar('excel')} disabled={!podeExportar || !result} size="sm" variant="outline">
-          <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+          <FileSpreadsheet className="h-4 w-4 mr-1" /> Exportar Excel
         </Button>
         <Button onClick={() => exportar('csv')} disabled={!podeExportar || !result} size="sm" variant="outline">
-          <FileDown className="h-4 w-4 mr-1" /> CSV
+          <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
         </Button>
-        <Button onClick={() => exportar('pdf')} disabled={!podeExportar || !result} size="sm" variant="outline">
+        <Button onClick={() => exportar('pdf')} disabled size="sm" variant="outline" title="Disponível na próxima onda">
           <FileText className="h-4 w-4 mr-1" /> PDF
         </Button>
       </div>
@@ -143,27 +215,64 @@ export function ReportPreview({ relatorio, parametros, onColumnsDetected }: Prop
 
       {result && (
         <>
-          <div className="text-xs text-muted-foreground">
-            {result.qtd_linhas ?? result.linhas.length} linha(s) • {result.tempo_ms} ms
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-xs text-muted-foreground">
+              {result.qtd_linhas ?? result.linhas.length} linha(s) • {result.tempo_ms} ms
+            </div>
+            {linhasLimitadas && (
+              <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                <Info className="h-3 w-3" /> Preview limitado a 100 linhas. Use a execução completa para o conjunto inteiro.
+              </div>
+            )}
           </div>
-          <div className="rounded-md border border-border overflow-auto max-h-[480px]">
+          <div className="rounded-md border border-border overflow-auto max-h-[520px]">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-card z-10 shadow-[0_1px_0_hsl(var(--border))]">
                 <TableRow>
-                  {colunas.map((c) => <TableHead key={c}>{c}</TableHead>)}
+                  {colunasExibir.map((c) => (
+                    <TableHead
+                      key={c.campo}
+                      className={cn('whitespace-nowrap', alignClass(c.alinhamento))}
+                      style={c.largura ? { width: `${c.largura}px`, minWidth: `${c.largura}px` } : undefined}
+                    >
+                      {c.titulo || c.campo}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {result.linhas.slice(0, 100).map((row, i) => (
                   <TableRow key={i}>
-                    {colunas.map((c) => (
-                      <TableCell key={c} className="text-xs font-mono">
-                        {row[c] === null || row[c] === undefined ? '—' : String(row[c])}
+                    {colunasExibir.map((c) => (
+                      <TableCell
+                        key={c.campo}
+                        className={cn('text-xs', alignClass(c.alinhamento))}
+                        style={c.largura ? { width: `${c.largura}px`, minWidth: `${c.largura}px` } : undefined}
+                      >
+                        {formatCellValue(row[c.campo], c.tipo)}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))}
               </TableBody>
+              {temTotalizadores && (
+                <TableFooter className="sticky bottom-0 bg-muted">
+                  <TableRow>
+                    {colunasExibir.map((c, i) => (
+                      <TableCell
+                        key={c.campo}
+                        className={cn('text-xs font-bold', alignClass(c.alinhamento))}
+                      >
+                        {c.totalizar
+                          ? formatCellValue(totais[c.campo] ?? 0, c.tipo)
+                          : i === 0
+                            ? 'TOTAL'
+                            : ''}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableFooter>
+              )}
             </Table>
           </div>
         </>
