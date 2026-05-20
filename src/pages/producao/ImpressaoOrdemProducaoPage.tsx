@@ -97,6 +97,8 @@ export default function ImpressaoOrdemProducaoPage() {
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
+
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
   const [obsError, setObsError] = useState<string | null>(null);
