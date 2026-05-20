@@ -31,6 +31,12 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsD
   const [erro, setErro] = useState<string | null>(null);
 
   async function executar() {
+    if (!(relatorio.sql_query ?? '').trim()) {
+      const msg = 'Informe o SQL do relatório antes de continuar.';
+      setErro(msg);
+      toast.error(msg);
+      return;
+    }
     const safe = checkSqlSafe(relatorio.sql_query ?? '');
     if (safe) {
       setErro(safe);
