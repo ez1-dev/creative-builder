@@ -559,3 +559,17 @@
     border: 0.5pt solid #000 !important;
   }
 }
+
+.op-apontamento-old {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+@media print {
+  .op-apontamento-old {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
