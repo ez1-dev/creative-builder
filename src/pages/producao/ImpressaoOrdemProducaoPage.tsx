@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Eye, Printer, FileDown, Search, Eraser, Loader2 } from 'lucide-react';
@@ -37,6 +38,8 @@ const EMPTY: ImpressaoOpFiltros = {
   listar_desenho: 'N',
   cod_etg: '',
   cod_cre: '',
+  incluir_desenhos: 'N',
+  pasta_desenhos: '',
 };
 
 export default function ImpressaoOrdemProducaoPage() {
@@ -395,6 +398,8 @@ export default function ImpressaoOrdemProducaoPage() {
         cod_etg: filtros.cod_etg || undefined,
         listar_componentes: (filtros.listar_componentes as 'S' | 'N') || 'S',
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
+        incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
+        pasta_desenhos: filtros.pasta_desenhos || undefined,
       });
 
 
@@ -431,13 +436,18 @@ export default function ImpressaoOrdemProducaoPage() {
         const results = await Promise.all(
           slice.map(async (op) => {
             try {
-              const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', {
+              const payload: Record<string, any> = {
                 cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
                 cod_ori: String(op.cod_ori ?? ''),
                 num_orp: Number(op.num_orp ?? 0),
                 listar_componentes,
                 listar_desenho,
-              });
+              };
+              if (filtros.incluir_desenhos === 'S') {
+                payload.incluir_desenhos = 'S';
+                if (filtros.pasta_desenhos) payload.pasta_desenhos = filtros.pasta_desenhos;
+              }
+              const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
               return res ?? null;
             } catch {
               falhas += 1;
@@ -588,10 +598,33 @@ export default function ImpressaoOrdemProducaoPage() {
                   <Field label="Componentes">
                     <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
                   </Field>
-                  <Field label="Desenhos">
-                    <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
-                  </Field>
+                  <div className="flex flex-col gap-1">
+                    <Label className="text-xs">Incluir desenhos</Label>
+                    <label className="flex h-8 items-center gap-2 rounded-md border border-input bg-background px-2 text-xs">
+                      <Checkbox
+                        checked={filtros.incluir_desenhos === 'S'}
+                        onCheckedChange={(c) => {
+                          const on = c === true;
+                          setFiltros((f) => ({
+                            ...f,
+                            incluir_desenhos: on ? 'S' : 'N',
+                            listar_desenho: on ? 'S' : 'N',
+                          }));
+                        }}
+                      />
+                      <span>Imprimir desenhos da OP</span>
+                    </label>
+                  </div>
                 </div>
+                <Field label="Caminho da pasta de desenhos">
+                  <Input
+                    className="h-8 text-xs"
+                    value={filtros.pasta_desenhos || ''}
+                    onChange={(e) => set('pasta_desenhos', e.target.value)}
+                    placeholder="Ex.: /mnt/desenhos_op  •  C:\Desenhos\OP"
+                    disabled={filtros.incluir_desenhos !== 'S'}
+                  />
+                </Field>
               </div>
             </div>
           </CardContent>

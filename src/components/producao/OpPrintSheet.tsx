@@ -220,6 +220,21 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
         <span>MCAP700.GER - Chão de Fábrica/Apontamentos de OP/OS</span>
         <span>{fmtNow()} {usuario ? `- ${usuario}` : ''}</span>
       </div>
+
+      {/* DESENHOS — uma página A4 por desenho */}
+      {(data?.desenhos ?? []).map((d, i) => (
+        <div className="op-drawing-page" key={`drw-${i}`}>
+          <div className="op-drawing-header">
+            <strong>{d.nome_arquivo ?? `Desenho ${i + 1}`}</strong>
+            {d.pasta ? <span> — {d.pasta}</span> : null}
+          </div>
+          {d.url ? (
+            <img className="op-drawing-img" src={d.url} alt={d.nome_arquivo ?? `Desenho ${i + 1}`} />
+          ) : (
+            <div className="op-drawing-missing">Desenho indisponível.</div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
