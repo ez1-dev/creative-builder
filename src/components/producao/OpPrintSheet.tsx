@@ -217,20 +217,51 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     </>
   );
 
+  const desenhos = data?.desenhos ?? [];
+
   const renderDesenhos = () =>
-    (data?.desenhos ?? []).map((d, i) => (
-      <div className="op-drawing-page" key={`drw-${i}`}>
-        <div className="op-drawing-header">
-          <strong>{d.nome_arquivo ?? `Desenho ${i + 1}`}</strong>
-          {d.pasta ? <span> — {d.pasta}</span> : null}
-        </div>
-        {d.url ? (
-          <img className="op-drawing-img" src={d.url} alt={d.nome_arquivo ?? `Desenho ${i + 1}`} />
-        ) : (
-          <div className="op-drawing-missing">Desenho indisponível.</div>
-        )}
-      </div>
+    desenhos.map((d, i) => (
+      <DrawingPage key={`drw-${i}`} drawing={d} index={i} />
     ));
+
+  const renderPreviewDesenhosResumo = () => {
+    if (!preview) return null;
+    if (desenhos.length === 0) {
+      return (
+        <div className="no-print op-box" style={{ marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>
+          Nenhum desenho encontrado para este produto.
+        </div>
+      );
+    }
+    return (
+      <div className="no-print op-box" style={{ marginTop: 8 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Desenhos encontrados ({desenhos.length})</div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Arquivo</th>
+              <th>Tipo</th>
+              <th>Orientação</th>
+              <th>Rotação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {desenhos.map((d, i) => (
+              <tr key={`drw-meta-${i}`}>
+                <td>{i + 1}</td>
+                <td>{d.nome_arquivo ?? '-'}</td>
+                <td>{d.extensao ?? d.tipo ?? d.mime_type ?? '-'}</td>
+                <td>{d.orientacao ?? '-'}</td>
+                <td>{d.rotacao_recomendada ?? 0}°</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
 
   // Modo: quebra por operação
   if (quebrarPorOperacao) {
