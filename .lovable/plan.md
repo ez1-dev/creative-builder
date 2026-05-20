@@ -1,41 +1,29 @@
 ## Objetivo
 
-Na tabela antiga de apontamento dentro de cada operação:
-- Mudar de **5 linhas para 15 linhas** (mantendo as 6 colunas).
-- Adicionar **espaço entre a tabela de 15 linhas e a tabela nova de 20 linhas**.
-- Garantir que **a tabela antiga não quebre entre páginas** (page-break-inside: avoid).
+Garantir que **todo desenho (imagem) seja impresso em retrato**. Hoje a rotação depende de a API enviar `url_impressao` já em retrato ou das flags `rotacionar_para_retrato` / `rotacao_recomendada`. Quando o arquivo vier em landscape sem essas flags, ele aparece "deitado". Vamos detectar landscape pelo próprio `<img>` (após carregar) e rotacionar 90° automaticamente.
 
-## Arquivos
+PDFs continuam como estão — não dá para detectar/rotacionar com segurança via `<object>`, e o backend já trata isso por `url_impressao`.
 
-- `src/components/producao/OpPrintSheet.tsx` — bloco `renderOperacao` (tabela antiga, atualmente com `length: 5` e wrapper `<table style={{ marginTop: 4 }}>`).
-- `src/components/producao/op-print.css` — adicionar regra `.op-apontamento-old` para evitar quebra de página.
+## Arquivo
+
+- `src/components/producao/OpPrintSheet.tsx` — função `renderDrawingBody` e wrappers `DrawingPageStandalone` / `DrawingPageFromState`.
 
 ## Mudanças
 
-### 1. `OpPrintSheet.tsx`
-- Trocar `Array.from({ length: 5 })` por `Array.from({ length: 15 })`.
-- Trocar o wrapper `<table style={{ marginTop: 4 }}>` por `<table className="op-apontamento-old">` (mantendo `thead`/`tbody` como estão).
-- Na tabela nova (20 linhas), trocar `<table className="op-apontamento-table">` para `<table className="op-apontamento-table" style={{ marginTop: 12 }}>` — espaço entre as duas tabelas.
+### `renderDrawingBody`
+- Adicionar `useState<boolean>` para `isLandscape` e `onLoad={(e) => setIsLandscape(e.currentTarget.naturalWidth > e.currentTarget.naturalHeight)}` na `<img>`.
+- Calcular `shouldRotate` como:
+  ```
+  shouldRotate = !pdf && (isLandscape || flagsAtuais)
+  ```
+  Mantendo as flags antigas (`rotacionar_para_retrato`, `rotacao_recomendada === 90`) como fallback para o caso do `onLoad` ainda não ter disparado.
+- Como `renderDrawingBody` é função pura, transformar a parte da `<img>` em pequeno componente `DrawingImage` interno que tem o `useState`. Assim mantemos o resto da lógica (loading / error / PDF) intacto.
 
-### 2. `op-print.css`
-Adicionar:
-```text
-.op-apontamento-old {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 4px;
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
-@media print {
-  .op-apontamento-old {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-}
-```
+### Estilos
+- As classes `.rotated` e `.rotate-90` já existem em `op-print.css` e funcionam — não precisa criar regra nova.
 
 ## Fora de escopo
 
-- Sem mudanças em filtros, header, cabeçalho da OP, lista de componentes ou API.
-- A tabela nova (20 linhas × 9 colunas) já tem `page-break-inside: avoid` e permanece como está, exceto pela margem superior.
+- Sem alterações no backend / API / `url_impressao`.
+- Sem mudanças no `@page` (já é `A4 portrait`).
+- Sem alterações no fluxo de PDFs nem nos tamanhos da página de desenho.
