@@ -270,10 +270,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   const desenhos = data?.desenhos ?? [];
 
-  const renderDesenhos = () =>
+  const renderDesenhos = (keyPrefix = 'drw') =>
     desenhos.map((d, i) => (
       <DrawingPage
-        key={`drw-${i}`}
+        key={`${keyPrefix}-${i}`}
         drawing={d}
         index={i}
         precomputed={blobStates ? blobStates[d.url] : undefined}
