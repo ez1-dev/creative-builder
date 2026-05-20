@@ -27,6 +27,7 @@ import { ParametersEditor } from './ParametersEditor';
 import { ColumnsEditor } from './ColumnsEditor';
 import { LayoutEditor } from './LayoutEditor';
 import { ReportPreview } from './ReportPreview';
+import { ReportExecutionHistory } from './ReportExecutionHistory';
 
 interface Props {
   id: string | null;
