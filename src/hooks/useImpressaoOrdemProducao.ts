@@ -26,7 +26,9 @@ export function useImpressaoOrdemProducao() {
       if (filters.incluir_desenhos === 'S') {
         payload.incluir_desenhos = 'S';
         if (filters.pasta_desenhos) payload.pasta_desenhos = filters.pasta_desenhos;
+        payload.formatos_desenho = filters.formatos_desenho || 'JPG,PNG,PDF';
       }
+
       const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
       setData(res ?? null);
     } catch (err: any) {

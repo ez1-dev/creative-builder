@@ -13,7 +13,9 @@ export interface ImpressaoOpLoteParams {
   listar_desenho?: 'S' | 'N';
   incluir_desenhos?: 'S' | 'N';
   pasta_desenhos?: string;
+  formatos_desenho?: string;
   quebrar_por_operacao?: 'S' | 'N';
+
 }
 
 export interface ImpressaoOpLoteResponse {
@@ -37,7 +39,9 @@ export async function fetchImpressaoLote(params: ImpressaoOpLoteParams): Promise
   if (params.incluir_desenhos === 'S') {
     q.incluir_desenhos = 'S';
     if (params.pasta_desenhos) q.pasta_desenhos = params.pasta_desenhos;
+    q.formatos_desenho = params.formatos_desenho || 'JPG,PNG,PDF';
   }
+
 
 
   const res = await api.get<ImpressaoOpLoteResponse>('/api/producao/ordem-producao/impressao/lote', q);
