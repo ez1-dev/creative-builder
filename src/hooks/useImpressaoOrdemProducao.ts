@@ -19,6 +19,7 @@ export function useImpressaoOrdemProducao() {
         num_orp: Number(filters.num_orp),
         listar_componentes: filters.listar_componentes || 'S',
         listar_desenho: filters.listar_desenho || 'N',
+        quebrar_por_operacao: filters.quebrar_por_operacao === 'S' ? 'S' : 'N',
       };
       if (filters.cod_etg) payload.cod_etg = filters.cod_etg;
       if (filters.cod_cre) payload.cod_cre = filters.cod_cre;

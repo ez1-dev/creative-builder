@@ -46,6 +46,7 @@ export interface OpOperacao {
   unidade_medida?: string;
   codigo_barras_operacao?: string;
   proxima_operacao?: string;
+  proxima_operacao_label?: string;
   narrativas?: string;
 }
 
@@ -79,4 +80,5 @@ export interface ImpressaoOpFiltros {
   cod_cre?: string;
   incluir_desenhos?: 'S' | 'N' | '';
   pasta_desenhos?: string;
+  quebrar_por_operacao?: 'S' | 'N' | '';
 }

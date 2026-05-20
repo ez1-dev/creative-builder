@@ -40,6 +40,7 @@ const EMPTY: ImpressaoOpFiltros = {
   cod_cre: '',
   incluir_desenhos: 'N',
   pasta_desenhos: '',
+  quebrar_por_operacao: 'N',
 };
 
 export default function ImpressaoOrdemProducaoPage() {
@@ -400,6 +401,7 @@ export default function ImpressaoOrdemProducaoPage() {
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
         incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
         pasta_desenhos: filtros.pasta_desenhos || undefined,
+        quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
       });
 
 
@@ -442,6 +444,7 @@ export default function ImpressaoOrdemProducaoPage() {
                 num_orp: Number(op.num_orp ?? 0),
                 listar_componentes,
                 listar_desenho,
+                quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
               };
               if (filtros.incluir_desenhos === 'S') {
                 payload.incluir_desenhos = 'S';
@@ -625,6 +628,13 @@ export default function ImpressaoOrdemProducaoPage() {
                     disabled={filtros.incluir_desenhos !== 'S'}
                   />
                 </Field>
+                <label className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+                  <Checkbox
+                    checked={filtros.quebrar_por_operacao === 'S'}
+                    onCheckedChange={(c) => set('quebrar_por_operacao', c === true ? 'S' : 'N')}
+                  />
+                  <span>Quebrar uma página por operação / centro de recurso</span>
+                </label>
               </div>
             </div>
           </CardContent>
@@ -790,12 +800,28 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
+      {filtros.quebrar_por_operacao === 'S' && (lote || data?.cabecalho) && (
+        <div className="no-print rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-medium text-primary">
+          Modo ativo: será impressa uma página por operação.
+        </div>
+      )}
+
       {lote && lote.ordens.length > 0 && (
-        <OpPrintBatch ordens={lote.ordens} preview={preview} usuario={displayName ?? erpUser ?? null} />
+        <OpPrintBatch
+          ordens={lote.ordens}
+          preview={preview}
+          usuario={displayName ?? erpUser ?? null}
+          quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+        />
       )}
 
       {!lote && data?.cabecalho && (
-        <OpPrintSheet data={data} preview={preview} usuario={displayName ?? erpUser ?? null} />
+        <OpPrintSheet
+          data={data}
+          preview={preview}
+          usuario={displayName ?? erpUser ?? null}
+          quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+        />
       )}
     </div>
   );
