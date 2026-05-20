@@ -39,21 +39,21 @@ export default function ImpressaoOrdemProducaoPage() {
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
 
-  const empresaOpts: SelectOption[] = opcoes.empresas.map((e) => ({
-    value: String(e.cod_emp),
-    label: e.label || `${e.cod_emp}${e.nome_emp ? ' - ' + e.nome_emp : ''}`,
+  const empresaOpts: SelectOption[] = opcoes.empresas.map((e: any) => ({
+    value: String(e.value ?? e.codigo ?? e.cod_emp ?? ''),
+    label: e.label || `${e.codigo ?? e.cod_emp}${e.descricao || e.nome_emp ? ' - ' + (e.descricao || e.nome_emp) : ''}`,
   }));
-  const origemOpts: SelectOption[] = opcoes.origens.map((o) => ({
-    value: String(o.cod_ori),
-    label: o.label || `${o.cod_ori}${o.descricao ? ' - ' + o.descricao : ''}`,
+  const origemOpts: SelectOption[] = opcoes.origens.map((o: any) => ({
+    value: String(o.value ?? o.codigo ?? o.cod_ori ?? ''),
+    label: o.label || `${o.codigo ?? o.cod_ori}${o.descricao ? ' - ' + o.descricao : ''}`,
   }));
-  const estagioOpts: SelectOption[] = opcoes.estagios.map((e) => ({
-    value: String(e.cod_etg),
-    label: e.label || `${e.cod_etg}${e.descricao ? ' - ' + e.descricao : ''}`,
+  const estagioOpts: SelectOption[] = opcoes.estagios.map((e: any) => ({
+    value: String(e.value ?? e.codigo ?? e.cod_etg ?? ''),
+    label: e.label || `${e.codigo ?? e.cod_etg}${e.descricao ? ' - ' + e.descricao : ''}`,
   }));
-  const creOpts: SelectOption[] = opcoes.centrosRecurso.map((c) => ({
-    value: String(c.cod_cre),
-    label: c.label || `${c.cod_cre}${c.descricao ? ' - ' + c.descricao : ''}`,
+  const creOpts: SelectOption[] = opcoes.centrosRecurso.map((c: any) => ({
+    value: String(c.value ?? c.codigo ?? c.cod_cre ?? ''),
+    label: c.label || `${c.codigo ?? c.cod_cre}${c.descricao ? ' - ' + c.descricao : ''}`,
   }));
 
   const onChangeEmpresa = async (v: string) => {
