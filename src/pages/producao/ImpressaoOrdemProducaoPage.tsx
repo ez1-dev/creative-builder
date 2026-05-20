@@ -626,6 +626,13 @@ export default function ImpressaoOrdemProducaoPage() {
                     disabled={filtros.incluir_desenhos !== 'S'}
                   />
                 </Field>
+                <label className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+                  <Checkbox
+                    checked={filtros.quebrar_por_operacao === 'S'}
+                    onCheckedChange={(c) => set('quebrar_por_operacao', c === true ? 'S' : 'N')}
+                  />
+                  <span>Quebrar uma página por operação / centro de recurso</span>
+                </label>
               </div>
             </div>
           </CardContent>
