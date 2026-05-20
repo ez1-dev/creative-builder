@@ -422,8 +422,9 @@
 
 /* ===== Componentes em página separada ===== */
 .componentes-page {
-  width: 210mm;
-  min-height: 297mm;
+  width: 196mm;
+  min-height: 283mm;
+  margin: 0 auto;
   page-break-after: always;
   break-after: page;
 }
@@ -455,16 +456,16 @@
    As classes .rotated / .rotate-90 são fallback inerte caso a API
    não envie url_impressao em algum desenho. */
 .drawing-frame {
-  width: 190mm;
-  height: 270mm;
+  width: 196mm;
+  height: 283mm;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
 }
 .drawing-image {
-  max-width: 190mm;
-  max-height: 270mm;
+  max-width: 196mm;
+  max-height: 283mm;
   width: auto;
   height: auto;
   object-fit: contain;
@@ -472,19 +473,20 @@
 
 @media print {
   .drawing-frame {
-    width: 190mm !important;
-    height: 270mm !important;
+    width: 196mm !important;
+    height: 283mm !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
     overflow: hidden !important;
   }
   .drawing-image {
-    max-width: 190mm !important;
-    max-height: 270mm !important;
+    max-width: 196mm !important;
+    max-height: 283mm !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
   }
 }
+
 
