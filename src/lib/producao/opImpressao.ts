@@ -73,6 +73,9 @@ export interface OpImpressao {
   layout_componentes?: {
     quebrar_componentes_em_pagina_separada?: boolean;
   };
+  modo_impressao?: {
+    imprimir_observacoes?: boolean;
+  };
 }
 
 export interface ImpressaoOpFiltros {
