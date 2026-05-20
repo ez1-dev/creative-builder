@@ -212,10 +212,17 @@ export default function ImpressaoOrdemProducaoPage() {
     [filtros.num_ped, filtros.rel_prd, filtros.num_orp],
   );
   const opsFiltradas = useMemo(() => {
-    let list = opcoes.ops.filter((o) => String(o.sit_orp ?? '').toUpperCase() !== 'C');
+    let list = opcoes.ops.filter(
+      (o) => String(o.sit_orp ?? o.situacao ?? '').toUpperCase() !== 'C',
+    );
     if (filtros.cod_ori) list = list.filter((o) => String(o.cod_ori ?? '') === filtros.cod_ori);
     return list;
   }, [opcoes.ops, filtros.cod_ori]);
+
+  const pick = (...vals: any[]) => {
+    for (const v of vals) if (v !== undefined && v !== null && v !== '') return v;
+    return '';
+  };
 
   const handleRowVisualizar = async (op: OpcaoOp) => {
     await onSelectOp(op);
