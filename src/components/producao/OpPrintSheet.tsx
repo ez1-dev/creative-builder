@@ -474,8 +474,10 @@ function renderDrawingBody(
   error: string | null,
 ) {
   const pdf = isPdf(drawing);
-  const usingPrintUrl = !pdf && Boolean(drawing.url_impressao);
+  const usingPrintUrl = Boolean(drawing.url_impressao);
+  // Fallback legado: só rotaciona quando NÃO temos url_impressao da API.
   const shouldRotate =
+    !pdf &&
     !usingPrintUrl &&
     (drawing.rotacionar_para_retrato === true ||
       Number(drawing.rotacao_recomendada) === 90);
@@ -484,7 +486,9 @@ function renderDrawingBody(
       {loading && <div className="op-drawing-missing no-print">Carregando desenho...</div>}
       {!loading && error && <div className="op-drawing-missing no-print">Falha ao carregar: {error}</div>}
       {!loading && !error && blobUrl && pdf && (
-        <iframe src={blobUrl} title={drawing.nome_arquivo ?? `Desenho ${index + 1}`} />
+        <object data={blobUrl} type="application/pdf" aria-label={drawing.nome_arquivo ?? `Desenho ${index + 1}`}>
+          <div className="op-drawing-missing no-print">Não foi possível exibir o PDF.</div>
+        </object>
       )}
       {!loading && !error && blobUrl && !pdf && (
         <div className={`drawing-frame${shouldRotate ? ' rotated' : ''}`}>
