@@ -135,19 +135,41 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     setParametros([...next, ...manuais.map((p, i) => ({ ...p, ordem: next.length + i }))]);
   }
 
-  function handleColumnsFromPreview(cols: string[]) {
+  function handleColumnsFromPreview(cols: string[], sample?: Record<string, unknown>) {
     if (colunas.length > 0) return;
-    setColunas(cols.map((c, idx) => ({
-      campo: c,
-      titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
-      visivel: true,
-      ordem: idx,
-      tipo: 'texto',
-      formato: null,
-      alinhamento: 'esquerda' as const,
-      totalizar: false,
-      agrupar: false,
-    })));
+    setColunas(cols.map((c, idx) => {
+      const tipo = inferTipoFromColuna(c, sample?.[c]);
+      return {
+        campo: c,
+        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+        visivel: true,
+        ordem: idx,
+        tipo,
+        formato: null,
+        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as const,
+        largura: null,
+        totalizar: false,
+        agrupar: false,
+      };
+    }));
+  }
+
+  function handleRestoreColumns(cols: string[], sample?: Record<string, unknown>) {
+    setColunas(cols.map((c, idx) => {
+      const tipo = inferTipoFromColuna(c, sample?.[c]);
+      return {
+        campo: c,
+        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+        visivel: true,
+        ordem: idx,
+        tipo,
+        formato: null,
+        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as const,
+        largura: null,
+        totalizar: false,
+        agrupar: false,
+      };
+    }));
   }
 
   if (loading) {
