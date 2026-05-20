@@ -108,12 +108,48 @@ export default function ImpressaoOrdemProducaoPage() {
     }
   };
 
+  const onChangeOrigem = async (v: string) => {
+    setFiltros((f) => ({ ...f, cod_ori: v, num_orp: '', cod_etg: '', cod_cre: '' }));
+    setOpLabel('');
+    setLote(null);
+    if (!filtros.cod_emp) return;
+    if (String(v) === '100') {
+      toast.error('Origem 100 não é permitida.');
+      return;
+    }
+    try {
+      if (v) {
+        await opcoes.reloadByOrigem(filtros.cod_emp, v, {
+          sit_orp: filtros.sit_orp || undefined,
+          num_ped: filtros.num_ped || undefined,
+          rel_prd: filtros.rel_prd || undefined,
+        });
+      } else if (filtros.num_ped) {
+        await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, filtros.sit_orp || undefined);
+      } else if (filtros.rel_prd) {
+        await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, filtros.sit_orp || undefined);
+      } else if (filtros.sit_orp) {
+        await opcoes.reloadBySituacao(filtros.cod_emp, filtros.sit_orp);
+      } else {
+        await opcoes.reloadBase(filtros.cod_emp);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao carregar OPs');
+    }
+  };
+
   const onChangeSituacao = async (v: string) => {
     setFiltros((f) => ({ ...f, sit_orp: v }));
     setLote(null);
     if (!filtros.cod_emp) return;
     try {
-      if (filtros.num_ped) await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, v || undefined);
+      if (filtros.cod_ori) {
+        await opcoes.reloadByOrigem(filtros.cod_emp, filtros.cod_ori, {
+          sit_orp: v || undefined,
+          num_ped: filtros.num_ped || undefined,
+          rel_prd: filtros.rel_prd || undefined,
+        });
+      } else if (filtros.num_ped) await opcoes.reloadByPedido(filtros.cod_emp, filtros.num_ped, v || undefined);
       else if (filtros.rel_prd) await opcoes.reloadByRelatorio(filtros.cod_emp, filtros.rel_prd, v || undefined);
       else if (v) await opcoes.reloadBySituacao(filtros.cod_emp, v);
       else await opcoes.reloadBase(filtros.cod_emp);
@@ -121,6 +157,7 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error(e?.message || 'Falha ao carregar OPs');
     }
   };
+
 
   const onSelectOp = async (op: OpcaoOp | null) => {
     if (!op) {
