@@ -1,41 +1,27 @@
-## Layout A4 fixo de impressão da OP (independente do destino)
+# Corrigir rotação de desenhos na Impressão de OP
 
-### Problema
-Hoje a página de impressão usa `width: 210mm` + `padding: 8mm 10mm`, ultrapassando a área útil do A4. O navegador reduz a escala automaticamente, deformando bordas, tabelas e tornando o conteúdo "miúdo" ao imprimir para PDF ou impressora física.
+## Objetivo
+Garantir que preview e impressão usem sempre `desenho.url_impressao || desenho.url`, sem rotação CSS quando a API já entrega a imagem rotacionada.
 
-### Estratégia
-Margem da página é controlada **só** pelo `@page` (7mm). O conteúdo interno usa **largura útil de 196mm** sem padding lateral. Remover `position: absolute`, `transform`, `zoom` e o padding interno das páginas. Manter o restante do layout intacto.
+## Mudanças
 
-### Mudanças em `src/components/producao/op-print.css`
+### 1. `src/components/producao/OpPrintSheet.tsx`
+- `getDrawingPrintUrl(d)`: passar a retornar `d.url_impressao || d.url || ''` **inclusive para PDFs** (hoje PDFs ignoram `url_impressao`). Conforme regra do usuário a preferência por `url_impressao` é obrigatória sempre que existir.
+- Em `renderDrawingBody`:
+  - Trocar `<iframe>` por `<object data={blobUrl} type="application/pdf">` para PDFs (com fallback textual).
+  - Remover por completo a aplicação das classes `rotated` / `rotate-90` quando `usingPrintUrl` for verdadeiro. `usingPrintUrl` passa a ser `Boolean(drawing.url_impressao)` (vale também para PDF).
+  - Manter `shouldRotate` apenas como fallback legado quando NÃO houver `url_impressao` (compatibilidade com desenhos antigos sem o campo).
 
-**1. `@page`** — Alterar margem de `8mm` para `7mm`.
+### 2. `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+- Ajustar `desenhoUrls` para sempre usar `d.url_impressao || d.url` (sem o desvio que força `d.url` para PDFs), espelhando o helper acima.
 
-**2. Estilos base (fora de `@media print`)** — Atualizar `.op-print-page`, `.op-operation-page`, `.op-drawing-page` (e `.componentes-page` se já existir) para `width: 196mm`, `min-height: 283mm`, sem padding lateral. Ajustar `.op-drawing-page img/iframe` para `max-width: 196mm; max-height: 283mm`. Manter `.op-sheet` interno como wrapper de conteúdo sem padding extra.
+### 3. `src/components/producao/op-print.css`
+- Reforçar regra (sem mexer no resto): garantir que `.op-drawing-page img` use `max-width/max-height` com `object-fit: contain` e que não exista nenhuma transform residual quando a imagem vem de `url_impressao`. As classes `.rotated` / `.rotate-90` continuam existindo apenas para o fallback legado descrito acima.
 
-**3. Bloco `@media print`** — Substituir por:
-- `html, body`: `width: 210mm`, `min-height: 297mm`, sem margem/padding, `-webkit-print-color-adjust: exact`.
-- `.print-root`: **remover `position: absolute`**, usar `position: static`, `width: 100%`, sem padding/margin/transform/zoom.
-- Páginas (`.op-print-page`, `.op-operation-page`, `.componentes-page`, `.op-drawing-page`): `width: 196mm`, `min-height: 283mm`, **sem padding**, `margin: 0 auto`, sem transform.
-- `.op-sheet`: `width: 100%`, `padding: 0`, fontes em `pt` (8.5pt base) para consistência entre destinos.
-- Tabelas: `table-layout: fixed`, bordas `0.5pt solid #000`, `padding: 1.5pt 2pt`.
-- `.op-drawing-page img`: `max-width: 196mm; max-height: 283mm; width: auto; height: auto; object-fit: contain`.
-- Manter regras de quebra de página (`page-break-after: always`, `page-break-inside: avoid` para `.op-operation`, linhas de tabela).
-- Manter `.no-print`, `header`, `nav`, `aside`, `.app-header`, `.sidebar`, `.filters`, `.print-actions` com `display: none`.
+## Observação sobre dimensões A4
+A mensagem do usuário traz CSS com `210mm × 297mm` (página) e `190mm × 270mm` (imagem). O CSS atual está em `196mm × 283mm` por causa do ajuste anterior “escala 100% sem cortes” já aprovado e registrado. Por padrão **mantenho 196/283** para não regredir a impressão. Se você quiser voltar para 210/297 + 190/270 confirme e eu altero junto.
 
-**4. Drawing frame** — Já está com `width: 190mm; height: 270mm`. Atualizar para `width: 196mm; height: 283mm` para casar com a nova área útil (e atualizar `.drawing-image` `max-width/max-height` correspondentes).
-
-### Mudança em `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
-Pequeno ajuste de UX no botão/área de ações de impressão: adicionar texto auxiliar abaixo (ou tooltip) com a orientação:
-
-> "Para melhor resultado, use papel A4, escala 100% (padrão) e margens padrão/nenhuma."
-
-Pode ser um `<p className="text-xs text-muted-foreground">` próximo aos botões "Imprimir" / "Imprimir visualização" (no-print).
-
-### Não fazer
-- Não criar endpoint de PDF na API (mencionado pelo usuário como "solução definitiva futura", fora do escopo agora).
-- Não mexer em `OpPrintSheet.tsx` (estrutura JSX), `OpPrintBatch`, lógica de rotação de desenhos (já corrigida via `url_impressao`), fluxo de "Visualizar selecionadas", quebra por operação/componentes.
-- Não usar `transform: scale()` nem `zoom` em lugar nenhum do print.
-
-### Arquivos
-- `src/components/producao/op-print.css`
-- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` (apenas texto de orientação)
+## Fora de escopo
+- Endpoint backend `/api/producao/ordem-producao/desenho/impressao` (já existente).
+- Fluxo “Visualizar selecionadas”, `OpPrintBatch`, lógica de fetch em lote.
+- Qualquer mudança no `useAuthedBlobUrl` / `useAuthedBlobUrls` (já enviam `Authorization` + `ngrok-skip-browser-warning`, equivalentes ao `fetch` sugerido).
