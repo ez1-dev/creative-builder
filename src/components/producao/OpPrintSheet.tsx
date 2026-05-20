@@ -48,6 +48,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }, {});
   const etgKeys = Object.keys(compsPorEtg);
 
+  const quebrarComponentes =
+    data?.layout_componentes?.quebrar_componentes_em_pagina_separada
+    ?? (componentes.length > 7);
+
   const renderHeader = () => (
     <>
       <div className="op-title">Ordens de Produção - GENIUS</div>
