@@ -232,7 +232,8 @@
 
 .op-drawing-page {
   width: 210mm;
-  height: 297mm;
+  min-height: 297mm;
+  height: auto;
   page-break-after: always;
   break-after: page;
   page-break-before: always;
@@ -250,6 +251,16 @@
   break-after: auto;
 }
 .op-drawing-page img {
+  max-width: 190mm;
+  max-height: 270mm;
+  object-fit: contain;
+}
+.op-drawing-page iframe,
+.op-drawing-page object {
+  width: 190mm;
+  height: 270mm;
+  border: none;
+}
   max-width: 190mm;
   max-height: 270mm;
   object-fit: contain;
