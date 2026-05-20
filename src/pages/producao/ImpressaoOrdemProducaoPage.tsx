@@ -96,6 +96,40 @@ export default function ImpressaoOrdemProducaoPage() {
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
+  // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
+  // e exibição de status por desenho na tabela de preview.
+  const desenhoUrls = useMemo(
+    () => (data?.desenhos ?? []).map((d) => d.url).filter(Boolean) as string[],
+    [data?.desenhos],
+  );
+  const blobStates = useAuthedBlobUrls(desenhoUrls);
+
+  // Diagnóstico de desenhos
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagData, setDiagData] = useState<any | null>(null);
+  const [diagError, setDiagError] = useState<string | null>(null);
+
+  const rodarDiagnosticoDesenhos = async () => {
+    setDiagOpen(true);
+    setDiagLoading(true);
+    setDiagError(null);
+    setDiagData(null);
+    try {
+      const params: Record<string, any> = {};
+      if (filtros.cod_emp) params.cod_emp = filtros.cod_emp;
+      if (filtros.cod_ori) params.cod_ori = filtros.cod_ori;
+      if (filtros.num_orp) params.num_orp = filtros.num_orp;
+      const resp = await api.get<any>('/api/producao/ordem-producao/desenhos/diagnostico', params);
+      setDiagData(resp);
+    } catch (e: any) {
+      setDiagError(e?.message || 'Falha ao chamar o endpoint de diagnóstico.');
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+
   useEffect(() => { void opcoes.reloadBase(DEFAULT_EMPRESA); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   // Limpa seleção sempre que filtros principais/refinamento mudam
