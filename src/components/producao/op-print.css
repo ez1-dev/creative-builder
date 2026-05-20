@@ -539,85 +539,84 @@
 
 
 
-/* ===== Tabela de apontamento manual (20 linhas) ===== */
-.op-apontamento-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  margin-top: 4px;
-  font-size: 8px;
-}
-.op-apontamento-table th,
-.op-apontamento-table td {
-  border: 1px solid #000;
-  padding: 2px 3px;
-  height: 16px;
-  line-height: 1.1;
-  vertical-align: middle;
-  overflow: hidden;
-}
-.op-apontamento-table th {
-  font-weight: bold;
-  text-align: left;
-}
-.op-apontamento-table .check-cell {
-  text-align: center;
-  vertical-align: middle;
-}
-.op-apontamento-table .check-box {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1px solid #000;
-}
-.op-apontamento-table th:nth-child(1),
-.op-apontamento-table td:nth-child(1) { width: 7%; }
-.op-apontamento-table th:nth-child(2),
-.op-apontamento-table td:nth-child(2) { width: 7%; }
-.op-apontamento-table th:nth-child(3),
-.op-apontamento-table td:nth-child(3) { width: 10%; }
-.op-apontamento-table th:nth-child(4),
-.op-apontamento-table td:nth-child(4) { width: 11%; }
-.op-apontamento-table th:nth-child(5),
-.op-apontamento-table td:nth-child(5) { width: 7%; }
-.op-apontamento-table th:nth-child(6),
-.op-apontamento-table td:nth-child(6) { width: 17%; }
-.op-apontamento-table th:nth-child(7),
-.op-apontamento-table td:nth-child(7) { width: 13%; }
-.op-apontamento-table th:nth-child(8),
-.op-apontamento-table td:nth-child(8) { width: 5%; }
-.op-apontamento-table th:nth-child(9),
-.op-apontamento-table td:nth-child(9) { width: 23%; }
-
-@media print {
-  .op-apontamento-table {
-    font-size: 7.5pt !important;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-  .op-apontamento-table th,
-  .op-apontamento-table td {
-    border: 0.5pt solid #000 !important;
-    height: 14px !important;
-    padding: 1.5px 2px !important;
-  }
-  .op-apontamento-table .check-box {
-    width: 9px !important;
-    height: 9px !important;
-    border: 0.5pt solid #000 !important;
-  }
+/* ===== Apontamento manual: ficha multi-linha (4 linhas) replicada ===== */
+.op-apontamento-fill {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
 }
 
-.op-apontamento-old {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 4px;
+.op-apt-entry {
+  display: flex;
+  flex-direction: column;
   page-break-inside: avoid;
   break-inside: avoid;
 }
+
+.op-apt-row {
+  display: grid;
+  gap: 0;
+}
+.op-apt-row--3col { grid-template-columns: 1fr 1fr 1fr; }
+.op-apt-row--full { grid-template-columns: 1fr; }
+.op-apt-row--obs-check { grid-template-columns: 1fr 60px; }
+
+.op-apt-row + .op-apt-row .op-apt-cell { border-top: 0; }
+.op-apt-row .op-apt-cell + .op-apt-cell { border-left: 0; }
+
+.op-apt-cell {
+  border: 1px solid #000;
+  padding: 1px 4px 7mm 4px;
+  position: relative;
+  min-height: 9mm;
+  font-size: 8px;
+}
+.op-apt-label {
+  font-weight: bold;
+  font-size: 8px;
+  line-height: 1.1;
+  color: #000;
+  display: block;
+}
+.op-apt-cell--check {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 1px 4px 2px 4px;
+}
+.op-apt-checkbox {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1px solid #000;
+  margin-top: 3px;
+}
+
+.op-apt-sep {
+  margin: 3mm 0;
+  border-top: 1px dashed #000;
+}
+
 @media print {
-  .op-apontamento-old {
+  .op-apt-cell {
+    border: 0.5pt solid #000 !important;
+    padding: 1pt 3pt 6mm 3pt !important;
+    font-size: 7.5pt !important;
+  }
+  .op-apt-label { font-size: 7.5pt !important; }
+  .op-apt-checkbox {
+    border: 0.5pt solid #000 !important;
+    width: 10px !important;
+    height: 10px !important;
+  }
+  .op-apt-sep {
+    border-top: 0.5pt dashed #000 !important;
+    margin: 2.5mm 0 !important;
+  }
+  .op-apt-entry {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 }
+
