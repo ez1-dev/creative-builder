@@ -19,6 +19,8 @@ import type {
   RelatorioParametro,
 } from '@/lib/relatorios/types';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
+import { inferTipoFromColuna } from '@/lib/relatorios/format';
+import type { ColunaAlinhamento } from '@/lib/relatorios/types';
 import { DadosGeraisTab } from './tabs/DadosGeraisTab';
 import { SqlTab } from './tabs/SqlTab';
 import { ParametersEditor } from './ParametersEditor';
