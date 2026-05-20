@@ -77,4 +77,6 @@ export interface ImpressaoOpFiltros {
   listar_desenho?: 'S' | 'N' | '';
   cod_etg?: string;
   cod_cre?: string;
+  incluir_desenhos?: 'S' | 'N' | '';
+  pasta_desenhos?: string;
 }
