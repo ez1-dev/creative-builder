@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
@@ -22,10 +22,21 @@ interface Props {
 export function SelectBuscavel({ value, onChange, options, placeholder = 'Selecionar...', disabled, className, allowClear = true }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const selected = options.find((o) => o.value === value);
+  const unique = useMemo(() => {
+    const seen = new Set<string>();
+    const out: SelectOption[] = [];
+    for (const o of options) {
+      const v = String(o.value ?? '');
+      if (!v || seen.has(v)) continue;
+      seen.add(v);
+      out.push({ value: v, label: o.label });
+    }
+    return out;
+  }, [options]);
+  const selected = unique.find((o) => o.value === value);
   const filtered = query
-    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()) || o.value.toLowerCase().includes(query.toLowerCase()))
-    : options;
+    ? unique.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()) || o.value.toLowerCase().includes(query.toLowerCase()))
+    : unique;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
