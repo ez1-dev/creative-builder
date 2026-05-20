@@ -54,9 +54,20 @@ export interface OpDesenho {
   ordem?: number | string;
   nome_arquivo?: string;
   tipo?: string;
+  extensao?: string;
+  mime_type?: string;
   pasta?: string;
   url?: string;
+  largura?: number;
+  altura?: number;
+  paginas?: number;
+  orientacao?: 'RETRATO' | 'PAISAGEM' | string;
+  rotacao_recomendada?: number;
+  a4_layout?: string;
+  imprimir_em_nova_pagina?: boolean;
+  iniciar_apos_op?: boolean;
 }
+
 
 export interface OpImpressao {
   cabecalho?: OpCabecalho;
@@ -80,5 +91,7 @@ export interface ImpressaoOpFiltros {
   cod_cre?: string;
   incluir_desenhos?: 'S' | 'N' | '';
   pasta_desenhos?: string;
+  formatos_desenho?: string;
+
   quebrar_por_operacao?: 'S' | 'N' | '';
 }
