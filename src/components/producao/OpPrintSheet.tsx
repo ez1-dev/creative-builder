@@ -260,14 +260,6 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   const renderFooter = () => (
     <>
-      {observacoes.length > 0 && (
-        <>
-          <div className="op-section-title">Observações</div>
-          <div className="op-box">
-            {observacoes.map((o, i) => <div key={i}>{o}</div>)}
-          </div>
-        </>
-      )}
       <div className="op-responsability">{responsabilidade}</div>
       <div className="op-footer">
         <span>MCAP700.GER - Chão de Fábrica/Apontamentos de OP/OS</span>
@@ -275,6 +267,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       </div>
     </>
   );
+
 
   const desenhos = data?.desenhos ?? [];
 

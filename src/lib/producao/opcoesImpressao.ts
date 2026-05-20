@@ -51,6 +51,8 @@ export interface OpcaoOp {
   cod_cre?: string;
   descricao_centro_recurso?: string;
   label?: string;
+  tem_observacao?: string;
+  qtd_observacoes?: number | string;
 }
 
 export interface OpcaoEstagio {

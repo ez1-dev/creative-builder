@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Eye, Printer, FileDown, Search, Eraser, Loader2 } from 'lucide-react';
+import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useImpressaoOrdemProducao } from '@/hooks/useImpressaoOrdemProducao';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
@@ -97,6 +97,11 @@ export default function ImpressaoOrdemProducaoPage() {
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
+  const [obsOpen, setObsOpen] = useState(false);
+  const [obsLoading, setObsLoading] = useState(false);
+  const [obsError, setObsError] = useState<string | null>(null);
+  const [obsTarget, setObsTarget] = useState<{ cod_ori?: string; num_orp?: string } | null>(null);
+  const [obsData, setObsData] = useState<Array<{ tipo?: string; sequencia?: string | number; observacao?: string }>>([]);
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
@@ -542,6 +547,26 @@ export default function ImpressaoOrdemProducaoPage() {
     setTimeout(() => window.print(), 200);
   };
 
+  const handleVerObservacoes = async (op: OpcaoOp) => {
+    const cod_emp = String(op.cod_emp ?? filtros.cod_emp ?? '');
+    const cod_ori = String(op.cod_ori ?? '');
+    const num_orp = String(op.num_orp ?? '');
+    setObsTarget({ cod_ori, num_orp });
+    setObsOpen(true);
+    setObsLoading(true);
+    setObsError(null);
+    setObsData([]);
+    try {
+      const res = await api.get<any>('/api/producao/ordem-producao/observacoes', { cod_emp, cod_ori, num_orp });
+      const list = Array.isArray(res) ? res : (res?.observacoes ?? []);
+      setObsData(list);
+    } catch (e: any) {
+      setObsError(e?.message || 'Falha ao carregar observações.');
+    } finally {
+      setObsLoading(false);
+    }
+  };
+
   const imprimirTodas = async () => {
     if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd && !filtros.cod_ori && !filtros.cod_cre)) {
       toast.info('Selecione um Pedido, Relatório de Produção, Origem ou Centro de Recurso.');
@@ -877,6 +902,7 @@ export default function ImpressaoOrdemProducaoPage() {
                         <TableHead>Un.</TableHead>
                         <TableHead>Situação</TableHead>
                         <TableHead>C. Recurso</TableHead>
+                        <TableHead>Observações</TableHead>
                         <TableHead>Geração</TableHead>
                         <TableHead>Início Prev.</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -910,6 +936,20 @@ export default function ImpressaoOrdemProducaoPage() {
                           <TableCell>{pick(op.unidade, op.un, op.unidade_medida)}</TableCell>
                           <TableCell>{pick(op.situacao_descricao, op.situacao)}</TableCell>
                           <TableCell>{op.cod_cre || filtros.cod_cre || '—'}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            {(op.tem_observacao === 'S' || Number(op.qtd_observacoes ?? 0) > 0) ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleVerObservacoes(op)}
+                                title="Ver observações"
+                              >
+                                <MessageSquare className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
@@ -1062,6 +1102,49 @@ export default function ImpressaoOrdemProducaoPage() {
                 <summary className="cursor-pointer text-xs font-semibold">JSON completo</summary>
                 <pre className="mt-2 max-h-80 overflow-auto text-[10px] leading-tight">{JSON.stringify(diagData, null, 2)}</pre>
               </details>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={obsOpen} onOpenChange={setObsOpen}>
+        <DialogContent className="no-print max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Observações da OP {obsTarget?.cod_ori ?? ''}/{obsTarget?.num_orp ?? ''}
+            </DialogTitle>
+          </DialogHeader>
+          {obsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando observações...
+            </div>
+          )}
+          {!obsLoading && obsError && (
+            <div className="rounded-md border border-destructive p-3 text-sm text-destructive">{obsError}</div>
+          )}
+          {!obsLoading && !obsError && obsData.length === 0 && (
+            <div className="p-4 text-center text-sm text-muted-foreground">Nenhuma observação encontrada.</div>
+          )}
+          {!obsLoading && !obsError && obsData.length > 0 && (
+            <div className="max-h-[60vh] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-24">Tipo</TableHead>
+                    <TableHead className="w-24">Sequência</TableHead>
+                    <TableHead>Observação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {obsData.map((o, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{o.tipo ?? ''}</TableCell>
+                      <TableCell>{o.sequencia ?? ''}</TableCell>
+                      <TableCell className="whitespace-pre-wrap">{o.observacao ?? ''}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </DialogContent>
