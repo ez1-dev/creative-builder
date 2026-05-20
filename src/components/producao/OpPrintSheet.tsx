@@ -27,7 +27,7 @@ function fmtDate(s?: string) {
   return s;
 }
 
-export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao = false }: Props) {
+export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao = false, blobStates }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
