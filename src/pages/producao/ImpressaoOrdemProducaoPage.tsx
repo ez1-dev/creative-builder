@@ -395,15 +395,15 @@ export default function ImpressaoOrdemProducaoPage() {
                     <TableBody>
                       {opsFiltradas.map((op, idx) => (
                         <TableRow key={`${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}-${idx}`}>
-                          <TableCell>{op.cod_ori}</TableCell>
-                          <TableCell className="font-mono">{op.num_orp}</TableCell>
+                          <TableCell>{op.cod_ori ?? ''}</TableCell>
+                          <TableCell className="font-mono">{op.num_orp ?? ''}</TableCell>
                           <TableCell>{op.num_ped ?? ''}</TableCell>
                           <TableCell>{op.rel_prd ?? ''}</TableCell>
-                          <TableCell>{op.produto ?? ''}</TableCell>
-                          <TableCell className="max-w-[280px] truncate">{op.descricao_produto ?? ''}</TableCell>
-                          <TableCell className="text-right">{op.quantidade ?? ''}</TableCell>
-                          <TableCell>{op.unidade ?? ''}</TableCell>
-                          <TableCell>{op.situacao_descricao ?? op.situacao ?? ''}</TableCell>
+                          <TableCell>{pick(op.produto, op.cod_pro)}</TableCell>
+                          <TableCell className="max-w-[280px] truncate">{pick(op.descricao_produto, op.descricao, op.des_pro)}</TableCell>
+                          <TableCell className="text-right">{pick(op.quantidade, op.qtde, op.qtd_prevista)}</TableCell>
+                          <TableCell>{pick(op.unidade, op.un, op.unidade_medida)}</TableCell>
+                          <TableCell>{pick(op.situacao_descricao, op.situacao)}</TableCell>
                           <TableCell>{op.data_geracao ?? ''}</TableCell>
                           <TableCell>{op.inicio_previsto ?? ''}</TableCell>
                           <TableCell className="text-right">
