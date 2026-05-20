@@ -878,26 +878,36 @@ export default function ImpressaoOrdemProducaoPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
                   <span className="text-xs text-muted-foreground">
                     {opsFiltradas.length} OP(s) encontradas
-                    {selectedKeys.size > 0 && ` • ${selectedKeys.size} selecionada(s)`}
+                    {selectedKeys.size > 0
+                      ? ` • ${selectedKeys.size} selecionada(s)`
+                      : ' • Selecione uma ou mais OPs para visualizar.'}
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={imprimirSelecionadas}
+                      onClick={visualizarSelecionadas}
                       disabled={loteLoading || selectedKeys.size === 0}
                     >
-                      {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
-                      Imprimir selecionadas
+                      {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Eye className="mr-1 h-3 w-3" />}
+                      Visualizar selecionadas
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={limparSelecao}
+                      disabled={selectedKeys.size === 0 && !lote}
+                    >
+                      Limpar seleção
                     </Button>
                     {opsFiltradas.length > 1 && (
-                      <Button size="sm" onClick={imprimirTodas} disabled={loteLoading}>
+                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading}>
                         {loteLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Printer className="mr-1 h-3 w-3" />}
                         Imprimir todas
                       </Button>
                     )}
                   </div>
                 </div>
+
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
