@@ -1,73 +1,55 @@
-# Impressão de desenhos da OP — ajustes
+# Impressão de desenhos — simplificar UI e garantir carregamento antes de imprimir
 
-Objetivo: garantir que ao marcar "Incluir desenhos", os desenhos sejam impressos **depois** da folha da OP (uma página por desenho, começando na página 2), com suporte a JPG/JPEG/PNG/PDF, filtro de formatos, pasta padrão pré-preenchida e rotação automática.
+A API agora controla o caminho dos desenhos e o filtro de formatos. O frontend só decide se inclui ou não.
 
-## 1. Filtros / parâmetros
+## 1. UI — `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
 
-`src/lib/producao/opImpressao.ts`
-- Adicionar `formatos_desenho?: string` em `ImpressaoOpFiltros` (string CSV, ex.: `"JPG,PNG,PDF"`).
-- Expandir `OpDesenho` com os novos campos retornados pela API:
-  `extensao`, `mime_type`, `largura`, `altura`, `paginas`, `orientacao` (`'RETRATO' | 'PAISAGEM'`), `rotacao_recomendada` (number), `a4_layout`, `imprimir_em_nova_pagina` (bool), `iniciar_apos_op` (bool).
+- Remover o campo `Input` "Caminho da pasta de desenhos" e o bloco de checkboxes "Formatos dos desenhos" (JPG/PNG/PDF) do grupo "Refinamento".
+- Manter apenas o checkbox **Incluir desenhos**.
+- Remover o estado `formatosDesenho`, o tipo `FormatosDesenho`, `DEFAULT_FORMATOS`, `buildFormatosString`, `DEFAULT_PASTA_DESENHOS` e a validação "Selecione pelo menos um formato".
+- Em `EMPTY`: remover `pasta_desenhos` e `formatos_desenho`.
+- Em `consultar`, `imprimirTodas`, `imprimirSelecionadas`: remover qualquer envio de `pasta_desenhos` / `formatos_desenho`. Continuar enviando `incluir_desenhos=S|N`.
+- Em `limpar`: remover reset de `formatosDesenho`.
 
-`src/lib/producao/opImpressaoLote.ts`
-- Adicionar `formatos_desenho?: string` em `ImpressaoOpLoteParams`.
-- Quando `incluir_desenhos === 'S'`, anexar `formatos_desenho` à query (já há `pasta_desenhos`). Não fazer `encodeURIComponent` manual — `URLSearchParams` (usado em `api.get`) já codifica.
+## 2. Tipos / hooks
 
-`src/hooks/useImpressaoOrdemProducao.ts`
-- Quando `incluir_desenhos === 'S'`, enviar também `formatos_desenho` (default `"JPG,PNG,PDF"`).
+- `src/lib/producao/opImpressao.ts`: remover `pasta_desenhos` e `formatos_desenho` de `ImpressaoOpFiltros`. Manter `OpDesenho` enxuto com `ordem, nome_arquivo, tipo, extensao, mime_type, url` (remover campos extras que adicionei: `pasta, largura, altura, paginas, orientacao, rotacao_recomendada, a4_layout, imprimir_em_nova_pagina, iniciar_apos_op`).
+- `src/hooks/useImpressaoOrdemProducao.ts`: bloco `if (filters.incluir_desenhos === 'S')` passa a apenas setar `payload.incluir_desenhos = 'S'`.
+- `src/lib/producao/opImpressaoLote.ts`: remover `pasta_desenhos` e `formatos_desenho` de `ImpressaoOpLoteParams` e da query.
 
-## 2. Página `ImpressaoOrdemProducaoPage.tsx`
+## 3. Renderização — `src/components/producao/OpPrintSheet.tsx`
 
-- Em `EMPTY`:
-  - `pasta_desenhos: '\\\\EZORTEA-SRVSENI\\Senior\\Sapiens\\Pasta de Desenho\\02-JPG_OP\\'`
-  - novo estado `formatosDesenho: { jpg: boolean; png: boolean; pdf: boolean }` (todos `true` por padrão); função util `formatosString()` retornando CSV (`"JPG,PNG,PDF"`).
-- Em `limpar`: resetar também `formatosDesenho` para todos true.
-- No grupo "Refinamento", após o input "Caminho da pasta de desenhos", adicionar três checkboxes lado a lado (JPG / PNG / PDF), desabilitados quando `incluir_desenhos !== 'S'`. Pelo menos um deve permanecer marcado (validar antes de consultar/imprimir; se nenhum marcado, mostrar `toast.error`).
-- Em `consultar` (via `fetchData`), `imprimirTodas` e `imprimirSelecionadas`: propagar `formatos_desenho: formatosString()` sempre que `incluir_desenhos === 'S'`.
-- Bloquear navegação a caminhos `file://` ou `\\` direto no preview (já é só texto; nada a fazer além de não tentar abrir).
+- Simplificar `DrawingPage`: remover lógica de rotação (`rotacao_recomendada`, `orientacao`, classe `rotate-90`) e meta-info de orientação. Manter cabeçalho compacto com nome do arquivo + extensão.
+- Detecção de PDF continua via `mime_type`/`extensao`/`tipo`.
+- Continuar usando `useAuthedBlobUrl` (já busca com Bearer token e gera `URL.createObjectURL`).
+- Atualizar resumo de preview "Desenhos encontrados": colunas `# / Arquivo / Tipo` (remover Orientação e Rotação).
+- Mensagem "Nenhum desenho encontrado para este produto." continua só no preview (`no-print`), apenas quando `incluir_desenhos === 'S'`.
 
-## 3. Renderização — `OpPrintSheet.tsx`
+## 4. Aguardar carregamento antes de imprimir
 
-Reescrever `renderDesenhos()` para o novo contrato:
+Hoje `window.print()` é disparado via `setTimeout(..., 200|300)` em `imprimir`, `gerarPdf`, `handleRowImprimir`, `imprimirTodas`, `imprimirSelecionadas`. Quando há desenhos, isso é insuficiente.
 
-- Cada desenho vira sua **própria página A4** (`<div class="op-drawing-page">`), separada da folha da OP. Na ordem retornada pela API (`ordem` ascendente como vier).
-- Cabeçalho da página do desenho: nome do arquivo, tipo, orientação, rotação aplicada (compacto).
-- Tipo de arquivo (usar `mime_type` ou `extensao`):
-  - **Imagem (JPG/JPEG/PNG)**: usar o novo hook `useAuthedBlobUrl(url)` (ver §4) e renderizar `<img class="op-drawing-img" />`. Quando `rotacao_recomendada === 90` ou `orientacao === 'PAISAGEM'`, aplicar classe `rotate-90`.
-  - **PDF**: usar mesmo hook para obter blob URL e renderizar `<iframe class="pdf-drawing-frame">` (fallback simples sem dependência nova; `react-pdf` fica como TODO mas não é instalado neste passo). Aplicar `rotate-90` quando necessário.
-- Em modo `quebrarPorOperacao`, manter desenhos **após** todas as páginas de operação (já é o comportamento atual). Em modo padrão, manter desenhos depois do conteúdo da OP.
-- No preview da tela (não na impressão), adicionar uma lista resumo "Desenhos encontrados" com nome/tipo/orientação/rotação. Quando `incluir_desenhos === 'S'` e `data.desenhos` vazio: mostrar texto "Nenhum desenho encontrado para este produto." dentro de um bloco `no-print` (não imprime).
+Solução: helper local `aguardarDesenhosProntos()` na página, que após o React renderizar (`requestAnimationFrame` duplo) espera todas as `<img>` dentro de `.op-drawing-page` resolverem (`complete && naturalWidth>0` ou evento `load/error`) e todos os `<iframe>` dispararem `load`. Timeout máximo de ~10s para não travar.
 
-## 4. Hook utilitário — fetch autenticado de blob
-
-Novo `src/hooks/useAuthedBlobUrl.ts`:
-- Recebe `url: string | undefined` e tipo (mime opcional).
-- `useEffect`: faz `fetch(url, { headers: { Authorization: 'Bearer ' + api.getToken(), 'ngrok-skip-browser-warning': 'true' } })`, pega `blob()`, gera `URL.createObjectURL(blob)`; revoga no cleanup.
-- Retorna `{ blobUrl, loading, error }`.
-- Se a URL é absoluta externa sem auth, usa fetch direto; se relativa, prefixar com `getApiUrl()`.
-
-Usado por um pequeno subcomponente `<DrawingPage drawing={d}/>` dentro de `OpPrintSheet`.
-
-## 5. Lote — `OpPrintBatch.tsx`
-
-Nenhuma mudança estrutural: `OpPrintSheet` já é renderizado por OP. Como agora cada desenho é uma página própria dentro do `OpPrintSheet`, a ordem ficará automaticamente:
-```
-OP1 / Desenhos OP1 / OP2 / Desenhos OP2 / ...
+Trocar os `setTimeout` de impressão por:
+```ts
+await aguardarDesenhosProntos();
+window.print();
 ```
 
-Remover o wrapper `<div class="op-print-page">` por OP em `OpPrintBatch` apenas se ele estiver forçando page-break extra incorreto — deixar igual; quebras vêm do CSS de `.op-drawing-page` e `.op-sheet`. (Sem alteração funcional além de verificar comportamento.)
+Quando `incluir_desenhos !== 'S'`, pular a espera (apenas `await new Promise(r => requestAnimationFrame(() => r(null)))` para garantir flush).
 
-## 6. CSS — `op-print.css`
+## 5. CSS — `src/components/producao/op-print.css`
 
-Substituir/atualizar as regras de `.op-drawing-page` pelas regras do brief:
-- `.op-drawing-page`: 210mm × 297mm, flex center, `page-break-after: always; break-after: page;`, `overflow: hidden; background: white;`.
-- `.op-drawing-page:last-child, .op-print-page:last-child { page-break-after: auto; break-after: auto; }`
-- `.op-drawing-content` (190mm × 270mm flex center) e `.op-drawing-content img` (max 190×270, `object-fit: contain`).
-- `.op-drawing-content img.rotate-90 { transform: rotate(90deg); max-width: 270mm; max-height: 190mm; }`
-- `.pdf-drawing-frame { width: 190mm; height: 270mm; border: none; }` + variante `.rotate-90`.
-- Pequeno cabeçalho `.op-drawing-meta` (apenas no print) acima da imagem.
+Ajustar `.op-drawing-page` ao que foi pedido:
+- `display: flex; align-items: center; justify-content: center;` (centralizado, sem cabeçalho ocupando coluna)
+- Manter dimensões 210mm × 297mm, `page-break-after: always`, `:last-child auto`.
+- `img { max-width: 190mm; max-height: 270mm; object-fit: contain; }`
+- `iframe, object { width: 190mm; height: 270mm; border: none; }`
+- Remover regras `.rotate-90`, `.op-drawing-content`, `.pdf-drawing-frame` (não mais usadas).
+- Manter `.op-drawing-meta` discreto no topo (posicionar absolutamente ou simplesmente acima da mídia) — opcional; aceitável manter como pequena legenda no topo do flex. Mais simples: mudar layout para `flex-direction: column` com `justify-content: flex-start` e a mídia em `flex: 1` centralizada.
 
-## Fora do escopo
-- Backend (a API já deve devolver `desenhos[]` no novo formato).
-- Instalar `react-pdf` / `pdfjs-dist` — usar iframe agora; pode ser próxima iteração.
-- Mudanças em `quebrar_por_operacao`, componentes ou operações da OP.
+## Fora de escopo
+- Backend.
+- Mudanças em `quebrar_por_operacao`, componentes ou operações.
+- Instalar `react-pdf` (fica como follow-up; iframe atende).

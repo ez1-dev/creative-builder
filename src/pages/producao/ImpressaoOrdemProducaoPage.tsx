@@ -27,8 +27,6 @@ const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
 
 const DEFAULT_EMPRESA = '1';
 
-const DEFAULT_PASTA_DESENHOS = '\\\\EZORTEA-SRVSENI\\Senior\\Sapiens\\Pasta de Desenho\\02-JPG_OP\\';
-
 const EMPTY: ImpressaoOpFiltros = {
   cod_emp: DEFAULT_EMPRESA,
   cod_ori: '',
@@ -41,26 +39,51 @@ const EMPTY: ImpressaoOpFiltros = {
   cod_etg: '',
   cod_cre: '',
   incluir_desenhos: 'N',
-  pasta_desenhos: DEFAULT_PASTA_DESENHOS,
-  formatos_desenho: 'JPG,PNG,PDF',
   quebrar_por_operacao: 'N',
 };
 
-type FormatosDesenho = { jpg: boolean; png: boolean; pdf: boolean };
-const DEFAULT_FORMATOS: FormatosDesenho = { jpg: true, png: true, pdf: true };
-const buildFormatosString = (f: FormatosDesenho) => {
-  const arr: string[] = [];
-  if (f.jpg) arr.push('JPG');
-  if (f.png) arr.push('PNG');
-  if (f.pdf) arr.push('PDF');
-  return arr.join(',');
-};
+// Aguarda imagens (<img>) e iframes (PDF) dentro de .op-drawing-page resolverem
+// antes de chamar window.print(). Timeout máximo de segurança ~10s.
+async function aguardarDesenhosProntos(timeoutMs = 10000): Promise<void> {
+  // Flush React render
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  const imgs = Array.from(document.querySelectorAll<HTMLImageElement>('.op-drawing-page img'));
+  const frames = Array.from(document.querySelectorAll<HTMLIFrameElement>('.op-drawing-page iframe'));
+  if (imgs.length === 0 && frames.length === 0) return;
+  const waiters: Promise<unknown>[] = [];
+  for (const img of imgs) {
+    if (img.complete && img.naturalWidth > 0) continue;
+    waiters.push(
+      new Promise<void>((resolve) => {
+        const done = () => { img.removeEventListener('load', done); img.removeEventListener('error', done); resolve(); };
+        img.addEventListener('load', done);
+        img.addEventListener('error', done);
+      }),
+    );
+  }
+  for (const f of frames) {
+    waiters.push(
+      new Promise<void>((resolve) => {
+        const done = () => { f.removeEventListener('load', done); resolve(); };
+        f.addEventListener('load', done);
+        // Se já carregou
+        try { if (f.contentDocument?.readyState === 'complete') resolve(); } catch { /* cross-origin */ }
+      }),
+    );
+  }
+  await Promise.race([
+    Promise.all(waiters),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
 
 
 export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
-  const [formatosDesenho, setFormatosDesenho] = useState<FormatosDesenho>(DEFAULT_FORMATOS);
+
+
 
   const [opLabel, setOpLabel] = useState<string>('');
   const [preview, setPreview] = useState(false);
@@ -328,14 +351,6 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error('Empresa e Nº O.P. devem ser numéricos.');
       return;
     }
-    if (eff.incluir_desenhos === 'S') {
-      const fmt = buildFormatosString(formatosDesenho);
-      if (!fmt) {
-        toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
-        return;
-      }
-      eff.formatos_desenho = fmt;
-    }
     setLote(null);
     setLastConsulta({ ...eff });
     await fetchData(eff);
@@ -343,7 +358,6 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const limpar = () => {
     setFiltros({ ...EMPTY });
-    setFormatosDesenho({ ...DEFAULT_FORMATOS });
     setOpLabel('');
     setPreview(false);
     setLastConsulta(null);
@@ -352,18 +366,19 @@ export default function ImpressaoOrdemProducaoPage() {
     void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
 
-
-
-  const imprimir = () => {
+  const imprimir = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de imprimir.'); return; }
+    await aguardarDesenhosProntos();
     window.print();
   };
 
-  const gerarPdf = () => {
+  const gerarPdf = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
     toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
-    setTimeout(() => window.print(), 200);
+    await aguardarDesenhosProntos();
+    window.print();
   };
+
 
   // Lista de OPs (grid) — quando há algum filtro principal ou refinamento e não há OP escolhida
   const showGrid = useMemo(
@@ -414,10 +429,6 @@ export default function ImpressaoOrdemProducaoPage() {
       return;
     }
 
-    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
-      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
-      return;
-    }
     setLoteLoading(true);
     try {
       const res = await fetchImpressaoLote({
@@ -431,12 +442,8 @@ export default function ImpressaoOrdemProducaoPage() {
         listar_componentes: (filtros.listar_componentes as 'S' | 'N') || 'S',
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
         incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
-        pasta_desenhos: filtros.pasta_desenhos || undefined,
-        formatos_desenho: filtros.incluir_desenhos === 'S' ? buildFormatosString(formatosDesenho) : undefined,
         quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
       });
-
-
 
       if (!res.ordens.length) {
         toast.info('Nenhuma OP retornada para impressão.');
@@ -445,7 +452,9 @@ export default function ImpressaoOrdemProducaoPage() {
       setLote(res);
       reset();
       toast.success(`Imprimindo ${res.quantidade_ops} OP(s)...`);
-      setTimeout(() => window.print(), 300);
+      await aguardarDesenhosProntos();
+      window.print();
+
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao gerar impressão em lote.');
     } finally {
@@ -459,11 +468,8 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Selecione ao menos uma OP.');
       return;
     }
-    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
-      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
-      return;
-    }
     setLoteLoading(true);
+
     try {
 
       const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
@@ -486,9 +492,8 @@ export default function ImpressaoOrdemProducaoPage() {
               };
               if (filtros.incluir_desenhos === 'S') {
                 payload.incluir_desenhos = 'S';
-                if (filtros.pasta_desenhos) payload.pasta_desenhos = filtros.pasta_desenhos;
-                payload.formatos_desenho = buildFormatosString(formatosDesenho) || 'JPG,PNG,PDF';
               }
+
 
               const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
               return res ?? null;
@@ -508,7 +513,9 @@ export default function ImpressaoOrdemProducaoPage() {
       reset();
       if (falhas > 0) toast.warning(`${falhas} OP(s) falharam ao carregar. Imprimindo ${ordens.length}.`);
       else toast.success(`Imprimindo ${ordens.length} OP(s)...`);
-      setTimeout(() => window.print(), 300);
+      await aguardarDesenhosProntos();
+      window.print();
+
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao imprimir selecionadas.');
     } finally {
@@ -659,32 +666,8 @@ export default function ImpressaoOrdemProducaoPage() {
                     </label>
                   </div>
                 </div>
-                <Field label="Caminho da pasta de desenhos">
-                  <Input
-                    className="h-8 text-xs"
-                    value={filtros.pasta_desenhos || ''}
-                    onChange={(e) => set('pasta_desenhos', e.target.value)}
-                    placeholder={DEFAULT_PASTA_DESENHOS}
-                    disabled={filtros.incluir_desenhos !== 'S'}
-                  />
-                </Field>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs">Formatos dos desenhos</Label>
-                  <div className="flex flex-wrap items-center gap-3 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
-                    {(['jpg', 'png', 'pdf'] as const).map((k) => (
-                      <label key={k} className="flex items-center gap-1.5">
-                        <Checkbox
-                          checked={formatosDesenho[k]}
-                          disabled={filtros.incluir_desenhos !== 'S'}
-                          onCheckedChange={(c) =>
-                            setFormatosDesenho((f) => ({ ...f, [k]: c === true }))
-                          }
-                        />
-                        <span>{k.toUpperCase()}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
+
+
 
                 <label className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
                   <Checkbox
