@@ -210,8 +210,9 @@
 
 .op-print-page,
 .op-operation-page {
-  width: 210mm;
-  min-height: 297mm;
+  width: 196mm;
+  min-height: 283mm;
+  margin: 0 auto;
   page-break-after: always;
   break-after: page;
 }
@@ -233,9 +234,10 @@
 }
 
 .op-drawing-page {
-  width: 210mm;
-  min-height: 297mm;
+  width: 196mm;
+  min-height: 283mm;
   height: auto;
+  margin: 0 auto;
   page-break-after: always;
   break-after: page;
   page-break-before: always;
@@ -253,20 +255,21 @@
   break-after: auto;
 }
 .op-drawing-page img {
-  max-width: 190mm;
-  max-height: 270mm;
+  max-width: 196mm;
+  max-height: 283mm;
   object-fit: contain;
 }
 .op-drawing-page iframe,
 .op-drawing-page object {
-  width: 190mm;
-  height: 270mm;
+  width: 196mm;
+  height: 283mm;
   border: none;
 }
 .op-drawing-missing {
   font-style: italic;
   padding: 20mm 0;
 }
+
 
 
 
