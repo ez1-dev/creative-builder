@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
 import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
@@ -237,7 +237,61 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       </div>
       {op.narrativas && <div className="op-narrativas">{op.narrativas}</div>}
 
-      <ApontamentoFill keyPrefix={`apt-${i}`} />
+      <table className="op-apontamento-old">
+        <thead>
+          <tr>
+            <th>Início</th>
+            <th>Fim</th>
+            <th>Qtd. Produzida</th>
+            <th>Refugos</th>
+            <th>Operador</th>
+            <th style={{ width: 30, textAlign: 'center' }}>Check</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 15 }).map((_, r) => (
+            <tr key={`apt-old-${i}-${r}`} className="op-apontamento-row">
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td style={{ textAlign: 'center' }}><span className="op-apontamento-cell-check" /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <table className="op-apontamento-table" style={{ marginTop: 12 }}>
+        <thead>
+          <tr>
+            <th>Início</th>
+            <th>Fim</th>
+            <th>Tempo Setup</th>
+            <th>QTD Produzida</th>
+            <th>Refugo</th>
+            <th>Motivo Desvio</th>
+            <th>Operador</th>
+            <th className="check-cell">Check</th>
+            <th>OBS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 20 }).map((_, r) => (
+            <tr key={`apt-${i}-${r}`}>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td className="check-cell"><span className="check-box" /></td>
+              <td>&nbsp;</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 
@@ -528,74 +582,4 @@ function DrawingPageFromState({
   );
 }
 
-
-// ===== Apontamento manual: bloco multi-linha replicado para preencher a página =====
-function ApontamentoFill({ keyPrefix }: { keyPrefix: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [count, setCount] = useState(6);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const compute = () => {
-      // Encontra a página ancestral (.op-print-page / .op-operation-page / .op-sheet)
-      const page =
-        el.closest<HTMLElement>('.op-operation-page') ||
-        el.closest<HTMLElement>('.op-print-page') ||
-        el.closest<HTMLElement>('.op-sheet');
-      if (!page) return;
-      const pageRect = page.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      // Espaço disponível do topo do container até o fim útil da página
-      // (deixa ~24px de folga para footer/responsabilidade que vêm depois)
-      const FOOTER_RESERVE = 90; // px aproximados para .op-responsability + .op-footer
-      const available = pageRect.bottom - elRect.top - FOOTER_RESERVE;
-      const ENTRY_HEIGHT = 95; // px aprox de 1 entrada (4 linhas ~7mm cada + bordas)
-      const SEP_HEIGHT = 14; // px aprox do separador (espaço + linha pontilhada)
-      const n = Math.max(1, Math.floor((available + SEP_HEIGHT) / (ENTRY_HEIGHT + SEP_HEIGHT)));
-      setCount(n);
-    };
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(document.body);
-    window.addEventListener('resize', compute);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', compute);
-    };
-  }, []);
-
-  const entries = Array.from({ length: count });
-  return (
-    <div ref={ref} className="op-apontamento-fill">
-      {entries.map((_, idx) => (
-        <div key={`${keyPrefix}-e${idx}`}>
-          <div className="op-apt-entry">
-            <div className="op-apt-row op-apt-row--3col">
-              <div className="op-apt-cell"><span className="op-apt-label">Início</span></div>
-              <div className="op-apt-cell"><span className="op-apt-label">Fim</span></div>
-              <div className="op-apt-cell"><span className="op-apt-label">Tempo Setup</span></div>
-            </div>
-            <div className="op-apt-row op-apt-row--3col">
-              <div className="op-apt-cell"><span className="op-apt-label">Qtd Produzida</span></div>
-              <div className="op-apt-cell"><span className="op-apt-label">Refugo</span></div>
-              <div className="op-apt-cell"><span className="op-apt-label">Operador</span></div>
-            </div>
-            <div className="op-apt-row op-apt-row--full">
-              <div className="op-apt-cell"><span className="op-apt-label">Motivo Desvio</span></div>
-            </div>
-            <div className="op-apt-row op-apt-row--obs-check">
-              <div className="op-apt-cell"><span className="op-apt-label">OBS</span></div>
-              <div className="op-apt-cell op-apt-cell--check">
-                <span className="op-apt-label">Check</span>
-                <span className="op-apt-checkbox" />
-              </div>
-            </div>
-          </div>
-          {idx < entries.length - 1 && <div className="op-apt-sep" />}
-        </div>
-      ))}
-    </div>
-  );
-}
 
