@@ -25,14 +25,18 @@ const dropSituacaoCancelada = (arr: OpcaoSituacao[] = []) =>
   arr.filter((s: any) => !isCancelada(s?.sit_orp));
 const sanitizeOps = (arr: OpcaoOp[] = []) => dropCanceladas(dropOri100Ops(arr));
 
-export interface SearchOpsContext {
+export interface RefinementCtx {
+  cod_cre?: string;
+  cod_etg?: string;
+}
+
+export interface SearchOpsContext extends RefinementCtx {
   cod_emp?: string;
   cod_ori?: string;
   num_ped?: string;
   rel_prd?: string;
   sit_orp?: string;
 }
-
 
 export function useOpcoesImpressaoOp() {
   const [empresas, setEmpresas] = useState<OpcaoEmpresa[]>([]);
@@ -83,37 +87,47 @@ export function useOpcoesImpressaoOp() {
     }
   }, [fetchOpcoes]);
 
-  const reloadByPedido = useCallback(async (cod_emp: string, num_ped: string, sit_orp?: string) => {
-    setLoading(true);
-    try {
-      const res = await fetchOpcoes({ cod_emp, num_ped, sit_orp, limite_ops: 80 });
-      setOrigens(dropOri100Origens(res.origens ?? []));
-      setOps(sanitizeOps(res.ordens_producao ?? []));
-      setEstagios(res.estagios ?? []);
-      setCentrosRecurso(res.centros_recurso ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchOpcoes]);
+  const reloadByPedido = useCallback(
+    async (cod_emp: string, num_ped: string, sit_orp?: string, ref: RefinementCtx = {}) => {
+      setLoading(true);
+      try {
+        const res = await fetchOpcoes({ cod_emp, num_ped, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, limite_ops: 200 });
+        setOrigens(dropOri100Origens(res.origens ?? []));
+        setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (!ref.cod_cre && !ref.cod_etg) {
+          setEstagios(res.estagios ?? []);
+          setCentrosRecurso(res.centros_recurso ?? []);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOpcoes],
+  );
 
-  const reloadByRelatorio = useCallback(async (cod_emp: string, rel_prd: string, sit_orp?: string) => {
-    setLoading(true);
-    try {
-      const res = await fetchOpcoes({ cod_emp, rel_prd, sit_orp, limite_ops: 80 });
-      setOrigens(dropOri100Origens(res.origens ?? []));
-      setOps(sanitizeOps(res.ordens_producao ?? []));
-      setEstagios(res.estagios ?? []);
-      setCentrosRecurso(res.centros_recurso ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchOpcoes]);
+  const reloadByRelatorio = useCallback(
+    async (cod_emp: string, rel_prd: string, sit_orp?: string, ref: RefinementCtx = {}) => {
+      setLoading(true);
+      try {
+        const res = await fetchOpcoes({ cod_emp, rel_prd, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, limite_ops: 200 });
+        setOrigens(dropOri100Origens(res.origens ?? []));
+        setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (!ref.cod_cre && !ref.cod_etg) {
+          setEstagios(res.estagios ?? []);
+          setCentrosRecurso(res.centros_recurso ?? []);
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOpcoes],
+  );
 
   const reloadByOrigem = useCallback(
     async (
       cod_emp: string,
       cod_ori: string,
-      ctx: { sit_orp?: string; num_ped?: string; rel_prd?: string; q?: string } = {},
+      ctx: { sit_orp?: string; num_ped?: string; rel_prd?: string; q?: string } & RefinementCtx = {},
     ) => {
       setLoading(true);
       try {
@@ -123,12 +137,16 @@ export function useOpcoesImpressaoOp() {
           sit_orp: ctx.sit_orp,
           num_ped: ctx.num_ped,
           rel_prd: ctx.rel_prd,
+          cod_cre: ctx.cod_cre,
+          cod_etg: ctx.cod_etg,
           q: ctx.q,
           limite_ops: 200,
         });
         setOps(sanitizeOps(res.ordens_producao ?? []));
-        setEstagios(res.estagios ?? []);
-        setCentrosRecurso(res.centros_recurso ?? []);
+        if (!ctx.cod_cre && !ctx.cod_etg) {
+          setEstagios(res.estagios ?? []);
+          setCentrosRecurso(res.centros_recurso ?? []);
+        }
       } finally {
         setLoading(false);
       }
@@ -137,7 +155,11 @@ export function useOpcoesImpressaoOp() {
   );
 
   const reloadBySituacao = useCallback(
-    async (cod_emp: string, sit_orp: string, ctx: { num_ped?: string; rel_prd?: string; cod_ori?: string } = {}) => {
+    async (
+      cod_emp: string,
+      sit_orp: string,
+      ctx: { num_ped?: string; rel_prd?: string; cod_ori?: string } & RefinementCtx = {},
+    ) => {
       setLoading(true);
       try {
         const res = await fetchOpcoes({
@@ -146,9 +168,45 @@ export function useOpcoesImpressaoOp() {
           num_ped: ctx.num_ped,
           rel_prd: ctx.rel_prd,
           cod_ori: ctx.cod_ori,
+          cod_cre: ctx.cod_cre,
+          cod_etg: ctx.cod_etg,
           limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
+        setOps(sanitizeOps(res.ordens_producao ?? []));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOpcoes],
+  );
+
+  const reloadByCentroRecurso = useCallback(
+    async (
+      cod_emp: string,
+      cod_cre: string,
+      ctx: {
+        cod_ori?: string;
+        num_ped?: string;
+        rel_prd?: string;
+        sit_orp?: string;
+        cod_etg?: string;
+        q?: string;
+      } = {},
+    ) => {
+      setLoading(true);
+      try {
+        const res = await fetchOpcoes({
+          cod_emp,
+          cod_cre,
+          cod_ori: ctx.cod_ori,
+          num_ped: ctx.num_ped,
+          rel_prd: ctx.rel_prd,
+          sit_orp: ctx.sit_orp,
+          cod_etg: ctx.cod_etg,
+          q: ctx.q,
+          limite_ops: 200,
+        });
         setOps(sanitizeOps(res.ordens_producao ?? []));
       } finally {
         setLoading(false);
@@ -175,6 +233,8 @@ export function useOpcoesImpressaoOp() {
       num_ped: ctx.num_ped,
       rel_prd: ctx.rel_prd,
       sit_orp: ctx.sit_orp,
+      cod_cre: ctx.cod_cre,
+      cod_etg: ctx.cod_etg,
       q,
       limite_ops: 200,
     });
@@ -185,6 +245,7 @@ export function useOpcoesImpressaoOp() {
 
   return {
     empresas, origens, pedidos, relatoriosProducao, situacoes, ops, estagios, centrosRecurso, loading,
-    reloadBase, reloadByPedido, reloadByRelatorio, reloadByOrigem, reloadBySituacao, reloadOpContexto, reloadCres, searchOps,
+    reloadBase, reloadByPedido, reloadByRelatorio, reloadByOrigem, reloadBySituacao, reloadByCentroRecurso,
+    reloadOpContexto, reloadCres, searchOps,
   };
 }

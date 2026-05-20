@@ -162,6 +162,21 @@ Regras:
 - Manter exclusão de `sit_orp = 'C'`.
 - `limite_ops` aceita até 200.
 
+#### Refinamento por Centro de Recurso e Estágio (Maio/2026)
+
+`/opcoes` aceita `cod_cre` e `cod_etg` como filtros de refinamento livres, combináveis com qualquer filtro principal ou usados sozinhos. Quando `cod_cre` está presente, retornar apenas OPs que possuam **alguma operação** em `E900OOP.CodCre = :cod_cre` (idem para `cod_etg`).
+
+Combinações válidas (exemplos):
+
+- `cod_emp` + `cod_cre`
+- `cod_emp` + `cod_ori` + `cod_cre`
+- `cod_emp` + `num_ped` + `cod_cre`
+- `cod_emp` + `rel_prd` + `cod_cre`
+- `cod_emp` + `sit_orp` + `cod_cre`
+- `cod_emp` + `cod_etg` + `cod_cre`
+
+Regras adicionais: continua excluindo `cod_ori = 100` e `sit_orp = 'C'`. Não selecionar OP automaticamente.
+
 ### `/impressao/lote` — impressão em lote
 
 ```
@@ -176,11 +191,14 @@ Parâmetros:
 | `cod_ori`            | string  | um deles    | Imprime todas as OPs da origem                   |
 | `num_ped`            | string  | um deles    | Imprime todas as OPs do pedido                   |
 | `rel_prd`            | string  | um deles    | Imprime todas as OPs do relatório de produção    |
+| `cod_cre`            | string  | um deles    | Imprime todas as OPs com operação nesse CR       |
 | `sit_orp`            | string  | não         | Restringe por situação (nunca `C`)              |
+| `cod_etg`            | string  | não         | Refina por estágio (combinável com qualquer um) |
 | `listar_componentes` | `S`/`N` | não (def S) |                                                  |
 | `listar_desenho`     | `S`/`N` | não (def N) |                                                  |
 
-Pelo menos um entre `cod_ori`, `num_ped` ou `rel_prd` é obrigatório. Podem ser combinados.
+Pelo menos um entre `cod_ori`, `num_ped`, `rel_prd` ou `cod_cre` é obrigatório. Podem ser combinados livremente (ex.: `num_ped` + `cod_cre`, `rel_prd` + `cod_cre`, `cod_ori` + `cod_cre` + `cod_etg`).
+
 
 Resposta:
 
