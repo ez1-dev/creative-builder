@@ -66,6 +66,9 @@ export async function createRelatorio(input: Partial<Relatorio>) {
     permite_excel: input.permite_excel ?? true,
     permite_pdf: input.permite_pdf ?? true,
     permite_csv: input.permite_csv ?? true,
+    tipo_fonte: input.tipo_fonte ?? 'sql',
+    endpoint_url: input.endpoint_url ?? null,
+    url_destino: input.url_destino ?? null,
     created_by: user.user?.id ?? null,
   };
   const { data, error } = await supabase.from('relatorios').insert(payload).select('*').single();
