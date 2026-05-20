@@ -95,11 +95,13 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
       setTab('geral');
       return;
     }
-    const safe = checkSqlSafe(relatorio.sql_query ?? '');
-    if (safe) {
-      toast.error(safe);
-      setTab('sql');
-      return;
+    if (!isApiRest) {
+      const safe = checkSqlSafe(relatorio.sql_query ?? '');
+      if (safe) {
+        toast.error(safe);
+        setTab('sql');
+        return;
+      }
     }
     setSaving(true);
     try {
