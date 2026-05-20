@@ -109,7 +109,7 @@ export async function duplicarRelatorio(id: string) {
   }
   if (layout) {
     const { relatorio_id: _r, ...rest } = layout;
-    await supabase.from('relatorio_layout').insert({ ...rest, relatorio_id: novo.id });
+    await supabase.from('relatorio_layout').insert([{ ...rest, relatorio_id: novo.id }] as any);
   }
   return novo;
 }
@@ -120,7 +120,7 @@ export async function saveParametros(relatorioId: string, params: Omit<Relatorio
   if (params.length === 0) return;
   const { error } = await supabase
     .from('relatorio_parametros')
-    .insert(params.map((p) => ({ ...p, relatorio_id: relatorioId })));
+    .insert(params.map((p) => ({ ...p, relatorio_id: relatorioId })) as any);
   if (error) throw error;
 }
 
@@ -130,13 +130,13 @@ export async function saveColunas(relatorioId: string, cols: Omit<RelatorioColun
   if (cols.length === 0) return;
   const { error } = await supabase
     .from('relatorio_colunas')
-    .insert(cols.map((c) => ({ ...c, relatorio_id: relatorioId })));
+    .insert(cols.map((c) => ({ ...c, relatorio_id: relatorioId })) as any);
   if (error) throw error;
 }
 
 // ----- Layout -----
 export async function saveLayout(layout: RelatorioLayout) {
-  const { error } = await supabase.from('relatorio_layout').upsert(layout);
+  const { error } = await supabase.from('relatorio_layout').upsert(layout as any);
   if (error) throw error;
 }
 
@@ -156,10 +156,10 @@ export async function listExecucoes(filters?: { relatorioId?: string; userId?: s
   return (data ?? []) as (RelatorioExecucao & { relatorios?: { nome: string; codigo: string } })[];
 }
 
-export async function gravarExecucao(input: Omit<RelatorioExecucao, 'id' | 'executado_em'>) {
+export async function gravarExecucao(input: Omit<RelatorioExecucao, 'id' | 'executado_em' | 'executado_por'>) {
   const { data: user } = await supabase.auth.getUser();
   const payload = { ...input, executado_por: user.user?.id ?? null };
-  const { error } = await supabase.from('relatorio_execucoes').insert(payload);
+  const { error } = await supabase.from('relatorio_execucoes').insert(payload as any);
   if (error) throw error;
 }
 
