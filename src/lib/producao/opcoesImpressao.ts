@@ -65,6 +65,14 @@ export interface OpcaoCentroRecurso {
   label?: string;
 }
 
+export interface OpcaoProduto {
+  codigo: string;
+  value: string;
+  descricao?: string;
+  label?: string;
+  qtd_ops?: number;
+}
+
 export interface OpcoesImpressao {
   empresas?: OpcaoEmpresa[];
   origens?: OpcaoOrigem[];
@@ -74,6 +82,7 @@ export interface OpcoesImpressao {
   ordens_producao?: OpcaoOp[];
   estagios?: OpcaoEstagio[];
   centros_recurso?: OpcaoCentroRecurso[];
+  produtos?: OpcaoProduto[];
 }
 
 export interface OpcoesImpressaoParams {
@@ -85,6 +94,7 @@ export interface OpcoesImpressaoParams {
   sit_orp?: string;
   cod_etg?: string;
   cod_cre?: string;
+  cod_pro?: string;
   q?: string;
   limite_ops?: number;
 }

@@ -80,6 +80,7 @@ export interface ImpressaoOpFiltros {
   num_ped?: string;
   rel_prd?: string;
   sit_orp?: string;
+  cod_pro?: string;
   listar_componentes?: 'S' | 'N' | '';
   listar_desenho?: 'S' | 'N' | '';
   cod_etg?: string;

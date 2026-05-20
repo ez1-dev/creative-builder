@@ -7,6 +7,7 @@ import type {
   OpcaoOp,
   OpcaoOrigem,
   OpcaoPedido,
+  OpcaoProduto,
   OpcaoRelatorioProducao,
   OpcaoSituacao,
   OpcoesImpressao,
@@ -28,6 +29,7 @@ const sanitizeOps = (arr: OpcaoOp[] = []) => dropCanceladas(dropOri100Ops(arr));
 export interface RefinementCtx {
   cod_cre?: string;
   cod_etg?: string;
+  cod_pro?: string;
 }
 
 export interface SearchOpsContext extends RefinementCtx {
@@ -47,6 +49,7 @@ export function useOpcoesImpressaoOp() {
   const [ops, setOps] = useState<OpcaoOp[]>([]);
   const [estagios, setEstagios] = useState<OpcaoEstagio[]>([]);
   const [centrosRecurso, setCentrosRecurso] = useState<OpcaoCentroRecurso[]>([]);
+  const [produtos, setProdutos] = useState<OpcaoProduto[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchOpcoes = useCallback(async (params: OpcoesImpressaoParams = {}) => {
@@ -62,6 +65,7 @@ export function useOpcoesImpressaoOp() {
     if (params.cod_ori && !isOri100(params.cod_ori)) q.cod_ori = params.cod_ori;
     if (params.cod_etg) q.cod_etg = params.cod_etg;
     if (params.cod_cre) q.cod_cre = params.cod_cre;
+    if (params.cod_pro) q.cod_pro = params.cod_pro;
     if (params.num_ped) q.num_ped = params.num_ped;
     if (params.rel_prd) q.rel_prd = params.rel_prd;
     if (params.sit_orp && !isCancelada(params.sit_orp)) q.sit_orp = params.sit_orp;
@@ -82,6 +86,7 @@ export function useOpcoesImpressaoOp() {
       setOps(sanitizeOps(res.ordens_producao ?? []));
       setEstagios(res.estagios ?? []);
       setCentrosRecurso(res.centros_recurso ?? []);
+      setProdutos(res.produtos ?? []);
     } finally {
       setLoading(false);
     }
@@ -91,9 +96,10 @@ export function useOpcoesImpressaoOp() {
     async (cod_emp: string, num_ped: string, sit_orp?: string, ref: RefinementCtx = {}) => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, num_ped, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, limite_ops: 200 });
+        const res = await fetchOpcoes({ cod_emp, num_ped, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, cod_pro: ref.cod_pro, limite_ops: 200 });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (res.produtos) setProdutos(res.produtos);
         if (!ref.cod_cre && !ref.cod_etg) {
           setEstagios(res.estagios ?? []);
           setCentrosRecurso(res.centros_recurso ?? []);
@@ -109,9 +115,10 @@ export function useOpcoesImpressaoOp() {
     async (cod_emp: string, rel_prd: string, sit_orp?: string, ref: RefinementCtx = {}) => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, rel_prd, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, limite_ops: 200 });
+        const res = await fetchOpcoes({ cod_emp, rel_prd, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, cod_pro: ref.cod_pro, limite_ops: 200 });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (res.produtos) setProdutos(res.produtos);
         if (!ref.cod_cre && !ref.cod_etg) {
           setEstagios(res.estagios ?? []);
           setCentrosRecurso(res.centros_recurso ?? []);
@@ -139,10 +146,12 @@ export function useOpcoesImpressaoOp() {
           rel_prd: ctx.rel_prd,
           cod_cre: ctx.cod_cre,
           cod_etg: ctx.cod_etg,
+          cod_pro: ctx.cod_pro,
           q: ctx.q,
           limite_ops: 200,
         });
         setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (res.produtos) setProdutos(res.produtos);
         if (!ctx.cod_cre && !ctx.cod_etg) {
           setEstagios(res.estagios ?? []);
           setCentrosRecurso(res.centros_recurso ?? []);
@@ -170,10 +179,12 @@ export function useOpcoesImpressaoOp() {
           cod_ori: ctx.cod_ori,
           cod_cre: ctx.cod_cre,
           cod_etg: ctx.cod_etg,
+          cod_pro: ctx.cod_pro,
           limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (res.produtos) setProdutos(res.produtos);
       } finally {
         setLoading(false);
       }
@@ -191,6 +202,7 @@ export function useOpcoesImpressaoOp() {
         rel_prd?: string;
         sit_orp?: string;
         cod_etg?: string;
+        cod_pro?: string;
         q?: string;
       } = {},
     ) => {
@@ -204,10 +216,52 @@ export function useOpcoesImpressaoOp() {
           rel_prd: ctx.rel_prd,
           sit_orp: ctx.sit_orp,
           cod_etg: ctx.cod_etg,
+          cod_pro: ctx.cod_pro,
           q: ctx.q,
           limite_ops: 200,
         });
         setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (res.produtos) setProdutos(res.produtos);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOpcoes],
+  );
+
+  const reloadByProduto = useCallback(
+    async (
+      cod_emp: string,
+      cod_pro: string,
+      ctx: {
+        cod_ori?: string;
+        num_ped?: string;
+        rel_prd?: string;
+        sit_orp?: string;
+        cod_cre?: string;
+        cod_etg?: string;
+      } = {},
+    ) => {
+      setLoading(true);
+      try {
+        const res = await fetchOpcoes({
+          cod_emp,
+          cod_pro,
+          cod_ori: ctx.cod_ori,
+          num_ped: ctx.num_ped,
+          rel_prd: ctx.rel_prd,
+          sit_orp: ctx.sit_orp,
+          cod_cre: ctx.cod_cre,
+          cod_etg: ctx.cod_etg,
+          limite_ops: 200,
+        });
+        setOrigens(dropOri100Origens(res.origens ?? []));
+        setOps(sanitizeOps(res.ordens_producao ?? []));
+        if (res.produtos) setProdutos(res.produtos);
+        if (!ctx.cod_cre && !ctx.cod_etg) {
+          setEstagios(res.estagios ?? []);
+          setCentrosRecurso(res.centros_recurso ?? []);
+        }
       } finally {
         setLoading(false);
       }
@@ -235,6 +289,7 @@ export function useOpcoesImpressaoOp() {
       sit_orp: ctx.sit_orp,
       cod_cre: ctx.cod_cre,
       cod_etg: ctx.cod_etg,
+      cod_pro: ctx.cod_pro,
       q,
       limite_ops: 200,
     });
@@ -243,9 +298,23 @@ export function useOpcoesImpressaoOp() {
     return list;
   }, [fetchOpcoes]);
 
+  const searchProdutos = useCallback(
+    async (q: string, ctx: { cod_emp?: string } = {}): Promise<OpcaoProduto[]> => {
+      const res = await fetchOpcoes({
+        cod_emp: ctx.cod_emp,
+        q: q || undefined,
+        limite_ops: 200,
+      });
+      const list = res.produtos ?? [];
+      setProdutos(list);
+      return list;
+    },
+    [fetchOpcoes],
+  );
+
   return {
-    empresas, origens, pedidos, relatoriosProducao, situacoes, ops, estagios, centrosRecurso, loading,
+    empresas, origens, pedidos, relatoriosProducao, situacoes, ops, estagios, centrosRecurso, produtos, loading,
     reloadBase, reloadByPedido, reloadByRelatorio, reloadByOrigem, reloadBySituacao, reloadByCentroRecurso,
-    reloadOpContexto, reloadCres, searchOps,
+    reloadByProduto, reloadOpContexto, reloadCres, searchOps, searchProdutos,
   };
 }
