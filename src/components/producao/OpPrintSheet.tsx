@@ -492,6 +492,34 @@ function DrawingPage({
     : <DrawingPageStandalone drawing={drawing} index={index} />;
 }
 
+function DrawingImage({
+  drawing,
+  index,
+  blobUrl,
+  flagRotate,
+}: {
+  drawing: OpDesenho;
+  index: number;
+  blobUrl: string;
+  flagRotate: boolean;
+}) {
+  const [isLandscape, setIsLandscape] = useState(false);
+  const shouldRotate = flagRotate || isLandscape;
+  return (
+    <div className={`drawing-frame${shouldRotate ? ' rotated' : ''}`}>
+      <img
+        className={`drawing-image${shouldRotate ? ' rotate-90' : ''}`}
+        src={blobUrl}
+        alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          setIsLandscape(img.naturalWidth > img.naturalHeight);
+        }}
+      />
+    </div>
+  );
+}
+
 function renderDrawingBody(
   drawing: OpDesenho,
   index: number,
@@ -502,7 +530,7 @@ function renderDrawingBody(
   const pdf = isPdf(drawing);
   const usingPrintUrl = Boolean(drawing.url_impressao);
   // Fallback legado: só rotaciona quando NÃO temos url_impressao da API.
-  const shouldRotate =
+  const flagRotate =
     !pdf &&
     !usingPrintUrl &&
     (drawing.rotacionar_para_retrato === true ||
@@ -517,13 +545,7 @@ function renderDrawingBody(
         </object>
       )}
       {!loading && !error && blobUrl && !pdf && (
-        <div className={`drawing-frame${shouldRotate ? ' rotated' : ''}`}>
-          <img
-            className={`drawing-image${shouldRotate ? ' rotate-90' : ''}`}
-            src={blobUrl}
-            alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
-          />
-        </div>
+        <DrawingImage drawing={drawing} index={index} blobUrl={blobUrl} flagRotate={flagRotate} />
       )}
       {!loading && !error && !blobUrl && (
         <div className="op-drawing-missing no-print">Desenho indisponível.</div>
