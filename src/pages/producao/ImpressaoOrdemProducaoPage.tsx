@@ -21,6 +21,8 @@ import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao
 import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
+import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
   `${op.cod_emp ?? ''}-${op.cod_ori ?? ''}-${op.num_orp ?? ''}`;
