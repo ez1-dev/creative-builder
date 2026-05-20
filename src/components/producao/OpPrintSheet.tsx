@@ -47,6 +47,13 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
   }, {});
   const etgKeys = Object.keys(compsPorEtg);
 
+  // Índice cod_opr -> descricao para resolver "Próx. Oper."
+  const opPorCodigo = new Map(
+    operacoes
+      .filter((o) => o.cod_opr != null && String(o.cod_opr) !== '')
+      .map((o) => [String(o.cod_opr), o.descricao_operacao ?? ''])
+  );
+
   return (
     <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
       <div className="op-title">Ordens de Produção - GENIUS</div>
@@ -154,7 +161,13 @@ export function OpPrintSheet({ data, preview = false, usuario }: Props) {
                   <div className="k">U.M.:</div>
                   <div className="v">{op.unidade_medida ?? '—'}</div>
                   <div className="k">Próx. Oper.:</div>
-                  <div className="v">{op.proxima_operacao ?? '—'}</div>
+                  <div className="v">
+                    {op.proxima_operacao
+                      ? [op.proxima_operacao, opPorCodigo.get(String(op.proxima_operacao))]
+                          .filter(Boolean)
+                          .join(' ')
+                      : '—'}
+                  </div>
 
                   {op.fornecedor && (
                     <>
