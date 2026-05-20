@@ -606,9 +606,8 @@ export default function ImpressaoOrdemProducaoPage() {
     }
   };
 
-  const [loteFalhas, setLoteFalhas] = [
-    // placeholder replaced below
-  ] as any;
+  // (loteFalhas state declared near top via setFalhasLote)
+
 
   const visualizarSelecionadas = async () => {
     const alvos = opsFiltradas.filter((o) => selectedKeys.has(opKey(o)))
