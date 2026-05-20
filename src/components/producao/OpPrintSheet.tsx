@@ -1,6 +1,8 @@
 import { Barcode } from './Barcode';
-import type { OpImpressao, OpOperacao, OpComponente } from '@/lib/producao/opImpressao';
+import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
+import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from '@/lib/producao/opImpressao';
 import './op-print.css';
+
 
 interface Props {
   data: OpImpressao;
@@ -215,20 +217,51 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     </>
   );
 
+  const desenhos = data?.desenhos ?? [];
+
   const renderDesenhos = () =>
-    (data?.desenhos ?? []).map((d, i) => (
-      <div className="op-drawing-page" key={`drw-${i}`}>
-        <div className="op-drawing-header">
-          <strong>{d.nome_arquivo ?? `Desenho ${i + 1}`}</strong>
-          {d.pasta ? <span> — {d.pasta}</span> : null}
-        </div>
-        {d.url ? (
-          <img className="op-drawing-img" src={d.url} alt={d.nome_arquivo ?? `Desenho ${i + 1}`} />
-        ) : (
-          <div className="op-drawing-missing">Desenho indisponível.</div>
-        )}
-      </div>
+    desenhos.map((d, i) => (
+      <DrawingPage key={`drw-${i}`} drawing={d} index={i} />
     ));
+
+  const renderPreviewDesenhosResumo = () => {
+    if (!preview) return null;
+    if (desenhos.length === 0) {
+      return (
+        <div className="no-print op-box" style={{ marginTop: 8, fontStyle: 'italic', textAlign: 'center' }}>
+          Nenhum desenho encontrado para este produto.
+        </div>
+      );
+    }
+    return (
+      <div className="no-print op-box" style={{ marginTop: 8 }}>
+        <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Desenhos encontrados ({desenhos.length})</div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Arquivo</th>
+              <th>Tipo</th>
+              <th>Orientação</th>
+              <th>Rotação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {desenhos.map((d, i) => (
+              <tr key={`drw-meta-${i}`}>
+                <td>{i + 1}</td>
+                <td>{d.nome_arquivo ?? '-'}</td>
+                <td>{d.extensao ?? d.tipo ?? d.mime_type ?? '-'}</td>
+                <td>{d.orientacao ?? '-'}</td>
+                <td>{d.rotacao_recomendada ?? 0}°</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
 
   // Modo: quebra por operação
   if (quebrarPorOperacao) {
@@ -257,6 +290,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             {renderFooter()}
           </div>
         ))}
+        {renderPreviewDesenhosResumo()}
         {renderDesenhos()}
       </>
     );
@@ -264,17 +298,69 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   // Modo padrão: tudo numa página
   return (
-    <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
-      {renderHeader()}
-      {renderComponentes()}
-      {operacoes.length > 0 && (
-        <>
-          <div className="op-section-title">Operações</div>
-          {operacoes.map((op, i) => renderOperacao(op, i))}
-        </>
-      )}
-      {renderFooter()}
+    <>
+      <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
+        {renderHeader()}
+        {renderComponentes()}
+        {operacoes.length > 0 && (
+          <>
+            <div className="op-section-title">Operações</div>
+            {operacoes.map((op, i) => renderOperacao(op, i))}
+          </>
+        )}
+        {renderFooter()}
+        {renderPreviewDesenhosResumo()}
+      </div>
       {renderDesenhos()}
+    </>
+  );
+}
+
+function isPdf(d: OpDesenho): boolean {
+  const ext = String(d.extensao ?? '').toUpperCase();
+  const mime = String(d.mime_type ?? '').toLowerCase();
+  const tipo = String(d.tipo ?? '').toUpperCase();
+  return ext === 'PDF' || tipo === 'PDF' || mime.includes('pdf');
+}
+
+function DrawingPage({ drawing, index }: { drawing: OpDesenho; index: number }) {
+  const { blobUrl, loading, error } = useAuthedBlobUrl(drawing.url);
+  const pdf = isPdf(drawing);
+  const rotacao = Number(drawing.rotacao_recomendada ?? 0);
+  const isLandscape = String(drawing.orientacao ?? '').toUpperCase() === 'PAISAGEM';
+  const rotate90 = rotacao === 90 || isLandscape;
+  const rotateClass = rotate90 ? ' rotate-90' : '';
+
+  return (
+    <div className="op-drawing-page">
+      <div className="op-drawing-meta">
+        <strong>{drawing.nome_arquivo ?? `Desenho ${index + 1}`}</strong>
+        {drawing.extensao ? <span> — {drawing.extensao}</span> : null}
+        {drawing.orientacao ? <span> — {drawing.orientacao}</span> : null}
+        {rotate90 ? <span> — rotacionado 90°</span> : null}
+      </div>
+      <div className="op-drawing-content">
+        {loading && <div className="op-drawing-missing">Carregando desenho...</div>}
+        {!loading && error && <div className="op-drawing-missing">Falha ao carregar: {error}</div>}
+        {!loading && !error && blobUrl && pdf && (
+          <iframe
+            className={`pdf-drawing-frame${rotateClass}`}
+            src={blobUrl}
+            title={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          />
+        )}
+        {!loading && !error && blobUrl && !pdf && (
+          <img
+            className={`op-drawing-img${rotateClass}`}
+            src={blobUrl}
+            alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          />
+        )}
+        {!loading && !error && !blobUrl && (
+          <div className="op-drawing-missing">Desenho indisponível.</div>
+        )}
+      </div>
     </div>
   );
 }
+

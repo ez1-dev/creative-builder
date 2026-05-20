@@ -27,6 +27,8 @@ const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
 
 const DEFAULT_EMPRESA = '1';
 
+const DEFAULT_PASTA_DESENHOS = '\\\\EZORTEA-SRVSENI\\Senior\\Sapiens\\Pasta de Desenho\\02-JPG_OP\\';
+
 const EMPTY: ImpressaoOpFiltros = {
   cod_emp: DEFAULT_EMPRESA,
   cod_ori: '',
@@ -39,13 +41,27 @@ const EMPTY: ImpressaoOpFiltros = {
   cod_etg: '',
   cod_cre: '',
   incluir_desenhos: 'N',
-  pasta_desenhos: '',
+  pasta_desenhos: DEFAULT_PASTA_DESENHOS,
+  formatos_desenho: 'JPG,PNG,PDF',
   quebrar_por_operacao: 'N',
 };
+
+type FormatosDesenho = { jpg: boolean; png: boolean; pdf: boolean };
+const DEFAULT_FORMATOS: FormatosDesenho = { jpg: true, png: true, pdf: true };
+const buildFormatosString = (f: FormatosDesenho) => {
+  const arr: string[] = [];
+  if (f.jpg) arr.push('JPG');
+  if (f.png) arr.push('PNG');
+  if (f.pdf) arr.push('PDF');
+  return arr.join(',');
+};
+
 
 export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
+  const [formatosDesenho, setFormatosDesenho] = useState<FormatosDesenho>(DEFAULT_FORMATOS);
+
   const [opLabel, setOpLabel] = useState<string>('');
   const [preview, setPreview] = useState(false);
   const [lastConsulta, setLastConsulta] = useState<ImpressaoOpFiltros | null>(null);
@@ -312,6 +328,14 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.error('Empresa e Nº O.P. devem ser numéricos.');
       return;
     }
+    if (eff.incluir_desenhos === 'S') {
+      const fmt = buildFormatosString(formatosDesenho);
+      if (!fmt) {
+        toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
+        return;
+      }
+      eff.formatos_desenho = fmt;
+    }
     setLote(null);
     setLastConsulta({ ...eff });
     await fetchData(eff);
@@ -319,6 +343,7 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const limpar = () => {
     setFiltros({ ...EMPTY });
+    setFormatosDesenho({ ...DEFAULT_FORMATOS });
     setOpLabel('');
     setPreview(false);
     setLastConsulta(null);
@@ -326,6 +351,8 @@ export default function ImpressaoOrdemProducaoPage() {
     reset();
     void opcoes.reloadBase(DEFAULT_EMPRESA);
   };
+
+
 
   const imprimir = () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de imprimir.'); return; }
@@ -387,6 +414,10 @@ export default function ImpressaoOrdemProducaoPage() {
       return;
     }
 
+    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
+      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
+      return;
+    }
     setLoteLoading(true);
     try {
       const res = await fetchImpressaoLote({
@@ -401,8 +432,10 @@ export default function ImpressaoOrdemProducaoPage() {
         listar_desenho: (filtros.listar_desenho as 'S' | 'N') || 'N',
         incluir_desenhos: filtros.incluir_desenhos === 'S' ? 'S' : 'N',
         pasta_desenhos: filtros.pasta_desenhos || undefined,
+        formatos_desenho: filtros.incluir_desenhos === 'S' ? buildFormatosString(formatosDesenho) : undefined,
         quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
       });
+
 
 
       if (!res.ordens.length) {
@@ -426,8 +459,13 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Selecione ao menos uma OP.');
       return;
     }
+    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
+      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
+      return;
+    }
     setLoteLoading(true);
     try {
+
       const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
       const listar_desenho = (filtros.listar_desenho as 'S' | 'N') || 'N';
       const ordens: OpImpressao[] = [];
@@ -449,7 +487,9 @@ export default function ImpressaoOrdemProducaoPage() {
               if (filtros.incluir_desenhos === 'S') {
                 payload.incluir_desenhos = 'S';
                 if (filtros.pasta_desenhos) payload.pasta_desenhos = filtros.pasta_desenhos;
+                payload.formatos_desenho = buildFormatosString(formatosDesenho) || 'JPG,PNG,PDF';
               }
+
               const res = await api.get<OpImpressao>('/api/producao/ordem-producao/impressao', payload);
               return res ?? null;
             } catch {
@@ -624,10 +664,28 @@ export default function ImpressaoOrdemProducaoPage() {
                     className="h-8 text-xs"
                     value={filtros.pasta_desenhos || ''}
                     onChange={(e) => set('pasta_desenhos', e.target.value)}
-                    placeholder="Ex.: /mnt/desenhos_op  •  C:\Desenhos\OP"
+                    placeholder={DEFAULT_PASTA_DESENHOS}
                     disabled={filtros.incluir_desenhos !== 'S'}
                   />
                 </Field>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs">Formatos dos desenhos</Label>
+                  <div className="flex flex-wrap items-center gap-3 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+                    {(['jpg', 'png', 'pdf'] as const).map((k) => (
+                      <label key={k} className="flex items-center gap-1.5">
+                        <Checkbox
+                          checked={formatosDesenho[k]}
+                          disabled={filtros.incluir_desenhos !== 'S'}
+                          onCheckedChange={(c) =>
+                            setFormatosDesenho((f) => ({ ...f, [k]: c === true }))
+                          }
+                        />
+                        <span>{k.toUpperCase()}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <label className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5 text-xs">
                   <Checkbox
                     checked={filtros.quebrar_por_operacao === 'S'}
