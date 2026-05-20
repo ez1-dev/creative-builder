@@ -27,10 +27,12 @@ const sanitizeOps = (arr: OpcaoOp[] = []) => dropCanceladas(dropOri100Ops(arr));
 
 export interface SearchOpsContext {
   cod_emp?: string;
+  cod_ori?: string;
   num_ped?: string;
   rel_prd?: string;
   sit_orp?: string;
 }
+
 
 export function useOpcoesImpressaoOp() {
   const [empresas, setEmpresas] = useState<OpcaoEmpresa[]>([]);
@@ -107,11 +109,45 @@ export function useOpcoesImpressaoOp() {
     }
   }, [fetchOpcoes]);
 
-  const reloadBySituacao = useCallback(
-    async (cod_emp: string, sit_orp: string, ctx: { num_ped?: string; rel_prd?: string } = {}) => {
+  const reloadByOrigem = useCallback(
+    async (
+      cod_emp: string,
+      cod_ori: string,
+      ctx: { sit_orp?: string; num_ped?: string; rel_prd?: string; q?: string } = {},
+    ) => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, sit_orp, num_ped: ctx.num_ped, rel_prd: ctx.rel_prd, limite_ops: 80 });
+        const res = await fetchOpcoes({
+          cod_emp,
+          cod_ori,
+          sit_orp: ctx.sit_orp,
+          num_ped: ctx.num_ped,
+          rel_prd: ctx.rel_prd,
+          q: ctx.q,
+          limite_ops: 200,
+        });
+        setOps(sanitizeOps(res.ordens_producao ?? []));
+        setEstagios(res.estagios ?? []);
+        setCentrosRecurso(res.centros_recurso ?? []);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOpcoes],
+  );
+
+  const reloadBySituacao = useCallback(
+    async (cod_emp: string, sit_orp: string, ctx: { num_ped?: string; rel_prd?: string; cod_ori?: string } = {}) => {
+      setLoading(true);
+      try {
+        const res = await fetchOpcoes({
+          cod_emp,
+          sit_orp,
+          num_ped: ctx.num_ped,
+          rel_prd: ctx.rel_prd,
+          cod_ori: ctx.cod_ori,
+          limite_ops: 200,
+        });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
       } finally {
@@ -135,11 +171,12 @@ export function useOpcoesImpressaoOp() {
   const searchOps = useCallback(async (q: string, ctx: SearchOpsContext = {}): Promise<OpcaoOp[]> => {
     const res = await fetchOpcoes({
       cod_emp: ctx.cod_emp,
+      cod_ori: ctx.cod_ori,
       num_ped: ctx.num_ped,
       rel_prd: ctx.rel_prd,
       sit_orp: ctx.sit_orp,
       q,
-      limite_ops: 80,
+      limite_ops: 200,
     });
     const list = sanitizeOps(res.ordens_producao ?? []);
     setOps(list);
@@ -148,6 +185,6 @@ export function useOpcoesImpressaoOp() {
 
   return {
     empresas, origens, pedidos, relatoriosProducao, situacoes, ops, estagios, centrosRecurso, loading,
-    reloadBase, reloadByPedido, reloadByRelatorio, reloadBySituacao, reloadOpContexto, reloadCres, searchOps,
+    reloadBase, reloadByPedido, reloadByRelatorio, reloadByOrigem, reloadBySituacao, reloadOpContexto, reloadCres, searchOps,
   };
 }

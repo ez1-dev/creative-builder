@@ -148,6 +148,20 @@ A resposta deve incluir o catálogo de situações **sem** `C` (Cancelada):
 
 Cada item de `ordens_producao` deve trazer `sit_orp` e `situacao_descricao`. O backend deve manter `WHERE SitOrp <> 'C'` em todas as consultas que alimentam essa tela.
 
+#### Filtro apenas por Origem (Maio/2026)
+
+`/opcoes` deve aceitar chamada **somente** com `cod_emp` + `cod_ori` (sem `num_ped`, `rel_prd` ou `num_orp`) e retornar todas as OPs daquela origem (até `limite_ops`, hoje 200). Combinações válidas:
+
+- `cod_emp` + `cod_ori`
+- `cod_emp` + `cod_ori` + `sit_orp`
+- `cod_emp` + `cod_ori` + `q` (busca textual)
+- `cod_emp` + `cod_ori` + `num_ped` / `rel_prd`
+
+Regras:
+- `cod_ori = 100` é sempre rejeitado.
+- Manter exclusão de `sit_orp = 'C'`.
+- `limite_ops` aceita até 200.
+
 ### `/impressao/lote` — impressão em lote
 
 ```
@@ -159,11 +173,14 @@ Parâmetros:
 | Parâmetro            | Tipo    | Obrigatório | Observação                                       |
 |----------------------|---------|-------------|--------------------------------------------------|
 | `cod_emp`            | int     | sim         | Empresa                                          |
+| `cod_ori`            | string  | um deles    | Imprime todas as OPs da origem                   |
 | `num_ped`            | string  | um deles    | Imprime todas as OPs do pedido                   |
 | `rel_prd`            | string  | um deles    | Imprime todas as OPs do relatório de produção    |
 | `sit_orp`            | string  | não         | Restringe por situação (nunca `C`)              |
 | `listar_componentes` | `S`/`N` | não (def S) |                                                  |
 | `listar_desenho`     | `S`/`N` | não (def N) |                                                  |
+
+Pelo menos um entre `cod_ori`, `num_ped` ou `rel_prd` é obrigatório. Podem ser combinados.
 
 Resposta:
 
@@ -179,3 +196,4 @@ Regras:
 - Excluir OPs com `sit_orp = 'C'`.
 - Excluir OPs com `cod_ori = 100`.
 - Cada item segue exatamente o contrato de `/impressao` (cabeçalho, componentes, operações, observações).
+
