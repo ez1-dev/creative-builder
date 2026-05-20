@@ -53,6 +53,11 @@ export default function ImpressaoOrdemProducaoPage() {
 
   useEffect(() => { void opcoes.reloadBase(DEFAULT_EMPRESA); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
+  // Limpa seleção sempre que filtros principais/refinamento mudam
+  useEffect(() => {
+    setSelectedKeys(new Set());
+  }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp]);
+
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
 
