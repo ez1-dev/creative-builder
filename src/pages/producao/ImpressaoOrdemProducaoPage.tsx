@@ -245,11 +245,12 @@ export default function ImpressaoOrdemProducaoPage() {
     setTimeout(() => window.print(), 200);
   };
 
-  // Lista de OPs (grid) — só quando filtra por Pedido OU Relatório e não há OP escolhida
+  // Lista de OPs (grid) — quando filtra por Pedido, Relatório OU Origem e não há OP escolhida
   const showGrid = useMemo(
-    () => Boolean((filtros.num_ped || filtros.rel_prd) && !filtros.num_orp),
-    [filtros.num_ped, filtros.rel_prd, filtros.num_orp],
+    () => Boolean((filtros.num_ped || filtros.rel_prd || filtros.cod_ori) && !filtros.num_orp),
+    [filtros.num_ped, filtros.rel_prd, filtros.cod_ori, filtros.num_orp],
   );
+
   const opsFiltradas = useMemo(() => {
     let list = opcoes.ops.filter(
       (o) => String(o.sit_orp ?? o.situacao ?? '').toUpperCase() !== 'C',
