@@ -459,8 +459,13 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Selecione ao menos uma OP.');
       return;
     }
+    if (filtros.incluir_desenhos === 'S' && !buildFormatosString(formatosDesenho)) {
+      toast.error('Selecione pelo menos um formato de desenho (JPG, PNG ou PDF).');
+      return;
+    }
     setLoteLoading(true);
     try {
+
       const listar_componentes = (filtros.listar_componentes as 'S' | 'N') || 'S';
       const listar_desenho = (filtros.listar_desenho as 'S' | 'N') || 'N';
       const ordens: OpImpressao[] = [];
