@@ -275,78 +275,123 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="no-print">
-        <PageHeader
-          title="Impressão de Ordem de Produção"
-          description="MCAP700.GER - Genius - Ordem de Produção p/ Operações"
-          actions={
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => consultar()} disabled={loading}>
-                {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Search className="mr-1 h-3 w-3" />}
-                Consultar
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setPreview((p) => !p)} disabled={!data?.cabecalho}>
-                <Eye className="mr-1 h-3 w-3" />
-                {preview ? 'Sair da Visualização' : 'Visualizar Impressão'}
-              </Button>
-              <Button size="sm" variant="outline" onClick={imprimir}>
-                <Printer className="mr-1 h-3 w-3" /> Imprimir
-              </Button>
-              <Button size="sm" variant="outline" onClick={gerarPdf}>
-                <FileDown className="mr-1 h-3 w-3" /> Gerar PDF
-              </Button>
-              <Button size="sm" variant="ghost" onClick={limpar}>
-                <Eraser className="mr-1 h-3 w-3" /> Limpar
-              </Button>
-            </div>
-          }
-        />
+    <div className="space-y-4">
+      {/* Header — breadcrumb + command bar */}
+      <div className="no-print flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+            <span>MCAP700.GER</span>
+            <span className="text-muted-foreground/40">/</span>
+            <span>Genius</span>
+            <span className="text-muted-foreground/40">/</span>
+            <span>Produção</span>
+          </div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            Impressão de Ordem de Produção
+          </h1>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" onClick={() => consultar()} disabled={loading} className="font-semibold shadow-sm">
+            {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Search className="mr-1.5 h-3.5 w-3.5" />}
+            Consultar
+          </Button>
+          <div className="mx-1 hidden h-6 w-px bg-border md:block" />
+          <Button size="sm" variant="outline" onClick={() => setPreview((p) => !p)} disabled={!data?.cabecalho}>
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            {preview ? 'Sair' : 'Visualizar'}
+          </Button>
+          <Button size="sm" variant="outline" onClick={imprimir}>
+            <Printer className="mr-1.5 h-3.5 w-3.5" /> Imprimir
+          </Button>
+          <Button size="sm" variant="outline" onClick={gerarPdf}>
+            <FileDown className="mr-1.5 h-3.5 w-3.5" /> Gerar PDF
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={limpar}
+            className="border-destructive/20 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Eraser className="mr-1.5 h-3.5 w-3.5" /> Limpar
+          </Button>
+        </div>
       </div>
 
       {!preview && (
-        <Card className="no-print">
-          <CardContent className="p-3 space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <Field label="Empresa">
-                <SelectBuscavel value={filtros.cod_emp || ''} onChange={onChangeEmpresa} options={empresaOpts} placeholder="Empresa..." />
-              </Field>
-              <Field label="Pedido">
-                <SelectBuscavel value={filtros.num_ped || ''} onChange={onChangePedido} options={pedidoOpts} placeholder="Pedido..." disabled={!filtros.cod_emp} />
-              </Field>
-              <Field label="Relatório de Produção">
-                <SelectBuscavel value={filtros.rel_prd || ''} onChange={onChangeRelatorio} options={relatorioOpts} placeholder="Relatório..." disabled={!filtros.cod_emp} />
-              </Field>
-              <Field label="Situação">
-                <SelectBuscavel value={filtros.sit_orp || ''} onChange={onChangeSituacao} options={situacaoOpts} placeholder="Situação..." disabled={!filtros.cod_emp} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <Field label="Origem">
-                <SelectBuscavel value={filtros.cod_ori || ''} onChange={(v) => set('cod_ori', v)} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
-              </Field>
-              <Field label="Ordem de Produção">
-                <OpAutocomplete
-                  value={filtros.num_orp || ''}
-                  displayLabel={opLabel}
-                  onSelect={onSelectOp}
-                  fetcher={searchOpsFetcher}
-                />
-              </Field>
-              <Field label="Estágio">
-                <SelectBuscavel value={filtros.cod_etg || ''} onChange={onChangeEstagio} options={estagioOpts} placeholder="Estágio..." disabled={!filtros.num_orp} />
-              </Field>
-              <Field label="Centro de Recurso">
-                <SelectBuscavel value={filtros.cod_cre || ''} onChange={(v) => set('cod_cre', v)} options={creOpts} placeholder="Centro..." disabled={!filtros.num_orp} />
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Field label="Listar Componentes">
-                <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
-              </Field>
-              <Field label="Listar Desenho">
-                <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
-              </Field>
+        <Card className="no-print overflow-hidden">
+          <CardContent className="p-0">
+            <div className="flex flex-wrap divide-y divide-border lg:flex-nowrap lg:divide-x lg:divide-y-0">
+              {/* Grupo 1 — Origem e Destino */}
+              <div className="min-w-[300px] flex-1 space-y-3 bg-muted/30 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Origem e Destino
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Empresa">
+                    <SelectBuscavel value={filtros.cod_emp || ''} onChange={onChangeEmpresa} options={empresaOpts} placeholder="Empresa..." />
+                  </Field>
+                  <Field label="Pedido">
+                    <SelectBuscavel value={filtros.num_ped || ''} onChange={onChangePedido} options={pedidoOpts} placeholder="Pedido..." disabled={!filtros.cod_emp} />
+                  </Field>
+                </div>
+                <Field label="Relatório de Produção">
+                  <SelectBuscavel value={filtros.rel_prd || ''} onChange={onChangeRelatorio} options={relatorioOpts} placeholder="Relatório..." disabled={!filtros.cod_emp} />
+                </Field>
+              </div>
+
+              {/* Grupo 2 — Contexto da Produção */}
+              <div className="min-w-[300px] flex-1 space-y-3 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Contexto da Produção
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Origem">
+                    <SelectBuscavel value={filtros.cod_ori || ''} onChange={(v) => set('cod_ori', v)} options={origemOpts} placeholder="Origem..." disabled={!filtros.cod_emp} />
+                  </Field>
+                  <Field label="Situação">
+                    <SelectBuscavel value={filtros.sit_orp || ''} onChange={onChangeSituacao} options={situacaoOpts} placeholder="Situação..." disabled={!filtros.cod_emp} />
+                  </Field>
+                  <Field label="Ordem de Produção">
+                    <OpAutocomplete
+                      value={filtros.num_orp || ''}
+                      displayLabel={opLabel}
+                      onSelect={onSelectOp}
+                      fetcher={searchOpsFetcher}
+                    />
+                  </Field>
+                  <Field label="Estágio">
+                    <SelectBuscavel value={filtros.cod_etg || ''} onChange={onChangeEstagio} options={estagioOpts} placeholder="Estágio..." disabled={!filtros.num_orp} />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Grupo 3 — Refinamento */}
+              <div className="min-w-[260px] flex-1 space-y-3 p-4">
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Refinamento
+                  </span>
+                </div>
+                <Field label="Centro de Recurso">
+                  <SelectBuscavel value={filtros.cod_cre || ''} onChange={(v) => set('cod_cre', v)} options={creOpts} placeholder="Centro..." disabled={!filtros.num_orp} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Componentes">
+                    <SimpleSN value={filtros.listar_componentes} onChange={(v) => set('listar_componentes', v)} />
+                  </Field>
+                  <Field label="Desenhos">
+                    <SimpleSN value={filtros.listar_desenho} onChange={(v) => set('listar_desenho', v)} />
+                  </Field>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

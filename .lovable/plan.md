@@ -1,52 +1,38 @@
 ## Objetivo
-Ajustar a grid de OPs encontradas em `/producao/impressao-op` para usar os campos individuais retornados pela API (fallbacks oficiais), sem depender de `op.label`.
+Aplicar a direção **Command bar compacta** ao layout da tela `Impressão de Ordem de Produção`, mantendo toda a lógica/integrações existentes.
 
 ## Mudanças
 
-### 1. Tipos (`src/lib/producao/opcoesImpressao.ts`)
-Estender `OpcaoOp` com os campos alternativos retornados pelo backend:
-- `cod_pro?: string`
-- `des_pro?: string`
-- `qtde?: number | string`
-- `qtd_prevista?: number | string`
-- `un?: string`
-- `unidade_medida?: string`
-- `descricao?: string`
+### `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
 
-(Mantém os já existentes: `produto`, `descricao_produto`, `quantidade`, `unidade`, `situacao`, `sit_orp`, `situacao_descricao`, `num_ped`, `rel_prd`, `data_geracao`, `inicio_previsto`.)
+1. **Header (substitui o `PageHeader` atual):**
+   - Breadcrumb pequeno: `MCAP700.GER / Genius / Produção`.
+   - Título `Impressão de Ordem de Produção` em `text-xl font-bold`.
+   - Barra de ações à direita: **Consultar** (primário sólido) → divider vertical → `Visualizar`, `Imprimir`, `Gerar PDF` (outline) → `Limpar` (outline com tom destrutivo).
 
-### 2. Página (`src/pages/producao/ImpressaoOrdemProducaoPage.tsx`)
-Na renderização da grid (`<TableBody>`), substituir cada célula pelos mapeamentos:
+2. **Card de filtros (substitui o grid 4×3):**
+   - Card com 3 grupos lado a lado, separados por `divide-x` (empilha em telas estreitas).
+   - **Grupo 1 — Origem e Destino** (fundo `bg-muted/30`, dot `bg-primary`): Empresa, Pedido, Relatório de Produção.
+   - **Grupo 2 — Contexto da Produção** (dot neutro): Origem, Situação, Ordem de Produção, Estágio.
+   - **Grupo 3 — Refinamento** (dot neutro): Centro de Recurso, Componentes (S/N), Desenhos (S/N).
+   - Cada grupo com header `text-[11px] font-bold uppercase tracking-wider text-muted-foreground` + bolinha indicadora.
 
-| Coluna             | Expressão                                                        |
-|--------------------|------------------------------------------------------------------|
-| Origem             | `op.cod_ori ?? ''`                                               |
-| OP                 | `op.num_orp ?? ''`                                               |
-| Pedido             | `op.num_ped ?? ''`                                               |
-| Relatório Produção | `op.rel_prd ?? ''`                                               |
-| Produto            | `op.produto ?? op.cod_pro ?? ''`                                 |
-| Descrição          | `op.descricao_produto ?? op.descricao ?? op.des_pro ?? ''`       |
-| Qtde               | `op.quantidade ?? op.qtde ?? op.qtd_prevista ?? ''`              |
-| Un.                | `op.unidade ?? op.un ?? op.unidade_medida ?? ''`                 |
-| Situação           | `op.situacao_descricao ?? op.situacao ?? ''`                     |
-| Data Geração       | `op.data_geracao ?? ''`                                          |
-| Início Previsto    | `op.inicio_previsto ?? ''`                                       |
-| Ações              | botões Visualizar / Imprimir (inalterados)                       |
+3. **Tokens semânticos apenas** — sem cores hardcoded; mapear o protótipo para:
+   - `bg-slate-*` → `bg-muted/30` / `bg-card` / `bg-background`
+   - `text-slate-*` → `text-foreground` / `text-muted-foreground`
+   - `bg-blue-*` → `bg-primary`
+   - `text-red-*` → `text-destructive`
+   - `border-slate-*` → `border-border`
 
-Filtro de segurança em `opsFiltradas` (já existe parcialmente): excluir `String(op.sit_orp ?? op.situacao ?? '').toUpperCase() === 'C'`.
+4. **Mantido sem alteração:**
+   - Grid de OPs, botão "Imprimir todas", impressão em lote, OpPrintSheet/OpPrintBatch.
+   - Toda a lógica de filtros, hooks, fetchers, validações.
+   - Empty states (apenas reuso dos atuais).
 
-Helper local `pick(...vals)` para evitar verbosidade nas células:
-```ts
-const pick = (...vals: any[]) => {
-  for (const v of vals) if (v !== undefined && v !== null && v !== '') return v;
-  return '';
-};
-```
+### Fora de escopo
+- Backend, hooks, design tokens globais, demais telas.
 
-### 3. Fora de escopo
-- Backend, hook `useOpcoesImpressaoOp`, autocomplete, impressão em lote, demais telas.
-
-### 4. Regras invioláveis mantidas
-- Nunca usar `op.label` para popular células da grid.
-- Nunca exibir OP cancelada (`sit_orp` ou `situacao` = `'C'`).
-- Nunca exibir/enviar `cod_ori = 100`.
+### Regras mantidas
+- Identidade azul corporativa.
+- Nunca usar cores hardcoded.
+- Nenhuma mudança de comportamento, só visual/organizacional.
