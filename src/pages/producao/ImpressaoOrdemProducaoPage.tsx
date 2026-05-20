@@ -285,10 +285,11 @@ export default function ImpressaoOrdemProducaoPage() {
   };
 
   const imprimirTodas = async () => {
-    if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd)) {
-      toast.info('Selecione um Pedido ou um Relatório de Produção.');
+    if (!filtros.cod_emp || (!filtros.num_ped && !filtros.rel_prd && !filtros.cod_ori)) {
+      toast.info('Selecione um Pedido, Relatório de Produção ou Origem.');
       return;
     }
+
     setLoteLoading(true);
     try {
       const res = await fetchImpressaoLote({
