@@ -231,7 +231,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       </div>
       {op.narrativas && <div className="op-narrativas">{op.narrativas}</div>}
 
-      <table style={{ marginTop: 4 }}>
+      <table className="op-apontamento-old">
         <thead>
           <tr>
             <th>Início</th>
@@ -243,7 +243,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: 5 }).map((_, r) => (
+          {Array.from({ length: 15 }).map((_, r) => (
             <tr key={`apt-old-${i}-${r}`} className="op-apontamento-row">
               <td>&nbsp;</td>
               <td>&nbsp;</td>
@@ -256,7 +256,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </tbody>
       </table>
 
-      <table className="op-apontamento-table">
+      <table className="op-apontamento-table" style={{ marginTop: 12 }}>
         <thead>
           <tr>
             <th>Início</th>
