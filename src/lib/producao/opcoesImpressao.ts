@@ -48,6 +48,8 @@ export interface OpcaoOp {
   situacao_descricao?: string;
   data_geracao?: string;
   inicio_previsto?: string;
+  cod_cre?: string;
+  descricao_centro_recurso?: string;
   label?: string;
 }
 
