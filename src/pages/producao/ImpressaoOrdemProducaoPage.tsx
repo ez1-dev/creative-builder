@@ -23,6 +23,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
 import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
+import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
