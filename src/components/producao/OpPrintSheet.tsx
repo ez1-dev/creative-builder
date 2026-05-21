@@ -415,16 +415,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }
 
 
-  // Modo padrão: tudo numa página
+  // Modo padrão: componentes > 7 → operações na página 1, componentes em página separada
   if (quebrarComponentes) {
     return (
       <>
-        <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
-          {renderHeader()}
-          {renderIndicacaoComponentesSeparados()}
-          {renderFooter()}
-        </div>
-        {renderComponentesPage()}
         <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
           {renderHeader()}
           {operacoes.length > 0 && (
@@ -435,6 +429,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           )}
           {renderFooter()}
         </div>
+        {renderComponentesPage()}
         {renderDesenhos()}
         {renderPreviewDesenhosResumo()}
       </>
