@@ -10,7 +10,7 @@ interface Props {
   data: OpImpressao;
   preview?: boolean;
   usuario?: string | null;
-  quebrarPorOperacao?: boolean;
+  quebrarPorOperacao?: boolean | null;
   /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai. Se omitido, cada DrawingPage faz seu próprio fetch. */
   blobStates?: BlobStateMap;
 }
