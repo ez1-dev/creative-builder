@@ -571,83 +571,53 @@
 
 
 
-/* ===== Tabela de apontamento manual (20 linhas) ===== */
+/* ===== Tabela de apontamento manual (linhas de 12mm) ===== */
 .op-apontamento-table {
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
   margin-top: 4px;
-  font-size: 8px;
+  font-size: 9pt;
 }
 .op-apontamento-table th,
 .op-apontamento-table td {
   border: 1px solid #000;
-  padding: 2px 3px;
-  height: 16px;
+  padding: 0 4px;
+  height: 12mm;
   line-height: 1.1;
   vertical-align: middle;
   overflow: hidden;
 }
 .op-apontamento-table th {
-  font-weight: bold;
+  background: #f0f0f0;
+  font-weight: normal;
   text-align: left;
+  font-size: 8.5pt;
 }
-.op-apontamento-table .check-cell {
-  text-align: center;
-  vertical-align: middle;
-}
-.op-apontamento-table .check-box {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border: 1px solid #000;
-}
-.op-apontamento-table th:nth-child(1),
-.op-apontamento-table td:nth-child(1) { width: 13%; }
-.op-apontamento-table th:nth-child(2),
-.op-apontamento-table td:nth-child(2) { width: 10%; }
-.op-apontamento-table th:nth-child(3),
-.op-apontamento-table td:nth-child(3) { width: 12%; }
-.op-apontamento-table th:nth-child(4),
-.op-apontamento-table td:nth-child(4) { width: 17%; }
-.op-apontamento-table th:nth-child(5),
-.op-apontamento-table td:nth-child(5) { width: 14%; }
-.op-apontamento-table th:nth-child(6),
-.op-apontamento-table td:nth-child(6) { width: 6%; }
-.op-apontamento-table th:nth-child(7),
-.op-apontamento-table td:nth-child(7) { width: 28%; }
-
-.op-apontamento-table .op-apt-label {
-  font-weight: bold;
-  text-align: center;
-  white-space: nowrap;
-}
-/* Separador mais grosso entre apontamentos (final de cada par) */
-.op-apontamento-table tr.op-apt-row-2 td {
-  border-bottom: 1.5px solid #000;
+.op-apontamento-table tr.op-apt-row-end td {
+  border-bottom: 2px solid #000;
 }
 
 @media print {
   .op-apontamento-table {
-    font-size: 7.5pt !important;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    font-size: 9pt !important;
   }
   .op-apontamento-table th,
   .op-apontamento-table td {
     border: 0.5pt solid #000 !important;
-    height: 14px !important;
-    padding: 1.5px 2px !important;
+    height: 12mm !important;
+    padding: 0 4px !important;
   }
-  .op-apontamento-table .check-box {
-    width: 9px !important;
-    height: 9px !important;
-    border: 0.5pt solid #000 !important;
+  .op-apontamento-table th {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .op-apontamento-table tr.op-apt-row-2 td {
+  .op-apontamento-table tr.op-apt-row-end td {
     border-bottom: 1pt solid #000 !important;
   }
 }
+
 
 /* ===== Centralização das colunas de componentes ===== */
 .componentes-table th.qtd-prev,
