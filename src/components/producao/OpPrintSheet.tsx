@@ -211,8 +211,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         <div className="op-kv-2col" style={{ flex: 1 }}>
           <div className="k">Estágio:</div>
           <div className="v">{[op.cod_etg, op.descricao_estagio].filter(Boolean).join(' ') || '—'}</div>
-          <div className="k">Centro Rec.:</div>
-          <div className="v">{[op.cod_cre, op.descricao_centro_recurso].filter(Boolean).join(' ') || '—'}</div>
+          <div className="k op-operacao-destaque">Centro Rec.:</div>
+          <div className="v op-operacao-destaque">{[op.cod_cre, op.descricao_centro_recurso].filter(Boolean).join(' ') || '—'}</div>
 
           <div className="k">Seq.:</div>
           <div className="v">{op.seq_rot ?? '—'}</div>
@@ -221,8 +221,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
           <div className="k op-tempo-destaque">Tmp Unit:</div>
           <div className="v op-tempo-destaque">{op.tmp_unit_formatado || (op.tmp_unit_min != null ? `${op.tmp_unit_min} min` : '—')}</div>
-          <div className="k op-tempo-destaque">Tmp Total:</div>
-          <div className="v op-tempo-destaque">{op.tmp_total_formatado || (op.tmp_total_min != null ? `${op.tmp_total_min} min` : '—')}</div>
+          <div className="k op-operacao-destaque">Tmp Total:</div>
+          <div className="v op-operacao-destaque">{op.tmp_total_formatado || (op.tmp_total_min != null ? `${op.tmp_total_min} min` : '—')}</div>
 
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? '—'}</div>
