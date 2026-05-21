@@ -220,9 +220,9 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="v op-operacao-destaque">{[op.cod_opr, op.descricao_operacao].filter(Boolean).join(' ') || '—'}</div>
 
           <div className="k op-tempo-destaque">Tmp Unit:</div>
-          <div className="v op-tempo-destaque">{op.tmp_unit_formatado || op.tmp_unit || '—'}</div>
+          <div className="v op-tempo-destaque">{op.tmp_unit_formatado || (op.tmp_unit_min != null ? `${op.tmp_unit_min} min` : '—')}</div>
           <div className="k op-tempo-destaque">Tmp Total:</div>
-          <div className="v op-tempo-destaque">{op.tmp_total_formatado || op.tmp_total || '—'}</div>
+          <div className="v op-tempo-destaque">{op.tmp_total_formatado || (op.tmp_total_min != null ? `${op.tmp_total_min} min` : '—')}</div>
 
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? '—'}</div>

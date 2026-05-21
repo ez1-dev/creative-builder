@@ -46,6 +46,8 @@ export interface OpOperacao {
   descricao_servico?: string;
   tmp_unit?: number | string;
   tmp_total?: number | string;
+  tmp_unit_min?: number;
+  tmp_total_min?: number;
   tmp_unit_formatado?: string;
   tmp_total_formatado?: string;
   unidade_medida?: string;
