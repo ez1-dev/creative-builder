@@ -156,9 +156,6 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     );
   };
 
-  const renderIndicacaoComponentesSeparados = () => (
-    <div className="op-componentes-indicacao">Componentes impressos em página separada</div>
-  );
 
   const renderComponentesPage = () => {
     if (componentes.length === 0) return null;
