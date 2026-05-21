@@ -127,26 +127,41 @@ export async function prepararDesenhosParaImpressao(
   const errors: OpDesenhoErro[] = [];
 
   for (const desenho of desenhos || []) {
+    let paginas: OpDesenhoPaginaA4[] = [];
     try {
-      const paginas = await carregarManifestDesenhoA4(desenho);
-      for (const pagina of paginas) {
-        if (!pagina.url) continue;
-        try {
-          const loaded = await carregarPaginaDesenhoA4(pagina, desenho);
-          paginasFinais.push({
-            ...pagina,
-            mime_type: loaded.mime_type ?? pagina.mime_type,
-            blobUrl: loaded.blobUrl,
-            desenho,
-          });
-        } catch (e: any) {
-          errors.push({ desenho, message: e?.message ?? 'Falha ao baixar página' });
-        }
-      }
+      paginas = await carregarManifestDesenhoA4(desenho);
     } catch (e: any) {
+      console.error('[OP A4] Falha ao preparar desenho', desenho?.nome_arquivo, e);
       errors.push({ desenho, message: e?.message ?? 'Falha ao carregar manifest' });
+      continue;
+    }
+    for (const pagina of paginas) {
+      if (!pagina.url) {
+        console.error('[OP A4] Página sem URL para', desenho?.nome_arquivo, pagina);
+        errors.push({ desenho, message: 'Página sem URL' });
+        continue;
+      }
+      try {
+        const loaded = await carregarPaginaDesenhoA4(pagina, desenho);
+        paginasFinais.push({
+          ...pagina,
+          mime_type: loaded.mime_type ?? pagina.mime_type,
+          blobUrl: loaded.blobUrl,
+          desenho,
+        });
+      } catch (e: any) {
+        console.error(
+          '[OP A4] Falha ao carregar página',
+          pagina.pagina,
+          'do desenho',
+          desenho?.nome_arquivo,
+          e,
+        );
+        errors.push({ desenho, message: e?.message ?? 'Falha ao baixar página' });
+      }
     }
   }
 
   return { paginas: paginasFinais, errors };
 }
+
