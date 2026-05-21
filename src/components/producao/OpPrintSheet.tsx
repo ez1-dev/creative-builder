@@ -305,8 +305,19 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   const desenhos = data?.desenhos ?? [];
 
-  const renderDesenhos = (keyPrefix = 'drw') =>
-    desenhos.map((d, i) => (
+  const renderDesenhos = (keyPrefix = 'drw') => {
+    if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
+      return paginasDesenhosA4.map((pg, i) => (
+        <div className="op-drawing-page" key={`${keyPrefix}-a4-${i}`}>
+          <img
+            className="op-drawing-image"
+            src={pg.blobUrl}
+            alt={pg.nome_arquivo ?? `Desenho ${i + 1}`}
+          />
+        </div>
+      ));
+    }
+    return desenhos.map((d, i) => (
       <DrawingPage
         key={`${keyPrefix}-${i}`}
         drawing={d}
@@ -314,6 +325,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
       />
     ));
+  };
+
 
   const renderPreviewDesenhosResumo = () => {
     if (!preview) return null;
