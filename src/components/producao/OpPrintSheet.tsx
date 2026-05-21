@@ -10,7 +10,7 @@ interface Props {
   data: OpImpressao;
   preview?: boolean;
   usuario?: string | null;
-  quebrarPorOperacao?: boolean;
+  quebrarPorOperacao?: boolean | null;
   /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai. Se omitido, cada DrawingPage faz seu próprio fetch. */
   blobStates?: BlobStateMap;
 }
@@ -28,7 +28,7 @@ function fmtDate(s?: string) {
   return s;
 }
 
-export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao = false, blobStates }: Props) {
+export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao: propQuebrarPorOperacao, blobStates }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
@@ -52,9 +52,16 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }, {});
   const etgKeys = Object.keys(compsPorEtg);
 
+  // Prop tem prioridade (UI decide). Fallback no payload.
+  const quebrarPorOperacao =
+    propQuebrarPorOperacao ?? data?.modo_impressao?.quebrar_por_operacao ?? false;
+
+  const limiteComp =
+    data?.layout_componentes?.limite_componentes_primeira_pagina ?? 7;
+
   const quebrarComponentes =
     data?.layout_componentes?.quebrar_componentes_em_pagina_separada
-    ?? (componentes.length > 7);
+    ?? (componentes.length > limiteComp);
 
   const renderHeader = () => (
     <>
@@ -149,9 +156,6 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     );
   };
 
-  const renderIndicacaoComponentesSeparados = () => (
-    <div className="op-componentes-indicacao">Componentes impressos em página separada</div>
-  );
 
   const renderComponentesPage = () => {
     if (componentes.length === 0) return null;
@@ -395,20 +399,19 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     return (
       <>
         {operacoes.map((op, i) => (
-          <div key={`opp-wrap-${i}`} style={{ display: 'contents' }}>
-            <div
-              className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
-            >
-              {renderHeader()}
-              {!quebrarComponentes && renderComponentes()}
-              <div className="op-section-title">Operação</div>
-              {renderOperacao(op, i)}
-              {renderFooter()}
-            </div>
-            {desenhos.length > 0 && renderDesenhos(`drw-op${i}`)}
+          <div
+            key={`opp-${i}`}
+            className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
+          >
+            {renderHeader()}
+            {!quebrarComponentes && renderComponentes()}
+            <div className="op-section-title">Operação</div>
+            {renderOperacao(op, i)}
+            {renderFooter()}
           </div>
         ))}
         {quebrarComponentes && renderComponentesPage()}
+        {desenhos.length > 0 && renderDesenhos('drw-end')}
         {renderPreviewDesenhosResumo()}
       </>
     );
