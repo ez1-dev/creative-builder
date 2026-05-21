@@ -867,16 +867,18 @@ export default function ImpressaoOrdemProducaoPage() {
                       />
                       <span className="truncate">Imprimir desenhos da OP</span>
                     </label>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-full rounded border-primary/30 bg-primary/5 text-xs font-bold uppercase tracking-tight text-primary hover:bg-primary/10 hover:text-primary"
-                      onClick={rodarDiagnosticoDesenhos}
-                      title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
-                    >
-                      Testar diagnóstico
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 w-full rounded border-primary/30 bg-primary/5 text-xs font-bold uppercase tracking-tight text-primary hover:bg-primary/10 hover:text-primary"
+                        onClick={rodarDiagnosticoDesenhos}
+                        title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
+                      >
+                        Testar diagnóstico
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
