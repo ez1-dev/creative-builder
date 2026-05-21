@@ -119,15 +119,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         {etgKeys.map((etg) => (
           <div key={`comp-${etg}`}>
             {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
-            <table>
+            <table className="componentes-table">
               <thead>
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
-                  <th className="col-w-narrow">Dep.</th>
-                  <th className="col-w-medium">Endereço</th>
+                  <th className="col-w-narrow qtd-prev">Qtde. Prev.</th>
+                  <th className="col-w-narrow unidade">UN</th>
+                  <th className="col-w-narrow deposito">Dep.</th>
+                  <th className="col-w-medium endereco">Endereço</th>
                 </tr>
               </thead>
               <tbody>
@@ -135,10 +135,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
-                    <td>{c.deposito ?? ''}</td>
-                    <td>{c.endereco ?? ''}</td>
+                    <td className="qtd-prev">{c.quantidade_prevista ?? ''}</td>
+                    <td className="unidade">{c.unidade_medida ?? ''}</td>
+                    <td className="deposito">{c.deposito ?? ''}</td>
+                    <td className="endereco">{c.endereco ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -162,15 +162,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         {etgKeys.map((etg) => (
           <div key={`compsep-${etg}`}>
             {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
-            <table>
+            <table className="componentes-table">
               <thead>
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
-                  <th className="col-w-narrow">Dep.</th>
-                  <th className="col-w-medium">Endereço</th>
+                  <th className="col-w-narrow qtd-prev">Qtde. Prev.</th>
+                  <th className="col-w-narrow unidade">UN</th>
+                  <th className="col-w-narrow deposito">Dep.</th>
+                  <th className="col-w-medium endereco">Endereço</th>
                 </tr>
               </thead>
               <tbody>
@@ -178,10 +178,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`csep-${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
-                    <td>{c.deposito ?? ''}</td>
-                    <td>{c.endereco ?? ''}</td>
+                    <td className="qtd-prev">{c.quantidade_prevista ?? ''}</td>
+                    <td className="unidade">{c.unidade_medida ?? ''}</td>
+                    <td className="deposito">{c.deposito ?? ''}</td>
+                    <td className="endereco">{c.endereco ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
