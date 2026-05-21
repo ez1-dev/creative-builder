@@ -118,7 +118,7 @@ export default function ImpressaoOrdemProducaoPage() {
     [data?.desenhos],
   );
   const blobStates = useAuthedBlobUrls(desenhoUrls);
-  const { paginas: paginasDesenhosA4 } = useDesenhosA4(data?.desenhos);
+  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
   // Diagnóstico de desenhos
@@ -1151,7 +1151,14 @@ export default function ImpressaoOrdemProducaoPage() {
         </Card>
       )}
 
+      {desenhosA4Errors.length > 0 && (
+        <div className="print:hidden mb-2 text-xs text-muted-foreground">
+          Alguns desenhos não puderam ser normalizados. Foi usado fallback quando possível.
+        </div>
+      )}
+
       <div className="print-root">
+
 
         {lote && lote.ordens.length > 0 && (
           <OpPrintBatch
