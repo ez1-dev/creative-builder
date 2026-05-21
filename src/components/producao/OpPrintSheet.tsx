@@ -265,7 +265,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
 
         <tbody>
-          {Array.from({ length: 3 }).flatMap((_, r) => [
+          {Array.from({ length: 6 }).flatMap((_, r) => [
             <tr key={`apt-${i}-${r}-h1`} className="op-apt-head">
               <th>inicio</th>
               <th>data</th>

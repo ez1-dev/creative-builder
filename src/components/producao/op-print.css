@@ -571,7 +571,7 @@
 
 
 
-/* ===== Tabela de apontamento manual (linhas de 12mm) ===== */
+/* ===== Tabela de apontamento manual (6 blocos por página) ===== */
 .op-apontamento-table {
   width: 100%;
   border-collapse: collapse;
@@ -583,16 +583,22 @@
 .op-apontamento-table td {
   border: 1px solid #000;
   padding: 0 4px;
-  height: 12mm;
   line-height: 1.1;
   vertical-align: middle;
   overflow: hidden;
 }
-.op-apontamento-table th {
+/* Linhas de cabeçalho reduzidas e em negrito */
+.op-apontamento-table tr.op-apt-head th {
+  height: 5mm;
+  padding: 0 4px;
+  font-size: 7.5pt;
+  font-weight: bold;
   background: #f0f0f0;
-  font-weight: normal;
   text-align: left;
-  font-size: 8.5pt;
+}
+/* Linhas de preenchimento manual */
+.op-apontamento-table tr.op-apt-fill td {
+  height: 9mm;
 }
 .op-apontamento-table tr.op-apt-row-end td {
   border-bottom: 4px solid #000;
@@ -606,19 +612,25 @@
   .op-apontamento-table th,
   .op-apontamento-table td {
     border: 0.5pt solid #000 !important;
-    height: 12mm !important;
     padding: 0 4px !important;
   }
-  .op-apontamento-table th {
+  .op-apontamento-table tr.op-apt-head th {
+    height: 5mm !important;
+    font-size: 7.5pt !important;
+    font-weight: bold !important;
     background: #f0f0f0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  .op-apontamento-table tr.op-apt-fill td {
+    height: 9mm !important;
   }
   .op-apontamento-table tr.op-apt-row-end td {
     border-bottom: 2.5pt solid #000 !important;
   }
 
 }
+
 
 
 /* ===== Centralização das colunas de componentes ===== */

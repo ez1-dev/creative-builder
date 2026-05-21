@@ -1,41 +1,27 @@
-## Ajuste do quadro REV — Impressão de OP
+## Ajuste: 6 blocos de apontamento por página da Impressão de OP
 
-Alterar somente o conteúdo do quadro REV em `src/components/producao/OpPrintSheet.tsx` (linhas 107-120) e o tipo do cabeçalho em `src/lib/producao/opImpressao.ts`.
+Hoje cada operação renderiza **3 blocos** de apontamento (linhas de 12mm cada, totalizando ~144mm de tabela). O usuário precisa de **6 blocos por página**. Para caber sem estourar o A4, reduzimos a altura/fonte da linha de cabeçalho (início / data / setup / fim / data / qtd / refugo) e deixamos esse cabeçalho em negrito.
 
-### 1) `src/lib/producao/opImpressao.ts`
+### 1) `src/components/producao/OpPrintSheet.tsx` (linha 268)
 
-Adicionar à interface `OpCabecalho`:
+Trocar `Array.from({ length: 3 })` por `Array.from({ length: 6 })` no loop que gera os blocos da `op-apontamento-table`.
 
-```ts
-revisao_modelo?: string | number;
-revisao_roteiro?: string | number;
-revisao_label?: string;
-```
+### 2) `src/components/producao/op-print.css`
 
-(Mantém `revisao` existente para retrocompat.)
+Ajustes na `.op-apontamento-table`:
 
-### 2) `src/components/producao/OpPrintSheet.tsx`
+- **Linhas de cabeçalho (`tr.op-apt-head th`)**: altura reduzida (de 12mm para ~5mm), fonte um pouco menor (7.5pt), `font-weight: bold`, padding vertical mínimo. Aplica em tela e em `@media print`.
+- **Linhas de preenchimento (`tr.op-apt-fill td`)**: manter altura adequada para escrita manual, mas reduzir de 12mm para ~9mm para que 6 blocos caibam na página. Aplica em tela e em `@media print`.
+- Manter `border-bottom` reforçado em `tr.op-apt-row-end` (separador entre blocos).
 
-Substituir a primeira célula do `op-rev-stack` (que hoje mostra "Rev" + valor único) por um bloco com título "REV" e duas linhas: MOD e ROT. A segunda célula (Agrupamento) permanece inalterada.
+### Estimativa de altura
 
-```tsx
-<div className="op-rev-stack">
-  <div className="op-rev-cell">
-    <div className="lbl">Rev</div>
-    <div className="val" style={{ fontSize: '10px', lineHeight: 1.3 }}>
-      <div>MOD {String(cab.revisao_modelo ?? '').trim() || '-'}</div>
-      <div>ROT {String(cab.revisao_roteiro ?? '').trim() || '-'}</div>
-    </div>
-  </div>
-  <div className="op-rev-cell">
-    <div className="lbl">Agrupamento</div>
-    <div className="val">{cab.agrupamento ?? '-'}</div>
-  </div>
-</div>
-```
+- Antes: 3 blocos × 4 linhas × 12mm = **144mm**
+- Depois: 6 blocos × (2 × 5mm cabeçalho + 2 × 9mm preenchimento) = 6 × 28mm = **168mm**
 
-### Observações
+Cabe na área útil restante da página (após cabeçalho, dados da operação e narrativas) mantendo a quebra por operação.
 
-- Não altera CSS (`op-print.css`), cabeçalho, componentes, operações nem desenhos.
-- Remove uso de `cab.revisao` e o fallback que gerava "REV REV".
-- Posição do quadro REV preservada (mesma estrutura `op-rev-stack`).
+### Escopo
+
+- Não altera dados, API, cabeçalho, REV, componentes, desenhos nem destaques de campos (Operação, Centro Rec., Tmp Total, Próx. Oper.).
+- Apenas layout da tabela de apontamento manual.
