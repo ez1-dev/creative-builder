@@ -404,7 +404,6 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
           >
             {renderHeader()}
-            {!quebrarComponentes && renderComponentes()}
             <div className="op-section-title">Operação</div>
             {renderOperacao(op, i)}
             {renderFooter()}
