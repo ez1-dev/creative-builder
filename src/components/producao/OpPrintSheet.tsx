@@ -82,7 +82,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
         <div className="op-kv-2col op-box op-header-data">
           <div className="k">Origem:</div><div className="v">{cab.cod_ori ?? '-'}</div>
-          <div className="k">O.P.:</div><div className="v">{cab.num_orp_formatado ?? cab.num_orp ?? '-'}</div>
+          <div className="k">O.P.:</div><div className="v">{cab.num_orp_exibicao ?? (cab.num_orp != null ? String(cab.num_orp).replace(/^0+/, '') || '0' : '-')}</div>
           <div className="k op-qtde-destaque">Qtde.:</div><div className="v op-qtde-destaque">{cab.quantidade ?? '-'}</div>
           <div className="k">U.M.:</div><div className="v">{cab.unidade_medida ?? '-'}</div>
           <div className="k">Produto:</div>
