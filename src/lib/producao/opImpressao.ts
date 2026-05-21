@@ -64,7 +64,10 @@ export interface OpDesenho {
   mime_type?: string;
   url?: string;
   url_impressao?: string;
-  layout_impressao?: 'A4_RETRATO' | string;
+  url_manifest_a4?: string;
+  cache_key?: string;
+  usar_paginas_a4_normalizadas?: boolean;
+  layout_impressao?: 'A4_RETRATO' | 'A4_RETRATO_NORMALIZADO' | string;
   rotacao_automatica?: boolean;
   largura?: number;
   altura?: number;
@@ -72,6 +75,7 @@ export interface OpDesenho {
   rotacao_recomendada?: number;
   rotacionar_para_retrato?: boolean;
 }
+
 
 
 
