@@ -615,8 +615,9 @@
     print-color-adjust: exact;
   }
   .op-apontamento-table tr.op-apt-row-end td {
-    border-bottom: 1pt solid #000 !important;
+    border-bottom: 2.5pt solid #000 !important;
   }
+
 }
 
 
