@@ -3,6 +3,7 @@ import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
 import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
 import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from '@/lib/producao/opImpressao';
+import type { OpDesenhoPaginaA4Carregada } from '@/lib/producao/opDesenhosA4';
 import './op-print.css';
 
 
@@ -11,9 +12,12 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean | null;
-  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai. Se omitido, cada DrawingPage faz seu próprio fetch. */
+  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai (legado). */
   blobStates?: BlobStateMap;
+  /** Páginas A4 dos desenhos já normalizadas e carregadas como blob. */
+  paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
 }
+
 
 function fmtNow() {
   const d = new Date();
@@ -28,7 +32,7 @@ function fmtDate(s?: string) {
   return s;
 }
 
-export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao: propQuebrarPorOperacao, blobStates }: Props) {
+export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao: propQuebrarPorOperacao, blobStates, paginasDesenhosA4 }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
@@ -301,8 +305,19 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   const desenhos = data?.desenhos ?? [];
 
-  const renderDesenhos = (keyPrefix = 'drw') =>
-    desenhos.map((d, i) => (
+  const renderDesenhos = (keyPrefix = 'drw') => {
+    if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
+      return paginasDesenhosA4.map((pg, i) => (
+        <div className="op-drawing-page" key={`${keyPrefix}-a4-${i}`}>
+          <img
+            className="op-drawing-image"
+            src={pg.blobUrl}
+            alt={pg.nome_arquivo ?? `Desenho ${i + 1}`}
+          />
+        </div>
+      ));
+    }
+    return desenhos.map((d, i) => (
       <DrawingPage
         key={`${keyPrefix}-${i}`}
         drawing={d}
@@ -310,6 +325,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
       />
     ));
+  };
+
 
   const renderPreviewDesenhosResumo = () => {
     if (!preview) return null;

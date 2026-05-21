@@ -23,6 +23,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
 import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
+import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
@@ -116,6 +118,8 @@ export default function ImpressaoOrdemProducaoPage() {
     [data?.desenhos],
   );
   const blobStates = useAuthedBlobUrls(desenhoUrls);
+  const { paginas: paginasDesenhosA4 } = useDesenhosA4(data?.desenhos);
+
 
   // Diagnóstico de desenhos
   const [diagOpen, setDiagOpen] = useState(false);
@@ -1165,8 +1169,10 @@ export default function ImpressaoOrdemProducaoPage() {
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
             blobStates={blobStates}
+            paginasDesenhosA4={paginasDesenhosA4}
           />
         )}
+
       </div>
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
