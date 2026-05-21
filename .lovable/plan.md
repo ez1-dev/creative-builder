@@ -1,28 +1,29 @@
 ## Objetivo
-Exibir o número da OP no PDF/impressão sem zeros à esquerda, mantendo o código de barras intacto.
+Na página `/producao/impressao-op`, ocultar o botão **"Testar diagnóstico"** (que chama `/api/producao/ordem-producao/desenhos/diagnostico`) para usuários comuns. Apenas o super administrador deve enxergar.
 
 ## Alterações
 
-### 1. `src/lib/producao/opImpressao.ts`
-Adicionar campo opcional na interface `OpCabecalho`:
-- `num_orp_exibicao?: string` (vindo da API, sem zeros à esquerda)
+**`src/pages/producao/ImpressaoOrdemProducaoPage.tsx`**
 
-### 2. `src/components/producao/OpPrintSheet.tsx`
-Apenas a linha de exibição do campo visual "O.P.":
+1. Importar o hook de permissões:
+   ```ts
+   import { useUserPermissions } from '@/hooks/useUserPermissions';
+   ```
+2. Dentro do componente, obter `isAdmin`:
+   ```ts
+   const { isAdmin } = useUserPermissions();
+   ```
+3. Envolver o `<Button>` "Testar diagnóstico" (linhas 868–877) em condicional:
+   ```tsx
+   {isAdmin && (
+     <Button ...>Testar diagnóstico</Button>
+   )}
+   ```
 
-Antes:
-```tsx
-<div className="v">{cab.num_orp_formatado ?? cab.num_orp ?? '-'}</div>
-```
+## Não alterar
+- Lógica de `rodarDiagnosticoDesenhos` (mantida; só fica inacessível pela UI para não-admin).
+- Dialog de resultado do diagnóstico.
+- Demais controles da página, layout, impressão e carregamento de desenhos.
 
-Depois:
-```tsx
-<div className="v">
-  {cab.num_orp_exibicao
-    ?? (cab.num_orp != null ? String(cab.num_orp).replace(/^0+/, '') || '0' : '-')}
-</div>
-```
-
-### Não alterar
-- Geração do `codigo_barras_op` (linha 49 continua com `padStart(9, '0')` como fallback, e segue priorizando `cab.codigo_barras_op` onde já é usado).
-- Nenhuma outra lógica, CSS, API ou fluxo de operações/componentes/desenhos.
+## Critério de "super admin"
+Usar `isAdmin` do `useUserPermissions` — corresponde ao perfil de acesso `Administrador` no Lovable Cloud, mesmo padrão já adotado em outras telas restritas do projeto.

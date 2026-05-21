@@ -24,6 +24,7 @@ import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
 import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
 import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -87,6 +88,7 @@ async function aguardarDesenhosProntos(timeoutMs = 10000): Promise<void> {
 
 export default function ImpressaoOrdemProducaoPage() {
   const { displayName, erpUser } = useAuth();
+  const { isAdmin } = useUserPermissions();
   const [filtros, setFiltros] = useState<ImpressaoOpFiltros>(EMPTY);
 
 
@@ -865,16 +867,18 @@ export default function ImpressaoOrdemProducaoPage() {
                       />
                       <span className="truncate">Imprimir desenhos da OP</span>
                     </label>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-9 w-full rounded border-primary/30 bg-primary/5 text-xs font-bold uppercase tracking-tight text-primary hover:bg-primary/10 hover:text-primary"
-                      onClick={rodarDiagnosticoDesenhos}
-                      title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
-                    >
-                      Testar diagnóstico
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-9 w-full rounded border-primary/30 bg-primary/5 text-xs font-bold uppercase tracking-tight text-primary hover:bg-primary/10 hover:text-primary"
+                        onClick={rodarDiagnosticoDesenhos}
+                        title="Chama /api/producao/ordem-producao/desenhos/diagnostico"
+                      >
+                        Testar diagnóstico
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
