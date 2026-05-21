@@ -595,8 +595,9 @@
   font-size: 8.5pt;
 }
 .op-apontamento-table tr.op-apt-row-end td {
-  border-bottom: 2px solid #000;
+  border-bottom: 4px solid #000;
 }
+
 
 @media print {
   .op-apontamento-table {
@@ -614,8 +615,9 @@
     print-color-adjust: exact;
   }
   .op-apontamento-table tr.op-apt-row-end td {
-    border-bottom: 1pt solid #000 !important;
+    border-bottom: 2.5pt solid #000 !important;
   }
+
 }
 
 
