@@ -84,9 +84,15 @@ export interface OpImpressao {
   desenhos?: OpDesenho[];
   layout_componentes?: {
     quebrar_componentes_em_pagina_separada?: boolean;
+    limite_componentes_primeira_pagina?: number;
+    posicao_componentes_quando_quebrar?: 'APOS_OPERACOES' | 'ANTES_OPERACOES';
   };
   modo_impressao?: {
     imprimir_observacoes?: boolean;
+    quebrar_por_operacao?: boolean;
+    desenhos_apos_op?: boolean;
+    desenhos_um_por_pagina?: boolean;
+    a4?: boolean;
   };
 }
 
