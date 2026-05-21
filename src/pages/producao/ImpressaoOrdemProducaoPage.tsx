@@ -1169,8 +1169,10 @@ export default function ImpressaoOrdemProducaoPage() {
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
             blobStates={blobStates}
+            paginasDesenhosA4={paginasDesenhosA4}
           />
         )}
+
       </div>
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
