@@ -280,17 +280,18 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
               <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
             </tr>,
             <tr key={`apt-${i}-${r}-h2`} className="op-apt-head">
-              <th colSpan={3}>motivo do desvio</th>
-              <th colSpan={2}>obs</th>
+              <th>motivo do desvio</th>
+              <th colSpan={4}>obs</th>
               <th>operador</th>
               <th>check</th>
             </tr>,
             <tr key={`apt-${i}-${r}-d2`} className="op-apt-fill op-apt-row-end">
-              <td colSpan={3}>&nbsp;</td>
-              <td colSpan={2}>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td colSpan={4}>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
             </tr>,
+
           ])}
         </tbody>
       </table>
