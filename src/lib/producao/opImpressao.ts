@@ -18,6 +18,9 @@ export interface OpCabecalho {
   situacao_descricao?: string;
   agrupamento?: string;
   revisao?: string;
+  revisao_modelo?: string | number;
+  revisao_roteiro?: string | number;
+  revisao_label?: string;
   derivacao?: string;
 }
 
