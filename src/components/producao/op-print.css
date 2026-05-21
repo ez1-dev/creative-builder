@@ -389,8 +389,7 @@
 
   .op-print-page,
   .op-operation-page,
-  .componentes-page,
-  .op-drawing-page {
+  .componentes-page {
     width: 196mm !important;
     min-height: 283mm !important;
     height: auto !important;
@@ -404,6 +403,30 @@
     transform: none !important;
   }
 
+  .op-drawing-page {
+    width: 196mm !important;
+    height: 283mm !important;
+    min-height: 283mm !important;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    background: white !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+    transform: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .op-drawing-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    display: block !important;
+  }
+
   .op-print-page:last-child,
   .op-operation-page:last-child,
   .componentes-page:last-child,
@@ -411,6 +434,7 @@
     page-break-after: auto !important;
     break-after: auto !important;
   }
+
 
   .op-sheet table {
     width: 100% !important;
