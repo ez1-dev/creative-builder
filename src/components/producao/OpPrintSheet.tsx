@@ -107,11 +107,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         <div className="op-rev-stack">
           <div className="op-rev-cell">
             <div className="lbl">Rev</div>
-            <div className="val">{(() => {
-              const r = String(cab.revisao ?? '').trim();
-              if (!r || r.toUpperCase() === 'REV') return '-';
-              return r;
-            })()}</div>
+            <div className="val" style={{ fontSize: '10px', lineHeight: 1.3 }}>
+              <div>MOD {String(cab.revisao_modelo ?? '').trim() || '-'}</div>
+              <div>ROT {String(cab.revisao_roteiro ?? '').trim() || '-'}</div>
+            </div>
           </div>
           <div className="op-rev-cell">
             <div className="lbl">Agrupamento</div>
