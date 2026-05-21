@@ -75,15 +75,19 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="k op-qtde-destaque">Qtde.:</div><div className="v op-qtde-destaque">{cab.quantidade ?? '-'}</div>
           <div className="k">U.M.:</div><div className="v">{cab.unidade_medida ?? '-'}</div>
           <div className="k">Produto:</div>
+          <div className="v full">{cab.produto ?? '-'}</div>
+          <div className="k">Descrição:</div>
           <div className="v full">{(() => {
             const cod = String(cab.produto ?? '').trim();
+            const descDireta = String(cab.descricao ?? '').trim();
+            if (descDireta) return descDireta;
             const desc = String(cab.produto_descricao ?? cab.descricao_produto ?? '').trim();
-            if (!cod && !desc) return '';
-            if (!desc) return cod;
-            // Evita duplicar o código quando a descrição já começa com ele
-            const descSemCod = desc.replace(new RegExp(`^${cod}\\s*-\\s*`), '').trim();
-            return cod ? `${cod} - ${descSemCod || desc}` : desc;
+            if (!desc) return '-';
+            if (!cod) return desc;
+            // Remove código duplicado no início da descrição
+            return desc.replace(new RegExp(`^${cod}\\s*-\\s*`), '').trim() || desc;
           })()}</div>
+          <div className="k">Derivação:</div><div className="v">{cab.derivacao ?? '-'}</div>
           <div className="k">Início Prev.:</div><div className="v">{fmtDate(cab.inicio_previsto)}</div>
           <div className="k">Pedido:</div><div className="v">{cab.pedido ?? '-'}</div>
           <div className="k">Período:</div><div className="v">{cab.periodo ?? '-'}</div>
@@ -91,8 +95,12 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
         <div className="op-rev-stack">
           <div className="op-rev-cell">
-            <div className="lbl">REV</div>
-            <div className="val">{cab.revisao ?? '-'}</div>
+            <div className="lbl">Rev</div>
+            <div className="val">{(() => {
+              const r = String(cab.revisao ?? '').trim();
+              if (!r || r.toUpperCase() === 'REV') return '-';
+              return r;
+            })()}</div>
           </div>
           <div className="op-rev-cell">
             <div className="lbl">Agrupamento</div>
