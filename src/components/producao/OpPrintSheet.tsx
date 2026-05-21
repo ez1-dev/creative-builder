@@ -211,10 +211,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="k op-operacao-destaque">Operação:</div>
           <div className="v op-operacao-destaque">{[op.cod_opr, op.descricao_operacao].filter(Boolean).join(' ') || '—'}</div>
 
-          <div className="k">Tmp Unit:</div>
-          <div className="v">{op.tmp_unit ?? '—'}</div>
-          <div className="k">Tmp Total:</div>
-          <div className="v">{op.tmp_total ?? '—'}</div>
+          <div className="k op-tempo-destaque">Tmp Unit:</div>
+          <div className="v op-tempo-destaque">{op.tmp_unit_formatado || op.tmp_unit || '—'}</div>
+          <div className="k op-tempo-destaque">Tmp Total:</div>
+          <div className="v op-tempo-destaque">{op.tmp_total_formatado || op.tmp_total || '—'}</div>
 
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? '—'}</div>
@@ -248,11 +248,9 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       <table className="op-apontamento-table">
         <thead>
           <tr>
-            <th>Início</th>
-            <th>Fim</th>
+            <th>Controle</th>
             <th>Tempo Setup</th>
             <th>QTD Produzida</th>
-            <th>Refugo</th>
             <th>Motivo Desvio</th>
             <th>Operador</th>
             <th className="check-cell">Check</th>
@@ -260,19 +258,26 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: 20 }).map((_, r) => (
-            <tr key={`apt-${i}-${r}`}>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
+          {Array.from({ length: 10 }).flatMap((_, r) => [
+            <tr key={`apt-${i}-${r}-a`} className="op-apt-row-1">
+              <td className="op-apt-label">Início / Fim</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td className="check-cell"><span className="check-box" /></td>
               <td>&nbsp;</td>
-            </tr>
-          ))}
+            </tr>,
+            <tr key={`apt-${i}-${r}-b`} className="op-apt-row-2">
+              <td className="op-apt-label">Refugo</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td className="check-cell">&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>,
+          ])}
         </tbody>
       </table>
 
