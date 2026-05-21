@@ -24,6 +24,7 @@ import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
 import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
 import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
