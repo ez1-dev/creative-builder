@@ -75,15 +75,19 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="k op-qtde-destaque">Qtde.:</div><div className="v op-qtde-destaque">{cab.quantidade ?? '-'}</div>
           <div className="k">U.M.:</div><div className="v">{cab.unidade_medida ?? '-'}</div>
           <div className="k">Produto:</div>
+          <div className="v full">{cab.produto ?? '-'}</div>
+          <div className="k">Descrição:</div>
           <div className="v full">{(() => {
             const cod = String(cab.produto ?? '').trim();
+            const descDireta = String(cab.descricao ?? '').trim();
+            if (descDireta) return descDireta;
             const desc = String(cab.produto_descricao ?? cab.descricao_produto ?? '').trim();
-            if (!cod && !desc) return '';
-            if (!desc) return cod;
-            // Evita duplicar o código quando a descrição já começa com ele
-            const descSemCod = desc.replace(new RegExp(`^${cod}\\s*-\\s*`), '').trim();
-            return cod ? `${cod} - ${descSemCod || desc}` : desc;
+            if (!desc) return '-';
+            if (!cod) return desc;
+            // Remove código duplicado no início da descrição
+            return desc.replace(new RegExp(`^${cod}\\s*-\\s*`), '').trim() || desc;
           })()}</div>
+          <div className="k">Derivação:</div><div className="v">{cab.derivacao ?? '-'}</div>
           <div className="k">Início Prev.:</div><div className="v">{fmtDate(cab.inicio_previsto)}</div>
           <div className="k">Pedido:</div><div className="v">{cab.pedido ?? '-'}</div>
           <div className="k">Período:</div><div className="v">{cab.periodo ?? '-'}</div>
@@ -91,8 +95,12 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
         <div className="op-rev-stack">
           <div className="op-rev-cell">
-            <div className="lbl">REV</div>
-            <div className="val">{cab.revisao ?? '-'}</div>
+            <div className="lbl">Rev</div>
+            <div className="val">{(() => {
+              const r = String(cab.revisao ?? '').trim();
+              if (!r || r.toUpperCase() === 'REV') return '-';
+              return r;
+            })()}</div>
           </div>
           <div className="op-rev-cell">
             <div className="lbl">Agrupamento</div>
@@ -111,15 +119,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         {etgKeys.map((etg) => (
           <div key={`comp-${etg}`}>
             {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
-            <table>
+            <table className="componentes-table">
               <thead>
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
-                  <th className="col-w-narrow">Dep.</th>
-                  <th className="col-w-medium">Endereço</th>
+                  <th className="col-w-narrow qtd-prev">Qtde. Prev.</th>
+                  <th className="col-w-narrow unidade">UN</th>
+                  <th className="col-w-narrow deposito">Dep.</th>
+                  <th className="col-w-medium endereco">Endereço</th>
                 </tr>
               </thead>
               <tbody>
@@ -127,10 +135,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
-                    <td>{c.deposito ?? ''}</td>
-                    <td>{c.endereco ?? ''}</td>
+                    <td className="qtd-prev">{c.quantidade_prevista ?? ''}</td>
+                    <td className="unidade">{c.unidade_medida ?? ''}</td>
+                    <td className="deposito">{c.deposito ?? ''}</td>
+                    <td className="endereco">{c.endereco ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -154,15 +162,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         {etgKeys.map((etg) => (
           <div key={`compsep-${etg}`}>
             {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
-            <table>
+            <table className="componentes-table">
               <thead>
                 <tr>
                   <th className="col-w-medium">Código</th>
                   <th>Descrição</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>Qtde. Prev.</th>
-                  <th className="col-w-narrow" style={{ textAlign: 'center' }}>UN</th>
-                  <th className="col-w-narrow">Dep.</th>
-                  <th className="col-w-medium">Endereço</th>
+                  <th className="col-w-narrow qtd-prev">Qtde. Prev.</th>
+                  <th className="col-w-narrow unidade">UN</th>
+                  <th className="col-w-narrow deposito">Dep.</th>
+                  <th className="col-w-medium endereco">Endereço</th>
                 </tr>
               </thead>
               <tbody>
@@ -170,10 +178,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
                   <tr key={`csep-${etg}-${i}`}>
                     <td>{c.codigo_componente ?? ''}</td>
                     <td>{c.descricao_componente ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.quantidade_prevista ?? ''}</td>
-                    <td style={{ textAlign: 'center' }}>{c.unidade_medida ?? ''}</td>
-                    <td>{c.deposito ?? ''}</td>
-                    <td>{c.endereco ?? ''}</td>
+                    <td className="qtd-prev">{c.quantidade_prevista ?? ''}</td>
+                    <td className="unidade">{c.unidade_medida ?? ''}</td>
+                    <td className="deposito">{c.deposito ?? ''}</td>
+                    <td className="endereco">{c.endereco ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -203,10 +211,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           <div className="k op-operacao-destaque">Operação:</div>
           <div className="v op-operacao-destaque">{[op.cod_opr, op.descricao_operacao].filter(Boolean).join(' ') || '—'}</div>
 
-          <div className="k">Tmp Unit:</div>
-          <div className="v">{op.tmp_unit ?? '—'}</div>
-          <div className="k">Tmp Total:</div>
-          <div className="v">{op.tmp_total ?? '—'}</div>
+          <div className="k op-tempo-destaque">Tmp Unit:</div>
+          <div className="v op-tempo-destaque">{op.tmp_unit_formatado || op.tmp_unit || '—'}</div>
+          <div className="k op-tempo-destaque">Tmp Total:</div>
+          <div className="v op-tempo-destaque">{op.tmp_total_formatado || op.tmp_total || '—'}</div>
 
           <div className="k">U.M.:</div>
           <div className="v">{op.unidade_medida ?? '—'}</div>
@@ -240,11 +248,9 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       <table className="op-apontamento-table">
         <thead>
           <tr>
-            <th>Início</th>
-            <th>Fim</th>
+            <th>Controle</th>
             <th>Tempo Setup</th>
             <th>QTD Produzida</th>
-            <th>Refugo</th>
             <th>Motivo Desvio</th>
             <th>Operador</th>
             <th className="check-cell">Check</th>
@@ -252,19 +258,26 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: 20 }).map((_, r) => (
-            <tr key={`apt-${i}-${r}`}>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
+          {Array.from({ length: 10 }).flatMap((_, r) => [
+            <tr key={`apt-${i}-${r}-a`} className="op-apt-row-1">
+              <td className="op-apt-label">Início / Fim</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td className="check-cell"><span className="check-box" /></td>
               <td>&nbsp;</td>
-            </tr>
-          ))}
+            </tr>,
+            <tr key={`apt-${i}-${r}-b`} className="op-apt-row-2">
+              <td className="op-apt-label">Refugo</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td>&nbsp;</td>
+              <td className="check-cell">&nbsp;</td>
+              <td>&nbsp;</td>
+            </tr>,
+          ])}
         </tbody>
       </table>
 
@@ -402,16 +415,10 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }
 
 
-  // Modo padrão: tudo numa página
+  // Modo padrão: componentes > 7 → operações na página 1, componentes em página separada
   if (quebrarComponentes) {
     return (
       <>
-        <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
-          {renderHeader()}
-          {renderIndicacaoComponentesSeparados()}
-          {renderFooter()}
-        </div>
-        {renderComponentesPage()}
         <div className={`op-sheet ${preview ? 'op-sheet--preview' : ''}`}>
           {renderHeader()}
           {operacoes.length > 0 && (
@@ -422,6 +429,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
           )}
           {renderFooter()}
         </div>
+        {renderComponentesPage()}
         {renderDesenhos()}
         {renderPreviewDesenhosResumo()}
       </>

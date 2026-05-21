@@ -215,3 +215,86 @@ Regras:
 - Excluir OPs com `cod_ori = 100`.
 - Cada item segue exatamente o contrato de `/impressao` (cabeçalho, componentes, operações, observações).
 
+
+---
+
+## Atualizações (Mai/2026 — pacote OP)
+
+### Cabeçalho
+
+Campos adicionais/explicitos no `cabecalho`:
+
+```json
+{
+  "revisao": "A",
+  "derivacao": "U",
+  "produto": "210005693",
+  "descricao": "DESCRIÇÃO DO PRODUTO",
+  "produto_descricao": "210005693 - DESCRIÇÃO DO PRODUTO"
+}
+```
+
+- `revisao`: número/letra real da revisão da estrutura. Nunca devolver a string fixa `"REV"`.
+- `derivacao`: derivação da OP (ex.: `E900QDO.CodDer`). Frontend exibe como `Derivação: <valor>` ou `-`.
+- `produto` e `descricao` devem vir **separados**. `produto_descricao` é opcional e mantido para compatibilidade.
+
+### Operações — tempos formatados
+
+Cada item de `operacoes[]` deve incluir os campos formatados:
+
+```json
+{
+  "tmp_unit": 0.3,
+  "tmp_total": 0.6,
+  "tmp_unit_formatado": "18 min",
+  "tmp_total_formatado": "36 min"
+}
+```
+
+Função sugerida no backend:
+
+```python
+def formatar_tempo_decimal_horas(valor):
+    try:
+        horas_dec = float(valor or 0)
+    except Exception:
+        return ""
+    minutos_total = round(horas_dec * 60)
+    if minutos_total < 60:
+        return f"{minutos_total} min"
+    horas = minutos_total // 60
+    minutos = minutos_total % 60
+    if minutos == 0:
+        return f"{horas} h"
+    return f"{horas} h {minutos} min"
+```
+
+O frontend usa `tmp_unit_formatado || tmp_unit` (idem total) e renderiza maior/negrito.
+
+### Desenhos — A4 retrato pronto para impressão
+
+Novo endpoint:
+
+```
+GET /api/producao/ordem-producao/desenho/impressao-a4?arquivo=<nome>
+```
+
+Deve retornar **sempre** o arquivo pronto em A4 retrato:
+
+1. JPG/PNG: se largura > altura, rotacionar 90°; embarcar/converter em A4 retrato.
+2. PDF: para cada página em paisagem, rotacionar/encaixar em A4 retrato; devolver PDF final padronizado.
+
+No bloco `desenhos[]` do `/impressao`, cada item deve trazer:
+
+```json
+{
+  "nome_arquivo": "210005693.pdf",
+  "tipo": "PDF",
+  "url": "/api/producao/ordem-producao/desenho?arquivo=210005693.pdf",
+  "url_impressao": "/api/producao/ordem-producao/desenho/impressao-a4?arquivo=210005693.pdf",
+  "layout_impressao": "A4_RETRATO",
+  "rotacao_automatica": true
+}
+```
+
+Regra no frontend (já implementada): `url_impressao || url`. Quando `url_impressao` existir, o Lovable **não aplica rotação CSS** — confia que o backend já entregou pronto.

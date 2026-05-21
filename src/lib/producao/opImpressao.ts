@@ -5,6 +5,7 @@ export interface OpCabecalho {
   num_orp_formatado?: string;
   codigo_barras_op?: string;
   produto?: string;
+  descricao?: string;
   descricao_produto?: string;
   produto_descricao?: string;
   unidade_medida?: string;
@@ -16,6 +17,7 @@ export interface OpCabecalho {
   situacao_descricao?: string;
   agrupamento?: string;
   revisao?: string;
+  derivacao?: string;
 }
 
 export interface OpComponente {
@@ -43,6 +45,8 @@ export interface OpOperacao {
   descricao_servico?: string;
   tmp_unit?: number | string;
   tmp_total?: number | string;
+  tmp_unit_formatado?: string;
+  tmp_total_formatado?: string;
   unidade_medida?: string;
   codigo_barras_operacao?: string;
   proxima_operacao?: string;
@@ -60,6 +64,8 @@ export interface OpDesenho {
   mime_type?: string;
   url?: string;
   url_impressao?: string;
+  layout_impressao?: 'A4_RETRATO' | string;
+  rotacao_automatica?: boolean;
   largura?: number;
   altura?: number;
   orientacao?: string;
