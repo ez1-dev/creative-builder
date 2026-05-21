@@ -3,6 +3,7 @@ import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
 import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
 import type { OpImpressao, OpOperacao, OpComponente, OpDesenho } from '@/lib/producao/opImpressao';
+import type { OpDesenhoPaginaA4Carregada } from '@/lib/producao/opDesenhosA4';
 import './op-print.css';
 
 
@@ -11,9 +12,12 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean | null;
-  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai. Se omitido, cada DrawingPage faz seu próprio fetch. */
+  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai (legado). */
   blobStates?: BlobStateMap;
+  /** Páginas A4 dos desenhos já normalizadas e carregadas como blob. */
+  paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
 }
+
 
 function fmtNow() {
   const d = new Date();
