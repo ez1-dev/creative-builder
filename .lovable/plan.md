@@ -1,105 +1,123 @@
-## Escopo
+## Objetivo
 
-Aplicar o pacote de correções da Impressão de Ordem de Produção. Frontend (Lovable) é alterado agora. Mudanças de API/FastAPI ficam apenas documentadas em `docs/backend-impressao-ordem-producao.md` como contrato a ser implementado fora do Lovable (backend FastAPI externo).
+Garantir que a impressão de desenhos de OP use **somente** a saída já normalizada em A4 retrato entregue pela API (`/desenho/impressao-a4`), removendo qualquer tentativa do navegador de rotacionar/escalar conteúdo (JPG, PNG ou PDF — inclusive PDFs multipágina frente/verso).
 
-Arquivos principais:
+O trabalho pesado é no FastAPI (fora do Lovable). No frontend, fechamos as pontas para nunca mais cair em fallback de rotação CSS quando o backend estiver implementado.
+
+## Escopo dividido
+
+### A) Documentação do contrato backend (este projeto)
+
+Arquivo: `docs/backend-impressao-ordem-producao.md`
+
+Atualizar / acrescentar:
+
+1. **Nova rota oficial** (substitui o uso direto de `/desenho/impressao` para impressão):
+   ```
+   GET /api/producao/ordem-producao/desenho/impressao-a4?arquivo=<nome>
+   ```
+   Sempre devolve o arquivo encaixado em **A4 retrato**, centralizado, com margem segura.
+
+2. **JPG / PNG** — passos obrigatórios:
+   - Abrir com Pillow, aplicar `ImageOps.exif_transpose`.
+   - Se `largura > altura`, rotacionar 90°.
+   - Criar folha A4 300 DPI (`2480 x 3508 px`), margem `90 px`.
+   - Redimensionar proporcional (`min(area_w/w, area_h/h)`).
+   - Centralizar e devolver `image/jpeg` (quality 95).
+
+3. **PDF** — passos obrigatórios (página a página, frente/verso):
+   - Para cada página de origem detectar paisagem (`src_w > src_h`).
+   - Criar página A4 retrato em branco (`595.2756 x 841.8898 pt`, margem `18 pt`).
+   - Se paisagem: `Transformation().rotate(90).translate(tx=src_h, ty=0).scale(escala).translate(offset_x, offset_y)`.
+   - Se retrato: apenas `scale + translate` para centralizar.
+   - `merge_page` na página A4 nova.
+   - Devolver `application/pdf` final (mesma quantidade de páginas da origem).
+
+4. **Headers de resposta** (debug/print):
+   - `Cache-Control: no-store`
+   - `X-Original-File: <nome>`
+   - `X-A4-Normalized: S`
+   - `X-A4-Orientation: PORTRAIT`
+
+5. **Erros**:
+   - 422 para extensão fora de `jpg/jpeg/png/pdf`.
+   - 500 se Pillow ou pypdf não estiverem instalados.
+   - 404 se o arquivo não existir na pasta configurada (`PASTA_DESENHOS_OP_PADRAO` ou env override).
+
+6. **Bloco `desenhos[]`** no payload de `/impressao` passa a obrigatoriamente trazer:
+   ```json
+   {
+     "url": "/api/producao/ordem-producao/desenho?arquivo=...",
+     "url_impressao": "/api/producao/ordem-producao/desenho/impressao-a4?arquivo=...&v=<mtime>",
+     "layout_impressao": "A4_RETRATO",
+     "rotacao_automatica": true
+   }
+   ```
+   O `?v=<mtime>` evita cache do navegador.
+
+7. **Plano de implementação em duas etapas** (registrar na doc):
+   - Etapa 1: rota nova só para JPG/PNG + troca do `url_impressao` no payload.
+   - Etapa 2: normalização PDF página a página.
+
+8. Reforçar a regra: **o frontend nunca aplica rotação/escala**, apenas imprime `url_impressao`.
+
+### B) Frontend Lovable
+
+Arquivos:
 - `src/components/producao/OpPrintSheet.tsx`
 - `src/components/producao/op-print.css`
-- `src/lib/producao/opImpressao.ts` (tipos)
-- `docs/backend-impressao-ordem-producao.md` (contrato)
+- `src/lib/producao/opImpressao.ts` (apenas se faltar tipagem; já está OK)
 
-## 1. Desenhos em A4 retrato (Bloco 1)
+Ajustes:
 
-- `opImpressao.ts`: já existe `OpDesenho.url_impressao`. Adicionar campos opcionais `layout_impressao?: 'A4_RETRATO' | string` e `rotacao_automatica?: boolean` para documentar o contrato.
-- `OpPrintSheet.tsx` / `DrawingPage`:
-  - Manter `getDrawingPrintUrl` que já prioriza `url_impressao || url`.
-  - Quando `url_impressao` existir, NÃO aplicar nenhuma rotação CSS (`transform: rotate(...)`) nem heurística de "rotacionar paisagem". Renderizar o arquivo como veio.
-  - Quando só `url` existir (sem `url_impressao`), manter o comportamento atual de fallback (sem regressão).
-  - Garantir que cada desenho ocupe exatamente uma página A4 retrato (já tem `.op-drawing-page`).
-- Documentar no `docs/backend-impressao-ordem-producao.md`:
-  - Novo endpoint `GET /api/producao/ordem-producao/desenho/impressao-a4?arquivo=...` que devolve sempre A4 retrato.
-  - Resposta do bloco `desenhos[]` deve trazer `url_impressao`, `layout_impressao: "A4_RETRATO"` e `rotacao_automatica: true`.
+1. **Remover por completo o fallback de rotação quando há `url_impressao`.**
+   Em `renderDrawingBody`, hoje ainda existe `flagRotate` ligado a `rotacionar_para_retrato` / `rotacao_recomendada` mesmo no caminho novo. Trocar para:
+   ```ts
+   const flagRotate = !drawing.url_impressao && (
+     drawing.rotacionar_para_retrato === true ||
+     Number(drawing.rotacao_recomendada) === 90
+   );
+   ```
+   Ou seja: rotação CSS só sobrevive como fallback legado quando o backend ainda não entrega `url_impressao`.
 
-## 2. Cabeçalho da OP (Bloco 2)
+2. **Renderização de PDF** deve sempre ocupar a folha A4 inteira (não há mais necessidade de tratar paisagem):
+   ```tsx
+   <object data={blobUrl} type="application/pdf" className="op-drawing-pdf" />
+   ```
+   No CSS, garantir `width:100%; height:100%; border:0;` e `@page { size: A4 portrait; margin: 0 }` no contexto de impressão.
 
-`OpPrintSheet.tsx` → `renderHeader`:
+3. **CSS** — reforçar `.op-drawing-page`:
+   ```css
+   .op-drawing-page {
+     width: 210mm;
+     height: 297mm;
+     page-break-after: always;
+     break-after: page;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     overflow: hidden;
+     background: #fff;
+   }
+   .op-drawing-page img { max-width: 100%; max-height: 100%; object-fit: contain; }
+   .op-drawing-page object,
+   .op-drawing-page iframe { width: 100%; height: 100%; border: 0; }
+   ```
+   Remover/neutralizar resquícios de `.drawing-frame.rotated` e `.drawing-image.rotate-90` no caminho novo (manter só comentado como fallback legado).
 
-- **Revisão**: trocar o rótulo "REV" do bloco lateral por "Rev:" e mostrar `cab.revisao || '-'`. Evita visualmente o "Rev Rev" quando o valor vier `"REV"` por erro do backend. Adicionar fallback: se `cab.revisao` for exatamente `"REV"` (case-insensitive), tratar como vazio e mostrar `-`.
-- **Derivação**: adicionar nova linha no grid `op-header-data`: `Derivação: {cab.derivacao || '-'}`. Adicionar `derivacao?: string` em `OpCabecalho` (`opImpressao.ts`).
-- **Produto x Descrição**: separar em duas linhas no header:
-  - `Produto: {cab.produto}`
-  - `Descrição: {cab.descricao || descSemCod}`
-  - Remover a concatenação atual `${cod} - ${descSemCod || desc}`.
+4. **Lote (`OpPrintBatch.tsx`)** — verificar se também consome `getDrawingPrintUrl` (que já usa `url_impressao || url`); se não, alinhar.
 
-Documentar no markdown do backend: cabeçalho deve retornar `revisao`, `derivacao`, `produto`, `descricao` separados (já há `produto_descricao` opcional para compatibilidade).
+5. **Não alterar** `useImpressaoOrdemProducao` nem `opImpressao.ts` (tipos já têm `url_impressao`, `layout_impressao`, `rotacao_automatica`).
 
-## 3. Apontamento manual: 10 apontamentos em 2 linhas (Bloco 3)
+### Fora de escopo
 
-`OpPrintSheet.tsx` → tabela `op-apontamento-table` dentro de `renderOperacao`:
+- Implementação real do FastAPI (rota, Pillow, pypdf) — fica para o time de backend seguindo a doc.
+- Mudanças no cabeçalho/apontamento/componentes da OP (já entregues no pacote anterior).
+- Pré-visualização de PDF dentro da tela (mantém comportamento atual de impressão).
 
-Substituir a tabela atual (9 colunas × 20 linhas) por:
+## Critérios de aceite
 
-- **Colunas (7)**: Controle | Tempo Setup | QTD Produzida | Motivo Desvio | Operador | Check | OBS
-- **Corpo**: 10 apontamentos. Cada apontamento = 2 `<tr>`:
-  - Linha 1: primeira célula = `Início / Fim`, demais células vazias (Tempo Setup, QTD Produzida, Motivo Desvio, Operador, Check com `<span class="check-box"/>`, OBS).
-  - Linha 2: primeira célula = `Refugo`, demais células vazias.
-- Adicionar classe `op-apt-sep` na linha 2 (ou na linha 1 do próximo apontamento) para borda mais grossa entre apontamentos. Definir em `op-print.css`.
-- Não criar colunas separadas para Início, Fim e Refugo.
-
-## 4. Quebra de página de componentes (Bloco 4)
-
-`OpPrintSheet.tsx`:
-
-- Regra de `quebrarComponentes`: manter `componentes.length > 7` (ou flag explícita do backend).
-- Modo padrão (sem `quebrarPorOperacao`), `quebrarComponentes = true`:
-  - Hoje gera 3 blocos: página com indicação + página de componentes + página de operações. Reorganizar para 2 páginas:
-    - Página 1: cabeçalho + operações + rodapé.
-    - Página 2: cabeçalho + componentes + rodapé (`renderComponentesPage`).
-  - Remover o `renderIndicacaoComponentesSeparados()` deste fluxo (não exibir a mensagem "Componentes impressos em página separada" quando há operações para imprimir antes).
-- Modo `quebrarPorOperacao = true`:
-  - Hoje, com `quebrarComponentes`, a primeira página de cada operação NÃO inclui componentes (já correto). Garantir que `renderComponentesPage()` venha depois de todas as operações (já está).
-  - Remover qualquer página "vazia" só com a indicação de componentes separados nesse modo (não existe hoje, validar e manter).
-- Modo `quebrarPorOperacao = true` + `quebrarComponentes = false`: componentes continuam impressos junto com cada operação (já está).
-- Mensagem "Componentes impressos em página separada" só pode aparecer quando NÃO há `quebrarPorOperacao` e o usuário pediu explicitamente uma página única; na prática, removida do fluxo padrão.
-
-## 5. Centralização das colunas de componentes (Bloco 5)
-
-`op-print.css`: adicionar regras para a tabela de componentes (tanto inline quanto em `componentes-page`) centralizando Qtde. Prev., UN, Dep., Endereço. Hoje as duas primeiras já têm `text-align: center` inline; padronizar via CSS por classes nas `<th>/<td>` (`qtd-prev`, `unidade`, `deposito`, `endereco`) aplicadas em `OpPrintSheet.tsx`. Versão print também.
-
-## 6. Tempos formatados e destaque (Bloco 6)
-
-`opImpressao.ts`: adicionar `tmp_unit_formatado?: string` e `tmp_total_formatado?: string` em `OpOperacao`.
-
-`OpPrintSheet.tsx` → `renderOperacao`:
-- Render: `Tmp Unit: {op.tmp_unit_formatado || op.tmp_unit || '—'}` / `Tmp Total: {op.tmp_total_formatado || op.tmp_total || '—'}`.
-- Aplicar classe `op-tempo-destaque` nas células `v` de Tmp Unit/Total.
-
-`op-print.css`: classe `.op-tempo-destaque` com `font-size: 11px; font-weight: 700;` (e versão `pt` no `@media print`).
-
-Documentar no backend a função `formatar_tempo_decimal_horas` e os campos `tmp_unit_formatado`/`tmp_total_formatado`.
-
-## 7. Documentação de backend
-
-Atualizar `docs/backend-impressao-ordem-producao.md` com:
-- Novo endpoint `/desenho/impressao-a4` + campos `url_impressao`, `layout_impressao`, `rotacao_automatica`.
-- Cabeçalho: campos `revisao`, `derivacao`, `produto`, `descricao` separados.
-- Operação: `tmp_unit_formatado`, `tmp_total_formatado`.
-
-## Fora de escopo
-
-- Implementação real do FastAPI (apenas documentação do contrato).
-- Mudanças em filtros, autocomplete de OP, impressão em lote (lógica `OpPrintBatch` permanece igual).
-- Estilo geral do layout além das classes citadas.
-- Lógica de seleção/listagem de OPs.
-
-## Verificação
-
-- Abrir `/producao/impressao-op` com uma OP de teste, conferir:
-  - Header mostra `Rev: -` quando vazio (não mostra "Rev Rev").
-  - Header mostra `Derivação:` (com `-` se ausente).
-  - Produto e Descrição em linhas separadas, sem código duplicado.
-  - Tabela de apontamento tem 7 colunas e 20 linhas em pares (Início/Fim, Refugo).
-  - Componentes > 7: imprime operações na 1ª página e componentes em página separada, sem página "vazia" intermediária.
-  - Qtde Prev / UN / Dep / Endereço centralizados.
-  - Tmp Unit e Tmp Total maiores e em negrito; usam formatado quando vier do backend.
-  - Desenhos: quando `url_impressao` vem do backend, não há rotação CSS.
+- Doc `backend-impressao-ordem-producao.md` descreve a rota `/desenho/impressao-a4` com todos os passos para JPG/PNG **e** PDF multipágina, headers, erros e plano em 2 etapas.
+- Quando o backend devolver `url_impressao`, o Lovable imprime sem nenhuma classe `rotated` / `rotate-90` aplicada (validável inspecionando o DOM de impressão).
+- PDF de 2 páginas (frente/verso) entregue pela API gera 2 páginas A4 retrato no print, sem corte.
+- Fallback antigo (sem `url_impressao`) continua funcionando para não quebrar produção até o backend subir a rota nova.
