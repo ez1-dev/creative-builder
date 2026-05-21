@@ -254,40 +254,45 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       {op.narrativas && <div className="op-narrativas">{op.narrativas}</div>}
 
       <table className="op-apontamento-table">
-        <thead>
-          <tr>
-            <th>Controle</th>
-            <th>Tempo Setup</th>
-            <th>QTD Produzida</th>
-            <th>Motivo Desvio</th>
-            <th>Operador</th>
-            <th className="check-cell">Check</th>
-            <th>OBS</th>
-          </tr>
-        </thead>
+        <colgroup>
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '21%' }} />
+          <col style={{ width: '21%' }} />
+        </colgroup>
         <tbody>
-          {Array.from({ length: 10 }).flatMap((_, r) => [
-            <tr key={`apt-${i}-${r}-a`} className="op-apt-row-1">
-              <td className="op-apt-label">Início / Fim</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td className="check-cell"><span className="check-box" /></td>
-              <td>&nbsp;</td>
+          {Array.from({ length: 3 }).flatMap((_, r) => [
+            <tr key={`apt-${i}-${r}-h1`} className="op-apt-head">
+              <th>inicio</th>
+              <th>data</th>
+              <th>tempo setup</th>
+              <th>fim</th>
+              <th>data</th>
+              <th>qtd produzida</th>
+              <th>refugo</th>
             </tr>,
-            <tr key={`apt-${i}-${r}-b`} className="op-apt-row-2">
-              <td className="op-apt-label">Refugo</td>
+            <tr key={`apt-${i}-${r}-d1`} className="op-apt-fill">
+              <td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>
+            </tr>,
+            <tr key={`apt-${i}-${r}-h2`} className="op-apt-head">
+              <th colSpan={3}>motivo do desvio</th>
+              <th colSpan={2}>obs</th>
+              <th>operador</th>
+              <th>check</th>
+            </tr>,
+            <tr key={`apt-${i}-${r}-d2`} className="op-apt-fill op-apt-row-end">
+              <td colSpan={3}>&nbsp;</td>
+              <td colSpan={2}>&nbsp;</td>
               <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td>&nbsp;</td>
-              <td className="check-cell">&nbsp;</td>
               <td>&nbsp;</td>
             </tr>,
           ])}
         </tbody>
       </table>
+
 
     </div>
   );
