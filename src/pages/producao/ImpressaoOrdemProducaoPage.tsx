@@ -118,7 +118,7 @@ export default function ImpressaoOrdemProducaoPage() {
     [data?.desenhos],
   );
   const blobStates = useAuthedBlobUrls(desenhoUrls);
-  const { paginas: paginasDesenhosA4 } = useDesenhosA4(data?.desenhos);
+  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
   // Diagnóstico de desenhos
