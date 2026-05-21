@@ -598,11 +598,13 @@
 }
 /* Linhas de preenchimento manual */
 .op-apontamento-table tr.op-apt-fill td {
-  height: 9mm;
+  height: 11mm;
 }
 .op-apontamento-table tr.op-apt-row-end td {
   border-bottom: 4px solid #000;
+  padding-bottom: 2mm;
 }
+
 
 
 @media print {
