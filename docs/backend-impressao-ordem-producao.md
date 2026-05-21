@@ -271,30 +271,200 @@ def formatar_tempo_decimal_horas(valor):
 
 O frontend usa `tmp_unit_formatado || tmp_unit` (idem total) e renderiza maior/negrito.
 
-### Desenhos — A4 retrato pronto para impressão
+### Desenhos — A4 retrato pronto para impressão (spec definitiva)
 
-Novo endpoint:
+**Problema atual:** o frontend tentava rotacionar/escalar via CSS. Não funciona
+para PDF (especialmente multipágina frente/verso) e tem comportamento
+imprevisível em JPG/PNG paisagem. Toda a normalização passa a ser
+**responsabilidade do backend**. O Lovable apenas imprime o que recebe.
+
+#### Rota nova
 
 ```
 GET /api/producao/ordem-producao/desenho/impressao-a4?arquivo=<nome>
 ```
 
-Deve retornar **sempre** o arquivo pronto em A4 retrato:
+Substitui o uso de `/desenho/impressao` para fins de impressão (a rota antiga
+continua existindo apenas como fallback de visualização). Sempre devolve o
+arquivo **encaixado em A4 retrato, centralizado, com margem segura**.
 
-1. JPG/PNG: se largura > altura, rotacionar 90°; embarcar/converter em A4 retrato.
-2. PDF: para cada página em paisagem, rotacionar/encaixar em A4 retrato; devolver PDF final padronizado.
+Aceita extensões: `.jpg`, `.jpeg`, `.png`, `.pdf`. Demais retornam **422**.
 
-No bloco `desenhos[]` do `/impressao`, cada item deve trazer:
+#### Constantes recomendadas
+
+```python
+# A4 a 300 DPI para imagens raster
+A4_WIDTH_PX = 2480
+A4_HEIGHT_PX = 3508
+A4_MARGIN_PX = 90
+
+# A4 em pontos para PDF
+A4_WIDTH_PT = 595.2756
+A4_HEIGHT_PT = 841.8898
+A4_MARGIN_PT = 18
+```
+
+#### JPG / PNG — passos obrigatórios
+
+```text
+1. Abrir com Pillow.
+2. Aplicar ImageOps.exif_transpose (corrige EXIF de câmera/scanner).
+3. Converter para RGB.
+4. Se largura > altura → rotacionar 90° (expand=True).
+5. Calcular escala = min(area_w/img.w, area_h/img.h) com a área útil
+   (A4 - 2 * margem).
+6. Redimensionar com LANCZOS.
+7. Criar folha A4 branca (A4_WIDTH_PX x A4_HEIGHT_PX).
+8. Centralizar via paste((A4_w - novo_w)/2, (A4_h - novo_h)/2).
+9. Devolver image/jpeg, quality=95, optimize=True.
+```
+
+Esqueleto:
+
+```python
+from io import BytesIO
+from PIL import Image, ImageOps
+from fastapi.responses import StreamingResponse
+
+def _normalizar_imagem_para_a4(caminho):
+    with Image.open(caminho) as img:
+        img = ImageOps.exif_transpose(img).convert("RGB")
+        if img.width > img.height:
+            img = img.rotate(90, expand=True)
+
+        area_w = A4_WIDTH_PX - 2 * A4_MARGIN_PX
+        area_h = A4_HEIGHT_PX - 2 * A4_MARGIN_PX
+        escala = min(area_w / img.width, area_h / img.height)
+
+        novo_w = int(img.width * escala)
+        novo_h = int(img.height * escala)
+        img2 = img.resize((novo_w, novo_h), Image.LANCZOS)
+
+        folha = Image.new("RGB", (A4_WIDTH_PX, A4_HEIGHT_PX), "white")
+        folha.paste(img2, ((A4_WIDTH_PX - novo_w) // 2,
+                           (A4_HEIGHT_PX - novo_h) // 2))
+
+        out = BytesIO()
+        folha.save(out, format="JPEG", quality=95, optimize=True)
+        out.seek(0)
+        return StreamingResponse(out, media_type="image/jpeg",
+                                 headers=_headers_a4(caminho))
+```
+
+#### PDF — passos obrigatórios (página a página, frente/verso)
+
+Não basta rotacionar a página. Para cada página de origem:
+
+```text
+1. Detectar paisagem: src_w > src_h.
+2. Criar página A4 retrato em branco no writer
+   (writer.add_blank_page(A4_WIDTH_PT, A4_HEIGHT_PT)).
+3. Calcular o tamanho do "conteúdo lógico" pós-rotação:
+     - se paisagem: content_w = src_h ; content_h = src_w
+     - se retrato : content_w = src_w ; content_h = src_h
+4. escala = min(area_w / content_w, area_h / content_h)
+   com area = A4_pt - 2 * margem_pt.
+5. Calcular offset_x / offset_y para centralizar.
+6. Aplicar Transformation():
+     - paisagem: .rotate(90).translate(tx=src_h, ty=0)
+                 .scale(escala).translate(offset_x, offset_y)
+     - retrato : .scale(escala).translate(offset_x, offset_y)
+7. pagina_original.add_transformation(transform)
+8. pagina_a4.merge_page(pagina_original)
+9. Repetir para todas as páginas (preserva quantidade — frente/verso).
+10. Devolver application/pdf final.
+```
+
+Esqueleto:
+
+```python
+from pypdf import PdfReader, PdfWriter, Transformation
+
+def _normalizar_pdf_para_a4(caminho):
+    reader = PdfReader(str(caminho))
+    writer = PdfWriter()
+    area_w = A4_WIDTH_PT - 2 * A4_MARGIN_PT
+    area_h = A4_HEIGHT_PT - 2 * A4_MARGIN_PT
+
+    for src in reader.pages:
+        src_w = float(src.mediabox.width)
+        src_h = float(src.mediabox.height)
+        a4 = writer.add_blank_page(width=A4_WIDTH_PT, height=A4_HEIGHT_PT)
+
+        paisagem = src_w > src_h
+        content_w, content_h = (src_h, src_w) if paisagem else (src_w, src_h)
+        escala = min(area_w / content_w, area_h / content_h)
+        final_w = content_w * escala
+        final_h = content_h * escala
+        off_x = (A4_WIDTH_PT - final_w) / 2
+        off_y = (A4_HEIGHT_PT - final_h) / 2
+
+        t = Transformation()
+        if paisagem:
+            t = (t.rotate(90).translate(tx=src_h, ty=0)
+                  .scale(escala).translate(tx=off_x, ty=off_y))
+        else:
+            t = t.scale(escala).translate(tx=off_x, ty=off_y)
+
+        src.add_transformation(t)
+        a4.merge_page(src)
+
+    out = BytesIO()
+    writer.write(out)
+    out.seek(0)
+    return StreamingResponse(out, media_type="application/pdf",
+                             headers=_headers_a4(caminho))
+```
+
+#### Headers de resposta
+
+```python
+def _headers_a4(caminho):
+    return {
+        "Cache-Control": "no-store",
+        "X-Original-File": caminho.name,
+        "X-A4-Normalized": "S",
+        "X-A4-Orientation": "PORTRAIT",
+    }
+```
+
+#### Erros
+
+- **422** — extensão fora de `jpg/jpeg/png/pdf`.
+- **404** — arquivo inexistente em `PASTA_DESENHOS_OP_PADRAO` (ou env override).
+- **500** — Pillow ou pypdf não instalados, ou erro inesperado de leitura.
+
+#### Bloco `desenhos[]` no payload de `/impressao`
+
+Cada item deve trazer **sempre** (inclusive PDF):
 
 ```json
 {
   "nome_arquivo": "210005693.pdf",
   "tipo": "PDF",
   "url": "/api/producao/ordem-producao/desenho?arquivo=210005693.pdf",
-  "url_impressao": "/api/producao/ordem-producao/desenho/impressao-a4?arquivo=210005693.pdf",
+  "url_impressao": "/api/producao/ordem-producao/desenho/impressao-a4?arquivo=210005693.pdf&v=1716998400",
   "layout_impressao": "A4_RETRATO",
   "rotacao_automatica": true
 }
 ```
 
-Regra no frontend (já implementada): `url_impressao || url`. Quando `url_impressao` existir, o Lovable **não aplica rotação CSS** — confia que o backend já entregou pronto.
+O `?v=<mtime>` (timestamp do arquivo) evita cache do navegador entre revisões.
+
+#### Plano em duas etapas
+
+- **Etapa 1 (correção rápida):** subir `/desenho/impressao-a4` apenas para
+  JPG/PNG. Já trocar `url_impressao` no payload — PDFs caem no `url` antigo
+  enquanto não sai a etapa 2.
+- **Etapa 2 (definitivo):** habilitar normalização de PDF página a página.
+  PDFs frente/verso passam a sair sempre como 2 páginas A4 retrato sem corte.
+
+#### Contrato com o frontend
+
+- Lovable usa `url_impressao || url`.
+- Quando `url_impressao` existe, **nenhuma** rotação/escala CSS é aplicada
+  (`flagRotate` fica false). O frontend confia 100% no que veio do backend.
+- Classes legadas `.drawing-frame.rotated` / `.drawing-image.rotate-90`
+  ficam apenas como fallback inerte para o caso de algum desenho ainda vir
+  sem `url_impressao`.
+
