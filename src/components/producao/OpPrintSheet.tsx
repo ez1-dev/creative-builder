@@ -28,7 +28,7 @@ function fmtDate(s?: string) {
   return s;
 }
 
-export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao = false, blobStates }: Props) {
+export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperacao: propQuebrarPorOperacao, blobStates }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
@@ -52,9 +52,16 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
   }, {});
   const etgKeys = Object.keys(compsPorEtg);
 
+  // Prop tem prioridade (UI decide). Fallback no payload.
+  const quebrarPorOperacao =
+    propQuebrarPorOperacao ?? data?.modo_impressao?.quebrar_por_operacao ?? false;
+
+  const limiteComp =
+    data?.layout_componentes?.limite_componentes_primeira_pagina ?? 7;
+
   const quebrarComponentes =
     data?.layout_componentes?.quebrar_componentes_em_pagina_separada
-    ?? (componentes.length > 7);
+    ?? (componentes.length > limiteComp);
 
   const renderHeader = () => (
     <>
