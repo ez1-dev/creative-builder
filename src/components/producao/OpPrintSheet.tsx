@@ -299,15 +299,8 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     </div>
   );
 
-  const renderFooter = () => (
-    <>
-      <div className="op-responsability">{responsabilidade}</div>
-      <div className="op-footer">
-        <span>MCAP700.GER - Chão de Fábrica/Apontamentos de OP/OS</span>
-        <span>{fmtNow()} {usuario ? `- ${usuario}` : ''}</span>
-      </div>
-    </>
-  );
+  const renderFooter = () => null;
+
 
 
   const desenhos = data?.desenhos ?? [];
