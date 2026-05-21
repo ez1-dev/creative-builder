@@ -3,6 +3,7 @@ export interface OpCabecalho {
   cod_ori?: string;
   num_orp?: string | number;
   num_orp_formatado?: string;
+  num_orp_exibicao?: string;
   codigo_barras_op?: string;
   produto?: string;
   descricao?: string;
