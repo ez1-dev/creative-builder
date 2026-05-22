@@ -50,6 +50,7 @@ export function OpPrintSheet({
   quebrarPorOperacao: propQuebrarPorOperacao,
   blobStates,
   paginasDesenhosA4,
+  imprimirDesenhos,
 }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
