@@ -524,15 +524,13 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const imprimir = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de imprimir.'); return; }
-    await aguardarDesenhosProntos();
-    window.print();
+    await dispararImpressao();
   };
 
   const gerarPdf = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
     toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
-    await aguardarDesenhosProntos();
-    window.print();
+    await dispararImpressao();
   };
 
 
