@@ -61,6 +61,7 @@ export function OpPrintBatch({
               quebrarPorOperacao={quebrarPorOperacao}
               blobStates={blobStates}
               paginasDesenhosA4={paginasDesenhosA4}
+              imprimirDesenhos={imprimirDesenhos}
             />
           </div>
         );
