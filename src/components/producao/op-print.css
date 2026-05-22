@@ -261,24 +261,22 @@
   width: 196mm;
   min-height: 283mm;
   margin: 0 auto;
+}
+.op-print-page:not(:last-child),
+.op-operation-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
-}
-.op-print-page:last-child,
-.op-operation-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
 }
 
 .operation-single-page {
+  /* Não força min-height: cabeçalho + operação devem caber juntos numa folha.
+     A quebra de página é controlada apenas via page-break-after no :not(:last-child). */
   page-break-inside: avoid;
   break-inside: avoid;
+}
+.operation-single-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
-}
-.operation-single-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
 }
 
 .op-drawing-page {
@@ -293,15 +291,16 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+.op-drawing-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
   page-break-before: always;
   break-before: page;
 }
-.op-drawing-page:last-child,
-.op-print-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
+.op-drawing-page:last-child {
+  page-break-before: always;
+  break-before: page;
 }
 .op-drawing-image {
   width: 100%;
@@ -391,16 +390,32 @@
   .op-operation-page,
   .componentes-page {
     width: 196mm !important;
-    min-height: 283mm !important;
-    height: auto !important;
     box-sizing: border-box !important;
     padding: 0 !important;
     margin: 0 auto !important;
     background: white !important;
-    page-break-after: always !important;
-    break-after: page !important;
     overflow: hidden !important;
     transform: none !important;
+  }
+
+  .op-print-page,
+  .componentes-page {
+    min-height: 283mm !important;
+    height: auto !important;
+  }
+
+  /* A página da operação (modo "quebrar por operação") não força altura
+     mínima — deixa cabeçalho + bloco da operação caberem juntos numa folha. */
+  .op-operation-page {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .op-print-page:not(:last-child),
+  .op-operation-page:not(:last-child),
+  .componentes-page:not(:last-child) {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
   .op-drawing-page {
@@ -411,13 +426,15 @@
     padding: 0 !important;
     margin: 0 auto !important;
     background: white !important;
-    page-break-after: always !important;
-    break-after: page !important;
     overflow: hidden !important;
     transform: none !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+  }
+  .op-drawing-page:not(:last-child) {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
   .op-drawing-image {
@@ -425,14 +442,6 @@
     height: 100% !important;
     object-fit: contain !important;
     display: block !important;
-  }
-
-  .op-print-page:last-child,
-  .op-operation-page:last-child,
-  .componentes-page:last-child,
-  .op-drawing-page:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
   }
 
 
@@ -505,6 +514,8 @@
   width: 196mm;
   min-height: 283mm;
   margin: 0 auto;
+}
+.componentes-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
 }
