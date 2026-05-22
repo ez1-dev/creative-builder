@@ -1,38 +1,56 @@
-## Diagnóstico (confirmado)
+## Problema observado no PDF anexo
 
-No `@media print` há esta regra em `op-print.css`:
+A última OP do lote (OP 7093) gera **20 páginas** quando o conteúdo real termina na página 18:
 
-```css
-.op-main-content,
-.operation-block,
-.op-operation,
-.componentes-page table,   /* ← este aqui */
-.op-drawing-content,
-.op-sheet table tr {
-  page-break-inside: avoid !important;
-  break-inside: avoid !important;
-}
-```
+- Página 17: bloco da operação (operation-single-page) — correto
+- Página 18: relação de componentes (componentes-page) — correto
+- **Página 19**: apenas um "esqueleto" do cabeçalho da tabela de componentes (linha do `<thead>` repetida pelo `display: table-header-group`) — indesejada
+- **Página 20**: totalmente em branco — indesejada
 
-Com isso, a tabela inteira de componentes é tratada como **um bloco indivisível**. Como a OP 1109 tem ~30 componentes, a tabela não cabe em uma folha A4 → o Chrome empurra para a próxima folha → continua não cabendo → resultado: a última folha sai com o cabeçalho da OP e a tabela some.
+A página 18 está vazia em mais de 50% (10 componentes cabem com folga), portanto não é um problema de overflow real. O Chrome está reservando espaço para uma "próxima página" da tabela por causa de duas combinações de CSS:
 
-## O que vou fazer
+1. `.componentes-page thead { display: table-header-group }` faz o cabeçalho da tabela se preparar para repetir em cada página potencial, induzindo Chrome a projetar uma página extra mesmo quando todas as linhas cabem em uma.
+2. `.op-operation-page` / `.operation-single-page` têm `page-break-after: always !important` aplicado sem checar `:last-child`. Quando a operation-page é seguida por componentes-page e ambas são as últimas do lote, o break extra pode empurrar conteúdo fantasma para uma página adicional.
 
-Editar apenas `src/components/producao/op-print.css`:
+## Correção proposta (somente CSS em `src/components/producao/op-print.css`)
 
-1. **Remover `.componentes-page table` do grupo `page-break-inside: avoid`** — a tabela precisa poder quebrar entre páginas A4.
-2. Manter o `page-break-inside: avoid` apenas nas **linhas (`tr`)** da tabela de componentes (já existe via `.componentes-page tr` e `.op-sheet table tr`), garantindo que nenhuma linha seja cortada ao meio.
-3. Manter `thead { display: table-header-group }` (já adicionado) para repetir o cabeçalho da tabela em cada folha.
+1. **Suprimir page-break no último elemento do lote**
+   Acrescentar regras `:last-child` para impedir Chrome de gerar uma página em branco depois do último bloco impresso:
+   ```css
+   @media print {
+     .op-print-batch > *:last-child,
+     .op-operation-page:last-child,
+     .componentes-page:last-child,
+     .op-drawing-page:last-child,
+     .op-print-page:last-child {
+       page-break-after: avoid !important;
+       break-after: avoid !important;
+     }
+     /* Remove o `page-break-after: always` incondicional do operation-single-page
+        quando ele é o último elemento do batch */
+     .operation-single-page:last-child {
+       page-break-after: avoid !important;
+       break-after: avoid !important;
+     }
+   }
+   ```
 
-Sem mudanças em `OpPrintSheet.tsx`, API ou lógica.
+2. **Evitar header-group repetindo desnecessariamente em tabela curta**
+   Manter `display: table-header-group` apenas dentro de `.componentes-page` (que pode quebrar para várias folhas) mas garantir que o `<tbody>` tenha `page-break-inside: auto` e que o próprio elemento `.componentes-page` use `page-break-after: avoid` quando for o último filho:
+   ```css
+   @media print {
+     .componentes-page tbody { page-break-inside: auto !important; break-inside: auto !important; }
+   }
+   ```
+
+3. **Não alterar nada na ordem dos blocos nem no `OpPrintSheet.tsx`** — operação continua na página 17, componentes na página 18.
 
 ## Resultado esperado
 
-- Folha de componentes da OP 1109 mostra todas as ~30 linhas, quebrando em quantas folhas A4 forem necessárias.
-- Cabeçalho da tabela (Código, Descrição, Qtde., UN, Dep., Endereço) repete a cada folha.
-- Linhas não são fatiadas no meio.
-- Layout de operações e desenhos permanece intacto.
+Pré-visualização Ctrl+P passa a mostrar **18 páginas no total** (em vez de 20). As páginas 19 e 20 deixam de aparecer. As demais OPs do lote continuam imprimindo normalmente com as mesmas quebras já corretas.
 
-## Arquivo-alvo
+## Verificação após implementação
 
-- `src/components/producao/op-print.css`
+Pedir ao usuário para reimprimir a OP 7093 (ou a mesma seleção do lote), abrir Ctrl+P e confirmar que:
+- A última página com conteúdo é a "Relação de Componentes Necessários" (página 18 no exemplo).
+- Não há mais sliver de cabeçalho de tabela nem folha totalmente em branco no fim.
