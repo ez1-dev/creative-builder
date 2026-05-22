@@ -14,6 +14,7 @@ import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
 import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
+import { PrintRenderer, opToPrintDocument } from '@/lib/relatorios/print';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { ProdutoAutocomplete } from '@/components/producao/ProdutoAutocomplete';
@@ -102,6 +103,9 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
+  // Feature flag: usa o novo RelatorioPrintEngine em vez do OpPrintBatch legado.
+  // Mantido OFF por padrão até validar equivalência 100% com a impressão atual.
+  const [usarNovoEngine, setUsarNovoEngine] = useState(false);
 
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
@@ -1171,10 +1175,35 @@ export default function ImpressaoOrdemProducaoPage() {
         </div>
       )}
 
+      {isAdmin && (
+        <div className="no-print flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-xs">
+          <Checkbox
+            id="usar-novo-engine"
+            checked={usarNovoEngine}
+            onCheckedChange={(v) => setUsarNovoEngine(v === true)}
+          />
+          <Label htmlFor="usar-novo-engine" className="cursor-pointer">
+            Usar novo motor de impressão (RelatorioPrintEngine) — beta
+          </Label>
+        </div>
+      )}
+
       <div className="print-root">
+        {usarNovoEngine && (lote?.ordens?.length || data?.cabecalho) && (
+          <PrintRenderer
+            doc={opToPrintDocument(
+              lote?.ordens?.length ? lote.ordens : [data as OpImpressao],
+              {
+                usuario: displayName ?? erpUser ?? null,
+                preview,
+                quebrarPorOperacao: filtros.quebrar_por_operacao === 'S',
+              },
+            )}
+            preview={preview}
+          />
+        )}
 
-
-        {lote && lote.ordens.length > 0 && (
+        {!usarNovoEngine && lote && lote.ordens.length > 0 && (
           <OpPrintBatch
             ops={lote.ordens}
             preview={preview}
@@ -1183,7 +1212,7 @@ export default function ImpressaoOrdemProducaoPage() {
           />
         )}
 
-        {!lote && data?.cabecalho && (
+        {!usarNovoEngine && !lote && data?.cabecalho && (
           <OpPrintSheet
             data={data}
             preview={preview || !!selectedRowKey}
