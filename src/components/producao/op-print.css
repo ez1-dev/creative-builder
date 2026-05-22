@@ -94,6 +94,11 @@
   page-break-inside: avoid;
 }
 
+.operation-single-page .op-operation {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
 .op-sheet .op-operation .op-row-barcode {
   display: flex;
   gap: 10px;
@@ -483,6 +488,18 @@
   .op-sheet table tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+  }
+
+  /* No modo "quebrar por operação", a folha pode comportar
+     cabeçalho + componentes + operação. Liberamos o avoid para
+     o navegador quebrar naturalmente caso estoure o A4, em vez
+     de empurrar a operação inteira para a próxima folha. */
+  .operation-single-page .op-operation,
+  .operation-single-page table,
+  .operation-single-page .op-apontamento-table,
+  .operation-single-page .op-apontamento-table tr {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
 
   .op-drawing-page {
