@@ -718,8 +718,7 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Visualize as OPs antes de imprimir.');
       return;
     }
-    await aguardarDesenhosProntos();
-    window.print();
+    await dispararImpressao();
   };
 
   const limparSelecao = () => {
