@@ -162,8 +162,15 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
   const renderComponentesPage = () => {
     if (componentes.length === 0) return null;
+    const total = componentes.length;
+    const densityClass =
+      total <= 30 ? ''
+      : total <= 50 ? 'componentes-page--compact-31-50'
+      : total <= 70 ? 'componentes-page--compact-51-70'
+      : 'componentes-page--compact-71';
     return (
-      <div className={`op-sheet componentes-page ${preview ? 'op-sheet--preview' : ''}`}>
+      <div className={`op-sheet componentes-page ${densityClass} ${preview ? 'op-sheet--preview' : ''}`.trim()}>
+
         {renderHeader()}
         <div className="op-section-title">RELAÇÃO DE COMPONENTES NECESSÁRIOS</div>
         {etgKeys.map((etg) => (
