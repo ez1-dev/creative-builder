@@ -1,3 +1,8 @@
+/**
+ * @deprecated Substituído pelo RelatorioPrintEngine (`src/lib/relatorios/print`
+ * + `opAdapter`). Mantido apenas como fallback para reversão administrativa
+ * até a próxima onda, quando será removido em definitivo.
+ */
 import type { OpImpressao } from "@/lib/producao/opImpressao";
 import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
 import type { OpDesenhoPaginaA4Carregada } from "@/lib/producao/opDesenhosA4";
