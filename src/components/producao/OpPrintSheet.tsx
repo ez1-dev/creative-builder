@@ -14,12 +14,69 @@ interface Props {
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
   imprimirDesenhos?: boolean | null;
+  /**
+   * Quando true, renderiza as páginas A4 completas do desenho (custo alto, usa fetch
+   * autenticado de PDFs/imagens grandes). Quando false, renderiza apenas miniaturas
+   * leves (no-print) para visualização. O padrão é `!preview` para manter o
+   * comportamento atual em fluxos que ainda não passam essa prop.
+   */
+  loadFullDrawings?: boolean;
 }
 
 function MissingDrawingPage() {
   return (
     <div className="op-print-unit op-missing-drawing-page">
       <div className="op-missing-drawing-label">Desenho não encontrado para esta OP</div>
+    </div>
+  );
+}
+
+function getDrawingThumbnailUrl(d: OpDesenho): string {
+  return d.url_thumbnail || d.url_impressao || d.url || "";
+}
+
+/**
+ * Miniatura leve do desenho para preview na tela. Nunca aparece na impressão
+ * (classe `.no-print` no container e regras CSS dedicadas). Usa
+ * `useAuthedBlobUrl` para baixar com Bearer + ngrok-skip-browser-warning.
+ */
+function DrawingPreviewThumbnail({ drawing, index }: { drawing: OpDesenho; index: number }) {
+  const url = getDrawingThumbnailUrl(drawing);
+  const { blobUrl, loading, error } = useAuthedBlobUrl(url);
+  const pdf = String(drawing.mime_type ?? "").toLowerCase().includes("pdf")
+    || String(drawing.extensao ?? "").toUpperCase() === "PDF";
+
+  return (
+    <div className="no-print drawing-thumbnail-wrapper" data-thumb-index={index}>
+      <div className="drawing-thumbnail-caption">
+        {drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+      </div>
+      {loading && <div className="drawing-thumbnail-status">Carregando miniatura...</div>}
+      {!loading && error && (
+        <div className="drawing-thumbnail-status">Não foi possível carregar a miniatura.</div>
+      )}
+      {!loading && !error && blobUrl && !pdf && (
+        <img
+          className="drawing-thumbnail"
+          src={blobUrl}
+          alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          loading="lazy"
+          decoding="async"
+        />
+      )}
+      {!loading && !error && blobUrl && pdf && (
+        <div className="drawing-thumbnail drawing-thumbnail-pdf">
+          PDF: {drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MissingDrawingPreview() {
+  return (
+    <div className="no-print drawing-thumbnail-wrapper drawing-thumbnail-missing">
+      Nenhum desenho encontrado para esta OP.
     </div>
   );
 }
