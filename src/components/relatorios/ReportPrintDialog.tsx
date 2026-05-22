@@ -1,14 +1,15 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Printer, X } from 'lucide-react';
-import { PrintRenderer, genericReportToPrintDocument } from '@/lib/relatorios/print';
+import { Printer, X, FileText, Loader2 } from 'lucide-react';
+import { PrintRenderer, genericReportToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
 import type {
   Relatorio,
   RelatorioColuna,
   RelatorioLayout,
 } from '@/lib/relatorios/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 type ColDraft = Omit<RelatorioColuna, 'id' | 'relatorio_id'>;
 
@@ -24,13 +25,14 @@ interface Props {
 
 /**
  * Preview de impressão genérico. Renderiza o relatório com o
- * RelatorioPrintEngine e dispara window.print() ao clicar em Imprimir.
+ * RelatorioPrintEngine e dispara window.print() / exportação PDF client-side.
  */
 export function ReportPrintDialog({
   open, onOpenChange, relatorio, layout, colunas, linhas, parametros,
 }: Props) {
   const { displayName, erpUser } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
   const doc = useMemo(
     () =>
@@ -46,11 +48,25 @@ export function ReportPrintDialog({
   );
 
   function imprimir() {
-    // O CSS do engine já oculta tudo fora de .rp-root durante a impressão.
     const originalTitle = document.title;
     document.title = doc.title;
     window.print();
     setTimeout(() => { document.title = originalTitle; }, 500);
+  }
+
+  async function exportarPdf() {
+    setExporting(true);
+    try {
+      const base = (relatorio.codigo || relatorio.nome || 'relatorio')
+        .toString()
+        .replace(/[^a-zA-Z0-9_-]+/g, '_');
+      await exportPrintDocumentToPdf(doc, { filename: `${base}.pdf` });
+      toast.success('PDF gerado com sucesso');
+    } catch (e: any) {
+      toast.error(`Falha ao gerar PDF: ${e?.message ?? e}`);
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -61,6 +77,10 @@ export function ReportPrintDialog({
           <div className="flex items-center gap-2 no-print">
             <Button size="sm" onClick={imprimir}>
               <Printer className="h-4 w-4 mr-1" /> Imprimir
+            </Button>
+            <Button size="sm" variant="outline" onClick={exportarPdf} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileText className="h-4 w-4 mr-1" />}
+              PDF
             </Button>
             <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4" />
@@ -74,3 +94,4 @@ export function ReportPrintDialog({
     </Dialog>
   );
 }
+
