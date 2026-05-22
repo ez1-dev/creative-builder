@@ -418,23 +418,35 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       <>
         {operacoes.map((op, i) => {
           const isPrimeira = i === 0;
+          const temComponentesInline = isPrimeira && componentes.length > 0;
+          // Reduz blocos de apontamento quando há componentes acima, para caber numa única folha A4.
+          // Estimativa: cada bloco ≈ 32mm; cabeçalho ≈ 50mm; componentes (até ~7) ≈ 35mm;
+          // bloco de operação (cabeçalho) ≈ 45mm; área útil A4 ≈ 283mm.
+          let blocos = 6;
+          if (temComponentesInline) {
+            const n = componentes.length;
+            if (n <= 3) blocos = 5;
+            else if (n <= 7) blocos = 4;
+            else blocos = 3;
+          }
           return (
             <div
               key={`opp-${i}`}
               className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
             >
               {renderHeader()}
-              {isPrimeira && componentes.length > 0 && (
+              {temComponentesInline && (
                 <div className="componentes-inline">
                   {renderComponentes()}
                 </div>
               )}
               <div className="op-section-title">Operação</div>
-              {renderOperacao(op, i)}
+              {renderOperacao(op, i, blocos)}
               {renderFooter()}
             </div>
           );
         })}
+
         {desenhos.length > 0 && renderDesenhos('drw-end')}
         {renderPreviewDesenhosResumo()}
       </>
