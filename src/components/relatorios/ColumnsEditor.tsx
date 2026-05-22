@@ -87,16 +87,21 @@ export function ColumnsEditor({ colunas, onChange, onSave, onRestoreDefault, can
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 <TableHead className="w-20">Ordem</TableHead>
-                <TableHead className="w-40">Campo</TableHead>
+                <TableHead className="w-36">Campo</TableHead>
                 <TableHead>Título</TableHead>
-                <TableHead className="w-20">Visível</TableHead>
-                <TableHead className="w-32">Tipo</TableHead>
-                <TableHead className="w-32">Formato</TableHead>
-                <TableHead className="w-32">Alinhamento</TableHead>
-                <TableHead className="w-24">Largura</TableHead>
-                <TableHead className="w-20">Totalizar</TableHead>
-                <TableHead className="w-20">Agrupar</TableHead>
+                <TableHead className="w-16">Tela</TableHead>
+                <TableHead className="w-16">Excel</TableHead>
+                <TableHead className="w-16">PDF</TableHead>
+                <TableHead className="w-28">Tipo</TableHead>
+                <TableHead className="w-28">Formato</TableHead>
+                <TableHead className="w-28">Alinhamento</TableHead>
+                <TableHead className="w-20">Largura</TableHead>
+                <TableHead className="w-16">Σ</TableHead>
+                <TableHead className="w-16">Agrup.</TableHead>
+                <TableHead className="w-16">Ord.</TableHead>
+                <TableHead className="w-16">Filtro</TableHead>
               </TableRow>
+
             </TableHeader>
             <TableBody>
               {colunas.map((c, idx) => (
