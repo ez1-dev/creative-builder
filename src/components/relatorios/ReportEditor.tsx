@@ -256,6 +256,8 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
           <TabsTrigger value="colunas">Colunas</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
           {!isApiRest && <TabsTrigger value="preview">Pré-visualização</TabsTrigger>}
+          {relatorio.id && <TabsTrigger value="publicacao">Publicação</TabsTrigger>}
+          {relatorio.id && <TabsTrigger value="versoes">Versões</TabsTrigger>}
           {relatorio.id && <TabsTrigger value="historico">Histórico</TabsTrigger>}
         </TabsList>
         <div className="flex-1 overflow-auto pt-4">
