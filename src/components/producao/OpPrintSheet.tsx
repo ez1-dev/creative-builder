@@ -426,7 +426,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             {renderFooter()}
           </div>
         ))}
-        {quebrarComponentes && renderComponentesPage()}
+        {componentes.length > 0 && renderComponentesPage()}
         {desenhos.length > 0 && renderDesenhos('drw-end')}
         {renderPreviewDesenhosResumo()}
       </>

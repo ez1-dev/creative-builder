@@ -1,73 +1,43 @@
-## Diagnóstico
+## Diagnóstico confirmado
 
-Em `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`, a função `visualizarSelecionadas` (linhas ~622-680) monta o payload de cada OP do lote repassando os filtros **`cod_etg` (Estágio)** e **`cod_cre` (Centro de Recurso)** que estão no formulário de busca:
+`src/components/producao/OpPrintSheet.tsx` linha **429**, dentro do bloco `if (quebrarPorOperacao)`:
 
-```ts
-if (filtros.cod_etg) payload.cod_etg = filtros.cod_etg;
-if (filtros.cod_cre) payload.cod_cre = filtros.cod_cre;
+```tsx
+{quebrarComponentes && renderComponentesPage()}
 ```
 
-Esses dois filtros têm a função de **restringir a lista de OPs** retornada pela busca, mas o backend de impressão (`/api/producao/ordem-producao/impressao`) os usa também para **filtrar internamente os componentes e operações** retornados de cada OP individual.
+`quebrarComponentes` só é `true` quando `componentes.length > limiteComp` (limite = 7). Em modo "quebrar por operação", se a OP tem ≤ 7 componentes (caso da OP 125), a página de componentes **nunca é renderizada** — nem nas operações (já removida antes para evitar duplicação), nem ao final. Por isso a OP 125 sai sem a "Relação de Componentes Necessários".
 
-Resultado:
-- Se a OP 125 tem componentes em estágios diferentes do `cod_etg` filtrado (ou operações em outro `cod_cre`), o backend devolve `componentes: []` e o `OpPrintSheet` renderiza a OP sem o bloco "Relação de Componentes".
-- A impressão individual via clique direto na linha às vezes funciona porque o usuário pode estar limpando o filtro antes, ou clicando em uma OP cujo estágio bate com o filtro — comportamento inconsistente.
-
-A confirmação do usuário ("uso seleção múltipla, com Estágio/Centro de Recurso preenchidos") fecha o diagnóstico.
+A OP 140/30 tem > 7 componentes, então cai no `true` e a página é gerada.
 
 ## Correção
 
-Os filtros `cod_etg` e `cod_cre` servem apenas para **encontrar** as OPs na grade. Uma vez selecionadas as OPs, a impressão de cada uma deve ser **completa** (todos os componentes, todas as operações), independente do filtro usado na busca.
+Trocar a condição para renderizar a página de componentes **sempre que houver componentes**, no modo quebra por operação. `renderComponentesPage()` já lida internamente com `componentes.length === 0`, mas mantemos a guarda explícita por clareza.
 
-### Alterações
+### Alteração única
 
-**1) `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` — `visualizarSelecionadas` (~linhas 642-652)**
+**`src/components/producao/OpPrintSheet.tsx` — linha 429**
 
-Remover o repasse de `cod_etg` e `cod_cre` no payload por OP do lote:
-
-```ts
-const payload: Record<string, any> = {
-  cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
-  cod_ori: String(op.cod_ori ?? ''),
-  num_orp: Number(op.num_orp ?? 0),
-  listar_componentes,
-  listar_desenho,
-  quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
-};
-// NÃO repassar cod_etg / cod_cre — esses filtros são da busca da lista,
-// não devem restringir o conteúdo (componentes/operações) de cada OP.
-if (filtros.incluir_desenhos === 'S') payload.incluir_desenhos = 'S';
+Trocar:
+```tsx
+{quebrarComponentes && renderComponentesPage()}
 ```
 
-**2) `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` — `handleRowSelect` (~linhas 536-548)**
-
-Aplicar a mesma regra na impressão individual via clique na linha, para manter coerência (hoje também passa `cod_etg`/`cod_cre` da tela e poderia esconder componentes silenciosamente):
-
-```ts
-const eff: ImpressaoOpFiltros = {
-  cod_emp,
-  cod_ori,
-  num_orp,
-  listar_componentes: 'S',
-  listar_desenho: 'N',
-  incluir_desenhos: 'S',
-  quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
-  // cod_etg / cod_cre intencionalmente NÃO repassados
-};
+Por:
+```tsx
+{componentes.length > 0 && renderComponentesPage()}
 ```
 
-**3) `imprimirTodas` (~linhas 588-600) — manter como está**
-
-Esse fluxo chama `/impressao/lote` no backend, e os filtros `cod_etg`/`cod_cre` ali servem justamente para **escolher quais OPs entram no lote** — devem continuar sendo enviados.
+`renderComponentesPage()` já cria UMA página A4 com cabeçalho + tabela de componentes agrupados por estágio. Cabe naturalmente em uma página para OPs pequenas; para OPs grandes a tabela quebra via CSS de impressão. Mantém o comportamento atual de OPs com muitos componentes (140/30) e passa a contemplar as pequenas (125).
 
 ## Escopo
 
-- Apenas a página de Impressão de Ordem de Produção.
-- Sem alteração no backend, no `OpPrintSheet`, no CSS, no quadro REV ou no layout dos blocos de apontamento.
-- Sem mudança em outros módulos.
+- Apenas 1 linha em `OpPrintSheet.tsx`.
+- Não altera modo padrão (sem quebra por operação).
+- Não altera API, busca individual, lógica de desenhos, cabeçalho ou apontamento.
 
-## Validação esperada
+## Validação
 
-1. Aplicar filtro Estágio = 2000 (ou outro), buscar OPs, selecionar várias incluindo a 125, clicar em "Visualizar selecionadas".
-2. A OP 125 deve aparecer com a "Relação de Componentes Necessários" preenchida — igual à impressão individual.
-3. Repetir com filtro de Centro de Recurso para confirmar.
+1. Imprimir em lote (seleção múltipla) com `quebrar por operação = Sim` incluindo a OP 125.
+2. Após as páginas de operação da OP 125, deve aparecer uma página com "Relação de Componentes Necessários" listando os 5 componentes (Estágio 2000).
+3. Para a OP 140/30 (>7 componentes), comportamento permanece igual.
