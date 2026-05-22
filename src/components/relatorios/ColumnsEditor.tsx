@@ -120,6 +120,8 @@ export function ColumnsEditor({ colunas, onChange, onSave, onRestoreDefault, can
                   <TableCell className="font-mono text-xs">{c.campo}</TableCell>
                   <TableCell><Input value={c.titulo ?? ''} onChange={(e) => update(idx, { titulo: e.target.value })} className="h-8" /></TableCell>
                   <TableCell><Switch checked={c.visivel} onCheckedChange={(v) => update(idx, { visivel: v })} /></TableCell>
+                  <TableCell><Switch checked={c.visivel_excel} onCheckedChange={(v) => update(idx, { visivel_excel: v })} /></TableCell>
+                  <TableCell><Switch checked={c.visivel_pdf} onCheckedChange={(v) => update(idx, { visivel_pdf: v })} /></TableCell>
                   <TableCell>
                     <Select value={(c.tipo ?? 'texto') as string} onValueChange={(v) => update(idx, { tipo: v as ColunaTipo })}>
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
