@@ -933,6 +933,16 @@ export default function ImpressaoOrdemProducaoPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      onClick={imprimirVisualizacao}
+                      disabled={!lote || lote.ordens.length === 0 || loteLoading}
+                      title={!lote ? 'Visualize as OPs antes de imprimir' : 'Imprimir as OPs já visualizadas'}
+                    >
+                      <Printer className="mr-1 h-3 w-3" />
+                      Imprimir visualização
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       onClick={limparSelecao}
                       disabled={selectedKeys.size === 0 && !lote}
                     >
