@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Barcode } from "./Barcode";
 import { useAuthedBlobUrl } from "@/hooks/useAuthedBlobUrl";
 import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
@@ -475,28 +475,32 @@ export function OpPrintSheet({
             else if (n <= 7) blocos = 4;
           }
 
+          const semDesenhos =
+            desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0);
+
           return (
-            <div
-              key={`opp-${i}`}
-              className={`op-sheet op-print-unit op-operation-page operation-single-page ${
-                renderizarComponentesInline ? "has-componentes-inline" : ""
-              } apt-blocos-${blocos} ${preview ? "op-sheet--preview" : ""}`}
-            >
-              {renderHeader()}
+            <Fragment key={`opp-${i}`}>
+              <div
+                className={`op-sheet op-print-unit op-operation-page operation-single-page ${
+                  renderizarComponentesInline ? "has-componentes-inline" : ""
+                } apt-blocos-${blocos} ${preview ? "op-sheet--preview" : ""}`}
+              >
+                {renderHeader()}
 
-              {renderizarComponentesInline && <div className="componentes-inline">{renderComponentes()}</div>}
+                {renderizarComponentesInline && <div className="componentes-inline">{renderComponentes()}</div>}
 
-              <div className="op-section-title">Operação</div>
-              {renderOperacao(op, i, blocos)}
-            </div>
+                <div className="op-section-title">Operação</div>
+                {renderOperacao(op, i, blocos)}
+              </div>
+
+              {imprimirDesenhos && desenhos.length > 0 && renderDesenhos(`drw-op-${i}`)}
+              {imprimirDesenhos && semDesenhos && <MissingDrawingPage />}
+            </Fragment>
           );
         })}
 
         {componentesEmPaginaSeparada && renderComponentesPagesPaginadas()}
 
-        {desenhos.length > 0 && renderDesenhos("drw-end")}
-
-        {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
 
         {preview && renderPreviewDesenhosResumo()}
       </>
