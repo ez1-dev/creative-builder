@@ -14,7 +14,7 @@ import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
 import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
-import { PrintRenderer, opToPrintDocument } from '@/lib/relatorios/print';
+import { PrintRenderer, opToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { ProdutoAutocomplete } from '@/components/producao/ProdutoAutocomplete';
