@@ -38,7 +38,6 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 export function OpPrintSheet({
   data,
   preview = false,
-  usuario,
   quebrarPorOperacao: propQuebrarPorOperacao,
   blobStates,
   paginasDesenhosA4,
@@ -487,7 +486,7 @@ export function OpPrintSheet({
 
         {desenhos.length > 0 && renderDesenhos("drw-end")}
 
-        {renderPreviewDesenhosResumo()}
+        {preview && renderPreviewDesenhosResumo()}
       </>
     );
   }
@@ -510,7 +509,7 @@ export function OpPrintSheet({
 
         {renderDesenhos()}
 
-        {renderPreviewDesenhosResumo()}
+        {preview && renderPreviewDesenhosResumo()}
       </>
     );
   }
@@ -532,7 +531,7 @@ export function OpPrintSheet({
 
       {renderDesenhos()}
 
-      {renderPreviewDesenhosResumo()}
+      {preview && renderPreviewDesenhosResumo()}
     </>
   );
 }
