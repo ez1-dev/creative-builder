@@ -33,6 +33,7 @@ export function OpPrintBatch({
   quebrarPorOperacao,
   blobStates,
   paginasDesenhosA4PorOp,
+  imprimirDesenhos,
 }: Props) {
   const lista = Array.isArray(ops) ? ops : [];
 
