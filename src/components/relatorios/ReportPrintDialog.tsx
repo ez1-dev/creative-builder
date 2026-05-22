@@ -88,6 +88,18 @@ export function ReportPrintDialog({
         <DialogHeader className="px-4 py-3 border-b border-border flex flex-row items-center justify-between space-y-0">
           <DialogTitle className="text-sm">Pré-visualização de impressão — {doc.title}</DialogTitle>
           <div className="flex items-center gap-2 no-print">
+            <Select value={template} onValueChange={(v) => setTemplate(v as PrintTemplateId)}>
+              <SelectTrigger className="h-8 w-[160px] text-xs">
+                <SelectValue placeholder="Template" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRINT_TEMPLATE_LIST.map((t) => (
+                  <SelectItem key={t.id} value={t.id} title={t.description}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button size="sm" onClick={imprimir}>
               <Printer className="h-4 w-4 mr-1" /> Imprimir
             </Button>
