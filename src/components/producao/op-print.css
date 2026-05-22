@@ -291,15 +291,16 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+.op-drawing-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
   page-break-before: always;
   break-before: page;
 }
-.op-drawing-page:last-child,
-.op-print-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
+.op-drawing-page:last-child {
+  page-break-before: always;
+  break-before: page;
 }
 .op-drawing-image {
   width: 100%;
