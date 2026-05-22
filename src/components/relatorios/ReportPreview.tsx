@@ -217,13 +217,11 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
           disabled={!result || !result.linhas.length}
           size="sm"
           variant="outline"
-          title="Pré-visualizar / imprimir via RelatorioPrintEngine"
+          title="Pré-visualizar / imprimir / exportar PDF via RelatorioPrintEngine"
         >
-          <Printer className="h-4 w-4 mr-1" /> Imprimir
+          <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
         </Button>
-        <Button onClick={() => exportar('pdf')} disabled size="sm" variant="outline" title="Disponível na próxima onda">
-          <FileText className="h-4 w-4 mr-1" /> PDF
-        </Button>
+
       </div>
 
       {!podeExportar && result && (

@@ -103,9 +103,11 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
-  // Feature flag: usa o novo RelatorioPrintEngine em vez do OpPrintBatch legado.
-  // Mantido OFF por padrão até validar equivalência 100% com a impressão atual.
-  const [usarNovoEngine, setUsarNovoEngine] = useState(false);
+  // Feature flag: novo RelatorioPrintEngine é o padrão a partir da Onda 5.
+  // Admins podem reverter para o motor legado (OpPrintBatch/OpPrintSheet) caso
+  // detectem alguma regressão.
+  const [usarNovoEngine, setUsarNovoEngine] = useState(true);
+
 
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
@@ -1183,8 +1185,9 @@ export default function ImpressaoOrdemProducaoPage() {
             onCheckedChange={(v) => setUsarNovoEngine(v === true)}
           />
           <Label htmlFor="usar-novo-engine" className="cursor-pointer">
-            Usar novo motor de impressão (RelatorioPrintEngine) — beta
+            Usar novo motor de impressão (RelatorioPrintEngine) — padrão. Desmarque para usar o motor legado.
           </Label>
+
         </div>
       )}
 
