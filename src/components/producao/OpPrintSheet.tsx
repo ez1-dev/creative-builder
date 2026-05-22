@@ -415,18 +415,25 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     }
     return (
       <>
-        {operacoes.map((op, i) => (
-          <div
-            key={`opp-${i}`}
-            className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
-          >
-            {renderHeader()}
-            <div className="op-section-title">Operação</div>
-            {renderOperacao(op, i)}
-            {renderFooter()}
-          </div>
-        ))}
-        {componentes.length > 0 && renderComponentesPage()}
+        {operacoes.map((op, i) => {
+          const isUltima = i === operacoes.length - 1;
+          return (
+            <div
+              key={`opp-${i}`}
+              className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
+            >
+              {renderHeader()}
+              <div className="op-section-title">Operação</div>
+              {renderOperacao(op, i)}
+              {isUltima && componentes.length > 0 && (
+                <div className="componentes-inline">
+                  {renderComponentes()}
+                </div>
+              )}
+              {renderFooter()}
+            </div>
+          );
+        })}
         {desenhos.length > 0 && renderDesenhos('drw-end')}
         {renderPreviewDesenhosResumo()}
       </>
