@@ -497,7 +497,6 @@
   .op-main-content,
   .operation-block,
   .op-operation,
-  .componentes-page table,
   .op-drawing-content,
   .op-sheet table tr {
     page-break-inside: avoid !important;
