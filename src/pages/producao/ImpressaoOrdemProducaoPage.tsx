@@ -1205,7 +1205,7 @@ export default function ImpressaoOrdemProducaoPage() {
 
         {!usarNovoEngine && lote && lote.ordens.length > 0 && (
           <OpPrintBatch
-            ordens={lote.ordens}
+            ops={lote.ordens}
             preview={preview}
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
