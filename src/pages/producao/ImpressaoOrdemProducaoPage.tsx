@@ -191,6 +191,14 @@ export default function ImpressaoOrdemProducaoPage() {
     setSelectedRowKey(null);
   }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp, filtros.cod_pro]);
 
+  // Quando uma nova OP é carregada (mudou o cabeçalho), volta ao modo "preview-only"
+  // para não pré-carregar desenhos A4 da OP anterior.
+  useEffect(() => {
+    setLoadFullDrawings(false);
+    pendingPrintRef.current = false;
+  }, [data?.cabecalho?.cod_emp, data?.cabecalho?.cod_ori, data?.cabecalho?.num_orp, lote]);
+
+
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
 
