@@ -2,7 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, X, FileText, Loader2 } from 'lucide-react';
-import { PrintRenderer, genericReportToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
+import {
+  PrintRenderer,
+  genericReportToPrintDocument,
+  exportPrintDocumentToPdf,
+  applyPrintTemplate,
+  PRINT_TEMPLATE_LIST,
+  type PrintTemplateId,
+} from '@/lib/relatorios/print';
 import type {
   Relatorio,
   RelatorioColuna,
@@ -10,6 +17,7 @@ import type {
 } from '@/lib/relatorios/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type ColDraft = Omit<RelatorioColuna, 'id' | 'relatorio_id'>;
 
