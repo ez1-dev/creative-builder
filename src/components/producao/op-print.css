@@ -287,32 +287,11 @@
 }
 
 .componentes-inline {
-  margin-top: 4pt;
-  margin-bottom: 0;
+  margin-bottom: 8pt;
 }
 .componentes-inline .op-section-title {
-  margin-top: 4pt;
+  margin-top: 0;
 }
-@media print {
-  .componentes-inline table {
-    font-size: 7.5pt !important;
-    line-height: 1.05 !important;
-  }
-  .componentes-inline th,
-  .componentes-inline td {
-    padding: 0.6mm 1mm !important;
-    line-height: 1.05 !important;
-  }
-  .componentes-inline .op-stage-bar {
-    padding: 1mm 2mm !important;
-    margin: 1mm 0 !important;
-  }
-  .componentes-inline .op-section-title {
-    margin: 1mm 0 !important;
-    font-size: 9pt !important;
-  }
-}
-
 
 .op-drawing-page {
   width: 196mm;
@@ -700,19 +679,18 @@
     padding-bottom: 2mm !important;
   }
 
-  /* Quando há componentes inline na mesma folha (abaixo da operação),
-     encolhe os blocos de apontamento para garantir o encaixe em A4. */
-  .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-head th {
+  /* Quando há componentes inline na mesma folha, encolhe levemente os blocos
+     de apontamento para garantir que tudo caiba em uma única página A4. */
+  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-head th {
     height: 4mm !important;
     font-size: 7pt !important;
   }
-  .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-fill td {
+  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-fill td {
     height: 8mm !important;
   }
-  .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-row-end td {
+  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-row-end td {
     padding-bottom: 1mm !important;
   }
-
 
 
 }

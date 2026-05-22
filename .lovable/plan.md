@@ -1,59 +1,42 @@
-## Regra final do layout de impressão (Quebrar por operação)
+## Objetivo
+Aplicar a regra de **mais de 7 componentes** no layout de impressão: quando a OP tiver mais de 7 componentes, a primeira folha fica com **cabeçalho + operação(ões)** e os **componentes vão para uma folha própria com o mesmo cabeçalho**, independente de haver desenhos ou não.
 
-### Até 7 componentes
-```text
-Página 1: cabeçalho + operação + apontamento + componentes (abaixo da operação)
-Próximas: desenhos (se marcado)
-```
+## O que vou fazer
+1. **Aplicar a regra também no modo "Quebrar por operação"**
+   - Hoje, nesse modo, os componentes são sempre colados acima da primeira operação.
+   - Passa a valer: se houver **mais de 7 componentes**, eles **não** ficam inline; saem em uma folha dedicada (com cabeçalho próprio).
+   - Quando houver até 7 componentes, mantém o comportamento atual (inline na folha da primeira operação).
 
-### Mais de 7 componentes
-```text
-Página 1: cabeçalho + operação + apontamento
-Página 2: cabeçalho + Relação de Componentes Necessários
-Próximas: desenhos (se marcado)
-```
+2. **Garantir o mesmo critério no modo padrão**
+   - Confirmar que o limite de 7 já existente continua acionando a folha separada de componentes com cabeçalho.
+   - Manter a página de componentes sempre com o mesmo cabeçalho da OP.
 
-Vale com ou sem desenhos.
+3. **Ordem das folhas no modo "Quebrar por operação" com >7 componentes**
+   ```text
+   Folha 1: cabeçalho + 1ª operação
+   Folha 2: cabeçalho + componentes
+   Folhas seguintes: demais operações (uma por folha, com cabeçalho)
+   Por último: desenhos (uma página por desenho)
+   ```
 
-## O que vou ajustar
-
-1. **Posição dos componentes na 1ª folha (≤ 7)**
-   - Mover o bloco de componentes para **abaixo da operação** (hoje está acima).
-   - Render compacto, só na folha da **última operação** (para não duplicar entre páginas de operações).
-   - Garantir que componentes apareçam **uma única vez por OP**, nunca antes da operação.
-
-2. **Folha separada de componentes (> 7)**
-   - Sair sempre na 2ª folha, com cabeçalho da OP.
-   - Posicionada **depois das operações** e **antes dos desenhos**.
-   - Acionada exclusivamente pelo critério `componentes.length > 7`, independente de desenhos.
-
-3. **Desenhos**
-   - Continuam por último, sem influenciar a decisão dos componentes.
-   - Cada desenho em uma página A4 dedicada.
-
-4. **CSS de impressão**
-   - Ajustar `.op-operation-page` e `.componentes-page` para travar a folha em A4 e forçar `page-break-after`.
-   - Adicionar regra compacta para a tabela de componentes inline (fontes/paddings menores) para caber sem estourar a página.
-   - Não mexer no modo padrão (sem quebra por operação).
+4. **Independência dos desenhos**
+   - A regra vale **com ou sem desenhos**.
+   - Desenhos continuam em folhas A4 dedicadas, sem alterar a ordem das folhas anteriores.
 
 5. **Validar nos 3 fluxos**
    - Impressão individual
    - "Visualizar selecionadas"
    - "Imprimir visualização"
 
+## Resultado esperado
+- Até 7 componentes: igual ao que já fizemos (componentes acima da operação na mesma folha).
+- Mais de 7 componentes: operação na folha 1, componentes em folha própria com cabeçalho, desenhos depois.
+
 ## Detalhes técnicos
 - Arquivos-alvo:
-  - `src/components/producao/OpPrintSheet.tsx` — fluxo `quebrarPorOperacao`:
-    - inline somente quando `componentes.length <= 7`, **abaixo** da operação e **apenas** na última iteração de `operacoes.map`.
-    - `renderComponentesPage()` chamado uma única vez quando `componentes.length > 7`, após o `map` das operações e antes dos desenhos.
-  - `src/components/producao/op-print.css` — regras `@media print` para `.op-operation-page`, `.componentes-inline` (compacto) e `.componentes-page`.
+  - `src/components/producao/OpPrintSheet.tsx` (regra de quando renderizar inline x página separada no modo `quebrarPorOperacao`)
+  - `src/components/producao/op-print.css` apenas se precisar de ajuste fino de quebra entre as folhas
 - Escopo excluído:
   - sem mudança de API
-  - sem mudança na busca individual
-  - sem mudança no modo padrão (sem quebra por operação)
-  - sem alteração no fluxo de desenhos
-
-## Resultado esperado
-- 6 componentes: 1 folha com tudo + desenhos depois (se houver).
-- 8 componentes: folha 1 só operação, folha 2 só componentes (com cabeçalho), depois desenhos (se houver).
-- 8 componentes sem desenho: termina na folha 2.
+  - sem mudança na busca/seleção de OPs
+  - sem mudança no comportamento de desenhos
