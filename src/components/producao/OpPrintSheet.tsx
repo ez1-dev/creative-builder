@@ -471,7 +471,7 @@ export function OpPrintSheet({
   const temAlgumDesenho =
     (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0;
 
-  const renderDesenhos = (keyPrefix = "drw") => {
+  const renderDesenhosA4 = (keyPrefix = "drw") => {
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
       return paginasDesenhosA4.map((pg, i) => (
         <div
@@ -493,12 +493,47 @@ export function OpPrintSheet({
     ));
   };
 
-  // Centraliza a regra: imprime desenho real ou reserva uma página branca técnica.
+  const renderDesenhosThumbs = (keyPrefix: string): ReactNode => {
+    if (desenhos.length === 0) {
+      return <MissingDrawingPreview key={`${keyPrefix}-thumb-missing`} />;
+    }
+    return (
+      <>
+        {desenhos.map((d, i) => (
+          <DrawingPreviewThumbnail
+            key={`${keyPrefix}-thumb-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
+            drawing={d}
+            index={i}
+          />
+        ))}
+      </>
+    );
+  };
+
+  // Centraliza a regra:
+  // - sempre inclui miniaturas leves para visualização (no-print);
+  // - inclui as páginas A4 reais (custosas) apenas quando `carregarDesenhosA4`;
+  // - reserva uma página branca técnica quando não há desenho.
   // Retorna null quando "Imprimir desenhos da OP" estiver desmarcado.
   const renderDesenhosOuReserva = (keyPrefix: string): ReactNode => {
     if (!imprimirDesenhos) return null;
-    if (temAlgumDesenho) return renderDesenhos(keyPrefix);
-    return <MissingDrawingPage key={`${keyPrefix}-missing`} />;
+    return (
+      <Fragment key={`${keyPrefix}-bloco`}>
+        {renderDesenhosThumbs(keyPrefix)}
+        {carregarDesenhosA4 && (
+          temAlgumDesenho
+            ? renderDesenhosA4(keyPrefix)
+            : <MissingDrawingPage key={`${keyPrefix}-missing`} />
+        )}
+      </Fragment>
+    );
+  };
+
+  // Compat: alguns trechos chamam diretamente renderDesenhos(); mantemos
+  // como um atalho que respeita o flag `carregarDesenhosA4`.
+  const renderDesenhos = (keyPrefix = "drw"): ReactNode => {
+    if (!carregarDesenhosA4) return null;
+    return renderDesenhosA4(keyPrefix);
   };
 
 
