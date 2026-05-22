@@ -500,11 +500,30 @@ export default function ImpressaoOrdemProducaoPage() {
     window.print();
   };
 
+  const [pdfLoading, setPdfLoading] = useState(false);
   const gerarPdf = async () => {
-    if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
-    toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
-    await aguardarDesenhosProntos();
-    window.print();
+    if (!data?.cabecalho && !lote?.ordens?.length) {
+      toast.info('Consulte uma O.P. antes de gerar o PDF.');
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const ops = lote?.ordens?.length ? lote.ordens : [data as OpImpressao];
+      const doc = opToPrintDocument(ops, {
+        usuario: displayName ?? erpUser ?? null,
+        preview,
+        quebrarPorOperacao: filtros.quebrar_por_operacao === 'S',
+      });
+      const filename = ops.length === 1
+        ? `OP_${ops[0]?.cabecalho?.cod_ori ?? ''}_${ops[0]?.cabecalho?.num_orp ?? ''}.pdf`
+        : `OPs_${ops.length}_ordens_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`;
+      await exportPrintDocumentToPdf(doc, { filename });
+      toast.success(`PDF ${filename} gerado.`);
+    } catch (e: any) {
+      toast.error(`Falha ao gerar PDF: ${e?.message ?? e}`);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
 
