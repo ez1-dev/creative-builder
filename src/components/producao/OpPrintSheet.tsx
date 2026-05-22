@@ -414,24 +414,25 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
       );
     }
-    // Regra: até `limiteComp` componentes ficam inline (abaixo da operação)
-    // na ÚLTIMA operação. Acima disso, vão para uma folha própria (com
-    // cabeçalho) após todas as operações. Componentes nunca aparecem antes
-    // da operação e nunca se repetem.
+    // Regra: até `limiteComp` componentes ficam inline na 1ª folha (acima da operação).
+    // Acima disso, vão para uma folha própria (com cabeçalho) após a 1ª operação.
     const componentesInline = componentes.length > 0 && componentes.length <= limiteComp;
     const componentesEmPaginaSeparada = componentes.length > limiteComp;
     return (
       <>
         {operacoes.map((op, i) => {
-          const isUltima = i === operacoes.length - 1;
-          const temComponentesInline = isUltima && componentesInline;
-          // Sem componentes inline → 6 blocos padrão.
-          // Com componentes inline → encolhe para garantir encaixe na folha A4.
+          const isPrimeira = i === 0;
+          const temComponentesInline = isPrimeira && componentesInline;
+          // Reduz blocos de apontamento quando há componentes acima, para caber numa única folha A4.
           let blocos = 6;
           if (temComponentesInline) {
             const n = componentes.length;
             if (n <= 3) blocos = 5;
             else if (n <= 7) blocos = 4;
+          } else if (isPrimeira && componentesEmPaginaSeparada) {
+            // Sem componentes inline, mas cabeçalho + 6 blocos estouram a folha
+            // empurrando a operação para a página seguinte. Encolhe para 5.
+            blocos = 5;
           }
           return (
             <div
@@ -439,13 +440,13 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
               className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
             >
               {renderHeader()}
-              <div className="op-section-title">Operação</div>
-              {renderOperacao(op, i, blocos)}
               {temComponentesInline && (
                 <div className="componentes-inline">
                   {renderComponentes()}
                 </div>
               )}
+              <div className="op-section-title">Operação</div>
+              {renderOperacao(op, i, blocos)}
               {renderFooter()}
             </div>
           );
