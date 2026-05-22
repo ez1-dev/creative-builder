@@ -643,3 +643,33 @@
   }
 }
 
+/* ===== Densidade da página de componentes (>30 itens caber em 1 folha) ===== */
+.componentes-page--compact-31-50 table { font-size: 8.5px; }
+.componentes-page--compact-31-50 th,
+.componentes-page--compact-31-50 td { padding: 1px 3px !important; line-height: 1.1; }
+
+.componentes-page--compact-51-70 table { font-size: 7.5px; }
+.componentes-page--compact-51-70 th,
+.componentes-page--compact-51-70 td { padding: 0.5px 2px !important; line-height: 1.05; }
+.componentes-page--compact-51-70 .op-stage-bar,
+.componentes-page--compact-51-70 .op-section-title { font-size: 9px; padding: 1px 4px; }
+
+.componentes-page--compact-71 table { font-size: 6.5px; }
+.componentes-page--compact-71 th,
+.componentes-page--compact-71 td { padding: 0 2px !important; line-height: 1.0; }
+.componentes-page--compact-71 .op-stage-bar,
+.componentes-page--compact-71 .op-section-title { font-size: 8px; padding: 0 4px; }
+
+@media print {
+  .componentes-page--compact-31-50,
+  .componentes-page--compact-51-70,
+  .componentes-page--compact-71,
+  .componentes-page--compact-31-50 tbody,
+  .componentes-page--compact-51-70 tbody,
+  .componentes-page--compact-71 tbody {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}
+
+
