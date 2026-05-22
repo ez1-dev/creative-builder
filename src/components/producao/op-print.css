@@ -900,3 +900,65 @@
     object-fit: contain !important;
   }
 }
+
+/* =========================================================
+   CORREÇÃO FINAL: remover página em branco no fim da impressão agrupada
+   ========================================================= */
+
+@media print {
+  /*
+    Primeiro zera a quebra forçada em todos os possíveis blocos.
+    Isso evita que o último bloco gere uma folha em branco.
+  */
+  .op-print-page,
+  .op-print-group,
+  .op-sheet,
+  .op-operation-page,
+  .operation-single-page,
+  .componentes-page,
+  .op-drawing-page {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /*
+    Quebra somente entre páginas internas da mesma OP.
+  */
+  .op-print-page > .op-sheet:not(:last-child),
+  .op-print-page > .op-operation-page:not(:last-child),
+  .op-print-page > .operation-single-page:not(:last-child),
+  .op-print-page > .componentes-page:not(:last-child),
+  .op-print-page > .op-drawing-page:not(:last-child),
+  .op-print-group > .op-sheet:not(:last-child),
+  .op-print-group > .op-operation-page:not(:last-child),
+  .op-print-group > .operation-single-page:not(:last-child),
+  .op-print-group > .componentes-page:not(:last-child),
+  .op-print-group > .op-drawing-page:not(:last-child) {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /*
+    Quebra entre OPs no agrupamento, mas nunca depois da última OP.
+  */
+  .op-print-batch > .op-print-page:not(:last-child),
+  .op-print-batch > .op-print-group:not(:last-child),
+  .op-print-batch > .op-sheet:not(:last-child),
+  .op-print-batch > .op-operation-page:not(:last-child),
+  .op-print-batch > .componentes-page:not(:last-child),
+  .op-print-batch > .op-drawing-page:not(:last-child) {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /*
+    Garantia absoluta: último bloco da impressão agrupada não quebra.
+  */
+  .op-print-batch > *:last-child,
+  .op-print-batch > *:last-child > *:last-child,
+  .print-root > *:last-child,
+  .print-root > *:last-child > *:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+}
