@@ -1,63 +1,80 @@
-## Diagnóstico
+## Objetivo
 
-A última mudança no `@media print` removeu os overrides que faziam a `.componentes-page` "soltar" suas dimensões na impressão (`min-height: 0`, `height: auto`, `overflow: visible`). Agora ela herda do `.op-sheet`: `min-height: 297mm` + `padding: 8mm` + `box-sizing: border-box`. Como o `@page` tem margem 7mm, a área útil real do papel é 196mm × 283mm — menor que o `min-height: 297mm` do elemento. O Chrome trata o bloco inteiro como "não cabe" e em alguns casos pula a página, fazendo a tabela de componentes não aparecer na impressão (apesar de existir no DOM e renderizar bem no preview).
+Quando a página de componentes tiver **mais de 30 itens**, encolher tipografia e altura das linhas automaticamente para caber tudo numa **única folha A4**, sem quebra de página. Até 30 componentes mantém o tamanho atual.
 
-Outro efeito colateral: mesmo se aparecesse, com `min-height: 297mm` o bloco é uma única "caixa" gigante — o navegador não pagina naturalmente uma tabela de 30+ linhas em múltiplas folhas A4.
+## Estratégia
 
-## Solução
+Marcar o elemento `.componentes-page` com uma classe modificadora baseada na quantidade (`.componentes-page--compact-31-50`, `--compact-51-70`, `--compact-71+`) e aplicar CSS denso só nesse caso. Mantém o comportamento atual intocado para listas ≤30.
 
-Tudo em `src/components/producao/op-print.css`, dentro do `@media print` que reescrevi:
+## Mudanças
 
-1. **Reabrir a página de componentes para fluir naturalmente**
+1. **`src/components/producao/OpPrintSheet.tsx`** — Em `renderComponentesPage()` (linha 163), calcular a classe densa pela quantidade total de componentes:
+
+   ```ts
+   const total = componentes.length;
+   const densityClass =
+     total <= 30 ? ''
+     : total <= 50 ? 'componentes-page--compact-31-50'
+     : total <= 70 ? 'componentes-page--compact-51-70'
+     : 'componentes-page--compact-71';
+   ```
+
+   E aplicar no `<div className={`op-sheet componentes-page ${densityClass} ${preview ? 'op-sheet--preview' : ''}`}>`.
+
+2. **`src/components/producao/op-print.css`** — Adicionar (fora do `@media print`, também valendo para preview, para o que se vê = o que se imprime):
 
    ```css
-   @media print {
-     .op-sheet.componentes-page {
-       min-height: 0 !important;
-       height: auto !important;
-       overflow: visible !important;
-       padding: 0 !important;   /* tira o padding do .op-sheet que estoura a página */
-     }
-     .componentes-page tbody {
-       page-break-inside: auto;
-       break-inside: auto;
-     }
+   .componentes-page--compact-31-50 table { font-size: 8.5px; }
+   .componentes-page--compact-31-50 th,
+   .componentes-page--compact-31-50 td { padding: 1px 3px; line-height: 1.1; }
+
+   .componentes-page--compact-51-70 table { font-size: 7.5px; }
+   .componentes-page--compact-51-70 th,
+   .componentes-page--compact-51-70 td { padding: 0.5px 2px; line-height: 1.05; }
+   .componentes-page--compact-51-70 .op-stage-bar,
+   .componentes-page--compact-51-70 .op-section-title { font-size: 9px; padding: 1px 4px; }
+
+   .componentes-page--compact-71 table { font-size: 6.5px; }
+   .componentes-page--compact-71 th,
+   .componentes-page--compact-71 td { padding: 0 2px; line-height: 1.0; }
+   .componentes-page--compact-71 .op-stage-bar,
+   .componentes-page--compact-71 .op-section-title { font-size: 8px; padding: 0 4px; }
+   ```
+
+   E no `@media print` da `.componentes-page` já reaberta, adicionar:
+
+   ```css
+   .componentes-page--compact-31-50,
+   .componentes-page--compact-51-70,
+   .componentes-page--compact-71 {
+     page-break-inside: avoid !important;
+     break-inside: avoid !important;
+   }
+   .componentes-page--compact-31-50 tbody,
+   .componentes-page--compact-51-70 tbody,
+   .componentes-page--compact-71 tbody {
+     page-break-inside: avoid !important;
+     break-inside: avoid !important;
    }
    ```
 
-   Combinado com `tr { page-break-inside: avoid }` (já existe), a tabela quebra entre linhas em quantas folhas A4 forem necessárias, sem cortar nenhuma linha no meio.
+   Isso força o navegador a manter a tabela inteira em uma única folha (sem quebra), e o CSS denso garante que ela caiba.
 
-2. **Compensar o padding nas demais folhas dimensionadas fixas**
+## Critério dos limites
 
-   `.op-print-page` e `.op-operation-page` continuam com altura fixa de 283mm — mas o `.op-sheet` interno aplica `padding: 8mm`, somando 16mm a mais. Em print, zerar esse padding:
+Cabeçalho da OP ocupa ~50mm da folha (header + título "Relação de componentes" + barra de estágio); sobram ~230mm para a tabela. Estimativa:
 
-   ```css
-   @media print {
-     .op-print-page .op-sheet,
-     .op-operation-page .op-sheet,
-     .operation-single-page {
-       padding: 0 !important;
-     }
-   }
-   ```
-
-3. **Cabeçalho da tabela de componentes repete em cada folha**
-
-   Reverter `display: table-row-group` que coloquei para `display: table-header-group`, agora que a tabela vai mesmo quebrar em várias folhas — assim cada folha de componentes começa com a linha de "Código / Descrição / Qtde / UN / Dep / Endereço".
-
-   ```css
-   .componentes-page thead { display: table-header-group !important; }
-   ```
-
-4. **Manter o resto da regra minimalista** que já existe (esconder cromo da UI, isolar `.print-root`, `page-break-after: always` + `:last-child { avoid }`).
+- 30 itens × ~7mm/linha = 210mm → cabe com tipografia atual.
+- 31–50 itens: ~4,5mm/linha → font 8.5px / padding 1×3.
+- 51–70 itens: ~3,3mm/linha → font 7.5px / padding 0.5×2.
+- 71+ itens: ~2,5mm/linha → font 6.5px / padding 0×2 (limite prático ~90 itens; acima disso a legibilidade fica comprometida e seria melhor quebrar em 2 folhas — fora do escopo).
 
 ## Validação
 
-- OP 1109 (caso atual da tela): pré-visualizar, abrir Ctrl+P, conferir que a folha de componentes aparece — provavelmente em 1 folha A4 se couber, ou 2 se a tabela for muito longa.
-- OP com 7 ou menos componentes: continuam inline (modo "quebrar por operação"), sem folha extra.
-- OP 7093 (40+ operações): conferir que o total de folhas continua batendo com o preview.
+- OP 1109 (~30 componentes): renderiza igual a hoje, sem mudança.
+- OP com 40, 60 e 80 componentes: pré-visualizar e abrir Ctrl+P, conferir que a tabela ocupa exatamente 1 folha A4 sem quebra.
 
 ## Fora de escopo
 
-- `OpPrintSheet.tsx` e `OpPrintBatch.tsx` não mudam.
-- Sem mudança de backend, layout ou ordem de blocos.
+- Sem auto-scaling JavaScript (medindo altura real). A escala é por faixa de quantidade — mais simples, previsível e idêntica em preview/print.
+- Sem mudança em backend, ordem de blocos ou modo inline (≤7 componentes).
