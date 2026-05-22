@@ -4,16 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Play, FileSpreadsheet, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
+import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle, Info } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
-import { genericReportToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
-import { useAuth } from '@/contexts/AuthContext';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
-import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioLayout, RelatorioParametro } from '@/lib/relatorios/types';
+import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioParametro } from '@/lib/relatorios/types';
 import { alignClass, formatCellValue, toNumberSafe } from '@/lib/relatorios/format';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { ReportPrintDialog } from './ReportPrintDialog';
 
 type ColDraft = Omit<RelatorioColuna, 'id' | 'relatorio_id'>;
 
@@ -21,20 +18,17 @@ interface Props {
   relatorio: Partial<Relatorio>;
   parametros: Omit<RelatorioParametro, 'id' | 'relatorio_id'>[];
   colunasConfig?: ColDraft[];
-  layout?: Partial<RelatorioLayout> | null;
   onColumnsDetected?: (cols: string[], sample?: Record<string, unknown>) => void;
   onExecucaoGravada?: () => void;
 }
 
-export function ReportPreview({ relatorio, parametros, colunasConfig, layout, onColumnsDetected, onExecucaoGravada }: Props) {
-  const { displayName, erpUser } = useAuth();
+export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsDetected, onExecucaoGravada }: Props) {
   const [paramValues, setParamValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(parametros.map((p) => [p.nome, p.valor_padrao ?? ''])),
   );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [printOpen, setPrintOpen] = useState(false);
 
   async function executar() {
     if (!(relatorio.sql_query ?? '').trim()) {
@@ -101,37 +95,15 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
     }
     const t0 = performance.now();
     try {
-      let filename: string;
-      if (formato === 'pdf') {
-        if (!result || result.linhas.length === 0) {
-          toast.error('Execute o preview antes de exportar PDF');
-          return;
-        }
-        const base = (relatorio.codigo ?? relatorio.nome ?? 'relatorio')
-          .toString()
-          .replace(/[^a-zA-Z0-9_-]+/g, '_');
-        filename = `${base}.pdf`;
-        const doc = genericReportToPrintDocument({
-          relatorio,
-          layout,
-          colunas: colunasExibir,
-          linhas: result.linhas,
-          parametros: paramValues,
-          usuario: displayName ?? erpUser ?? null,
-        });
-        await exportPrintDocumentToPdf(doc, { filename });
-      } else {
-        const r = await exportarRelatorio(relatorio.id, formato, paramValues, relatorio.codigo ?? 'relatorio');
-        filename = r.filename;
-        const url = URL.createObjectURL(r.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
+      const { blob, filename } = await exportarRelatorio(relatorio.id, formato, paramValues, relatorio.codigo ?? 'relatorio');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
       await gravarExecucao({
         relatorio_id: relatorio.id,
         parametros: paramValues,
@@ -237,16 +209,9 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
         <Button onClick={() => exportar('csv')} disabled={!podeExportar || !result} size="sm" variant="outline">
           <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
         </Button>
-        <Button
-          onClick={() => setPrintOpen(true)}
-          disabled={!result || !result.linhas.length}
-          size="sm"
-          variant="outline"
-          title="Pré-visualizar / imprimir / exportar PDF via RelatorioPrintEngine"
-        >
-          <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
+        <Button onClick={() => exportar('pdf')} disabled size="sm" variant="outline" title="Disponível na próxima onda">
+          <FileText className="h-4 w-4 mr-1" /> PDF
         </Button>
-
       </div>
 
       {!podeExportar && result && (
@@ -324,16 +289,6 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
           </div>
         </>
       )}
-
-      <ReportPrintDialog
-        open={printOpen}
-        onOpenChange={setPrintOpen}
-        relatorio={relatorio}
-        layout={layout}
-        colunas={colunasExibir}
-        linhas={result?.linhas ?? []}
-        parametros={paramValues}
-      />
     </div>
   );
 }

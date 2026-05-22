@@ -12,7 +12,8 @@ import { useImpressaoOrdemProducao } from '@/hooks/useImpressaoOrdemProducao';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
-import { PrintRenderer, opToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
+import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
+import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { ProdutoAutocomplete } from '@/components/producao/ProdutoAutocomplete';
@@ -21,6 +22,7 @@ import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao
 import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
+import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
 import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 
@@ -101,7 +103,6 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
 
-
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
   const [obsError, setObsError] = useState<string | null>(null);
@@ -110,9 +111,16 @@ export default function ImpressaoOrdemProducaoPage() {
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
-  // Erros de normalização de desenhos para o aviso na UI; o motor de impressão
-  // novo consome diretamente `data.desenhos` via opAdapter quando necessário.
-  const { errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
+  // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
+  // e exibição de status por desenho na tabela de preview.
+  const desenhoUrls = useMemo(
+    () => (data?.desenhos ?? [])
+      .map((d) => d.url_impressao || d.url || '')
+      .filter(Boolean) as string[],
+    [data?.desenhos],
+  );
+  const blobStates = useAuthedBlobUrls(desenhoUrls);
+  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
   // Diagnóstico de desenhos
@@ -486,30 +494,11 @@ export default function ImpressaoOrdemProducaoPage() {
     window.print();
   };
 
-  const [pdfLoading, setPdfLoading] = useState(false);
   const gerarPdf = async () => {
-    if (!data?.cabecalho && !lote?.ordens?.length) {
-      toast.info('Consulte uma O.P. antes de gerar o PDF.');
-      return;
-    }
-    setPdfLoading(true);
-    try {
-      const ops = lote?.ordens?.length ? lote.ordens : [data as OpImpressao];
-      const doc = opToPrintDocument(ops, {
-        usuario: displayName ?? erpUser ?? null,
-        preview,
-        quebrarPorOperacao: filtros.quebrar_por_operacao === 'S',
-      });
-      const filename = ops.length === 1
-        ? `OP_${ops[0]?.cabecalho?.cod_ori ?? ''}_${ops[0]?.cabecalho?.num_orp ?? ''}.pdf`
-        : `OPs_${ops.length}_ordens_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`;
-      await exportPrintDocumentToPdf(doc, { filename });
-      toast.success(`PDF ${filename} gerado.`);
-    } catch (e: any) {
-      toast.error(`Falha ao gerar PDF: ${e?.message ?? e}`);
-    } finally {
-      setPdfLoading(false);
-    }
+    if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
+    toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
+    await aguardarDesenhosProntos();
+    window.print();
   };
 
 
@@ -774,11 +763,9 @@ export default function ImpressaoOrdemProducaoPage() {
               variant="ghost"
               size="sm"
               onClick={gerarPdf}
-              disabled={pdfLoading || (!data?.cabecalho && !lote?.ordens?.length)}
               className="h-8 rounded px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4 opacity-60" />}
-              Exportar PDF
+              <FileDown className="mr-1.5 h-4 w-4 opacity-60" /> Gerar PDF
             </Button>
           </div>
 
@@ -1185,21 +1172,29 @@ export default function ImpressaoOrdemProducaoPage() {
       )}
 
       <div className="print-root">
-        {(lote?.ordens?.length || data?.cabecalho) && (
-          <PrintRenderer
-            doc={opToPrintDocument(
-              lote?.ordens?.length ? lote.ordens : [data as OpImpressao],
-              {
-                usuario: displayName ?? erpUser ?? null,
-                preview,
-                quebrarPorOperacao: filtros.quebrar_por_operacao === 'S',
-              },
-            )}
+
+
+        {lote && lote.ordens.length > 0 && (
+          <OpPrintBatch
+            ops={lote.ordens}
             preview={preview}
+            usuario={displayName ?? erpUser ?? null}
+            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
           />
         )}
-      </div>
 
+        {!lote && data?.cabecalho && (
+          <OpPrintSheet
+            data={data}
+            preview={preview || !!selectedRowKey}
+            usuario={displayName ?? erpUser ?? null}
+            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+            blobStates={blobStates}
+            paginasDesenhosA4={paginasDesenhosA4}
+          />
+        )}
+
+      </div>
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
         <DialogContent className="max-w-2xl">
