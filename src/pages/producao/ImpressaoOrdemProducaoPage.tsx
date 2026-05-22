@@ -554,7 +554,8 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const handleRowImprimir = async (op: OpcaoOp) => {
     await handleRowSelect(op);
-    setTimeout(() => window.print(), 200);
+    await aguardarDesenhosProntos();
+    window.print();
   };
 
   const handleVerObservacoes = async (op: OpcaoOp) => {
