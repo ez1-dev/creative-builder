@@ -13,6 +13,15 @@ interface Props {
   quebrarPorOperacao?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
+  imprimirDesenhos?: boolean | null;
+}
+
+function MissingDrawingPage() {
+  return (
+    <div className="op-print-unit op-missing-drawing-page">
+      <div className="op-missing-drawing-label">Desenho não encontrado para esta OP</div>
+    </div>
+  );
 }
 
 function fmtDate(s?: string) {
