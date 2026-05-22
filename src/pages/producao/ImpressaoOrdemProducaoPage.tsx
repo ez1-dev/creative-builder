@@ -541,8 +541,8 @@ export default function ImpressaoOrdemProducaoPage() {
       listar_desenho: 'N',
       incluir_desenhos: 'S',
       quebrar_por_operacao: filtros.quebrar_por_operacao === 'S' ? 'S' : 'N',
-      cod_etg: filtros.cod_etg || '',
-      cod_cre: filtros.cod_cre || '',
+      // cod_etg / cod_cre NÃO repassados: filtros da busca da lista
+      // não devem restringir conteúdo (componentes/operações) da impressão.
     };
     setLastConsulta(eff);
     await fetchData(eff);
