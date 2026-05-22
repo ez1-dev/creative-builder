@@ -11,6 +11,7 @@ interface Props {
   quebrarPorOperacao?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4PorOp?: Record<string, OpDesenhoPaginaA4Carregada[]>;
+  imprimirDesenhos?: boolean | null;
 }
 
 function getOpKey(op: OpImpressao, index: number) {
