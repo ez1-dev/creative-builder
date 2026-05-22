@@ -461,13 +461,19 @@ export function OpPrintSheet({
   if (quebrarPorOperacao) {
     if (operacoes.length === 0) {
       return (
-        <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
-          {renderHeader()}
+        <>
+          <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
+            {renderHeader()}
 
-          <div className="op-box" style={{ marginTop: 12, textAlign: "center", fontStyle: "italic" }}>
-            Nenhuma operação encontrada para os filtros selecionados.
+            <div className="op-box" style={{ marginTop: 12, textAlign: "center", fontStyle: "italic" }}>
+              Nenhuma operação encontrada para os filtros selecionados.
+            </div>
           </div>
-        </div>
+
+          {renderDesenhosOuReserva("drw-sem-operacao")}
+
+          {preview && renderPreviewDesenhosResumo()}
+        </>
       );
     }
 
@@ -475,52 +481,68 @@ export function OpPrintSheet({
     const componentesInline = temComponentes && componentes.length <= limiteComp;
     const componentesEmPaginaSeparada = temComponentes && componentes.length > limiteComp;
 
+    const paginas: ReactNode[] = [];
+
+    operacoes.forEach((op, i) => {
+      const isPrimeiraOperacao = i === 0;
+      const renderizarComponentesInline = isPrimeiraOperacao && componentesInline;
+
+      let blocos = 6;
+
+      if (renderizarComponentesInline) {
+        const n = componentes.length;
+
+        if (n <= 3) blocos = 5;
+        else if (n <= 7) blocos = 4;
+      }
+
+      paginas.push(
+        <div
+          key={`op-page-${i}`}
+          className={`op-sheet op-print-unit op-operation-page operation-single-page ${
+            renderizarComponentesInline ? "has-componentes-inline" : ""
+          } apt-blocos-${blocos} ${preview ? "op-sheet--preview" : ""}`}
+        >
+          {renderHeader()}
+
+          {renderizarComponentesInline && <div className="componentes-inline">{renderComponentes()}</div>}
+
+          <div className="op-section-title">Operação</div>
+          {renderOperacao(op, i, blocos)}
+        </div>,
+      );
+
+      // Desenho da sequência. Hoje a API só devolve desenhos da OP, então
+      // repetimos o mesmo conjunto após cada operação. Ponto de extensão
+      // futuro: trocar por `desenhosPorOperacao[op.seq_rot] ?? desenhos`.
+      const desenhosDaSequencia = renderDesenhosOuReserva(`drw-op-${i}`);
+
+      if (desenhosDaSequencia) {
+        paginas.push(
+          <Fragment key={`desenhos-op-${i}`}>{desenhosDaSequencia}</Fragment>,
+        );
+      }
+
+      // Componentes paginados saem uma única vez, logo após a primeira
+      // operação (e seu desenho), nunca repetidos em todas as sequências.
+      if (isPrimeiraOperacao && componentesEmPaginaSeparada) {
+        paginas.push(
+          <Fragment key="componentes-separados">
+            {renderComponentesPagesPaginadas()}
+          </Fragment>,
+        );
+      }
+    });
+
     return (
       <>
-        {operacoes.map((op, i) => {
-          const isPrimeiraOperacao = i === 0;
-          const renderizarComponentesInline = isPrimeiraOperacao && componentesInline;
-
-          let blocos = 6;
-
-          if (renderizarComponentesInline) {
-            const n = componentes.length;
-
-            if (n <= 3) blocos = 5;
-            else if (n <= 7) blocos = 4;
-          }
-
-          const semDesenhos =
-            desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0);
-
-          return (
-            <Fragment key={`opp-${i}`}>
-              <div
-                className={`op-sheet op-print-unit op-operation-page operation-single-page ${
-                  renderizarComponentesInline ? "has-componentes-inline" : ""
-                } apt-blocos-${blocos} ${preview ? "op-sheet--preview" : ""}`}
-              >
-                {renderHeader()}
-
-                {renderizarComponentesInline && <div className="componentes-inline">{renderComponentes()}</div>}
-
-                <div className="op-section-title">Operação</div>
-                {renderOperacao(op, i, blocos)}
-              </div>
-
-              {imprimirDesenhos && desenhos.length > 0 && renderDesenhos(`drw-op-${i}`)}
-              {imprimirDesenhos && semDesenhos && <MissingDrawingPage />}
-            </Fragment>
-          );
-        })}
-
-        {componentesEmPaginaSeparada && renderComponentesPagesPaginadas()}
-
+        {paginas}
 
         {preview && renderPreviewDesenhosResumo()}
       </>
     );
   }
+
 
   if (quebrarComponentes) {
     return (
