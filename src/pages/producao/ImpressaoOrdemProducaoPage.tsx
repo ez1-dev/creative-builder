@@ -788,9 +788,11 @@ export default function ImpressaoOrdemProducaoPage() {
               variant="ghost"
               size="sm"
               onClick={gerarPdf}
+              disabled={pdfLoading || (!data?.cabecalho && !lote?.ordens?.length)}
               className="h-8 rounded px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              <FileDown className="mr-1.5 h-4 w-4 opacity-60" /> Gerar PDF
+              {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4 opacity-60" />}
+              Exportar PDF
             </Button>
           </div>
 
