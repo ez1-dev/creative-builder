@@ -385,34 +385,29 @@
   .preview-message,
   .drawing-empty-message { display: none !important; }
 
-  /* Remove apenas a sombra/margens decorativas do preview. */
+  /* Remove apenas a sombra/margens decorativas do preview. Mantém o
+     padding interno de 8mm do .op-sheet para preservar a margem visual
+     (combinado com @page margin: 7mm dá ~15mm de respiro como antes). */
   .op-sheet {
     box-shadow: none !important;
     margin: 0 auto !important;
+    min-height: 0 !important;
   }
   .op-sheet--preview {
     box-shadow: none !important;
     margin: 0 auto !important;
   }
 
-  /* Zera padding do .op-sheet quando ele está dentro de folhas com altura
-     fixa, para não estourar a área útil do papel (196mm × 283mm). */
-  .op-print-page .op-sheet,
-  .op-operation-page .op-sheet,
-  .operation-single-page {
-    padding: 0 !important;
-  }
-
   /* Página de componentes: pode crescer por várias folhas A4 quando a
-     lista é longa. Sem altura/min-height fixos, sem padding do .op-sheet,
-     overflow visível — assim a tabela aparece e quebra naturalmente. */
+     lista é longa. Sem altura/min-height fixos, overflow visível —
+     padding herdado do .op-sheet (8mm) é mantido. */
   .op-sheet.componentes-page,
   .componentes-page {
     min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
-    padding: 0 !important;
   }
+
 
   /* Quebras de página: uma folha por bloco. O último bloco do lote
      não força page-break, para evitar folha em branco final. */
