@@ -228,7 +228,6 @@
 
 /* =========================================================
    RODAPÉ / RESPONSABILIDADE
-   Mantido como classes, mas o React atualmente retorna null.
    ========================================================= */
 
 .op-sheet .op-footer {
@@ -308,7 +307,7 @@
 }
 
 /* =========================================================
-   ESTRUTURA DE PÁGINAS
+   ESTRUTURA DE PÁGINAS - PREVIEW
    ========================================================= */
 
 .op-print-page,
@@ -421,9 +420,6 @@
 
 /* =========================================================
    DESENHOS
-   A rotação para retrato é feita pela API via url_impressao.
-   As classes .rotated / .rotate-90 são fallback caso a API
-   não envie url_impressao em algum desenho.
    ========================================================= */
 
 .op-drawing-page {
@@ -508,7 +504,6 @@
   overflow: hidden;
 }
 
-/* Linhas de cabeçalho reduzidas e em negrito */
 .op-apontamento-table tr.op-apt-head th {
   height: 5mm;
   padding: 0 4px;
@@ -518,7 +513,6 @@
   text-align: left;
 }
 
-/* Linhas de preenchimento manual */
 .op-apontamento-table tr.op-apt-fill td {
   height: 11mm;
 }
@@ -545,7 +539,7 @@
 
 @page {
   size: A4 portrait;
-  margin: 4mm;
+  margin: 7mm;
 }
 
 @media print {
@@ -599,19 +593,23 @@
   }
 
   /*
-    Área útil A4 com margem de 4mm:
-    210 - 8 = 202mm
-    297 - 8 = 289mm
+    Área útil segura:
+    A4 = 210mm x 297mm
+    @page margin 7mm
+    Área aproximada = 196mm x 283mm
+    Evita cortar lado direito em Chrome/impressora.
   */
   .op-sheet,
   .op-print-page,
   .op-operation-page,
   .operation-single-page,
   .componentes-page {
-    width: 202mm !important;
-    min-height: 289mm !important;
+    width: 196mm !important;
+    max-width: 196mm !important;
+    min-height: 283mm !important;
     box-sizing: border-box !important;
     background: #fff !important;
+    overflow: hidden !important;
   }
 
   .op-sheet,
@@ -651,25 +649,18 @@
     break-after: auto !important;
   }
 
-  /*
-    Evitar que o título OPERAÇÃO fique sozinho.
-  */
   .op-section-title {
     break-after: avoid;
     page-break-after: avoid;
   }
 
-  /*
-    Não forçar o bloco inteiro de operação como indivisível,
-    porque isso fazia o navegador empurrar a operação para outra página.
-  */
   .operation-single-page .op-operation {
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
 
   /*
-    Header mais compacto no print.
+    Header compacto e mais estreito para não cortar a direita.
   */
   .op-title {
     font-size: 11pt !important;
@@ -682,23 +673,23 @@
   }
 
   .op-header-main {
-    grid-template-columns: 165px 1fr 120px !important;
-    gap: 4pt !important;
+    grid-template-columns: 150px 1fr 108px !important;
+    gap: 3pt !important;
   }
 
   .op-barcode-box {
-    padding: 3pt 4pt !important;
+    padding: 3pt 3pt !important;
   }
 
   .op-header-data {
-    padding: 3pt 4pt !important;
-    grid-template-columns: 60px 1fr 60px 1fr !important;
-    column-gap: 4pt !important;
+    padding: 3pt 3pt !important;
+    grid-template-columns: 54px 1fr 54px 1fr !important;
+    column-gap: 3pt !important;
     row-gap: 1pt !important;
   }
 
   .op-rev-cell {
-    padding: 2pt 3pt !important;
+    padding: 2pt 2pt !important;
   }
 
   .op-rev-cell .lbl {
@@ -706,21 +697,21 @@
   }
 
   .op-rev-cell .val {
-    font-size: 10pt !important;
+    font-size: 9.5pt !important;
   }
 
   /*
     Destaques no print.
   */
   .op-sheet .op-qtde-destaque {
-    font-size: 13pt !important;
+    font-size: 12pt !important;
     font-weight: bold !important;
   }
 
   .op-sheet .v.op-qtde-destaque {
     border: 1pt solid #000 !important;
     background: transparent !important;
-    padding: 2pt 4pt !important;
+    padding: 1pt 3pt !important;
     text-align: center !important;
   }
 
@@ -790,8 +781,6 @@
     Quando há componentes inline depois da operação,
     reduz mais o apontamento para caber:
     Cabeçalho + Operação + Componentes.
-    Funciona com a classe has-componentes-inline no TSX
-    e também com :has(.componentes-inline), se o navegador suportar.
   */
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-head th,
   .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-head th {
@@ -868,13 +857,13 @@
   }
 
   /*
-    Desenhos A4.
+    Desenhos A4 em área segura.
     Não usar break-before para não gerar página em branco.
   */
   .op-drawing-page {
-    width: 202mm !important;
-    height: 289mm !important;
-    min-height: 289mm !important;
+    width: 196mm !important;
+    height: 283mm !important;
+    min-height: 283mm !important;
     padding: 0 !important;
     margin: 0 auto !important;
     overflow: hidden !important;
@@ -887,21 +876,21 @@
   }
 
   .op-drawing-page img {
-    max-width: 202mm !important;
-    max-height: 289mm !important;
+    max-width: 196mm !important;
+    max-height: 283mm !important;
     object-fit: contain !important;
   }
 
   .op-drawing-page iframe,
   .op-drawing-page object {
-    width: 202mm !important;
-    height: 289mm !important;
+    width: 196mm !important;
+    height: 283mm !important;
     border: none !important;
   }
 
   .drawing-frame {
-    width: 202mm !important;
-    height: 289mm !important;
+    width: 196mm !important;
+    height: 283mm !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -909,8 +898,8 @@
   }
 
   .drawing-image {
-    max-width: 202mm !important;
-    max-height: 289mm !important;
+    max-width: 196mm !important;
+    max-height: 283mm !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
