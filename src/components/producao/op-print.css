@@ -1,6 +1,10 @@
 /* Impressão de Ordem de Produção - layout fiel ao MCAP700.GER (Senior).
    Monocromático intencional: preto puro em fundo branco. */
 
+/* =========================================================
+   BASE / PREVIEW
+   ========================================================= */
+
 .op-sheet {
   background: #fff;
   color: #000;
@@ -20,7 +24,9 @@
   margin-bottom: 12px;
 }
 
-.op-sheet * { box-sizing: border-box; }
+.op-sheet * {
+  box-sizing: border-box;
+}
 
 .op-sheet .op-box {
   border: 1px solid #000;
@@ -45,8 +51,13 @@
   row-gap: 2px;
 }
 
-.op-sheet .op-kv > .k { font-weight: bold; }
-.op-sheet .op-kv > .v { word-break: break-word; }
+.op-sheet .op-kv > .k {
+  font-weight: bold;
+}
+
+.op-sheet .op-kv > .v {
+  word-break: break-word;
+}
 
 .op-sheet .op-kv-2col {
   display: grid;
@@ -54,15 +65,25 @@
   column-gap: 6px;
   row-gap: 2px;
 }
-.op-sheet .op-kv-2col > .k { font-weight: bold; }
-.op-sheet .op-kv-2col > .v { word-break: break-word; }
-.op-sheet .op-kv-2col > .full { grid-column: 1 / -1; }
+
+.op-sheet .op-kv-2col > .k {
+  font-weight: bold;
+}
+
+.op-sheet .op-kv-2col > .v {
+  word-break: break-word;
+}
+
+.op-sheet .op-kv-2col > .full {
+  grid-column: 1 / -1;
+}
 
 .op-sheet table {
   width: 100%;
   border-collapse: collapse;
   font-size: 9.5px;
 }
+
 .op-sheet th,
 .op-sheet td {
   border: 1px solid #000;
@@ -70,13 +91,17 @@
   text-align: left;
   vertical-align: top;
 }
-.op-sheet th { background: #fff; font-weight: bold; }
+
+.op-sheet th {
+  background: #fff;
+  font-weight: bold;
+}
 
 .op-sheet .op-section-title {
   font-weight: bold;
   text-transform: uppercase;
   font-size: 10px;
-  margin: 6px 0 2px;
+  margin: 5px 0 2px;
   border-bottom: 1px solid #000;
 }
 
@@ -84,27 +109,12 @@
   border: 1px solid #000;
   padding: 3px 6px;
   font-weight: bold;
-  margin: 6px 0 4px;
+  margin: 4px 0 3px;
 }
 
-.op-sheet .op-operation {
-  border: 1px solid #000;
-  padding: 4px 6px;
-  margin: 6px 0;
-  page-break-inside: avoid;
-}
-
-.operation-single-page .op-operation {
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
-
-
-.op-sheet .op-operation .op-row-barcode {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-}
+/* =========================================================
+   CABEÇALHO DA OP
+   ========================================================= */
 
 .op-sheet .op-title {
   text-align: center;
@@ -113,14 +123,14 @@
   text-transform: uppercase;
   border-bottom: 1px solid #000;
   padding-bottom: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .op-sheet .op-header-top {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .op-sheet .op-header-main {
@@ -148,6 +158,7 @@
   flex-direction: column;
   border: 1px solid #000;
 }
+
 .op-sheet .op-rev-cell {
   display: flex;
   flex-direction: column;
@@ -156,19 +167,69 @@
   flex: 1;
   justify-content: center;
 }
+
 .op-sheet .op-rev-cell + .op-rev-cell {
   border-top: 1px solid #000;
 }
+
 .op-sheet .op-rev-cell .lbl {
   font-weight: bold;
   font-size: 9px;
   text-transform: uppercase;
 }
+
 .op-sheet .op-rev-cell .val {
   font-size: 12px;
   font-weight: bold;
   margin-top: 2px;
 }
+
+/* =========================================================
+   CÓDIGO DE BARRAS
+   ========================================================= */
+
+.op-sheet .op-barcode {
+  display: block;
+}
+
+.op-sheet .op-barcode-caption {
+  font-family: "Courier New", monospace;
+  text-align: center;
+  font-size: 9px;
+}
+
+/* =========================================================
+   OPERAÇÃO
+   ========================================================= */
+
+.op-sheet .op-operation {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  margin: 4px 0;
+}
+
+.operation-single-page .op-operation {
+  page-break-inside: auto;
+  break-inside: auto;
+}
+
+.op-sheet .op-operation .op-row-barcode {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.op-sheet .op-narrativas {
+  white-space: pre-wrap;
+  border-top: 1px dashed #000;
+  margin-top: 3px;
+  padding-top: 3px;
+}
+
+/* =========================================================
+   RODAPÉ / RESPONSABILIDADE
+   Mantido como classes, mas o React atualmente retorna null.
+   ========================================================= */
 
 .op-sheet .op-footer {
   margin-top: 8px;
@@ -179,7 +240,8 @@
   justify-content: space-between;
 }
 
-.op-sheet .op-responsability {
+.op-sheet .op-responsability,
+.op-sheet .op-responsabilidade {
   border: 1px solid #000;
   padding: 4px 6px;
   margin-top: 8px;
@@ -187,38 +249,39 @@
   text-align: center;
 }
 
-.op-sheet .op-narrativas {
-  white-space: pre-wrap;
-  border-top: 1px dashed #000;
-  margin-top: 3px;
-  padding-top: 3px;
+/* =========================================================
+   LARGURAS E CENTRALIZAÇÃO
+   ========================================================= */
+
+.op-sheet .col-w-narrow {
+  width: 60px;
 }
 
-.op-sheet .op-barcode { display: block; }
-.op-sheet .op-barcode-caption {
-  font-family: "Courier New", monospace;
-  text-align: center;
-  font-size: 9px;
+.op-sheet .col-w-medium {
+  width: 100px;
 }
 
-.op-sheet .op-apontamento-cell-check {
-  width: 18px;
-  height: 14px;
-  display: inline-block;
-  border: 1px solid #000;
+.componentes-table th.qtd-prev,
+.componentes-table td.qtd-prev,
+.componentes-table th.unidade,
+.componentes-table td.unidade,
+.componentes-table th.deposito,
+.componentes-table td.deposito,
+.componentes-table th.endereco,
+.componentes-table td.endereco {
+  text-align: center !important;
+  vertical-align: middle !important;
 }
 
-.op-sheet .op-apontamento-row td { height: 22px; }
+/* =========================================================
+   DESTAQUES
+   ========================================================= */
 
-/* Empilha colunas estreitas */
-.op-sheet .col-w-narrow { width: 60px; }
-.op-sheet .col-w-medium { width: 100px; }
-
-/* ===== Destaques de campos críticos ===== */
 .op-sheet .op-qtde-destaque {
   font-size: 15px !important;
   font-weight: bold !important;
 }
+
 .op-sheet .v.op-qtde-destaque {
   background: #eee;
   border: 1px solid #000;
@@ -231,6 +294,7 @@
   font-size: 12.5px !important;
   font-weight: bold !important;
 }
+
 .op-sheet .v.op-operacao-destaque,
 .op-sheet .v.op-proxoper-destaque {
   background: #eee;
@@ -238,29 +302,14 @@
   padding: 2px 6px;
 }
 
-@media print {
-  .op-sheet .op-qtde-destaque {
-    font-size: 13pt !important;
-    font-weight: bold !important;
-  }
-  .op-sheet .v.op-qtde-destaque {
-    border: 1pt solid #000 !important;
-    background: transparent !important;
-    padding: 2pt 4pt !important;
-    text-align: center !important;
-  }
-  .op-sheet .op-operacao-destaque,
-  .op-sheet .op-proxoper-destaque {
-    font-size: 11pt !important;
-    font-weight: bold !important;
-  }
-  .op-sheet .v.op-operacao-destaque,
-  .op-sheet .v.op-proxoper-destaque {
-    border: 1pt solid #000 !important;
-    background: transparent !important;
-    padding: 1.5pt 3pt !important;
-  }
+.op-sheet .op-tempo-destaque {
+  font-size: 11px !important;
+  font-weight: 700 !important;
 }
+
+/* =========================================================
+   ESTRUTURA DE PÁGINAS
+   ========================================================= */
 
 .op-print-page,
 .op-operation-page {
@@ -268,6 +317,7 @@
   min-height: 283mm;
   margin: 0 auto;
 }
+
 .op-print-page:not(:last-child),
 .op-operation-page:not(:last-child) {
   page-break-after: always;
@@ -275,23 +325,106 @@
 }
 
 .operation-single-page {
-  /* Mantém cabeçalho + componentes + operação juntos em uma única folha A4.
-     A quantidade de blocos de apontamento é reduzida dinamicamente quando
-     há componentes acima para garantir o encaixe. */
+  /*
+    Regra atual:
+    cabeçalho + operação + componentes inline, quando tiver até 7 componentes.
+    Componentes devem vir DEPOIS da operação.
+  */
   page-break-inside: avoid;
   break-inside: avoid;
+  overflow: hidden;
 }
+
 .operation-single-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
 }
 
+/* =========================================================
+   COMPONENTES INLINE
+   Usado quando componentes.length <= 7.
+   Deve aparecer depois da operação.
+   ========================================================= */
+
 .componentes-inline {
-  margin-bottom: 8pt;
+  margin-top: 4pt;
+  margin-bottom: 0;
 }
+
 .componentes-inline .op-section-title {
-  margin-top: 0;
+  margin-top: 4pt;
+  margin-bottom: 2pt;
 }
+
+.componentes-inline .op-stage-bar {
+  margin: 3px 0 2px;
+  padding: 2px 4px;
+}
+
+.componentes-inline .componentes-table {
+  font-size: 7.5px;
+  line-height: 1;
+}
+
+.componentes-inline .componentes-table th,
+.componentes-inline .componentes-table td {
+  padding: 1px 3px;
+  line-height: 1;
+}
+
+/* =========================================================
+   COMPONENTES EM PÁGINA SEPARADA
+   Usado quando componentes.length > 7.
+   ========================================================= */
+
+.componentes-page {
+  width: 196mm;
+  min-height: 283mm;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.componentes-page:not(:last-child) {
+  page-break-after: always;
+  break-after: page;
+}
+
+.componentes-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.componentes-page thead {
+  display: table-header-group;
+}
+
+.componentes-page th,
+.componentes-page td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+}
+
+.componentes-page tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.op-componentes-indicacao {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px dashed #000;
+  font-style: italic;
+  font-size: 10px;
+  text-align: center;
+}
+
+/* =========================================================
+   DESENHOS
+   A rotação para retrato é feita pela API via url_impressao.
+   As classes .rotated / .rotate-90 são fallback caso a API
+   não envie url_impressao em algum desenho.
+   ========================================================= */
 
 .op-drawing-page {
   width: 196mm;
@@ -306,48 +439,116 @@
   justify-content: center;
   overflow: hidden;
 }
+
 .op-drawing-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
-  page-break-before: always;
-  break-before: page;
 }
-.op-drawing-page:last-child {
-  page-break-before: always;
-  break-before: page;
-}
+
 .op-drawing-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
   display: block;
 }
+
 .op-drawing-page img {
   max-width: 196mm;
   max-height: 283mm;
   object-fit: contain;
 }
+
 .op-drawing-page iframe,
 .op-drawing-page object {
   width: 196mm;
   height: 283mm;
   border: none;
 }
+
 .op-drawing-missing {
   font-style: italic;
   padding: 20mm 0;
 }
 
+.drawing-frame {
+  width: 196mm;
+  height: 283mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
 
+.drawing-image {
+  max-width: 196mm;
+  max-height: 283mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
 
+/* =========================================================
+   TABELA DE APONTAMENTO
+   ========================================================= */
 
+.op-apontamento-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: 4px;
+  font-size: 9pt;
+}
+
+.op-apontamento-table th,
+.op-apontamento-table td {
+  border: 1px solid #000;
+  padding: 0 4px;
+  line-height: 1.1;
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+/* Linhas de cabeçalho reduzidas e em negrito */
+.op-apontamento-table tr.op-apt-head th {
+  height: 5mm;
+  padding: 0 4px;
+  font-size: 7.5pt;
+  font-weight: bold;
+  background: #f0f0f0;
+  text-align: left;
+}
+
+/* Linhas de preenchimento manual */
+.op-apontamento-table tr.op-apt-fill td {
+  height: 11mm;
+}
+
+.op-apontamento-table tr.op-apt-row-end td {
+  border-bottom: 4px solid #000;
+  padding-bottom: 2mm;
+}
+
+.op-sheet .op-apontamento-cell-check {
+  width: 18px;
+  height: 14px;
+  display: inline-block;
+  border: 1px solid #000;
+}
+
+.op-sheet .op-apontamento-row td {
+  height: 22px;
+}
+
+/* =========================================================
+   PRINT
+   ========================================================= */
+
+@page {
+  size: A4 portrait;
+  margin: 4mm;
+}
 
 @media print {
-  /* Mínimo necessário para que a impressão saia 1:1 com o preview.
-     NÃO sobrescrevemos fonte, padding, line-height nem bordas —
-     o navegador renderiza com as mesmas regras do preview, logo as
-     quebras naturais caem nos mesmos pontos. */
-
   html,
   body {
     margin: 0 !important;
@@ -357,10 +558,15 @@
     print-color-adjust: exact !important;
   }
 
-  /* Isola a área de impressão */
-  body * { visibility: hidden !important; }
+  body * {
+    visibility: hidden !important;
+  }
+
   .print-root,
-  .print-root * { visibility: visible !important; }
+  .print-root * {
+    visibility: visible !important;
+  }
+
   .print-root {
     position: static !important;
     width: 100% !important;
@@ -372,7 +578,6 @@
     zoom: 1 !important;
   }
 
-  /* Esconde cromo da UI */
   .no-print,
   header,
   nav,
@@ -383,41 +588,51 @@
   .filters,
   .print-actions,
   .preview-message,
-  .drawing-empty-message { display: none !important; }
-
-  /* Remove apenas a sombra/margens decorativas do preview. */
-  .op-sheet {
-    box-shadow: none !important;
-    margin: 0 auto !important;
+  .drawing-empty-message {
+    display: none !important;
   }
+
+  .op-sheet,
   .op-sheet--preview {
     box-shadow: none !important;
     margin: 0 auto !important;
   }
 
-  /* Mantém o padding interno do .op-sheet (8mm) nas folhas de OP/operação
-     para preservar a margem visual ao redor do conteúdo impresso. */
-  .op-print-page .op-sheet,
-  .op-operation-page .op-sheet,
-  .operation-single-page {
-    padding: 8mm !important;
+  /*
+    Área útil A4 com margem de 4mm:
+    210 - 8 = 202mm
+    297 - 8 = 289mm
+  */
+  .op-sheet,
+  .op-print-page,
+  .op-operation-page,
+  .operation-single-page,
+  .componentes-page {
+    width: 202mm !important;
+    min-height: 289mm !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
   }
 
-  /* Página de componentes: pode crescer por várias folhas A4 quando a
-     lista é longa. Sem altura/min-height fixos, sem padding do .op-sheet,
-     overflow visível — assim a tabela aparece e quebra naturalmente. */
+  .op-sheet,
+  .operation-single-page,
+  .componentes-page {
+    padding: 4mm !important;
+  }
+
+  /*
+    Página de componentes pode crescer e quebrar naturalmente se a lista for longa.
+  */
   .op-sheet.componentes-page,
   .componentes-page {
-    min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
-    padding: 0 !important;
   }
 
-
-  /* Quebras de página: uma folha por bloco. O último bloco do lote
-     não força page-break, para evitar folha em branco final. */
-  .op-print-page,
+  /*
+    Quebras:
+    cada bloco vira uma página, mas o último bloco não força folha em branco.
+  */
   .op-operation-page,
   .componentes-page,
   .op-drawing-page,
@@ -425,222 +640,279 @@
     page-break-after: always;
     break-after: page;
   }
+
   .op-print-batch > *:last-child,
-  .op-print-page:last-child,
+  .print-root > *:last-child,
   .op-operation-page:last-child,
   .componentes-page:last-child,
   .op-drawing-page:last-child,
   .operation-single-page:last-child {
-    page-break-after: avoid !important;
-    break-after: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
-  /* Não cortar linhas de tabela no meio. */
-  .op-sheet table tr,
-  .componentes-page tr {
-    page-break-inside: avoid;
-    break-inside: avoid;
+  /*
+    Evitar que o título OPERAÇÃO fique sozinho.
+  */
+  .op-section-title {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 
-  /* Mantém a operação inteira na mesma folha (modo quebra por operação). */
-  .operation-single-page,
+  /*
+    Não forçar o bloco inteiro de operação como indivisível,
+    porque isso fazia o navegador empurrar a operação para outra página.
+  */
   .operation-single-page .op-operation {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
 
-  /* Cabeçalho da tabela de componentes repete em cada folha A4
-     quando a tabela quebra em várias páginas. */
-  .componentes-page thead { display: table-header-group !important; }
-  .componentes-page tbody {
-    page-break-inside: auto;
-    break-inside: auto;
+  /*
+    Header mais compacto no print.
+  */
+  .op-title {
+    font-size: 11pt !important;
+    padding-bottom: 2pt !important;
+    margin-bottom: 3pt !important;
   }
-}
 
-@page {
-  size: A4 portrait;
-  margin: 7mm;
-}
-
-
-/* ===== Componentes em página separada ===== */
-.componentes-page {
-  width: 196mm;
-  margin: 0 auto;
-}
-.componentes-page:not(:last-child) {
-  page-break-after: always;
-  break-after: page;
-}
-.componentes-page table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 10px;
-}
-.componentes-page thead {
-  display: table-header-group;
-}
-.componentes-page th,
-.componentes-page td {
-  border: 1px solid #000;
-  padding: 2px 4px;
-}
-.componentes-page tr {
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
-.op-componentes-indicacao {
-  margin-top: 6px;
-  padding: 6px 8px;
-  border: 1px dashed #000;
-  font-style: italic;
-  font-size: 10px;
-  text-align: center;
-}
-
-/* ===== Desenhos =====
-   A rotação para retrato é feita pela API via url_impressao.
-   As classes .rotated / .rotate-90 são fallback inerte caso a API
-   não envie url_impressao em algum desenho. */
-.drawing-frame {
-  width: 196mm;
-  height: 283mm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.drawing-image {
-  max-width: 196mm;
-  max-height: 283mm;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-}
-
-@media print {
-  .drawing-frame {
-    width: 196mm !important;
-    height: 283mm !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    overflow: hidden !important;
+  .op-header-top {
+    margin-bottom: 2pt !important;
   }
-  .drawing-image {
-    max-width: 196mm !important;
-    max-height: 283mm !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
+
+  .op-header-main {
+    grid-template-columns: 165px 1fr 120px !important;
+    gap: 4pt !important;
   }
-}
 
+  .op-barcode-box {
+    padding: 3pt 4pt !important;
+  }
 
+  .op-header-data {
+    padding: 3pt 4pt !important;
+    grid-template-columns: 60px 1fr 60px 1fr !important;
+    column-gap: 4pt !important;
+    row-gap: 1pt !important;
+  }
 
-/* ===== Tabela de apontamento manual (6 blocos por página) ===== */
-.op-apontamento-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  margin-top: 4px;
-  font-size: 9pt;
-}
-.op-apontamento-table th,
-.op-apontamento-table td {
-  border: 1px solid #000;
-  padding: 0 4px;
-  line-height: 1.1;
-  vertical-align: middle;
-  overflow: hidden;
-}
-/* Linhas de cabeçalho reduzidas e em negrito */
-.op-apontamento-table tr.op-apt-head th {
-  height: 5mm;
-  padding: 0 4px;
-  font-size: 7.5pt;
-  font-weight: bold;
-  background: #f0f0f0;
-  text-align: left;
-}
-/* Linhas de preenchimento manual */
-.op-apontamento-table tr.op-apt-fill td {
-  height: 11mm;
-}
-.op-apontamento-table tr.op-apt-row-end td {
-  border-bottom: 4px solid #000;
-  padding-bottom: 2mm;
-}
+  .op-rev-cell {
+    padding: 2pt 3pt !important;
+  }
 
+  .op-rev-cell .lbl {
+    font-size: 8pt !important;
+  }
 
+  .op-rev-cell .val {
+    font-size: 10pt !important;
+  }
 
-@media print {
+  /*
+    Destaques no print.
+  */
+  .op-sheet .op-qtde-destaque {
+    font-size: 13pt !important;
+    font-weight: bold !important;
+  }
+
+  .op-sheet .v.op-qtde-destaque {
+    border: 1pt solid #000 !important;
+    background: transparent !important;
+    padding: 2pt 4pt !important;
+    text-align: center !important;
+  }
+
+  .op-sheet .op-operacao-destaque,
+  .op-sheet .op-proxoper-destaque {
+    font-size: 10pt !important;
+    font-weight: bold !important;
+  }
+
+  .op-sheet .v.op-operacao-destaque,
+  .op-sheet .v.op-proxoper-destaque {
+    border: 1pt solid #000 !important;
+    background: transparent !important;
+    padding: 1pt 2pt !important;
+  }
+
+  .op-sheet .op-tempo-destaque {
+    font-size: 9.5pt !important;
+    font-weight: 700 !important;
+  }
+
+  /*
+    Operação compacta.
+  */
+  .op-operation {
+    margin: 3pt 0 !important;
+    padding: 3pt 4pt !important;
+  }
+
+  .op-operation .op-row-barcode {
+    gap: 6pt !important;
+  }
+
+  /*
+    Tabela de apontamento.
+  */
   .op-apontamento-table {
-    font-size: 9pt !important;
+    font-size: 8.5pt !important;
+    margin-top: 3pt !important;
   }
+
   .op-apontamento-table th,
   .op-apontamento-table td {
     border: 0.5pt solid #000 !important;
-    padding: 0 4px !important;
+    padding: 0 3pt !important;
   }
+
   .op-apontamento-table tr.op-apt-head th {
-    height: 5mm !important;
-    font-size: 7.5pt !important;
+    height: 4.5mm !important;
+    font-size: 7pt !important;
     font-weight: bold !important;
     background: #f0f0f0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
   .op-apontamento-table tr.op-apt-fill td {
-    height: 11mm !important;
-  }
-  .op-apontamento-table tr.op-apt-row-end td {
-    border-bottom: 2.5pt solid #000 !important;
-    padding-bottom: 2mm !important;
+    height: 10mm !important;
   }
 
-  /* Quando há componentes inline na mesma folha, encolhe levemente os blocos
-     de apontamento para garantir que tudo caiba em uma única página A4. */
-  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-head th {
-    height: 4mm !important;
-    font-size: 7pt !important;
-  }
-  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-fill td {
-    height: 8mm !important;
-  }
-  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-row-end td {
+  .op-apontamento-table tr.op-apt-row-end td {
+    border-bottom: 2.3pt solid #000 !important;
     padding-bottom: 1mm !important;
   }
 
+  /*
+    Quando há componentes inline depois da operação,
+    reduz mais o apontamento para caber:
+    Cabeçalho + Operação + Componentes.
+    Funciona com a classe has-componentes-inline no TSX
+    e também com :has(.componentes-inline), se o navegador suportar.
+  */
+  .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-head th,
+  .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-head th {
+    height: 4mm !important;
+    font-size: 6.8pt !important;
+  }
 
-}
+  .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-fill td,
+  .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-fill td {
+    height: 8mm !important;
+  }
 
+  .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-row-end td,
+  .operation-single-page:has(.componentes-inline) .op-apontamento-table tr.op-apt-row-end td {
+    padding-bottom: 0.8mm !important;
+    border-bottom: 2pt solid #000 !important;
+  }
 
+  .operation-single-page.has-componentes-inline .op-operation,
+  .operation-single-page:has(.componentes-inline) .op-operation {
+    margin-bottom: 2pt !important;
+  }
 
+  /*
+    Componentes inline compactos.
+  */
+  .componentes-inline {
+    margin-top: 3pt !important;
+    margin-bottom: 0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
 
-/* ===== Centralização das colunas de componentes ===== */
-.componentes-table th.qtd-prev,
-.componentes-table td.qtd-prev,
-.componentes-table th.unidade,
-.componentes-table td.unidade,
-.componentes-table th.deposito,
-.componentes-table td.deposito,
-.componentes-table th.endereco,
-.componentes-table td.endereco {
-  text-align: center !important;
-  vertical-align: middle !important;
-}
+  .componentes-inline .op-section-title {
+    margin-top: 3pt !important;
+    margin-bottom: 1.5pt !important;
+    font-size: 8pt !important;
+  }
 
-/* ===== Destaque dos tempos (Tmp Unit / Tmp Total) ===== */
-.op-sheet .op-tempo-destaque {
-  font-size: 11px !important;
-  font-weight: 700 !important;
-}
-@media print {
-  .op-sheet .op-tempo-destaque {
-    font-size: 10pt !important;
-    font-weight: 700 !important;
+  .componentes-inline .op-stage-bar {
+    margin: 2pt 0 1.5pt !important;
+    padding: 1.5pt 3pt !important;
+    font-size: 7.5pt !important;
+  }
+
+  .componentes-inline .componentes-table {
+    font-size: 6.8pt !important;
+    line-height: 1 !important;
+  }
+
+  .componentes-inline .componentes-table th,
+  .componentes-inline .componentes-table td {
+    padding: 0.8pt 2pt !important;
+    line-height: 1 !important;
+  }
+
+  /*
+    Componentes em página separada.
+  */
+  .componentes-page thead {
+    display: table-header-group !important;
+  }
+
+  .componentes-page tbody {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  .componentes-page table tr,
+  .componentes-page tr,
+  .op-sheet table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /*
+    Desenhos A4.
+    Não usar break-before para não gerar página em branco.
+  */
+  .op-drawing-page {
+    width: 202mm !important;
+    height: 289mm !important;
+    min-height: 289mm !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+  }
+
+  .op-drawing-image {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  .op-drawing-page img {
+    max-width: 202mm !important;
+    max-height: 289mm !important;
+    object-fit: contain !important;
+  }
+
+  .op-drawing-page iframe,
+  .op-drawing-page object {
+    width: 202mm !important;
+    height: 289mm !important;
+    border: none !important;
+  }
+
+  .drawing-frame {
+    width: 202mm !important;
+    height: 289mm !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
+
+  .drawing-image {
+    max-width: 202mm !important;
+    max-height: 289mm !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
   }
 }
-
