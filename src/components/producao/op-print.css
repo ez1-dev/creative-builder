@@ -762,3 +762,33 @@
     object-fit: contain !important;
   }
 }
+
+/* =========================================================
+   Ajuste fino dos blocos de apontamento
+   ========================================================= */
+
+.operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-fill td {
+  height: 10.5mm !important;
+}
+
+.operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-fill td {
+  height: 11mm !important;
+}
+
+.operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-fill td {
+  height: 13mm !important;
+}
+
+.operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-head th,
+.operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-head th,
+.operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-head th {
+  height: 3.8mm !important;
+  font-size: 6.6pt !important;
+}
+
+.operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-row-end td,
+.operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-row-end td,
+.operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-row-end td {
+  padding-bottom: 0.6mm !important;
+  border-bottom: 1.8pt solid #000 !important;
+}

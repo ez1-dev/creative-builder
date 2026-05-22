@@ -461,7 +461,7 @@ export function OpPrintSheet({
           if (renderizarComponentesInline) {
             const n = componentes.length;
 
-            if (n <= 5) blocos = 5;
+            if (n <= 3) blocos = 5;
             else if (n <= 7) blocos = 4;
           }
 
