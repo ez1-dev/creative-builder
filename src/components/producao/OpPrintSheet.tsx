@@ -433,7 +433,7 @@ export function OpPrintSheet({
 
   // Centraliza a regra: imprime desenho real ou reserva uma página branca técnica.
   // Retorna null quando "Imprimir desenhos da OP" estiver desmarcado.
-  const renderDesenhosOuReserva = (keyPrefix: string): React.ReactNode => {
+  const renderDesenhosOuReserva = (keyPrefix: string): ReactNode => {
     if (!imprimirDesenhos) return null;
     if (temAlgumDesenho) return renderDesenhos(keyPrefix);
     return <MissingDrawingPage key={`${keyPrefix}-missing`} />;
