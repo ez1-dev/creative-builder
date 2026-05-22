@@ -595,6 +595,7 @@
     width: 190mm !important;
     max-width: 190mm !important;
     min-height: 281mm !important;
+    max-height: 281mm !important;
     box-sizing: border-box !important;
     background: #fff !important;
     overflow: hidden !important;
@@ -609,6 +610,7 @@
   .op-sheet.componentes-page,
   .componentes-page {
     height: auto !important;
+    max-height: none !important;
     overflow: visible !important;
   }
 
@@ -635,19 +637,25 @@
     page-break-after: avoid;
   }
 
+  /*
+    IMPORTANTE:
+    Não usar avoid aqui.
+    O avoid fazia o Chrome jogar a operação inteira para a próxima folha,
+    deixando o cabeçalho sozinho.
+  */
   .operation-single-page .op-operation {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
 
   .op-title {
     font-size: 10.5pt !important;
     padding-bottom: 2pt !important;
-    margin-bottom: 3pt !important;
+    margin-bottom: 2pt !important;
   }
 
   .op-header-top {
-    margin-bottom: 2pt !important;
+    margin-bottom: 1.5pt !important;
     padding-right: 2mm !important;
     overflow: hidden !important;
   }
@@ -711,84 +719,96 @@
   }
 
   .op-operation {
-    margin: 3pt 0 !important;
-    padding: 3pt 4pt !important;
+    margin: 2pt 0 !important;
+    padding: 2pt 3pt !important;
   }
 
   .op-operation .op-row-barcode {
-    gap: 6pt !important;
+    gap: 4pt !important;
   }
 
-  .op-apontamento-table {
-    font-size: 8.5pt !important;
-    margin-top: 3pt !important;
+  .op-operation .op-kv-2col {
+    row-gap: 0.5pt !important;
+    column-gap: 3pt !important;
   }
 
-  .op-apontamento-table th,
-  .op-apontamento-table td {
+  .operation-single-page .op-section-title {
+    margin-top: 2pt !important;
+    margin-bottom: 1pt !important;
+    font-size: 8pt !important;
+  }
+
+  .operation-single-page .op-apontamento-table {
+    margin-top: 2pt !important;
+    font-size: 6.8pt !important;
+  }
+
+  .operation-single-page .op-apontamento-table th,
+  .operation-single-page .op-apontamento-table td {
+    padding: 0 2pt !important;
+    line-height: 1 !important;
     border: 0.5pt solid #000 !important;
-    padding: 0 3pt !important;
   }
 
-  .op-apontamento-table tr.op-apt-head th {
-    height: 4.5mm !important;
-    font-size: 7pt !important;
+  .operation-single-page .op-apontamento-table tr.op-apt-head th {
+    height: 3.2mm !important;
+    font-size: 6.4pt !important;
     font-weight: bold !important;
     background: #f0f0f0 !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .op-apontamento-table tr.op-apt-fill td {
-    height: 10mm !important;
+  .operation-single-page .op-apontamento-table tr.op-apt-fill td {
+    height: 6.2mm !important;
   }
 
-  .op-apontamento-table tr.op-apt-row-end td {
-    border-bottom: 2.3pt solid #000 !important;
-    padding-bottom: 1mm !important;
+  .operation-single-page .op-apontamento-table tr.op-apt-row-end td {
+    padding-bottom: 0.4mm !important;
+    border-bottom: 1.6pt solid #000 !important;
   }
 
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-head th {
-    height: 4mm !important;
-    font-size: 6.8pt !important;
+    height: 3mm !important;
+    font-size: 6.2pt !important;
   }
 
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-fill td {
-    height: 8mm !important;
+    height: 5.8mm !important;
   }
 
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-row-end td {
-    padding-bottom: 0.8mm !important;
-    border-bottom: 2pt solid #000 !important;
+    padding-bottom: 0.3mm !important;
+    border-bottom: 1.5pt solid #000 !important;
   }
 
   .componentes-inline {
-    margin-top: 3pt !important;
-    margin-bottom: 3pt !important;
+    margin-top: 2pt !important;
+    margin-bottom: 2pt !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
 
   .componentes-inline .op-section-title {
-    margin-top: 3pt !important;
-    margin-bottom: 1.5pt !important;
-    font-size: 8pt !important;
-  }
-
-  .componentes-inline .op-stage-bar {
-    margin: 2pt 0 1.5pt !important;
-    padding: 1.5pt 3pt !important;
+    margin-top: 2pt !important;
+    margin-bottom: 1pt !important;
     font-size: 7.5pt !important;
   }
 
+  .componentes-inline .op-stage-bar {
+    margin: 1.5pt 0 1pt !important;
+    padding: 1.2pt 2pt !important;
+    font-size: 7pt !important;
+  }
+
   .componentes-inline .componentes-table {
-    font-size: 6.8pt !important;
+    font-size: 6.5pt !important;
     line-height: 1 !important;
   }
 
   .componentes-inline .componentes-table th,
   .componentes-inline .componentes-table td {
-    padding: 0.8pt 2pt !important;
+    padding: 0.6pt 1.5pt !important;
     line-height: 1 !important;
   }
 
