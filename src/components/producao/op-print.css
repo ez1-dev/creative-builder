@@ -1,10 +1,3 @@
-/* Impressão de Ordem de Produção - layout fiel ao MCAP700.GER (Senior).
-   Monocromático intencional: preto puro em fundo branco. */
-
-/* =========================================================
-   BASE / PREVIEW
-   ========================================================= */
-
 .op-sheet {
   background: #fff;
   color: #000;
@@ -31,32 +24,6 @@
 .op-sheet .op-box {
   border: 1px solid #000;
   padding: 4px 6px;
-}
-
-.op-sheet .op-row {
-  display: flex;
-  gap: 8px;
-}
-
-.op-sheet .op-grid-2col {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 8px;
-}
-
-.op-sheet .op-kv {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  column-gap: 6px;
-  row-gap: 2px;
-}
-
-.op-sheet .op-kv > .k {
-  font-weight: bold;
-}
-
-.op-sheet .op-kv > .v {
-  word-break: break-word;
 }
 
 .op-sheet .op-kv-2col {
@@ -111,10 +78,6 @@
   font-weight: bold;
   margin: 4px 0 3px;
 }
-
-/* =========================================================
-   CABEÇALHO DA OP
-   ========================================================= */
 
 .op-sheet .op-title {
   text-align: center;
@@ -184,23 +147,11 @@
   margin-top: 2px;
 }
 
-/* =========================================================
-   CÓDIGO DE BARRAS
-   ========================================================= */
-
-.op-sheet .op-barcode {
-  display: block;
-}
-
 .op-sheet .op-barcode-caption {
   font-family: "Courier New", monospace;
   text-align: center;
   font-size: 9px;
 }
-
-/* =========================================================
-   OPERAÇÃO
-   ========================================================= */
 
 .op-sheet .op-operation {
   border: 1px solid #000;
@@ -208,49 +159,11 @@
   margin: 4px 0;
 }
 
-.operation-single-page .op-operation {
-  page-break-inside: auto;
-  break-inside: auto;
-}
-
 .op-sheet .op-operation .op-row-barcode {
   display: flex;
   gap: 10px;
   align-items: flex-start;
 }
-
-.op-sheet .op-narrativas {
-  white-space: pre-wrap;
-  border-top: 1px dashed #000;
-  margin-top: 3px;
-  padding-top: 3px;
-}
-
-/* =========================================================
-   RODAPÉ / RESPONSABILIDADE
-   ========================================================= */
-
-.op-sheet .op-footer {
-  margin-top: 8px;
-  border-top: 1px solid #000;
-  padding-top: 3px;
-  font-size: 8.5px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.op-sheet .op-responsability,
-.op-sheet .op-responsabilidade {
-  border: 1px solid #000;
-  padding: 4px 6px;
-  margin-top: 8px;
-  font-style: italic;
-  text-align: center;
-}
-
-/* =========================================================
-   LARGURAS E CENTRALIZAÇÃO
-   ========================================================= */
 
 .op-sheet .col-w-narrow {
   width: 60px;
@@ -271,10 +184,6 @@
   text-align: center !important;
   vertical-align: middle !important;
 }
-
-/* =========================================================
-   DESTAQUES
-   ========================================================= */
 
 .op-sheet .op-qtde-destaque {
   font-size: 15px !important;
@@ -306,10 +215,6 @@
   font-weight: 700 !important;
 }
 
-/* =========================================================
-   ESTRUTURA DE PÁGINAS - PREVIEW
-   ========================================================= */
-
 .op-print-page,
 .op-operation-page {
   width: 196mm;
@@ -317,28 +222,9 @@
   margin: 0 auto;
 }
 
-.op-print-page:not(:last-child),
-.op-operation-page:not(:last-child) {
-  page-break-after: always;
-  break-after: page;
-}
-
 .operation-single-page {
-  page-break-inside: avoid;
-  break-inside: avoid;
   overflow: hidden;
 }
-
-.operation-single-page:not(:last-child) {
-  page-break-after: always;
-  break-after: page;
-}
-
-/* =========================================================
-   COMPONENTES INLINE
-   Usado quando componentes.length <= 7.
-   Deve aparecer antes da operação.
-   ========================================================= */
 
 .componentes-inline {
   margin-top: 4pt;
@@ -366,21 +252,11 @@
   line-height: 1;
 }
 
-/* =========================================================
-   COMPONENTES EM PÁGINA SEPARADA
-   Usado quando componentes.length > 7.
-   ========================================================= */
-
 .componentes-page {
   width: 196mm;
   min-height: 283mm;
   margin: 0 auto;
   box-sizing: border-box;
-}
-
-.componentes-page:not(:last-child) {
-  page-break-after: always;
-  break-after: page;
 }
 
 .componentes-page table {
@@ -404,18 +280,16 @@
   break-inside: avoid;
 }
 
-.op-componentes-indicacao {
-  margin-top: 6px;
-  padding: 6px 8px;
-  border: 1px dashed #000;
-  font-style: italic;
-  font-size: 10px;
-  text-align: center;
+.op-componentes-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-/* =========================================================
-   DESENHOS
-   ========================================================= */
+.op-componentes-parte {
+  font-weight: 400;
+  font-size: 8px;
+}
 
 .op-drawing-page {
   width: 196mm;
@@ -429,11 +303,6 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-}
-
-.op-drawing-page:not(:last-child) {
-  page-break-after: always;
-  break-after: page;
 }
 
 .op-drawing-image {
@@ -478,10 +347,6 @@
   object-fit: contain;
 }
 
-/* =========================================================
-   TABELA DE APONTAMENTO
-   ========================================================= */
-
 .op-apontamento-table {
   width: 100%;
   border-collapse: collapse;
@@ -516,21 +381,6 @@
   border-bottom: 4px solid #000;
   padding-bottom: 2mm;
 }
-
-.op-sheet .op-apontamento-cell-check {
-  width: 18px;
-  height: 14px;
-  display: inline-block;
-  border: 1px solid #000;
-}
-
-.op-sheet .op-apontamento-row td {
-  height: 22px;
-}
-
-/* =========================================================
-   PRINT
-   ========================================================= */
 
 @page {
   size: A4 portrait;
@@ -577,8 +427,25 @@
   .filters,
   .print-actions,
   .preview-message,
-  .drawing-empty-message {
+  .drawing-empty-message,
+  .op-drawing-missing.no-print {
     display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .op-print-batch,
+  .op-print-group {
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
   }
 
   .op-sheet,
@@ -614,20 +481,55 @@
     overflow: visible !important;
   }
 
+  /* =========================================================
+     CORREÇÃO DA PÁGINA EM BRANCO NO FINAL
+     Nunca quebrar depois. Sempre quebrar antes do próximo bloco.
+     ========================================================= */
+
+  .print-root,
+  .op-print-batch,
+  .op-print-group,
+  .op-print-page,
+  .op-print-unit,
+  .op-sheet,
   .op-operation-page,
+  .operation-single-page,
   .componentes-page,
-  .op-drawing-page,
-  .operation-single-page {
-    page-break-after: always;
-    break-after: page;
+  .op-drawing-page {
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
   }
 
-  .op-print-batch > *:last-child,
+  .op-print-group + .op-print-group {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .op-print-group > .op-print-unit + .op-print-unit {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .print-root > .op-print-unit + .op-print-unit {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .op-print-batch > .op-print-group:first-child,
+  .op-print-group > .op-print-unit:first-child,
+  .print-root > .op-print-unit:first-child {
+    page-break-before: auto !important;
+    break-before: auto !important;
+  }
+
+  .op-print-batch > .op-print-group:last-child,
+  .op-print-batch > .op-print-group:last-child > .op-print-unit:last-of-type,
+  .op-print-group.last-print-group,
+  .op-print-group.last-print-group > .op-print-unit:last-of-type,
   .print-root > *:last-child,
-  .op-operation-page:last-child,
-  .componentes-page:last-child,
-  .op-drawing-page:last-child,
-  .operation-single-page:last-child {
+  .print-root > *:last-child > *:last-child {
     page-break-after: auto !important;
     break-after: auto !important;
   }
@@ -637,18 +539,10 @@
     page-break-after: avoid;
   }
 
-  /*
-    Não usar break-inside: avoid na operação.
-    O avoid faz o Chrome jogar a operação inteira para a próxima folha.
-  */
   .operation-single-page .op-operation {
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
-
-  /* =========================================================
-     CABEÇALHO COMPACTO, MAS SEM CORTAR MARGEM
-     ========================================================= */
 
   .op-title {
     font-size: 10.5pt !important;
@@ -720,10 +614,6 @@
     font-weight: 700 !important;
   }
 
-  /* =========================================================
-     OPERAÇÃO
-     ========================================================= */
-
   .op-operation {
     margin: 2pt 0 !important;
     padding: 2pt 3pt !important;
@@ -744,10 +634,6 @@
     font-size: 8pt !important;
   }
 
-  /*
-    A tabela de apontamento deve ocupar a página,
-    mantendo campos grandes para preenchimento manual.
-  */
   .operation-single-page .op-apontamento-table {
     margin-top: 2pt !important;
     font-size: 7pt !important;
@@ -778,28 +664,17 @@
     border-bottom: 2pt solid #000 !important;
   }
 
-  /*
-    OP com componentes pequenos na mesma página:
-    menos blocos de apontamento, porém campos ainda grandes.
-    Exemplo: OP 125.
-  */
-  .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-head th {
-    height: 3.8mm !important;
-    font-size: 6.6pt !important;
+  .operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-fill td {
+    height: 10.8mm !important;
   }
 
-  .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-fill td {
-    height: 10mm !important;
+  .operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-fill td {
+    height: 12.5mm !important;
   }
 
-  .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-row-end td {
-    padding-bottom: 0.8mm !important;
-    border-bottom: 2pt solid #000 !important;
+  .operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-fill td {
+    height: 14mm !important;
   }
-
-  /* =========================================================
-     COMPONENTES INLINE
-     ========================================================= */
 
   .componentes-inline {
     margin-top: 2pt !important;
@@ -831,10 +706,6 @@
     line-height: 1 !important;
   }
 
-  /* =========================================================
-     COMPONENTES EM PÁGINA SEPARADA
-     ========================================================= */
-
   .componentes-page thead {
     display: table-header-group !important;
   }
@@ -850,10 +721,6 @@
     page-break-inside: avoid;
     break-inside: avoid;
   }
-
-  /* =========================================================
-     DESENHOS
-     ========================================================= */
 
   .op-drawing-page {
     width: 190mm !important;
@@ -898,67 +765,5 @@
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
-  }
-}
-
-/* =========================================================
-   CORREÇÃO FINAL: remover página em branco no fim da impressão agrupada
-   ========================================================= */
-
-@media print {
-  /*
-    Primeiro zera a quebra forçada em todos os possíveis blocos.
-    Isso evita que o último bloco gere uma folha em branco.
-  */
-  .op-print-page,
-  .op-print-group,
-  .op-sheet,
-  .op-operation-page,
-  .operation-single-page,
-  .componentes-page,
-  .op-drawing-page {
-    page-break-after: auto !important;
-    break-after: auto !important;
-  }
-
-  /*
-    Quebra somente entre páginas internas da mesma OP.
-  */
-  .op-print-page > .op-sheet:not(:last-child),
-  .op-print-page > .op-operation-page:not(:last-child),
-  .op-print-page > .operation-single-page:not(:last-child),
-  .op-print-page > .componentes-page:not(:last-child),
-  .op-print-page > .op-drawing-page:not(:last-child),
-  .op-print-group > .op-sheet:not(:last-child),
-  .op-print-group > .op-operation-page:not(:last-child),
-  .op-print-group > .operation-single-page:not(:last-child),
-  .op-print-group > .componentes-page:not(:last-child),
-  .op-print-group > .op-drawing-page:not(:last-child) {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-
-  /*
-    Quebra entre OPs no agrupamento, mas nunca depois da última OP.
-  */
-  .op-print-batch > .op-print-page:not(:last-child),
-  .op-print-batch > .op-print-group:not(:last-child),
-  .op-print-batch > .op-sheet:not(:last-child),
-  .op-print-batch > .op-operation-page:not(:last-child),
-  .op-print-batch > .componentes-page:not(:last-child),
-  .op-print-batch > .op-drawing-page:not(:last-child) {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-
-  /*
-    Garantia absoluta: último bloco da impressão agrupada não quebra.
-  */
-  .op-print-batch > *:last-child,
-  .op-print-batch > *:last-child > *:last-child,
-  .print-root > *:last-child,
-  .print-root > *:last-child > *:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
   }
 }

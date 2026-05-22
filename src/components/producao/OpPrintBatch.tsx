@@ -1,39 +1,65 @@
-import { OpPrintSheet } from './OpPrintSheet';
-import type { OpImpressao } from '@/lib/producao/opImpressao';
-import './op-print.css';
+import type { OpImpressao } from "@/lib/producao/opImpressao";
+import type { BlobStateMap } from "@/hooks/useAuthedBlobUrls";
+import type { OpDesenhoPaginaA4Carregada } from "@/lib/producao/opDesenhosA4";
+import { OpPrintSheet } from "./OpPrintSheet";
+import "./op-print.css";
 
 interface Props {
-  ordens: OpImpressao[];
+  ops: OpImpressao[];
   preview?: boolean;
   usuario?: string | null;
-  quebrarPorOperacao?: boolean;
+  quebrarPorOperacao?: boolean | null;
+  blobStates?: BlobStateMap;
+  paginasDesenhosA4PorOp?: Record<string, OpDesenhoPaginaA4Carregada[]>;
 }
 
-export function OpPrintBatch({ ordens, preview = false, usuario, quebrarPorOperacao = false }: Props) {
-  if (!ordens?.length) return null;
+function getOpKey(op: OpImpressao, index: number) {
+  const cab = op?.cabecalho ?? {};
+
+  return `${cab.cod_emp ?? ""}-${cab.cod_ori ?? ""}-${cab.num_orp ?? ""}-${index}`;
+}
+
+function getOpMapaKey(op: OpImpressao) {
+  const cab = op?.cabecalho ?? {};
+
+  return `${cab.cod_emp ?? ""}-${cab.cod_ori ?? ""}-${cab.num_orp ?? ""}`;
+}
+
+export function OpPrintBatch({
+  ops,
+  preview = false,
+  usuario,
+  quebrarPorOperacao,
+  blobStates,
+  paginasDesenhosA4PorOp,
+}: Props) {
+  const lista = Array.isArray(ops) ? ops : [];
+
+  if (lista.length === 0) {
+    return (
+      <div className="print-root">
+        <div className="op-print-empty no-print">Nenhuma ordem de produção selecionada para impressão.</div>
+      </div>
+    );
+  }
+
   return (
-    <div className="op-print-batch">
-      {ordens.map((op, idx) => {
-        const cab = op?.cabecalho ?? {};
-        const key = `${cab.cod_emp ?? ''}-${cab.cod_ori ?? ''}-${cab.num_orp ?? ''}-${idx}`;
-        // No modo "quebrar por operação", OpPrintSheet já emite múltiplas
-        // páginas (op-operation-page / componentes-page / op-drawing-page).
-        // Evitamos o invólucro .op-print-page para não gerar página em branco
-        // ao final do lote.
-        if (quebrarPorOperacao) {
-          return (
+    <div className="print-root op-print-batch">
+      {lista.map((op, index) => {
+        const isLast = index === lista.length - 1;
+        const mapaKey = getOpMapaKey(op);
+        const paginasDesenhosA4 = paginasDesenhosA4PorOp?.[mapaKey] ?? [];
+
+        return (
+          <div key={getOpKey(op, index)} className={`op-print-group ${isLast ? "last-print-group" : ""}`}>
             <OpPrintSheet
-              key={key}
               data={op}
               preview={preview}
               usuario={usuario}
               quebrarPorOperacao={quebrarPorOperacao}
+              blobStates={blobStates}
+              paginasDesenhosA4={paginasDesenhosA4}
             />
-          );
-        }
-        return (
-          <div key={key} className="op-print-page">
-            <OpPrintSheet data={op} preview={preview} usuario={usuario} quebrarPorOperacao={quebrarPorOperacao} />
           </div>
         );
       })}

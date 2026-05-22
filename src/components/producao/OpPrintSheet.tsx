@@ -11,17 +11,8 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean | null;
-  /** Mapa url->{status, blobUrl, error} pré-carregado pelo pai (legado). */
   blobStates?: BlobStateMap;
-  /** Páginas A4 dos desenhos já normalizadas e carregadas como blob. */
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
-}
-
-function fmtNow() {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function fmtDate(s?: string) {
@@ -55,15 +46,6 @@ export function OpPrintSheet({
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
-  const observacoesRaw = data?.observacoes ?? [];
-
-  const observacoes: string[] = (observacoesRaw as any[])
-    .map((o) => (typeof o === "string" ? o : (o?.observacao ?? "")))
-    .filter((s) => String(s ?? "").trim() !== "");
-
-  const responsabilidade =
-    data?.mensagem_responsabilidade ??
-    "Ao finalizar o apontamento o operador estará se responsabilizando pela quantidade e qualidade dos produtos informados.";
 
   const opCode = cab.codigo_barras_op ?? `${cab.cod_ori ?? ""}${String(cab.num_orp ?? "").padStart(9, "0")}`;
 
@@ -208,50 +190,6 @@ export function OpPrintSheet({
     );
   };
 
-  const renderComponentesPage = () => {
-    if (componentes.length === 0) return null;
-
-    return (
-      <div className={`op-sheet componentes-page ${preview ? "op-sheet--preview" : ""}`}>
-        {renderHeader()}
-
-        <div className="op-section-title">RELAÇÃO DE COMPONENTES NECESSÁRIOS</div>
-
-        {etgKeys.map((etg) => (
-          <div key={`compsep-${etg}`}>
-            {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
-
-            <table className="componentes-table">
-              <thead>
-                <tr>
-                  <th className="col-w-medium">Código</th>
-                  <th>Descrição</th>
-                  <th className="col-w-narrow qtd-prev">Qtde. Prev.</th>
-                  <th className="col-w-narrow unidade">UN</th>
-                  <th className="col-w-narrow deposito">Dep.</th>
-                  <th className="col-w-medium endereco">Endereço</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {compsPorEtg[etg].map((c, i) => (
-                  <tr key={`csep-${etg}-${i}`}>
-                    <td>{c.codigo_componente ?? ""}</td>
-                    <td>{c.descricao_componente ?? ""}</td>
-                    <td className="qtd-prev">{c.quantidade_prevista ?? ""}</td>
-                    <td className="unidade">{c.unidade_medida ?? ""}</td>
-                    <td className="deposito">{c.deposito ?? ""}</td>
-                    <td className="endereco">{c.endereco ?? ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   const renderComponentesPagesPaginadas = () => {
     if (componentes.length === 0) return null;
 
@@ -272,14 +210,15 @@ export function OpPrintSheet({
           return (
             <div
               key={`componentes-page-${paginaIndex}`}
-              className={`op-sheet componentes-page ${preview ? "op-sheet--preview" : ""}`}
+              className={`op-sheet op-print-unit componentes-page ${preview ? "op-sheet--preview" : ""}`}
             >
               {renderHeader()}
 
-              <div className="op-section-title">
-                RELAÇÃO DE COMPONENTES NECESSÁRIOS
+              <div className="op-section-title op-componentes-title">
+                <span>RELAÇÃO DE COMPONENTES NECESSÁRIOS</span>
+
                 {componentesPorPagina.length > 1 && (
-                  <span style={{ float: "right", fontWeight: 400 }}>
+                  <span className="op-componentes-parte">
                     Parte {paginaIndex + 1}/{componentesPorPagina.length}
                   </span>
                 )}
@@ -369,6 +308,7 @@ export function OpPrintSheet({
           <div className="v op-proxoper-destaque">
             {(() => {
               const label = op.proxima_operacao_label?.trim();
+
               if (label) return label;
 
               const cod = op.proxima_operacao_codigo?.trim();
@@ -455,14 +395,12 @@ export function OpPrintSheet({
     </div>
   );
 
-  const renderFooter = () => null;
-
   const desenhos = data?.desenhos ?? [];
 
   const renderDesenhos = (keyPrefix = "drw") => {
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
       return paginasDesenhosA4.map((pg, i) => (
-        <div className="op-drawing-page" key={`${keyPrefix}-a4-${i}`}>
+        <div className="op-drawing-page op-print-unit" key={`${keyPrefix}-a4-${i}`}>
           <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
         </div>
       ));
@@ -489,76 +427,9 @@ export function OpPrintSheet({
       );
     }
 
-    const totalComStatus = blobStates ? desenhos.filter((d) => blobStates[getDrawingPrintUrl(d)]).length : 0;
-
-    const totalFalhas = blobStates
-      ? desenhos.filter((d) => blobStates[getDrawingPrintUrl(d)]?.status === "error").length
-      : 0;
-
-    const totalOk = blobStates ? desenhos.filter((d) => blobStates[getDrawingPrintUrl(d)]?.status === "ok").length : 0;
-
-    const todosFalharam = blobStates && totalComStatus === desenhos.length && totalOk === 0 && totalFalhas > 0;
-
     return (
       <div className="no-print op-box" style={{ marginTop: 8 }}>
         <div style={{ fontWeight: "bold", marginBottom: 4 }}>Desenhos encontrados ({desenhos.length})</div>
-
-        {todosFalharam && (
-          <div
-            style={{
-              marginBottom: 6,
-              padding: "6px 8px",
-              border: "1px solid hsl(var(--destructive))",
-              color: "hsl(var(--destructive))",
-              fontSize: 11,
-              borderRadius: 4,
-            }}
-          >
-            A API listou {desenhos.length} desenho(s), mas nenhum pôde ser baixado. Verifique o token e as permissões do
-            endpoint <code>/api/producao/ordem-producao/desenho</code>.
-          </div>
-        )}
-
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Arquivo</th>
-              <th>Tipo</th>
-              {blobStates && <th>Status</th>}
-            </tr>
-          </thead>
-
-          <tbody>
-            {desenhos.map((d, i) => {
-              const st = blobStates?.[getDrawingPrintUrl(d)];
-              let statusLabel: React.ReactNode = "-";
-
-              if (st) {
-                if (st.status === "loading") {
-                  statusLabel = <span style={{ color: "hsl(var(--muted-foreground))" }}>Carregando…</span>;
-                } else if (st.status === "ok") {
-                  statusLabel = <span style={{ color: "hsl(142 76% 36%)" }}>OK</span>;
-                } else {
-                  statusLabel = (
-                    <span style={{ color: "hsl(var(--destructive))" }} title={st.error ?? ""}>
-                      Falha: {st.error ?? "erro"}
-                    </span>
-                  );
-                }
-              }
-
-              return (
-                <tr key={`drw-meta-${i}`}>
-                  <td>{i + 1}</td>
-                  <td>{d.nome_arquivo ?? "-"}</td>
-                  <td>{d.extensao ?? d.tipo ?? d.mime_type ?? "-"}</td>
-                  {blobStates && <td>{statusLabel}</td>}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
       </div>
     );
   };
@@ -566,14 +437,12 @@ export function OpPrintSheet({
   if (quebrarPorOperacao) {
     if (operacoes.length === 0) {
       return (
-        <div className={`op-sheet ${preview ? "op-sheet--preview" : ""}`}>
+        <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
           {renderHeader()}
 
           <div className="op-box" style={{ marginTop: 12, textAlign: "center", fontStyle: "italic" }}>
             Nenhuma operação encontrada para os filtros selecionados.
           </div>
-
-          {renderFooter()}
         </div>
       );
     }
@@ -593,16 +462,16 @@ export function OpPrintSheet({
           if (renderizarComponentesInline) {
             const n = componentes.length;
 
-            if (n <= 3) blocos = 5;
+            if (n <= 5) blocos = 5;
             else if (n <= 7) blocos = 4;
           }
 
           return (
             <div
               key={`opp-${i}`}
-              className={`op-sheet op-operation-page operation-single-page ${
+              className={`op-sheet op-print-unit op-operation-page operation-single-page ${
                 renderizarComponentesInline ? "has-componentes-inline" : ""
-              } ${preview ? "op-sheet--preview" : ""}`}
+              } apt-blocos-${blocos} ${preview ? "op-sheet--preview" : ""}`}
             >
               {renderHeader()}
 
@@ -610,8 +479,6 @@ export function OpPrintSheet({
 
               <div className="op-section-title">Operação</div>
               {renderOperacao(op, i, blocos)}
-
-              {renderFooter()}
             </div>
           );
         })}
@@ -628,7 +495,7 @@ export function OpPrintSheet({
   if (quebrarComponentes) {
     return (
       <>
-        <div className={`op-sheet ${preview ? "op-sheet--preview" : ""}`}>
+        <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
           {renderHeader()}
 
           {operacoes.length > 0 && (
@@ -637,8 +504,6 @@ export function OpPrintSheet({
               {operacoes.map((op, i) => renderOperacao(op, i))}
             </>
           )}
-
-          {renderFooter()}
         </div>
 
         {renderComponentesPagesPaginadas()}
@@ -652,7 +517,7 @@ export function OpPrintSheet({
 
   return (
     <>
-      <div className={`op-sheet ${preview ? "op-sheet--preview" : ""}`}>
+      <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
         {renderHeader()}
 
         {renderComponentes()}
@@ -663,8 +528,6 @@ export function OpPrintSheet({
             {operacoes.map((op, i) => renderOperacao(op, i))}
           </>
         )}
-
-        {renderFooter()}
       </div>
 
       {renderDesenhos()}
@@ -749,7 +612,7 @@ function renderDrawingBody(
     !pdf && !usingPrintUrl && (drawing.rotacionar_para_retrato === true || Number(drawing.rotacao_recomendada) === 90);
 
   return (
-    <div className="op-drawing-page">
+    <div className="op-drawing-page op-print-unit">
       {loading && <div className="op-drawing-missing no-print">Carregando desenho...</div>}
 
       {!loading && error && <div className="op-drawing-missing no-print">Falha ao carregar: {error}</div>}
