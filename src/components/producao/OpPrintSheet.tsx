@@ -406,10 +406,16 @@ export function OpPrintSheet({
 
   const desenhos = data?.desenhos ?? [];
 
+  const temAlgumDesenho =
+    (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0;
+
   const renderDesenhos = (keyPrefix = "drw") => {
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
       return paginasDesenhosA4.map((pg, i) => (
-        <div className="op-drawing-page op-print-unit" key={`${keyPrefix}-a4-${i}`}>
+        <div
+          className="op-drawing-page op-print-unit"
+          key={`${keyPrefix}-a4-${i}-${pg.nome_arquivo ?? "desenho"}`}
+        >
           <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
         </div>
       ));
@@ -417,13 +423,22 @@ export function OpPrintSheet({
 
     return desenhos.map((d, i) => (
       <DrawingPage
-        key={`${keyPrefix}-${i}`}
+        key={`${keyPrefix}-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
         drawing={d}
         index={i}
         precomputed={blobStates ? blobStates[getDrawingPrintUrl(d)] : undefined}
       />
     ));
   };
+
+  // Centraliza a regra: imprime desenho real ou reserva uma página branca técnica.
+  // Retorna null quando "Imprimir desenhos da OP" estiver desmarcado.
+  const renderDesenhosOuReserva = (keyPrefix: string): React.ReactNode => {
+    if (!imprimirDesenhos) return null;
+    if (temAlgumDesenho) return renderDesenhos(keyPrefix);
+    return <MissingDrawingPage key={`${keyPrefix}-missing`} />;
+  };
+
 
   const renderPreviewDesenhosResumo = () => {
     if (!preview) return null;

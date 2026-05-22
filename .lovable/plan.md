@@ -1,48 +1,72 @@
 ## Objetivo
+Corrigir a impressão da Ordem de Produção no modo **Quebrar uma página por operação / centro de recurso** para que cada sequência gere o ciclo correto `operação → desenho` (ou página branca técnica), sem deixar um desenho solto apenas no final.
 
-No modo "Quebrar uma página por operação / centro de recurso" da Impressão de OP, repetir o desenho (ou a página branca técnica) **logo após cada operação**, em vez de imprimir um único bloco de desenhos no final da OP.
+## O que vou ajustar
 
-## Comportamento esperado
+### 1) `src/components/producao/OpPrintSheet.tsx`
+Reestruturar o bloco `if (quebrarPorOperacao)` para montar explicitamente a lista de páginas em ordem de impressão.
 
-Para uma OP com 4 sequências (10, 20, 30, 50):
+- Criar um fluxo por sequência usando um array `paginas: React.ReactNode[]`
+- Para cada operação:
+  - adicionar a página da operação
+  - adicionar logo em seguida o desenho correspondente
+  - se não houver desenho e a opção estiver marcada, adicionar a `MissingDrawingPage`
+- Manter a regra atual de componentes:
+  - componentes inline apenas na primeira operação quando cabem
+  - componentes paginados apenas uma vez, após a primeira operação, sem repetir em todas as sequências
+- Corrigir o caso `operacoes.length === 0` para também usar a mesma lógica de reserva de desenho quando aplicável
 
+### 2) Funções auxiliares de desenho no mesmo arquivo
+Padronizar helpers para evitar duplicação e conflito de chaves React.
+
+- Criar/ajustar `renderDesenhosOuReserva(keyPrefix)` para centralizar a regra:
+  - se desenhos não devem ser impressos, retorna `null`
+  - se houver páginas A4 ou desenhos disponíveis, retorna `renderDesenhos(keyPrefix)`
+  - se não houver desenho, retorna `MissingDrawingPage`
+- Ajustar `renderDesenhos(keyPrefix)` para gerar chaves realmente únicas por operação e por página
+- Preservar compatibilidade futura com um possível `desenhos_por_operacao`, deixando o ponto de extensão claro dentro do loop por operação
+
+### 3) `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+Padronizar a espera de carregamento visual antes do `window.print()`.
+
+- Reaproveitar a função já existente de espera dos desenhos
+- Garantir que todos os gatilhos de impressão usem essa espera, incluindo:
+  - impressão individual
+  - gerar PDF
+  - imprimir da visualização
+  - imprimir a partir da linha da grade
+  - impressão em lote
+- Substituir o `setTimeout(() => window.print(), 200)` do fluxo da grade por um fluxo assíncrono consistente
+
+## Resultado esperado
+Para uma OP com sequências 10, 20, 30 e 50, a ordem deve ficar:
+
+```text
+Seq. 10
+Desenho
+
+Seq. 20
+Desenho
+
+Seq. 30
+Desenho
+
+Seq. 50
+Desenho
 ```
-Página 1: Operação seq. 10
-Página 2: Desenho da seq. 10
-Página 3: Operação seq. 20
-Página 4: Desenho da seq. 20
-...
+
+Se não houver desenho:
+
+```text
+Seq. 10
+Página branca técnica
+
+Seq. 20
+Página branca técnica
 ```
 
-Se "Imprimir desenhos da OP" estiver desmarcado, não imprime nada de desenho.
-Se marcado e não houver desenho, insere a `MissingDrawingPage` após cada operação.
-
-## Mudanças
-
-### `src/components/producao/OpPrintSheet.tsx` — bloco `if (quebrarPorOperacao)`
-
-1. Importar `Fragment` de `react` (já tem `useState` importado, basta adicionar).
-2. Dentro do `operacoes.map(...)`, envolver o retorno em `<Fragment key={...}>` e, **após** o `<div op-sheet ...>` da operação, renderizar:
-   - Se `imprimirDesenhos && desenhos.length > 0` → chamar `renderDesenhos(\`drw-op-${i}\`)` (chave única por operação para não conflitar com React keys, dado que `renderDesenhos` será invocado N vezes).
-   - Caso contrário, se `imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0)` → renderizar `<MissingDrawingPage />`.
-3. **Remover** do final do bloco `quebrarPorOperacao` as linhas:
-   - `{desenhos.length > 0 && renderDesenhos("drw-end")}`
-   - `{imprimirDesenhos && desenhos.length === 0 && (...) && <MissingDrawingPage />}`
-   
-   (Permanecem somente nesse modo — os outros modos `quebrarComponentes` e padrão seguem inalterados.)
-4. Manter intactos:
-   - Regra de componentes inline (≤ `limiteComp` → primeira operação) e página separada (> `limiteComp` → via `renderComponentesPagesPaginadas()` antes dos desenhos finais? **Atenção:** hoje a página de componentes paginada sai após todas as operações e antes dos desenhos. Como agora o desenho será intercalado, manter `componentesEmPaginaSeparada && renderComponentesPagesPaginadas()` **antes** do map de operações fica errado em relação ao fluxo atual; mantemos no mesmo lugar (após o map) — a página de componentes virá entre a última operação+desenho e nada mais. Isso é aceitável e equivalente ao comportamento atual, só muda a posição relativa dos desenhos.).
-   - `preview && renderPreviewDesenhosResumo()` no final.
-5. Verificar que `renderDesenhos(prefix)` aceita o prefixo único e gera React keys próprias — já é o padrão usado hoje em `"drw-end"`. Confirmar leitura rápida da função antes de editar.
-
-### Estrutura preservada
-
-- Classe `op-print-unit` continua em cada página de desenho (já é responsabilidade do `renderDesenhos`).
-- Sem alterações em `OpPrintBatch`, `ImpressaoOrdemProducaoPage` ou `op-print.css`.
-- Sem alterações no backend nem no contrato da API. Caso futuramente venha `desenhos_por_operacao`, o ponto de extensão é exatamente o bloco dentro do `map` — basta trocar `desenhos` por `desenhosPorOperacao[op.seq] ?? desenhos`.
-
-## Fora do escopo
-
-- Modos `quebrarComponentes` e padrão (sem quebra) continuam imprimindo o desenho uma única vez no final, como hoje.
-- Suporte real a desenho por sequência (depende de mudança no backend).
-- `RelatorioPrintEngine` (Wave 3).
+## Detalhes técnicos
+- O código atual já intercalou parcialmente, mas ainda mantém a estrutura de retorno baseada em `map`, o que dificulta controlar com precisão a ordem completa das páginas e os blocos complementares.
+- O helper `renderDesenhosOuReserva` citado na proposta do usuário ainda não existe no arquivo atual; eu vou adicioná-lo usando a estrutura real do componente.
+- A função de espera antes da impressão já existe (`aguardarDesenhosProntos`), mas ainda não é usada em todos os caminhos de impressão.
+- Não haverá mudança de backend, contrato de API, CSS de impressão ou outros modos de layout fora do necessário para esse fluxo.
