@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
+import { Loader2, Play, FileSpreadsheet, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
 import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioLayout, RelatorioParametro } from '@/lib/relatorios/types';
@@ -217,13 +217,11 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
           disabled={!result || !result.linhas.length}
           size="sm"
           variant="outline"
-          title="Pré-visualizar / imprimir via RelatorioPrintEngine"
+          title="Pré-visualizar / imprimir / exportar PDF via RelatorioPrintEngine"
         >
-          <Printer className="h-4 w-4 mr-1" /> Imprimir
+          <Printer className="h-4 w-4 mr-1" /> Imprimir / PDF
         </Button>
-        <Button onClick={() => exportar('pdf')} disabled size="sm" variant="outline" title="Disponível na próxima onda">
-          <FileText className="h-4 w-4 mr-1" /> PDF
-        </Button>
+
       </div>
 
       {!podeExportar && result && (
