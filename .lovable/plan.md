@@ -1,63 +1,52 @@
-## Diagnóstico
+# Restaurar margens internas na impressão da OP
 
-A última mudança no `@media print` removeu os overrides que faziam a `.componentes-page` "soltar" suas dimensões na impressão (`min-height: 0`, `height: auto`, `overflow: visible`). Agora ela herda do `.op-sheet`: `min-height: 297mm` + `padding: 8mm` + `box-sizing: border-box`. Como o `@page` tem margem 7mm, a área útil real do papel é 196mm × 283mm — menor que o `min-height: 297mm` do elemento. O Chrome trata o bloco inteiro como "não cabe" e em alguns casos pula a página, fazendo a tabela de componentes não aparecer na impressão (apesar de existir no DOM e renderizar bem no preview).
+## Problema
 
-Outro efeito colateral: mesmo se aparecesse, com `min-height: 297mm` o bloco é uma única "caixa" gigante — o navegador não pagina naturalmente uma tabela de 30+ linhas em múltiplas folhas A4.
+No PDF anexo (página 1 — folha da OP 30782), o conteúdo do `.op-sheet` (cabeçalho, relação de componentes, operação, blocos de apontamento) está colado nas bordas do papel. Só existe a margem mínima do `@page` (7 mm). Antes do ajuste da página de componentes, havia também 8 mm de padding interno do `.op-sheet`, o que dava uma "respiração" visual ao redor das caixas.
 
-## Solução
+O que removeu a margem foi esta regra adicionada em `src/components/producao/op-print.css` (bloco `@media print`):
 
-Tudo em `src/components/producao/op-print.css`, dentro do `@media print` que reescrevi:
+```css
+.op-print-page .op-sheet,
+.op-operation-page .op-sheet,
+.operation-single-page {
+  padding: 0 !important;
+}
+```
 
-1. **Reabrir a página de componentes para fluir naturalmente**
+Ela foi necessária para a página de componentes não estourar o papel, mas zerou o padding também das folhas de OP/operação.
+
+## Plano
+
+Editar apenas `src/components/producao/op-print.css`:
+
+1. **Restaurar padding interno só onde é seguro** — trocar a regra acima por algo mais cirúrgico que mantenha 8 mm de padding nas folhas de OP e de operação (cabeçalho + apontamento), e continue com padding 0 só na página de componentes:
 
    ```css
-   @media print {
-     .op-sheet.componentes-page {
-       min-height: 0 !important;
-       height: auto !important;
-       overflow: visible !important;
-       padding: 0 !important;   /* tira o padding do .op-sheet que estoura a página */
-     }
-     .componentes-page tbody {
-       page-break-inside: auto;
-       break-inside: auto;
-     }
+   .op-print-page .op-sheet,
+   .op-operation-page .op-sheet,
+   .operation-single-page {
+     padding: 8mm !important;
+   }
+   .op-sheet.componentes-page,
+   .componentes-page {
+     padding: 0 !important;
    }
    ```
 
-   Combinado com `tr { page-break-inside: avoid }` (já existe), a tabela quebra entre linhas em quantas folhas A4 forem necessárias, sem cortar nenhuma linha no meio.
+2. **Garantir que o conteúdo continua cabendo** — como os wrappers `.op-print-page` / `.op-operation-page` / `.operation-single-page` têm 196 × 283 mm e o `@page` já contribui com 7 mm, somando os 8 mm de padding interno o conteúdo útil fica em ~180 × 267 mm, que é a área visual original do preview (não há overflow novo).
 
-2. **Compensar o padding nas demais folhas dimensionadas fixas**
-
-   `.op-print-page` e `.op-operation-page` continuam com altura fixa de 283mm — mas o `.op-sheet` interno aplica `padding: 8mm`, somando 16mm a mais. Em print, zerar esse padding:
-
-   ```css
-   @media print {
-     .op-print-page .op-sheet,
-     .op-operation-page .op-sheet,
-     .operation-single-page {
-       padding: 0 !important;
-     }
-   }
-   ```
-
-3. **Cabeçalho da tabela de componentes repete em cada folha**
-
-   Reverter `display: table-row-group` que coloquei para `display: table-header-group`, agora que a tabela vai mesmo quebrar em várias folhas — assim cada folha de componentes começa com a linha de "Código / Descrição / Qtde / UN / Dep / Endereço".
-
-   ```css
-   .componentes-page thead { display: table-header-group !important; }
-   ```
-
-4. **Manter o resto da regra minimalista** que já existe (esconder cromo da UI, isolar `.print-root`, `page-break-after: always` + `:last-child { avoid }`).
+3. **Não tocar na página de componentes** — ela continua com `min-height: 0`, `height: auto`, `overflow: visible` e padding zero, então a tabela longa segue quebrando normalmente em várias folhas A4.
 
 ## Validação
 
-- OP 1109 (caso atual da tela): pré-visualizar, abrir Ctrl+P, conferir que a folha de componentes aparece — provavelmente em 1 folha A4 se couber, ou 2 se a tabela for muito longa.
-- OP com 7 ou menos componentes: continuam inline (modo "quebrar por operação"), sem folha extra.
-- OP 7093 (40+ operações): conferir que o total de folhas continua batendo com o preview.
+- OP 30782 (do PDF) → cabeçalho, "Relação de Componentes Necessários" e "Operação" devem aparecer com ~15 mm de margem do papel (7 mm `@page` + 8 mm padding interno), como no preview.
+- OP 1109 → página de componentes continua sendo gerada e quebra em múltiplas A4 (sem regressão do fix anterior).
+- OP 7093 → mesma quantidade de páginas, sem folha em branco no final.
+- Página de desenho (`.op-drawing-page`) não é afetada (não bate com nenhum dos seletores alterados).
 
 ## Fora de escopo
 
-- `OpPrintSheet.tsx` e `OpPrintBatch.tsx` não mudam.
-- Sem mudança de backend, layout ou ordem de blocos.
+- `OpPrintSheet.tsx`, `OpPrintBatch.tsx`, hooks, backend.
+- Alterar o valor do `@page margin` global.
+- Mudar layout/ordem dos blocos.

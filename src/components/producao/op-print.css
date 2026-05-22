@@ -395,12 +395,12 @@
     margin: 0 auto !important;
   }
 
-  /* Zera padding do .op-sheet quando ele está dentro de folhas com altura
-     fixa, para não estourar a área útil do papel (196mm × 283mm). */
+  /* Mantém o padding interno do .op-sheet (8mm) nas folhas de OP/operação
+     para preservar a margem visual ao redor do conteúdo impresso. */
   .op-print-page .op-sheet,
   .op-operation-page .op-sheet,
   .operation-single-page {
-    padding: 0 !important;
+    padding: 8mm !important;
   }
 
   /* Página de componentes: pode crescer por várias folhas A4 quando a
@@ -413,6 +413,7 @@
     overflow: visible !important;
     padding: 0 !important;
   }
+
 
   /* Quebras de página: uma folha por bloco. O último bloco do lote
      não força page-break, para evitar folha em branco final. */
