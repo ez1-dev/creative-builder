@@ -638,15 +638,17 @@
   }
 
   /*
-    IMPORTANTE:
-    Não usar avoid aqui.
-    O avoid fazia o Chrome jogar a operação inteira para a próxima folha,
-    deixando o cabeçalho sozinho.
+    Não usar break-inside: avoid na operação.
+    O avoid faz o Chrome jogar a operação inteira para a próxima folha.
   */
   .operation-single-page .op-operation {
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
+
+  /* =========================================================
+     CABEÇALHO COMPACTO, MAS SEM CORTAR MARGEM
+     ========================================================= */
 
   .op-title {
     font-size: 10.5pt !important;
@@ -718,6 +720,10 @@
     font-weight: 700 !important;
   }
 
+  /* =========================================================
+     OPERAÇÃO
+     ========================================================= */
+
   .op-operation {
     margin: 2pt 0 !important;
     padding: 2pt 3pt !important;
@@ -738,9 +744,13 @@
     font-size: 8pt !important;
   }
 
+  /*
+    A tabela de apontamento deve ocupar a página,
+    mantendo campos grandes para preenchimento manual.
+  */
   .operation-single-page .op-apontamento-table {
     margin-top: 2pt !important;
-    font-size: 6.8pt !important;
+    font-size: 7pt !important;
   }
 
   .operation-single-page .op-apontamento-table th,
@@ -751,8 +761,8 @@
   }
 
   .operation-single-page .op-apontamento-table tr.op-apt-head th {
-    height: 3.2mm !important;
-    font-size: 6.4pt !important;
+    height: 4mm !important;
+    font-size: 6.8pt !important;
     font-weight: bold !important;
     background: #f0f0f0 !important;
     -webkit-print-color-adjust: exact;
@@ -760,27 +770,36 @@
   }
 
   .operation-single-page .op-apontamento-table tr.op-apt-fill td {
-    height: 6.2mm !important;
+    height: 10.5mm !important;
   }
 
   .operation-single-page .op-apontamento-table tr.op-apt-row-end td {
-    padding-bottom: 0.4mm !important;
-    border-bottom: 1.6pt solid #000 !important;
+    padding-bottom: 0.8mm !important;
+    border-bottom: 2pt solid #000 !important;
   }
 
+  /*
+    OP com componentes pequenos na mesma página:
+    menos blocos de apontamento, porém campos ainda grandes.
+    Exemplo: OP 125.
+  */
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-head th {
-    height: 3mm !important;
-    font-size: 6.2pt !important;
+    height: 3.8mm !important;
+    font-size: 6.6pt !important;
   }
 
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-fill td {
-    height: 5.8mm !important;
+    height: 10mm !important;
   }
 
   .operation-single-page.has-componentes-inline .op-apontamento-table tr.op-apt-row-end td {
-    padding-bottom: 0.3mm !important;
-    border-bottom: 1.5pt solid #000 !important;
+    padding-bottom: 0.8mm !important;
+    border-bottom: 2pt solid #000 !important;
   }
+
+  /* =========================================================
+     COMPONENTES INLINE
+     ========================================================= */
 
   .componentes-inline {
     margin-top: 2pt !important;
@@ -812,6 +831,10 @@
     line-height: 1 !important;
   }
 
+  /* =========================================================
+     COMPONENTES EM PÁGINA SEPARADA
+     ========================================================= */
+
   .componentes-page thead {
     display: table-header-group !important;
   }
@@ -827,6 +850,10 @@
     page-break-inside: avoid;
     break-inside: avoid;
   }
+
+  /* =========================================================
+     DESENHOS
+     ========================================================= */
 
   .op-drawing-page {
     width: 190mm !important;
