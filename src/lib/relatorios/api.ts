@@ -35,10 +35,11 @@ export async function getRelatorio(id: string) {
   return {
     relatorio: r as Relatorio | null,
     parametros: (params ?? []) as RelatorioParametro[],
-    colunas: (cols ?? []) as RelatorioColuna[],
-    layout: (layout ?? null) as RelatorioLayout | null,
+    colunas: (cols ?? []) as unknown as RelatorioColuna[],
+    layout: (layout ?? null) as unknown as RelatorioLayout | null,
   };
 }
+
 
 export async function createRelatorio(input: Partial<Relatorio>) {
   const { data: user } = await supabase.auth.getUser();
