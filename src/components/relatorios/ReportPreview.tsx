@@ -301,6 +301,16 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
           </div>
         </>
       )}
+
+      <ReportPrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        relatorio={relatorio}
+        layout={layout}
+        colunas={colunasExibir}
+        linhas={result?.linhas ?? []}
+        parametros={paramValues}
+      />
     </div>
   );
 }
