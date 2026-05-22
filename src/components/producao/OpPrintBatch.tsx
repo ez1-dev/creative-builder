@@ -12,6 +12,7 @@ interface Props {
   blobStates?: BlobStateMap;
   paginasDesenhosA4PorOp?: Record<string, OpDesenhoPaginaA4Carregada[]>;
   imprimirDesenhos?: boolean | null;
+  loadFullDrawings?: boolean;
 }
 
 function getOpKey(op: OpImpressao, index: number) {
