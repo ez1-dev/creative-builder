@@ -26,12 +26,30 @@ A partir da Onda 5/6 é o único caminho de impressão/PDF do sistema.
 - `exportPdf.tsx` — captura cada `.rp-page` com `html2canvas` e gera PDF
   multipágina via `jsPDF`. 100% client-side.
 - `adapters/` — converte um domínio específico em `PrintDocument`.
+- `templates.ts` — temas visuais (margens, header/footer, densidade)
+  aplicáveis a qualquer documento via `applyPrintTemplate(doc, id)`.
 
 ## Adapters existentes
 
 - `opAdapter.ts` — Ordem de Produção (`/producao/impressao-op`).
 - `genericReportAdapter.ts` — relatórios SQL do módulo Relatórios.
 - `etiquetaAdapter.ts` — etiquetas com código de barras (esqueleto).
+
+## Templates visuais
+
+Disponíveis em `PRINT_TEMPLATE_LIST`:
+
+| id            | quando usar                                          |
+| ------------- | ---------------------------------------------------- |
+| `padrao`      | default corporativo (margens 8mm, bordas)            |
+| `compacto`    | listas longas, fonte menor, margens 5mm              |
+| `destacado`   | apresentações, margens 14mm, fonte maior             |
+| `minimalista` | PDFs enviados ao cliente, sem bordas no header/footer|
+
+```ts
+import { applyPrintTemplate } from '@/lib/relatorios/print';
+const final = applyPrintTemplate(doc, 'compacto');
+```
 
 ## Criando um novo adapter
 
@@ -77,9 +95,9 @@ import { PrintRenderer, exportPrintDocumentToPdf } from '@/lib/relatorios/print'
 await exportPrintDocumentToPdf(doc, { filename: 'meu-arquivo.pdf' });
 ```
 
-## O que NÃO usar mais
+## Histórico
 
-- `OpPrintSheet` / `OpPrintBatch` — deprecated, serão removidos na próxima
-  onda. Toda nova lógica de impressão de OP deve ir pelo `opAdapter`.
-- `exportarRelatorio(id, 'pdf', ...)` no backend — substituído pelo
-  caminho client-side via `genericReportAdapter` + `exportPrintDocumentToPdf`.
+- **Onda 7** — `OpPrintSheet` e `OpPrintBatch` removidos definitivamente.
+  Toda impressão/PDF passa pelo `RelatorioPrintEngine` + adapters. Adicionados
+  templates visuais.
+- **Onda 5/6** — engine novo passa a ser o padrão; PDF 100% client-side.

@@ -12,8 +12,6 @@ import { useImpressaoOrdemProducao } from '@/hooks/useImpressaoOrdemProducao';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
-import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
-import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
 import { PrintRenderer, opToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
@@ -23,7 +21,6 @@ import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao
 import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
-import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
 import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 
@@ -103,10 +100,6 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
-  // Feature flag: novo RelatorioPrintEngine é o padrão a partir da Onda 5.
-  // Admins podem reverter para o motor legado (OpPrintBatch/OpPrintSheet) caso
-  // detectem alguma regressão.
-  const [usarNovoEngine, setUsarNovoEngine] = useState(true);
 
 
   const [obsOpen, setObsOpen] = useState(false);
@@ -117,16 +110,9 @@ export default function ImpressaoOrdemProducaoPage() {
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
-  // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
-  // e exibição de status por desenho na tabela de preview.
-  const desenhoUrls = useMemo(
-    () => (data?.desenhos ?? [])
-      .map((d) => d.url_impressao || d.url || '')
-      .filter(Boolean) as string[],
-    [data?.desenhos],
-  );
-  const blobStates = useAuthedBlobUrls(desenhoUrls);
-  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
+  // Erros de normalização de desenhos para o aviso na UI; o motor de impressão
+  // novo consome diretamente `data.desenhos` via opAdapter quando necessário.
+  const { errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
   // Diagnóstico de desenhos
@@ -1198,22 +1184,8 @@ export default function ImpressaoOrdemProducaoPage() {
         </div>
       )}
 
-      {isAdmin && (
-        <div className="no-print flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-xs">
-          <Checkbox
-            id="usar-novo-engine"
-            checked={!usarNovoEngine}
-            onCheckedChange={(v) => setUsarNovoEngine(v !== true)}
-          />
-          <Label htmlFor="usar-novo-engine" className="cursor-pointer" title="O motor legado será removido na próxima onda. Marque apenas se detectar uma regressão no novo motor.">
-            Reverter para motor de impressão legado (será removido na próxima onda).
-          </Label>
-
-        </div>
-      )}
-
       <div className="print-root">
-        {usarNovoEngine && (lote?.ordens?.length || data?.cabecalho) && (
+        {(lote?.ordens?.length || data?.cabecalho) && (
           <PrintRenderer
             doc={opToPrintDocument(
               lote?.ordens?.length ? lote.ordens : [data as OpImpressao],
@@ -1226,28 +1198,8 @@ export default function ImpressaoOrdemProducaoPage() {
             preview={preview}
           />
         )}
-
-        {!usarNovoEngine && lote && lote.ordens.length > 0 && (
-          <OpPrintBatch
-            ops={lote.ordens}
-            preview={preview}
-            usuario={displayName ?? erpUser ?? null}
-            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
-          />
-        )}
-
-        {!usarNovoEngine && !lote && data?.cabecalho && (
-          <OpPrintSheet
-            data={data}
-            preview={preview || !!selectedRowKey}
-            usuario={displayName ?? erpUser ?? null}
-            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
-            blobStates={blobStates}
-            paginasDesenhosA4={paginasDesenhosA4}
-          />
-        )}
-
       </div>
+
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
         <DialogContent className="max-w-2xl">

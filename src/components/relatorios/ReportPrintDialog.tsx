@@ -2,7 +2,14 @@ import { useMemo, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer, X, FileText, Loader2 } from 'lucide-react';
-import { PrintRenderer, genericReportToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
+import {
+  PrintRenderer,
+  genericReportToPrintDocument,
+  exportPrintDocumentToPdf,
+  applyPrintTemplate,
+  PRINT_TEMPLATE_LIST,
+  type PrintTemplateId,
+} from '@/lib/relatorios/print';
 import type {
   Relatorio,
   RelatorioColuna,
@@ -10,6 +17,7 @@ import type {
 } from '@/lib/relatorios/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type ColDraft = Omit<RelatorioColuna, 'id' | 'relatorio_id'>;
 
@@ -34,7 +42,9 @@ export function ReportPrintDialog({
   const containerRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  const doc = useMemo(
+  const [template, setTemplate] = useState<PrintTemplateId>('padrao');
+
+  const baseDoc = useMemo(
     () =>
       genericReportToPrintDocument({
         relatorio,
@@ -47,12 +57,15 @@ export function ReportPrintDialog({
     [relatorio, layout, colunas, linhas, parametros, displayName, erpUser],
   );
 
+  const doc = useMemo(() => applyPrintTemplate(baseDoc, template), [baseDoc, template]);
+
   function imprimir() {
     const originalTitle = document.title;
     document.title = doc.title;
     window.print();
     setTimeout(() => { document.title = originalTitle; }, 500);
   }
+
 
   async function exportarPdf() {
     setExporting(true);
@@ -75,6 +88,18 @@ export function ReportPrintDialog({
         <DialogHeader className="px-4 py-3 border-b border-border flex flex-row items-center justify-between space-y-0">
           <DialogTitle className="text-sm">Pré-visualização de impressão — {doc.title}</DialogTitle>
           <div className="flex items-center gap-2 no-print">
+            <Select value={template} onValueChange={(v) => setTemplate(v as PrintTemplateId)}>
+              <SelectTrigger className="h-8 w-[160px] text-xs">
+                <SelectValue placeholder="Template" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRINT_TEMPLATE_LIST.map((t) => (
+                  <SelectItem key={t.id} value={t.id} title={t.description}>
+                    {t.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button size="sm" onClick={imprimir}>
               <Printer className="h-4 w-4 mr-1" /> Imprimir
             </Button>

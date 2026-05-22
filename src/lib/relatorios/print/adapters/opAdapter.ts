@@ -2,15 +2,9 @@
  * Adapter: converte uma OpImpressao (ou lote de OpImpressao) no
  * PrintDocument genérico consumido pelo RelatorioPrintEngine.
  *
- * Esta primeira versão cobre o caso "lista simples por OP":
- *   - cabeçalho com código de barras + dados gerais
- *   - tabela de componentes
- *   - lista de operações (cada operação como tabela de apontamento)
- *
- * Quebras especiais (quebrar_por_operacao, desenhos A4, página-de-componentes
- * paginada) ainda são tratadas pelo OpPrintBatch legado. Quando a equivalência
- * estiver 100% validada, a flag em ImpressaoOrdemProducaoPage é removida e o
- * OpPrintBatch é aposentado.
+ * Cobre cabeçalho + componentes + operações e respeita a flag
+ * `quebrar_por_operacao`. Desde a Onda 7 é o único caminho de impressão
+ * de Ordens de Produção (o motor legado foi removido).
  */
 import type { OpImpressao } from '@/lib/producao/opImpressao';
 import {
