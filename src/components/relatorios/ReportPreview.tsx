@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
+import { Loader2, Play, FileSpreadsheet, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
 import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioLayout, RelatorioParametro } from '@/lib/relatorios/types';
