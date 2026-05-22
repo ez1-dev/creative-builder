@@ -301,6 +301,7 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
                 relatorio={relatorio}
                 parametros={parametros}
                 colunasConfig={colunas}
+                layout={layout}
                 onColumnsDetected={handleColumnsFromPreview}
                 onExecucaoGravada={() => setHistoryRefresh((n) => n + 1)}
               />

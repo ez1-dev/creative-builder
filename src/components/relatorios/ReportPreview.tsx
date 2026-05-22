@@ -4,13 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle, Info } from 'lucide-react';
+import { Loader2, Play, FileSpreadsheet, FileText, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
-import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioParametro } from '@/lib/relatorios/types';
+import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioLayout, RelatorioParametro } from '@/lib/relatorios/types';
 import { alignClass, formatCellValue, toNumberSafe } from '@/lib/relatorios/format';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { ReportPrintDialog } from './ReportPrintDialog';
 
 type ColDraft = Omit<RelatorioColuna, 'id' | 'relatorio_id'>;
 
@@ -18,17 +19,19 @@ interface Props {
   relatorio: Partial<Relatorio>;
   parametros: Omit<RelatorioParametro, 'id' | 'relatorio_id'>[];
   colunasConfig?: ColDraft[];
+  layout?: Partial<RelatorioLayout> | null;
   onColumnsDetected?: (cols: string[], sample?: Record<string, unknown>) => void;
   onExecucaoGravada?: () => void;
 }
 
-export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsDetected, onExecucaoGravada }: Props) {
+export function ReportPreview({ relatorio, parametros, colunasConfig, layout, onColumnsDetected, onExecucaoGravada }: Props) {
   const [paramValues, setParamValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(parametros.map((p) => [p.nome, p.valor_padrao ?? ''])),
   );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [printOpen, setPrintOpen] = useState(false);
 
   async function executar() {
     if (!(relatorio.sql_query ?? '').trim()) {
@@ -209,6 +212,15 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsD
         <Button onClick={() => exportar('csv')} disabled={!podeExportar || !result} size="sm" variant="outline">
           <FileDown className="h-4 w-4 mr-1" /> Exportar CSV
         </Button>
+        <Button
+          onClick={() => setPrintOpen(true)}
+          disabled={!result || !result.linhas.length}
+          size="sm"
+          variant="outline"
+          title="Pré-visualizar / imprimir via RelatorioPrintEngine"
+        >
+          <Printer className="h-4 w-4 mr-1" /> Imprimir
+        </Button>
         <Button onClick={() => exportar('pdf')} disabled size="sm" variant="outline" title="Disponível na próxima onda">
           <FileText className="h-4 w-4 mr-1" /> PDF
         </Button>
@@ -289,6 +301,16 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsD
           </div>
         </>
       )}
+
+      <ReportPrintDialog
+        open={printOpen}
+        onOpenChange={setPrintOpen}
+        relatorio={relatorio}
+        layout={layout}
+        colunas={colunasExibir}
+        linhas={result?.linhas ?? []}
+        parametros={paramValues}
+      />
     </div>
   );
 }
