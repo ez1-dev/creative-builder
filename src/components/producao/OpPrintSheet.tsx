@@ -416,20 +416,20 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     return (
       <>
         {operacoes.map((op, i) => {
-          const isUltima = i === operacoes.length - 1;
+          const isPrimeira = i === 0;
           return (
             <div
               key={`opp-${i}`}
               className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
             >
               {renderHeader()}
-              <div className="op-section-title">Operação</div>
-              {renderOperacao(op, i)}
-              {isUltima && componentes.length > 0 && (
+              {isPrimeira && componentes.length > 0 && (
                 <div className="componentes-inline">
                   {renderComponentes()}
                 </div>
               )}
+              <div className="op-section-title">Operação</div>
+              {renderOperacao(op, i)}
               {renderFooter()}
             </div>
           );
