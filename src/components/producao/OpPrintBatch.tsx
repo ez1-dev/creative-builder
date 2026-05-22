@@ -64,6 +64,7 @@ export function OpPrintBatch({
               blobStates={blobStates}
               paginasDesenhosA4={paginasDesenhosA4}
               imprimirDesenhos={imprimirDesenhos}
+              loadFullDrawings={loadFullDrawings}
             />
           </div>
         );
