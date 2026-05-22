@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
 import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
@@ -414,55 +414,50 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
       );
     }
-    // Regra: até `limiteComp` componentes ficam inline na 1ª folha (acima da operação).
-    // Acima disso, vão para uma folha própria (com cabeçalho) após a 1ª operação.
-    const componentesInline = componentes.length > 0 && componentes.length <= limiteComp;
-    const componentesEmPaginaSeparada = componentes.length > limiteComp;
+    // Regra final:
+    //  • até 7 componentes  → vão ABAIXO da operação, na última folha de operação.
+    //  • mais que 7         → folha própria (com cabeçalho) APÓS as operações.
+    // Em ambos os casos, componentes aparecem uma única vez por OP.
+    const qtdComponentes = componentes.length;
+    const componentesPequenos = qtdComponentes > 0 && qtdComponentes <= limiteComp;
+    const componentesGrandes = qtdComponentes > limiteComp;
     return (
       <>
         {operacoes.map((op, i) => {
-          const isPrimeira = i === 0;
-          const temComponentesInline = isPrimeira && componentesInline;
-          // Reduz blocos de apontamento quando há componentes acima, para caber numa única folha A4.
+          const isUltima = i === operacoes.length - 1;
+          const inline = isUltima && componentesPequenos;
+          // Reduz blocos de apontamento quando há componentes abaixo, para caber em A4.
           let blocos = 6;
-          if (temComponentesInline) {
-            const n = componentes.length;
+          if (inline) {
+            const n = qtdComponentes;
             if (n <= 3) blocos = 5;
             else if (n <= 7) blocos = 4;
           }
-          const sheet = (
+          return (
             <div
               key={`opp-${i}`}
               className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
             >
               {renderHeader()}
-              {temComponentesInline && (
+              <div className="op-section-title">Operação</div>
+              {renderOperacao(op, i, blocos)}
+              {inline && (
                 <div className="componentes-inline">
                   {renderComponentes()}
                 </div>
               )}
-              <div className="op-section-title">Operação</div>
-              {renderOperacao(op, i, blocos)}
               {renderFooter()}
             </div>
           );
-          // Após a 1ª operação, insere a folha de componentes (quando > limite).
-          if (isPrimeira && componentesEmPaginaSeparada) {
-            return (
-              <Fragment key={`opp-wrap-${i}`}>
-                {sheet}
-                {renderComponentesPage()}
-              </Fragment>
-            );
-          }
-          return sheet;
         })}
 
+        {componentesGrandes && renderComponentesPage()}
         {desenhos.length > 0 && renderDesenhos('drw-end')}
         {renderPreviewDesenhosResumo()}
       </>
     );
   }
+
 
 
 
