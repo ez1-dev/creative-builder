@@ -16,6 +16,21 @@ export function OpPrintBatch({ ordens, preview = false, usuario, quebrarPorOpera
       {ordens.map((op, idx) => {
         const cab = op?.cabecalho ?? {};
         const key = `${cab.cod_emp ?? ''}-${cab.cod_ori ?? ''}-${cab.num_orp ?? ''}-${idx}`;
+        // No modo "quebrar por operação", OpPrintSheet já emite múltiplas
+        // páginas (op-operation-page / componentes-page / op-drawing-page).
+        // Evitamos o invólucro .op-print-page para não gerar página em branco
+        // ao final do lote.
+        if (quebrarPorOperacao) {
+          return (
+            <OpPrintSheet
+              key={key}
+              data={op}
+              preview={preview}
+              usuario={usuario}
+              quebrarPorOperacao={quebrarPorOperacao}
+            />
+          );
+        }
         return (
           <div key={key} className="op-print-page">
             <OpPrintSheet data={op} preview={preview} usuario={usuario} quebrarPorOperacao={quebrarPorOperacao} />
