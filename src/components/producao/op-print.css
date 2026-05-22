@@ -95,9 +95,10 @@
 }
 
 .operation-single-page .op-operation {
-  page-break-inside: auto;
-  break-inside: auto;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
+
 
 .op-sheet .op-operation .op-row-barcode {
   display: flex;
