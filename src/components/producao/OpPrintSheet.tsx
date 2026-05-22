@@ -414,22 +414,23 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
         </div>
       );
     }
+    // Regra: até `limiteComp` componentes ficam inline na 1ª folha (acima da operação).
+    // Acima disso, vão para uma folha própria (com cabeçalho) após a 1ª operação.
+    const componentesInline = componentes.length > 0 && componentes.length <= limiteComp;
+    const componentesEmPaginaSeparada = componentes.length > limiteComp;
     return (
       <>
         {operacoes.map((op, i) => {
           const isPrimeira = i === 0;
-          const temComponentesInline = isPrimeira && componentes.length > 0;
+          const temComponentesInline = isPrimeira && componentesInline;
           // Reduz blocos de apontamento quando há componentes acima, para caber numa única folha A4.
-          // Estimativa: cada bloco ≈ 32mm; cabeçalho ≈ 50mm; componentes (até ~7) ≈ 35mm;
-          // bloco de operação (cabeçalho) ≈ 45mm; área útil A4 ≈ 283mm.
           let blocos = 6;
           if (temComponentesInline) {
             const n = componentes.length;
             if (n <= 3) blocos = 5;
             else if (n <= 7) blocos = 4;
-            else blocos = 3;
           }
-          return (
+          const sheet = (
             <div
               key={`opp-${i}`}
               className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
@@ -445,6 +446,16 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
               {renderFooter()}
             </div>
           );
+          // Após a 1ª operação, insere a folha de componentes (quando > limite).
+          if (isPrimeira && componentesEmPaginaSeparada) {
+            return (
+              <Fragment key={`opp-wrap-${i}`}>
+                {sheet}
+                {renderComponentesPage()}
+              </Fragment>
+            );
+          }
+          return sheet;
         })}
 
         {desenhos.length > 0 && renderDesenhos('drw-end')}
@@ -452,6 +463,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
       </>
     );
   }
+
 
 
   // Modo padrão: componentes > 7 → operações na página 1, componentes em página separada
