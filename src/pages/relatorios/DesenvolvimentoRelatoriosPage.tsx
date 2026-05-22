@@ -65,6 +65,14 @@ export default function DesenvolvimentoRelatoriosPage() {
                 reload();
               } catch (e: any) { toast.error(e.message); }
             }}
+            onDelete={async (r) => {
+              try {
+                await deleteRelatorio(r.id);
+                toast.success('Relatório excluído');
+                if (selectedId === r.id) { setSelectedId(null); setEditing(null); }
+                reload();
+              } catch (e: any) { toast.error(`Erro ao excluir: ${e.message}`); }
+            }}
           />
         </Card>
 
