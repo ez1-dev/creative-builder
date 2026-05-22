@@ -1,43 +1,30 @@
-## Diagnóstico (OP 1109)
+## Diagnóstico
 
-A OP 1109 está no modo **"Quebrar por operação"** com **mais de 7 componentes**. Dois bugs causaram o resultado da impressão:
+A folha de componentes (`.componentes-page`) hoje:
+- Tem `overflow: hidden !important` no `@media print` (regra compartilhada com `.op-print-page` e `.op-operation-page`).
+- Tem `min-height: 283mm` fixo.
 
-### Bug 1 — Operação vai para a 2ª folha, deixando a 1ª quase vazia
-Quando **não há componentes inline** (caso de >7 componentes), o código mantém `blocos = 6` no apontamento. 6 blocos (~192mm) + cabeçalho (~80mm) + título "Operação" estouram a altura útil A4 (~283mm). Como `.op-operation` tem `break-inside: avoid`, o navegador empurra o bloco inteiro da operação para a próxima folha — exatamente o que aparece no print enviado.
-
-### Bug 2 — Página de componentes não fica por último
-Hoje a folha de componentes é inserida **logo após a 1ª operação**. Quando a OP tem várias operações, os componentes ficam no meio (entre op1 e op2), não na última folha como pedido.
+Resultado: quando a lista de componentes ultrapassa uma folha A4, as linhas extras são **cortadas** em vez de continuarem na próxima folha. É exatamente o que aconteceu na OP 1109 (a tabela termina em "PINO MAIOR TERCEIRO PONTO" e os demais componentes somem).
 
 ## O que vou fazer
 
-1. **Reduzir blocos de apontamento na 1ª operação sem componentes inline** (`OpPrintSheet.tsx`, modo `quebrarPorOperacao`):
-   - Manter a lógica atual para `temComponentesInline` (≤7 componentes).
-   - Quando a 1ª operação não tem componentes inline mas **existem componentes em página separada** (>7), usar `blocos = 5` na 1ª folha para garantir que cabeçalho + operação caibam juntos.
-   - Demais operações (sem cabeçalho extra de componentes) continuam com 6 blocos.
+Ajustar **apenas o CSS** (`src/components/producao/op-print.css`) para permitir que a folha de componentes flua por múltiplas páginas A4 quando necessário, mantendo o cabeçalho da tabela repetido em cada página:
 
-2. **Mover a página de componentes para o final** (`OpPrintSheet.tsx`):
-   - Remover a inserção da folha de componentes logo após a 1ª operação.
-   - Renderizar `renderComponentesPage()` **depois de todas as operações** e **antes dos desenhos**, ficando como última folha impressa antes dos desenhos (ou última de tudo, se não houver desenhos).
+1. **Remover `overflow: hidden` da `.componentes-page`** (na tela e no print), preservando o clip nas folhas de operação/desenho.
+2. **Trocar `min-height: 283mm` por `min-height: 0` + `height: auto`** no print da `.componentes-page`, para a folha crescer naturalmente.
+3. **Garantir que o `<thead>` da tabela de componentes repita em cada página** (`thead { display: table-header-group }` já existe globalmente; vou reforçar com `.componentes-table thead { display: table-header-group }`).
+4. **Manter `page-break-inside: avoid` nas linhas (`tr`)** para não fatiar uma linha no meio (já existe).
+5. **Manter `page-break-after: always`** entre a folha de componentes e a próxima (desenhos), para a separação continuar correta.
 
-3. **Sem mudanças** em:
-   - CSS (`op-print.css`) — regras de quebra já cobrem o cenário; só reduzimos o conteúdo.
-   - Comportamento padrão (sem "quebrar por operação"), API, busca de OPs, desenhos.
-
-## Ordem das folhas resultante (quebrar por operação + >7 componentes)
-
-```text
-Folha 1: cabeçalho + 1ª operação (5 blocos de apontamento)
-Folha 2..N: demais operações (uma por folha, com cabeçalho, 6 blocos)
-Folha N+1: cabeçalho + componentes  ← agora por último
-Depois: desenhos (uma página A4 por desenho)
-```
+Sem mexer em `OpPrintSheet.tsx`, lógica de negócio, API ou layout das operações.
 
 ## Resultado esperado
 
-- A 1ª folha terá cabeçalho + a 1ª operação completa, sem espaço vazio.
-- A folha de componentes aparece **depois de todas as operações** (última antes dos desenhos), como pedido para a OP 1109.
-- Validado nos 3 fluxos: impressão individual, "Visualizar selecionadas", "Imprimir visualização".
+- Folha de componentes mostra **todos** os componentes, quebrando em quantas folhas A4 forem necessárias.
+- Cabeçalho da tabela (Código, Descrição, Qtde., UN, Dep., Endereço) repete em cada folha.
+- Cabeçalho da OP (logo "ORDENS DE PRODUÇÃO – GENIUS") permanece **apenas na primeira folha** dos componentes (comportamento atual mantido).
+- Folhas de operações e desenhos continuam idênticas.
 
-## Arquivos-alvo
+## Arquivo-alvo
 
-- `src/components/producao/OpPrintSheet.tsx` (ajustes de `blocos` e reordenação do `renderComponentesPage`)
+- `src/components/producao/op-print.css`
