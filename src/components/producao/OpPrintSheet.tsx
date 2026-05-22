@@ -496,6 +496,8 @@ export function OpPrintSheet({
 
         {desenhos.length > 0 && renderDesenhos("drw-end")}
 
+        {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
+
         {preview && renderPreviewDesenhosResumo()}
       </>
     );
