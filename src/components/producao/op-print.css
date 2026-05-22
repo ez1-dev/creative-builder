@@ -261,24 +261,22 @@
   width: 196mm;
   min-height: 283mm;
   margin: 0 auto;
+}
+.op-print-page:not(:last-child),
+.op-operation-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
-}
-.op-print-page:last-child,
-.op-operation-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
 }
 
 .operation-single-page {
+  /* Não força min-height: cabeçalho + operação devem caber juntos numa folha.
+     A quebra de página é controlada apenas via page-break-after no :not(:last-child). */
   page-break-inside: avoid;
   break-inside: avoid;
+}
+.operation-single-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
-}
-.operation-single-page:last-child {
-  page-break-after: auto;
-  break-after: auto;
 }
 
 .op-drawing-page {
