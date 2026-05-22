@@ -120,7 +120,41 @@ export default function ImpressaoOrdemProducaoPage() {
     [data?.desenhos],
   );
   const blobStates = useAuthedBlobUrls(desenhoUrls);
-  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
+
+  // Os desenhos A4 completos são pesados (PDFs/imagens grandes). Só carregamos
+  // quando o usuário aciona impressão/gerar PDF. No preview, o OpPrintSheet
+  // renderiza apenas miniaturas leves via DrawingPreviewThumbnail.
+  const [loadFullDrawings, setLoadFullDrawings] = useState(false);
+  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors, loading: a4Loading } =
+    useDesenhosA4(loadFullDrawings ? data?.desenhos : undefined);
+  const pendingPrintRef = useRef(false);
+
+  // Quando estamos esperando impressão e os desenhos A4 já terminaram de carregar,
+  // aguardamos as imagens renderizarem e disparamos window.print().
+  useEffect(() => {
+    if (!pendingPrintRef.current) return;
+    if (!loadFullDrawings) return;
+    if (a4Loading) return;
+    pendingPrintRef.current = false;
+    (async () => {
+      await aguardarDesenhosProntos();
+      window.print();
+    })();
+  }, [loadFullDrawings, a4Loading]);
+
+  // Dispara o fluxo de impressão: marca pending, ativa carregamento dos A4.
+  // O useEffect acima conclui com aguardar + window.print().
+  const dispararImpressao = useCallback(async () => {
+    pendingPrintRef.current = true;
+    if (loadFullDrawings && !a4Loading) {
+      // Já carregado: imprime direto.
+      pendingPrintRef.current = false;
+      await aguardarDesenhosProntos();
+      window.print();
+      return;
+    }
+    setLoadFullDrawings(true);
+  }, [loadFullDrawings, a4Loading]);
 
 
   // Diagnóstico de desenhos
