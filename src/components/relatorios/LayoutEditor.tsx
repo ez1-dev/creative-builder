@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Table2, Layers, LayoutGrid, BarChart3, BarChart } from 'lucide-react';
+import { Table2, Layers, LayoutGrid, BarChart3, BarChart, Columns, LayoutDashboard, FileText } from 'lucide-react';
 import type { RelatorioLayout, RelatorioColuna, LayoutTipo } from '@/lib/relatorios/types';
 
 interface Props {
@@ -19,6 +19,9 @@ const LAYOUTS: { id: LayoutTipo; label: string; icon: any }[] = [
   { id: 'cards', label: 'Cards gerenciais', icon: LayoutGrid },
   { id: 'grafico', label: 'Gráfico', icon: BarChart3 },
   { id: 'tabela_grafico', label: 'Tabela + gráfico', icon: BarChart },
+  { id: 'mestre_detalhe', label: 'Mestre / detalhe', icon: Columns },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'relatorio_operacional', label: 'Relatório operacional', icon: FileText },
 ];
 
 export function LayoutEditor({ layout, colunas, onChange }: Props) {
