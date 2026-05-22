@@ -1259,16 +1259,11 @@ export type Database = {
           id: string
           largura: number | null
           ordem: number
-          permite_filtrar: boolean
-          permite_ordenar: boolean
-          regra_condicional_json: Json
           relatorio_id: string
           tipo: string | null
           titulo: string | null
           totalizar: boolean
           visivel: boolean
-          visivel_excel: boolean
-          visivel_pdf: boolean
         }
         Insert: {
           agrupar?: boolean
@@ -1279,16 +1274,11 @@ export type Database = {
           id?: string
           largura?: number | null
           ordem?: number
-          permite_filtrar?: boolean
-          permite_ordenar?: boolean
-          regra_condicional_json?: Json
           relatorio_id: string
           tipo?: string | null
           titulo?: string | null
           totalizar?: boolean
           visivel?: boolean
-          visivel_excel?: boolean
-          visivel_pdf?: boolean
         }
         Update: {
           agrupar?: boolean
@@ -1299,16 +1289,11 @@ export type Database = {
           id?: string
           largura?: number | null
           ordem?: number
-          permite_filtrar?: boolean
-          permite_ordenar?: boolean
-          regra_condicional_json?: Json
           relatorio_id?: string
           tipo?: string | null
           titulo?: string | null
           totalizar?: boolean
           visivel?: boolean
-          visivel_excel?: boolean
-          visivel_pdf?: boolean
         }
         Relationships: [
           {
@@ -1371,15 +1356,10 @@ export type Database = {
         Row: {
           agrupar_por: string | null
           config: Json
-          congelar_colunas: number
-          destaques_json: Json
           mostrar_data_hora: boolean
           mostrar_filtros: boolean
           mostrar_totais: boolean
           mostrar_usuario: boolean
-          ordenacao_padrao: Json
-          paginacao: boolean
-          por_pagina: number
           relatorio_id: string
           subtitulo: string | null
           tipo: string
@@ -1389,15 +1369,10 @@ export type Database = {
         Insert: {
           agrupar_por?: string | null
           config?: Json
-          congelar_colunas?: number
-          destaques_json?: Json
           mostrar_data_hora?: boolean
           mostrar_filtros?: boolean
           mostrar_totais?: boolean
           mostrar_usuario?: boolean
-          ordenacao_padrao?: Json
-          paginacao?: boolean
-          por_pagina?: number
           relatorio_id: string
           subtitulo?: string | null
           tipo?: string
@@ -1407,15 +1382,10 @@ export type Database = {
         Update: {
           agrupar_por?: string | null
           config?: Json
-          congelar_colunas?: number
-          destaques_json?: Json
           mostrar_data_hora?: boolean
           mostrar_filtros?: boolean
           mostrar_totais?: boolean
           mostrar_usuario?: boolean
-          ordenacao_padrao?: Json
-          paginacao?: boolean
-          por_pagina?: number
           relatorio_id?: string
           subtitulo?: string | null
           tipo?: string
@@ -1479,111 +1449,6 @@ export type Database = {
           },
         ]
       }
-      relatorio_permissoes: {
-        Row: {
-          can_export: boolean
-          can_print: boolean
-          can_view: boolean
-          created_at: string
-          id: string
-          profile_id: string
-          relatorio_id: string
-        }
-        Insert: {
-          can_export?: boolean
-          can_print?: boolean
-          can_view?: boolean
-          created_at?: string
-          id?: string
-          profile_id: string
-          relatorio_id: string
-        }
-        Update: {
-          can_export?: boolean
-          can_print?: boolean
-          can_view?: boolean
-          created_at?: string
-          id?: string
-          profile_id?: string
-          relatorio_id?: string
-        }
-        Relationships: []
-      }
-      relatorio_publicacoes: {
-        Row: {
-          ativo: boolean
-          id: string
-          menu_path: string | null
-          modulo: string | null
-          publicado_em: string
-          publicado_por: string | null
-          relatorio_id: string
-          versao_id: string | null
-        }
-        Insert: {
-          ativo?: boolean
-          id?: string
-          menu_path?: string | null
-          modulo?: string | null
-          publicado_em?: string
-          publicado_por?: string | null
-          relatorio_id: string
-          versao_id?: string | null
-        }
-        Update: {
-          ativo?: boolean
-          id?: string
-          menu_path?: string | null
-          modulo?: string | null
-          publicado_em?: string
-          publicado_por?: string | null
-          relatorio_id?: string
-          versao_id?: string | null
-        }
-        Relationships: []
-      }
-      relatorio_versoes: {
-        Row: {
-          colunas_json: Json
-          config_json: Json
-          criado_em: string
-          criado_por: string | null
-          id: string
-          layout_json: Json
-          observacao: string | null
-          parametros_json: Json
-          relatorio_id: string
-          sql_base: string
-          versao: number
-        }
-        Insert: {
-          colunas_json?: Json
-          config_json?: Json
-          criado_em?: string
-          criado_por?: string | null
-          id?: string
-          layout_json?: Json
-          observacao?: string | null
-          parametros_json?: Json
-          relatorio_id: string
-          sql_base?: string
-          versao: number
-        }
-        Update: {
-          colunas_json?: Json
-          config_json?: Json
-          criado_em?: string
-          criado_por?: string | null
-          id?: string
-          layout_json?: Json
-          observacao?: string | null
-          parametros_json?: Json
-          relatorio_id?: string
-          sql_base?: string
-          versao?: number
-        }
-        Relationships: []
-      }
       relatorios: {
         Row: {
           categoria: string | null
@@ -1593,20 +1458,17 @@ export type Database = {
           descricao: string | null
           endpoint_url: string | null
           fonte_dados: string | null
-          icone: string | null
           id: string
           modulo: string | null
           nome: string
           permite_csv: boolean
           permite_excel: boolean
-          permite_impressao: boolean
           permite_pdf: boolean
           sql_query: string
           status: string
           tipo_fonte: string
           updated_at: string
           url_destino: string | null
-          versao_atual: number
         }
         Insert: {
           categoria?: string | null
@@ -1616,20 +1478,17 @@ export type Database = {
           descricao?: string | null
           endpoint_url?: string | null
           fonte_dados?: string | null
-          icone?: string | null
           id?: string
           modulo?: string | null
           nome: string
           permite_csv?: boolean
           permite_excel?: boolean
-          permite_impressao?: boolean
           permite_pdf?: boolean
           sql_query?: string
           status?: string
           tipo_fonte?: string
           updated_at?: string
           url_destino?: string | null
-          versao_atual?: number
         }
         Update: {
           categoria?: string | null
@@ -1639,20 +1498,17 @@ export type Database = {
           descricao?: string | null
           endpoint_url?: string | null
           fonte_dados?: string | null
-          icone?: string | null
           id?: string
           modulo?: string | null
           nome?: string
           permite_csv?: boolean
           permite_excel?: boolean
-          permite_impressao?: boolean
           permite_pdf?: boolean
           sql_query?: string
           status?: string
           tipo_fonte?: string
           updated_at?: string
           url_destino?: string | null
-          versao_atual?: number
         }
         Relationships: []
       }

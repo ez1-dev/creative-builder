@@ -29,8 +29,6 @@ import { ColumnsEditor } from './ColumnsEditor';
 import { LayoutEditor } from './LayoutEditor';
 import { ReportPreview } from './ReportPreview';
 import { ReportExecutionHistory } from './ReportExecutionHistory';
-import { PublishTab } from './PublishTab';
-import { VersionsTab } from './VersionsTab';
 
 interface Props {
   id: string | null;
@@ -52,15 +50,9 @@ function emptyLayout(relatorioId: string): RelatorioLayout {
     mostrar_data_hora: true,
     mostrar_usuario: true,
     agrupar_por: null,
-    congelar_colunas: 0,
-    paginacao: true,
-    por_pagina: 50,
-    ordenacao_padrao: [],
-    destaques_json: [],
     config: {},
   };
 }
-
 
 export function ReportEditor({ id, onClose, onSaved }: Props) {
   const navigate = useNavigate();
@@ -154,31 +146,24 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     setParametros([...next, ...manuais.map((p, i) => ({ ...p, ordem: next.length + i }))]);
   }
 
-  function makeColDraft(c: string, idx: number, sample?: Record<string, unknown>): ColDraft {
-    const tipo = inferTipoFromColuna(c, sample?.[c]);
-    return {
-      campo: c,
-      titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
-      visivel: true,
-      ordem: idx,
-      tipo,
-      formato: null,
-      alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
-      largura: null,
-      totalizar: false,
-      agrupar: false,
-      visivel_excel: true,
-      visivel_pdf: true,
-      permite_ordenar: true,
-      permite_filtrar: true,
-      regra_condicional_json: [],
-    };
-  }
-
   function handleColumnsFromPreview(cols: string[], sample?: Record<string, unknown>) {
     setLastPreviewCols({ cols, sample });
     if (colunas.length > 0) return;
-    setColunas(cols.map((c, idx) => makeColDraft(c, idx, sample)));
+    setColunas(cols.map((c, idx) => {
+      const tipo = inferTipoFromColuna(c, sample?.[c]);
+      return {
+        campo: c,
+        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+        visivel: true,
+        ordem: idx,
+        tipo,
+        formato: null,
+        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
+        largura: null,
+        totalizar: false,
+        agrupar: false,
+      };
+    }));
   }
 
   function handleRestoreColumns() {
@@ -187,10 +172,22 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
       return;
     }
     const { cols, sample } = lastPreviewCols;
-    setColunas(cols.map((c, idx) => makeColDraft(c, idx, sample)));
+    setColunas(cols.map((c, idx) => {
+      const tipo = inferTipoFromColuna(c, sample?.[c]);
+      return {
+        campo: c,
+        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+        visivel: true,
+        ordem: idx,
+        tipo,
+        formato: null,
+        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
+        largura: null,
+        totalizar: false,
+        agrupar: false,
+      };
+    }));
   }
-
-
 
   async function handleSaveColumnsOnly() {
     if (!relatorio.id) {
@@ -256,8 +253,6 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
           <TabsTrigger value="colunas">Colunas</TabsTrigger>
           <TabsTrigger value="layout">Layout</TabsTrigger>
           {!isApiRest && <TabsTrigger value="preview">Pré-visualização</TabsTrigger>}
-          {relatorio.id && <TabsTrigger value="publicacao">Publicação</TabsTrigger>}
-          {relatorio.id && <TabsTrigger value="versoes">Versões</TabsTrigger>}
           {relatorio.id && <TabsTrigger value="historico">Histórico</TabsTrigger>}
         </TabsList>
         <div className="flex-1 overflow-auto pt-4">
@@ -304,21 +299,6 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
                 onColumnsDetected={handleColumnsFromPreview}
                 onExecucaoGravada={() => setHistoryRefresh((n) => n + 1)}
               />
-            </TabsContent>
-          )}
-          {relatorio.id && (
-            <TabsContent value="publicacao">
-              <PublishTab relatorio={relatorio} />
-            </TabsContent>
-          )}
-          {relatorio.id && (
-            <TabsContent value="versoes">
-              <VersionsTab relatorioId={relatorio.id} onRestored={() => relatorio.id && getRelatorio(relatorio.id).then(({ relatorio: r, parametros: ps, colunas: cs, layout: l }) => {
-                if (r) setRelatorio(r);
-                setParametros(ps.map(({ id: _i, relatorio_id: _r, ...rest }) => rest));
-                setColunas(cs.map(({ id: _i, relatorio_id: _r, ...rest }) => rest));
-                setLayout(l ?? emptyLayout(relatorio.id!));
-              })} />
             </TabsContent>
           )}
           {relatorio.id && (

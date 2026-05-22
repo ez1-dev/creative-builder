@@ -1,36 +1,495 @@
-/* =========================================================
-   FRENTE E VERSO SEGURO
-   Página branca técnica quando a OP termina em número ímpar
-   ========================================================= */
-
-.op-blank-page {
-  width: 190mm;
-  height: 281mm;
-  min-height: 281mm;
-  max-height: 281mm;
-  box-sizing: border-box;
+.op-sheet {
   background: #fff;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 0 8mm 0;
-  overflow: hidden;
+  color: #000;
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-size: 10px;
+  line-height: 1.25;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 8mm;
+  box-sizing: border-box;
 }
 
-.op-blank-page-label {
-  font-family: Arial, "Helvetica Neue", sans-serif;
-  font-size: 7pt;
-  color: #999;
-  font-style: italic;
+.op-sheet--preview {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.op-sheet * {
+  box-sizing: border-box;
+}
+
+.op-sheet .op-box {
+  border: 1px solid #000;
+  padding: 4px 6px;
+}
+
+.op-sheet .op-kv-2col {
+  display: grid;
+  grid-template-columns: 90px 1fr 90px 1fr;
+  column-gap: 6px;
+  row-gap: 2px;
+}
+
+.op-sheet .op-kv-2col > .k {
+  font-weight: bold;
+}
+
+.op-sheet .op-kv-2col > .v {
+  word-break: break-word;
+}
+
+.op-sheet .op-kv-2col > .full {
+  grid-column: 1 / -1;
+}
+
+.op-sheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5px;
+}
+
+.op-sheet th,
+.op-sheet td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.op-sheet th {
+  background: #fff;
+  font-weight: bold;
+}
+
+.op-sheet .op-section-title {
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 10px;
+  margin: 5px 0 2px;
+  border-bottom: 1px solid #000;
+}
+
+.op-sheet .op-stage-bar {
+  border: 1px solid #000;
+  padding: 3px 6px;
+  font-weight: bold;
+  margin: 4px 0 3px;
+}
+
+.op-sheet .op-title {
+  text-align: center;
+  font-size: 13px;
+  font-weight: bold;
+  text-transform: uppercase;
+  border-bottom: 1px solid #000;
+  padding-bottom: 4px;
+  margin-bottom: 5px;
+}
+
+.op-sheet .op-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 3px;
+}
+
+.op-sheet .op-header-main {
+  display: grid;
+  grid-template-columns: 180px 1fr 140px;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.op-sheet .op-barcode-box {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.op-sheet .op-header-data {
+  grid-template-columns: 70px 1fr 70px 1fr;
+}
+
+.op-sheet .op-rev-stack {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #000;
+}
+
+.op-sheet .op-rev-cell {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  padding: 3px 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.op-sheet .op-rev-cell + .op-rev-cell {
+  border-top: 1px solid #000;
+}
+
+.op-sheet .op-rev-cell .lbl {
+  font-weight: bold;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.op-sheet .op-rev-cell .val {
+  font-size: 12px;
+  font-weight: bold;
+  margin-top: 2px;
+}
+
+.op-sheet .op-barcode-caption {
+  font-family: "Courier New", monospace;
+  text-align: center;
+  font-size: 9px;
+}
+
+.op-sheet .op-operation {
+  border: 1px solid #000;
+  padding: 4px 6px;
+  margin: 4px 0;
+}
+
+.op-sheet .op-operation .op-row-barcode {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.op-sheet .col-w-narrow {
+  width: 60px;
+}
+
+.op-sheet .col-w-medium {
+  width: 100px;
+}
+
+.componentes-table th.qtd-prev,
+.componentes-table td.qtd-prev,
+.componentes-table th.unidade,
+.componentes-table td.unidade,
+.componentes-table th.deposito,
+.componentes-table td.deposito,
+.componentes-table th.endereco,
+.componentes-table td.endereco {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.op-sheet .op-qtde-destaque {
+  font-size: 15px !important;
+  font-weight: bold !important;
+}
+
+.op-sheet .v.op-qtde-destaque {
+  background: #eee;
+  border: 1px solid #000;
+  padding: 2px 6px;
   text-align: center;
 }
 
-/* =========================================================
-   CORREÇÃO DE QUEBRA:
-   quebrar sempre ANTES do próximo bloco, nunca depois do último
-   ========================================================= */
+.op-sheet .op-operacao-destaque,
+.op-sheet .op-proxoper-destaque {
+  font-size: 12.5px !important;
+  font-weight: bold !important;
+}
+
+.op-sheet .v.op-operacao-destaque,
+.op-sheet .v.op-proxoper-destaque {
+  background: #eee;
+  border: 1px solid #000;
+  padding: 2px 6px;
+}
+
+.op-sheet .op-tempo-destaque {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.op-print-page,
+.op-operation-page {
+  width: 196mm;
+  min-height: 283mm;
+  margin: 0 auto;
+}
+
+.operation-single-page {
+  overflow: hidden;
+}
+
+.componentes-inline {
+  margin-top: 4pt;
+  margin-bottom: 4pt;
+}
+
+.componentes-inline .op-section-title {
+  margin-top: 4pt;
+  margin-bottom: 2pt;
+}
+
+.componentes-inline .op-stage-bar {
+  margin: 3px 0 2px;
+  padding: 2px 4px;
+}
+
+.componentes-inline .componentes-table {
+  font-size: 7.5px;
+  line-height: 1;
+}
+
+.componentes-inline .componentes-table th,
+.componentes-inline .componentes-table td {
+  padding: 1px 3px;
+  line-height: 1;
+}
+
+.componentes-page {
+  width: 196mm;
+  min-height: 283mm;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.componentes-page table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.componentes-page thead {
+  display: table-header-group;
+}
+
+.componentes-page th,
+.componentes-page td {
+  border: 1px solid #000;
+  padding: 2px 4px;
+}
+
+.componentes-page tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.op-componentes-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.op-componentes-parte {
+  font-weight: 400;
+  font-size: 8px;
+}
+
+.op-drawing-page {
+  width: 194mm;
+  height: 281mm;
+  min-height: 281mm;
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.op-drawing-frame {
+  width: 194mm;
+  height: 281mm;
+  min-width: 194mm;
+  min-height: 281mm;
+  max-width: 194mm;
+  max-height: 281mm;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  background: #fff;
+}
+
+.op-drawing-image {
+  display: block;
+  max-width: 194mm;
+  max-height: 281mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+.op-drawing-object,
+.op-drawing-page iframe,
+.op-drawing-page object,
+.op-drawing-page embed {
+  display: block;
+  width: 194mm;
+  height: 281mm;
+  max-width: 194mm;
+  max-height: 281mm;
+  border: none;
+  object-fit: contain;
+}
+
+.op-drawing-missing {
+  font-style: italic;
+  padding: 20mm 0;
+}
+
+.op-drawing-frame.rotated .op-drawing-image.rotate-90 {
+  transform: rotate(90deg);
+  transform-origin: center center;
+  max-width: 281mm;
+  max-height: 194mm;
+}
+
+.op-apontamento-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-top: 4px;
+  font-size: 9pt;
+}
+
+.op-apontamento-table th,
+.op-apontamento-table td {
+  border: 1px solid #000;
+  padding: 0 4px;
+  line-height: 1.1;
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+.op-apontamento-table tr.op-apt-head th {
+  height: 5mm;
+  padding: 0 4px;
+  font-size: 7.5pt;
+  font-weight: bold;
+  background: #f0f0f0;
+  text-align: left;
+}
+
+.op-apontamento-table tr.op-apt-fill td {
+  height: 11mm;
+}
+
+.op-apontamento-table tr.op-apt-row-end td {
+  border-bottom: 4px solid #000;
+  padding-bottom: 2mm;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 8mm;
+}
 
 @media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-root,
+  .print-root * {
+    visibility: visible !important;
+  }
+
+  .print-root {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    transform: none !important;
+    zoom: 1 !important;
+  }
+
+  .no-print,
+  header,
+  nav,
+  aside,
+  .app-header,
+  .topbar,
+  .sidebar,
+  .filters,
+  .print-actions,
+  .preview-message,
+  .drawing-empty-message,
+  .op-drawing-missing.no-print {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .op-print-batch,
+  .op-print-group {
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
+  }
+
+  .op-sheet,
+  .op-sheet--preview {
+    box-shadow: none !important;
+    margin: 0 auto !important;
+  }
+
+  .op-sheet,
+  .op-print-page,
+  .op-operation-page,
+  .operation-single-page,
+  .componentes-page {
+    width: 190mm !important;
+    max-width: 190mm !important;
+    min-height: 281mm !important;
+    max-height: 281mm !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+    overflow: hidden !important;
+  }
+
+  .op-sheet,
+  .operation-single-page,
+  .componentes-page {
+    padding: 4mm !important;
+  }
+
+  .op-sheet.componentes-page,
+  .componentes-page {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
   .print-root,
   .op-print-batch,
   .op-print-group,
@@ -40,8 +499,7 @@
   .op-operation-page,
   .operation-single-page,
   .componentes-page,
-  .op-drawing-page,
-  .op-blank-page {
+  .op-drawing-page {
     page-break-after: auto !important;
     break-after: auto !important;
     page-break-before: auto !important;
@@ -80,24 +538,251 @@
     break-after: auto !important;
   }
 
-  .op-blank-page {
-    width: 190mm !important;
-    height: 281mm !important;
-    min-height: 281mm !important;
-    max-height: 281mm !important;
-    box-sizing: border-box !important;
-    background: #fff !important;
-    display: flex !important;
-    align-items: flex-end !important;
-    justify-content: center !important;
-    padding: 0 0 8mm 0 !important;
+  .op-section-title {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .operation-single-page .op-operation {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+
+  .op-title {
+    font-size: 10.5pt !important;
+    padding-bottom: 2pt !important;
+    margin-bottom: 2pt !important;
+  }
+
+  .op-header-top {
+    margin-bottom: 1.5pt !important;
+    padding-right: 2mm !important;
     overflow: hidden !important;
   }
 
-  .op-blank-page-label {
-    font-size: 7pt !important;
-    color: #999 !important;
-    font-style: italic !important;
+  .op-header-main {
+    grid-template-columns: 145px 1fr 100px !important;
+    gap: 3pt !important;
+  }
+
+  .op-barcode-box {
+    padding: 3pt 3pt !important;
+  }
+
+  .op-header-data {
+    padding: 3pt 3pt !important;
+    grid-template-columns: 50px 1fr 50px 1fr !important;
+    column-gap: 3pt !important;
+    row-gap: 1pt !important;
+  }
+
+  .op-rev-cell {
+    padding: 2pt 2pt !important;
+  }
+
+  .op-rev-cell .lbl {
+    font-size: 7.5pt !important;
+  }
+
+  .op-rev-cell .val {
+    font-size: 9pt !important;
+  }
+
+  .op-sheet .op-qtde-destaque {
+    font-size: 12pt !important;
+    font-weight: bold !important;
+  }
+
+  .op-sheet .v.op-qtde-destaque {
+    border: 1pt solid #000 !important;
+    background: transparent !important;
+    padding: 1pt 3pt !important;
     text-align: center !important;
+  }
+
+  .op-sheet .op-operacao-destaque,
+  .op-sheet .op-proxoper-destaque {
+    font-size: 10pt !important;
+    font-weight: bold !important;
+  }
+
+  .op-sheet .v.op-operacao-destaque,
+  .op-sheet .v.op-proxoper-destaque {
+    border: 1pt solid #000 !important;
+    background: transparent !important;
+    padding: 1pt 2pt !important;
+  }
+
+  .op-sheet .op-tempo-destaque {
+    font-size: 9.5pt !important;
+    font-weight: 700 !important;
+  }
+
+  .op-operation {
+    margin: 2pt 0 !important;
+    padding: 2pt 3pt !important;
+  }
+
+  .op-operation .op-row-barcode {
+    gap: 4pt !important;
+  }
+
+  .op-operation .op-kv-2col {
+    row-gap: 0.5pt !important;
+    column-gap: 3pt !important;
+  }
+
+  .operation-single-page .op-section-title {
+    margin-top: 2pt !important;
+    margin-bottom: 1pt !important;
+    font-size: 8pt !important;
+  }
+
+  .operation-single-page .op-apontamento-table {
+    margin-top: 2pt !important;
+    font-size: 7pt !important;
+  }
+
+  .operation-single-page .op-apontamento-table th,
+  .operation-single-page .op-apontamento-table td {
+    padding: 0 2pt !important;
+    line-height: 1 !important;
+    border: 0.5pt solid #000 !important;
+  }
+
+  .operation-single-page .op-apontamento-table tr.op-apt-head th {
+    height: 3.8mm !important;
+    font-size: 6.6pt !important;
+    font-weight: bold !important;
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .operation-single-page .op-apontamento-table tr.op-apt-fill td {
+    height: 10.5mm !important;
+  }
+
+  .operation-single-page .op-apontamento-table tr.op-apt-row-end td {
+    padding-bottom: 0.6mm !important;
+    border-bottom: 1.8pt solid #000 !important;
+  }
+
+  .operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-fill td {
+    height: 10.5mm !important;
+  }
+
+  .operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-fill td {
+    height: 11mm !important;
+  }
+
+  .operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-fill td {
+    height: 13mm !important;
+  }
+
+  .componentes-inline {
+    margin-top: 2pt !important;
+    margin-bottom: 2pt !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .componentes-inline .op-section-title {
+    margin-top: 2pt !important;
+    margin-bottom: 1pt !important;
+    font-size: 7.5pt !important;
+  }
+
+  .componentes-inline .op-stage-bar {
+    margin: 1.5pt 0 1pt !important;
+    padding: 1.2pt 2pt !important;
+    font-size: 7pt !important;
+  }
+
+  .componentes-inline .componentes-table {
+    font-size: 6.5pt !important;
+    line-height: 1 !important;
+  }
+
+  .componentes-inline .componentes-table th,
+  .componentes-inline .componentes-table td {
+    padding: 0.6pt 1.5pt !important;
+    line-height: 1 !important;
+  }
+
+  .componentes-page thead {
+    display: table-header-group !important;
+  }
+
+  .componentes-page tbody {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  .componentes-page table tr,
+  .componentes-page tr,
+  .op-sheet table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .op-drawing-page {
+    width: 194mm !important;
+    height: 281mm !important;
+    min-height: 281mm !important;
+    max-height: 281mm !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    overflow: hidden !important;
+    background: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .op-drawing-frame {
+    width: 194mm !important;
+    height: 281mm !important;
+    min-width: 194mm !important;
+    min-height: 281mm !important;
+    max-width: 194mm !important;
+    max-height: 281mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    background: #fff !important;
+  }
+
+  .op-drawing-image {
+    display: block !important;
+    max-width: 194mm !important;
+    max-height: 281mm !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain !important;
+    margin: 0 auto !important;
+  }
+
+  .op-drawing-object,
+  .op-drawing-page iframe,
+  .op-drawing-page object,
+  .op-drawing-page embed {
+    display: block !important;
+    width: 194mm !important;
+    height: 281mm !important;
+    max-width: 194mm !important;
+    max-height: 281mm !important;
+    border: none !important;
+    object-fit: contain !important;
+  }
+
+  .op-drawing-frame.rotated .op-drawing-image.rotate-90 {
+    transform: rotate(90deg) !important;
+    transform-origin: center center !important;
+    max-width: 281mm !important;
+    max-height: 194mm !important;
   }
 }

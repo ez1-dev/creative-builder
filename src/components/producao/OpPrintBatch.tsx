@@ -9,7 +9,6 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean | null;
-  frenteVersoSeguro?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4PorOp?: Record<string, OpDesenhoPaginaA4Carregada[]>;
 }
@@ -31,7 +30,6 @@ export function OpPrintBatch({
   preview = false,
   usuario,
   quebrarPorOperacao,
-  frenteVersoSeguro,
   blobStates,
   paginasDesenhosA4PorOp,
 }: Props) {
@@ -59,7 +57,6 @@ export function OpPrintBatch({
               preview={preview}
               usuario={usuario}
               quebrarPorOperacao={quebrarPorOperacao}
-              frenteVersoSeguro={frenteVersoSeguro}
               blobStates={blobStates}
               paginasDesenhosA4={paginasDesenhosA4}
             />

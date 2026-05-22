@@ -87,21 +87,16 @@ export function ColumnsEditor({ colunas, onChange, onSave, onRestoreDefault, can
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
                 <TableHead className="w-20">Ordem</TableHead>
-                <TableHead className="w-36">Campo</TableHead>
+                <TableHead className="w-40">Campo</TableHead>
                 <TableHead>Título</TableHead>
-                <TableHead className="w-16">Tela</TableHead>
-                <TableHead className="w-16">Excel</TableHead>
-                <TableHead className="w-16">PDF</TableHead>
-                <TableHead className="w-28">Tipo</TableHead>
-                <TableHead className="w-28">Formato</TableHead>
-                <TableHead className="w-28">Alinhamento</TableHead>
-                <TableHead className="w-20">Largura</TableHead>
-                <TableHead className="w-16">Σ</TableHead>
-                <TableHead className="w-16">Agrup.</TableHead>
-                <TableHead className="w-16">Ord.</TableHead>
-                <TableHead className="w-16">Filtro</TableHead>
+                <TableHead className="w-20">Visível</TableHead>
+                <TableHead className="w-32">Tipo</TableHead>
+                <TableHead className="w-32">Formato</TableHead>
+                <TableHead className="w-32">Alinhamento</TableHead>
+                <TableHead className="w-24">Largura</TableHead>
+                <TableHead className="w-20">Totalizar</TableHead>
+                <TableHead className="w-20">Agrupar</TableHead>
               </TableRow>
-
             </TableHeader>
             <TableBody>
               {colunas.map((c, idx) => (
@@ -120,8 +115,6 @@ export function ColumnsEditor({ colunas, onChange, onSave, onRestoreDefault, can
                   <TableCell className="font-mono text-xs">{c.campo}</TableCell>
                   <TableCell><Input value={c.titulo ?? ''} onChange={(e) => update(idx, { titulo: e.target.value })} className="h-8" /></TableCell>
                   <TableCell><Switch checked={c.visivel} onCheckedChange={(v) => update(idx, { visivel: v })} /></TableCell>
-                  <TableCell><Switch checked={c.visivel_excel} onCheckedChange={(v) => update(idx, { visivel_excel: v })} /></TableCell>
-                  <TableCell><Switch checked={c.visivel_pdf} onCheckedChange={(v) => update(idx, { visivel_pdf: v })} /></TableCell>
                   <TableCell>
                     <Select value={(c.tipo ?? 'texto') as string} onValueChange={(v) => update(idx, { tipo: v as ColunaTipo })}>
                       <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
@@ -158,8 +151,6 @@ export function ColumnsEditor({ colunas, onChange, onSave, onRestoreDefault, can
                   </TableCell>
                   <TableCell><Switch checked={c.totalizar} onCheckedChange={(v) => update(idx, { totalizar: v })} /></TableCell>
                   <TableCell><Switch checked={c.agrupar} onCheckedChange={(v) => update(idx, { agrupar: v })} /></TableCell>
-                  <TableCell><Switch checked={c.permite_ordenar} onCheckedChange={(v) => update(idx, { permite_ordenar: v })} /></TableCell>
-                  <TableCell><Switch checked={c.permite_filtrar} onCheckedChange={(v) => update(idx, { permite_filtrar: v })} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
