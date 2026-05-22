@@ -199,7 +199,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
     );
   };
 
-  const renderOperacao = (op: OpOperacao, i: number) => (
+  const renderOperacao = (op: OpOperacao, i: number, apontamentoBlocos = 6) => (
     <div className="op-operation" key={`op-${i}`}>
       <div className="op-row-barcode">
 
@@ -265,7 +265,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
 
         <tbody>
-          {Array.from({ length: 6 }).flatMap((_, r) => [
+          {Array.from({ length: apontamentoBlocos }).flatMap((_, r) => [
             <tr key={`apt-${i}-${r}-h1`} className="op-apt-head">
               <th>inicio</th>
               <th>data</th>
@@ -298,6 +298,7 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
 
     </div>
   );
+
 
   const renderFooter = () => null;
 

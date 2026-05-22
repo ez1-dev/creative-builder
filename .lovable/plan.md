@@ -1,28 +1,32 @@
 ## Objetivo
-Fazer o modo **Quebrar por operação** respeitar a regra pedida também na impressão real: quando houver poucos componentes, eles devem ficar **na mesma folha da primeira operação**, acima da operação, sem repetir cabeçalho; só os desenhos seguintes ficam em folhas próprias.
+Fazer o modo **Quebrar por operação** ajustar automaticamente o layout de impressão para que **componentes + primeira operação caibam em uma única folha A4** sempre que esse for o layout esperado, sem empurrar a operação inteira para a página seguinte.
 
-## O que vou ajustar
-1. **Revisar a regra de quebra da primeira folha da operação**
-   - Manter a ordem já esperada no `OpPrintSheet`: cabeçalho → componentes inline → operação.
-   - Garantir que isso valha igualmente para impressão individual, `Visualizar selecionados` e `Imprimir visualização`, já que todos passam por `OpPrintSheet` / `OpPrintBatch`.
+## O que vou fazer
+1. **Ajustar a altura do bloco de operação para impressão**
+   - Reduzir dinamicamente a área de apontamento no modo impresso por operação.
+   - Em vez de sempre renderizar a mesma grade alta, adaptar a quantidade/altura dos blocos para caber junto com cabeçalho + componentes na folha.
+   - Manter o restante do conteúdo da operação visível e legível.
 
-2. **Corrigir a CSS de impressão que está empurrando a operação para a próxima folha**
-   - Remover a proteção excessiva de quebra no bloco `.op-operation` quando estiver no modo de impressão por operação.
-   - Ajustar as regras de `page-break-inside` / `break-inside` para permitir que a primeira folha comporte componentes + início da operação, em vez de jogar a operação inteira para outra página.
-   - Preservar o comportamento dos desenhos em páginas dedicadas.
+2. **Manter a regra pedida para a primeira folha**
+   - Preservar a ordem: **cabeçalho → componentes (quando poucos) → operação**.
+   - Não repetir cabeçalho.
+   - Garantir que isso valha igual para:
+     - impressão individual
+     - `Visualizar selecionadas`
+     - `Imprimir visualização`
 
-3. **Respeitar a regra de “poucos componentes = mesma folha”**
-   - Usar a lógica já existente de limite de componentes como critério para manter os componentes inline quando couber.
-   - Evitar reintroduzir página separada de componentes no modo `quebrarPorOperacao` quando a OP tiver poucos itens.
+3. **Ajustar o CSS de impressão só no contexto necessário**
+   - Refinar as regras de `page-break`/`break-inside` no modo `operation-single-page`.
+   - Evitar que o navegador jogue a operação inteira para outra folha.
+   - Não mexer no comportamento dos desenhos, que continuam em páginas próprias.
 
-4. **Validar o resultado nos 3 fluxos**
-   - OP individual
-   - `Visualizar selecionados`
-   - `Imprimir visualização`
+4. **Validar contra o caso real mostrado**
+   - Conferir o cenário da imagem em que a última parte da operação vai para a página 2.
+   - Garantir que, no layout final, a operação inteira fique condensada em uma única página A4 quando estiver no modo de impressão por operação.
 
 ## Resultado esperado
 ```text
-Folha 1: cabeçalho + componentes + operação
+Folha 1: cabeçalho + componentes + operação completa
 Folhas seguintes: desenhos (uma por página)
 Próxima operação: nova folha com cabeçalho + operação
 ```
@@ -31,9 +35,10 @@ Próxima operação: nova folha com cabeçalho + operação
 - Arquivos-alvo:
   - `src/components/producao/OpPrintSheet.tsx`
   - `src/components/producao/op-print.css`
-- Causa provável já identificada:
-  - `.op-operation` e outras regras globais de impressão ainda estão com `page-break-inside: avoid`, o que faz o navegador mover a operação inteira para a próxima folha quando existem componentes acima.
+- Causa identificada:
+  - o bloco da operação está alto demais para A4 no modo impresso porque a tabela de apontamento usa altura fixa e 6 blocos sempre, então o navegador quebra a operação em outra página.
 - Escopo excluído:
   - sem mudança de API
-  - sem mudança em desenhos
-  - sem mudança no modo padrão fora de `quebrarPorOperacao`
+  - sem mudança no fluxo de dados
+  - sem mudança nos desenhos
+  - sem alteração do modo padrão fora de `quebrarPorOperacao`
