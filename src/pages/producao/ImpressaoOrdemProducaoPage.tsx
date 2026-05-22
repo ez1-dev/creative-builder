@@ -1184,22 +1184,8 @@ export default function ImpressaoOrdemProducaoPage() {
         </div>
       )}
 
-      {isAdmin && (
-        <div className="no-print flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-xs">
-          <Checkbox
-            id="usar-novo-engine"
-            checked={!usarNovoEngine}
-            onCheckedChange={(v) => setUsarNovoEngine(v !== true)}
-          />
-          <Label htmlFor="usar-novo-engine" className="cursor-pointer" title="O motor legado será removido na próxima onda. Marque apenas se detectar uma regressão no novo motor.">
-            Reverter para motor de impressão legado (será removido na próxima onda).
-          </Label>
-
-        </div>
-      )}
-
       <div className="print-root">
-        {usarNovoEngine && (lote?.ordens?.length || data?.cabecalho) && (
+        {(lote?.ordens?.length || data?.cabecalho) && (
           <PrintRenderer
             doc={opToPrintDocument(
               lote?.ordens?.length ? lote.ordens : [data as OpImpressao],
@@ -1212,28 +1198,8 @@ export default function ImpressaoOrdemProducaoPage() {
             preview={preview}
           />
         )}
-
-        {!usarNovoEngine && lote && lote.ordens.length > 0 && (
-          <OpPrintBatch
-            ops={lote.ordens}
-            preview={preview}
-            usuario={displayName ?? erpUser ?? null}
-            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
-          />
-        )}
-
-        {!usarNovoEngine && !lote && data?.cabecalho && (
-          <OpPrintSheet
-            data={data}
-            preview={preview || !!selectedRowKey}
-            usuario={displayName ?? erpUser ?? null}
-            quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
-            blobStates={blobStates}
-            paginasDesenhosA4={paginasDesenhosA4}
-          />
-        )}
-
       </div>
+
 
       <Dialog open={diagOpen} onOpenChange={setDiagOpen}>
         <DialogContent className="max-w-2xl">
