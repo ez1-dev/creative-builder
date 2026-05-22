@@ -42,7 +42,9 @@ export function ReportPrintDialog({
   const containerRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
 
-  const doc = useMemo(
+  const [template, setTemplate] = useState<PrintTemplateId>('padrao');
+
+  const baseDoc = useMemo(
     () =>
       genericReportToPrintDocument({
         relatorio,
@@ -55,12 +57,15 @@ export function ReportPrintDialog({
     [relatorio, layout, colunas, linhas, parametros, displayName, erpUser],
   );
 
+  const doc = useMemo(() => applyPrintTemplate(baseDoc, template), [baseDoc, template]);
+
   function imprimir() {
     const originalTitle = document.title;
     document.title = doc.title;
     window.print();
     setTimeout(() => { document.title = originalTitle; }, 500);
   }
+
 
   async function exportarPdf() {
     setExporting(true);
