@@ -547,6 +547,25 @@
   }
 
   thead { display: table-header-group; }
+
+  /* Evita página em branco no final do lote: o último bloco impresso
+     não deve forçar page-break-after. */
+  .op-print-batch > *:last-child,
+  .op-operation-page:last-child,
+  .componentes-page:last-child,
+  .op-drawing-page:last-child,
+  .op-print-page:last-child,
+  .operation-single-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Permite que o tbody flua naturalmente. Combinado com tr avoid,
+     evita o Chrome reservar uma página fantasma para o thead. */
+  .componentes-page tbody {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
 }
 
 @page {
