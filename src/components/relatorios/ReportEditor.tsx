@@ -307,6 +307,21 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
             </TabsContent>
           )}
           {relatorio.id && (
+            <TabsContent value="publicacao">
+              <PublishTab relatorio={relatorio} />
+            </TabsContent>
+          )}
+          {relatorio.id && (
+            <TabsContent value="versoes">
+              <VersionsTab relatorioId={relatorio.id} onRestored={() => relatorio.id && getRelatorio(relatorio.id).then(({ relatorio: r, parametros: ps, colunas: cs, layout: l }) => {
+                if (r) setRelatorio(r);
+                setParametros(ps.map(({ id: _i, relatorio_id: _r, ...rest }) => rest));
+                setColunas(cs.map(({ id: _i, relatorio_id: _r, ...rest }) => rest));
+                setLayout(l ?? emptyLayout(relatorio.id!));
+              })} />
+            </TabsContent>
+          )}
+          {relatorio.id && (
             <TabsContent value="historico">
               <ReportExecutionHistory relatorioId={relatorio.id} refreshKey={historyRefresh} />
             </TabsContent>
