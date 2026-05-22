@@ -88,8 +88,17 @@ export function ParametersEditor({ parametros, onChange }: Props) {
                         <SelectItem value="texto">Texto</SelectItem>
                         <SelectItem value="numero">Número</SelectItem>
                         <SelectItem value="data">Data</SelectItem>
-                        <SelectItem value="lista">Lista</SelectItem>
+                        <SelectItem value="periodo">Período</SelectItem>
+                        <SelectItem value="lista">Lista fixa</SelectItem>
+                        <SelectItem value="lista_sql">Lista SQL</SelectItem>
+                        <SelectItem value="multi">Multi-seleção</SelectItem>
                         <SelectItem value="booleano">Booleano</SelectItem>
+                        <SelectItem value="empresa">Empresa</SelectItem>
+                        <SelectItem value="filial">Filial</SelectItem>
+                        <SelectItem value="produto">Produto</SelectItem>
+                        <SelectItem value="cliente">Cliente</SelectItem>
+                        <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                        <SelectItem value="op">OP</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -101,14 +110,14 @@ export function ParametersEditor({ parametros, onChange }: Props) {
                     </Button>
                   </TableCell>
                 </TableRow>
-                {p.tipo === 'lista' && (
+                {(p.tipo === 'lista' || p.tipo === 'lista_sql' || p.tipo === 'multi') && (
                   <TableRow key={`sql-${idx}`}>
                     <TableCell />
                     <TableCell colSpan={6}>
                       <Textarea
                         value={p.sql_lista ?? ''}
                         onChange={(e) => update(idx, { sql_lista: e.target.value })}
-                        placeholder="SELECT codigo, descricao FROM ..."
+                        placeholder={p.tipo === 'lista' ? 'Opções fixas separadas por | (ex: ATIVO|INATIVO)' : 'SELECT codigo, descricao FROM ...'}
                         rows={2}
                         className="font-mono text-xs"
                       />
