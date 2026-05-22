@@ -279,10 +279,10 @@
   break-after: page;
 }
 .componentes-inline {
-  margin-top: 6pt;
+  margin-bottom: 8pt;
 }
 .componentes-inline .op-section-title {
-  margin-top: 8pt;
+  margin-top: 0;
 }
 
 .op-drawing-page {
