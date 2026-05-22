@@ -586,8 +586,7 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const handleRowImprimir = async (op: OpcaoOp) => {
     await handleRowSelect(op);
-    await aguardarDesenhosProntos();
-    window.print();
+    await dispararImpressao();
   };
 
   const handleVerObservacoes = async (op: OpcaoOp) => {
