@@ -20,14 +20,28 @@ interface Props {
 function fmtNow() {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
+
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function fmtDate(s?: string) {
   if (!s) return "-";
+
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+
   if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+
   return s;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+
+  return chunks;
 }
 
 export function OpPrintSheet({
@@ -53,7 +67,6 @@ export function OpPrintSheet({
 
   const opCode = cab.codigo_barras_op ?? `${cab.cod_ori ?? ""}${String(cab.num_orp ?? "").padStart(9, "0")}`;
 
-  // Agrupa componentes por estágio
   const compsPorEtg = componentes.reduce<Record<string, OpComponente[]>>((acc, c) => {
     const k = c.cod_etg ?? "";
     (acc[k] ||= []).push(c);
@@ -62,7 +75,6 @@ export function OpPrintSheet({
 
   const etgKeys = Object.keys(compsPorEtg);
 
-  // Prop tem prioridade (UI decide). Fallback no payload.
   const quebrarPorOperacao = propQuebrarPorOperacao ?? data?.modo_impressao?.quebrar_por_operacao ?? false;
 
   const limiteComp = data?.layout_componentes?.limite_componentes_primeira_pagina ?? 7;
@@ -116,7 +128,6 @@ export function OpPrintSheet({
               if (!desc) return "-";
               if (!cod) return desc;
 
-              // Remove código duplicado no início da descrição
               return desc.replace(new RegExp(`^${cod}\\s*-\\s*`), "").trim() || desc;
             })()}
           </div>
@@ -238,6 +249,77 @@ export function OpPrintSheet({
           </div>
         ))}
       </div>
+    );
+  };
+
+  const renderComponentesPagesPaginadas = () => {
+    if (componentes.length === 0) return null;
+
+    const COMPONENTES_POR_PAGINA = 38;
+    const componentesPorPagina = chunkArray(componentes, COMPONENTES_POR_PAGINA);
+
+    return (
+      <>
+        {componentesPorPagina.map((componentesPagina, paginaIndex) => {
+          const compsPaginaPorEtg = componentesPagina.reduce<Record<string, OpComponente[]>>((acc, c) => {
+            const k = c.cod_etg ?? "";
+            (acc[k] ||= []).push(c);
+            return acc;
+          }, {});
+
+          const etgKeysPagina = Object.keys(compsPaginaPorEtg);
+
+          return (
+            <div
+              key={`componentes-page-${paginaIndex}`}
+              className={`op-sheet componentes-page ${preview ? "op-sheet--preview" : ""}`}
+            >
+              {renderHeader()}
+
+              <div className="op-section-title">
+                RELAÇÃO DE COMPONENTES NECESSÁRIOS
+                {componentesPorPagina.length > 1 && (
+                  <span style={{ float: "right", fontWeight: 400 }}>
+                    Parte {paginaIndex + 1}/{componentesPorPagina.length}
+                  </span>
+                )}
+              </div>
+
+              {etgKeysPagina.map((etg) => (
+                <div key={`comp-page-${paginaIndex}-${etg}`}>
+                  {etg && <div className="op-stage-bar">Estágio: {etg}</div>}
+
+                  <table className="componentes-table">
+                    <thead>
+                      <tr>
+                        <th className="col-w-medium">Código</th>
+                        <th>Descrição</th>
+                        <th className="col-w-narrow qtd-prev">Qtde. Prev.</th>
+                        <th className="col-w-narrow unidade">UN</th>
+                        <th className="col-w-narrow deposito">Dep.</th>
+                        <th className="col-w-medium endereco">Endereço</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {compsPaginaPorEtg[etg].map((c, i) => (
+                        <tr key={`c-page-${paginaIndex}-${etg}-${i}`}>
+                          <td>{c.codigo_componente ?? ""}</td>
+                          <td>{c.descricao_componente ?? ""}</td>
+                          <td className="qtd-prev">{c.quantidade_prevista ?? ""}</td>
+                          <td className="unidade">{c.unidade_medida ?? ""}</td>
+                          <td className="deposito">{c.deposito ?? ""}</td>
+                          <td className="endereco">{c.endereco ?? ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </>
     );
   };
 
@@ -432,7 +514,7 @@ export function OpPrintSheet({
               borderRadius: 4,
             }}
           >
-            A API listou {desenhos.length} desenho(s) mas nenhum pôde ser baixado. Verifique o token e as permissões do
+            A API listou {desenhos.length} desenho(s), mas nenhum pôde ser baixado. Verifique o token e as permissões do
             endpoint <code>/api/producao/ordem-producao/desenho</code>.
           </div>
         )}
@@ -481,7 +563,6 @@ export function OpPrintSheet({
     );
   };
 
-  // Modo: quebra por operação
   if (quebrarPorOperacao) {
     if (operacoes.length === 0) {
       return (
@@ -497,11 +578,6 @@ export function OpPrintSheet({
       );
     }
 
-    // Regra definitiva no modo "quebrar por operação":
-    // - até `limiteComp` componentes: cabeçalho + operação + componentes na mesma folha;
-    // - acima de `limiteComp`: cabeçalho + operação na primeira folha,
-    //   componentes em folha própria com cabeçalho;
-    // - desenhos sempre depois dos componentes.
     const temComponentes = componentes.length > 0;
     const componentesInline = temComponentes && componentes.length <= limiteComp;
     const componentesEmPaginaSeparada = temComponentes && componentes.length > limiteComp;
@@ -509,12 +585,9 @@ export function OpPrintSheet({
     return (
       <>
         {operacoes.map((op, i) => {
-          const isUltimaOperacao = i === operacoes.length - 1;
-          const renderizarComponentesInline = isUltimaOperacao && componentesInline;
+          const isPrimeiraOperacao = i === 0;
+          const renderizarComponentesInline = isPrimeiraOperacao && componentesInline;
 
-          // Mantém 6 marcações como padrão.
-          // Quando houver componentes inline na mesma página, reduz para cab 6 marcações como padrão.
-          // Quando houver componentes inline na mesma página, reduz para caber em A4.
           let blocos = 6;
 
           if (renderizarComponentesInline) {
@@ -533,17 +606,17 @@ export function OpPrintSheet({
             >
               {renderHeader()}
 
+              {renderizarComponentesInline && <div className="componentes-inline">{renderComponentes()}</div>}
+
               <div className="op-section-title">Operação</div>
               {renderOperacao(op, i, blocos)}
-
-              {renderizarComponentesInline && <div className="componentes-inline">{renderComponentes()}</div>}
 
               {renderFooter()}
             </div>
           );
         })}
 
-        {componentesEmPaginaSeparada && renderComponentesPage()}
+        {componentesEmPaginaSeparada && renderComponentesPagesPaginadas()}
 
         {desenhos.length > 0 && renderDesenhos("drw-end")}
 
@@ -552,7 +625,6 @@ export function OpPrintSheet({
     );
   }
 
-  // Modo padrão: componentes > 7 → operações na página 1, componentes em página separada
   if (quebrarComponentes) {
     return (
       <>
@@ -569,7 +641,7 @@ export function OpPrintSheet({
           {renderFooter()}
         </div>
 
-        {renderComponentesPage()}
+        {renderComponentesPagesPaginadas()}
 
         {renderDesenhos()}
 
@@ -611,7 +683,6 @@ function isPdf(d: OpDesenho): boolean {
 }
 
 function getDrawingPrintUrl(d: OpDesenho): string {
-  // Sempre preferir url_impressao (API já entrega rotacionado/otimizado).
   return d.url_impressao || d.url || "";
 }
 
@@ -674,7 +745,6 @@ function renderDrawingBody(
   const pdf = isPdf(drawing);
   const usingPrintUrl = Boolean(drawing.url_impressao);
 
-  // Fallback legado: só rotaciona quando NÃO temos url_impressao da API.
   const flagRotate =
     !pdf && !usingPrintUrl && (drawing.rotacionar_para_retrato === true || Number(drawing.rotacao_recomendada) === 90);
 
