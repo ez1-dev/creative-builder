@@ -112,7 +112,7 @@ export default function ImpressaoOrdemProducaoPage() {
 
   // Erros de normalização de desenhos para o aviso na UI; o motor de impressão
   // novo consome diretamente `data.desenhos` via opAdapter quando necessário.
-  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
+  const { errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
   // Diagnóstico de desenhos
