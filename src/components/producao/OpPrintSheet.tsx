@@ -11,9 +11,12 @@ interface Props {
   preview?: boolean;
   usuario?: string | null;
   quebrarPorOperacao?: boolean | null;
+  frenteVersoSeguro?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
 }
+
+const COMPONENTES_POR_PAGINA = 38;
 
 function fmtDate(s?: string) {
   if (!s) return "-";
@@ -35,10 +38,19 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+function BlankDuplexPage() {
+  return (
+    <div className="op-blank-page op-print-unit">
+      <div className="op-blank-page-label">Página em branco intencional para impressão frente e verso</div>
+    </div>
+  );
+}
+
 export function OpPrintSheet({
   data,
   preview = false,
   quebrarPorOperacao: propQuebrarPorOperacao,
+  frenteVersoSeguro = false,
   blobStates,
   paginasDesenhosA4,
 }: Props) {
@@ -62,6 +74,32 @@ export function OpPrintSheet({
 
   const quebrarComponentes =
     data?.layout_componentes?.quebrar_componentes_em_pagina_separada ?? componentes.length > limiteComp;
+
+  const desenhos = data?.desenhos ?? [];
+
+  const qtdPaginasDesenhos =
+    paginasDesenhosA4 && paginasDesenhosA4.length > 0 ? paginasDesenhosA4.length : desenhos.length;
+
+  const qtdPaginasComponentesSeparados =
+    componentes.length > limiteComp ? Math.ceil(componentes.length / COMPONENTES_POR_PAGINA) : 0;
+
+  const calcularTotalPaginasOp = () => {
+    if (quebrarPorOperacao) {
+      const paginasOperacao = operacoes.length > 0 ? operacoes.length : 1;
+
+      return paginasOperacao + qtdPaginasComponentesSeparados + qtdPaginasDesenhos;
+    }
+
+    if (quebrarComponentes) {
+      return 1 + qtdPaginasComponentesSeparados + qtdPaginasDesenhos;
+    }
+
+    return 1 + qtdPaginasDesenhos;
+  };
+
+  const totalPaginasOp = calcularTotalPaginasOp();
+
+  const deveAdicionarPaginaBranca = frenteVersoSeguro === true && totalPaginasOp % 2 !== 0;
 
   const renderHeader = () => (
     <>
@@ -192,7 +230,6 @@ export function OpPrintSheet({
   const renderComponentesPagesPaginadas = () => {
     if (componentes.length === 0) return null;
 
-    const COMPONENTES_POR_PAGINA = 38;
     const componentesPorPagina = chunkArray(componentes, COMPONENTES_POR_PAGINA);
 
     return (
@@ -376,7 +413,7 @@ export function OpPrintSheet({
             </tr>,
 
             <tr key={`apt-${i}-${r}-h2`} className="op-apt-head">
-              <th>Cod. desvio</th>
+              <th>motivo do desvio</th>
               <th colSpan={4}>obs</th>
               <th>operador</th>
               <th>check</th>
@@ -394,13 +431,13 @@ export function OpPrintSheet({
     </div>
   );
 
-  const desenhos = data?.desenhos ?? [];
-
   const renderDesenhos = (keyPrefix = "drw") => {
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
       return paginasDesenhosA4.map((pg, i) => (
         <div className="op-drawing-page op-print-unit" key={`${keyPrefix}-a4-${i}`}>
-          <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
+          <div className="op-drawing-frame">
+            <img className="op-drawing-image" src={pg.blobUrl} alt={pg.nome_arquivo ?? `Desenho ${i + 1}`} />
+          </div>
         </div>
       ));
     }
@@ -436,13 +473,17 @@ export function OpPrintSheet({
   if (quebrarPorOperacao) {
     if (operacoes.length === 0) {
       return (
-        <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
-          {renderHeader()}
+        <>
+          <div className={`op-sheet op-print-unit ${preview ? "op-sheet--preview" : ""}`}>
+            {renderHeader()}
 
-          <div className="op-box" style={{ marginTop: 12, textAlign: "center", fontStyle: "italic" }}>
-            Nenhuma operação encontrada para os filtros selecionados.
+            <div className="op-box" style={{ marginTop: 12, textAlign: "center", fontStyle: "italic" }}>
+              Nenhuma operação encontrada para os filtros selecionados.
+            </div>
           </div>
-        </div>
+
+          {deveAdicionarPaginaBranca && <BlankDuplexPage />}
+        </>
       );
     }
 
@@ -486,6 +527,8 @@ export function OpPrintSheet({
 
         {desenhos.length > 0 && renderDesenhos("drw-end")}
 
+        {deveAdicionarPaginaBranca && <BlankDuplexPage />}
+
         {preview && renderPreviewDesenhosResumo()}
       </>
     );
@@ -509,6 +552,8 @@ export function OpPrintSheet({
 
         {renderDesenhos()}
 
+        {deveAdicionarPaginaBranca && <BlankDuplexPage />}
+
         {preview && renderPreviewDesenhosResumo()}
       </>
     );
@@ -530,6 +575,8 @@ export function OpPrintSheet({
       </div>
 
       {renderDesenhos()}
+
+      {deveAdicionarPaginaBranca && <BlankDuplexPage />}
 
       {preview && renderPreviewDesenhosResumo()}
     </>
@@ -583,9 +630,9 @@ function DrawingImage({
   const shouldRotate = flagRotate || isLandscape;
 
   return (
-    <div className={`drawing-frame${shouldRotate ? " rotated" : ""}`}>
+    <div className={`op-drawing-frame ${shouldRotate ? "rotated" : ""}`}>
       <img
-        className={`drawing-image${shouldRotate ? " rotate-90" : ""}`}
+        className={`op-drawing-image ${shouldRotate ? "rotate-90" : ""}`}
         src={blobUrl}
         alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
         onLoad={(e) => {
@@ -617,9 +664,16 @@ function renderDrawingBody(
       {!loading && error && <div className="op-drawing-missing no-print">Falha ao carregar: {error}</div>}
 
       {!loading && !error && blobUrl && pdf && (
-        <object data={blobUrl} type="application/pdf" aria-label={drawing.nome_arquivo ?? `Desenho ${index + 1}`}>
-          <div className="op-drawing-missing no-print">Não foi possível exibir o PDF.</div>
-        </object>
+        <div className="op-drawing-frame">
+          <object
+            className="op-drawing-object"
+            data={blobUrl}
+            type="application/pdf"
+            aria-label={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          >
+            <div className="op-drawing-missing no-print">Não foi possível exibir o PDF.</div>
+          </object>
+        </div>
       )}
 
       {!loading && !error && blobUrl && !pdf && (
