@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,41 +120,7 @@ export default function ImpressaoOrdemProducaoPage() {
     [data?.desenhos],
   );
   const blobStates = useAuthedBlobUrls(desenhoUrls);
-
-  // Os desenhos A4 completos são pesados (PDFs/imagens grandes). Só carregamos
-  // quando o usuário aciona impressão/gerar PDF. No preview, o OpPrintSheet
-  // renderiza apenas miniaturas leves via DrawingPreviewThumbnail.
-  const [loadFullDrawings, setLoadFullDrawings] = useState(false);
-  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors, loading: a4Loading } =
-    useDesenhosA4(loadFullDrawings ? data?.desenhos : undefined);
-  const pendingPrintRef = useRef(false);
-
-  // Quando estamos esperando impressão e os desenhos A4 já terminaram de carregar,
-  // aguardamos as imagens renderizarem e disparamos window.print().
-  useEffect(() => {
-    if (!pendingPrintRef.current) return;
-    if (!loadFullDrawings) return;
-    if (a4Loading) return;
-    pendingPrintRef.current = false;
-    (async () => {
-      await aguardarDesenhosProntos();
-      window.print();
-    })();
-  }, [loadFullDrawings, a4Loading]);
-
-  // Dispara o fluxo de impressão: marca pending, ativa carregamento dos A4.
-  // O useEffect acima conclui com aguardar + window.print().
-  const dispararImpressao = useCallback(async () => {
-    pendingPrintRef.current = true;
-    if (loadFullDrawings && !a4Loading) {
-      // Já carregado: imprime direto.
-      pendingPrintRef.current = false;
-      await aguardarDesenhosProntos();
-      window.print();
-      return;
-    }
-    setLoadFullDrawings(true);
-  }, [loadFullDrawings, a4Loading]);
+  const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
   // Diagnóstico de desenhos
@@ -190,14 +156,6 @@ export default function ImpressaoOrdemProducaoPage() {
     setSelectedKeys(new Set());
     setSelectedRowKey(null);
   }, [filtros.cod_emp, filtros.cod_ori, filtros.num_ped, filtros.rel_prd, filtros.sit_orp, filtros.cod_cre, filtros.cod_etg, filtros.num_orp, filtros.cod_pro]);
-
-  // Quando uma nova OP é carregada (mudou o cabeçalho), volta ao modo "preview-only"
-  // para não pré-carregar desenhos A4 da OP anterior.
-  useEffect(() => {
-    setLoadFullDrawings(false);
-    pendingPrintRef.current = false;
-  }, [data?.cabecalho?.cod_emp, data?.cabecalho?.cod_ori, data?.cabecalho?.num_orp, lote]);
-
 
   const set = <K extends keyof ImpressaoOpFiltros>(k: K, v: ImpressaoOpFiltros[K]) =>
     setFiltros((f) => ({ ...f, [k]: v }));
@@ -532,13 +490,15 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const imprimir = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de imprimir.'); return; }
-    await dispararImpressao();
+    await aguardarDesenhosProntos();
+    window.print();
   };
 
   const gerarPdf = async () => {
     if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
     toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
-    await dispararImpressao();
+    await aguardarDesenhosProntos();
+    window.print();
   };
 
 
@@ -594,7 +554,8 @@ export default function ImpressaoOrdemProducaoPage() {
 
   const handleRowImprimir = async (op: OpcaoOp) => {
     await handleRowSelect(op);
-    await dispararImpressao();
+    await aguardarDesenhosProntos();
+    window.print();
   };
 
   const handleVerObservacoes = async (op: OpcaoOp) => {
@@ -646,8 +607,8 @@ export default function ImpressaoOrdemProducaoPage() {
       setLote(res);
       reset();
       toast.success(`Imprimindo ${res.quantidade_ops} OP(s)...`);
-      await dispararImpressao();
-
+      await aguardarDesenhosProntos();
+      window.print();
 
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao gerar impressão em lote.');
@@ -726,7 +687,8 @@ export default function ImpressaoOrdemProducaoPage() {
       toast.info('Visualize as OPs antes de imprimir.');
       return;
     }
-    await dispararImpressao();
+    await aguardarDesenhosProntos();
+    window.print();
   };
 
   const limparSelecao = () => {
@@ -1220,7 +1182,6 @@ export default function ImpressaoOrdemProducaoPage() {
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
             imprimirDesenhos={filtros.incluir_desenhos === 'S'}
-            loadFullDrawings={loadFullDrawings}
           />
         )}
 
@@ -1233,7 +1194,6 @@ export default function ImpressaoOrdemProducaoPage() {
             blobStates={blobStates}
             paginasDesenhosA4={paginasDesenhosA4}
             imprimirDesenhos={filtros.incluir_desenhos === 'S'}
-            loadFullDrawings={loadFullDrawings}
           />
         )}
 
