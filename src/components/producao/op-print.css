@@ -481,11 +481,6 @@
     overflow: visible !important;
   }
 
-  /* =========================================================
-     CORREÇÃO DA PÁGINA EM BRANCO NO FINAL
-     Nunca quebrar depois. Sempre quebrar antes do próximo bloco.
-     ========================================================= */
-
   .print-root,
   .op-print-batch,
   .op-print-group,
