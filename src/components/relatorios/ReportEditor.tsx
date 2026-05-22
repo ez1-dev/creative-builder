@@ -29,6 +29,8 @@ import { ColumnsEditor } from './ColumnsEditor';
 import { LayoutEditor } from './LayoutEditor';
 import { ReportPreview } from './ReportPreview';
 import { ReportExecutionHistory } from './ReportExecutionHistory';
+import { PublishTab } from './PublishTab';
+import { VersionsTab } from './VersionsTab';
 
 interface Props {
   id: string | null;
