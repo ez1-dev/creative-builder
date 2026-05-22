@@ -20,7 +20,10 @@ export type RelatorioFormValues = z.infer<typeof relatorioFormSchema>;
 export const parametroSchema = z.object({
   nome: z.string().trim().min(1).max(60).regex(/^[a-z_][a-z0-9_]*$/i, 'Use apenas letras, números e _'),
   label: z.string().trim().max(120).optional().nullable(),
-  tipo: z.enum(['texto', 'numero', 'data', 'lista', 'booleano']),
+  tipo: z.enum([
+    'texto', 'numero', 'data', 'periodo', 'lista', 'lista_sql', 'multi',
+    'booleano', 'empresa', 'filial', 'produto', 'cliente', 'fornecedor', 'op',
+  ]),
   obrigatorio: z.boolean(),
   valor_padrao: z.string().max(500).optional().nullable(),
   ordem: z.number().int().min(0),

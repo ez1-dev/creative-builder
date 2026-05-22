@@ -4,7 +4,8 @@ import { SqlEditor } from '../SqlEditor';
 import { parseSqlParams, checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
 import { validarSql } from '@/lib/relatorios/api';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, AlertCircle, Wand2, Play } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Wand2, Play, Sparkles } from 'lucide-react';
+import { format as formatSql } from 'sql-formatter';
 
 interface Props {
   sql: string;
@@ -59,12 +60,36 @@ export function SqlTab({ sql, onChange, onDetectParams, onPreview }: Props) {
     toast.success(`${params.length} parâmetro(s) detectado(s)`);
   }
 
+  function handleFormat() {
+    if (!sql?.trim()) {
+      toast.error('Nada para formatar');
+      return;
+    }
+    try {
+      const formatted = formatSql(sql, {
+        language: 'sql',
+        keywordCase: 'upper',
+        linesBetweenQueries: 2,
+        tabWidth: 2,
+        // sql-formatter usa "?" para parâmetros; manter ":nome" intactos
+        paramTypes: { named: [':'] },
+      });
+      onChange(formatted);
+      toast.success('SQL formatada');
+    } catch (e: any) {
+      toast.error(`Erro ao formatar: ${e?.message ?? e}`);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
         <Button onClick={handleValidar} disabled={validating} variant="outline" size="sm">
           {validating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
           Validar SQL
+        </Button>
+        <Button onClick={handleFormat} variant="outline" size="sm">
+          <Sparkles className="h-4 w-4 mr-1" /> Formatar SQL
         </Button>
         <Button onClick={handleDetect} variant="outline" size="sm">
           <Wand2 className="h-4 w-4 mr-1" /> Detectar parâmetros

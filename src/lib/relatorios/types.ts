@@ -1,5 +1,19 @@
 export type RelatorioStatus = 'rascunho' | 'publicado' | 'inativo';
-export type ParametroTipo = 'texto' | 'numero' | 'data' | 'lista' | 'booleano';
+export type ParametroTipo =
+  | 'texto'
+  | 'numero'
+  | 'data'
+  | 'periodo'
+  | 'lista'
+  | 'lista_sql'
+  | 'multi'
+  | 'booleano'
+  | 'empresa'
+  | 'filial'
+  | 'produto'
+  | 'cliente'
+  | 'fornecedor'
+  | 'op';
 export type ColunaAlinhamento = 'esquerda' | 'centro' | 'direita';
 export type ColunaTipo = 'texto' | 'numero' | 'moeda' | 'data' | 'data_hora' | 'percentual' | 'booleano';
 export type LayoutTipo =
