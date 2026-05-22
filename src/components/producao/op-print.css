@@ -490,17 +490,27 @@
     break-inside: avoid !important;
   }
 
-  /* No modo "quebrar por operação", a folha pode comportar
-     cabeçalho + componentes + operação. Liberamos o avoid para
-     o navegador quebrar naturalmente caso estoure o A4, em vez
-     de empurrar a operação inteira para a próxima folha. */
-  .operation-single-page .op-operation,
-  .operation-single-page table,
-  .operation-single-page .op-apontamento-table,
-  .operation-single-page .op-apontamento-table tr {
-    page-break-inside: auto !important;
-    break-inside: auto !important;
+  /* No modo "quebrar por operação", a folha comporta cabeçalho + componentes +
+     operação inteira. Forçamos avoid para que o bloco da operação não seja
+     fatiado entre páginas. A quantidade de blocos de apontamento já é
+     reduzida no React quando há componentes acima. */
+  .operation-single-page {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: always !important;
+    break-after: page !important;
   }
+  .operation-single-page .op-operation {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .operation-single-page .op-apontamento-table,
+  .operation-single-page .op-apontamento-table tbody,
+  .operation-single-page .op-apontamento-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
 
   .op-drawing-page {
     display: flex !important;
