@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { Barcode } from './Barcode';
 import { useAuthedBlobUrl } from '@/hooks/useAuthedBlobUrl';
 import type { BlobStateMap } from '@/hooks/useAuthedBlobUrls';
