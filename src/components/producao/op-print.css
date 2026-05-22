@@ -559,7 +559,6 @@
 /* ===== Componentes em página separada ===== */
 .componentes-page {
   width: 196mm;
-  min-height: 283mm;
   margin: 0 auto;
 }
 .componentes-page:not(:last-child) {
@@ -570,6 +569,9 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 10px;
+}
+.componentes-page thead {
+  display: table-header-group;
 }
 .componentes-page th,
 .componentes-page td {
