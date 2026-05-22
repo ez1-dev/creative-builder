@@ -385,29 +385,34 @@
   .preview-message,
   .drawing-empty-message { display: none !important; }
 
-  /* Remove apenas a sombra/margens decorativas do preview. Mantém o
-     padding interno de 8mm do .op-sheet para preservar a margem visual
-     (combinado com @page margin: 7mm dá ~15mm de respiro como antes). */
+  /* Remove apenas a sombra/margens decorativas do preview. */
   .op-sheet {
     box-shadow: none !important;
     margin: 0 auto !important;
-    min-height: 0 !important;
   }
   .op-sheet--preview {
     box-shadow: none !important;
     margin: 0 auto !important;
   }
 
+  /* Zera padding do .op-sheet quando ele está dentro de folhas com altura
+     fixa, para não estourar a área útil do papel (196mm × 283mm). */
+  .op-print-page .op-sheet,
+  .op-operation-page .op-sheet,
+  .operation-single-page {
+    padding: 0 !important;
+  }
+
   /* Página de componentes: pode crescer por várias folhas A4 quando a
-     lista é longa. Sem altura/min-height fixos, overflow visível —
-     padding herdado do .op-sheet (8mm) é mantido. */
+     lista é longa. Sem altura/min-height fixos, sem padding do .op-sheet,
+     overflow visível — assim a tabela aparece e quebra naturalmente. */
   .op-sheet.componentes-page,
   .componentes-page {
     min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
+    padding: 0 !important;
   }
-
 
   /* Quebras de página: uma folha por bloco. O último bloco do lote
      não força page-break, para evitar folha em branco final. */
@@ -637,34 +642,4 @@
     font-weight: 700 !important;
   }
 }
-
-/* ===== Densidade da página de componentes (>30 itens caber em 1 folha) ===== */
-.componentes-page--compact-31-50 table { font-size: 8.5px; }
-.componentes-page--compact-31-50 th,
-.componentes-page--compact-31-50 td { padding: 1px 3px !important; line-height: 1.1; }
-
-.componentes-page--compact-51-70 table { font-size: 7.5px; }
-.componentes-page--compact-51-70 th,
-.componentes-page--compact-51-70 td { padding: 0.5px 2px !important; line-height: 1.05; }
-.componentes-page--compact-51-70 .op-stage-bar,
-.componentes-page--compact-51-70 .op-section-title { font-size: 9px; padding: 1px 4px; }
-
-.componentes-page--compact-71 table { font-size: 6.5px; }
-.componentes-page--compact-71 th,
-.componentes-page--compact-71 td { padding: 0 2px !important; line-height: 1.0; }
-.componentes-page--compact-71 .op-stage-bar,
-.componentes-page--compact-71 .op-section-title { font-size: 8px; padding: 0 4px; }
-
-@media print {
-  .componentes-page--compact-31-50,
-  .componentes-page--compact-51-70,
-  .componentes-page--compact-71,
-  .componentes-page--compact-31-50 tbody,
-  .componentes-page--compact-51-70 tbody,
-  .componentes-page--compact-71 tbody {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-}
-
 

@@ -1,59 +1,63 @@
 ## Diagnóstico
 
-No plano anterior, para a página de componentes caber sem estourar a folha A4 (`.op-sheet` tem `min-height: 297mm` + `padding: 8mm`, que somavam mais que a área útil), zerei o `padding` do `.op-sheet` em todas as folhas de impressão:
+A última mudança no `@media print` removeu os overrides que faziam a `.componentes-page` "soltar" suas dimensões na impressão (`min-height: 0`, `height: auto`, `overflow: visible`). Agora ela herda do `.op-sheet`: `min-height: 297mm` + `padding: 8mm` + `box-sizing: border-box`. Como o `@page` tem margem 7mm, a área útil real do papel é 196mm × 283mm — menor que o `min-height: 297mm` do elemento. O Chrome trata o bloco inteiro como "não cabe" e em alguns casos pula a página, fazendo a tabela de componentes não aparecer na impressão (apesar de existir no DOM e renderizar bem no preview).
 
-```css
-.op-print-page .op-sheet,
-.op-operation-page .op-sheet,
-.operation-single-page,
-.op-sheet.componentes-page { padding: 0 !important; }
-```
-
-Combinado com `@page { margin: 7mm }`, sobrou só 7mm de espaço entre o conteúdo e a borda do papel — antes eram 7mm + 8mm internos = ~15mm. Daí a impressão "encostou" na borda.
+Outro efeito colateral: mesmo se aparecesse, com `min-height: 297mm` o bloco é uma única "caixa" gigante — o navegador não pagina naturalmente uma tabela de 30+ linhas em múltiplas folhas A4.
 
 ## Solução
 
-Devolver os ~8mm internos sem voltar a estourar a folha. Em vez de zerar `padding`, **manter** `padding: 8mm` no `.op-sheet` e remover o `min-height: 297mm` na impressão (deixando a altura ser ditada pelo conteúdo + page-break).
+Tudo em `src/components/producao/op-print.css`, dentro do `@media print` que reescrevi:
 
-## Mudanças
-
-Tudo em `src/components/producao/op-print.css`, dentro do bloco `@media print`:
-
-1. **Trocar `padding: 0` por `padding: 8mm` (na verdade, deixar herdar)**
-
-   Remover este bloco:
-
-   ```css
-   .op-print-page .op-sheet,
-   .op-operation-page .op-sheet,
-   .operation-single-page { padding: 0 !important; }
-   ```
-
-   E em `.op-sheet.componentes-page` trocar `padding: 0 !important` por nada (deixar herdar os 8mm padrão do `.op-sheet`).
-
-2. **Remover o `min-height` que causaria estouro**
-
-   Adicionar:
+1. **Reabrir a página de componentes para fluir naturalmente**
 
    ```css
    @media print {
-     .op-sheet { min-height: 0 !important; }
+     .op-sheet.componentes-page {
+       min-height: 0 !important;
+       height: auto !important;
+       overflow: visible !important;
+       padding: 0 !important;   /* tira o padding do .op-sheet que estoura a página */
+     }
+     .componentes-page tbody {
+       page-break-inside: auto;
+       break-inside: auto;
+     }
    }
    ```
 
-   Assim cada folha cresce só até onde o conteúdo pede, e `page-break-after: always` em `.op-print-page / .op-operation-page / .componentes-page / .op-drawing-page / .operation-single-page` garante uma folha por bloco.
+   Combinado com `tr { page-break-inside: avoid }` (já existe), a tabela quebra entre linhas em quantas folhas A4 forem necessárias, sem cortar nenhuma linha no meio.
 
-3. **Manter `@page { margin: 7mm }`** — Combinado com os 8mm internos do `.op-sheet`, dá os ~15mm de margem visual que tinha antes.
+2. **Compensar o padding nas demais folhas dimensionadas fixas**
 
-4. **Não mexer na densidade dos componentes (compact-31-50 etc.)** — continua funcionando: ela só altera font-size/padding das células da tabela, não do container.
+   `.op-print-page` e `.op-operation-page` continuam com altura fixa de 283mm — mas o `.op-sheet` interno aplica `padding: 8mm`, somando 16mm a mais. Em print, zerar esse padding:
+
+   ```css
+   @media print {
+     .op-print-page .op-sheet,
+     .op-operation-page .op-sheet,
+     .operation-single-page {
+       padding: 0 !important;
+     }
+   }
+   ```
+
+3. **Cabeçalho da tabela de componentes repete em cada folha**
+
+   Reverter `display: table-row-group` que coloquei para `display: table-header-group`, agora que a tabela vai mesmo quebrar em várias folhas — assim cada folha de componentes começa com a linha de "Código / Descrição / Qtde / UN / Dep / Endereço".
+
+   ```css
+   .componentes-page thead { display: table-header-group !important; }
+   ```
+
+4. **Manter o resto da regra minimalista** que já existe (esconder cromo da UI, isolar `.print-root`, `page-break-after: always` + `:last-child { avoid }`).
 
 ## Validação
 
-- OP 21264 (caso da imagem): preview já vinha OK, e o Ctrl+P agora deve mostrar ~15mm de espaço branco em volta do conteúdo.
-- OP 1109 (~30 componentes) e OP com 50/70 componentes: tabela continua cabendo numa só folha com as classes densas, agora com a margem restaurada.
-- OP 7093 (multi-operações): contagem de folhas no Ctrl+P deve continuar batendo com o preview.
+- OP 1109 (caso atual da tela): pré-visualizar, abrir Ctrl+P, conferir que a folha de componentes aparece — provavelmente em 1 folha A4 se couber, ou 2 se a tabela for muito longa.
+- OP com 7 ou menos componentes: continuam inline (modo "quebrar por operação"), sem folha extra.
+- OP 7093 (40+ operações): conferir que o total de folhas continua batendo com o preview.
 
 ## Fora de escopo
 
-- Sem mudar `OpPrintSheet.tsx`, `OpPrintBatch.tsx`, hooks ou backend.
-- Sem mudar `@page` margin.
+- `OpPrintSheet.tsx` e `OpPrintBatch.tsx` não mudam.
+- Sem mudança de backend, layout ou ordem de blocos.
