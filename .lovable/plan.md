@@ -1,29 +1,37 @@
-## Diagnóstico
+## Diagnóstico (confirmado)
 
-A folha de componentes (`.componentes-page`) hoje:
-- Tem `overflow: hidden !important` no `@media print` (regra compartilhada com `.op-print-page` e `.op-operation-page`).
-- Tem `min-height: 283mm` fixo.
+No `@media print` há esta regra em `op-print.css`:
 
-Resultado: quando a lista de componentes ultrapassa uma folha A4, as linhas extras são **cortadas** em vez de continuarem na próxima folha. É exatamente o que aconteceu na OP 1109 (a tabela termina em "PINO MAIOR TERCEIRO PONTO" e os demais componentes somem).
+```css
+.op-main-content,
+.operation-block,
+.op-operation,
+.componentes-page table,   /* ← este aqui */
+.op-drawing-content,
+.op-sheet table tr {
+  page-break-inside: avoid !important;
+  break-inside: avoid !important;
+}
+```
+
+Com isso, a tabela inteira de componentes é tratada como **um bloco indivisível**. Como a OP 1109 tem ~30 componentes, a tabela não cabe em uma folha A4 → o Chrome empurra para a próxima folha → continua não cabendo → resultado: a última folha sai com o cabeçalho da OP e a tabela some.
 
 ## O que vou fazer
 
-Ajustar **apenas o CSS** (`src/components/producao/op-print.css`) para permitir que a folha de componentes flua por múltiplas páginas A4 quando necessário, mantendo o cabeçalho da tabela repetido em cada página:
+Editar apenas `src/components/producao/op-print.css`:
 
-1. **Remover `overflow: hidden` da `.componentes-page`** (na tela e no print), preservando o clip nas folhas de operação/desenho.
-2. **Trocar `min-height: 283mm` por `min-height: 0` + `height: auto`** no print da `.componentes-page`, para a folha crescer naturalmente.
-3. **Garantir que o `<thead>` da tabela de componentes repita em cada página** (`thead { display: table-header-group }` já existe globalmente; vou reforçar com `.componentes-table thead { display: table-header-group }`).
-4. **Manter `page-break-inside: avoid` nas linhas (`tr`)** para não fatiar uma linha no meio (já existe).
-5. **Manter `page-break-after: always`** entre a folha de componentes e a próxima (desenhos), para a separação continuar correta.
+1. **Remover `.componentes-page table` do grupo `page-break-inside: avoid`** — a tabela precisa poder quebrar entre páginas A4.
+2. Manter o `page-break-inside: avoid` apenas nas **linhas (`tr`)** da tabela de componentes (já existe via `.componentes-page tr` e `.op-sheet table tr`), garantindo que nenhuma linha seja cortada ao meio.
+3. Manter `thead { display: table-header-group }` (já adicionado) para repetir o cabeçalho da tabela em cada folha.
 
-Sem mexer em `OpPrintSheet.tsx`, lógica de negócio, API ou layout das operações.
+Sem mudanças em `OpPrintSheet.tsx`, API ou lógica.
 
 ## Resultado esperado
 
-- Folha de componentes mostra **todos** os componentes, quebrando em quantas folhas A4 forem necessárias.
-- Cabeçalho da tabela (Código, Descrição, Qtde., UN, Dep., Endereço) repete em cada folha.
-- Cabeçalho da OP (logo "ORDENS DE PRODUÇÃO – GENIUS") permanece **apenas na primeira folha** dos componentes (comportamento atual mantido).
-- Folhas de operações e desenhos continuam idênticas.
+- Folha de componentes da OP 1109 mostra todas as ~30 linhas, quebrando em quantas folhas A4 forem necessárias.
+- Cabeçalho da tabela (Código, Descrição, Qtde., UN, Dep., Endereço) repete a cada folha.
+- Linhas não são fatiadas no meio.
+- Layout de operações e desenhos permanece intacto.
 
 ## Arquivo-alvo
 
