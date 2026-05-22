@@ -100,10 +100,6 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
-  // Feature flag: novo RelatorioPrintEngine é o padrão a partir da Onda 5.
-  // Admins podem reverter para o motor legado (OpPrintBatch/OpPrintSheet) caso
-  // detectem alguma regressão.
-  const [usarNovoEngine, setUsarNovoEngine] = useState(true);
 
 
   const [obsOpen, setObsOpen] = useState(false);
@@ -114,15 +110,8 @@ export default function ImpressaoOrdemProducaoPage() {
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
 
-  // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
-  // e exibição de status por desenho na tabela de preview.
-  const desenhoUrls = useMemo(
-    () => (data?.desenhos ?? [])
-      .map((d) => d.url_impressao || d.url || '')
-      .filter(Boolean) as string[],
-    [data?.desenhos],
-  );
-  const blobStates = useAuthedBlobUrls(desenhoUrls);
+  // Erros de normalização de desenhos para o aviso na UI; o motor de impressão
+  // novo consome diretamente `data.desenhos` via opAdapter quando necessário.
   const { paginas: paginasDesenhosA4, errors: desenhosA4Errors } = useDesenhosA4(data?.desenhos);
 
 
