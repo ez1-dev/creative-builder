@@ -14,6 +14,7 @@ import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
 import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
+import { PrintRenderer, opToPrintDocument } from '@/lib/relatorios/print';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { ProdutoAutocomplete } from '@/components/producao/ProdutoAutocomplete';
@@ -102,6 +103,9 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
+  // Feature flag: usa o novo RelatorioPrintEngine em vez do OpPrintBatch legado.
+  // Mantido OFF por padrão até validar equivalência 100% com a impressão atual.
+  const [usarNovoEngine, setUsarNovoEngine] = useState(false);
 
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
