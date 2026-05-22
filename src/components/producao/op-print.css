@@ -287,7 +287,9 @@
 }
 
 .componentes-inline {
-  margin-bottom: 8pt;
+  margin-top: 4pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 .componentes-inline .op-section-title {
   margin-top: 0;
