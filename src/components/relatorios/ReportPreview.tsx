@@ -6,6 +6,8 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Play, FileSpreadsheet, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
+import { genericReportToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
+import { useAuth } from '@/contexts/AuthContext';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
 import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioLayout, RelatorioParametro } from '@/lib/relatorios/types';
 import { alignClass, formatCellValue, toNumberSafe } from '@/lib/relatorios/format';
