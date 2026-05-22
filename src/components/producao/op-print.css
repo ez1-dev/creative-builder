@@ -385,8 +385,7 @@
   .preview-message,
   .drawing-empty-message { display: none !important; }
 
-  /* Remove apenas a sombra/margens decorativas do preview, mantendo
-     dimensões 196mm × 283mm idênticas. */
+  /* Remove apenas a sombra/margens decorativas do preview. */
   .op-sheet {
     box-shadow: none !important;
     margin: 0 auto !important;
@@ -394,6 +393,25 @@
   .op-sheet--preview {
     box-shadow: none !important;
     margin: 0 auto !important;
+  }
+
+  /* Zera padding do .op-sheet quando ele está dentro de folhas com altura
+     fixa, para não estourar a área útil do papel (196mm × 283mm). */
+  .op-print-page .op-sheet,
+  .op-operation-page .op-sheet,
+  .operation-single-page {
+    padding: 0 !important;
+  }
+
+  /* Página de componentes: pode crescer por várias folhas A4 quando a
+     lista é longa. Sem altura/min-height fixos, sem padding do .op-sheet,
+     overflow visível — assim a tabela aparece e quebra naturalmente. */
+  .op-sheet.componentes-page,
+  .componentes-page {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
   }
 
   /* Quebras de página: uma folha por bloco. O último bloco do lote
@@ -416,7 +434,7 @@
     break-after: avoid !important;
   }
 
-  /* Não cortar linhas de tabela no meio (igual ao preview visual). */
+  /* Não cortar linhas de tabela no meio. */
   .op-sheet table tr,
   .componentes-page tr {
     page-break-inside: avoid;
@@ -430,9 +448,9 @@
     break-inside: avoid !important;
   }
 
-  /* Cabeçalho da tabela de componentes aparece só na 1ª folha — evita
-     página fantasma quando a tabela termina no fim de uma folha. */
-  .componentes-page thead { display: table-row-group !important; }
+  /* Cabeçalho da tabela de componentes repete em cada folha A4
+     quando a tabela quebra em várias páginas. */
+  .componentes-page thead { display: table-header-group !important; }
   .componentes-page tbody {
     page-break-inside: auto;
     break-inside: auto;
