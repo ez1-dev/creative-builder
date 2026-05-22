@@ -50,9 +50,15 @@ function emptyLayout(relatorioId: string): RelatorioLayout {
     mostrar_data_hora: true,
     mostrar_usuario: true,
     agrupar_por: null,
+    congelar_colunas: 0,
+    paginacao: true,
+    por_pagina: 50,
+    ordenacao_padrao: [],
+    destaques_json: [],
     config: {},
   };
 }
+
 
 export function ReportEditor({ id, onClose, onSaved }: Props) {
   const navigate = useNavigate();
