@@ -321,3 +321,145 @@ export async function exportarRelatorio(
   const filename = extractFilename(res.headers.get('content-disposition'), `${fallbackCodigo}.${ext}`);
   return { blob: await res.blob(), filename };
 }
+
+// ----- Versões -----
+import type { RelatorioVersao, RelatorioPublicacao, RelatorioPermissao } from './types';
+
+export async function listVersoes(relatorioId: string): Promise<RelatorioVersao[]> {
+  const { data, error } = await supabase
+    .from('relatorio_versoes')
+    .select('*')
+    .eq('relatorio_id', relatorioId)
+    .order('versao', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as RelatorioVersao[];
+}
+
+export async function criarVersao(relatorioId: string, observacao?: string): Promise<RelatorioVersao> {
+  const { relatorio, parametros, colunas, layout } = await getRelatorio(relatorioId);
+  if (!relatorio) throw new Error('Relatório não encontrado');
+  const { data: user } = await supabase.auth.getUser();
+  const { data: max } = await supabase
+    .from('relatorio_versoes')
+    .select('versao')
+    .eq('relatorio_id', relatorioId)
+    .order('versao', { ascending: false })
+    .limit(1);
+  const proxima = ((max?.[0] as any)?.versao ?? 0) + 1;
+  const payload = {
+    relatorio_id: relatorioId,
+    versao: proxima,
+    sql_base: relatorio.sql_query ?? '',
+    parametros_json: parametros.map(({ id: _i, relatorio_id: _r, ...rest }) => rest) as any,
+    colunas_json: colunas.map(({ id: _i, relatorio_id: _r, ...rest }) => rest) as any,
+    layout_json: layout ? (({ relatorio_id: _r, ...rest }) => rest)(layout) as any : {},
+    config_json: {},
+    observacao: observacao ?? null,
+    criado_por: user.user?.id ?? null,
+  };
+  const { data, error } = await supabase
+    .from('relatorio_versoes')
+    .insert(payload as any)
+    .select('*')
+    .single();
+  if (error) throw error;
+  await supabase.from('relatorios').update({ versao_atual: proxima } as any).eq('id', relatorioId);
+  return data as unknown as RelatorioVersao;
+}
+
+export async function restaurarVersao(versaoId: string): Promise<void> {
+  const { data: v, error } = await supabase
+    .from('relatorio_versoes').select('*').eq('id', versaoId).maybeSingle();
+  if (error) throw error;
+  if (!v) throw new Error('Versão não encontrada');
+  const relId = (v as any).relatorio_id as string;
+  await supabase.from('relatorios').update({ sql_query: (v as any).sql_base ?? '' } as any).eq('id', relId);
+  const params = ((v as any).parametros_json ?? []) as any[];
+  const cols = ((v as any).colunas_json ?? []) as any[];
+  const layout = ((v as any).layout_json ?? null) as any;
+  await saveParametros(relId, params);
+  await saveColunas(relId, cols);
+  if (layout) await saveLayout({ ...layout, relatorio_id: relId } as RelatorioLayout);
+}
+
+export async function deletarVersao(versaoId: string): Promise<void> {
+  const { error } = await supabase.from('relatorio_versoes').delete().eq('id', versaoId);
+  if (error) throw error;
+}
+
+// ----- Publicações -----
+export async function listPublicacoes(relatorioId: string): Promise<RelatorioPublicacao[]> {
+  const { data, error } = await supabase
+    .from('relatorio_publicacoes')
+    .select('*')
+    .eq('relatorio_id', relatorioId)
+    .order('publicado_em', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as RelatorioPublicacao[];
+}
+
+export async function publicarRelatorio(input: {
+  relatorio_id: string;
+  versao_id?: string | null;
+  modulo?: string | null;
+  menu_path?: string | null;
+}): Promise<RelatorioPublicacao> {
+  const { data: user } = await supabase.auth.getUser();
+  // desativa anteriores
+  await supabase
+    .from('relatorio_publicacoes')
+    .update({ ativo: false } as any)
+    .eq('relatorio_id', input.relatorio_id);
+  const payload = {
+    relatorio_id: input.relatorio_id,
+    versao_id: input.versao_id ?? null,
+    modulo: input.modulo ?? null,
+    menu_path: input.menu_path ?? null,
+    ativo: true,
+    publicado_por: user.user?.id ?? null,
+  };
+  const { data, error } = await supabase
+    .from('relatorio_publicacoes')
+    .insert(payload as any)
+    .select('*')
+    .single();
+  if (error) throw error;
+  await supabase.from('relatorios').update({ status: 'publicado' } as any).eq('id', input.relatorio_id);
+  return data as unknown as RelatorioPublicacao;
+}
+
+export async function desativarPublicacao(publicacaoId: string): Promise<void> {
+  const { error } = await supabase
+    .from('relatorio_publicacoes')
+    .update({ ativo: false } as any)
+    .eq('id', publicacaoId);
+  if (error) throw error;
+}
+
+// ----- Permissões -----
+export async function listPermissoes(relatorioId: string): Promise<RelatorioPermissao[]> {
+  const { data, error } = await supabase
+    .from('relatorio_permissoes')
+    .select('*')
+    .eq('relatorio_id', relatorioId);
+  if (error) throw error;
+  return (data ?? []) as unknown as RelatorioPermissao[];
+}
+
+export async function savePermissoes(
+  relatorioId: string,
+  permissoes: Omit<RelatorioPermissao, 'id' | 'created_at' | 'relatorio_id'>[],
+): Promise<void> {
+  await supabase.from('relatorio_permissoes').delete().eq('relatorio_id', relatorioId);
+  if (permissoes.length === 0) return;
+  const { error } = await supabase
+    .from('relatorio_permissoes')
+    .insert(permissoes.map((p) => ({ ...p, relatorio_id: relatorioId })) as any);
+  if (error) throw error;
+}
+
+export async function listAccessProfiles(): Promise<{ id: string; name: string }[]> {
+  const { data, error } = await supabase.from('access_profiles').select('id,name').order('name');
+  if (error) throw error;
+  return (data ?? []) as any;
+}
