@@ -4,7 +4,8 @@ import { SqlEditor } from '../SqlEditor';
 import { parseSqlParams, checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
 import { validarSql } from '@/lib/relatorios/api';
 import { toast } from 'sonner';
-import { Loader2, CheckCircle2, AlertCircle, Wand2, Play } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Wand2, Play, Sparkles } from 'lucide-react';
+import { format as formatSql } from 'sql-formatter';
 
 interface Props {
   sql: string;
