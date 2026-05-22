@@ -12,8 +12,6 @@ import { useImpressaoOrdemProducao } from '@/hooks/useImpressaoOrdemProducao';
 import { useOpcoesImpressaoOp } from '@/hooks/useOpcoesImpressaoOp';
 import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
-import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
-import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
 import { PrintRenderer, opToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
@@ -23,7 +21,6 @@ import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from '@/lib/producao
 import { Checkbox } from '@/components/ui/checkbox';
 import { api } from '@/lib/api';
 import type { OpImpressao } from '@/lib/producao/opImpressao';
-import { useAuthedBlobUrls } from '@/hooks/useAuthedBlobUrls';
 import { useDesenhosA4 } from '@/hooks/useDesenhosA4';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 
