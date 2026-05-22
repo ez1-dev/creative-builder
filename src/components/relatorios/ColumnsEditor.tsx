@@ -158,6 +158,8 @@ export function ColumnsEditor({ colunas, onChange, onSave, onRestoreDefault, can
                   </TableCell>
                   <TableCell><Switch checked={c.totalizar} onCheckedChange={(v) => update(idx, { totalizar: v })} /></TableCell>
                   <TableCell><Switch checked={c.agrupar} onCheckedChange={(v) => update(idx, { agrupar: v })} /></TableCell>
+                  <TableCell><Switch checked={c.permite_ordenar} onCheckedChange={(v) => update(idx, { permite_ordenar: v })} /></TableCell>
+                  <TableCell><Switch checked={c.permite_filtrar} onCheckedChange={(v) => update(idx, { permite_filtrar: v })} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
