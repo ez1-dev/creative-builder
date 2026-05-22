@@ -1206,7 +1206,7 @@ export default function ImpressaoOrdemProducaoPage() {
             onCheckedChange={(v) => setUsarNovoEngine(v === true)}
           />
           <Label htmlFor="usar-novo-engine" className="cursor-pointer">
-            Usar novo motor de impressão (RelatorioPrintEngine) — padrão. Desmarque para usar o motor legado.
+            Reverter para motor de impressão legado (será removido na próxima onda).
           </Label>
 
         </div>
