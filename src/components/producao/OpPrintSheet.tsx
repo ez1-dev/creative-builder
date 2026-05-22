@@ -108,7 +108,12 @@ export function OpPrintSheet({
   blobStates,
   paginasDesenhosA4,
   imprimirDesenhos,
+  loadFullDrawings,
 }: Props) {
+  // Por padrão, em preview não carregamos os desenhos A4 completos (custoso);
+  // só miniaturas. Em fluxos que não passam a prop (ex.: compartilhamento) o
+  // comportamento antigo é preservado renderizando o A4 quando não há preview.
+  const carregarDesenhosA4 = loadFullDrawings ?? !preview;
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
