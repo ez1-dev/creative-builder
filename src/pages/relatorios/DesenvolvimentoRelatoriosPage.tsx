@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ReportList } from '@/components/relatorios/ReportList';
 import { ReportEditor } from '@/components/relatorios/ReportEditor';
-import { duplicarRelatorio, listRelatorios, updateRelatorio } from '@/lib/relatorios/api';
+import { deleteRelatorio, duplicarRelatorio, listRelatorios, updateRelatorio } from '@/lib/relatorios/api';
 import type { Relatorio } from '@/lib/relatorios/types';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
