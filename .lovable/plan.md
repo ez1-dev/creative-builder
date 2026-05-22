@@ -1,56 +1,43 @@
-## Problema observado no PDF anexo
+## Objetivo
 
-A última OP do lote (OP 7093) gera **20 páginas** quando o conteúdo real termina na página 18:
+Fazer a impressão sair **idêntica** ao preview das OPs selecionadas: mesma quantidade de páginas, mesma ordem dos blocos, mesmas quebras e mesmo tamanho/espaçamento visual. Hoje o DOM é o mesmo nos dois modos, mas o `@media print` reescreve fontes, paddings, alturas mínimas e quebras, e o resultado diverge (ex.: OP 7093 mostra 18 folhas no preview e imprime 20).
 
-- Página 17: bloco da operação (operation-single-page) — correto
-- Página 18: relação de componentes (componentes-page) — correto
-- **Página 19**: apenas um "esqueleto" do cabeçalho da tabela de componentes (linha do `<thead>` repetida pelo `display: table-header-group`) — indesejada
-- **Página 20**: totalmente em branco — indesejada
+## Estratégia
 
-A página 18 está vazia em mais de 50% (10 componentes cabem com folga), portanto não é um problema de overflow real. O Chrome está reservando espaço para uma "próxima página" da tabela por causa de duas combinações de CSS:
+Tratar cada `.op-sheet` (cabeçalho/operação), `.componentes-page`, `.op-operation-page` e `.op-drawing-page` como **uma folha A4 fixa** tanto no preview quanto na impressão, e reduzir o `@media print` ao mínimo necessário (apenas esconder cromo da UI e controlar quebras). Sem reescrever fonte, padding ou min-height na impressão.
 
-1. `.componentes-page thead { display: table-header-group }` faz o cabeçalho da tabela se preparar para repetir em cada página potencial, induzindo Chrome a projetar uma página extra mesmo quando todas as linhas cabem em uma.
-2. `.op-operation-page` / `.operation-single-page` têm `page-break-after: always !important` aplicado sem checar `:last-child`. Quando a operation-page é seguida por componentes-page e ambas são as últimas do lote, o break extra pode empurrar conteúdo fantasma para uma página adicional.
+## Mudanças
 
-## Correção proposta (somente CSS em `src/components/producao/op-print.css`)
+Tudo em `src/components/producao/op-print.css` (não mexer em React/lógica):
 
-1. **Suprimir page-break no último elemento do lote**
-   Acrescentar regras `:last-child` para impedir Chrome de gerar uma página em branco depois do último bloco impresso:
-   ```css
-   @media print {
-     .op-print-batch > *:last-child,
-     .op-operation-page:last-child,
-     .componentes-page:last-child,
-     .op-drawing-page:last-child,
-     .op-print-page:last-child {
-       page-break-after: avoid !important;
-       break-after: avoid !important;
-     }
-     /* Remove o `page-break-after: always` incondicional do operation-single-page
-        quando ele é o último elemento do batch */
-     .operation-single-page:last-child {
-       page-break-after: avoid !important;
-       break-after: avoid !important;
-     }
-   }
-   ```
+1. **Unificar dimensões da folha**
+   - `.op-sheet`, `.op-print-page`, `.op-operation-page`, `.componentes-page`, `.op-drawing-page`: largura `196mm`, altura `283mm` fixos no preview *e* na impressão (já é assim no preview; remover os overrides do `@media print` que zeram `min-height`/`height` para `componentes-page` e `op-operation-page`).
+   - `.op-sheet` deixa de aplicar `padding: 8mm` quando dentro de uma folha já dimensionada (preview e impressão usam o mesmo `box-sizing` e a mesma área útil).
 
-2. **Evitar header-group repetindo desnecessariamente em tabela curta**
-   Manter `display: table-header-group` apenas dentro de `.componentes-page` (que pode quebrar para várias folhas) mas garantir que o `<tbody>` tenha `page-break-inside: auto` e que o próprio elemento `.componentes-page` use `page-break-after: avoid` quando for o último filho:
-   ```css
-   @media print {
-     .componentes-page tbody { page-break-inside: auto !important; break-inside: auto !important; }
-   }
-   ```
+2. **`@page` alinhado ao preview**
+   - Manter `@page { size: A4 portrait; margin: 7mm; }` igual hoje; folhas internas têm `196mm × 283mm` = exatamente a área útil. Nada de margem dupla.
 
-3. **Não alterar nada na ordem dos blocos nem no `OpPrintSheet.tsx`** — operação continua na página 17, componentes na página 18.
+3. **Remover overrides de tipografia/spacing no print**
+   - Apagar do `@media print`: `.op-sheet { font-size: 8.5pt }`, sobrescritas de padding/line-height em `th/td`, `border: 0.5pt`, `table-layout: fixed`, etc. Preview já usa `10px` / `1px solid #000`; usar o mesmo na impressão.
+   - Resultado: as quebras naturais do navegador acontecem nos mesmos pontos do preview (mesma altura de linha → mesma contagem de linhas por folha).
 
-## Resultado esperado
+4. **Quebras de página simplificadas**
+   - `.op-sheet, .op-operation-page, .componentes-page, .op-drawing-page { page-break-after: always; break-after: page; }` aplicado só quando **não** é `:last-child`.
+   - Manter `:last-child { page-break-after: avoid }` para não gerar folha em branco no fim do lote.
+   - Remover `display: table-header-group` do `thead` da página de componentes (causa página fantasma quando a tabela termina no fim de uma folha). O cabeçalho da tabela aparece só na 1ª folha de componentes — igual ao preview.
+   - Manter `tr { page-break-inside: avoid }` para não cortar linhas no meio.
 
-Pré-visualização Ctrl+P passa a mostrar **18 páginas no total** (em vez de 20). As páginas 19 e 20 deixam de aparecer. As demais OPs do lote continuam imprimindo normalmente com as mesmas quebras já corretas.
+5. **Esconder cromo da UI**
+   - Manter o bloco que esconde `header/nav/sidebar/.no-print/.print-actions/.preview-message` e o `visibility: hidden` em `body * → .print-root` (necessário para isolar a área de impressão).
 
-## Verificação após implementação
+6. **Preview = folha real**
+   - Garantir que `.op-sheet--preview` continue apenas adicionando a sombra/margem entre folhas; nada mais. Assim cada “página” que o usuário conta na tela corresponde 1:1 à folha impressa.
 
-Pedir ao usuário para reimprimir a OP 7093 (ou a mesma seleção do lote), abrir Ctrl+P e confirmar que:
-- A última página com conteúdo é a "Relação de Componentes Necessários" (página 18 no exemplo).
-- Não há mais sliver de cabeçalho de tabela nem folha totalmente em branco no fim.
+## Validação
+
+Caso de teste sugerido: a mesma OP usada antes (ex.: 7093). Abrir o preview, contar folhas (cabeçalho + N operações + componentes + desenhos), depois Ctrl+P e conferir que o navegador mostra o mesmo total e os mesmos blocos nas mesmas posições. Repetir com uma OP de poucos componentes (modo inline) e com lote de 2+ OPs.
+
+## Fora de escopo
+
+- Não mexer em `OpPrintSheet.tsx`, `OpPrintBatch.tsx`, hooks, ordem de blocos ou regra de quantos componentes vão inline.
+- Não mexer em backend nem em `ImpressaoOrdemProducaoPage.tsx`.

@@ -343,10 +343,13 @@
 
 
 @media print {
+  /* Mínimo necessário para que a impressão saia 1:1 com o preview.
+     NÃO sobrescrevemos fonte, padding, line-height nem bordas —
+     o navegador renderiza com as mesmas regras do preview, logo as
+     quebras naturais caem nos mesmos pontos. */
+
   html,
   body {
-    width: 210mm !important;
-    min-height: 297mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
@@ -354,15 +357,10 @@
     print-color-adjust: exact !important;
   }
 
-  body * {
-    visibility: hidden !important;
-  }
-
+  /* Isola a área de impressão */
+  body * { visibility: hidden !important; }
   .print-root,
-  .print-root * {
-    visibility: visible !important;
-  }
-
+  .print-root * { visibility: visible !important; }
   .print-root {
     position: static !important;
     width: 100% !important;
@@ -374,6 +372,7 @@
     zoom: 1 !important;
   }
 
+  /* Esconde cromo da UI */
   .no-print,
   header,
   nav,
@@ -384,187 +383,59 @@
   .filters,
   .print-actions,
   .preview-message,
-  .drawing-empty-message {
-    display: none !important;
-  }
+  .drawing-empty-message { display: none !important; }
 
+  /* Remove apenas a sombra/margens decorativas do preview, mantendo
+     dimensões 196mm × 283mm idênticas. */
   .op-sheet {
     box-shadow: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 100% !important;
-    min-height: auto !important;
-    box-sizing: border-box !important;
-    font-family: Arial, "Helvetica Neue", sans-serif !important;
-    font-size: 8.5pt !important;
-    color: #000 !important;
+    margin: 0 auto !important;
+  }
+  .op-sheet--preview {
+    box-shadow: none !important;
+    margin: 0 auto !important;
   }
 
+  /* Quebras de página: uma folha por bloco. O último bloco do lote
+     não força page-break, para evitar folha em branco final. */
   .op-print-page,
   .op-operation-page,
-  .componentes-page {
-    width: 196mm !important;
-    box-sizing: border-box !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    background: white !important;
-    transform: none !important;
-  }
-
-  .op-print-page,
-  .op-operation-page {
-    overflow: hidden !important;
-  }
-
-  .op-print-page {
-    min-height: 283mm !important;
-    height: auto !important;
-  }
-
-  /* Página de componentes pode crescer por várias folhas A4 quando a
-     lista for longa. Não clipa conteúdo nem força altura mínima. */
-  .componentes-page {
-    overflow: visible !important;
-    min-height: 0 !important;
-    height: auto !important;
-  }
-
-  /* A página da operação (modo "quebrar por operação") não força altura
-     mínima — deixa cabeçalho + bloco da operação caberem juntos numa folha. */
-  .op-operation-page {
-    min-height: 0 !important;
-    height: auto !important;
-  }
-
-  .op-print-page:not(:last-child),
-  .op-operation-page:not(:last-child),
-  .componentes-page:not(:last-child) {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-
-  .op-drawing-page {
-    width: 196mm !important;
-    height: 283mm !important;
-    min-height: 283mm !important;
-    box-sizing: border-box !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    background: white !important;
-    overflow: hidden !important;
-    transform: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-  .op-drawing-page:not(:last-child) {
-    page-break-after: always !important;
-    break-after: page !important;
-  }
-
-  .op-drawing-image {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
-    display: block !important;
-  }
-
-
-  .op-sheet table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    table-layout: fixed !important;
-  }
-
-  .op-sheet th,
-  .op-sheet td {
-    border: 0.5pt solid #000 !important;
-    padding: 1.5pt 2pt !important;
-    line-height: 1.15 !important;
-    box-sizing: border-box !important;
-    word-break: break-word !important;
-  }
-
-  .op-box,
-  .op-operation,
-  .op-responsability,
-  .op-barcode-box,
-  .op-stage-bar {
-    border: 0.5pt solid #000 !important;
-    box-sizing: border-box !important;
-  }
-
-  .op-main-content,
-  .operation-block,
-  .op-operation,
-  .op-drawing-content,
-  .op-sheet table tr {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  /* No modo "quebrar por operação", a folha comporta cabeçalho + componentes +
-     operação inteira. Forçamos avoid para que o bloco da operação não seja
-     fatiado entre páginas. A quantidade de blocos de apontamento já é
-     reduzida no React quando há componentes acima. */
+  .componentes-page,
+  .op-drawing-page,
   .operation-single-page {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    page-break-after: always !important;
-    break-after: page !important;
+    page-break-after: always;
+    break-after: page;
   }
-  .operation-single-page .op-operation {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  .operation-single-page .op-apontamento-table,
-  .operation-single-page .op-apontamento-table tbody,
-  .operation-single-page .op-apontamento-table tr {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-
-  .op-drawing-page {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  .op-drawing-page img {
-    max-width: 196mm !important;
-    max-height: 283mm !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain !important;
-  }
-
-  .op-drawing-page object,
-  .op-drawing-page iframe {
-    width: 196mm !important;
-    height: 283mm !important;
-    border: none !important;
-  }
-
-  thead { display: table-header-group; }
-
-  /* Evita página em branco no final do lote: o último bloco impresso
-     não deve forçar page-break-after. */
   .op-print-batch > *:last-child,
+  .op-print-page:last-child,
   .op-operation-page:last-child,
   .componentes-page:last-child,
   .op-drawing-page:last-child,
-  .op-print-page:last-child,
   .operation-single-page:last-child {
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
 
-  /* Permite que o tbody flua naturalmente. Combinado com tr avoid,
-     evita o Chrome reservar uma página fantasma para o thead. */
+  /* Não cortar linhas de tabela no meio (igual ao preview visual). */
+  .op-sheet table tr,
+  .componentes-page tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Mantém a operação inteira na mesma folha (modo quebra por operação). */
+  .operation-single-page,
+  .operation-single-page .op-operation {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Cabeçalho da tabela de componentes aparece só na 1ª folha — evita
+     página fantasma quando a tabela termina no fim de uma folha. */
+  .componentes-page thead { display: table-row-group !important; }
   .componentes-page tbody {
-    page-break-inside: auto !important;
-    break-inside: auto !important;
+    page-break-inside: auto;
+    break-inside: auto;
   }
 }
 
