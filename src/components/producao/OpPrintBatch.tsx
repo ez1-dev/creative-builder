@@ -11,6 +11,7 @@ interface Props {
   quebrarPorOperacao?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4PorOp?: Record<string, OpDesenhoPaginaA4Carregada[]>;
+  imprimirDesenhos?: boolean | null;
 }
 
 function getOpKey(op: OpImpressao, index: number) {
@@ -32,6 +33,7 @@ export function OpPrintBatch({
   quebrarPorOperacao,
   blobStates,
   paginasDesenhosA4PorOp,
+  imprimirDesenhos,
 }: Props) {
   const lista = Array.isArray(ops) ? ops : [];
 
@@ -59,6 +61,7 @@ export function OpPrintBatch({
               quebrarPorOperacao={quebrarPorOperacao}
               blobStates={blobStates}
               paginasDesenhosA4={paginasDesenhosA4}
+              imprimirDesenhos={imprimirDesenhos}
             />
           </div>
         );

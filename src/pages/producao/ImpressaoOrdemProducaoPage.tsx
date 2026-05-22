@@ -1180,6 +1180,7 @@ export default function ImpressaoOrdemProducaoPage() {
             preview={preview}
             usuario={displayName ?? erpUser ?? null}
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
+            imprimirDesenhos={filtros.incluir_desenhos === 'S'}
           />
         )}
 
@@ -1191,6 +1192,7 @@ export default function ImpressaoOrdemProducaoPage() {
             quebrarPorOperacao={filtros.quebrar_por_operacao === 'S'}
             blobStates={blobStates}
             paginasDesenhosA4={paginasDesenhosA4}
+            imprimirDesenhos={filtros.incluir_desenhos === 'S'}
           />
         )}
 

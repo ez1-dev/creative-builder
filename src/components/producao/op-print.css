@@ -786,3 +786,43 @@
     max-height: 194mm !important;
   }
 }
+
+.op-missing-drawing-page {
+  width: 190mm;
+  height: 281mm;
+  min-height: 281mm;
+  max-height: 281mm;
+  box-sizing: border-box;
+  background: #fff;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 8mm 0;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.op-missing-drawing-label {
+  font-family: Arial, "Helvetica Neue", sans-serif;
+  font-size: 7pt;
+  color: #999;
+  font-style: italic;
+  text-align: center;
+}
+
+@media print {
+  .op-missing-drawing-page {
+    width: 190mm !important;
+    height: 281mm !important;
+    min-height: 281mm !important;
+    max-height: 281mm !important;
+    background: #fff !important;
+    overflow: hidden !important;
+    margin: 0 auto !important;
+  }
+  .op-missing-drawing-label {
+    font-size: 7pt !important;
+    color: #999 !important;
+    font-style: italic !important;
+  }
+}

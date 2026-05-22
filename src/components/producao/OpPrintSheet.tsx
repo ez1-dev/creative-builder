@@ -13,6 +13,15 @@ interface Props {
   quebrarPorOperacao?: boolean | null;
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
+  imprimirDesenhos?: boolean | null;
+}
+
+function MissingDrawingPage() {
+  return (
+    <div className="op-print-unit op-missing-drawing-page">
+      <div className="op-missing-drawing-label">Desenho não encontrado para esta OP</div>
+    </div>
+  );
 }
 
 function fmtDate(s?: string) {
@@ -41,6 +50,7 @@ export function OpPrintSheet({
   quebrarPorOperacao: propQuebrarPorOperacao,
   blobStates,
   paginasDesenhosA4,
+  imprimirDesenhos,
 }: Props) {
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
@@ -486,6 +496,8 @@ export function OpPrintSheet({
 
         {desenhos.length > 0 && renderDesenhos("drw-end")}
 
+        {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
+
         {preview && renderPreviewDesenhosResumo()}
       </>
     );
@@ -509,6 +521,8 @@ export function OpPrintSheet({
 
         {renderDesenhos()}
 
+        {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
+
         {preview && renderPreviewDesenhosResumo()}
       </>
     );
@@ -530,6 +544,8 @@ export function OpPrintSheet({
       </div>
 
       {renderDesenhos()}
+
+      {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
 
       {preview && renderPreviewDesenhosResumo()}
     </>
