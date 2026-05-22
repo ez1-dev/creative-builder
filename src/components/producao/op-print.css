@@ -269,14 +269,20 @@
 }
 
 .operation-single-page {
-  /* Não força min-height: cabeçalho + operação devem caber juntos numa folha.
-     A quebra de página é controlada apenas via page-break-after no :not(:last-child). */
-  page-break-inside: avoid;
-  break-inside: avoid;
+  /* Permite que cabeçalho + operação + componentes (inline) caibam juntos numa folha.
+     Se estourar A4, deixa o navegador quebrar naturalmente sem cabeçalho órfão. */
+  page-break-inside: auto;
+  break-inside: auto;
 }
 .operation-single-page:not(:last-child) {
   page-break-after: always;
   break-after: page;
+}
+.componentes-inline {
+  margin-top: 6pt;
+}
+.componentes-inline .op-section-title {
+  margin-top: 8pt;
 }
 
 .op-drawing-page {
