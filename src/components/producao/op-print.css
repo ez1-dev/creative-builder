@@ -408,13 +408,24 @@
     padding: 0 !important;
     margin: 0 auto !important;
     background: white !important;
-    overflow: hidden !important;
     transform: none !important;
   }
 
   .op-print-page,
-  .componentes-page {
+  .op-operation-page {
+    overflow: hidden !important;
+  }
+
+  .op-print-page {
     min-height: 283mm !important;
+    height: auto !important;
+  }
+
+  /* Página de componentes pode crescer por várias folhas A4 quando a
+     lista for longa. Não clipa conteúdo nem força altura mínima. */
+  .componentes-page {
+    overflow: visible !important;
+    min-height: 0 !important;
     height: auto !important;
   }
 
@@ -548,7 +559,6 @@
 /* ===== Componentes em página separada ===== */
 .componentes-page {
   width: 196mm;
-  min-height: 283mm;
   margin: 0 auto;
 }
 .componentes-page:not(:last-child) {
@@ -559,6 +569,9 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 10px;
+}
+.componentes-page thead {
+  display: table-header-group;
 }
 .componentes-page th,
 .componentes-page td {
