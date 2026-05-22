@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Table2, Layers, LayoutGrid, BarChart3, BarChart } from 'lucide-react';
+import { Table2, Layers, LayoutGrid, BarChart3, BarChart, Columns, LayoutDashboard, FileText } from 'lucide-react';
 import type { RelatorioLayout, RelatorioColuna, LayoutTipo } from '@/lib/relatorios/types';
 
 interface Props {
@@ -19,6 +19,9 @@ const LAYOUTS: { id: LayoutTipo; label: string; icon: any }[] = [
   { id: 'cards', label: 'Cards gerenciais', icon: LayoutGrid },
   { id: 'grafico', label: 'Gráfico', icon: BarChart3 },
   { id: 'tabela_grafico', label: 'Tabela + gráfico', icon: BarChart },
+  { id: 'mestre_detalhe', label: 'Mestre / detalhe', icon: Columns },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'relatorio_operacional', label: 'Relatório operacional', icon: FileText },
 ];
 
 export function LayoutEditor({ layout, colunas, onChange }: Props) {
@@ -89,6 +92,66 @@ export function LayoutEditor({ layout, colunas, onChange }: Props) {
           ))}
         </div>
       </div>
+
+      <div className="space-y-3 pt-4 border-t border-border max-w-3xl">
+        <Label className="text-sm font-semibold">Tabela</Label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <Label htmlFor="congelar" className="text-xs">Congelar colunas (qtd)</Label>
+            <Input
+              id="congelar"
+              type="number"
+              min={0}
+              value={layout.congelar_colunas ?? 0}
+              onChange={(e) => patch({ congelar_colunas: Number(e.target.value || 0) })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="porpagina" className="text-xs">Linhas por página</Label>
+            <Input
+              id="porpagina"
+              type="number"
+              min={10}
+              value={layout.por_pagina ?? 50}
+              onChange={(e) => patch({ por_pagina: Number(e.target.value || 50) })}
+            />
+          </div>
+          <label className="flex items-end gap-2 cursor-pointer pb-2">
+            <Switch
+              checked={layout.paginacao ?? true}
+              onCheckedChange={(v) => patch({ paginacao: v })}
+            />
+            <span className="text-sm">Paginação</span>
+          </label>
+          <div className="md:col-span-3">
+            <Label className="text-xs">Ordenação padrão</Label>
+            <Select
+              value={layout.ordenacao_padrao?.[0]?.campo ?? ''}
+              onValueChange={(v) => patch({ ordenacao_padrao: v ? [{ campo: v, direcao: layout.ordenacao_padrao?.[0]?.direcao ?? 'asc' }] : [] })}
+            >
+              <SelectTrigger><SelectValue placeholder="Sem ordenação..." /></SelectTrigger>
+              <SelectContent>
+                {colunas.map((c) => <SelectItem key={c.campo} value={c.campo}>{c.titulo || c.campo}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {layout.ordenacao_padrao?.[0] && (
+              <div className="flex items-center gap-2 mt-2">
+                <Select
+                  value={layout.ordenacao_padrao[0].direcao}
+                  onValueChange={(v) => patch({ ordenacao_padrao: [{ campo: layout.ordenacao_padrao[0].campo, direcao: v as 'asc' | 'desc' }] })}
+                >
+                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">Crescente</SelectItem>
+                    <SelectItem value="desc">Decrescente</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

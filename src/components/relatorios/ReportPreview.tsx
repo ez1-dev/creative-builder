@@ -152,7 +152,13 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, onColumnsD
       largura: null,
       totalizar: false,
       agrupar: false,
+      visivel_excel: true,
+      visivel_pdf: true,
+      permite_ordenar: true,
+      permite_filtrar: true,
+      regra_condicional_json: [],
     }));
+
   }, [colunasConfig, result]);
 
   const totais = useMemo(() => {
