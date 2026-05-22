@@ -63,6 +63,7 @@ export interface OpOperacao {
 }
 
 export interface OpDesenho {
+  id?: string | number;
   ordem?: number | string;
   nome_arquivo?: string;
   tipo?: string;
@@ -70,6 +71,7 @@ export interface OpDesenho {
   mime_type?: string;
   url?: string;
   url_impressao?: string;
+  url_thumbnail?: string;
   url_manifest_a4?: string;
   cache_key?: string;
   usar_paginas_a4_normalizadas?: boolean;
