@@ -376,7 +376,7 @@ export function OpPrintSheet({
             </tr>,
 
             <tr key={`apt-${i}-${r}-h2`} className="op-apt-head">
-              <th>motivo do desvio</th>
+              <th>Cod. desvio</th>
               <th colSpan={4}>obs</th>
               <th>operador</th>
               <th>check</th>
