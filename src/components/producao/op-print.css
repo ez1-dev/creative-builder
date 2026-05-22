@@ -679,8 +679,22 @@
     padding-bottom: 2mm !important;
   }
 
+  /* Quando há componentes inline na mesma folha, encolhe levemente os blocos
+     de apontamento para garantir que tudo caiba em uma única página A4. */
+  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-head th {
+    height: 4mm !important;
+    font-size: 7pt !important;
+  }
+  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-fill td {
+    height: 8mm !important;
+  }
+  .operation-single-page .componentes-inline ~ .op-section-title + .op-operation .op-apontamento-table tr.op-apt-row-end td {
+    padding-bottom: 1mm !important;
+  }
+
 
 }
+
 
 
 
