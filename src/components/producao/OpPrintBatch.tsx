@@ -12,6 +12,7 @@ interface Props {
   blobStates?: BlobStateMap;
   paginasDesenhosA4PorOp?: Record<string, OpDesenhoPaginaA4Carregada[]>;
   imprimirDesenhos?: boolean | null;
+  loadFullDrawings?: boolean;
 }
 
 function getOpKey(op: OpImpressao, index: number) {
@@ -34,6 +35,7 @@ export function OpPrintBatch({
   blobStates,
   paginasDesenhosA4PorOp,
   imprimirDesenhos,
+  loadFullDrawings,
 }: Props) {
   const lista = Array.isArray(ops) ? ops : [];
 
@@ -62,6 +64,7 @@ export function OpPrintBatch({
               blobStates={blobStates}
               paginasDesenhosA4={paginasDesenhosA4}
               imprimirDesenhos={imprimirDesenhos}
+              loadFullDrawings={loadFullDrawings}
             />
           </div>
         );

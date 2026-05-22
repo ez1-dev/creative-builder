@@ -826,3 +826,70 @@
     font-style: italic !important;
   }
 }
+
+/* ============================================================
+ * Miniaturas leves do desenho (apenas na visualização em tela).
+ * Nunca devem aparecer na impressão.
+ * ============================================================ */
+.drawing-thumbnail-wrapper {
+  margin: 8px auto;
+  padding: 8px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--card));
+  max-width: 640px;
+  text-align: center;
+}
+
+.drawing-thumbnail-caption {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: hsl(var(--muted-foreground));
+}
+
+.drawing-thumbnail {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  max-height: 480px;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.drawing-thumbnail-pdf {
+  padding: 24px;
+  background: hsl(var(--muted));
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.drawing-thumbnail-status {
+  font-size: 11px;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  padding: 16px;
+}
+
+.drawing-thumbnail-missing {
+  font-size: 11px;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+  padding: 12px;
+}
+
+@media print {
+  .drawing-thumbnail-wrapper,
+  .drawing-thumbnail,
+  .drawing-thumbnail-pdf,
+  .drawing-thumbnail-caption,
+  .drawing-thumbnail-status,
+  .drawing-thumbnail-missing {
+    display: none !important;
+  }
+}

@@ -14,12 +14,69 @@ interface Props {
   blobStates?: BlobStateMap;
   paginasDesenhosA4?: OpDesenhoPaginaA4Carregada[];
   imprimirDesenhos?: boolean | null;
+  /**
+   * Quando true, renderiza as páginas A4 completas do desenho (custo alto, usa fetch
+   * autenticado de PDFs/imagens grandes). Quando false, renderiza apenas miniaturas
+   * leves (no-print) para visualização. O padrão é `!preview` para manter o
+   * comportamento atual em fluxos que ainda não passam essa prop.
+   */
+  loadFullDrawings?: boolean;
 }
 
 function MissingDrawingPage() {
   return (
     <div className="op-print-unit op-missing-drawing-page">
       <div className="op-missing-drawing-label">Desenho não encontrado para esta OP</div>
+    </div>
+  );
+}
+
+function getDrawingThumbnailUrl(d: OpDesenho): string {
+  return d.url_thumbnail || d.url_impressao || d.url || "";
+}
+
+/**
+ * Miniatura leve do desenho para preview na tela. Nunca aparece na impressão
+ * (classe `.no-print` no container e regras CSS dedicadas). Usa
+ * `useAuthedBlobUrl` para baixar com Bearer + ngrok-skip-browser-warning.
+ */
+function DrawingPreviewThumbnail({ drawing, index }: { drawing: OpDesenho; index: number }) {
+  const url = getDrawingThumbnailUrl(drawing);
+  const { blobUrl, loading, error } = useAuthedBlobUrl(url);
+  const pdf = String(drawing.mime_type ?? "").toLowerCase().includes("pdf")
+    || String(drawing.extensao ?? "").toUpperCase() === "PDF";
+
+  return (
+    <div className="no-print drawing-thumbnail-wrapper" data-thumb-index={index}>
+      <div className="drawing-thumbnail-caption">
+        {drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+      </div>
+      {loading && <div className="drawing-thumbnail-status">Carregando miniatura...</div>}
+      {!loading && error && (
+        <div className="drawing-thumbnail-status">Não foi possível carregar a miniatura.</div>
+      )}
+      {!loading && !error && blobUrl && !pdf && (
+        <img
+          className="drawing-thumbnail"
+          src={blobUrl}
+          alt={drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+          loading="lazy"
+          decoding="async"
+        />
+      )}
+      {!loading && !error && blobUrl && pdf && (
+        <div className="drawing-thumbnail drawing-thumbnail-pdf">
+          PDF: {drawing.nome_arquivo ?? `Desenho ${index + 1}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MissingDrawingPreview() {
+  return (
+    <div className="no-print drawing-thumbnail-wrapper drawing-thumbnail-missing">
+      Nenhum desenho encontrado para esta OP.
     </div>
   );
 }
@@ -51,7 +108,12 @@ export function OpPrintSheet({
   blobStates,
   paginasDesenhosA4,
   imprimirDesenhos,
+  loadFullDrawings,
 }: Props) {
+  // Por padrão, em preview não carregamos os desenhos A4 completos (custoso);
+  // só miniaturas. Em fluxos que não passam a prop (ex.: compartilhamento) o
+  // comportamento antigo é preservado renderizando o A4 quando não há preview.
+  const carregarDesenhosA4 = loadFullDrawings ?? !preview;
   const cab = data?.cabecalho ?? {};
   const componentes = data?.componentes ?? [];
   const operacoes = data?.operacoes ?? [];
@@ -409,7 +471,7 @@ export function OpPrintSheet({
   const temAlgumDesenho =
     (paginasDesenhosA4 && paginasDesenhosA4.length > 0) || desenhos.length > 0;
 
-  const renderDesenhos = (keyPrefix = "drw") => {
+  const renderDesenhosA4 = (keyPrefix = "drw") => {
     if (paginasDesenhosA4 && paginasDesenhosA4.length > 0) {
       return paginasDesenhosA4.map((pg, i) => (
         <div
@@ -431,12 +493,47 @@ export function OpPrintSheet({
     ));
   };
 
-  // Centraliza a regra: imprime desenho real ou reserva uma página branca técnica.
+  const renderDesenhosThumbs = (keyPrefix: string): ReactNode => {
+    if (desenhos.length === 0) {
+      return <MissingDrawingPreview key={`${keyPrefix}-thumb-missing`} />;
+    }
+    return (
+      <>
+        {desenhos.map((d, i) => (
+          <DrawingPreviewThumbnail
+            key={`${keyPrefix}-thumb-${i}-${d.nome_arquivo ?? d.url ?? "desenho"}`}
+            drawing={d}
+            index={i}
+          />
+        ))}
+      </>
+    );
+  };
+
+  // Centraliza a regra:
+  // - sempre inclui miniaturas leves para visualização (no-print);
+  // - inclui as páginas A4 reais (custosas) apenas quando `carregarDesenhosA4`;
+  // - reserva uma página branca técnica quando não há desenho.
   // Retorna null quando "Imprimir desenhos da OP" estiver desmarcado.
   const renderDesenhosOuReserva = (keyPrefix: string): ReactNode => {
     if (!imprimirDesenhos) return null;
-    if (temAlgumDesenho) return renderDesenhos(keyPrefix);
-    return <MissingDrawingPage key={`${keyPrefix}-missing`} />;
+    return (
+      <Fragment key={`${keyPrefix}-bloco`}>
+        {renderDesenhosThumbs(keyPrefix)}
+        {carregarDesenhosA4 && (
+          temAlgumDesenho
+            ? renderDesenhosA4(keyPrefix)
+            : <MissingDrawingPage key={`${keyPrefix}-missing`} />
+        )}
+      </Fragment>
+    );
+  };
+
+  // Compat: alguns trechos chamam diretamente renderDesenhos(); mantemos
+  // como um atalho que respeita o flag `carregarDesenhosA4`.
+  const renderDesenhos = (keyPrefix = "drw"): ReactNode => {
+    if (!carregarDesenhosA4) return null;
+    return renderDesenhosA4(keyPrefix);
   };
 
 
@@ -560,9 +657,8 @@ export function OpPrintSheet({
 
         {renderComponentesPagesPaginadas()}
 
-        {renderDesenhos()}
+        {renderDesenhosOuReserva("drw-end")}
 
-        {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
 
         {preview && renderPreviewDesenhosResumo()}
       </>
@@ -584,9 +680,8 @@ export function OpPrintSheet({
         )}
       </div>
 
-      {renderDesenhos()}
+      {renderDesenhosOuReserva("drw-end")}
 
-      {imprimirDesenhos && desenhos.length === 0 && (!paginasDesenhosA4 || paginasDesenhosA4.length === 0) && <MissingDrawingPage />}
 
       {preview && renderPreviewDesenhosResumo()}
     </>
