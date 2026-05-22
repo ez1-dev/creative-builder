@@ -27,6 +27,7 @@ interface Props {
 }
 
 export function ReportPreview({ relatorio, parametros, colunasConfig, layout, onColumnsDetected, onExecucaoGravada }: Props) {
+  const { displayName, erpUser } = useAuth();
   const [paramValues, setParamValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(parametros.map((p) => [p.nome, p.valor_padrao ?? ''])),
   );
