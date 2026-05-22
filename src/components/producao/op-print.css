@@ -292,9 +292,9 @@
 }
 
 .op-drawing-page {
-  width: 196mm;
-  height: 283mm;
-  min-height: 283mm;
+  width: 194mm;
+  height: 281mm;
+  min-height: 281mm;
   margin: 0 auto;
   padding: 0;
   box-sizing: border-box;
@@ -305,24 +305,43 @@
   overflow: hidden;
 }
 
+.op-drawing-frame {
+  width: 194mm;
+  height: 281mm;
+  min-width: 194mm;
+  min-height: 281mm;
+  max-width: 194mm;
+  max-height: 281mm;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  background: #fff;
+}
+
 .op-drawing-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
   display: block;
-}
-
-.op-drawing-page img {
-  max-width: 196mm;
-  max-height: 283mm;
+  max-width: 194mm;
+  max-height: 281mm;
+  width: auto;
+  height: auto;
   object-fit: contain;
+  margin: 0 auto;
 }
 
+.op-drawing-object,
 .op-drawing-page iframe,
-.op-drawing-page object {
-  width: 196mm;
-  height: 283mm;
+.op-drawing-page object,
+.op-drawing-page embed {
+  display: block;
+  width: 194mm;
+  height: 281mm;
+  max-width: 194mm;
+  max-height: 281mm;
   border: none;
+  object-fit: contain;
 }
 
 .op-drawing-missing {
@@ -330,21 +349,11 @@
   padding: 20mm 0;
 }
 
-.drawing-frame {
-  width: 196mm;
-  height: 283mm;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.drawing-image {
-  max-width: 196mm;
-  max-height: 283mm;
-  width: auto;
-  height: auto;
-  object-fit: contain;
+.op-drawing-frame.rotated .op-drawing-image.rotate-90 {
+  transform: rotate(90deg);
+  transform-origin: center center;
+  max-width: 281mm;
+  max-height: 194mm;
 }
 
 .op-apontamento-table {
@@ -642,8 +651,8 @@
   }
 
   .operation-single-page .op-apontamento-table tr.op-apt-head th {
-    height: 4mm !important;
-    font-size: 6.8pt !important;
+    height: 3.8mm !important;
+    font-size: 6.6pt !important;
     font-weight: bold !important;
     background: #f0f0f0 !important;
     -webkit-print-color-adjust: exact;
@@ -655,20 +664,20 @@
   }
 
   .operation-single-page .op-apontamento-table tr.op-apt-row-end td {
-    padding-bottom: 0.8mm !important;
-    border-bottom: 2pt solid #000 !important;
+    padding-bottom: 0.6mm !important;
+    border-bottom: 1.8pt solid #000 !important;
   }
 
   .operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-fill td {
-    height: 10.8mm !important;
+    height: 10.5mm !important;
   }
 
   .operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-fill td {
-    height: 12.5mm !important;
+    height: 11mm !important;
   }
 
   .operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-fill td {
-    height: 14mm !important;
+    height: 13mm !important;
   }
 
   .componentes-inline {
@@ -718,77 +727,62 @@
   }
 
   .op-drawing-page {
-    width: 190mm !important;
+    width: 194mm !important;
     height: 281mm !important;
     min-height: 281mm !important;
+    max-height: 281mm !important;
     padding: 0 !important;
     margin: 0 auto !important;
     overflow: hidden !important;
-  }
-
-  .op-drawing-image {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: contain !important;
-  }
-
-  .op-drawing-page img {
-    max-width: 190mm !important;
-    max-height: 281mm !important;
-    object-fit: contain !important;
-  }
-
-  .op-drawing-page iframe,
-  .op-drawing-page object {
-    width: 190mm !important;
-    height: 281mm !important;
-    border: none !important;
-  }
-
-  .drawing-frame {
-    width: 190mm !important;
-    height: 281mm !important;
+    background: #fff !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    overflow: hidden !important;
   }
 
-  .drawing-image {
-    max-width: 190mm !important;
+  .op-drawing-frame {
+    width: 194mm !important;
+    height: 281mm !important;
+    min-width: 194mm !important;
+    min-height: 281mm !important;
+    max-width: 194mm !important;
+    max-height: 281mm !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important;
+    background: #fff !important;
+  }
+
+  .op-drawing-image {
+    display: block !important;
+    max-width: 194mm !important;
     max-height: 281mm !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
+    margin: 0 auto !important;
   }
-}
 
-/* =========================================================
-   Ajuste fino dos blocos de apontamento
-   ========================================================= */
+  .op-drawing-object,
+  .op-drawing-page iframe,
+  .op-drawing-page object,
+  .op-drawing-page embed {
+    display: block !important;
+    width: 194mm !important;
+    height: 281mm !important;
+    max-width: 194mm !important;
+    max-height: 281mm !important;
+    border: none !important;
+    object-fit: contain !important;
+  }
 
-.operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-fill td {
-  height: 10.5mm !important;
-}
-
-.operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-fill td {
-  height: 11mm !important;
-}
-
-.operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-fill td {
-  height: 13mm !important;
-}
-
-.operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-head th,
-.operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-head th,
-.operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-head th {
-  height: 3.8mm !important;
-  font-size: 6.6pt !important;
-}
-
-.operation-single-page.apt-blocos-4 .op-apontamento-table tr.op-apt-row-end td,
-.operation-single-page.apt-blocos-5 .op-apontamento-table tr.op-apt-row-end td,
-.operation-single-page.apt-blocos-6 .op-apontamento-table tr.op-apt-row-end td {
-  padding-bottom: 0.6mm !important;
-  border-bottom: 1.8pt solid #000 !important;
+  .op-drawing-frame.rotated .op-drawing-image.rotate-90 {
+    transform: rotate(90deg) !important;
+    transform-origin: center center !important;
+    max-width: 281mm !important;
+    max-height: 194mm !important;
+  }
 }
