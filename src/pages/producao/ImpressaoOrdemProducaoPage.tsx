@@ -638,8 +638,8 @@ export default function ImpressaoOrdemProducaoPage() {
       setLote(res);
       reset();
       toast.success(`Imprimindo ${res.quantidade_ops} OP(s)...`);
-      await aguardarDesenhosProntos();
-      window.print();
+      await dispararImpressao();
+
 
     } catch (e: any) {
       toast.error(e?.message || 'Falha ao gerar impressão em lote.');
