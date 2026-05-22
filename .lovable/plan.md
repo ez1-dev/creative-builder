@@ -1,42 +1,43 @@
-## Objetivo
-Aplicar a regra de **mais de 7 componentes** no layout de impressão: quando a OP tiver mais de 7 componentes, a primeira folha fica com **cabeçalho + operação(ões)** e os **componentes vão para uma folha própria com o mesmo cabeçalho**, independente de haver desenhos ou não.
+## Diagnóstico (OP 1109)
+
+A OP 1109 está no modo **"Quebrar por operação"** com **mais de 7 componentes**. Dois bugs causaram o resultado da impressão:
+
+### Bug 1 — Operação vai para a 2ª folha, deixando a 1ª quase vazia
+Quando **não há componentes inline** (caso de >7 componentes), o código mantém `blocos = 6` no apontamento. 6 blocos (~192mm) + cabeçalho (~80mm) + título "Operação" estouram a altura útil A4 (~283mm). Como `.op-operation` tem `break-inside: avoid`, o navegador empurra o bloco inteiro da operação para a próxima folha — exatamente o que aparece no print enviado.
+
+### Bug 2 — Página de componentes não fica por último
+Hoje a folha de componentes é inserida **logo após a 1ª operação**. Quando a OP tem várias operações, os componentes ficam no meio (entre op1 e op2), não na última folha como pedido.
 
 ## O que vou fazer
-1. **Aplicar a regra também no modo "Quebrar por operação"**
-   - Hoje, nesse modo, os componentes são sempre colados acima da primeira operação.
-   - Passa a valer: se houver **mais de 7 componentes**, eles **não** ficam inline; saem em uma folha dedicada (com cabeçalho próprio).
-   - Quando houver até 7 componentes, mantém o comportamento atual (inline na folha da primeira operação).
 
-2. **Garantir o mesmo critério no modo padrão**
-   - Confirmar que o limite de 7 já existente continua acionando a folha separada de componentes com cabeçalho.
-   - Manter a página de componentes sempre com o mesmo cabeçalho da OP.
+1. **Reduzir blocos de apontamento na 1ª operação sem componentes inline** (`OpPrintSheet.tsx`, modo `quebrarPorOperacao`):
+   - Manter a lógica atual para `temComponentesInline` (≤7 componentes).
+   - Quando a 1ª operação não tem componentes inline mas **existem componentes em página separada** (>7), usar `blocos = 5` na 1ª folha para garantir que cabeçalho + operação caibam juntos.
+   - Demais operações (sem cabeçalho extra de componentes) continuam com 6 blocos.
 
-3. **Ordem das folhas no modo "Quebrar por operação" com >7 componentes**
-   ```text
-   Folha 1: cabeçalho + 1ª operação
-   Folha 2: cabeçalho + componentes
-   Folhas seguintes: demais operações (uma por folha, com cabeçalho)
-   Por último: desenhos (uma página por desenho)
-   ```
+2. **Mover a página de componentes para o final** (`OpPrintSheet.tsx`):
+   - Remover a inserção da folha de componentes logo após a 1ª operação.
+   - Renderizar `renderComponentesPage()` **depois de todas as operações** e **antes dos desenhos**, ficando como última folha impressa antes dos desenhos (ou última de tudo, se não houver desenhos).
 
-4. **Independência dos desenhos**
-   - A regra vale **com ou sem desenhos**.
-   - Desenhos continuam em folhas A4 dedicadas, sem alterar a ordem das folhas anteriores.
+3. **Sem mudanças** em:
+   - CSS (`op-print.css`) — regras de quebra já cobrem o cenário; só reduzimos o conteúdo.
+   - Comportamento padrão (sem "quebrar por operação"), API, busca de OPs, desenhos.
 
-5. **Validar nos 3 fluxos**
-   - Impressão individual
-   - "Visualizar selecionadas"
-   - "Imprimir visualização"
+## Ordem das folhas resultante (quebrar por operação + >7 componentes)
+
+```text
+Folha 1: cabeçalho + 1ª operação (5 blocos de apontamento)
+Folha 2..N: demais operações (uma por folha, com cabeçalho, 6 blocos)
+Folha N+1: cabeçalho + componentes  ← agora por último
+Depois: desenhos (uma página A4 por desenho)
+```
 
 ## Resultado esperado
-- Até 7 componentes: igual ao que já fizemos (componentes acima da operação na mesma folha).
-- Mais de 7 componentes: operação na folha 1, componentes em folha própria com cabeçalho, desenhos depois.
 
-## Detalhes técnicos
-- Arquivos-alvo:
-  - `src/components/producao/OpPrintSheet.tsx` (regra de quando renderizar inline x página separada no modo `quebrarPorOperacao`)
-  - `src/components/producao/op-print.css` apenas se precisar de ajuste fino de quebra entre as folhas
-- Escopo excluído:
-  - sem mudança de API
-  - sem mudança na busca/seleção de OPs
-  - sem mudança no comportamento de desenhos
+- A 1ª folha terá cabeçalho + a 1ª operação completa, sem espaço vazio.
+- A folha de componentes aparece **depois de todas as operações** (última antes dos desenhos), como pedido para a OP 1109.
+- Validado nos 3 fluxos: impressão individual, "Visualizar selecionadas", "Imprimir visualização".
+
+## Arquivos-alvo
+
+- `src/components/producao/OpPrintSheet.tsx` (ajustes de `blocos` e reordenação do `renderComponentesPage`)

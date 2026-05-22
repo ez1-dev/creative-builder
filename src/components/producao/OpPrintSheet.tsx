@@ -429,8 +429,12 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
             const n = componentes.length;
             if (n <= 3) blocos = 5;
             else if (n <= 7) blocos = 4;
+          } else if (isPrimeira && componentesEmPaginaSeparada) {
+            // Sem componentes inline, mas cabeçalho + 6 blocos estouram a folha
+            // empurrando a operação para a página seguinte. Encolhe para 5.
+            blocos = 5;
           }
-          const sheet = (
+          return (
             <div
               key={`opp-${i}`}
               className={`op-sheet op-operation-page operation-single-page ${preview ? 'op-sheet--preview' : ''}`}
@@ -446,18 +450,9 @@ export function OpPrintSheet({ data, preview = false, usuario, quebrarPorOperaca
               {renderFooter()}
             </div>
           );
-          // Após a 1ª operação, insere a folha de componentes (quando > limite).
-          if (isPrimeira && componentesEmPaginaSeparada) {
-            return (
-              <Fragment key={`opp-wrap-${i}`}>
-                {sheet}
-                {renderComponentesPage()}
-              </Fragment>
-            );
-          }
-          return sheet;
         })}
 
+        {componentesEmPaginaSeparada && renderComponentesPage()}
         {desenhos.length > 0 && renderDesenhos('drw-end')}
         {renderPreviewDesenhosResumo()}
       </>
