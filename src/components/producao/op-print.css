@@ -287,11 +287,32 @@
 }
 
 .componentes-inline {
-  margin-bottom: 8pt;
+  margin-top: 4pt;
+  margin-bottom: 0;
 }
 .componentes-inline .op-section-title {
-  margin-top: 0;
+  margin-top: 4pt;
 }
+@media print {
+  .componentes-inline table {
+    font-size: 7.5pt !important;
+    line-height: 1.05 !important;
+  }
+  .componentes-inline th,
+  .componentes-inline td {
+    padding: 0.6mm 1mm !important;
+    line-height: 1.05 !important;
+  }
+  .componentes-inline .op-stage-bar {
+    padding: 1mm 2mm !important;
+    margin: 1mm 0 !important;
+  }
+  .componentes-inline .op-section-title {
+    margin: 1mm 0 !important;
+    font-size: 9pt !important;
+  }
+}
+
 
 .op-drawing-page {
   width: 196mm;
