@@ -152,24 +152,31 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
     setParametros([...next, ...manuais.map((p, i) => ({ ...p, ordem: next.length + i }))]);
   }
 
+  function makeColDraft(c: string, idx: number, sample?: Record<string, unknown>): ColDraft {
+    const tipo = inferTipoFromColuna(c, sample?.[c]);
+    return {
+      campo: c,
+      titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
+      visivel: true,
+      ordem: idx,
+      tipo,
+      formato: null,
+      alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
+      largura: null,
+      totalizar: false,
+      agrupar: false,
+      visivel_excel: true,
+      visivel_pdf: true,
+      permite_ordenar: true,
+      permite_filtrar: true,
+      regra_condicional_json: [],
+    };
+  }
+
   function handleColumnsFromPreview(cols: string[], sample?: Record<string, unknown>) {
     setLastPreviewCols({ cols, sample });
     if (colunas.length > 0) return;
-    setColunas(cols.map((c, idx) => {
-      const tipo = inferTipoFromColuna(c, sample?.[c]);
-      return {
-        campo: c,
-        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
-        visivel: true,
-        ordem: idx,
-        tipo,
-        formato: null,
-        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
-        largura: null,
-        totalizar: false,
-        agrupar: false,
-      };
-    }));
+    setColunas(cols.map((c, idx) => makeColDraft(c, idx, sample)));
   }
 
   function handleRestoreColumns() {
@@ -178,22 +185,10 @@ export function ReportEditor({ id, onClose, onSaved }: Props) {
       return;
     }
     const { cols, sample } = lastPreviewCols;
-    setColunas(cols.map((c, idx) => {
-      const tipo = inferTipoFromColuna(c, sample?.[c]);
-      return {
-        campo: c,
-        titulo: c.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase()),
-        visivel: true,
-        ordem: idx,
-        tipo,
-        formato: null,
-        alinhamento: (tipo === 'numero' || tipo === 'moeda' || tipo === 'percentual' ? 'direita' : 'esquerda') as ColunaAlinhamento,
-        largura: null,
-        totalizar: false,
-        agrupar: false,
-      };
-    }));
+    setColunas(cols.map((c, idx) => makeColDraft(c, idx, sample)));
   }
+
+
 
   async function handleSaveColumnsOnly() {
     if (!relatorio.id) {
