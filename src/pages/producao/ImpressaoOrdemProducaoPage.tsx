@@ -14,7 +14,7 @@ import type { ImpressaoOpFiltros } from '@/lib/producao/opImpressao';
 import type { OpcaoOp } from '@/lib/producao/opcoesImpressao';
 import { OpPrintSheet } from '@/components/producao/OpPrintSheet';
 import { OpPrintBatch } from '@/components/producao/OpPrintBatch';
-import { PrintRenderer, opToPrintDocument } from '@/lib/relatorios/print';
+import { PrintRenderer, opToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
 import { SelectBuscavel, type SelectOption } from '@/components/producao/SelectBuscavel';
 import { OpAutocomplete } from '@/components/producao/OpAutocomplete';
 import { ProdutoAutocomplete } from '@/components/producao/ProdutoAutocomplete';
@@ -500,11 +500,30 @@ export default function ImpressaoOrdemProducaoPage() {
     window.print();
   };
 
+  const [pdfLoading, setPdfLoading] = useState(false);
   const gerarPdf = async () => {
-    if (!data?.cabecalho) { toast.info('Consulte uma O.P. antes de gerar o PDF.'); return; }
-    toast.info('Use "Salvar como PDF" no diálogo de impressão do navegador.');
-    await aguardarDesenhosProntos();
-    window.print();
+    if (!data?.cabecalho && !lote?.ordens?.length) {
+      toast.info('Consulte uma O.P. antes de gerar o PDF.');
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const ops = lote?.ordens?.length ? lote.ordens : [data as OpImpressao];
+      const doc = opToPrintDocument(ops, {
+        usuario: displayName ?? erpUser ?? null,
+        preview,
+        quebrarPorOperacao: filtros.quebrar_por_operacao === 'S',
+      });
+      const filename = ops.length === 1
+        ? `OP_${ops[0]?.cabecalho?.cod_ori ?? ''}_${ops[0]?.cabecalho?.num_orp ?? ''}.pdf`
+        : `OPs_${ops.length}_ordens_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`;
+      await exportPrintDocumentToPdf(doc, { filename });
+      toast.success(`PDF ${filename} gerado.`);
+    } catch (e: any) {
+      toast.error(`Falha ao gerar PDF: ${e?.message ?? e}`);
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
 
@@ -769,9 +788,11 @@ export default function ImpressaoOrdemProducaoPage() {
               variant="ghost"
               size="sm"
               onClick={gerarPdf}
+              disabled={pdfLoading || (!data?.cabecalho && !lote?.ordens?.length)}
               className="h-8 rounded px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              <FileDown className="mr-1.5 h-4 w-4 opacity-60" /> Gerar PDF
+              {pdfLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4 opacity-60" />}
+              Exportar PDF
             </Button>
           </div>
 
@@ -1181,11 +1202,11 @@ export default function ImpressaoOrdemProducaoPage() {
         <div className="no-print flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-3 py-1.5 text-xs">
           <Checkbox
             id="usar-novo-engine"
-            checked={usarNovoEngine}
-            onCheckedChange={(v) => setUsarNovoEngine(v === true)}
+            checked={!usarNovoEngine}
+            onCheckedChange={(v) => setUsarNovoEngine(v !== true)}
           />
-          <Label htmlFor="usar-novo-engine" className="cursor-pointer">
-            Usar novo motor de impressão (RelatorioPrintEngine) — padrão. Desmarque para usar o motor legado.
+          <Label htmlFor="usar-novo-engine" className="cursor-pointer" title="O motor legado será removido na próxima onda. Marque apenas se detectar uma regressão no novo motor.">
+            Reverter para motor de impressão legado (será removido na próxima onda).
           </Label>
 
         </div>

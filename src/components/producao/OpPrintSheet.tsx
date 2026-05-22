@@ -1,3 +1,8 @@
+/**
+ * @deprecated Substituído pelo RelatorioPrintEngine (`src/lib/relatorios/print`
+ * + `opAdapter`). Mantido apenas como fallback para reversão administrativa
+ * até a próxima onda, quando será removido em definitivo.
+ */
 import { useState } from "react";
 import { Barcode } from "./Barcode";
 import { useAuthedBlobUrl } from "@/hooks/useAuthedBlobUrl";

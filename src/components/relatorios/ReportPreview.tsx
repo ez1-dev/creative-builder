@@ -6,6 +6,8 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Play, FileSpreadsheet, FileDown, AlertCircle, Info, Printer } from 'lucide-react';
 import { previewSql, exportarRelatorio, gravarExecucao } from '@/lib/relatorios/api';
+import { genericReportToPrintDocument, exportPrintDocumentToPdf } from '@/lib/relatorios/print';
+import { useAuth } from '@/contexts/AuthContext';
 import { checkSqlSafe } from '@/lib/relatorios/parseSqlParams';
 import type { PreviewResult, Relatorio, RelatorioColuna, RelatorioLayout, RelatorioParametro } from '@/lib/relatorios/types';
 import { alignClass, formatCellValue, toNumberSafe } from '@/lib/relatorios/format';
@@ -25,6 +27,7 @@ interface Props {
 }
 
 export function ReportPreview({ relatorio, parametros, colunasConfig, layout, onColumnsDetected, onExecucaoGravada }: Props) {
+  const { displayName, erpUser } = useAuth();
   const [paramValues, setParamValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(parametros.map((p) => [p.nome, p.valor_padrao ?? ''])),
   );
@@ -98,15 +101,37 @@ export function ReportPreview({ relatorio, parametros, colunasConfig, layout, on
     }
     const t0 = performance.now();
     try {
-      const { blob, filename } = await exportarRelatorio(relatorio.id, formato, paramValues, relatorio.codigo ?? 'relatorio');
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      let filename: string;
+      if (formato === 'pdf') {
+        if (!result || result.linhas.length === 0) {
+          toast.error('Execute o preview antes de exportar PDF');
+          return;
+        }
+        const base = (relatorio.codigo ?? relatorio.nome ?? 'relatorio')
+          .toString()
+          .replace(/[^a-zA-Z0-9_-]+/g, '_');
+        filename = `${base}.pdf`;
+        const doc = genericReportToPrintDocument({
+          relatorio,
+          layout,
+          colunas: colunasExibir,
+          linhas: result.linhas,
+          parametros: paramValues,
+          usuario: displayName ?? erpUser ?? null,
+        });
+        await exportPrintDocumentToPdf(doc, { filename });
+      } else {
+        const r = await exportarRelatorio(relatorio.id, formato, paramValues, relatorio.codigo ?? 'relatorio');
+        filename = r.filename;
+        const url = URL.createObjectURL(r.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
       await gravarExecucao({
         relatorio_id: relatorio.id,
         parametros: paramValues,
