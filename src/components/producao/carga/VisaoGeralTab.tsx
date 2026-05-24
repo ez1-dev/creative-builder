@@ -69,10 +69,10 @@ export function VisaoGeralTab({ filtros }: { filtros: CargaFiltros }) {
         <Kpi icon={Timer} label="Carga prevista (min)" value={fmt(resumo?.carga_prevista_min)} />
         <Kpi icon={Clock} label="Carga prevista (h)" value={fmt(resumo?.carga_prevista_horas)} />
         <Kpi
-          icon={AlertTriangle}
-          label="Sem mapeamento"
+          icon={Info}
+          label="Classificados por regra automática"
           value={fmt(semMapeamento)}
-          accent={semMapeamento > 0 ? 'warn' : undefined}
+          tooltip="Quantidade de linhas de carga em que o recurso não possui mapeamento explícito na API, mas foi classificado automaticamente por centro de custo ou origem da OP."
         />
       </div>
       <p className="text-[11px] text-muted-foreground px-1">
