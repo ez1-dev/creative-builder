@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory, Info } from 'lucide-react';
+import {
+  Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory, Info,
+  Gauge, AlertOctagon, HardHat, Building2,
+} from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
 import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { KpiCard } from '@/components/producao/carga-dashboard/KpiCard';
+import { KpiCard, type KpiDelta } from '@/components/producao/carga-dashboard/KpiCard';
 import { aggByKey, aggByRecurso, fmtDec, fmtNum, type RecursoAgg } from '@/components/producao/carga-dashboard/aggregations';
+import { countCriticos } from '@/components/producao/carga-dashboard/statusOcupacao';
 import { TopRecursosChart } from '@/components/producao/carga-dashboard/TopRecursosChart';
 import { CargaQtdOpsChart } from '@/components/producao/carga-dashboard/CargaQtdOpsChart';
 import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
@@ -27,6 +31,23 @@ const ultimoDiaMes = () => {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
 };
 
+/** Subtrai N meses preservando o dia (com clamp para fim de mês). */
+const shiftMonth = (iso: string, delta: number): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const target = new Date(d.getFullYear(), d.getMonth() + delta, d.getDate());
+  // se o dia "estourou" (ex.: 31 → mês com 30), volta para último dia do mês alvo
+  if (target.getMonth() !== ((d.getMonth() + delta) % 12 + 12) % 12) {
+    target.setDate(0);
+  }
+  return target.toISOString().slice(0, 10);
+};
+
+const pctDelta = (atual: number, anterior: number): number => {
+  if (!anterior) return 0;
+  return ((atual - anterior) / anterior) * 100;
+};
+
 interface DrillCtx {
   filtros: CargaFiltros;
 }
@@ -44,10 +65,24 @@ export default function CargaDashboardPage() {
   const drill = useDrillSheet<DrillCtx>();
 
   const { data, isLoading, isError, error, dataUpdatedAt } = useCargaCentros(filtros);
+
+  // Comparativo mês anterior (mesmas regras de filtro, datas deslocadas −1 mês)
+  const filtrosPrev = useMemo<CargaFiltros>(
+    () => ({
+      ...filtros,
+      data_ini: filtros.data_ini ? shiftMonth(filtros.data_ini, -1) : undefined,
+      data_fim: filtros.data_fim ? shiftMonth(filtros.data_fim, -1) : undefined,
+    }),
+    [filtros],
+  );
+  const { data: dataPrev } = useCargaCentros(filtrosPrev, !!filtros.data_ini && !!filtros.data_fim);
+
   const rows = data?.dados ?? [];
   const resumo = data?.resumo;
+  const resumoPrev = dataPrev?.resumo;
 
   const recursos = useMemo(() => aggByRecurso(rows), [rows]);
+  const recursosPrev = useMemo(() => aggByRecurso(dataPrev?.dados ?? []), [dataPrev]);
   const porUnidade = useMemo(() => aggByKey(rows, 'unidade_negocio'), [rows]);
   const porCcuList = useMemo(() => aggByKey(rows, 'codccu'), [rows]);
   const porCcuChart = useMemo(() => {
@@ -62,7 +97,29 @@ export default function CargaDashboardPage() {
   const totalCargaMin = resumo?.carga_prevista_min ?? 0;
   const totalCargaH = resumo?.carga_prevista_horas ?? 0;
   const semMapeamento = resumo?.linhas_sem_mapeamento ?? resumo?.linhas_sem_mapeamento_supabase ?? 0;
+  const criticos = useMemo(() => countCriticos(recursos), [recursos]);
+  const criticosPrev = useMemo(() => countCriticos(recursosPrev), [recursosPrev]);
   const updatedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+
+  // Deltas calculados a partir do mês anterior
+  const deltaOps: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(resumo?.qtd_ops ?? 0, resumoPrev.qtd_ops ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaCargaMin: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(totalCargaMin, resumoPrev.carga_prevista_min ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaCargaH: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(totalCargaH, resumoPrev.carga_prevista_horas ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaLinhas: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(resumo?.qtd_linhas_operacao ?? 0, resumoPrev.qtd_linhas_operacao ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaRecursos: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(resumo?.qtd_recursos ?? 0, resumoPrev.qtd_recursos ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaCriticos: KpiDelta | undefined = resumoPrev
+    ? { value: criticos - criticosPrev, unit: 'abs', invertColor: true }
+    : undefined;
 
   const handleRefresh = () => qc.invalidateQueries({ queryKey: ['carga-producao'] });
   const handleExport = () => window.open(cargaApi.urlExportarCentros(filtros), '_blank');
@@ -188,18 +245,59 @@ export default function CargaDashboardPage() {
         </Alert>
       )}
 
-      {/* KPIs */}
+      {/* KPIs principais */}
       <div className={biResponsive.kpiGrid}>
         {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
+          Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
         ) : (
           <>
-            <KpiCard icon={ClipboardList} label="OPs" value={fmtNum(resumo?.qtd_ops)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Boxes} label="Recursos" value={fmtNum(resumo?.qtd_recursos)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Activity} label="Linhas de operação" value={fmtNum(resumo?.qtd_linhas_operacao)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Timer} label="Carga prevista (min)" value={fmtNum(totalCargaMin)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Clock} label="Carga prevista (h)" value={fmtDec(totalCargaH)} accent="success" onDrill={openKpiAll} />
+            <KpiCard number={1} icon={ClipboardList} label="OPs Geradas" value={fmtNum(resumo?.qtd_ops)} accent="primary" delta={deltaOps} onDrill={openKpiAll} />
+            <KpiCard number={2} icon={Timer} label="Carga Prevista (min)" value={fmtNum(totalCargaMin)} accent="primary" delta={deltaCargaMin} onDrill={openKpiAll} />
+            <KpiCard number={3} icon={Clock} label="Carga Prevista (h)" value={fmtDec(totalCargaH)} accent="success" delta={deltaCargaH} onDrill={openKpiAll} />
             <KpiCard
+              number={4}
+              icon={Gauge}
+              label="Capacidade Disponível"
+              value="—"
+              accent="muted"
+              placeholder
+              tooltip="Aguardando endpoint /api/producao/carga/capacidade para retornar capacidade real por centro de recurso."
+              hint="Aguardando endpoint"
+            />
+            <KpiCard
+              number={5}
+              icon={Activity}
+              label="Ocupação Média"
+              value="—"
+              accent="muted"
+              placeholder
+              tooltip="Requer capacidade real (carga prevista ÷ capacidade disponível) — pendente endpoint."
+              hint="Aguardando endpoint"
+            />
+            <KpiCard
+              number={6}
+              icon={AlertOctagon}
+              label="Centros Críticos"
+              value={fmtNum(criticos)}
+              accent={criticos > 0 ? 'critical' : 'success'}
+              delta={deltaCriticos}
+              tooltip="Recursos no top 10% de carga prevista no período — derivado por ranking enquanto não há capacidade real."
+              onDrill={openKpiAll}
+            />
+            <KpiCard number={7} icon={Boxes} label="Recursos ativos" value={fmtNum(resumo?.qtd_recursos)} accent="primary" delta={deltaRecursos} onDrill={openKpiAll} />
+            <KpiCard number={8} icon={Activity} label="Linhas de operação" value={fmtNum(resumo?.qtd_linhas_operacao)} accent="primary" delta={deltaLinhas} onDrill={openKpiAll} />
+            <KpiCard
+              number={9}
+              icon={HardHat}
+              label="Obras em Produção"
+              value="—"
+              accent="muted"
+              placeholder
+              tooltip="Aguardando vínculo da OP com a obra/projeto no endpoint de carga."
+              hint="Aguardando endpoint"
+            />
+            <KpiCard
+              number={10}
               icon={Info}
               label="Classificados por regra automática"
               value={fmtNum(semMapeamento)}
@@ -218,13 +316,18 @@ export default function CargaDashboardPage() {
           <TopRecursosChart rows={recursos} onSelect={openRecurso} />
           <CargaQtdOpsChart rows={recursos} onSelect={openRecurso} />
         </div>
-        <InsightsPanel recursos={recursos} rows={rows} semMapeamento={semMapeamento} />
+        <InsightsPanel
+          recursos={recursos}
+          rows={rows}
+          semMapeamento={semMapeamento}
+          onVerTodasObras={openKpiAll}
+        />
       </div>
 
       {/* Donuts */}
       <div className={biResponsive.chartGrid3}>
         <DonutCard
-          title="Distribuição por unidade de negócio"
+          title="3. Distribuição por unidade de negócio"
           data={porUnidade.map((u) => ({ name: String(u.name), value: u.carga_min }))}
           centerLabel="Carga (min)"
           centerValue={fmtNum(totalCargaMin)}
@@ -233,7 +336,7 @@ export default function CargaDashboardPage() {
           onSelect={openUnidade}
         />
         <DonutCard
-          title="Distribuição por centro de custo"
+          title="4. Distribuição por centro de custo"
           subtitle="Top 8 centros · demais agrupados em Outros"
           data={porCcuChart}
           centerLabel="Carga (min)"

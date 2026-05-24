@@ -18,7 +18,7 @@ export function CargaQtdOpsChart({
   }));
   return (
     <Card className="p-3 md:p-4 rounded-2xl shadow-sm border h-full">
-      <div className="text-sm font-semibold mb-3">Carga (h) × Qtd OPs por recurso</div>
+      <div className="text-sm font-semibold mb-3">2. Carga (h) × Qtd OPs por recurso</div>
       <div className="h-[280px] md:h-[340px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={top} margin={{ top: 4, right: 12, left: 0, bottom: 60 }}>

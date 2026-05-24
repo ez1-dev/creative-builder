@@ -3,6 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { UnidadeNegocioBadge, TipoRecursoBadge } from '@/components/producao/carga/badges';
 import type { RecursoAgg } from './aggregations';
 import { fmtDec, fmtNum } from './aggregations';
+import { classifyOcupacao, statusStyle } from './statusOcupacao';
 import { cn } from '@/lib/utils';
 
 export function CentrosDemandadosTable({
@@ -23,11 +24,12 @@ export function CentrosDemandadosTable({
     { qtd_ops: 0, carga_prevista_min: 0, carga_prevista_horas: 0 },
   );
   const clickable = !!onSelect;
+  const status = classifyOcupacao(rows);
 
   return (
     <Card className="rounded-2xl shadow-sm border overflow-hidden">
       <div className="p-3 md:p-4 border-b">
-        <div className="text-sm font-semibold">Centros mais demandados</div>
+        <div className="text-sm font-semibold">5. Centros mais demandados</div>
         <div className="text-[11px] text-muted-foreground">
           Top {top.length} de {rows.length} recursos no período
           {clickable && ' · clique numa linha para detalhar'}
@@ -45,29 +47,40 @@ export function CentrosDemandadosTable({
               <TableHead className="text-right">Qtd OPs</TableHead>
               <TableHead className="text-right">Carga (min)</TableHead>
               <TableHead className="text-right">Carga (h)</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {top.map((r) => (
-              <TableRow
-                key={`${r.codcre}-${r.codccu}`}
-                onClick={clickable ? () => onSelect?.(r) : undefined}
-                className={cn(clickable && 'cursor-pointer hover:bg-muted/60')}
-              >
-                <TableCell>
-                  <UnidadeNegocioBadge value={r.unidade_negocio} />
-                </TableCell>
-                <TableCell>
-                  <TipoRecursoBadge value={r.tipo_recurso} />
-                </TableCell>
-                <TableCell className="text-xs">{r.codccu}</TableCell>
-                <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-                <TableCell className="text-xs">{r.descre}</TableCell>
-                <TableCell className="text-right text-xs">{fmtNum(r.qtd_ops)}</TableCell>
-                <TableCell className="text-right text-xs">{fmtDec(r.carga_prevista_min)}</TableCell>
-                <TableCell className="text-right text-xs font-semibold">{fmtDec(r.carga_prevista_horas)}</TableCell>
-              </TableRow>
-            ))}
+            {top.map((r) => {
+              const st = status.get(`${r.codcre}|${r.codccu}`) ?? 'Normal';
+              const stl = statusStyle[st];
+              return (
+                <TableRow
+                  key={`${r.codcre}-${r.codccu}`}
+                  onClick={clickable ? () => onSelect?.(r) : undefined}
+                  className={cn(clickable && 'cursor-pointer hover:bg-muted/60')}
+                >
+                  <TableCell>
+                    <UnidadeNegocioBadge value={r.unidade_negocio} />
+                  </TableCell>
+                  <TableCell>
+                    <TipoRecursoBadge value={r.tipo_recurso} />
+                  </TableCell>
+                  <TableCell className="text-xs">{r.codccu}</TableCell>
+                  <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
+                  <TableCell className="text-xs">{r.descre}</TableCell>
+                  <TableCell className="text-right text-xs">{fmtNum(r.qtd_ops)}</TableCell>
+                  <TableCell className="text-right text-xs">{fmtDec(r.carga_prevista_min)}</TableCell>
+                  <TableCell className="text-right text-xs font-semibold">{fmtDec(r.carga_prevista_horas)}</TableCell>
+                  <TableCell>
+                    <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium', stl.text)}>
+                      <span className={cn('h-1.5 w-1.5 rounded-full', stl.dot)} />
+                      {st}
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
             <TableRow className="bg-muted/40">
               <TableCell colSpan={5} className="text-xs font-semibold">
                 Total geral
@@ -75,6 +88,7 @@ export function CentrosDemandadosTable({
               <TableCell className="text-right text-xs font-semibold">{fmtNum(total.qtd_ops)}</TableCell>
               <TableCell className="text-right text-xs font-semibold">{fmtDec(total.carga_prevista_min)}</TableCell>
               <TableCell className="text-right text-xs font-semibold">{fmtDec(total.carga_prevista_horas)}</TableCell>
+              <TableCell />
             </TableRow>
           </TableBody>
         </Table>

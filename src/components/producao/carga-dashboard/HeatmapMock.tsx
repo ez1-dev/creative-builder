@@ -27,7 +27,7 @@ export function HeatmapMock({ recursos }: { recursos: RecursoAgg[] }) {
     <Card className="p-4 rounded-2xl shadow-sm border h-full">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <div className="text-sm font-semibold">Mapa de gargalos (ocupação % por dia da semana)</div>
+          <div className="text-sm font-semibold">4. Mapa de gargalos (ocupação % por dia da semana)</div>
           <div className="text-[11px] text-muted-foreground">Visualização mockada — aguardando endpoint /api/producao/carga/ocupacao-semanal</div>
         </div>
         <Badge variant="outline" className="text-[10px] flex items-center gap-1 shrink-0">

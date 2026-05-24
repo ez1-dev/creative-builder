@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LucideIcon, ChevronRight, Info } from 'lucide-react';
+import { LucideIcon, ChevronRight, Info, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
@@ -22,6 +22,45 @@ const accentRing: Record<KpiAccent, string> = {
   muted: 'bg-muted',
 };
 
+export interface KpiDelta {
+  /** Variação numérica. Positivo = subiu, negativo = desceu. */
+  value: number;
+  /** Unidade do delta. 'pct' = %, 'pp' = pontos percentuais, 'abs' = absoluto. */
+  unit?: 'pct' | 'pp' | 'abs';
+  /** Quando true, valores maiores são piores (ex.: erros). */
+  invertColor?: boolean;
+  /** Texto comparativo. Padrão: 'vs mês anterior'. */
+  label?: string;
+}
+
+function DeltaIndicator({ delta }: { delta: KpiDelta }) {
+  const { value, unit = 'pct', invertColor = false, label = 'vs mês anterior' } = delta;
+  const isZero = value === 0 || !isFinite(value);
+  const isUp = value > 0;
+  const goodUp = !invertColor;
+  const positive = isZero ? null : isUp === goodUp;
+  const Icon = isZero ? Minus : isUp ? ArrowUpRight : ArrowDownRight;
+  const color = isZero
+    ? 'text-muted-foreground'
+    : positive
+      ? 'text-emerald-600 dark:text-emerald-500'
+      : 'text-destructive';
+  const abs = Math.abs(value);
+  const formatted =
+    unit === 'pct'
+      ? `${abs.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+      : unit === 'pp'
+        ? `${abs.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} p.p.`
+        : abs.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+  return (
+    <div className={cn('mt-1 flex items-center gap-1 text-[10px] md:text-[11px] font-medium', color)}>
+      <Icon className="h-3 w-3 shrink-0" />
+      <span className="tabular-nums">{isZero ? 'estável' : formatted}</span>
+      <span className="text-muted-foreground font-normal truncate">{label}</span>
+    </div>
+  );
+}
+
 export function KpiCard({
   icon: Icon,
   label,
@@ -32,6 +71,8 @@ export function KpiCard({
   badge,
   onDrill,
   tooltip,
+  delta,
+  number,
 }: {
   icon: LucideIcon;
   label: string;
@@ -42,6 +83,9 @@ export function KpiCard({
   badge?: string;
   onDrill?: () => void;
   tooltip?: string;
+  delta?: KpiDelta;
+  /** Número do card (ex.: 1, 2, …) renderizado discretamente no canto. */
+  number?: number;
 }) {
   const clickable = !!onDrill && !placeholder;
   return (
@@ -61,6 +105,11 @@ export function KpiCard({
           'cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/30',
       )}
     >
+      {number !== undefined && (
+        <span className="absolute top-2 left-2 text-[9px] md:text-[10px] font-semibold text-muted-foreground/50 tabular-nums">
+          {number.toString().padStart(2, '0')}
+        </span>
+      )}
       <div className="flex items-start justify-between gap-2 md:gap-3">
         <div className="min-w-0">
           <div className="text-[10px] md:text-[11px] uppercase tracking-wider text-muted-foreground font-medium truncate flex items-center gap-1">
@@ -93,6 +142,7 @@ export function KpiCard({
           >
             {placeholder ? '—' : value}
           </div>
+          {delta && !placeholder && <DeltaIndicator delta={delta} />}
           {hint && <div className="mt-1 text-[10px] md:text-[11px] text-muted-foreground truncate">{hint}</div>}
         </div>
         <div
