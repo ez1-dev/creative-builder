@@ -16,6 +16,8 @@ import { KPICard } from '@/components/erp/KPICard';
 import { Package, AlertTriangle } from 'lucide-react';
 import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
 import { BiAutoSlots } from '@/components/bi';
+import { biResponsive } from '@/components/bi/utils/responsive';
+import { KpiDrillSheet, useKpiDrill } from '@/components/producao/drill/KpiDrillSheet';
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
@@ -39,6 +41,7 @@ export default function NaoCarregadosPage() {
 
   const [resumo, setResumo] = useState<ResumoGerencial | null>(null);
   const [resumoIndisponivel, setResumoIndisponivel] = useState(false);
+  const drill = useKpiDrill<any>(columns);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -90,9 +93,11 @@ export default function NaoCarregadosPage() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página`} icon={<Package className="h-5 w-5" />} index={0} />
-            <KPICard title="Itens Não Carregados" value={resumo ? formatNumber(resumo.itens_nao_carregados || resumo.total_registros, 0) : '—'} subtitle="Total geral do filtro" icon={<AlertTriangle className="h-5 w-5" />} variant="warning" index={1} />
+          <div className={biResponsive.kpiGrid4}>
+            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página · Ver detalhes`} icon={<Package className="h-5 w-5" />} index={0}
+              onClick={() => drill.open({ title: 'Itens não carregados — detalhe', subtitle: `${data.total_registros} registros`, rows: data.dados || [] })} />
+            <KPICard title="Itens Não Carregados" value={resumo ? formatNumber(resumo.itens_nao_carregados || resumo.total_registros, 0) : '—'} subtitle="Top itens · clique" icon={<AlertTriangle className="h-5 w-5" />} variant="warning" index={1}
+              onClick={() => drill.open({ title: 'Top itens não carregados por quantidade', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade' }], rows: [...(data.dados || [])].sort((a, b) => (Number(b.quantidade) || 0) - (Number(a.quantidade) || 0)).slice(0, 50) })} />
           </div>
           {resumoIndisponivel && (
             <p className="text-xs text-muted-foreground italic">
@@ -102,8 +107,11 @@ export default function NaoCarregadosPage() {
         </>
       )}
 
-      <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      <div className={biResponsive.tableWrap}>
+        <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      </div>
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-nao-carregados" />
+      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
     </div>
   );
 }

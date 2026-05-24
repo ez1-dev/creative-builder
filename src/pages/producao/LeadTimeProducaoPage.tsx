@@ -17,6 +17,8 @@ import { KPICard } from '@/components/erp/KPICard';
 import { Package, Clock, GitBranch, Truck } from 'lucide-react';
 import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
 import { BiAutoSlots } from '@/components/bi';
+import { biResponsive } from '@/components/bi/utils/responsive';
+import { KpiDrillSheet, useKpiDrill } from '@/components/producao/drill/KpiDrillSheet';
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -62,6 +64,7 @@ export default function LeadTimeProducaoPage() {
 
   const [resumo, setResumo] = useState<ResumoGerencial | null>(null);
   const [resumoIndisponivel, setResumoIndisponivel] = useState(false);
+  const drill = useKpiDrill<any>(columns);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -115,11 +118,15 @@ export default function LeadTimeProducaoPage() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página`} icon={<Package className="h-5 w-5" />} index={0} />
-            <KPICard title="LT Eng→Prod" value={resumo ? `${formatNumber(resumo.leadtime_medio_engenharia_producao, 1)} dias` : '—'} subtitle="Média global do filtro" icon={<GitBranch className="h-5 w-5" />} variant="info" index={1} />
-            <KPICard title="LT Prod→Exp" value={resumo ? `${formatNumber(resumo.leadtime_medio_producao_expedicao, 1)} dias` : '—'} subtitle="Média global do filtro" icon={<Truck className="h-5 w-5" />} variant="success" index={2} />
-            <KPICard title="LT Total" value={resumo ? `${formatNumber(resumo.leadtime_medio_total, 1)} dias` : '—'} subtitle="Média global do filtro" icon={<Clock className="h-5 w-5" />} variant="warning" index={3} />
+          <div className={biResponsive.kpiGrid4}>
+            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página · Ver detalhes`} icon={<Package className="h-5 w-5" />} index={0}
+              onClick={() => drill.open({ title: 'Lead Time — todos os projetos', subtitle: `${data.total_registros} registros`, rows: data.dados || [] })} />
+            <KPICard title="LT Eng→Prod" value={resumo ? `${formatNumber(resumo.leadtime_medio_engenharia_producao, 1)} dias` : '—'} subtitle="Top projetos · clique" icon={<GitBranch className="h-5 w-5" />} variant="info" index={1}
+              onClick={() => drill.open({ title: 'Maiores Lead Times Eng → Prod', subtitle: 'Top 50 ordenados desc', chips: [{ label: 'Métrica', value: 'dias_engenharia_ate_producao' }], rows: [...(data.dados || [])].filter(r => r.dias_engenharia_ate_producao != null).sort((a, b) => (b.dias_engenharia_ate_producao ?? 0) - (a.dias_engenharia_ate_producao ?? 0)).slice(0, 50) })} />
+            <KPICard title="LT Prod→Exp" value={resumo ? `${formatNumber(resumo.leadtime_medio_producao_expedicao, 1)} dias` : '—'} subtitle="Top projetos · clique" icon={<Truck className="h-5 w-5" />} variant="success" index={2}
+              onClick={() => drill.open({ title: 'Maiores Lead Times Prod → Exp', subtitle: 'Top 50 ordenados desc', chips: [{ label: 'Métrica', value: 'dias_producao_ate_expedicao' }], rows: [...(data.dados || [])].filter(r => r.dias_producao_ate_expedicao != null).sort((a, b) => (b.dias_producao_ate_expedicao ?? 0) - (a.dias_producao_ate_expedicao ?? 0)).slice(0, 50) })} />
+            <KPICard title="LT Total" value={resumo ? `${formatNumber(resumo.leadtime_medio_total, 1)} dias` : '—'} subtitle="Top projetos · clique" icon={<Clock className="h-5 w-5" />} variant="warning" index={3}
+              onClick={() => drill.open({ title: 'Maiores Lead Times Totais', subtitle: 'Top 50 ordenados desc', chips: [{ label: 'Métrica', value: 'dias_total_ate_expedicao' }], rows: [...(data.dados || [])].filter(r => r.dias_total_ate_expedicao != null).sort((a, b) => (b.dias_total_ate_expedicao ?? 0) - (a.dias_total_ate_expedicao ?? 0)).slice(0, 50) })} />
           </div>
           {resumoIndisponivel && (
             <p className="text-xs text-muted-foreground italic">
@@ -129,8 +136,11 @@ export default function LeadTimeProducaoPage() {
         </>
       )}
 
-      <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      <div className={biResponsive.tableWrap}>
+        <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      </div>
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-lead-time" />
+      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
     </div>
   );
 }
