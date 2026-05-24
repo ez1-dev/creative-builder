@@ -133,15 +133,6 @@ export const cargaApi = {
   opcoes: (codemp?: number) =>
     api.get<OpcoesCarga>('/api/producao/carga/opcoes', codemp ? { codemp } : undefined),
 
-  listarParametros: () =>
-    api.get<ParametroRecurso[]>('/api/producao/carga/parametros-recursos'),
-
-  criarParametro: (payload: ParametroRecursoPayload) =>
-    api.post<ParametroRecurso>('/api/producao/carga/parametros-recursos', payload),
-
-  atualizarParametro: (id: number, payload: ParametroRecursoPayload) =>
-    api.put<ParametroRecurso>(`/api/producao/carga/parametros-recursos/${id}`, payload),
-
   urlExportarCentros: (f: CargaFiltros) =>
     api.getExportUrl('/api/export/producao-carga-centros', toParams(f)),
 };

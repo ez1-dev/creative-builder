@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
+import { parametrosRecursosCloud } from '@/lib/producao/parametrosRecursosCloud';
 
 export function useCargaCentros(filtros: CargaFiltros, enabled = true) {
   return useQuery({
@@ -30,7 +31,7 @@ export function useCargaOpcoes(codemp?: number) {
 export function useParametrosRecursos() {
   return useQuery({
     queryKey: ['carga-producao', 'parametros-recursos'],
-    queryFn: () => cargaApi.listarParametros(),
+    queryFn: () => parametrosRecursosCloud.listar(),
     staleTime: 60_000,
   });
 }

@@ -31,12 +31,20 @@ export function VisaoGeralTab({ filtros }: { filtros: CargaFiltros }) {
   }
 
   if (isError) {
+    const msg = (error as Error)?.message || '';
+    const isBackendUnconfigured = /Supabase n[ãa]o configurado|SUPABASE_SERVICE_ROLE_KEY/i.test(msg);
     return (
-      <Card className="p-6 flex items-center gap-3 text-destructive">
-        <AlertCircle className="h-5 w-5" />
+      <Card className={`p-6 flex items-start gap-3 ${isBackendUnconfigured ? 'border-amber-500/40 bg-amber-500/5' : 'text-destructive'}`}>
+        <AlertCircle className={`h-5 w-5 mt-0.5 ${isBackendUnconfigured ? 'text-amber-600' : ''}`} />
         <div>
-          <div className="font-semibold">Erro ao consultar carga</div>
-          <div className="text-sm text-muted-foreground">{(error as Error)?.message}</div>
+          <div className="font-semibold">
+            {isBackendUnconfigured ? 'Backend de cálculo ainda não configurado' : 'Erro ao consultar carga'}
+          </div>
+          <div className="text-sm text-muted-foreground mt-1">
+            {isBackendUnconfigured
+              ? 'O servidor de cálculo da carga (FastAPI) precisa ser configurado pelo time de TI para acessar a base de parâmetros. A aba "Parâmetros de Recursos" continua funcionando normalmente.'
+              : msg}
+          </div>
         </div>
       </Card>
     );
