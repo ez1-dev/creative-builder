@@ -10,7 +10,7 @@ export interface DrillSheetFilterChip {
   value: string | number;
 }
 
-export interface DrillLevel<TCtx = any> {
+export interface DrillStackLevel<TCtx = any> {
   title: string;
   subtitle?: string;
   chips?: DrillSheetFilterChip[];
@@ -28,7 +28,7 @@ export interface DrillSheetState<TCtx = any> {
 
 interface InternalState<TCtx> {
   open: boolean;
-  levels: DrillLevel<TCtx>[];
+  levels: DrillStackLevel<TCtx>[];
   restore?: () => void;
 }
 
@@ -43,13 +43,13 @@ export function useDrillSheet<TCtx = any>() {
   const [internal, setInternal] = useState<InternalState<TCtx>>(INITIAL as InternalState<TCtx>);
 
   const openWith = useCallback(
-    (level: DrillLevel<TCtx>, opts?: OpenOptions) =>
+    (level: DrillStackLevel<TCtx>, opts?: OpenOptions) =>
       setInternal({ open: true, levels: [level], restore: opts?.restore }),
     [],
   );
 
   const push = useCallback(
-    (level: DrillLevel<TCtx>) => setInternal((s) => ({ ...s, levels: [...s.levels, level] })),
+    (level: DrillStackLevel<TCtx>) => setInternal((s) => ({ ...s, levels: [...s.levels, level] })),
     [],
   );
 
@@ -121,7 +121,7 @@ export interface DrillSheetProps {
   chips?: DrillSheetFilterChip[];
   children: ReactNode;
   /** Pilha de níveis para breadcrumb. Se omitido ou tamanho ≤ 1, nada é renderizado. */
-  levels?: DrillLevel[];
+  levels?: DrillStackLevel[];
   /** Handler do botão Voltar (remove o último nível). */
   onBack?: () => void;
   /** Handler ao clicar num crumb (índice do nível). */

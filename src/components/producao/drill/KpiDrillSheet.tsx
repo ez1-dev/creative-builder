@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   DrillSheet,
   DrillSheetFilterChip,
-  DrillLevel,
+  DrillStackLevel,
   OpenOptions,
 } from '@/components/bi/drill/DrillSheet';
 import { DataTable, Column } from '@/components/erp/DataTable';
@@ -110,7 +110,7 @@ export function useKpiDrill<T>(defaultColumns: Column<T>[]) {
     [internal.open, current, defaultColumns],
   );
 
-  const drillLevels: DrillLevel[] = useMemo(
+  const drillLevels: DrillStackLevel[] = useMemo(
     () =>
       internal.levels.map((lv) => ({
         title: lv.title,
@@ -149,7 +149,7 @@ interface Props<T> {
   rows: T[];
   columns: Column<T>[];
   emptyMessage?: string;
-  levels?: DrillLevel[];
+  levels?: DrillStackLevel[];
   onBack?: () => void;
   onCrumbClick?: (index: number) => void;
   onRowClick?: (row: T) => void;
