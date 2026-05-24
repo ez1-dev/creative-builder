@@ -253,7 +253,7 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
                   nodes={tree}
                   expanded={expanded}
                   onToggle={toggleGroup}
-                  labelColspan={5}
+                  labelColspan={4}
                   renderTotals={(t) => (
                     <>
                       <TableCell className="text-right text-xs font-semibold">{fmtNum(t.qtd_ops)}</TableCell>
