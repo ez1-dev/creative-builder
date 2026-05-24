@@ -365,20 +365,24 @@ export default function ProducaoDashboardPage() {
           <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
         </>
       )}
-      <DrillSheet
-        open={drill.state.open}
-        onOpenChange={drill.setOpen}
-        title={drill.state.title}
-        chips={drill.state.chips}
-      >
+      <DrillSheet {...drill.sheetProps}>
         {drill.state.ctx && drill.state.ctx.items.length > 0 ? (
           <ul className="divide-y">
-            {drill.state.ctx.items.map((it, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="text-foreground truncate">{it.label}</span>
-                <span className="text-muted-foreground tabular-nums">{it.value}</span>
-              </li>
-            ))}
+            {drill.state.ctx.items.map((it, i) => {
+              const clickable = !!it.projeto && drill.levels.length === 1;
+              return (
+                <li
+                  key={i}
+                  onClick={clickable ? () => pushProjeto(it) : undefined}
+                  className={`flex items-center justify-between gap-3 py-2 text-sm ${
+                    clickable ? 'cursor-pointer hover:bg-muted/50 -mx-3 px-3 rounded transition-colors' : ''
+                  }`}
+                >
+                  <span className="text-foreground truncate">{it.label}</span>
+                  <span className="text-muted-foreground tabular-nums">{it.value}</span>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">Sem registros para detalhar.</p>
