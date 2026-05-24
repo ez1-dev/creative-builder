@@ -31,6 +31,8 @@ import RelatorioSemanalObraPage from "@/pages/producao/RelatorioSemanalObraPage"
 import ImpressaoOrdemProducaoPage from "@/pages/producao/ImpressaoOrdemProducaoPage";
 import CargaProducaoPage from "@/pages/producao/CargaProducaoPage";
 import CargaDashboardPage from "@/pages/producao/CargaDashboardPage";
+import CargaRecursosDashboardPage from "@/pages/producao/CargaRecursosDashboardPage";
+
 import ContasPagarPage from "@/pages/ContasPagarPage";
 import ContasReceberPage from "@/pages/ContasReceberPage";
 import FaturamentoGeniusPage from "@/pages/FaturamentoGeniusPage";
