@@ -11,6 +11,8 @@ import { UnidadeNegocioBadge, OrigemMapeamentoBadge, TipoRecursoBadge } from './
 import { GroupByBar } from '@/components/producao/carga-dashboard/GroupByBar';
 import { GroupedRows } from '@/components/producao/carga-dashboard/GroupedRows';
 import { collectAllGroupKeys, useTableGrouping, type GroupField } from '@/components/producao/carga-dashboard/useTableGrouping';
+import { CodeWithDesc } from '@/components/producao/carga-dashboard/CodeWithDesc';
+
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const fmtData = (d: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—');
