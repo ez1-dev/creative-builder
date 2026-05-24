@@ -23,6 +23,8 @@ const EXACT: Record<string, ScreenInfo> = {
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
   '/producao/carga/dashboard':  { codigo: 'PROD_CARGA_BI', nome: 'Carga de Produção — Dashboard BI' },
+  '/producao/carga/recursos':   { codigo: 'PROD_CARGA_REC', nome: 'Carga de Produção — Por Centro de Recurso' },
+
 };
 
 const PREFIX: Array<[string, ScreenInfo]> = [

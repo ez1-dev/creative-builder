@@ -245,12 +245,21 @@ export default function CargaDashboardPage() {
             </p>
           </div>
         </div>
-        {updatedAt && (
-          <div className="text-[10px] md:text-[11px] text-muted-foreground flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-md bg-card border">
-            <Clock className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Atualizado em:</span> {updatedAt.toLocaleString('pt-BR')}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <a
+            href="/producao/carga/recursos"
+            className="text-[11px] md:text-xs text-primary hover:underline inline-flex items-center gap-1 px-2 md:px-3 py-1.5 rounded-md bg-card border"
+          >
+            Ver visão por recurso →
+          </a>
+          {updatedAt && (
+            <div className="text-[10px] md:text-[11px] text-muted-foreground flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-md bg-card border">
+              <Clock className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Atualizado em:</span> {updatedAt.toLocaleString('pt-BR')}
+            </div>
+          )}
+        </div>
+
       </div>
 
       <CargaFiltersBar
