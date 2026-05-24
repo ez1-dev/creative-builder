@@ -7,12 +7,28 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
-function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: 'warn' | 'primary' }) {
+function Kpi({ icon: Icon, label, value, accent, tooltip }: { icon: any; label: string; value: string; accent?: 'warn' | 'primary'; tooltip?: string }) {
   return (
     <Card className={`p-4 ${accent === 'warn' ? 'border-amber-500/40 bg-amber-500/5' : ''}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <Icon className={`h-4 w-4 ${accent === 'warn' ? 'text-amber-600' : 'text-primary'}`} />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1 min-w-0">
+          <span className="truncate">{label}</span>
+          {tooltip && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="shrink-0 text-muted-foreground/70 hover:text-foreground" aria-label="Mais informações">
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs leading-snug">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </span>
+        <Icon className={`h-4 w-4 shrink-0 ${accent === 'warn' ? 'text-amber-600' : 'text-primary'}`} />
       </div>
       <div className={`mt-2 text-2xl font-bold ${accent === 'warn' ? 'text-amber-700' : ''}`}>{value}</div>
     </Card>
