@@ -94,32 +94,6 @@ export interface OpcoesCarga {
   [key: string]: any;
 }
 
-export interface ParametroRecurso {
-  id: number;
-  codemp: number;
-  codcre: string;
-  descre: string | null;
-  unidade_negocio: string;
-  tipo_recurso: string | null;
-  codccu_sugerido: string | null;
-  considera_carga: boolean;
-  ativo: boolean;
-  obs: string | null;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ParametroRecursoPayload {
-  codemp: number;
-  codcre: string;
-  descre?: string | null;
-  unidade_negocio: string;
-  tipo_recurso?: string | null;
-  codccu_sugerido?: string | null;
-  considera_carga: boolean;
-  ativo: boolean;
-  obs?: string | null;
-}
 
 const toParams = (f: CargaFiltros): Record<string, any> => {
   const out: Record<string, any> = { ...f };
