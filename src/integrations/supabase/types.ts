@@ -215,6 +215,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_ops_fila: {
+        Row: {
+          codcre: string
+          codemp: number
+          codopr: string | null
+          codori: string | null
+          codpro: string | null
+          data_geracao_op: string | null
+          descre: string | null
+          descricao_operacao: string | null
+          descricao_produto: string | null
+          etl_updated_at: string
+          id: string
+          numorp: string
+          prioridade: number
+          quantidade_prevista: number
+          situacao: string
+          tempo_previsto_min: number
+          tipo_recurso: string | null
+          unidade_negocio: string | null
+        }
+        Insert: {
+          codcre: string
+          codemp: number
+          codopr?: string | null
+          codori?: string | null
+          codpro?: string | null
+          data_geracao_op?: string | null
+          descre?: string | null
+          descricao_operacao?: string | null
+          descricao_produto?: string | null
+          etl_updated_at?: string
+          id?: string
+          numorp: string
+          prioridade?: number
+          quantidade_prevista?: number
+          situacao?: string
+          tempo_previsto_min?: number
+          tipo_recurso?: string | null
+          unidade_negocio?: string | null
+        }
+        Update: {
+          codcre?: string
+          codemp?: number
+          codopr?: string | null
+          codori?: string | null
+          codpro?: string | null
+          data_geracao_op?: string | null
+          descre?: string | null
+          descricao_operacao?: string | null
+          descricao_produto?: string | null
+          etl_updated_at?: string
+          id?: string
+          numorp?: string
+          prioridade?: number
+          quantidade_prevista?: number
+          situacao?: string
+          tempo_previsto_min?: number
+          tipo_recurso?: string | null
+          unidade_negocio?: string | null
+        }
+        Relationships: []
+      }
       bi_projetos: {
         Row: {
           cliente: string | null
@@ -1294,6 +1357,123 @@ export type Database = {
         }
         Relationships: []
       }
+      programacao_agenda: {
+        Row: {
+          codcre: string
+          codemp: number
+          codopr: string | null
+          codori: string | null
+          codpro: string | null
+          created_at: string
+          data_programada: string
+          descre: string | null
+          descricao_operacao: string | null
+          hora_fim: string
+          hora_inicio: string
+          id: string
+          lote_programacao: string
+          numorp: string
+          segmento: number
+          status_programacao: string
+          tempo_alocado_min: number
+          tipo_recurso: string | null
+          unidade_negocio: string | null
+        }
+        Insert: {
+          codcre: string
+          codemp: number
+          codopr?: string | null
+          codori?: string | null
+          codpro?: string | null
+          created_at?: string
+          data_programada: string
+          descre?: string | null
+          descricao_operacao?: string | null
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          lote_programacao: string
+          numorp: string
+          segmento?: number
+          status_programacao?: string
+          tempo_alocado_min?: number
+          tipo_recurso?: string | null
+          unidade_negocio?: string | null
+        }
+        Update: {
+          codcre?: string
+          codemp?: number
+          codopr?: string | null
+          codori?: string | null
+          codpro?: string | null
+          created_at?: string
+          data_programada?: string
+          descre?: string | null
+          descricao_operacao?: string | null
+          hora_fim?: string
+          hora_inicio?: string
+          id?: string
+          lote_programacao?: string
+          numorp?: string
+          segmento?: number
+          status_programacao?: string
+          tempo_alocado_min?: number
+          tipo_recurso?: string | null
+          unidade_negocio?: string | null
+        }
+        Relationships: []
+      }
+      programacao_capacidades: {
+        Row: {
+          ativo: boolean
+          codcre: string
+          codemp: number
+          considerar_domingo: boolean
+          considerar_sabado: boolean
+          created_at: string
+          descre: string | null
+          eficiencia_perc: number
+          hora_inicio: string
+          id: string
+          minutos_dia: number
+          obs: string | null
+          qtde_recursos: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codcre: string
+          codemp: number
+          considerar_domingo?: boolean
+          considerar_sabado?: boolean
+          created_at?: string
+          descre?: string | null
+          eficiencia_perc?: number
+          hora_inicio?: string
+          id?: string
+          minutos_dia?: number
+          obs?: string | null
+          qtde_recursos?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codcre?: string
+          codemp?: number
+          considerar_domingo?: boolean
+          considerar_sabado?: boolean
+          created_at?: string
+          descre?: string | null
+          eficiencia_perc?: number
+          hora_inicio?: string
+          id?: string
+          minutos_dia?: number
+          obs?: string | null
+          qtde_recursos?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       relatorio_colunas: {
         Row: {
           agrupar: boolean
@@ -2181,6 +2361,26 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_programacao_gargalos: {
+        Args: {
+          p_codcre?: string
+          p_codemp?: number
+          p_data_fim?: string
+          p_data_ini?: string
+          p_unidade_negocio?: string
+        }
+        Returns: {
+          capacidade_disponivel_horas: number
+          carga_programada_horas: number
+          codcre: string
+          data: string
+          descre: string
+          dia_semana: string
+          ocupacao_perc: number
+          status: string
+          unidade_negocio: string
+        }[]
       }
       get_share_link_meta: {
         Args: { _token: string }
