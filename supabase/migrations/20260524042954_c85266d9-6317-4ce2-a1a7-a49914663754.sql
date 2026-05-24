@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.get_programacao_gargalos(date, date, integer, text, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_programacao_gargalos(date, date, integer, text, text) TO authenticated;
