@@ -85,10 +85,16 @@ function isResumoEmpty(r: DashboardResumo): boolean {
   return Object.values(r).every(v => v === 0 || v === null || v === undefined);
 }
 
+interface DrillItem {
+  label: string;
+  value: string;
+  projeto?: TopProjetoPatio;
+}
+
 function buildProjectDetails(
   projetos: TopProjetoPatio[],
   key: keyof Pick<TopProjetoPatio, 'kg_produzido' | 'kg_expedido' | 'kg_patio' | 'kg_engenharia'>,
-) {
+): DrillItem[] {
   return projetos
     .filter(p => (p[key] ?? 0) > 0)
     .sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0))
@@ -96,10 +102,11 @@ function buildProjectDetails(
     .map(p => ({
       label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
       value: `${formatNumber(p[key], 0)} Kg`,
+      projeto: p,
     }));
 }
 
-function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]) {
+function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]): DrillItem[] {
   const upper = keywords.map(k => k.toUpperCase());
   return projetos
     .filter(p => {
@@ -110,7 +117,19 @@ function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]) 
     .map(p => ({
       label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
       value: (p.cliente ?? '').length > 25 ? (p.cliente ?? '').slice(0, 25) + '…' : (p.cliente ?? '-'),
+      projeto: p,
     }));
+}
+
+function buildProjetoBreakdown(p: TopProjetoPatio): DrillItem[] {
+  return [
+    { label: 'Cliente', value: p.cliente ?? '-' },
+    { label: 'Status pátio', value: p.status_patio ?? '-' },
+    { label: 'Kg Previsto (engenharia)', value: `${formatNumber(p.kg_engenharia, 0)} Kg` },
+    { label: 'Kg Produzido', value: `${formatNumber(p.kg_produzido, 0)} Kg` },
+    { label: 'Kg Expedido', value: `${formatNumber(p.kg_expedido, 0)} Kg` },
+    { label: 'Kg em Pátio', value: `${formatNumber(p.kg_patio, 0)} Kg` },
+  ];
 }
 
 export default function ProducaoDashboardPage() {
@@ -123,7 +142,20 @@ export default function ProducaoDashboardPage() {
   const erpReady = useErpReady();
   const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
-  const drill = useDrillSheet<{ items: { label: string; value: string }[] }>();
+  const drill = useDrillSheet<{ items: DrillItem[] }>();
+  const openDrill = (payload: Parameters<typeof drill.openWith>[0]) => {
+    const snap = filters;
+    drill.openWith(payload, { restore: () => setFilters(snap) });
+  };
+  const pushProjeto = (it: DrillItem) => {
+    if (!it.projeto) return;
+    drill.push({
+      title: `Projeto ${it.projeto.numero_projeto} · Des ${it.projeto.numero_desenho}`,
+      subtitle: it.projeto.cliente ?? undefined,
+      chips: [{ label: 'Projeto', value: it.projeto.numero_projeto }],
+      ctx: { items: buildProjetoBreakdown(it.projeto) },
+    });
+  };
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
