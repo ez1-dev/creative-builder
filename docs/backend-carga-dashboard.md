@@ -2,9 +2,26 @@
 
 A tela consome **`GET /api/producao/carga/centros`** e exibe KPIs, gráficos, tabela e insights derivados da própria resposta. Tudo que o endpoint já fornece está no ar com dado real.
 
+## Status frontend (mai/2026)
+
+- KPIs **OPs / Carga / Sem mapeamento / Recursos ativos** já calculam **delta vs mês anterior** com setas coloridas (▲/▼). Hoje isso é feito disparando **uma segunda chamada** ao mesmo `/api/producao/carga/centros` deslocando `data_ini`/`data_fim` em 1 mês. Funciona, mas dobra o custo de query — ideal mover para o campo `comparativo_anterior` (seção 2 abaixo).
+- KPIs **Capacidade Disponível / Ocupação Média / Centros Críticos / Obras em Produção** estão renderizados com `—` + badge "aguardando API". Tooltip explica o motivo. Eles destravam assim que a seção 1 chegar.
+- Status (Crítico/Alto/Médio/Normal) na tabela de centros é hoje calculado **client-side por percentil de carga** (`statusOcupacao.ts`) porque não temos `ocupacao_pct` real. Ao chegar o campo da seção 1, trocar para faixas absolutas (>90 crítico, 70–90 alto, 40–70 médio, <40 normal).
+- Heatmap segue como **mock visível** ("Dados de exemplo") até a seção 3.
+
+## Prioridade pedida ao backend
+
+1. **Seção 2 — `comparativo_anterior`** (rápido: já existe a query, só replicar com offset). Elimina a 2ª request do frontend.
+2. **Seção 1 — capacidade + ocupação** (destrava 4 KPIs e o color-coding real).
+3. **Seção 3 — `/ocupacao-semanal`** (substitui o mock do heatmap).
+4. **Seção 4 — `/situacoes`** (otimização: hoje baixa 5k linhas).
+5. **Seção 5 — `obras_risco`** (opcional, alimenta insights).
+
 ## Campos faltantes (placeholders na tela)
 
 Os blocos abaixo estão renderizados com placeholder ("—" + badge "aguardando API") ou com **mock visível** ("Dados de exemplo"). Para sair do mock, o backend precisa expor:
+
+
 
 ### 1. Capacidade e ocupação por recurso
 
