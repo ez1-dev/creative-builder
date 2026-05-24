@@ -302,44 +302,60 @@ export default function RelatorioSemanalObraPage() {
       </FilterPanel>
 
       {(data || kpiLoading) && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className={biResponsive.kpiGrid}>
           <KPICard
             title="Total de Obras"
             value={kpiTotals ? formatNumber(kpiTotals.totalObras, 0) : (kpiLoading ? 'Calculando...' : '...')}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
+            subtitle={kpiLoading ? 'Consolidando...' : 'Top obras · clique'}
             icon={<Building2 className="h-5 w-5" />}
             index={0}
+            onClick={() => {
+              const byObra = new Map<string, RelatorioRow[]>();
+              for (const r of consolidatedRows) {
+                const k = String(r.obra || `${r.cliente || ''} - ${r.cidade || ''}`);
+                byObra.set(k, [...(byObra.get(k) || []), r]);
+              }
+              const ranked = Array.from(byObra.entries())
+                .sort((a, b) => b[1].length - a[1].length)
+                .slice(0, 50)
+                .flatMap(([_, list]) => list);
+              drill.open({ title: 'Top obras', subtitle: `${byObra.size} obras distintas`, chips: [{ label: 'Agrupado por', value: 'obra' }], rows: ranked });
+            }}
           />
           <KPICard
             title="Total de Projetos"
             value={kpiTotals ? formatNumber(kpiTotals.totalProjetos, 0) : (kpiLoading ? 'Calculando...' : '...')}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
+            subtitle={kpiLoading ? 'Consolidando...' : 'Projetos · clique'}
             icon={<FolderKanban className="h-5 w-5" />}
             variant="info"
             index={1}
+            onClick={() => drill.open({ title: 'Projetos do período', subtitle: `${consolidatedRows.length} linhas`, rows: consolidatedRows })}
           />
           <KPICard
             title="Total de Cargas"
             value={kpiTotals ? formatNumber(kpiTotals.totalCargas, 0) : (kpiLoading ? 'Calculando...' : '...')}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
+            subtitle={kpiLoading ? 'Consolidando...' : 'Top cargas · clique'}
             icon={<Truck className="h-5 w-5" />}
             variant="warning"
             index={2}
+            onClick={() => drill.open({ title: 'Top linhas por Qtd Cargas', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_cargas' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.quantidade_cargas) || 0) - (Number(a.quantidade_cargas) || 0)).slice(0, 50) })}
           />
           <KPICard
             title="Total de Peças"
             value={kpiTotals ? formatNumber(kpiTotals.totalPecas, 0) : (kpiLoading ? 'Calculando...' : '...')}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
+            subtitle={kpiLoading ? 'Consolidando...' : 'Top peças · clique'}
             icon={<Package className="h-5 w-5" />}
             index={3}
+            onClick={() => drill.open({ title: 'Top linhas por Qtd Peças', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_pecas' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.quantidade_pecas) || 0) - (Number(a.quantidade_pecas) || 0)).slice(0, 50) })}
           />
           <KPICard
             title="Peso Total (kg)"
             value={kpiTotals ? `${formatNumber(kpiTotals.pesoTotal, 2)} kg` : (kpiLoading ? 'Calculando...' : '...')}
-            subtitle={kpiLoading ? 'Consolidando páginas...' : undefined}
+            subtitle={kpiLoading ? 'Consolidando...' : 'Top peso · clique'}
             icon={<Weight className="h-5 w-5" />}
             variant="success"
             index={4}
+            onClick={() => drill.open({ title: 'Top linhas por Peso Total', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'peso_total' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.peso_total) || 0) - (Number(a.peso_total) || 0)).slice(0, 50) })}
           />
         </div>
       )}
@@ -361,12 +377,14 @@ export default function RelatorioSemanalObraPage() {
         )}
       </div>
 
-      <DataTable
-        columns={columns}
-        data={data?.dados || []}
-        loading={loading}
-        emptyMessage="Nenhum registro encontrado para os filtros informados."
-      />
+      <div className={biResponsive.tableWrap}>
+        <DataTable
+          columns={columns}
+          data={data?.dados || []}
+          loading={loading}
+          emptyMessage="Nenhum registro encontrado para os filtros informados."
+        />
+      </div>
       {data && (
         <PaginationControl
           pagina={pagina}
@@ -375,6 +393,7 @@ export default function RelatorioSemanalObraPage() {
           onPageChange={(p) => search(p)}
         />
       )}      <BiAutoSlots pageKey="producao-relatorio-semanal-obra" />
+      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
     </div>
   );
 }
