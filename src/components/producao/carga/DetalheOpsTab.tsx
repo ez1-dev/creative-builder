@@ -52,18 +52,15 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
       <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
       <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
       <TableCell className="text-xs">{r.codccu}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-      <TableCell className="text-xs">{r.descre}</TableCell>
+      <TableCell><CodeWithDesc code={r.codcre} desc={r.descre} /></TableCell>
       <TableCell className="text-xs">{r.codori}</TableCell>
       <TableCell className="text-xs font-mono">{r.numorp ?? r.numop}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codpro}</TableCell>
-      <TableCell className="text-xs">{r.descricao_produto}</TableCell>
+      <TableCell><CodeWithDesc code={r.codpro} desc={r.descricao_produto} /></TableCell>
       <TableCell><Badge variant="outline" className="text-xs">{r.sitorp ?? r.sitop}</Badge></TableCell>
       <TableCell className="text-xs">{fmtData(r.data_geracao_op)}</TableCell>
       <TableCell className="text-xs">{r.estagio}</TableCell>
       <TableCell className="text-xs text-right">{r.sequencia_roteiro}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
-      <TableCell className="text-xs">{r.descricao_operacao}</TableCell>
+      <TableCell><CodeWithDesc code={r.codopr} desc={r.descricao_operacao} /></TableCell>
       <TableCell className="text-right text-xs">{fmt(r.quantidade_prevista)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.tempo_unitario_min)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.tempo_fixo_min)}</TableCell>
@@ -73,6 +70,7 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
       <TableCell><OrigemMapeamentoBadge value={r.origem_mapeamento} /></TableCell>
     </TableRow>
   );
+
 
   return (
     <Card className="overflow-hidden">
