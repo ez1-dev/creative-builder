@@ -140,8 +140,8 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
         <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
         <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
         <TableCell className="text-xs">{r.codccu}</TableCell>
-        <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-        <TableCell className="text-xs">{r.descre}</TableCell>
+        <TableCell><CodeWithDesc code={r.codcre} desc={r.descre} /></TableCell>
+
         <TableCell className="text-right text-xs">{fmtNum(r.qtd_ops)}</TableCell>
         <TableCell className="text-right text-xs">{fmtNum(r.qtd_operacoes)}</TableCell>
         <TableCell className="text-right text-xs">{fmtDec(r.qtd_prevista)}</TableCell>
