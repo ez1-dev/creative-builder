@@ -136,8 +136,11 @@ export default function LeadTimeProducaoPage() {
         </>
       )}
 
-      <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      <div className={biResponsive.tableWrap}>
+        <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      </div>
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-lead-time" />
+      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
     </div>
   );
 }
