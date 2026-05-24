@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { ParametroRecurso, ParametroRecursoPayload, cargaApi } from '@/lib/producao/cargaApi';
+import { ParametroRecurso, ParametroRecursoPayload } from '@/lib/producao/cargaApi';
+import { parametrosRecursosCloud } from '@/lib/producao/parametrosRecursosCloud';
 import { toast } from 'sonner';
 
 const UNIDADES = ['GENIUS', 'ESTRUTURAL', 'APOIO', 'NAO_CLASSIFICADO'];
@@ -49,8 +50,8 @@ export function ParametroRecursoDialog({
     }
     setSaving(true);
     try {
-      if (registro) await cargaApi.atualizarParametro(registro.id, form);
-      else await cargaApi.criarParametro(form);
+      if (registro) await parametrosRecursosCloud.atualizar(registro.id, form);
+      else await parametrosRecursosCloud.criar(form);
       toast.success('Parâmetro salvo');
       onSaved();
       onOpenChange(false);
