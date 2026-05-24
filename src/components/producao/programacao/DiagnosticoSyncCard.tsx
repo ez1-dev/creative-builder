@@ -19,7 +19,7 @@ export function DiagnosticoSyncCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('etl_execucoes')
-        .select('status, iniciado_em, terminado_em, linhas_lidas, linhas_inseridas, linhas_rejeitadas, erro_resumo, acionado_por')
+        .select('status, iniciado_em, terminado_em, linhas_lidas, linhas_inseridas, linhas_rejeitadas, erro_resumo, acionado_por, params_executados')
         .eq('tarefa_codigo', 'SYNC_FILA_OPS_ERP')
         .order('iniciado_em', { ascending: false })
         .limit(1)
