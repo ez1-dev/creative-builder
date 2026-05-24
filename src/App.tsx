@@ -135,6 +135,8 @@ const App = () => (
               <Route path="/producao/impressao-op" element={<ProtectedRoute path="/producao/impressao-op"><ImpressaoOrdemProducaoPage /></ProtectedRoute>} />
               <Route path="/producao/carga" element={<ProtectedRoute path="/producao/carga"><CargaProducaoPage /></ProtectedRoute>} />
               <Route path="/producao/carga/dashboard" element={<ProtectedRoute path="/producao/carga"><CargaDashboardPage /></ProtectedRoute>} />
+              <Route path="/producao/carga/recursos" element={<ProtectedRoute path="/producao/carga"><CargaRecursosDashboardPage /></ProtectedRoute>} />
+
               {/* Relatórios */}
               <Route path="/relatorios/desenvolvimento" element={<ProtectedRoute path="/relatorios/desenvolvimento"><DesenvolvimentoRelatoriosPage /></ProtectedRoute>} />
               <Route path="/relatorios/publicados" element={<ProtectedRoute path="/relatorios/publicados"><RelatoriosPublicadosPage /></ProtectedRoute>} />
