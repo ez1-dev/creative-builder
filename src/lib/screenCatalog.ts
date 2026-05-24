@@ -21,6 +21,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/biblioteca-bi':             { codigo: 'BIBLIO_BI',    nome: 'Biblioteca BI' },
   '/contabilidade/balanco':     { codigo: 'CONT_BAL',     nome: 'Contabilidade — Balanço Patrimonial' },
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
+  '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
 };
 
 const PREFIX: Array<[string, ScreenInfo]> = [
