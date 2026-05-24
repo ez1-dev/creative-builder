@@ -25,6 +25,34 @@ interface ErpRow {
   data_geracao_op?: string | null;
 }
 
+function jsonOk(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+function validateBaseUrl(raw: string | undefined): { ok: true; url: string } | { ok: false; code: string; message: string } {
+  if (!raw || !raw.trim()) {
+    return { ok: false, code: 'MISSING_BASE_URL', message: 'FASTAPI_BASE_URL não configurado nos secrets do Cloud.' };
+  }
+  const trimmed = raw.trim().replace(/\/+$/, '');
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return { ok: false, code: 'INVALID_BASE_URL', message: `FASTAPI_BASE_URL inválido: "${raw}". Deve ser uma URL absoluta (ex.: https://api.exemplo.com), sem barra no final.` };
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return { ok: false, code: 'INVALID_BASE_URL', message: `FASTAPI_BASE_URL deve usar http(s). Recebido: ${parsed.protocol}` };
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) {
+    return { ok: false, code: 'LOCALHOST_NOT_ALLOWED', message: `FASTAPI_BASE_URL aponta para "${host}" — a Edge Function roda na nuvem e não enxerga sua máquina. Use uma URL pública (ngrok, domínio próprio etc.).` };
+  }
+  return { ok: true, url: trimmed };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -32,22 +60,18 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const fastapiBase = Deno.env.get('FASTAPI_BASE_URL');
+  const fastapiRaw = Deno.env.get('FASTAPI_BASE_URL');
   const cronSecret = Deno.env.get('CRON_SECRET');
 
-  if (!fastapiBase) {
-    return new Response(JSON.stringify({ error: 'FASTAPI_BASE_URL não configurado' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  let acionadoPor: 'USER' | 'SCHEDULER' = 'USER';
+  let admin: ReturnType<typeof createClient> | null = null;
 
   try {
     // Autenticação: cron-secret OU JWT de usuário
     const cronHeader = req.headers.get('x-cron-secret');
     const authHeader = req.headers.get('Authorization');
-    let acionadoPor = 'SCHEDULER';
 
-    if (cronSecret && cronHeader === cronSecret) {
+    if (cronSecret && cronHeader && cronHeader === cronSecret) {
       acionadoPor = 'SCHEDULER';
     } else if (authHeader?.startsWith('Bearer ')) {
       const userClient = createClient(supabaseUrl, anonKey, {
@@ -56,20 +80,30 @@ Deno.serve(async (req) => {
       const token = authHeader.replace('Bearer ', '');
       const { data: claims, error: authErr } = await userClient.auth.getClaims(token);
       if (authErr || !claims?.claims) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return jsonOk({ ok: false, code: 'UNAUTHORIZED', message: 'Token de autenticação inválido.' }, 401);
       }
-      acionadoPor = 'USER';
     } else {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return jsonOk({ ok: false, code: 'UNAUTHORIZED', message: 'Requer login ou x-cron-secret.' }, 401);
     }
 
-    const admin = createClient(supabaseUrl, serviceKey);
+    admin = createClient(supabaseUrl, serviceKey);
 
-    // Body opcional: { codemp?, situacoes?, unidade_negocio?, codcre?, limit? }
+    // Validar FASTAPI_BASE_URL
+    const baseCheck = validateBaseUrl(fastapiRaw);
+    if (!baseCheck.ok) {
+      await admin.from('etl_execucoes').insert({
+        tarefa_codigo: 'SYNC_FILA_OPS_ERP',
+        iniciado_em: new Date(startedAt).toISOString(),
+        terminado_em: new Date().toISOString(),
+        status: 'ERROR',
+        erro_resumo: `[${baseCheck.code}] ${baseCheck.message}`,
+        acionado_por: acionadoPor,
+      });
+      return jsonOk({ ok: false, code: baseCheck.code, message: baseCheck.message });
+    }
+    const fastapiBase = baseCheck.url;
+
+    // Body opcional
     const body = await req.json().catch(() => ({} as any));
     const qs = new URLSearchParams();
     if (body.codemp != null) qs.set('codemp', String(body.codemp));
@@ -78,19 +112,57 @@ Deno.serve(async (req) => {
     if (body.codcre) qs.set('codcre', body.codcre);
     qs.set('limit', String(body.limit ?? 5000));
 
-    const url = `${fastapiBase.replace(/\/$/, '')}/api/producao/programacao/fila-erp?${qs.toString()}`;
+    const url = `${fastapiBase}/api/producao/programacao/fila-erp?${qs.toString()}`;
 
     // 1) Buscar fila do ERP via FastAPI
-    const resp = await fetch(url, {
-      headers: { 'ngrok-skip-browser-warning': 'true', 'Accept': 'application/json' },
-    });
+    const headers: Record<string, string> = {
+      'ngrok-skip-browser-warning': 'true',
+      'Accept': 'application/json',
+    };
+    if (cronSecret) headers['x-cron-secret'] = cronSecret;
+
+    let resp: Response;
+    try {
+      resp = await fetch(url, { headers });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await admin.from('etl_execucoes').insert({
+        tarefa_codigo: 'SYNC_FILA_OPS_ERP',
+        iniciado_em: new Date(startedAt).toISOString(),
+        terminado_em: new Date().toISOString(),
+        status: 'ERROR',
+        erro_resumo: `[FETCH_FAILED] ${msg}`,
+        acionado_por: acionadoPor,
+      });
+      return jsonOk({
+        ok: false,
+        code: 'FETCH_FAILED',
+        message: `Não foi possível conectar à FastAPI em ${fastapiBase}.`,
+        detalhe: msg,
+      });
+    }
+
     if (!resp.ok) {
       const txt = await resp.text().catch(() => '');
-      throw new Error(`FastAPI ${resp.status}: ${txt.slice(0, 500)}`);
+      const detalhe = txt.slice(0, 800);
+      await admin.from('etl_execucoes').insert({
+        tarefa_codigo: 'SYNC_FILA_OPS_ERP',
+        iniciado_em: new Date(startedAt).toISOString(),
+        terminado_em: new Date().toISOString(),
+        status: 'ERROR',
+        erro_resumo: `[FASTAPI_${resp.status}] ${detalhe.slice(0, 500)}`,
+        acionado_por: acionadoPor,
+      });
+      return jsonOk({
+        ok: false,
+        code: `FASTAPI_${resp.status}`,
+        message: `FastAPI respondeu ${resp.status} ao chamar ${url}.`,
+        detalhe,
+      });
     }
-    const json = await resp.json();
-    const rows: ErpRow[] = json?.dados ?? json?.data ?? [];
 
+    const json = await resp.json().catch(() => ({}));
+    const rows: ErpRow[] = json?.dados ?? json?.data ?? [];
     const lidas = rows.length;
 
     // 2) Snapshot atual da fila (no escopo do filtro) para reconciliação
@@ -104,7 +176,6 @@ Deno.serve(async (req) => {
     const erpKeys = new Set(
       rows.map((r) => `${r.codemp}|${String(r.numorp)}|${r.codopr ?? ''}`),
     );
-
     const toDelete = (snap ?? []).filter(
       (s: any) => !erpKeys.has(`${s.codemp}|${String(s.numorp)}|${s.codopr ?? ''}`),
     );
@@ -146,17 +217,13 @@ Deno.serve(async (req) => {
       const q = admin.from('bi_ops_fila').delete()
         .eq('codemp', d.codemp)
         .eq('numorp', d.numorp);
-      if (d.codopr) {
-        await q.eq('codopr', d.codopr);
-      } else {
-        await q.is('codopr', null);
-      }
+      if (d.codopr) await q.eq('codopr', d.codopr);
+      else await q.is('codopr', null);
       removidas += 1;
     }
 
-    const duracao = Date.now() - startedAt;
+    const duracao_ms = Date.now() - startedAt;
 
-    // 5) Log em etl_execucoes
     await admin.from('etl_execucoes').insert({
       tarefa_codigo: 'SYNC_FILA_OPS_ERP',
       iniciado_em: new Date(startedAt).toISOString(),
@@ -170,25 +237,20 @@ Deno.serve(async (req) => {
       acionado_por: acionadoPor,
     });
 
-    return new Response(
-      JSON.stringify({ lidas, inseridas, removidas, duracao_ms: duracao }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    );
+    return jsonOk({ ok: true, lidas, inseridas, removidas, duracao_ms });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     try {
-      const admin = createClient(supabaseUrl, serviceKey);
-      await admin.from('etl_execucoes').insert({
+      const a = admin ?? createClient(supabaseUrl, serviceKey);
+      await a.from('etl_execucoes').insert({
         tarefa_codigo: 'SYNC_FILA_OPS_ERP',
         iniciado_em: new Date(startedAt).toISOString(),
         terminado_em: new Date().toISOString(),
         status: 'ERROR',
         erro_resumo: msg.slice(0, 1000),
-        acionado_por: 'USER',
+        acionado_por: acionadoPor,
       });
     } catch (_) {/* ignore */}
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonOk({ ok: false, code: 'UNEXPECTED', message: msg });
   }
 });
