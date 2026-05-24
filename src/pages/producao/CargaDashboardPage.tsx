@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Boxes, ClipboardList, Clock, Gauge, Timer, AlertTriangle, Building2, Layers, Factory } from 'lucide-react';
+import { Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory } from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
 import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
