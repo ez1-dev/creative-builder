@@ -61,6 +61,8 @@ const producaoSubItems = [
   { title: 'Impressão de OP', url: '/producao/impressao-op', icon: Printer },
   { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
   { title: 'Carga — Dashboard BI', url: '/producao/carga/dashboard', icon: Activity },
+  { title: 'Carga — Por Recurso', url: '/producao/carga/recursos', icon: Gauge },
+
 ];
 
 const regrasSeniorSubItems = [
