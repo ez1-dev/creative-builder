@@ -123,6 +123,7 @@ export default function ProducaoDashboardPage() {
   const erpReady = useErpReady();
   const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
+  const drill = useDrillSheet<{ items: { label: string; value: string }[] }>();
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
