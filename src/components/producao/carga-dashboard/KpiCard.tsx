@@ -31,6 +31,7 @@ export function KpiCard({
   placeholder,
   badge,
   onDrill,
+  tooltip,
 }: {
   icon: LucideIcon;
   label: string;
@@ -40,6 +41,7 @@ export function KpiCard({
   placeholder?: boolean;
   badge?: string;
   onDrill?: () => void;
+  tooltip?: string;
 }) {
   const clickable = !!onDrill && !placeholder;
   return (
