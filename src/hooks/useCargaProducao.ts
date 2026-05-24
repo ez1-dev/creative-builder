@@ -10,6 +10,16 @@ export function useCargaCentros(filtros: CargaFiltros, enabled = true) {
   });
 }
 
+export function useCargaRecursos(filtros: CargaFiltros, enabled = true) {
+  return useQuery({
+    queryKey: ['carga-producao', 'recursos', filtros],
+    queryFn: () => cargaApi.recursos(filtros),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+
 export function useCargaDetalhe(filtros: CargaFiltros & { pagina?: number; tamanho_pagina?: number }, enabled = true) {
   return useQuery({
     queryKey: ['carga-producao', 'detalhe', filtros],
