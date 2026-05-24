@@ -125,6 +125,11 @@ export const cargaApi = {
   centros: (f: CargaFiltros) =>
     api.get<CargaCentrosResponse>('/api/producao/carga/centros', toParams(f)),
 
+  recursos: (f: CargaFiltros) =>
+    api.get<CargaRecursosResponse>('/api/producao/carga/recursos', toParams(f)),
+
+
+
   detalhe: (f: CargaFiltros & { pagina?: number; tamanho_pagina?: number }) =>
     api.get<CargaDetalheResponse>('/api/producao/carga/detalhe', toParams(f)),
 
