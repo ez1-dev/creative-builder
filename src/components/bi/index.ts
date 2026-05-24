@@ -61,6 +61,8 @@ export * from './filters/SearchFilter';
 
 export * from './drill/DrillBreadcrumb';
 export * from './drill/DrillLevelSelector';
+export * from './drill/DrillSheet';
+export * from './utils/responsive';
 
 export * from './layout/DashboardLayout';
 export * from './layout/DashboardTabs';
