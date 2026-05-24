@@ -48,6 +48,26 @@ export interface CargaCentrosResponse {
   total_registros?: number;
   filtros?: Record<string, any>;
 }
+export interface CargaRecursoRow {
+  unidade_negocio: string;
+  tipo_recurso: string;
+  codccu: string;
+  codcre: string;
+  descre: string;
+  qtd_ops: number;
+  qtd_operacoes: number;
+  qtd_prevista: number;
+  carga_prevista_min: number;
+  carga_prevista_horas: number;
+}
+
+export interface CargaRecursosResponse {
+  resumo: CargaResumo;
+  dados: CargaRecursoRow[];
+  total_registros?: number;
+  filtros?: Record<string, any>;
+}
+
 
 
 export interface CargaDetalheRow {
