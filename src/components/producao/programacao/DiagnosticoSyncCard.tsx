@@ -19,7 +19,7 @@ export function DiagnosticoSyncCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('etl_execucoes')
-        .select('status, iniciado_em, terminado_em, linhas_lidas, linhas_inseridas, linhas_rejeitadas, erro_resumo, acionado_por')
+        .select('status, iniciado_em, terminado_em, linhas_lidas, linhas_inseridas, linhas_rejeitadas, erro_resumo, acionado_por, params_executados')
         .eq('tarefa_codigo', 'SYNC_FILA_OPS_ERP')
         .order('iniciado_em', { ascending: false })
         .limit(1)
@@ -107,6 +107,15 @@ export function DiagnosticoSyncCard() {
           </div>
         </div>
       </div>
+
+      {(run?.params_executados as any)?.url_chamada && (
+        <div className="mt-3 pt-3 border-t">
+          <div className="text-[10px] text-muted-foreground uppercase mb-1">URL chamada na FastAPI</div>
+          <code className="text-[11px] text-muted-foreground break-all block">
+            {String((run!.params_executados as any).url_chamada)}
+          </code>
+        </div>
+      )}
     </Card>
   );
 }

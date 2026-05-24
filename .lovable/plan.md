@@ -1,66 +1,50 @@
-## Diagnóstico
 
-- `bi_ops_fila` tem **0 linhas** e `etl_execucoes` não tem **nenhuma** entrada para `SYNC_FILA_OPS_ERP` → o botão "Atualizar fila do ERP" nunca foi clicado com sucesso (ou estourou antes de logar).
-- A tela hoje:
-  - **Lê** `bi_ops_fila` via `programacaoApi.fila()` ✅
-  - **Tem** botão "Atualizar fila do ERP" que invoca a Edge Function `programacao-sync-fila` ✅
-  - **Não** exibe estado vazio amigável (renderiza tabela em branco)
-  - **Não** mostra erro detalhado da Edge Function (só `e.message` do `functions.invoke`, que oculta o body)
-  - **Não** tem card de diagnóstico
+## Objetivo
 
-A Edge Function `programacao-sync-fila` já chama o endpoint correto e faz upsert, mas:
-- Não valida `FASTAPI_BASE_URL` contra `localhost` nem barra final.
-- Não envia `x-cron-secret` ao chamar a FastAPI (só usa para autenticar a chamada *de entrada* do cron).
-- Retorna `status: 500` em falha — o cliente Supabase engole o body de erro, frontend só vê "Edge Function returned a non-2xx".
+Garantir que o botão "Atualizar fila do ERP" popule `bi_ops_fila` com **todas** as OPs em situação `A` (aberta) e `L` (liberada), sem filtro de data por padrão, e expor diagnóstico com a URL chamada na FastAPI.
 
 ## Mudanças
 
-### 1. Edge Function `programacao-sync-fila`
+### 1. Edge Function `programacao-sync-fila/index.ts`
 
-- Validar `FASTAPI_BASE_URL`:
-  - obrigatório, sem barra final (normalizar com `.replace(/\/+$/, '')`)
-  - rejeitar se contiver `localhost` ou `127.0.0.1` → retorna `{ error: 'FASTAPI_BASE_URL inválido (localhost não permitido)', code: 'INVALID_BASE_URL' }`
-- Encaminhar `x-cron-secret: {CRON_SECRET}` no header da chamada GET para FastAPI (além do `ngrok-skip-browser-warning`).
-- Em qualquer falha (FastAPI down, 4xx/5xx, parse), responder **HTTP 200** com `{ ok: false, code, message, detalhe }` para o frontend conseguir ler. Manter log em `etl_execucoes` com `status='ERROR'` e `erro_resumo`.
-- Em sucesso continuar retornando `{ ok: true, lidas, inseridas, removidas, duracao_ms }`.
+- Trocar o nome do query param de `limit` → **`limite`** (alinhar com a spec FastAPI).
+- Default `codemp=1`, `situacoes=A,L`, `limite=5000`.
+- **Não enviar** `data_ini` / `data_fim` por padrão (mesmo que venham no body, ignorar a menos que explicitamente passados; sincronização padrão = snapshot completo A,L).
+- No retorno da function (sucesso e erro), incluir `url_chamada` — a URL completa chamada na FastAPI **sem** o header `x-cron-secret` e sem expor o secret (URL não contém secret, então pode ser logada como está).
+- Persistir `url_chamada` no campo `params_executados` de `etl_execucoes` (já é JSON), junto com `situacoes`, `codemp`, `limite`.
 
-### 2. `programacaoApi.syncFila`
+### 2. `src/lib/producao/programacaoApi.ts`
 
-- Tratar `{ ok: false, ... }` como erro: jogar `Error(message)` com `code` e `detalhe` anexados para o toast exibir.
+- Propagar `url_chamada`, `lidas`, `inseridas`, `removidas` no retorno de `sincronizarFilaErp()` para a UI.
 
-### 3. `ProgramacaoFiltersBar`
+### 3. `DiagnosticoSyncCard.tsx`
 
-- Toast de erro passa a mostrar `code` + `message` + (se houver) primeiros 300 chars de `detalhe`.
+Adicionar nova linha/coluna mostrando:
+- **URL chamada na FastAPI** (lida de `params_executados.url_chamada` da última execução), com `break-all` para não quebrar layout.
+- Já existem: última sincronização, OPs lidas/salvas/removidas, total em `bi_ops_fila`, último erro.
 
-### 4. `FilaOpsTab` — estado vazio
+### 4. `FilaOpsTab.tsx`
 
-- Quando `fila.data.dados.length === 0` e não está carregando, renderizar mensagem dentro de um Card:
-  > **Fila de OPs vazia.** Clique em **Atualizar fila do ERP** ou verifique a conexão com a FastAPI.
-- Mantém tabela quando há dados.
+Já tem mensagem de fila vazia — manter texto exato:
+"Fila de OPs vazia. Clique em Atualizar fila do ERP ou verifique a conexão com a FastAPI."
 
-### 5. Card de diagnóstico (novo componente `DiagnosticoSyncCard.tsx`)
+### 5. `ProgramacaoFiltersBar.tsx` (botão "Atualizar fila do ERP")
 
-Renderizado logo abaixo do `ProgramacaoKpis`. Consulta no Cloud:
+- Não passar `data_ini`/`data_fim` na chamada de sync (sync = snapshot completo A,L).
+- Filtros de data na tela continuam funcionando apenas como **filtros visuais** sobre `bi_ops_fila`.
 
-- **Última sincronização**: `select * from etl_execucoes where tarefa_codigo='SYNC_FILA_OPS_ERP' order by iniciado_em desc limit 1`
-- **OPs importadas (última run)**: `linhas_inseridas` da linha acima
-- **Linhas em bi_ops_fila**: `select count(*) from bi_ops_fila` (filtrado pelos mesmos filtros da tela quando aplicável)
-- **Erro**: `erro_resumo` quando `status='ERROR'`, com badge vermelho
+### 6. Secret `FASTAPI_BASE_URL`
 
-Atualiza junto com `onRefresh` (mesma query key) e logo após `syncFila` resolver.
-
-### 6. Documentação
-
-Atualizar `docs/backend-fila-erp.md` para registrar:
-- FastAPI deve aceitar e validar header `x-cron-secret` (opcional, mas recomendado).
-- Não usar localhost no `FASTAPI_BASE_URL` configurado no Cloud (a Edge Function roda em Deno deploy, não enxerga sua máquina).
+Continua inválido (`123456`). Após aprovar o plano, abrir formulário seguro para o usuário colar a URL pública correta (ex.: `https://xxxx.ngrok-free.app`, sem barra final). A validação já implementada na Edge Function rejeita localhost / valor não-URL e retorna mensagem clara.
 
 ## Fora de escopo
 
-- Mexer em outras abas (Agenda, Gargalos etc.).
-- Mudar algoritmo de `programacao-gerar`.
-- Implementar o endpoint na FastAPI (já documentado em `docs/backend-fila-erp.md`).
+- Alterações no FastAPI (já em ajuste pelo backend conforme a spec `docs/backend-fila-erp.md`).
+- Lógica do algoritmo de programação, RLS, capacidades.
 
-## Pré-requisito p/ funcionar
+## Critério de pronto
 
-- Secrets `FASTAPI_BASE_URL` (sem `/` final, sem `localhost`) e `CRON_SECRET` precisam estar configurados no Cloud — provavelmente é por isso que a fila está vazia. Confirma se você já preencheu esses dois?
+1. Clicar em "Atualizar fila do ERP" → Edge Function chama `{FASTAPI_BASE_URL}/api/producao/programacao/fila-erp?codemp=1&situacoes=A%2CL&limite=5000`.
+2. `bi_ops_fila` é populada com todas as OPs A e L retornadas.
+3. `DiagnosticoSyncCard` mostra URL chamada, qtd recebida, qtd gravada, data/hora, último erro.
+4. Aba "Fila de OPs" lista as OPs; filtros visuais (data, situação, unidade, recurso, operação) continuam funcionando localmente.

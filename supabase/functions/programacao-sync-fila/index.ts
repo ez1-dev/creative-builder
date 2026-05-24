@@ -103,14 +103,14 @@ Deno.serve(async (req) => {
     }
     const fastapiBase = baseCheck.url;
 
-    // Body opcional
+    // Body opcional. Sincronização padrão = snapshot completo de A,L (sem datas).
     const body = await req.json().catch(() => ({} as any));
     const qs = new URLSearchParams();
-    if (body.codemp != null) qs.set('codemp', String(body.codemp));
+    qs.set('codemp', String(body.codemp ?? 1));
     qs.set('situacoes', body.situacoes ?? 'A,L');
     if (body.unidade_negocio) qs.set('unidade_negocio', body.unidade_negocio);
     if (body.codcre) qs.set('codcre', body.codcre);
-    qs.set('limit', String(body.limit ?? 5000));
+    qs.set('limite', String(body.limite ?? body.limit ?? 5000));
 
     const url = `${fastapiBase}/api/producao/programacao/fila-erp?${qs.toString()}`;
 
@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
         terminado_em: new Date().toISOString(),
         status: 'ERROR',
         erro_resumo: `[FETCH_FAILED] ${msg}`,
+        params_executados: { ...(body ?? {}), url_chamada: url },
         acionado_por: acionadoPor,
       });
       return jsonOk({
@@ -139,6 +140,7 @@ Deno.serve(async (req) => {
         code: 'FETCH_FAILED',
         message: `Não foi possível conectar à FastAPI em ${fastapiBase}.`,
         detalhe: msg,
+        url_chamada: url,
       });
     }
 
@@ -151,6 +153,7 @@ Deno.serve(async (req) => {
         terminado_em: new Date().toISOString(),
         status: 'ERROR',
         erro_resumo: `[FASTAPI_${resp.status}] ${detalhe.slice(0, 500)}`,
+        params_executados: { ...(body ?? {}), url_chamada: url },
         acionado_por: acionadoPor,
       });
       return jsonOk({
@@ -158,6 +161,7 @@ Deno.serve(async (req) => {
         code: `FASTAPI_${resp.status}`,
         message: `FastAPI respondeu ${resp.status} ao chamar ${url}.`,
         detalhe,
+        url_chamada: url,
       });
     }
 
@@ -233,11 +237,11 @@ Deno.serve(async (req) => {
       linhas_inseridas: inseridas,
       linhas_atualizadas: 0,
       linhas_rejeitadas: removidas,
-      params_executados: body ?? {},
+      params_executados: { ...(body ?? {}), url_chamada: url },
       acionado_por: acionadoPor,
     });
 
-    return jsonOk({ ok: true, lidas, inseridas, removidas, duracao_ms });
+    return jsonOk({ ok: true, lidas, inseridas, removidas, duracao_ms, url_chamada: url });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     try {
