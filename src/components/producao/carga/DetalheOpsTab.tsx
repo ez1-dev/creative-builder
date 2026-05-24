@@ -112,17 +112,15 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
               <TableHead>Tipo</TableHead>
               <TableHead>CCusto</TableHead>
               <TableHead>Recurso</TableHead>
-              <TableHead>Descrição</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>OP</TableHead>
               <TableHead>Produto</TableHead>
-              <TableHead>Descrição produto</TableHead>
               <TableHead>Sit.</TableHead>
               <TableHead>Geração</TableHead>
               <TableHead>Estágio</TableHead>
               <TableHead>Seq.</TableHead>
               <TableHead>Operação</TableHead>
-              <TableHead>Descrição operação</TableHead>
+
               <TableHead className="text-right">Qtd</TableHead>
               <TableHead className="text-right">T.Unit (min)</TableHead>
               <TableHead className="text-right">T.Fixo (min)</TableHead>
