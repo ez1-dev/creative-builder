@@ -245,18 +245,59 @@ export default function CargaDashboardPage() {
         </Alert>
       )}
 
-      {/* KPIs */}
+      {/* KPIs principais */}
       <div className={biResponsive.kpiGrid}>
         {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)
+          Array.from({ length: 10 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-2xl" />)
         ) : (
           <>
-            <KpiCard icon={ClipboardList} label="OPs" value={fmtNum(resumo?.qtd_ops)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Boxes} label="Recursos" value={fmtNum(resumo?.qtd_recursos)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Activity} label="Linhas de operação" value={fmtNum(resumo?.qtd_linhas_operacao)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Timer} label="Carga prevista (min)" value={fmtNum(totalCargaMin)} accent="primary" onDrill={openKpiAll} />
-            <KpiCard icon={Clock} label="Carga prevista (h)" value={fmtDec(totalCargaH)} accent="success" onDrill={openKpiAll} />
+            <KpiCard number={1} icon={ClipboardList} label="OPs Geradas" value={fmtNum(resumo?.qtd_ops)} accent="primary" delta={deltaOps} onDrill={openKpiAll} />
+            <KpiCard number={2} icon={Timer} label="Carga Prevista (min)" value={fmtNum(totalCargaMin)} accent="primary" delta={deltaCargaMin} onDrill={openKpiAll} />
+            <KpiCard number={3} icon={Clock} label="Carga Prevista (h)" value={fmtDec(totalCargaH)} accent="success" delta={deltaCargaH} onDrill={openKpiAll} />
             <KpiCard
+              number={4}
+              icon={Gauge}
+              label="Capacidade Disponível"
+              value="—"
+              accent="muted"
+              placeholder
+              tooltip="Aguardando endpoint /api/producao/carga/capacidade para retornar capacidade real por centro de recurso."
+              hint="Aguardando endpoint"
+            />
+            <KpiCard
+              number={5}
+              icon={Activity}
+              label="Ocupação Média"
+              value="—"
+              accent="muted"
+              placeholder
+              tooltip="Requer capacidade real (carga prevista ÷ capacidade disponível) — pendente endpoint."
+              hint="Aguardando endpoint"
+            />
+            <KpiCard
+              number={6}
+              icon={AlertOctagon}
+              label="Centros Críticos"
+              value={fmtNum(criticos)}
+              accent={criticos > 0 ? 'critical' : 'success'}
+              delta={deltaCriticos}
+              tooltip="Recursos no top 10% de carga prevista no período — derivado por ranking enquanto não há capacidade real."
+              onDrill={openKpiAll}
+            />
+            <KpiCard number={7} icon={Boxes} label="Recursos ativos" value={fmtNum(resumo?.qtd_recursos)} accent="primary" delta={deltaRecursos} onDrill={openKpiAll} />
+            <KpiCard number={8} icon={Activity} label="Linhas de operação" value={fmtNum(resumo?.qtd_linhas_operacao)} accent="primary" delta={deltaLinhas} onDrill={openKpiAll} />
+            <KpiCard
+              number={9}
+              icon={HardHat}
+              label="Obras em Produção"
+              value="—"
+              accent="muted"
+              placeholder
+              tooltip="Aguardando vínculo da OP com a obra/projeto no endpoint de carga."
+              hint="Aguardando endpoint"
+            />
+            <KpiCard
+              number={10}
               icon={Info}
               label="Classificados por regra automática"
               value={fmtNum(semMapeamento)}
@@ -275,13 +316,18 @@ export default function CargaDashboardPage() {
           <TopRecursosChart rows={recursos} onSelect={openRecurso} />
           <CargaQtdOpsChart rows={recursos} onSelect={openRecurso} />
         </div>
-        <InsightsPanel recursos={recursos} rows={rows} semMapeamento={semMapeamento} />
+        <InsightsPanel
+          recursos={recursos}
+          rows={rows}
+          semMapeamento={semMapeamento}
+          onVerTodasObras={openKpiAll}
+        />
       </div>
 
       {/* Donuts */}
       <div className={biResponsive.chartGrid3}>
         <DonutCard
-          title="Distribuição por unidade de negócio"
+          title="3. Distribuição por unidade de negócio"
           data={porUnidade.map((u) => ({ name: String(u.name), value: u.carga_min }))}
           centerLabel="Carga (min)"
           centerValue={fmtNum(totalCargaMin)}
@@ -290,7 +336,7 @@ export default function CargaDashboardPage() {
           onSelect={openUnidade}
         />
         <DonutCard
-          title="Distribuição por centro de custo"
+          title="4. Distribuição por centro de custo"
           subtitle="Top 8 centros · demais agrupados em Outros"
           data={porCcuChart}
           centerLabel="Carga (min)"
