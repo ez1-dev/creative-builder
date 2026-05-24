@@ -107,6 +107,15 @@ export function DiagnosticoSyncCard() {
           </div>
         </div>
       </div>
+
+      {(run?.params_executados as any)?.url_chamada && (
+        <div className="mt-3 pt-3 border-t">
+          <div className="text-[10px] text-muted-foreground uppercase mb-1">URL chamada na FastAPI</div>
+          <code className="text-[11px] text-muted-foreground break-all block">
+            {String((run!.params_executados as any).url_chamada)}
+          </code>
+        </div>
+      )}
     </Card>
   );
 }
