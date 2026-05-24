@@ -38,7 +38,7 @@ export function FilaSituacaoCard({ filtros, onSelect }: { filtros: CargaFiltros;
       counts.set(sit, (counts.get(sit) ?? 0) + 1);
     }
     const items = Array.from(counts.entries())
-      .map(([sit, value]) => ({ name: SIT_LABELS[sit] ?? sit, value }))
+      .map(([sit, value]) => ({ name: SIT_LABELS[sit] ?? sit, value, _sit: sit }))
       .sort((a, b) => b.value - a.value);
     const total = items.reduce((a, b) => a + b.value, 0);
     const parcial = (data?.total_registros ?? 0) > PAGE_SIZE;
