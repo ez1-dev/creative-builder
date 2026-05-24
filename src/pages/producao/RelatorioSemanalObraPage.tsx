@@ -82,6 +82,10 @@ export default function RelatorioSemanalObraPage() {
   const erpReady = useErpReady();
   const { user } = useAuth();
   const drill = useKpiDrill<RelatorioRow>(columns);
+  const openKpi = (payload: Parameters<typeof drill.open>[0]) => {
+    const snap = filters;
+    openKpi(payload, { restore: () => setFilters(snap) });
+  };
 
   // Helper: busca demais páginas apenas para alimentar os gráficos
   const fetchAllPagesForCharts = useCallback(async (
@@ -319,7 +323,7 @@ export default function RelatorioSemanalObraPage() {
                 .sort((a, b) => b[1].length - a[1].length)
                 .slice(0, 50)
                 .flatMap(([_, list]) => list);
-              drill.open({ title: 'Top obras', subtitle: `${byObra.size} obras distintas`, chips: [{ label: 'Agrupado por', value: 'obra' }], rows: ranked });
+              openKpi({ title: 'Top obras', subtitle: `${byObra.size} obras distintas`, chips: [{ label: 'Agrupado por', value: 'obra' }], rows: ranked });
             }}
           />
           <KPICard
@@ -329,7 +333,7 @@ export default function RelatorioSemanalObraPage() {
             icon={<FolderKanban className="h-5 w-5" />}
             variant="info"
             index={1}
-            onClick={() => drill.open({ title: 'Projetos do período', subtitle: `${consolidatedRows.length} linhas`, rows: consolidatedRows })}
+            onClick={() => openKpi({ title: 'Projetos do período', subtitle: `${consolidatedRows.length} linhas`, rows: consolidatedRows })}
           />
           <KPICard
             title="Total de Cargas"
@@ -338,7 +342,7 @@ export default function RelatorioSemanalObraPage() {
             icon={<Truck className="h-5 w-5" />}
             variant="warning"
             index={2}
-            onClick={() => drill.open({ title: 'Top linhas por Qtd Cargas', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_cargas' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.quantidade_cargas) || 0) - (Number(a.quantidade_cargas) || 0)).slice(0, 50) })}
+            onClick={() => openKpi({ title: 'Top linhas por Qtd Cargas', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_cargas' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.quantidade_cargas) || 0) - (Number(a.quantidade_cargas) || 0)).slice(0, 50) })}
           />
           <KPICard
             title="Total de Peças"
@@ -346,7 +350,7 @@ export default function RelatorioSemanalObraPage() {
             subtitle={kpiLoading ? 'Consolidando...' : 'Top peças · clique'}
             icon={<Package className="h-5 w-5" />}
             index={3}
-            onClick={() => drill.open({ title: 'Top linhas por Qtd Peças', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_pecas' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.quantidade_pecas) || 0) - (Number(a.quantidade_pecas) || 0)).slice(0, 50) })}
+            onClick={() => openKpi({ title: 'Top linhas por Qtd Peças', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_pecas' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.quantidade_pecas) || 0) - (Number(a.quantidade_pecas) || 0)).slice(0, 50) })}
           />
           <KPICard
             title="Peso Total (kg)"
@@ -355,7 +359,7 @@ export default function RelatorioSemanalObraPage() {
             icon={<Weight className="h-5 w-5" />}
             variant="success"
             index={4}
-            onClick={() => drill.open({ title: 'Top linhas por Peso Total', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'peso_total' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.peso_total) || 0) - (Number(a.peso_total) || 0)).slice(0, 50) })}
+            onClick={() => openKpi({ title: 'Top linhas por Peso Total', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'peso_total' }], rows: [...consolidatedRows].sort((a, b) => (Number(b.peso_total) || 0) - (Number(a.peso_total) || 0)).slice(0, 50) })}
           />
         </div>
       )}
@@ -393,7 +397,7 @@ export default function RelatorioSemanalObraPage() {
           onPageChange={(p) => search(p)}
         />
       )}      <BiAutoSlots pageKey="producao-relatorio-semanal-obra" />
-      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
+      <KpiDrillSheet {...drill.sheetProps} />
     </div>
   );
 }

@@ -60,6 +60,10 @@ export default function SaldoPatioPage() {
   const [resumo, setResumo] = useState<ResumoGerencial | null>(null);
   const [resumoIndisponivel, setResumoIndisponivel] = useState(false);
   const drill = useKpiDrill<any>(columns);
+  const openKpi = (payload: Parameters<typeof drill.open>[0]) => {
+    const snap = filters;
+    openKpi(payload, { restore: () => setFilters(snap) });
+  };
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
@@ -122,13 +126,13 @@ export default function SaldoPatioPage() {
         <>
           <div className={biResponsive.kpiGrid4}>
             <KPICard title="Total Registros" value={formatNumber(totalRegistrosKpi, 0)} subtitle={`${(data.dados || []).length} nesta página · Ver detalhes`} icon={<Package className="h-5 w-5" />} index={0}
-              onClick={() => drill.open({ title: 'Saldo em pátio — todos os projetos', subtitle: `${data.total_registros} registros`, rows: data.dados || [] })} />
+              onClick={() => openKpi({ title: 'Saldo em pátio — todos os projetos', subtitle: `${data.total_registros} registros`, rows: data.dados || [] })} />
             <KPICard title="Kg Produzido" value={resumo ? `${formatNumber(resumo.kg_produzido, 1)} Kg` : '—'} subtitle="Top projetos · clique" icon={<ArrowUpFromLine className="h-5 w-5" />} variant="info" index={1}
-              onClick={() => drill.open({ title: 'Top projetos por Kg Produzido', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'kg_produzido' }], rows: [...(data.dados || [])].filter(r => (Number(r.kg_produzido) || 0) > 0).sort((a, b) => (Number(b.kg_produzido) || 0) - (Number(a.kg_produzido) || 0)).slice(0, 50) })} />
+              onClick={() => openKpi({ title: 'Top projetos por Kg Produzido', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'kg_produzido' }], rows: [...(data.dados || [])].filter(r => (Number(r.kg_produzido) || 0) > 0).sort((a, b) => (Number(b.kg_produzido) || 0) - (Number(a.kg_produzido) || 0)).slice(0, 50) })} />
             <KPICard title="Kg Expedido" value={resumo ? `${formatNumber(resumo.kg_expedido, 1)} Kg` : '—'} subtitle="Top projetos · clique" icon={<Truck className="h-5 w-5" />} variant="success" index={2}
-              onClick={() => drill.open({ title: 'Top projetos por Kg Expedido', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'kg_expedido' }], rows: [...(data.dados || [])].filter(r => (Number(r.kg_expedido) || 0) > 0).sort((a, b) => (Number(b.kg_expedido) || 0) - (Number(a.kg_expedido) || 0)).slice(0, 50) })} />
+              onClick={() => openKpi({ title: 'Top projetos por Kg Expedido', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'kg_expedido' }], rows: [...(data.dados || [])].filter(r => (Number(r.kg_expedido) || 0) > 0).sort((a, b) => (Number(b.kg_expedido) || 0) - (Number(a.kg_expedido) || 0)).slice(0, 50) })} />
             <KPICard title="Kg em Pátio" value={resumo ? `${formatNumber(resumo.kg_patio, 1)} Kg` : '—'} subtitle="Maiores saldos · clique" icon={<Warehouse className="h-5 w-5" />} variant="warning" index={3}
-              onClick={() => drill.open({ title: 'Top projetos com saldo em pátio', subtitle: 'Top 50 saldos pendentes', chips: [{ label: 'Métrica', value: 'kg_patio' }], rows: [...(data.dados || [])].filter(r => (Number(r.kg_patio) || 0) > 0).sort((a, b) => (Number(b.kg_patio) || 0) - (Number(a.kg_patio) || 0)).slice(0, 50) })} />
+              onClick={() => openKpi({ title: 'Top projetos com saldo em pátio', subtitle: 'Top 50 saldos pendentes', chips: [{ label: 'Métrica', value: 'kg_patio' }], rows: [...(data.dados || [])].filter(r => (Number(r.kg_patio) || 0) > 0).sort((a, b) => (Number(b.kg_patio) || 0) - (Number(a.kg_patio) || 0)).slice(0, 50) })} />
           </div>
           {resumoIndisponivel && (
             <p className="text-xs text-muted-foreground italic">
@@ -142,7 +146,7 @@ export default function SaldoPatioPage() {
         <DataTable columns={columns} data={data?.dados || []} loading={loading} />
       </div>
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-saldo-patio" />
-      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
+      <KpiDrillSheet {...drill.sheetProps} />
     </div>
   );
 }
