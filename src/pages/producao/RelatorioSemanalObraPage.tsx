@@ -21,6 +21,8 @@ import { gerarRelatorioSemanalObraPdf } from '@/lib/pdf/relatorioSemanalObraPdf'
 import { useAuth } from '@/contexts/AuthContext';
 import { extrairResumo } from '@/lib/drillResumo';
 import { BiAutoSlots } from '@/components/bi';
+import { biResponsive } from '@/components/bi/utils/responsive';
+import { KpiDrillSheet, useKpiDrill } from '@/components/producao/drill/KpiDrillSheet';
 
 interface KpiTotals {
   totalObras: number;
