@@ -145,7 +145,7 @@ export default function ProducaoDashboardPage() {
   const drill = useDrillSheet<{ items: DrillItem[] }>();
   const openDrill = (payload: Parameters<typeof drill.openWith>[0]) => {
     const snap = filters;
-    drill.openWith(payload, { restore: () => setFilters(snap) });
+    openDrill(payload, { restore: () => setFilters(snap) });
   };
   const pushProjeto = (it: DrillItem) => {
     if (!it.projeto) return;
@@ -325,33 +325,33 @@ export default function ProducaoDashboardPage() {
           <KpiGrid cols={7}>
             <KpiCard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info"
               icon={<Layers className="h-4 w-4" />} tooltip="Peso previsto em engenharia"
-              onClick={() => drill.openWith({ title: 'Kg Previsto — Top projetos', chips: [{ label: 'Métrica', value: 'kg_engenharia' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_engenharia') } })} />
+              onClick={() => openDrill({ title: 'Kg Previsto — Top projetos', chips: [{ label: 'Métrica', value: 'kg_engenharia' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_engenharia') } })} />
             <KpiCard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success"
               icon={<Package className="h-4 w-4" />} tooltip="Total produzido (entrada estoque)"
-              onClick={() => drill.openWith({ title: 'Kg Produzido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_produzido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_produzido') } })} />
+              onClick={() => openDrill({ title: 'Kg Produzido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_produzido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_produzido') } })} />
             <KpiCard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success"
               icon={<Truck className="h-4 w-4" />} tooltip="Total expedido (romaneio)"
-              onClick={() => drill.openWith({ title: 'Kg Expedido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_expedido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_expedido') } })} />
+              onClick={() => openDrill({ title: 'Kg Expedido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_expedido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_expedido') } })} />
             <KpiCard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning"
               icon={<Warehouse className="h-4 w-4" />} tooltip="Saldo em pátio (produzido − expedido)"
-              onClick={() => drill.openWith({ title: 'Kg em Pátio — Top projetos', chips: [{ label: 'Métrica', value: 'kg_patio' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_patio') } })} />
+              onClick={() => openDrill({ title: 'Kg em Pátio — Top projetos', chips: [{ label: 'Métrica', value: 'kg_patio' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_patio') } })} />
             <KpiCard title="Qtd Cargas" value={resumo.quantidade_cargas} icon={<Truck className="h-4 w-4" />} />
             <KpiCard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="warning"
               icon={<AlertCircle className="h-4 w-4" />} tooltip="Itens produzidos ainda não carregados" />
             <KpiCard title="Aguardando Prod." value={resumo.projetos_aguardando_producao}
               icon={<Hourglass className="h-4 w-4" />} tooltip="Projetos aguardando início de produção"
-              onClick={() => drill.openWith({ title: 'Aguardando Produção', chips: [{ label: 'Status', value: 'AGUARDANDO' }], ctx: { items: buildStatusDetails(topProjetos, 'AGUARDANDO') } })} />
+              onClick={() => openDrill({ title: 'Aguardando Produção', chips: [{ label: 'Status', value: 'AGUARDANDO' }], ctx: { items: buildStatusDetails(topProjetos, 'AGUARDANDO') } })} />
           </KpiGrid>
           <KpiGrid cols={6}>
             <KpiCard title="Em Produção" value={resumo.projetos_em_producao} variant="info"
               tooltip="Projetos em fase de produção ou sem entrada em estoque"
-              onClick={() => drill.openWith({ title: 'Em Produção', chips: [{ label: 'Status', value: 'EM PRODUÇÃO' }], ctx: { items: buildStatusDetails(topProjetos, 'PRODUÇÃO') } })} />
+              onClick={() => openDrill({ title: 'Em Produção', chips: [{ label: 'Status', value: 'EM PRODUÇÃO' }], ctx: { items: buildStatusDetails(topProjetos, 'PRODUÇÃO') } })} />
             <KpiCard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning"
               tooltip="Projetos com expedição parcial"
-              onClick={() => drill.openWith({ title: 'Parcialmente Expedidos', chips: [{ label: 'Status', value: 'PARCIAL' }], ctx: { items: buildStatusDetails(topProjetos, 'PARCIAL') } })} />
+              onClick={() => openDrill({ title: 'Parcialmente Expedidos', chips: [{ label: 'Status', value: 'PARCIAL' }], ctx: { items: buildStatusDetails(topProjetos, 'PARCIAL') } })} />
             <KpiCard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success"
               tooltip="Projetos totalmente expedidos"
-              onClick={() => drill.openWith({ title: 'Totalmente Expedidos', chips: [{ label: 'Status', value: 'EXPEDIDO' }], ctx: { items: buildStatusDetails(topProjetos, 'EXPEDIDO') } })} />
+              onClick={() => openDrill({ title: 'Totalmente Expedidos', chips: [{ label: 'Status', value: 'EXPEDIDO' }], ctx: { items: buildStatusDetails(topProjetos, 'EXPEDIDO') } })} />
             <KpiCard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
             <KpiCard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
             <KpiCard title="LT Total (dias)" value={resumo.leadtime_medio_total} variant="info" />
