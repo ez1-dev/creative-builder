@@ -17,6 +17,8 @@ import { KPICard } from '@/components/erp/KPICard';
 import { Package, ArrowUpFromLine, Truck, Warehouse } from 'lucide-react';
 import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
 import { BiAutoSlots } from '@/components/bi';
+import { biResponsive } from '@/components/bi/utils/responsive';
+import { KpiDrillSheet, useKpiDrill } from '@/components/producao/drill/KpiDrillSheet';
 
 const statusColor = (s: string) => {
   switch (s) {
