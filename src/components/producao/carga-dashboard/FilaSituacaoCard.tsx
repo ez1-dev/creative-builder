@@ -59,7 +59,7 @@ export function FilaSituacaoCard({ filtros, onSelect }: { filtros: CargaFiltros;
 
   return (
     <DonutCard
-      title="Fila de OPs por situação"
+      title="6. Fila de OPs por situação"
       subtitle={
         parcial
           ? 'Amostra parcial — solicitar endpoint agregado /carga/situacoes'
