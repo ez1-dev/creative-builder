@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
         terminado_em: new Date().toISOString(),
         status: 'ERROR',
         erro_resumo: `[FETCH_FAILED] ${msg}`,
+        params_executados: { ...(body ?? {}), url_chamada: url },
         acionado_por: acionadoPor,
       });
       return jsonOk({
@@ -139,6 +140,7 @@ Deno.serve(async (req) => {
         code: 'FETCH_FAILED',
         message: `Não foi possível conectar à FastAPI em ${fastapiBase}.`,
         detalhe: msg,
+        url_chamada: url,
       });
     }
 
@@ -151,6 +153,7 @@ Deno.serve(async (req) => {
         terminado_em: new Date().toISOString(),
         status: 'ERROR',
         erro_resumo: `[FASTAPI_${resp.status}] ${detalhe.slice(0, 500)}`,
+        params_executados: { ...(body ?? {}), url_chamada: url },
         acionado_por: acionadoPor,
       });
       return jsonOk({
@@ -158,6 +161,7 @@ Deno.serve(async (req) => {
         code: `FASTAPI_${resp.status}`,
         message: `FastAPI respondeu ${resp.status} ao chamar ${url}.`,
         detalhe,
+        url_chamada: url,
       });
     }
 
