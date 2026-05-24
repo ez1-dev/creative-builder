@@ -70,6 +70,14 @@ export function FilaSituacaoCard({ filtros, onSelect }: { filtros: CargaFiltros;
       centerValue={total.toLocaleString('pt-BR')}
       totalLabel="Total"
       totalValue={`${total.toLocaleString('pt-BR')} / 100%`}
+      onSelect={
+        onSelect
+          ? (label) => {
+              const found = items.find((i) => i.name === label);
+              if (found) onSelect(found._sit);
+            }
+          : undefined
+      }
     />
   );
 }
