@@ -127,9 +127,8 @@ export function CentrosRecursoTab({
               <TableHead>Tipo</TableHead>
               <TableHead>CCusto</TableHead>
               <Th k="codcre">Centro recurso</Th>
-              <TableHead>Descrição recurso</TableHead>
               <Th k="codopr">Operação</Th>
-              <TableHead>Descrição operação</TableHead>
+
               <TableHead className="text-right">Qtd OPs</TableHead>
               <TableHead className="text-right">Qtd prevista</TableHead>
               <TableHead className="text-right">Min</TableHead>
