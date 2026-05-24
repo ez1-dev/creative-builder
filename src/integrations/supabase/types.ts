@@ -1323,6 +1323,39 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_prioridade_op: {
+        Row: {
+          atualizado_por: string | null
+          codemp: number
+          created_at: string
+          id: string
+          numorp: string
+          observacao: string | null
+          prioridade: number
+          updated_at: string
+        }
+        Insert: {
+          atualizado_por?: string | null
+          codemp: number
+          created_at?: string
+          id?: string
+          numorp: string
+          observacao?: string | null
+          prioridade?: number
+          updated_at?: string
+        }
+        Update: {
+          atualizado_por?: string | null
+          codemp?: number
+          created_at?: string
+          id?: string
+          numorp?: string
+          observacao?: string | null
+          prioridade?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       producao_recurso_unidade: {
         Row: {
           ativo: boolean
