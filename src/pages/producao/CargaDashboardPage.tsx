@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory } from 'lucide-react';
+import { Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory, Info } from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
 import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
@@ -195,11 +195,12 @@ export default function CargaDashboardPage() {
             <KpiCard icon={Timer} label="Carga prevista (min)" value={fmtNum(totalCargaMin)} accent="primary" onDrill={openKpiAll} />
             <KpiCard icon={Clock} label="Carga prevista (h)" value={fmtDec(totalCargaH)} accent="success" onDrill={openKpiAll} />
             <KpiCard
-              icon={AlertTriangle}
-              label="Sem mapeamento"
+              icon={Info}
+              label="Classificados por regra automática"
               value={fmtNum(semMapeamento)}
-              accent={semMapeamento > 0 ? 'warn' : 'muted'}
-              hint={semMapeamento > 0 ? 'Linhas no padrão da API' : 'Tudo mapeado'}
+              accent="muted"
+              tooltip="Quantidade de linhas de carga em que o recurso não possui mapeamento explícito na API, mas foi classificado automaticamente por centro de custo ou origem da OP."
+              hint={semMapeamento > 0 ? 'Classificação automática aplicada' : 'Todos com mapeamento explícito'}
               onDrill={semMapeamento > 0 ? openSemMapeamento : undefined}
             />
           </>

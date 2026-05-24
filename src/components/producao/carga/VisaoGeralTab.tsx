@@ -2,16 +2,33 @@ import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { CargaFiltros } from '@/lib/producao/cargaApi';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Activity, Boxes, ListChecks, Clock, Timer, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Activity, Boxes, ListChecks, Clock, Timer, AlertCircle, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
-function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; value: string; accent?: 'warn' | 'primary' }) {
+function Kpi({ icon: Icon, label, value, accent, tooltip }: { icon: any; label: string; value: string; accent?: 'warn' | 'primary'; tooltip?: string }) {
   return (
     <Card className={`p-4 ${accent === 'warn' ? 'border-amber-500/40 bg-amber-500/5' : ''}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <Icon className={`h-4 w-4 ${accent === 'warn' ? 'text-amber-600' : 'text-primary'}`} />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1 min-w-0">
+          <span className="truncate">{label}</span>
+          {tooltip && (
+            <TooltipProvider delayDuration={150}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" className="shrink-0 text-muted-foreground/70 hover:text-foreground" aria-label="Mais informações">
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs leading-snug">
+                  {tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </span>
+        <Icon className={`h-4 w-4 shrink-0 ${accent === 'warn' ? 'text-amber-600' : 'text-primary'}`} />
       </div>
       <div className={`mt-2 text-2xl font-bold ${accent === 'warn' ? 'text-amber-700' : ''}`}>{value}</div>
     </Card>
@@ -52,10 +69,10 @@ export function VisaoGeralTab({ filtros }: { filtros: CargaFiltros }) {
         <Kpi icon={Timer} label="Carga prevista (min)" value={fmt(resumo?.carga_prevista_min)} />
         <Kpi icon={Clock} label="Carga prevista (h)" value={fmt(resumo?.carga_prevista_horas)} />
         <Kpi
-          icon={AlertTriangle}
-          label="Sem mapeamento"
+          icon={Info}
+          label="Classificados por regra automática"
           value={fmt(semMapeamento)}
-          accent={semMapeamento > 0 ? 'warn' : undefined}
+          tooltip="Quantidade de linhas de carga em que o recurso não possui mapeamento explícito na API, mas foi classificado automaticamente por centro de custo ou origem da OP."
         />
       </div>
       <p className="text-[11px] text-muted-foreground px-1">
