@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw } from 'lucide-react';
-import type { ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
+import { RefreshCw, DownloadCloud } from 'lucide-react';
+import { toast } from 'sonner';
+import { programacaoApi, type ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
+import { useQueryClient } from '@tanstack/react-query';
 
 const UNIDADES = ['TODOS', 'GENIUS', 'ESTRUTURAL', 'APOIO', 'NAO_CLASSIFICADO'];
 const TIPOS = ['TODOS', 'PRODUCAO', 'TERCEIROS', 'LOGISTICA', 'MANUTENCAO'];
@@ -21,6 +24,28 @@ interface Props {
 
 export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, showStatus }: Props) {
   const set = (patch: Partial<ProgramacaoFiltros>) => onChange({ ...filtros, ...patch });
+  const qc = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const r = await programacaoApi.syncFila({
+        codemp: filtros.codemp,
+        situacoes: filtros.situacoes ?? 'A,L',
+        unidade_negocio: filtros.unidade_negocio,
+        codcre: filtros.codcre,
+      });
+      toast.success('Fila atualizada do ERP', {
+        description: `Lidas ${r.lidas} · Salvas ${r.inseridas} · Removidas ${r.removidas} (${r.duracao_ms}ms)`,
+      });
+      qc.invalidateQueries({ queryKey: ['programacao'] });
+    } catch (e: any) {
+      toast.error('Falha ao sincronizar fila do ERP', { description: e?.message ?? String(e) });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
     <Card className="p-3">
