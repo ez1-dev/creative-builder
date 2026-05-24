@@ -77,10 +77,15 @@ export interface CargaDetalheRow {
   codcre: string;
   descre: string;
   codori: string;
-  numop: string | number;
+  numorp: string | number;
+  /** @deprecated usar numorp — mantido para fallback */
+  numop?: string | number;
+  op_chave?: string;
   codpro: string;
   descricao_produto: string;
-  sitop: string;
+  sitorp: string;
+  /** @deprecated usar sitorp — mantido para fallback */
+  sitop?: string;
   data_geracao_op: string | null;
   estagio: string;
   sequencia_roteiro: number | string;
@@ -94,6 +99,7 @@ export interface CargaDetalheRow {
   tempo_previsto_horas: number;
   origem_mapeamento: OrigemMapeamento | string;
 }
+
 
 export interface CargaDetalheResponse {
   pagina: number;
