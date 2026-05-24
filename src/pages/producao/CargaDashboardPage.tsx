@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Boxes, ClipboardList, Clock, Gauge, Timer, AlertTriangle, Building2, Layers, Factory } from 'lucide-react';
+import { Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory } from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
 import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
@@ -121,13 +121,8 @@ export default function CargaDashboardPage() {
         )}
       </div>
 
-      {/* Segunda linha — KPIs placeholders alinhados ao mockup */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard icon={Gauge} label="Capacidade disponível" value="—" placeholder badge="aguardando API" accent="muted" />
-        <KpiCard icon={Gauge} label="Ocupação média" value="—" placeholder badge="aguardando API" accent="muted" />
-        <KpiCard icon={AlertTriangle} label="Centros críticos" value="—" placeholder badge="aguardando API" accent="muted" />
-        <KpiCard icon={Building2} label="Obras em produção" value="—" placeholder badge="aguardando API" accent="muted" />
-      </div>
+
+
 
       {/* Linha principal: 2 gráficos + insights */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
