@@ -1,169 +1,107 @@
-## Visão geral
+## Migração do módulo Programação para Lovable Cloud
 
-Novo módulo **Produção > Programação e Sequenciamento** em `/producao/programacao`, com 5 abas. Frontend **só consome a API** — nenhum cálculo local, nenhum acesso direto a tabelas. Reaproveita 100% do padrão do módulo Carga (api client, react-query, GroupByBar, badges, CargaFiltersBar style).
+Hoje o módulo `/producao/programacao` chama 5 endpoints do FastAPI que respondem "Supabase não configurado". Vamos abandonar o FastAPI para este módulo e mover tudo para o Lovable Cloud (tabelas + edge function de cálculo), mantendo o mesmo contrato de tipos do frontend.
 
-## Arquitetura
+### Visão geral
 
-```
-src/lib/producao/programacaoApi.ts         ← tipos + chamadas
-src/hooks/useProgramacao.ts                ← react-query wrappers
-src/pages/producao/ProgramacaoPage.tsx     ← shell com 5 Tabs + KPIs no topo
-src/components/producao/programacao/
-  ├── ProgramacaoKpis.tsx                  ← 7 KPIs compartilhados
-  ├── FilaOpsTab.tsx
-  ├── GerarProgramacaoTab.tsx
-  ├── AgendaRecursoTab.tsx
-  ├── MapaGargalosTab.tsx
-  └── CapacidadesTab.tsx
+```text
+┌────────────┐   leitura    ┌────────────────────┐
+│ Frontend   │ ───────────▶ │ bi_ops_fila        │ (popular via ETL depois)
+│ Programação│              │ programacao_capac. │
+│ (5 abas)   │              │ programacao_agenda │
+│            │   gerar      └────────────────────┘
+│            │ ──────▶ Edge Function "programacao-gerar"
+└────────────┘            (algoritmo simples FIFO + capacidade)
 ```
 
-## Tipos (`programacaoApi.ts`)
+### 1. Novas tabelas no Cloud
 
-```ts
-export type StatusProgramacao = 'PROGRAMADO' | 'EXECUTANDO' | 'CONCLUIDO' | 'CANCELADO';
-export type StatusGargalo = 'OK' | 'ATENCAO' | 'GARGALO' | 'SEM_PARAMETRO';
+**`bi_ops_fila`** (read-only no frontend; será populada pelo ETL futuramente)
+- `id` uuid PK
+- `codemp` int, `unidade_negocio` text, `tipo_recurso` text
+- `codcre` text, `descre` text
+- `codori` text, `numorp` text, `situacao` text (`A` / `L`)
+- `codpro` text, `descricao_produto` text
+- `codopr` text, `descricao_operacao` text
+- `quantidade_prevista` numeric, `tempo_previsto_min` numeric
+- `prioridade` int (default 5)
+- `data_geracao_op` date
+- `etl_updated_at` timestamptz
+- RLS: leitura para `authenticated`; sem INSERT/UPDATE/DELETE (ETL usará service role).
 
-export interface FilaOp {
-  unidade_negocio: string; codcre: string; descre: string;
-  codori: string; numorp: string | number;
-  codpro: string; descricao_produto: string;
-  codopr: string; descricao_operacao: string;
-  quantidade_prevista: number;
-  tempo_previsto_min: number; tempo_previsto_horas: number;
-  prioridade: number; data_geracao_op: string | null;
-}
+**`programacao_capacidades`** (CRUD pelo frontend)
+- `id` uuid PK
+- `codemp` int, `codcre` text, `descre` text
+- `minutos_dia` int, `qtde_recursos` int, `eficiencia_perc` numeric
+- `hora_inicio` text (HH:MM)
+- `considerar_sabado` bool, `considerar_domingo` bool
+- `ativo` bool, `obs` text
+- Unique (`codemp`, `codcre`)
+- RLS: leitura para `authenticated`; INSERT/UPDATE/DELETE só para admins (`is_admin(auth.uid())`).
 
-export interface GerarProgramacaoPayload {
-  data_ini?: string; data_fim?: string; data_inicio_programacao?: string;
-  situacoes?: string; // default 'A,L'
-  unidade_negocio?: string; codcre?: string;
-  permitir_quebra_operacao?: boolean; limpar_anterior?: boolean;
-}
-export interface GerarProgramacaoResponse {
-  lote_programacao: string;
-  qtd_operacoes_fila: number;
-  qtd_linhas_programadas: number;
-  qtd_sem_capacidade: number;
-  qtd_sem_saldo: number;
-  recursos_sem_capacidade: { codcre: string; descre: string }[];
-}
+**`programacao_agenda`** (gravada pela edge function; lida pelo frontend)
+- `id` uuid PK
+- `lote_programacao` text (uuid gerado a cada execução)
+- `data_programada` date, `hora_inicio` text, `hora_fim` text
+- `codemp` int, `unidade_negocio` text, `tipo_recurso` text
+- `codcre` text, `descre` text
+- `codori` text, `numorp` text, `codpro` text, `codopr` text, `descricao_operacao` text
+- `tempo_alocado_min` int, `segmento` int (parte da OP quando há quebra)
+- `status_programacao` text default `'PROGRAMADO'`
+- `created_at` timestamptz
+- RLS: leitura para `authenticated`; escrita só via edge function (service role).
 
-export interface AgendaLinha {
-  data_programada: string; dia_semana: string;
-  hora_inicio: string; hora_fim: string;
-  codcre: string; descre: string;
-  codori: string; numorp: string | number;
-  codpro: string; codopr: string;
-  tempo_alocado_min: number;
-  segmento: number | string;
-  status_programacao: StatusProgramacao;
-  lote_programacao?: string;
-}
+### 2. Edge Function `programacao-gerar`
 
-export interface GargaloDia {
-  data: string; dia_semana: string;
-  unidade_negocio: string; codcre: string; descre: string;
-  carga_programada_horas: number;
-  capacidade_disponivel_horas: number;
-  ocupacao_perc: number;
-  status: StatusGargalo;
-}
+Recebe `GerarProgramacaoPayload`, executa algoritmo simples e grava em `programacao_agenda`.
 
-export interface Capacidade {
-  codemp: number; codcre: string; descre?: string;
-  minutos_dia: number; qtde_recursos: number; eficiencia_perc: number;
-  hora_inicio: string;
-  considerar_sabado: boolean; considerar_domingo: boolean;
-  ativo: boolean; obs?: string;
-}
-```
+Algoritmo:
+1. Valida JWT (verify_jwt em código).
+2. Lê fila de `bi_ops_fila` filtrada por situação/unidade/recurso.
+3. Lê capacidades ativas de `programacao_capacidades`.
+4. Ordena fila por `prioridade ASC`, `data_geracao_op ASC`.
+5. Para cada OP, encontra próximo slot disponível no `codcre` correspondente respeitando:
+   - `minutos_dia × qtde_recursos × eficiencia_perc/100` por dia
+   - pular sábado/domingo conforme flags
+   - `permitir_quebra_operacao` → divide entre dias (gera múltiplas linhas com `segmento`)
+6. Se `limpar_anterior` = true, deleta agenda anterior do mesmo escopo antes.
+7. Insere todas as linhas em `programacao_agenda` com o mesmo `lote_programacao`.
+8. Retorna `GerarProgramacaoResponse`.
 
-Métodos `programacaoApi`: `fila(f)`, `gerar(p)`, `agenda(f)`, `gargalos(f)`, `capacidades()`, `salvarCapacidades(rows)`.
+### 3. Frontend — substituir `programacaoApi.ts`
 
-## Hooks (`useProgramacao.ts`)
+Reescrever cada método para usar `supabase` ao invés de `api.get/post`. Mantém **exatamente** as mesmas assinaturas e tipos de retorno, então os componentes (`FilaOpsTab`, `AgendaRecursoTab`, `MapaGargalosTab`, `CapacidadesTab`, `GerarProgramacaoTab`) e o hook `useProgramacao.ts` **não precisam de alteração**.
 
-- `useFilaOps(f)`, `useAgenda(f)`, `useGargalos(f)`, `useCapacidades()` → `useQuery` (`staleTime 30s`).
-- `useGerarProgramacao()` → `useMutation` que invalida `['programacao','agenda']` e `['programacao','gargalos']` no sucesso.
-- `useSalvarCapacidades()` → `useMutation` que invalida `['programacao','capacidades']`.
+- `fila(f)` → `select` em `bi_ops_fila` com filtros.
+- `gerar(p)` → `supabase.functions.invoke('programacao-gerar', { body: p })`.
+- `agenda(f)` → `select` em `programacao_agenda` com filtros.
+- `gargalos(f)` → query que agrupa `programacao_agenda` por (data, codcre) e cruza com `programacao_capacidades` para calcular ocupação; implementada como função SQL `get_programacao_gargalos(...)` security definer para evitar lógica pesada no cliente.
+- `capacidades(codemp)` → `select` em `programacao_capacidades`.
+- `salvarCapacidades(rows)` → `upsert` em `programacao_capacidades` (chave `codemp,codcre`).
 
-## UI por aba
+### 4. Limpeza
 
-Filtros compartilhados num pequeno `ProgramacaoFiltersBar` (data_ini, data_fim, unidade_negocio, tipo_recurso, codcre, status). Estado em `useState<ProgramacaoFiltros>` no `ProgramacaoPage` e KPIs em cima.
+- Remover apenas o uso do `api.get/post` deste módulo. O `src/lib/api.ts` continua existindo para os outros módulos que ainda usam FastAPI.
+- Atualizar `mem://index.md` notando que Programação migrou 100% para Cloud.
 
-### 1. Fila de OPs (`FilaOpsTab`)
-Tabela com as 14 colunas pedidas, com `GroupByBar` (unidade, tipo, recurso), busca local por número OP/produto, ordenação por prioridade desc e tempo desc.
+### Fora de escopo
 
-### 2. Gerar Programação (`GerarProgramacaoTab`)
-Form (react-hook-form + zod):
-- Datas (shadcn DatePicker com `pointer-events-auto`).
-- Situações: multi-select (default `A,L`).
-- Unidade negócio, Centro de recurso (selects).
-- Switches: permitir quebra, limpar anterior.
-- Botão "Gerar Programação" → `useGerarProgramacaoMutation`.
-- Painel de resultado pós-execução com os 5 contadores + lista expandível de recursos sem capacidade.
-- Toast de sucesso/erro.
+- Popular `bi_ops_fila` (depende de ETL — fica como tarefa do backend FastAPI futuramente; por ora a tabela ficará vazia e a tela mostrará "Sem dados").
+- Algoritmo avançado de sequenciamento (setup/troca de ferramenta).
+- Edição manual da agenda gerada.
+- Realtime / notificações.
 
-### 3. Agenda por Recurso (`AgendaRecursoTab`)
-Filtros (data ini/fim, unidade, tipo, recurso, status, lote). Duas visões em sub-tabs:
-- **Tabela**: 12 colunas, agrupada por `codcre` (usar GroupByBar existente).
-- **Calendário**: grid simples Recurso × Dia (linhas = recursos, colunas = dias do range, cada célula com lista de OPs e barra de ocupação). Sem libs novas — renderização própria em CSS grid.
+### Detalhes técnicos
 
-### 4. Mapa de Gargalos (`MapaGargalosTab`)
-- Cabeçalho com 4 KPIs (gargalos, atenção, ok, sem parâmetro).
-- **Heatmap** Recurso × Dia colorindo por ocupação:
-  - `>100%` → `bg-destructive/80 text-destructive-foreground` (GARGALO)
-  - `80–100%` → `bg-warning/70` (ATENCAO) — uso tokens semânticos
-  - `<80%` → `bg-emerald-500/40` (OK)
-  - `SEM_PARAMETRO` → `bg-muted` com hachura/diagonal
-  - Hover mostra: data, dia semana, carga programada, capacidade, ocupação%, status.
-- Tabela detalhada abaixo (todas as colunas pedidas), com filtro "só gargalo/atenção".
+- A função `get_programacao_gargalos(p_data_ini date, p_data_fim date, p_codemp int, p_codcre text)` retorna `TABLE(data, dia_semana, unidade_negocio, codcre, descre, carga_programada_horas, capacidade_disponivel_horas, ocupacao_perc, status)`.
+  - `status` classificado por ocupação: `<0.7 OK`, `0.7–1.0 ATENCAO`, `>1.0 GARGALO`, sem capacidade cadastrada `SEM_PARAMETRO`.
+- Index em `programacao_agenda(data_programada, codcre)` e `bi_ops_fila(codcre, situacao)` para performance.
+- Edge function usa `SUPABASE_SERVICE_ROLE_KEY` para escrever agenda; valida JWT do usuário via `getClaims()` antes.
 
-### 5. Capacidade dos Recursos (`CapacidadesTab`)
-Tabela editável inline:
-- Carregar via `useCapacidades`.
-- Editar célula a célula (`Input` numérico, `Switch` para flags, `Input time` para hora_inicio).
-- Botão "Salvar alterações" em batch → `POST /capacidades` com array.
-- Botão "+ Adicionar recurso" abre `Dialog` para incluir uma nova linha.
-- Diff highlight nas linhas modificadas; reset opcional.
+### Passos de implementação
 
-## KPIs do módulo (`ProgramacaoKpis`)
-7 cards no topo do `ProgramacaoPage`, derivados das queries:
-1. OPs na fila (`fila.length`)
-2. Tempo total previsto (soma `tempo_previsto_horas`)
-3. Tempo programado (soma `tempo_alocado_min/60`)
-4. Capacidade disponível (soma `capacidade_disponivel_horas` no range)
-5. Ocupação média % (média ponderada)
-6. Quantidade de gargalos (`status === 'GARGALO'`)
-7. Recursos sem capacidade (`status === 'SEM_PARAMETRO'`)
-
-## Integração
-
-- **`App.tsx`**: rota `/producao/programacao` com `<ProtectedRoute path="/producao/programacao">`.
-- **`AppSidebar.tsx`**: novo item em Produção → "Programação e Sequenciamento" (icon `CalendarClock`).
-- **`screenCatalog.ts`**: `'/producao/programacao': { codigo: 'PROD_PROGRAMACAO', nome: 'Programação e Sequenciamento' }`.
-
-## Não escopo
-
-- Edição/drag-and-drop de blocos na agenda (só visualização nesta primeira versão).
-- Otimizador local — todo cálculo é do backend.
-- Exportação CSV/PDF — pode entrar depois.
-- Realtime (refetch manual / invalidate após `gerar`).
-
-## Arquivos a criar/editar
-
-**Novos**
-- `src/lib/producao/programacaoApi.ts`
-- `src/hooks/useProgramacao.ts`
-- `src/pages/producao/ProgramacaoPage.tsx`
-- `src/components/producao/programacao/ProgramacaoKpis.tsx`
-- `src/components/producao/programacao/ProgramacaoFiltersBar.tsx`
-- `src/components/producao/programacao/FilaOpsTab.tsx`
-- `src/components/producao/programacao/GerarProgramacaoTab.tsx`
-- `src/components/producao/programacao/AgendaRecursoTab.tsx`
-- `src/components/producao/programacao/MapaGargalosTab.tsx`
-- `src/components/producao/programacao/CapacidadesTab.tsx`
-
-**Editados**
-- `src/App.tsx` — rota.
-- `src/components/AppSidebar.tsx` — item de menu.
-- `src/lib/screenCatalog.ts` — registro.
+1. Migration: criar 3 tabelas + RLS + função `get_programacao_gargalos`.
+2. Criar edge function `programacao-gerar`.
+3. Reescrever `src/lib/producao/programacaoApi.ts` para usar Cloud.
+4. Smoke test: capacidades CRUD, gerar com fila vazia (deve retornar 0 linhas sem erro), consultar agenda/gargalos.
+5. Atualizar memória do projeto.
