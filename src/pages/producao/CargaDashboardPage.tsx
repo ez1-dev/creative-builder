@@ -42,7 +42,15 @@ export default function CargaDashboardPage() {
 
   const recursos = useMemo(() => aggByRecurso(rows), [rows]);
   const porUnidade = useMemo(() => aggByKey(rows, 'unidade_negocio'), [rows]);
-  const porTipo = useMemo(() => aggByKey(rows, 'tipo_recurso'), [rows]);
+  const porCcu = useMemo(() => {
+    const all = aggByKey(rows, 'codccu');
+    const top = all.slice(0, 8);
+    const resto = all.slice(8);
+    const outros = resto.reduce((acc, r) => acc + r.carga_min, 0);
+    const data = top.map((c) => ({ name: String(c.name), value: c.carga_min }));
+    if (outros > 0) data.push({ name: 'Outros', value: outros });
+    return data;
+  }, [rows]);
 
   const totalCargaMin = resumo?.carga_prevista_min ?? 0;
   const totalCargaH = resumo?.carga_prevista_horas ?? 0;
