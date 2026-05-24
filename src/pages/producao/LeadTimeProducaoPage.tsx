@@ -64,6 +64,7 @@ export default function LeadTimeProducaoPage() {
 
   const [resumo, setResumo] = useState<ResumoGerencial | null>(null);
   const [resumoIndisponivel, setResumoIndisponivel] = useState(false);
+  const drill = useKpiDrill<any>(columns);
 
   const search = useCallback(async (page = 1) => {
     if (!erpReady) { toast.error('Conexão ERP não disponível.'); return; }
