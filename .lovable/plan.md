@@ -1,52 +1,51 @@
-## Ajustes em Carga de Produção
+## Problema
 
-Alinhar o frontend ao novo contrato da API: cálculo da carga não depende mais do Supabase, mapeamento pode vir de três origens, e a aba "Parâmetros de Recursos" passa a ser apenas leitura até definirmos onde a parametrização definitiva ficará.
+A grid da aba **Centros de Recurso** mostra "Nenhum registro" mesmo com a API respondendo 200 OK com 30 linhas.
 
-### 1. Tipos e contrato da API (`src/lib/producao/cargaApi.ts`)
+Verifiquei a resposta real de `GET /api/producao/carga/centros`:
 
-- Ampliar `OrigemMapeamento`:
-  ```ts
-  export type OrigemMapeamento = 'PADRAO_API' | 'REGRA_API' | 'SUPABASE';
-  ```
-- Renomear o KPI no resumo para refletir que o mapeamento não é mais "do Supabase":
-  - manter o campo retornado pela API como está, mas tratar `linhas_sem_mapeamento_supabase` apenas como fallback. Se a API passar a expor `linhas_sem_mapeamento`, usar este; senão cair no antigo.
-- Manter `ParametroRecurso` / `ParametroRecursoPayload` apenas como tipos de leitura (Payload deixa de ser usado para escrita, mas pode permanecer exportado para um uso futuro).
+```json
+{
+  "filtros": {...},
+  "resumo": { "qtd_ops": 2670, "qtd_recursos": 29, ..., "linhas_sem_mapeamento_supabase": 5527 },
+  "total_registros": 30,
+  "dados": [
+    { "unidade_negocio": "ESTRUTURAL", "tipo_recurso": "PRODUCAO", "codccu": "10715",
+      "codcre": "3020", "descre": "E-GUILHOTINA - TEKLA",
+      "codopr": "3020", "desopr": "CORTAR QUILHOTINA PROC. TEKLA",
+      "qtd_ops": 33, "qtd_prevista": 172, "carga_prevista_min": 172, "carga_prevista_horas": 2.87 },
+    ...
+  ]
+}
+```
 
-### 2. Visão Geral (`VisaoGeralTab.tsx`)
+O frontend espera:
+- `data.centros` → API agora envia `data.dados`
+- `row.descricao_operacao` → API agora envia `row.desopr`
 
-- Remover a detecção "Supabase não configurado" — não faz mais sentido, a API agora responde mesmo sem credenciais.
-- Tratar erro de forma genérica (mensagem retornada + botão de recarregar implícito via React Query).
-- Renomear o rótulo do KPI de "Sem mapeamento" para deixar explícito (continua "Sem mapeamento", apenas sem citar Supabase).
-- Adicionar uma legenda discreta abaixo dos KPIs explicando as origens possíveis: `PADRAO_API`, `REGRA_API`, `SUPABASE`.
+Resultado: `data?.centros ?? []` vira `[]` e a tabela fica vazia. Os demais campos (`codcre`, `descre`, `codccu`, `qtd_ops`, `qtd_prevista`, `carga_prevista_min`, `carga_prevista_horas`, `unidade_negocio`, `tipo_recurso`) já batem.
 
-### 3. Detalhe de OPs (`DetalheOpsTab.tsx`)
+## Plano
 
-- Garantir que a coluna/badge de `origem_mapeamento` aceite e estilize os três valores:
-  - `PADRAO_API` — neutro (secondary)
-  - `REGRA_API` — primário
-  - `SUPABASE` — accent
-- Atualizar `badges.tsx` se houver `OrigemMapeamentoBadge`.
+Apenas alinhar tipos e renderização ao novo contrato, sem mudar lógica de negócio.
 
-### 4. Parâmetros de Recursos — modo leitura
+### 1. `src/lib/producao/cargaApi.ts`
 
-Objetivo: deixar claro que é uma consulta temporária; nenhum POST/PUT/DELETE.
+- Em `CargaCentrosResponse`: renomear `centros: CargaCentroRow[]` para `dados: CargaCentroRow[]`. Adicionar `total_registros?: number` e `filtros?: any` (opcionais, refletem a resposta).
+- Em `CargaCentroRow`: trocar `descricao_operacao: string` por `desopr: string`.
+- (Opcional, fora de escopo se incomodar) — manter `CargaResumo.qtd_prevista?: number` que também vem no resumo.
 
-- `ParametrosRecursosTab.tsx`:
-  - Remover botão "Novo", ações de editar e excluir, `handleDelete`, estados `dialogOpen`, `editing`, `deletingId`, import do dialog e do `parametrosRecursosCloud` (escrita).
-  - Remover a coluna de ações.
-  - Substituir o cabeçalho à direita por um aviso fixo: "Consulta — a parametrização definitiva ainda será definida. Edição desabilitada."
-  - Continuar listando via `useParametrosRecursos` (que lê do Lovable Cloud).
-- `ParametroRecursoDialog.tsx`: excluir o arquivo (não é mais usado).
-- `parametrosRecursosCloud.ts`: manter apenas `listar()`; remover `criar`, `atualizar`, `excluir`.
-- `useCargaProducao.ts`: nenhuma mudança (hook continua chamando `listar()`).
+### 2. `src/components/producao/carga/CentrosRecursoTab.tsx`
 
-### 5. Limpezas
+- `const list = data?.centros ?? []` → `data?.dados ?? []`.
+- No filtro de busca trocar `r.descricao_operacao` por `r.desopr`.
+- Na célula da tabela trocar `{r.descricao_operacao}` por `{r.desopr}`.
 
-- Remover `useUserPermissions` e import de `toast` do tab de parâmetros (não há mais ações).
-- Remover ícones não usados (`Plus`, `Pencil`, `Trash2`, `ShieldAlert`).
+### 3. `src/components/producao/carga/VisaoGeralTab.tsx` (se referenciar `centros`)
 
-### Fora de escopo
+- Vou verificar e, se usar `data.centros.length` para mostrar contagem, trocar por `data.dados?.length` ou `data.total_registros`.
 
-- Nenhuma alteração no FastAPI.
-- Nenhuma mudança em RLS ou em tabelas do Cloud (a tabela `producao_recurso_unidade` permanece, só não é mais escrita pelo frontend).
-- Decisão de onde a parametrização "definitiva" vai morar (ERP, FastAPI próprio, Cloud) fica para uma próxima conversa.
+## Fora de escopo
+
+- Nenhuma alteração em `DetalheOpsTab`, `ParametrosRecursosTab`, hooks, ou Lovable Cloud.
+- Não tocar no FastAPI nem renomear campos do lado do backend.

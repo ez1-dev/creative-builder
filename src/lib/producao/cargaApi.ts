@@ -35,7 +35,7 @@ export interface CargaCentroRow {
   codcre: string;
   descre: string;
   codopr: string;
-  descricao_operacao: string;
+  desopr: string;
   qtd_ops: number;
   qtd_prevista: number;
   carga_prevista_min: number;
@@ -44,8 +44,11 @@ export interface CargaCentroRow {
 
 export interface CargaCentrosResponse {
   resumo: CargaResumo;
-  centros: CargaCentroRow[];
+  dados: CargaCentroRow[];
+  total_registros?: number;
+  filtros?: Record<string, any>;
 }
+
 
 export interface CargaDetalheRow {
   unidade_negocio: string;
