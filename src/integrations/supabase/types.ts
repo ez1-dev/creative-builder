@@ -1215,6 +1215,114 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_entrega_programada: {
+        Row: {
+          ativo: boolean
+          cliente: string | null
+          codemp: number
+          codori: string | null
+          codpro: string | null
+          created_at: string
+          created_by: string | null
+          data_entrega: string
+          descricao: string | null
+          id: string
+          numorp: string | null
+          numprj: string | null
+          obra: string | null
+          observacao: string | null
+          prioridade: number
+          tipo_entrega: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cliente?: string | null
+          codemp: number
+          codori?: string | null
+          codpro?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_entrega: string
+          descricao?: string | null
+          id?: string
+          numorp?: string | null
+          numprj?: string | null
+          obra?: string | null
+          observacao?: string | null
+          prioridade?: number
+          tipo_entrega?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cliente?: string | null
+          codemp?: number
+          codori?: string | null
+          codpro?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_entrega?: string
+          descricao?: string | null
+          id?: string
+          numorp?: string | null
+          numprj?: string | null
+          obra?: string | null
+          observacao?: string | null
+          prioridade?: number
+          tipo_entrega?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      producao_leadtime_etapa: {
+        Row: {
+          ativo: boolean
+          codcre: string | null
+          codemp: number
+          codopr: string | null
+          considerar_no_calculo: boolean
+          created_at: string
+          folga_seguranca_dias: number
+          id: string
+          leadtime_fixo_dias: number
+          obs: string | null
+          tipo_recurso: string | null
+          unidade_negocio: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codcre?: string | null
+          codemp: number
+          codopr?: string | null
+          considerar_no_calculo?: boolean
+          created_at?: string
+          folga_seguranca_dias?: number
+          id?: string
+          leadtime_fixo_dias?: number
+          obs?: string | null
+          tipo_recurso?: string | null
+          unidade_negocio?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codcre?: string | null
+          codemp?: number
+          codopr?: string | null
+          considerar_no_calculo?: boolean
+          created_at?: string
+          folga_seguranca_dias?: number
+          id?: string
+          leadtime_fixo_dias?: number
+          obs?: string | null
+          tipo_recurso?: string | null
+          unidade_negocio?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       producao_recurso_unidade: {
         Row: {
           ativo: boolean
