@@ -69,6 +69,12 @@ export default function CargaDashboardPage() {
   const drill = useDrillSheet<DrillCtx>();
 
   const { data, isLoading, isError, error, dataUpdatedAt } = useCargaCentros(filtros);
+  const {
+    data: dataRecursos,
+    isLoading: loadingRecursos,
+    error: errorRecursos,
+  } = useCargaRecursos(filtros);
+
 
   // Comparativo mês anterior (mesmas regras de filtro, datas deslocadas −1 mês)
   const filtrosPrev = useMemo<CargaFiltros>(
