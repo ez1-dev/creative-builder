@@ -375,13 +375,33 @@ export default function CargaDashboardPage() {
       {/* Heatmap mock */}
       <HeatmapMock recursos={recursos} />
 
-      {/* Tabela */}
-      <CentrosDemandadosTable rows={recursos} onSelect={openRecurso} />
+      {/* Tabelas em abas: visão principal por Recurso, secundária Centros+Operações */}
+      <Tabs defaultValue="recursos" className="w-full">
+        <TabsList>
+          <TabsTrigger value="recursos">Por Centro de Recurso</TabsTrigger>
+          <TabsTrigger value="centros-operacoes">Centros + Operações</TabsTrigger>
+        </TabsList>
+        <TabsContent value="recursos" className="mt-3">
+          <PorRecursoTable
+            rows={dataRecursos?.dados ?? []}
+            loading={loadingRecursos}
+            error={errorRecursos as Error | null}
+            onSelect={openRecursoApi}
+          />
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-2">
+            <Layers className="h-3 w-3" />
+            Fonte: GET /api/producao/carga/recursos · {fmtNum(dataRecursos?.dados.length ?? 0)} recursos
+          </div>
+        </TabsContent>
+        <TabsContent value="centros-operacoes" className="mt-3">
+          <CentrosDemandadosTable rows={recursos} onSelect={openRecurso} />
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-2">
+            <Layers className="h-3 w-3" />
+            Fonte: GET /api/producao/carga/centros · {fmtNum(rows.length)} linhas · {fmtNum(recursos.length)} recursos agregados
+          </div>
+        </TabsContent>
+      </Tabs>
 
-      <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-2">
-        <Layers className="h-3 w-3" />
-        Fonte: GET /api/producao/carga/centros · {fmtNum(rows.length)} linhas retornadas · {fmtNum(recursos.length)} recursos agregados
-      </div>
 
       <DrillSheet {...drill.sheetProps}>
         {drill.state.ctx && <DetalheOpsTab filtros={drill.state.ctx.filtros} />}
