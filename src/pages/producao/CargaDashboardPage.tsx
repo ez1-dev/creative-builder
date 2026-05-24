@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory, Info } from 'lucide-react';
+import {
+  Activity, Boxes, ClipboardList, Clock, Timer, AlertTriangle, Layers, Factory, Info,
+  Gauge, AlertOctagon, HardHat, Building2,
+} from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
 import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { KpiCard } from '@/components/producao/carga-dashboard/KpiCard';
+import { KpiCard, type KpiDelta } from '@/components/producao/carga-dashboard/KpiCard';
 import { aggByKey, aggByRecurso, fmtDec, fmtNum, type RecursoAgg } from '@/components/producao/carga-dashboard/aggregations';
+import { countCriticos } from '@/components/producao/carga-dashboard/statusOcupacao';
 import { TopRecursosChart } from '@/components/producao/carga-dashboard/TopRecursosChart';
 import { CargaQtdOpsChart } from '@/components/producao/carga-dashboard/CargaQtdOpsChart';
 import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
@@ -27,6 +31,23 @@ const ultimoDiaMes = () => {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
 };
 
+/** Subtrai N meses preservando o dia (com clamp para fim de mês). */
+const shiftMonth = (iso: string, delta: number): string => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const target = new Date(d.getFullYear(), d.getMonth() + delta, d.getDate());
+  // se o dia "estourou" (ex.: 31 → mês com 30), volta para último dia do mês alvo
+  if (target.getMonth() !== ((d.getMonth() + delta) % 12 + 12) % 12) {
+    target.setDate(0);
+  }
+  return target.toISOString().slice(0, 10);
+};
+
+const pctDelta = (atual: number, anterior: number): number => {
+  if (!anterior) return 0;
+  return ((atual - anterior) / anterior) * 100;
+};
+
 interface DrillCtx {
   filtros: CargaFiltros;
 }
@@ -44,10 +65,24 @@ export default function CargaDashboardPage() {
   const drill = useDrillSheet<DrillCtx>();
 
   const { data, isLoading, isError, error, dataUpdatedAt } = useCargaCentros(filtros);
+
+  // Comparativo mês anterior (mesmas regras de filtro, datas deslocadas −1 mês)
+  const filtrosPrev = useMemo<CargaFiltros>(
+    () => ({
+      ...filtros,
+      data_ini: filtros.data_ini ? shiftMonth(filtros.data_ini, -1) : undefined,
+      data_fim: filtros.data_fim ? shiftMonth(filtros.data_fim, -1) : undefined,
+    }),
+    [filtros],
+  );
+  const { data: dataPrev } = useCargaCentros(filtrosPrev, !!filtros.data_ini && !!filtros.data_fim);
+
   const rows = data?.dados ?? [];
   const resumo = data?.resumo;
+  const resumoPrev = dataPrev?.resumo;
 
   const recursos = useMemo(() => aggByRecurso(rows), [rows]);
+  const recursosPrev = useMemo(() => aggByRecurso(dataPrev?.dados ?? []), [dataPrev]);
   const porUnidade = useMemo(() => aggByKey(rows, 'unidade_negocio'), [rows]);
   const porCcuList = useMemo(() => aggByKey(rows, 'codccu'), [rows]);
   const porCcuChart = useMemo(() => {
@@ -62,7 +97,29 @@ export default function CargaDashboardPage() {
   const totalCargaMin = resumo?.carga_prevista_min ?? 0;
   const totalCargaH = resumo?.carga_prevista_horas ?? 0;
   const semMapeamento = resumo?.linhas_sem_mapeamento ?? resumo?.linhas_sem_mapeamento_supabase ?? 0;
+  const criticos = useMemo(() => countCriticos(recursos), [recursos]);
+  const criticosPrev = useMemo(() => countCriticos(recursosPrev), [recursosPrev]);
   const updatedAt = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
+
+  // Deltas calculados a partir do mês anterior
+  const deltaOps: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(resumo?.qtd_ops ?? 0, resumoPrev.qtd_ops ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaCargaMin: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(totalCargaMin, resumoPrev.carga_prevista_min ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaCargaH: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(totalCargaH, resumoPrev.carga_prevista_horas ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaLinhas: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(resumo?.qtd_linhas_operacao ?? 0, resumoPrev.qtd_linhas_operacao ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaRecursos: KpiDelta | undefined = resumoPrev
+    ? { value: pctDelta(resumo?.qtd_recursos ?? 0, resumoPrev.qtd_recursos ?? 0), unit: 'pct' }
+    : undefined;
+  const deltaCriticos: KpiDelta | undefined = resumoPrev
+    ? { value: criticos - criticosPrev, unit: 'abs', invertColor: true }
+    : undefined;
 
   const handleRefresh = () => qc.invalidateQueries({ queryKey: ['carga-producao'] });
   const handleExport = () => window.open(cargaApi.urlExportarCentros(filtros), '_blank');
