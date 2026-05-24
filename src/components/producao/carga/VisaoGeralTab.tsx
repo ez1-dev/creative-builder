@@ -2,7 +2,8 @@ import { useCargaCentros } from '@/hooks/useCargaProducao';
 import { CargaFiltros } from '@/lib/producao/cargaApi';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertTriangle, Activity, Boxes, ListChecks, Clock, Timer, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Activity, Boxes, ListChecks, Clock, Timer, AlertCircle, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
