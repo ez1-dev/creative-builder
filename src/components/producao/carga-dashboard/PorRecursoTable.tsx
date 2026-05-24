@@ -268,7 +268,7 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
                 />
               )}
               <TableRow className="bg-muted/40">
-                <TableCell colSpan={5} className="text-xs font-semibold">
+                <TableCell colSpan={4} className="text-xs font-semibold">
                   Total geral
                 </TableCell>
                 <TableCell className="text-right text-xs font-semibold">{fmtNum(total.qtd_ops)}</TableCell>
