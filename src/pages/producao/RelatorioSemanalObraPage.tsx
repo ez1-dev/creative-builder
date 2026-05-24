@@ -81,6 +81,7 @@ export default function RelatorioSemanalObraPage() {
   const chartsRef = useRef<HTMLDivElement>(null);
   const erpReady = useErpReady();
   const { user } = useAuth();
+  const drill = useKpiDrill<RelatorioRow>(columns);
 
   // Helper: busca demais páginas apenas para alimentar os gráficos
   const fetchAllPagesForCharts = useCallback(async (
