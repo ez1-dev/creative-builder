@@ -12,6 +12,8 @@ import type { CargaRecursoRow } from '@/lib/producao/cargaApi';
 import { GroupByBar } from './GroupByBar';
 import { GroupedRows } from './GroupedRows';
 import { collectAllGroupKeys, useTableGrouping, type GroupField } from './useTableGrouping';
+import { CodeWithDesc } from './CodeWithDesc';
+
 
 type SortKey =
   | 'qtd_ops'
@@ -140,8 +142,8 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
         <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
         <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
         <TableCell className="text-xs">{r.codccu}</TableCell>
-        <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-        <TableCell className="text-xs">{r.descre}</TableCell>
+        <TableCell><CodeWithDesc code={r.codcre} desc={r.descre} /></TableCell>
+
         <TableCell className="text-right text-xs">{fmtNum(r.qtd_ops)}</TableCell>
         <TableCell className="text-right text-xs">{fmtNum(r.qtd_operacoes)}</TableCell>
         <TableCell className="text-right text-xs">{fmtDec(r.qtd_prevista)}</TableCell>
@@ -206,7 +208,7 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
                 <TableHead>Tipo</TableHead>
                 <TableHead>CCusto</TableHead>
                 <TableHead>Recurso</TableHead>
-                <TableHead>Descrição</TableHead>
+
                 <TableHead className="text-right">
                   <SortHeader active={sort.key === 'qtd_ops'} dir={sort.dir} onClick={() => toggle('qtd_ops')}>
                     Qtd OPs
@@ -251,7 +253,7 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
                   nodes={tree}
                   expanded={expanded}
                   onToggle={toggleGroup}
-                  labelColspan={5}
+                  labelColspan={4}
                   renderTotals={(t) => (
                     <>
                       <TableCell className="text-right text-xs font-semibold">{fmtNum(t.qtd_ops)}</TableCell>
@@ -266,7 +268,7 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
                 />
               )}
               <TableRow className="bg-muted/40">
-                <TableCell colSpan={5} className="text-xs font-semibold">
+                <TableCell colSpan={4} className="text-xs font-semibold">
                   Total geral
                 </TableCell>
                 <TableCell className="text-right text-xs font-semibold">{fmtNum(total.qtd_ops)}</TableCell>

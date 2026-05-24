@@ -11,6 +11,8 @@ import { UnidadeNegocioBadge, OrigemMapeamentoBadge, TipoRecursoBadge } from './
 import { GroupByBar } from '@/components/producao/carga-dashboard/GroupByBar';
 import { GroupedRows } from '@/components/producao/carga-dashboard/GroupedRows';
 import { collectAllGroupKeys, useTableGrouping, type GroupField } from '@/components/producao/carga-dashboard/useTableGrouping';
+import { CodeWithDesc } from '@/components/producao/carga-dashboard/CodeWithDesc';
+
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 const fmtData = (d: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR') : '—');
@@ -50,18 +52,15 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
       <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
       <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
       <TableCell className="text-xs">{r.codccu}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-      <TableCell className="text-xs">{r.descre}</TableCell>
+      <TableCell><CodeWithDesc code={r.codcre} desc={r.descre} /></TableCell>
       <TableCell className="text-xs">{r.codori}</TableCell>
       <TableCell className="text-xs font-mono">{r.numorp ?? r.numop}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codpro}</TableCell>
-      <TableCell className="text-xs">{r.descricao_produto}</TableCell>
+      <TableCell><CodeWithDesc code={r.codpro} desc={r.descricao_produto} /></TableCell>
       <TableCell><Badge variant="outline" className="text-xs">{r.sitorp ?? r.sitop}</Badge></TableCell>
       <TableCell className="text-xs">{fmtData(r.data_geracao_op)}</TableCell>
       <TableCell className="text-xs">{r.estagio}</TableCell>
       <TableCell className="text-xs text-right">{r.sequencia_roteiro}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
-      <TableCell className="text-xs">{r.descricao_operacao}</TableCell>
+      <TableCell><CodeWithDesc code={r.codopr} desc={r.descricao_operacao} /></TableCell>
       <TableCell className="text-right text-xs">{fmt(r.quantidade_prevista)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.tempo_unitario_min)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.tempo_fixo_min)}</TableCell>
@@ -71,6 +70,7 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
       <TableCell><OrigemMapeamentoBadge value={r.origem_mapeamento} /></TableCell>
     </TableRow>
   );
+
 
   return (
     <Card className="overflow-hidden">
@@ -112,17 +112,15 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
               <TableHead>Tipo</TableHead>
               <TableHead>CCusto</TableHead>
               <TableHead>Recurso</TableHead>
-              <TableHead>Descrição</TableHead>
               <TableHead>Origem</TableHead>
               <TableHead>OP</TableHead>
               <TableHead>Produto</TableHead>
-              <TableHead>Descrição produto</TableHead>
               <TableHead>Sit.</TableHead>
               <TableHead>Geração</TableHead>
               <TableHead>Estágio</TableHead>
               <TableHead>Seq.</TableHead>
               <TableHead>Operação</TableHead>
-              <TableHead>Descrição operação</TableHead>
+
               <TableHead className="text-right">Qtd</TableHead>
               <TableHead className="text-right">T.Unit (min)</TableHead>
               <TableHead className="text-right">T.Fixo (min)</TableHead>
@@ -134,10 +132,10 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
           </TableHeader>
           <TableBody>
             {isLoading && Array.from({ length: 8 }).map((_, i) => (
-              <TableRow key={i}><TableCell colSpan={22}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
+              <TableRow key={i}><TableCell colSpan={19}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
             ))}
             {!isLoading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={22} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
+              <TableRow><TableCell colSpan={19} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
             )}
             {!isLoading && rows.length > 0 && (
               groupFields.length === 0
@@ -147,7 +145,8 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
                     nodes={tree}
                     expanded={expanded}
                     onToggle={toggleGroup}
-                    labelColspan={15}
+                    labelColspan={12}
+
                     renderTotals={(t) => (
                       <>
                         <TableCell className="text-right text-xs font-semibold">{fmt(t.quantidade_prevista)}</TableCell>

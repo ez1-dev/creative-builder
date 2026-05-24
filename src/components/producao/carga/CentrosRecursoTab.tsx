@@ -11,6 +11,8 @@ import { UnidadeNegocioBadge, TipoRecursoBadge } from './badges';
 import { GroupByBar } from '@/components/producao/carga-dashboard/GroupByBar';
 import { GroupedRows } from '@/components/producao/carga-dashboard/GroupedRows';
 import { collectAllGroupKeys, useTableGrouping, type GroupField } from '@/components/producao/carga-dashboard/useTableGrouping';
+import { CodeWithDesc } from '@/components/producao/carga-dashboard/CodeWithDesc';
+
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
@@ -80,10 +82,8 @@ export function CentrosRecursoTab({
       <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
       <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
       <TableCell className="text-xs">{r.codccu}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-      <TableCell className="text-xs">{r.descre}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
-      <TableCell className="text-xs">{r.desopr}</TableCell>
+      <TableCell><CodeWithDesc code={r.codcre} desc={r.descre} /></TableCell>
+      <TableCell><CodeWithDesc code={r.codopr} desc={r.desopr} /></TableCell>
       <TableCell className="text-right text-xs">{fmt(r.qtd_ops)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.qtd_prevista)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.carga_prevista_min)}</TableCell>
@@ -91,6 +91,7 @@ export function CentrosRecursoTab({
       <TableCell><Button size="sm" variant="ghost" className="h-7 text-xs">Detalhe</Button></TableCell>
     </TableRow>
   );
+
 
   return (
     <Card className="overflow-hidden">
@@ -126,9 +127,8 @@ export function CentrosRecursoTab({
               <TableHead>Tipo</TableHead>
               <TableHead>CCusto</TableHead>
               <Th k="codcre">Centro recurso</Th>
-              <TableHead>Descrição recurso</TableHead>
               <Th k="codopr">Operação</Th>
-              <TableHead>Descrição operação</TableHead>
+
               <TableHead className="text-right">Qtd OPs</TableHead>
               <TableHead className="text-right">Qtd prevista</TableHead>
               <TableHead className="text-right">Min</TableHead>
@@ -138,10 +138,10 @@ export function CentrosRecursoTab({
           </TableHeader>
           <TableBody>
             {isLoading && Array.from({ length: 6 }).map((_, i) => (
-              <TableRow key={i}><TableCell colSpan={12}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
+              <TableRow key={i}><TableCell colSpan={10}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
             ))}
             {!isLoading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
             )}
             {!isLoading && rows.length > 0 && (
               groupFields.length === 0
@@ -151,7 +151,8 @@ export function CentrosRecursoTab({
                     nodes={tree}
                     expanded={expanded}
                     onToggle={toggleGroup}
-                    labelColspan={7}
+                    labelColspan={5}
+
                     renderTotals={(t) => (
                       <>
                         <TableCell className="text-right text-xs font-semibold">{fmt(t.qtd_ops)}</TableCell>

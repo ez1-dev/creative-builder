@@ -13,12 +13,19 @@ export interface GroupNode<T> {
   key: string;
   field: GroupField;
   value: string;
+  label: string; // valor exibido: "<código> — <descrição>" quando aplicável
   level: number;
   count: number;
   totals: Record<string, number>;
   children: GroupNode<T>[];
   rows: T[]; // só preenchido no último nível
 }
+
+const DESCRIPTION_KEY: Partial<Record<GroupField, string>> = {
+  codcre: 'descre',
+  // codccu não tem descrição no backend; unidade_negocio/tipo_recurso já são rótulos.
+};
+
 
 function emptyTotals(keys: string[]): Record<string, number> {
   const o: Record<string, number> = {};
@@ -50,16 +57,24 @@ function buildTree<T extends Record<string, any>>(
       for (const k of numericKeys) totals[k] += Number(r[k] ?? 0);
     }
     const isLeaf = level === fields.length - 1;
+    const descKey = DESCRIPTION_KEY[field];
+    let label = value;
+    if (descKey) {
+      const desc = String(bucketRows[0]?.[descKey] ?? '').trim();
+      if (desc && desc !== value) label = `${value} — ${desc}`;
+    }
     out.push({
       key,
       field,
       value,
+      label,
       level,
       count: bucketRows.length,
       totals,
       children: isLeaf ? [] : buildTree(bucketRows, fields, numericKeys, level + 1, key),
       rows: isLeaf ? bucketRows : [],
     });
+
   }
   // ordenar por carga_prevista_horas desc se existir, senão pelo primeiro numeric
   const sortKey = numericKeys.find((k) => k.includes('horas')) ?? numericKeys[0];
