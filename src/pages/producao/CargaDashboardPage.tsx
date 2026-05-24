@@ -15,7 +15,7 @@ import { DonutCard } from '@/components/producao/carga-dashboard/DonutCard';
 import { CentrosDemandadosTable } from '@/components/producao/carga-dashboard/CentrosDemandadosTable';
 import { InsightsPanel } from '@/components/producao/carga-dashboard/InsightsPanel';
 import { HeatmapMock } from '@/components/producao/carga-dashboard/HeatmapMock';
-import { FilaSituacaoMock } from '@/components/producao/carga-dashboard/FilaSituacaoMock';
+import { FilaSituacaoCard } from '@/components/producao/carga-dashboard/FilaSituacaoCard';
 
 const primeiroDiaMes = () => {
   const d = new Date();
@@ -157,7 +157,7 @@ export default function CargaDashboardPage() {
           totalLabel="Total"
           totalValue={`${fmtNum(totalCargaMin)} min / 100%`}
         />
-        <FilaSituacaoMock />
+        <FilaSituacaoCard filtros={filtros} />
       </div>
 
       {/* Heatmap mock */}
