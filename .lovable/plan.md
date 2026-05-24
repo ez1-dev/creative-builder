@@ -1,51 +1,43 @@
-## Problema
-
-A grid da aba **Centros de Recurso** mostra "Nenhum registro" mesmo com a API respondendo 200 OK com 30 linhas.
-
-Verifiquei a resposta real de `GET /api/producao/carga/centros`:
-
-```json
-{
-  "filtros": {...},
-  "resumo": { "qtd_ops": 2670, "qtd_recursos": 29, ..., "linhas_sem_mapeamento_supabase": 5527 },
-  "total_registros": 30,
-  "dados": [
-    { "unidade_negocio": "ESTRUTURAL", "tipo_recurso": "PRODUCAO", "codccu": "10715",
-      "codcre": "3020", "descre": "E-GUILHOTINA - TEKLA",
-      "codopr": "3020", "desopr": "CORTAR QUILHOTINA PROC. TEKLA",
-      "qtd_ops": 33, "qtd_prevista": 172, "carga_prevista_min": 172, "carga_prevista_horas": 2.87 },
-    ...
-  ]
-}
-```
-
-O frontend espera:
-- `data.centros` → API agora envia `data.dados`
-- `row.descricao_operacao` → API agora envia `row.desopr`
-
-Resultado: `data?.centros ?? []` vira `[]` e a tabela fica vazia. Os demais campos (`codcre`, `descre`, `codccu`, `qtd_ops`, `qtd_prevista`, `carga_prevista_min`, `carga_prevista_horas`, `unidade_negocio`, `tipo_recurso`) já batem.
-
 ## Plano
 
-Apenas alinhar tipos e renderização ao novo contrato, sem mudar lógica de negócio.
+Trocar a fonte de dados da aba **Parâmetros de Recursos**: em vez de ler a tabela `producao_recurso_unidade` (vazia) no Lovable Cloud, listar os recursos distintos que aparecem na resposta de `/api/producao/carga/centros`, respeitando os filtros atuais da página.
 
-### 1. `src/lib/producao/cargaApi.ts`
+### O que a aba vai mostrar
 
-- Em `CargaCentrosResponse`: renomear `centros: CargaCentroRow[]` para `dados: CargaCentroRow[]`. Adicionar `total_registros?: number` e `filtros?: any` (opcionais, refletem a resposta).
-- Em `CargaCentroRow`: trocar `descricao_operacao: string` por `desopr: string`.
-- (Opcional, fora de escopo se incomodar) — manter `CargaResumo.qtd_prevista?: number` que também vem no resumo.
+Uma linha por recurso (`codcre`), agregando as linhas vindas da API:
 
-### 2. `src/components/producao/carga/CentrosRecursoTab.tsx`
+| Coluna | Origem |
+|---|---|
+| Unidade | `unidade_negocio` |
+| Tipo | `tipo_recurso` |
+| CCusto | `codccu` |
+| Recurso | `codcre` |
+| Descrição | `descre` |
+| Qtd operações | nº de linhas (codopr) distintas no recurso |
+| Qtd OPs | soma de `qtd_ops` |
+| Carga (min) | soma de `carga_prevista_min` |
+| Carga (h) | soma de `carga_prevista_horas` |
 
-- `const list = data?.centros ?? []` → `data?.dados ?? []`.
-- No filtro de busca trocar `r.descricao_operacao` por `r.desopr`.
-- Na célula da tabela trocar `{r.descricao_operacao}` por `{r.desopr}`.
+Busca por código/descrição e ordenação por horas (desc) por padrão, igual ao padrão da aba Centros.
 
-### 3. `src/components/producao/carga/VisaoGeralTab.tsx` (se referenciar `centros`)
+### Arquivos
 
-- Vou verificar e, se usar `data.centros.length` para mostrar contagem, trocar por `data.dados?.length` ou `data.total_registros`.
+1. **`src/pages/producao/CargaProducaoPage.tsx`** — passar `filtros` para `<ParametrosRecursosTab filtros={filtros} />`.
 
-## Fora de escopo
+2. **`src/components/producao/carga/ParametrosRecursosTab.tsx`** — reescrita:
+   - Receber `filtros: CargaFiltros` como prop.
+   - Usar `useCargaCentros(filtros)` (já existente).
+   - Agregar `data.dados` por `codcre` em memo.
+   - Renderizar nova tabela com as colunas acima + banner "Consulta — parametrização definitiva ainda será definida."
 
-- Nenhuma alteração em `DetalheOpsTab`, `ParametrosRecursosTab`, hooks, ou Lovable Cloud.
-- Não tocar no FastAPI nem renomear campos do lado do backend.
+3. **`src/hooks/useCargaProducao.ts`** — remover `useParametrosRecursos` (sem mais consumidores).
+
+4. **`src/lib/producao/parametrosRecursosCloud.ts`** — remover arquivo.
+
+5. **`src/lib/producao/cargaApi.ts`** — remover types `ParametroRecurso` e `ParametroRecursoPayload` (não usados).
+
+### Fora de escopo
+
+- Tabela `producao_recurso_unidade` no Cloud permanece (não vai ser dropada nem populada).
+- Nenhuma mudança no FastAPI, na aba Centros, Detalhe ou Visão Geral.
+- A coluna "Origem do mapeamento" não entra aqui porque `/carga/centros` não envia esse campo por linha — ela já existe na aba Detalhe das OPs.

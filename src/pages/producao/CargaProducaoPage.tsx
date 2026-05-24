@@ -77,8 +77,9 @@ export default function CargaProducaoPage() {
           <DetalheOpsTab filtros={filtros} />
         </TabsContent>
         <TabsContent value="parametros" className="mt-4">
-          <ParametrosRecursosTab />
+          <ParametrosRecursosTab filtros={filtros} />
         </TabsContent>
+
       </Tabs>
     </div>
   );
