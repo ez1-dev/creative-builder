@@ -26,13 +26,14 @@ export function CentrosRecursoTab({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const rows = useMemo(() => {
-    const list = data?.centros ?? [];
+    const list = data?.dados ?? [];
     const term = busca.trim().toLowerCase();
     const filtered = term
       ? list.filter((r) =>
-          [r.codcre, r.descre, r.codopr, r.descricao_operacao].some((v) => String(v ?? '').toLowerCase().includes(term)),
+          [r.codcre, r.descre, r.codopr, r.desopr].some((v) => String(v ?? '').toLowerCase().includes(term)),
         )
       : list;
+
     const sorted = [...filtered].sort((a, b) => {
       const av = a[sortKey] as any;
       const bv = b[sortKey] as any;
