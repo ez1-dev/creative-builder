@@ -158,6 +158,12 @@ export const programacaoApi = {
   ): Promise<{ lidas: number; inseridas: number; removidas: number; duracao_ms: number }> {
     const { data, error } = await supabase.functions.invoke('programacao-sync-fila', { body: p });
     if (error) throw error;
+    if (data && data.ok === false) {
+      const err: any = new Error(data.message || 'Falha ao sincronizar fila');
+      err.code = data.code;
+      err.detalhe = data.detalhe;
+      throw err;
+    }
     return data as { lidas: number; inseridas: number; removidas: number; duracao_ms: number };
   },
 

@@ -10,6 +10,7 @@ import { CapacidadesTab } from '@/components/producao/programacao/CapacidadesTab
 import { EntregasProgramadasTab } from '@/components/producao/programacao/EntregasProgramadasTab';
 import { LeadTimesTab } from '@/components/producao/programacao/LeadTimesTab';
 import { PrioridadeOpTab } from '@/components/producao/programacao/PrioridadeOpTab';
+import { DiagnosticoSyncCard } from '@/components/producao/programacao/DiagnosticoSyncCard';
 import { useAgenda, useFilaOps, useGargalos } from '@/hooks/useProgramacao';
 import type { ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
 import { useQueryClient } from '@tanstack/react-query';
@@ -55,6 +56,7 @@ export default function ProgramacaoPage() {
       </header>
 
       <ProgramacaoFiltersBar filtros={filtros} onChange={setFiltros} onRefresh={onRefresh} loading={loading} showStatus />
+      <DiagnosticoSyncCard />
       <ProgramacaoKpis {...kpis} loading={loading} />
 
       <Tabs defaultValue="fila" className="space-y-4">

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Search, AlertCircle } from 'lucide-react';
+import { Search, AlertCircle, Inbox } from 'lucide-react';
 import { UnidadeNegocioBadge } from '@/components/producao/carga/badges';
 import { CodeWithDesc } from '@/components/producao/carga-dashboard/CodeWithDesc';
 import { GroupByBar } from '@/components/producao/carga-dashboard/GroupByBar';
@@ -112,7 +112,15 @@ export function FilaOpsTab({ filtros }: { filtros: ProgramacaoFiltros }) {
               <TableRow key={i}><TableCell colSpan={11}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
             ))}
             {!isLoading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={11} className="text-center text-sm text-muted-foreground py-8">Nenhuma OP na fila</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={11} className="text-center text-sm text-muted-foreground py-10">
+                  <div className="flex flex-col items-center gap-2">
+                    <Inbox className="h-8 w-8 text-muted-foreground/60" />
+                    <div className="font-medium text-foreground">Fila de OPs vazia.</div>
+                    <div className="text-xs">Clique em <span className="font-medium">Atualizar fila do ERP</span> ou verifique a conexão com a FastAPI.</div>
+                  </div>
+                </TableCell>
+              </TableRow>
             )}
             {!isLoading && rows.length > 0 && (
               groupFields.length === 0

@@ -41,7 +41,13 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
       });
       qc.invalidateQueries({ queryKey: ['programacao'] });
     } catch (e: any) {
-      toast.error('Falha ao sincronizar fila do ERP', { description: e?.message ?? String(e) });
+      const code = e?.code ? `[${e.code}] ` : '';
+      const detalhe = e?.detalhe ? `\n${String(e.detalhe).slice(0, 300)}` : '';
+      toast.error('Falha ao sincronizar fila do ERP', {
+        description: `${code}${e?.message ?? String(e)}${detalhe}`,
+        duration: 10000,
+      });
+      qc.invalidateQueries({ queryKey: ['programacao', 'sync-last-run'] });
     } finally {
       setSyncing(false);
     }
