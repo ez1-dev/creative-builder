@@ -21,6 +21,7 @@ function Kpi({ icon: Icon, label, value, accent }: { icon: any; label: string; v
 export function VisaoGeralTab({ filtros }: { filtros: CargaFiltros }) {
   const { data, isLoading, isError, error } = useCargaCentros(filtros);
   const resumo = data?.resumo;
+  const semMapeamento = resumo?.linhas_sem_mapeamento ?? resumo?.linhas_sem_mapeamento_supabase ?? 0;
 
   if (isLoading) {
     return (
@@ -31,38 +32,37 @@ export function VisaoGeralTab({ filtros }: { filtros: CargaFiltros }) {
   }
 
   if (isError) {
-    const msg = (error as Error)?.message || '';
-    const isBackendUnconfigured = /Supabase n[ãa]o configurado|SUPABASE_SERVICE_ROLE_KEY/i.test(msg);
     return (
-      <Card className={`p-6 flex items-start gap-3 ${isBackendUnconfigured ? 'border-amber-500/40 bg-amber-500/5' : 'text-destructive'}`}>
-        <AlertCircle className={`h-5 w-5 mt-0.5 ${isBackendUnconfigured ? 'text-amber-600' : ''}`} />
+      <Card className="p-6 flex items-start gap-3 text-destructive">
+        <AlertCircle className="h-5 w-5 mt-0.5" />
         <div>
-          <div className="font-semibold">
-            {isBackendUnconfigured ? 'Backend de cálculo ainda não configurado' : 'Erro ao consultar carga'}
-          </div>
-          <div className="text-sm text-muted-foreground mt-1">
-            {isBackendUnconfigured
-              ? 'O servidor de cálculo da carga (FastAPI) precisa ser configurado pelo time de TI para acessar a base de parâmetros. A aba "Parâmetros de Recursos" continua funcionando normalmente.'
-              : msg}
-          </div>
+          <div className="font-semibold">Erro ao consultar carga</div>
+          <div className="text-sm text-muted-foreground mt-1">{(error as Error)?.message}</div>
         </div>
       </Card>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-      <Kpi icon={ListChecks} label="OPs" value={fmt(resumo?.qtd_ops)} />
-      <Kpi icon={Boxes} label="Recursos" value={fmt(resumo?.qtd_recursos)} />
-      <Kpi icon={Activity} label="Linhas / Operações" value={fmt(resumo?.qtd_linhas_operacao)} />
-      <Kpi icon={Timer} label="Carga prevista (min)" value={fmt(resumo?.carga_prevista_min)} />
-      <Kpi icon={Clock} label="Carga prevista (h)" value={fmt(resumo?.carga_prevista_horas)} />
-      <Kpi
-        icon={AlertTriangle}
-        label="Sem mapeamento"
-        value={fmt(resumo?.linhas_sem_mapeamento_supabase)}
-        accent={(resumo?.linhas_sem_mapeamento_supabase ?? 0) > 0 ? 'warn' : undefined}
-      />
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Kpi icon={ListChecks} label="OPs" value={fmt(resumo?.qtd_ops)} />
+        <Kpi icon={Boxes} label="Recursos" value={fmt(resumo?.qtd_recursos)} />
+        <Kpi icon={Activity} label="Linhas / Operações" value={fmt(resumo?.qtd_linhas_operacao)} />
+        <Kpi icon={Timer} label="Carga prevista (min)" value={fmt(resumo?.carga_prevista_min)} />
+        <Kpi icon={Clock} label="Carga prevista (h)" value={fmt(resumo?.carga_prevista_horas)} />
+        <Kpi
+          icon={AlertTriangle}
+          label="Sem mapeamento"
+          value={fmt(semMapeamento)}
+          accent={semMapeamento > 0 ? 'warn' : undefined}
+        />
+      </div>
+      <p className="text-[11px] text-muted-foreground px-1">
+        Origem do mapeamento por linha: <span className="font-medium">PADRAO_API</span> (padrão da API),{' '}
+        <span className="font-medium">REGRA_API</span> (regra de classificação) ou{' '}
+        <span className="font-medium">SUPABASE</span> (parametrização cadastrada).
+      </p>
     </div>
   );
 }

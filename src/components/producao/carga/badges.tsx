@@ -17,11 +17,14 @@ export function UnidadeNegocioBadge({ value }: { value?: string | null }) {
 }
 
 export function OrigemMapeamentoBadge({ value }: { value?: string | null }) {
-  const v = (value || '').toUpperCase();
+  const v = (value || 'PADRAO_API').toUpperCase();
   if (v === 'SUPABASE') {
-    return <Badge variant="secondary" className="text-xs">SUPABASE</Badge>;
+    return <Badge className="text-xs bg-accent text-accent-foreground border-border" variant="outline">SUPABASE</Badge>;
   }
-  return <Badge variant="outline" className="text-xs">REGRA_API</Badge>;
+  if (v === 'REGRA_API') {
+    return <Badge className="text-xs bg-primary/15 text-primary border-primary/30" variant="outline">REGRA_API</Badge>;
+  }
+  return <Badge variant="secondary" className="text-xs">PADRAO_API</Badge>;
 }
 
 export function TipoRecursoBadge({ value }: { value?: string | null }) {

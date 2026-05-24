@@ -2,7 +2,7 @@ import { api } from '../api';
 
 export type UnidadeNegocio = 'GENIUS' | 'ESTRUTURAL' | 'APOIO' | 'NAO_CLASSIFICADO';
 export type TipoRecurso = 'PRODUCAO' | 'TERCEIROS' | 'LOGISTICA' | 'MANUTENCAO';
-export type OrigemMapeamento = 'SUPABASE' | 'REGRA_API';
+export type OrigemMapeamento = 'PADRAO_API' | 'REGRA_API' | 'SUPABASE';
 
 export interface CargaFiltros {
   codemp?: number;
@@ -24,7 +24,8 @@ export interface CargaResumo {
   qtd_linhas_operacao: number;
   carga_prevista_min: number;
   carga_prevista_horas: number;
-  linhas_sem_mapeamento_supabase: number;
+  linhas_sem_mapeamento?: number;
+  linhas_sem_mapeamento_supabase?: number;
 }
 
 export interface CargaCentroRow {
