@@ -30,11 +30,10 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
   const handleSync = async () => {
     setSyncing(true);
     try {
+      // Sincronização padrão = snapshot completo A,L (sem datas e sem filtros visuais).
       const r = await programacaoApi.syncFila({
-        codemp: filtros.codemp,
-        situacoes: filtros.situacoes ?? 'A,L',
-        unidade_negocio: filtros.unidade_negocio,
-        codcre: filtros.codcre,
+        codemp: filtros.codemp ?? 1,
+        situacoes: 'A,L',
       });
       toast.success('Fila atualizada do ERP', {
         description: `Lidas ${r.lidas} · Salvas ${r.inseridas} · Removidas ${r.removidas} (${r.duracao_ms}ms)`,
@@ -43,8 +42,9 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
     } catch (e: any) {
       const code = e?.code ? `[${e.code}] ` : '';
       const detalhe = e?.detalhe ? `\n${String(e.detalhe).slice(0, 300)}` : '';
+      const url = e?.url_chamada ? `\nURL: ${e.url_chamada}` : '';
       toast.error('Falha ao sincronizar fila do ERP', {
-        description: `${code}${e?.message ?? String(e)}${detalhe}`,
+        description: `${code}${e?.message ?? String(e)}${detalhe}${url}`,
         duration: 10000,
       });
       qc.invalidateQueries({ queryKey: ['programacao', 'sync-last-run'] });
