@@ -208,7 +208,7 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
                 <TableHead>Tipo</TableHead>
                 <TableHead>CCusto</TableHead>
                 <TableHead>Recurso</TableHead>
-                <TableHead>Descrição</TableHead>
+
                 <TableHead className="text-right">
                   <SortHeader active={sort.key === 'qtd_ops'} dir={sort.dir} onClick={() => toggle('qtd_ops')}>
                     Qtd OPs
