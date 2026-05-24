@@ -28,7 +28,7 @@ export function TopRecursosChart({
     <Card className="p-3 md:p-4 rounded-2xl shadow-sm border h-full">
       <div className="flex items-center justify-between mb-3">
         <div className="min-w-0">
-          <div className="text-sm font-semibold truncate">Top 10 recursos por carga (h)</div>
+          <div className="text-sm font-semibold truncate">1. Top 10 recursos por carga (h)</div>
           <div className="text-[11px] text-muted-foreground">
             {onSelect ? 'Clique numa barra para detalhar' : 'Cor por quartil da própria amostra'}
           </div>
