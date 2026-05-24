@@ -149,8 +149,9 @@ export default function CargaDashboardPage() {
           totalValue={`${fmtNum(totalCargaMin)} min / 100%`}
         />
         <DonutCard
-          title="Distribuição por tipo de recurso"
-          data={porTipo.map((t) => ({ name: String(t.name), value: t.carga_min }))}
+          title="Distribuição por centro de custo"
+          subtitle="Top 8 centros · demais agrupados em Outros"
+          data={porCcu}
           centerLabel="Carga (min)"
           centerValue={fmtNum(totalCargaMin)}
           totalLabel="Total"
