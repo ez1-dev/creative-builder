@@ -8,10 +8,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Search, ArrowUpDown, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UnidadeNegocioBadge, TipoRecursoBadge } from './badges';
+import { GroupByBar } from '@/components/producao/carga-dashboard/GroupByBar';
+import { GroupedRows } from '@/components/producao/carga-dashboard/GroupedRows';
+import { collectAllGroupKeys, useTableGrouping, type GroupField } from '@/components/producao/carga-dashboard/useTableGrouping';
 
 const fmt = (n: number | undefined) => (n ?? 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
 
 type SortKey = 'carga_prevista_horas' | 'unidade_negocio' | 'codcre' | 'codopr';
+
+const NUMERIC_KEYS = ['qtd_ops', 'qtd_prevista', 'carga_prevista_min', 'carga_prevista_horas'];
 
 export function CentrosRecursoTab({
   filtros,
@@ -24,6 +29,8 @@ export function CentrosRecursoTab({
   const [busca, setBusca] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('carga_prevista_horas');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [groupFields, setGroupFields] = useState<GroupField[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const rows = useMemo(() => {
     const list = data?.dados ?? [];
@@ -45,10 +52,20 @@ export function CentrosRecursoTab({
     return sorted;
   }, [data, busca, sortKey, sortDir]);
 
+  const tree = useTableGrouping(rows, groupFields, NUMERIC_KEYS);
+
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
     else { setSortKey(k); setSortDir(k === 'carga_prevista_horas' ? 'desc' : 'asc'); }
   };
+
+  const toggleGroup = (k: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
 
   const Th = ({ k, children }: { k: SortKey; children: React.ReactNode }) => (
     <TableHead>
@@ -56,6 +73,23 @@ export function CentrosRecursoTab({
         {children}<ArrowUpDown className="h-3 w-3 opacity-60" />
       </button>
     </TableHead>
+  );
+
+  const renderLeaf = (r: CargaCentroRow, i: number) => (
+    <TableRow key={`${r.codcre}-${r.codopr}-${i}`} className="cursor-pointer hover:bg-muted/40" onClick={() => onAbrirDetalhe(r)}>
+      <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
+      <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
+      <TableCell className="text-xs">{r.codccu}</TableCell>
+      <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
+      <TableCell className="text-xs">{r.descre}</TableCell>
+      <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
+      <TableCell className="text-xs">{r.desopr}</TableCell>
+      <TableCell className="text-right text-xs">{fmt(r.qtd_ops)}</TableCell>
+      <TableCell className="text-right text-xs">{fmt(r.qtd_prevista)}</TableCell>
+      <TableCell className="text-right text-xs">{fmt(r.carga_prevista_min)}</TableCell>
+      <TableCell className="text-right text-xs font-semibold">{fmt(r.carga_prevista_horas)}</TableCell>
+      <TableCell><Button size="sm" variant="ghost" className="h-7 text-xs">Detalhe</Button></TableCell>
+    </TableRow>
   );
 
   return (
@@ -70,6 +104,13 @@ export function CentrosRecursoTab({
         />
         <div className="ml-auto text-xs text-muted-foreground">{rows.length} registro(s)</div>
       </div>
+
+      <GroupByBar
+        value={groupFields}
+        onChange={(v) => { setGroupFields(v); setExpanded(new Set()); }}
+        onExpandAll={() => setExpanded(new Set(collectAllGroupKeys(tree)))}
+        onCollapseAll={() => setExpanded(new Set())}
+      />
 
       {isError && (
         <div className="p-6 flex items-center gap-2 text-destructive">
@@ -102,22 +143,28 @@ export function CentrosRecursoTab({
             {!isLoading && rows.length === 0 && (
               <TableRow><TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
             )}
-            {rows.map((r, i) => (
-              <TableRow key={`${r.codcre}-${r.codopr}-${i}`} className="cursor-pointer hover:bg-muted/40" onClick={() => onAbrirDetalhe(r)}>
-                <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
-                <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
-                <TableCell className="text-xs">{r.codccu}</TableCell>
-                <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-                <TableCell className="text-xs">{r.descre}</TableCell>
-                <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
-                <TableCell className="text-xs">{r.desopr}</TableCell>
-                <TableCell className="text-right text-xs">{fmt(r.qtd_ops)}</TableCell>
-                <TableCell className="text-right text-xs">{fmt(r.qtd_prevista)}</TableCell>
-                <TableCell className="text-right text-xs">{fmt(r.carga_prevista_min)}</TableCell>
-                <TableCell className="text-right text-xs font-semibold">{fmt(r.carga_prevista_horas)}</TableCell>
-                <TableCell><Button size="sm" variant="ghost" className="h-7 text-xs">Detalhe</Button></TableCell>
-              </TableRow>
-            ))}
+            {!isLoading && rows.length > 0 && (
+              groupFields.length === 0
+                ? rows.map((r, i) => renderLeaf(r, i))
+                : (
+                  <GroupedRows
+                    nodes={tree}
+                    expanded={expanded}
+                    onToggle={toggleGroup}
+                    labelColspan={7}
+                    renderTotals={(t) => (
+                      <>
+                        <TableCell className="text-right text-xs font-semibold">{fmt(t.qtd_ops)}</TableCell>
+                        <TableCell className="text-right text-xs font-semibold">{fmt(t.qtd_prevista)}</TableCell>
+                        <TableCell className="text-right text-xs font-semibold">{fmt(t.carga_prevista_min)}</TableCell>
+                        <TableCell className="text-right text-xs font-semibold">{fmt(t.carga_prevista_horas)}</TableCell>
+                      </>
+                    )}
+                    trailingCells={<TableCell />}
+                    renderLeaf={renderLeaf}
+                  />
+                )
+            )}
           </TableBody>
         </Table>
       </div>
