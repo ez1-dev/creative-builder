@@ -32,6 +32,8 @@ import ImpressaoOrdemProducaoPage from "@/pages/producao/ImpressaoOrdemProducaoP
 import CargaProducaoPage from "@/pages/producao/CargaProducaoPage";
 import CargaDashboardPage from "@/pages/producao/CargaDashboardPage";
 import CargaRecursosDashboardPage from "@/pages/producao/CargaRecursosDashboardPage";
+import ProgramacaoPage from "@/pages/producao/ProgramacaoPage";
+
 
 import ContasPagarPage from "@/pages/ContasPagarPage";
 import ContasReceberPage from "@/pages/ContasReceberPage";
