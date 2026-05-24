@@ -5,8 +5,9 @@ import {
   Gauge, AlertOctagon, HardHat, Building2,
 } from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
-import { useCargaCentros } from '@/hooks/useCargaProducao';
-import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
+import { useCargaCentros, useCargaRecursos } from '@/hooks/useCargaProducao';
+import { cargaApi, CargaFiltros, type CargaRecursoRow } from '@/lib/producao/cargaApi';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { KpiCard, type KpiDelta } from '@/components/producao/carga-dashboard/KpiCard';
