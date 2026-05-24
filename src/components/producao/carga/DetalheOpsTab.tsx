@@ -84,10 +84,11 @@ export function DetalheOpsTab({ filtros }: { filtros: CargaFiltros }) {
                 <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
                 <TableCell className="text-xs">{r.descre}</TableCell>
                 <TableCell className="text-xs">{r.codori}</TableCell>
-                <TableCell className="text-xs font-mono">{r.numop}</TableCell>
+                <TableCell className="text-xs font-mono">{r.numorp ?? r.numop}</TableCell>
                 <TableCell className="text-xs font-mono">{r.codpro}</TableCell>
                 <TableCell className="text-xs">{r.descricao_produto}</TableCell>
-                <TableCell><Badge variant="outline" className="text-xs">{r.sitop}</Badge></TableCell>
+                <TableCell><Badge variant="outline" className="text-xs">{r.sitorp ?? r.sitop}</Badge></TableCell>
+
                 <TableCell className="text-xs">{fmtData(r.data_geracao_op)}</TableCell>
                 <TableCell className="text-xs">{r.estagio}</TableCell>
                 <TableCell className="text-xs text-right">{r.sequencia_roteiro}</TableCell>
