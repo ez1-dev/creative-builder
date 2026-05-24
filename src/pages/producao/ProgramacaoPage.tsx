@@ -9,6 +9,7 @@ import { MapaGargalosTab } from '@/components/producao/programacao/MapaGargalosT
 import { CapacidadesTab } from '@/components/producao/programacao/CapacidadesTab';
 import { EntregasProgramadasTab } from '@/components/producao/programacao/EntregasProgramadasTab';
 import { LeadTimesTab } from '@/components/producao/programacao/LeadTimesTab';
+import { PrioridadeOpTab } from '@/components/producao/programacao/PrioridadeOpTab';
 import { useAgenda, useFilaOps, useGargalos } from '@/hooks/useProgramacao';
 import type { ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
 import { useQueryClient } from '@tanstack/react-query';
@@ -65,6 +66,7 @@ export default function ProgramacaoPage() {
           <TabsTrigger value="capacidades" className="text-xs">Capacidade dos Recursos</TabsTrigger>
           <TabsTrigger value="entregas" className="text-xs">Entregas Programadas</TabsTrigger>
           <TabsTrigger value="leadtimes" className="text-xs">Lead Times</TabsTrigger>
+          <TabsTrigger value="prioridade" className="text-xs">Prioridade Manual</TabsTrigger>
         </TabsList>
         <TabsContent value="fila"><FilaOpsTab filtros={filtros} /></TabsContent>
         <TabsContent value="gerar"><GerarProgramacaoTab /></TabsContent>
@@ -73,6 +75,7 @@ export default function ProgramacaoPage() {
         <TabsContent value="capacidades"><CapacidadesTab codemp={filtros.codemp} /></TabsContent>
         <TabsContent value="entregas"><EntregasProgramadasTab /></TabsContent>
         <TabsContent value="leadtimes"><LeadTimesTab /></TabsContent>
+        <TabsContent value="prioridade"><PrioridadeOpTab /></TabsContent>
       </Tabs>
     </div>
   );
