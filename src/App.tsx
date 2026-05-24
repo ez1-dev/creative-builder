@@ -130,6 +130,7 @@ const App = () => (
               <Route path="/producao/engenharia" element={<ProtectedRoute path="/producao/engenharia"><EngenhariaProducaoPage /></ProtectedRoute>} />
               <Route path="/producao/relatorio-semanal-obra" element={<ProtectedRoute path="/producao/relatorio-semanal-obra"><RelatorioSemanalObraPage /></ProtectedRoute>} />
               <Route path="/producao/impressao-op" element={<ProtectedRoute path="/producao/impressao-op"><ImpressaoOrdemProducaoPage /></ProtectedRoute>} />
+              <Route path="/producao/carga" element={<ProtectedRoute path="/producao/carga"><CargaProducaoPage /></ProtectedRoute>} />
               {/* Relatórios */}
               <Route path="/relatorios/desenvolvimento" element={<ProtectedRoute path="/relatorios/desenvolvimento"><DesenvolvimentoRelatoriosPage /></ProtectedRoute>} />
               <Route path="/relatorios/publicados" element={<ProtectedRoute path="/relatorios/publicados"><RelatoriosPublicadosPage /></ProtectedRoute>} />
