@@ -7,6 +7,8 @@ import { GerarProgramacaoTab } from '@/components/producao/programacao/GerarProg
 import { AgendaRecursoTab } from '@/components/producao/programacao/AgendaRecursoTab';
 import { MapaGargalosTab } from '@/components/producao/programacao/MapaGargalosTab';
 import { CapacidadesTab } from '@/components/producao/programacao/CapacidadesTab';
+import { EntregasProgramadasTab } from '@/components/producao/programacao/EntregasProgramadasTab';
+import { LeadTimesTab } from '@/components/producao/programacao/LeadTimesTab';
 import { useAgenda, useFilaOps, useGargalos } from '@/hooks/useProgramacao';
 import type { ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
 import { useQueryClient } from '@tanstack/react-query';
@@ -55,18 +57,22 @@ export default function ProgramacaoPage() {
       <ProgramacaoKpis {...kpis} loading={loading} />
 
       <Tabs defaultValue="fila" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="fila" className="text-xs">Fila de OPs</TabsTrigger>
           <TabsTrigger value="gerar" className="text-xs">Gerar Programação</TabsTrigger>
           <TabsTrigger value="agenda" className="text-xs">Agenda por Recurso</TabsTrigger>
           <TabsTrigger value="gargalos" className="text-xs">Mapa de Gargalos</TabsTrigger>
           <TabsTrigger value="capacidades" className="text-xs">Capacidade dos Recursos</TabsTrigger>
+          <TabsTrigger value="entregas" className="text-xs">Entregas Programadas</TabsTrigger>
+          <TabsTrigger value="leadtimes" className="text-xs">Lead Times</TabsTrigger>
         </TabsList>
         <TabsContent value="fila"><FilaOpsTab filtros={filtros} /></TabsContent>
         <TabsContent value="gerar"><GerarProgramacaoTab /></TabsContent>
         <TabsContent value="agenda"><AgendaRecursoTab filtros={filtros} /></TabsContent>
         <TabsContent value="gargalos"><MapaGargalosTab filtros={filtros} /></TabsContent>
         <TabsContent value="capacidades"><CapacidadesTab codemp={filtros.codemp} /></TabsContent>
+        <TabsContent value="entregas"><EntregasProgramadasTab /></TabsContent>
+        <TabsContent value="leadtimes"><LeadTimesTab /></TabsContent>
       </Tabs>
     </div>
   );
