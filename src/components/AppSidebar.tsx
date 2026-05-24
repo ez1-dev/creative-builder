@@ -60,6 +60,7 @@ const producaoSubItems = [
   { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: GitCompare },
   { title: 'Impressão de OP', url: '/producao/impressao-op', icon: Printer },
   { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
+  { title: 'Carga — Dashboard BI', url: '/producao/carga/dashboard', icon: Activity },
 ];
 
 const regrasSeniorSubItems = [
