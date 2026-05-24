@@ -44,10 +44,11 @@ export function GroupedRows<T>({
               <div className="flex items-center gap-1.5" style={{ paddingLeft: indent }}>
                 {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                 <span className="text-muted-foreground">{GROUP_FIELD_LABELS[node.field]}:</span>
-                <span className="font-semibold">{node.value}</span>
+                <span className="font-semibold">{node.label}</span>
                 <span className="text-[10px] text-muted-foreground">
                   · {node.count} {node.count === 1 ? 'linha' : 'linhas'}
                 </span>
+
               </div>
             </TableCell>
             {renderTotals(node.totals, node)}
