@@ -85,7 +85,10 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
             </Select>
           </div>
         ) : (
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
+            <Button size="sm" variant="default" className="h-8 text-xs gap-1" onClick={handleSync} disabled={syncing}>
+              <DownloadCloud className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} /> Atualizar fila do ERP
+            </Button>
             {onRefresh && (
               <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={onRefresh} disabled={loading}>
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
@@ -94,6 +97,27 @@ export function ProgramacaoFiltersBar({ filtros, onChange, onRefresh, loading, s
           </div>
         )}
       </div>
+      {showStatus && (
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <Label className="text-xs">Lote de programação</Label>
+            <Input className="h-8 text-xs" placeholder="lote_programacao" value={filtros.lote_programacao || ''} onChange={(e) => set({ lote_programacao: e.target.value || undefined })} />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button size="sm" variant="default" className="h-8 text-xs gap-1" onClick={handleSync} disabled={syncing}>
+              <DownloadCloud className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} /> Atualizar fila do ERP
+            </Button>
+            {onRefresh && (
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={onRefresh} disabled={loading}>
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
       {showStatus && (
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
