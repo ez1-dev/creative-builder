@@ -237,11 +237,11 @@ Deno.serve(async (req) => {
       linhas_inseridas: inseridas,
       linhas_atualizadas: 0,
       linhas_rejeitadas: removidas,
-      params_executados: body ?? {},
+      params_executados: { ...(body ?? {}), url_chamada: url },
       acionado_por: acionadoPor,
     });
 
-    return jsonOk({ ok: true, lidas, inseridas, removidas, duracao_ms });
+    return jsonOk({ ok: true, lidas, inseridas, removidas, duracao_ms, url_chamada: url });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     try {
