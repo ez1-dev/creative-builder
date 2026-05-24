@@ -82,10 +82,8 @@ export function CentrosRecursoTab({
       <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
       <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
       <TableCell className="text-xs">{r.codccu}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-      <TableCell className="text-xs">{r.descre}</TableCell>
-      <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
-      <TableCell className="text-xs">{r.desopr}</TableCell>
+      <TableCell><CodeWithDesc code={r.codcre} desc={r.descre} /></TableCell>
+      <TableCell><CodeWithDesc code={r.codopr} desc={r.desopr} /></TableCell>
       <TableCell className="text-right text-xs">{fmt(r.qtd_ops)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.qtd_prevista)}</TableCell>
       <TableCell className="text-right text-xs">{fmt(r.carga_prevista_min)}</TableCell>
@@ -93,6 +91,7 @@ export function CentrosRecursoTab({
       <TableCell><Button size="sm" variant="ghost" className="h-7 text-xs">Detalhe</Button></TableCell>
     </TableRow>
   );
+
 
   return (
     <Card className="overflow-hidden">
