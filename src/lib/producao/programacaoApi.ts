@@ -153,6 +153,14 @@ export const programacaoApi = {
     return data as GerarProgramacaoResponse;
   },
 
+  async syncFila(
+    p: { codemp?: number; situacoes?: string; unidade_negocio?: string; codcre?: string; limit?: number } = {},
+  ): Promise<{ lidas: number; inseridas: number; removidas: number; duracao_ms: number }> {
+    const { data, error } = await supabase.functions.invoke('programacao-sync-fila', { body: p });
+    if (error) throw error;
+    return data as { lidas: number; inseridas: number; removidas: number; duracao_ms: number };
+  },
+
   async agenda(f: ProgramacaoFiltros): Promise<AgendaResponse> {
     let q = supabase.from('programacao_agenda').select('*');
     if (f.codemp != null) q = q.eq('codemp', f.codemp);
