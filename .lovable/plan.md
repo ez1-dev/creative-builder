@@ -1,170 +1,164 @@
-# APS + IA Planejadora de Produção
+## Objetivo
 
-Evoluir o módulo `/producao/programacao` de "painel de carga" para um **APS (Advanced Planning & Scheduling)** com camada de IA interpretativa por cima. Tudo 100% no Lovable Cloud — sem dependência do FastAPI.
+Separar responsabilidades de forma definitiva:
 
-## Princípio arquitetural
+- **FastAPI**: somente lê o ERP Senior. Não precisa de `SUPABASE_URL` nem `SUPABASE_SERVICE_ROLE_KEY`. Não escreve no Cloud.
+- **Lovable Cloud**: dono da fila, capacidades, prioridade e programação. Puxa dados do ERP via Edge Function chamando o endpoint da FastAPI.
+
+```text
+ERP Senior
+    │
+    ▼
+FastAPI  ──GET /api/producao/programacao/fila-erp──►  Edge Function (programacao-sync-fila)
+                                                              │ upsert
+                                                              ▼
+                                                       bi_ops_fila (Cloud)
+                                                              │
+                  ┌───────────────────────────────────────────┤
+                  ▼                                           ▼
+       Edge Function programacao-gerar              Frontend /producao/programacao
+       (lê fila + capacidades + prioridade,
+        grava programacao_agenda)
+```
+
+## Decisões confirmadas
+
+- Mantemos os nomes atuais: `bi_ops_fila`, `programacao_capacidades`, `programacao_agenda`. Nada de rename.
+- Sync da fila: botão manual na UI **+** `pg_cron` a cada 15 min.
+- `producao_prioridade_op`: nova tabela para PCP sobrescrever a prioridade vinda do ERP (sem resposta explícita, sigo com escopo mínimo — pode ajustar depois).
+
+## Mudanças
+
+### 1. Contrato FastAPI (somente leitura ERP)
+
+Documento `docs/backend-fila-erp.md` (novo) especificando o único endpoint que a Edge Function consome:
 
 ```
-Motor APS (determinístico)  →  calcula datas, capacidade, gargalos, cenários
-        ↓
-Camada IA (interpretativa)   →  explica riscos, recomenda ações, responde NL
-        ↓
-PCP (humano)                 →  valida e aprova
+GET /api/producao/programacao/fila-erp
+  ?codemp=1
+  &situacoes=A,L
+  &unidade_negocio=...
+  &codcre=...
+  &limit=5000
+Headers: ngrok-skip-browser-warning: true
 ```
 
-A IA **nunca** inventa a programação. Ela só lê o resultado do motor e interpreta.
-
----
-
-## Entregas em 4 fases
-
-### Fase 1 — Base de dados (Cloud)
-
-Duas tabelas novas + extensão do que já existe:
-
-**`producao_entrega_programada`** — data de entrega informada pelo PCP (por OP, obra, projeto ou produto)
-- `codemp`, `tipo_entrega` (OP / OBRA / PROJETO / PRODUTO), `numorp`, `numprj`, `codori`, `codpro`
-- `data_entrega`, `prioridade`, `cliente`, `obra`, `observacao`, `ativo`
-- RLS: read `authenticated`, CRUD para admins + perfil PCP
-
-**`producao_leadtime_etapa`** — parametrização de lead time/folga por etapa
-- `codemp`, `codcre`, `codopr`, `unidade_negocio`, `tipo_recurso`
-- `leadtime_fixo_dias`, `folga_seguranca_dias`, `considerar_no_calculo`, `ativo`, `obs`
-- RLS: read `authenticated`, CRUD para admins
-
-Reaproveita `bi_ops_fila`, `programacao_capacidades`, `programacao_agenda`.
-
----
-
-### Fase 2 — Motor APS (Edge Function)
-
-**Edge function `programacao-simular-cenario`** — substitui/estende `programacao-gerar`.
-
-Suporta:
-- **Programação progressiva** (forward): a partir de hoje, distribui OPs por capacidade até chegar na data prevista de conclusão.
-- **Programação regressiva** (backward): a partir da `data_entrega`, recua etapa por etapa respeitando sequência de roteiro e calcula data mínima de início.
-- **Simulação de N cenários** em uma única chamada (base, +sábado, +recurso extra, +hora extra, terceirização, mudança de prioridade).
-- Cálculo de **ocupação % por centro/dia** e identificação do **gargalo principal**.
-
-**Payload** (resumo):
+Response:
 ```json
 {
-  "codemp": 1,
-  "tipo_planejamento": "OBRA" | "OP" | "PROJETO",
-  "numprj": 663,
-  "data_entrega": "2026-06-20",
-  "modo": "REGRESSIVO" | "PROGRESSIVO" | "AMBOS",
-  "considerar_sabado": false,
-  "considerar_domingo": false,
-  "simulacoes": [
-    { "nome": "Base atual" },
-    { "nome": "Com sábado", "considerar_sabado": true },
-    { "nome": "+1 soldador", "ajustes_capacidade": [{ "codcre": "2150", "qtde_recursos_extra": 1 }] }
-  ]
-}
-```
-
-**Resposta** (resumo):
-```json
-{
-  "cenarios": [
+  "dados": [
     {
-      "nome": "Base atual",
-      "resumo": {
-        "data_entrega": "2026-06-20",
-        "data_conclusao_prevista": "2026-06-24",
-        "dias_atraso": 4,
-        "risco": "ALTO",
-        "centro_gargalo_principal": "2150 - G-SOLDA GERAL"
-      },
-      "etapas": [ { "sequencia": 10, "codcre": "2100", "data_inicio_sugerida": "...", "data_fim_sugerida": "...", "carga_horas": 12.5, "ocupacao_percentual": 78 } ],
-      "ocupacao_por_centro_dia": [ ... ]
+      "codemp": 1,
+      "numorp": "12345",
+      "codori": "001",
+      "codpro": "PRD-001",
+      "descricao_produto": "...",
+      "codcre": "C100",
+      "descre": "Centro X",
+      "codopr": "10",
+      "descricao_operacao": "...",
+      "tipo_recurso": "MAQUINA",
+      "unidade_negocio": "UN1",
+      "situacao": "A",
+      "quantidade_prevista": 100,
+      "tempo_previsto_min": 240,
+      "prioridade": 5,
+      "data_geracao_op": "2026-05-20"
     }
-  ]
+  ],
+  "total_registros": 1
 }
 ```
 
-Resultado opcionalmente persistido em `programacao_agenda` (com `lote_programacao` por cenário) para visualização.
+Regras:
+- FastAPI lê **só** do ERP, sem cliente Supabase.
+- Removidas dependências `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` desse fluxo de programação.
+- Outros endpoints já existentes do BI (compras/recebimentos) continuam usando o ETL atual — fora do escopo desta mudança.
 
----
+### 2. Nova tabela `producao_prioridade_op` (Cloud)
 
-### Fase 3 — Camada IA interpretativa
+Sobrescreve a prioridade do ERP por OP. Escopo mínimo:
 
-**Edge function `planejamento-ia-analisar`** — recebe o JSON de cenários do motor e chama Lovable AI (`google/gemini-2.5-flash` por padrão, `gemini-2.5-pro` para análises grandes).
+| coluna | tipo | obs |
+|---|---|---|
+| id | uuid pk | |
+| codemp | int | |
+| numorp | text | |
+| prioridade | int | menor = mais urgente |
+| observacao | text | |
+| atualizado_por | uuid | auth.uid() |
+| created_at / updated_at | timestamptz | |
 
-Retorna:
-- **Risco** (BAIXO / MÉDIO / ALTO) com justificativa
-- **Recomendações acionáveis** (lista priorizada)
-- **Comparativo de cenários** em linguagem natural
-- **Próximas ações sugeridas** (ex: "antecipar OP X", "abrir hora extra na solda na semana 24")
+- Unique (`codemp`, `numorp`).
+- RLS: read `authenticated`; ALL para admins (mesmo padrão das outras tabelas de produção).
+- `programacao-gerar` faz LEFT JOIN: se houver linha aqui, usa essa prioridade no lugar da do `bi_ops_fila`.
 
-A IA recebe apenas dados calculados (números, datas, ocupações). Nunca inventa OPs ou capacidades.
+### 3. Nova Edge Function `programacao-sync-fila`
 
----
+`supabase/functions/programacao-sync-fila/index.ts`
 
-### Fase 4 — IA assistente (chat NL)
+Fluxo:
+1. Valida JWT (igual a `programacao-gerar`).
+2. Lê secrets `FASTAPI_BASE_URL` e (opcional) `FASTAPI_TOKEN`.
+3. Faz `GET {FASTAPI_BASE_URL}/api/producao/programacao/fila-erp` com `ngrok-skip-browser-warning: true`.
+4. UPSERT em `bi_ops_fila` com `on_conflict='codemp,numorp,codopr'` (precisa de unique index; ver migração abaixo).
+5. **Reconcilia**: marca como `situacao='X'` (ou deleta) OPs que não vieram mais do ERP, dentro do mesmo filtro (snapshot completo).
+6. Grava linha em `etl_execucoes` com tarefa_codigo `SYNC_FILA_OPS_ERP` (linhas lidas/inseridas/atualizadas/erro).
+7. Retorna `{ lidas, inseridas, atualizadas, removidas, duracao_ms }`.
 
-**Edge function `planejamento-ia-chat`** — chat com tool-calling. Tools disponíveis ao modelo:
-- `consultar_entregas_programadas(filtros)`
-- `simular_cenario(payload)` → chama o motor APS
-- `analisar_cenario(resultado)` → chama a camada interpretativa
-- `consultar_gargalos(periodo)`
-- `consultar_ocupacao_centro(codcre, periodo)`
+### 4. Migração SQL
 
-Permite perguntas como:
-- "Consigo entregar a obra 663 até 20/06?"
-- "Se eu colocar mais 1 soldador, reduz quantos dias?"
-- "Monte o melhor cenário para entregar sem trabalhar sábado."
+- Cria tabela `producao_prioridade_op` + RLS + trigger `updated_at`.
+- Garante unique index em `bi_ops_fila (codemp, numorp, codopr)` (caso não exista) — necessário para o upsert.
+- Permite INSERT/UPDATE/DELETE em `bi_ops_fila` **apenas** via service role (RLS já bloqueia authenticated, ok).
 
-Histórico do chat persistido (tabela `planejamento_ia_conversas` + `planejamento_ia_mensagens`) por usuário.
+### 5. Cron `pg_cron` (executado via supabase insert, não migration)
 
----
+```sql
+select cron.schedule(
+  'sync-fila-ops-erp',
+  '*/15 * * * *',
+  $$ select net.http_post(
+       url := '{PROJECT_URL}/functions/v1/programacao-sync-fila',
+       headers := '{"Content-Type":"application/json","apikey":"{ANON_KEY}","Authorization":"Bearer {ANON_KEY}"}'::jsonb,
+       body := '{}'::jsonb
+     ); $$
+);
+```
 
-## UI — Novas telas/abas
+Mas como a edge function exige JWT de usuário, vou aceitar duas opções no código:
+- chamada de usuário (JWT normal) → usada pela UI;
+- chamada com `apikey` + header `x-cron-secret` → usada pelo pg_cron, sem precisar de JWT de usuário.
 
-Dentro de `/producao/programacao`, adicionar abas:
+`CRON_SECRET` vira novo secret.
 
-1. **Entregas Programadas** — CRUD de `producao_entrega_programada` (PCP cadastra prazos).
-2. **Lead Times** — CRUD de `producao_leadtime_etapa` (parametrização por etapa).
-3. **Cenários** — formulário de simulação multi-cenário + tabela comparativa (data prevista, atraso, risco, gargalo) + Gantt por cenário.
-4. **IA Planejadora** — chat com a IA (perguntas em linguagem natural + cards de recomendação).
+### 6. Frontend
 
-Reaproveita componentes existentes (`ProgramacaoFiltersBar`, `ProgramacaoKpis`, tabelas).
+- `src/lib/producao/programacaoApi.ts`: adiciona `programacaoApi.syncFila()` chamando `supabase.functions.invoke('programacao-sync-fila')`.
+- `src/lib/producao/programacaoApi.ts`: ao montar payload de `gerar()`, nada muda — a edge function passa a aplicar prioridade override.
+- `src/components/producao/programacao/ProgramacaoFiltersBar.tsx` (ou onde houver o botão "Atualizar"): novo botão **"Atualizar fila do ERP"** que chama `syncFila()` e mostra toast com `inseridas/atualizadas/removidas`.
+- Nova mini aba ou seção **"Prioridade manual"** para CRUD de `producao_prioridade_op` (lista filtrada + edit inline). Escopo mínimo, sem dashboard.
 
----
+### 7. Ajustes em `programacao-gerar`
 
-## Detalhes técnicos
+- Antes de processar a fila, faz `select` em `producao_prioridade_op` e cria um `Map<codemp|numorp, prioridade>`.
+- Substitui `op.prioridade` pelo override quando existir.
+- Mantém ordenação por `(prioridade, data_geracao_op)`.
 
-- **Stack:** React + Vite + Tailwind + shadcn; Edge Functions Deno; Lovable Cloud (Supabase).
-- **AI:** Lovable AI Gateway (`LOVABLE_API_KEY` já disponível). Sem custo de chave para o usuário.
-- **Algoritmo regressivo:** parte de `data_entrega`, percorre roteiro em ordem inversa (`sequencia DESC`), aloca tempo previsto descontando dias úteis + capacidade do centro, soma `leadtime_fixo_dias` + `folga_seguranca_dias` da parametrização.
-- **Algoritmo progressivo:** mesmo loop existente em `programacao-gerar`, expandido para gerar `ocupacao_por_centro_dia` e detectar gargalo (centro com maior % médio de ocupação no horizonte da OP).
-- **Roteiro:** virá de `bi_ops_fila` (uma linha por operação, ordenada por `codopr`/sequência). Já temos `tempo_previsto_min`, `codcre`, `codopr`.
-- **Cache:** resultado de cenário pode ser gravado em `dashboard_cache` (TTL curto) para acelerar reabertura.
-- **Segurança:** todas as edge functions validam JWT via `getClaims`. RLS em todas as tabelas novas.
+### 8. Secrets a configurar
 
----
+- `FASTAPI_BASE_URL` (ex.: `https://xxxx.ngrok-free.app`)
+- `CRON_SECRET` (string aleatória)
 
-## Ordem de implementação sugerida
+## Fora de escopo
 
-1. Migration: `producao_entrega_programada` + `producao_leadtime_etapa` + RLS.
-2. UI: abas "Entregas Programadas" e "Lead Times" (CRUD simples) — desbloqueia o PCP a cadastrar dados reais.
-3. Edge function `programacao-simular-cenario` (progressivo + regressivo + multi-cenário).
-4. UI: aba "Cenários" com tabela comparativa e Gantt.
-5. Edge function `planejamento-ia-analisar` + cards de recomendação na aba Cenários.
-6. Edge function `planejamento-ia-chat` + UI da aba "IA Planejadora".
+- Renomear tabelas existentes.
+- Algoritmo APS regressivo/cenários (Fase 2/3 do plano anterior).
+- IA interpretativa (Fase 4).
+- Mudar ETL de compras/recebimentos.
 
-Cada fase é entregável independentemente — você valida antes de passar para a próxima.
+## Próximo passo
 
----
+Aprovar para eu (1) rodar a migração, (2) criar a edge function `programacao-sync-fila`, (3) adicionar botão na UI + CRUD de prioridade, (4) ajustar `programacao-gerar`, (5) configurar pg_cron.
 
-## Fora de escopo desta plana
-
-- Apontamentos reais (E900EOQ) — usaremos só `tempo_previsto_min` por enquanto.
-- Disponibilidade de material (MRP) — fica para fase futura.
-- Otimização real (sequenciamento por setup/troca de ferramenta) — continua sendo FIFO por prioridade.
-- Integração com pedido de venda para puxar `data_entrega` automaticamente — manual via UI no MVP.
-
----
-
-**Pergunta antes de partir para build:** começo pela **Fase 1 + 2 completas** (base + motor APS funcionando com cenários) numa única implementação, ou prefere fatiar e validar **só Fase 1 (tabelas + CRUDs)** primeiro?
+**Confirma o escopo mínimo de `producao_prioridade_op` (só `codemp+numorp → prioridade+observacao`)?** Se precisar de mais campos (ex.: prioridade por projeto/cliente, validade, motivo), me diz antes de eu rodar a migração.
