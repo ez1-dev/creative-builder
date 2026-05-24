@@ -121,13 +121,8 @@ export default function CargaDashboardPage() {
         )}
       </div>
 
-      {/* Segunda linha — KPIs placeholders alinhados ao mockup */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard icon={Gauge} label="Capacidade disponível" value="—" placeholder badge="aguardando API" accent="muted" />
-        <KpiCard icon={Gauge} label="Ocupação média" value="—" placeholder badge="aguardando API" accent="muted" />
-        <KpiCard icon={AlertTriangle} label="Centros críticos" value="—" placeholder badge="aguardando API" accent="muted" />
-        <KpiCard icon={Building2} label="Obras em produção" value="—" placeholder badge="aguardando API" accent="muted" />
-      </div>
+
+
 
       {/* Linha principal: 2 gráficos + insights */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
