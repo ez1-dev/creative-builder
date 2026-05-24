@@ -138,10 +138,10 @@ export function CentrosRecursoTab({
           </TableHeader>
           <TableBody>
             {isLoading && Array.from({ length: 6 }).map((_, i) => (
-              <TableRow key={i}><TableCell colSpan={12}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
+              <TableRow key={i}><TableCell colSpan={10}><Skeleton className="h-6 w-full" /></TableCell></TableRow>
             ))}
             {!isLoading && rows.length === 0 && (
-              <TableRow><TableCell colSpan={12} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
             )}
             {!isLoading && rows.length > 0 && (
               groupFields.length === 0
@@ -151,7 +151,8 @@ export function CentrosRecursoTab({
                     nodes={tree}
                     expanded={expanded}
                     onToggle={toggleGroup}
-                    labelColspan={7}
+                    labelColspan={5}
+
                     renderTotals={(t) => (
                       <>
                         <TableCell className="text-right text-xs font-semibold">{fmt(t.qtd_ops)}</TableCell>
