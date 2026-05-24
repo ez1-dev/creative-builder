@@ -7,6 +7,8 @@ import { GerarProgramacaoTab } from '@/components/producao/programacao/GerarProg
 import { AgendaRecursoTab } from '@/components/producao/programacao/AgendaRecursoTab';
 import { MapaGargalosTab } from '@/components/producao/programacao/MapaGargalosTab';
 import { CapacidadesTab } from '@/components/producao/programacao/CapacidadesTab';
+import { EntregasProgramadasTab } from '@/components/producao/programacao/EntregasProgramadasTab';
+import { LeadTimesTab } from '@/components/producao/programacao/LeadTimesTab';
 import { useAgenda, useFilaOps, useGargalos } from '@/hooks/useProgramacao';
 import type { ProgramacaoFiltros } from '@/lib/producao/programacaoApi';
 import { useQueryClient } from '@tanstack/react-query';
