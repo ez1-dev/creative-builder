@@ -103,14 +103,14 @@ Deno.serve(async (req) => {
     }
     const fastapiBase = baseCheck.url;
 
-    // Body opcional
+    // Body opcional. Sincronização padrão = snapshot completo de A,L (sem datas).
     const body = await req.json().catch(() => ({} as any));
     const qs = new URLSearchParams();
-    if (body.codemp != null) qs.set('codemp', String(body.codemp));
+    qs.set('codemp', String(body.codemp ?? 1));
     qs.set('situacoes', body.situacoes ?? 'A,L');
     if (body.unidade_negocio) qs.set('unidade_negocio', body.unidade_negocio);
     if (body.codcre) qs.set('codcre', body.codcre);
-    qs.set('limit', String(body.limit ?? 5000));
+    qs.set('limite', String(body.limite ?? body.limit ?? 5000));
 
     const url = `${fastapiBase}/api/producao/programacao/fila-erp?${qs.toString()}`;
 
