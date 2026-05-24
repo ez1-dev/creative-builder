@@ -154,17 +154,18 @@ export const programacaoApi = {
   },
 
   async syncFila(
-    p: { codemp?: number; situacoes?: string; unidade_negocio?: string; codcre?: string; limit?: number } = {},
-  ): Promise<{ lidas: number; inseridas: number; removidas: number; duracao_ms: number }> {
+    p: { codemp?: number; situacoes?: string; unidade_negocio?: string; codcre?: string; limite?: number } = {},
+  ): Promise<{ lidas: number; inseridas: number; removidas: number; duracao_ms: number; url_chamada?: string }> {
     const { data, error } = await supabase.functions.invoke('programacao-sync-fila', { body: p });
     if (error) throw error;
     if (data && data.ok === false) {
       const err: any = new Error(data.message || 'Falha ao sincronizar fila');
       err.code = data.code;
       err.detalhe = data.detalhe;
+      err.url_chamada = data.url_chamada;
       throw err;
     }
-    return data as { lidas: number; inseridas: number; removidas: number; duracao_ms: number };
+    return data as { lidas: number; inseridas: number; removidas: number; duracao_ms: number; url_chamada?: string };
   },
 
   async agenda(f: ProgramacaoFiltros): Promise<AgendaResponse> {
