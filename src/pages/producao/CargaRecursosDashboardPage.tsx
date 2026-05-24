@@ -231,7 +231,7 @@ export default function CargaRecursosDashboardPage() {
         </div>
       </div>
 
-      <CargaFiltersBar filtros={filtros} onChange={setFiltros} onRefresh={handleRefresh} loading={isLoading} />
+      <CargaFiltersBar filtros={filtros} onChange={setFiltros} onRefresh={handleRefresh} onExport={() => {}} loading={isLoading} />
 
       {isError && (
         <Alert variant="destructive">
