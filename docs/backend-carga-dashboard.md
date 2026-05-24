@@ -63,7 +63,9 @@ Endpoint novo: **`GET /api/producao/carga/ocupacao-semanal`** (mesmos filtros).
 
 ### 4. Fila de OPs por situação
 
-Endpoint novo: **`GET /api/producao/carga/situacoes`** (mesmos filtros).
+**Status atual:** o frontend hoje agrega no client chamando `GET /api/producao/carga/detalhe` com `tamanho_pagina=5000` e ignorando o filtro `situacoes`, depois deduplicando por `(codori, numop)` e contando por `sitop`. Funciona, mas paga o custo de baixar até 5k linhas só pra contar OPs distintas, e fica "amostra parcial" quando `total_registros > 5000`.
+
+**Pedido:** endpoint agregado **`GET /api/producao/carga/situacoes`** (mesmos filtros do `/centros`, exceto `situacoes` que deve ser ignorado internamente pra devolver todas).
 
 ```json
 {
