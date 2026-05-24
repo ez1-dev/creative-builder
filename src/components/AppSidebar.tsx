@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, CalendarClock, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -62,8 +62,10 @@ const producaoSubItems = [
   { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
   { title: 'Carga — Dashboard BI', url: '/producao/carga/dashboard', icon: Activity },
   { title: 'Carga — Por Recurso', url: '/producao/carga/recursos', icon: Gauge },
+  { title: 'Programação e Sequenciamento', url: '/producao/programacao', icon: CalendarClock },
 
 ];
+
 
 const regrasSeniorSubItems = [
   { title: 'Dashboard', url: '/regras-senior', icon: LayoutDashboard },

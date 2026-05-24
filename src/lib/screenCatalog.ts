@@ -24,6 +24,8 @@ const EXACT: Record<string, ScreenInfo> = {
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
   '/producao/carga/dashboard':  { codigo: 'PROD_CARGA_BI', nome: 'Carga de Produção — Dashboard BI' },
   '/producao/carga/recursos':   { codigo: 'PROD_CARGA_REC', nome: 'Carga de Produção — Por Centro de Recurso' },
+  '/producao/programacao':      { codigo: 'PROD_PROGRAMACAO', nome: 'Programação e Sequenciamento' },
+
 
 };
 
