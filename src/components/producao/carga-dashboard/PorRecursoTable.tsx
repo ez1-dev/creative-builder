@@ -12,6 +12,8 @@ import type { CargaRecursoRow } from '@/lib/producao/cargaApi';
 import { GroupByBar } from './GroupByBar';
 import { GroupedRows } from './GroupedRows';
 import { collectAllGroupKeys, useTableGrouping, type GroupField } from './useTableGrouping';
+import { CodeWithDesc } from './CodeWithDesc';
+
 
 type SortKey =
   | 'qtd_ops'
