@@ -85,10 +85,16 @@ function isResumoEmpty(r: DashboardResumo): boolean {
   return Object.values(r).every(v => v === 0 || v === null || v === undefined);
 }
 
+interface DrillItem {
+  label: string;
+  value: string;
+  projeto?: TopProjetoPatio;
+}
+
 function buildProjectDetails(
   projetos: TopProjetoPatio[],
   key: keyof Pick<TopProjetoPatio, 'kg_produzido' | 'kg_expedido' | 'kg_patio' | 'kg_engenharia'>,
-) {
+): DrillItem[] {
   return projetos
     .filter(p => (p[key] ?? 0) > 0)
     .sort((a, b) => (b[key] ?? 0) - (a[key] ?? 0))
@@ -96,10 +102,11 @@ function buildProjectDetails(
     .map(p => ({
       label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
       value: `${formatNumber(p[key], 0)} Kg`,
+      projeto: p,
     }));
 }
 
-function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]) {
+function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]): DrillItem[] {
   const upper = keywords.map(k => k.toUpperCase());
   return projetos
     .filter(p => {
@@ -110,7 +117,19 @@ function buildStatusDetails(projetos: TopProjetoPatio[], ...keywords: string[]) 
     .map(p => ({
       label: `Proj ${p.numero_projeto} / Des ${p.numero_desenho} Rev ${p.revisao}`,
       value: (p.cliente ?? '').length > 25 ? (p.cliente ?? '').slice(0, 25) + '…' : (p.cliente ?? '-'),
+      projeto: p,
     }));
+}
+
+function buildProjetoBreakdown(p: TopProjetoPatio): DrillItem[] {
+  return [
+    { label: 'Cliente', value: p.cliente ?? '-' },
+    { label: 'Status pátio', value: p.status_patio ?? '-' },
+    { label: 'Kg Previsto (engenharia)', value: `${formatNumber(p.kg_engenharia, 0)} Kg` },
+    { label: 'Kg Produzido', value: `${formatNumber(p.kg_produzido, 0)} Kg` },
+    { label: 'Kg Expedido', value: `${formatNumber(p.kg_expedido, 0)} Kg` },
+    { label: 'Kg em Pátio', value: `${formatNumber(p.kg_patio, 0)} Kg` },
+  ];
 }
 
 export default function ProducaoDashboardPage() {
@@ -123,7 +142,20 @@ export default function ProducaoDashboardPage() {
   const erpReady = useErpReady();
   const abortRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
-  const drill = useDrillSheet<{ items: { label: string; value: string }[] }>();
+  const drill = useDrillSheet<{ items: DrillItem[] }>();
+  const openDrill = (payload: Parameters<typeof drill.openWith>[0]) => {
+    const snap = filters;
+    drill.openWith(payload, { restore: () => setFilters(snap) });
+  };
+  const pushProjeto = (it: DrillItem) => {
+    if (!it.projeto) return;
+    drill.push({
+      title: `Projeto ${it.projeto.numero_projeto} · Des ${it.projeto.numero_desenho}`,
+      subtitle: it.projeto.cliente ?? undefined,
+      chips: [{ label: 'Projeto', value: it.projeto.numero_projeto }],
+      ctx: { items: buildProjetoBreakdown(it.projeto) },
+    });
+  };
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
@@ -293,33 +325,33 @@ export default function ProducaoDashboardPage() {
           <KpiGrid cols={7}>
             <KpiCard title="Kg Previsto" value={formatNumber(resumo.kg_engenharia, 0)} variant="info"
               icon={<Layers className="h-4 w-4" />} tooltip="Peso previsto em engenharia"
-              onClick={() => drill.openWith({ title: 'Kg Previsto — Top projetos', chips: [{ label: 'Métrica', value: 'kg_engenharia' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_engenharia') } })} />
+              onClick={() => openDrill({ title: 'Kg Previsto — Top projetos', chips: [{ label: 'Métrica', value: 'kg_engenharia' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_engenharia') } })} />
             <KpiCard title="Kg Produzido" value={formatNumber(resumo.kg_produzido, 0)} variant="success"
               icon={<Package className="h-4 w-4" />} tooltip="Total produzido (entrada estoque)"
-              onClick={() => drill.openWith({ title: 'Kg Produzido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_produzido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_produzido') } })} />
+              onClick={() => openDrill({ title: 'Kg Produzido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_produzido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_produzido') } })} />
             <KpiCard title="Kg Expedido" value={formatNumber(resumo.kg_expedido, 0)} variant="success"
               icon={<Truck className="h-4 w-4" />} tooltip="Total expedido (romaneio)"
-              onClick={() => drill.openWith({ title: 'Kg Expedido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_expedido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_expedido') } })} />
+              onClick={() => openDrill({ title: 'Kg Expedido — Top projetos', chips: [{ label: 'Métrica', value: 'kg_expedido' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_expedido') } })} />
             <KpiCard title="Kg Pátio" value={formatNumber(resumo.kg_patio, 0)} variant="warning"
               icon={<Warehouse className="h-4 w-4" />} tooltip="Saldo em pátio (produzido − expedido)"
-              onClick={() => drill.openWith({ title: 'Kg em Pátio — Top projetos', chips: [{ label: 'Métrica', value: 'kg_patio' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_patio') } })} />
+              onClick={() => openDrill({ title: 'Kg em Pátio — Top projetos', chips: [{ label: 'Métrica', value: 'kg_patio' }], ctx: { items: buildProjectDetails(topProjetos, 'kg_patio') } })} />
             <KpiCard title="Qtd Cargas" value={resumo.quantidade_cargas} icon={<Truck className="h-4 w-4" />} />
             <KpiCard title="Itens Não Carreg." value={resumo.itens_nao_carregados} variant="warning"
               icon={<AlertCircle className="h-4 w-4" />} tooltip="Itens produzidos ainda não carregados" />
             <KpiCard title="Aguardando Prod." value={resumo.projetos_aguardando_producao}
               icon={<Hourglass className="h-4 w-4" />} tooltip="Projetos aguardando início de produção"
-              onClick={() => drill.openWith({ title: 'Aguardando Produção', chips: [{ label: 'Status', value: 'AGUARDANDO' }], ctx: { items: buildStatusDetails(topProjetos, 'AGUARDANDO') } })} />
+              onClick={() => openDrill({ title: 'Aguardando Produção', chips: [{ label: 'Status', value: 'AGUARDANDO' }], ctx: { items: buildStatusDetails(topProjetos, 'AGUARDANDO') } })} />
           </KpiGrid>
           <KpiGrid cols={6}>
             <KpiCard title="Em Produção" value={resumo.projetos_em_producao} variant="info"
               tooltip="Projetos em fase de produção ou sem entrada em estoque"
-              onClick={() => drill.openWith({ title: 'Em Produção', chips: [{ label: 'Status', value: 'EM PRODUÇÃO' }], ctx: { items: buildStatusDetails(topProjetos, 'PRODUÇÃO') } })} />
+              onClick={() => openDrill({ title: 'Em Produção', chips: [{ label: 'Status', value: 'EM PRODUÇÃO' }], ctx: { items: buildStatusDetails(topProjetos, 'PRODUÇÃO') } })} />
             <KpiCard title="Parcial Expedido" value={resumo.projetos_parcialmente_expedidos} variant="warning"
               tooltip="Projetos com expedição parcial"
-              onClick={() => drill.openWith({ title: 'Parcialmente Expedidos', chips: [{ label: 'Status', value: 'PARCIAL' }], ctx: { items: buildStatusDetails(topProjetos, 'PARCIAL') } })} />
+              onClick={() => openDrill({ title: 'Parcialmente Expedidos', chips: [{ label: 'Status', value: 'PARCIAL' }], ctx: { items: buildStatusDetails(topProjetos, 'PARCIAL') } })} />
             <KpiCard title="Total Expedidos" value={resumo.projetos_expedidos} variant="success"
               tooltip="Projetos totalmente expedidos"
-              onClick={() => drill.openWith({ title: 'Totalmente Expedidos', chips: [{ label: 'Status', value: 'EXPEDIDO' }], ctx: { items: buildStatusDetails(topProjetos, 'EXPEDIDO') } })} />
+              onClick={() => openDrill({ title: 'Totalmente Expedidos', chips: [{ label: 'Status', value: 'EXPEDIDO' }], ctx: { items: buildStatusDetails(topProjetos, 'EXPEDIDO') } })} />
             <KpiCard title="LT Eng→Prod (dias)" value={resumo.leadtime_medio_engenharia_producao} />
             <KpiCard title="LT Prod→Exp (dias)" value={resumo.leadtime_medio_producao_expedicao} />
             <KpiCard title="LT Total (dias)" value={resumo.leadtime_medio_total} variant="info" />
@@ -333,20 +365,24 @@ export default function ProducaoDashboardPage() {
           <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
         </>
       )}
-      <DrillSheet
-        open={drill.state.open}
-        onOpenChange={drill.setOpen}
-        title={drill.state.title}
-        chips={drill.state.chips}
-      >
+      <DrillSheet {...drill.sheetProps}>
         {drill.state.ctx && drill.state.ctx.items.length > 0 ? (
           <ul className="divide-y">
-            {drill.state.ctx.items.map((it, i) => (
-              <li key={i} className="flex items-center justify-between gap-3 py-2 text-sm">
-                <span className="text-foreground truncate">{it.label}</span>
-                <span className="text-muted-foreground tabular-nums">{it.value}</span>
-              </li>
-            ))}
+            {drill.state.ctx.items.map((it, i) => {
+              const clickable = !!it.projeto && drill.levels.length === 1;
+              return (
+                <li
+                  key={i}
+                  onClick={clickable ? () => pushProjeto(it) : undefined}
+                  className={`flex items-center justify-between gap-3 py-2 text-sm ${
+                    clickable ? 'cursor-pointer hover:bg-muted/50 -mx-3 px-3 rounded transition-colors' : ''
+                  }`}
+                >
+                  <span className="text-foreground truncate">{it.label}</span>
+                  <span className="text-muted-foreground tabular-nums">{it.value}</span>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">Sem registros para detalhar.</p>

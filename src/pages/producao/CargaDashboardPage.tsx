@@ -78,8 +78,13 @@ export default function CargaDashboardPage() {
     return c;
   };
 
+  const openDrill = (payload: Parameters<typeof drill.openWith>[0]) => {
+    const snap = filtros;
+    drill.openWith(payload, { restore: () => setFiltros(snap) });
+  };
+
   const openKpiAll = () =>
-    drill.openWith({
+    openDrill({
       title: 'Detalhe — todas as OPs do filtro',
       subtitle: 'Lista paginada das linhas de operação',
       chips: baseChips(),
@@ -87,7 +92,7 @@ export default function CargaDashboardPage() {
     });
 
   const openSemMapeamento = () =>
-    drill.openWith({
+    openDrill({
       title: 'Linhas sem mapeamento (padrão API)',
       subtitle: 'Linhas em que o mapeamento veio do default da API',
       chips: [...baseChips(), { label: 'Origem', value: 'PADRAO_API' }],
@@ -96,7 +101,7 @@ export default function CargaDashboardPage() {
 
   const openRecurso = (r: RecursoAgg) => {
     if (!r) return;
-    drill.openWith({
+    openDrill({
       title: `Recurso · ${r.descre || r.codcre}`,
       subtitle: `${r.codcre} · CC ${r.codccu}`,
       chips: [
@@ -109,7 +114,7 @@ export default function CargaDashboardPage() {
   };
 
   const openUnidade = (un: string) => {
-    drill.openWith({
+    openDrill({
       title: `Unidade · ${un}`,
       chips: [...baseChips(), { label: 'Unidade', value: un }],
       ctx: { filtros: { ...filtros, unidade_negocio: un } },
@@ -118,7 +123,7 @@ export default function CargaDashboardPage() {
 
   const openCcu = (ccu: string) => {
     if (ccu === 'Outros') {
-      drill.openWith({
+      openDrill({
         title: 'Centros de custo · Outros',
         subtitle: 'Demais centros fora do Top 8',
         chips: baseChips(),
@@ -126,7 +131,7 @@ export default function CargaDashboardPage() {
       });
       return;
     }
-    drill.openWith({
+    openDrill({
       title: `Centro de custo · ${ccu}`,
       chips: [...baseChips(), { label: 'CCusto', value: ccu }],
       ctx: { filtros: { ...filtros } },
@@ -134,7 +139,7 @@ export default function CargaDashboardPage() {
   };
 
   const openSituacao = (sit: string) => {
-    drill.openWith({
+    openDrill({
       title: `Situação · ${sit}`,
       chips: [
         ...baseChips().filter((c) => c.label !== 'Situações'),
@@ -251,13 +256,7 @@ export default function CargaDashboardPage() {
         Fonte: GET /api/producao/carga/centros · {fmtNum(rows.length)} linhas retornadas · {fmtNum(recursos.length)} recursos agregados
       </div>
 
-      <DrillSheet
-        open={drill.state.open}
-        onOpenChange={drill.setOpen}
-        title={drill.state.title}
-        subtitle={drill.state.subtitle}
-        chips={drill.state.chips}
-      >
+      <DrillSheet {...drill.sheetProps}>
         {drill.state.ctx && <DetalheOpsTab filtros={drill.state.ctx.filtros} />}
       </DrillSheet>
     </div>
