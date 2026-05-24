@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, Fragment } from 'react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -9,6 +9,9 @@ import { fmtDec, fmtNum } from './aggregations';
 import { classifyOcupacao, statusStyle } from './statusOcupacao';
 import { cn } from '@/lib/utils';
 import type { CargaRecursoRow } from '@/lib/producao/cargaApi';
+import { GroupByBar } from './GroupByBar';
+import { GroupedRows } from './GroupedRows';
+import { collectAllGroupKeys, useTableGrouping, type GroupField } from './useTableGrouping';
 
 type SortKey =
   | 'qtd_ops'
@@ -24,6 +27,8 @@ interface Props {
   error?: Error | null;
   onSelect?: (r: CargaRecursoRow) => void;
 }
+
+const NUMERIC_KEYS = ['qtd_ops', 'qtd_operacoes', 'qtd_prevista', 'carga_prevista_min', 'carga_prevista_horas'];
 
 const SortHeader = ({
   active,
@@ -61,6 +66,8 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
     key: 'carga_prevista_horas',
     dir: 'desc',
   });
+  const [groupFields, setGroupFields] = useState<GroupField[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const sorted = useMemo(() => {
     const out = [...rows];
@@ -71,6 +78,8 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
     });
     return out;
   }, [rows, sort]);
+
+  const tree = useTableGrouping(sorted, groupFields, NUMERIC_KEYS);
 
   // Para classificação de status, usar shape compatível com RecursoAgg
   const status = useMemo(
@@ -111,6 +120,43 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
   const toggle = (key: SortKey) =>
     setSort((s) => (s.key === key ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }));
 
+  const toggleGroup = (k: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
+
+  const renderLeaf = (r: CargaRecursoRow, i: number) => {
+    const st = status.get(`${r.codcre}|${r.codccu}`) ?? 'Normal';
+    const stl = statusStyle[st];
+    return (
+      <TableRow
+        key={`${r.codcre}-${r.codccu}-${i}`}
+        onClick={clickable ? () => onSelect?.(r) : undefined}
+        className={cn(clickable && 'cursor-pointer hover:bg-muted/60')}
+      >
+        <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
+        <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
+        <TableCell className="text-xs">{r.codccu}</TableCell>
+        <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
+        <TableCell className="text-xs">{r.descre}</TableCell>
+        <TableCell className="text-right text-xs">{fmtNum(r.qtd_ops)}</TableCell>
+        <TableCell className="text-right text-xs">{fmtNum(r.qtd_operacoes)}</TableCell>
+        <TableCell className="text-right text-xs">{fmtDec(r.qtd_prevista)}</TableCell>
+        <TableCell className="text-right text-xs">{fmtDec(r.carga_prevista_min)}</TableCell>
+        <TableCell className="text-right text-xs font-semibold">{fmtDec(r.carga_prevista_horas)}</TableCell>
+        <TableCell>
+          <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium', stl.text)}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', stl.dot)} />
+            {st}
+          </span>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <Card className="rounded-2xl shadow-sm border overflow-hidden">
       <div className="p-3 md:p-4 border-b">
@@ -120,6 +166,16 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
           {clickable && ' · clique numa linha para detalhar as OPs do recurso'}
         </div>
       </div>
+
+      <GroupByBar
+        value={groupFields}
+        onChange={(v) => {
+          setGroupFields(v);
+          setExpanded(new Set());
+        }}
+        onExpandAll={() => setExpanded(new Set(collectAllGroupKeys(tree)))}
+        onCollapseAll={() => setExpanded(new Set())}
+      />
 
       {error && (
         <div className="p-4">
@@ -188,38 +244,27 @@ export function PorRecursoTable({ rows, loading, error, onSelect }: Props) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sorted.map((r) => {
-                const st = status.get(`${r.codcre}|${r.codccu}`) ?? 'Normal';
-                const stl = statusStyle[st];
-                return (
-                  <TableRow
-                    key={`${r.codcre}-${r.codccu}`}
-                    onClick={clickable ? () => onSelect?.(r) : undefined}
-                    className={cn(clickable && 'cursor-pointer hover:bg-muted/60')}
-                  >
-                    <TableCell>
-                      <UnidadeNegocioBadge value={r.unidade_negocio} />
-                    </TableCell>
-                    <TableCell>
-                      <TipoRecursoBadge value={r.tipo_recurso} />
-                    </TableCell>
-                    <TableCell className="text-xs">{r.codccu}</TableCell>
-                    <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
-                    <TableCell className="text-xs">{r.descre}</TableCell>
-                    <TableCell className="text-right text-xs">{fmtNum(r.qtd_ops)}</TableCell>
-                    <TableCell className="text-right text-xs">{fmtNum(r.qtd_operacoes)}</TableCell>
-                    <TableCell className="text-right text-xs">{fmtDec(r.qtd_prevista)}</TableCell>
-                    <TableCell className="text-right text-xs">{fmtDec(r.carga_prevista_min)}</TableCell>
-                    <TableCell className="text-right text-xs font-semibold">{fmtDec(r.carga_prevista_horas)}</TableCell>
-                    <TableCell>
-                      <span className={cn('inline-flex items-center gap-1.5 text-xs font-medium', stl.text)}>
-                        <span className={cn('h-1.5 w-1.5 rounded-full', stl.dot)} />
-                        {st}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+              {groupFields.length === 0 ? (
+                sorted.map((r, i) => renderLeaf(r, i))
+              ) : (
+                <GroupedRows
+                  nodes={tree}
+                  expanded={expanded}
+                  onToggle={toggleGroup}
+                  labelColspan={5}
+                  renderTotals={(t) => (
+                    <>
+                      <TableCell className="text-right text-xs font-semibold">{fmtNum(t.qtd_ops)}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold">{fmtNum(t.qtd_operacoes)}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold">{fmtDec(t.qtd_prevista)}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold">{fmtDec(t.carga_prevista_min)}</TableCell>
+                      <TableCell className="text-right text-xs font-semibold">{fmtDec(t.carga_prevista_horas)}</TableCell>
+                    </>
+                  )}
+                  trailingCells={<TableCell />}
+                  renderLeaf={renderLeaf}
+                />
+              )}
               <TableRow className="bg-muted/40">
                 <TableCell colSpan={5} className="text-xs font-semibold">
                   Total geral
