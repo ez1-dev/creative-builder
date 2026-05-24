@@ -18,7 +18,7 @@ const SIT_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 5000;
 
-export function FilaSituacaoCard({ filtros }: { filtros: CargaFiltros }) {
+export function FilaSituacaoCard({ filtros, onSelect }: { filtros: CargaFiltros; onSelect?: (sit: string) => void }) {
   const { data, isLoading, isError } = useCargaDetalhe({
     ...filtros,
     situacoes: undefined,
@@ -38,7 +38,7 @@ export function FilaSituacaoCard({ filtros }: { filtros: CargaFiltros }) {
       counts.set(sit, (counts.get(sit) ?? 0) + 1);
     }
     const items = Array.from(counts.entries())
-      .map(([sit, value]) => ({ name: SIT_LABELS[sit] ?? sit, value }))
+      .map(([sit, value]) => ({ name: SIT_LABELS[sit] ?? sit, value, _sit: sit }))
       .sort((a, b) => b.value - a.value);
     const total = items.reduce((a, b) => a + b.value, 0);
     const parcial = (data?.total_registros ?? 0) > PAGE_SIZE;
@@ -70,6 +70,14 @@ export function FilaSituacaoCard({ filtros }: { filtros: CargaFiltros }) {
       centerValue={total.toLocaleString('pt-BR')}
       totalLabel="Total"
       totalValue={`${total.toLocaleString('pt-BR')} / 100%`}
+      onSelect={
+        onSelect
+          ? (label) => {
+              const found = items.find((i) => i.name === label);
+              if (found) onSelect(found._sit);
+            }
+          : undefined
+      }
     />
   );
 }

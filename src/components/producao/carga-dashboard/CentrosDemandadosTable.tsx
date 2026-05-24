@@ -3,8 +3,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { UnidadeNegocioBadge, TipoRecursoBadge } from '@/components/producao/carga/badges';
 import type { RecursoAgg } from './aggregations';
 import { fmtDec, fmtNum } from './aggregations';
+import { cn } from '@/lib/utils';
 
-export function CentrosDemandadosTable({ rows }: { rows: RecursoAgg[] }) {
+export function CentrosDemandadosTable({
+  rows,
+  onSelect,
+}: {
+  rows: RecursoAgg[];
+  onSelect?: (r: RecursoAgg) => void;
+}) {
   const top = rows.slice(0, 15);
   const total = rows.reduce(
     (acc, r) => {
@@ -15,12 +22,16 @@ export function CentrosDemandadosTable({ rows }: { rows: RecursoAgg[] }) {
     },
     { qtd_ops: 0, carga_prevista_min: 0, carga_prevista_horas: 0 },
   );
+  const clickable = !!onSelect;
 
   return (
     <Card className="rounded-2xl shadow-sm border overflow-hidden">
-      <div className="p-4 border-b">
+      <div className="p-3 md:p-4 border-b">
         <div className="text-sm font-semibold">Centros mais demandados</div>
-        <div className="text-[11px] text-muted-foreground">Top {top.length} de {rows.length} recursos no período</div>
+        <div className="text-[11px] text-muted-foreground">
+          Top {top.length} de {rows.length} recursos no período
+          {clickable && ' · clique numa linha para detalhar'}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <Table>
@@ -38,9 +49,17 @@ export function CentrosDemandadosTable({ rows }: { rows: RecursoAgg[] }) {
           </TableHeader>
           <TableBody>
             {top.map((r) => (
-              <TableRow key={`${r.codcre}-${r.codccu}`}>
-                <TableCell><UnidadeNegocioBadge value={r.unidade_negocio} /></TableCell>
-                <TableCell><TipoRecursoBadge value={r.tipo_recurso} /></TableCell>
+              <TableRow
+                key={`${r.codcre}-${r.codccu}`}
+                onClick={clickable ? () => onSelect?.(r) : undefined}
+                className={cn(clickable && 'cursor-pointer hover:bg-muted/60')}
+              >
+                <TableCell>
+                  <UnidadeNegocioBadge value={r.unidade_negocio} />
+                </TableCell>
+                <TableCell>
+                  <TipoRecursoBadge value={r.tipo_recurso} />
+                </TableCell>
                 <TableCell className="text-xs">{r.codccu}</TableCell>
                 <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
                 <TableCell className="text-xs">{r.descre}</TableCell>
@@ -50,7 +69,9 @@ export function CentrosDemandadosTable({ rows }: { rows: RecursoAgg[] }) {
               </TableRow>
             ))}
             <TableRow className="bg-muted/40">
-              <TableCell colSpan={5} className="text-xs font-semibold">Total geral</TableCell>
+              <TableCell colSpan={5} className="text-xs font-semibold">
+                Total geral
+              </TableCell>
               <TableCell className="text-right text-xs font-semibold">{fmtNum(total.qtd_ops)}</TableCell>
               <TableCell className="text-right text-xs font-semibold">{fmtDec(total.carga_prevista_min)}</TableCell>
               <TableCell className="text-right text-xs font-semibold">{fmtDec(total.carga_prevista_horas)}</TableCell>
