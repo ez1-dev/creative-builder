@@ -63,10 +63,28 @@ export function KpiCard({
     >
       <div className="flex items-start justify-between gap-2 md:gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] md:text-[11px] uppercase tracking-wider text-muted-foreground font-medium truncate">
-            {label}
+          <div className="text-[10px] md:text-[11px] uppercase tracking-wider text-muted-foreground font-medium truncate flex items-center gap-1">
+            <span className="truncate">{label}</span>
+            {tooltip && (
+              <TooltipProvider delayDuration={150}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0 text-muted-foreground/70 hover:text-foreground"
+                      aria-label="Mais informações"
+                    >
+                      <Info className="h-3 w-3" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs text-xs leading-snug">
+                    {tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
-          <div
             className={cn(
               'mt-1.5 md:mt-2 text-xl md:text-2xl font-bold tabular-nums',
               placeholder ? 'text-muted-foreground' : accentMap[accent],
