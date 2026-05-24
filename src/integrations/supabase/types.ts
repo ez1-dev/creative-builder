@@ -1152,6 +1152,51 @@ export type Database = {
         }
         Relationships: []
       }
+      producao_recurso_unidade: {
+        Row: {
+          ativo: boolean
+          codccu_sugerido: string | null
+          codcre: string
+          codemp: number
+          considera_carga: boolean
+          created_at: string
+          descre: string | null
+          id: number
+          obs: string | null
+          tipo_recurso: string | null
+          unidade_negocio: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          codccu_sugerido?: string | null
+          codcre: string
+          codemp: number
+          considera_carga?: boolean
+          created_at?: string
+          descre?: string | null
+          id?: number
+          obs?: string | null
+          tipo_recurso?: string | null
+          unidade_negocio: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          codccu_sugerido?: string | null
+          codcre?: string
+          codemp?: number
+          considera_carga?: boolean
+          created_at?: string
+          descre?: string | null
+          id?: number
+          obs?: string | null
+          tipo_recurso?: string | null
+          unidade_negocio?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profile_screens: {
         Row: {
           can_edit: boolean
