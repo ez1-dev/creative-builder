@@ -32,16 +32,44 @@ function jsonOk(body: unknown, status = 200) {
   });
 }
 
-function validateBaseUrl(raw: string | undefined): { ok: true; url: string } | { ok: false; code: string; message: string } {
+function validateBaseUrl(
+  raw: string | undefined,
+  cronSecret: string | undefined,
+): { ok: true; url: string } | { ok: false; code: string; message: string } {
   if (!raw || !raw.trim()) {
     return { ok: false, code: 'MISSING_BASE_URL', message: 'FASTAPI_BASE_URL não configurado nos secrets do Cloud.' };
   }
-  const trimmed = raw.trim().replace(/\/+$/, '');
+  const trimmed = raw.trim();
+
+  if (cronSecret && trimmed === cronSecret.trim()) {
+    return {
+      ok: false,
+      code: 'BASE_URL_EQUALS_CRON_SECRET',
+      message: 'FASTAPI_BASE_URL está com o mesmo valor de CRON_SECRET. Eles foram trocados — corrija o secret FASTAPI_BASE_URL para a URL pública da FastAPI (ex.: https://xxxx.ngrok-free.app).',
+    };
+  }
+
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return {
+      ok: false,
+      code: 'INVALID_BASE_URL',
+      message: `FASTAPI_BASE_URL inválido: "${trimmed}". Deve começar com http:// ou https:// (ex.: https://xxxx.ngrok-free.app).`,
+    };
+  }
+
+  if (trimmed.endsWith('/')) {
+    return {
+      ok: false,
+      code: 'INVALID_BASE_URL_TRAILING_SLASH',
+      message: `FASTAPI_BASE_URL não pode terminar com "/". Valor atual: "${trimmed}".`,
+    };
+  }
+
   let parsed: URL;
   try {
     parsed = new URL(trimmed);
   } catch {
-    return { ok: false, code: 'INVALID_BASE_URL', message: `FASTAPI_BASE_URL inválido: "${raw}". Deve ser uma URL absoluta (ex.: https://api.exemplo.com), sem barra no final.` };
+    return { ok: false, code: 'INVALID_BASE_URL', message: `FASTAPI_BASE_URL inválido: "${trimmed}". Deve ser uma URL absoluta (ex.: https://api.exemplo.com).` };
   }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return { ok: false, code: 'INVALID_BASE_URL', message: `FASTAPI_BASE_URL deve usar http(s). Recebido: ${parsed.protocol}` };
