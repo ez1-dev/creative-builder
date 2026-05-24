@@ -1,72 +1,67 @@
 ## Objetivo
 
-Adicionar navegação multi-nível na `DrillSheet` (e no `KpiDrillSheet` de Produção): cada novo drill empilha um nível, exibindo um breadcrumb clicável no topo e um botão "Voltar". Ao fechar a sheet, o snapshot dos filtros originais da página é restaurado automaticamente.
+Reestruturar `/producao/carga/dashboard` para destacar a visão **Por Centro de Recurso** (melhor para enxergar ocupação e gargalo) como visão principal, e mover a granularidade Centro+Operação atual para uma aba secundária.
 
-## Componentes alterados
-
-### 1. `src/components/bi/drill/DrillSheet.tsx`
-- Transformar `DrillSheetState` numa **pilha de níveis** (`levels: DrillLevel[]`) em vez de um único contexto.
-  ```ts
-  interface DrillLevel<TCtx> {
-    title: string;
-    subtitle?: string;
-    chips: DrillSheetFilterChip[];
-    ctx: TCtx;
-  }
-  ```
-- `useDrillSheet` expõe:
-  - `openWith(level)` — abre com o primeiro nível e captura snapshot dos filtros base via callback opcional `onClose`.
-  - `push(level)` — empilha novo nível (drill dentro de drill).
-  - `pop()` — remove o último (botão Voltar); se ficar vazio, fecha e dispara restauração.
-  - `goTo(index)` — corta a pilha até o nível clicado no breadcrumb.
-  - `close()` — limpa pilha + chama `onRestore` (snapshot de filtros).
-  - `current` — nível ativo.
-- `DrillSheet` recebe `levels` + `onBack` + `onCrumbClick`. No header renderiza:
-  - Breadcrumb horizontal scrollável (`overflow-x-auto`) com os títulos de cada nível, separados por `ChevronRight`, último não clicável.
-  - Botão "Voltar" com ícone `ArrowLeft` (só aparece se `levels.length > 1`).
-  - Chips do nível ativo abaixo.
-- Restauração de filtros: hook aceita `restoreFilters?: () => void`. Em `close()` e quando `onOpenChange(false)` é disparado pelo overlay, chama esse callback.
-
-### 2. `src/components/producao/drill/KpiDrillSheet.tsx`
-- Refatorar `useKpiDrill` para usar a mesma pilha (`levels: KpiDrillLevel<T>[]`) com `open`, `push`, `pop`, `goTo`, `setOpen`, `current`.
-- Aceitar `restoreFilters?: () => void` no construtor do hook.
-- `KpiDrillSheet` passa `levels` para `DrillSheet`, mostra o `DataTable` do nível ativo. Linhas podem ter `onRowClick` que chama `push()` com nova consulta.
-
-### 3. Páginas de Produção (7 já migradas)
-- `ProducaoDashboardPage`, `LeadTimeProducaoPage`, `ProduzidoPeriodoPage`, `ExpedidoObraPage`, `SaldoPatioPage`, `NaoCarregadosPage`, `RelatorioSemanalObraPage`, `CargaDashboardPage`.
-- Em cada uma:
-  1. Capturar snapshot dos filtros atuais antes de abrir a sheet (`const snapshot = useRef(filtros)` atualizado no `openWith`).
-  2. Passar `restoreFilters={() => setFiltros(snapshot.current)}` ao hook.
-  3. Onde fizer sentido (ex.: clicar numa linha de obra dentro do drill abre drill de OPs), usar `drill.push(...)`.
-- Sem mudanças de endpoint nem de business logic.
-
-## Comportamento UX
+## Layout final
 
 ```text
-┌─────────────────────────────────────────┐
-│ ← Voltar    Dashboard › Obra 123 › OP 9 │ ← breadcrumb clicável
-│ Detalhe da OP 9                         │
-│ [chip: período] [chip: centro]          │
-├─────────────────────────────────────────┤
-│ <DataTable do nível ativo>              │
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Header + FiltersBar (inalterados)                        │
+│ KPIs (10 cards) ─ compartilhados                         │
+│ TopRecursos | CargaxOPs | InsightsPanel ─ compartilhados │
+│ Donuts (Unidade / CCusto / FilaSituação) ─ compartilhados│
+│ HeatmapMock ─ compartilhado                              │
+├──────────────────────────────────────────────────────────┤
+│ Tabs:                                                    │
+│   [● Por Centro de Recurso]  [ Centros + Operações ]     │
+│                                                          │
+│   Aba 1 (default): tabela /api/producao/carga/recursos   │
+│   Aba 2: tabela atual "CentrosDemandadosTable" /centros  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-- Clicar num crumb anterior → `goTo(index)` corta a pilha.
-- Clicar "Voltar" → `pop()`.
-- Fechar sheet (X, ESC, clique fora) → limpa pilha + restaura filtros snapshot.
-- Mobile: breadcrumb com scroll horizontal, botão Voltar fica como ícone só.
+KPIs/gráficos continuam vindo de `/api/producao/carga/centros` (já em produção). As abas trocam apenas a tabela detalhada de baixo.
 
-## Fora de escopo
+## Mudanças
 
-- Onda B (Comercial/Financeiro) e demais dashboards — manter sinalizado para próxima leva.
-- Persistência da pilha na URL (não pedido).
-- Alterações em endpoints ou regras de negócio.
+### 1. API + tipos (`src/lib/producao/cargaApi.ts`)
+- Adicionar `CargaRecursoRow`: `{ unidade_negocio, tipo_recurso, codccu, codcre, descre, qtd_ops, qtd_operacoes, qtd_prevista, carga_prevista_min, carga_prevista_horas }`.
+- Adicionar `CargaRecursosResponse` (mesmo shape de `CargaCentrosResponse` mas com `dados: CargaRecursoRow[]`).
+- Adicionar método `cargaApi.recursos(f)` → `GET /api/producao/carga/recursos`.
 
-## Critérios de aceite
+### 2. Hook (`src/hooks/useCargaProducao.ts`)
+- Adicionar `useCargaRecursos(filtros, enabled)` — espelho de `useCargaCentros`, queryKey `['carga-producao','recursos',filtros]`.
 
-- Drill dentro de drill funcional em pelo menos 1 página (ex.: `ProducaoDashboardPage`: KPI → Obras → OPs).
-- Breadcrumb mostra todos os níveis, último em destaque (não clicável).
-- Botão Voltar remove último nível; sumir quando só há 1 nível.
-- Fechar sheet restaura filtros da página ao estado anterior à abertura.
-- Build TypeScript verde, sem cor hardcoded, responsivo em 375/768/1280.
+### 3. Tabela nova (`src/components/producao/carga-dashboard/PorRecursoTable.tsx`)
+- Card com header "Por Centro de Recurso · {N} recursos".
+- Colunas exatamente como pedido: Unidade, Tipo, CCusto, Recurso, Descrição, Qtd OPs, Qtd Operações, Qtd Prevista, Carga (min), Carga (h).
+- Ordenação default `carga_prevista_horas` desc; permitir clique no header das colunas numéricas para reordenar (asc/desc).
+- Status (Crítico/Alto/Médio/Normal) reaproveitando `statusOcupacao.ts` por percentil de carga_prevista_horas — mesmo critério da tabela atual.
+- `onSelect(row)` → callback para drill.
+- Linha "Total Geral" no rodapé (somar qtd_ops, qtd_operacoes, qtd_prevista, carga_prevista_min, carga_prevista_horas).
+- Loading skeleton + estado vazio + estado de erro.
+
+### 4. Página (`src/pages/producao/CargaDashboardPage.tsx`)
+- Importar `Tabs/TabsList/TabsTrigger/TabsContent` de `@/components/ui/tabs`.
+- Adicionar `useCargaRecursos(filtros)` ao lado de `useCargaCentros`.
+- Embaixo do bloco compartilhado (após `HeatmapMock`), substituir o uso direto de `CentrosDemandadosTable` por:
+  - `<Tabs defaultValue="recursos">` com 2 abas.
+  - Aba `recursos`: `<PorRecursoTable rows={recursosApi} loading={...} onSelect={openRecursoApi} />`.
+  - Aba `centros-operacoes`: `<CentrosDemandadosTable rows={recursos} onSelect={openRecurso} />` (mantém comportamento atual).
+- Novo handler `openRecursoApi(row)`: abre `DrillSheet` com `DetalheOpsTab` filtrado por `codcre` daquela linha — exatamente o mesmo padrão de `openRecurso`, mas usando a linha vinda de `/recursos`.
+- Rodapé "Fonte: …" passa a citar os dois endpoints conforme aba ativa (ou listar ambos).
+
+### 5. Doc (`docs/backend-carga-dashboard.md`)
+- Adicionar nota no topo: visão principal agora é `/api/producao/carga/recursos`; `/centros` continua para o grão Centro+Operação.
+
+## Não vai mudar
+
+- FiltersBar, KPIs, deltas vs mês anterior, charts (TopRecursos, CargaxOPs), donuts, heatmap mock, InsightsPanel, `FilaSituacaoCard`, `DrillSheet`, `DetalheOpsTab`, navegação/rotas.
+- Lógica de export (`urlExportarCentros`) — segue ligada ao endpoint atual; opcional adicionar `urlExportarRecursos` mais tarde se pedido.
+
+## Detalhes técnicos
+
+- Tabs usa shadcn (`@/components/ui/tabs`), tokens semânticos — sem cor hardcoded.
+- Ordenação por header: estado local `{ key, dir }` na `PorRecursoTable`, default `{ key: 'carga_prevista_horas', dir: 'desc' }`. `useMemo` em cima da lista.
+- `qtd_operacoes` é o novo campo (vs `qtd_linhas_operacao` agregado client-side hoje). Mostrar como inteiro `fmtNum`.
+- Status percentil reutilizando `statusOcupacao.ts` precisa receber array com `{ carga_prevista_horas }` — já compatível com `RecursoAgg`, ajustar tipo genérico se necessário.

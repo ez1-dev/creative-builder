@@ -48,6 +48,26 @@ export interface CargaCentrosResponse {
   total_registros?: number;
   filtros?: Record<string, any>;
 }
+export interface CargaRecursoRow {
+  unidade_negocio: string;
+  tipo_recurso: string;
+  codccu: string;
+  codcre: string;
+  descre: string;
+  qtd_ops: number;
+  qtd_operacoes: number;
+  qtd_prevista: number;
+  carga_prevista_min: number;
+  carga_prevista_horas: number;
+}
+
+export interface CargaRecursosResponse {
+  resumo: CargaResumo;
+  dados: CargaRecursoRow[];
+  total_registros?: number;
+  filtros?: Record<string, any>;
+}
+
 
 
 export interface CargaDetalheRow {
@@ -104,6 +124,11 @@ const toParams = (f: CargaFiltros): Record<string, any> => {
 export const cargaApi = {
   centros: (f: CargaFiltros) =>
     api.get<CargaCentrosResponse>('/api/producao/carga/centros', toParams(f)),
+
+  recursos: (f: CargaFiltros) =>
+    api.get<CargaRecursosResponse>('/api/producao/carga/recursos', toParams(f)),
+
+
 
   detalhe: (f: CargaFiltros & { pagina?: number; tamanho_pagina?: number }) =>
     api.get<CargaDetalheResponse>('/api/producao/carga/detalhe', toParams(f)),

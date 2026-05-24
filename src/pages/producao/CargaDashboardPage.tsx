@@ -5,8 +5,9 @@ import {
   Gauge, AlertOctagon, HardHat, Building2,
 } from 'lucide-react';
 import { CargaFiltersBar } from '@/components/producao/carga/CargaFiltersBar';
-import { useCargaCentros } from '@/hooks/useCargaProducao';
-import { cargaApi, CargaFiltros } from '@/lib/producao/cargaApi';
+import { useCargaCentros, useCargaRecursos } from '@/hooks/useCargaProducao';
+import { cargaApi, CargaFiltros, type CargaRecursoRow } from '@/lib/producao/cargaApi';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { KpiCard, type KpiDelta } from '@/components/producao/carga-dashboard/KpiCard';
@@ -21,6 +22,9 @@ import { HeatmapMock } from '@/components/producao/carga-dashboard/HeatmapMock';
 import { FilaSituacaoCard } from '@/components/producao/carga-dashboard/FilaSituacaoCard';
 import { DrillSheet, useDrillSheet, biResponsive, type DrillSheetFilterChip } from '@/components/bi';
 import { DetalheOpsTab } from '@/components/producao/carga/DetalheOpsTab';
+import { PorRecursoTable } from '@/components/producao/carga-dashboard/PorRecursoTable';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 
 const primeiroDiaMes = () => {
   const d = new Date();
@@ -65,6 +69,12 @@ export default function CargaDashboardPage() {
   const drill = useDrillSheet<DrillCtx>();
 
   const { data, isLoading, isError, error, dataUpdatedAt } = useCargaCentros(filtros);
+  const {
+    data: dataRecursos,
+    isLoading: loadingRecursos,
+    error: errorRecursos,
+  } = useCargaRecursos(filtros);
+
 
   // Comparativo mês anterior (mesmas regras de filtro, datas deslocadas −1 mês)
   const filtrosPrev = useMemo<CargaFiltros>(
@@ -169,6 +179,20 @@ export default function CargaDashboardPage() {
       ctx: { filtros: { ...filtros, codcre: r.codcre } },
     });
   };
+
+  const openRecursoApi = (r: CargaRecursoRow) => {
+    openDrill({
+      title: `Recurso · ${r.descre || r.codcre}`,
+      subtitle: `${r.codcre} · CC ${r.codccu}`,
+      chips: [
+        ...baseChips(),
+        { label: 'Recurso', value: r.codcre },
+        { label: 'CCusto', value: r.codccu },
+      ],
+      ctx: { filtros: { ...filtros, codcre: r.codcre } },
+    });
+  };
+
 
   const openUnidade = (un: string) => {
     openDrill({
@@ -351,13 +375,33 @@ export default function CargaDashboardPage() {
       {/* Heatmap mock */}
       <HeatmapMock recursos={recursos} />
 
-      {/* Tabela */}
-      <CentrosDemandadosTable rows={recursos} onSelect={openRecurso} />
+      {/* Tabelas em abas: visão principal por Recurso, secundária Centros+Operações */}
+      <Tabs defaultValue="recursos" className="w-full">
+        <TabsList>
+          <TabsTrigger value="recursos">Por Centro de Recurso</TabsTrigger>
+          <TabsTrigger value="centros-operacoes">Centros + Operações</TabsTrigger>
+        </TabsList>
+        <TabsContent value="recursos" className="mt-3">
+          <PorRecursoTable
+            rows={dataRecursos?.dados ?? []}
+            loading={loadingRecursos}
+            error={errorRecursos as Error | null}
+            onSelect={openRecursoApi}
+          />
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-2">
+            <Layers className="h-3 w-3" />
+            Fonte: GET /api/producao/carga/recursos · {fmtNum(dataRecursos?.dados.length ?? 0)} recursos
+          </div>
+        </TabsContent>
+        <TabsContent value="centros-operacoes" className="mt-3">
+          <CentrosDemandadosTable rows={recursos} onSelect={openRecurso} />
+          <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-2">
+            <Layers className="h-3 w-3" />
+            Fonte: GET /api/producao/carga/centros · {fmtNum(rows.length)} linhas · {fmtNum(recursos.length)} recursos agregados
+          </div>
+        </TabsContent>
+      </Tabs>
 
-      <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 pt-2">
-        <Layers className="h-3 w-3" />
-        Fonte: GET /api/producao/carga/centros · {fmtNum(rows.length)} linhas retornadas · {fmtNum(recursos.length)} recursos agregados
-      </div>
 
       <DrillSheet {...drill.sheetProps}>
         {drill.state.ctx && <DetalheOpsTab filtros={drill.state.ctx.filtros} />}
