@@ -16,6 +16,8 @@ import { KPICard } from '@/components/erp/KPICard';
 import { Package, Weight, Hash, Truck } from 'lucide-react';
 import { extrairResumo, ResumoGerencial } from '@/lib/drillResumo';
 import { BiAutoSlots } from '@/components/bi';
+import { biResponsive } from '@/components/bi/utils/responsive';
+import { KpiDrillSheet, useKpiDrill } from '@/components/producao/drill/KpiDrillSheet';
 
 const columns: Column<any>[] = [
   { key: 'numero_projeto', header: 'Projeto' },
