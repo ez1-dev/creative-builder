@@ -67,7 +67,7 @@ export default function LeadTimeProducaoPage() {
   const drill = useKpiDrill<any>(columns);
   const openKpi = (payload: Parameters<typeof drill.open>[0]) => {
     const snap = filters;
-    openKpi(payload, { restore: () => setFilters(snap) });
+    drill.open(payload, { restore: () => setFilters(snap) });
   };
 
   const search = useCallback(async (page = 1) => {

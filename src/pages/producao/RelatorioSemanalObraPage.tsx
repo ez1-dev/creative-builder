@@ -84,7 +84,7 @@ export default function RelatorioSemanalObraPage() {
   const drill = useKpiDrill<RelatorioRow>(columns);
   const openKpi = (payload: Parameters<typeof drill.open>[0]) => {
     const snap = filters;
-    openKpi(payload, { restore: () => setFilters(snap) });
+    drill.open(payload, { restore: () => setFilters(snap) });
   };
 
   // Helper: busca demais páginas apenas para alimentar os gráficos
