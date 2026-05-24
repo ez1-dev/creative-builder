@@ -59,6 +59,7 @@ const producaoSubItems = [
   { title: 'Lead Time Produção', url: '/producao/leadtime', icon: Clock },
   { title: 'Engenharia x Produção', url: '/producao/engenharia', icon: GitCompare },
   { title: 'Impressão de OP', url: '/producao/impressao-op', icon: Printer },
+  { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
 ];
 
 const regrasSeniorSubItems = [
