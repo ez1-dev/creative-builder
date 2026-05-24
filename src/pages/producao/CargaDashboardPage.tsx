@@ -157,7 +157,7 @@ export default function CargaDashboardPage() {
           totalLabel="Total"
           totalValue={`${fmtNum(totalCargaMin)} min / 100%`}
         />
-        <FilaSituacaoMock />
+        <FilaSituacaoCard filtros={filtros} />
       </div>
 
       {/* Heatmap mock */}
