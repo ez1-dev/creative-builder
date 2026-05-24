@@ -62,9 +62,10 @@ export function FilaSituacaoCard({ filtros, onSelect }: { filtros: CargaFiltros;
       title="6. Fila de OPs por situação"
       subtitle={
         parcial
-          ? 'Amostra parcial — solicitar endpoint agregado /carga/situacoes'
-          : 'Distribuição respeitando filtros (exceto situação)'
+          ? 'Amostra parcial (5k linhas) — agrupado por sitorp · deduplicado por op_chave'
+          : 'Agrupado por sitorp · deduplicado por op_chave (exceto filtro de situação)'
       }
+
       data={items}
       centerLabel="OPs"
       centerValue={total.toLocaleString('pt-BR')}
