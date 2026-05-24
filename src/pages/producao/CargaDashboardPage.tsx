@@ -180,6 +180,20 @@ export default function CargaDashboardPage() {
     });
   };
 
+  const openRecursoApi = (r: CargaRecursoRow) => {
+    openDrill({
+      title: `Recurso · ${r.descre || r.codcre}`,
+      subtitle: `${r.codcre} · CC ${r.codccu}`,
+      chips: [
+        ...baseChips(),
+        { label: 'Recurso', value: r.codcre },
+        { label: 'CCusto', value: r.codccu },
+      ],
+      ctx: { filtros: { ...filtros, codcre: r.codcre } },
+    });
+  };
+
+
   const openUnidade = (un: string) => {
     openDrill({
       title: `Unidade · ${un}`,
