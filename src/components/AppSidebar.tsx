@@ -62,8 +62,10 @@ const producaoSubItems = [
   { title: 'Carga de Produção', url: '/producao/carga', icon: Gauge },
   { title: 'Carga — Dashboard BI', url: '/producao/carga/dashboard', icon: Activity },
   { title: 'Carga — Por Recurso', url: '/producao/carga/recursos', icon: Gauge },
+  { title: 'Programação e Sequenciamento', url: '/producao/programacao', icon: CalendarClock },
 
 ];
+
 
 const regrasSeniorSubItems = [
   { title: 'Dashboard', url: '/regras-senior', icon: LayoutDashboard },
