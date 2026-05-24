@@ -121,6 +121,27 @@ Deno.serve(async (req) => {
 
     const filaRows = (fila ?? []) as FilaRow[];
 
+    // --- 1.b. Carregar overrides de prioridade manual (PCP) ---
+    const { data: prioOv } = await admin
+      .from('producao_prioridade_op')
+      .select('codemp,numorp,prioridade');
+    const prioMap = new Map<string, number>();
+    for (const p of (prioOv ?? []) as { codemp: number; numorp: string; prioridade: number }[]) {
+      prioMap.set(`${p.codemp}|${p.numorp}`, p.prioridade);
+    }
+    for (const r of filaRows) {
+      const ov = prioMap.get(`${r.codemp}|${r.numorp}`);
+      if (ov != null) r.prioridade = ov;
+    }
+    // Reordena com override aplicado
+    filaRows.sort((a, b) => {
+      if (a.prioridade !== b.prioridade) return a.prioridade - b.prioridade;
+      const da = a.data_geracao_op ?? '9999-12-31';
+      const db = b.data_geracao_op ?? '9999-12-31';
+      return da.localeCompare(db);
+    });
+
+
     // --- 2. Carregar capacidades ---
     const { data: caps, error: capErr } = await admin
       .from('programacao_capacidades')
