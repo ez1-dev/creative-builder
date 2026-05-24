@@ -103,11 +103,15 @@ export default function ProduzidoPeriodoPage() {
 
       {data && (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página`} icon={<Package className="h-5 w-5" />} index={0} />
-            <KPICard title="Qtd Produzida" value={resumo ? formatNumber(resumo.quantidade_produzida, 0) : '—'} subtitle="Total geral do filtro" icon={<Hash className="h-5 w-5" />} variant="info" index={1} />
-            <KPICard title="Peso Produzido" value={resumo ? `${formatNumber(resumo.kg_produzido, 1)} Kg` : '—'} subtitle="Total geral do filtro" icon={<Weight className="h-5 w-5" />} variant="success" index={2} />
-            <KPICard title="Qtd Etiquetas" value={resumo ? formatNumber(resumo.quantidade_etiquetas, 0) : '—'} subtitle="Total geral do filtro" icon={<Tags className="h-5 w-5" />} variant="warning" index={3} />
+          <div className={biResponsive.kpiGrid4}>
+            <KPICard title="Total Registros" value={formatNumber(resumo?.total_registros ?? data.total_registros, 0)} subtitle={`${(data.dados || []).length} nesta página · Ver detalhes`} icon={<Package className="h-5 w-5" />} index={0}
+              onClick={() => drill.open({ title: 'Produzido — todos os itens', subtitle: `${data.total_registros} registros`, rows: data.dados || [] })} />
+            <KPICard title="Qtd Produzida" value={resumo ? formatNumber(resumo.quantidade_produzida, 0) : '—'} subtitle="Top itens · clique" icon={<Hash className="h-5 w-5" />} variant="info" index={1}
+              onClick={() => drill.open({ title: 'Top itens por Qtd Produzida', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_produzida' }], rows: [...(data.dados || [])].sort((a, b) => (Number(b.quantidade_produzida) || 0) - (Number(a.quantidade_produzida) || 0)).slice(0, 50) })} />
+            <KPICard title="Peso Produzido" value={resumo ? `${formatNumber(resumo.kg_produzido, 1)} Kg` : '—'} subtitle="Top itens · clique" icon={<Weight className="h-5 w-5" />} variant="success" index={2}
+              onClick={() => drill.open({ title: 'Top itens por Peso Produzido', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'peso_real' }], rows: [...(data.dados || [])].sort((a, b) => (Number(b.peso_real) || 0) - (Number(a.peso_real) || 0)).slice(0, 50) })} />
+            <KPICard title="Qtd Etiquetas" value={resumo ? formatNumber(resumo.quantidade_etiquetas, 0) : '—'} subtitle="Top itens · clique" icon={<Tags className="h-5 w-5" />} variant="warning" index={3}
+              onClick={() => drill.open({ title: 'Top itens por Qtd Etiquetas', subtitle: 'Top 50', chips: [{ label: 'Métrica', value: 'quantidade_etiquetas' }], rows: [...(data.dados || [])].sort((a, b) => (Number(b.quantidade_etiquetas) || 0) - (Number(a.quantidade_etiquetas) || 0)).slice(0, 50) })} />
           </div>
           {resumoIndisponivel && (
             <p className="text-xs text-muted-foreground italic">
@@ -117,8 +121,11 @@ export default function ProduzidoPeriodoPage() {
         </>
       )}
 
-      <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      <div className={biResponsive.tableWrap}>
+        <DataTable columns={columns} data={data?.dados || []} loading={loading} />
+      </div>
       {data && <PaginationControl pagina={pagina} totalPaginas={data.total_paginas} totalRegistros={data.total_registros} onPageChange={(p) => search(p)} />}      <BiAutoSlots pageKey="producao-produzido-periodo" />
+      <KpiDrillSheet open={drill.state.open} onOpenChange={drill.setOpen} title={drill.state.title} subtitle={drill.state.subtitle} chips={drill.state.chips} rows={drill.state.rows} columns={drill.state.columns} />
     </div>
   );
 }
