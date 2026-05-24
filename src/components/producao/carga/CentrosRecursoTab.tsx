@@ -110,7 +110,7 @@ export function CentrosRecursoTab({
                 <TableCell className="text-xs font-mono">{r.codcre}</TableCell>
                 <TableCell className="text-xs">{r.descre}</TableCell>
                 <TableCell className="text-xs font-mono">{r.codopr}</TableCell>
-                <TableCell className="text-xs">{r.descricao_operacao}</TableCell>
+                <TableCell className="text-xs">{r.desopr}</TableCell>
                 <TableCell className="text-right text-xs">{fmt(r.qtd_ops)}</TableCell>
                 <TableCell className="text-right text-xs">{fmt(r.qtd_prevista)}</TableCell>
                 <TableCell className="text-right text-xs">{fmt(r.carga_prevista_min)}</TableCell>
