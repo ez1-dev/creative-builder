@@ -15,6 +15,7 @@ import { useAiPageContext } from '@/hooks/useAiPageContext';
 import { AlertTriangle, Clock, SearchX, RefreshCw, Package, TrendingUp, Truck, Warehouse, Layers, AlertCircle, Hourglass } from 'lucide-react';
 import { DashboardCharts } from './components/DashboardCharts';
 import { KpiGrid, KpiCard, LoadingState, UserWidgetsSlot } from '@/components/bi';
+import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 
 interface DashboardResumo {
