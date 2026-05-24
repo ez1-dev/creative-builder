@@ -85,6 +85,7 @@ export function KpiCard({
               </TooltipProvider>
             )}
           </div>
+          <div
             className={cn(
               'mt-1.5 md:mt-2 text-xl md:text-2xl font-bold tabular-nums',
               placeholder ? 'text-muted-foreground' : accentMap[accent],
