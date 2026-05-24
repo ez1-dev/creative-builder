@@ -145,7 +145,7 @@ export default function ProducaoDashboardPage() {
   const drill = useDrillSheet<{ items: DrillItem[] }>();
   const openDrill = (payload: Parameters<typeof drill.openWith>[0]) => {
     const snap = filters;
-    openDrill(payload, { restore: () => setFilters(snap) });
+    drill.openWith(payload, { restore: () => setFilters(snap) });
   };
   const pushProjeto = (it: DrillItem) => {
     if (!it.projeto) return;
