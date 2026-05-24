@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
     admin = createClient(supabaseUrl, serviceKey);
 
     // Validar FASTAPI_BASE_URL
-    const baseCheck = validateBaseUrl(fastapiRaw);
+    const baseCheck = validateBaseUrl(fastapiRaw, cronSecret);
     if (!baseCheck.ok) {
       await admin.from('etl_execucoes').insert({
         tarefa_codigo: 'SYNC_FILA_OPS_ERP',
