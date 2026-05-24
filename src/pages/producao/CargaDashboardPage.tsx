@@ -22,6 +22,9 @@ import { HeatmapMock } from '@/components/producao/carga-dashboard/HeatmapMock';
 import { FilaSituacaoCard } from '@/components/producao/carga-dashboard/FilaSituacaoCard';
 import { DrillSheet, useDrillSheet, biResponsive, type DrillSheetFilterChip } from '@/components/bi';
 import { DetalheOpsTab } from '@/components/producao/carga/DetalheOpsTab';
+import { PorRecursoTable } from '@/components/producao/carga-dashboard/PorRecursoTable';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
 
 const primeiroDiaMes = () => {
   const d = new Date();
