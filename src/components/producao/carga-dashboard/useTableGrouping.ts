@@ -13,12 +13,19 @@ export interface GroupNode<T> {
   key: string;
   field: GroupField;
   value: string;
+  label: string; // valor exibido: "<código> — <descrição>" quando aplicável
   level: number;
   count: number;
   totals: Record<string, number>;
   children: GroupNode<T>[];
   rows: T[]; // só preenchido no último nível
 }
+
+const DESCRIPTION_KEY: Partial<Record<GroupField, string>> = {
+  codcre: 'descre',
+  // codccu não tem descrição no backend; unidade_negocio/tipo_recurso já são rótulos.
+};
+
 
 function emptyTotals(keys: string[]): Record<string, number> {
   const o: Record<string, number> = {};
