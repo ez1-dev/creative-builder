@@ -30,6 +30,7 @@ import LeadTimeProducaoPage from "@/pages/producao/LeadTimeProducaoPage";
 import RelatorioSemanalObraPage from "@/pages/producao/RelatorioSemanalObraPage";
 import ImpressaoOrdemProducaoPage from "@/pages/producao/ImpressaoOrdemProducaoPage";
 import CargaProducaoPage from "@/pages/producao/CargaProducaoPage";
+import CargaDashboardPage from "@/pages/producao/CargaDashboardPage";
 import ContasPagarPage from "@/pages/ContasPagarPage";
 import ContasReceberPage from "@/pages/ContasReceberPage";
 import FaturamentoGeniusPage from "@/pages/FaturamentoGeniusPage";
@@ -131,6 +132,7 @@ const App = () => (
               <Route path="/producao/relatorio-semanal-obra" element={<ProtectedRoute path="/producao/relatorio-semanal-obra"><RelatorioSemanalObraPage /></ProtectedRoute>} />
               <Route path="/producao/impressao-op" element={<ProtectedRoute path="/producao/impressao-op"><ImpressaoOrdemProducaoPage /></ProtectedRoute>} />
               <Route path="/producao/carga" element={<ProtectedRoute path="/producao/carga"><CargaProducaoPage /></ProtectedRoute>} />
+              <Route path="/producao/carga/dashboard" element={<ProtectedRoute path="/producao/carga"><CargaDashboardPage /></ProtectedRoute>} />
               {/* Relatórios */}
               <Route path="/relatorios/desenvolvimento" element={<ProtectedRoute path="/relatorios/desenvolvimento"><DesenvolvimentoRelatoriosPage /></ProtectedRoute>} />
               <Route path="/relatorios/publicados" element={<ProtectedRoute path="/relatorios/publicados"><RelatoriosPublicadosPage /></ProtectedRoute>} />
