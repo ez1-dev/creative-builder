@@ -18,7 +18,7 @@ const SIT_LABELS: Record<string, string> = {
 
 const PAGE_SIZE = 5000;
 
-export function FilaSituacaoCard({ filtros }: { filtros: CargaFiltros }) {
+export function FilaSituacaoCard({ filtros, onSelect }: { filtros: CargaFiltros; onSelect?: (sit: string) => void }) {
   const { data, isLoading, isError } = useCargaDetalhe({
     ...filtros,
     situacoes: undefined,
