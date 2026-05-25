@@ -13,6 +13,12 @@ export function TvModeButton({ className }: { className?: string }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { tvMode } = useTvMode();
+  const { isAdmin } = useUserPermissions();
+
+  // Apenas Administradores enxergam o botão na UI normal.
+  // Em modo TV mantemos o botão "Sair Modo TV" visível para qualquer usuário
+  // que tenha aberto o link wallboard.
+  if (!tvMode && !isAdmin) return null;
 
   const handleClick = () => {
     const params = new URLSearchParams(location.search);
