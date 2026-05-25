@@ -96,7 +96,7 @@ export default function ManutencaoMaquinasCompartilhadoPage() {
     <PublicVisualsProvider hiddenVisuals={hiddenVisuals}>
       <div className="min-h-screen bg-background">
         <header className="border-b bg-card">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3">
+          <div className="max-w-7xl 3xl:max-w-[1800px] 4xl:max-w-[2400px] 5xl:max-w-none mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3">
             <Cog className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <h1 className="text-base sm:text-lg font-bold truncate">Manutenção de Máquinas</h1>
@@ -104,7 +104,7 @@ export default function ManutencaoMaquinasCompartilhadoPage() {
             </div>
           </div>
         </header>
-        <main className="max-w-7xl mx-auto p-2 sm:p-4">
+        <main className="max-w-7xl 3xl:max-w-[1800px] 4xl:max-w-[2400px] 5xl:max-w-none mx-auto p-2 sm:p-4">
           <MaquinasDashboard data={data} shareToken={token} readOnly />
         </main>
         <footer className="text-center text-[11px] sm:text-xs text-muted-foreground py-4 px-3">
