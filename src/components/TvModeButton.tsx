@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Tv, TvMinimal } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTvMode } from '@/hooks/useTvMode';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 /**
  * Botão "Modo TV" — abre a rota atual com `?tv=1` em nova aba,
