@@ -164,3 +164,23 @@
 .layout.is-editing .drag-handle:hover {
   background: hsl(var(--accent));
 }
+
+/* ===== Big-screen / TV scaling (≥1920px) ===== */
+/* Tailwind utilities use rem, so bumping html font-size scales everything. */
+@media (min-width: 1920px) {
+  :root { font-size: 18px; }
+}
+@media (min-width: 2560px) {
+  :root { font-size: 20px; }
+}
+@media (min-width: 3200px) {
+  :root { font-size: 24px; }
+}
+
+/* Wallboard / TV mode (?tv=1) — chrome hidden, denser focus */
+html[data-tv="1"] body { overflow: hidden; }
+html[data-tv="1"] [data-tv-hide="true"] { display: none !important; }
+html[data-tv="1"] :focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
