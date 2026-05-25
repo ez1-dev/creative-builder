@@ -22,6 +22,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 import { formatDate } from '@/lib/format';
+import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
+
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
