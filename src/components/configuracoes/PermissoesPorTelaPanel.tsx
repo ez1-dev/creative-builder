@@ -181,7 +181,7 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(340px,380px)_1fr] xl:grid-cols-[420px_1fr] gap-4">
       {/* ===== Painel esquerdo ===== */}
       <div
         className={cn(
@@ -200,25 +200,25 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
             />
           </div>
         </div>
-        <ScrollArea className="h-[520px]">
+        <ScrollArea className="h-[560px]">
           <Accordion
             type="multiple"
             value={openGroups}
             onValueChange={setOpenGroups}
-            className="px-2 py-1"
+            className="px-2 py-1 pr-3"
           >
             {grouped.map(({ key, items }) => (
               <AccordionItem key={key} value={key} className="border-none">
                 <AccordionTrigger className="px-2 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:no-underline">
-                  <span className="flex items-center gap-2">
-                    {MODULE_LABEL[key]}
-                    <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                  <span className="flex w-full items-center justify-between gap-2 pr-2">
+                    <span>{MODULE_LABEL[key]}</span>
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
                       {items.length}
                     </Badge>
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="pb-1">
-                  <ul className="space-y-0.5">
+                  <ul className="space-y-1">
                     {items.map(s => {
                       const viewers = countViewers(s.path);
                       const active = s.path === selectedPath;
@@ -228,19 +228,26 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                             type="button"
                             onClick={() => setSelectedPath(s.path)}
                             className={cn(
-                              'w-full flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors',
+                              'w-full flex flex-col items-start gap-1 rounded-md px-2.5 py-2 text-left transition-colors border-l-2',
                               active
-                                ? 'bg-primary/10 text-primary font-medium'
-                                : 'hover:bg-accent text-foreground',
+                                ? 'bg-primary/10 text-primary border-primary'
+                                : 'hover:bg-accent text-foreground border-transparent',
                             )}
                           >
-                            <span className="truncate">{s.name}</span>
-                            <Badge
-                              variant={viewers > 0 ? 'default' : 'outline'}
-                              className="h-5 px-1.5 text-[10px] shrink-0"
-                            >
-                              {viewers}/{totalProfiles}
-                            </Badge>
+                            <span className="text-sm leading-snug whitespace-normal break-words">
+                              {s.name}
+                            </span>
+                            <span className="flex items-center gap-2 w-full min-w-0">
+                              <Badge
+                                variant={viewers > 0 ? 'default' : 'outline'}
+                                className="h-4 px-1.5 text-[10px] font-normal shrink-0"
+                              >
+                                {viewers}/{totalProfiles}
+                              </Badge>
+                              <span className="font-mono text-[10px] text-muted-foreground truncate">
+                                {s.path}
+                              </span>
+                            </span>
                           </button>
                         </li>
                       );
