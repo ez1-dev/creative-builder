@@ -22,6 +22,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 import { formatDate } from '@/lib/format';
+import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
+
 
 const ALL_SCREENS = [
   { path: '/estoque', name: 'Estoque' },
@@ -623,48 +625,14 @@ export default function ConfiguracoesPage() {
                 <p className="text-sm text-muted-foreground py-8 text-center">Crie um perfil primeiro na aba "Perfis de Acesso"</p>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[160px]">Tela</TableHead>
-                          {profiles.map(p => (
-                            <TableHead key={p.id} className="text-center min-w-[120px]">
-                              <div className="text-xs">{p.name}</div>
-                              <div className="flex justify-center gap-3 text-[10px] text-muted-foreground mt-1">
-                                <span>Ver</span><span>Editar</span>
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {ALL_SCREENS.map(screen => (
-                          <TableRow key={screen.path}>
-                            <TableCell className="font-medium text-sm">{screen.name}</TableCell>
-                            {profiles.map(p => {
-                              const perm = getScreenPerm(p.id, screen.path);
-                              return (
-                                <TableCell key={p.id} className="text-center">
-                                  <div className="flex justify-center gap-3">
-                                    <Checkbox
-                                      checked={perm?.can_view || false}
-                                      onCheckedChange={() => toggleScreen(p.id, screen.path, screen.name, 'can_view')}
-                                    />
-                                    <Checkbox
-                                      checked={perm?.can_edit || false}
-                                      onCheckedChange={() => toggleScreen(p.id, screen.path, screen.name, 'can_edit')}
-                                      disabled={!perm?.can_view}
-                                    />
-                                  </div>
-                                </TableCell>
-                              );
-                            })}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <PermissoesPorTelaPanel
+                    screens={ALL_SCREENS}
+                    profiles={profiles.map(p => ({ id: p.id, name: p.name }))}
+                    profileScreens={profileScreens}
+                    onToggle={toggleScreen}
+                    onRefresh={fetchData}
+                  />
+
 
                   <div className="mt-6 border-t pt-4">
                     <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">

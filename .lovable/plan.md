@@ -1,43 +1,92 @@
-## Objetivo
-Fazer a sincronização ERP → Fila funcionar novamente no módulo **Programação e Sequenciamento**, garantindo que a função chame a FastAPI com a URL correta e que erros de configuração de secret apareçam de forma clara.
+# Redesign — Permissões por Tela
 
-## O que vou implementar
-1. **Corrigir a configuração de secrets com formulário seguro**
-   - Abrir a atualização segura de `FASTAPI_BASE_URL` para você informar a URL pública correta da FastAPI.
-   - Confirmar que `CRON_SECRET` permanece separado e não é usado como URL.
+Substituir a matriz larga (telas × perfis × Ver/Editar) por um layout **focado em uma tela por vez**, mais legível e auditável.
 
-2. **Endurecer a validação na Edge Function `programacao-sync-fila`**
-   - Validar que `FASTAPI_BASE_URL`:
-     - começa com `http://` ou `https://`
-     - não contém `localhost`
-     - não contém `127.0.0.1`
-     - não termina com `/`
-     - não é igual ao valor de `CRON_SECRET`
-   - Retornar erro amigável e persistir o diagnóstico quando a configuração estiver inválida.
+## Layout proposto
 
-3. **Garantir a montagem correta da chamada para a FastAPI**
-   - Usar a URL esperada:
-     `.../api/producao/programacao/fila-erp?codemp=1&situacoes=A%2CL&limite=5000`
-   - Confirmar que a função não envia `data_ini` e `data_fim` na sincronização padrão.
-   - Confirmar o envio de `x-cron-secret` apenas no header.
+Card "Permissões por Tela" passa a ter dois painéis lado a lado dentro de um grid responsivo:
 
-4. **Verificar interface e diagnóstico**
-   - Manter a exibição do erro da função na interface.
-   - Confirmar o card de diagnóstico com:
-     - última sincronização
-     - quantidade recebida da FastAPI
-     - quantidade gravada em `bi_ops_fila`
-     - total atual de linhas em `bi_ops_fila`
-     - último erro
-     - URL chamada, sem expor secrets
-   - Manter a mensagem de fila vazia quando `bi_ops_fila` estiver sem registros.
+```text
+┌────────────────────────────┬────────────────────────────────────────┐
+│ [Buscar tela...]           │  Tela: Faturamento Genius              │
+│                            │  Caminho: /faturamento-genius          │
+│ ▾ Produção (10)            │  ────────────────────────────────────  │
+│   • Dashboard         3/5  │  Ações em lote:                        │
+│   • Produzido…        2/5  │  [Liberar Ver p/ todos] [Limpar tudo]  │
+│ ▾ Compras (5)              │  [Copiar perfil X → Y ▾]               │
+│   • Painel Compras …  4/5  │  ────────────────────────────────────  │
+│ ▾ Financeiro (3)           │  Perfil          Ver    Editar         │
+│ ▾ BI / Configuração (2)    │  Administrador   [on]   [on]           │
+│ …                          │  Gerente Prod.   [on]   [ ]            │
+│                            │  Operador        [ ]    [ ]            │
+└────────────────────────────┴────────────────────────────────────────┘
+```
 
-5. **Deploy e teste ponta a ponta**
-   - Atualizar/republicar a Edge Function se houver diferença entre código local e implantado.
-   - Testar o botão **Atualizar fila do ERP**.
-   - Validar se `bi_ops_fila` foi populada e se o diagnóstico mostra sucesso.
+- Em telas estreitas (<lg) vira layout em uma coluna: lista de telas em cima (collapsable) e detalhe abaixo, com botão "Voltar à lista".
 
-## Detalhes técnicos
-- O código local já está montando `limite`, não `limit`; como o erro mostrado ainda cita `limit=5000`, vou confirmar se a função implantada está desatualizada e republicá-la.
-- O backend hospedado está saudável; o bloqueio atual é de configuração da URL base e validação da chamada.
-- Não vou alterar o algoritmo de programação, regras de agenda, capacidades ou a FastAPI externa.
+## Painel esquerdo — Lista de telas
+
+- Campo de busca (filtra por nome e por caminho).
+- Telas agrupadas por **módulo** em accordions abertos por padrão. Agrupamento derivado do `path`:
+  - Produção: `/producao/*`
+  - Compras: `/compras-*`, `/painel-compras`, `/demonstrativo-compras-recebimentos`, `/auditoria-tributaria`, `/notas-recebimento`
+  - Estoque: `/estoque*`, `/sugestao-min-max`, `/onde-usa`, `/bom`, `/numero-serie`
+  - Financeiro/Contábil: `/contas-*`, `/contabilidade/*`, `/conciliacao-edocs`
+  - Faturamento: `/faturamento-genius`, `/auditoria-apontamento-genius`
+  - Operacional: `/passagens-aereas`, `/frota`, `/manutencao-maquinas`
+  - Administração: `/configuracoes`, `/monitor-usuarios-senior`, `/gestao-sgu-usuarios`, `/biblioteca-bi`
+  - "Outras" para o que não bater.
+- Cada item mostra nome + **badge de contagem** "X/Y" (perfis com `can_view` / total de perfis).
+- Item ativo destacado (`bg-accent`). Clique seleciona a tela.
+
+## Painel direito — Detalhe da tela selecionada
+
+- Cabeçalho com nome da tela, caminho em `text-muted-foreground` e badge "N de M perfis com acesso".
+- Barra de **ações em lote** (afeta apenas a tela selecionada):
+  - "Liberar Ver para todos os perfis"
+  - "Liberar Ver + Editar para todos"
+  - "Remover todas as permissões"
+  - "Copiar de outro perfil…" (dropdown: escolhe perfil origem e perfil destino, copia permissões dessa tela).
+- Tabela compacta `Perfil | Ver (Switch) | Editar (Switch)`:
+  - `Editar` desabilita quando `Ver` está desligado (regra atual mantida).
+  - Toggle reaproveita `toggleScreen` existente; lote chama a mesma função em sequência (ou faz upsert único em batch para performance).
+- Estado vazio quando nenhuma tela está selecionada: instrução "Selecione uma tela à esquerda".
+
+## Secções inferiores
+
+Mantém intactas, sem mudança visual relevante:
+- "Assistente IA" (switch por perfil).
+- "Compartilhamento de Passagens Aéreas".
+
+## Implementação técnica
+
+Arquivos:
+
+- `src/pages/ConfiguracoesPage.tsx`
+  - Extrair o conteúdo da `TabsContent value="permissions"` para um novo componente `PermissoesPorTelaPanel` (mesmo arquivo ou novo módulo) para não inflar a página.
+  - Manter `ALL_SCREENS`, `profiles`, `profileScreens`, `getScreenPerm`, `toggleScreen`, `fetchData` como estão (passados via props ou movidos junto).
+- Novo arquivo sugerido: `src/components/configuracoes/PermissoesPorTelaPanel.tsx`
+  - Props: `profiles`, `profileScreens`, `onToggle(profileId, path, name, field)`, `onBatch(updates)`.
+  - Estado interno: `search`, `selectedPath`, `openGroups`.
+  - Helper `getModule(path)` mapeia path → módulo.
+  - Helper `countViewers(path)` percorre `profileScreens` para o badge.
+  - Ações em lote: nova função `applyBulk(path, name, action)` que faz upsert em massa usando `supabase.from('profile_screens').upsert([...], { onConflict: 'profile_id,screen_path' })` e depois chama `fetchData()`. Se a constraint composta não existir, faz fallback iterando `toggleScreen`.
+- Componentes UI: usar shadcn `Accordion`, `Input`, `Switch`, `Badge`, `Card`, `ScrollArea`, `DropdownMenu`, `Button`, `Separator`. Sem cores hardcoded — só tokens semânticos (`bg-card`, `bg-accent`, `text-muted-foreground`, `border-border`, `text-primary`).
+- Acessibilidade: lista de telas como `role="listbox"`/`button`, switches com `aria-label` ("Liberar visualização", "Liberar edição").
+
+## Fora do escopo
+
+- Schema do banco (`profile_screens` permanece igual).
+- Lógica de permissões em `useUserPermissions` e `ProtectedRoute`.
+- Outras abas de Configurações.
+- Catálogo `ALL_SCREENS` — mantido como está.
+
+## Critério de pronto
+
+- Buscar uma tela filtra a lista esquerda.
+- Selecionar uma tela mostra todos os perfis com Ver/Editar.
+- Toggle persiste em `profile_screens` (mesmo comportamento atual).
+- Botões de lote alteram todos os perfis daquela tela com um único refetch.
+- Badge de contagem por tela atualiza após mudanças.
+- Layout responsivo: 2 colunas em ≥lg, 1 coluna abaixo.
+- Sem rolagem horizontal.
