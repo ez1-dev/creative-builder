@@ -17,7 +17,7 @@ export function PageHeader({ title, description, actions, hideTvButton }: PageHe
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {actions}
-        {!hideTvButton && <TvModeButton data-tv-hide="true" />}
+        {!hideTvButton && <TvModeButton />}
       </div>
     </div>
   );
