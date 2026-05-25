@@ -50,23 +50,23 @@ export function KpiCard({
       )}
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5">
-        <CardTitle className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1.5 3xl:pb-3">
+        <CardTitle className="flex items-center gap-1.5 text-xs 3xl:text-sm 4xl:text-base font-medium text-muted-foreground">
           {title}
           {tooltip && (
             <TooltipProvider><UITooltip>
-              <TooltipTrigger asChild><Info className="h-3 w-3 opacity-60" /></TooltipTrigger>
+              <TooltipTrigger asChild><Info className="h-3 w-3 3xl:h-4 3xl:w-4 opacity-60" /></TooltipTrigger>
               <TooltipContent><p className="max-w-xs text-xs">{tooltip}</p></TooltipContent>
             </UITooltip></TooltipProvider>
           )}
         </CardTitle>
-        {icon && <span className="text-muted-foreground">{icon}</span>}
+        {icon && <span className="text-muted-foreground 3xl:[&>svg]:h-5 3xl:[&>svg]:w-5">{icon}</span>}
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-1 3xl:space-y-2">
         {loading ? (
-          <Skeleton className="h-7 w-24" />
+          <Skeleton className="h-7 3xl:h-10 w-24" />
         ) : (
-          <div className="text-xl font-bold tabular-nums tracking-tight">{formatByKind(value as any, format)}</div>
+          <div className="text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight">{formatByKind(value as any, format)}</div>
         )}
         {(subtitle || trend || status) && (
           <div className="flex items-center justify-between gap-2">
