@@ -33,6 +33,7 @@ import CargaProducaoPage from "@/pages/producao/CargaProducaoPage";
 import CargaDashboardPage from "@/pages/producao/CargaDashboardPage";
 import CargaRecursosDashboardPage from "@/pages/producao/CargaRecursosDashboardPage";
 import ProgramacaoPage from "@/pages/producao/ProgramacaoPage";
+import ConsultaProdutosPage from "@/pages/cadastros/ConsultaProdutosPage";
 
 
 import ContasPagarPage from "@/pages/ContasPagarPage";
