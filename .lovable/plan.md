@@ -1,26 +1,26 @@
+# Corrigir chamadas da aba "OPs Pintura/Jato"
 
-## Objetivo
-
-Trocar o alerta vermelho de erro por um aviso visualmente mais leve, em tom de "sistema em manutenção", para reduzir ansiedade do usuário quando o backend ERP estiver fora.
+A rota de listagem (`GET /api/auditoria-apontamento-genius/ops-jato-peso`) e a de componentes (`/{origem}/{numero_op}/componentes`) já estão corretas em `src/lib/api.ts`. Faltam três ajustes para bater 100% com a spec.
 
 ## Mudanças
 
-**Arquivo:** `src/components/erp/ErpConnectionAlert.tsx`
+### 1. `src/lib/api.ts` — `OpsJatoPesoFilters`
+- Remover o campo `codemp` (não consta nos parâmetros aceitos).
+- Adicionar `nivel_maximo?: number` (parâmetro previsto na spec, hoje ausente).
 
-1. Trocar o `variant="destructive"` por um estilo "warning/maintenance":
-   - Usar tokens semânticos: borda e fundo em `warning` (amarelo/âmbar suave, já existente no design system — vide `AvisoErpBanner`), texto em `foreground`.
-   - Ícone: substituir `AlertTriangle` por `Wrench` (lucide-react) para reforçar a ideia de manutenção.
+### 2. `src/pages/auditoria-genius/OpsJatoPesoTab.tsx`
+- **Export Excel**: trocar o endpoint do `<ExportButton>` de  
+  `/api/auditoria-apontamento-genius/ops-jato-peso` (com `exportar_excel=true`)  
+  para a rota dedicada  
+  `/api/export/auditoria-apontamento-genius/ops-jato-peso`,  
+  removendo o flag `exportar_excel` dos params.
+- **Filtro Empresa (`codemp`)**: remover do `FormState`, do `initialForm`, do `buildApiFilters` e o input "Empresa" do `FilterPanel` (parâmetro não suportado pela API).
 
-2. Reescrever o copy:
-   - **Título:** "Sistema em manutenção"
-   - **Descrição:** "Estamos realizando uma manutenção na conexão com o ERP. Os dados podem aparecer desatualizados ou indisponíveis por alguns instantes. Já estamos trabalhando para normalizar — tente novamente em breve."
-   - Remover a menção ao usuário ERP ("RENATO") e ao caminho de Configurações no caso geral, já que assusta o usuário comum.
-
-3. Manter o caso `!erpUser` (usuário ERP não configurado) com mensagem técnica original, pois é um caso real de configuração que só admins resolvem — mas também em tom amarelo de "atenção" em vez de vermelho de erro.
-
-4. Nenhuma mudança em `useErpReady` nem na lógica de detecção — só visual e textual.
+### 3. Sem mudanças em
+- `OpsJatoComponentesSheet.tsx` (rota correta).
+- `getOpsJatoPeso` / `getOpsJatoPesoComponentes` (URLs corretas; segue mandando `usar_multinivel=true` por padrão e header `Authorization: Bearer` via `api.get`).
+- Componente `ExportButton` (já envia `Authorization` e `ngrok-skip-browser-warning`).
 
 ## Fora de escopo
-
-- Tentar reconectar automaticamente, página de status, ou diferenciar tipos de falha (timeout vs auth vs offline).
-- Mostrar versão "técnica" para admin — todos veem o mesmo aviso de manutenção.
+- Expor `nivel_maximo` na UI (apenas tipa o filtro; UI pode ser adicionada depois se necessário).
+- Mudar lógica de status_peso, KPIs ou drawer de componentes.
