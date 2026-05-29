@@ -247,15 +247,6 @@ export function OpsJatoPesoTab() {
 
       <FilterPanel onSearch={() => buscar(1)} onClear={limpar}>
         <div className="space-y-1">
-          <Label className="text-xs">Empresa</Label>
-          <Input
-            value={form.codemp}
-            onChange={(e) => setForm({ ...form, codemp: e.target.value })}
-            placeholder="Cód. empresa"
-            className="h-9"
-          />
-        </div>
-        <div className="space-y-1">
           <Label className="text-xs">Data Inicial</Label>
           <Input
             type="date"
