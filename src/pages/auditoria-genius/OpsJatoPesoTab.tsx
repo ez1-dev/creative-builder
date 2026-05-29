@@ -28,7 +28,6 @@ import { OpsJatoComponentesSheet } from './OpsJatoComponentesSheet';
 type StatusPesoFilter = 'TODOS' | 'COM_PESO' | 'SEM_PESO' | 'PARCIAL';
 
 interface FormState {
-  codemp: string;
   data_ini: string;
   data_fim: string;
   origem: string;
@@ -46,7 +45,6 @@ const primeiroDiaMesISO = () => {
 };
 
 const initialForm: FormState = {
-  codemp: '',
   data_ini: primeiroDiaMesISO(),
   data_fim: hojeISO(),
   origem: '',
