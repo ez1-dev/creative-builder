@@ -126,8 +126,8 @@ export default function ConsultaProdutosPage() {
       toast.error('Conexão ERP não disponível.');
       return;
     }
-    setLoading(true);
-    setError(null);
+    setLoadingProdutos(true);
+    setErroProdutos(null);
     try {
       const size = sizeOverride ?? pageSize;
       const result = await getProdutosCadastro(buildFilters(page, size));
@@ -136,19 +136,20 @@ export default function ConsultaProdutosPage() {
       setAppliedIncluirDeriv(form.incluir_derivacoes);
     } catch (e: any) {
       const msg = e?.message || 'Erro ao consultar produtos';
-      setError(msg);
+      setErroProdutos(msg);
       toast.error(msg);
     } finally {
-      setLoading(false);
+      setLoadingProdutos(false);
     }
   }, [erpReady, pageSize, buildFilters, form.incluir_derivacoes]);
 
   const handleClear = useCallback(() => {
     setForm(initialForm);
     setData(null);
-    setError(null);
+    setErroProdutos(null);
     setPagina(1);
   }, []);
+
 
   const origensOptions = useMemo(
     () => origens.map((o) => ({ value: o.codigo, label: o.descricao ? `${o.codigo} - ${o.descricao}` : o.codigo })),
