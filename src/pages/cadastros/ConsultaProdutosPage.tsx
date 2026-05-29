@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import {
   getProdutosCadastro,
   getProdutosFamilias,
-  getProdutosOrigens,
+  getProdutosFiltrosIniciais,
   type ProdutoCadastroComboItem,
   type ProdutoCadastroFilters,
   type ProdutoCadastroItem,
@@ -13,6 +13,9 @@ import { ErpConnectionAlert, useErpReady } from '@/components/erp/ErpConnectionA
 import { PageHeader } from '@/components/erp/PageHeader';
 import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, type Column } from '@/components/erp/DataTable';
+import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
+import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
+
 import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 import { Input } from '@/components/ui/input';
