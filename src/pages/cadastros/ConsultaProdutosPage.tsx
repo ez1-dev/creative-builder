@@ -206,8 +206,8 @@ export default function ConsultaProdutosPage() {
             value={form.codori}
             onChange={(v) => setForm((f) => ({ ...f, codori: v, codfam: '' }))}
             options={origensOptions}
-            placeholder={loadingOrigens ? 'Carregando origens...' : 'Todas...'}
-            loading={loadingOrigens}
+            placeholder={loadingFiltros ? 'Carregando origens e famílias...' : 'Todas...'}
+            loading={loadingFiltros}
           />
         </div>
 
@@ -217,10 +217,17 @@ export default function ConsultaProdutosPage() {
             value={form.codfam}
             onChange={(v) => setForm((f) => ({ ...f, codfam: v }))}
             options={familiasOptions}
-            placeholder={loadingFamilias ? 'Carregando famílias...' : 'Todas...'}
-            loading={loadingFamilias}
+            placeholder={
+              loadingFiltros
+                ? 'Carregando origens e famílias...'
+                : loadingFamilias
+                  ? 'Carregando famílias...'
+                  : 'Todas...'
+            }
+            loading={loadingFiltros || loadingFamilias}
           />
         </div>
+
 
         <div className="space-y-1">
           <Label className="text-xs">Código do Produto</Label>
