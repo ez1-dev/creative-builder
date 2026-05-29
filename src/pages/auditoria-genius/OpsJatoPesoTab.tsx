@@ -320,7 +320,7 @@ export function OpsJatoPesoTab() {
         </div>
         <div className="col-span-full flex justify-end">
           <ExportButton
-            endpoint="/api/auditoria-apontamento-genius/ops-jato-peso"
+            endpoint="/api/export/auditoria-apontamento-genius/ops-jato-peso"
             params={exportParams}
             label="Exportar Excel"
           />
