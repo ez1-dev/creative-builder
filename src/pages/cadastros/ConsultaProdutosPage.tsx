@@ -16,8 +16,6 @@ import { DataTable, type Column } from '@/components/erp/DataTable';
 import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 
-import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
-import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
