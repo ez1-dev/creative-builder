@@ -28,7 +28,6 @@ import { OpsJatoComponentesSheet } from './OpsJatoComponentesSheet';
 type StatusPesoFilter = 'TODOS' | 'COM_PESO' | 'SEM_PESO' | 'PARCIAL';
 
 interface FormState {
-  codemp: string;
   data_ini: string;
   data_fim: string;
   origem: string;
@@ -46,7 +45,6 @@ const primeiroDiaMesISO = () => {
 };
 
 const initialForm: FormState = {
-  codemp: '',
   data_ini: primeiroDiaMesISO(),
   data_fim: hojeISO(),
   origem: '',
@@ -80,7 +78,6 @@ function StatusPesoBadge({ status }: { status?: StatusPesoOp | string }) {
 
 function buildApiFilters(form: FormState, pagina: number, tamanho_pagina: number): OpsJatoPesoFilters {
   return {
-    codemp: form.codemp || undefined,
     data_ini: form.data_ini || undefined,
     data_fim: form.data_fim || undefined,
     origem: form.origem || undefined,
@@ -236,10 +233,7 @@ export function OpsJatoPesoTab() {
     },
   ], [abrirComponentes]);
 
-  const exportParams = {
-    ...buildApiFilters(form, 1, typeof tamanhoPagina === 'number' ? tamanhoPagina : 100),
-    exportar_excel: true,
-  };
+  const exportParams = buildApiFilters(form, 1, typeof tamanhoPagina === 'number' ? tamanhoPagina : 100);
 
   const fmtKg = (n?: number) =>
     `${formatNumber(Number(n ?? 0), 3)} kg`;
@@ -249,15 +243,6 @@ export function OpsJatoPesoTab() {
       <ErpConnectionAlert />
 
       <FilterPanel onSearch={() => buscar(1)} onClear={limpar}>
-        <div className="space-y-1">
-          <Label className="text-xs">Empresa</Label>
-          <Input
-            value={form.codemp}
-            onChange={(e) => setForm({ ...form, codemp: e.target.value })}
-            placeholder="Cód. empresa"
-            className="h-9"
-          />
-        </div>
         <div className="space-y-1">
           <Label className="text-xs">Data Inicial</Label>
           <Input
@@ -335,7 +320,7 @@ export function OpsJatoPesoTab() {
         </div>
         <div className="col-span-full flex justify-end">
           <ExportButton
-            endpoint="/api/auditoria-apontamento-genius/ops-jato-peso"
+            endpoint="/api/export/auditoria-apontamento-genius/ops-jato-peso"
             params={exportParams}
             label="Exportar Excel"
           />

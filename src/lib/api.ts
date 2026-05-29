@@ -574,7 +574,6 @@ export interface OpJatoComponentesResponse {
 }
 
 export interface OpsJatoPesoFilters {
-  codemp?: string | number;
   data_ini?: string;
   data_fim?: string;
   origem?: string;
@@ -584,9 +583,10 @@ export interface OpsJatoPesoFilters {
   somente_com_peso?: boolean;
   somente_sem_peso?: boolean;
   somente_peso_parcial?: boolean;
+  usar_multinivel?: boolean;
+  nivel_maximo?: number;
   pagina?: number;
   tamanho_pagina?: number;
-  usar_multinivel?: boolean;
 }
 
 function jatoQueryParams(f: OpsJatoPesoFilters): Record<string, any> {
