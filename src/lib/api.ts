@@ -852,8 +852,10 @@ function normalizeComboList(raw: any): ProdutoCadastroComboItem[] {
   const out: ProdutoCadastroComboItem[] = [];
   const seen = new Set<string>();
   for (const it of list) {
-    const codigo = it?.codigo ?? it?.codori ?? it?.codfam ?? it?.code ?? null;
-    const descricao = it?.descricao ?? it?.desori ?? it?.desfam ?? it?.description ?? '';
+    const codigo =
+      it?.codigo ?? it?.value ?? it?.codori ?? it?.codigo_origem ?? it?.codfam ?? it?.codigo_familia ?? it?.code ?? null;
+    const descricao =
+      it?.descricao ?? it?.desori ?? it?.descricao_origem ?? it?.desfam ?? it?.descricao_familia ?? it?.description ?? '';
     if (codigo == null || codigo === '') continue;
     const c = String(codigo).trim();
     if (seen.has(c)) continue;
@@ -869,8 +871,27 @@ export async function getProdutosOrigens(): Promise<ProdutoCadastroComboItem[]> 
 }
 
 export async function getProdutosFamilias(codori?: string): Promise<ProdutoCadastroComboItem[]> {
-  const params = codori ? { codori } : undefined;
+  const params: Record<string, any> = { somente_ativos: true };
+  if (codori) params.codori = codori;
   const raw = await api.get<any>('/api/cadastros/produtos/familias', params);
   return normalizeComboList(raw);
 }
+
+export interface ProdutosFiltrosIniciais {
+  origens: ProdutoCadastroComboItem[];
+  familias: ProdutoCadastroComboItem[];
+}
+
+export async function getProdutosFiltrosIniciais(
+  somenteAtivos = true,
+): Promise<ProdutosFiltrosIniciais> {
+  const raw = await api.get<any>('/api/cadastros/produtos/filtros', {
+    somente_ativos: somenteAtivos,
+  });
+  return {
+    origens: normalizeComboList(raw?.origens ?? raw?.data?.origens ?? []),
+    familias: normalizeComboList(raw?.familias ?? raw?.data?.familias ?? []),
+  };
+}
+
 
