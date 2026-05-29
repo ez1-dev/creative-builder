@@ -59,31 +59,43 @@ export default function ConsultaProdutosPage() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [origens, setOrigens] = useState<ProdutoCadastroComboItem[]>([]);
   const [familias, setFamilias] = useState<ProdutoCadastroComboItem[]>([]);
-  const [loadingOrigens, setLoadingOrigens] = useState(false);
+  const [loadingFiltros, setLoadingFiltros] = useState(false);
+  const [erroFiltros, setErroFiltros] = useState<string | null>(null);
   const [loadingFamilias, setLoadingFamilias] = useState(false);
+  const [filtrosCarregados, setFiltrosCarregados] = useState(false);
 
   const [data, setData] = useState<ProdutoCadastroResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [erroProdutos, setErroProdutos] = useState<string | null>(null);
   const [pagina, setPagina] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(100);
   const [appliedIncluirDeriv, setAppliedIncluirDeriv] = useState(false);
 
-  // Carrega origens ao montar
+  // Carrega origens + famílias num único endpoint ao abrir a tela
   useEffect(() => {
     if (!erpReady) return;
     let cancelled = false;
-    setLoadingOrigens(true);
-    getProdutosOrigens()
-      .then((res) => { if (!cancelled) setOrigens(res); })
-      .catch((e: any) => { if (!cancelled) toast.error(e?.message || 'Erro ao carregar origens'); })
-      .finally(() => { if (!cancelled) setLoadingOrigens(false); });
+    setLoadingFiltros(true);
+    setErroFiltros(null);
+    getProdutosFiltrosIniciais(true)
+      .then((res) => {
+        if (cancelled) return;
+        setOrigens(res.origens);
+        setFamilias(res.familias);
+        setFiltrosCarregados(true);
+      })
+      .catch((e: any) => {
+        if (cancelled) return;
+        setErroFiltros('Não foi possível carregar origens e famílias.');
+        toast.error(e?.message || 'Não foi possível carregar origens e famílias.');
+      })
+      .finally(() => { if (!cancelled) setLoadingFiltros(false); });
     return () => { cancelled = true; };
   }, [erpReady]);
 
-  // Carrega famílias (recarrega quando origem muda)
+  // Recarrega famílias quando a origem muda (após carga inicial)
   useEffect(() => {
-    if (!erpReady) return;
+    if (!erpReady || !filtrosCarregados) return;
     let cancelled = false;
     setLoadingFamilias(true);
     getProdutosFamilias(form.codori || undefined)
@@ -91,7 +103,8 @@ export default function ConsultaProdutosPage() {
       .catch((e: any) => { if (!cancelled) toast.error(e?.message || 'Erro ao carregar famílias'); })
       .finally(() => { if (!cancelled) setLoadingFamilias(false); });
     return () => { cancelled = true; };
-  }, [erpReady, form.codori]);
+  }, [erpReady, filtrosCarregados, form.codori]);
+
 
   const buildFilters = useCallback((page: number, size: PageSize): ProdutoCadastroFilters => {
     const tp = size === 'todos' ? 100000 : size;
