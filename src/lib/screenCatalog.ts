@@ -35,6 +35,7 @@ const PREFIX: Array<[string, ScreenInfo]> = [
   ['/contabilidade',            { codigo: 'CONT',            nome: 'Contabilidade' }],
   ['/configuracoes',            { codigo: 'CONFIG',          nome: 'Configurações' }],
   ['/dashboard',                { codigo: 'DASH',            nome: 'Dashboard' }],
+  ['/cadastros',                { codigo: 'CAD',             nome: 'Cadastros' }],
 ];
 
 const titleCase = (s: string) =>
