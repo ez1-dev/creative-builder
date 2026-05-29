@@ -298,7 +298,7 @@ export default function ConsultaProdutosPage() {
         columns={columns}
         data={dados}
         loading={loadingProdutos}
-        loadingMessage="Consultando produtos..."
+
         emptyMessage={
           data
             ? 'Nenhum produto encontrado para os filtros informados.'
