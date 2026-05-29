@@ -49,6 +49,10 @@ const modules = [
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
+const cadastrosSubItems = [
+  { title: 'Consulta de Produtos', url: '/cadastros/produtos', icon: PackageSearch },
+];
+
 const producaoSubItems = [
   { title: 'Dashboard', url: '/producao/dashboard', icon: LayoutDashboard },
   { title: 'Produzido no Período', url: '/producao/produzido', icon: Hammer },
