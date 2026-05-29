@@ -233,10 +233,7 @@ export function OpsJatoPesoTab() {
     },
   ], [abrirComponentes]);
 
-  const exportParams = {
-    ...buildApiFilters(form, 1, typeof tamanhoPagina === 'number' ? tamanhoPagina : 100),
-    exportar_excel: true,
-  };
+  const exportParams = buildApiFilters(form, 1, typeof tamanhoPagina === 'number' ? tamanhoPagina : 100);
 
   const fmtKg = (n?: number) =>
     `${formatNumber(Number(n ?? 0), 3)} kg`;
