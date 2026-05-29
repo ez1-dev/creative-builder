@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import {
   getProdutosCadastro,
   getProdutosFamilias,
-  getProdutosOrigens,
+  getProdutosFiltrosIniciais,
   type ProdutoCadastroComboItem,
   type ProdutoCadastroFilters,
   type ProdutoCadastroItem,
@@ -15,6 +15,7 @@ import { FilterPanel } from '@/components/erp/FilterPanel';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { PaginationControl, type PageSize } from '@/components/erp/PaginationControl';
 import { ComboboxFilter } from '@/components/erp/ComboboxFilter';
+
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,31 +59,43 @@ export default function ConsultaProdutosPage() {
   const [form, setForm] = useState<FormState>(initialForm);
   const [origens, setOrigens] = useState<ProdutoCadastroComboItem[]>([]);
   const [familias, setFamilias] = useState<ProdutoCadastroComboItem[]>([]);
-  const [loadingOrigens, setLoadingOrigens] = useState(false);
+  const [loadingFiltros, setLoadingFiltros] = useState(false);
+  const [erroFiltros, setErroFiltros] = useState<string | null>(null);
   const [loadingFamilias, setLoadingFamilias] = useState(false);
+  const [filtrosCarregados, setFiltrosCarregados] = useState(false);
 
   const [data, setData] = useState<ProdutoCadastroResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingProdutos, setLoadingProdutos] = useState(false);
+  const [erroProdutos, setErroProdutos] = useState<string | null>(null);
   const [pagina, setPagina] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(100);
   const [appliedIncluirDeriv, setAppliedIncluirDeriv] = useState(false);
 
-  // Carrega origens ao montar
+  // Carrega origens + famílias num único endpoint ao abrir a tela
   useEffect(() => {
     if (!erpReady) return;
     let cancelled = false;
-    setLoadingOrigens(true);
-    getProdutosOrigens()
-      .then((res) => { if (!cancelled) setOrigens(res); })
-      .catch((e: any) => { if (!cancelled) toast.error(e?.message || 'Erro ao carregar origens'); })
-      .finally(() => { if (!cancelled) setLoadingOrigens(false); });
+    setLoadingFiltros(true);
+    setErroFiltros(null);
+    getProdutosFiltrosIniciais(true)
+      .then((res) => {
+        if (cancelled) return;
+        setOrigens(res.origens);
+        setFamilias(res.familias);
+        setFiltrosCarregados(true);
+      })
+      .catch((e: any) => {
+        if (cancelled) return;
+        setErroFiltros('Não foi possível carregar origens e famílias.');
+        toast.error(e?.message || 'Não foi possível carregar origens e famílias.');
+      })
+      .finally(() => { if (!cancelled) setLoadingFiltros(false); });
     return () => { cancelled = true; };
   }, [erpReady]);
 
-  // Carrega famílias (recarrega quando origem muda)
+  // Recarrega famílias quando a origem muda (após carga inicial)
   useEffect(() => {
-    if (!erpReady) return;
+    if (!erpReady || !filtrosCarregados) return;
     let cancelled = false;
     setLoadingFamilias(true);
     getProdutosFamilias(form.codori || undefined)
@@ -90,7 +103,8 @@ export default function ConsultaProdutosPage() {
       .catch((e: any) => { if (!cancelled) toast.error(e?.message || 'Erro ao carregar famílias'); })
       .finally(() => { if (!cancelled) setLoadingFamilias(false); });
     return () => { cancelled = true; };
-  }, [erpReady, form.codori]);
+  }, [erpReady, filtrosCarregados, form.codori]);
+
 
   const buildFilters = useCallback((page: number, size: PageSize): ProdutoCadastroFilters => {
     const tp = size === 'todos' ? 100000 : size;
@@ -112,8 +126,8 @@ export default function ConsultaProdutosPage() {
       toast.error('Conexão ERP não disponível.');
       return;
     }
-    setLoading(true);
-    setError(null);
+    setLoadingProdutos(true);
+    setErroProdutos(null);
     try {
       const size = sizeOverride ?? pageSize;
       const result = await getProdutosCadastro(buildFilters(page, size));
@@ -122,19 +136,20 @@ export default function ConsultaProdutosPage() {
       setAppliedIncluirDeriv(form.incluir_derivacoes);
     } catch (e: any) {
       const msg = e?.message || 'Erro ao consultar produtos';
-      setError(msg);
+      setErroProdutos(msg);
       toast.error(msg);
     } finally {
-      setLoading(false);
+      setLoadingProdutos(false);
     }
   }, [erpReady, pageSize, buildFilters, form.incluir_derivacoes]);
 
   const handleClear = useCallback(() => {
     setForm(initialForm);
     setData(null);
-    setError(null);
+    setErroProdutos(null);
     setPagina(1);
   }, []);
+
 
   const origensOptions = useMemo(
     () => origens.map((o) => ({ value: o.codigo, label: o.descricao ? `${o.codigo} - ${o.descricao}` : o.codigo })),
@@ -191,8 +206,8 @@ export default function ConsultaProdutosPage() {
             value={form.codori}
             onChange={(v) => setForm((f) => ({ ...f, codori: v, codfam: '' }))}
             options={origensOptions}
-            placeholder={loadingOrigens ? 'Carregando origens...' : 'Todas...'}
-            loading={loadingOrigens}
+            placeholder={loadingFiltros ? 'Carregando origens e famílias...' : 'Todas...'}
+            loading={loadingFiltros}
           />
         </div>
 
@@ -202,10 +217,17 @@ export default function ConsultaProdutosPage() {
             value={form.codfam}
             onChange={(v) => setForm((f) => ({ ...f, codfam: v }))}
             options={familiasOptions}
-            placeholder={loadingFamilias ? 'Carregando famílias...' : 'Todas...'}
-            loading={loadingFamilias}
+            placeholder={
+              loadingFiltros
+                ? 'Carregando origens e famílias...'
+                : loadingFamilias
+                  ? 'Carregando famílias...'
+                  : 'Todas...'
+            }
+            loading={loadingFiltros || loadingFamilias}
           />
         </div>
+
 
         <div className="space-y-1">
           <Label className="text-xs">Código do Produto</Label>
@@ -260,22 +282,30 @@ export default function ConsultaProdutosPage() {
         </div>
       </FilterPanel>
 
-      {error && (
+      {erroFiltros && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
-          {error}
+          {erroFiltros}
+        </div>
+      )}
+
+      {erroProdutos && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          {erroProdutos}
         </div>
       )}
 
       <DataTable
         columns={columns}
         data={dados}
-        loading={loading}
+        loading={loadingProdutos}
+
         emptyMessage={
           data
             ? 'Nenhum produto encontrado para os filtros informados.'
             : 'Use os filtros acima e clique em Pesquisar para consultar produtos.'
         }
       />
+
 
       {data && data.total_registros > 0 && (
         <PaginationControl

@@ -60,29 +60,61 @@ GET /api/cadastros/produtos?codori=210&codfam=BR-CHA&somente_ativos=true&pagina=
 
 Campos `codigo_derivacao`, `descricao_derivacao` e `situacao_derivacao` só vêm preenchidos quando `incluir_derivacoes=true`.
 
-## 2) Combo de origens
+## 2) Filtros iniciais (combo único — usado na abertura da tela)
+
+`GET /api/cadastros/produtos/filtros?somente_ativos=true`
+
+Endpoint **preferencial** consumido pela tela ao abrir. Retorna num único payload as listas de origens e famílias que possuem produtos (filtrando ativos quando `somente_ativos=true`).
+
+### Resposta
+
+```json
+{
+  "codemp": 1,
+  "somente_ativos": true,
+  "origens": [
+    {
+      "codigo_origem": "210",
+      "descricao_origem": "GENIUS",
+      "quantidade_produtos": 120,
+      "value": "210",
+      "label": "210 - GENIUS"
+    }
+  ],
+  "familias": [
+    {
+      "codigo_familia": "BR-CHA",
+      "descricao_familia": "Barras / Chapas",
+      "quantidade_produtos": 80,
+      "value": "BR-CHA",
+      "label": "BR-CHA - Barras / Chapas"
+    }
+  ]
+}
+```
+
+## 3) Combo de origens (legado)
 
 `GET /api/cadastros/produtos/origens`
 
-Retorna a lista distinta de origens de produto cadastradas (a partir de `E075PRO.CODORI` + descrição em `E076ORI` ou equivalente).
+Mantido por compatibilidade, mas **não é mais usado pela tela na abertura** (substituído por `/filtros`).
 
 ### Resposta
 
 ```json
 [
-  { "codigo": "210", "descricao": "Importado" },
-  { "codigo": "100", "descricao": "Nacional" }
+  { "codigo": "210", "descricao": "Importado" }
 ]
 ```
 
-O frontend também aceita um envelope `{ "dados": [...] }`.
+## 4) Combo de famílias
 
-## 3) Combo de famílias
+`GET /api/cadastros/produtos/familias?somente_ativos=true`
+`GET /api/cadastros/produtos/familias?codori=210&somente_ativos=true`
 
-`GET /api/cadastros/produtos/familias`
-`GET /api/cadastros/produtos/familias?codori=210`
+Usado apenas quando o usuário **muda a origem** na tela. Retorna a lista distinta de famílias, restringindo pela origem quando `codori` é informado.
 
-Retorna a lista distinta de famílias. Quando `codori` é informado, restringe às famílias que possuem ao menos um produto naquela origem.
+
 
 ### Resposta
 

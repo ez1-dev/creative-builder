@@ -1,25 +1,48 @@
-## Ajuste — Consulta de Produtos: auto-carregar combos
+## Ajuste — Consulta de Produtos: pré-carregar filtros via endpoint único
 
-Revisando `src/pages/cadastros/ConsultaProdutosPage.tsx`, a maior parte do comportamento solicitado já existe (origens carregam na montagem; famílias recarregam quando `codori` muda; consulta só dispara no botão). Os ajustes ficam em refinar mensagens e garantir o estado inicial exato.
+Trocar as duas chamadas de abertura (`/origens` + `/familias`) por uma única ao novo endpoint `/api/cadastros/produtos/filtros?somente_ativos=true`, mantendo o recarregamento de famílias por origem.
 
 ### Mudanças
 
+**`src/lib/api.ts`**
+
+1. Adicionar função `getProdutosFiltrosIniciais(somenteAtivos = true)` que chama:
+   ```
+   GET /api/cadastros/produtos/filtros?somente_ativos=true
+   ```
+   Retorna `{ origens: ProdutoCadastroComboItem[], familias: ProdutoCadastroComboItem[] }`.
+2. Tipar a resposta aceitando os campos do backend (`codigo_origem/descricao_origem/quantidade_produtos/value/label` e equivalentes de família). Normalizar para o tipo `ProdutoCadastroComboItem` já usado (`{ codigo, descricao }`), preservando `value`/`label` quando vierem prontos.
+3. Ajustar `getProdutosFamilias(codori?)` para enviar também `somente_ativos=true` por padrão, conforme o novo contrato:
+   - `GET /api/cadastros/produtos/familias?somente_ativos=true`
+   - `GET /api/cadastros/produtos/familias?codori=<x>&somente_ativos=true`
+4. Manter `getProdutosCadastro` e remover apenas o uso de `getProdutosOrigens` da página (a função pode permanecer no `api.ts` para não quebrar nada).
+
 **`src/pages/cadastros/ConsultaProdutosPage.tsx`**
 
-1. Garantir estado inicial conforme spec (já está: `somente_ativos=true`, `incluir_derivacoes=false`, `codori=""`, `codfam=""`, `pagina=1`, `tamanho_pagina=100`).
-2. Passar mensagens de loading dedicadas para os combos:
-   - Origem: placeholder muda para `"Carregando origens..."` enquanto `loadingOrigens`.
-   - Família: placeholder muda para `"Carregando famílias..."` enquanto `loadingFamilias`.
-3. Falhas ao carregar origens/famílias não bloqueiam a tela — manter combo vazio e exibir `toast` discreto (comportamento atual), removendo qualquer chance de o erro travar o restante.
-4. Confirmar que ao limpar a origem (`codori=""`), o `useEffect` já dispara `getProdutosFamilias(undefined)` retornando todas as famílias — manter como está.
-5. A consulta de produtos continua disparando apenas via botão `Consultar` no `FilterPanel` (comportamento atual).
+1. Substituir os dois `useEffect` de origens/famílias por **um único** `useEffect` (na montagem, dependendo de `erpReady`) que chama `getProdutosFiltrosIniciais(true)` e preenche `origens` + `familias`.
+2. Estados separados conforme spec:
+   - `loadingFiltros` / `erroFiltros` (substitui `loadingOrigens` + `loadingFamilias` na abertura).
+   - `loadingProdutos` / `erroProdutos` (renomear os atuais `loading` / `error`).
+3. Manter um segundo `useEffect` que dispara **apenas quando `form.codori` muda após a carga inicial**, chamando `getProdutosFamilias(codori || undefined)`. Usar uma flag (`filtrosCarregados`) para não disparar antes do carregamento inicial.
+4. Placeholders dos combos:
+   - Origem: `"Carregando origens e famílias..."` enquanto `loadingFiltros`, depois `"Todas..."`.
+   - Família: `"Carregando origens e famílias..."` enquanto `loadingFiltros`, `"Carregando famílias..."` enquanto recarrega por origem, senão `"Todas..."`.
+5. Mensagens de erro/empty conforme spec:
+   - Erro filtros (banner discreto acima do FilterPanel): `"Não foi possível carregar origens e famílias."`
+   - Erro produtos: mensagem retornada pela API (já existe).
+   - Empty produtos: `"Nenhum produto encontrado para os filtros informados."` (já existe).
+   - Loading produtos: `"Consultando produtos..."` no `DataTable` (passar via prop ou overlay; manter o spinner atual do DataTable).
+6. Estado inicial do form permanece: `codori=""`, `codfam=""`, `codpro=""`, `despro=""`, `tippro=""`, `somente_ativos=true`, `incluir_derivacoes=false`, `pagina=1`, `tamanho_pagina=100`.
+7. Consulta de produtos continua disparando apenas no botão **Consultar** do `FilterPanel`.
+8. Grid mantém colunas atuais (já cobrem todos os campos solicitados, incluindo as 3 extras de derivação quando `incluir_derivacoes=true`).
 
-### Componente `ComboboxFilter`
+**`docs/backend-cadastros-produtos.md`**
 
-- Aceita `placeholder` e `loading` — apenas passar a string dinâmica de loading via prop `placeholder` enquanto carrega, ou exibir o spinner já existente. Sem alteração no componente.
+- Adicionar seção descrevendo o novo endpoint `GET /api/cadastros/produtos/filtros?somente_ativos=true` com o JSON de exemplo da spec.
+- Anotar que `/familias` agora aceita `somente_ativos`.
+- Marcar `/origens` como ainda suportado, mas não usado pela tela na abertura.
 
 ### Fora de escopo
 
-- Endpoints e contrato do backend (já documentados em `docs/backend-cadastros-produtos.md`).
-- Alteração visual da tabela, paginação ou colunas.
-- Export Excel ou drill nas derivações.
+- Componente `ComboboxFilter`, `FilterPanel`, `DataTable`, paginação, export Excel.
+- Implementação do endpoint no backend FastAPI (apenas atualizar a documentação do contrato).
