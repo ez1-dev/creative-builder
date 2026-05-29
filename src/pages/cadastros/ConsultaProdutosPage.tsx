@@ -191,7 +191,7 @@ export default function ConsultaProdutosPage() {
             value={form.codori}
             onChange={(v) => setForm((f) => ({ ...f, codori: v, codfam: '' }))}
             options={origensOptions}
-            placeholder="Todas..."
+            placeholder={loadingOrigens ? 'Carregando origens...' : 'Todas...'}
             loading={loadingOrigens}
           />
         </div>
@@ -202,7 +202,7 @@ export default function ConsultaProdutosPage() {
             value={form.codfam}
             onChange={(v) => setForm((f) => ({ ...f, codfam: v }))}
             options={familiasOptions}
-            placeholder="Todas..."
+            placeholder={loadingFamilias ? 'Carregando famílias...' : 'Todas...'}
             loading={loadingFamilias}
           />
         </div>
