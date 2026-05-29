@@ -78,7 +78,6 @@ function StatusPesoBadge({ status }: { status?: StatusPesoOp | string }) {
 
 function buildApiFilters(form: FormState, pagina: number, tamanho_pagina: number): OpsJatoPesoFilters {
   return {
-    codemp: form.codemp || undefined,
     data_ini: form.data_ini || undefined,
     data_fim: form.data_fim || undefined,
     origem: form.origem || undefined,
