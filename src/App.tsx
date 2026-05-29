@@ -33,6 +33,7 @@ import CargaProducaoPage from "@/pages/producao/CargaProducaoPage";
 import CargaDashboardPage from "@/pages/producao/CargaDashboardPage";
 import CargaRecursosDashboardPage from "@/pages/producao/CargaRecursosDashboardPage";
 import ProgramacaoPage from "@/pages/producao/ProgramacaoPage";
+import ConsultaProdutosPage from "@/pages/cadastros/ConsultaProdutosPage";
 
 
 import ContasPagarPage from "@/pages/ContasPagarPage";
@@ -139,6 +140,11 @@ const App = () => (
               <Route path="/producao/carga/dashboard" element={<ProtectedRoute path="/producao/carga"><CargaDashboardPage /></ProtectedRoute>} />
               <Route path="/producao/carga/recursos" element={<ProtectedRoute path="/producao/carga"><CargaRecursosDashboardPage /></ProtectedRoute>} />
               <Route path="/producao/programacao" element={<ProtectedRoute path="/producao/programacao"><ProgramacaoPage /></ProtectedRoute>} />
+
+              {/* Cadastros */}
+              <Route path="/cadastros/produtos" element={<ProtectedRoute path="/cadastros/produtos"><ConsultaProdutosPage /></ProtectedRoute>} />
+
+
 
 
               {/* Relatórios */}

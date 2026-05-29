@@ -25,6 +25,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/producao/carga/dashboard':  { codigo: 'PROD_CARGA_BI', nome: 'Carga de Produção — Dashboard BI' },
   '/producao/carga/recursos':   { codigo: 'PROD_CARGA_REC', nome: 'Carga de Produção — Por Centro de Recurso' },
   '/producao/programacao':      { codigo: 'PROD_PROGRAMACAO', nome: 'Programação e Sequenciamento' },
+  '/cadastros/produtos':        { codigo: 'CAD_PRODUTOS',  nome: 'Consulta de Produtos' },
 
 
 };
@@ -34,6 +35,7 @@ const PREFIX: Array<[string, ScreenInfo]> = [
   ['/contabilidade',            { codigo: 'CONT',            nome: 'Contabilidade' }],
   ['/configuracoes',            { codigo: 'CONFIG',          nome: 'Configurações' }],
   ['/dashboard',                { codigo: 'DASH',            nome: 'Dashboard' }],
+  ['/cadastros',                { codigo: 'CAD',             nome: 'Cadastros' }],
 ];
 
 const titleCase = (s: string) =>

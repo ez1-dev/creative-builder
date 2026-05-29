@@ -792,3 +792,85 @@ export async function getDemonstrativoComprasRecebimentos(
     filters as Record<string, any>,
   );
 }
+
+// ============ Cadastros / Consulta de Produtos ============
+
+export interface ProdutoCadastroFilters {
+  codemp?: number;
+  codori?: string;
+  codfam?: string;
+  codpro?: string;
+  despro?: string;
+  tippro?: string;
+  somente_ativos?: boolean;
+  incluir_derivacoes?: boolean;
+  pagina?: number;
+  tamanho_pagina?: number;
+}
+
+export interface ProdutoCadastroItem {
+  codigo_produto: string;
+  descricao_produto: string;
+  codigo_origem: string;
+  descricao_origem: string;
+  codigo_familia: string;
+  descricao_familia: string;
+  unidade_medida: string;
+  tipo_produto: string;
+  situacao: string;
+  qtd_derivacoes_ativas: number;
+  codigo_derivacao?: string;
+  descricao_derivacao?: string;
+  situacao_derivacao?: string;
+}
+
+export interface ProdutoCadastroResponse {
+  pagina: number;
+  tamanho_pagina: number;
+  total_registros: number;
+  total_paginas: number;
+  filtros: Record<string, unknown>;
+  dados: ProdutoCadastroItem[];
+}
+
+export interface ProdutoCadastroComboItem {
+  codigo: string;
+  descricao: string;
+}
+
+export async function getProdutosCadastro(
+  filters: ProdutoCadastroFilters,
+): Promise<ProdutoCadastroResponse> {
+  return api.get<ProdutoCadastroResponse>(
+    '/api/cadastros/produtos',
+    filters as Record<string, any>,
+  );
+}
+
+function normalizeComboList(raw: any): ProdutoCadastroComboItem[] {
+  const list: any[] = Array.isArray(raw) ? raw : raw?.dados || raw?.data || raw?.itens || [];
+  const out: ProdutoCadastroComboItem[] = [];
+  const seen = new Set<string>();
+  for (const it of list) {
+    const codigo = it?.codigo ?? it?.codori ?? it?.codfam ?? it?.code ?? null;
+    const descricao = it?.descricao ?? it?.desori ?? it?.desfam ?? it?.description ?? '';
+    if (codigo == null || codigo === '') continue;
+    const c = String(codigo).trim();
+    if (seen.has(c)) continue;
+    seen.add(c);
+    out.push({ codigo: c, descricao: String(descricao ?? '').trim() });
+  }
+  return out;
+}
+
+export async function getProdutosOrigens(): Promise<ProdutoCadastroComboItem[]> {
+  const raw = await api.get<any>('/api/cadastros/produtos/origens');
+  return normalizeComboList(raw);
+}
+
+export async function getProdutosFamilias(codori?: string): Promise<ProdutoCadastroComboItem[]> {
+  const params = codori ? { codori } : undefined;
+  const raw = await api.get<any>('/api/cadastros/produtos/familias', params);
+  return normalizeComboList(raw);
+}
+

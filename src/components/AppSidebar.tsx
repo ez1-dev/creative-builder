@@ -1,7 +1,7 @@
 import {
   Package, Search, GitBranch, ShoppingCart, BarChart3,
   Factory, FileCheck, FileSearch, LayoutDashboard, FileInput, Hash, Settings,
-  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, CalendarClock, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity,
+  Hammer, Truck, Warehouse, PackageX, Clock, GitCompare, ChevronDown, Landmark, HandCoins, Gauge, Sparkles, ClipboardCheck, Receipt, Plane, CalendarRange, CalendarClock, Users, ShieldCheck, Palette, Database, ShieldAlert, FileText, History, Cog, Printer, Activity, Boxes, PackageSearch,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
@@ -49,6 +49,10 @@ const modules = [
   { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
+const cadastrosSubItems = [
+  { title: 'Consulta de Produtos', url: '/cadastros/produtos', icon: PackageSearch },
+];
+
 const producaoSubItems = [
   { title: 'Dashboard', url: '/producao/dashboard', icon: LayoutDashboard },
   { title: 'Produzido no Período', url: '/producao/produzido', icon: Hammer },
@@ -90,6 +94,7 @@ export function AppSidebar() {
   const isProducaoActive = location.pathname.startsWith('/producao');
   const isRegrasSeniorActive = location.pathname.startsWith('/regras-senior');
   const isRelatoriosActive = location.pathname.startsWith('/relatorios');
+  const isCadastrosActive = location.pathname.startsWith('/cadastros');
 
   const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi']);
   const isVisible = (url: string) => {
@@ -100,6 +105,8 @@ export function AppSidebar() {
   };
 
   const visibleModules = modules.filter((m) => isVisible(m.url));
+  const visibleCadastros = cadastrosSubItems.filter((m) => isVisible(m.url));
+  const showCadastrosGroup = visibleCadastros.length > 0;
   const visibleProducao = producaoSubItems.filter((m) => isVisible(m.url));
   const showProducaoGroup = visibleProducao.length > 0;
   const visibleRegrasSenior = regrasSeniorSubItems.filter((m) => isVisible(m.url));
@@ -137,6 +144,41 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {showCadastrosGroup && (
+          <SidebarGroup>
+            <Collapsible defaultOpen={isCadastrosActive}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                <span className="flex items-center gap-2">
+                  <Boxes className="h-4 w-4" />
+                  {!collapsed && 'Cadastros'}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleCadastros.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.url}
+                            end
+                            className="hover:bg-sidebar-accent"
+                            activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                          >
+                            <item.icon className="mr-2 h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
 
         {showProducaoGroup && (
           <SidebarGroup>
