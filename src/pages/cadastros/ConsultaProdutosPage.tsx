@@ -282,22 +282,30 @@ export default function ConsultaProdutosPage() {
         </div>
       </FilterPanel>
 
-      {error && (
+      {erroFiltros && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
-          {error}
+          {erroFiltros}
+        </div>
+      )}
+
+      {erroProdutos && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          {erroProdutos}
         </div>
       )}
 
       <DataTable
         columns={columns}
         data={dados}
-        loading={loading}
+        loading={loadingProdutos}
+        loadingMessage="Consultando produtos..."
         emptyMessage={
           data
             ? 'Nenhum produto encontrado para os filtros informados.'
             : 'Use os filtros acima e clique em Pesquisar para consultar produtos.'
         }
       />
+
 
       {data && data.total_registros > 0 && (
         <PaginationControl
