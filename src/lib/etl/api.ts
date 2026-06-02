@@ -171,3 +171,60 @@ export async function executarAcao(idAcao: string, payload: ExecucaoParams) {
     payload,
   );
 }
+
+// ---------- SQL versionado (Cloud) ----------
+export async function listarVersoesSql(acaoId: string): Promise<EtlAcaoSqlVersao[]> {
+  const { data, error } = await supabase
+    .from('etl_acao_sql_versoes')
+    .select('*')
+    .eq('acao_id', acaoId)
+    .order('versao', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as EtlAcaoSqlVersao[];
+}
+
+export async function atualizarSqlAcao(
+  acaoId: string,
+  sqlTemplate: string,
+  comentario: string,
+): Promise<EtlAcao> {
+  // Grava comentário num GUC para o trigger consumir; a sessão expira no fim da request.
+  await supabase.rpc('set_config' as any, {
+    setting_name: 'app.sql_comentario',
+    new_value: comentario ?? '',
+    is_local: true,
+  } as any).catch(() => {
+    /* set_config indisponível — segue sem comentário */
+  });
+
+  const { data: userRes } = await supabase.auth.getUser();
+  const userId = userRes.user?.id ?? null;
+
+  const { data, error } = await supabase
+    .from('etl_acoes')
+    .update({
+      sql_template: sqlTemplate,
+      sql_atualizado_por: userId,
+    } as any)
+    .eq('id', acaoId)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data as EtlAcao;
+}
+
+export async function restaurarVersaoSql(
+  acaoId: string,
+  versao: number,
+): Promise<EtlAcao> {
+  const { data: v, error: e1 } = await supabase
+    .from('etl_acao_sql_versoes')
+    .select('sql_template')
+    .eq('acao_id', acaoId)
+    .eq('versao', versao)
+    .maybeSingle();
+  if (e1) throw e1;
+  if (!v) throw new Error(`Versão v${versao} não encontrada`);
+  return atualizarSqlAcao(acaoId, (v as any).sql_template ?? '', `Restauração da v${versao}`);
+}
+
