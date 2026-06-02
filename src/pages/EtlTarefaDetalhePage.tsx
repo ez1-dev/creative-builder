@@ -43,6 +43,8 @@ export default function EtlTarefaDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [execModal, setExecModal] = useState<{ open: boolean; alvo: AlvoExec }>({ open: false, alvo: null });
   const [logsModal, setLogsModal] = useState<{ open: boolean; execucaoId?: string }>({ open: false });
+  const [sqlModal, setSqlModal] = useState<{ open: boolean; acao: EtlAcao | null }>({ open: false, acao: null });
+  const { isAdmin } = useUserPermissions();
 
   const load = async () => {
     setLoading(true);
