@@ -645,6 +645,8 @@ export default function PainelComprasPage() {
     const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
     if (sitsSel.length > 0) p.situacao_oc = sitsSel.join(',');
     else delete p.situacao_oc;
+    // Liquidado (4): backend exige somente_pendentes=false explícito (string p/ não ser descartado pelo ExportButton)
+    if (sitsSel.includes('4')) p.somente_pendentes = 'false';
     if (!p.coddep) delete p.coddep;
     if (!p.tipo_item || p.tipo_item === 'TODOS') delete p.tipo_item;
     if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
