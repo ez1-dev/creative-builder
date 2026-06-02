@@ -1358,7 +1358,7 @@ export default function PainelComprasPage() {
           <TabsContent value="lista" className="space-y-2">
             {tamanhoPagina === 'todos' && data.total_registros > 0 && (
               <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Exibindo todos os {data.total_registros.toLocaleString('pt-BR')} registros do filtro — paginação desativada.
+                Exibindo {(dadosListaFiltrados?.length ?? 0).toLocaleString('pt-BR')} de {data.total_registros.toLocaleString('pt-BR')} registros filtrados
               </div>
             )}
             <DataTable columns={columns} data={dadosListaFiltrados} loading={loading} />
