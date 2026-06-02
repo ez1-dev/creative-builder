@@ -190,11 +190,37 @@ export default function PainelComprasPage() {
     try {
       const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
       if (tamanhoEfetivo === 'todos') {
-        const params = { ...buildParams(1, 1000), todos: true };
-        const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
-        setData(result);
+        const PAGE_SIZE = 1000;
+        const MAX_PAGINAS = 200;
+        const primeira = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, PAGE_SIZE));
+        const totalPaginas = Number(primeira?.total_paginas ?? 1) || 1;
+        let paginasParaBuscar = totalPaginas;
+        if (totalPaginas > MAX_PAGINAS) {
+          paginasParaBuscar = MAX_PAGINAS;
+          toast.warning(
+            `Resultado muito grande (${totalPaginas} páginas). Carregando apenas as primeiras ${MAX_PAGINAS * PAGE_SIZE} linhas. Refine os filtros para ver tudo.`,
+          );
+        }
+        let dadosConcat = Array.isArray(primeira?.dados) ? [...primeira.dados] : [];
+        if (paginasParaBuscar > 1) {
+          const restantes = await Promise.all(
+            Array.from({ length: paginasParaBuscar - 1 }, (_, i) =>
+              api.get<PainelComprasResponse>('/api/painel-compras', buildParams(i + 2, PAGE_SIZE)),
+            ),
+          );
+          for (const r of restantes) {
+            if (Array.isArray(r?.dados)) dadosConcat = dadosConcat.concat(r.dados);
+          }
+        }
+        setData({
+          ...primeira,
+          dados: dadosConcat,
+          pagina: 1,
+          tamanho_pagina: dadosConcat.length,
+          total_paginas: 1,
+        });
         setPagina(1);
-        if (page === 1) trackSearch(filters, result.total_registros);
+        if (page === 1) trackSearch(filters, primeira.total_registros);
       } else {
         const tamanhoNumerico = Number(tamanhoEfetivo);
         const result = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(page, tamanhoNumerico));
@@ -207,6 +233,7 @@ export default function PainelComprasPage() {
     } finally {
       setLoading(false);
     }
+
 
 
     // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página.
