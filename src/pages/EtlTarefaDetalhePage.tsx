@@ -101,7 +101,12 @@ export default function EtlTarefaDetalhePage() {
           <Button
             size="sm"
             disabled={!r.ativa}
-            onClick={() => setExecModal({ open: true, alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome } })}
+            onClick={() =>
+              setExecModal({
+                open: true,
+                alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome, sqlTemplate: r.sql_template },
+              })
+            }
           >
             <Play className="h-3.5 w-3.5 mr-1" /> Executar
           </Button>
