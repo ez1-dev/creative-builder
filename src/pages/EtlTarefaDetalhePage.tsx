@@ -31,8 +31,8 @@ const statusColor: Record<string, string> = {
 const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
 type AlvoExec =
-  | { tipo: 'tarefa'; nome: string }
-  | { tipo: 'acao'; idAcao: string; nomeTarefa?: string }
+  | { tipo: 'tarefa'; nome: string; sqlTemplate?: string | null }
+  | { tipo: 'acao'; idAcao: string; nomeTarefa?: string; sqlTemplate?: string | null }
   | null;
 
 export default function EtlTarefaDetalhePage() {
