@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Play, RefreshCw, FileText } from 'lucide-react';
+import { ArrowLeft, Play, RefreshCw, FileText, Code } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
 import { LogsModal } from '@/components/etl/LogsModal';
+import { EditarSqlModal } from '@/components/etl/EditarSqlModal';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import {
   detalheTarefa,
   acoesTarefa,
