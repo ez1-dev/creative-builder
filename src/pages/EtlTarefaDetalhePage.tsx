@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Play, RefreshCw, FileText } from 'lucide-react';
+import { ArrowLeft, Play, RefreshCw, FileText, Code } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
 import { LogsModal } from '@/components/etl/LogsModal';
+import { EditarSqlModal } from '@/components/etl/EditarSqlModal';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 import {
   detalheTarefa,
   acoesTarefa,
@@ -41,6 +43,8 @@ export default function EtlTarefaDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [execModal, setExecModal] = useState<{ open: boolean; alvo: AlvoExec }>({ open: false, alvo: null });
   const [logsModal, setLogsModal] = useState<{ open: boolean; execucaoId?: string }>({ open: false });
+  const [sqlModal, setSqlModal] = useState<{ open: boolean; acao: EtlAcao | null }>({ open: false, acao: null });
+  const { isAdmin } = useUserPermissions();
 
   const load = async () => {
     setLoading(true);
@@ -72,19 +76,40 @@ export default function EtlTarefaDetalhePage() {
     { key: 'caso_erro', header: 'Caso erro' },
     { key: 'ativa', header: 'Ativa', render: (_v, r) => (r.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>) },
     {
+      key: 'sql_versao',
+      header: 'SQL',
+      render: (_v, r) =>
+        r.sql_template ? (
+          <Badge variant="outline" className="font-mono">v{r.sql_versao}</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: 'exec',
       header: '',
       render: (_v, r) => (
-        <Button
-          size="sm"
-          disabled={!r.ativa}
-          onClick={() => setExecModal({ open: true, alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome } })}
-        >
-          <Play className="h-3.5 w-3.5 mr-1" /> Executar
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSqlModal({ open: true, acao: r })}
+            title={isAdmin ? 'Editar SQL' : 'Ver SQL'}
+          >
+            <Code className="h-3.5 w-3.5 mr-1" /> SQL
+          </Button>
+          <Button
+            size="sm"
+            disabled={!r.ativa}
+            onClick={() => setExecModal({ open: true, alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome } })}
+          >
+            <Play className="h-3.5 w-3.5 mr-1" /> Executar
+          </Button>
+        </div>
       ),
     },
   ];
+
 
   const execColumns: Column<EtlExecucao>[] = [
     {
@@ -194,6 +219,13 @@ export default function EtlTarefaDetalhePage() {
         open={logsModal.open}
         onOpenChange={(open) => setLogsModal({ open })}
         execucaoId={logsModal.execucaoId ?? null}
+      />
+      <EditarSqlModal
+        open={sqlModal.open}
+        onOpenChange={(open) => setSqlModal({ open, acao: open ? sqlModal.acao : null })}
+        acao={sqlModal.acao}
+        podeEditar={isAdmin}
+        onSalvo={() => load()}
       />
     </div>
   );
