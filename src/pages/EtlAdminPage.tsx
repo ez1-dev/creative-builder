@@ -40,7 +40,7 @@ export default function EtlAdminPage() {
         .order('criado_em', { ascending: false })
         .limit(1)
         .maybeSingle();
-      setUltimaExecucaoGlobal(ult?.iniciado_em ?? ult?.criado_em ?? null);
+      setUltimaExecucaoGlobal((ult as any)?.iniciado_em ?? (ult as any)?.criado_em ?? null);
     } finally {
       setLoading(false);
     }
@@ -62,16 +62,16 @@ export default function EtlAdminPage() {
       const execs = await ultimasExecucoes(nome, 1);
       if (execs[0]) setLogsModal({ open: true, execucaoId: execs[0].id });
     } catch {
-      // ignore
+      /* ignore */
     }
   };
 
   const columns: Column<EtlTarefa>[] = [
-    { key: 'grupo', header: 'Grupo', width: '100px' },
+    { key: 'grupo', header: 'Grupo' },
     {
       key: 'nome_tarefa',
       header: 'Tarefa',
-      render: (row) => (
+      render: (_v, row) => (
         <Link to={`/etl/tarefas/${row.nome_tarefa}`} className="font-mono font-semibold text-primary hover:underline">
           {row.nome_tarefa}
         </Link>
@@ -81,12 +81,12 @@ export default function EtlAdminPage() {
     {
       key: 'ativa',
       header: 'Ativa',
-      render: (row) => (row.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>),
+      render: (_v, row) => (row.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>),
     },
     {
       key: 'status_atual',
       header: 'Status',
-      render: (row) => (
+      render: (_v, row) => (
         <Badge className={statusColor[row.status_atual] ?? 'bg-muted text-muted-foreground'} variant="secondary">
           {row.status_atual}
         </Badge>
@@ -95,16 +95,16 @@ export default function EtlAdminPage() {
     {
       key: 'ultima_execucao_em',
       header: 'Última execução',
-      render: (row) => <span className="text-xs">{fmtDate(row.ultima_execucao_em)}</span>,
+      render: (_v, row) => <span className="text-xs">{fmtDate(row.ultima_execucao_em)}</span>,
     },
     {
       key: 'acoes',
       header: 'Ações',
-      render: (row) => (
+      render: (_v, row) => (
         <div className="flex gap-1">
           <Button asChild size="sm" variant="outline">
             <Link to={`/etl/tarefas/${row.nome_tarefa}`}>
-              <ListChecks className="h-3.5 w-3.5 mr-1" /> Ver ações
+              <ListChecks className="h-3.5 w-3.5 mr-1" /> Ver
             </Link>
           </Button>
           <Button size="sm" onClick={() => setExecModal({ open: true, nome: row.nome_tarefa })}>
@@ -130,7 +130,6 @@ export default function EtlAdminPage() {
         }
       />
 
-      {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard label="Total de tarefas" value={kpis.total} icon={<Activity className="h-4 w-4" />} />
         <KpiCard label="Tarefas ativas" value={kpis.ativas} icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} />
@@ -172,7 +171,7 @@ function KpiCard({
   icon,
   small,
 }: {
-  header: string;
+  label: string;
   value: number | string;
   icon: React.ReactNode;
   small?: boolean;
