@@ -220,6 +220,13 @@ export default function EtlTarefaDetalhePage() {
         onOpenChange={(open) => setLogsModal({ open })}
         execucaoId={logsModal.execucaoId ?? null}
       />
+      <EditarSqlModal
+        open={sqlModal.open}
+        onOpenChange={(open) => setSqlModal({ open, acao: open ? sqlModal.acao : null })}
+        acao={sqlModal.acao}
+        podeEditar={isAdmin}
+        onSalvo={() => load()}
+      />
     </div>
   );
 }
