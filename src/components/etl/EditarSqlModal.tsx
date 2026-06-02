@@ -19,6 +19,9 @@ import {
   atualizarSqlAcao,
   listarVersoesSql,
   restaurarVersaoSql,
+} from '@/lib/etl/api';
+import { validarPlaceholders, PLACEHOLDERS_SUPORTADOS } from '@/lib/etl/placeholders';
+import {
   type EtlAcao,
   type EtlAcaoSqlVersao,
 } from '@/lib/etl/api';
