@@ -159,7 +159,17 @@ export default function EtlTarefaDetalhePage() {
             <Button
               size="sm"
               disabled={!tarefa}
-              onClick={() => tarefa && setExecModal({ open: true, alvo: { tipo: 'tarefa', nome: tarefa.nome_tarefa } })}
+              onClick={() =>
+                tarefa &&
+                setExecModal({
+                  open: true,
+                  alvo: {
+                    tipo: 'tarefa',
+                    nome: tarefa.nome_tarefa,
+                    sqlTemplate: acoes.map((a) => a.sql_template ?? '').join('\n'),
+                  },
+                })
+              }
             >
               <Play className="h-4 w-4 mr-1" /> Executar tarefa
             </Button>
