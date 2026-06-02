@@ -491,6 +491,3 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
     </Dialog>
   );
 }
-
-// `Play` lazy import to avoid lucide tree-shake quirk
-import { Play } from 'lucide-react';
