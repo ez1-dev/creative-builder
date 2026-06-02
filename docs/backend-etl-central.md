@@ -125,7 +125,6 @@ Body:
 ```
 - `anomes_ini`/`anomes_fim` no nível raiz são mantidos por compatibilidade (executores legados).
 - **`parametros`** é o dicionário canônico usado pelo `resolver_placeholders`. Inclui replicação de `anomes_ini/fim` em lowercase + qualquer placeholder extra detectado no SQL (`codemp`, `data_ini`, `codemp_list`, etc.).
-```
 Comportamento:
 1. Cria linha em `etl_execucoes` com `status='EM_EXECUCAO'`, `iniciado_em=now()`, `nome_tarefa`, `acionado_por`, `parametros`.
 2. Atualiza `etl_tarefas.status_atual='EM_EXECUCAO'` e `ultima_execucao_em=now()`.
