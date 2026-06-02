@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, RotateCcw, Save, History, FlaskConical, ChevronDown, ChevronUp } from 'lucide-react';
+import { Info, RotateCcw, Save, History, FlaskConical, ChevronDown, ChevronUp, Play } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   atualizarSqlAcao,
