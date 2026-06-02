@@ -4,6 +4,22 @@ Frontend Lovable só lê metadados do Cloud (Supabase) e dispara execuções via
 **Nunca** acessa o ERP Senior direto. **Nunca** usa `service_role_key`.
 A FastAPI é responsável por consultar o ERP e gravar nas tabelas `bi_*` e `etl_*` do Cloud usando o service role.
 
+## SQL versionado em `etl_acoes`
+
+Cada ação agora tem 4 colunas extras no Cloud:
+- `sql_template text` — SQL a ser executado contra o ERP Senior (placeholders nomeados).
+- `sql_versao integer` — incrementado automaticamente por trigger a cada UPDATE de `sql_template`.
+- `sql_atualizado_em timestamptz`, `sql_atualizado_por uuid`.
+
+A tela `/etl/tarefas/:nome` (admin) edita esses campos via Cloud. Toda alteração de `sql_template` é arquivada em `etl_acao_sql_versoes(acao_id, versao, sql_template, comentario, criado_por, criado_em)`.
+
+### Comportamento esperado da FastAPI
+1. Antes de executar a ação, faça `SELECT sql_template, sql_versao FROM etl_acoes WHERE id_acao = :id_acao` no Cloud.
+2. Se `sql_template` for **NULL ou vazio**, use o SQL hardcoded de fallback (compatibilidade com o que já está em produção).
+3. Execute com **bind parameters nomeados** (`:anomes_ini`, `:anomes_fim`, etc.) — **nunca** concatenar string.
+4. Loga em `etl_logs` a `sql_versao` utilizada (campo `detalhe.sql_versao`).
+
+
 ## Header obrigatório
 Todas as chamadas vêm com:
 - `Authorization: Bearer <jwt>` — token do usuário logado (o mesmo do resto do app).
