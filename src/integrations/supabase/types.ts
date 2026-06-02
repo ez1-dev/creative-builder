@@ -185,6 +185,192 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_faturamento: {
+        Row: {
+          ano_emissao: string | null
+          anomes_emissao: string | null
+          atualizado_em: string
+          carga_id: string | null
+          cd_agrupamento: string | null
+          cd_centro_custos: string | null
+          cd_centro_custos_1: string | null
+          cd_centro_custos_2: string | null
+          cd_centro_custos_3: string | null
+          cd_cidade: string | null
+          cd_cif_fob: string | null
+          cd_cliente: string | null
+          cd_derivacao: string | null
+          cd_empresa: string | null
+          cd_estado: string | null
+          cd_familia: string | null
+          cd_filial: string | null
+          cd_fpj: string | null
+          cd_grupo_cliente: string | null
+          cd_natureza: string | null
+          cd_nf: string | null
+          cd_origem: string | null
+          cd_pedido: string | null
+          cd_prj: string | null
+          cd_produto: string | null
+          cd_representante: string | null
+          cd_rev_pedido: string | null
+          cd_serie: string | null
+          cd_tns: string | null
+          cd_tp_movimento: string | null
+          cd_transportadora: string | null
+          cd_unidade_medida: string | null
+          dia_emissao: string | null
+          ds_abr_fpj: string | null
+          ds_abr_prj: string | null
+          dt_emissao: string | null
+          id: string
+          id_nf: string | null
+          mes_emissao: string | null
+          qtd_produtos: number | null
+          vl_amostra: number | null
+          vl_bonificacao: number | null
+          vl_bruto: number | null
+          vl_cofins: number | null
+          vl_comissao: number | null
+          vl_custo: number | null
+          vl_desconto: number | null
+          vl_devolucao: number | null
+          vl_difal: number | null
+          vl_frete: number | null
+          vl_icms: number | null
+          vl_ipi: number | null
+          vl_ismsst: number | null
+          vl_iss: number | null
+          vl_meta: number | null
+          vl_peso_bruto: number | null
+          vl_peso_liquido: number | null
+          vl_pis: number | null
+          vl_total: number | null
+        }
+        Insert: {
+          ano_emissao?: string | null
+          anomes_emissao?: string | null
+          atualizado_em?: string
+          carga_id?: string | null
+          cd_agrupamento?: string | null
+          cd_centro_custos?: string | null
+          cd_centro_custos_1?: string | null
+          cd_centro_custos_2?: string | null
+          cd_centro_custos_3?: string | null
+          cd_cidade?: string | null
+          cd_cif_fob?: string | null
+          cd_cliente?: string | null
+          cd_derivacao?: string | null
+          cd_empresa?: string | null
+          cd_estado?: string | null
+          cd_familia?: string | null
+          cd_filial?: string | null
+          cd_fpj?: string | null
+          cd_grupo_cliente?: string | null
+          cd_natureza?: string | null
+          cd_nf?: string | null
+          cd_origem?: string | null
+          cd_pedido?: string | null
+          cd_prj?: string | null
+          cd_produto?: string | null
+          cd_representante?: string | null
+          cd_rev_pedido?: string | null
+          cd_serie?: string | null
+          cd_tns?: string | null
+          cd_tp_movimento?: string | null
+          cd_transportadora?: string | null
+          cd_unidade_medida?: string | null
+          dia_emissao?: string | null
+          ds_abr_fpj?: string | null
+          ds_abr_prj?: string | null
+          dt_emissao?: string | null
+          id: string
+          id_nf?: string | null
+          mes_emissao?: string | null
+          qtd_produtos?: number | null
+          vl_amostra?: number | null
+          vl_bonificacao?: number | null
+          vl_bruto?: number | null
+          vl_cofins?: number | null
+          vl_comissao?: number | null
+          vl_custo?: number | null
+          vl_desconto?: number | null
+          vl_devolucao?: number | null
+          vl_difal?: number | null
+          vl_frete?: number | null
+          vl_icms?: number | null
+          vl_ipi?: number | null
+          vl_ismsst?: number | null
+          vl_iss?: number | null
+          vl_meta?: number | null
+          vl_peso_bruto?: number | null
+          vl_peso_liquido?: number | null
+          vl_pis?: number | null
+          vl_total?: number | null
+        }
+        Update: {
+          ano_emissao?: string | null
+          anomes_emissao?: string | null
+          atualizado_em?: string
+          carga_id?: string | null
+          cd_agrupamento?: string | null
+          cd_centro_custos?: string | null
+          cd_centro_custos_1?: string | null
+          cd_centro_custos_2?: string | null
+          cd_centro_custos_3?: string | null
+          cd_cidade?: string | null
+          cd_cif_fob?: string | null
+          cd_cliente?: string | null
+          cd_derivacao?: string | null
+          cd_empresa?: string | null
+          cd_estado?: string | null
+          cd_familia?: string | null
+          cd_filial?: string | null
+          cd_fpj?: string | null
+          cd_grupo_cliente?: string | null
+          cd_natureza?: string | null
+          cd_nf?: string | null
+          cd_origem?: string | null
+          cd_pedido?: string | null
+          cd_prj?: string | null
+          cd_produto?: string | null
+          cd_representante?: string | null
+          cd_rev_pedido?: string | null
+          cd_serie?: string | null
+          cd_tns?: string | null
+          cd_tp_movimento?: string | null
+          cd_transportadora?: string | null
+          cd_unidade_medida?: string | null
+          dia_emissao?: string | null
+          ds_abr_fpj?: string | null
+          ds_abr_prj?: string | null
+          dt_emissao?: string | null
+          id?: string
+          id_nf?: string | null
+          mes_emissao?: string | null
+          qtd_produtos?: number | null
+          vl_amostra?: number | null
+          vl_bonificacao?: number | null
+          vl_bruto?: number | null
+          vl_cofins?: number | null
+          vl_comissao?: number | null
+          vl_custo?: number | null
+          vl_desconto?: number | null
+          vl_devolucao?: number | null
+          vl_difal?: number | null
+          vl_frete?: number | null
+          vl_icms?: number | null
+          vl_ipi?: number | null
+          vl_ismsst?: number | null
+          vl_iss?: number | null
+          vl_meta?: number | null
+          vl_peso_bruto?: number | null
+          vl_peso_liquido?: number | null
+          vl_pis?: number | null
+          vl_total?: number | null
+        }
+        Relationships: []
+      }
       bi_fornecedores: {
         Row: {
           ativo: boolean
@@ -613,6 +799,131 @@ export type Database = {
         }
         Relationships: []
       }
+      etl_acao_execucoes: {
+        Row: {
+          acao_id: string | null
+          criado_em: string
+          erro: string | null
+          execucao_id: string
+          finalizado_em: string | null
+          id: string
+          id_acao: string
+          iniciado_em: string | null
+          mensagem: string | null
+          ordem: number
+          status: string
+          total_linhas: number
+        }
+        Insert: {
+          acao_id?: string | null
+          criado_em?: string
+          erro?: string | null
+          execucao_id: string
+          finalizado_em?: string | null
+          id?: string
+          id_acao: string
+          iniciado_em?: string | null
+          mensagem?: string | null
+          ordem: number
+          status?: string
+          total_linhas?: number
+        }
+        Update: {
+          acao_id?: string | null
+          criado_em?: string
+          erro?: string | null
+          execucao_id?: string
+          finalizado_em?: string | null
+          id?: string
+          id_acao?: string
+          iniciado_em?: string | null
+          mensagem?: string | null
+          ordem?: number
+          status?: string
+          total_linhas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_acao_execucoes_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_acoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "etl_acao_execucoes_execucao_id_fkey"
+            columns: ["execucao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_execucoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      etl_acoes: {
+        Row: {
+          ativa: boolean
+          atualizado_em: string
+          caso_erro: string
+          criado_em: string
+          endpoint_api: string | null
+          estrategia_carga: string
+          id: string
+          id_acao: string
+          nome_acao: string | null
+          ordem: number
+          parametros_padrao: Json
+          tabela_destino: string | null
+          tarefa_id: string
+          timeout_segundos: number
+          tipo_comando: string
+          tipo_execucao: string
+        }
+        Insert: {
+          ativa?: boolean
+          atualizado_em?: string
+          caso_erro?: string
+          criado_em?: string
+          endpoint_api?: string | null
+          estrategia_carga?: string
+          id?: string
+          id_acao: string
+          nome_acao?: string | null
+          ordem: number
+          parametros_padrao?: Json
+          tabela_destino?: string | null
+          tarefa_id: string
+          timeout_segundos?: number
+          tipo_comando?: string
+          tipo_execucao?: string
+        }
+        Update: {
+          ativa?: boolean
+          atualizado_em?: string
+          caso_erro?: string
+          criado_em?: string
+          endpoint_api?: string | null
+          estrategia_carga?: string
+          id?: string
+          id_acao?: string
+          nome_acao?: string | null
+          ordem?: number
+          parametros_padrao?: Json
+          tabela_destino?: string | null
+          tarefa_id?: string
+          timeout_segundos?: number
+          tipo_comando?: string
+          tipo_execucao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_acoes_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "etl_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       etl_conexoes: {
         Row: {
           codigo: string
@@ -684,52 +995,46 @@ export type Database = {
       }
       etl_execucoes: {
         Row: {
-          acionado_por: string
-          erro_resumo: string | null
+          acionado_por: string | null
+          criado_em: string
+          erro: string | null
+          finalizado_em: string | null
           id: string
-          iniciado_em: string
-          linhas_atualizadas: number | null
-          linhas_inseridas: number | null
-          linhas_lidas: number | null
-          linhas_rejeitadas: number | null
-          params_executados: Json | null
+          iniciado_em: string | null
+          mensagem: string | null
+          nome_tarefa: string
+          parametros: Json
           status: string
-          tarefa_codigo: string
           tarefa_id: string | null
-          terminado_em: string | null
-          user_id: string | null
+          total_linhas: number
         }
         Insert: {
-          acionado_por?: string
-          erro_resumo?: string | null
+          acionado_por?: string | null
+          criado_em?: string
+          erro?: string | null
+          finalizado_em?: string | null
           id?: string
-          iniciado_em?: string
-          linhas_atualizadas?: number | null
-          linhas_inseridas?: number | null
-          linhas_lidas?: number | null
-          linhas_rejeitadas?: number | null
-          params_executados?: Json | null
+          iniciado_em?: string | null
+          mensagem?: string | null
+          nome_tarefa: string
+          parametros?: Json
           status?: string
-          tarefa_codigo: string
           tarefa_id?: string | null
-          terminado_em?: string | null
-          user_id?: string | null
+          total_linhas?: number
         }
         Update: {
-          acionado_por?: string
-          erro_resumo?: string | null
+          acionado_por?: string | null
+          criado_em?: string
+          erro?: string | null
+          finalizado_em?: string | null
           id?: string
-          iniciado_em?: string
-          linhas_atualizadas?: number | null
-          linhas_inseridas?: number | null
-          linhas_lidas?: number | null
-          linhas_rejeitadas?: number | null
-          params_executados?: Json | null
+          iniciado_em?: string | null
+          mensagem?: string | null
+          nome_tarefa?: string
+          parametros?: Json
           status?: string
-          tarefa_codigo?: string
           tarefa_id?: string | null
-          terminado_em?: string | null
-          user_id?: string | null
+          total_linhas?: number
         }
         Relationships: [
           {
@@ -743,77 +1048,76 @@ export type Database = {
       }
       etl_fila_integrador: {
         Row: {
-          created_at: string
-          created_by: string | null
-          execucao_id: string | null
-          finished_at: string | null
+          criado_em: string
           id: string
-          params: Json
-          picked_at: string | null
-          prioridade: number
+          mensagem: string | null
+          nome_tarefa: string
+          parametros: Json
+          processado_em: string | null
           status: string
-          tarefa_codigo: string
+          tentativas: number
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
-          execucao_id?: string | null
-          finished_at?: string | null
+          criado_em?: string
           id?: string
-          params?: Json
-          picked_at?: string | null
-          prioridade?: number
+          mensagem?: string | null
+          nome_tarefa: string
+          parametros?: Json
+          processado_em?: string | null
           status?: string
-          tarefa_codigo: string
+          tentativas?: number
         }
         Update: {
-          created_at?: string
-          created_by?: string | null
-          execucao_id?: string | null
-          finished_at?: string | null
+          criado_em?: string
           id?: string
-          params?: Json
-          picked_at?: string | null
-          prioridade?: number
+          mensagem?: string | null
+          nome_tarefa?: string
+          parametros?: Json
+          processado_em?: string | null
           status?: string
-          tarefa_codigo?: string
+          tentativas?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "etl_fila_integrador_execucao_id_fkey"
-            columns: ["execucao_id"]
-            isOneToOne: false
-            referencedRelation: "etl_execucoes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       etl_logs: {
         Row: {
-          contexto: Json | null
-          created_at: string
+          acao_execucao_id: string | null
+          criado_em: string
+          detalhe: Json
           execucao_id: string | null
           id: string
           mensagem: string
           nivel: string
+          origem: string | null
         }
         Insert: {
-          contexto?: Json | null
-          created_at?: string
+          acao_execucao_id?: string | null
+          criado_em?: string
+          detalhe?: Json
           execucao_id?: string | null
           id?: string
           mensagem: string
           nivel?: string
+          origem?: string | null
         }
         Update: {
-          contexto?: Json | null
-          created_at?: string
+          acao_execucao_id?: string | null
+          criado_em?: string
+          detalhe?: Json
           execucao_id?: string | null
           id?: string
           mensagem?: string
           nivel?: string
+          origem?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "etl_logs_acao_execucao_id_fkey"
+            columns: ["acao_execucao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_acao_execucoes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "etl_logs_execucao_id_fkey"
             columns: ["execucao_id"]
@@ -825,50 +1129,42 @@ export type Database = {
       }
       etl_tarefas: {
         Row: {
-          codigo: string
-          conexao_id: string | null
-          created_at: string
-          cron: string | null
+          ativa: boolean
+          atualizado_em: string
+          criado_em: string
           descricao: string | null
-          enabled: boolean
+          grupo: string
           id: string
-          nome: string
-          params: Json
-          updated_at: string
+          nome_tarefa: string
+          ordem: number
+          status_atual: string
+          ultima_execucao_em: string | null
         }
         Insert: {
-          codigo: string
-          conexao_id?: string | null
-          created_at?: string
-          cron?: string | null
+          ativa?: boolean
+          atualizado_em?: string
+          criado_em?: string
           descricao?: string | null
-          enabled?: boolean
+          grupo?: string
           id?: string
-          nome: string
-          params?: Json
-          updated_at?: string
+          nome_tarefa: string
+          ordem?: number
+          status_atual?: string
+          ultima_execucao_em?: string | null
         }
         Update: {
-          codigo?: string
-          conexao_id?: string | null
-          created_at?: string
-          cron?: string | null
+          ativa?: boolean
+          atualizado_em?: string
+          criado_em?: string
           descricao?: string | null
-          enabled?: boolean
+          grupo?: string
           id?: string
-          nome?: string
-          params?: Json
-          updated_at?: string
+          nome_tarefa?: string
+          ordem?: number
+          status_atual?: string
+          ultima_execucao_em?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "etl_tarefas_conexao_id_fkey"
-            columns: ["conexao_id"]
-            isOneToOne: false
-            referencedRelation: "etl_conexoes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       etl_watermark: {
         Row: {
