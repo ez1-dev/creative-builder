@@ -1,26 +1,28 @@
-## Painel de Compras — usar `todos=true` em vez de loop de páginas
+## Painel de Compras — "Registros: Todos" via loop de páginas
 
-O backend agora aceita `todos=true` no `/api/painel-compras` e devolve tudo numa única resposta atômica. Trocar o loop client-side por uma chamada só.
+Hoje o branch `tamanhoEfetivo === 'todos'` em `src/pages/PainelComprasPage.tsx` (linhas 192-204) faz uma única chamada com `todos: true` e usa só `retorno.dados` daquela resposta. Trocar pelo loop multi-página, conforme solicitado.
 
-### Mudanças (apenas `src/pages/PainelComprasPage.tsx`)
+### Mudança única — `src/pages/PainelComprasPage.tsx`, branch `tamanhoEfetivo === 'todos'`
 
-1. **`search` — branch `tamanhoEfetivo === 'todos'`**
-   Substituir a lógica de página 1 + paralelas + concatenação por uma única chamada:
-   ```ts
-   const result = await api.get<PainelComprasResponse>(
-     '/api/painel-compras',
-     buildParams(1, 1000, { /* params extras: todos */ }),
-   );
-   ```
-   Implementação: adicionar `params.todos = true` em `buildParams` quando estiver em modo "todos" (passando uma flag via `opts`), ou simplesmente inserir `todos: true` no objeto retornado pelo branch "todos" antes do `api.get`. `tamanho_pagina` continua sendo enviado (1000) — o backend ignora quando `todos=true`. Setar `data` direto com o `result`, `setPagina(1)`. Remover o cap de 200 páginas e o toast de aviso.
-
-2. **Demais tamanhos** — sem mudança.
-
-3. **Rodapé "Exibindo X de Y registros filtrados"** — mantém como está (já implementado).
+1. Definir `PAGE_SIZE = 1000` e `MAX_PAGINAS = 200` (trava de segurança).
+2. Buscar página 1: `api.get('/api/painel-compras', buildParams(1, PAGE_SIZE))` — sem `todos:true`.
+3. Ler `total_paginas` e `total_registros` da resposta.
+4. Se `total_paginas > 1`:
+   - Se `total_paginas > MAX_PAGINAS` → `toast.warning` avisando que será truncado em `MAX_PAGINAS * PAGE_SIZE` registros e usar `Math.min(total_paginas, MAX_PAGINAS)`.
+   - `Promise.all` das páginas `2..N` com os mesmos filtros (`buildParams(p, PAGE_SIZE)`).
+5. Concatenar `dados` na ordem (página 1 + páginas 2..N).
+6. `setData({ ...primeira, dados: dadosConcat, pagina: 1, tamanho_pagina: dadosConcat.length, total_paginas: 1 })` para a grid renderizar tudo sem paginação interna.
+7. `setPagina(1)`; `trackSearch(filters, primeira.total_registros)` quando `page === 1`.
 
 ### Fora de escopo
-- Backend (já feito).
-- Export Excel, KPIs, demais abas.
+
+- Branch de tamanhos numéricos (continua paginado, 1 chamada).
+- Bloco do dashboard agregado / `dadosAgregados` (KPIs continuam vindo de `/api/painel-compras-dashboard`, intocado).
+- Rodapé "Exibindo X de Y registros filtrados" — já implementado anteriormente, sem mudança.
+- Exportação Excel, demais abas, backend.
 
 ### Validação
-- Selecionar Registros = Todos → Network mostra uma única chamada `/api/painel-compras?...&todos=true`, grid renderiza todos os registros, rodapé "Exibindo X de Y".
+
+- Selecionar Registros = Todos com filtro amplo → Network mostra `/api/painel-compras?...&pagina=1&tamanho_pagina=1000`, seguido de chamadas paralelas `pagina=2..N` com os mesmos filtros (sem `todos=true`).
+- Grid renderiza todos os registros; rodapé mostra `Exibindo X de Y registros filtrados` com `X === Y`.
+- KPIs continuam batendo com `/api/painel-compras-dashboard`.
