@@ -189,16 +189,45 @@ export default function PainelComprasPage() {
     };
     try {
       const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
-      const tamanhoNumerico = tamanhoEfetivo === 'todos' ? 100000 : Number(tamanhoEfetivo);
-      const result = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(page, tamanhoNumerico));
-      setData(result);
-      setPagina(page);
-      if (page === 1) trackSearch(filters, (result as any)?.total_registros);
+      if (tamanhoEfetivo === 'todos') {
+        const PAGE_SIZE = 1000;
+        const MAX_PAGINAS = 200;
+        const primeira = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, PAGE_SIZE));
+        const totalPaginas = Math.min(primeira.total_paginas ?? 1, MAX_PAGINAS);
+        let dadosConcat = [...(primeira.dados ?? [])];
+        if (totalPaginas > 1) {
+          const restantes = await Promise.all(
+            Array.from({ length: totalPaginas - 1 }, (_, i) =>
+              api.get<PainelComprasResponse>('/api/painel-compras', buildParams(i + 2, PAGE_SIZE)),
+            ),
+          );
+          restantes.forEach((r) => { dadosConcat = dadosConcat.concat(r.dados ?? []); });
+        }
+        if ((primeira.total_paginas ?? 1) > MAX_PAGINAS) {
+          toast.warning(`Limite de segurança atingido: carregadas ${MAX_PAGINAS} páginas de ${primeira.total_paginas}. Refine os filtros para ver tudo.`);
+        }
+        setData({
+          ...primeira,
+          dados: dadosConcat,
+          pagina: 1,
+          tamanho_pagina: dadosConcat.length,
+          total_paginas: 1,
+        });
+        setPagina(1);
+        if (page === 1) trackSearch(filters, primeira.total_registros);
+      } else {
+        const tamanhoNumerico = Number(tamanhoEfetivo);
+        const result = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(page, tamanhoNumerico));
+        setData(result);
+        setPagina(page);
+        if (page === 1) trackSearch(filters, (result as any)?.total_registros);
+      }
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
+
 
     // Dataset agregado para KPIs/gráficos/drill — apenas na primeira página.
     // Tenta primeiro o endpoint dashboard real (sem paginação). Em caso de erro,
@@ -1329,7 +1358,7 @@ export default function PainelComprasPage() {
           <TabsContent value="lista" className="space-y-2">
             {tamanhoPagina === 'todos' && data.total_registros > 0 && (
               <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                Exibindo todos os {data.total_registros.toLocaleString('pt-BR')} registros do filtro — paginação desativada.
+                Exibindo {(dadosListaFiltrados?.length ?? 0).toLocaleString('pt-BR')} de {data.total_registros.toLocaleString('pt-BR')} registros filtrados
               </div>
             )}
             <DataTable columns={columns} data={dadosListaFiltrados} loading={loading} />
