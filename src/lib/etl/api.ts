@@ -89,6 +89,23 @@ export type ExecucaoParams = {
   anomes_ini: number;
   anomes_fim: number;
   acionado_por?: string;
+  /** Parâmetros extras para placeholders além de ANOMES_*. */
+  parametros?: Record<string, string | number>;
+};
+
+export type TestarSqlPayload = {
+  /** SQL atual do editor (opcional — se omitido, FastAPI usa o salvo no Cloud). */
+  sql_template?: string;
+  parametros: Record<string, string | number>;
+  limite?: number;
+};
+
+export type TestarSqlResponse = {
+  colunas: { nome: string; tipo?: string }[];
+  linhas: Record<string, any>[];
+  qtd_linhas: number;
+  tempo_ms: number;
+  truncado?: boolean;
 };
 
 export type LogsResponse = {
