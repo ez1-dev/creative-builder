@@ -859,6 +859,44 @@ export type Database = {
           },
         ]
       }
+      etl_acao_sql_versoes: {
+        Row: {
+          acao_id: string
+          comentario: string | null
+          criado_em: string
+          criado_por: string | null
+          id: string
+          sql_template: string | null
+          versao: number
+        }
+        Insert: {
+          acao_id: string
+          comentario?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          sql_template?: string | null
+          versao: number
+        }
+        Update: {
+          acao_id?: string
+          comentario?: string | null
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          sql_template?: string | null
+          versao?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "etl_acao_sql_versoes_acao_id_fkey"
+            columns: ["acao_id"]
+            isOneToOne: false
+            referencedRelation: "etl_acoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       etl_acoes: {
         Row: {
           ativa: boolean
@@ -872,6 +910,10 @@ export type Database = {
           nome_acao: string | null
           ordem: number
           parametros_padrao: Json
+          sql_atualizado_em: string | null
+          sql_atualizado_por: string | null
+          sql_template: string | null
+          sql_versao: number
           tabela_destino: string | null
           tarefa_id: string
           timeout_segundos: number
@@ -890,6 +932,10 @@ export type Database = {
           nome_acao?: string | null
           ordem: number
           parametros_padrao?: Json
+          sql_atualizado_em?: string | null
+          sql_atualizado_por?: string | null
+          sql_template?: string | null
+          sql_versao?: number
           tabela_destino?: string | null
           tarefa_id: string
           timeout_segundos?: number
@@ -908,6 +954,10 @@ export type Database = {
           nome_acao?: string | null
           ordem?: number
           parametros_padrao?: Json
+          sql_atualizado_em?: string | null
+          sql_atualizado_por?: string | null
+          sql_template?: string | null
+          sql_versao?: number
           tabela_destino?: string | null
           tarefa_id?: string
           timeout_segundos?: number

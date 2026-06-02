@@ -1,82 +1,74 @@
-## Central de Integrações / ETL
 
-Criar módulo para orquestrar cargas do ERP Senior → Supabase/BI, no padrão UpQuery. Frontend só lê/grava metadados no Cloud e dispara a FastAPI; nunca toca no ERP nem usa service role.
+# Editor de SQL versionado nas ações ETL
 
-### ⚠️ Conflito de schema (decisão necessária)
+Permitir editar pela tela `/etl/tarefas/:nome` o SQL que a FastAPI executa contra o ERP Senior, mantendo as regras: frontend **não** acessa ERP e **não** usa service role. O SQL fica salvo no Cloud, versionado, e a FastAPI passa a lê-lo de lá em cada execução.
 
-Já existem no Cloud as tabelas `etl_tarefas`, `etl_execucoes`, `etl_logs`, `etl_fila_integrador` com schema diferente do pedido (ex.: `etl_tarefas` usa `codigo`/`nome`/`conexao_id`, não `grupo`/`nome_tarefa`/`status_atual`; `etl_execucoes` usa `tarefa_codigo`/`status RUNNING`/`linhas_lidas`; `etl_logs` usa `mensagem`/`nivel`/`contexto`). A tela `/etl` (`EtlAdminPage`) usa esse schema atual.
+## 1. Banco (Cloud)
 
-Proposta: **migrar as tabelas existentes para o novo schema** (renomear colunas, adicionar `grupo`, `status_atual`, `ultima_execucao_em`, `ordem`, etc., manter compat onde possível) e atualizar `EtlAdminPage` para o novo modelo — em vez de criar tabelas paralelas. Caso prefira manter `/etl` antigo e criar `/etl/central` novo com tabelas `etl2_*`, me avise antes da implementação.
+**Alterar `etl_acoes`:**
+- `sql_template text` — SQL atual da ação (com placeholders `:anomes_ini`, `:anomes_fim`, etc.)
+- `sql_versao integer not null default 1`
+- `sql_atualizado_em timestamptz`
+- `sql_atualizado_por uuid` (auth.uid do editor)
 
-O plano abaixo assume **migração das tabelas existentes**.
+**Nova tabela `etl_acao_sql_versoes`** (histórico):
+- `id uuid pk`
+- `acao_id uuid fk etl_acoes`
+- `versao integer`
+- `sql_template text`
+- `comentario text`
+- `criado_por uuid`
+- `criado_em timestamptz default now()`
+- `unique(acao_id, versao)`
 
-### 1. Banco (migrations Cloud)
+RLS: leitura para `authenticated`; escrita só `is_admin(auth.uid())`. GRANTs padrão.
 
-**Recriar/alterar tabelas de controle ETL** (DROP + CREATE, já que a `EtlAdminPage` atual será reescrita):
+**Trigger** `etl_acoes_sql_versionar`: quando `sql_template` muda, insere linha em `etl_acao_sql_versoes` com a versão anterior e incrementa `sql_versao`.
 
-- `etl_tarefas`: `id`, `grupo` (default 'GERAL'), `nome_tarefa` UNIQUE, `descricao`, `ativa`, `ordem`, `status_atual`, `ultima_execucao_em`, `criado_em`, `atualizado_em`.
-- `etl_acoes`: nova — campos do briefing + UNIQUE `(tarefa_id, id_acao)`.
-- `etl_execucoes`: campos do briefing (`nome_tarefa`, `status`, `acionado_por`, `parametros`, `iniciado_em`, `finalizado_em`, `total_linhas`, `mensagem`, `erro`).
-- `etl_acao_execucoes`: nova.
-- `etl_logs`: campos do briefing (`acao_execucao_id`, `nivel`, `origem`, `mensagem`, `detalhe`).
-- `etl_fila_integrador`: campos do briefing (`nome_tarefa`, `tentativas`, `processado_em`, …).
+## 2. Frontend
 
-**Nova tabela `bi_faturamento`** — todos os campos do briefing + índices em `anomes_emissao`, `cd_cliente`, `cd_produto`, `cd_origem`, `cd_tp_movimento`, `cd_filial`.
+**`src/lib/etl/api.ts`** — adicionar:
+- `atualizarSqlAcao(acaoId, sql, comentario)` — update no Cloud
+- `listarVersoesSql(acaoId)` — histórico
+- `restaurarVersaoSql(acaoId, versao)` — copia versão antiga para o atual
 
-**GRANT + RLS (em todas):**
-- `etl_*` (controle): `GRANT` para `authenticated` e `service_role`; RLS — admins (`is_admin(auth.uid())`) gerenciam tudo (ALL); `authenticated` lê (`SELECT`). FastAPI grava via service role.
-- `bi_faturamento`: `GRANT SELECT` para `authenticated`, `GRANT ALL` para `service_role`; RLS — `authenticated` lê tudo.
+**`src/components/etl/EditarSqlModal.tsx`** (novo):
+- Editor com Monaco (`@monaco-editor/react`, modo `sql`)
+- Campo "Comentário da alteração" (obrigatório)
+- Lista lateral de versões anteriores (clique = carrega no editor read-only + botão "Restaurar")
+- Botão Salvar (só admin) / Fechar
+- Aviso: "O SQL roda na FastAPI contra o ERP Senior. Use placeholders `:anomes_ini`, `:anomes_fim`."
 
-**Seed (via supabase--insert):**
-- 1 tarefa `ATU_COMERCIAL` (grupo GERAL, ordem 10).
-- 5 ações: `VM_FATURAMENTO` (ordem 1, ativa), `VM_FATURAMENTO_MANUAL` (2, inativa), `VM_FAT_CONTABIL` (4, inativa), `VM_FAT_TRB` (5, inativa), `ATU_COMERCIAL` (99, ativa).
+**`EtlTarefaDetalhePage.tsx`** — na tabela de ações:
+- Coluna nova "SQL" mostrando badge `v{sql_versao}` ou "—" se vazio
+- Botão "Editar SQL" (ícone Code) abre `EditarSqlModal`
+- Só habilitado para admins (`useIsSeniorAdmin` ou check de `is_admin`)
 
-### 2. Frontend
+## 3. FastAPI (contrato — documentação)
 
-**Cliente API** — `src/lib/etl/api.ts` (usa `api.ts` existente, Bearer já incluso):
-- `listarTarefas()`, `detalheTarefa(nome)`, `acoesTarefa(nome)`
-- `executarTarefa(nome, { anomes_ini, anomes_fim, acionado_por })`
-- `executarAcao(id_acao, payload)`
-- `logsExecucao(execucao_id)`
+Atualizar `docs/backend-etl-central.md`:
+- Antes de executar `VM_FATURAMENTO` (e demais ações), a FastAPI faz `SELECT sql_template, sql_versao FROM etl_acoes WHERE id_acao = :id`
+- Se `sql_template` estiver vazio, usa o SQL hardcoded de fallback (compatibilidade)
+- Loga em `etl_logs` qual `sql_versao` foi usada na execução
+- Aplica os placeholders `:anomes_ini`, `:anomes_fim` via bind parameters (nunca string concat)
 
-Os GETs leem do Cloud (mais barato, sem ngrok). Os POSTs vão para a FastAPI.
+**Não há mudança de endpoints** — só comportamento interno de quem busca o SQL.
 
-**Páginas/rotas:**
-- `/bi/etl` → `CentralEtlPage` (substitui o link antigo `/etl`; menu "BI / Integrações / Central ETL" no `AppSidebar`).
-  - 4 KPIs: total tarefas, ativas, com erro, última execução.
-  - Grid (`DataTableBI`): grupo, nome_tarefa, descrição, ativa (badge), status_atual (badge color), última execução, ações [Ver, Executar, Logs].
-- `/bi/etl/tarefas/:nome` → `TarefaDetalhePage`.
-  - Header: nome, grupo, status_atual, última execução.
-  - Tabela ações (com botão Executar por ação).
-  - Tabela últimas execuções (com botão Ver logs).
+## 4. Segurança
 
-**Modais (em `src/components/etl/`):**
-- `ExecutarModal` — inputs `anomes_ini`/`anomes_fim` (number, default = AAAAMM corrente), botão Confirmar. Reusado para tarefa e ação. Ao confirmar: chama endpoint, fecha modal, recarrega detalhe, toast com resultado.
-- `LogsModal` — `<Timeline>` (já existe em `bi/layout/Timeline.tsx`) com status/início/fim/total_linhas por ação + lista de logs INFO/WARN/ERROR coloridos.
+- Só admin edita (RLS + UI desabilita botão)
+- Histórico completo em `etl_acao_sql_versoes` (auditoria)
+- Frontend nunca executa o SQL — apenas grava texto no Cloud
+- FastAPI continua sendo o único que toca o ERP, com service role
 
-**Permissão:** rota protegida por `/bi/etl` em `profile_screens`; ações de execução visíveis só para admins (`useIsSeniorAdmin` ou nova `is_admin`).
+## Fora de escopo
 
-### 3. Backend (FastAPI — fora do escopo Lovable)
+- "Testar SQL" / preview de linhas (precisaria endpoint dedicado na FastAPI — fica para próxima)
+- Editor de parâmetros customizados além de `anomes_ini`/`anomes_fim`
+- Aprovação em dois passos (workflow)
 
-Documentar em `docs/backend-etl-central.md` os endpoints esperados:
-- `GET /api/etl/tarefas`, `GET /api/etl/tarefas/{nome}/detalhe`, `GET /api/etl/tarefas/{nome}/acoes`
-- `POST /api/etl/tarefas/{nome}/executar`, `POST /api/etl/acoes/{id_acao}/executar`
-- `GET /api/etl/execucoes/{id}/logs`
-- `POST /api/etl/comercial/faturamento` (worker da ação `VM_FATURAMENTO`)
+## Detalhes técnicos
 
-Body padrão: `{ anomes_ini, anomes_fim, acionado_por }`. Resposta deve retornar `execucao_id`. FastAPI grava em `etl_execucoes`/`etl_acao_execucoes`/`etl_logs` via service role e em `bi_faturamento` com estratégia `REPLACE_PERIODO` (DELETE WHERE anomes BETWEEN … + INSERT em lote, `carga_id = execucao_id`).
-
-### Fora do escopo
-
-- Implementação do ETL real no FastAPI (apenas contrato/doc).
-- Editor visual de tarefas/ações (CRUD via SQL/seed nesta fase).
-- Agendamento/cron (já existe `etl_watermark` e infra antiga; permanece).
-
-### Validação
-
-1. Migration roda sem erro; `bi_faturamento` aceita insert via service role.
-2. `/bi/etl` lista a tarefa `ATU_COMERCIAL` com 5 ações.
-3. Botão Executar abre modal, chama `POST /api/etl/tarefas/ATU_COMERCIAL/executar` com Bearer, mostra toast e atualiza grid.
-4. Modal de logs renderiza timeline + linhas INFO/WARN/ERROR.
-
-**Confirmar antes de implementar:** posso reescrever as tabelas `etl_*` existentes (e a `EtlAdminPage` que as usa) para o novo schema, ou prefere manter o antigo e criar tabelas paralelas?
+- Dependência nova: `@monaco-editor/react` (~2MB lazy-loaded)
+- Migration cria coluna, tabela de versões, trigger, GRANTs e RLS num único arquivo
+- Seed: deixar `sql_template` NULL para todas as ações existentes (FastAPI usa fallback até admin colar o SQL pela tela)
