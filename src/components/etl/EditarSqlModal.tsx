@@ -22,6 +22,7 @@ import {
   type EtlAcao,
   type EtlAcaoSqlVersao,
 } from '@/lib/etl/api';
+import { validarPlaceholders, PLACEHOLDERS_SUPORTADOS } from '@/lib/etl/placeholders';
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'));
 
@@ -113,10 +114,39 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
         <Alert className="py-2">
           <Info className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            O SQL é executado pela FastAPI contra o ERP Senior. Use placeholders{' '}
-            <code className="font-mono">:anomes_ini</code> e <code className="font-mono">:anomes_fim</code> (bind parameters — nunca concatenar string).
+            O SQL é executado pela FastAPI contra o ERP Senior. Use placeholders no padrão UpQuery/Senior:{' '}
+            <code className="font-mono">$[ANOMES_INI]</code> e <code className="font-mono">$[ANOMES_FIM]</code>{' '}
+            (substituídos pela FastAPI antes da execução, com validação de inteiro AAAAMM).
           </AlertDescription>
         </Alert>
+
+        {(() => {
+          const { encontrados, desconhecidos } = validarPlaceholders(sqlExibido);
+          if (encontrados.length === 0 && desconhecidos.length === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-1 text-xs">
+              <span className="text-muted-foreground">Placeholders:</span>
+              {encontrados.map((p) => {
+                const ok = (PLACEHOLDERS_SUPORTADOS as readonly string[]).includes(p);
+                return (
+                  <Badge
+                    key={p}
+                    variant={ok ? 'default' : 'destructive'}
+                    className="font-mono text-[10px]"
+                  >
+                    $[{p}]{!ok && ' ?'}
+                  </Badge>
+                );
+              })}
+              {desconhecidos.length > 0 && (
+                <span className="text-destructive">
+                  Placeholder desconhecido — a FastAPI vai abortar a execução.
+                </span>
+              )}
+            </div>
+          );
+        })()}
+
 
         <div className="grid grid-cols-[1fr_280px] gap-3 flex-1 min-h-0">
           {/* Editor */}

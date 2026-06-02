@@ -16,8 +16,26 @@ A tela `/etl/tarefas/:nome` (admin) edita esses campos via Cloud. Toda alteraç�
 ### Comportamento esperado da FastAPI
 1. Antes de executar a ação, faça `SELECT sql_template, sql_versao FROM etl_acoes WHERE id_acao = :id_acao` no Cloud.
 2. Se `sql_template` for **NULL ou vazio**, use o SQL hardcoded de fallback (compatibilidade com o que já está em produção).
-3. Execute com **bind parameters nomeados** (`:anomes_ini`, `:anomes_fim`, etc.) — **nunca** concatenar string.
-4. Loga em `etl_logs` a `sql_versao` utilizada (campo `detalhe.sql_versao`).
+3. **Resolva os placeholders no padrão UpQuery/Senior `$[NOME]`** antes de enviar ao ERP. Placeholders canônicos:
+   - `$[ANOMES_INI]`, `$[ANOMES_FIM]` — inteiros AAAAMM vindos do body da execução.
+
+   ```python
+   import re
+   ANOMES_RE = re.compile(r"^\d{6}$")
+
+   def resolver_placeholders(sql: str, params: dict) -> str:
+       ini, fim = str(params["anomes_ini"]), str(params["anomes_fim"])
+       if not (ANOMES_RE.match(ini) and ANOMES_RE.match(fim)):
+           raise ValueError("anomes_ini/anomes_fim devem ser inteiros AAAAMM (6 dígitos)")
+       sql = sql.replace("$[ANOMES_INI]", ini).replace("$[ANOMES_FIM]", fim)
+       restantes = re.findall(r"\$\[([A-Z_][A-Z0-9_]*)\]", sql)
+       if restantes:
+           raise ValueError(f"placeholder_nao_resolvido: {restantes}")
+       return sql
+   ```
+
+   **Segurança:** validar que cada `anomes_*` casa com `^\d{6}$` **antes** do replace é obrigatório — sem isso, abre injeção de SQL. Qualquer `$[...]` remanescente deve abortar a execução e gravar `etl_logs` com `nivel='ERROR'` e `origem=id_acao`.
+4. Loga em `etl_logs` a `sql_versao` utilizada (campo `detalhe.sql_versao`) e os parâmetros resolvidos.
 
 
 ## Header obrigatório

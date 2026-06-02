@@ -88,6 +88,11 @@ export function ExecutarModal({ open, onOpenChange, alvo, onExecutado }: Executa
             />
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Formato AAAAMM (6 dígitos). No SQL da ação, use os placeholders{' '}
+          <code className="font-mono">$[ANOMES_INI]</code> e{' '}
+          <code className="font-mono">$[ANOMES_FIM]</code> — a FastAPI faz o replace antes de executar no ERP.
+        </p>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
