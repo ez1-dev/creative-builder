@@ -163,6 +163,8 @@ export default function PainelComprasPage() {
       const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
       if (situacoesSel.length > 0) params.situacao_oc = situacoesSel.join(',');
       else delete params.situacao_oc;
+      // Liquidado (4): backend exige somente_pendentes=false explícito
+      if (situacoesSel.includes('4')) params.somente_pendentes = 'false';
       if (!params.coddep) delete params.coddep;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
@@ -643,6 +645,8 @@ export default function PainelComprasPage() {
     const sitsSel: string[] = Array.isArray(p.situacao_oc) ? p.situacao_oc : [];
     if (sitsSel.length > 0) p.situacao_oc = sitsSel.join(',');
     else delete p.situacao_oc;
+    // Liquidado (4): backend exige somente_pendentes=false explícito (string p/ não ser descartado pelo ExportButton)
+    if (sitsSel.includes('4')) p.somente_pendentes = 'false';
     if (!p.coddep) delete p.coddep;
     if (!p.tipo_item || p.tipo_item === 'TODOS') delete p.tipo_item;
     if (!p.tipo_oc || p.tipo_oc === 'TODOS') delete p.tipo_oc;
