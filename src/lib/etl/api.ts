@@ -89,6 +89,23 @@ export type ExecucaoParams = {
   anomes_ini: number;
   anomes_fim: number;
   acionado_por?: string;
+  /** Parâmetros extras para placeholders além de ANOMES_*. */
+  parametros?: Record<string, string | number>;
+};
+
+export type TestarSqlPayload = {
+  /** SQL atual do editor (opcional — se omitido, FastAPI usa o salvo no Cloud). */
+  sql_template?: string;
+  parametros: Record<string, string | number>;
+  limite?: number;
+};
+
+export type TestarSqlResponse = {
+  colunas: { nome: string; tipo?: string }[];
+  linhas: Record<string, any>[];
+  qtd_linhas: number;
+  tempo_ms: number;
+  truncado?: boolean;
 };
 
 export type LogsResponse = {
@@ -170,6 +187,17 @@ export async function executarAcao(idAcao: string, payload: ExecucaoParams) {
     `/api/etl/acoes/${idAcao}/executar`,
     payload,
   );
+}
+
+/**
+ * Preview efêmero — executa o SQL contra o ERP via FastAPI sem persistir nada.
+ * Aceita o sql_template atual do editor (antes de salvar).
+ */
+export async function testarSqlAcao(
+  idAcao: string,
+  payload: TestarSqlPayload,
+): Promise<TestarSqlResponse> {
+  return api.post<TestarSqlResponse>(`/api/etl/acoes/${idAcao}/testar-sql`, payload);
 }
 
 // ---------- SQL versionado (Cloud) ----------

@@ -1,57 +1,111 @@
-## Padrão de placeholders: `$[ANOMES_INI]` / `$[ANOMES_FIM]`
+## Próximos incrementos do editor de SQL ETL
 
-Adoção do formato UpQuery/Senior em todo o módulo ETL Central. O frontend só armazena e edita o SQL — o **replace é responsabilidade da FastAPI** antes de enviar ao ERP.
+Três melhorias complementares ao `EditarSqlModal` + contrato com a FastAPI.
 
-### 1. Frontend (visual / editor)
+### 1. Botão "Testar SQL" (preview contra o ERP)
 
-**`src/components/etl/EditarSqlModal.tsx`**
-- Atualizar o `<Alert>` informativo: trocar a menção de `:anomes_ini` / `:anomes_fim` por:
-  > "Use placeholders `$[ANOMES_INI]` e `$[ANOMES_FIM]` (substituídos pela FastAPI antes da execução no ERP)."
-- Adicionar lista de placeholders suportados (somente leitura, informativa):
-  - `$[ANOMES_INI]`, `$[ANOMES_FIM]` — período em formato AAAAMM (inteiro)
-- Sem mudança de schema: o campo `sql_template` continua `text` livre.
+**Frontend (`EditarSqlModal.tsx`)**
+- Novo botão `Testar SQL` ao lado de `Salvar`, habilitado quando há `sql_template` não vazio.
+- Abre uma seção inline (collapsible) abaixo do editor com:
+  - Inputs para cada placeholder detectado (`ANOMES_INI`, `ANOMES_FIM`, etc) — pré-preenchidos com o mês corrente / anterior.
+  - Input numérico `Limite` (default 50, máx 500).
+  - Botão `Executar preview`.
+  - Área de resultado: tabela compacta (shadcn `Table`) com até N linhas, badge mostrando `qtd_linhas` e `tempo_ms`, ou alert de erro.
+- Sem persistência: é só uma execução efêmera, não grava em `etl_execucoes` nem em `bi_*`.
 
-**`src/components/etl/ExecutarModal.tsx`**
-- Sem mudanças funcionais (já envia `anomes_ini` / `anomes_fim` como números no payload). Apenas garantir o helper text no modal mencionando o formato do placeholder no SQL.
+**Camada de API (`src/lib/etl/api.ts`)**
+- `testarSqlAcao(acaoId, { parametros, limite }) → { colunas, linhas, qtd_linhas, tempo_ms }`.
+- Manda o `sql_template` atual do editor (sem precisar salvar antes) no body, pra permitir testar antes de commitar a nova versão.
 
-### 2. Validação leve no frontend (opcional, defensiva)
-
-Adicionar utilitário `src/lib/etl/placeholders.ts`:
-- `extrairPlaceholders(sql: string): string[]` — regex `/\$\[([A-Z_][A-Z0-9_]*)\]/g`
-- `PLACEHOLDERS_SUPORTADOS = ['ANOMES_INI', 'ANOMES_FIM']`
-- `validarPlaceholders(sql)` retorna lista de placeholders desconhecidos para alertar no modal (warning, não bloqueia salvar — FastAPI é a fonte da verdade).
-
-No `EditarSqlModal`, mostrar um badge discreto:
-- "Placeholders detectados: $[ANOMES_INI], $[ANOMES_FIM]" (verde) ou
-- "Placeholder desconhecido: $[XYZ]" (amarelo/aviso).
-
-### 3. Contrato com a FastAPI
-
-**`docs/backend-etl-central.md`** — atualizar a seção "Execução de ação":
-- A FastAPI lê `sql_template` do Cloud.
-- Antes de enviar ao ERP Senior, faz `replace` literal:
+**Backend FastAPI (`docs/backend-etl-central.md`)**
+- Novo endpoint `POST /api/etl/acoes/{id_acao}/testar-sql`:
+  ```json
+  {
+    "sql_template": "SELECT ...",   // opcional; se omitido, usa o salvo no Cloud
+    "parametros": { "anomes_ini": 202601, "anomes_fim": 202604 },
+    "limite": 50
+  }
   ```
-  sql.replace('$[ANOMES_INI]', str(params['anomes_ini']))
-     .replace('$[ANOMES_FIM]', str(params['anomes_fim']))
+  Resposta:
+  ```json
+  {
+    "colunas": [{"nome": "CD_EMPRESA", "tipo": "varchar"}, ...],
+    "linhas": [{...}],
+    "qtd_linhas": 50,
+    "tempo_ms": 1234,
+    "truncado": true
+  }
   ```
-- **Segurança:** o backend deve validar que `anomes_ini`/`anomes_fim` são inteiros de 6 dígitos (`^\d{6}$`) antes do replace. Sem isso, abre injeção. Documentar como requisito obrigatório.
-- Bloquear qualquer placeholder `$[...]` remanescente após o replace: se sobrar, abortar execução com erro `placeholder_nao_resolvido` e gravar em `etl_logs`.
-- Fallback inalterado: se `sql_template` for NULL, usa SQL hardcoded do backend.
+- Regras obrigatórias:
+  - Bloquear DML/DDL via regex (`\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|merge|exec)\b`) — só `SELECT` / `WITH`.
+  - Validar `anomes_*` como `^\d{6}$` antes do replace dos `$[...]`.
+  - Envelopar a query: `SELECT TOP {limite} * FROM ( <sql_resolvido> ) AS preview` (SQL Server).
+  - Timeout 15s, abortar se ultrapassar.
+  - Nunca gravar em `etl_logs` / `etl_execucoes` (é preview).
 
-### 4. Memória do projeto
+### 2. Validador de placeholders no save
 
-Atualizar `mem://features/etl-bi`:
-- Padrão de placeholder do módulo ETL: `$[NOME]` (estilo UpQuery/Senior), substituído pela FastAPI.
-- Lista canônica: `$[ANOMES_INI]`, `$[ANOMES_FIM]`.
+Hoje `placeholders.ts` já detecta desconhecidos visualmente. Falta **bloquear save** quando há problema crítico.
+
+**`src/lib/etl/placeholders.ts`**
+- Adicionar `validarParaSalvar(sql) → { ok: boolean, erros: string[], avisos: string[] }`:
+  - **Erro** (bloqueia): placeholder mal formado, ex.: `$[anomes_ini]` minúsculo, `$[ANOMES INI]` com espaço, `$[]` vazio.
+  - **Erro**: placeholder desconhecido fora da whitelist.
+  - **Aviso** (não bloqueia): SQL sem nenhum `$[ANOMES_*]` quando a ação tem `estrategia_carga = 'REPLACE_PERIODO'` (faz sentido alertar, mas dá pra salvar).
+
+**`EditarSqlModal.tsx`**
+- No `handleSalvar`: chamar `validarParaSalvar`. Se `erros.length > 0`, mostrar toast vermelho com lista e abortar.
+- Se só houver `avisos`, abrir `AlertDialog` de confirmação ("Salvar mesmo assim?").
+
+### 3. Placeholders extras (`CODEMP`, `CODFIL`, datas, custom)
+
+**Whitelist canônica em `placeholders.ts`**
+```ts
+PLACEHOLDERS_SUPORTADOS = [
+  'ANOMES_INI', 'ANOMES_FIM',        // já existem
+  'DATA_INI', 'DATA_FIM',            // YYYY-MM-DD
+  'CODEMP', 'CODFIL',                // inteiros
+  'CODEMP_LIST', 'CODFIL_LIST',      // lista CSV para usar em IN (...)
+];
+```
+- Cada um com `tipo` e `validador` próprio:
+  - `ANOMES_*`: `/^\d{6}$/`
+  - `DATA_*`: `/^\d{4}-\d{2}-\d{2}$/`
+  - `CODEMP`, `CODFIL`: `/^\d+$/`
+  - `*_LIST`: lista de inteiros separados por vírgula, ex.: `1,2,5`
+
+**Frontend — `ExecutarModal.tsx` e seção de teste**
+- Detectar dinamicamente os placeholders do SQL (via `extrairPlaceholders`) e renderizar um input por placeholder, com tipo apropriado (`number`, `date`, `text`).
+- `executarTarefa` / `executarAcao` passa `parametros: Record<string, string|number>` (não mais só `anomes_ini/fim`).
+- Backwards-compat: continuar enviando `anomes_ini` / `anomes_fim` no nível raiz para tarefas legadas + replicar dentro de `parametros`.
+
+**Backend (`docs/backend-etl-central.md`)**
+- Atualizar contrato: payload de execução vira `{ parametros: { ... }, acionado_por }`.
+- A FastAPI:
+  1. Lê o template do Cloud.
+  2. Para cada placeholder presente no SQL, valida o valor recebido com o regex correspondente.
+  3. Faz replace literal:
+     - Escalares: `$[CODEMP]` → `1`
+     - `*_LIST`: `$[CODEMP_LIST]` → `1,2,5` (numeric whitelist já garante segurança)
+     - Datas: `$[DATA_INI]` → `'2026-01-01'` (com aspas)
+  4. Aborta se sobrar `$[...]` não resolvido.
 
 ### Fora de escopo
-- Botão "Testar SQL / Preview" (decidido em separado).
-- Parâmetros custom além de anomes_ini/fim (criar memo se surgir demanda).
-- Migração de SQL antigo: como ainda não há `sql_template` populado, basta colar as queries do UpQuery já no formato `$[ANOMES_INI]`.
+- Editor visual de parâmetros por ação (cadastro de tipos no Cloud). Por enquanto a whitelist fica hardcoded no frontend + backend.
+- Histórico de execuções de preview.
 
-### Arquivos alterados
-- `src/components/etl/EditarSqlModal.tsx` — texto do alerta + badge de placeholders
-- `src/components/etl/ExecutarModal.tsx` — pequeno helper text
-- `src/lib/etl/placeholders.ts` (novo) — utilitário de extração/validação
-- `docs/backend-etl-central.md` — contrato de replace + validação anti-injeção
-- `mem://features/etl-bi` — registrar padrão
+### Arquivos a alterar
+
+- `src/lib/etl/placeholders.ts` — whitelist expandida + `validarParaSalvar`
+- `src/lib/etl/api.ts` — `testarSqlAcao`, parâmetros genéricos em `executar*`
+- `src/components/etl/EditarSqlModal.tsx` — botão Testar SQL + bloqueio no salvar
+- `src/components/etl/ExecutarModal.tsx` — inputs dinâmicos por placeholder
+- `docs/backend-etl-central.md` — endpoint `/testar-sql` + novo contrato de parâmetros
+- `mem://features/etl-bi` — registrar whitelist e endpoint de teste
+
+### Ordem sugerida de implementação
+1. Whitelist expandida + validador (item 2 + base do item 3) — só frontend, baixo risco.
+2. Inputs dinâmicos no `ExecutarModal` (item 3) — depende do backend aceitar `parametros`. Documentar contrato; manter fallback.
+3. Botão Testar SQL (item 1) — só funciona após FastAPI expor o endpoint novo. Frontend pode ir pronto com feature flag / mensagem "Backend ainda não implementou".
+
+Quer que eu siga essa ordem, ou prefere fazer só um item de cada vez (ex.: começar pelo **2 + 3** que são puramente frontend e o **1** quando a FastAPI estiver pronta)?

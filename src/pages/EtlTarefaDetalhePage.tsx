@@ -31,8 +31,8 @@ const statusColor: Record<string, string> = {
 const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
 type AlvoExec =
-  | { tipo: 'tarefa'; nome: string }
-  | { tipo: 'acao'; idAcao: string; nomeTarefa?: string }
+  | { tipo: 'tarefa'; nome: string; sqlTemplate?: string | null }
+  | { tipo: 'acao'; idAcao: string; nomeTarefa?: string; sqlTemplate?: string | null }
   | null;
 
 export default function EtlTarefaDetalhePage() {
@@ -101,7 +101,12 @@ export default function EtlTarefaDetalhePage() {
           <Button
             size="sm"
             disabled={!r.ativa}
-            onClick={() => setExecModal({ open: true, alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome } })}
+            onClick={() =>
+              setExecModal({
+                open: true,
+                alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome, sqlTemplate: r.sql_template },
+              })
+            }
           >
             <Play className="h-3.5 w-3.5 mr-1" /> Executar
           </Button>
@@ -154,7 +159,17 @@ export default function EtlTarefaDetalhePage() {
             <Button
               size="sm"
               disabled={!tarefa}
-              onClick={() => tarefa && setExecModal({ open: true, alvo: { tipo: 'tarefa', nome: tarefa.nome_tarefa } })}
+              onClick={() =>
+                tarefa &&
+                setExecModal({
+                  open: true,
+                  alvo: {
+                    tipo: 'tarefa',
+                    nome: tarefa.nome_tarefa,
+                    sqlTemplate: acoes.map((a) => a.sql_template ?? '').join('\n'),
+                  },
+                })
+              }
             >
               <Play className="h-4 w-4 mr-1" /> Executar tarefa
             </Button>
