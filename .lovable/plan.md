@@ -1,74 +1,57 @@
+## Padrão de placeholders: `$[ANOMES_INI]` / `$[ANOMES_FIM]`
 
-# Editor de SQL versionado nas ações ETL
+Adoção do formato UpQuery/Senior em todo o módulo ETL Central. O frontend só armazena e edita o SQL — o **replace é responsabilidade da FastAPI** antes de enviar ao ERP.
 
-Permitir editar pela tela `/etl/tarefas/:nome` o SQL que a FastAPI executa contra o ERP Senior, mantendo as regras: frontend **não** acessa ERP e **não** usa service role. O SQL fica salvo no Cloud, versionado, e a FastAPI passa a lê-lo de lá em cada execução.
+### 1. Frontend (visual / editor)
 
-## 1. Banco (Cloud)
+**`src/components/etl/EditarSqlModal.tsx`**
+- Atualizar o `<Alert>` informativo: trocar a menção de `:anomes_ini` / `:anomes_fim` por:
+  > "Use placeholders `$[ANOMES_INI]` e `$[ANOMES_FIM]` (substituídos pela FastAPI antes da execução no ERP)."
+- Adicionar lista de placeholders suportados (somente leitura, informativa):
+  - `$[ANOMES_INI]`, `$[ANOMES_FIM]` — período em formato AAAAMM (inteiro)
+- Sem mudança de schema: o campo `sql_template` continua `text` livre.
 
-**Alterar `etl_acoes`:**
-- `sql_template text` — SQL atual da ação (com placeholders `:anomes_ini`, `:anomes_fim`, etc.)
-- `sql_versao integer not null default 1`
-- `sql_atualizado_em timestamptz`
-- `sql_atualizado_por uuid` (auth.uid do editor)
+**`src/components/etl/ExecutarModal.tsx`**
+- Sem mudanças funcionais (já envia `anomes_ini` / `anomes_fim` como números no payload). Apenas garantir o helper text no modal mencionando o formato do placeholder no SQL.
 
-**Nova tabela `etl_acao_sql_versoes`** (histórico):
-- `id uuid pk`
-- `acao_id uuid fk etl_acoes`
-- `versao integer`
-- `sql_template text`
-- `comentario text`
-- `criado_por uuid`
-- `criado_em timestamptz default now()`
-- `unique(acao_id, versao)`
+### 2. Validação leve no frontend (opcional, defensiva)
 
-RLS: leitura para `authenticated`; escrita só `is_admin(auth.uid())`. GRANTs padrão.
+Adicionar utilitário `src/lib/etl/placeholders.ts`:
+- `extrairPlaceholders(sql: string): string[]` — regex `/\$\[([A-Z_][A-Z0-9_]*)\]/g`
+- `PLACEHOLDERS_SUPORTADOS = ['ANOMES_INI', 'ANOMES_FIM']`
+- `validarPlaceholders(sql)` retorna lista de placeholders desconhecidos para alertar no modal (warning, não bloqueia salvar — FastAPI é a fonte da verdade).
 
-**Trigger** `etl_acoes_sql_versionar`: quando `sql_template` muda, insere linha em `etl_acao_sql_versoes` com a versão anterior e incrementa `sql_versao`.
+No `EditarSqlModal`, mostrar um badge discreto:
+- "Placeholders detectados: $[ANOMES_INI], $[ANOMES_FIM]" (verde) ou
+- "Placeholder desconhecido: $[XYZ]" (amarelo/aviso).
 
-## 2. Frontend
+### 3. Contrato com a FastAPI
 
-**`src/lib/etl/api.ts`** — adicionar:
-- `atualizarSqlAcao(acaoId, sql, comentario)` — update no Cloud
-- `listarVersoesSql(acaoId)` — histórico
-- `restaurarVersaoSql(acaoId, versao)` — copia versão antiga para o atual
+**`docs/backend-etl-central.md`** — atualizar a seção "Execução de ação":
+- A FastAPI lê `sql_template` do Cloud.
+- Antes de enviar ao ERP Senior, faz `replace` literal:
+  ```
+  sql.replace('$[ANOMES_INI]', str(params['anomes_ini']))
+     .replace('$[ANOMES_FIM]', str(params['anomes_fim']))
+  ```
+- **Segurança:** o backend deve validar que `anomes_ini`/`anomes_fim` são inteiros de 6 dígitos (`^\d{6}$`) antes do replace. Sem isso, abre injeção. Documentar como requisito obrigatório.
+- Bloquear qualquer placeholder `$[...]` remanescente após o replace: se sobrar, abortar execução com erro `placeholder_nao_resolvido` e gravar em `etl_logs`.
+- Fallback inalterado: se `sql_template` for NULL, usa SQL hardcoded do backend.
 
-**`src/components/etl/EditarSqlModal.tsx`** (novo):
-- Editor com Monaco (`@monaco-editor/react`, modo `sql`)
-- Campo "Comentário da alteração" (obrigatório)
-- Lista lateral de versões anteriores (clique = carrega no editor read-only + botão "Restaurar")
-- Botão Salvar (só admin) / Fechar
-- Aviso: "O SQL roda na FastAPI contra o ERP Senior. Use placeholders `:anomes_ini`, `:anomes_fim`."
+### 4. Memória do projeto
 
-**`EtlTarefaDetalhePage.tsx`** — na tabela de ações:
-- Coluna nova "SQL" mostrando badge `v{sql_versao}` ou "—" se vazio
-- Botão "Editar SQL" (ícone Code) abre `EditarSqlModal`
-- Só habilitado para admins (`useIsSeniorAdmin` ou check de `is_admin`)
+Atualizar `mem://features/etl-bi`:
+- Padrão de placeholder do módulo ETL: `$[NOME]` (estilo UpQuery/Senior), substituído pela FastAPI.
+- Lista canônica: `$[ANOMES_INI]`, `$[ANOMES_FIM]`.
 
-## 3. FastAPI (contrato — documentação)
+### Fora de escopo
+- Botão "Testar SQL / Preview" (decidido em separado).
+- Parâmetros custom além de anomes_ini/fim (criar memo se surgir demanda).
+- Migração de SQL antigo: como ainda não há `sql_template` populado, basta colar as queries do UpQuery já no formato `$[ANOMES_INI]`.
 
-Atualizar `docs/backend-etl-central.md`:
-- Antes de executar `VM_FATURAMENTO` (e demais ações), a FastAPI faz `SELECT sql_template, sql_versao FROM etl_acoes WHERE id_acao = :id`
-- Se `sql_template` estiver vazio, usa o SQL hardcoded de fallback (compatibilidade)
-- Loga em `etl_logs` qual `sql_versao` foi usada na execução
-- Aplica os placeholders `:anomes_ini`, `:anomes_fim` via bind parameters (nunca string concat)
-
-**Não há mudança de endpoints** — só comportamento interno de quem busca o SQL.
-
-## 4. Segurança
-
-- Só admin edita (RLS + UI desabilita botão)
-- Histórico completo em `etl_acao_sql_versoes` (auditoria)
-- Frontend nunca executa o SQL — apenas grava texto no Cloud
-- FastAPI continua sendo o único que toca o ERP, com service role
-
-## Fora de escopo
-
-- "Testar SQL" / preview de linhas (precisaria endpoint dedicado na FastAPI — fica para próxima)
-- Editor de parâmetros customizados além de `anomes_ini`/`anomes_fim`
-- Aprovação em dois passos (workflow)
-
-## Detalhes técnicos
-
-- Dependência nova: `@monaco-editor/react` (~2MB lazy-loaded)
-- Migration cria coluna, tabela de versões, trigger, GRANTs e RLS num único arquivo
-- Seed: deixar `sql_template` NULL para todas as ações existentes (FastAPI usa fallback até admin colar o SQL pela tela)
+### Arquivos alterados
+- `src/components/etl/EditarSqlModal.tsx` — texto do alerta + badge de placeholders
+- `src/components/etl/ExecutarModal.tsx` — pequeno helper text
+- `src/lib/etl/placeholders.ts` (novo) — utilitário de extração/validação
+- `docs/backend-etl-central.md` — contrato de replace + validação anti-injeção
+- `mem://features/etl-bi` — registrar padrão
