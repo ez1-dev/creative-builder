@@ -163,6 +163,8 @@ export default function PainelComprasPage() {
       const situacoesSel: string[] = Array.isArray(params.situacao_oc) ? params.situacao_oc : [];
       if (situacoesSel.length > 0) params.situacao_oc = situacoesSel.join(',');
       else delete params.situacao_oc;
+      // Liquidado (4): backend exige somente_pendentes=false explícito
+      if (situacoesSel.includes('4')) params.somente_pendentes = 'false';
       if (!params.coddep) delete params.coddep;
       if (!params.tipo_item || params.tipo_item === 'TODOS') delete params.tipo_item;
       if (!params.tipo_oc || params.tipo_oc === 'TODOS') delete params.tipo_oc;
