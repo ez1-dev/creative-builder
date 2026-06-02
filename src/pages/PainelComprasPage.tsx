@@ -190,31 +190,11 @@ export default function PainelComprasPage() {
     try {
       const tamanhoEfetivo = tamanhoOverride ?? tamanhoPagina;
       if (tamanhoEfetivo === 'todos') {
-        const PAGE_SIZE = 1000;
-        const MAX_PAGINAS = 200;
-        const primeira = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(1, PAGE_SIZE));
-        const totalPaginas = Math.min(primeira.total_paginas ?? 1, MAX_PAGINAS);
-        let dadosConcat = [...(primeira.dados ?? [])];
-        if (totalPaginas > 1) {
-          const restantes = await Promise.all(
-            Array.from({ length: totalPaginas - 1 }, (_, i) =>
-              api.get<PainelComprasResponse>('/api/painel-compras', buildParams(i + 2, PAGE_SIZE)),
-            ),
-          );
-          restantes.forEach((r) => { dadosConcat = dadosConcat.concat(r.dados ?? []); });
-        }
-        if ((primeira.total_paginas ?? 1) > MAX_PAGINAS) {
-          toast.warning(`Limite de segurança atingido: carregadas ${MAX_PAGINAS} páginas de ${primeira.total_paginas}. Refine os filtros para ver tudo.`);
-        }
-        setData({
-          ...primeira,
-          dados: dadosConcat,
-          pagina: 1,
-          tamanho_pagina: dadosConcat.length,
-          total_paginas: 1,
-        });
+        const params = { ...buildParams(1, 1000), todos: true };
+        const result = await api.get<PainelComprasResponse>('/api/painel-compras', params);
+        setData(result);
         setPagina(1);
-        if (page === 1) trackSearch(filters, primeira.total_registros);
+        if (page === 1) trackSearch(filters, result.total_registros);
       } else {
         const tamanhoNumerico = Number(tamanhoEfetivo);
         const result = await api.get<PainelComprasResponse>('/api/painel-compras', buildParams(page, tamanhoNumerico));

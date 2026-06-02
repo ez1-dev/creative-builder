@@ -1,34 +1,26 @@
-## Painel de Compras — "Registros: Todos" buscando todas as páginas
+## Painel de Compras — usar `todos=true` em vez de loop de páginas
 
-### Problema
-Hoje `tamanhoPagina === 'todos'` apenas envia `tamanho_pagina=100000` em uma única request. Se o backend limitar o tamanho de página, a tela carrega só a primeira página e exibe parcial.
+O backend agora aceita `todos=true` no `/api/painel-compras` e devolve tudo numa única resposta atômica. Trocar o loop client-side por uma chamada só.
 
-### Solução (apenas `src/pages/PainelComprasPage.tsx`)
+### Mudanças (apenas `src/pages/PainelComprasPage.tsx`)
 
-1. **`search(page, tamanhoOverride)` — branch "todos"**
-   Quando `tamanhoEfetivo === 'todos'`:
-   - Buscar página 1 com `tamanho_pagina = 1000` (tamanho de página seguro/padrão) usando `buildParams(1, 1000)`.
-   - Ler `total_paginas` e `total_registros` do retorno.
-   - Disparar em paralelo (`Promise.all`) as páginas `2..total_paginas`, com um cap defensivo (ex.: máx. 200 páginas / 200k registros) para evitar travar o navegador; se exceder, parar e exibir toast informativo.
-   - Concatenar todos os `dados` na ordem das páginas.
-   - Setar `data` com `{ ...primeiraPagina, dados: concatenados, pagina: 1, tamanho_pagina: concatenados.length, total_paginas: 1 }` para que o restante da tela continue funcionando.
-   - `setPagina(1)`.
-   - Manter o fluxo agregado/dashboard atual (KPIs continuam vindo de `/api/painel-compras-dashboard` ou `dadosAgregados`, não da página). Sem mudanças nessa parte.
-   - Usar o mesmo `setLoading(true/false)` global enquanto baixa todas as páginas.
+1. **`search` — branch `tamanhoEfetivo === 'todos'`**
+   Substituir a lógica de página 1 + paralelas + concatenação por uma única chamada:
+   ```ts
+   const result = await api.get<PainelComprasResponse>(
+     '/api/painel-compras',
+     buildParams(1, 1000, { /* params extras: todos */ }),
+   );
+   ```
+   Implementação: adicionar `params.todos = true` em `buildParams` quando estiver em modo "todos" (passando uma flag via `opts`), ou simplesmente inserir `todos: true` no objeto retornado pelo branch "todos" antes do `api.get`. `tamanho_pagina` continua sendo enviado (1000) — o backend ignora quando `todos=true`. Setar `data` direto com o `result`, `setPagina(1)`. Remover o cap de 200 páginas e o toast de aviso.
 
-2. **Tamanhos != 'todos'**
-   Comportamento atual permanece (sem mudança).
+2. **Demais tamanhos** — sem mudança.
 
-3. **Rodapé da aba "lista"**
-   Substituir a mensagem fixa por:
-   `Exibindo {data.dados.length} de {data.total_registros} registros filtrados`
-   quando `tamanhoPagina === 'todos'`. Quando não for "todos", manter `PaginationControl` como hoje.
-
-4. **KPIs**
-   Sem alteração — continuam vindo do dashboard agregado, não da página da lista.
+3. **Rodapé "Exibindo X de Y registros filtrados"** — mantém como está (já implementado).
 
 ### Fora de escopo
-- Backend, exportação Excel, filtros, KPIs, demais abas.
+- Backend (já feito).
+- Export Excel, KPIs, demais abas.
 
 ### Validação
-- Selecionar filtros que retornem >1 página, escolher Registros = Todos → conferir no Network múltiplas chamadas `/api/painel-compras?pagina=1..N`, grid renderizando todos os registros, rodapé mostrando "Exibindo X de Y registros filtrados".
+- Selecionar Registros = Todos → Network mostra uma única chamada `/api/painel-compras?...&todos=true`, grid renderiza todos os registros, rodapé "Exibindo X de Y".
