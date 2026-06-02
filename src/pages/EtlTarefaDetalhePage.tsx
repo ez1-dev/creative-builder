@@ -61,27 +61,25 @@ export default function EtlTarefaDetalhePage() {
   }, [nome]);
 
   const acoesColumns: Column<EtlAcao>[] = [
-    { key: 'ordem', label: 'Ordem', width: '70px' },
-    { key: 'id_acao', label: 'ID', render: (r) => <span className="font-mono">{r.id_acao}</span> },
-    { key: 'nome_acao', label: 'Nome' },
+    { key: 'ordem', header: 'Ordem', width: '70px' },
+    { key: 'id_acao', header: 'ID', render: (r) => <span className="font-mono">{r.id_acao}</span> },
+    { key: 'nome_acao', header: 'Nome' },
     {
       key: 'endpoint_api',
-      label: 'Endpoint',
+      header: 'Endpoint',
       render: (r) => <span className="font-mono text-xs">{r.endpoint_api ?? '—'}</span>,
     },
-    { key: 'tabela_destino', label: 'Tabela', render: (r) => <span className="font-mono text-xs">{r.tabela_destino ?? '—'}</span> },
-    { key: 'estrategia_carga', label: 'Estratégia' },
-    { key: 'caso_erro', label: 'Caso erro' },
+    { key: 'tabela_destino', header: 'Tabela', render: (r) => <span className="font-mono text-xs">{r.tabela_destino ?? '—'}</span> },
+    { key: 'estrategia_carga', header: 'Estratégia' },
+    { key: 'caso_erro', header: 'Caso erro' },
     {
       key: 'ativa',
-      label: 'Ativa',
-      width: '70px',
+      header: 'Ativa',
       render: (r) => (r.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>),
     },
     {
       key: 'exec',
-      label: '',
-      width: '120px',
+      header: '',
       render: (r) => (
         <Button
           size="sm"
@@ -99,22 +97,20 @@ export default function EtlTarefaDetalhePage() {
   const execColumns: Column<EtlExecucao>[] = [
     {
       key: 'status',
-      label: 'Status',
-      width: '110px',
+      header: 'Status',
       render: (r) => (
         <Badge className={statusColor[r.status] ?? 'bg-muted text-muted-foreground'} variant="secondary">
           {r.status}
         </Badge>
       ),
     },
-    { key: 'iniciado_em', label: 'Início', render: (r) => <span className="text-xs">{fmtDate(r.iniciado_em)}</span> },
-    { key: 'finalizado_em', label: 'Fim', render: (r) => <span className="text-xs">{fmtDate(r.finalizado_em)}</span> },
-    { key: 'total_linhas', label: 'Linhas', render: (r) => r.total_linhas.toLocaleString('pt-BR') },
-    { key: 'mensagem', label: 'Mensagem', render: (r) => <span className="text-xs">{r.mensagem ?? '—'}</span> },
+    { key: 'iniciado_em', header: 'Início', render: (r) => <span className="text-xs">{fmtDate(r.iniciado_em)}</span> },
+    { key: 'finalizado_em', header: 'Fim', render: (r) => <span className="text-xs">{fmtDate(r.finalizado_em)}</span> },
+    { key: 'total_linhas', header: 'Linhas', render: (r) => r.total_linhas.toLocaleString('pt-BR') },
+    { key: 'mensagem', header: 'Mensagem', render: (r) => <span className="text-xs">{r.mensagem ?? '—'}</span> },
     {
       key: 'logs',
-      label: '',
-      width: '110px',
+      header: '',
       render: (r) => (
         <Button size="sm" variant="outline" onClick={() => setLogsModal({ open: true, execucaoId: r.id })}>
           <FileText className="h-3.5 w-3.5 mr-1" /> Logs

@@ -67,27 +67,25 @@ export default function EtlAdminPage() {
   };
 
   const columns: Column<EtlTarefa>[] = [
-    { key: 'grupo', label: 'Grupo', width: '100px' },
+    { key: 'grupo', header: 'Grupo', width: '100px' },
     {
       key: 'nome_tarefa',
-      label: 'Tarefa',
+      header: 'Tarefa',
       render: (row) => (
         <Link to={`/etl/tarefas/${row.nome_tarefa}`} className="font-mono font-semibold text-primary hover:underline">
           {row.nome_tarefa}
         </Link>
       ),
     },
-    { key: 'descricao', label: 'Descrição' },
+    { key: 'descricao', header: 'Descrição' },
     {
       key: 'ativa',
-      label: 'Ativa',
-      width: '80px',
+      header: 'Ativa',
       render: (row) => (row.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>),
     },
     {
       key: 'status_atual',
-      label: 'Status',
-      width: '120px',
+      header: 'Status',
       render: (row) => (
         <Badge className={statusColor[row.status_atual] ?? 'bg-muted text-muted-foreground'} variant="secondary">
           {row.status_atual}
@@ -96,14 +94,12 @@ export default function EtlAdminPage() {
     },
     {
       key: 'ultima_execucao_em',
-      label: 'Última execução',
-      width: '160px',
+      header: 'Última execução',
       render: (row) => <span className="text-xs">{fmtDate(row.ultima_execucao_em)}</span>,
     },
     {
       key: 'acoes',
-      label: 'Ações',
-      width: '260px',
+      header: 'Ações',
       render: (row) => (
         <div className="flex gap-1">
           <Button asChild size="sm" variant="outline">
@@ -176,7 +172,7 @@ function KpiCard({
   icon,
   small,
 }: {
-  label: string;
+  header: string;
   value: number | string;
   icon: React.ReactNode;
   small?: boolean;
