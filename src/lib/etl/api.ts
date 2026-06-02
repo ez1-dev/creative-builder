@@ -29,6 +29,20 @@ export type EtlAcao = {
   ativa: boolean;
   timeout_segundos: number;
   parametros_padrao: Record<string, any>;
+  sql_template: string | null;
+  sql_versao: number;
+  sql_atualizado_em: string | null;
+  sql_atualizado_por: string | null;
+};
+
+export type EtlAcaoSqlVersao = {
+  id: string;
+  acao_id: string;
+  versao: number;
+  sql_template: string | null;
+  comentario: string | null;
+  criado_por: string | null;
+  criado_em: string;
 };
 
 export type EtlExecucao = {
