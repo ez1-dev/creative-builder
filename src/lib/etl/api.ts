@@ -189,6 +189,17 @@ export async function executarAcao(idAcao: string, payload: ExecucaoParams) {
   );
 }
 
+/**
+ * Preview efêmero — executa o SQL contra o ERP via FastAPI sem persistir nada.
+ * Aceita o sql_template atual do editor (antes de salvar).
+ */
+export async function testarSqlAcao(
+  idAcao: string,
+  payload: TestarSqlPayload,
+): Promise<TestarSqlResponse> {
+  return api.post<TestarSqlResponse>(`/api/etl/acoes/${idAcao}/testar-sql`, payload);
+}
+
 // ---------- SQL versionado (Cloud) ----------
 export async function listarVersoesSql(acaoId: string): Promise<EtlAcaoSqlVersao[]> {
   const { data, error } = await supabase
