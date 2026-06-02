@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,22 +7,43 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, RotateCcw, Save, History } from 'lucide-react';
+import { Info, RotateCcw, Save, History, FlaskConical, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   atualizarSqlAcao,
   listarVersoesSql,
   restaurarVersaoSql,
+  testarSqlAcao,
   type EtlAcao,
   type EtlAcaoSqlVersao,
+  type TestarSqlResponse,
 } from '@/lib/etl/api';
-import { validarPlaceholders, PLACEHOLDERS_SUPORTADOS } from '@/lib/etl/placeholders';
+import {
+  validarPlaceholders,
+  validarParaSalvar,
+  validarValores,
+  extrairPlaceholders,
+  PLACEHOLDER_SPECS,
+  PLACEHOLDERS_SUPORTADOS,
+} from '@/lib/etl/placeholders';
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'));
 
@@ -36,6 +57,22 @@ interface Props {
 
 const fmt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
+const anomesAtual = () => {
+  const d = new Date();
+  return String(d.getFullYear() * 100 + (d.getMonth() + 1));
+};
+const isoHoje = () => new Date().toISOString().slice(0, 10);
+
+const valorInicial = (nome: string): string => {
+  const spec = PLACEHOLDER_SPECS[nome];
+  if (!spec) return '';
+  if (spec.tipo === 'anomes') return anomesAtual();
+  if (spec.tipo === 'data') return isoHoje();
+  if (spec.tipo === 'inteiro') return '1';
+  if (spec.tipo === 'inteiro_list') return '1';
+  return '';
+};
+
 export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }: Props) {
   const [sql, setSql] = useState('');
   const [comentario, setComentario] = useState('');
@@ -43,12 +80,24 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
   const [versaoVisualizada, setVersaoVisualizada] = useState<EtlAcaoSqlVersao | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [carregandoHist, setCarregandoHist] = useState(false);
+  const [confirmAvisos, setConfirmAvisos] = useState<string[] | null>(null);
+
+  // Testar SQL
+  const [testarOpen, setTestarOpen] = useState(false);
+  const [valoresTeste, setValoresTeste] = useState<Record<string, string>>({});
+  const [limite, setLimite] = useState(50);
+  const [testando, setTestando] = useState(false);
+  const [resultadoTeste, setResultadoTeste] = useState<TestarSqlResponse | null>(null);
+  const [erroTeste, setErroTeste] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && acao) {
       setSql(acao.sql_template ?? '');
       setComentario('');
       setVersaoVisualizada(null);
+      setTestarOpen(false);
+      setResultadoTeste(null);
+      setErroTeste(null);
       setCarregandoHist(true);
       listarVersoesSql(acao.id)
         .then(setVersoes)
@@ -57,12 +106,27 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
     }
   }, [open, acao]);
 
-  const salvar = async () => {
+  const sqlExibido = versaoVisualizada ? versaoVisualizada.sql_template ?? '' : sql;
+  const readOnly = !!versaoVisualizada || !podeEditar;
+
+  // Atualiza valores de teste quando placeholders mudam
+  const placeholdersTeste = useMemo(
+    () => extrairPlaceholders(sqlExibido).filter((p) => PLACEHOLDERS_SUPORTADOS.includes(p)),
+    [sqlExibido],
+  );
+
+  useEffect(() => {
+    setValoresTeste((prev) => {
+      const next: Record<string, string> = {};
+      for (const p of placeholdersTeste) {
+        next[p] = prev[p] ?? valorInicial(p);
+      }
+      return next;
+    });
+  }, [placeholdersTeste.join('|')]);
+
+  const executarSalvar = async () => {
     if (!acao) return;
-    if (!comentario.trim()) {
-      toast({ title: 'Comentário obrigatório', description: 'Descreva a mudança do SQL.', variant: 'destructive' });
-      return;
-    }
     setSalvando(true);
     try {
       await atualizarSqlAcao(acao.id, sql, comentario.trim());
@@ -73,7 +137,30 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
       toast({ title: 'Erro ao salvar', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' });
     } finally {
       setSalvando(false);
+      setConfirmAvisos(null);
     }
+  };
+
+  const salvar = async () => {
+    if (!acao) return;
+    if (!comentario.trim()) {
+      toast({ title: 'Comentário obrigatório', description: 'Descreva a mudança do SQL.', variant: 'destructive' });
+      return;
+    }
+    const r = validarParaSalvar(sql, { estrategia_carga: acao.estrategia_carga });
+    if (!r.ok) {
+      toast({
+        title: 'Placeholders inválidos',
+        description: r.erros.join(' • '),
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (r.avisos.length > 0) {
+      setConfirmAvisos(r.avisos);
+      return;
+    }
+    await executarSalvar();
   };
 
   const restaurar = async (versao: number) => {
@@ -94,12 +181,41 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
     }
   };
 
-  const sqlExibido = versaoVisualizada ? versaoVisualizada.sql_template ?? '' : sql;
-  const readOnly = !!versaoVisualizada || !podeEditar;
+  const executarTeste = async () => {
+    if (!acao) return;
+    const v = validarValores(sqlExibido, valoresTeste);
+    if (!v.ok) {
+      setErroTeste(v.erros.join(' • '));
+      return;
+    }
+    setTestando(true);
+    setErroTeste(null);
+    setResultadoTeste(null);
+    try {
+      // Converte valores para tipo apropriado
+      const parametros: Record<string, string | number> = {};
+      for (const p of placeholdersTeste) {
+        const spec = PLACEHOLDER_SPECS[p];
+        const raw = valoresTeste[p];
+        parametros[p.toLowerCase()] =
+          spec.tipo === 'anomes' || spec.tipo === 'inteiro' ? Number(raw) : raw;
+      }
+      const resp = await testarSqlAcao(acao.id_acao, {
+        sql_template: sqlExibido,
+        parametros,
+        limite,
+      });
+      setResultadoTeste(resp);
+    } catch (e: any) {
+      setErroTeste(e?.message ?? 'Falha ao executar preview');
+    } finally {
+      setTestando(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[85vh] flex flex-col">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Editar SQL — <span className="font-mono">{acao?.id_acao}</span>
@@ -114,9 +230,11 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
         <Alert className="py-2">
           <Info className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            O SQL é executado pela FastAPI contra o ERP Senior. Use placeholders no padrão UpQuery/Senior:{' '}
-            <code className="font-mono">$[ANOMES_INI]</code> e <code className="font-mono">$[ANOMES_FIM]</code>{' '}
-            (substituídos pela FastAPI antes da execução, com validação de inteiro AAAAMM).
+            Placeholders no padrão UpQuery/Senior <code className="font-mono">$[NOME]</code>. Suportados:{' '}
+            {PLACEHOLDERS_SUPORTADOS.map((p) => (
+              <code key={p} className="font-mono mr-1">$[{p}]</code>
+            ))}
+            — substituídos pela FastAPI após validação de tipo.
           </AlertDescription>
         </Alert>
 
@@ -127,7 +245,7 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
             <div className="flex flex-wrap items-center gap-1 text-xs">
               <span className="text-muted-foreground">Placeholders:</span>
               {encontrados.map((p) => {
-                const ok = (PLACEHOLDERS_SUPORTADOS as readonly string[]).includes(p);
+                const ok = PLACEHOLDERS_SUPORTADOS.includes(p);
                 return (
                   <Badge
                     key={p}
@@ -140,13 +258,12 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
               })}
               {desconhecidos.length > 0 && (
                 <span className="text-destructive">
-                  Placeholder desconhecido — a FastAPI vai abortar a execução.
+                  Placeholder desconhecido — vai bloquear o salvar.
                 </span>
               )}
             </div>
           );
         })()}
-
 
         <div className="grid grid-cols-[1fr_280px] gap-3 flex-1 min-h-0">
           {/* Editor */}
@@ -222,6 +339,108 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
           </div>
         </div>
 
+        {/* Testar SQL */}
+        <div className="border rounded">
+          <button
+            type="button"
+            className="w-full px-3 py-2 flex items-center justify-between text-xs font-semibold hover:bg-accent"
+            onClick={() => setTestarOpen((v) => !v)}
+          >
+            <span className="flex items-center gap-2">
+              <FlaskConical className="h-3.5 w-3.5" /> Testar SQL (preview, sem persistir)
+            </span>
+            {testarOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {testarOpen && (
+            <div className="p-3 border-t space-y-3">
+              {placeholdersTeste.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Sem placeholders no SQL — o preview vai rodar a query como está.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {placeholdersTeste.map((p) => {
+                    const spec = PLACEHOLDER_SPECS[p];
+                    return (
+                      <div key={p}>
+                        <Label className="text-[11px] font-mono">$[{p}]</Label>
+                        <Input
+                          type={spec.inputType}
+                          value={valoresTeste[p] ?? ''}
+                          onChange={(e) =>
+                            setValoresTeste((s) => ({ ...s, [p]: e.target.value }))
+                          }
+                          placeholder={spec.exemplo}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    );
+                  })}
+                  <div>
+                    <Label className="text-[11px]">Limite</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={limite}
+                      onChange={(e) => setLimite(Math.min(500, Math.max(1, Number(e.target.value) || 50)))}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={executarTeste} disabled={testando}>
+                  <Play className="h-3.5 w-3.5 mr-1" />
+                  {testando ? 'Executando…' : 'Executar preview'}
+                </Button>
+                {resultadoTeste && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Badge variant="outline">{resultadoTeste.qtd_linhas} linha(s)</Badge>
+                    <Badge variant="outline">{resultadoTeste.tempo_ms} ms</Badge>
+                    {resultadoTeste.truncado && <Badge variant="secondary">truncado</Badge>}
+                  </div>
+                )}
+              </div>
+              {erroTeste && (
+                <Alert variant="destructive" className="py-2">
+                  <AlertDescription className="text-xs">{erroTeste}</AlertDescription>
+                </Alert>
+              )}
+              {resultadoTeste && resultadoTeste.linhas.length > 0 && (
+                <ScrollArea className="max-h-64 border rounded">
+                  <table className="text-xs w-full">
+                    <thead className="bg-muted sticky top-0">
+                      <tr>
+                        {resultadoTeste.colunas.map((c) => (
+                          <th key={c.nome} className="px-2 py-1 text-left font-mono whitespace-nowrap">
+                            {c.nome}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resultadoTeste.linhas.map((l, i) => (
+                        <tr key={i} className="border-t">
+                          {resultadoTeste.colunas.map((c) => (
+                            <td key={c.nome} className="px-2 py-1 whitespace-nowrap">
+                              {l[c.nome] === null || l[c.nome] === undefined ? (
+                                <span className="text-muted-foreground italic">null</span>
+                              ) : (
+                                String(l[c.nome])
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </ScrollArea>
+              )}
+            </div>
+          )}
+        </div>
+
         {podeEditar && !versaoVisualizada && (
           <div>
             <label className="text-xs font-semibold">Comentário da alteração *</label>
@@ -245,7 +464,33 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
             </Button>
           )}
         </DialogFooter>
+
+        <AlertDialog open={!!confirmAvisos} onOpenChange={(o) => !o && setConfirmAvisos(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirmar salvamento</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-2 text-xs">
+                  <p>O SQL tem alertas que merecem revisão:</p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    {(confirmAvisos ?? []).map((a, i) => (
+                      <li key={i}>{a}</li>
+                    ))}
+                  </ul>
+                  <p>Salvar mesmo assim?</p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={executarSalvar}>Salvar mesmo assim</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
 }
+
+// `Play` lazy import to avoid lucide tree-shake quirk
+import { Play } from 'lucide-react';
