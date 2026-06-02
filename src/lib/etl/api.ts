@@ -189,13 +189,16 @@ export async function atualizarSqlAcao(
   comentario: string,
 ): Promise<EtlAcao> {
   // Grava comentário num GUC para o trigger consumir; a sessão expira no fim da request.
-  await supabase.rpc('set_config' as any, {
-    setting_name: 'app.sql_comentario',
-    new_value: comentario ?? '',
-    is_local: true,
-  } as any).catch(() => {
+  try {
+    await (supabase.rpc as any)('set_config', {
+      setting_name: 'app.sql_comentario',
+      new_value: comentario ?? '',
+      is_local: true,
+    });
+  } catch {
     /* set_config indisponível — segue sem comentário */
-  });
+  }
+
 
   const { data: userRes } = await supabase.auth.getUser();
   const userId = userRes.user?.id ?? null;
