@@ -76,19 +76,40 @@ export default function EtlTarefaDetalhePage() {
     { key: 'caso_erro', header: 'Caso erro' },
     { key: 'ativa', header: 'Ativa', render: (_v, r) => (r.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>) },
     {
+      key: 'sql_versao',
+      header: 'SQL',
+      render: (_v, r) =>
+        r.sql_template ? (
+          <Badge variant="outline" className="font-mono">v{r.sql_versao}</Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: 'exec',
       header: '',
       render: (_v, r) => (
-        <Button
-          size="sm"
-          disabled={!r.ativa}
-          onClick={() => setExecModal({ open: true, alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome } })}
-        >
-          <Play className="h-3.5 w-3.5 mr-1" /> Executar
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSqlModal({ open: true, acao: r })}
+            title={isAdmin ? 'Editar SQL' : 'Ver SQL'}
+          >
+            <Code className="h-3.5 w-3.5 mr-1" /> SQL
+          </Button>
+          <Button
+            size="sm"
+            disabled={!r.ativa}
+            onClick={() => setExecModal({ open: true, alvo: { tipo: 'acao', idAcao: r.id_acao, nomeTarefa: nome } })}
+          >
+            <Play className="h-3.5 w-3.5 mr-1" /> Executar
+          </Button>
+        </div>
       ),
     },
   ];
+
 
   const execColumns: Column<EtlExecucao>[] = [
     {
