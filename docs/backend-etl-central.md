@@ -116,7 +116,15 @@ Lista as ações daquela tarefa em ordem.
 ### `POST /api/etl/tarefas/{nome_tarefa}/executar`
 Body:
 ```json
-{ "anomes_ini": 202601, "anomes_fim": 202601, "acionado_por": "RENATO" }
+{
+  "anomes_ini": 202601,
+  "anomes_fim": 202601,
+  "acionado_por": "RENATO",
+  "parametros": { "anomes_ini": 202601, "anomes_fim": 202601, "codemp": 1 }
+}
+```
+- `anomes_ini`/`anomes_fim` no nível raiz são mantidos por compatibilidade (executores legados).
+- **`parametros`** é o dicionário canônico usado pelo `resolver_placeholders`. Inclui replicação de `anomes_ini/fim` em lowercase + qualquer placeholder extra detectado no SQL (`codemp`, `data_ini`, `codemp_list`, etc.).
 ```
 Comportamento:
 1. Cria linha em `etl_execucoes` com `status='EM_EXECUCAO'`, `iniciado_em=now()`, `nome_tarefa`, `acionado_por`, `parametros`.
