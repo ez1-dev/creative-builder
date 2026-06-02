@@ -19,8 +19,8 @@ export function DiagnosticoSyncCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('etl_execucoes')
-        .select('status, iniciado_em, terminado_em, linhas_lidas, linhas_inseridas, linhas_rejeitadas, erro_resumo, acionado_por, params_executados')
-        .eq('tarefa_codigo', 'SYNC_FILA_OPS_ERP')
+        .select('status, iniciado_em, finalizado_em, total_linhas, erro, acionado_por, parametros')
+        .eq('nome_tarefa', 'SYNC_FILA_OPS_ERP')
         .order('iniciado_em', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -42,8 +42,8 @@ export function DiagnosticoSyncCard() {
     staleTime: 15_000,
   });
 
-  const run = lastRun.data;
-  const isError = run?.status === 'ERROR';
+  const run = lastRun.data as any;
+  const isError = run?.status === 'ERRO' || run?.status === 'ERROR';
 
   return (
     <Card className="p-3">
@@ -67,7 +67,7 @@ export function DiagnosticoSyncCard() {
           <Clock className="h-4 w-4 text-muted-foreground mt-0.5" />
           <div>
             <div className="text-[10px] text-muted-foreground uppercase">Última sincronização</div>
-            <div className="text-xs font-medium">{fmtDate(run?.terminado_em ?? run?.iniciado_em)}</div>
+            <div className="text-xs font-medium">{fmtDate(run?.finalizado_em ?? run?.iniciado_em)}</div>
             {run?.acionado_por && (
               <div className="text-[10px] text-muted-foreground">{run.acionado_por}</div>
             )}
@@ -79,11 +79,8 @@ export function DiagnosticoSyncCard() {
           <div>
             <div className="text-[10px] text-muted-foreground uppercase">OPs importadas (última)</div>
             <div className="text-xs font-medium">
-              {run ? `${run.linhas_inseridas ?? 0} salvas · ${run.linhas_lidas ?? 0} lidas` : '—'}
+              {run ? `${(run.total_linhas ?? 0).toLocaleString('pt-BR')} linhas` : '—'}
             </div>
-            {run?.linhas_rejeitadas != null && run.linhas_rejeitadas > 0 && (
-              <div className="text-[10px] text-muted-foreground">{run.linhas_rejeitadas} removidas</div>
-            )}
           </div>
         </div>
 
@@ -102,17 +99,17 @@ export function DiagnosticoSyncCard() {
           <div className="min-w-0">
             <div className="text-[10px] text-muted-foreground uppercase">Último erro</div>
             <div className={`text-xs ${isError ? 'text-destructive font-medium' : 'text-muted-foreground'} break-words line-clamp-3`}>
-              {isError ? run?.erro_resumo : '—'}
+              {isError ? run?.erro : '—'}
             </div>
           </div>
         </div>
       </div>
 
-      {(run?.params_executados as any)?.url_chamada && (
+      {(run?.parametros as any)?.url_chamada && (
         <div className="mt-3 pt-3 border-t">
           <div className="text-[10px] text-muted-foreground uppercase mb-1">URL chamada na FastAPI</div>
           <code className="text-[11px] text-muted-foreground break-all block">
-            {String((run!.params_executados as any).url_chamada)}
+            {String((run.parametros as any).url_chamada)}
           </code>
         </div>
       )}
