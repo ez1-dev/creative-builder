@@ -56,18 +56,26 @@ export default function FaturamentoValidacaoPage() {
   const qResumo = useQuery({
     queryKey: ['bi-fat-val', 'resumo', filtros],
     queryFn: () => getResumo(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
   const qMov = useQuery({
     queryKey: ['bi-fat-val', 'movimento', filtros],
     queryFn: () => getPorMovimento(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
   const qTns = useQuery({
     queryKey: ['bi-fat-val', 'tns', filtros],
     queryFn: () => getPorTns(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
   const qDet = useQuery({
     queryKey: ['bi-fat-val', 'detalhes', filtros, page, pageSize],
     queryFn: () => getDetalhes(filtros, page, pageSize),
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 
   const aplicarFiltros = () => {
@@ -76,10 +84,15 @@ export default function FaturamentoValidacaoPage() {
   };
 
   const atualizar = () => {
-    qResumo.refetch();
-    qMov.refetch();
-    qTns.refetch();
-    qDet.refetch();
+    try {
+      qResumo.refetch();
+      qMov.refetch();
+      qTns.refetch();
+      qDet.refetch();
+    } catch (err) {
+      console.warn('[FaturamentoValidacao] falha ao atualizar:', err);
+      toast({ title: 'Falha ao atualizar', description: 'Tente novamente em instantes.', variant: 'destructive' });
+    }
   };
 
   const exportarCsv = () => {
