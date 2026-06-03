@@ -29,6 +29,7 @@ import { Info, RotateCcw, Save, History, FlaskConical, ChevronDown, ChevronUp, P
 import { toast } from '@/hooks/use-toast';
 import {
   atualizarSqlAcao,
+  buscarComandoSql,
   listarVersoesSql,
   restaurarVersaoSql,
   testarSqlAcao,
