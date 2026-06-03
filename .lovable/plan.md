@@ -1,72 +1,120 @@
-## Problema
+## Contexto
 
-A tela `/etl/tarefas/ATU_COMERCIAL` está quebrando com:
+O backend FastAPI (externo) precisa ganhar:
 
+1. Três novos templates SQL estáticos (`SQL_VM_FATURAMENTO_MANUAL`, `SQL_VM_FAT_CONTABIL`, `SQL_VM_FAT_TRB`).
+2. Orquestração da tarefa `ATU_COMERCIAL` rodando as 4 ações em ordem, com **uma única limpeza** de `public.bi_faturamento` no período e **append** em todas as ações seguintes.
+3. Normalização de colunas antes do upsert no Cloud (lowercase + alias `VL_ISMSST → vl_icmsst`).
+
+Eu não tenho acesso ao código do FastAPI — entrego como **especificação** no `docs/backend-etl-central.md` para o time backend implementar. Os 3 SQLs serão salvos como arquivos de referência em `docs/etl-sql/` para o time copiar verbatim no Python.
+
+Cadastro no Cloud (`etl_tarefas` + `etl_acoes`) já está OK — 4 ações nas ordens 1, 2, 4, 5 como `FUNCAO`. Não mexer.
+
+## Arquivos a criar/editar (frontend repo)
+
+### 1. `docs/etl-sql/SQL_VM_FATURAMENTO_MANUAL.sql` (novo)
+Conteúdo idêntico ao `VM_FATURAMENTO_MANUAL.txt` anexado. 423 linhas. Placeholders `$[ANOMES_INI]` / `$[ANOMES_FIM]` preservados.
+
+### 2. `docs/etl-sql/SQL_VM_FAT_CONTABIL.sql` (novo)
+Conteúdo idêntico ao `VM_FAT_CONTABIL.txt`. 357 linhas. Placeholders preservados.
+
+### 3. `docs/etl-sql/SQL_VM_FAT_TRB.sql` (novo)
+Conteúdo idêntico ao `VM_FAT_TRB.txt`. 120 linhas. Placeholders preservados.
+
+### 4. `docs/etl-sql/README.md` (novo)
+Curto: explica que esses `.sql` são a **fonte canônica** dos templates estáticos e devem ser carregados literalmente nas constantes Python (`SQL_VM_*`) do FastAPI. Proibido editar nesses arquivos sem replicar no backend.
+
+### 5. `docs/backend-etl-central.md` (editar)
+Adicionar três seções novas no final:
+
+**A. Registry `ETL_SQL_TEMPLATES`** — exemplo do dicionário esperado:
+```python
+ETL_SQL_TEMPLATES = {
+    "VM_FATURAMENTO":          SQL_VM_FATURAMENTO,
+    "SQL_VM_FATURAMENTO":      SQL_VM_FATURAMENTO,
+    "VM_FATURAMENTO_MANUAL":   SQL_VM_FATURAMENTO_MANUAL,
+    "SQL_VM_FATURAMENTO_MANUAL": SQL_VM_FATURAMENTO_MANUAL,
+    "VM_FAT_CONTABIL":         SQL_VM_FAT_CONTABIL,
+    "SQL_VM_FAT_CONTABIL":     SQL_VM_FAT_CONTABIL,
+    "VM_FAT_TRB":              SQL_VM_FAT_TRB,
+    "SQL_VM_FAT_TRB":          SQL_VM_FAT_TRB,
+}
 ```
-Cannot read properties of undefined (reading 'toLowerCase')
+Fonte de cada constante: arquivos `.sql` em `docs/etl-sql/`. Manter placeholders `$[ANOMES_INI]` / `$[ANOMES_FIM]` — não converter para `DECLARE` / `@var`.
+
+**B. Orquestração `ATU_COMERCIAL` (`POST /api/etl/tarefas/ATU_COMERCIAL/executar`)** — pseudocódigo:
+
+```text
+body: { "parametros": { "ANOMES_INI": "202606", "ANOMES_FIM": "202606" }, "acionado_por": "RENATO" }
+
+1. Cria etl_execucoes (status=EM_EXECUCAO)
+2. ÚNICA limpeza:
+   DELETE FROM public.bi_faturamento
+   WHERE anomes_emissao BETWEEN :ANOMES_INI AND :ANOMES_FIM
+3. Carrega etl_acoes WHERE nome_tarefa='ATU_COMERCIAL' AND ativa ORDER BY ordem
+   → [VM_FATURAMENTO, VM_FATURAMENTO_MANUAL, VM_FAT_CONTABIL, VM_FAT_TRB]
+4. Para cada ação (ordem asc):
+   a. Cria etl_acao_execucoes (EM_EXECUCAO)
+   b. Resolve SQL: ETL_SQL_TEMPLATES[id_acao] (override estratégia
+      de carga para APPEND nesta tarefa — IGNORAR REPLACE_PERIODO
+      individual; já limpamos uma única vez no passo 2)
+   c. Resolve placeholders ($[ANOMES_INI], $[ANOMES_FIM])
+   d. Executa no ERP, normaliza linhas (ver bloco C)
+   e. INSERT (append) em public.bi_faturamento com carga_id=execucao_id
+   f. Atualiza etl_acao_execucoes (SUCESSO, total_linhas)
+   g. caso_erro: PARAR aborta; CONTINUAR segue
+5. Fecha etl_execucoes (status, total_linhas = soma, finalizado_em)
+6. Atualiza etl_tarefas.status_atual
+
+Resposta:
+{
+  "execucao_id": "...",
+  "status": "SUCESSO",
+  "totais": {
+    "VM_FATURAMENTO": 12345,
+    "VM_FATURAMENTO_MANUAL": 87,
+    "VM_FAT_CONTABIL": 4321,
+    "VM_FAT_TRB": 56,
+    "total": 16809
+  }
+}
 ```
 
-Mapeamento dos `.toLowerCase()` / `.toUpperCase()` envolvidos nessa rota (e nos modais abertos por ela):
+Importante: a estratégia `APPEND` é **forçada pela orquestração da tarefa ATU_COMERCIAL**, mesmo se `etl_acoes.estrategia_carga = REPLACE_PERIODO` em alguma ação. Senão, a 2ª ação apagaria a 1ª.
 
-| Arquivo | Linha | Chamada | Risco |
-|---|---|---|---|
-| `src/components/etl/EditarSqlModal.tsx` | 64, 66, 68 | `col.toLowerCase()` / `col.toUpperCase()` em `pickCell(row, col)` | **Alto** — `col = c.nome` da resposta do backend; se a coluna vier com chave diferente (`name`, `column_name`) ou `null`, quebra. |
-| `src/components/etl/ExecutarModal.tsx` | 109 | `p.toLowerCase()` | Médio — `p` vem de `extrairPlaceholders` (string garantida), mas convém blindar. |
-| `src/components/erp/DataTable.tsx` | 121, 126, 142, 143 | `debouncedSearch.toLowerCase()`, `String(val).toLowerCase()` | Baixo — `debouncedSearch` é string de state inicial `''`; `val` já vai por `String()`. |
+Quando uma ação é disparada **isoladamente** (`POST /api/etl/acoes/{id_acao}/executar`), aí sim respeita a `estrategia_carga` individual da ação (no caso, REPLACE_PERIODO no período informado).
 
-`EtlTarefaDetalhePage` em si não faz `.toLowerCase()` direto, mas:
-- Quando `tarefa` não é encontrada, renderiza o título com `nome` da URL e segue chamando `acoesTarefa(t.id)` mesmo assim — **não há fallback "Tarefa não encontrada"**.
-- Passa `acao` para `EditarSqlModal`, que dispara o `pickCell` defeituoso quando o preview do SQL volta.
+**C. Normalização de colunas antes do INSERT em `bi_faturamento`** — função `_normalize_row(row, columns)`:
 
-## Mudanças
-
-### 1. Novo helper `src/lib/etl/safeString.ts`
-```ts
-export const safeLower = (v: unknown) => String(v ?? '').toLowerCase();
-export const safeUpper = (v: unknown) => String(v ?? '').toUpperCase();
-```
-
-### 2. `src/components/etl/EditarSqlModal.tsx`
-- Importar `safeLower` e reescrever `pickCell` para nunca chamar `.toLowerCase()` em `undefined`:
-  ```ts
-  const pickCell = (row: Record<string, any>, col: unknown): any => {
-    if (!row || typeof row !== 'object') return undefined;
-    const key = String(col ?? '');
-    if (!key) return undefined;
-    if (row[key] !== undefined) return row[key];
-    const lower = safeLower(key);
-    if (row[lower] !== undefined) return row[lower];
-    const upper = safeUpper(key);
-    if (row[upper] !== undefined) return row[upper];
-    const found = Object.keys(row).find((x) => safeLower(x) === lower);
-    return found ? row[found] : undefined;
-  };
+- Converte todas as chaves para **lowercase** (`CD_TP_MOVIMENTO → cd_tp_movimento`).
+- Aplica mapeamento de aliases conhecidos:
+  ```python
+  COLUMN_ALIASES = {
+      "vl_ismsst": "vl_icmsst",  # erro de digitação histórico
+      # extensível
+  }
   ```
-- No render do preview (linhas 470–491), aceitar coluna com nome alternativo: `const colName = c?.nome ?? (c as any)?.name ?? (c as any)?.column ?? '';` e usar `colName` no `<th>`, `key`, e `pickCell`.
-- `acaoRef` (linhas 106–114): já tolerante, mas garantir `String(...)` no retorno.
+- Descarta colunas que **não existem** em `bi_faturamento` (log WARN com lista no primeiro batch).
+- Garante que todas as colunas NOT NULL tenham default (`mes_emissao`, `ano_emissao` etc. — já vêm do SELECT).
 
-### 3. `src/components/etl/ExecutarModal.tsx`
-- Trocar `p.toLowerCase()` por `safeLower(p)` (linha 109).
+⚠️ Esta normalização **NÃO se aplica ao endpoint `/testar-sql`** (preview), que continua preservando o casing original — regra já documentada na seção "preview efêmero".
 
-### 4. `src/components/erp/DataTable.tsx`
-- Substituir `debouncedSearch.toLowerCase()` por `safeLower(debouncedSearch)` (defensivo).
-- Já usa `String(val).toLowerCase()`, mantém.
+## Critério de aceite (manual)
 
-### 5. `src/pages/EtlTarefaDetalhePage.tsx`
-- Após `load()`: se `t` for `null/undefined`, renderizar card amigável **"Tarefa ETL não encontrada"** com botão "Voltar" e **não** tentar carregar ações/execuções.
-- Tornar `nome` seguro: usar `safeUpper(nome)` ao buscar e exibir o título.
-- Em colunas de `acoes`/`execucoes`, garantir que os campos potencialmente nulos (`r.id_acao`, `r.endpoint_api`, `r.status`) não sejam acessados sem fallback ao montar a chave do `statusColor` (já usa `??`, OK).
+```
+POST /api/etl/tarefas/ATU_COMERCIAL/executar
+{ "parametros": { "ANOMES_INI": "202606", "ANOMES_FIM": "202606" } }
+```
 
-### 6. (Opcional preventivo, fora do front)
-A query SQL sugerida pelo usuário para conferir os campos `nome_tarefa`/`codigo_tarefa` no banco fica **fora deste plano** — é diagnóstico, não correção de UI. Não vou rodar migration agora porque a tabela `public.etl_tarefas` já tem `nome_tarefa` no schema atual e o erro reportado é puramente de runtime no frontend.
-
-## Critério de aceite
-- `/etl/tarefas/ATU_COMERCIAL` carrega sem `Cannot read properties of undefined`.
-- Se a tarefa não existir, mostra "Tarefa ETL não encontrada" em vez de tela em branco/quebrada.
-- Abrir o modal "SQL" e rodar preview com qualquer formato de coluna do backend (`nome`, `name`, ou linhas com chaves em casing diferente) não derruba a tela.
-- Nenhum `.toLowerCase()`/`.toUpperCase()` direto em campo vindo do backend nas telas de ETL.
+1. `public.bi_faturamento` zerado para `anomes_emissao='202606'` antes da carga.
+2. Após execução: linhas com `cd_tp_movimento` ∈ {`FATURAMENTO`, `FATURAMENTO MAN`, `DEVOLUÇÃO`} presentes.
+3. `etl_execucoes` com `status=SUCESSO` e `total_linhas` = soma das 4 ações.
+4. 4 linhas em `etl_acao_execucoes` (uma por ação, status SUCESSO, total_linhas individual).
+5. `bi_faturamento.vl_icmsst` populado tanto para linhas que vieram com `VL_ICMSST` quanto com `VL_ISMSST`.
 
 ## Fora de escopo
-- Migrations no `public.etl_tarefas`.
-- `src/integrations/supabase/{client,types}.ts` e `.env`.
-- Outras telas que não `/etl/*`.
+
+- Código FastAPI (eu não tenho acesso ao repo dele).
+- Mudanças em `etl_tarefas` / `etl_acoes` no Cloud (já estão corretas).
+- Mudanças no frontend (`/etl`, `EditarSqlModal`, `ExecutarModal`).
+- Migrations no Cloud.

@@ -214,3 +214,159 @@ Worker da ação `VM_FATURAMENTO`. Body padrão `{ anomes_ini, anomes_fim, acion
 
 ## Status convencionados
 `PENDENTE`, `EM_EXECUCAO`, `SUCESSO`, `ERRO` (o frontend também aceita `CONCLUIDA`/`SUCCESS`/`RUNNING`/`ERROR` como sinônimos no badge).
+
+---
+
+## Tarefa `ATU_COMERCIAL` — orquestração multi-ação para `bi_faturamento`
+
+A tarefa `ATU_COMERCIAL` precisa, num único disparo, popular `public.bi_faturamento` com **quatro fontes** que coexistem no mesmo período. As ações já estão cadastradas em `etl_acoes` (ordens 1, 2, 4, 5), todas com `tipo_comando='FUNCAO'`:
+
+| Ordem | `id_acao`                | SQL estático                 | Origem do dado                   |
+|-------|--------------------------|------------------------------|----------------------------------|
+| 1     | `VM_FATURAMENTO`         | `SQL_VM_FATURAMENTO`         | Faturamento principal (já existe) |
+| 2     | `VM_FATURAMENTO_MANUAL`  | `SQL_VM_FATURAMENTO_MANUAL`  | Lançamentos manuais (E640LCT MAN) |
+| 4     | `VM_FAT_CONTABIL`        | `SQL_VM_FAT_CONTABIL`        | Faturamento + devolução contábil  |
+| 5     | `VM_FAT_TRB`             | `SQL_VM_FAT_TRB`             | Faturamento + devolução tributária |
+
+### A. Registry `ETL_SQL_TEMPLATES`
+
+```python
+# fonte canônica: docs/etl-sql/*.sql (no repo Lovable)
+ETL_SQL_TEMPLATES = {
+    "VM_FATURAMENTO":            SQL_VM_FATURAMENTO,
+    "SQL_VM_FATURAMENTO":        SQL_VM_FATURAMENTO,
+
+    "VM_FATURAMENTO_MANUAL":     SQL_VM_FATURAMENTO_MANUAL,
+    "SQL_VM_FATURAMENTO_MANUAL": SQL_VM_FATURAMENTO_MANUAL,
+
+    "VM_FAT_CONTABIL":           SQL_VM_FAT_CONTABIL,
+    "SQL_VM_FAT_CONTABIL":       SQL_VM_FAT_CONTABIL,
+
+    "VM_FAT_TRB":                SQL_VM_FAT_TRB,
+    "SQL_VM_FAT_TRB":            SQL_VM_FAT_TRB,
+}
+```
+
+Os SQLs são carregados literalmente dos arquivos em `docs/etl-sql/` (UTF-8). **Manter os placeholders originais `$[ANOMES_INI]` e `$[ANOMES_FIM]`** — não converter para `DECLARE @ANOMES_INI` nem para `:anomes_ini` antes da resolução. A resolução acontece via `resolver_placeholders` (regex whitelist) já documentada acima.
+
+### B. `POST /api/etl/tarefas/ATU_COMERCIAL/executar`
+
+Body:
+```json
+{
+  "parametros": { "ANOMES_INI": "202606", "ANOMES_FIM": "202606" },
+  "acionado_por": "RENATO"
+}
+```
+
+Fluxo obrigatório (pseudocódigo):
+
+```text
+1. exec_id = INSERT etl_execucoes (nome_tarefa='ATU_COMERCIAL',
+                                   status='EM_EXECUCAO',
+                                   parametros=body.parametros,
+                                   acionado_por=body.acionado_por,
+                                   iniciado_em=now())
+   UPDATE etl_tarefas SET status_atual='EM_EXECUCAO',
+                          ultima_execucao_em=now()
+   WHERE nome_tarefa='ATU_COMERCIAL'
+
+2. # LIMPEZA ÚNICA (não repetir por ação)
+   DELETE FROM public.bi_faturamento
+   WHERE anomes_emissao BETWEEN :ANOMES_INI AND :ANOMES_FIM
+
+3. acoes = SELECT * FROM etl_acoes
+           WHERE tarefa_id = (SELECT id FROM etl_tarefas WHERE nome_tarefa='ATU_COMERCIAL')
+             AND ativa = true
+             AND id_acao IN ('VM_FATURAMENTO','VM_FATURAMENTO_MANUAL',
+                             'VM_FAT_CONTABIL','VM_FAT_TRB')
+           ORDER BY ordem ASC
+
+4. totais = {}
+   FOR acao IN acoes:
+       ae_id = INSERT etl_acao_execucoes (execucao_id=exec_id, acao_id=acao.id,
+                                          id_acao=acao.id_acao, ordem=acao.ordem,
+                                          status='EM_EXECUCAO', iniciado_em=now())
+       try:
+           sql_raw = ETL_SQL_TEMPLATES[acao.id_acao]        # nunca usar acao.sql_template aqui
+           sql     = resolver_placeholders(sql_raw, body.parametros)
+           rows    = erp.execute(sql)                       # SQL Server / Oracle
+           rows_n  = [_normalize_row_faturamento(r) for r in rows]
+           inserted = cloud.bulk_insert("bi_faturamento", rows_n,
+                                        extra={"carga_id": exec_id})
+           # ↑ APPEND, sem DELETE por ação — a limpeza foi feita no passo 2.
+
+           UPDATE etl_acao_execucoes SET status='SUCESSO',
+                                         total_linhas=inserted,
+                                         finalizado_em=now()
+                                   WHERE id=ae_id
+           totais[acao.id_acao] = inserted
+       except Exception as e:
+           UPDATE etl_acao_execucoes SET status='ERRO', erro=str(e), finalizado_em=now()
+                                   WHERE id=ae_id
+           INSERT etl_logs (execucao_id=exec_id, acao_execucao_id=ae_id,
+                            nivel='ERROR', origem=acao.id_acao,
+                            mensagem=str(e), detalhe={"trace": tb})
+           IF acao.caso_erro == 'PARAR': raise
+
+5. UPDATE etl_execucoes SET status='SUCESSO',
+                            total_linhas=sum(totais.values()),
+                            finalizado_em=now()
+                      WHERE id=exec_id
+   UPDATE etl_tarefas SET status_atual='SUCESSO'
+                    WHERE nome_tarefa='ATU_COMERCIAL'
+
+6. RETURN {
+     "execucao_id": exec_id,
+     "status": "SUCESSO",
+     "totais": { **totais, "total": sum(totais.values()) }
+   }
+```
+
+**Regra crítica:** durante a execução da tarefa `ATU_COMERCIAL`, **ignorar** `etl_acoes.estrategia_carga` de cada ação individual e forçar `APPEND`. Caso contrário, uma ação `REPLACE_PERIODO` da ordem 2 apagaria os dados que a ordem 1 acabou de inserir.
+
+Quando uma dessas ações é disparada **isoladamente** (`POST /api/etl/acoes/{id_acao}/executar`), aí sim respeita `estrategia_carga` da ação (incluindo `REPLACE_PERIODO` do período informado). A limpeza única só vale no caminho da tarefa orquestrada.
+
+### C. Normalização das linhas antes do INSERT em `bi_faturamento`
+
+```python
+COLUMN_ALIASES = {
+    "vl_ismsst": "vl_icmsst",   # erro de digitação histórico em algumas views
+    # extensível
+}
+
+# colunas válidas de bi_faturamento (cachear no boot do app)
+BI_FATURAMENTO_COLS = {c["column_name"] for c in cloud.introspect("bi_faturamento")}
+
+def _normalize_row_faturamento(row: dict) -> dict:
+    out = {}
+    for k, v in row.items():
+        key = (k or "").strip().lower()
+        key = COLUMN_ALIASES.get(key, key)
+        if key in BI_FATURAMENTO_COLS:
+            out[key] = v
+        # senão: descartar coluna (logar WARN no 1º batch da execução)
+    return out
+```
+
+Regras:
+
+- **Sempre lowercase** nas chaves antes de enviar ao Supabase.
+- Mapeamento `VL_ISMSST → vl_icmsst` (preferir `vl_icmsst`).
+- Colunas que não existem em `bi_faturamento` são **descartadas silenciosamente** (logar lista distinta uma única vez por execução com `nivel='WARN'`).
+- Esta normalização **não se aplica** ao endpoint `/testar-sql`: o preview continua devolvendo as chaves no casing original do driver (regra já fixada na seção "preview efêmero").
+
+### D. Critério de aceite
+
+```
+POST /api/etl/tarefas/ATU_COMERCIAL/executar
+Body: { "parametros": { "ANOMES_INI": "202606", "ANOMES_FIM": "202606" } }
+```
+
+1. `public.bi_faturamento` zerado para `anomes_emissao='202606'` no início.
+2. Após sucesso: linhas com `cd_tp_movimento` ∈ {`FATURAMENTO`, `FATURAMENTO MAN`, `DEVOLUÇÃO`} todas presentes.
+3. `etl_execucoes` com `status='SUCESSO'` e `total_linhas` = soma das 4 ações.
+4. 4 linhas em `etl_acao_execucoes` (uma por ação, `status='SUCESSO'`, `total_linhas` individual).
+5. Coluna `bi_faturamento.vl_icmsst` populada tanto para linhas vindas com `VL_ICMSST` quanto com `VL_ISMSST`.
+6. Resposta da API inclui o dicionário `totais` discriminado por `id_acao` + `total` geral.
+
