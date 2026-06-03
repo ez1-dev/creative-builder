@@ -136,7 +136,8 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
       if (acaoRef) {
         buscarComandoSql(acaoRef).then((r) => {
           const real = r?.comando_sql;
-          if (real && real.trim()) {
+          // Ignora resposta vazia ou ponteiro STATIC: do backend — mantém o SQL real do Cloud.
+          if (real && real.trim() && !/^\s*STATIC:/i.test(real)) {
             setSql(real);
             setSqlOriginal(real);
           }
