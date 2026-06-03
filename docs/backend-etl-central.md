@@ -13,9 +13,21 @@ Cada ação agora tem 4 colunas extras no Cloud:
 
 A tela `/etl/tarefas/:nome` (admin) edita esses campos via Cloud. Toda alteração de `sql_template` é arquivada em `etl_acao_sql_versoes(acao_id, versao, sql_template, comentario, criado_por, criado_em)`.
 
+### Templates estáticos (`STATIC:`)
+
+Ações legadas podem ter `comando_sql` (ou `sql_template`) gravado como **ponteiro** para um template hardcoded no backend, no formato `STATIC:NOME_DO_TEMPLATE` (ex.: `STATIC:SQL_VM_FATURAMENTO`).
+
+**Toda rota** que lê `comando_sql`/`sql_template` (`GET /comando-sql`, `POST /testar-sql`, executores) **deve**, antes de qualquer outra coisa (detecção/validação de placeholders, execução, log):
+
+1. Detectar prefixo `STATIC:` (case-insensitive, ignorando espaços em volta).
+2. Extrair o nome após `STATIC:` e procurar em `ETL_SQL_TEMPLATES` pelas chaves, nesta ordem: nome literal, `SQL_<nome>`, nome sem prefixo `SQL_`. Para `STATIC:SQL_VM_FATURAMENTO`, casa com `ETL_SQL_TEMPLATES["SQL_VM_FATURAMENTO"]` ou `ETL_SQL_TEMPLATES["VM_FATURAMENTO"]`.
+3. Substituir o texto pelo SQL real **antes** de chamar `extrair_placeholders` ou `resolver_placeholders`. Se o nome não existir, retornar `HTTP 422` com `detail="template_estatico_desconhecido: <nome>"`.
+
+`GET /api/etl/acoes/{ref}/comando-sql` **sempre** retorna o SQL já resolvido (nunca devolve `STATIC:...` para o frontend), para que o parser de placeholders detecte `$[ANOMES_INI]` **e** `$[ANOMES_FIM]` corretamente e a tela Testar SQL renderize ambos os inputs.
+
 ### Comportamento esperado da FastAPI
 1. Antes de executar a ação, faça `SELECT sql_template, sql_versao FROM etl_acoes WHERE id_acao = :id_acao` no Cloud.
-2. Se `sql_template` for **NULL ou vazio**, use o SQL hardcoded de fallback (compatibilidade com o que já está em produção).
+2. Se o texto começar com `STATIC:`, resolver pelo `ETL_SQL_TEMPLATES` (regra acima). Se for **NULL ou vazio**, use o SQL hardcoded de fallback (compatibilidade com o que já está em produção).
 3. **Resolva os placeholders no padrão UpQuery/Senior `$[NOME]`** antes de enviar ao ERP. Whitelist canônica (validar **antes** do replace para evitar SQL injection):
 
    | Placeholder        | Regex          | Replace             |

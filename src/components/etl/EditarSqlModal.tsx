@@ -132,11 +132,17 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
 
   const sqlExibido = versaoVisualizada ? versaoVisualizada.sql_template ?? '' : sql;
   const readOnly = !!versaoVisualizada || !podeEditar;
+  // `STATIC:NOME` é um ponteiro para um template hardcoded no backend, não SQL real.
+  // Nada de detectar placeholders aqui — o backend resolve antes de executar.
+  const isStaticPointer = /^\s*STATIC:/i.test(sqlExibido);
 
   // Atualiza valores de teste quando placeholders mudam
   const placeholdersTeste = useMemo(
-    () => extrairPlaceholders(sqlExibido).filter((p) => PLACEHOLDERS_SUPORTADOS.includes(p)),
-    [sqlExibido],
+    () =>
+      isStaticPointer
+        ? []
+        : extrairPlaceholders(sqlExibido).filter((p) => PLACEHOLDERS_SUPORTADOS.includes(p)),
+    [sqlExibido, isStaticPointer],
   );
 
   useEffect(() => {
@@ -266,7 +272,17 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
           </AlertDescription>
         </Alert>
 
-        {(() => {
+        {isStaticPointer && (
+          <Alert className="py-2">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Esta ação aponta para um template estático do backend (<code className="font-mono">{sqlExibido.trim()}</code>).
+              O SQL real e seus placeholders são resolvidos na FastAPI antes da execução — o Testar SQL envia os parâmetros e o backend usa o template registrado.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!isStaticPointer && (() => {
           const { encontrados, desconhecidos } = validarPlaceholders(sqlExibido);
           if (encontrados.length === 0 && desconhecidos.length === 0) return null;
           return (
