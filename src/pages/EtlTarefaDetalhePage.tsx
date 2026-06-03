@@ -38,6 +38,7 @@ type AlvoExec =
 export default function EtlTarefaDetalhePage() {
   const { nome = '' } = useParams<{ nome: string }>();
   const [tarefa, setTarefa] = useState<EtlTarefa | null>(null);
+  const [naoEncontrada, setNaoEncontrada] = useState(false);
   const [acoes, setAcoes] = useState<EtlAcao[]>([]);
   const [execucoes, setExecucoes] = useState<EtlExecucao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,14 +49,21 @@ export default function EtlTarefaDetalhePage() {
 
   const load = async () => {
     setLoading(true);
+    setNaoEncontrada(false);
     try {
       const t = await detalheTarefa(nome);
-      setTarefa(t);
-      if (t) {
-        const [a, e] = await Promise.all([acoesTarefa(t.id), ultimasExecucoes(nome, 20)]);
-        setAcoes(a);
-        setExecucoes(e);
+      setTarefa(t ?? null);
+      if (!t) {
+        setNaoEncontrada(true);
+        setAcoes([]);
+        setExecucoes([]);
+        return;
       }
+      const [a, e] = await Promise.all([acoesTarefa(t.id), ultimasExecucoes(nome, 20)]);
+      setAcoes(a);
+      setExecucoes(e);
+    } catch {
+      setNaoEncontrada(true);
     } finally {
       setLoading(false);
     }
@@ -177,6 +185,22 @@ export default function EtlTarefaDetalhePage() {
         }
       />
 
+      {naoEncontrada && !loading && (
+        <Card>
+          <CardContent className="p-6 text-center space-y-3">
+            <p className="text-sm font-semibold">Tarefa ETL não encontrada</p>
+            <p className="text-xs text-muted-foreground">
+              Não encontramos a tarefa <span className="font-mono">{nome}</span>. Verifique o nome ou volte para a lista.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/etl">
+                <ArrowLeft className="h-4 w-4 mr-1" /> Voltar para tarefas
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {tarefa && (
         <Card>
           <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
@@ -202,27 +226,31 @@ export default function EtlTarefaDetalhePage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Ações</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? <Skeleton className="h-32 w-full" /> : <DataTable columns={acoesColumns} data={acoes} />}
-        </CardContent>
-      </Card>
+      {!naoEncontrada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Ações</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? <Skeleton className="h-32 w-full" /> : <DataTable columns={acoesColumns} data={acoes} />}
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Últimas execuções</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-32 w-full" />
-          ) : (
-            <DataTable columns={execColumns} data={execucoes} emptyMessage="Nenhuma execução registrada" />
-          )}
-        </CardContent>
-      </Card>
+      {!naoEncontrada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Últimas execuções</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <DataTable columns={execColumns} data={execucoes} emptyMessage="Nenhuma execução registrada" />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <ExecutarModal
         open={execModal.open}

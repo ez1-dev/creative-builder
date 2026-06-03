@@ -45,6 +45,7 @@ import {
   PLACEHOLDER_SPECS,
   PLACEHOLDERS_SUPORTADOS,
 } from '@/lib/etl/placeholders';
+import { safeLower, safeUpper } from '@/lib/etl/safeString';
 
 const MonacoEditor = lazy(() => import('@monaco-editor/react'));
 
@@ -59,14 +60,17 @@ interface Props {
 const fmt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
 /** Acesso à célula tolerante a casing — backend pode devolver chaves em outra caixa. */
-const pickCell = (row: Record<string, any>, col: string): any => {
-  if (row[col] !== undefined) return row[col];
-  const lower = col.toLowerCase();
+const pickCell = (row: Record<string, any> | null | undefined, col: unknown): any => {
+  if (!row || typeof row !== 'object') return undefined;
+  const key = String(col ?? '');
+  if (!key) return undefined;
+  if (row[key] !== undefined) return row[key];
+  const lower = safeLower(key);
   if (row[lower] !== undefined) return row[lower];
-  const upper = col.toUpperCase();
+  const upper = safeUpper(key);
   if (row[upper] !== undefined) return row[upper];
-  const k = Object.keys(row).find((x) => x.toLowerCase() === lower);
-  return k ? row[k] : undefined;
+  const found = Object.keys(row).find((x) => safeLower(x) === lower);
+  return found ? row[found] : undefined;
 };
 
 const anomesAtual = () => {
@@ -467,20 +471,24 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
                   <table className="text-xs w-full">
                     <thead className="bg-muted sticky top-0">
                       <tr>
-                        {resultadoTeste.colunas.map((c) => (
-                          <th key={c.nome} className="px-2 py-1 text-left font-mono whitespace-nowrap">
-                            {c.nome}
-                          </th>
-                        ))}
+                        {resultadoTeste.colunas.map((c, idx) => {
+                          const colName = String((c as any)?.nome ?? (c as any)?.name ?? (c as any)?.column ?? `col_${idx}`);
+                          return (
+                            <th key={`${colName}-${idx}`} className="px-2 py-1 text-left font-mono whitespace-nowrap">
+                              {colName}
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
                       {resultadoTeste.linhas.map((l, i) => (
                         <tr key={i} className="border-t">
-                          {resultadoTeste.colunas.map((c) => {
-                            const v = pickCell(l, c.nome);
+                          {resultadoTeste.colunas.map((c, idx) => {
+                            const colName = String((c as any)?.nome ?? (c as any)?.name ?? (c as any)?.column ?? `col_${idx}`);
+                            const v = pickCell(l, colName);
                             return (
-                              <td key={c.nome} className="px-2 py-1 whitespace-nowrap">
+                              <td key={`${colName}-${idx}`} className="px-2 py-1 whitespace-nowrap">
                                 {v === null || v === undefined ? (
                                   <span className="text-muted-foreground italic">null</span>
                                 ) : (
