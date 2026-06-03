@@ -203,7 +203,7 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
       const acaoRef =
         (acao as any).codigo_acao ||
         (acao as any).id_acao ||
-        acao.nome ||
+        (acao as any).nome ||
         acao.id;
       const resp = await testarSqlAcao(acaoRef, {
         sql_template: sqlExibido,
