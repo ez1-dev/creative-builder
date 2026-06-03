@@ -76,6 +76,7 @@ const valorInicial = (nome: string): string => {
 
 export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }: Props) {
   const [sql, setSql] = useState('');
+  const [sqlOriginal, setSqlOriginal] = useState('');
   const [comentario, setComentario] = useState('');
   const [versoes, setVersoes] = useState<EtlAcaoSqlVersao[]>([]);
   const [versaoVisualizada, setVersaoVisualizada] = useState<EtlAcaoSqlVersao | null>(null);
@@ -91,9 +92,21 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
   const [resultadoTeste, setResultadoTeste] = useState<TestarSqlResponse | null>(null);
   const [erroTeste, setErroTeste] = useState<string | null>(null);
 
+  const acaoRef = useMemo(() => {
+    if (!acao) return null;
+    return (
+      (acao as any).codigo_acao ||
+      (acao as any).id_acao ||
+      (acao as any).nome ||
+      acao.id
+    );
+  }, [acao]);
+
   useEffect(() => {
     if (open && acao) {
-      setSql(acao.sql_template ?? '');
+      const fallback = acao.sql_template ?? '';
+      setSql(fallback);
+      setSqlOriginal(fallback);
       setComentario('');
       setVersaoVisualizada(null);
       setTestarOpen(false);
@@ -104,8 +117,18 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
         .then(setVersoes)
         .catch(() => setVersoes([]))
         .finally(() => setCarregandoHist(false));
+      // Pré-carrega comando_sql real do backend FastAPI (se disponível)
+      if (acaoRef) {
+        buscarComandoSql(acaoRef).then((r) => {
+          const real = r?.comando_sql;
+          if (real && real.trim()) {
+            setSql(real);
+            setSqlOriginal(real);
+          }
+        });
+      }
     }
-  }, [open, acao]);
+  }, [open, acao, acaoRef]);
 
   const sqlExibido = versaoVisualizada ? versaoVisualizada.sql_template ?? '' : sql;
   const readOnly = !!versaoVisualizada || !podeEditar;
