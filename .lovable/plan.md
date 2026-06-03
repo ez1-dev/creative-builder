@@ -1,49 +1,52 @@
-# Tela de Validação BI Faturamento
+## Diagnóstico
 
-## Rota
-- `/bi/faturamento-validacao` → registrada em `src/App.tsx` dentro do `AppLayout`, protegida por `ProtectedRoute`.
-- Novo arquivo: `src/pages/bi/FaturamentoValidacaoPage.tsx`.
+Procurei por `gerarTituloComIA`, `generateTitle`, `Failed to generate title` em `src/` e `supabase/functions/` e **não existe** nenhuma função de geração automática de título no projeto hoje. Nem a `/bi/faturamento-validacao`, nem o ETL, nem a edge `ai-assistant` chamam IA para gerar título.
 
-## Layout
-Usa `PageHeader` + componentes da biblioteca BI (`@/components/bi`):
+A mensagem "Failed to generate title" muito provavelmente vem de uma camada externa (chat/assistente do Lovable ou rótulo de aba), mas o pedido do usuário é claro: **o erro não pode bloquear a tela nem o ETL**. Vou então (1) blindar a tela contra qualquer erro de query/IA, (2) criar um helper genérico de título com fallback, e (3) deixar pronto o ponto de uso caso alguma chamada futura de IA para título seja adicionada.
 
-1. **Barra de filtros** (sticky no topo, grid responsivo):
-   - `ANOMES_INI` / `ANOMES_FIM` — inputs texto `YYYYMM` (default: ano corrente jan→mês atual).
-   - `CD_TP_MOVIMENTO`, `CD_ORIGEM`, `CD_EMPRESA`, `CD_FILIAL`, `CD_TNS`, `CD_CENTRO_CUSTOS_3`, `CD_NF` — inputs texto livres (multi-valor separado por vírgula).
-   - Botões: **Atualizar** (refetch) e **Exportar CSV** (exporta a aba detalhada atual).
+## Mudanças
 
-2. **Seção 1 — Cards de resumo** (`KpiCard` em grid de 7):
-   - Qtd Linhas (number), VL_BRUTO, VL_TOTAL, VL_DEVOLUCAO, VL_ICMS, VL_PIS, VL_COFINS (BRL, abreviado).
+### 1. `src/lib/safeTitle.ts` (novo)
+Helper único e reutilizável:
+```ts
+export async function safeTitle(
+  fn: () => Promise<string | null | undefined>,
+  fallback: string,
+): Promise<string> {
+  try {
+    const t = await fn();
+    return (t && t.trim()) || fallback;
+  } catch (err) {
+    console.warn('[safeTitle] falha ao gerar título, usando fallback:', err);
+    return fallback;
+  }
+}
+```
+Sem dependência de chave/endpoint. Se no futuro alguém adicionar `gerarTituloComIA`, basta envolver com `safeTitle(() => gerarTituloComIA(payload), 'Validação BI Faturamento')`.
 
-3. **Seção 2 — Resumo por movimento** (`DataTableBI`):
-   - Colunas: `anomes_emissao`, `cd_tp_movimento`, `cd_origem`, `qtd_linhas`, `vl_bruto`, `vl_total`, `vl_devolucao`, `vl_icms`, `vl_pis`, `vl_cofins`.
-   - Ordenado por `anomes_emissao` desc.
+### 2. `src/pages/bi/FaturamentoValidacaoPage.tsx`
+- Garantir que **nenhum erro de query derrube a tela**: cada `useQuery` já tem `isError` tratado, mas vou:
+  - Adicionar `retry: 1` e `refetchOnWindowFocus: false` nos 4 `useQuery`.
+  - Envolver `atualizar()` e `exportarCSV()` em try/catch com `toast` (sem throw).
+  - Garantir que o `PageHeader` use título estático `"Validação BI Faturamento"` — nunca depende de IA.
+- Sem mudança nos endpoints nem na lógica de unwrap.
 
-4. **Seção 3 — Resumo por TNS** (`DataTableBI`):
-   - Colunas: `cd_tns`, `cd_natureza`, `qtd_linhas`, `vl_total`, `vl_devolucao`.
+### 3. `src/pages/EtlTarefaDetalhePage.tsx` e `src/components/etl/ExecutarModal.tsx`
+- Auditar e confirmar que o título exibido (header da execução / modal) é **literal**, não vem de IA. Se houver alguma chamada implícita, trocar por string fixa (`"Execução ETL"` / `nome_tarefa`).
+- Garantir que falha em `executarTarefa`/`executarAcao` só dispare `toast.error` e não propague exception não tratada (já está com try/catch — apenas validar).
 
-5. **Seção 4 — Detalhes** (`DataTableBI` com paginação server-side):
-   - Colunas: `cd_tp_movimento`, `cd_origem`, `cd_empresa`, `cd_filial`, `cd_nf`, `cd_serie`, `dt_emissao`, `anomes_emissao`, `cd_tns`, `cd_cliente`, `cd_centro_custos_3`, `vl_bruto`, `vl_total`, `vl_devolucao`, `created_at` (vem do `atualizado_em`).
-   - `page` / `page_size` (default 50).
+### 4. `supabase/functions/ai-assistant/index.ts`
+- Verificar se há algum ponto que gere "title" para conversa. Se sim, envolver em try/catch retornando string vazia em vez de 500.
 
-## Camada de dados
-- Novo módulo: `src/lib/bi/faturamentoValidacao.ts` com 4 funções consumindo FastAPI via `apiFetch` (igual ao padrão de `src/lib/api.ts`):
-  - `getResumo(filtros)` → `GET /api/bi/faturamento/resumo`
-  - `getPorMovimento(filtros)` → `GET /api/bi/faturamento/por-movimento`
-  - `getPorTns(filtros)` → `GET /api/bi/faturamento/por-tns`
-  - `getDetalhes(filtros, page, page_size)` → `GET /api/bi/faturamento/detalhes`
-- Todos os campos numéricos passam por `Number(...)` antes de exibir; valores monetários usam `formatCurrency`; vazios → `NoDataState`.
-- React Query (`useQuery`) por seção, com `queryKey` baseada nos filtros. Botão **Atualizar** chama `refetch` das 4 queries.
-- Documento `docs/backend-bi-faturamento-validacao.md` descrevendo contratos esperados dos 4 endpoints (parâmetros, payload, observação: ler apenas `public.bi_faturamento`, não consultar ERP).
+### 5. Documentação
+- Adicionar nota curta em `docs/backend-bi-faturamento-validacao.md`: "Esta tela não usa IA para nada — título é estático. Falhas em /api/bi/faturamento/* mostram ErrorState localizado e não derrubam o resto da página."
 
-## Exportar CSV
-- Função local que monta CSV dos detalhes atuais (página visível) — sem nova dependência. Usa `Blob` + `URL.createObjectURL`.
+## Fora de escopo
+- Não criar endpoint novo de geração de título.
+- Não tocar em `src/integrations/supabase/{client,types}.ts` nem `.env`.
+- Não mexer no contrato dos 4 endpoints `/api/bi/faturamento/*`.
 
-## Sidebar / navegação
-- Adicionar item "Faturamento — Validação BI" em `src/components/AppSidebar.tsx` sob o grupo BI/Faturamento (ou criar agrupamento "BI" se não existir).
-- Registrar a tela em `src/lib/screenCatalog.ts` para permissões.
-
-## Observações
-- Tela 100% leitura, sem chamadas Supabase diretas e sem consulta ao ERP — apenas FastAPI sobre `bi_faturamento`.
-- Sem mudanças no Cloud (sem migration).
-- Backend FastAPI dos 4 endpoints é fora do escopo desta entrega (documentado no `.md` para o time de backend implementar).
+## Verificação
+- Abrir `/bi/faturamento-validacao` com backend ok → carrega normal.
+- Simular erro (filtro inválido) → cada card/tabela mostra "Não foi possível carregar", restante da tela continua funcional, botão Atualizar funciona.
+- Executar tarefa ETL com erro → toast de erro, modal não trava.

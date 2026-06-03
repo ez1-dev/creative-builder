@@ -116,3 +116,4 @@ Paginação server-side. Parâmetros extras: `page` (1-based, default 1), `page_
 - Todos os campos numéricos devem ser retornados como `number` (não string).
 - Quando não houver dados, retornar resumo zerado e arrays vazios (não 404).
 - A query deve usar `bi_faturamento` exclusivamente — não fazer JOIN com tabelas do ERP.
+- A tela **não usa IA para nada** — título é estático (`"Validação BI Faturamento"`). Qualquer falha em `/api/bi/faturamento/*` exibe um `ErrorState` localizado por seção e não derruba o restante da página. Se um dia for adicionada geração automática de título, envolver com `safeTitle()` de `src/lib/safeTitle.ts`.
