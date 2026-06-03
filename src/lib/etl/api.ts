@@ -191,7 +191,7 @@ export async function executarAcao(idAcao: string, payload: ExecucaoParams) {
 
 /**
  * Preview efêmero — executa o SQL contra o ERP via FastAPI sem persistir nada.
- * Aceita o sql_template atual do editor (antes de salvar).
+ * Se `sql_template` for omitido, a FastAPI usa o `comando_sql` salvo.
  */
 export async function testarSqlAcao(
   acaoRef: string | number,
@@ -199,6 +199,23 @@ export async function testarSqlAcao(
 ): Promise<TestarSqlResponse> {
   const ref = encodeURIComponent(String(acaoRef));
   return api.post<TestarSqlResponse>(`/api/etl/acoes/${ref}/testar-sql`, payload);
+}
+
+/**
+ * Busca o `comando_sql` real no backend FastAPI. Retorna `null` em qualquer
+ * falha — caller deve cair no `sql_template` do Cloud.
+ */
+export async function buscarComandoSql(
+  acaoRef: string | number,
+): Promise<{ comando_sql: string | null; versao?: number; atualizado_em?: string } | null> {
+  const ref = encodeURIComponent(String(acaoRef));
+  try {
+    return await api.get<{ comando_sql: string | null; versao?: number; atualizado_em?: string }>(
+      `/api/etl/acoes/${ref}/comando-sql`,
+    );
+  } catch {
+    return null;
+  }
 }
 
 // ---------- SQL versionado (Cloud) ----------
