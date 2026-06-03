@@ -29,6 +29,7 @@ import { Info, RotateCcw, Save, History, FlaskConical, ChevronDown, ChevronUp, P
 import { toast } from '@/hooks/use-toast';
 import {
   atualizarSqlAcao,
+  buscarComandoSql,
   listarVersoesSql,
   restaurarVersaoSql,
   testarSqlAcao,
@@ -75,6 +76,7 @@ const valorInicial = (nome: string): string => {
 
 export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }: Props) {
   const [sql, setSql] = useState('');
+  const [sqlOriginal, setSqlOriginal] = useState('');
   const [comentario, setComentario] = useState('');
   const [versoes, setVersoes] = useState<EtlAcaoSqlVersao[]>([]);
   const [versaoVisualizada, setVersaoVisualizada] = useState<EtlAcaoSqlVersao | null>(null);
@@ -90,9 +92,21 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
   const [resultadoTeste, setResultadoTeste] = useState<TestarSqlResponse | null>(null);
   const [erroTeste, setErroTeste] = useState<string | null>(null);
 
+  const acaoRef = useMemo(() => {
+    if (!acao) return null;
+    return (
+      (acao as any).codigo_acao ||
+      (acao as any).id_acao ||
+      (acao as any).nome ||
+      acao.id
+    );
+  }, [acao]);
+
   useEffect(() => {
     if (open && acao) {
-      setSql(acao.sql_template ?? '');
+      const fallback = acao.sql_template ?? '';
+      setSql(fallback);
+      setSqlOriginal(fallback);
       setComentario('');
       setVersaoVisualizada(null);
       setTestarOpen(false);
@@ -103,8 +117,18 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
         .then(setVersoes)
         .catch(() => setVersoes([]))
         .finally(() => setCarregandoHist(false));
+      // Pré-carrega comando_sql real do backend FastAPI (se disponível)
+      if (acaoRef) {
+        buscarComandoSql(acaoRef).then((r) => {
+          const real = r?.comando_sql;
+          if (real && real.trim()) {
+            setSql(real);
+            setSqlOriginal(real);
+          }
+        });
+      }
     }
-  }, [open, acao]);
+  }, [open, acao, acaoRef]);
 
   const sqlExibido = versaoVisualizada ? versaoVisualizada.sql_template ?? '' : sql;
   const readOnly = !!versaoVisualizada || !podeEditar;
@@ -192,24 +216,23 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
     setErroTeste(null);
     setResultadoTeste(null);
     try {
-      // Converte valores para tipo apropriado
+      // Converte valores para tipo apropriado; chaves em UPPERCASE
       const parametros: Record<string, string | number> = {};
       for (const p of placeholdersTeste) {
         const spec = PLACEHOLDER_SPECS[p];
         const raw = valoresTeste[p];
-        parametros[p.toLowerCase()] =
+        parametros[p] =
           spec.tipo === 'anomes' || spec.tipo === 'inteiro' ? Number(raw) : raw;
       }
-      const acaoRef =
-        (acao as any).codigo_acao ||
-        (acao as any).id_acao ||
-        (acao as any).nome ||
-        acao.id;
-      const resp = await testarSqlAcao(acaoRef, {
-        sql_template: sqlExibido,
+      const ref = acaoRef ?? acao.id;
+      // Só envia sql_template se o usuário editou; caso contrário, backend usa comando_sql salvo
+      const sqlEditado = sqlExibido !== sqlOriginal;
+      const payload: { sql_template?: string; parametros: typeof parametros; limite: number } = {
         parametros,
         limite,
-      });
+      };
+      if (sqlEditado) payload.sql_template = sqlExibido;
+      const resp = await testarSqlAcao(ref, payload);
       setResultadoTeste(resp);
     } catch (e: any) {
       setErroTeste(e?.message ?? 'Falha ao executar preview');
