@@ -106,8 +106,8 @@ export function ExecutarModal({ open, onOpenChange, alvo, onExecutado }: Executa
       for (const p of extrasNecessarios) {
         const spec = PLACEHOLDER_SPECS[p];
         const raw = extras[p];
-        parametros[p.toLowerCase()] =
-          spec.tipo === 'anomes' || spec.tipo === 'inteiro' ? Number(raw) : raw;
+        parametros[String(p ?? '').toLowerCase()] =
+          spec?.tipo === 'anomes' || spec?.tipo === 'inteiro' ? Number(raw) : raw;
       }
 
       const payload: ExecucaoParams = {
