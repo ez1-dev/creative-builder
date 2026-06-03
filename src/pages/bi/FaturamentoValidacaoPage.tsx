@@ -104,9 +104,12 @@ export default function FaturamentoValidacaoPage() {
       }
       const cols: Array<keyof DetalheRow> = [
         'cd_tp_movimento', 'cd_origem', 'cd_empresa', 'cd_filial', 'cd_nf', 'cd_serie',
-        'dt_emissao', 'anomes_emissao', 'cd_tns', 'cd_cliente', 'cd_centro_custos_3',
+        'dt_emissao', 'anomes_emissao', 'cd_tns', 'cd_cliente', 'cd_centro_custos_3', 'fonte_acao',
         'vl_bruto', 'vl_total', 'vl_devolucao', 'created_at',
       ];
+      const renderCell = (r: DetalheRow, c: keyof DetalheRow) =>
+        c === 'fonte_acao' ? (r.fonte_acao ?? 'SEM_FONTE') : r[c];
+
       const escape = (v: any) => {
         const s = v === null || v === undefined ? '' : String(v);
         return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
