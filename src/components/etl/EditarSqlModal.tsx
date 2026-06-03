@@ -200,7 +200,7 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
         parametros[p.toLowerCase()] =
           spec.tipo === 'anomes' || spec.tipo === 'inteiro' ? Number(raw) : raw;
       }
-      const resp = await testarSqlAcao(acao.id_acao, {
+      const resp = await testarSqlAcao(acao.id, {
         sql_template: sqlExibido,
         parametros,
         limite,
