@@ -117,6 +117,11 @@ Paginação server-side. Parâmetros extras: `page` (1-based, default 1), `page_
 
 `created_at` vem da coluna `atualizado_em` da tabela `bi_faturamento`.
 
+## fonte_acao
+
+Coluna `bi_faturamento.fonte_acao` (text, nullable) identifica qual ação ETL carregou a linha (ex.: `faturamento`, `faturamento-manual`, `faturamento-contabil`, `faturamento-tributos`). Os endpoints retornam o valor como veio do banco — quem renderiza `"SEM_FONTE"` quando `null` é o frontend. As ações do ETL (em `etl_acoes`) devem preencher `fonte_acao` com o próprio `id_acao` durante o upsert em `bi_faturamento`.
+
+
 ## Observações
 
 - Todos os campos numéricos devem ser retornados como `number` (não string).
