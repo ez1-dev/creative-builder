@@ -132,11 +132,17 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
 
   const sqlExibido = versaoVisualizada ? versaoVisualizada.sql_template ?? '' : sql;
   const readOnly = !!versaoVisualizada || !podeEditar;
+  // `STATIC:NOME` é um ponteiro para um template hardcoded no backend, não SQL real.
+  // Nada de detectar placeholders aqui — o backend resolve antes de executar.
+  const isStaticPointer = /^\s*STATIC:/i.test(sqlExibido);
 
   // Atualiza valores de teste quando placeholders mudam
   const placeholdersTeste = useMemo(
-    () => extrairPlaceholders(sqlExibido).filter((p) => PLACEHOLDERS_SUPORTADOS.includes(p)),
-    [sqlExibido],
+    () =>
+      isStaticPointer
+        ? []
+        : extrairPlaceholders(sqlExibido).filter((p) => PLACEHOLDERS_SUPORTADOS.includes(p)),
+    [sqlExibido, isStaticPointer],
   );
 
   useEffect(() => {
