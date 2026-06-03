@@ -1,20 +1,13 @@
-## Objetivo
-Tornar o botão "Executar" clicável para `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL` e `VM_FAT_TRB`.
+## Problema
+`src/components/etl/EditarSqlModal.tsx` carrega `acao.sql_template` (SQL real do Cloud) e logo depois sobrescreve com o retorno do FastAPI `buscarComandoSql()`. Para `VM_FATURAMENTO` o FastAPI devolve o ponteiro `STATIC:SQL_VM_FATURAMENTO`, escondendo o SQL real (31.706 chars) já presente no banco.
 
-## Causa
-Em `src/pages/EtlTarefaDetalhePage.tsx` (linha 111) o botão usa `disabled={!r.ativa}`. As 3 ações estão com `ativa = false` na tabela `etl_acoes`.
+## Correção
+No `useEffect` (linhas 137-143 do modal):
+- Se a resposta do FastAPI vier vazia OU começar com `STATIC:`, **não sobrescrever**; manter o `sql_template` vindo do Cloud.
+- Apenas substituir quando o FastAPI retornar um SQL real (sem prefixo `STATIC:`).
 
-## Mudanças
-
-1. **Banco (`etl_acoes`)** — ativar as 3 ações:
-   ```sql
-   UPDATE public.etl_acoes
-   SET ativa = true
-   WHERE id_acao IN ('VM_FATURAMENTO_MANUAL','VM_FAT_CONTABIL','VM_FAT_TRB');
-   ```
-
-2. **Frontend (`src/pages/EtlTarefaDetalhePage.tsx` linha 111)** — remover `disabled={!r.ativa}` do botão Executar, mantendo o badge "Sim/Não" apenas como indicador visual. Assim qualquer ação, mesmo inativa, pode ser disparada manualmente para teste.
+Critério: `if (real && real.trim() && !/^\s*STATIC:/i.test(real)) { setSql(real); setSqlOriginal(real); }`
 
 ## Fora de escopo
-- Lógica de execução em lote (continua respeitando `ativa`).
-- Layout/colunas da tabela.
+- Lógica do FastAPI / backend.
+- Outras ações ou edge functions.
