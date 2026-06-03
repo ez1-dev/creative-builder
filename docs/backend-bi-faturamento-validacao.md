@@ -45,12 +45,13 @@ Todos opcionais. Filtros multi-valor aceitam lista separada por vírgula (ex.: `
 
 ### `GET /api/bi/faturamento/por-movimento`
 
-Agrupar por `anomes_emissao, cd_tp_movimento, cd_origem`. Retornar array.
+Agrupar por `anomes_emissao, fonte_acao, cd_tp_movimento, cd_origem`. Retornar array.
 
 ```json
 [
   {
     "anomes_emissao": "202601",
+    "fonte_acao": "faturamento",
     "cd_tp_movimento": "S",
     "cd_origem": "PROP",
     "qtd_linhas": 0,
@@ -63,6 +64,7 @@ Agrupar por `anomes_emissao, cd_tp_movimento, cd_origem`. Retornar array.
   }
 ]
 ```
+
 
 ### `GET /api/bi/faturamento/por-tns`
 
