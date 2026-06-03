@@ -466,15 +466,18 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
                     <tbody>
                       {resultadoTeste.linhas.map((l, i) => (
                         <tr key={i} className="border-t">
-                          {resultadoTeste.colunas.map((c) => (
-                            <td key={c.nome} className="px-2 py-1 whitespace-nowrap">
-                              {l[c.nome] === null || l[c.nome] === undefined ? (
-                                <span className="text-muted-foreground italic">null</span>
-                              ) : (
-                                String(l[c.nome])
-                              )}
-                            </td>
-                          ))}
+                          {resultadoTeste.colunas.map((c) => {
+                            const v = pickCell(l, c.nome);
+                            return (
+                              <td key={c.nome} className="px-2 py-1 whitespace-nowrap">
+                                {v === null || v === undefined ? (
+                                  <span className="text-muted-foreground italic">null</span>
+                                ) : (
+                                  String(v)
+                                )}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
