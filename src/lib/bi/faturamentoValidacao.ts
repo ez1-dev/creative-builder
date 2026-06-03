@@ -84,7 +84,9 @@ const toParams = (f: FaturamentoValidacaoFiltros) => ({
   cd_tns: f.cd_tns || undefined,
   cd_centro_custos_3: f.cd_centro_custos_3 || undefined,
   cd_nf: f.cd_nf || undefined,
+  fonte_acao: f.fonte_acao || undefined,
 });
+
 
 export const getResumo = (f: FaturamentoValidacaoFiltros) =>
   api.get<ResumoResponse>('/api/bi/faturamento/resumo', toParams(f));
