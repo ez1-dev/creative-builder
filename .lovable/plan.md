@@ -1,52 +1,51 @@
 ## Diagnóstico
 
-Procurei por `gerarTituloComIA`, `generateTitle`, `Failed to generate title` em `src/` e `supabase/functions/` e **não existe** nenhuma função de geração automática de título no projeto hoje. Nem a `/bi/faturamento-validacao`, nem o ETL, nem a edge `ai-assistant` chamam IA para gerar título.
-
-A mensagem "Failed to generate title" muito provavelmente vem de uma camada externa (chat/assistente do Lovable ou rótulo de aba), mas o pedido do usuário é claro: **o erro não pode bloquear a tela nem o ETL**. Vou então (1) blindar a tela contra qualquer erro de query/IA, (2) criar um helper genérico de título com fallback, e (3) deixar pronto o ponto de uso caso alguma chamada futura de IA para título seja adicionada.
+`bi_faturamento` **não tem** a coluna `fonte_acao` hoje. Esse campo identifica qual ação do ETL carregou a linha (ex.: `faturamento`, `faturamento-manual`, `faturamento-contabil`, `faturamento-tributos`) e precisa existir no Cloud antes do frontend mostrar.
 
 ## Mudanças
 
-### 1. `src/lib/safeTitle.ts` (novo)
-Helper único e reutilizável:
-```ts
-export async function safeTitle(
-  fn: () => Promise<string | null | undefined>,
-  fallback: string,
-): Promise<string> {
-  try {
-    const t = await fn();
-    return (t && t.trim()) || fallback;
-  } catch (err) {
-    console.warn('[safeTitle] falha ao gerar título, usando fallback:', err);
-    return fallback;
-  }
-}
+### 1. Migration (Cloud)
+```sql
+ALTER TABLE public.bi_faturamento
+  ADD COLUMN IF NOT EXISTS fonte_acao text;
+
+CREATE INDEX IF NOT EXISTS bi_faturamento_fonte_acao_idx
+  ON public.bi_faturamento (fonte_acao);
 ```
-Sem dependência de chave/endpoint. Se no futuro alguém adicionar `gerarTituloComIA`, basta envolver com `safeTitle(() => gerarTituloComIA(payload), 'Validação BI Faturamento')`.
+Sem default — linhas antigas ficam `NULL` e serão exibidas como `"SEM_FONTE"` no frontend. Backfill fica a cargo do ETL na próxima carga.
 
-### 2. `src/pages/bi/FaturamentoValidacaoPage.tsx`
-- Garantir que **nenhum erro de query derrube a tela**: cada `useQuery` já tem `isError` tratado, mas vou:
-  - Adicionar `retry: 1` e `refetchOnWindowFocus: false` nos 4 `useQuery`.
-  - Envolver `atualizar()` e `exportarCSV()` em try/catch com `toast` (sem throw).
-  - Garantir que o `PageHeader` use título estático `"Validação BI Faturamento"` — nunca depende de IA.
-- Sem mudança nos endpoints nem na lógica de unwrap.
+### 2. Backend FastAPI (spec — `docs/backend-bi-faturamento-validacao.md`)
+Atualizar o documento com:
+- Novo filtro opcional `fonte_acao` (csv, ex.: `fonte_acao=faturamento,faturamento-manual`). Quando o valor `SEM_FONTE` aparecer na lista, backend traduz para `IS NULL`.
+- Resposta dos 4 endpoints inclui `fonte_acao`:
+  - `por-movimento`: agrupar por `anomes_emissao, fonte_acao, cd_tp_movimento, cd_origem`.
+  - `detalhes`: incluir coluna `fonte_acao`.
+  - `resumo` e `por-tns`: sem mudança (não pediram).
+- ETL (`POST /api/etl/comercial/faturamento*`) deve preencher `fonte_acao` com o `id_acao` da ação em execução durante o upsert em `bi_faturamento`.
 
-### 3. `src/pages/EtlTarefaDetalhePage.tsx` e `src/components/etl/ExecutarModal.tsx`
-- Auditar e confirmar que o título exibido (header da execução / modal) é **literal**, não vem de IA. Se houver alguma chamada implícita, trocar por string fixa (`"Execução ETL"` / `nome_tarefa`).
-- Garantir que falha em `executarTarefa`/`executarAcao` só dispare `toast.error` e não propague exception não tratada (já está com try/catch — apenas validar).
+### 3. Frontend
+**`src/lib/bi/faturamentoValidacao.ts`**
+- `FaturamentoValidacaoFiltros`: adicionar `fonte_acao?: string`.
+- `PorMovimentoRow`: adicionar `fonte_acao: string | null`.
+- `DetalheRow`: adicionar `fonte_acao: string | null`.
+- `toParams`: encaminhar `fonte_acao`.
 
-### 4. `supabase/functions/ai-assistant/index.ts`
-- Verificar se há algum ponto que gere "title" para conversa. Se sim, envolver em try/catch retornando string vazia em vez de 500.
+**`src/pages/bi/FaturamentoValidacaoPage.tsx`**
+- Adicionar campo de filtro "Fonte Ação" no grid de filtros.
+- Adicionar coluna `fonte_acao` na tabela de detalhes (após `cd_centro_custos_3`).
+- Adicionar coluna `fonte_acao` na tabela "Resumo por movimento" (após `anomes_emissao`).
+- Helper local: render `r.fonte_acao ?? 'SEM_FONTE'`.
+- Incluir `fonte_acao` no header e nas linhas do CSV exportado.
 
-### 5. Documentação
-- Adicionar nota curta em `docs/backend-bi-faturamento-validacao.md`: "Esta tela não usa IA para nada — título é estático. Falhas em /api/bi/faturamento/* mostram ErrorState localizado e não derrubam o resto da página."
+### 4. Documentação
+Atualizar `docs/backend-bi-faturamento-validacao.md` conforme item 2.
 
 ## Fora de escopo
-- Não criar endpoint novo de geração de título.
-- Não tocar em `src/integrations/supabase/{client,types}.ts` nem `.env`.
-- Não mexer no contrato dos 4 endpoints `/api/bi/faturamento/*`.
+- Não alterar `por-tns` nem `resumo` (não solicitados).
+- Não fazer backfill de `fonte_acao` em linhas históricas — fica para o backend decidir.
+- Sem mudanças no Genius, ETL central, ou outras telas BI.
 
 ## Verificação
-- Abrir `/bi/faturamento-validacao` com backend ok → carrega normal.
-- Simular erro (filtro inválido) → cada card/tabela mostra "Não foi possível carregar", restante da tela continua funcional, botão Atualizar funciona.
-- Executar tarefa ETL com erro → toast de erro, modal não trava.
+- Migration aplicada: `select column_name from information_schema.columns where table_name='bi_faturamento' and column_name='fonte_acao'` retorna 1 linha.
+- Tela carrega: linhas antigas mostram `"SEM_FONTE"`; filtro por fonte aceita csv e funciona após backend implementar.
+- Export CSV inclui a nova coluna.
