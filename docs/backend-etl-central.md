@@ -107,17 +107,20 @@ Regras obrigatórias do backend:
 - Envelopar a query: `SELECT TOP {limite} * FROM ( <sql_resolvido> ) AS preview` (SQL Server) — preserva `ORDER BY` interno.
 - Timeout 15s; abortar se ultrapassar (`HTTP 408`).
 - Não gravar em nenhuma tabela do Cloud.
+- **Preservar o casing das colunas.** `_etl_rows_to_dict` (ou equivalente) precisa usar `cursor.description[i][0]` **exatamente** como veio do driver — **nada de `.lower()` / `.upper()`** no preview. As chaves de cada linha precisam casar 1:1 com `colunas[i].nome` da resposta, senão o frontend renderiza tudo como `null` (caso real: `SELECT 'SERVIÇOS' AS CD_TP_MOVIMENTO` retornando linhas com chave `cd_tp_movimento`).
 
 Resposta:
 ```json
 {
-  "colunas": [{ "nome": "CD_EMPRESA", "tipo": "varchar" }],
-  "linhas":  [{ "CD_EMPRESA": "1" }],
+  "colunas": [{ "nome": "CD_TP_MOVIMENTO", "tipo": "varchar" }],
+  "linhas":  [{ "CD_TP_MOVIMENTO": "SERVIÇOS" }],
   "qtd_linhas": 50,
   "tempo_ms": 1234,
   "truncado": true
 }
 ```
+As chaves de `linhas[i]` **devem** ser idênticas (incluindo caixa) aos `colunas[i].nome`.
+
 
 ## `GET /api/etl/acoes/{acao_ref}/comando-sql` — leitura do SQL real
 

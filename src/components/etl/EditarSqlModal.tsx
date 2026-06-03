@@ -58,6 +58,17 @@ interface Props {
 
 const fmt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
+/** Acesso à célula tolerante a casing — backend pode devolver chaves em outra caixa. */
+const pickCell = (row: Record<string, any>, col: string): any => {
+  if (row[col] !== undefined) return row[col];
+  const lower = col.toLowerCase();
+  if (row[lower] !== undefined) return row[lower];
+  const upper = col.toUpperCase();
+  if (row[upper] !== undefined) return row[upper];
+  const k = Object.keys(row).find((x) => x.toLowerCase() === lower);
+  return k ? row[k] : undefined;
+};
+
 const anomesAtual = () => {
   const d = new Date();
   return String(d.getFullYear() * 100 + (d.getMonth() + 1));
@@ -466,15 +477,18 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
                     <tbody>
                       {resultadoTeste.linhas.map((l, i) => (
                         <tr key={i} className="border-t">
-                          {resultadoTeste.colunas.map((c) => (
-                            <td key={c.nome} className="px-2 py-1 whitespace-nowrap">
-                              {l[c.nome] === null || l[c.nome] === undefined ? (
-                                <span className="text-muted-foreground italic">null</span>
-                              ) : (
-                                String(l[c.nome])
-                              )}
-                            </td>
-                          ))}
+                          {resultadoTeste.colunas.map((c) => {
+                            const v = pickCell(l, c.nome);
+                            return (
+                              <td key={c.nome} className="px-2 py-1 whitespace-nowrap">
+                                {v === null || v === undefined ? (
+                                  <span className="text-muted-foreground italic">null</span>
+                                ) : (
+                                  String(v)
+                                )}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>
