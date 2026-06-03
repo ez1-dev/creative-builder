@@ -101,10 +101,12 @@ Paginação server-side. Parâmetros extras: `page` (1-based, default 1), `page_
       "cd_tns": "511",
       "cd_cliente": "1234",
       "cd_centro_custos_3": "001",
+      "fonte_acao": "faturamento",
       "vl_bruto": 0.0,
       "vl_total": 0.0,
       "vl_devolucao": 0.0,
       "created_at": "2026-06-01T12:00:00Z"
+
     }
   ],
   "page": 1,
