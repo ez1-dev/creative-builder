@@ -115,7 +115,7 @@ export default function FaturamentoValidacaoPage() {
         return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
       };
       const header = cols.join(';');
-      const body = rows.map(r => cols.map(c => escape(r[c])).join(';')).join('\n');
+      const body = rows.map(r => cols.map(c => escape(renderCell(r, c))).join(';')).join('\n');
       const blob = new Blob(['\ufeff' + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
