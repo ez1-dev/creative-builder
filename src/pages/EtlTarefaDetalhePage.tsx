@@ -226,27 +226,31 @@ export default function EtlTarefaDetalhePage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Ações</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? <Skeleton className="h-32 w-full" /> : <DataTable columns={acoesColumns} data={acoes} />}
-        </CardContent>
-      </Card>
+      {!naoEncontrada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Ações</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? <Skeleton className="h-32 w-full" /> : <DataTable columns={acoesColumns} data={acoes} />}
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Últimas execuções</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-32 w-full" />
-          ) : (
-            <DataTable columns={execColumns} data={execucoes} emptyMessage="Nenhuma execução registrada" />
-          )}
-        </CardContent>
-      </Card>
+      {!naoEncontrada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Últimas execuções</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : (
+              <DataTable columns={execColumns} data={execucoes} emptyMessage="Nenhuma execução registrada" />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <ExecutarModal
         open={execModal.open}
