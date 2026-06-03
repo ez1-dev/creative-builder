@@ -38,6 +38,7 @@ type AlvoExec =
 export default function EtlTarefaDetalhePage() {
   const { nome = '' } = useParams<{ nome: string }>();
   const [tarefa, setTarefa] = useState<EtlTarefa | null>(null);
+  const [naoEncontrada, setNaoEncontrada] = useState(false);
   const [acoes, setAcoes] = useState<EtlAcao[]>([]);
   const [execucoes, setExecucoes] = useState<EtlExecucao[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,14 +49,21 @@ export default function EtlTarefaDetalhePage() {
 
   const load = async () => {
     setLoading(true);
+    setNaoEncontrada(false);
     try {
       const t = await detalheTarefa(nome);
-      setTarefa(t);
-      if (t) {
-        const [a, e] = await Promise.all([acoesTarefa(t.id), ultimasExecucoes(nome, 20)]);
-        setAcoes(a);
-        setExecucoes(e);
+      setTarefa(t ?? null);
+      if (!t) {
+        setNaoEncontrada(true);
+        setAcoes([]);
+        setExecucoes([]);
+        return;
       }
+      const [a, e] = await Promise.all([acoesTarefa(t.id), ultimasExecucoes(nome, 20)]);
+      setAcoes(a);
+      setExecucoes(e);
+    } catch {
+      setNaoEncontrada(true);
     } finally {
       setLoading(false);
     }
