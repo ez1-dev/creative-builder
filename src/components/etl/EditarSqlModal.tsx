@@ -216,24 +216,23 @@ export function EditarSqlModal({ open, onOpenChange, acao, podeEditar, onSalvo }
     setErroTeste(null);
     setResultadoTeste(null);
     try {
-      // Converte valores para tipo apropriado
+      // Converte valores para tipo apropriado; chaves em UPPERCASE
       const parametros: Record<string, string | number> = {};
       for (const p of placeholdersTeste) {
         const spec = PLACEHOLDER_SPECS[p];
         const raw = valoresTeste[p];
-        parametros[p.toLowerCase()] =
+        parametros[p] =
           spec.tipo === 'anomes' || spec.tipo === 'inteiro' ? Number(raw) : raw;
       }
-      const acaoRef =
-        (acao as any).codigo_acao ||
-        (acao as any).id_acao ||
-        (acao as any).nome ||
-        acao.id;
-      const resp = await testarSqlAcao(acaoRef, {
-        sql_template: sqlExibido,
+      const ref = acaoRef ?? acao.id;
+      // Só envia sql_template se o usuário editou; caso contrário, backend usa comando_sql salvo
+      const sqlEditado = sqlExibido !== sqlOriginal;
+      const payload: { sql_template?: string; parametros: typeof parametros; limite: number } = {
         parametros,
         limite,
-      });
+      };
+      if (sqlEditado) payload.sql_template = sqlExibido;
+      const resp = await testarSqlAcao(ref, payload);
       setResultadoTeste(resp);
     } catch (e: any) {
       setErroTeste(e?.message ?? 'Falha ao executar preview');
