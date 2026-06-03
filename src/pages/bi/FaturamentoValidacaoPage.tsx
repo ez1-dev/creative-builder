@@ -166,7 +166,9 @@ export default function FaturamentoValidacaoPage() {
     { key: 'cd_tns', header: 'TNS', render: (_, r) => r.cd_tns ?? '-' },
     { key: 'cd_cliente', header: 'Cliente', render: (_, r) => r.cd_cliente ?? '-' },
     { key: 'cd_centro_custos_3', header: 'CC3', render: (_, r) => r.cd_centro_custos_3 ?? '-' },
+    { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
     { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
+
     { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
     { key: 'vl_devolucao', header: 'VL Devolução', render: (_, r) => formatCurrency(num(r.vl_devolucao)), align: 'right' },
     { key: 'created_at', header: 'Criado em', render: (_, r) => formatDateBR(r.created_at) },
