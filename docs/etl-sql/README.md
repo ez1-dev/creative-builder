@@ -31,4 +31,4 @@ SQL_VM_FAT_TRB             = (_SQL_DIR / "SQL_VM_FAT_TRB.sql").read_text(encodin
 | `SQL_VM_FAT_TRB.sql`            | `SQL_VM_FAT_TRB`            | 120 | ação `VM_FAT_TRB` (tarefa `ATU_COMERCIAL`) |
 
 
-> `SQL_VM_FATURAMENTO` (ação principal) já vive no backend FastAPI; arquivo canônico ainda não foi extraído para este diretório.
+
