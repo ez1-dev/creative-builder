@@ -26,6 +26,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/producao/carga/recursos':   { codigo: 'PROD_CARGA_REC', nome: 'Carga de Produção — Por Centro de Recurso' },
   '/producao/programacao':      { codigo: 'PROD_PROGRAMACAO', nome: 'Programação e Sequenciamento' },
   '/cadastros/produtos':        { codigo: 'CAD_PRODUTOS',  nome: 'Consulta de Produtos' },
+  '/bi/faturamento-validacao':  { codigo: 'BI_FAT_VAL',    nome: 'Validação BI Faturamento' },
 
 
 };
