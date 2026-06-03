@@ -25,8 +25,10 @@ SQL_VM_FAT_TRB             = (_SQL_DIR / "SQL_VM_FAT_TRB.sql").read_text(encodin
 
 | Arquivo | Constante Python | Linhas | Usado por |
 |---------|------------------|--------|-----------|
+| `SQL_VM_FATURAMENTO.sql`        | `SQL_VM_FATURAMENTO`        | 515 | ação `VM_FATURAMENTO` (tarefa `ATU_COMERCIAL`) |
 | `SQL_VM_FATURAMENTO_MANUAL.sql` | `SQL_VM_FATURAMENTO_MANUAL` | 423 | ação `VM_FATURAMENTO_MANUAL` (tarefa `ATU_COMERCIAL`) |
 | `SQL_VM_FAT_CONTABIL.sql`       | `SQL_VM_FAT_CONTABIL`       | 357 | ação `VM_FAT_CONTABIL` (tarefa `ATU_COMERCIAL`) |
 | `SQL_VM_FAT_TRB.sql`            | `SQL_VM_FAT_TRB`            | 120 | ação `VM_FAT_TRB` (tarefa `ATU_COMERCIAL`) |
+
 
 > `SQL_VM_FATURAMENTO` (ação principal) já vive no backend FastAPI; arquivo canônico ainda não foi extraído para este diretório.
