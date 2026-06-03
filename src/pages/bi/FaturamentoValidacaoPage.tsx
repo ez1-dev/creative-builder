@@ -96,29 +96,34 @@ export default function FaturamentoValidacaoPage() {
   };
 
   const exportarCsv = () => {
-    const rows = qDet.data?.rows ?? [];
-    if (rows.length === 0) {
-      toast({ title: 'Nada para exportar', description: 'A tabela de detalhes está vazia.' });
-      return;
+    try {
+      const rows = qDet.data?.rows ?? [];
+      if (rows.length === 0) {
+        toast({ title: 'Nada para exportar', description: 'A tabela de detalhes está vazia.' });
+        return;
+      }
+      const cols: Array<keyof DetalheRow> = [
+        'cd_tp_movimento', 'cd_origem', 'cd_empresa', 'cd_filial', 'cd_nf', 'cd_serie',
+        'dt_emissao', 'anomes_emissao', 'cd_tns', 'cd_cliente', 'cd_centro_custos_3',
+        'vl_bruto', 'vl_total', 'vl_devolucao', 'created_at',
+      ];
+      const escape = (v: any) => {
+        const s = v === null || v === undefined ? '' : String(v);
+        return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const header = cols.join(';');
+      const body = rows.map(r => cols.map(c => escape(r[c])).join(';')).join('\n');
+      const blob = new Blob(['\ufeff' + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bi-faturamento-detalhes-pag${page}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('[FaturamentoValidacao] falha ao exportar CSV:', err);
+      toast({ title: 'Falha ao exportar', description: 'Não foi possível gerar o CSV.', variant: 'destructive' });
     }
-    const cols: Array<keyof DetalheRow> = [
-      'cd_tp_movimento', 'cd_origem', 'cd_empresa', 'cd_filial', 'cd_nf', 'cd_serie',
-      'dt_emissao', 'anomes_emissao', 'cd_tns', 'cd_cliente', 'cd_centro_custos_3',
-      'vl_bruto', 'vl_total', 'vl_devolucao', 'created_at',
-    ];
-    const escape = (v: any) => {
-      const s = v === null || v === undefined ? '' : String(v);
-      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const header = cols.join(';');
-    const body = rows.map(r => cols.map(c => escape(r[c])).join(';')).join('\n');
-    const blob = new Blob(['\ufeff' + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bi-faturamento-detalhes-pag${page}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const resumo = qResumo.data;
