@@ -220,7 +220,7 @@ export default function FaturamentoValidacaoPage() {
           ) : !resumo ? (
             <NoDataState />
           ) : (
-            <KpiGrid columns={4}>
+            <KpiGrid cols={7}>
               <KpiCard title="Qtd Linhas" value={num(resumo.qtd_linhas)} format="number" />
               <KpiCard title="VL Bruto" value={num(resumo.vl_bruto)} format="currency" />
               <KpiCard title="VL Total" value={num(resumo.vl_total)} format="currency" />
