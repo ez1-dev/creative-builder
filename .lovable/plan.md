@@ -1,30 +1,25 @@
-## Contexto
+## Plano
 
-O erro vem do FastAPI: a constante `SQL_VM_FATURAMENTO_MANUAL` em `app_unico.py` (dentro do dicionário `ETL_SQL_TEMPLATES`) está vazia. O SQL completo (≈420 linhas) já existe neste repositório em `docs/etl-sql/SQL_VM_FATURAMENTO_MANUAL.sql`, mas ainda não foi copiado para o backend.
+Verificar e popular `sql_template` da ação `VM_FATURAMENTO` na tabela `public.etl_acoes` do Lovable Cloud, alinhando com o padrão já aplicado para `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL` e `VM_FAT_TRB`.
 
-O mesmo provavelmente vale para `SQL_VM_FAT_CONTABIL` e `SQL_VM_FAT_TRB`, que também têm os `.sql` prontos em `docs/etl-sql/`.
+### Passos
 
-## Plano (a ser executado no backend FastAPI, fora do Lovable)
+1. **Conferir estado atual** via `supabase--read_query`:
+   - `SELECT id_acao, length(sql_template) FROM etl_acoes WHERE id_acao IN ('VM_FATURAMENTO','VM_FATURAMENTO_MANUAL','VM_FAT_CONTABIL','VM_FAT_TRB');`
+2. **Localizar SQL canônico** de `VM_FATURAMENTO`:
+   - Procurar em `docs/etl-sql/` (atualmente só existem os 3 manuais).
+   - Se não houver arquivo, extrair o SQL do backend FastAPI ou pedir o conteúdo ao usuário.
+3. **Criar arquivo canônico** `docs/etl-sql/SQL_VM_FATURAMENTO.sql` (fonte de verdade no repo).
+4. **Migration** (`supabase--migration`) para `UPDATE public.etl_acoes SET sql_template = $sql$...$sql$ WHERE id_acao = 'VM_FATURAMENTO';` preservando placeholders `$[ANOMES_INI]` / `$[ANOMES_FIM]`.
+5. **Atualizar `docs/etl-sql/README.md`** incluindo a nova linha na tabela de arquivos.
+6. **Validar** com novo `read_query` confirmando `length(sql_template) > 0` e reexecutar a tarefa `ATU_COMERCIAL` no backend.
 
-1. Abrir `app_unico.py` no projeto FastAPI.
-2. Localizar o dicionário `ETL_SQL_TEMPLATES` (criado no passo anterior).
-3. Substituir o valor das 3 chaves pelos SQLs completos dos arquivos:
-   - `SQL_VM_FATURAMENTO_MANUAL` ← `docs/etl-sql/SQL_VM_FATURAMENTO_MANUAL.sql`
-   - `SQL_VM_FAT_CONTABIL` ← `docs/etl-sql/SQL_VM_FAT_CONTABIL.sql`
-   - `SQL_VM_FAT_TRB` ← `docs/etl-sql/SQL_VM_FAT_TRB.sql`
-4. Usar string literal Python com aspas triplas (`r""" ... """`) para preservar `$[ANOMES_INI]` / `$[ANOMES_FIM]` sem escape.
-5. Reiniciar o FastAPI e reexecutar:
-   ```
-   POST /api/etl/tarefas/ATU_COMERCIAL/executar
-   { "parametros": { "ANOMES_INI": "202606", "ANOMES_FIM": "202606" } }
-   ```
+### Pergunta antes de executar
 
-### Alternativa (sem mexer no código do backend)
+Não existe `docs/etl-sql/SQL_VM_FATURAMENTO.sql` no repositório. Para popular o `sql_template` preciso da origem do SQL:
 
-Salvar o SQL diretamente no campo `comando_sql` (ou `sql_template`) de cada ação em `public.etl_acoes` via UI de ETL → "Editar SQL". O backend deve usar esse SQL persistido quando a constante estiver vazia. Posso aplicar isso pelo Lovable Cloud se preferir esse caminho.
+- **(A)** Você cola aqui o SQL completo de `VM_FATURAMENTO` (do `app_unico.py` ou da fonte original).
+- **(B)** A ação `VM_FATURAMENTO` deve ser **removida/desativada** porque foi substituída pelas 3 ações novas (manual / contábil / tributos).
+- **(C)** Deixar `VM_FATURAMENTO` como está (SQL já vive no FastAPI, não precisa estar no Cloud).
 
-## Pergunta
-
-Quer que eu:
-- **(A)** apenas confirme os caminhos dos `.sql` e você mesmo cola no `app_unico.py`, ou
-- **(B)** grave os 3 SQLs diretamente em `etl_acoes.sql_template` no Cloud (via migration) — assim o backend pega de lá sem precisar redeploy?
+Qual caminho?
