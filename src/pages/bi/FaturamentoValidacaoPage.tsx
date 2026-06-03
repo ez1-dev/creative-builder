@@ -133,7 +133,9 @@ export default function FaturamentoValidacaoPage() {
 
   const movColumns: Column<PorMovimentoRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
+    { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
     { key: 'cd_tp_movimento', header: 'Tp Mov', render: (_, r) => r.cd_tp_movimento ?? '-' },
+
     { key: 'cd_origem', header: 'Origem', render: (_, r) => r.cd_origem ?? '-' },
     { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
     { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
