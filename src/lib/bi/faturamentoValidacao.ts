@@ -26,6 +26,7 @@ export interface ResumoResponse {
 
 export interface PorMovimentoRow {
   anomes_emissao: string | null;
+  fonte_acao: string | null;
   cd_tp_movimento: string | null;
   cd_origem: string | null;
   qtd_linhas: number;
@@ -36,6 +37,7 @@ export interface PorMovimentoRow {
   vl_pis: number;
   vl_cofins: number;
 }
+
 
 export interface PorTnsRow {
   cd_tns: string | null;
