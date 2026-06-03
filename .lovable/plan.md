@@ -1,25 +1,30 @@
-## Preencher endpoint e tabela das 3 ações no Cloud
+## Contexto
 
-As ações `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL` e `VM_FAT_TRB` estão registradas em `etl_acoes` mas com `endpoint_api` e `tabela_destino` vazios, por isso aparecem com "—" na grade.
+O erro vem do FastAPI: a constante `SQL_VM_FATURAMENTO_MANUAL` em `app_unico.py` (dentro do dicionário `ETL_SQL_TEMPLATES`) está vazia. O SQL completo (≈420 linhas) já existe neste repositório em `docs/etl-sql/SQL_VM_FATURAMENTO_MANUAL.sql`, mas ainda não foi copiado para o backend.
 
-### Migration
+O mesmo provavelmente vale para `SQL_VM_FAT_CONTABIL` e `SQL_VM_FAT_TRB`, que também têm os `.sql` prontos em `docs/etl-sql/`.
 
-`UPDATE public.etl_acoes` aplicando:
+## Plano (a ser executado no backend FastAPI, fora do Lovable)
 
-| id_acao | endpoint_api | tabela_destino |
-|---|---|---|
-| VM_FATURAMENTO_MANUAL | `/api/etl/comercial/faturamento-manual` | `bi_faturamento` |
-| VM_FAT_CONTABIL | `/api/etl/comercial/faturamento-contabil` | `bi_faturamento` |
-| VM_FAT_TRB | `/api/etl/comercial/faturamento-tributos` | `bi_faturamento` |
+1. Abrir `app_unico.py` no projeto FastAPI.
+2. Localizar o dicionário `ETL_SQL_TEMPLATES` (criado no passo anterior).
+3. Substituir o valor das 3 chaves pelos SQLs completos dos arquivos:
+   - `SQL_VM_FATURAMENTO_MANUAL` ← `docs/etl-sql/SQL_VM_FATURAMENTO_MANUAL.sql`
+   - `SQL_VM_FAT_CONTABIL` ← `docs/etl-sql/SQL_VM_FAT_CONTABIL.sql`
+   - `SQL_VM_FAT_TRB` ← `docs/etl-sql/SQL_VM_FAT_TRB.sql`
+4. Usar string literal Python com aspas triplas (`r""" ... """`) para preservar `$[ANOMES_INI]` / `$[ANOMES_FIM]` sem escape.
+5. Reiniciar o FastAPI e reexecutar:
+   ```
+   POST /api/etl/tarefas/ATU_COMERCIAL/executar
+   { "parametros": { "ANOMES_INI": "202606", "ANOMES_FIM": "202606" } }
+   ```
 
-Mantém `tipo_comando='FUNCAO'`, `estrategia_carga='REPLACE_PERIODO'`, ordens 2/4/5 e `ativa` como está (a tarefa `ATU_COMERCIAL` executa todas em sequência independentemente do flag `ativa`, e força `APPEND` conforme spec do backend).
+### Alternativa (sem mexer no código do backend)
 
-### Backend
+Salvar o SQL diretamente no campo `comando_sql` (ou `sql_template`) de cada ação em `public.etl_acoes` via UI de ETL → "Editar SQL". O backend deve usar esse SQL persistido quando a constante estiver vazia. Posso aplicar isso pelo Lovable Cloud se preferir esse caminho.
 
-Spec em `docs/backend-etl-central.md` já cobre esses endpoints (rotas individuais opcionais via `/api/etl/acoes/{id}/executar`); o registro dos endpoints no Cloud é apenas informativo/UI e para execução individual futura. Nenhuma mudança de código frontend.
+## Pergunta
 
-### Fora de escopo
-
-- Frontend (a grade já lê `endpoint_api`/`tabela_destino` dos registros)
-- Código FastAPI (sem acesso)
-- Alterar `ativa` das 3 ações
+Quer que eu:
+- **(A)** apenas confirme os caminhos dos `.sql` e você mesmo cola no `app_unico.py`, ou
+- **(B)** grave os 3 SQLs diretamente em `etl_acoes.sql_template` no Cloud (via migration) — assim o backend pega de lá sem precisar redeploy?
