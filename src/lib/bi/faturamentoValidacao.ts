@@ -10,7 +10,9 @@ export interface FaturamentoValidacaoFiltros {
   cd_tns?: string;
   cd_centro_custos_3?: string;
   cd_nf?: string;
+  fonte_acao?: string;
 }
+
 
 export interface ResumoResponse {
   qtd_linhas: number;
