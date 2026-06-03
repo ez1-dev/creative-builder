@@ -10,7 +10,9 @@ export interface FaturamentoValidacaoFiltros {
   cd_tns?: string;
   cd_centro_custos_3?: string;
   cd_nf?: string;
+  fonte_acao?: string;
 }
+
 
 export interface ResumoResponse {
   qtd_linhas: number;
@@ -24,6 +26,7 @@ export interface ResumoResponse {
 
 export interface PorMovimentoRow {
   anomes_emissao: string | null;
+  fonte_acao: string | null;
   cd_tp_movimento: string | null;
   cd_origem: string | null;
   qtd_linhas: number;
@@ -34,6 +37,7 @@ export interface PorMovimentoRow {
   vl_pis: number;
   vl_cofins: number;
 }
+
 
 export interface PorTnsRow {
   cd_tns: string | null;
@@ -55,11 +59,13 @@ export interface DetalheRow {
   cd_tns: string | null;
   cd_cliente: string | null;
   cd_centro_custos_3: string | null;
+  fonte_acao: string | null;
   vl_bruto: number;
   vl_total: number;
   vl_devolucao: number;
   created_at: string | null;
 }
+
 
 export interface DetalhesResponse {
   rows: DetalheRow[];
@@ -78,7 +84,9 @@ const toParams = (f: FaturamentoValidacaoFiltros) => ({
   cd_tns: f.cd_tns || undefined,
   cd_centro_custos_3: f.cd_centro_custos_3 || undefined,
   cd_nf: f.cd_nf || undefined,
+  fonte_acao: f.fonte_acao || undefined,
 });
+
 
 export const getResumo = (f: FaturamentoValidacaoFiltros) =>
   api.get<ResumoResponse>('/api/bi/faturamento/resumo', toParams(f));

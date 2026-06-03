@@ -223,6 +223,7 @@ export type Database = {
           ds_abr_fpj: string | null
           ds_abr_prj: string | null
           dt_emissao: string | null
+          fonte_acao: string | null
           id: string
           id_nf: string | null
           mes_emissao: string | null
@@ -284,6 +285,7 @@ export type Database = {
           ds_abr_fpj?: string | null
           ds_abr_prj?: string | null
           dt_emissao?: string | null
+          fonte_acao?: string | null
           id: string
           id_nf?: string | null
           mes_emissao?: string | null
@@ -345,6 +347,7 @@ export type Database = {
           ds_abr_fpj?: string | null
           ds_abr_prj?: string | null
           dt_emissao?: string | null
+          fonte_acao?: string | null
           id?: string
           id_nf?: string | null
           mes_emissao?: string | null

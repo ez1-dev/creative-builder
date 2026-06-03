@@ -104,15 +104,18 @@ export default function FaturamentoValidacaoPage() {
       }
       const cols: Array<keyof DetalheRow> = [
         'cd_tp_movimento', 'cd_origem', 'cd_empresa', 'cd_filial', 'cd_nf', 'cd_serie',
-        'dt_emissao', 'anomes_emissao', 'cd_tns', 'cd_cliente', 'cd_centro_custos_3',
+        'dt_emissao', 'anomes_emissao', 'cd_tns', 'cd_cliente', 'cd_centro_custos_3', 'fonte_acao',
         'vl_bruto', 'vl_total', 'vl_devolucao', 'created_at',
       ];
+      const renderCell = (r: DetalheRow, c: keyof DetalheRow) =>
+        c === 'fonte_acao' ? (r.fonte_acao ?? 'SEM_FONTE') : r[c];
+
       const escape = (v: any) => {
         const s = v === null || v === undefined ? '' : String(v);
         return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
       };
       const header = cols.join(';');
-      const body = rows.map(r => cols.map(c => escape(r[c])).join(';')).join('\n');
+      const body = rows.map(r => cols.map(c => escape(renderCell(r, c))).join(';')).join('\n');
       const blob = new Blob(['\ufeff' + header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -130,7 +133,9 @@ export default function FaturamentoValidacaoPage() {
 
   const movColumns: Column<PorMovimentoRow>[] = useMemo(() => [
     { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
+    { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
     { key: 'cd_tp_movimento', header: 'Tp Mov', render: (_, r) => r.cd_tp_movimento ?? '-' },
+
     { key: 'cd_origem', header: 'Origem', render: (_, r) => r.cd_origem ?? '-' },
     { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
     { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
@@ -161,7 +166,9 @@ export default function FaturamentoValidacaoPage() {
     { key: 'cd_tns', header: 'TNS', render: (_, r) => r.cd_tns ?? '-' },
     { key: 'cd_cliente', header: 'Cliente', render: (_, r) => r.cd_cliente ?? '-' },
     { key: 'cd_centro_custos_3', header: 'CC3', render: (_, r) => r.cd_centro_custos_3 ?? '-' },
+    { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
     { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
+
     { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
     { key: 'vl_devolucao', header: 'VL Devolução', render: (_, r) => formatCurrency(num(r.vl_devolucao)), align: 'right' },
     { key: 'created_at', header: 'Criado em', render: (_, r) => formatDateBR(r.created_at) },
@@ -218,6 +225,8 @@ export default function FaturamentoValidacaoPage() {
             {filtroField('cd_tns', 'CD TNS', '511,...')}
             {filtroField('cd_centro_custos_3', 'CD CC3', '001,...')}
             {filtroField('cd_nf', 'CD NF', '12345')}
+            {filtroField('fonte_acao', 'Fonte Ação', 'faturamento,SEM_FONTE')}
+
             <div className="flex items-end">
               <Button size="sm" className="h-8 w-full" onClick={aplicarFiltros}>
                 Aplicar

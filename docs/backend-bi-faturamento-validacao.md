@@ -24,6 +24,8 @@ Todos opcionais. Filtros multi-valor aceitam lista separada por vírgula (ex.: `
 | `cd_tns` | csv string | `cd_tns IN (...)` |
 | `cd_centro_custos_3` | csv string | `cd_centro_custos_3 IN (...)` |
 | `cd_nf` | csv string | `cd_nf IN (...)` |
+| `fonte_acao` | csv string | `fonte_acao IN (...)`. Valor especial `SEM_FONTE` traduz para `fonte_acao IS NULL` (pode ser combinado, ex.: `fonte_acao=faturamento,SEM_FONTE`). |
+
 
 ## Endpoints
 
@@ -43,12 +45,13 @@ Todos opcionais. Filtros multi-valor aceitam lista separada por vírgula (ex.: `
 
 ### `GET /api/bi/faturamento/por-movimento`
 
-Agrupar por `anomes_emissao, cd_tp_movimento, cd_origem`. Retornar array.
+Agrupar por `anomes_emissao, fonte_acao, cd_tp_movimento, cd_origem`. Retornar array.
 
 ```json
 [
   {
     "anomes_emissao": "202601",
+    "fonte_acao": "faturamento",
     "cd_tp_movimento": "S",
     "cd_origem": "PROP",
     "qtd_linhas": 0,
@@ -61,6 +64,7 @@ Agrupar por `anomes_emissao, cd_tp_movimento, cd_origem`. Retornar array.
   }
 ]
 ```
+
 
 ### `GET /api/bi/faturamento/por-tns`
 
@@ -97,10 +101,12 @@ Paginação server-side. Parâmetros extras: `page` (1-based, default 1), `page_
       "cd_tns": "511",
       "cd_cliente": "1234",
       "cd_centro_custos_3": "001",
+      "fonte_acao": "faturamento",
       "vl_bruto": 0.0,
       "vl_total": 0.0,
       "vl_devolucao": 0.0,
       "created_at": "2026-06-01T12:00:00Z"
+
     }
   ],
   "page": 1,
@@ -110,6 +116,11 @@ Paginação server-side. Parâmetros extras: `page` (1-based, default 1), `page_
 ```
 
 `created_at` vem da coluna `atualizado_em` da tabela `bi_faturamento`.
+
+## fonte_acao
+
+Coluna `bi_faturamento.fonte_acao` (text, nullable) identifica qual ação ETL carregou a linha (ex.: `faturamento`, `faturamento-manual`, `faturamento-contabil`, `faturamento-tributos`). Os endpoints retornam o valor como veio do banco — quem renderiza `"SEM_FONTE"` quando `null` é o frontend. As ações do ETL (em `etl_acoes`) devem preencher `fonte_acao` com o próprio `id_acao` durante o upsert em `bi_faturamento`.
+
 
 ## Observações
 
