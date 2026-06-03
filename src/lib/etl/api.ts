@@ -183,8 +183,9 @@ export async function executarTarefa(nomeTarefa: string, payload: ExecucaoParams
 }
 
 export async function executarAcao(idAcao: string, payload: ExecucaoParams) {
+  const ref = encodeURIComponent(String(idAcao));
   return api.post<{ execucao_id: string; status: string; mensagem?: string }>(
-    `/api/etl/acoes/${idAcao}/executar`,
+    `/api/etl/acoes/${ref}/executar`,
     payload,
   );
 }
