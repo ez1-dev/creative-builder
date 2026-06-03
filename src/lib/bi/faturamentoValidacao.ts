@@ -59,11 +59,13 @@ export interface DetalheRow {
   cd_tns: string | null;
   cd_cliente: string | null;
   cd_centro_custos_3: string | null;
+  fonte_acao: string | null;
   vl_bruto: number;
   vl_total: number;
   vl_devolucao: number;
   created_at: string | null;
 }
+
 
 export interface DetalhesResponse {
   rows: DetalheRow[];
