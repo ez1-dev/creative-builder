@@ -58,6 +58,17 @@ interface Props {
 
 const fmt = (s: string | null) => (s ? new Date(s).toLocaleString('pt-BR') : '—');
 
+/** Acesso à célula tolerante a casing — backend pode devolver chaves em outra caixa. */
+const pickCell = (row: Record<string, any>, col: string): any => {
+  if (row[col] !== undefined) return row[col];
+  const lower = col.toLowerCase();
+  if (row[lower] !== undefined) return row[lower];
+  const upper = col.toUpperCase();
+  if (row[upper] !== undefined) return row[upper];
+  const k = Object.keys(row).find((x) => x.toLowerCase() === lower);
+  return k ? row[k] : undefined;
+};
+
 const anomesAtual = () => {
   const d = new Date();
   return String(d.getFullYear() * 100 + (d.getMonth() + 1));
