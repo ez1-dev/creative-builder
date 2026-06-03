@@ -1,16 +1,20 @@
-## Plano — popular `VM_FATURAMENTO` no Cloud
+## Objetivo
+Tornar o botão "Executar" clicável para `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL` e `VM_FAT_TRB`.
 
-Usar o SQL anexado (`user-uploads://VM_FATURAMENTO.txt`, 515 linhas) como fonte de verdade.
+## Causa
+Em `src/pages/EtlTarefaDetalhePage.tsx` (linha 111) o botão usa `disabled={!r.ativa}`. As 3 ações estão com `ativa = false` na tabela `etl_acoes`.
 
-### Passos
+## Mudanças
 
-1. **Criar arquivo canônico** `docs/etl-sql/SQL_VM_FATURAMENTO.sql` copiando o conteúdo de `/mnt/user-uploads/VM_FATURAMENTO.txt` literalmente (UTF-8, sem reformatar, preservando `$[ANOMES_INI]` / `$[ANOMES_FIM]`).
-2. **Migration** (`supabase--insert`) `UPDATE public.etl_acoes SET sql_template = $sql$...$sql$ WHERE id_acao = 'VM_FATURAMENTO'`.
-3. **Atualizar `docs/etl-sql/README.md`** incluindo a nova linha na tabela de arquivos (remover o aviso de que ainda não foi extraído).
-4. **Validar** com `SELECT id_acao, length(sql_template), sql_versao FROM etl_acoes WHERE id_acao IN ('VM_FATURAMENTO','VM_FATURAMENTO_MANUAL','VM_FAT_CONTABIL','VM_FAT_TRB');` confirmando 4 ações com `sql_template` populado.
+1. **Banco (`etl_acoes`)** — ativar as 3 ações:
+   ```sql
+   UPDATE public.etl_acoes
+   SET ativa = true
+   WHERE id_acao IN ('VM_FATURAMENTO_MANUAL','VM_FAT_CONTABIL','VM_FAT_TRB');
+   ```
 
-### Observação
+2. **Frontend (`src/pages/EtlTarefaDetalhePage.tsx` linha 111)** — remover `disabled={!r.ativa}` do botão Executar, mantendo o badge "Sim/Não" apenas como indicador visual. Assim qualquer ação, mesmo inativa, pode ser disparada manualmente para teste.
 
-O conteúdo enviado termina no `WHERE` da 3ª `UNION ALL` (linha 515 conforme preview truncado). Vou ler o arquivo completo de `/mnt/user-uploads/VM_FATURAMENTO.txt` antes de salvar — se houver fechamento adicional, será incluído integralmente.
-
-Confirma para eu executar?
+## Fora de escopo
+- Lógica de execução em lote (continua respeitando `ativa`).
+- Layout/colunas da tabela.

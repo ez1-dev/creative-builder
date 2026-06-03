@@ -108,7 +108,6 @@ export default function EtlTarefaDetalhePage() {
           </Button>
           <Button
             size="sm"
-            disabled={!r.ativa}
             onClick={() =>
               setExecModal({
                 open: true,
