@@ -1,111 +1,148 @@
-## Próximos incrementos do editor de SQL ETL
+# Plano — Configuração híbrida do FastAPI (entrega externa)
 
-Três melhorias complementares ao `EditarSqlModal` + contrato com a FastAPI.
+**Escopo confirmado:** só arquivos para você colar no repositório do **FastAPI**. Nada será alterado neste projeto Lovable. O frontend continua apontando para o Cloud atual (`cpgyhjqufxeweyswosuw`) — quem fala com o Supabase novo (`razvdopgxoiqucupmpxq`) é só o backend.
 
-### 1. Botão "Testar SQL" (preview contra o ERP)
+> ⚠️ A `SUPABASE_SERVICE_ROLE_KEY` colada no chat deve ser **rotacionada antes de subir** o backend. Use a chave nova ao preencher o `.env`.
 
-**Frontend (`EditarSqlModal.tsx`)**
-- Novo botão `Testar SQL` ao lado de `Salvar`, habilitado quando há `sql_template` não vazio.
-- Abre uma seção inline (collapsible) abaixo do editor com:
-  - Inputs para cada placeholder detectado (`ANOMES_INI`, `ANOMES_FIM`, etc) — pré-preenchidos com o mês corrente / anterior.
-  - Input numérico `Limite` (default 50, máx 500).
-  - Botão `Executar preview`.
-  - Área de resultado: tabela compacta (shadcn `Table`) com até N linhas, badge mostrando `qtd_linhas` e `tempo_ms`, ou alert de erro.
-- Sem persistência: é só uma execução efêmera, não grava em `etl_execucoes` nem em `bi_*`.
+---
 
-**Camada de API (`src/lib/etl/api.ts`)**
-- `testarSqlAcao(acaoId, { parametros, limite }) → { colunas, linhas, qtd_linhas, tempo_ms }`.
-- Manda o `sql_template` atual do editor (sem precisar salvar antes) no body, pra permitir testar antes de commitar a nova versão.
+## 1. Arquivo para você criar: `fastapi/.env`
 
-**Backend FastAPI (`docs/backend-etl-central.md`)**
-- Novo endpoint `POST /api/etl/acoes/{id_acao}/testar-sql`:
-  ```json
-  {
-    "sql_template": "SELECT ...",   // opcional; se omitido, usa o salvo no Cloud
-    "parametros": { "anomes_ini": 202601, "anomes_fim": 202604 },
-    "limite": 50
-  }
-  ```
-  Resposta:
-  ```json
-  {
-    "colunas": [{"nome": "CD_EMPRESA", "tipo": "varchar"}, ...],
-    "linhas": [{...}],
-    "qtd_linhas": 50,
-    "tempo_ms": 1234,
-    "truncado": true
-  }
-  ```
-- Regras obrigatórias:
-  - Bloquear DML/DDL via regex (`\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|merge|exec)\b`) — só `SELECT` / `WITH`.
-  - Validar `anomes_*` como `^\d{6}$` antes do replace dos `$[...]`.
-  - Envelopar a query: `SELECT TOP {limite} * FROM ( <sql_resolvido> ) AS preview` (SQL Server).
-  - Timeout 15s, abortar se ultrapassar.
-  - Nunca gravar em `etl_logs` / `etl_execucoes` (é preview).
+Conteúdo idêntico ao que você passou, com placeholders ONPREM/CLOUD preservados:
 
-### 2. Validador de placeholders no save
+```env
+# === Supabase (controle da aplicação) ===
+SUPABASE_URL=https://razvdopgxoiqucupmpxq.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_app0bEVB8HmHKxFYOwPjiQ_bi31bRa5
+SUPABASE_SERVICE_ROLE_KEY=<COLAR_CHAVE_NOVA_APOS_ROTACIONAR>
 
-Hoje `placeholders.ts` já detecta desconhecidos visualmente. Falta **bloquear save** quando há problema crítico.
+# === Modo da aplicação ===
+APP_AMBIENTE=producao
+APP_MODE=hybrid
+DB_MODE=hybrid
 
-**`src/lib/etl/placeholders.ts`**
-- Adicionar `validarParaSalvar(sql) → { ok: boolean, erros: string[], avisos: string[] }`:
-  - **Erro** (bloqueia): placeholder mal formado, ex.: `$[anomes_ini]` minúsculo, `$[ANOMES INI]` com espaço, `$[]` vazio.
-  - **Erro**: placeholder desconhecido fora da whitelist.
-  - **Aviso** (não bloqueia): SQL sem nenhum `$[ANOMES_*]` quando a ação tem `estrategia_carga = 'REPLACE_PERIODO'` (faz sentido alertar, mas dá pra salvar).
+# === ERP on-premise (SAPIENS) ===
+ONPREM_DB_ENABLED=true
+ONPREM_DB_TYPE=sqlserver
+ONPREM_DB_HOST=SEU_HOST_ONPREMISE
+ONPREM_DB_PORT=1433
+ONPREM_DB_DATABASE=SAPIENS
+ONPREM_DB_USER=SEU_USUARIO
+ONPREM_DB_PASSWORD=SUA_SENHA
+ONPREM_DB_DRIVER=ODBC Driver 18 for SQL Server
+ONPREM_DB_TRUST_CERTIFICATE=yes
 
-**`EditarSqlModal.tsx`**
-- No `handleSalvar`: chamar `validarParaSalvar`. Se `erros.length > 0`, mostrar toast vermelho com lista e abortar.
-- Se só houver `avisos`, abrir `AlertDialog` de confirmação ("Salvar mesmo assim?").
+# === Origem cloud (desligada por enquanto) ===
+CLOUD_DB_ENABLED=false
+CLOUD_DB_TYPE=sqlserver
+CLOUD_DB_HOST=
+CLOUD_DB_PORT=1433
+CLOUD_DB_DATABASE=
+CLOUD_DB_USER=
+CLOUD_DB_PASSWORD=
+CLOUD_DB_DRIVER=ODBC Driver 18 for SQL Server
+CLOUD_DB_TRUST_CERTIFICATE=yes
 
-### 3. Placeholders extras (`CODEMP`, `CODFIL`, datas, custom)
-
-**Whitelist canônica em `placeholders.ts`**
-```ts
-PLACEHOLDERS_SUPORTADOS = [
-  'ANOMES_INI', 'ANOMES_FIM',        // já existem
-  'DATA_INI', 'DATA_FIM',            // YYYY-MM-DD
-  'CODEMP', 'CODFIL',                // inteiros
-  'CODEMP_LIST', 'CODFIL_LIST',      // lista CSV para usar em IN (...)
-];
+# === Limites do preview de SQL no /etl ===
+ETL_SQL_PREVIEW_TIMEOUT_SECONDS=15
+ETL_SQL_PREVIEW_MAX_ROWS=500
+ETL_SQL_PREVIEW_DEFAULT_ROWS=100
+ETL_BLOCK_DML_DDL=true
 ```
-- Cada um com `tipo` e `validador` próprio:
-  - `ANOMES_*`: `/^\d{6}$/`
-  - `DATA_*`: `/^\d{4}-\d{2}-\d{2}$/`
-  - `CODEMP`, `CODFIL`: `/^\d+$/`
-  - `*_LIST`: lista de inteiros separados por vírgula, ex.: `1,2,5`
 
-**Frontend — `ExecutarModal.tsx` e seção de teste**
-- Detectar dinamicamente os placeholders do SQL (via `extrairPlaceholders`) e renderizar um input por placeholder, com tipo apropriado (`number`, `date`, `text`).
-- `executarTarefa` / `executarAcao` passa `parametros: Record<string, string|number>` (não mais só `anomes_ini/fim`).
-- Backwards-compat: continuar enviando `anomes_ini` / `anomes_fim` no nível raiz para tarefas legadas + replicar dentro de `parametros`.
+## 2. Arquivo `fastapi/.env.example` (versionado, sem segredos)
 
-**Backend (`docs/backend-etl-central.md`)**
-- Atualizar contrato: payload de execução vira `{ parametros: { ... }, acionado_por }`.
-- A FastAPI:
-  1. Lê o template do Cloud.
-  2. Para cada placeholder presente no SQL, valida o valor recebido com o regex correspondente.
-  3. Faz replace literal:
-     - Escalares: `$[CODEMP]` → `1`
-     - `*_LIST`: `$[CODEMP_LIST]` → `1,2,5` (numeric whitelist já garante segurança)
-     - Datas: `$[DATA_INI]` → `'2026-01-01'` (com aspas)
-  4. Aborta se sobrar `$[...]` não resolvido.
+Mesma estrutura, com placeholders genéricos em **todos** os campos sensíveis (`SUPABASE_*`, `ONPREM_DB_*`, `CLOUD_DB_*`).
 
-### Fora de escopo
-- Editor visual de parâmetros por ação (cadastro de tipos no Cloud). Por enquanto a whitelist fica hardcoded no frontend + backend.
-- Histórico de execuções de preview.
+## 3. Atualização do `fastapi/.gitignore`
 
-### Arquivos a alterar
+Garantir que estas linhas existam:
+```
+.env
+.env.local
+.env.*.local
+*.env
+```
 
-- `src/lib/etl/placeholders.ts` — whitelist expandida + `validarParaSalvar`
-- `src/lib/etl/api.ts` — `testarSqlAcao`, parâmetros genéricos em `executar*`
-- `src/components/etl/EditarSqlModal.tsx` — botão Testar SQL + bloqueio no salvar
-- `src/components/etl/ExecutarModal.tsx` — inputs dinâmicos por placeholder
-- `docs/backend-etl-central.md` — endpoint `/testar-sql` + novo contrato de parâmetros
-- `mem://features/etl-bi` — registrar whitelist e endpoint de teste
+## 4. Frontend Lovable — **nenhuma mudança**
 
-### Ordem sugerida de implementação
-1. Whitelist expandida + validador (item 2 + base do item 3) — só frontend, baixo risco.
-2. Inputs dinâmicos no `ExecutarModal` (item 3) — depende do backend aceitar `parametros`. Documentar contrato; manter fallback.
-3. Botão Testar SQL (item 1) — só funciona após FastAPI expor o endpoint novo. Frontend pode ir pronto com feature flag / mensagem "Backend ainda não implementou".
+- O `.env` atual (gerado pelo Lovable) já tem `VITE_SUPABASE_URL=https://cpgyhjqufxeweyswosuw.supabase.co` e a publishable key correta. **Não toco nele** (é auto-gerado).
+- Vite **ignora** variáveis `NEXT_PUBLIC_*` — então o `.env.local` que você pediu não teria efeito aqui. Se algum dia o frontend precisar falar com o Supabase novo, a forma certa seria criar uma edge function intermediária. Por ora, fica fora de escopo.
 
-Quer que eu siga essa ordem, ou prefere fazer só um item de cada vez (ex.: começar pelo **2 + 3** que são puramente frontend e o **1** quando a FastAPI estiver pronta)?
+## 5. Patch Python do FastAPI (entrega como arquivos prontos para colar)
+
+### 5.1 `fastapi/app/core/config.py` (ou equivalente)
+- Carregar `.env` com `python-dotenv` no boot (`load_dotenv()` em `main.py` antes dos imports de settings).
+- Adicionar pydantic-settings (ou os.getenv) para as novas chaves: `APP_MODE`, `DB_MODE`, `ONPREM_DB_*`, `CLOUD_DB_*`, `ETL_SQL_PREVIEW_*`, `ETL_BLOCK_DML_DDL`.
+- Helper `get_supabase_admin()` retornando um `supabase.Client` criado com `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. **Nunca** logar a chave.
+
+### 5.2 `fastapi/app/db/router.py` — seletor de conexão híbrida
+- Função `get_erp_engine()` que retorna a engine on-prem se `ONPREM_DB_ENABLED=true`, cloud se `CLOUD_DB_ENABLED=true`. Em modo `hybrid` prioriza on-prem e cai pra cloud só se desabilitado. Connection string SQL Server via pyodbc:
+  ```
+  mssql+pyodbc:///?odbc_connect=...DRIVER={ODBC Driver 18 for SQL Server};SERVER=...;DATABASE=...;UID=...;PWD=...;TrustServerCertificate=yes
+  ```
+
+### 5.3 `fastapi/app/routers/etl.py` — endpoint `POST /api/etl/acoes/{id_acao}/testar-sql`
+
+Comportamento:
+1. **Auth**: valida JWT do Supabase (mesmo padrão dos outros endpoints admin).
+2. **Buscar a ação no Supabase** via service role:
+   ```python
+   sb = get_supabase_admin()
+   row = sb.table("etl_acoes").select("*").eq("id_acao", id_acao).single().execute().data
+   ```
+3. **SQL a testar**: usa `payload.sql_template` se enviado; senão `row["sql_template"]`.
+4. **Validação anti-DML/DDL** (ativa quando `ETL_BLOCK_DML_DDL=true`):
+   - Tira comentários (`--...` e `/* ... */`).
+   - Quebra em statements por `;` ignorando vazios → exige **exatamente 1**.
+   - Primeira palavra deve ser `SELECT` ou `WITH` (case-insensitive).
+   - Rejeita se aparecer fora de string literal qualquer regex `\b(INSERT|UPDATE|DELETE|MERGE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|EXEC|EXECUTE|CALL|BACKUP|RESTORE|BULK|sp_|xp_)\b`.
+   - Retorna HTTP 400 com mensagem clara em caso de violação.
+5. **Substituição de placeholders**: usa o mesmo helper de `placeholders.py` (ANOMES_*, etc.) recebendo `payload.parametros`.
+6. **Limite de linhas**: `min(payload.limite or ETL_SQL_PREVIEW_DEFAULT_ROWS, ETL_SQL_PREVIEW_MAX_ROWS)`. Encapsula:
+   ```sql
+   SELECT TOP (:lim) * FROM (<sql_do_usuario>) AS preview
+   ```
+7. **Timeout**: executa em thread com `asyncio.wait_for(..., timeout=ETL_SQL_PREVIEW_TIMEOUT_SECONDS)`; em estouro → HTTP 408 com `tempo_ms`.
+8. **Resposta** compatível com `TestarSqlResponse` que o frontend já espera:
+   ```json
+   { "colunas":[{"nome":"x","tipo":"int"}], "linhas":[...], "qtd_linhas":N, "tempo_ms":123, "truncado":true|false }
+   ```
+
+### 5.4 Execuções ETL — aceitar `parametros` no body
+
+Endpoints afetados:
+- `POST /api/etl/tarefas/{nome}/executar`
+- `POST /api/etl/acoes/{id_acao}/executar`
+
+Schema Pydantic:
+```python
+class ExecucaoParams(BaseModel):
+    anomes_ini: int
+    anomes_fim: int
+    acionado_por: str | None = None
+    parametros: dict[str, str | int] | None = None
+```
+
+- Mesclar `parametros` (custom do usuário) com `{"ANOMES_INI":..., "ANOMES_FIM":...}` (sem deixar o custom sobrescrever os obrigatórios — ou sobrescrever, conforme a regra que você definir; padrão sugerido: **obrigatórios vencem**).
+- Persistir o dicionário final na coluna `etl_execucoes.parametros` (jsonb).
+- Repassar para o resolvedor de placeholders na hora de rodar o SQL.
+
+---
+
+## Detalhes técnicos — checklist de segurança
+
+- `SUPABASE_SERVICE_ROLE_KEY` lida **só** em `config.py` do backend; nunca retornada em response, nunca logada.
+- Cliente Supabase admin instanciado uma única vez (singleton) para não vazar via repr em stack traces.
+- Logs do `testar-sql` registram só: usuário, id_acao, tempo_ms, qtd_linhas, truncado. **Nunca** o SQL completo nem dados das linhas.
+- O frontend Lovable não precisa de nenhuma mudança — `src/lib/etl/api.ts` já manda `sql_template`, `parametros` e `limite` no payload de `testarSqlAcao`, e a `ExecucaoParams` no TS já contempla `parametros?: Record<string, string | number>`.
+
+---
+
+## O que será entregue na próxima mensagem (após você aprovar)
+
+1. Conteúdo final de `.env`, `.env.example` e bloco para `.gitignore`.
+2. Arquivos Python prontos: `config.py`, `db/router.py`, `routers/etl.py` (com endpoints `testar-sql`, `executar` tarefa e ação).
+3. Snippet de teste rápido (curl) para validar `testar-sql` e bloqueio de DML/DDL.
+
+Nada será gravado dentro deste repositório Lovable — vou te entregar tudo como texto para colar no repo do FastAPI.
