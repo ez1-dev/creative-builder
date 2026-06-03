@@ -185,6 +185,22 @@ export default function EtlTarefaDetalhePage() {
         }
       />
 
+      {naoEncontrada && !loading && (
+        <Card>
+          <CardContent className="p-6 text-center space-y-3">
+            <p className="text-sm font-semibold">Tarefa ETL não encontrada</p>
+            <p className="text-xs text-muted-foreground">
+              Não encontramos a tarefa <span className="font-mono">{nome}</span>. Verifique o nome ou volte para a lista.
+            </p>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/etl">
+                <ArrowLeft className="h-4 w-4 mr-1" /> Voltar para tarefas
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {tarefa && (
         <Card>
           <CardContent className="p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
