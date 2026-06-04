@@ -25,6 +25,7 @@ Todos opcionais. Filtros multi-valor aceitam lista separada por vírgula (ex.: `
 | `cd_centro_custos_3` | csv string | `cd_centro_custos_3 IN (...)` |
 | `cd_nf` | csv string | `cd_nf IN (...)` |
 | `fonte_acao` | csv string | `fonte_acao IN (...)`. Valor especial `SEM_FONTE` traduz para `fonte_acao IS NULL` (pode ser combinado, ex.: `fonte_acao=faturamento,SEM_FONTE`). |
+| `unidade_negocio` | csv string | Filtro pós-derivação (`GENIUS`, `ESTRUTURAL ZORTEA`, `CONSOLIDADO`, `SEM_UNIDADE`). Usado apenas pelos endpoints `unidade-comercial` e `unidade-tecnica`. |
 
 
 ## Endpoints
