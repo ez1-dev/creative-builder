@@ -50,11 +50,16 @@ const defaultAnomes = () => {
 export default function FaturamentoValidacaoPage() {
   const { toast } = useToast();
   const def = defaultAnomes();
-  const [draft, setDraft] = useState<FaturamentoValidacaoFiltros>({
+  const defaultsIniciais: FaturamentoValidacaoFiltros = {
     anomes_ini: def.ini,
     anomes_fim: def.fim,
-  });
-  const [filtros, setFiltros] = useState<FaturamentoValidacaoFiltros>(draft);
+    fonte_acao: 'faturamento,faturamento_manual',
+    unidade_negocio: 'GENIUS,ESTRUTURAL ZORTEA',
+    cd_tp_movimento: 'S',
+    cd_origem: 'PROP',
+  };
+  const [draft, setDraft] = useState<FaturamentoValidacaoFiltros>(defaultsIniciais);
+  const [filtros, setFiltros] = useState<FaturamentoValidacaoFiltros>(defaultsIniciais);
   const [page, setPage] = useState(1);
   const pageSize = 50;
 
