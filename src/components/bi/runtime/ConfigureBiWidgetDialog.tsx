@@ -140,7 +140,7 @@ export function ConfigureBiWidgetDialog({
 
   const variants = def?.variants ?? [];
   const hasBuiltin = !isCustom && variants.length > 0;
-  const tabCols = hasBuiltin && supportsSeries ? 3 : (hasBuiltin || supportsSeries ? 2 : 1);
+  const tabsCls = hasBuiltin && supportsSeries ? 'grid w-full grid-cols-3' : (hasBuiltin || supportsSeries ? 'grid w-full grid-cols-2' : 'grid w-full grid-cols-1');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
