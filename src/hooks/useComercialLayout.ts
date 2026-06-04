@@ -125,10 +125,7 @@ export function useComercialLayout(enabled: boolean = true) {
         };
       });
       const merged = mergeWithDefaults(mapped);
-      setWidgets((prev) => {
-        const same = JSON.stringify(prev) === JSON.stringify(merged);
-        return same ? prev : merged;
-      });
+      setWidgets((prev) => reuseIdentity(prev, merged));
     } finally {
       if (!opts?.silent) setLoading(false);
     }
