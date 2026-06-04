@@ -1,105 +1,63 @@
-# Plano — /bi/comercial via FastAPI
+## Enriquecer `/bi/comercial` com a Biblioteca BI
 
-A tela atual `/bi/comercial` consome a view `v_bi_faturamento_comercial` direto do Cloud e agrega no frontend. Vamos **substituir** essa lógica para consumir os 6 endpoints da FastAPI, mantendo o layout no padrão da biblioteca BI e da identidade visual UpQuery.
+Objetivo: aproveitar mais componentes de `@/components/bi` na tela do BI Comercial e habilitar o "Aplicar componente" (widgets do usuário), sem alterar a camada de dados (continua consumindo os 6 endpoints FastAPI já integrados).
 
-## 1. Camada de dados — `src/lib/bi/comercialApi.ts` (novo)
+### 1. Novos componentes da biblioteca na página
 
-Cliente FastAPI usando o `api` existente (`src/lib/api.ts`, já injeta `ngrok-skip-browser-warning` e auth).
+Adicionar/substituir, mantendo a estética azul corporativa e tokens semânticos:
 
-Helper genérico:
-```ts
-export function unwrapRpcResponse<T = any>(data: any, key: string): T | null {
-  if (!data) return null;
-  if (Array.isArray(data)) {
-    if (data.length === 1 && data[0]?.[key] !== undefined) return data[0][key];
-    return data as T;
-  }
-  if (data[key] !== undefined) return data[key];
-  return data as T;
-}
-```
+- **Filtros**
+  - Trocar o bloco manual de filtros pelo `FilterBar` + `SelectFilter` (Unidade) e `DateRangeFilter` adaptado para AnoMês (mantém os inputs `anomes_ini`/`anomes_fim` se o range não couber). Botão "Aplicar" continua disparando `setFiltros`.
+  - Manter o chip da unidade ativa.
 
-Tipos e fetchers (todos aceitam `{ anomes_ini, anomes_fim, unidade_negocio }` via querystring):
+- **KPIs**
+  - Manter `KpiGrid` + `KpiCard` para os 13 indicadores principais.
+  - Substituir o card "% Atingimento" por `KpiTargetCard` (valor = faturamento, meta = `kpis.meta`) — mostra barra de progresso e atingimento.
+  - Substituir "Diferença" por `KpiVariationCard` (atual = faturamento, anterior = meta) — mostra variação absoluta e %.
+  - Adicionar `KpiSparklineCard` para "Faturamento mensal" usando a série `mensal[].faturamento`, ao lado dos KPIs principais.
 
-- `fetchComercialKpis(params): Promise<ComercialKpis>` → `GET /api/bi/comercial/kpis` → `unwrap(..., 'bi_comercial_kpis')`
-- `fetchComercialMensal(params): Promise<ComercialMensalRow[]>` → `/api/bi/comercial/mensal` → `unwrap(..., 'bi_comercial_mensal')`
-- `fetchComercialMix(params): Promise<ComercialMixRow[]>` → `/api/bi/comercial/mix`
-- `fetchComercialEstado(params): Promise<ComercialEstadoRow[]>` → `/api/bi/comercial/estado`
-- `fetchComercialRevenda(params): Promise<ComercialRevendaRow[]>` → `/api/bi/comercial/revenda` (só GENIUS / CONSOLIDADO)
-- `fetchComercialObras(params): Promise<ComercialObrasRow[]>` → `/api/bi/comercial/obras` (só ESTRUTURAL / CONSOLIDADO)
+- **Gráficos**
+  - Manter `ComboChartCard` (mensal x meta) e `DonutChartCard` (mix).
+  - Trocar `FunnelChartCard` de "Top estados" por `HorizontalBarChartCard` (mais legível para ranking de UFs) e manter `BrazilMapCard` ao lado.
+  - Adicionar `RankingChartCard` no bloco GENIUS (Top revendas) ao invés de `BarChartCard` simples.
+  - Manter `TreemapChartCard` no bloco ESTRUTURAL (obras).
 
-Tipos refletem os campos citados (kpis: `faturamento, meta, diferenca, pct_atingimento, fat_liquido, impostos, devolucao, numero_vendas, numero_clientes, numero_estados, quantidade, ticket_medio, preco_medio`; mensal: `anomes_emissao, faturamento, fat_liquido, impostos, devolucao, numero_vendas, numero_clientes, quantidade, ticket_medio, preco_medio, meta?`; etc.). Tolerantes a `null` (default 0).
+- **Tabelas**
+  - Tabela mensal: manter `DataTableBI`.
+  - Revendas: trocar a `DataTableBI` por `RankingTable` (com posição, valor, % do total).
+  - Obras: trocar por `RankingTable` também.
 
-## 2. Página — reescrever `src/pages/bi/ComercialPage.tsx`
+- **Layout**
+  - Envolver a página no `DashboardLayout` da biblioteca (padroniza espaçamentos/seções com a `/biblioteca-bi`).
 
-Estrutura:
+Nenhuma cor hardcoded: tudo via tokens (`--primary`, `--warning`, `--muted-foreground`) já usados no `UNIDADE_STYLE`.
 
-```text
-PageHeader: "BI Comercial"
-Filtros card: [Unidade ▼] [AnoMês Ini] [AnoMês Fim] [Atualizar]
-KpiGrid (13 cards): Fat, Meta, Diferença, % Atingimento, Líquido, Impostos,
-                    Devolução, Nº Vendas, Nº Clientes, Nº Estados, Qtd,
-                    Ticket Médio, Preço Médio
-Grid 2 col:
-  - ComboChartCard mensal (barras: faturamento, fat_liquido, devolucao; linha: meta)
-  - DonutChartCard "Mix acumulado" (de /mix)
-DataTableBI mensal (10 colunas)
-Grid 2 col:
-  - FunnelChartCard "Top estados"  (de /estado)
-  - BrazilMapCard (de /estado)
-Bloco específico:
-  - GENIUS → BarChartCard + DataTableBI de revenda
-  - ESTRUTURAL → TreemapChartCard + DataTableBI de obras
-  - CONSOLIDADO → ambos lado a lado
-```
+### 2. Habilitar "Aplicar componente" (widgets do usuário)
 
-Comportamento:
+Seguindo o padrão usado em outras páginas BI:
 
-- `Select` de unidade (`GENIUS | ESTRUTURAL ZORTEA | CONSOLIDADO`) e dois inputs anomes; padrão `202601`/`202606`.
-- Usa **6 `useQuery`** independentes com `queryKey: ['bi-comercial', endpoint, filtros]`. Query de revenda só habilita quando `unidade ∈ {GENIUS, CONSOLIDADO}`; obras quando `∈ {ESTRUTURAL, CONSOLIDADO}`.
-- Botão Atualizar chama `refetch()` em todas as queries ativas.
-- Estados:
-  - Loading: `LoadingState` no header + skeleton nos cards/gráficos enquanto `isLoading`.
-  - Erro: `ErrorState` por bloco com `onRetry` na query daquele bloco e mensagem "Não foi possível carregar os dados do BI Comercial".
-  - Vazio: `EmptyState` com "Sem dados para o período selecionado".
-- Sem fallback mock.
+- Importar `ApplyComponentButton`, `UserWidgetsSlot` e `BiAutoSlots` de `@/components/bi`.
+- Definir um `pageId` estável: `"bi-comercial"`.
+- Colocar `ApplyComponentButton` no header da página (ao lado de "Atualizar"), permitindo ao usuário escolher um componente do catálogo da Biblioteca BI e aplicá-lo na própria tela.
+- Inserir `UserWidgetsSlot` nos pontos âncora da página (topo, após KPIs, após gráficos, rodapé) com `slotId`s distintos (`top`, `pos-kpis`, `pos-graficos`, `bottom`), para que os widgets aplicados pelo usuário renderizem nos locais certos.
+- Disponibilizar o contexto de dados via `PageDataContext` (`@/lib/bi/PageDataContext`) expondo `{ kpis, mensal, mix, estados, revendas, obras, filtros }`, para os widgets aplicados poderem consumir os mesmos dados já carregados (sem refazer requests).
+- Registrar a página em `src/lib/bi/pageRegistry.ts` com `id: 'bi-comercial'`, título e descrição — assim ela aparece como destino válido no fluxo de aplicação do `/biblioteca-bi`.
 
-Cores por unidade (tokens do design system, sem hex hardcoded):
+### Fora de escopo
 
-```ts
-const UNIDADE_STYLE = {
-  GENIUS:              { bar: 'hsl(var(--warning))',           mapVar: '--warning',           trigger: '...' },
-  'ESTRUTURAL ZORTEA': { bar: 'hsl(var(--primary))',           mapVar: '--primary',           trigger: '...' },
-  CONSOLIDADO:         { bar: 'hsl(var(--muted-foreground))',  mapVar: '--muted-foreground',  trigger: '...' },
-};
-```
+- Não alterar `comercialApi.ts`, endpoints FastAPI, view `v_bi_faturamento_comercial`, rota, sidebar ou `screenCatalog`.
+- Não mexer em outras páginas BI.
+- Não migrar para `PaginaDashboardTemplate`/`useDashboardData` (item 3 da pergunta anterior fica de fora).
 
-Aplicado a ComboChart `barColor`, BarChart `color`, BrazilMap `colorVar`, e ao chip da unidade ativa.
+### Arquivos afetados
 
-Formatação reusando `formatCurrency / formatNumber / formatPercent / formatQuantity` de `@/components/bi`. Valores `null` exibidos como 0.
+- Editado: `src/pages/bi/ComercialPage.tsx` (substituições de componentes, layout, slots de widgets, contexto de dados).
+- Editado: `src/lib/bi/pageRegistry.ts` (registrar `bi-comercial`).
+- Nenhum arquivo novo previsto; se o `PageDataProvider` exigir tipagem específica, criar `src/pages/bi/comercialPageContext.ts` apenas com os tipos.
 
-## 3. Remover dependência da view direta
+### Critério de aceite
 
-- `src/lib/bi/comercial.ts` (fetch direto da view) deixa de ser usado pela página. Manter o arquivo (pode ser útil em diagnóstico), porém remover qualquer import dele em `ComercialPage.tsx`.
-- A view `v_bi_faturamento_comercial` no Cloud **continua existindo** (Validação/Conciliação pode usá-la), mas a tela principal /bi/comercial não a consulta mais.
-
-## 4. Sem alterações em
-
-- `App.tsx`, `AppSidebar.tsx`, `screenCatalog.ts` (rota já existe).
-- Componentes BI existentes (`KpiGrid`, `ComboChartCard`, `DonutChartCard`, `FunnelChartCard`, `BrazilMapCard`, `BarChartCard`, `TreemapChartCard`, `DataTableBI`, `DashboardTabs`/`Select`).
-- Backend FastAPI (assumido já implementado com os 6 endpoints e a regra de unidade).
-- Telas de Validação/Conciliação que consomem fontes alternativas.
-
-## 5. Critério de aceite
-
-Com `anomes_ini=202601`, `anomes_fim=202606`, `unidade=GENIUS`, KPIs ≈:
-Faturamento 1.816.792,46 · Líquido 1.584.984,70 · Impostos −231.807,76 · Devolução 13.003,49 · Vendas 148 · Clientes 40 · Estados 9 · Quantidade 16.368.
-
-Trocando para ESTRUTURAL ZORTEA, os valores devem coincidir com a view comercial validada.
-
-## Detalhes técnicos
-
-- Querystring montada via `URLSearchParams`; `unidade_negocio` enviado como string exata (`"GENIUS"`, `"ESTRUTURAL ZORTEA"`, `"CONSOLIDADO"`).
-- `api.get<T>(endpoint, query)` já existe em `src/lib/api.ts` e cuida de headers, auth e erros amigáveis — usar.
-- `unwrapRpcResponse` aplicado em todos os fetchers para tolerar `array direto` ou `{ chave: ... }`.
-- Sem novos pacotes; sem migrações; sem edição de `client.ts`/`types.ts`/`.env`.
+- Tela `/bi/comercial` mantém os mesmos números (GENIUS Jan–Jun/2026: Faturamento ≈ 1.816.792,46 etc.).
+- KPIs de meta/variação e sparkline aparecem corretamente.
+- Ranking de revendas/obras usa `RankingTable`.
+- Botão "Aplicar componente" funciona: ao escolher um componente da biblioteca, ele é renderizado no slot escolhido e persiste para o usuário (via `useUserWidgets`, igual às demais páginas).
