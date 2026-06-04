@@ -161,11 +161,15 @@ export function SeriesEditor({ value, onChange, customMetrics, onCreateCustom, a
             </Button>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       <Dialog open={formulaOpen} onOpenChange={setFormulaOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Nova métrica calculada</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Nova métrica calculada</DialogTitle>
+            <DialogDescription>Crie uma fórmula combinando métricas existentes (ex.: faturamento − devolucao).</DialogDescription>
+          </DialogHeader>
           <FormulaBuilder value={draft} onChange={setDraft} />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setFormulaOpen(false)}>Cancelar</Button>
