@@ -503,7 +503,7 @@ export default function FaturamentoValidacaoPage() {
                   ) : (
                     <DataTableBI
                       columns={uniComColumns}
-                      data={qUniCom.data ?? []}
+                      data={uniComFiltradas}
                       loading={qUniCom.isLoading}
                       emptyMessage="Sem dados para os filtros selecionados."
                       rowClassName={(r) => r.unidade_negocio === 'CONSOLIDADO' ? 'font-semibold bg-muted/40' : ''}
