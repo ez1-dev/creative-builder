@@ -652,10 +652,16 @@ export default function ComercialPage() {
                   {qObras.isLoading ? <LoadingState height={280} /> :
                     qObras.isError ? <BlocoErro err={qObras.error} onRetry={() => qObras.refetch()} /> :
                     obrasTreeData.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-                    <TreemapChartCard
-                      title="ESTRUTURAL ZORTEA — Faturamento por obra (clique)"
-                      data={obrasTreeData}
+                    <BiSlot
+                      slot={COMERCIAL_SLOTS.obras}
                       onItemClick={onClickObra}
+                      defaultRender={() => (
+                        <TreemapChartCard
+                          title="ESTRUTURAL ZORTEA — Faturamento por obra (clique)"
+                          data={obrasTreeData}
+                          onItemClick={onClickObra}
+                        />
+                      )}
                     />}
                   {!qObras.isLoading && !qObras.isError && obrasRank.length > 0 && (
                     <Card><CardContent className="pt-4">
