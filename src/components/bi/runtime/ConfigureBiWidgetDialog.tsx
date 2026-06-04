@@ -151,13 +151,18 @@ export function ConfigureBiWidgetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={mode} onValueChange={(v) => setMode(v as 'builtin' | 'library')}>
-          {hasBuiltin && (
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="builtin">Variante padrão</TabsTrigger>
-              <TabsTrigger value="library">Biblioteca BI</TabsTrigger>
-            </TabsList>
-          )}
+        <Tabs
+          value={mode}
+          onValueChange={(v) => {
+            if (v === 'builtin' || v === 'library') setMode(v);
+            else setMode(v as any);
+          }}
+        >
+          <TabsList className={`grid w-full grid-cols-${tabCols}`}>
+            {hasBuiltin && <TabsTrigger value="builtin">Variante padrão</TabsTrigger>}
+            <TabsTrigger value="library">Biblioteca BI</TabsTrigger>
+            {supportsSeries && <TabsTrigger value="series">Séries</TabsTrigger>}
+          </TabsList>
 
           {hasBuiltin && (
             <TabsContent value="builtin" className="space-y-3 pt-3">
@@ -230,6 +235,21 @@ export function ConfigureBiWidgetDialog({
               </div>
             </div>
           </TabsContent>
+
+          {supportsSeries && (
+            <TabsContent value="series" className="pt-3 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Adicione múltiplas métricas para plotar juntas no mesmo gráfico. Quando vazio, o bloco usa a métrica padrão. Em gráficos de ranking (revendas, obras, estados, mix), apenas a primeira série é usada como medida.
+              </p>
+              <SeriesEditor
+                value={seriesList}
+                onChange={setSeriesList}
+                customMetrics={customMetrics}
+                onCreateCustom={(m) => onCreateCustomMetric?.(m)}
+                allowChartType={def?.kind === 'serie-mensal'}
+              />
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
