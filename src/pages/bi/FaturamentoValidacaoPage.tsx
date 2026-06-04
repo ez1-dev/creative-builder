@@ -95,18 +95,25 @@ export default function FaturamentoValidacaoPage() {
     retry: 1,
     refetchOnWindowFocus: false,
   });
+  // unidade_negocio é aplicado no frontend, então removemos do payload backend
+  const filtrosBackend = useMemo(() => {
+    const { unidade_negocio: _u, ...rest } = filtros;
+    return rest as FaturamentoValidacaoFiltros;
+  }, [filtros]);
+
   const qUniCom = useQuery({
-    queryKey: ['bi-fat-val', 'unidade-comercial', filtros],
-    queryFn: () => getUnidadeComercial(filtros),
+    queryKey: ['bi-fat-val', 'unidade-comercial', filtrosBackend],
+    queryFn: () => getUnidadeComercial(filtrosBackend),
     retry: 1,
     refetchOnWindowFocus: false,
   });
   const qUniTec = useQuery({
-    queryKey: ['bi-fat-val', 'unidade-tecnica', filtros],
-    queryFn: () => getUnidadeTecnica(filtros),
+    queryKey: ['bi-fat-val', 'unidade-tecnica', filtrosBackend],
+    queryFn: () => getUnidadeTecnica(filtrosBackend),
     retry: 1,
     refetchOnWindowFocus: false,
   });
+
 
   const qOptions = useQuery({
     queryKey: ['bi-fat-val', 'distinct-options'],
