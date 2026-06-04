@@ -1,47 +1,26 @@
 ## Objetivo
-Eliminar a piscada/recarregamento visual sem alterar regra de negócio, garantindo que autenticação e permissões carreguem apenas no início da sessão ou quando o usuário realmente mudar.
+Zerar os 2 avisos "No label associated with a form field" originados nos filtros AnoMês Inicial/Final, sem alterar API ou regra de negócio.
 
-## O que vou implementar
-1. **Estabilizar o AuthProvider**
-   - Remover o gatilho duplicado de sessão inicial em `src/contexts/AuthContext.tsx`.
-   - Fazer o carregamento do profile/ERP rodar apenas quando `user.id` mudar de fato.
-   - Tornar as atualizações de estado idempotentes para não disparar render sem mudança real.
-   - Revisar o fluxo `onAuthStateChange` + `getSession()` para impedir revalidação redundante.
+## Causa
+Três locais renderizam `<Label>` + `<Input>` para AnoMês sem `htmlFor`/`id` estáveis, então o React usa ids gerados (`:r21:`) e o Label fica solto:
 
-2. **Eliminar fan-out de permissões no layout principal**
-   - Consolidar a carga de permissões para ocorrer uma única vez por usuário autenticado.
-   - Revisar `src/contexts/PermissionsContext.tsx`, `src/hooks/useUserPermissions.ts`, `src/components/ProtectedRoute.tsx`, `src/components/AppSidebar.tsx` e `src/components/erp/AiAssistantChat.tsx` para garantir consumo passivo do estado já carregado.
-   - Remover dependências instáveis e evitar qualquer recálculo/carga repetida por múltiplos consumidores.
+1. `src/pages/bi/ComercialPage.tsx` (linhas 572–583) — AnoMês Início / AnoMês Fim.
+2. `src/pages/bi/FaturamentoValidacaoPage.tsx` (helper `filtroField`, linhas 325–340) — usado por `anomes_ini`, `anomes_fim` e demais filtros texto.
+3. `src/components/faturamento/AuditoriaRevendaTab.tsx` (linhas 420–438) — Ano/Mês inicial e final.
 
-3. **Remover gatilhos de loop/reload indiretos**
-   - Auditar e ajustar trechos no layout principal e autenticação que possam causar navegação/reload cíclico, incluindo `src/components/UpdateNotifier.tsx`, `src/pages/AuthCallback.tsx` e `src/pages/LoginPage.tsx`.
-   - Garantir que `navigate`, `reload`, timers, polling e refetches não fiquem presos em efeitos recorrentes.
-   - Não mexer no erro de `postMessage` do preview/editor, apenas ignorar como causa funcional.
+## Mudanças (somente apresentação)
 
-4. **Geolocalização só por ação do usuário**
-   - Confirmar e manter `src/components/HeaderInfo.tsx` sem chamada automática de geolocalização no carregamento.
-   - Se existir outro ponto chamando geolocalização em `useEffect`, remover.
+1. **ComercialPage.tsx** — adicionar `id="anomes_ini"` / `name="anomes_ini"` no `<Input>` e `htmlFor="anomes_ini"` no `<Label>`; idem para `anomes_fim`.
 
-5. **Corrigir os labels restantes**
-   - Corrigir os campos ainda sem associação correta de label em páginas/localizações encontradas na varredura, começando pelos formulários compartilhados e demais inputs/selects/textarea com warning real.
-   - Garantir `id` + `name` + `Label htmlFor`, ou `aria-label` quando não houver label visual.
+2. **FaturamentoValidacaoPage.tsx** — alterar o helper `filtroField` para derivar um id estável a partir de `key` (ex.: `id={`flt-${String(key)}`}`), aplicar `htmlFor` no Label e `id`/`name` no Input. Isso cobre `anomes_ini`, `anomes_fim` e os demais campos texto da mesma tela sem precisar mexer em cada chamada.
 
-6. **Validar o comportamento final**
-   - Verificar no preview que os logs de auth/permissões deixem de se repetir em cascata e que a tela pare de piscar.
-   - Validar também fora do editor, no link publicado, para confirmar que o comportamento não depende do ambiente do preview.
+3. **AuditoriaRevendaTab.tsx** — adicionar `id`/`name="anomes_ini"` e `htmlFor` correspondente; idem para `anomes_fim`. (Aplicar também aos outros Inputs do mesmo bloco — Projeto, etc. — para evitar warnings residuais já que estão no mesmo formulário.)
 
-## Detalhes técnicos
-- Arquivos centrais já inspecionados: `AuthContext.tsx`, `PermissionsContext.tsx`, `useUserPermissions.ts`, `ProtectedRoute.tsx`, `AppLayout.tsx`, `AppSidebar.tsx`, `HeaderInfo.tsx`, `UserTrackingProvider.tsx`, `UpdateNotifier.tsx`, `AuthCallback.tsx`, `LoginPage.tsx`.
-- Achados principais:
-  - `AuthContext` ainda faz tratamento duplicado da sessão inicial (`onAuthStateChange` + `getSession()`), o que pode gerar re-render extra mesmo sem novo usuário.
-  - O provider de auth ainda atualiza vários estados separados durante o bootstrap, aumentando churn visual.
-  - O provider de permissões já centraliza parte do problema, mas ainda precisa blindagem extra contra recargas/re-execuções e consumo em cascata no layout.
-  - `HeaderInfo` não está mais pedindo geolocalização automaticamente.
-  - Há labels restantes sem `htmlFor`/`id` em arquivos como os compartilhados de manutenção, além de outros formulários antigos que precisam de saneamento.
+## Padrão adotado
+- Ids estáveis em snake_case (`anomes_ini`, `anomes_fim`), nunca ids gerados como `name`.
+- Label sempre com `htmlFor` igual ao `id` do Input.
+- Nenhum componente compartilhado (`FilterPanel`, `FilterBar`, `SelectFilter`, `MultiSelectFilter`) muda de assinatura — apenas o helper local `filtroField` ganha id derivado da própria key.
 
-## Resultado esperado
-- Sem piscada visual no carregamento normal.
-- Sem loop de `useEffect` em auth/permissões.
-- `loadProfile`, `checkErpApi` e `loadPermissions` executando uma vez por sessão/usuário.
-- Sem geolocalização automática.
-- Warnings restantes de label removidos.
+## Fora de escopo
+- Nenhuma alteração em endpoints, filtros, queries, lógica de negócio.
+- Outras telas (Carga, Programação, OndeUsa, etc.) já usam `useId`/`htmlFor` corretos e não disparam o aviso atual.

@@ -326,18 +326,23 @@ export default function FaturamentoValidacaoPage() {
     key: keyof FaturamentoValidacaoFiltros,
     label: string,
     placeholder?: string,
-  ) => (
-    <div>
-      <Label className="text-xs">{label}</Label>
-      <Input
-        className="h-8 text-xs"
-        value={draft[key] ?? ''}
-        placeholder={placeholder}
-        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-        onKeyDown={(e) => { if (e.key === 'Enter') aplicarFiltros(); }}
-      />
-    </div>
-  );
+  ) => {
+    const fieldId = `flt-${String(key)}`;
+    return (
+      <div>
+        <Label htmlFor={fieldId} className="text-xs">{label}</Label>
+        <Input
+          id={fieldId}
+          name={String(key)}
+          className="h-8 text-xs"
+          value={draft[key] ?? ''}
+          placeholder={placeholder}
+          onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+          onKeyDown={(e) => { if (e.key === 'Enter') aplicarFiltros(); }}
+        />
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4 p-4">
