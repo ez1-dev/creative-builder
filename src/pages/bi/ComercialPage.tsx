@@ -438,34 +438,58 @@ export default function ComercialPage() {
   }
 
   const visibleWidgets = layout.widgets.filter((w) => !w.hidden);
+
+  // Chave estável: muda só quando o CONTEÚDO dos blocos muda (não na geometria).
+  // Assim, resize/drag dos cards não recomputa `blocks` e os Recharts não remontam.
+  const widgetsContentKey = layout.widgets
+    .map((w) => [
+      w.type, w.hidden ? 1 : 0, w.componentId ?? '', w.variant ?? '',
+      w.customTitle ?? '', JSON.stringify(w.mapping ?? null),
+      JSON.stringify(w.options ?? null), JSON.stringify(w.series ?? null),
+    ].join('|'))
+    .join('~');
+
   const blocks = useMemo(() => {
     const out: Record<string, ReactNode> = {};
     visibleWidgets.forEach((w) => { out[w.type] = renderWidget(w); });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout.widgets, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
+  }, [widgetsContentKey, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
       qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
       customMetrics.metrics, hiddenSeries]);
 
   // ===== Builder handlers =====
-  // Debounce do save de layout durante edição: evita avalanche de UPDATEs
-  // se o usuário fizer vários ajustes seguidos. PassagensLayoutGrid já só
-  // emite no commit (drag/resize stop), mas o debounce é blindagem extra.
-  const pendingLayoutRef = useRef<{ type: string; layout: { x: number; y: number; w: number; h: number } }[] | null>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); }, []);
+  // Em modo edição, drag/resize só atualiza um DRAFT local. A persistência
+  // acontece apenas ao clicar em "Salvar Dashboard". Elimina UPDATEs durante
+  // o gesto, evita reload do banco e impede remount dos gráficos.
+  const [layoutDraft, setLayoutDraft] = useState<{ type: string; layout: { x: number; y: number; w: number; h: number } }[] | null>(null);
 
   const handleLayoutChange = (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
-    pendingLayoutRef.current = next;
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      const payload = pendingLayoutRef.current;
-      pendingLayoutRef.current = null;
-      saveTimerRef.current = null;
-      if (!payload) return;
-      layout.saveLayout(payload.map((it) => ({ type: it.type, layout: it.layout })))
-        .catch((e: any) => toast.error(`Erro ao salvar layout: ${e?.message ?? e}`));
-    }, 700);
+    setLayoutDraft(next);
+  };
+
+  const handleSaveDashboard = async () => {
+    if (layoutDraft && layoutDraft.length > 0) {
+      try {
+        await layout.saveLayout(layoutDraft.map((it) => ({ type: it.type, layout: it.layout })));
+        toast.success('Dashboard salvo');
+      } catch (e: any) {
+        toast.error(`Erro ao salvar layout: ${e?.message ?? e}`);
+        return;
+      }
+    }
+    setLayoutDraft(null);
+    setEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setLayoutDraft(null);
+    setEditing(false);
+  };
+
+  const handleEnterEdit = () => {
+    setLayoutDraft(null);
+    setEditing(true);
   };
 
   const handleHide = async (type: string) => {
