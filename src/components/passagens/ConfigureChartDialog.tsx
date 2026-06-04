@@ -127,7 +127,7 @@ export function ConfigureChartDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar gráfico</DialogTitle>
           <DialogDescription>
@@ -188,6 +188,14 @@ export function ConfigureChartDialog({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-md border p-3">
+          <VisualConfigEditor
+            value={visual}
+            onChange={setVisual}
+            availableSeriesKeys={['valor']}
+          />
         </div>
 
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
