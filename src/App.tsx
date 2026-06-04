@@ -53,6 +53,7 @@ import EtlAdminPage from "@/pages/EtlAdminPage";
 import EtlTarefaDetalhePage from "@/pages/EtlTarefaDetalhePage";
 import FaturamentoValidacaoPage from "@/pages/bi/FaturamentoValidacaoPage";
 import ComercialPage from "@/pages/bi/ComercialPage";
+import MetasFaturamentoPage from "@/pages/bi/MetasFaturamentoPage";
 import BalancoPatrimonialPage from "@/pages/contabilidade/BalancoPatrimonialPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/etl/tarefas/:nome" element={<ProtectedRoute path="/etl"><EtlTarefaDetalhePage /></ProtectedRoute>} />
               <Route path="/bi/faturamento-validacao" element={<ProtectedRoute path="/bi/faturamento-validacao"><FaturamentoValidacaoPage /></ProtectedRoute>} />
               <Route path="/bi/comercial" element={<ProtectedRoute path="/bi/comercial"><ComercialPage /></ProtectedRoute>} />
+              <Route path="/bi/comercial/metas" element={<ProtectedRoute path="/bi/comercial/metas"><MetasFaturamentoPage /></ProtectedRoute>} />
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               {/* Regras Senior */}

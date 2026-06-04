@@ -35,6 +35,7 @@ const modules = [
   { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
   { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
   { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
+  { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
   { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
   { title: 'Consulta NF Receb.', url: '/notas-recebimento', icon: FileInput },
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
