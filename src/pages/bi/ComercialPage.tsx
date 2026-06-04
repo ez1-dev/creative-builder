@@ -605,12 +605,15 @@ export default function ComercialPage() {
             mapping: configuringWidget.mapping,
             options: configuringWidget.options,
             customTitle: configuringWidget.customTitle,
+            series: configuringWidget.series,
           }}
           blockType={configuringWidget.type}
           fallbackTitle={configuringWidget.title}
           onApply={handleConfigApply}
           onResetToDefault={configuringDef ? handleConfigReset : undefined}
           kpis={kpis} series={pageSeries} rows={mensal as any[]}
+          customMetrics={customMetrics.metrics}
+          onCreateCustomMetric={(m) => customMetrics.upsert(m).catch((e) => toast.error(`Erro ao salvar métrica: ${e?.message ?? e}`))}
         />
       )}
       <AddBiWidgetDialog
