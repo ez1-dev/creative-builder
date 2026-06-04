@@ -10,6 +10,7 @@ import {
   KpiCard,
   KpiGrid,
   DataTableBI,
+  DashboardTabs,
   NoDataState,
   LoadingState,
   ErrorState,
@@ -23,10 +24,14 @@ import {
   getPorMovimento,
   getPorTns,
   getDetalhes,
+  getUnidadeComercial,
+  getUnidadeTecnica,
   type FaturamentoValidacaoFiltros,
   type PorMovimentoRow,
   type PorTnsRow,
   type DetalheRow,
+  type UnidadeComercialRow,
+  type UnidadeTecnicaRow,
 } from '@/lib/bi/faturamentoValidacao';
 import { useToast } from '@/hooks/use-toast';
 
@@ -77,6 +82,18 @@ export default function FaturamentoValidacaoPage() {
     retry: 1,
     refetchOnWindowFocus: false,
   });
+  const qUniCom = useQuery({
+    queryKey: ['bi-fat-val', 'unidade-comercial', filtros],
+    queryFn: () => getUnidadeComercial(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+  const qUniTec = useQuery({
+    queryKey: ['bi-fat-val', 'unidade-tecnica', filtros],
+    queryFn: () => getUnidadeTecnica(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
   const aplicarFiltros = () => {
     setFiltros({ ...draft });
@@ -89,6 +106,8 @@ export default function FaturamentoValidacaoPage() {
       qMov.refetch();
       qTns.refetch();
       qDet.refetch();
+      qUniCom.refetch();
+      qUniTec.refetch();
     } catch (err) {
       console.warn('[FaturamentoValidacao] falha ao atualizar:', err);
       toast({ title: 'Falha ao atualizar', description: 'Tente novamente em instantes.', variant: 'destructive' });
@@ -174,6 +193,33 @@ export default function FaturamentoValidacaoPage() {
     { key: 'created_at', header: 'Criado em', render: (_, r) => formatDateBR(r.created_at) },
   ], []);
 
+  const uniComColumns: Column<UnidadeComercialRow>[] = useMemo(() => [
+    { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
+    { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
+    { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
+    { key: 'vl_devolucao', header: 'VL Devolução', render: (_, r) => formatCurrency(num(r.vl_devolucao)), align: 'right' },
+    { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
+    { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
+    { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
+  ], []);
+
+  const uniTecColumns: Column<UnidadeTecnicaRow>[] = useMemo(() => [
+    { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
+    { key: 'cd_tp_movimento', header: 'Tp Mov', render: (_, r) => r.cd_tp_movimento ?? '-' },
+    { key: 'cd_origem', header: 'Origem', render: (_, r) => r.cd_origem ?? '-' },
+    { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
+    { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
+    { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
+    { key: 'vl_devolucao', header: 'VL Devolução', render: (_, r) => formatCurrency(num(r.vl_devolucao)), align: 'right' },
+    { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
+    { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
+    { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
+  ], []);
+
   const totalPaginas = qDet.data ? Math.max(1, Math.ceil(qDet.data.total / pageSize)) : 1;
 
   const filtroField = (
@@ -226,6 +272,8 @@ export default function FaturamentoValidacaoPage() {
             {filtroField('cd_centro_custos_3', 'CD CC3', '001,...')}
             {filtroField('cd_nf', 'CD NF', '12345')}
             {filtroField('fonte_acao', 'Fonte Ação', 'faturamento,SEM_FONTE')}
+            {filtroField('unidade_negocio', 'Unidade Negócio', 'GENIUS,ESTRUTURAL ZORTEA')}
+
 
             <div className="flex items-end">
               <Button size="sm" className="h-8 w-full" onClick={aplicarFiltros}>
@@ -236,78 +284,137 @@ export default function FaturamentoValidacaoPage() {
         </CardContent>
       </Card>
 
-      {/* Seção 1: Cards resumo */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Resumo</CardTitle></CardHeader>
-        <CardContent>
-          {qResumo.isLoading ? (
-            <LoadingState height={120} />
-          ) : qResumo.isError ? (
-            <ErrorState message={String((qResumo.error as any)?.message ?? 'Erro ao carregar resumo')} />
-          ) : !resumo ? (
-            <NoDataState />
-          ) : (
-            <KpiGrid cols={7}>
-              <KpiCard title="Qtd Linhas" value={num(resumo.qtd_linhas)} format="number" />
-              <KpiCard title="VL Bruto" value={num(resumo.vl_bruto)} format="currency" />
-              <KpiCard title="VL Total" value={num(resumo.vl_total)} format="currency" />
-              <KpiCard title="VL Devolução" value={num(resumo.vl_devolucao)} format="currency" />
-              <KpiCard title="VL ICMS" value={num(resumo.vl_icms)} format="currency" />
-              <KpiCard title="VL PIS" value={num(resumo.vl_pis)} format="currency" />
-              <KpiCard title="VL COFINS" value={num(resumo.vl_cofins)} format="currency" />
-            </KpiGrid>
-          )}
-        </CardContent>
-      </Card>
+      <DashboardTabs
+        tabs={[
+          {
+            value: 'geral',
+            label: 'Resumo geral',
+            content: (
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Resumo</CardTitle></CardHeader>
+                  <CardContent>
+                    {qResumo.isLoading ? (
+                      <LoadingState height={120} />
+                    ) : qResumo.isError ? (
+                      <ErrorState message={String((qResumo.error as any)?.message ?? 'Erro ao carregar resumo')} />
+                    ) : !resumo ? (
+                      <NoDataState />
+                    ) : (
+                      <KpiGrid cols={7}>
+                        <KpiCard title="Qtd Linhas" value={num(resumo.qtd_linhas)} format="number" />
+                        <KpiCard title="VL Bruto" value={num(resumo.vl_bruto)} format="currency" />
+                        <KpiCard title="VL Total" value={num(resumo.vl_total)} format="currency" />
+                        <KpiCard title="VL Devolução" value={num(resumo.vl_devolucao)} format="currency" />
+                        <KpiCard title="VL ICMS" value={num(resumo.vl_icms)} format="currency" />
+                        <KpiCard title="VL PIS" value={num(resumo.vl_pis)} format="currency" />
+                        <KpiCard title="VL COFINS" value={num(resumo.vl_cofins)} format="currency" />
+                      </KpiGrid>
+                    )}
+                  </CardContent>
+                </Card>
 
-      {/* Seção 2: Por movimento */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Resumo por movimento</CardTitle></CardHeader>
-        <CardContent>
-          <DataTableBI
-            columns={movColumns}
-            data={qMov.data ?? []}
-            loading={qMov.isLoading}
-            emptyMessage="Sem dados para os filtros selecionados."
-          />
-        </CardContent>
-      </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Resumo por movimento</CardTitle></CardHeader>
+                  <CardContent>
+                    <DataTableBI
+                      columns={movColumns}
+                      data={qMov.data ?? []}
+                      loading={qMov.isLoading}
+                      emptyMessage="Sem dados para os filtros selecionados."
+                    />
+                  </CardContent>
+                </Card>
 
-      {/* Seção 3: Por TNS */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">Resumo por TNS</CardTitle></CardHeader>
-        <CardContent>
-          <DataTableBI
-            columns={tnsColumns}
-            data={qTns.data ?? []}
-            loading={qTns.isLoading}
-            emptyMessage="Sem dados para os filtros selecionados."
-          />
-        </CardContent>
-      </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Resumo por TNS</CardTitle></CardHeader>
+                  <CardContent>
+                    <DataTableBI
+                      columns={tnsColumns}
+                      data={qTns.data ?? []}
+                      loading={qTns.isLoading}
+                      emptyMessage="Sem dados para os filtros selecionados."
+                    />
+                  </CardContent>
+                </Card>
 
-      {/* Seção 4: Detalhes */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm">
-            Detalhes {qDet.data ? `(${formatNumber(qDet.data.total)} registros)` : ''}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DataTableBI
-            columns={detColumns}
-            data={qDet.data?.rows ?? []}
-            loading={qDet.isLoading}
-            emptyMessage="Sem dados para os filtros selecionados."
-            pagination={{
-              pagina: page,
-              totalPaginas,
-              totalRegistros: qDet.data?.total ?? 0,
-              onPageChange: setPage,
-            }}
-          />
-        </CardContent>
-      </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">
+                      Detalhes {qDet.data ? `(${formatNumber(qDet.data.total)} registros)` : ''}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DataTableBI
+                      columns={detColumns}
+                      data={qDet.data?.rows ?? []}
+                      loading={qDet.isLoading}
+                      emptyMessage="Sem dados para os filtros selecionados."
+                      pagination={{
+                        pagina: page,
+                        totalPaginas,
+                        totalRegistros: qDet.data?.total ?? 0,
+                        onPageChange: setPage,
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            ),
+          },
+          {
+            value: 'comercial',
+            label: 'Comercial por Unidade',
+            content: (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">
+                    Faturamento por unidade (fontes: VM_FATURAMENTO, VM_FATURAMENTO_MANUAL)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {qUniCom.isError ? (
+                    <ErrorState message={String((qUniCom.error as any)?.message ?? 'Erro ao carregar comercial por unidade')} />
+                  ) : (
+                    <DataTableBI
+                      columns={uniComColumns}
+                      data={qUniCom.data ?? []}
+                      loading={qUniCom.isLoading}
+                      emptyMessage="Sem dados para os filtros selecionados."
+                      rowClassName={(r) => r.unidade_negocio === 'CONSOLIDADO' ? 'font-semibold bg-muted/40' : ''}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            ),
+          },
+          {
+            value: 'tecnico',
+            label: 'Técnico / Conciliação',
+            content: (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">
+                    Conciliação por fonte (todas as fontes ETL)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {qUniTec.isError ? (
+                    <ErrorState message={String((qUniTec.error as any)?.message ?? 'Erro ao carregar conciliação técnica')} />
+                  ) : (
+                    <DataTableBI
+                      columns={uniTecColumns}
+                      data={qUniTec.data ?? []}
+                      loading={qUniTec.isLoading}
+                      emptyMessage="Sem dados para os filtros selecionados."
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

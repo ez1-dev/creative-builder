@@ -11,6 +11,34 @@ export interface FaturamentoValidacaoFiltros {
   cd_centro_custos_3?: string;
   cd_nf?: string;
   fonte_acao?: string;
+  unidade_negocio?: string;
+}
+
+export interface UnidadeComercialRow {
+  anomes_emissao: string | null;
+  unidade_negocio: string;
+  qtd_linhas: number;
+  vl_bruto: number;
+  vl_total: number;
+  vl_devolucao: number;
+  vl_icms: number;
+  vl_pis: number;
+  vl_cofins: number;
+}
+
+export interface UnidadeTecnicaRow {
+  anomes_emissao: string | null;
+  unidade_negocio: string;
+  fonte_acao: string | null;
+  cd_tp_movimento: string | null;
+  cd_origem: string | null;
+  qtd_linhas: number;
+  vl_bruto: number;
+  vl_total: number;
+  vl_devolucao: number;
+  vl_icms: number;
+  vl_pis: number;
+  vl_cofins: number;
 }
 
 
@@ -85,6 +113,7 @@ const toParams = (f: FaturamentoValidacaoFiltros) => ({
   cd_centro_custos_3: f.cd_centro_custos_3 || undefined,
   cd_nf: f.cd_nf || undefined,
   fonte_acao: f.fonte_acao || undefined,
+  unidade_negocio: f.unidade_negocio || undefined,
 });
 
 
@@ -107,3 +136,10 @@ export const getDetalhes = (
     page,
     page_size,
   });
+
+export const getUnidadeComercial = (f: FaturamentoValidacaoFiltros) =>
+  api.get<UnidadeComercialRow[]>('/api/bi/faturamento/unidade-comercial', toParams(f));
+
+export const getUnidadeTecnica = (f: FaturamentoValidacaoFiltros) =>
+  api.get<UnidadeTecnicaRow[]>('/api/bi/faturamento/unidade-tecnica', toParams(f));
+
