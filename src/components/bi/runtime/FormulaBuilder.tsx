@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { validateFormula, type CustomMetric, type MetricFormat, metricIdentifiers } from '@/lib/bi/comercialMetrics';
+import { type CustomMetric, type MetricFormat, metricIdentifiers } from '@/lib/bi/comercialMetrics';
+import { validateFormula } from '@/lib/bi/formulaEvaluator';
 
 interface Props {
   value: CustomMetric;
