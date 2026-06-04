@@ -37,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   fetchProfileRef.current = async (userId: string) => {
     if (loadingProfileRef.current) return;
     loadingProfileRef.current = true;
+    const isStaleUser = () => loadedForUserIdRef.current !== userId;
 
     const withTimeout = <T,>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
       new Promise((resolve, reject) => {
@@ -61,13 +62,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!profileData) {
+        if (isStaleUser()) return;
         console.warn('[Auth] no profile row for user', userId);
-        setDisplayName(null);
-        setErpUser(null);
-        setApproved(false);
+        setDisplayName((prev) => (prev === null ? prev : null));
+        setErpUser((prev) => (prev === null ? prev : null));
+        setApproved((prev) => (prev === false ? prev : false));
+        setErpConnected((prev) => (prev === false ? prev : false));
         return;
       }
 
+      if (isStaleUser()) return;
       setDisplayName((prev) => prev === profileData!.display_name ? prev : profileData!.display_name);
       setErpUser((prev) => prev === profileData!.erp_user ? prev : profileData!.erp_user);
       setApproved((prev) => prev === (profileData!.approved ?? false) ? prev : (profileData!.approved ?? false));
@@ -87,15 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const apiPass = settingsMap['erp_api_pass'];
           if (apiUser && apiPass) {
             await withTimeout(api.login(apiUser, apiPass), 10000, 'erp.login');
+            if (isStaleUser()) return;
             setErpConnected((prev) => prev === true ? prev : true);
             if (DEV) console.log('[Auth] erp api ok');
           } else {
             console.warn('[Auth] credenciais da API ERP não configuradas no banco');
-            setErpConnected(false);
+            if (!isStaleUser()) setErpConnected((prev) => (prev === false ? prev : false));
           }
         } catch (e) {
           console.warn('[Auth] login automático na API ERP falhou (não fatal):', e);
-          setErpConnected(false);
+          if (!isStaleUser()) setErpConnected((prev) => (prev === false ? prev : false));
         }
 
         try {
@@ -115,11 +120,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e) {
           console.warn('[Auth] check admin falhou (não fatal):', e);
         }
+      } else {
+        setErpConnected((prev) => (prev === false ? prev : false));
       }
     } catch (e) {
       console.error('[Auth] fetchProfile erro inesperado:', e);
     } finally {
-      setLoading(false);
+      if (!isStaleUser()) setLoading((prev) => (prev === false ? prev : false));
       loadingProfileRef.current = false;
     }
   };
@@ -132,46 +139,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch {}
 
-    const handleSession = (nextSession: Session | null, eventName?: string) => {
+    const handleSession = (nextSession: Session | null) => {
       const nextUserId = nextSession?.user?.id ?? null;
-      const sameUser = nextUserId === loadedForUserIdRef.current;
 
-      // Atualiza session/user só se o id mudar — evita re-render em refresh de token
-      setSession((prev) => (prev?.user?.id === nextUserId ? prev : nextSession));
+      setSession((prev) => {
+        const sameIdentity = (prev?.user?.id ?? null) === nextUserId;
+        const sameAccessToken = (prev?.access_token ?? null) === (nextSession?.access_token ?? null);
+        const sameRefreshToken = (prev?.refresh_token ?? null) === (nextSession?.refresh_token ?? null);
+        return sameIdentity && sameAccessToken && sameRefreshToken ? prev : nextSession;
+      });
       setUser((prev) => (prev?.id === nextUserId ? prev : nextSession?.user ?? null));
 
       if (!nextSession?.user) {
         loadedForUserIdRef.current = null;
-        setDisplayName(null);
-        setErpUser(null);
-        setErpConnected(false);
-        setApproved(false);
-        setLoading(false);
+        setDisplayName((prev) => (prev === null ? prev : null));
+        setErpUser((prev) => (prev === null ? prev : null));
+        setErpConnected((prev) => (prev === false ? prev : false));
+        setApproved((prev) => (prev === false ? prev : false));
+        setLoading((prev) => (prev === false ? prev : false));
         return;
       }
 
-      // Ignora TOKEN_REFRESHED / USER_UPDATED se já carregou esse usuário
-      if (sameUser && (eventName === 'TOKEN_REFRESHED' || eventName === 'USER_UPDATED')) {
-        return;
-      }
-
-      if (sameUser) {
-        // Mesma sessão já carregada — não recarregar profile
-        setLoading(false);
+      if (loadedForUserIdRef.current === nextUserId) {
         return;
       }
 
       loadedForUserIdRef.current = nextUserId;
-      fetchProfileRef.current?.(nextUserId!);
+      setLoading((prev) => (prev === true ? prev : true));
+      void fetchProfileRef.current?.(nextUserId!);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
-      handleSession(nextSession, event);
-    });
-
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      handleSession(s, 'INITIAL');
-      if (!s) setLoading(false);
+      handleSession(nextSession);
     });
 
     return () => subscription.unsubscribe();
