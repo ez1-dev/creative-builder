@@ -52,26 +52,28 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [loading, setLoading] = useState(true);
 
   const loadedForUserRef = useRef<string | null>(null);
+  const loadingForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!erpUser) {
       if (loadedForUserRef.current !== null) {
         loadedForUserRef.current = null;
+        loadingForUserRef.current = null;
         setPermissions((prev) => (prev.length === 0 ? prev : []));
         setCanUseAi((prev) => (prev === false ? prev : false));
         setIsAdmin((prev) => (prev === false ? prev : false));
       }
-      setLoading(false);
+      setLoading((prev) => (prev === false ? prev : false));
       return;
     }
 
-    if (loadedForUserRef.current === erpUser) return;
-    loadedForUserRef.current = erpUser;
+    if (loadedForUserRef.current === erpUser || loadingForUserRef.current === erpUser) return;
+    loadingForUserRef.current = erpUser;
 
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
+      setLoading((prev) => (prev === true ? prev : true));
       try {
         const { data: accesses } = await withTimeout(
           supabase.from('user_access').select('profile_id').ilike('user_login', erpUser),
@@ -82,6 +84,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
         const profileIds = (accesses ?? []).map((a) => a.profile_id);
         if (profileIds.length === 0) {
+          loadedForUserRef.current = erpUser;
           setPermissions((prev) => (prev.length === 0 ? prev : []));
           setCanUseAi((prev) => (prev === false ? prev : false));
           setIsAdmin((prev) => (prev === false ? prev : false));
@@ -125,6 +128,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const nextAi = profiles.some((p: any) => p.ai_enabled);
         const nextAdmin = profiles.some((p: any) => p.name === 'Administrador');
 
+        loadedForUserRef.current = erpUser;
         setPermissions((prev) => (shallowEqualPerms(prev, next) ? prev : next));
         setCanUseAi((prev) => (prev === nextAi ? prev : nextAi));
         setIsAdmin((prev) => (prev === nextAdmin ? prev : nextAdmin));
@@ -137,12 +141,14 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         // eslint-disable-next-line no-console
         console.warn('[Permissions] fetch failed:', e);
         if (!cancelled) {
+          loadedForUserRef.current = erpUser;
           setPermissions((prev) => (prev.length === 0 ? prev : []));
           setCanUseAi((prev) => (prev === false ? prev : false));
           setIsAdmin((prev) => (prev === false ? prev : false));
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoading((prev) => (prev === false ? prev : false));
+        if (loadingForUserRef.current === erpUser) loadingForUserRef.current = null;
       }
     })();
 
