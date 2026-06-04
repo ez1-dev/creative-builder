@@ -48,6 +48,7 @@ import {
   type ComercialDetalheRow,
   type ComercialMensalRow,
 } from '@/lib/bi/comercialApi';
+import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
   drillFromMixCategoria,
@@ -112,21 +113,48 @@ export default function ComercialPage() {
   const qEstado  = useQuery({ queryKey: ['bi-comercial','estado',filters],  queryFn: () => fetchComercialEstado(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
+  const qMetaCloud = useQuery({
+    queryKey: ['bi-comercial','meta-cloud', filters.anomes_ini, filters.anomes_fim, filters.unidade_negocio],
+    queryFn: () => fetchMetaCloudTotal({
+      anomes_ini: filters.anomes_ini,
+      anomes_fim: filters.anomes_fim,
+      unidade_negocio: filters.unidade_negocio,
+    }),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   const aplicarFiltrosBase = () => setBase({ ...draft });
   const atualizar = () => {
     qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
     if (qObras.isFetched || unidade !== 'GENIUS') qObras.refetch();
+    qMetaCloud.refetch();
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
 
-  const kpis = qKpis.data ?? ({} as any);
+  const kpisRaw = qKpis.data ?? ({} as any);
+  // Override Meta / Diferença / % Atingimento usando bi_meta_faturamento (Cloud)
+  // quando houver metas cadastradas para o período/UN. Caso contrário, mantém os
+  // valores vindos do ERP (via FastAPI).
+  const kpis = useMemo(() => {
+    const metaOverride = qMetaCloud.data;
+    if (metaOverride == null) return kpisRaw;
+    const fat = Number(kpisRaw.faturamento ?? 0);
+    const meta = Number(metaOverride);
+    return {
+      ...kpisRaw,
+      meta,
+      diferenca: fat - meta,
+      pct_atingimento: meta > 0 ? (fat / meta) * 100 : null,
+    };
+  }, [kpisRaw, qMetaCloud.data]);
   const mensal = qMensal.data ?? [];
   const mix = qMix.data ?? [];
   const estados = qEstado.data ?? [];
   const revendaRows = qRevenda.data ?? [];
   const obrasRows = qObras.data ?? [];
+
 
   const dadosCombo = useMemo(
     () => mensal.map((m) => ({ label: m.anomes_emissao, faturamento: n(m.faturamento), meta: n(m.meta) })),
