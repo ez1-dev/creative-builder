@@ -2636,6 +2636,87 @@ export type Database = {
       }
     }
     Views: {
+      v_bi_faturamento_comercial: {
+        Row: {
+          ano_emissao: string | null
+          anomes_emissao: string | null
+          cd_cidade: string | null
+          cd_cliente: string | null
+          cd_estado: string | null
+          cd_fpj: string | null
+          cd_grupo_cliente: string | null
+          cd_nf: string | null
+          cd_prj: string | null
+          cd_representante: string | null
+          cd_tns: string | null
+          ds_abr_fpj: string | null
+          ds_abr_prj: string | null
+          dt_emissao: string | null
+          fonte_acao: string | null
+          id: string | null
+          id_nf: string | null
+          impostos: number | null
+          mes_emissao: string | null
+          qtd_produtos: number | null
+          unidade_negocio: string | null
+          vl_bruto: number | null
+          vl_devolucao: number | null
+          vl_liquido: number | null
+        }
+        Insert: {
+          ano_emissao?: string | null
+          anomes_emissao?: string | null
+          cd_cidade?: string | null
+          cd_cliente?: string | null
+          cd_estado?: string | null
+          cd_fpj?: string | null
+          cd_grupo_cliente?: string | null
+          cd_nf?: string | null
+          cd_prj?: string | null
+          cd_representante?: string | null
+          cd_tns?: string | null
+          ds_abr_fpj?: string | null
+          ds_abr_prj?: string | null
+          dt_emissao?: string | null
+          fonte_acao?: string | null
+          id?: string | null
+          id_nf?: string | null
+          impostos?: never
+          mes_emissao?: string | null
+          qtd_produtos?: never
+          unidade_negocio?: never
+          vl_bruto?: never
+          vl_devolucao?: never
+          vl_liquido?: never
+        }
+        Update: {
+          ano_emissao?: string | null
+          anomes_emissao?: string | null
+          cd_cidade?: string | null
+          cd_cliente?: string | null
+          cd_estado?: string | null
+          cd_fpj?: string | null
+          cd_grupo_cliente?: string | null
+          cd_nf?: string | null
+          cd_prj?: string | null
+          cd_representante?: string | null
+          cd_tns?: string | null
+          ds_abr_fpj?: string | null
+          ds_abr_prj?: string | null
+          dt_emissao?: string | null
+          fonte_acao?: string | null
+          id?: string | null
+          id_nf?: string | null
+          impostos?: never
+          mes_emissao?: string | null
+          qtd_produtos?: never
+          unidade_negocio?: never
+          vl_bruto?: never
+          vl_devolucao?: never
+          vl_liquido?: never
+        }
+        Relationships: []
+      }
       vw_ultima_tela_usuario: {
         Row: {
           acao: Database["public"]["Enums"]["navegacao_acao"] | null

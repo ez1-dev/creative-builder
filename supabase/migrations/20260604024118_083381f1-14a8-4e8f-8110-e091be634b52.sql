@@ -1,0 +1,1 @@
+ALTER VIEW public.v_bi_faturamento_comercial SET (security_invoker = true);
