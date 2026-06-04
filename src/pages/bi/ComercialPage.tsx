@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, Sparkles, X } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,9 @@ import {
   DashboardPage,
   DashboardSection,
 } from '@/components/bi/layout/DashboardLayout';
+import { BiSlot } from '@/components/bi/runtime/BiSlot';
+import { COMERCIAL_SLOTS } from '@/lib/bi/comercialSlots';
+import { useSlotOverrides } from '@/hooks/useSlotOverrides';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import {
   fetchComercialKpis,
@@ -331,12 +334,15 @@ export default function ComercialPage() {
   const showObras = unidade === 'ESTRUTURAL ZORTEA' || unidade === 'CONSOLIDADO';
 
   const pageSeries = {
-    mensal: dadosCombo.map((m) => ({ label: m.label, valor: m.faturamento })),
+    mensal: dadosCombo,
     mix: donutMix,
     estados: estadoSorted.map((d) => ({ label: d.cd_estado, valor: n(d.faturamento) })),
     revendas: revendaRank,
     obras: obrasRank.map((o) => ({ label: o.label, valor: o.valor })),
   };
+
+  // Overrides globais (para botão "Restaurar layout padrão")
+  const slotOverrides = useSlotOverrides(PAGE_KEY);
 
   return (
     <PageDataProvider
@@ -355,6 +361,12 @@ export default function ComercialPage() {
               <span className={cn('rounded-full px-3 py-0.5 text-xs font-semibold', style.chip)}>
                 {unidade}
               </span>
+              {slotOverrides.hasAny && (
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => slotOverrides.clearAll()}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restaurar layout padrão
+                </Button>
+              )}
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi">
                   <Sparkles className="h-3.5 w-3.5" />
@@ -523,23 +535,36 @@ export default function ComercialPage() {
             {qMensal.isLoading ? <LoadingState height={280} /> :
               qMensal.isError ? <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} /> :
               dadosCombo.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-              <ComboChartCard
-                title="Faturamento mensal x Meta — clique p/ filtrar"
-                data={dadosCombo}
-                barKey="faturamento"
-                barLabel="Faturamento"
-                lineKey="meta"
-                lineLabel="Meta"
-                barColor={style.bar}
+              <BiSlot
+                slot={COMERCIAL_SLOTS.mensal}
+                color={style.bar}
                 onItemClick={onClickMensal}
+                defaultRender={() => (
+                  <ComboChartCard
+                    title="Faturamento mensal x Meta — clique p/ filtrar"
+                    data={dadosCombo}
+                    barKey="faturamento"
+                    barLabel="Faturamento"
+                    lineKey="meta"
+                    lineLabel="Meta"
+                    barColor={style.bar}
+                    onItemClick={onClickMensal}
+                  />
+                )}
               />}
             {qMix.isLoading ? <LoadingState height={280} /> :
               qMix.isError ? <BlocoErro err={qMix.error} onRetry={() => qMix.refetch()} /> :
               donutMix.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-              <DonutChartCard
-                title="Mix acumulado — clique p/ filtrar"
-                data={donutMix}
+              <BiSlot
+                slot={COMERCIAL_SLOTS.mix}
                 onItemClick={onClickMix}
+                defaultRender={() => (
+                  <DonutChartCard
+                    title="Mix acumulado — clique p/ filtrar"
+                    data={donutMix}
+                    onItemClick={onClickMix}
+                  />
+                )}
               />}
           </div>
         </DashboardSection>
@@ -566,12 +591,19 @@ export default function ComercialPage() {
             {qEstado.isLoading ? <LoadingState height={280} /> :
               qEstado.isError ? <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} /> :
               horizTop.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-              <HorizontalBarChartCard
-                title="Top estados — clique p/ filtrar"
-                data={horizTop}
+              <BiSlot
+                slot={COMERCIAL_SLOTS.estados}
                 color={style.bar}
-                yWidth={60}
                 onItemClick={onClickEstado}
+                defaultRender={() => (
+                  <HorizontalBarChartCard
+                    title="Top estados — clique p/ filtrar"
+                    data={horizTop}
+                    color={style.bar}
+                    yWidth={60}
+                    onItemClick={onClickEstado}
+                  />
+                )}
               />}
             {qEstado.isLoading ? <LoadingState height={280} /> :
               qEstado.isError ? <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} /> :
@@ -596,11 +628,17 @@ export default function ComercialPage() {
                   {qRevenda.isLoading ? <LoadingState height={280} /> :
                     qRevenda.isError ? <BlocoErro err={qRevenda.error} onRetry={() => qRevenda.refetch()} /> :
                     revendaRank.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-                    <RankingChartCard
-                      title="GENIUS — Ranking de revendas (clique)"
-                      data={revendaRank}
-                      topN={10}
+                    <BiSlot
+                      slot={COMERCIAL_SLOTS.revendas}
                       onItemClick={onClickRevenda}
+                      defaultRender={() => (
+                        <RankingChartCard
+                          title="GENIUS — Ranking de revendas (clique)"
+                          data={revendaRank}
+                          topN={10}
+                          onItemClick={onClickRevenda}
+                        />
+                      )}
                     />}
                   {!qRevenda.isLoading && !qRevenda.isError && revendaRank.length > 0 && (
                     <Card><CardContent className="pt-4">
@@ -614,10 +652,16 @@ export default function ComercialPage() {
                   {qObras.isLoading ? <LoadingState height={280} /> :
                     qObras.isError ? <BlocoErro err={qObras.error} onRetry={() => qObras.refetch()} /> :
                     obrasTreeData.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-                    <TreemapChartCard
-                      title="ESTRUTURAL ZORTEA — Faturamento por obra (clique)"
-                      data={obrasTreeData}
+                    <BiSlot
+                      slot={COMERCIAL_SLOTS.obras}
                       onItemClick={onClickObra}
+                      defaultRender={() => (
+                        <TreemapChartCard
+                          title="ESTRUTURAL ZORTEA — Faturamento por obra (clique)"
+                          data={obrasTreeData}
+                          onItemClick={onClickObra}
+                        />
+                      )}
                     />}
                   {!qObras.isLoading && !qObras.isError && obrasRank.length > 0 && (
                     <Card><CardContent className="pt-4">

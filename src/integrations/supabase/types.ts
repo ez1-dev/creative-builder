@@ -602,6 +602,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_user_slot_overrides: {
+        Row: {
+          component_id: string | null
+          created_at: string
+          id: string
+          mapping: Json
+          mode: string
+          options: Json
+          page_key: string
+          slot_key: string
+          updated_at: string
+          user_id: string
+          variant: string | null
+        }
+        Insert: {
+          component_id?: string | null
+          created_at?: string
+          id?: string
+          mapping?: Json
+          mode?: string
+          options?: Json
+          page_key: string
+          slot_key: string
+          updated_at?: string
+          user_id: string
+          variant?: string | null
+        }
+        Update: {
+          component_id?: string | null
+          created_at?: string
+          id?: string
+          mapping?: Json
+          mode?: string
+          options?: Json
+          page_key?: string
+          slot_key?: string
+          updated_at?: string
+          user_id?: string
+          variant?: string | null
+        }
+        Relationships: []
+      }
       bi_user_widgets: {
         Row: {
           component_id: string
