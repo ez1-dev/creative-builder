@@ -1,7 +1,7 @@
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Download, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,12 +21,12 @@ import { Badge } from '@/components/ui/badge';
 
 import {
   listMetas, upsertMeta, toggleAtivo, deleteMeta,
-  type MetaFaturamento, type MetaFaturamentoInput,
+  copyMetaAnoCompleto, exportarMetasCsv, importarMetasCsv,
+  CODIGO_POR_UNIDADE,
+  type MetaFaturamento, type MetaFaturamentoInput, type UnidadeMeta,
 } from '@/lib/bi/metasFaturamentoApi';
 
-type UnidadeUI = 'GENIUS' | 'ESTRUTURAL ZORTEA';
-
-const UNIDADES: UnidadeUI[] = ['GENIUS', 'ESTRUTURAL ZORTEA'];
+const UNIDADES: UnidadeMeta[] = ['GENIUS', 'ESTRUTURAL ZORTEA'];
 
 const currency = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -36,20 +36,20 @@ function formatAnomes(anomes: string): string {
   return `${anomes.slice(0, 4)}-${anomes.slice(4, 6)}`;
 }
 function parseAnomesInput(v: string): string {
-  // aceita 'YYYY-MM' ou 'YYYYMM'
   return v.replace(/[^0-9]/g, '').slice(0, 6);
 }
-
-interface EditState {
-  open: boolean;
-  editing: MetaFaturamento | null;
+function mesNome(mes: number | null): string {
+  if (!mes) return '—';
+  return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][mes - 1] ?? String(mes);
 }
+
+interface EditState { open: boolean; editing: MetaFaturamento | null; }
 
 export default function MetasFaturamentoPage() {
   const qc = useQueryClient();
   const anoAtual = new Date().getFullYear();
   const [anoFiltro, setAnoFiltro] = useState<string>(String(anoAtual));
-  const [unidadeFiltro, setUnidadeFiltro] = useState<'TODAS' | UnidadeUI>('TODAS');
+  const [unidadeFiltro, setUnidadeFiltro] = useState<'TODAS' | UnidadeMeta>('TODAS');
 
   const anomesIni = `${anoFiltro}01`;
   const anomesFim = `${anoFiltro}12`;
@@ -67,7 +67,6 @@ export default function MetasFaturamentoPage() {
     [metas, unidadeFiltro],
   );
 
-  // Agrupa para mostrar linha CONSOLIDADO calculada
   const consolidadoPorMes = useMemo(() => {
     const map = new Map<string, number>();
     for (const m of metas) {
@@ -81,37 +80,67 @@ export default function MetasFaturamentoPage() {
 
   const [edit, setEdit] = useState<EditState>({ open: false, editing: null });
   const [delId, setDelId] = useState<string | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['bi-metas'] });
+    qc.invalidateQueries({ queryKey: ['bi-comercial', 'meta-cloud'] });
+  };
 
   const mUpsert = useMutation({
     mutationFn: (input: MetaFaturamentoInput) => upsertMeta(input),
-    onSuccess: () => {
-      toast.success('Meta salva');
-      qc.invalidateQueries({ queryKey: ['bi-metas'] });
-      qc.invalidateQueries({ queryKey: ['bi-comercial', 'meta-cloud'] });
-      setEdit({ open: false, editing: null });
-    },
+    onSuccess: () => { toast.success('Meta salva'); invalidate(); setEdit({ open: false, editing: null }); },
     onError: (e: any) => toast.error(e?.message || 'Falha ao salvar meta'),
   });
 
   const mToggle = useMutation({
     mutationFn: (m: MetaFaturamento) => toggleAtivo(m.id, !m.ativo),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['bi-metas'] });
-      qc.invalidateQueries({ queryKey: ['bi-comercial', 'meta-cloud'] });
-    },
+    onSuccess: invalidate,
     onError: (e: any) => toast.error(e?.message || 'Falha ao alterar status'),
   });
 
   const mDelete = useMutation({
     mutationFn: (id: string) => deleteMeta(id),
-    onSuccess: () => {
-      toast.success('Meta excluída');
-      qc.invalidateQueries({ queryKey: ['bi-metas'] });
-      qc.invalidateQueries({ queryKey: ['bi-comercial', 'meta-cloud'] });
-      setDelId(null);
-    },
+    onSuccess: () => { toast.success('Meta excluída'); invalidate(); setDelId(null); },
     onError: (e: any) => toast.error(e?.message || 'Falha ao excluir'),
   });
+
+  const mCopyAno = useMutation({
+    mutationFn: (p: { ano: number; unidade_negocio: UnidadeMeta; vl_meta: number; observacao?: string | null; ativo?: boolean; }) =>
+      copyMetaAnoCompleto(p),
+    onSuccess: () => { toast.success('Metas replicadas para o ano'); invalidate(); setCopyOpen(false); },
+    onError: (e: any) => toast.error(e?.message || 'Falha ao copiar meta'),
+  });
+
+  const mImport = useMutation({
+    mutationFn: (text: string) => importarMetasCsv(text),
+    onSuccess: (res) => {
+      invalidate();
+      if (res.erros.length === 0) {
+        toast.success(`Importadas ${res.ok} metas`);
+      } else {
+        toast.warning(`Importadas ${res.ok}. ${res.erros.length} linha(s) com erro: ${res.erros.slice(0, 3).map((e) => `L${e.linha}`).join(', ')}…`);
+      }
+    },
+    onError: (e: any) => toast.error(e?.message || 'Falha ao importar CSV'),
+  });
+
+  const handleExport = () => {
+    const csv = exportarMetasCsv(metasFiltradas);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `metas-faturamento-${anoFiltro}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFile = async (file: File) => {
+    const text = await file.text();
+    mImport.mutate(text);
+  };
 
   return (
     <div className="space-y-4 p-4">
@@ -120,7 +149,7 @@ export default function MetasFaturamentoPage() {
           <h1 className="text-2xl font-semibold">Metas de Faturamento</h1>
           <p className="text-sm text-muted-foreground">
             Cadastre metas mensais por unidade de negócio. O <b>CONSOLIDADO</b> é
-            calculado automaticamente.
+            calculado automaticamente (GENIUS + ESTRUTURAL ZORTEA).
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -149,6 +178,26 @@ export default function MetasFaturamentoPage() {
               </SelectContent>
             </Select>
           </div>
+          <Button variant="outline" onClick={() => setCopyOpen(true)}>
+            <Copy className="mr-1 h-4 w-4" /> Copiar p/ ano
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-1 h-4 w-4" /> Exportar CSV
+          </Button>
+          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={mImport.isPending}>
+            <Upload className="mr-1 h-4 w-4" /> Importar CSV
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleFile(f);
+              e.target.value = '';
+            }}
+          />
           <Button onClick={() => setEdit({ open: true, editing: null })}>
             <Plus className="mr-1 h-4 w-4" /> Nova meta
           </Button>
@@ -171,7 +220,10 @@ export default function MetasFaturamentoPage() {
               <table className="w-full text-sm">
                 <thead className="text-xs uppercase text-muted-foreground">
                   <tr className="border-b">
+                    <th className="px-2 py-2 text-left">Ano</th>
+                    <th className="px-2 py-2 text-left">Mês</th>
                     <th className="px-2 py-2 text-left">Anomês</th>
+                    <th className="px-2 py-2 text-left">Código</th>
                     <th className="px-2 py-2 text-left">Unidade</th>
                     <th className="px-2 py-2 text-right">Meta (R$)</th>
                     <th className="px-2 py-2 text-left">Observação</th>
@@ -182,10 +234,11 @@ export default function MetasFaturamentoPage() {
                 <tbody>
                   {metasFiltradas.map((m) => (
                     <tr key={m.id} className="border-b hover:bg-muted/30">
+                      <td className="px-2 py-2 tabular-nums">{m.ano ?? '—'}</td>
+                      <td className="px-2 py-2">{mesNome(m.mes)}</td>
                       <td className="px-2 py-2 font-mono">{formatAnomes(m.anomes_emissao)}</td>
-                      <td className="px-2 py-2">
-                        <Badge variant="outline">{m.unidade_negocio}</Badge>
-                      </td>
+                      <td className="px-2 py-2 font-mono">{m.codigo_unidade ?? CODIGO_POR_UNIDADE[m.unidade_negocio]}</td>
+                      <td className="px-2 py-2"><Badge variant="outline">{m.unidade_negocio}</Badge></td>
                       <td className="px-2 py-2 text-right tabular-nums">{currency(Number(m.vl_meta))}</td>
                       <td className="px-2 py-2 text-muted-foreground">{m.observacao || '—'}</td>
                       <td className="px-2 py-2">
@@ -197,20 +250,10 @@ export default function MetasFaturamentoPage() {
                       </td>
                       <td className="px-2 py-2 text-right">
                         <div className="flex justify-end gap-1">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Editar meta"
-                            onClick={() => setEdit({ open: true, editing: m })}
-                          >
+                          <Button size="icon" variant="ghost" aria-label="Editar meta" onClick={() => setEdit({ open: true, editing: m })}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            aria-label="Excluir meta"
-                            onClick={() => setDelId(m.id)}
-                          >
+                          <Button size="icon" variant="ghost" aria-label="Excluir meta" onClick={() => setDelId(m.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </div>
@@ -261,19 +304,23 @@ export default function MetasFaturamentoPage() {
         saving={mUpsert.isPending}
       />
 
+      <CopyAnoDialog
+        open={copyOpen}
+        defaultAno={Number(anoFiltro) || anoAtual}
+        onClose={() => setCopyOpen(false)}
+        onSubmit={(p) => mCopyAno.mutate(p)}
+        saving={mCopyAno.isPending}
+      />
+
       <AlertDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir meta?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => delId && mDelete.mutate(delId)}>
-              Excluir
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => delId && mDelete.mutate(delId)}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -281,7 +328,7 @@ export default function MetasFaturamentoPage() {
   );
 }
 
-/* ---------------- Dialog ---------------- */
+/* ---------------- Edit Dialog ---------------- */
 
 function EditMetaDialog({
   state, onClose, onSubmit, saving,
@@ -294,21 +341,19 @@ function EditMetaDialog({
   const uid = useId();
   const editing = state.editing;
   const [anomes, setAnomes] = useState('');
-  const [unidade, setUnidade] = useState<UnidadeUI>('GENIUS');
+  const [unidade, setUnidade] = useState<UnidadeMeta>('GENIUS');
   const [valor, setValor] = useState<string>('');
   const [observacao, setObservacao] = useState('');
   const [ativo, setAtivo] = useState(true);
 
-  // reset ao abrir
-  useMemo(() => {
+  useEffect(() => {
     if (state.open) {
       setAnomes(editing?.anomes_emissao ?? '');
-      setUnidade((editing?.unidade_negocio as UnidadeUI) ?? 'GENIUS');
+      setUnidade((editing?.unidade_negocio as UnidadeMeta) ?? 'GENIUS');
       setValor(editing ? String(editing.vl_meta) : '');
       setObservacao(editing?.observacao ?? '');
       setAtivo(editing ? editing.ativo : true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.open, editing?.id]);
 
   const idAnomes = `${uid}-anomes`;
@@ -321,10 +366,7 @@ function EditMetaDialog({
   const valid = anomes.length === 6 && !Number.isNaN(valorNum) && valorNum >= 0;
 
   const handleSave = () => {
-    if (!valid) {
-      toast.error('Preencha anomês (YYYYMM) e valor válido');
-      return;
-    }
+    if (!valid) { toast.error('Preencha anomês (YYYYMM) e valor válido'); return; }
     onSubmit({
       anomes_emissao: anomes,
       unidade_negocio: unidade,
@@ -357,16 +399,14 @@ function EditMetaDialog({
             </div>
             <div>
               <Label htmlFor={idUnidade}>Unidade de negócio</Label>
-              <Select
-                value={unidade}
-                onValueChange={(v) => setUnidade(v as UnidadeUI)}
-                disabled={!!editing}
-              >
+              <Select value={unidade} onValueChange={(v) => setUnidade(v as UnidadeMeta)} disabled={!!editing}>
                 <SelectTrigger id={idUnidade} name="unidade_negocio" aria-label="Unidade de negócio">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                  {UNIDADES.map((u) => (
+                    <SelectItem key={u} value={u}>{u} ({CODIGO_POR_UNIDADE[u]})</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -408,6 +448,132 @@ function EditMetaDialog({
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving || !valid}>
             {saving ? 'Salvando…' : 'Salvar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ---------------- Copy Ano Dialog ---------------- */
+
+function CopyAnoDialog({
+  open, defaultAno, onClose, onSubmit, saving,
+}: {
+  open: boolean;
+  defaultAno: number;
+  onClose: () => void;
+  onSubmit: (p: { ano: number; unidade_negocio: UnidadeMeta; vl_meta: number; observacao?: string | null; ativo?: boolean }) => void;
+  saving: boolean;
+}) {
+  const uid = useId();
+  const [ano, setAno] = useState<string>(String(defaultAno));
+  const [unidade, setUnidade] = useState<UnidadeMeta>('GENIUS');
+  const [valor, setValor] = useState<string>('');
+  const [observacao, setObservacao] = useState('');
+  const [ativo, setAtivo] = useState(true);
+
+  useEffect(() => {
+    if (open) {
+      setAno(String(defaultAno));
+      setUnidade('GENIUS');
+      setValor('');
+      setObservacao('');
+      setAtivo(true);
+    }
+  }, [open, defaultAno]);
+
+  const valorNum = Number((valor || '').toString().replace(',', '.'));
+  const anoNum = Number(ano);
+  const valid = anoNum >= 2020 && anoNum <= 2099 && Number.isFinite(valorNum) && valorNum >= 0;
+
+  const handle = () => {
+    if (!valid) { toast.error('Preencha ano e valor válidos'); return; }
+    onSubmit({
+      ano: anoNum,
+      unidade_negocio: unidade,
+      vl_meta: valorNum,
+      observacao: observacao.trim() || null,
+      ativo,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Copiar meta para o ano inteiro</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Replica o mesmo valor de meta para os 12 meses do ano selecionado.
+          Metas existentes para o mesmo (ano-mês, unidade) serão sobrescritas.
+        </p>
+
+        <div className="space-y-3 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor={`${uid}-ano`}>Ano</Label>
+              <Input
+                id={`${uid}-ano`}
+                name="ano"
+                type="number"
+                min={2020}
+                max={2099}
+                value={ano}
+                onChange={(e) => setAno(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`${uid}-un`}>Unidade</Label>
+              <Select value={unidade} onValueChange={(v) => setUnidade(v as UnidadeMeta)}>
+                <SelectTrigger id={`${uid}-un`} name="unidade_negocio" aria-label="Unidade de negócio">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIDADES.map((u) => (
+                    <SelectItem key={u} value={u}>{u} ({CODIGO_POR_UNIDADE[u]})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor={`${uid}-valor`}>Valor mensal (R$)</Label>
+            <Input
+              id={`${uid}-valor`}
+              name="vl_meta"
+              type="number"
+              min={0}
+              step="0.01"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              placeholder="0,00"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor={`${uid}-obs`}>Observação</Label>
+            <Textarea
+              id={`${uid}-obs`}
+              name="observacao"
+              rows={2}
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+              placeholder="Opcional"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Switch id={`${uid}-ativo`} checked={ativo} onCheckedChange={setAtivo} aria-label="Metas ativas" />
+            <Label htmlFor={`${uid}-ativo`} className="cursor-pointer">Metas ativas</Label>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handle} disabled={saving || !valid}>
+            {saving ? 'Copiando…' : 'Copiar para 12 meses'}
           </Button>
         </DialogFooter>
       </DialogContent>
