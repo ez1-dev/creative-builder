@@ -415,6 +415,16 @@ export default function FaturamentoValidacaoPage() {
         </CardContent>
       </Card>
 
+      <AiChartGenerator
+        filtrosBase={{
+          anomes_ini: filtros.anomes_ini,
+          anomes_fim: filtros.anomes_fim,
+          unidade_negocio: (filtros.unidade_negocio ?? '').includes(',') ? '' : (filtros.unidade_negocio ?? ''),
+        }}
+      />
+
+
+
       <DashboardTabs
         tabs={[
           {
