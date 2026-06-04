@@ -1,37 +1,44 @@
-## Causa raiz do pisca-pisca em "Editar Dashboard"
+## Situação atual
+A tela `/bi/comercial/metas` **já existe** (`src/pages/bi/MetasFaturamentoPage.tsx`) com CRUD completo (listar/criar/editar/ativar/excluir) e bloco CONSOLIDADO calculado. O BI Comercial **já** sobrescreve Meta/Diferença/% Atingimento usando `fetchMetaCloudTotal` (`ComercialPage.tsx` linhas 137–151). A tabela `public.bi_meta_faturamento` existe com unique key `(anomes_emissao, unidade_negocio)`, RLS por `can_edit_bi_meta`, check em `unidade_negocio ∈ {GENIUS, ESTRUTURAL ZORTEA}`.
 
-`PassagensLayoutGrid` (usado por Passagens, Frota, Máquinas e BI Comercial via `ComercialDashboardGrid`) chama `onLayoutChange` continuamente durante drag/resize do `react-grid-layout`. Para Passagens/Frota/Máquinas isso é inofensivo (acumula em `pendingLayout` e só persiste no botão Salvar). Já em **`src/pages/bi/ComercialPage.tsx` (handleLayoutChange, linha 451)** cada disparo executa `layout.saveLayout(next)`, que:
+**O que falta** em relação ao pedido:
+1. Colunas `ano`, `mes`, `codigo_unidade`, `descricao_unidade` na tabela (hoje só temos `anomes_emissao` e `unidade_negocio`).
+2. Botão "Copiar para o ano inteiro" (replicar 1 valor nos 12 meses).
+3. Importar/Exportar CSV.
 
-1. Faz N requests `UPDATE dashboard_widgets` (um por widget) — durante o arrasto isso vira dezenas por segundo;
-2. Ao final chama `load()` em `useComercialLayout` que `setLoading(true)` → `setWidgets(...)` com nova identidade;
-3. `loading=true` troca o grid por `<LoadingState>` e depois remonta os cards → flash visual e remount de todos os Recharts.
+## Mudanças
 
-Soma-se isso a `blocks` ser reconstruído sempre que `layout.widgets` muda de identidade (dep array em `ComercialPage` linha 446) — todo card recebe `ReactNode` novo e remonta.
+### 1. Migração — `bi_meta_faturamento`
+Adicionar 4 colunas **geradas** (sem duplicar dado nem permitir divergência):
+- `ano` int  ← `substring(anomes_emissao,1,4)::int`
+- `mes` int  ← `substring(anomes_emissao,5,2)::int`
+- `codigo_unidade` text ← `CASE unidade_negocio WHEN 'GENIUS' THEN '503' WHEN 'ESTRUTURAL ZORTEA' THEN '502' END`
+- `descricao_unidade` text ← mesmo CASE (descrição explicativa)
 
-## Mudanças (sem alterar regra de negócio)
+Todas como `GENERATED ALWAYS AS (...) STORED`. Sem alteração de RLS, sem novas policies (já cobertas). Sem afetar o upsert por `(anomes_emissao, unidade_negocio)`.
 
-### 1. `src/components/passagens/PassagensLayoutGrid.tsx`
-- **Parar de emitir durante o drag/resize.** Em `handleLayoutChange` continuar atualizando apenas o `localLayout` (visual), mas **não chamar `emit(next)`**.
-- Manter `emit` apenas em `handleStop` (onDragStop/onResizeStop) e em `stepResize` (botões +/-/setas), que já são "commits" naturais.
-- Efeito colateral positivo: Passagens/Frota/Máquinas recebem `pendingLayout` somente no fim do gesto (menos re-renders do toolbar de Salvar/Cancelar). Sem mudança de UX nem de API do componente.
+### 2. `src/lib/bi/metasFaturamentoApi.ts`
+- Estender `MetaFaturamento` com os 4 campos (read-only).
+- Adicionar:
+  - `copyAnoCompleto(anoAlvo, unidade, vlMeta, observacao?, ativo?)` → faz `upsert` de 12 linhas (mês 01–12) usando o mesmo `onConflict`.
+  - `exportarCsvMetas(rows)` → string CSV (Anomes, Unidade, Codigo, Descricao, Valor, Observacao, Ativo).
+  - `importarCsvMetas(file)` → parse + `upsert` em lote (validações: anomês YYYYMM, unidade ∈ {GENIUS, ESTRUTURAL ZORTEA}, valor numérico). Falhas reportadas linha a linha.
 
-### 2. `src/pages/bi/ComercialPage.tsx`
-- Trocar `handleLayoutChange` por uma versão **debounced (700 ms)** que apenas agenda o save; salvar imediatamente já não é necessário porque o grid passa a comitar só no stop. O debounce serve de blindagem caso o usuário faça vários movimentos seguidos.
-- Garantir que, durante a edição, o grid mantenha o layout local mesmo se chegar um `load()` em background (já protegido pelo efeito `widgetGeometryKey + editing`).
+### 3. `src/pages/bi/MetasFaturamentoPage.tsx`
+- Acrescentar colunas na tabela: Ano, Mês, Código, Descrição.
+- Toolbar nova com 3 botões: **Copiar para o ano** (abre diálogo: unidade + valor + observação + ativo + ano-alvo), **Exportar CSV**, **Importar CSV** (file input oculto + parser).
+- Após import/copy, invalida `['bi-metas']` e `['bi-comercial','meta-cloud']`.
+- Mostrar `codigo_unidade` (503/502) ao lado da unidade na lista e no consolidado.
 
-### 3. `src/hooks/useComercialLayout.ts`
-- `saveLayout`: deixar de chamar `setLoading(true)` em `load()` quando for um reload pós-save. Solução cirúrgica: extrair `load()` em duas variantes ou adicionar parâmetro `silent` → faz o refetch e o `setWidgets` sem alternar `loading`, evitando troca para `<LoadingState>` no meio da edição. Não mexe em endpoints nem RLS.
-- Adicionalmente, `setWidgets` com **igualdade rasa via JSON.stringify** das linhas relevantes para não mudar identidade quando nada efetivo mudou (evita rebuild do `blocks` em `ComercialPage`).
+### 4. `ComercialPage.tsx`
+**Nenhuma mudança** — `fetchMetaCloudTotal` já calcula:
+- Meta = `SUM(vl_meta WHERE ativo AND anomes BETWEEN ini..fim AND (unidade=N OR CONSOLIDADO))`
+- Diferença = `faturamento - meta`
+- % Atingimento = `faturamento / meta * 100`
 
-### 4. Memoizar render do bloco no grid (defensivo)
-- Em `PassagensLayoutGrid`, envolver o wrapper `<div key={w.type}>...{blocks[w.type]}</div>` em um `React.memo` interno que recebe `{ widget, isEditing, child }`. Como `key={w.type}` já é estável, isso reduz re-render dos cards quando só o `localLayout` muda.
+A migração só adiciona colunas geradas; o `select('*')` existente passa a retornar os novos campos automaticamente após regeneração dos types do Cloud.
 
-### 5. Não tocado de propósito
-- Não alterar Passagens/Frota/Máquinas (já usam pendingLayout + botão Salvar — comportamento correto).
-- Não alterar Recharts/`ResponsiveContainer` (já usam `width="100%" height="100%"` dentro de container com altura controlada pelo grid). Se após 1–4 ainda houver flicker em algum chart específico, atacamos pontualmente.
-- Não alterar `useEffect`s de carregamento (`load()` só roda em `enabled` ou troca de `dashboardId`).
-- Não mexer em `loadProfile`/`loadPermissions` (já corrigidos em iteração anterior).
-
-## Validação
-- Em `/bi/comercial`, entrar em modo edição, redimensionar/arrastar um card: console não deve mostrar `UPDATE` repetido e a tela não pode trocar para skeleton. Soltar o mouse → ocorre 1 save.
-- Em `/passagens-aereas`, `/manutencao-frota`, `/manutencao-maquinas` → comportamento de "Salvar/Cancelar" permanece idêntico, apenas com menos atualizações intermediárias de estado.
+## Fora de escopo
+- Não alterar policies/grants.
+- Não criar tela nova: a rota `/bi/comercial/metas` continua na mesma página, só ganha novas ações.
+- Não tocar no FastAPI (metas são 100% Cloud).

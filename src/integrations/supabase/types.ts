@@ -406,11 +406,15 @@ export type Database = {
       }
       bi_meta_faturamento: {
         Row: {
+          ano: number | null
           anomes_emissao: string
           ativo: boolean
+          codigo_unidade: string | null
           created_at: string
           created_by: string | null
+          descricao_unidade: string | null
           id: string
+          mes: number | null
           observacao: string | null
           unidade_negocio: string
           updated_at: string
@@ -418,11 +422,15 @@ export type Database = {
           vl_meta: number
         }
         Insert: {
+          ano?: number | null
           anomes_emissao: string
           ativo?: boolean
+          codigo_unidade?: string | null
           created_at?: string
           created_by?: string | null
+          descricao_unidade?: string | null
           id?: string
+          mes?: number | null
           observacao?: string | null
           unidade_negocio: string
           updated_at?: string
@@ -430,11 +438,15 @@ export type Database = {
           vl_meta?: number
         }
         Update: {
+          ano?: number | null
           anomes_emissao?: string
           ativo?: boolean
+          codigo_unidade?: string | null
           created_at?: string
           created_by?: string | null
+          descricao_unidade?: string | null
           id?: string
+          mes?: number | null
           observacao?: string | null
           unidade_negocio?: string
           updated_at?: string
