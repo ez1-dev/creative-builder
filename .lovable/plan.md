@@ -1,114 +1,108 @@
-## Drill-down completo em `/bi/comercial`
+## Customização de gráficos no /bi/comercial
 
-Adicionar navegação analítica clicável em todos os componentes do BI Comercial, com filtros encadeados, breadcrumb e drawer de detalhes — sem mocks, consumindo a FastAPI.
+Cada bloco visual da página vira um "slot" que o usuário pode:
+1. Alternar rapidamente o tipo de visualização (ex.: barras ↔ linha ↔ pizza ↔ tabela), reaproveitando os mesmos dados.
+2. Substituir por qualquer componente da Biblioteca BI, mapeando os datasets já expostos pelo `PageDataProvider`.
+3. Restaurar ao padrão — por bloco ou geral.
 
-### 1. Estado global de filtros
+Preferência salva por usuário no Lovable Cloud.
 
-Criar hook `useComercialFilters` em `src/lib/bi/comercialFilters.ts`:
+---
 
-```ts
-type BiComercialFilters = {
-  // base (não limpa em "Limpar Drill")
-  anomes_ini: string;
-  anomes_fim: string;
-  unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
-  // drill (limpa em "Limpar Drill")
-  anomes_emissao?: string;
-  cd_estado?: string;
-  cd_cliente?: string;
-  cd_prj?: string;
-  cd_rev_pedido?: string;
-  cd_origem?: string;
-  cd_tp_movimento?: string;
-  cd_tns?: string;
-  cd_nf?: string;
-};
+### 1. Modelo de dados (Cloud)
+
+Nova tabela `bi_user_slot_overrides`:
+
+```
+id uuid pk
+user_id uuid (auth.uid)
+page_key text     -- 'bi-comercial'
+slot_key text     -- 'mensal' | 'mix' | 'estados' | 'revendas' | 'obras' | 'mensal-tabela' ...
+mode text         -- 'builtin' | 'library'
+variant text      -- quando mode='builtin': 'combo' | 'bar' | 'line' | 'area' | 'table' ...
+component_id text -- quando mode='library': id do componente da Biblioteca BI
+mapping jsonb     -- mapeamento input → série/kpi do slot
+options jsonb     -- cor, formato, título custom
+updated_at timestamptz default now()
+unique(user_id, page_key, slot_key)
 ```
 
-Helpers: `applyDrill(key,value,label)`, `removeDrill(key)`, `clearDrill()`, `getActiveDrillChips()`.
+RLS: usuário lê/grava só os seus; `service_role` total. Grants para `authenticated`.
 
-### 2. Camada API
+### 2. Catálogo de slots do BI Comercial
 
-Estender `src/lib/bi/comercialApi.ts`:
+Arquivo novo `src/lib/bi/comercialSlots.ts` declara, para cada bloco da tela:
 
-- Passar **todos** os filtros ativos como query params para `kpis/mensal/mix/estado/revenda/obras` (a FastAPI já filtra pelo que reconhece; campos não suportados são ignorados — confirmar no backend caso necessário).
-- Novo `fetchComercialDetalhes(filters, opts?)` → `GET /api/bi/comercial/detalhes` retornando linhas com as colunas listadas no enunciado. Unwrap key `bi_comercial_detalhes`.
-- Tipagem `ComercialDetalheRow` com todas as colunas (`anomes_emissao, unidade_negocio, cd_tp_movimento, cd_origem, cd_empresa, cd_filial, cd_nf, cd_serie, dt_emissao, cd_estado, cd_cliente, cd_prj, ds_abr_prj, cd_rev_pedido, cd_tns, vl_bruto, vl_impostos, vl_liquido, vl_devolucao, qtd_produtos`).
-- Opções extras enviadas como query: `escopo` (`'todas' | 'impostos' | 'devolucao' | 'vendas' | 'clientes' | 'estados'`) — apenas etiqueta para o backend distinguir cards; default `todas`.
+- `slotKey`, `title`, `defaultVariant`, `dataKind` (`'serie-mensal' | 'mix' | 'ranking-uf' | 'ranking-revenda' | 'ranking-obra' | 'tabela-mensal'`).
+- Lista de variantes built-in compatíveis com aquele `dataKind` (ex.: ranking-uf aceita `horizontal-bar`, `bar`, `treemap`, `table`).
+- Lista de `component_id` da Biblioteca BI compatíveis (filtrada pelo `inputs[].source` do registry).
 
-### 3. Página `/bi/comercial`
+### 3. Componente genérico `BiSlot`
 
-Refatorar `src/pages/bi/ComercialPage.tsx` mantendo a Biblioteca BI já em uso:
+Novo `src/components/bi/runtime/BiSlot.tsx`:
 
-**Barra de filtros ativos (drill)**
+- Props: `slotKey`, `title`, `dataKind`, dados (kpi/série/rows) + `defaultRender` (o JSX do gráfico padrão de hoje).
+- Lê override do hook `useSlotOverride(pageKey, slotKey)`.
+- Header do card recebe um menu (ícone ⚙):
+  - **Trocar tipo** → submenu com variantes built-in do `dataKind`.
+  - **Substituir por componente da Biblioteca BI…** → abre `ReplaceSlotDialog`.
+  - **Restaurar padrão** (só aparece quando há override).
+- Sem override: renderiza `defaultRender`.
+- Com override `builtin`: renderiza variante built-in (mapeada num pequeno switch por `dataKind`).
+- Com override `library`: renderiza via `componentRegistry.getComponent(id).render(...)` reutilizando `PageDataContext`.
 
-- Usar `DrillBreadcrumb` (já existe em `@/components/bi/drill/DrillBreadcrumb`) logo abaixo do `FilterBar`.
-- Mostra cada filtro de drill ativo como chip removível (X) + botão **"Limpar Drill"** que zera apenas os campos de drill.
-- Quando vazio, esconder a barra.
+### 4. Diálogo "Substituir por componente"
 
-**Cliques nos gráficos** — todos passam a ter `cursor-pointer` e tooltip "Clique para detalhar":
+`src/components/bi/runtime/ReplaceSlotDialog.tsx`:
 
-| Componente | Ação ao clicar |
-|---|---|
-| `ComboChartCard` mensal | `applyDrill('anomes_emissao', d.label)` |
-| `DonutChartCard` mix | mapear categoria: `MÁQUINAS`/`PEÇAS` → `cd_origem`; `SERVIÇOS`/`PRODUTOS` → `cd_tp_movimento` |
-| `HorizontalBarChartCard` estados | `applyDrill('cd_estado', d.label)` |
-| `BrazilMapCard` mapa | `applyDrill('cd_estado', uf)` (via prop `onItemClick`) |
-| `RankingChartCard` revendas | `applyDrill('cd_rev_pedido', revenda)` |
-| `RankingTable` revendas | idem (prop `onItemClick` já existe) |
-| `TreemapChartCard` obras | `applyDrill('cd_prj', cd_prj)` |
-| `RankingTable` obras | idem |
-| `DataTableBI` mensal (linha) | `applyDrill('anomes_emissao', linha)` |
+- Lista filtrada de componentes da Biblioteca BI compatíveis com `dataKind`.
+- Para cada um, formulário de mapeamento (mesma UX já existente em `/biblioteca-bi` "Aplicar em página"), pré-preenchido com a série padrão do slot.
+- Botão **Pré-visualizar** (render inline) e **Salvar** (upsert na tabela).
 
-Onde algum componente da Biblioteca BI não expuser `onItemClick`/`onClick` hoje, **adicionar a prop** (mudança mínima, opt-in) no componente da biblioteca: `ComboChartCard`, `DonutChartCard`, `BrazilMapCard`. Os demais já suportam.
+### 5. Barra global
 
-**Cliques nos cards KPI** — abrem o drawer de detalhes com `escopo` específico:
+Topo do `ComercialPage`:
+- Botão "Restaurar layout padrão" (visível quando há ≥1 override) → deleta todos overrides do usuário para `page_key='bi-comercial'`.
 
-- Faturamento → `escopo=todas`
-- Impostos → `escopo=impostos` (drawer destaca colunas `vl_impostos` + decompostas se backend retornar)
-- Devolução → `escopo=devolucao` (filtro local: `vl_devolucao !== 0`)
-- Nº Vendas → `escopo=vendas` (drawer mostra notas distintas)
-- Nº Clientes → `escopo=clientes` (drawer agrupado por `cd_cliente`)
-- Nº Estados → `escopo=estados` (drawer agrupado por `cd_estado`)
+### 6. Refactor do `ComercialPage.tsx`
 
-KPIs cliques implementados envolvendo `KpiCard` num wrapper `<button>` que dispara `openDetalhes(escopo)`.
+Cada bloco hoje renderizado direto (`<ComboChartCard …/>`, `<DonutChartCard …/>`, etc.) passa a ser:
 
-### 4. Drawer de detalhes
+```tsx
+<BiSlot
+  slotKey="mensal"
+  title="Faturamento mensal"
+  dataKind="serie-mensal"
+  data={{ serie: mensal }}
+  defaultRender={() => <ComboChartCard ... />}
+/>
+```
 
-Usar `DrillSheet` + `useDrillSheet` (já existem em `@/components/bi/drill/DrillSheet`):
+Os handlers de drill-down continuam funcionando: o `BiSlot` repassa `onItemClick` quando a variante suporta.
 
-- Título: **Detalhamento do Drill**
-- Subtítulo: descrição do escopo
-- `chips`: filtros ativos (anomes, unidade, estado, cliente, projeto, revenda, etc.)
-- Conteúdo: `DataTableBI` com paginação client-side; colunas conforme especificação. Currency: `vl_bruto`, `vl_impostos`, `vl_liquido`, `vl_devolucao`. Número: `qtd_produtos`.
-- Estados: `LoadingState`, `ErrorState` ("Não foi possível carregar os dados do drill"), `EmptyState` quando vazio.
-- Botão exportar CSV no header do drawer (opcional, simples).
+### 7. Hook utilitário
 
-### 5. UX visual
+`src/hooks/useSlotOverrides.ts`:
+- Carrega todos overrides do usuário para a página numa única query.
+- Expõe `getOverride(slotKey)`, `setOverride(slotKey, payload)`, `clearOverride(slotKey)`, `clearAll()`.
+- Invalidação local após mutações.
 
-- Cores mantidas via `UNIDADE_STYLE`: GENIUS laranja (`--warning`), ESTRUTURAL ZORTEA azul (`--primary`), CONSOLIDADO cinza/roxo (`--muted-foreground`).
-- Tooltip global "Clique para detalhar" via prop nativa `title` ou wrapper `<TooltipProvider>` nas áreas clicáveis.
-- Cursor pointer em todos os elementos drilláveis.
+### 8. Fora de escopo
 
-### 6. Fora de escopo
-
-- Não alterar endpoints existentes (apenas consumir o novo `/api/bi/comercial/detalhes`).
-- Não mexer em outras telas BI.
-- Não persistir filtros de drill (estado em memória só).
-- `PageDataProvider` continua expondo séries — mas os widgets do usuário não recebem cliques de drill nesta iteração.
-
-### Arquivos afetados
-
-- **Novo**: `src/lib/bi/comercialFilters.ts` (hook + tipos + helpers).
-- **Editado**: `src/lib/bi/comercialApi.ts` (novo fetcher detalhes; aceitar filtros de drill nos demais).
-- **Editado**: `src/pages/bi/ComercialPage.tsx` (breadcrumb, cliques, drawer, KPIs clicáveis).
-- **Editado** (mínimo, adicionar `onItemClick`): `src/components/bi/charts/ComboChartCard.tsx`, `src/components/bi/charts/DonutChartCard.tsx` / `PieChartCard.tsx`, `src/components/bi/charts/BrazilMapCard.tsx`. Sem quebrar consumidores existentes.
+- Não muda endpoints da FastAPI nem `pageRegistry`.
+- Drill-down dos componentes da Biblioteca BI continua limitado (apenas built-ins disparam drill por enquanto).
+- Não afeta outras telas BI — `BiSlot` fica genérico mas só é aplicado em `/bi/comercial` nesta entrega.
 
 ### Critério de aceite
 
-- Clicar em qualquer gráfico/tabela aplica filtro e recarrega todos os blocos com o filtro novo.
-- Breadcrumb mostra trilha tipo `GENIUS > 202603 > SC > PEÇAS` com X individual e botão **Limpar Drill**.
-- Cards KPI abrem o drawer com colunas e dados corretos, respeitando filtros ativos.
-- "Limpar Drill" preserva `anomes_ini`, `anomes_fim`, `unidade_negocio`.
-- Falha de API mostra "Não foi possível carregar os dados do drill" e botão **Tentar novamente**.
-- Funciona nas três unidades (GENIUS, ESTRUTURAL ZORTEA, CONSOLIDADO) com paleta correta.
+- Em qualquer bloco do BI Comercial, ⚙ permite trocar para outra variante e a tela atualiza preservando filtros.
+- "Substituir por componente da Biblioteca BI…" lista apenas componentes compatíveis e renderiza o escolhido.
+- Recarregando a página, a escolha persiste (login do mesmo usuário).
+- "Restaurar padrão" no bloco e o botão global voltam ao layout original.
+- Outros usuários não veem as escolhas alheias.
+
+### Arquivos afetados
+
+- **Migração SQL** nova: tabela `bi_user_slot_overrides` + RLS + grants.
+- **Novos**: `src/lib/bi/comercialSlots.ts`, `src/hooks/useSlotOverrides.ts`, `src/components/bi/runtime/BiSlot.tsx`, `src/components/bi/runtime/ReplaceSlotDialog.tsx`.
+- **Editado**: `src/pages/bi/ComercialPage.tsx` (envolver blocos com `BiSlot`, adicionar botão "Restaurar layout padrão").
