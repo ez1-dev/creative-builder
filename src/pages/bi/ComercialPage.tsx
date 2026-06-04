@@ -334,12 +334,15 @@ export default function ComercialPage() {
   const showObras = unidade === 'ESTRUTURAL ZORTEA' || unidade === 'CONSOLIDADO';
 
   const pageSeries = {
-    mensal: dadosCombo.map((m) => ({ label: m.label, valor: m.faturamento })),
+    mensal: dadosCombo,
     mix: donutMix,
     estados: estadoSorted.map((d) => ({ label: d.cd_estado, valor: n(d.faturamento) })),
     revendas: revendaRank,
     obras: obrasRank.map((o) => ({ label: o.label, valor: o.valor })),
   };
+
+  // Overrides globais (para botão "Restaurar layout padrão")
+  const slotOverrides = useSlotOverrides(PAGE_KEY);
 
   return (
     <PageDataProvider
