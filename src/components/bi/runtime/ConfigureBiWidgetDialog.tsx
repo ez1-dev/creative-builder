@@ -60,6 +60,7 @@ export function ConfigureBiWidgetDialog({
 
   const startsAsLibrary = !!initial.componentId || isCustom;
   const [mode, setMode] = useState<'builtin' | 'library'>(startsAsLibrary ? 'library' : 'builtin');
+  const [activeTab, setActiveTab] = useState<'builtin' | 'library' | 'series'>(startsAsLibrary ? 'library' : 'builtin');
   const [variant, setVariant] = useState<string>(initial.variant ?? def?.variants[0]?.value ?? '');
   const [componentId, setComponentId] = useState<string>(initial.componentId ?? libDefs[0]?.id ?? '');
   const [seriesKey, setSeriesKey] = useState<string>(initial.mapping?.series ?? '');
@@ -72,7 +73,9 @@ export function ConfigureBiWidgetDialog({
 
   useEffect(() => {
     if (!open) return;
-    setMode(startsAsLibrary ? 'library' : 'builtin');
+    const lib = startsAsLibrary ? 'library' : 'builtin';
+    setMode(lib);
+    setActiveTab(lib);
     setVariant(initial.variant ?? def?.variants[0]?.value ?? '');
     setComponentId(initial.componentId ?? libDefs[0]?.id ?? '');
     setSeriesKey(initial.mapping?.series ?? '');
