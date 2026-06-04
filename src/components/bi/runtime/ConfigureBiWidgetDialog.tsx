@@ -51,6 +51,7 @@ interface Props {
 export function ConfigureBiWidgetDialog({
   open, onOpenChange, def, initial, blockType, fallbackTitle,
   onApply, onResetToDefault, kpis, series, rows,
+  customMetrics = [], onCreateCustomMetric,
 }: Props) {
   const page = getPage('bi-comercial');
   const isCustom = blockType.startsWith('custom-');
@@ -64,6 +65,10 @@ export function ConfigureBiWidgetDialog({
   const [seriesKey, setSeriesKey] = useState<string>(initial.mapping?.series ?? '');
   const [valueKey, setValueKey] = useState<string>(initial.mapping?.value ?? def?.kpiKey ?? '');
   const [customTitle, setCustomTitle] = useState<string>(initial.customTitle ?? '');
+  const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
+
+  // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
+  const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
 
   useEffect(() => {
     if (!open) return;
@@ -73,6 +78,7 @@ export function ConfigureBiWidgetDialog({
     setSeriesKey(initial.mapping?.series ?? '');
     setValueKey(initial.mapping?.value ?? def?.kpiKey ?? '');
     setCustomTitle(initial.customTitle ?? '');
+    setSeriesList(initial.series ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
