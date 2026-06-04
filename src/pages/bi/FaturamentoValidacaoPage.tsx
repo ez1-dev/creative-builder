@@ -199,10 +199,6 @@ export default function FaturamentoValidacaoPage() {
   };
 
 
-  const aplicarFiltros = () => {
-    setFiltros({ ...draft });
-    setPage(1);
-  };
 
   const atualizar = () => {
     try {
