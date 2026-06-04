@@ -33,7 +33,6 @@ import {
 } from '@/components/bi';
 import {
   DashboardPage,
-  DashboardHeader,
   DashboardSection,
 } from '@/components/bi/layout/DashboardLayout';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
