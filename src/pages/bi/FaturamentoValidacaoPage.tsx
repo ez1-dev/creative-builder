@@ -61,7 +61,7 @@ export default function FaturamentoValidacaoPage() {
   const defaultsIniciais: FaturamentoValidacaoFiltros = {
     anomes_ini: def.ini,
     anomes_fim: def.fim,
-    fonte_acao: 'faturamento,faturamento_manual',
+    fonte_acao: 'VM_FATURAMENTO,VM_FATURAMENTO_MANUAL',
     unidade_negocio: 'GENIUS,ESTRUTURAL ZORTEA',
     cd_tp_movimento: 'S',
     cd_origem: 'PROP',
