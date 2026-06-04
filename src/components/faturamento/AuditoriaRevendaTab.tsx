@@ -418,8 +418,10 @@ export function AuditoriaRevendaTab() {
         <CardContent className="p-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <div className="space-y-1">
-              <Label className="text-xs">Ano/Mês inicial (YYYYMM) *</Label>
+              <Label htmlFor="audrev-anomes-ini" className="text-xs">Ano/Mês inicial (YYYYMM) *</Label>
               <Input
+                id="audrev-anomes-ini"
+                name="anomes_ini"
                 value={filters.anomes_ini}
                 onChange={(e) => update('anomes_ini', e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="202601"
@@ -428,8 +430,10 @@ export function AuditoriaRevendaTab() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Ano/Mês final (YYYYMM) *</Label>
+              <Label htmlFor="audrev-anomes-fim" className="text-xs">Ano/Mês final (YYYYMM) *</Label>
               <Input
+                id="audrev-anomes-fim"
+                name="anomes_fim"
                 value={filters.anomes_fim}
                 onChange={(e) => update('anomes_fim', e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="202612"
@@ -438,8 +442,10 @@ export function AuditoriaRevendaTab() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Projeto *</Label>
+              <Label htmlFor="audrev-numprj" className="text-xs">Projeto *</Label>
               <Input
+                id="audrev-numprj"
+                name="numprj"
                 value={filters.numprj}
                 onChange={(e) => update('numprj', e.target.value)}
                 placeholder="Número do projeto"
@@ -447,9 +453,9 @@ export function AuditoriaRevendaTab() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Origem</Label>
+              <Label htmlFor="audrev-origem" className="text-xs">Origem</Label>
               <Select value={filters.origem} onValueChange={(v) => update('origem', v as OrigemOption)}>
-                <SelectTrigger className="h-8 text-xs">
+                <SelectTrigger id="audrev-origem" className="h-8 text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -462,8 +468,10 @@ export function AuditoriaRevendaTab() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Filial</Label>
+              <Label htmlFor="audrev-codfil" className="text-xs">Filial</Label>
               <Input
+                id="audrev-codfil"
+                name="codfil"
                 value={filters.codfil}
                 onChange={(e) => update('codfil', e.target.value)}
                 placeholder="Código da filial"
