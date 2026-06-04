@@ -416,7 +416,8 @@ export default function ComercialPage() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout.widgets, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
-      qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading]);
+      qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
+      customMetrics.metrics, hiddenSeries]);
 
   // ===== Builder handlers =====
   const handleLayoutChange = async (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
