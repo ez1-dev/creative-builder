@@ -1,8 +1,9 @@
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { BI_PALETTE } from '../utils/chartHelpers';
 import { BarChartDatum } from './BarChartCard';
+import { mergeVisualConfig, formatDataLabel, legendPositionProps } from '@/lib/bi/visualConfig';
 
 export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
@@ -14,10 +15,12 @@ export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' 
 }
 
 export function PieChartCard({
-  data, valueFormatter = formatCurrency, donut, centerLabel, centerValue, onItemClick, height = 280, ...shell
+  data, valueFormatter = formatCurrency, donut, centerLabel, centerValue, onItemClick, height = 280, visualConfig, ...shell
 }: PieChartCardProps) {
+  const vc = mergeVisualConfig(visualConfig);
+  const fmtLabel = (v: any) => formatDataLabel(v, vc.dataLabels);
   return (
-    <ChartCardShell {...shell} height={height} isEmpty={!data?.length}>
+    <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <div className="relative">
         <ResponsiveContainer width="100%" height={height}>
           <PieChart>
@@ -27,10 +30,19 @@ export function PieChartCard({
               onClick={(d: any) => onItemClick?.(d as BarChartDatum)}
             >
               {data.map((_, i) => <Cell key={i} fill={BI_PALETTE[i % BI_PALETTE.length]} />)}
+              {vc.dataLabels.visible && (
+                <LabelList dataKey="valor" position={vc.dataLabels.position === 'inside' ? 'inside' : 'outside'}
+                  style={{ fontSize: vc.dataLabels.fontSize, fill: 'hsl(var(--foreground))' }}
+                  formatter={fmtLabel as any} />
+              )}
             </Pie>
-            <Tooltip formatter={(v: number) => valueFormatter(v)}
-              contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            {vc.tooltip.visible && (
+              <Tooltip formatter={(v: number) => vc.dataLabels.visible ? fmtLabel(v) : valueFormatter(v)}
+                contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
+            )}
+            {vc.legend.visible && (
+              <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize }} />
+            )}
           </PieChart>
         </ResponsiveContainer>
         {donut && (centerLabel || centerValue) && (

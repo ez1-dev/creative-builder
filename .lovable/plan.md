@@ -1,53 +1,93 @@
-# Eliminar pisca no resize/drag do BI Comercial
 
-## Objetivo
-Ao redimensionar/mover cards em `/bi/comercial` no modo edição:
-- Sem `LoadingState`/skeleton.
-- Sem UPDATE no banco durante o gesto.
-- Soltar o mouse não dispara save.
-- Persistência **somente** ao clicar em **Salvar Dashboard**.
-- Sem remount dos Recharts.
+# Biblioteca BI — Aparência e leitura dos gráficos
 
-## Causa raiz remanescente
-Hoje o ciclo é: `onResizeStop → handleLayoutChange (debounce 700ms) → layout.saveLayout → load({silent:true}) → setWidgets (com nova geometria, identidade nova) → useMemo de blocks recomputa → ComercialDashboardGrid recebe novo objeto blocks → Recharts remontam`.
+Implementação faseada para evitar quebrar dashboards existentes. Toda configuração visual fica em um único objeto `visual_config` (JSON), opcional, com defaults sãos. Sem mudanças em SQL nem em regras de negócio.
 
-Mesmo silencioso, o reload do banco logo após cada gesto provoca novo `setWidgets` (geometria realmente mudou), o que invalida o `useMemo` de `blocks` e remonta os gráficos.
+## Fase 1 — Modelo de dados e tipo `VisualConfig`
 
-## Mudanças
+1. Criar `src/lib/bi/visualConfig.ts`:
+   - `export interface VisualConfig { title, subtitle, legend, dataLabels, resultDescription, axis, grid, tooltip, card }` exatamente no formato do JSON proposto pelo usuário.
+   - `DEFAULT_VISUAL_CONFIG` com defaults compatíveis com o look atual.
+   - `mergeVisualConfig(partial?)` → faz merge profundo com defaults (componentes sem `visual_config` continuam renderizando idênticos).
+   - `formatDataLabel(value, cfg.dataLabels)` cobrindo: `int | decimal | currency | percent | compact`, `decimals`, `prefix`, `suffix`.
+   - `interpolateDescription(text, vars)` para `{total}`, `{periodo}`, `{maior_valor}`, `{menor_valor}`, `{quantidade_registros}` (Fase 5, mas o esqueleto já entra).
 
-### 1. `src/pages/bi/ComercialPage.tsx` — draft de layout em modo edição
-- Substituir o debounce automático por **draft local**:
-  - `const [layoutDraft, setLayoutDraft] = useState<{type;layout}[] | null>(null)`.
-  - Ao entrar em edição (`setEditing(true)`): `setLayoutDraft(null)` (zera draft).
-  - Ao sair sem salvar (Cancelar/`setEditing(false)`): `setLayoutDraft(null)` e descarta alterações visuais (o `PassagensLayoutGrid` já reseta `localLayout` a partir do banco quando `editing` vira false).
-- `handleLayoutChange` passa a **apenas** atualizar `layoutDraft` em memória — **nunca** chama `layout.saveLayout`. Remover `pendingLayoutRef`, `saveTimerRef` e o `setTimeout` de 700ms.
-- Novo botão/ação **Salvar Dashboard** (já existe o ícone `Save`/`editing`): ao clicar, faz `await layout.saveLayout(layoutDraft.map(...))`, limpa o draft, sai do modo edição.
-- Novo botão **Cancelar**: descarta `layoutDraft` e sai do modo edição.
-- As demais ações (`handleHide`, `handleDelete`, `handleConfigApply`, `handleConfigReset`, `handleAdd`, `handleResetLayout`) continuam salvando imediatamente — não envolvem gesto de drag/resize.
+2. **Persistência**: NÃO criar coluna nova. Reaproveitar `bi_user_widgets.options JSONB` (já existe) salvando em `options.visual` o `VisualConfig`. Para widgets canônicos (`dashboard_widgets.config JSONB`) reusar `config.visual`. Zero migração de banco.
 
-### 2. `src/pages/bi/ComercialPage.tsx` — estabilizar `blocks`
-- Tirar `layout.widgets` das deps do `useMemo` de `blocks`. Trocar por uma chave estável que representa só o que de fato muda o conteúdo dos blocos:
-  - `widgetsContentKey = layout.widgets.map(w => `${w.type}|${w.hidden?1:0}|${w.componentId??''}|${w.variant??''}|${w.customTitle??''}|${JSON.stringify(w.mapping??null)}|${JSON.stringify(w.options??null)}|${JSON.stringify(w.series??null)}`).join('~')`.
-- Geometria (`layout.x/y/w/h`) **não** entra nessa chave — quem cuida dela é o `PassagensLayoutGrid` via `localLayout`. Assim resize/drag nunca recompõe `blocks`.
-- Manter as demais deps (`kpis, mensal, ...`).
+## Fase 2 — Renderização respeitando `visual_config`
 
-### 3. `src/hooks/useComercialLayout.ts` — `saveLayout` não recarrega durante edição
-- Atualmente `saveLayout` chama `load({ silent: true })` no final. Manter o reload (preciso para refletir IDs novos em `add`/`hide`/`delete`), mas garantir que `load` só faz `setWidgets` quando o conteúdo realmente difere — a comparação `JSON.stringify` atual já cobre isso e os dados voltam idênticos ao que acabou de ser enviado, então `setWidgets` permanece com a mesma referência. Sem mudança de código, só validação.
-- Adicionar guarda extra: em `mergeWithDefaults`, preservar a ordem/objetos atuais quando o item retornado for byte-a-byte igual ao já presente (evita nova identidade de array). Implementar comparando por tipo+layout+config e reaproveitando o objeto anterior quando coincidirem.
+Alterar `ChartCardShell` para receber `visualConfig?: VisualConfig` e aplicar:
+- `card.showHeader`, `card.showBorder`, `card.density` (`compacta|normal|detalhada` → padding/altura).
+- `title.visible/text/align/fontSize`, `subtitle.visible/text/fontSize`.
+- `resultDescription` (renderizado `above`/`below`/`beforeLegend`/`afterChart`).
+- Manter `subtitle` legado funcionando se `visual_config` estiver ausente.
 
-### 4. Pequenos ajustes de UX no header de edição
-- Em `editing=true`, mostrar: `[Adicionar bloco] [Restaurar padrão] [Cancelar] [Salvar Dashboard]`.
-- Em `editing=false`, mostrar: `[Editar]`.
-- `Salvar Dashboard` fica desabilitado se `layoutDraft == null` (nada para salvar).
+Atualizar os charts impactados (`BarChartCard`, `HorizontalBarChartCard`, `LineChartCard`, `AreaChartCard`, `ComboChartCard`, `PieChartCard`, `DonutChartCard`, `StackedBarChartCard`) para receber `visualConfig` e aplicar:
+- `<Legend>` condicional, `verticalAlign`/`align` mapeados de `legend.position` (`top|bottom|left|right`), `wrapperStyle.fontSize`, e renomes via `legend.seriesLabels`.
+- `<LabelList>` do Recharts quando `dataLabels.visible`, com `position` (Recharts: `top|bottom|inside|outside|left|right|center`), `fontSize`, e `formatter = formatDataLabel`.
+- `<CartesianGrid>` condicional (`grid.visible`).
+- `<XAxis>`/`<YAxis>` condicional (`axis.xVisible/yVisible`), `label` para `axis.xLabel/yLabel`, `tick.fontSize` de `axis.fontSize`.
+- `<Tooltip>` condicional (`tooltip.visible`), com `formatter` usando `formatDataLabel` quando definido.
 
-## Fora de escopo
-- Sem mudanças no `PassagensLayoutGrid` (já está correto: emite só em `onDragStop`/`onResizeStop`).
-- Sem mudanças nas queries de dados (`useQuery` continuam iguais; resize não dispara refetch).
-- Sem mudanças na API/banco.
+Charts especiais (radar, scatter, gauge, heatmap, treemap, calendar, funnel, waterfall) recebem só o subset que faz sentido (título, legenda, descrição, card, tooltip) — eixos/labels ignorados sem erro.
 
-## Verificação
-1. Abrir `/bi/comercial`, clicar Editar.
-2. Arrastar e redimensionar vários cards — confirmar via Network que **nenhum** `PATCH/UPDATE dashboard_widgets` é disparado.
-3. Confirmar visualmente: sem skeleton, sem flicker, gráficos não remontam.
-4. Clicar **Salvar Dashboard** — único `update` no banco; recarrega silencioso; tela permanece estável.
-5. Clicar **Cancelar** após mover algo — layout volta ao estado salvo.
+No `componentRegistry.tsx`, propagar `options.visual` para os componentes nas chamadas `render(...)`:
+```ts
+const visual = mergeVisualConfig(options?.visual);
+return <BarChartCard ... visualConfig={visual} title={visual.title.text || title || ...} />;
+```
+
+## Fase 3 — Editor "Aparência e leitura do gráfico"
+
+Criar `src/components/bi/visual/VisualConfigEditor.tsx`:
+- Componente controlado: `value: VisualConfig`, `onChange(next)`.
+- Layout em `<Tabs>` shadcn com 6 abas: **Título**, **Legenda**, **Rótulos**, **Descrição**, **Eixos & Grade**, **Card**.
+- Cada aba usa primitivos shadcn (`Switch`, `Input`, `Select`, `Slider`, `Textarea`, `RadioGroup`).
+- Para "nome amigável das séries" (`legend.seriesLabels`): receber prop `availableSeriesKeys: string[]` e renderizar uma lista editável (chave → label).
+- Botões inferiores: **Restaurar padrão** (volta a `DEFAULT_VISUAL_CONFIG`).
+
+Integrar no `ConfigureChartDialog` (`src/components/passagens/ConfigureChartDialog.tsx`):
+- Acrescentar uma seção/aba "Aparência e leitura do gráfico" acima do preview.
+- Estado novo `visual` inicializado de `initial?.options?.visual` ou default.
+- O preview já existente passa `options.visual = visual` e mostra mudanças em tempo real.
+- Em `onApply`, persistir `options.visual` junto.
+- Botão "Restaurar padrão visual" reseta só o `visual` (separado do "Voltar ao padrão" que reseta o bloco inteiro).
+
+Onde mais o editor aparece: o mesmo dialog é reutilizado por `PassagensDashboard`, `FrotaDashboard`, `MaquinasDashboard` (Dashboard Builder) — todos já vão herdar.
+
+## Fase 4 — Aplicação fora do Dashboard Builder
+
+- **`/biblioteca-bi`** (catálogo): adicionar botão "Configurar aparência" no preview de cada componente; abre `VisualConfigEditor` em standalone para o usuário experimentar (não persiste — só ilustrativo).
+- **`PaginaDashboardTemplate`** e usuários do registry (ex.: ComercialPage): nada a fazer; já recebem `options.visual` pelo widget store.
+
+## Fase 5 — Variáveis dinâmicas em `resultDescription`
+
+- `ChartCardShell` calcula `vars` a partir dos dados (`total`, `maior_valor`, `menor_valor`, `quantidade_registros`) e `periodo` vindo de prop opcional `periodLabel`. Passa para `interpolateDescription`.
+- Apenas substituição simples `{var}` → string formatada. Sem motor de fórmulas.
+
+## Fase 6 — QA
+
+- Smoke check em `/bi/comercial`, `/passagens-aereas`, `/manutencao-frota`: dashboards sem `visual_config` continuam idênticos.
+- Editar 1 gráfico em `/passagens-aereas`: trocar título, ativar rótulos `currency` + prefixo `R$`, mover legenda para `right`, ativar descrição "below" — confirmar persistência após reload.
+- Garantir que `mergeVisualConfig(undefined)` nunca lance.
+
+## Fora do escopo (deixar para depois)
+
+- "Aplicar estilo para todos os componentes do mesmo tipo" (botão fica desabilitado com tooltip "em breve").
+- Editor visual para `radar/scatter/heatmap/gauge/treemap/funnel/waterfall` específicos — só o subset comum.
+- Mudanças em `<Legend>` para gráficos `pie/donut` quando `position: left|right` (Recharts não suporta tudo igual — mapear para `top|bottom` com warning silencioso).
+
+## Arquivos tocados (resumo)
+
+Novos:
+- `src/lib/bi/visualConfig.ts`
+- `src/components/bi/visual/VisualConfigEditor.tsx`
+
+Editados:
+- `src/components/bi/charts/ChartCardShell.tsx`
+- `src/components/bi/charts/{Bar,HorizontalBar,Line,Area,Combo,Pie,Donut,StackedBar}ChartCard.tsx`
+- `src/lib/bi/componentRegistry.tsx`
+- `src/components/passagens/ConfigureChartDialog.tsx`
+- `src/pages/BiComponentsDemoPage.tsx` (catálogo `/biblioteca-bi`)
+
+Sem migração de banco. Sem alteração em SQL/ETL/regra de negócio.

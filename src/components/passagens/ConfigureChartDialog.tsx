@@ -6,7 +6,7 @@
  * Reutiliza o COMPONENT_REGISTRY e o schema da página Passagens
  * registrado em PAGE_REGISTRY.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -20,6 +20,8 @@ import {
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
+import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
+import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
 
 const COLOR_AWARE_TYPES = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
 
@@ -65,6 +67,7 @@ export function ConfigureChartDialog({
   const [customTitle, setCustomTitle] = useState<string>(initial?.customTitle ?? '');
   const [topN, setTopN] = useState<string>(String(initial?.options?.topN ?? 10));
   const [color, setColor] = useState<string>(initial?.options?.color ?? DEFAULT_CHART_COLOR);
+  const [visual, setVisual] = useState<VisualConfig>(mergeVisualConfig(initial?.options?.visual));
 
   const def = useMemo(() => getComponent(componentId), [componentId]);
   const seriesOptions = page?.schema.series ?? [];
@@ -78,6 +81,7 @@ export function ConfigureChartDialog({
     setCustomTitle(initial?.customTitle ?? '');
     setTopN(String(initial?.options?.topN ?? 10));
     setColor(initial?.options?.color ?? DEFAULT_CHART_COLOR);
+    setVisual(mergeVisualConfig(initial?.options?.visual));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -86,29 +90,32 @@ export function ConfigureChartDialog({
     if (!seriesKey && seriesOptions[0]) setSeriesKey(seriesOptions[0].key);
   }, [seriesKey, seriesOptions]);
 
+  const buildOptions = useCallback(() => {
+    const options: Record<string, any> = {};
+    if (def?.id === 'ranking-chart') options.topN = Number(topN) || 10;
+    if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
+    if (JSON.stringify(visual) !== JSON.stringify(DEFAULT_VISUAL_CONFIG)) options.visual = visual;
+    return options;
+  }, [def, topN, supportsColor, color, visual]);
+
   // Preview
   const previewNode = useMemo(() => {
     if (!def || !seriesKey || !ctx) return null;
     try {
-      const options: Record<string, any> = {};
-      if (def.id === 'ranking-chart') options.topN = Number(topN) || 10;
-      if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
       return def.render({
         title: customTitle || def.label,
         mapping: { series: seriesKey },
         ctx: { kpis: ctx.kpis, series: ctx.series, rows: ctx.rows },
-        options,
+        options: buildOptions(),
       });
     } catch (e) {
       return <div className="text-xs text-destructive">Erro no preview: {(e as Error).message}</div>;
     }
-  }, [def, seriesKey, customTitle, topN, ctx, color, supportsColor]);
+  }, [def, seriesKey, customTitle, ctx, buildOptions]);
 
   const handleApply = () => {
     if (!def || !seriesKey) return;
-    const options: Record<string, any> = {};
-    if (def.id === 'ranking-chart') options.topN = Number(topN) || 10;
-    if (supportsColor && color && color !== DEFAULT_CHART_COLOR) options.color = color;
+    const options = buildOptions();
     onApply({
       componentId: def.id,
       mapping: { series: seriesKey },
@@ -120,7 +127,7 @@ export function ConfigureChartDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar gráfico</DialogTitle>
           <DialogDescription>
@@ -181,6 +188,14 @@ export function ConfigureChartDialog({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-md border p-3">
+          <VisualConfigEditor
+            value={visual}
+            onChange={setVisual}
+            availableSeriesKeys={['valor']}
+          />
         </div>
 
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">

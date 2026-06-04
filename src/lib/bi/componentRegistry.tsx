@@ -156,6 +156,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
         onItemClick={makeClickHandler(ctx, mapping.series)}
+        visualConfig={options?.visual}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -172,6 +173,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
         onItemClick={makeClickHandler(ctx, mapping.series)}
+        visualConfig={options?.visual}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -187,6 +189,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       <LineChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        visualConfig={options?.visual}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -202,6 +205,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       <AreaChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
+        visualConfig={options?.visual}
         {...(options?.color ? { color: options.color as string } : {})}
       />
     ),
@@ -213,11 +217,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
+    render: ({ title, mapping, ctx, options }) => (
       <DonutChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
         onItemClick={makeClickHandler(ctx, mapping.series)}
+        visualConfig={options?.visual}
       />
     ),
   },
@@ -228,11 +233,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
+    render: ({ title, mapping, ctx, options }) => (
       <PieChartCard
         title={title || mapping.series}
         data={SERIES_LIKE(ctx.series?.[mapping.series])}
         onItemClick={makeClickHandler(ctx, mapping.series)}
+        visualConfig={options?.visual}
       />
     ),
   },
@@ -392,14 +398,14 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série (multi-key)', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
+    render: ({ title, mapping, ctx, options }) => {
       const raw = ctx.series?.[mapping.series];
       const arr = Array.isArray(raw) ? raw : [];
       // descobre keys numéricas (exceto label)
       const sample = arr[0] ?? {};
       const keys = Object.keys(sample).filter((k) => typeof (sample as any)[k] === 'number').slice(0, 4);
       const series = keys.map((k) => ({ dataKey: k, label: k }));
-      return <StackedBarChartCard title={title || mapping.series} data={arr} series={series.length ? series : [{ dataKey: 'valor', label: 'valor' }]} />;
+      return <StackedBarChartCard title={title || mapping.series} data={arr} series={series.length ? series : [{ dataKey: 'valor', label: 'valor' }]} visualConfig={options?.visual} />;
     },
   },
   {
@@ -409,7 +415,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
+    render: ({ title, mapping, ctx, options }) => {
       const raw = ctx.series?.[mapping.series];
       const arr = Array.isArray(raw) ? raw : [];
       const sample = arr[0] ?? {};
@@ -424,6 +430,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           barLabel={barKey}
           lineKey={lineKey}
           lineLabel={lineKey}
+          visualConfig={options?.visual}
         />
       );
     },
