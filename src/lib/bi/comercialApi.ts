@@ -1,12 +1,22 @@
 import { api } from '@/lib/api';
+import type { BiComercialFilters } from './comercialFilters';
 
 export type UnidadeNegocio = 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
 
-export interface ComercialParams {
-  anomes_ini: string;
-  anomes_fim: string;
-  unidade_negocio: UnidadeNegocio;
+/** Aceita os filtros completos (base + drill). Campos vazios são removidos. */
+export type ComercialParams = BiComercialFilters;
+
+export type ComercialDetalheEscopo =
+  | 'todas' | 'impostos' | 'devolucao' | 'vendas' | 'clientes' | 'estados';
+
+function buildQuery(p: ComercialParams, extras?: Record<string, string | undefined>) {
+  const out: Record<string, string> = {};
+  Object.entries({ ...p, ...(extras || {}) }).forEach(([k, v]) => {
+    if (v != null && String(v).length > 0) out[k] = String(v);
+  });
+  return out;
 }
+
 
 export interface ComercialKpis {
   faturamento: number | null;
