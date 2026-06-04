@@ -95,8 +95,8 @@ export default function PassagensAereasCompartilhadoPage() {
             </div>
             <form onSubmit={(e) => { e.preventDefault(); handlePasswordSubmit(); }} className="space-y-3">
               <div>
-                <Label>Senha</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+                <Label htmlFor="senha-compartilhado">Senha</Label>
+                <Input id="senha-compartilhado" name="senha-compartilhado" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
               </div>
               {state === 'wrong-password' && (
                 <p className="text-xs text-destructive">Senha incorreta. Tente novamente.</p>

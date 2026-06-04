@@ -210,20 +210,20 @@ export default function RegraEditorPage() {
             <Card>
               <CardContent className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="md:col-span-3">
-                  <label className="text-xs text-muted-foreground">Nome da regra</label>
-                  <Input value={nomeRegra} onChange={(e) => setNomeRegra(e.target.value)} />
+                  <label className="text-xs text-muted-foreground" htmlFor="regra-nome">Nome da regra</label>
+                  <Input id="regra-nome" name="regra-nome" value={nomeRegra} onChange={(e) => setNomeRegra(e.target.value)} />
                 </div>
                 <div className="md:col-span-3">
-                  <label className="text-xs text-muted-foreground">Descrição</label>
-                  <Textarea value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} />
+                  <label className="text-xs text-muted-foreground" htmlFor="regra-descricao">Descrição</label>
+                  <Textarea id="regra-descricao" name="regra-descricao" value={descricao} onChange={(e) => setDescricao(e.target.value)} rows={2} />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Ticket</label>
-                  <Input value={ticket} onChange={(e) => setTicket(e.target.value)} />
+                  <label className="text-xs text-muted-foreground" htmlFor="regra-ticket">Ticket</label>
+                  <Input id="regra-ticket" name="regra-ticket" value={ticket} onChange={(e) => setTicket(e.target.value)} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="text-xs text-muted-foreground">Motivo</label>
-                  <Input value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+                  <label className="text-xs text-muted-foreground" htmlFor="regra-motivo">Motivo</label>
+                  <Input id="regra-motivo" name="regra-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
                 </div>
               </CardContent>
             </Card>
