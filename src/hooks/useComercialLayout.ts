@@ -155,6 +155,7 @@ export function useComercialLayout(enabled: boolean = true) {
       setOrDel('options', 'options');
       setOrDel('customTitle', 'customTitle');
       setOrDel('variant', 'variant');
+      setOrDel('series', 'series');
       return cfg;
     };
 
