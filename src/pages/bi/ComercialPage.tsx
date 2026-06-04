@@ -535,23 +535,36 @@ export default function ComercialPage() {
             {qMensal.isLoading ? <LoadingState height={280} /> :
               qMensal.isError ? <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} /> :
               dadosCombo.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-              <ComboChartCard
-                title="Faturamento mensal x Meta — clique p/ filtrar"
-                data={dadosCombo}
-                barKey="faturamento"
-                barLabel="Faturamento"
-                lineKey="meta"
-                lineLabel="Meta"
-                barColor={style.bar}
+              <BiSlot
+                slot={COMERCIAL_SLOTS.mensal}
+                color={style.bar}
                 onItemClick={onClickMensal}
+                defaultRender={() => (
+                  <ComboChartCard
+                    title="Faturamento mensal x Meta — clique p/ filtrar"
+                    data={dadosCombo}
+                    barKey="faturamento"
+                    barLabel="Faturamento"
+                    lineKey="meta"
+                    lineLabel="Meta"
+                    barColor={style.bar}
+                    onItemClick={onClickMensal}
+                  />
+                )}
               />}
             {qMix.isLoading ? <LoadingState height={280} /> :
               qMix.isError ? <BlocoErro err={qMix.error} onRetry={() => qMix.refetch()} /> :
               donutMix.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-              <DonutChartCard
-                title="Mix acumulado — clique p/ filtrar"
-                data={donutMix}
+              <BiSlot
+                slot={COMERCIAL_SLOTS.mix}
                 onItemClick={onClickMix}
+                defaultRender={() => (
+                  <DonutChartCard
+                    title="Mix acumulado — clique p/ filtrar"
+                    data={donutMix}
+                    onItemClick={onClickMix}
+                  />
+                )}
               />}
           </div>
         </DashboardSection>
