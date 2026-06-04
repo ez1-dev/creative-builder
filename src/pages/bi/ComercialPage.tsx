@@ -48,7 +48,7 @@ import {
   type ComercialDetalheRow,
   type ComercialMensalRow,
 } from '@/lib/bi/comercialApi';
-import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
+import { fetchMetaCloudTotal, fetchMetasMensalMap } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
   drillFromMixCategoria,
