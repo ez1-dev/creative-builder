@@ -1,63 +1,114 @@
-## Enriquecer `/bi/comercial` com a Biblioteca BI
+## Drill-down completo em `/bi/comercial`
 
-Objetivo: aproveitar mais componentes de `@/components/bi` na tela do BI Comercial e habilitar o "Aplicar componente" (widgets do usuário), sem alterar a camada de dados (continua consumindo os 6 endpoints FastAPI já integrados).
+Adicionar navegação analítica clicável em todos os componentes do BI Comercial, com filtros encadeados, breadcrumb e drawer de detalhes — sem mocks, consumindo a FastAPI.
 
-### 1. Novos componentes da biblioteca na página
+### 1. Estado global de filtros
 
-Adicionar/substituir, mantendo a estética azul corporativa e tokens semânticos:
+Criar hook `useComercialFilters` em `src/lib/bi/comercialFilters.ts`:
 
-- **Filtros**
-  - Trocar o bloco manual de filtros pelo `FilterBar` + `SelectFilter` (Unidade) e `DateRangeFilter` adaptado para AnoMês (mantém os inputs `anomes_ini`/`anomes_fim` se o range não couber). Botão "Aplicar" continua disparando `setFiltros`.
-  - Manter o chip da unidade ativa.
+```ts
+type BiComercialFilters = {
+  // base (não limpa em "Limpar Drill")
+  anomes_ini: string;
+  anomes_fim: string;
+  unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
+  // drill (limpa em "Limpar Drill")
+  anomes_emissao?: string;
+  cd_estado?: string;
+  cd_cliente?: string;
+  cd_prj?: string;
+  cd_rev_pedido?: string;
+  cd_origem?: string;
+  cd_tp_movimento?: string;
+  cd_tns?: string;
+  cd_nf?: string;
+};
+```
 
-- **KPIs**
-  - Manter `KpiGrid` + `KpiCard` para os 13 indicadores principais.
-  - Substituir o card "% Atingimento" por `KpiTargetCard` (valor = faturamento, meta = `kpis.meta`) — mostra barra de progresso e atingimento.
-  - Substituir "Diferença" por `KpiVariationCard` (atual = faturamento, anterior = meta) — mostra variação absoluta e %.
-  - Adicionar `KpiSparklineCard` para "Faturamento mensal" usando a série `mensal[].faturamento`, ao lado dos KPIs principais.
+Helpers: `applyDrill(key,value,label)`, `removeDrill(key)`, `clearDrill()`, `getActiveDrillChips()`.
 
-- **Gráficos**
-  - Manter `ComboChartCard` (mensal x meta) e `DonutChartCard` (mix).
-  - Trocar `FunnelChartCard` de "Top estados" por `HorizontalBarChartCard` (mais legível para ranking de UFs) e manter `BrazilMapCard` ao lado.
-  - Adicionar `RankingChartCard` no bloco GENIUS (Top revendas) ao invés de `BarChartCard` simples.
-  - Manter `TreemapChartCard` no bloco ESTRUTURAL (obras).
+### 2. Camada API
 
-- **Tabelas**
-  - Tabela mensal: manter `DataTableBI`.
-  - Revendas: trocar a `DataTableBI` por `RankingTable` (com posição, valor, % do total).
-  - Obras: trocar por `RankingTable` também.
+Estender `src/lib/bi/comercialApi.ts`:
 
-- **Layout**
-  - Envolver a página no `DashboardLayout` da biblioteca (padroniza espaçamentos/seções com a `/biblioteca-bi`).
+- Passar **todos** os filtros ativos como query params para `kpis/mensal/mix/estado/revenda/obras` (a FastAPI já filtra pelo que reconhece; campos não suportados são ignorados — confirmar no backend caso necessário).
+- Novo `fetchComercialDetalhes(filters, opts?)` → `GET /api/bi/comercial/detalhes` retornando linhas com as colunas listadas no enunciado. Unwrap key `bi_comercial_detalhes`.
+- Tipagem `ComercialDetalheRow` com todas as colunas (`anomes_emissao, unidade_negocio, cd_tp_movimento, cd_origem, cd_empresa, cd_filial, cd_nf, cd_serie, dt_emissao, cd_estado, cd_cliente, cd_prj, ds_abr_prj, cd_rev_pedido, cd_tns, vl_bruto, vl_impostos, vl_liquido, vl_devolucao, qtd_produtos`).
+- Opções extras enviadas como query: `escopo` (`'todas' | 'impostos' | 'devolucao' | 'vendas' | 'clientes' | 'estados'`) — apenas etiqueta para o backend distinguir cards; default `todas`.
 
-Nenhuma cor hardcoded: tudo via tokens (`--primary`, `--warning`, `--muted-foreground`) já usados no `UNIDADE_STYLE`.
+### 3. Página `/bi/comercial`
 
-### 2. Habilitar "Aplicar componente" (widgets do usuário)
+Refatorar `src/pages/bi/ComercialPage.tsx` mantendo a Biblioteca BI já em uso:
 
-Seguindo o padrão usado em outras páginas BI:
+**Barra de filtros ativos (drill)**
 
-- Importar `ApplyComponentButton`, `UserWidgetsSlot` e `BiAutoSlots` de `@/components/bi`.
-- Definir um `pageId` estável: `"bi-comercial"`.
-- Colocar `ApplyComponentButton` no header da página (ao lado de "Atualizar"), permitindo ao usuário escolher um componente do catálogo da Biblioteca BI e aplicá-lo na própria tela.
-- Inserir `UserWidgetsSlot` nos pontos âncora da página (topo, após KPIs, após gráficos, rodapé) com `slotId`s distintos (`top`, `pos-kpis`, `pos-graficos`, `bottom`), para que os widgets aplicados pelo usuário renderizem nos locais certos.
-- Disponibilizar o contexto de dados via `PageDataContext` (`@/lib/bi/PageDataContext`) expondo `{ kpis, mensal, mix, estados, revendas, obras, filtros }`, para os widgets aplicados poderem consumir os mesmos dados já carregados (sem refazer requests).
-- Registrar a página em `src/lib/bi/pageRegistry.ts` com `id: 'bi-comercial'`, título e descrição — assim ela aparece como destino válido no fluxo de aplicação do `/biblioteca-bi`.
+- Usar `DrillBreadcrumb` (já existe em `@/components/bi/drill/DrillBreadcrumb`) logo abaixo do `FilterBar`.
+- Mostra cada filtro de drill ativo como chip removível (X) + botão **"Limpar Drill"** que zera apenas os campos de drill.
+- Quando vazio, esconder a barra.
 
-### Fora de escopo
+**Cliques nos gráficos** — todos passam a ter `cursor-pointer` e tooltip "Clique para detalhar":
 
-- Não alterar `comercialApi.ts`, endpoints FastAPI, view `v_bi_faturamento_comercial`, rota, sidebar ou `screenCatalog`.
-- Não mexer em outras páginas BI.
-- Não migrar para `PaginaDashboardTemplate`/`useDashboardData` (item 3 da pergunta anterior fica de fora).
+| Componente | Ação ao clicar |
+|---|---|
+| `ComboChartCard` mensal | `applyDrill('anomes_emissao', d.label)` |
+| `DonutChartCard` mix | mapear categoria: `MÁQUINAS`/`PEÇAS` → `cd_origem`; `SERVIÇOS`/`PRODUTOS` → `cd_tp_movimento` |
+| `HorizontalBarChartCard` estados | `applyDrill('cd_estado', d.label)` |
+| `BrazilMapCard` mapa | `applyDrill('cd_estado', uf)` (via prop `onItemClick`) |
+| `RankingChartCard` revendas | `applyDrill('cd_rev_pedido', revenda)` |
+| `RankingTable` revendas | idem (prop `onItemClick` já existe) |
+| `TreemapChartCard` obras | `applyDrill('cd_prj', cd_prj)` |
+| `RankingTable` obras | idem |
+| `DataTableBI` mensal (linha) | `applyDrill('anomes_emissao', linha)` |
+
+Onde algum componente da Biblioteca BI não expuser `onItemClick`/`onClick` hoje, **adicionar a prop** (mudança mínima, opt-in) no componente da biblioteca: `ComboChartCard`, `DonutChartCard`, `BrazilMapCard`. Os demais já suportam.
+
+**Cliques nos cards KPI** — abrem o drawer de detalhes com `escopo` específico:
+
+- Faturamento → `escopo=todas`
+- Impostos → `escopo=impostos` (drawer destaca colunas `vl_impostos` + decompostas se backend retornar)
+- Devolução → `escopo=devolucao` (filtro local: `vl_devolucao !== 0`)
+- Nº Vendas → `escopo=vendas` (drawer mostra notas distintas)
+- Nº Clientes → `escopo=clientes` (drawer agrupado por `cd_cliente`)
+- Nº Estados → `escopo=estados` (drawer agrupado por `cd_estado`)
+
+KPIs cliques implementados envolvendo `KpiCard` num wrapper `<button>` que dispara `openDetalhes(escopo)`.
+
+### 4. Drawer de detalhes
+
+Usar `DrillSheet` + `useDrillSheet` (já existem em `@/components/bi/drill/DrillSheet`):
+
+- Título: **Detalhamento do Drill**
+- Subtítulo: descrição do escopo
+- `chips`: filtros ativos (anomes, unidade, estado, cliente, projeto, revenda, etc.)
+- Conteúdo: `DataTableBI` com paginação client-side; colunas conforme especificação. Currency: `vl_bruto`, `vl_impostos`, `vl_liquido`, `vl_devolucao`. Número: `qtd_produtos`.
+- Estados: `LoadingState`, `ErrorState` ("Não foi possível carregar os dados do drill"), `EmptyState` quando vazio.
+- Botão exportar CSV no header do drawer (opcional, simples).
+
+### 5. UX visual
+
+- Cores mantidas via `UNIDADE_STYLE`: GENIUS laranja (`--warning`), ESTRUTURAL ZORTEA azul (`--primary`), CONSOLIDADO cinza/roxo (`--muted-foreground`).
+- Tooltip global "Clique para detalhar" via prop nativa `title` ou wrapper `<TooltipProvider>` nas áreas clicáveis.
+- Cursor pointer em todos os elementos drilláveis.
+
+### 6. Fora de escopo
+
+- Não alterar endpoints existentes (apenas consumir o novo `/api/bi/comercial/detalhes`).
+- Não mexer em outras telas BI.
+- Não persistir filtros de drill (estado em memória só).
+- `PageDataProvider` continua expondo séries — mas os widgets do usuário não recebem cliques de drill nesta iteração.
 
 ### Arquivos afetados
 
-- Editado: `src/pages/bi/ComercialPage.tsx` (substituições de componentes, layout, slots de widgets, contexto de dados).
-- Editado: `src/lib/bi/pageRegistry.ts` (registrar `bi-comercial`).
-- Nenhum arquivo novo previsto; se o `PageDataProvider` exigir tipagem específica, criar `src/pages/bi/comercialPageContext.ts` apenas com os tipos.
+- **Novo**: `src/lib/bi/comercialFilters.ts` (hook + tipos + helpers).
+- **Editado**: `src/lib/bi/comercialApi.ts` (novo fetcher detalhes; aceitar filtros de drill nos demais).
+- **Editado**: `src/pages/bi/ComercialPage.tsx` (breadcrumb, cliques, drawer, KPIs clicáveis).
+- **Editado** (mínimo, adicionar `onItemClick`): `src/components/bi/charts/ComboChartCard.tsx`, `src/components/bi/charts/DonutChartCard.tsx` / `PieChartCard.tsx`, `src/components/bi/charts/BrazilMapCard.tsx`. Sem quebrar consumidores existentes.
 
 ### Critério de aceite
 
-- Tela `/bi/comercial` mantém os mesmos números (GENIUS Jan–Jun/2026: Faturamento ≈ 1.816.792,46 etc.).
-- KPIs de meta/variação e sparkline aparecem corretamente.
-- Ranking de revendas/obras usa `RankingTable`.
-- Botão "Aplicar componente" funciona: ao escolher um componente da biblioteca, ele é renderizado no slot escolhido e persiste para o usuário (via `useUserWidgets`, igual às demais páginas).
+- Clicar em qualquer gráfico/tabela aplica filtro e recarrega todos os blocos com o filtro novo.
+- Breadcrumb mostra trilha tipo `GENIUS > 202603 > SC > PEÇAS` com X individual e botão **Limpar Drill**.
+- Cards KPI abrem o drawer com colunas e dados corretos, respeitando filtros ativos.
+- "Limpar Drill" preserva `anomes_ini`, `anomes_fim`, `unidade_negocio`.
+- Falha de API mostra "Não foi possível carregar os dados do drill" e botão **Tentar novamente**.
+- Funciona nas três unidades (GENIUS, ESTRUTURAL ZORTEA, CONSOLIDADO) com paleta correta.
