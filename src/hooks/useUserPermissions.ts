@@ -31,14 +31,24 @@ export function useUserPermissions() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const loadedForUserRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!erpUser) {
+      loadedForUserRef.current = null;
       setPermissions([]);
       setCanUseAi(false);
       setIsAdmin(false);
       setLoading(false);
       return;
     }
+
+    if (loadedForUserRef.current === erpUser) {
+      return;
+    }
+    loadedForUserRef.current = erpUser;
+
+
 
     let cancelled = false;
     const fetchPerms = async () => {
