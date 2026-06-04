@@ -155,10 +155,10 @@ export function ConfigureBiWidgetDialog({
         </DialogHeader>
 
         <Tabs
-          value={mode}
+          value={activeTab}
           onValueChange={(v) => {
+            setActiveTab(v as any);
             if (v === 'builtin' || v === 'library') setMode(v);
-            else setMode(v as any);
           }}
         >
           <TabsList className={`grid w-full grid-cols-${tabCols}`}>
