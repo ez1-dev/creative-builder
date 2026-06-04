@@ -89,8 +89,8 @@ export default function ManutencaoFrotaCompartilhadoPage() {
             </div>
             <form onSubmit={(e) => { e.preventDefault(); handlePasswordSubmit(); }} className="space-y-3">
               <div>
-                <Label>Senha</Label>
-                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+                <Label htmlFor="senha-frota-compartilhado">Senha</Label>
+                <Input id="senha-frota-compartilhado" name="senha-frota-compartilhado" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
               </div>
               {state === 'wrong-password' && <p className="text-xs text-destructive">Senha incorreta.</p>}
               <Button type="submit" className="w-full" disabled={submitting || !password}>
