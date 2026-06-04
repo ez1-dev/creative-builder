@@ -8,9 +8,10 @@ export interface TreemapDatum { name: string; value: number; children?: TreemapD
 export interface TreemapChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: TreemapDatum[];
   valueFormatter?: (v: number) => string;
+  onItemClick?: (d: TreemapDatum) => void;
 }
 
-export function TreemapChartCard({ data, valueFormatter = formatCurrency, height = 280, ...shell }: TreemapChartCardProps) {
+export function TreemapChartCard({ data, valueFormatter = formatCurrency, height = 280, onItemClick, ...shell }: TreemapChartCardProps) {
   const isEmpty = !data?.length;
   return (
     <ChartCardShell {...shell} height={height} isEmpty={isEmpty}>
@@ -20,7 +21,7 @@ export function TreemapChartCard({ data, valueFormatter = formatCurrency, height
           dataKey="value"
           stroke="hsl(var(--background))"
           fill="hsl(var(--primary))"
-          content={<CustomCell />}
+          content={<CustomCell onItemClick={onItemClick} />}
         >
           <Tooltip
             formatter={(v: number) => valueFormatter(v)}
@@ -33,10 +34,14 @@ export function TreemapChartCard({ data, valueFormatter = formatCurrency, height
 }
 
 function CustomCell(props: any) {
-  const { x, y, width, height, index, name } = props;
+  const { x, y, width, height, index, name, value, onItemClick } = props;
   const color = BI_PALETTE[index % BI_PALETTE.length];
+  const clickable = !!onItemClick;
   return (
-    <g>
+    <g
+      style={{ cursor: clickable ? 'pointer' : undefined }}
+      onClick={clickable ? () => onItemClick({ name, value }) : undefined}
+    >
       <rect x={x} y={y} width={width} height={height} fill={color} stroke="hsl(var(--background))" />
       {width > 60 && height > 24 && (
         <text x={x + 6} y={y + 16} fill="white" fontSize={11} fontWeight={600}>{name}</text>
