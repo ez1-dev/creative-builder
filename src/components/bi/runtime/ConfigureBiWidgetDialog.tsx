@@ -115,6 +115,7 @@ export function ConfigureBiWidgetDialog({
         mapping: null,
         options: null,
         customTitle: customTitle.trim() || null,
+        series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
       });
     } else {
       const mapping: Record<string, string> = {};
@@ -128,6 +129,7 @@ export function ConfigureBiWidgetDialog({
         componentId,
         mapping,
         customTitle: customTitle.trim() || null,
+        series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
       });
     }
     onOpenChange(false);
@@ -135,6 +137,7 @@ export function ConfigureBiWidgetDialog({
 
   const variants = def?.variants ?? [];
   const hasBuiltin = !isCustom && variants.length > 0;
+  const tabCols = hasBuiltin && supportsSeries ? 3 : (hasBuiltin || supportsSeries ? 2 : 1);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
