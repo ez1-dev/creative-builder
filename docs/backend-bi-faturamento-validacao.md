@@ -118,6 +118,63 @@ Paginação server-side. Parâmetros extras: `page` (1-based, default 1), `page_
 
 `created_at` vem da coluna `atualizado_em` da tabela `bi_faturamento`.
 
+### `GET /api/bi/faturamento/unidade-comercial`
+
+Visão **comercial** para comparação com BI UpQuery. Filtra obrigatoriamente `fonte_acao IN ('VM_FATURAMENTO', 'VM_FATURAMENTO_MANUAL')` (ignora `VM_FAT_CONTABIL` e `VM_FAT_TRB` porque não trazem `cd_prj`).
+
+Regra de unidade:
+- `cd_prj = '12'` → `GENIUS`
+- demais registros → `ESTRUTURAL ZORTEA`
+
+Agrupa por `anomes_emissao, unidade_negocio`. Para cada `anomes_emissao`, retornar **adicionalmente** uma linha com `unidade_negocio = 'CONSOLIDADO'` (soma de GENIUS + ESTRUTURAL ZORTEA). Filtro opcional `unidade_negocio` (CSV) é aplicado no resultado final.
+
+```json
+[
+  {
+    "anomes_emissao": "202601",
+    "unidade_negocio": "GENIUS",
+    "qtd_linhas": 0,
+    "vl_bruto": 0.0,
+    "vl_total": 0.0,
+    "vl_devolucao": 0.0,
+    "vl_icms": 0.0,
+    "vl_pis": 0.0,
+    "vl_cofins": 0.0
+  }
+]
+```
+
+### `GET /api/bi/faturamento/unidade-tecnica`
+
+Visão **técnica/auditoria** com todas as fontes (`VM_FATURAMENTO`, `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL`, `VM_FAT_TRB`).
+
+Regra de unidade:
+- `cd_prj = '12'` → `GENIUS`
+- `cd_prj` não nulo e diferente de `'12'` → `ESTRUTURAL ZORTEA`
+- `cd_prj IS NULL` (contábil/tributos) → `SEM_UNIDADE`
+
+Agrupa por `anomes_emissao, unidade_negocio, fonte_acao, cd_tp_movimento, cd_origem`. Aceita filtros: `anomes_ini`, `anomes_fim`, `unidade_negocio` (CSV), `fonte_acao` (CSV, com `SEM_FONTE` → `IS NULL`).
+
+```json
+[
+  {
+    "anomes_emissao": "202601",
+    "unidade_negocio": "GENIUS",
+    "fonte_acao": "VM_FATURAMENTO",
+    "cd_tp_movimento": "S",
+    "cd_origem": "PROP",
+    "qtd_linhas": 0,
+    "vl_bruto": 0.0,
+    "vl_total": 0.0,
+    "vl_devolucao": 0.0,
+    "vl_icms": 0.0,
+    "vl_pis": 0.0,
+    "vl_cofins": 0.0
+  }
+]
+```
+
+
 ## fonte_acao
 
 Coluna `bi_faturamento.fonte_acao` (text, nullable) identifica qual ação ETL carregou a linha (ex.: `faturamento`, `faturamento-manual`, `faturamento-contabil`, `faturamento-tributos`). Os endpoints retornam o valor como veio do banco — quem renderiza `"SEM_FONTE"` quando `null` é o frontend. As ações do ETL (em `etl_acoes`) devem preencher `fonte_acao` com o próprio `id_acao` durante o upsert em `bi_faturamento`.
