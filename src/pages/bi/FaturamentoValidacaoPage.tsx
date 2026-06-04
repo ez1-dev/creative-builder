@@ -193,6 +193,33 @@ export default function FaturamentoValidacaoPage() {
     { key: 'created_at', header: 'Criado em', render: (_, r) => formatDateBR(r.created_at) },
   ], []);
 
+  const uniComColumns: Column<UnidadeComercialRow>[] = useMemo(() => [
+    { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
+    { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
+    { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
+    { key: 'vl_devolucao', header: 'VL Devolução', render: (_, r) => formatCurrency(num(r.vl_devolucao)), align: 'right' },
+    { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
+    { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
+    { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
+  ], []);
+
+  const uniTecColumns: Column<UnidadeTecnicaRow>[] = useMemo(() => [
+    { key: 'anomes_emissao', header: 'AnoMês', render: (_, r) => r.anomes_emissao ?? '-' },
+    { key: 'unidade_negocio', header: 'Unidade', render: (_, r) => r.unidade_negocio ?? '-' },
+    { key: 'fonte_acao', header: 'Fonte Ação', render: (_, r) => r.fonte_acao ?? 'SEM_FONTE' },
+    { key: 'cd_tp_movimento', header: 'Tp Mov', render: (_, r) => r.cd_tp_movimento ?? '-' },
+    { key: 'cd_origem', header: 'Origem', render: (_, r) => r.cd_origem ?? '-' },
+    { key: 'qtd_linhas', header: 'Linhas', render: (_, r) => formatNumber(num(r.qtd_linhas)), align: 'right' },
+    { key: 'vl_bruto', header: 'VL Bruto', render: (_, r) => formatCurrency(num(r.vl_bruto)), align: 'right' },
+    { key: 'vl_total', header: 'VL Total', render: (_, r) => formatCurrency(num(r.vl_total)), align: 'right' },
+    { key: 'vl_devolucao', header: 'VL Devolução', render: (_, r) => formatCurrency(num(r.vl_devolucao)), align: 'right' },
+    { key: 'vl_icms', header: 'VL ICMS', render: (_, r) => formatCurrency(num(r.vl_icms)), align: 'right' },
+    { key: 'vl_pis', header: 'VL PIS', render: (_, r) => formatCurrency(num(r.vl_pis)), align: 'right' },
+    { key: 'vl_cofins', header: 'VL COFINS', render: (_, r) => formatCurrency(num(r.vl_cofins)), align: 'right' },
+  ], []);
+
   const totalPaginas = qDet.data ? Math.max(1, Math.ceil(qDet.data.total / pageSize)) : 1;
 
   const filtroField = (
