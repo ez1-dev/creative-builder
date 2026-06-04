@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useMemo, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { api, setApiBaseUrl } from '@/lib/api';
 import type { Session, User } from '@supabase/supabase-js';
@@ -17,6 +17,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const DEV = import.meta.env.DEV;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -26,7 +28,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [erpConnected, setErpConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
+  // Refs para evitar reload de profile/ERP em todo refresh de token
+  const loadedForUserIdRef = useRef<string | null>(null);
+  const loadingProfileRef = useRef(false);
+
+  // fetchProfile estável via ref — não entra em deps de useEffect
+  const fetchProfileRef = useRef<(userId: string) => Promise<void>>();
+  fetchProfileRef.current = async (userId: string) => {
+    if (loadingProfileRef.current) return;
+    loadingProfileRef.current = true;
+
     const withTimeout = <T,>(p: PromiseLike<T>, ms: number, label: string): Promise<T> =>
       new Promise((resolve, reject) => {
         const t = setTimeout(() => reject(new Error(`[Auth] timeout: ${label}`)), ms);
@@ -57,13 +68,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      setDisplayName(profileData.display_name);
-      setErpUser(profileData.erp_user);
-      setApproved(profileData.approved ?? false);
-      console.log('[Auth] profile loaded', { erp_user: profileData.erp_user, approved: profileData.approved });
+      setDisplayName((prev) => prev === profileData!.display_name ? prev : profileData!.display_name);
+      setErpUser((prev) => prev === profileData!.erp_user ? prev : profileData!.erp_user);
+      setApproved((prev) => prev === (profileData!.approved ?? false) ? prev : (profileData!.approved ?? false));
+      if (DEV) console.log('[Auth] profile loaded', { erp_user: profileData.erp_user, approved: profileData.approved });
 
       if (profileData.erp_user) {
-        // Login automático na API ERP com credenciais globais do banco
         try {
           const { data: settings } = await withTimeout(
             supabase.from('app_settings').select('key, value').in('key', ['erp_api_user', 'erp_api_pass', 'erp_api_url']),
@@ -77,8 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const apiPass = settingsMap['erp_api_pass'];
           if (apiUser && apiPass) {
             await withTimeout(api.login(apiUser, apiPass), 10000, 'erp.login');
-            setErpConnected(true);
-            console.log('[Auth] erp api ok');
+            setErpConnected((prev) => prev === true ? prev : true);
+            if (DEV) console.log('[Auth] erp api ok');
           } else {
             console.warn('[Auth] credenciais da API ERP não configuradas no banco');
             setErpConnected(false);
@@ -110,11 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('[Auth] fetchProfile erro inesperado:', e);
     } finally {
       setLoading(false);
+      loadingProfileRef.current = false;
     }
-  }, []);
+  };
 
   useEffect(() => {
-    // Limpa lixo stale que pode quebrar requests pré-login (ex: token ERP expirado de versões antigas do app desktop)
     try {
       const tok = localStorage.getItem('erp_token');
       if (tok && (tok.length < 10 || tok === 'undefined' || tok === 'null')) {
@@ -122,36 +132,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch {}
 
+    const handleSession = (nextSession: Session | null, eventName?: string) => {
+      const nextUserId = nextSession?.user?.id ?? null;
+      const sameUser = nextUserId === loadedForUserIdRef.current;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
+      // Atualiza session/user só se o id mudar — evita re-render em refresh de token
+      setSession((prev) => (prev?.user?.id === nextUserId ? prev : nextSession));
+      setUser((prev) => (prev?.id === nextUserId ? prev : nextSession?.user ?? null));
+
+      if (!nextSession?.user) {
+        loadedForUserIdRef.current = null;
         setDisplayName(null);
         setErpUser(null);
         setErpConnected(false);
         setApproved(false);
         setLoading(false);
+        return;
       }
+
+      // Ignora TOKEN_REFRESHED / USER_UPDATED se já carregou esse usuário
+      if (sameUser && (eventName === 'TOKEN_REFRESHED' || eventName === 'USER_UPDATED')) {
+        return;
+      }
+
+      if (sameUser) {
+        // Mesma sessão já carregada — não recarregar profile
+        setLoading(false);
+        return;
+      }
+
+      loadedForUserIdRef.current = nextUserId;
+      fetchProfileRef.current?.(nextUserId!);
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      handleSession(nextSession, event);
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      handleSession(s, 'INITIAL');
+      if (!s) setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useMemo(() => async () => {
     localStorage.removeItem('erp_is_admin');
+    loadedForUserIdRef.current = null;
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);
@@ -161,18 +190,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setApproved(false);
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ isAuthenticated: !!session, user, session, displayName, erpUser, erpConnected, approved, loading, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = useMemo<AuthContextType>(() => ({
+    isAuthenticated: !!session,
+    user,
+    session,
+    displayName,
+    erpUser,
+    erpConnected,
+    approved,
+    loading,
+    logout,
+  }), [session, user, displayName, erpUser, erpConnected, approved, loading, logout]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    // Fallback seguro — evita tela branca em casos de HMR onde o módulo
-    // do contexto é recarregado isoladamente do Provider.
     if (import.meta.env.DEV) {
       console.warn('useAuth called outside AuthProvider — returning fallback');
     }
