@@ -602,6 +602,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_user_custom_metrics: {
+        Row: {
+          created_at: string
+          format: string
+          formula: string
+          id: string
+          label: string
+          metric_id: string
+          page_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          format?: string
+          formula: string
+          id?: string
+          label: string
+          metric_id: string
+          page_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          format?: string
+          formula?: string
+          id?: string
+          label?: string
+          metric_id?: string
+          page_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bi_user_drill_presets: {
         Row: {
           columns: Json
