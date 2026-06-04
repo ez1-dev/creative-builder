@@ -1,24 +1,24 @@
-## Objetivo
+## Diagnóstico
 
-Ao abrir a tela `/bi/faturamento-validacao`, os filtros já vêm preenchidos e aplicados automaticamente (sem precisar clicar em "Aplicar").
+O filtro `unidade_negocio` é enviado ao backend FastAPI, mas o backend não está respeitando (ou ainda não foi implementado). Como solução, vamos passar a filtrar no **frontend**, após receber os dados.
 
-## Valores padrão
+## Escopo
 
-- **AnoMês Início**: `202601`
-- **AnoMês Fim**: ano/mês atual (ex.: `202606`) — já é o comportamento atual
-- **Fonte Ação**: `faturamento,faturamento_manual`
-- **Unidade Negócio**: `GENIUS,ESTRUTURAL ZORTEA`
-- **CD Tp Movimento**: `S`
-- **CD Origem**: `PROP`
+O campo `unidade_negocio` só existe nas linhas das abas **Comercial por Unidade** e **Técnico / Conciliação** (as outras tabelas — Resumo, Por movimento, Por TNS, Detalhes — não têm esse campo, então o filtro não se aplica a elas).
 
-Demais campos (`cd_empresa`, `cd_filial`, `cd_tns`, `cd_centro_custos_3`, `cd_nf`) continuam vazios.
+## Alterações em `src/pages/bi/FaturamentoValidacaoPage.tsx`
 
-## Alteração
+1. **Deixar de enviar `unidade_negocio` ao backend** (remover do payload das chamadas comercial/técnica) — evita confusão e garante que o filtro é puramente client-side.
 
-Arquivo único: `src/pages/bi/FaturamentoValidacaoPage.tsx`
+2. **Filtrar `qUniCom.data` no frontend** via `useMemo`:
+   - Parse do CSV `filtros.unidade_negocio` em lista.
+   - Se lista vazia → retorna dados como estão.
+   - Caso contrário → mantém apenas linhas cujo `unidade_negocio` está na lista.
+   - **CONSOLIDADO**: se o usuário selecionar apenas uma unidade (ex.: só `GENIUS`), recalcular a linha `CONSOLIDADO` por mês a partir da unidade restante (ou ocultar se não fizer sentido). Se selecionar as duas, manter o CONSOLIDADO original.
 
-- Ajustar o estado inicial `draft` e `filtros` para já incluir os 6 valores acima.
-- Como `filtros` é inicializado a partir do `draft`, as 6 queries (`qResumo`, `qMov`, `qTns`, `qDet`, `qUniCom`, `qUniTec`) já disparam com os filtros aplicados no primeiro render.
-- Usuário ainda pode editar/limpar qualquer campo e clicar em "Aplicar".
+3. **Filtrar `qUniTec.data` no frontend** via `useMemo`:
+   - Mesma lógica de parse + `Array.filter`.
 
-Nenhuma mudança em backend, RPCs, docs ou na camada `src/lib/bi/faturamentoValidacao.ts`.
+4. Passar os arrays filtrados para os respectivos `DataTableBI`.
+
+Nenhuma mudança em backend, RPC, docs ou na camada `src/lib/bi/faturamentoValidacao.ts`.
