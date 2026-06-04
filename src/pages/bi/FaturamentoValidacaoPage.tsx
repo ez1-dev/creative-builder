@@ -108,6 +108,36 @@ export default function FaturamentoValidacaoPage() {
     refetchOnWindowFocus: false,
   });
 
+  const qOptions = useQuery({
+    queryKey: ['bi-fat-val', 'distinct-options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bi_faturamento')
+        .select('cd_tp_movimento, cd_origem')
+        .limit(5000);
+      if (error) throw error;
+      const tp = new Set<string>();
+      const og = new Set<string>();
+      (data ?? []).forEach((r: any) => {
+        if (r.cd_tp_movimento) tp.add(String(r.cd_tp_movimento));
+        if (r.cd_origem) og.add(String(r.cd_origem));
+      });
+      return {
+        tp_movimento: Array.from(tp).sort(),
+        origem: Array.from(og).sort(),
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const tpMovimentoOptions = qOptions.data?.tp_movimento.length
+    ? qOptions.data.tp_movimento
+    : TP_MOVIMENTO_FALLBACK;
+  const origemOptions = qOptions.data?.origem.length
+    ? qOptions.data.origem
+    : ORIGEM_FALLBACK;
+
   const aplicarFiltros = () => {
     setFiltros({ ...draft });
     setPage(1);
