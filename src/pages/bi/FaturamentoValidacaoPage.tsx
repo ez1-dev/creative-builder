@@ -82,6 +82,18 @@ export default function FaturamentoValidacaoPage() {
     retry: 1,
     refetchOnWindowFocus: false,
   });
+  const qUniCom = useQuery({
+    queryKey: ['bi-fat-val', 'unidade-comercial', filtros],
+    queryFn: () => getUnidadeComercial(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+  const qUniTec = useQuery({
+    queryKey: ['bi-fat-val', 'unidade-tecnica', filtros],
+    queryFn: () => getUnidadeTecnica(filtros),
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
 
   const aplicarFiltros = () => {
     setFiltros({ ...draft });
@@ -94,6 +106,8 @@ export default function FaturamentoValidacaoPage() {
       qMov.refetch();
       qTns.refetch();
       qDet.refetch();
+      qUniCom.refetch();
+      qUniTec.refetch();
     } catch (err) {
       console.warn('[FaturamentoValidacao] falha ao atualizar:', err);
       toast({ title: 'Falha ao atualizar', description: 'Tente novamente em instantes.', variant: 'destructive' });
