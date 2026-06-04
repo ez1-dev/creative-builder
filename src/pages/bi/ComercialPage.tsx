@@ -32,6 +32,7 @@ import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
 import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
@@ -647,6 +648,22 @@ export default function ComercialPage() {
             </Button>
           </div>
         )}
+
+        <AiChartGenerator
+          filtrosBase={filters}
+          onDrill={(dim, label) => {
+            if (dim === 'unidade_negocio') {
+              if (label === 'GENIUS' || label === 'ESTRUTURAL ZORTEA' || label === 'CONSOLIDADO') {
+                setBase({ unidade_negocio: label as UnidadeNegocio });
+                setDraft((d) => ({ ...d, unidade_negocio: label as UnidadeNegocio }));
+              }
+              return;
+            }
+            applyDrill(dim as BiComercialDrillKey, label);
+          }}
+        />
+
+
 
         {layout.loading ? (
           <LoadingState height={400} variant="skeleton" />

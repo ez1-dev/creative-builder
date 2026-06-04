@@ -36,6 +36,7 @@ import {
 } from '@/lib/bi/faturamentoValidacao';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
 
 const FONTE_ACAO_OPTIONS = ['VM_FATURAMENTO', 'VM_FATURAMENTO_MANUAL', 'VM_FAT_CONTABIL', 'VM_FAT_TRB', 'SEM_FONTE'];
 const UNIDADE_NEGOCIO_OPTIONS = ['GENIUS', 'ESTRUTURAL ZORTEA', 'SEM_UNIDADE'];
@@ -413,6 +414,16 @@ export default function FaturamentoValidacaoPage() {
           </div>
         </CardContent>
       </Card>
+
+      <AiChartGenerator
+        filtrosBase={{
+          anomes_ini: filtros.anomes_ini,
+          anomes_fim: filtros.anomes_fim,
+          unidade_negocio: (filtros.unidade_negocio ?? '').includes(',') ? '' : (filtros.unidade_negocio ?? ''),
+        }}
+      />
+
+
 
       <DashboardTabs
         tabs={[
