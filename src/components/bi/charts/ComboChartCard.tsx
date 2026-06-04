@@ -13,12 +13,13 @@ export interface ComboChartCardProps extends Omit<ChartCardShellProps, 'children
   barColor?: string;
   lineColor?: string;
   valueFormatter?: (v: number) => string;
+  onItemClick?: (d: any) => void;
 }
 
 export function ComboChartCard({
   data, xKey = 'label', barKey, barLabel, lineKey, lineLabel,
   barColor = 'hsl(var(--primary))', lineColor = 'hsl(var(--warning))',
-  valueFormatter = formatCurrency, height = 280, ...shell
+  valueFormatter = formatCurrency, height = 280, onItemClick, ...shell
 }: ComboChartCardProps) {
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length}>
@@ -30,7 +31,9 @@ export function ComboChartCard({
           <Tooltip formatter={(v: number) => valueFormatter(v)}
             contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey={barKey} name={barLabel || barKey} fill={barColor} radius={[4, 4, 0, 0]} />
+          <Bar dataKey={barKey} name={barLabel || barKey} fill={barColor} radius={[4, 4, 0, 0]}
+            cursor={onItemClick ? 'pointer' : undefined}
+            onClick={(d: any) => onItemClick?.(d?.payload ?? d)} />
           <Line type="monotone" dataKey={lineKey} name={lineLabel || lineKey} stroke={lineColor} strokeWidth={2} dot={{ r: 3 }} />
         </ComposedChart>
       </ResponsiveContainer>
