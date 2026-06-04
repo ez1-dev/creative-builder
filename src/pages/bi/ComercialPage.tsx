@@ -48,7 +48,7 @@ import {
   type ComercialDetalheRow,
   type ComercialMensalRow,
 } from '@/lib/bi/comercialApi';
-import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
+import { fetchMetaCloudTotal, fetchMetasMensalMap } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
   drillFromMixCategoria,
@@ -123,6 +123,16 @@ export default function ComercialPage() {
     refetchOnWindowFocus: false,
     retry: 1,
   });
+  const qMetaCloudMensal = useQuery({
+    queryKey: ['bi-comercial','meta-cloud-mensal', filters.anomes_ini, filters.anomes_fim, filters.unidade_negocio],
+    queryFn: () => fetchMetasMensalMap({
+      anomes_ini: filters.anomes_ini,
+      anomes_fim: filters.anomes_fim,
+      unidade_negocio: filters.unidade_negocio,
+    }),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   const aplicarFiltrosBase = () => setBase({ ...draft });
   const atualizar = () => {
@@ -130,6 +140,7 @@ export default function ComercialPage() {
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
     if (qObras.isFetched || unidade !== 'GENIUS') qObras.refetch();
     qMetaCloud.refetch();
+    qMetaCloudMensal.refetch();
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
 
@@ -156,9 +167,17 @@ export default function ComercialPage() {
   const obrasRows = qObras.data ?? [];
 
 
+  const metaCloudMensal = qMetaCloudMensal.data ?? {};
   const dadosCombo = useMemo(
-    () => mensal.map((m) => ({ label: m.anomes_emissao, faturamento: n(m.faturamento), meta: n(m.meta) })),
-    [mensal],
+    () => mensal.map((m) => {
+      const override = metaCloudMensal[String(m.anomes_emissao)];
+      return {
+        label: m.anomes_emissao,
+        faturamento: n(m.faturamento),
+        meta: override != null ? override : n(m.meta),
+      };
+    }),
+    [mensal, metaCloudMensal],
   );
   const sparkSerie = useMemo(() => mensal.map((m) => n(m.faturamento)), [mensal]);
   const sparkTrend = useMemo(() => {

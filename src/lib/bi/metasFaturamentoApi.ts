@@ -226,3 +226,34 @@ export async function fetchMetaCloudTotal(params: {
   if (!data || data.length === 0) return null;
   return data.reduce((acc, r) => acc + Number(r.vl_meta || 0), 0);
 }
+
+/**
+ * Mapa por mês (`YYYYMM`) com a soma de `vl_meta` (apenas ativos) no intervalo + unidade.
+ * Para `CONSOLIDADO`, soma GENIUS + ESTRUTURAL ZORTEA por mês.
+ * Vazio = nenhuma meta cadastrada no período.
+ */
+export async function fetchMetasMensalMap(params: {
+  anomes_ini: string;
+  anomes_fim: string;
+  unidade_negocio: UnidadeNegocio;
+}): Promise<Record<string, number>> {
+  let q = supabase
+    .from('bi_meta_faturamento')
+    .select('anomes_emissao, vl_meta, unidade_negocio')
+    .eq('ativo', true)
+    .gte('anomes_emissao', params.anomes_ini)
+    .lte('anomes_emissao', params.anomes_fim);
+
+  if (params.unidade_negocio !== 'CONSOLIDADO') {
+    q = q.eq('unidade_negocio', params.unidade_negocio);
+  }
+
+  const { data, error } = await q;
+  if (error) throw error;
+  const out: Record<string, number> = {};
+  for (const r of data ?? []) {
+    const k = String(r.anomes_emissao);
+    out[k] = (out[k] ?? 0) + Number(r.vl_meta || 0);
+  }
+  return out;
+}
