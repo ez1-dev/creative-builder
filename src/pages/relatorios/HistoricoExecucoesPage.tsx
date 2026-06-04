@@ -46,6 +46,9 @@ export default function HistoricoExecucoesPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            id="busca-execucao"
+            name="busca-execucao"
+            aria-label="Buscar por código ou nome do relatório"
             placeholder="Buscar por código ou nome do relatório..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -53,7 +56,7 @@ export default function HistoricoExecucoesPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-          <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+          <SelectTrigger id="filtro-status-execucao" name="filtro-status-execucao" aria-label="Filtrar por status" className="w-[160px] h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os status</SelectItem>
             <SelectItem value="ok">Somente OK</SelectItem>

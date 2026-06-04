@@ -42,17 +42,17 @@ export function AlterarStatusRegraDialog({ regra, onClose, onDone }: {
         <div className="space-y-3">
           <AvisoErpBanner />
           <div>
-            <label className="text-xs text-muted-foreground">Novo status</label>
+            <label className="text-xs text-muted-foreground" htmlFor="alterar-status-novo">Novo status</label>
             <Select value={novoStatus} onValueChange={(v) => setNovoStatus(v as StatusRegra)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="alterar-status-novo" name="alterar-status-novo" aria-label="Novo status"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {OPTS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Motivo *</label>
-            <Textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} />
+            <label className="text-xs text-muted-foreground" htmlFor="alterar-status-motivo">Motivo *</label>
+            <Textarea id="alterar-status-motivo" name="alterar-status-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} rows={3} />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={confirmar} onCheckedChange={(c) => setConfirmar(c === true)} />

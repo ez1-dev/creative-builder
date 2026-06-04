@@ -71,6 +71,7 @@ import NotFound from "@/pages/NotFound";
 import { ProtectedRoute, PostLoginRedirect } from "@/components/ProtectedRoute";
 import { UserTrackingProvider } from "@/components/UserTrackingProvider";
 import { AiPageContextProvider } from "@/contexts/AiPageContext";
+import { PermissionsProvider } from "@/contexts/PermissionsContext";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1 } },
@@ -83,6 +84,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PermissionsProvider>
           <UserTrackingProvider>
           <AiPageContextProvider>
           <Routes>
@@ -167,6 +169,7 @@ const App = () => (
           </Routes>
           </AiPageContextProvider>
           </UserTrackingProvider>
+          </PermissionsProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
