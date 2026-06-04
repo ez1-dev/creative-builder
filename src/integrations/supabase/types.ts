@@ -602,45 +602,33 @@ export type Database = {
         }
         Relationships: []
       }
-      bi_user_slot_overrides: {
+      bi_user_drill_presets: {
         Row: {
-          component_id: string | null
+          columns: Json
           created_at: string
+          escopo: string
           id: string
-          mapping: Json
-          mode: string
-          options: Json
           page_key: string
-          slot_key: string
           updated_at: string
           user_id: string
-          variant: string | null
         }
         Insert: {
-          component_id?: string | null
+          columns?: Json
           created_at?: string
+          escopo: string
           id?: string
-          mapping?: Json
-          mode?: string
-          options?: Json
           page_key: string
-          slot_key: string
           updated_at?: string
           user_id: string
-          variant?: string | null
         }
         Update: {
-          component_id?: string | null
+          columns?: Json
           created_at?: string
+          escopo?: string
           id?: string
-          mapping?: Json
-          mode?: string
-          options?: Json
           page_key?: string
-          slot_key?: string
           updated_at?: string
           user_id?: string
-          variant?: string | null
         }
         Relationships: []
       }
@@ -3006,6 +2994,7 @@ export type Database = {
       }
       get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
       is_admin: { Args: { _uid: string }; Returns: boolean }
+      upsert_bi_comercial_dashboard_default: { Args: never; Returns: string }
       upsert_frota_dashboard_default: { Args: never; Returns: string }
       upsert_maquinas_dashboard_default: { Args: never; Returns: string }
       upsert_passagens_dashboard_default: { Args: never; Returns: string }
