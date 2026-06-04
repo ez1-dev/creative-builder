@@ -2,7 +2,7 @@
  * Editor de fórmulas calculadas — input + validação ao vivo + chips de
  * identificadores disponíveis (clicáveis para inserir).
  */
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,10 @@ interface Props {
 }
 
 export function FormulaBuilder({ value, onChange }: Props) {
+  const uid = useId();
+  const idName = `${uid}-name`;
+  const idFormula = `${uid}-formula`;
+  const idFormat = `${uid}-format`;
   const allowed = useMemo(() => metricIdentifiers(), []);
   const validation = useMemo(() => validateFormula(value.formula || '0', allowed), [value.formula, allowed]);
 
@@ -26,16 +30,20 @@ export function FormulaBuilder({ value, onChange }: Props) {
   return (
     <div className="space-y-3">
       <div>
-        <Label className="text-xs">Nome da métrica</Label>
+        <Label htmlFor={idName} className="text-xs">Nome da métrica</Label>
         <Input
+          id={idName}
+          name="metric-name"
           value={value.label}
           onChange={(e) => onChange({ ...value, label: e.target.value })}
           placeholder="Ex.: Margem Líquida"
         />
       </div>
       <div>
-        <Label className="text-xs">Fórmula</Label>
+        <Label htmlFor={idFormula} className="text-xs">Fórmula</Label>
         <Input
+          id={idFormula}
+          name="metric-formula"
           value={value.formula}
           onChange={(e) => onChange({ ...value, formula: e.target.value })}
           placeholder="Ex.: (faturamento - devolucao - impostos) / faturamento * 100"
@@ -50,9 +58,9 @@ export function FormulaBuilder({ value, onChange }: Props) {
         </div>
       </div>
       <div>
-        <Label className="text-xs">Formato de exibição</Label>
+        <Label htmlFor={idFormat} className="text-xs">Formato de exibição</Label>
         <Select value={value.format} onValueChange={(v) => onChange({ ...value, format: v as MetricFormat })}>
-          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectTrigger id={idFormat} name="metric-format" aria-label="Formato de exibição" className="h-8"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="currency">Moeda (R$)</SelectItem>
             <SelectItem value="number">Número</SelectItem>
