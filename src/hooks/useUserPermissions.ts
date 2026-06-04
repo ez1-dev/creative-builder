@@ -105,12 +105,15 @@ export function useUserPermissions() {
         setPermissions(Array.from(merged.values()));
         setCanUseAi(profiles.some((p: any) => p.ai_enabled));
         setIsAdmin(profiles.some((p: any) => p.name === 'Administrador'));
-        // eslint-disable-next-line no-console
-        console.log('[useUserPermissions] ready', {
-          erpUser,
-          screens: merged.size,
-          isAdmin: profiles.some((p: any) => p.name === 'Administrador'),
-        });
+        if (DEV) {
+          // eslint-disable-next-line no-console
+          console.log('[useUserPermissions] ready', {
+            erpUser,
+            screens: merged.size,
+            isAdmin: profiles.some((p: any) => p.name === 'Administrador'),
+          });
+        }
+
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('[useUserPermissions] fetch failed, liberando UI mesmo assim:', e);
