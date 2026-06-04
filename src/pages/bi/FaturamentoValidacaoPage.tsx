@@ -145,6 +145,60 @@ export default function FaturamentoValidacaoPage() {
     ? qOptions.data.origem
     : ORIGEM_FALLBACK;
 
+  const unidadesSelecionadas = useMemo(
+    () => (filtros.unidade_negocio ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean),
+    [filtros.unidade_negocio],
+  );
+
+  const uniComFiltradas = useMemo<UnidadeComercialRow[]>(() => {
+    const data = qUniCom.data ?? [];
+    if (unidadesSelecionadas.length === 0) return data;
+    const incluiConsolidado = unidadesSelecionadas.includes('CONSOLIDADO');
+    const unidadesReais = unidadesSelecionadas.filter(u => u !== 'CONSOLIDADO');
+    const linhas = data.filter(r =>
+      unidadesReais.includes(r.unidade_negocio) ||
+      (incluiConsolidado && r.unidade_negocio === 'CONSOLIDADO'),
+    );
+    // Se selecionou apenas unidades reais (sem CONSOLIDADO), recalcular CONSOLIDADO por mês
+    if (!incluiConsolidado && unidadesReais.length > 1) {
+      const porMes = new Map<string, UnidadeComercialRow>();
+      linhas.filter(r => r.unidade_negocio !== 'CONSOLIDADO').forEach(r => {
+        const key = r.anomes_emissao ?? '';
+        const acc = porMes.get(key) ?? {
+          anomes_emissao: r.anomes_emissao,
+          unidade_negocio: 'CONSOLIDADO',
+          qtd_linhas: 0, vl_bruto: 0, vl_total: 0, vl_devolucao: 0,
+          vl_icms: 0, vl_pis: 0, vl_cofins: 0,
+        };
+        acc.qtd_linhas += num(r.qtd_linhas);
+        acc.vl_bruto += num(r.vl_bruto);
+        acc.vl_total += num(r.vl_total);
+        acc.vl_devolucao += num(r.vl_devolucao);
+        acc.vl_icms += num(r.vl_icms);
+        acc.vl_pis += num(r.vl_pis);
+        acc.vl_cofins += num(r.vl_cofins);
+        porMes.set(key, acc);
+      });
+      return [...linhas, ...Array.from(porMes.values())];
+    }
+    return linhas;
+  }, [qUniCom.data, unidadesSelecionadas]);
+
+  const uniTecFiltradas = useMemo<UnidadeTecnicaRow[]>(() => {
+    const data = qUniTec.data ?? [];
+    if (unidadesSelecionadas.length === 0) return data;
+    return data.filter(r => unidadesSelecionadas.includes(r.unidade_negocio));
+  }, [qUniTec.data, unidadesSelecionadas]);
+
+  const aplicarFiltros = () => {
+    setFiltros({ ...draft });
+    setPage(1);
+  };
+
+
   const aplicarFiltros = () => {
     setFiltros({ ...draft });
     setPage(1);
