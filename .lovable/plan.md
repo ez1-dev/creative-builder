@@ -1,39 +1,53 @@
+# Eliminar pisca no resize/drag do BI Comercial
+
 ## Objetivo
+Ao redimensionar/mover cards em `/bi/comercial` no modo edição:
+- Sem `LoadingState`/skeleton.
+- Sem UPDATE no banco durante o gesto.
+- Soltar o mouse não dispara save.
+- Persistência **somente** ao clicar em **Salvar Dashboard**.
+- Sem remount dos Recharts.
 
-Exibir as metas cadastradas em `bi_meta_faturamento` (Cloud) também no gráfico **"Faturamento mensal x Meta"**, mantendo o override já existente nos KPIs (Meta / Diferença / % Atingimento).
+## Causa raiz remanescente
+Hoje o ciclo é: `onResizeStop → handleLayoutChange (debounce 700ms) → layout.saveLayout → load({silent:true}) → setWidgets (com nova geometria, identidade nova) → useMemo de blocks recomputa → ComercialDashboardGrid recebe novo objeto blocks → Recharts remontam`.
 
-Hoje os KPIs já consideram a meta do Cloud via `fetchMetaCloudTotal` + override em `kpis` no `ComercialPage`. O gráfico mensal, porém, ainda usa `m.meta` vindo do FastAPI (ERP), ignorando o cadastro manual. Vamos corrigir só isso (e garantir que o KPI continue consistente).
+Mesmo silencioso, o reload do banco logo após cada gesto provoca novo `setWidgets` (geometria realmente mudou), o que invalida o `useMemo` de `blocks` e remonta os gráficos.
 
 ## Mudanças
 
-### 1. `src/lib/bi/metasFaturamentoApi.ts`
+### 1. `src/pages/bi/ComercialPage.tsx` — draft de layout em modo edição
+- Substituir o debounce automático por **draft local**:
+  - `const [layoutDraft, setLayoutDraft] = useState<{type;layout}[] | null>(null)`.
+  - Ao entrar em edição (`setEditing(true)`): `setLayoutDraft(null)` (zera draft).
+  - Ao sair sem salvar (Cancelar/`setEditing(false)`): `setLayoutDraft(null)` e descarta alterações visuais (o `PassagensLayoutGrid` já reseta `localLayout` a partir do banco quando `editing` vira false).
+- `handleLayoutChange` passa a **apenas** atualizar `layoutDraft` em memória — **nunca** chama `layout.saveLayout`. Remover `pendingLayoutRef`, `saveTimerRef` e o `setTimeout` de 700ms.
+- Novo botão/ação **Salvar Dashboard** (já existe o ícone `Save`/`editing`): ao clicar, faz `await layout.saveLayout(layoutDraft.map(...))`, limpa o draft, sai do modo edição.
+- Novo botão **Cancelar**: descarta `layoutDraft` e sai do modo edição.
+- As demais ações (`handleHide`, `handleDelete`, `handleConfigApply`, `handleConfigReset`, `handleAdd`, `handleResetLayout`) continuam salvando imediatamente — não envolvem gesto de drag/resize.
 
-Adicionar `fetchMetasMensalMap({ anomes_ini, anomes_fim, unidade_negocio })`:
+### 2. `src/pages/bi/ComercialPage.tsx` — estabilizar `blocks`
+- Tirar `layout.widgets` das deps do `useMemo` de `blocks`. Trocar por uma chave estável que representa só o que de fato muda o conteúdo dos blocos:
+  - `widgetsContentKey = layout.widgets.map(w => `${w.type}|${w.hidden?1:0}|${w.componentId??''}|${w.variant??''}|${w.customTitle??''}|${JSON.stringify(w.mapping??null)}|${JSON.stringify(w.options??null)}|${JSON.stringify(w.series??null)}`).join('~')`.
+- Geometria (`layout.x/y/w/h`) **não** entra nessa chave — quem cuida dela é o `PassagensLayoutGrid` via `localLayout`. Assim resize/drag nunca recompõe `blocks`.
+- Manter as demais deps (`kpis, mensal, ...`).
 
-- Lê `bi_meta_faturamento` (somente `ativo = true`) no intervalo.
-- Quando `unidade_negocio` for `GENIUS` ou `ESTRUTURAL ZORTEA`, filtra pela unidade.
-- Quando for `CONSOLIDADO`, soma as duas unidades por mês.
-- Retorna `Record<anomes_emissao, number>` (chave `'YYYYMM'`). Vazio = nenhuma meta cadastrada.
+### 3. `src/hooks/useComercialLayout.ts` — `saveLayout` não recarrega durante edição
+- Atualmente `saveLayout` chama `load({ silent: true })` no final. Manter o reload (preciso para refletir IDs novos em `add`/`hide`/`delete`), mas garantir que `load` só faz `setWidgets` quando o conteúdo realmente difere — a comparação `JSON.stringify` atual já cobre isso e os dados voltam idênticos ao que acabou de ser enviado, então `setWidgets` permanece com a mesma referência. Sem mudança de código, só validação.
+- Adicionar guarda extra: em `mergeWithDefaults`, preservar a ordem/objetos atuais quando o item retornado for byte-a-byte igual ao já presente (evita nova identidade de array). Implementar comparando por tipo+layout+config e reaproveitando o objeto anterior quando coincidirem.
 
-`fetchMetaCloudTotal` permanece como está (usado pelo KPI agregado).
+### 4. Pequenos ajustes de UX no header de edição
+- Em `editing=true`, mostrar: `[Adicionar bloco] [Restaurar padrão] [Cancelar] [Salvar Dashboard]`.
+- Em `editing=false`, mostrar: `[Editar]`.
+- `Salvar Dashboard` fica desabilitado se `layoutDraft == null` (nada para salvar).
 
-### 2. `src/pages/bi/ComercialPage.tsx`
+## Fora de escopo
+- Sem mudanças no `PassagensLayoutGrid` (já está correto: emite só em `onDragStop`/`onResizeStop`).
+- Sem mudanças nas queries de dados (`useQuery` continuam iguais; resize não dispara refetch).
+- Sem mudanças na API/banco.
 
-- Novo `useQuery` `qMetaCloudMensal` chamando `fetchMetasMensalMap` com o mesmo invalidation dos KPIs (mesmo `queryKey` base + sufixo `mensal`). Refetch incluído em `atualizar()`.
-- Em `dadosCombo` (linha 159–162), aplicar override por mês: se houver entrada no mapa para aquele `anomes`, usar o valor do Cloud; senão manter `m.meta` do ERP.
-- Nada mais muda: legenda, cores, tooltip, drill (`onClickMensal`) continuam iguais. `ComboChartCard` já consome `meta` como `lineKey`.
-- Manter o override agregado dos KPIs (já feito). Opcionalmente, recalcular o total do KPI a partir do mapa mensal para garantir coerência exata com o gráfico — manteremos `fetchMetaCloudTotal` como fonte do KPI, já que o backend soma a mesma tabela e o resultado é equivalente.
-
-### Fora de escopo
-
-- Não mexer no FastAPI nem na coluna `meta` retornada por `/api/bi/comercial/mensal`.
-- Não tocar em `useComercialLayout`, `PassagensLayoutGrid` ou no fluxo de edição/save de dashboard.
-- Não alterar a tela `/bi/comercial/metas`.
-
-## Critérios de aceite
-
-- Cadastrando metas em `/bi/comercial/metas` para `GENIUS` em jan–abr/2026, ao abrir `/bi/comercial` com unidade GENIUS e período `202601–202606`:
-  - KPI **Meta** mostra a soma das metas cadastradas.
-  - Linha "Meta" do gráfico **Faturamento mensal x Meta** mostra o valor cadastrado em cada mês.
-- Sem metas cadastradas no período: gráfico e KPIs voltam ao comportamento atual (valor do ERP / null).
-- Para `CONSOLIDADO`: soma GENIUS + ESTRUTURAL ZORTEA por mês.
+## Verificação
+1. Abrir `/bi/comercial`, clicar Editar.
+2. Arrastar e redimensionar vários cards — confirmar via Network que **nenhum** `PATCH/UPDATE dashboard_widgets` é disparado.
+3. Confirmar visualmente: sem skeleton, sem flicker, gráficos não remontam.
+4. Clicar **Salvar Dashboard** — único `update` no banco; recarrega silencioso; tela permanece estável.
+5. Clicar **Cancelar** após mover algo — layout volta ao estado salvo.
