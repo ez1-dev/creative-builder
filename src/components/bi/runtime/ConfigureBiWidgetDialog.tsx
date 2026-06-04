@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import type { ComercialWidgetDef } from '@/lib/bi/comercialWidgetCatalog';
+import type { MetricRef, CustomMetric } from '@/lib/bi/comercialMetrics';
+import { SeriesEditor } from './SeriesEditor';
 
 export interface ConfigureValue {
   variant?: string | null;
@@ -26,6 +28,7 @@ export interface ConfigureValue {
   mapping?: Record<string, string> | null;
   options?: Record<string, any> | null;
   customTitle?: string | null;
+  series?: MetricRef[] | null;
 }
 
 interface Props {
@@ -33,7 +36,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   /** Definição do widget (catálogo). Quando null/undefined, é um widget custom. */
   def?: ComercialWidgetDef;
-  initial: ConfigureValue & { variant?: string; componentId?: string };
+  initial: ConfigureValue & { variant?: string; componentId?: string; series?: MetricRef[] };
   blockType: string;
   fallbackTitle?: string;
   onApply: (next: ConfigureValue) => void;
@@ -41,6 +44,8 @@ interface Props {
   kpis?: Record<string, any>;
   series?: Record<string, any>;
   rows?: any[];
+  customMetrics?: CustomMetric[];
+  onCreateCustomMetric?: (m: CustomMetric) => void;
 }
 
 export function ConfigureBiWidgetDialog({
