@@ -19,6 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import type { ComercialWidgetDef } from '@/lib/bi/comercialWidgetCatalog';
+import type { MetricRef, CustomMetric } from '@/lib/bi/comercialMetrics';
+import { SeriesEditor } from './SeriesEditor';
 
 export interface ConfigureValue {
   variant?: string | null;
@@ -26,6 +28,7 @@ export interface ConfigureValue {
   mapping?: Record<string, string> | null;
   options?: Record<string, any> | null;
   customTitle?: string | null;
+  series?: MetricRef[] | null;
 }
 
 interface Props {
@@ -33,7 +36,7 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   /** Definição do widget (catálogo). Quando null/undefined, é um widget custom. */
   def?: ComercialWidgetDef;
-  initial: ConfigureValue & { variant?: string; componentId?: string };
+  initial: ConfigureValue & { variant?: string; componentId?: string; series?: MetricRef[] };
   blockType: string;
   fallbackTitle?: string;
   onApply: (next: ConfigureValue) => void;
@@ -41,11 +44,14 @@ interface Props {
   kpis?: Record<string, any>;
   series?: Record<string, any>;
   rows?: any[];
+  customMetrics?: CustomMetric[];
+  onCreateCustomMetric?: (m: CustomMetric) => void;
 }
 
 export function ConfigureBiWidgetDialog({
   open, onOpenChange, def, initial, blockType, fallbackTitle,
   onApply, onResetToDefault, kpis, series, rows,
+  customMetrics = [], onCreateCustomMetric,
 }: Props) {
   const page = getPage('bi-comercial');
   const isCustom = blockType.startsWith('custom-');
@@ -54,20 +60,28 @@ export function ConfigureBiWidgetDialog({
 
   const startsAsLibrary = !!initial.componentId || isCustom;
   const [mode, setMode] = useState<'builtin' | 'library'>(startsAsLibrary ? 'library' : 'builtin');
+  const [activeTab, setActiveTab] = useState<'builtin' | 'library' | 'series'>(startsAsLibrary ? 'library' : 'builtin');
   const [variant, setVariant] = useState<string>(initial.variant ?? def?.variants[0]?.value ?? '');
   const [componentId, setComponentId] = useState<string>(initial.componentId ?? libDefs[0]?.id ?? '');
   const [seriesKey, setSeriesKey] = useState<string>(initial.mapping?.series ?? '');
   const [valueKey, setValueKey] = useState<string>(initial.mapping?.value ?? def?.kpiKey ?? '');
   const [customTitle, setCustomTitle] = useState<string>(initial.customTitle ?? '');
+  const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
+
+  // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
+  const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
 
   useEffect(() => {
     if (!open) return;
-    setMode(startsAsLibrary ? 'library' : 'builtin');
+    const lib = startsAsLibrary ? 'library' : 'builtin';
+    setMode(lib);
+    setActiveTab(lib);
     setVariant(initial.variant ?? def?.variants[0]?.value ?? '');
     setComponentId(initial.componentId ?? libDefs[0]?.id ?? '');
     setSeriesKey(initial.mapping?.series ?? '');
     setValueKey(initial.mapping?.value ?? def?.kpiKey ?? '');
     setCustomTitle(initial.customTitle ?? '');
+    setSeriesList(initial.series ?? []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -104,6 +118,7 @@ export function ConfigureBiWidgetDialog({
         mapping: null,
         options: null,
         customTitle: customTitle.trim() || null,
+        series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
       });
     } else {
       const mapping: Record<string, string> = {};
@@ -117,6 +132,7 @@ export function ConfigureBiWidgetDialog({
         componentId,
         mapping,
         customTitle: customTitle.trim() || null,
+        series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
       });
     }
     onOpenChange(false);
@@ -124,6 +140,7 @@ export function ConfigureBiWidgetDialog({
 
   const variants = def?.variants ?? [];
   const hasBuiltin = !isCustom && variants.length > 0;
+  const tabsCls = hasBuiltin && supportsSeries ? 'grid w-full grid-cols-3' : (hasBuiltin || supportsSeries ? 'grid w-full grid-cols-2' : 'grid w-full grid-cols-1');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -137,13 +154,18 @@ export function ConfigureBiWidgetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={mode} onValueChange={(v) => setMode(v as 'builtin' | 'library')}>
-          {hasBuiltin && (
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="builtin">Variante padrão</TabsTrigger>
-              <TabsTrigger value="library">Biblioteca BI</TabsTrigger>
-            </TabsList>
-          )}
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v as any);
+            if (v === 'builtin' || v === 'library') setMode(v);
+          }}
+        >
+          <TabsList className={tabsCls}>
+            {hasBuiltin && <TabsTrigger value="builtin">Variante padrão</TabsTrigger>}
+            <TabsTrigger value="library">Biblioteca BI</TabsTrigger>
+            {supportsSeries && <TabsTrigger value="series">Séries</TabsTrigger>}
+          </TabsList>
 
           {hasBuiltin && (
             <TabsContent value="builtin" className="space-y-3 pt-3">
@@ -216,6 +238,21 @@ export function ConfigureBiWidgetDialog({
               </div>
             </div>
           </TabsContent>
+
+          {supportsSeries && (
+            <TabsContent value="series" className="pt-3 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Adicione múltiplas métricas para plotar juntas no mesmo gráfico. Quando vazio, o bloco usa a métrica padrão. Em gráficos de ranking (revendas, obras, estados, mix), apenas a primeira série é usada como medida.
+              </p>
+              <SeriesEditor
+                value={seriesList}
+                onChange={setSeriesList}
+                customMetrics={customMetrics}
+                onCreateCustom={(m) => onCreateCustomMetric?.(m)}
+                allowChartType={def?.kind === 'serie-mensal'}
+              />
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">

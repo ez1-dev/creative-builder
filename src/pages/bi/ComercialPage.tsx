@@ -23,9 +23,13 @@ import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
+import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
+import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
 import { useComercialLayout, type ComercialWidget } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
+import { useCustomMetrics } from '@/hooks/useCustomMetrics';
 import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
+import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import {
@@ -243,6 +247,8 @@ export default function ComercialPage() {
   const [editing, setEditing] = useState(false);
   const [configType, setConfigType] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const customMetrics = useCustomMetrics(PAGE_KEY);
+  const [hiddenSeries, setHiddenSeries] = useState<Record<string, Set<number>>>({});
 
   const pageSeries: Record<string, any> = {
     mensal: dadosCombo,
@@ -283,9 +289,46 @@ export default function ComercialPage() {
   function renderSerieMensal(w: ComercialWidget): ReactNode {
     if (qMensal.isLoading) return <LoadingState height={240} />;
     if (qMensal.isError) return <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} />;
-    if (dadosCombo.length === 0) return <EmptyState description={EMPTY_MSG} height={240} />;
+    if (mensal.length === 0) return <EmptyState description={EMPTY_MSG} height={240} />;
     const title = w.customTitle || w.title;
     const v = w.variant ?? 'combo';
+
+    // Multi-séries: usa MultiSeriesChartCard quando o widget tem séries configuradas
+    if (w.series && w.series.length > 0) {
+      const resolvedAll = w.series
+        .map((ref, i) => resolveMetric(ref, i, customMetrics.metrics))
+        .filter((s): s is NonNullable<typeof s> => !!s);
+      const hidden = hiddenSeries[w.type] ?? new Set<number>();
+      const visible = resolvedAll.filter((_, i) => !hidden.has(i));
+      // Em variantes não-combo, força o tipo de gráfico igual para todas as séries
+      const forceType = v === 'bar' || v === 'line' || v === 'area' ? v as 'bar'|'line'|'area' : undefined;
+      const finalSeries = visible.map((s) => forceType ? { ...s, chartType: forceType } : s);
+      const rowsForChart = mensal.map((m) => ({ ...m, label: m.anomes_emissao }));
+      return (
+        <div className="h-full flex flex-col">
+          <SeriesChips
+            series={resolvedAll}
+            hidden={hidden}
+            onToggle={(i) => setHiddenSeries((prev) => {
+              const next = new Set(prev[w.type] ?? []);
+              if (next.has(i)) next.delete(i); else next.add(i);
+              return { ...prev, [w.type]: next };
+            })}
+          />
+          <div className="flex-1 min-h-0">
+            <MultiSeriesChartCard
+              title={title}
+              rows={rowsForChart}
+              xKey="label"
+              series={finalSeries}
+              onItemClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)}
+              height={260}
+            />
+          </div>
+        </div>
+      );
+    }
+
     if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)} /></CardContent></Card>;
     if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
@@ -373,7 +416,8 @@ export default function ComercialPage() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout.widgets, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
-      qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading]);
+      qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
+      customMetrics.metrics, hiddenSeries]);
 
   // ===== Builder handlers =====
   const handleLayoutChange = async (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
@@ -412,6 +456,7 @@ export default function ComercialPage() {
       mapping: next.mapping ?? null,
       options: next.options ?? null,
       customTitle: next.customTitle ?? null,
+      series: next.series === undefined ? undefined : (next.series ?? null),
     }]);
     setConfigType(null);
   };
@@ -560,12 +605,15 @@ export default function ComercialPage() {
             mapping: configuringWidget.mapping,
             options: configuringWidget.options,
             customTitle: configuringWidget.customTitle,
+            series: configuringWidget.series,
           }}
           blockType={configuringWidget.type}
           fallbackTitle={configuringWidget.title}
           onApply={handleConfigApply}
           onResetToDefault={configuringDef ? handleConfigReset : undefined}
           kpis={kpis} series={pageSeries} rows={mensal as any[]}
+          customMetrics={customMetrics.metrics}
+          onCreateCustomMetric={(m) => customMetrics.upsert(m).catch((e) => toast.error(`Erro ao salvar métrica: ${e?.message ?? e}`))}
         />
       )}
       <AddBiWidgetDialog
