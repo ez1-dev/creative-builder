@@ -65,6 +65,23 @@ export function useComercialLayout(enabled: boolean = true) {
     return [...fromDefaults, ...customs].sort((a, b) => a.position - b.position);
   }, []);
 
+  // Reaproveita as referências dos widgets quando nada mudou item a item.
+  // Garante identidade estável mesmo quando o array é reconstruído.
+  const reuseIdentity = (prev: ComercialWidget[], next: ComercialWidget[]): ComercialWidget[] => {
+    const prevByType = new Map(prev.map((p) => [p.type, p]));
+    let allSame = prev.length === next.length;
+    const merged = next.map((n, i) => {
+      const p = prevByType.get(n.type);
+      if (p && JSON.stringify(p) === JSON.stringify(n)) {
+        if (prev[i] !== p) allSame = false;
+        return p;
+      }
+      allSame = false;
+      return n;
+    });
+    return allSame ? prev : merged;
+  };
+
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
@@ -108,10 +125,7 @@ export function useComercialLayout(enabled: boolean = true) {
         };
       });
       const merged = mergeWithDefaults(mapped);
-      setWidgets((prev) => {
-        const same = JSON.stringify(prev) === JSON.stringify(merged);
-        return same ? prev : merged;
-      });
+      setWidgets((prev) => reuseIdentity(prev, merged));
     } finally {
       if (!opts?.silent) setLoading(false);
     }
