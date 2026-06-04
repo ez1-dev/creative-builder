@@ -307,15 +307,40 @@ export default function FaturamentoValidacaoPage() {
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {filtroField('anomes_ini', 'AnoMês Início', '202601')}
             {filtroField('anomes_fim', 'AnoMês Fim', '202612')}
-            {filtroField('cd_tp_movimento', 'CD Tp Movimento', 'S,E')}
-            {filtroField('cd_origem', 'CD Origem', 'PROP,...')}
+            <MultiSelectFilter
+              label="CD Tp Movimento"
+              options={tpMovimentoOptions}
+              value={draft.cd_tp_movimento ?? ''}
+              onChange={(v) => setDraft({ ...draft, cd_tp_movimento: v })}
+              placeholder="Todos"
+            />
+            <MultiSelectFilter
+              label="CD Origem"
+              options={origemOptions}
+              value={draft.cd_origem ?? ''}
+              onChange={(v) => setDraft({ ...draft, cd_origem: v })}
+              placeholder="Todos"
+            />
             {filtroField('cd_empresa', 'CD Empresa', '1,2')}
             {filtroField('cd_filial', 'CD Filial', '1,2,3')}
             {filtroField('cd_tns', 'CD TNS', '511,...')}
             {filtroField('cd_centro_custos_3', 'CD CC3', '001,...')}
             {filtroField('cd_nf', 'CD NF', '12345')}
-            {filtroField('fonte_acao', 'Fonte Ação', 'faturamento,SEM_FONTE')}
-            {filtroField('unidade_negocio', 'Unidade Negócio', 'GENIUS,ESTRUTURAL ZORTEA')}
+            <MultiSelectFilter
+              label="Fonte Ação"
+              options={FONTE_ACAO_OPTIONS}
+              value={draft.fonte_acao ?? ''}
+              onChange={(v) => setDraft({ ...draft, fonte_acao: v })}
+              placeholder="Todas"
+            />
+            <MultiSelectFilter
+              label="Unidade Negócio"
+              options={UNIDADE_NEGOCIO_OPTIONS}
+              value={draft.unidade_negocio ?? ''}
+              onChange={(v) => setDraft({ ...draft, unidade_negocio: v })}
+              placeholder="Todas"
+            />
+
 
 
             <div className="flex items-end">
