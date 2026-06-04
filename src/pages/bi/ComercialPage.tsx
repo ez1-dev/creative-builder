@@ -123,6 +123,16 @@ export default function ComercialPage() {
     refetchOnWindowFocus: false,
     retry: 1,
   });
+  const qMetaCloudMensal = useQuery({
+    queryKey: ['bi-comercial','meta-cloud-mensal', filters.anomes_ini, filters.anomes_fim, filters.unidade_negocio],
+    queryFn: () => fetchMetasMensalMap({
+      anomes_ini: filters.anomes_ini,
+      anomes_fim: filters.anomes_fim,
+      unidade_negocio: filters.unidade_negocio,
+    }),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
 
   const aplicarFiltrosBase = () => setBase({ ...draft });
   const atualizar = () => {
