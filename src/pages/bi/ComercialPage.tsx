@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, Sparkles, X } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,9 @@ import {
   DashboardPage,
   DashboardSection,
 } from '@/components/bi/layout/DashboardLayout';
+import { BiSlot } from '@/components/bi/runtime/BiSlot';
+import { COMERCIAL_SLOTS } from '@/lib/bi/comercialSlots';
+import { useSlotOverrides } from '@/hooks/useSlotOverrides';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import {
   fetchComercialKpis,
