@@ -23,9 +23,13 @@ import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
+import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
+import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
 import { useComercialLayout, type ComercialWidget } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
+import { useCustomMetrics } from '@/hooks/useCustomMetrics';
 import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
+import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import {
