@@ -8,7 +8,7 @@
  *  - "Da Biblioteca BI": cria um widget custom-<timestamp> usando qualquer
  *    componente do COMPONENT_REGISTRY.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -43,6 +43,13 @@ interface Props {
 }
 
 export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpis, series, rows }: Props) {
+  const uid = useId();
+  const idCatalogBlock = `${uid}-catalog-block`;
+  const idCatalogTitle = `${uid}-catalog-title`;
+  const idLibComponent = `${uid}-lib-component`;
+  const idLibSeries = `${uid}-lib-series`;
+  const idLibKpi = `${uid}-lib-kpi`;
+  const idLibTitle = `${uid}-lib-title`;
   const page = getPage('bi-comercial');
   const seriesOptions = page?.schema.series ?? [];
   const kpiOptions = page?.schema.kpis ?? [];
@@ -134,9 +141,9 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
 
           <TabsContent value="catalog" className="space-y-3 pt-3">
             <div>
-              <Label className="text-xs">Bloco</Label>
+              <Label htmlFor={idCatalogBlock} className="text-xs">Bloco</Label>
               <Select value={catalogType} onValueChange={setCatalogType}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id={idCatalogBlock} name="catalog-block" aria-label="Bloco do catálogo"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {allCatalog.map((w) => {
                     const present = presentTypes.includes(w.type);
@@ -150,8 +157,8 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
               </Select>
             </div>
             <div>
-              <Label className="text-xs">Título (opcional)</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={COMERCIAL_WIDGETS[catalogType]?.title} />
+              <Label htmlFor={idCatalogTitle} className="text-xs">Título (opcional)</Label>
+              <Input id={idCatalogTitle} name="catalog-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={COMERCIAL_WIDGETS[catalogType]?.title} />
             </div>
           </TabsContent>
 
@@ -159,9 +166,9 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs">Componente</Label>
+                  <Label htmlFor={idLibComponent} className="text-xs">Componente</Label>
                   <Select value={componentId} onValueChange={setComponentId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger id={idLibComponent} name="library-component" aria-label="Componente da Biblioteca BI"><SelectValue /></SelectTrigger>
                     <SelectContent className="max-h-[300px]">
                       {COMPONENT_REGISTRY.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
@@ -171,9 +178,9 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
                 </div>
                 {inputs.some((i) => i.source === 'series') && (
                   <div>
-                    <Label className="text-xs">Série</Label>
+                    <Label htmlFor={idLibSeries} className="text-xs">Série</Label>
                     <Select value={seriesKey} onValueChange={setSeriesKey}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id={idLibSeries} name="library-series" aria-label="Série"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {seriesOptions.map((s) => (
                           <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
@@ -184,9 +191,9 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
                 )}
                 {inputs.some((i) => i.source === 'kpis') && (
                   <div>
-                    <Label className="text-xs">KPI</Label>
+                    <Label htmlFor={idLibKpi} className="text-xs">KPI</Label>
                     <Select value={valueKey} onValueChange={setValueKey}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id={idLibKpi} name="library-kpi" aria-label="KPI"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {kpiOptions.map((k) => (
                           <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>
@@ -196,8 +203,8 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
                   </div>
                 )}
                 <div>
-                  <Label className="text-xs">Título</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={libDef?.label} />
+                  <Label htmlFor={idLibTitle} className="text-xs">Título</Label>
+                  <Input id={idLibTitle} name="library-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={libDef?.label} />
                 </div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">
