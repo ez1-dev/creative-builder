@@ -1,70 +1,105 @@
-## Tela /bi/comercial — Dashboard Comercial
+# Plano — /bi/comercial via FastAPI
 
-Dashboard de faturamento comercial separado por unidade de negócio (GENIUS, ESTRUTURAL ZORTEA, CONSOLIDADO), usando apenas `fonte_acao = 'VM_FATURAMENTO'`.
+A tela atual `/bi/comercial` consome a view `v_bi_faturamento_comercial` direto do Cloud e agrega no frontend. Vamos **substituir** essa lógica para consumir os 6 endpoints da FastAPI, mantendo o layout no padrão da biblioteca BI e da identidade visual UpQuery.
 
-### 1. Backend (Lovable Cloud)
+## 1. Camada de dados — `src/lib/bi/comercialApi.ts` (novo)
 
-Criar a view `public.v_bi_faturamento_comercial` sobre `bi_faturamento` já normalizando unidade e impostos:
+Cliente FastAPI usando o `api` existente (`src/lib/api.ts`, já injeta `ngrok-skip-browser-warning` e auth).
 
-- `unidade_negocio`: `'GENIUS'` quando `cd_prj = '12'`, senão `'ESTRUTURAL ZORTEA'`
-- `impostos = vl_icms + vl_ipi + vl_pis + vl_cofins + vl_iss + vl_ismsst + vl_difal` (a coluna real na tabela é `vl_ismsst`)
-- `vl_liquido = vl_bruto + impostos` (mantém a fórmula pedida)
-- filtra `fonte_acao = 'VM_FATURAMENTO'`
-- expõe colunas necessárias para os painéis: `id_nf, cd_cliente, cd_estado, cd_prj, ds_abr_prj, anomes_emissao, mes_emissao, ano_emissao, qtd_produtos, vl_bruto, vl_devolucao, impostos, vl_liquido, unidade_negocio` + GRANT SELECT para `authenticated`.
+Helper genérico:
+```ts
+export function unwrapRpcResponse<T = any>(data: any, key: string): T | null {
+  if (!data) return null;
+  if (Array.isArray(data)) {
+    if (data.length === 1 && data[0]?.[key] !== undefined) return data[0][key];
+    return data as T;
+  }
+  if (data[key] !== undefined) return data[key];
+  return data as T;
+}
+```
 
-### 2. Frontend
+Tipos e fetchers (todos aceitam `{ anomes_ini, anomes_fim, unidade_negocio }` via querystring):
 
-Nova página `src/pages/bi/ComercialPage.tsx` registrada em `App.tsx` (rota `/bi/comercial`), `AppSidebar` e `screenCatalog`.
+- `fetchComercialKpis(params): Promise<ComercialKpis>` → `GET /api/bi/comercial/kpis` → `unwrap(..., 'bi_comercial_kpis')`
+- `fetchComercialMensal(params): Promise<ComercialMensalRow[]>` → `/api/bi/comercial/mensal` → `unwrap(..., 'bi_comercial_mensal')`
+- `fetchComercialMix(params): Promise<ComercialMixRow[]>` → `/api/bi/comercial/mix`
+- `fetchComercialEstado(params): Promise<ComercialEstadoRow[]>` → `/api/bi/comercial/estado`
+- `fetchComercialRevenda(params): Promise<ComercialRevendaRow[]>` → `/api/bi/comercial/revenda` (só GENIUS / CONSOLIDADO)
+- `fetchComercialObras(params): Promise<ComercialObrasRow[]>` → `/api/bi/comercial/obras` (só ESTRUTURAL / CONSOLIDADO)
 
-Camada de dados em `src/lib/bi/comercial.ts` consultando a view direto via `supabase.from('v_bi_faturamento_comercial')`, agregando no cliente (volume pequeno por mês) e retornando estruturas tipadas para cada painel.
+Tipos refletem os campos citados (kpis: `faturamento, meta, diferenca, pct_atingimento, fat_liquido, impostos, devolucao, numero_vendas, numero_clientes, numero_estados, quantidade, ticket_medio, preco_medio`; mensal: `anomes_emissao, faturamento, fat_liquido, impostos, devolucao, numero_vendas, numero_clientes, quantidade, ticket_medio, preco_medio, meta?`; etc.). Tolerantes a `null` (default 0).
 
-#### Filtros
-- AnoMês início / fim
-- Unidade (GENIUS, ESTRUTURAL ZORTEA, CONSOLIDADO) — abas no topo
-- Estado (opcional)
+## 2. Página — reescrever `src/pages/bi/ComercialPage.tsx`
 
-#### Layout
+Estrutura:
 
-Abas no topo: **CONSOLIDADO | GENIUS | ESTRUTURAL ZORTEA**. Cada aba reaproveita o mesmo bloco de componentes, mudando apenas o filtro/cor:
+```text
+PageHeader: "BI Comercial"
+Filtros card: [Unidade ▼] [AnoMês Ini] [AnoMês Fim] [Atualizar]
+KpiGrid (13 cards): Fat, Meta, Diferença, % Atingimento, Líquido, Impostos,
+                    Devolução, Nº Vendas, Nº Clientes, Nº Estados, Qtd,
+                    Ticket Médio, Preço Médio
+Grid 2 col:
+  - ComboChartCard mensal (barras: faturamento, fat_liquido, devolucao; linha: meta)
+  - DonutChartCard "Mix acumulado" (de /mix)
+DataTableBI mensal (10 colunas)
+Grid 2 col:
+  - FunnelChartCard "Top estados"  (de /estado)
+  - BrazilMapCard (de /estado)
+Bloco específico:
+  - GENIUS → BarChartCard + DataTableBI de revenda
+  - ESTRUTURAL → TreemapChartCard + DataTableBI de obras
+  - CONSOLIDADO → ambos lado a lado
+```
 
-- GENIUS → laranja
-- ESTRUTURAL ZORTEA → azul
-- CONSOLIDADO → cor neutra (muted)
+Comportamento:
 
-As cores são aplicadas via tokens semânticos do design system (sem hex hardcoded) — vou registrar tokens `--bi-genius`, `--bi-estrutural`, `--bi-consolidado` em `index.css` + `tailwind.config.ts`.
+- `Select` de unidade (`GENIUS | ESTRUTURAL ZORTEA | CONSOLIDADO`) e dois inputs anomes; padrão `202601`/`202606`.
+- Usa **6 `useQuery`** independentes com `queryKey: ['bi-comercial', endpoint, filtros]`. Query de revenda só habilita quando `unidade ∈ {GENIUS, CONSOLIDADO}`; obras quando `∈ {ESTRUTURAL, CONSOLIDADO}`.
+- Botão Atualizar chama `refetch()` em todas as queries ativas.
+- Estados:
+  - Loading: `LoadingState` no header + skeleton nos cards/gráficos enquanto `isLoading`.
+  - Erro: `ErrorState` por bloco com `onRetry` na query daquele bloco e mensagem "Não foi possível carregar os dados do BI Comercial".
+  - Vazio: `EmptyState` com "Sem dados para o período selecionado".
+- Sem fallback mock.
 
-#### Componentes por aba
+Cores por unidade (tokens do design system, sem hex hardcoded):
 
-1. **KPIs superiores** (`KpiGrid` + `KpiCard`):
-   - Faturamento, Faturamento Líquido, Impostos, Devolução, Nº Vendas, Nº Clientes, Nº Estados, Quantidade, Ticket Médio, Preço Médio.
+```ts
+const UNIDADE_STYLE = {
+  GENIUS:              { bar: 'hsl(var(--warning))',           mapVar: '--warning',           trigger: '...' },
+  'ESTRUTURAL ZORTEA': { bar: 'hsl(var(--primary))',           mapVar: '--primary',           trigger: '...' },
+  CONSOLIDADO:         { bar: 'hsl(var(--muted-foreground))',  mapVar: '--muted-foreground',  trigger: '...' },
+};
+```
 
-2. **Gráfico mensal** (`ComboChartCard`) — barras de faturamento por mês + linha de ticket médio.
+Aplicado a ComboChart `barColor`, BarChart `color`, BrazilMap `colorVar`, e ao chip da unidade ativa.
 
-3. **Tabela mensal** (`DataTableBI`) — mês, vendas, clientes, qtd, faturamento, impostos, líquido, ticket médio, preço médio.
+Formatação reusando `formatCurrency / formatNumber / formatPercent / formatQuantity` de `@/components/bi`. Valores `null` exibidos como 0.
 
-4. **Funil por estado** (`FunnelChartCard`) — top estados por faturamento.
+## 3. Remover dependência da view direta
 
-5. **Mapa por estado** — mapa do Brasil com intensidade por faturamento. A biblioteca BI ainda não tem `BrazilMapCard`; criar `src/components/bi/charts/BrazilMapCard.tsx` usando SVG com 27 UFs (sem dependência externa) e exportar em `@/components/bi`.
+- `src/lib/bi/comercial.ts` (fetch direto da view) deixa de ser usado pela página. Manter o arquivo (pode ser útil em diagnóstico), porém remover qualquer import dele em `ComercialPage.tsx`.
+- A view `v_bi_faturamento_comercial` no Cloud **continua existindo** (Validação/Conciliação pode usá-la), mas a tela principal /bi/comercial não a consulta mais.
 
-6. **Donut de mix acumulado** (`DonutChartCard`) — participação por estado (ou por TNS quando consolidado).
+## 4. Sem alterações em
 
-7. **Painéis específicos**:
-   - Aba GENIUS: `BarChartCard` "Faturamento por revenda" agrupando por `cd_grupo_cliente` / `ds_abr_fpj` (top N).
-   - Aba ESTRUTURAL ZORTEA: `TreemapChartCard` "Obras" agrupando por `ds_abr_prj` (cd_prj ≠ 12).
-   - Aba CONSOLIDADO: ambos painéis exibidos lado a lado.
+- `App.tsx`, `AppSidebar.tsx`, `screenCatalog.ts` (rota já existe).
+- Componentes BI existentes (`KpiGrid`, `ComboChartCard`, `DonutChartCard`, `FunnelChartCard`, `BrazilMapCard`, `BarChartCard`, `TreemapChartCard`, `DataTableBI`, `DashboardTabs`/`Select`).
+- Backend FastAPI (assumido já implementado com os 6 endpoints e a regra de unidade).
+- Telas de Validação/Conciliação que consomem fontes alternativas.
 
-### Detalhes técnicos
+## 5. Critério de aceite
 
-- Toda agregação no frontend usa `useMemo` sobre os registros da view (filtrados por período e, quando não consolidado, por `unidade_negocio`).
-- CONSOLIDADO = soma direta de todos os registros da view (sem unir GENIUS+ESTRUTURAL artificialmente — vem da própria base).
-- Fórmulas exatamente como pedido: `Ticket Médio = faturamento / nº vendas`, `Preço Médio = faturamento / quantidade` (com divisão por zero protegida).
-- Reaproveita `MultiSelectFilter`, `DashboardTabs`, `useToast`, padrões da `Biblioteca BI`.
-- Não toca `src/integrations/supabase/{client,types}.ts` nem `.env`.
+Com `anomes_ini=202601`, `anomes_fim=202606`, `unidade=GENIUS`, KPIs ≈:
+Faturamento 1.816.792,46 · Líquido 1.584.984,70 · Impostos −231.807,76 · Devolução 13.003,49 · Vendas 148 · Clientes 40 · Estados 9 · Quantidade 16.368.
 
-### Arquivos previstos
-- migração SQL criando `v_bi_faturamento_comercial` + GRANT
-- `src/lib/bi/comercial.ts`
-- `src/pages/bi/ComercialPage.tsx`
-- `src/components/bi/charts/BrazilMapCard.tsx` (+ export no `index.ts`)
-- tokens em `src/index.css` e `tailwind.config.ts`
-- registro em `src/App.tsx`, `src/components/AppSidebar.tsx`, `src/lib/screenCatalog.ts`
+Trocando para ESTRUTURAL ZORTEA, os valores devem coincidir com a view comercial validada.
+
+## Detalhes técnicos
+
+- Querystring montada via `URLSearchParams`; `unidade_negocio` enviado como string exata (`"GENIUS"`, `"ESTRUTURAL ZORTEA"`, `"CONSOLIDADO"`).
+- `api.get<T>(endpoint, query)` já existe em `src/lib/api.ts` e cuida de headers, auth e erros amigáveis — usar.
+- `unwrapRpcResponse` aplicado em todos os fetchers para tolerar `array direto` ou `{ chave: ... }`.
+- Sem novos pacotes; sem migrações; sem edição de `client.ts`/`types.ts`/`.env`.
