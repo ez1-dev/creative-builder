@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { MetricRef } from '@/lib/bi/comercialMetrics';
 
 export interface WidgetLayout { x: number; y: number; w: number; h: number }
 
@@ -15,6 +16,7 @@ export interface ComercialWidget {
   options?: Record<string, any>;
   customTitle?: string;
   variant?: string;
+  series?: MetricRef[];
 }
 
 export interface SaveLayoutItem {
@@ -26,6 +28,7 @@ export interface SaveLayoutItem {
   options?: Record<string, any> | null;
   customTitle?: string | null;
   variant?: string | null;
+  series?: MetricRef[] | null;
   title?: string;
   position?: number;
 }
