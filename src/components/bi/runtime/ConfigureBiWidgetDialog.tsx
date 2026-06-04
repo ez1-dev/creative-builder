@@ -161,7 +161,7 @@ export function ConfigureBiWidgetDialog({
             if (v === 'builtin' || v === 'library') setMode(v);
           }}
         >
-          <TabsList className={`grid w-full grid-cols-${tabCols}`}>
+          <TabsList className={tabsCls}>
             {hasBuiltin && <TabsTrigger value="builtin">Variante padrão</TabsTrigger>}
             <TabsTrigger value="library">Biblioteca BI</TabsTrigger>
             {supportsSeries && <TabsTrigger value="series">Séries</TabsTrigger>}
