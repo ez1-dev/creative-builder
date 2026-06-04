@@ -529,7 +529,7 @@ export default function FaturamentoValidacaoPage() {
                   ) : (
                     <DataTableBI
                       columns={uniTecColumns}
-                      data={qUniTec.data ?? []}
+                      data={uniTecFiltradas}
                       loading={qUniTec.isLoading}
                       emptyMessage="Sem dados para os filtros selecionados."
                     />
