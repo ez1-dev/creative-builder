@@ -1,24 +1,33 @@
-## Diagnóstico
+## Problema
 
-O filtro `unidade_negocio` é enviado ao backend FastAPI, mas o backend não está respeitando (ou ainda não foi implementado). Como solução, vamos passar a filtrar no **frontend**, após receber os dados.
+O filtro **Fonte Ação** lista nomes errados (`faturamento`, `faturamento_manual`, `fat_contabil`, `fat_trb`), que não batem com os valores reais gravados em `bi_faturamento.fonte_acao` pelo ETL.
 
-## Escopo
+Pelos endpoints e SQL do ETL (`docs/etl-sql/SQL_VM_*.sql` + `docs/backend-bi-faturamento-validacao.md`), os valores corretos são:
 
-O campo `unidade_negocio` só existe nas linhas das abas **Comercial por Unidade** e **Técnico / Conciliação** (as outras tabelas — Resumo, Por movimento, Por TNS, Detalhes — não têm esse campo, então o filtro não se aplica a elas).
+- `VM_FATURAMENTO`
+- `VM_FATURAMENTO_MANUAL`
+- `VM_FAT_CONTABIL`
+- `VM_FAT_TRB`
+- `SEM_FONTE` (rótulo do frontend para `NULL`)
 
-## Alterações em `src/pages/bi/FaturamentoValidacaoPage.tsx`
+## Mudanças (apenas frontend)
 
-1. **Deixar de enviar `unidade_negocio` ao backend** (remover do payload das chamadas comercial/técnica) — evita confusão e garante que o filtro é puramente client-side.
+Arquivo: `src/pages/bi/FaturamentoValidacaoPage.tsx`
 
-2. **Filtrar `qUniCom.data` no frontend** via `useMemo`:
-   - Parse do CSV `filtros.unidade_negocio` em lista.
-   - Se lista vazia → retorna dados como estão.
-   - Caso contrário → mantém apenas linhas cujo `unidade_negocio` está na lista.
-   - **CONSOLIDADO**: se o usuário selecionar apenas uma unidade (ex.: só `GENIUS`), recalcular a linha `CONSOLIDADO` por mês a partir da unidade restante (ou ocultar se não fizer sentido). Se selecionar as duas, manter o CONSOLIDADO original.
+1. **Linha 40** — corrigir `FONTE_ACAO_OPTIONS`:
+   ```ts
+   const FONTE_ACAO_OPTIONS = [
+     'VM_FATURAMENTO',
+     'VM_FATURAMENTO_MANUAL',
+     'VM_FAT_CONTABIL',
+     'VM_FAT_TRB',
+     'SEM_FONTE',
+   ];
+   ```
 
-3. **Filtrar `qUniTec.data` no frontend** via `useMemo`:
-   - Mesma lógica de parse + `Array.filter`.
+2. **Linha 64** — atualizar o default do `draft.fonte_acao` para usar os novos nomes (manter o mesmo conjunto inicial: comercial + manual):
+   ```ts
+   fonte_acao: 'VM_FATURAMENTO,VM_FATURAMENTO_MANUAL',
+   ```
 
-4. Passar os arrays filtrados para os respectivos `DataTableBI`.
-
-Nenhuma mudança em backend, RPC, docs ou na camada `src/lib/bi/faturamentoValidacao.ts`.
+Nada muda na renderização das tabelas (continuam exibindo `r.fonte_acao ?? 'SEM_FONTE'`) nem no backend — os valores enviados via querystring já passam direto para o filtro `fonte_acao IN (...)`.

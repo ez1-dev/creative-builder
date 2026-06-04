@@ -37,7 +37,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-const FONTE_ACAO_OPTIONS = ['faturamento', 'faturamento_manual', 'fat_contabil', 'fat_trb', 'SEM_FONTE'];
+const FONTE_ACAO_OPTIONS = ['VM_FATURAMENTO', 'VM_FATURAMENTO_MANUAL', 'VM_FAT_CONTABIL', 'VM_FAT_TRB', 'SEM_FONTE'];
 const UNIDADE_NEGOCIO_OPTIONS = ['GENIUS', 'ESTRUTURAL ZORTEA', 'SEM_UNIDADE'];
 const TP_MOVIMENTO_FALLBACK = ['S', 'E'];
 const ORIGEM_FALLBACK = ['PROP', 'TERC'];
@@ -61,7 +61,7 @@ export default function FaturamentoValidacaoPage() {
   const defaultsIniciais: FaturamentoValidacaoFiltros = {
     anomes_ini: def.ini,
     anomes_fim: def.fim,
-    fonte_acao: 'faturamento,faturamento_manual',
+    fonte_acao: 'VM_FATURAMENTO,VM_FATURAMENTO_MANUAL',
     unidade_negocio: 'GENIUS,ESTRUTURAL ZORTEA',
     cd_tp_movimento: 'S',
     cd_origem: 'PROP',
