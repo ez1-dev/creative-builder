@@ -576,7 +576,7 @@ export default function ComercialPage() {
           actions={
             <div className="flex items-center gap-2">
               <span className={cn('rounded-full px-3 py-0.5 text-xs font-semibold', style.chip)}>{unidade}</span>
-              {editing && (
+              {editing ? (
                 <>
                   <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setAddOpen(true)}>
                     <Plus className="h-3.5 w-3.5" /> Adicionar bloco
@@ -584,11 +584,18 @@ export default function ComercialPage() {
                   <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleResetLayout}>
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar padrão
                   </Button>
+                  <Button size="sm" variant="ghost" className="h-8" onClick={handleCancelEdit}>
+                    Cancelar
+                  </Button>
+                  <Button size="sm" variant="default" className="h-8 gap-1" onClick={handleSaveDashboard} disabled={!layoutDraft}>
+                    <Save className="h-3.5 w-3.5" /> Salvar Dashboard
+                  </Button>
                 </>
+              ) : (
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleEnterEdit}>
+                  <Pencil className="h-3.5 w-3.5" /> Editar dashboard
+                </Button>
               )}
-              <Button size="sm" variant={editing ? 'default' : 'outline'} className="h-8 gap-1" onClick={() => setEditing((e) => !e)}>
-                {editing ? <><Save className="h-3.5 w-3.5" /> Concluir edição</> : <><Pencil className="h-3.5 w-3.5" /> Editar dashboard</>}
-              </Button>
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
