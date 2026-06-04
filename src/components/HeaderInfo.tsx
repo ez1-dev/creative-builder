@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Calendar, Clock, MapPin } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Calendar, Clock, MapPin, Locate } from 'lucide-react';
 
 const timezoneMap: Record<string, string> = {
   'America/Sao_Paulo': 'São Paulo, BR',
@@ -18,6 +18,8 @@ const timezoneMap: Record<string, string> = {
   'America/Maceio': 'Maceió, BR',
 };
 
+const CACHE_KEY = 'header_user_location';
+
 function getTimezoneFallback(): string {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   if (timezoneMap[tz]) return timezoneMap[tz];
@@ -27,22 +29,24 @@ function getTimezoneFallback(): string {
 
 export function HeaderInfo() {
   const [now, setNow] = useState(() => new Date());
-  const [location, setLocation] = useState<string | null>(null);
-  const [locationLoading, setLocationLoading] = useState(true);
   const timezoneFallback = useMemo(getTimezoneFallback, []);
+  const [location, setLocation] = useState<string>(() => {
+    try {
+      return localStorage.getItem(CACHE_KEY) || timezoneFallback;
+    } catch {
+      return timezoneFallback;
+    }
+  });
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocation(timezoneFallback);
-      setLocationLoading(false);
-      return;
-    }
-
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation || resolving) return;
+    setResolving(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
@@ -54,24 +58,22 @@ export function HeaderInfo() {
           const json = await res.json();
           const city = json.city || json.locality || '';
           const state = json.principalSubdivisionCode?.replace('BR-', '') || '';
-          if (city) {
-            setLocation(state ? `${city}, ${state}` : city);
-          } else {
-            setLocation(timezoneFallback);
-          }
+          const resolved = city ? (state ? `${city}, ${state}` : city) : timezoneFallback;
+          setLocation(resolved);
+          try { localStorage.setItem(CACHE_KEY, resolved); } catch {}
         } catch {
           setLocation(timezoneFallback);
         } finally {
-          setLocationLoading(false);
+          setResolving(false);
         }
       },
       () => {
         setLocation(timezoneFallback);
-        setLocationLoading(false);
+        setResolving(false);
       },
       { timeout: 5000, maximumAge: 600_000 }
     );
-  }, [timezoneFallback]);
+  }, [resolving, timezoneFallback]);
 
   const dateStr = now.toLocaleDateString('pt-BR', {
     weekday: 'short',
@@ -85,8 +87,6 @@ export function HeaderInfo() {
     minute: '2-digit',
   });
 
-  const displayLocation = location || timezoneFallback;
-
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground">
       <span className="flex items-center gap-1">
@@ -99,7 +99,17 @@ export function HeaderInfo() {
       </span>
       <span className="hidden sm:flex items-center gap-1">
         <MapPin className="h-3 w-3" />
-        {locationLoading ? '…' : displayLocation}
+        {location}
+        <button
+          type="button"
+          onClick={requestLocation}
+          disabled={resolving}
+          aria-label="Usar minha localização"
+          title="Usar minha localização"
+          className="ml-1 inline-flex items-center justify-center rounded p-0.5 hover:bg-accent disabled:opacity-50"
+        >
+          <Locate className="h-3 w-3" />
+        </button>
       </span>
     </div>
   );

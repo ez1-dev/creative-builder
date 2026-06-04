@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+
+const DEV = import.meta.env.DEV;
+
 
 interface ScreenPermission {
   screen_path: string;
@@ -28,14 +31,24 @@ export function useUserPermissions() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const loadedForUserRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!erpUser) {
+      loadedForUserRef.current = null;
       setPermissions([]);
       setCanUseAi(false);
       setIsAdmin(false);
       setLoading(false);
       return;
     }
+
+    if (loadedForUserRef.current === erpUser) {
+      return;
+    }
+    loadedForUserRef.current = erpUser;
+
+
 
     let cancelled = false;
     const fetchPerms = async () => {
@@ -92,12 +105,15 @@ export function useUserPermissions() {
         setPermissions(Array.from(merged.values()));
         setCanUseAi(profiles.some((p: any) => p.ai_enabled));
         setIsAdmin(profiles.some((p: any) => p.name === 'Administrador'));
-        // eslint-disable-next-line no-console
-        console.log('[useUserPermissions] ready', {
-          erpUser,
-          screens: merged.size,
-          isAdmin: profiles.some((p: any) => p.name === 'Administrador'),
-        });
+        if (DEV) {
+          // eslint-disable-next-line no-console
+          console.log('[useUserPermissions] ready', {
+            erpUser,
+            screens: merged.size,
+            isAdmin: profiles.some((p: any) => p.name === 'Administrador'),
+          });
+        }
+
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('[useUserPermissions] fetch failed, liberando UI mesmo assim:', e);
