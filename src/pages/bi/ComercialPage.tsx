@@ -456,6 +456,7 @@ export default function ComercialPage() {
       mapping: next.mapping ?? null,
       options: next.options ?? null,
       customTitle: next.customTitle ?? null,
+      series: next.series === undefined ? undefined : (next.series ?? null),
     }]);
     setConfigType(null);
   };
