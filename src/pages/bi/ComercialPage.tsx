@@ -628,11 +628,17 @@ export default function ComercialPage() {
                   {qRevenda.isLoading ? <LoadingState height={280} /> :
                     qRevenda.isError ? <BlocoErro err={qRevenda.error} onRetry={() => qRevenda.refetch()} /> :
                     revendaRank.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-                    <RankingChartCard
-                      title="GENIUS — Ranking de revendas (clique)"
-                      data={revendaRank}
-                      topN={10}
+                    <BiSlot
+                      slot={COMERCIAL_SLOTS.revendas}
                       onItemClick={onClickRevenda}
+                      defaultRender={() => (
+                        <RankingChartCard
+                          title="GENIUS — Ranking de revendas (clique)"
+                          data={revendaRank}
+                          topN={10}
+                          onItemClick={onClickRevenda}
+                        />
+                      )}
                     />}
                   {!qRevenda.isLoading && !qRevenda.isError && revendaRank.length > 0 && (
                     <Card><CardContent className="pt-4">
