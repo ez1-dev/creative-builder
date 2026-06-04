@@ -361,6 +361,12 @@ export default function ComercialPage() {
               <span className={cn('rounded-full px-3 py-0.5 text-xs font-semibold', style.chip)}>
                 {unidade}
               </span>
+              {slotOverrides.hasAny && (
+                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => slotOverrides.clearAll()}>
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Restaurar layout padrão
+                </Button>
+              )}
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi">
                   <Sparkles className="h-3.5 w-3.5" />
