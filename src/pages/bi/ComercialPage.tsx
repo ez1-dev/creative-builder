@@ -289,9 +289,46 @@ export default function ComercialPage() {
   function renderSerieMensal(w: ComercialWidget): ReactNode {
     if (qMensal.isLoading) return <LoadingState height={240} />;
     if (qMensal.isError) return <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} />;
-    if (dadosCombo.length === 0) return <EmptyState description={EMPTY_MSG} height={240} />;
+    if (mensal.length === 0) return <EmptyState description={EMPTY_MSG} height={240} />;
     const title = w.customTitle || w.title;
     const v = w.variant ?? 'combo';
+
+    // Multi-séries: usa MultiSeriesChartCard quando o widget tem séries configuradas
+    if (w.series && w.series.length > 0) {
+      const resolvedAll = w.series
+        .map((ref, i) => resolveMetric(ref, i, customMetrics.metrics))
+        .filter((s): s is NonNullable<typeof s> => !!s);
+      const hidden = hiddenSeries[w.type] ?? new Set<number>();
+      const visible = resolvedAll.filter((_, i) => !hidden.has(i));
+      // Em variantes não-combo, força o tipo de gráfico igual para todas as séries
+      const forceType = v === 'bar' || v === 'line' || v === 'area' ? v as 'bar'|'line'|'area' : undefined;
+      const finalSeries = visible.map((s) => forceType ? { ...s, chartType: forceType } : s);
+      const rowsForChart = mensal.map((m) => ({ ...m, label: m.anomes_emissao }));
+      return (
+        <div className="h-full flex flex-col">
+          <SeriesChips
+            series={resolvedAll}
+            hidden={hidden}
+            onToggle={(i) => setHiddenSeries((prev) => {
+              const next = new Set(prev[w.type] ?? []);
+              if (next.has(i)) next.delete(i); else next.add(i);
+              return { ...prev, [w.type]: next };
+            })}
+          />
+          <div className="flex-1 min-h-0">
+            <MultiSeriesChartCard
+              title={title}
+              rows={rowsForChart}
+              xKey="label"
+              series={finalSeries}
+              onItemClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)}
+              height={260}
+            />
+          </div>
+        </div>
+      );
+    }
+
     if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)} /></CardContent></Card>;
     if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
