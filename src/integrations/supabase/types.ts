@@ -404,6 +404,45 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_meta_faturamento: {
+        Row: {
+          anomes_emissao: string
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          observacao: string | null
+          unidade_negocio: string
+          updated_at: string
+          updated_by: string | null
+          vl_meta: number
+        }
+        Insert: {
+          anomes_emissao: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacao?: string | null
+          unidade_negocio: string
+          updated_at?: string
+          updated_by?: string | null
+          vl_meta?: number
+        }
+        Update: {
+          anomes_emissao?: string
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          observacao?: string | null
+          unidade_negocio?: string
+          updated_at?: string
+          updated_by?: string | null
+          vl_meta?: number
+        }
+        Relationships: []
+      }
       bi_ops_fila: {
         Row: {
           codcre: string
@@ -2802,6 +2841,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_edit_bi_meta: { Args: { _uid: string }; Returns: boolean }
       can_edit_frota: { Args: { _uid: string }; Returns: boolean }
       can_edit_maquinas: { Args: { _uid: string }; Returns: boolean }
       can_edit_passagens: { Args: { _uid: string }; Returns: boolean }

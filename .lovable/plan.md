@@ -1,97 +1,151 @@
 ## Objetivo
 
-Eliminar os warnings do DevTools:
-- *"A form field element should have an id or name attribute"*
-- *"No label associated with a form field"*
+1. Criar tabela `public.bi_meta_faturamento` no Lovable Cloud.
+2. Tela `/bi/comercial/metas` com CRUD (listar, criar, editar, ativar/inativar), upsert por `(anomes_emissao, unidade_negocio)`.
+3. Sobrescrever no BI Comercial os cards **Meta**, **Diferença** e **% Atingimento** com a soma calculada a partir dessa tabela.
 
-Padrão obrigatório (já adotado nos diálogos do BI Comercial):
+## 1. Migração — `public.bi_meta_faturamento`
 
-```tsx
-const uid = useId();
-<Label htmlFor={uid}>Tipo</Label>
-<Input id={uid} name="tipo" aria-label="Tipo" ... />
+```sql
+CREATE TABLE public.bi_meta_faturamento (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  anomes_emissao text NOT NULL,            -- formato 'YYYYMM'
+  unidade_negocio text NOT NULL
+    CHECK (unidade_negocio IN ('GENIUS','ESTRUTURAL ZORTEA')),
+  vl_meta numeric(18,2) NOT NULL DEFAULT 0,
+  observacao text,
+  ativo boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES auth.users,
+  updated_by uuid REFERENCES auth.users,
+  UNIQUE (anomes_emissao, unidade_negocio)
+);
+GRANT SELECT ON public.bi_meta_faturamento TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.bi_meta_faturamento TO authenticated;
+GRANT ALL ON public.bi_meta_faturamento TO service_role;
+ALTER TABLE public.bi_meta_faturamento ENABLE ROW LEVEL SECURITY;
+
+-- Leitura: todo usuário autenticado vê as metas (são números corporativos)
+CREATE POLICY "metas_select_auth" ON public.bi_meta_faturamento
+  FOR SELECT TO authenticated USING (true);
+
+-- Escrita: apenas admins ou quem tem can_edit em /bi/comercial/metas
+CREATE OR REPLACE FUNCTION public.can_edit_bi_meta(_uid uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.is_admin(_uid) OR EXISTS (
+    SELECT 1 FROM public.user_access ua
+    JOIN public.profiles p ON upper(p.erp_user)=upper(ua.user_login)
+    JOIN public.profile_screens ps ON ps.profile_id=ua.profile_id
+    WHERE p.id=_uid AND ps.screen_path='/bi/comercial/metas' AND ps.can_edit=true
+  );
+$$;
+
+CREATE POLICY "metas_write_admin" ON public.bi_meta_faturamento
+  FOR ALL TO authenticated
+  USING (public.can_edit_bi_meta(auth.uid()))
+  WITH CHECK (public.can_edit_bi_meta(auth.uid()));
+
+CREATE TRIGGER bi_meta_faturamento_updated_at
+  BEFORE UPDATE ON public.bi_meta_faturamento
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 ```
 
-Para `Select`: `<SelectTrigger id={uid} name="x" aria-label="x">`.
-Para campos sem label visual (busca, cor, etc.): `aria-label` obrigatório.
-Placeholder **nunca** substitui label.
+Não há linha **CONSOLIDADO**: o `CHECK` bloqueia o cadastro manual.
 
-## Escopo
+## 2. Tela `/bi/comercial/metas`
 
-Varredura mostrou **~540 campos** em **93 arquivos** usando `<Input>`, `<SelectTrigger>`, `<Textarea>`, `<Checkbox>`, `<RadioGroup>`. A `LoginPage` não tem inputs (login é só botão Microsoft) — nenhum trabalho ali.
+Arquivo `src/pages/bi/MetasFaturamentoPage.tsx`, registrada em `src/App.tsx`.
 
-Por volume, vou atacar em **ondas**, do mais reutilizado para o mais isolado. Cada onda é um commit independente e verificável.
+**Layout:** header com filtros de período (Ano + opcional UN) e botão "Nova meta". Tabela ocupa o corpo.
 
-## Onda 0 — Reforçar componentes base (1 arquivo, alto impacto)
+**Tabela (uma linha por meta cadastrada):**
 
-`src/components/ui/input.tsx`, `select.tsx`, `textarea.tsx`, `checkbox.tsx`, `radio-group.tsx`:
-- Garantir que `id` e `name` são repassados (shadcn já faz, mas confirmar).
-- Em modo dev, adicionar `console.warn` opcional quando renderizar sem `id` E sem `aria-label` — ajuda a localizar regressões futuras.
+| Anomês | Unidade | Meta (R$) | Observação | Ativo | Ações |
 
-Componentes utilitários compartilhados que renderizam inputs internamente, e que aparecem em dezenas de páginas:
+- Ordenação default: `anomes_emissao DESC, unidade_negocio`.
+- Linha extra somente leitura por anomês exibindo "CONSOLIDADO = GENIUS + ESTRUTURAL ZORTEA" calculado em memória, fora da grade de edição.
 
-- `src/components/bi/filters/DateRangeFilter.tsx` — adicionar `useId`, `htmlFor`, `id`, `name`, `aria-label` nos dois `Input type="date"`.
-- `src/components/bi/filters/SelectFilter.tsx` — `useId`, `htmlFor`, `SelectTrigger id/name/aria-label`.
-- `src/components/erp/FilterSection.tsx` / `FilterPanel.tsx` — sem inputs próprios, ok.
-- `src/components/passagens/ColaboradorCombobox.tsx` — `aria-label` no trigger.
-- `src/components/relatorios/ColumnsEditor.tsx`, `ParametersEditor.tsx`, `SqlEditor.tsx` — campos editáveis em listas: usar `useId` + sufixo por linha.
+**Dialog "Nova/Editar meta"** (mesmo componente, ambos via `useId` + `htmlFor`):
+- `anomes_emissao` — Input mask `YYYY-MM` (salva como `YYYYMM`).
+- `unidade_negocio` — Select com apenas `GENIUS` e `ESTRUTURAL ZORTEA`.
+- `vl_meta` — Input number (R$).
+- `observacao` — Textarea opcional.
+- `ativo` — Switch (default true).
 
-Ajustar esses 5–8 wrappers já cobre uma parte enorme dos campos por transitividade.
+**Ações por linha:**
+- Editar (abre o mesmo dialog preenchido).
+- Toggle ativar/inativar (update direto de `ativo`).
+- Excluir (com confirm).
 
-## Onda 1 — Páginas ERP de alto tráfego (filtros e buscas)
+**Persistência:**
+```ts
+supabase.from('bi_meta_faturamento').upsert(
+  { anomes_emissao, unidade_negocio, vl_meta, observacao, ativo },
+  { onConflict: 'anomes_emissao,unidade_negocio' }
+)
+```
 
-Por contagem de campos:
-1. `pages/PainelComprasPage.tsx` (21)
-2. `pages/ContasPagarPage.tsx` (21)
-3. `pages/NotasRecebimentoPage.tsx` (20)
-4. `pages/ContasReceberPage.tsx` (19)
-5. `pages/PassagensAereasPage.tsx` (15)
-6. `pages/DemonstrativoComprasRecebimentosPage.tsx` (15)
-7. `pages/ManutencaoFrotaPage.tsx` (13)
-8. `pages/ConciliacaoEdocsPage.tsx` (13)
-9. `pages/ManutencaoMaquinasPage.tsx` (12)
-10. `pages/AuditoriaTributariaPage.tsx` (11)
-11. `pages/NumeroSeriePage.tsx` (10)
-12. `pages/FaturamentoGeniusPage.tsx` (10)
+Hook dedicado em `src/lib/bi/metasFaturamentoApi.ts`: `listMetas(anomesIni,anomesFim)`, `upsertMeta`, `toggleAtivo`, `deleteMeta`.
 
-Padrão de edição por arquivo:
-- Adicionar `useId` (um por campo, ou prefixo + sufixo manual quando dinâmico).
-- Em todo `<Label>` solto, incluir `htmlFor`.
-- Em todo `<Input>`/`<SelectTrigger>`/`<Textarea>`, incluir `id`, `name` (snake_case coerente com o filtro), e `aria-label` quando o label não for textualmente óbvio.
-- Em campos sem `<Label>` visível (busca com ícone), apenas `aria-label`.
+Acessibilidade: todos os campos com `id`/`name`/`<Label htmlFor>` seguindo o padrão recém aplicado.
 
-## Onda 2 — Componentes de produção, regras Senior, relatórios, frota/máquinas/passagens
+**Acesso à tela:**
+- Rota no `App.tsx` dentro do layout autenticado.
+- Item no menu lateral em "BI Comercial → Metas" (mesmo agrupamento do BI).
+- Botão atalho "Cadastrar metas" no header do BI Comercial (admin/edit).
 
-Lista (≥6 campos cada):
-- `components/producao/programacao/{CapacidadesTab, EntregasProgramadasTab, LeadTimesTab, PrioridadeOpTab, ProgramacaoFiltersBar}.tsx`
-- `components/producao/carga/CargaFiltersBar.tsx`
-- `components/regras-senior/{ImportarFonteLspDialog, RegraForm, AuditoriaList, IdentificadoresList}.tsx`
-- `components/relatorios/tabs/DadosGeraisTab.tsx`
-- `components/passagens/PassagensDashboard.tsx`
-- `components/faturamento/AuditoriaRevendaTab.tsx`
-- `pages/producao/{ExpedidoObraPage, ProduzidoPeriodoPage, SaldoPatioPage, ProducaoDashboardPage, NaoCarregadosPage, LeadTimeProducaoPage, ImpressaoOrdemProducaoPage}.tsx`
-- `pages/{EstoqueMinMaxPage, ConfiguracoesPage, ComprasProdutoPage, SugestaoMinMaxPage, MonitorUsuariosSeniorPage, contabilidade/BalancoPatrimonialPage}.tsx`
+## 3. BI Comercial — sobrescrever Meta, Diferença e % Atingimento
 
-## Onda 3 — Restante da cauda (~45 arquivos com ≤5 campos)
+`src/pages/bi/ComercialPage.tsx` já consome `kpis` via `fetchComercialKpis(filters)`.
 
-Varredura final por `rg` para localizar qualquer `<Input ` ou `<SelectTrigger` sem `id=` adjacente e fechar pendências, incluindo dialogs menores e telas de teste/admin.
+Acrescentar **um novo query paralelo** que lê do Cloud:
 
-## Validação ao final de cada onda
+```ts
+const qMetaCloud = useQuery({
+  queryKey: ['bi-comercial','meta-cloud', filters.anomes_ini, filters.anomes_fim, filters.unidade_negocio],
+  queryFn: () => fetchMetaCloudTotal(filters),
+});
+```
 
-1. Abrir 3–4 páginas representativas no preview.
-2. Confirmar console limpo (sem warnings `id or name` / `No label associated`).
-3. Rodar `tsc` (automático no harness).
-4. Spot-check de autofill: campos como CPF/CNPJ/datas devem aceitar sugestão do navegador.
+`fetchMetaCloudTotal` (novo, em `metasFaturamentoApi.ts`):
+- Lê linhas com `ativo = true`, `anomes_emissao BETWEEN ini AND fim`.
+- Se `filters.unidade_negocio === 'CONSOLIDADO'` → soma das duas UNs.
+- Caso contrário → soma da UN selecionada.
 
-## Detalhes técnicos
+No ComercialPage, depois de obter `kpis`, montar `kpisEffective`:
 
-- **`useId` por linha em listas dinâmicas**: já há padrão estabelecido em `SeriesEditor.tsx` (`${uid}-row-${i}-metric`). Reusar.
-- **Convenção de `name`**: snake_case alinhado com o filtro/coluna (`data_inicio`, `cd_fornecedor`, `situacao_oc`).
-- **Selects shadcn**: `id`/`name`/`aria-label` vão no `SelectTrigger`, nunca no `Select` raiz.
-- **Inputs de busca com ícone**: usar `aria-label="Buscar <entidade>"`.
-- **Date pickers customizados (Popover + Calendar)**: o `Button` que abre o popover recebe `aria-label`; o `Calendar` interno do Radix já é acessível.
-- **Sem alteração de comportamento**: nenhuma mudança de lógica, apenas atributos de acessibilidade.
+```ts
+const metaOverride = qMetaCloud.data ?? null;
+const kpisEffective = useMemo(() => {
+  if (metaOverride == null) return kpis;
+  const meta = metaOverride;
+  const fat = n(kpis.faturamento);
+  return {
+    ...kpis,
+    meta,
+    diferenca: fat - meta,
+    pct_atingimento: meta > 0 ? (fat / meta) * 100 : null,
+  };
+}, [kpis, metaOverride]);
+```
 
-## Entrega proposta
+Usar `kpisEffective` em todos os pontos do arquivo onde hoje se lê `kpis.meta`, `kpis.diferenca`, `kpis.pct_atingimento` e em `<KpiTargetCard ... target={kpis.meta}/>`. O resto (faturamento, líquido, etc.) continua vindo do FastAPI sem alteração.
 
-Confirmo Onda 0 + Onda 1 nesta primeira execução (≈14 arquivos, ~180 campos), com console verificado no preview ao final. Ondas 2 e 3 entram em iterações seguintes para manter cada commit auditável.
+Comportamento quando ainda não houver meta cadastrada para o período: cards mostram `—` (mantém o tratamento atual de null). Não sobrescrevemos a meta do ERP nesse caso? **Decisão proposta:** se não houver linhas em `bi_meta_faturamento` para o período/UN, mantém o valor vindo do ERP (não sobrescreve). Isso evita zerar a meta em períodos não cadastrados. Confirme se prefere o contrário.
+
+A série mensal do gráfico (`fetchComercialMensal`) continua usando a meta do ERP por mês — fora do escopo desta tarefa; pode ser próxima iteração se quiser.
+
+## 4. Permissões / menu
+
+- Adicionar `/bi/comercial/metas` ao seed de `profile_screens` no perfil Administrador (e qualquer perfil que hoje vê `/bi/comercial`).
+- Item de menu em `src/components/layout/...` (mesma seção do BI Comercial).
+
+## Checklist de entrega
+
+1. Migration aprovada.
+2. `src/lib/bi/metasFaturamentoApi.ts` — list/upsert/toggle/delete + `fetchMetaCloudTotal`.
+3. `src/pages/bi/MetasFaturamentoPage.tsx` — tabela + dialog.
+4. Rota e item de menu.
+5. `ComercialPage.tsx` — `kpisEffective` aplicado nos três cards.
+6. Validação manual: cadastrar meta GENIUS + ESTRUTURAL para 202606, abrir BI Comercial → cards refletem soma; trocar filtro de UN → muda Meta proporcionalmente.
