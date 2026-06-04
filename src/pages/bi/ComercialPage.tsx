@@ -247,6 +247,8 @@ export default function ComercialPage() {
   const [editing, setEditing] = useState(false);
   const [configType, setConfigType] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const customMetrics = useCustomMetrics(PAGE_KEY);
+  const [hiddenSeries, setHiddenSeries] = useState<Record<string, Set<number>>>({});
 
   const pageSeries: Record<string, any> = {
     mensal: dadosCombo,
