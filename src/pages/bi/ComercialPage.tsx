@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   KpiCard,
   KpiGrid,
   DataTableBI,
-  DashboardTabs,
   LoadingState,
   ErrorState,
+  EmptyState,
   ComboChartCard,
   BarChartCard,
   DonutChartCard,
@@ -23,320 +24,235 @@ import {
   formatNumber,
   type Column,
 } from '@/components/bi';
-import { fetchComercial, type ComercialRow, type ComercialFiltros } from '@/lib/bi/comercial';
+import {
+  fetchComercialKpis,
+  fetchComercialMensal,
+  fetchComercialMix,
+  fetchComercialEstado,
+  fetchComercialRevenda,
+  fetchComercialObras,
+  type ComercialParams,
+  type UnidadeNegocio,
+  type ComercialMensalRow,
+  type ComercialRevendaRow,
+  type ComercialObrasRow,
+} from '@/lib/bi/comercialApi';
 import { cn } from '@/lib/utils';
 
-type Unidade = 'CONSOLIDADO' | 'GENIUS' | 'ESTRUTURAL ZORTEA';
-
-const num = (v: any) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+const n = (v: any) => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
 };
 
-const defaultAnomes = () => {
-  const now = new Date();
-  const ano = now.getFullYear();
-  return { ini: `${ano}01`, fim: `${ano}12` };
-};
+const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
 
-const UNIDADE_STYLE: Record<Unidade, { trigger: string; barColor: string; mapVar: string; chip: string }> = {
+const UNIDADE_STYLE: Record<UnidadeNegocio, { bar: string; mapVar: string; chip: string }> = {
   CONSOLIDADO: {
-    trigger: 'data-[state=active]:bg-muted data-[state=active]:text-foreground',
-    barColor: 'hsl(var(--muted-foreground))',
+    bar: 'hsl(var(--muted-foreground))',
     mapVar: '--muted-foreground',
     chip: 'bg-muted text-muted-foreground',
   },
   GENIUS: {
-    trigger: 'data-[state=active]:bg-[hsl(var(--warning))] data-[state=active]:text-[hsl(var(--warning-foreground))]',
-    barColor: 'hsl(var(--warning))',
+    bar: 'hsl(var(--warning))',
     mapVar: '--warning',
     chip: 'bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]',
   },
   'ESTRUTURAL ZORTEA': {
-    trigger: 'data-[state=active]:bg-[hsl(var(--primary))] data-[state=active]:text-[hsl(var(--primary-foreground))]',
-    barColor: 'hsl(var(--primary))',
+    bar: 'hsl(var(--primary))',
     mapVar: '--primary',
     chip: 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]',
   },
 };
 
-interface AggregadosMensais {
-  mes: string;
-  faturamento: number;
-  impostos: number;
-  liquido: number;
-  devolucao: number;
-  vendas: number;
-  clientes: number;
-  quantidade: number;
-  ticket_medio: number;
-  preco_medio: number;
-}
+const ERR_MSG = 'Não foi possível carregar os dados do BI Comercial';
+const EMPTY_MSG = 'Sem dados para o período selecionado';
 
-interface AggregadosGerais {
-  faturamento: number;
-  liquido: number;
-  impostos: number;
-  devolucao: number;
-  quantidade: number;
-  vendas: number;
-  clientes: number;
-  estados: number;
-  ticket_medio: number;
-  preco_medio: number;
-}
-
-const safeDiv = (a: number, b: number) => (b > 0 ? a / b : 0);
-
-function aggregateGerais(rows: ComercialRow[]): AggregadosGerais {
-  const nfs = new Set<string>();
-  const clientes = new Set<string>();
-  const estados = new Set<string>();
-  let faturamento = 0,
-    impostos = 0,
-    liquido = 0,
-    devolucao = 0,
-    quantidade = 0;
-  for (const r of rows) {
-    faturamento += num(r.vl_bruto);
-    impostos += num(r.impostos);
-    liquido += num(r.vl_liquido);
-    devolucao += num(r.vl_devolucao);
-    quantidade += num(r.qtd_produtos);
-    if (r.id_nf) nfs.add(r.id_nf);
-    if (r.cd_cliente) clientes.add(r.cd_cliente);
-    if (r.cd_estado) estados.add(r.cd_estado);
-  }
-  const vendas = nfs.size;
-  return {
-    faturamento,
-    impostos,
-    liquido,
-    devolucao,
-    quantidade,
-    vendas,
-    clientes: clientes.size,
-    estados: estados.size,
-    ticket_medio: safeDiv(faturamento, vendas),
-    preco_medio: safeDiv(faturamento, quantidade),
-  };
-}
-
-function aggregateMensal(rows: ComercialRow[]): AggregadosMensais[] {
-  const m = new Map<string, { rows: ComercialRow[]; nfs: Set<string>; clientes: Set<string> }>();
-  for (const r of rows) {
-    const k = r.anomes_emissao ?? '';
-    if (!k) continue;
-    if (!m.has(k)) m.set(k, { rows: [], nfs: new Set(), clientes: new Set() });
-    const g = m.get(k)!;
-    g.rows.push(r);
-    if (r.id_nf) g.nfs.add(r.id_nf);
-    if (r.cd_cliente) g.clientes.add(r.cd_cliente);
-  }
-  return Array.from(m.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([mes, g]) => {
-      let faturamento = 0,
-        impostos = 0,
-        liquido = 0,
-        devolucao = 0,
-        quantidade = 0;
-      for (const r of g.rows) {
-        faturamento += num(r.vl_bruto);
-        impostos += num(r.impostos);
-        liquido += num(r.vl_liquido);
-        devolucao += num(r.vl_devolucao);
-        quantidade += num(r.qtd_produtos);
-      }
-      const vendas = g.nfs.size;
-      return {
-        mes,
-        faturamento,
-        impostos,
-        liquido,
-        devolucao,
-        vendas,
-        clientes: g.clientes.size,
-        quantidade,
-        ticket_medio: safeDiv(faturamento, vendas),
-        preco_medio: safeDiv(faturamento, quantidade),
-      };
-    });
-}
-
-function aggregateBy<K extends string>(
-  rows: ComercialRow[],
-  keyOf: (r: ComercialRow) => K | null | undefined,
-): Array<{ label: string; valor: number }> {
-  const m = new Map<string, number>();
-  for (const r of rows) {
-    const k = keyOf(r);
-    if (!k) continue;
-    m.set(k, (m.get(k) ?? 0) + num(r.vl_bruto));
-  }
-  return Array.from(m.entries())
-    .map(([label, valor]) => ({ label, valor }))
-    .sort((a, b) => b.valor - a.valor);
-}
-
-function PainelUnidade({
-  rows,
-  unidade,
-}: {
-  rows: ComercialRow[];
-  unidade: Unidade;
-}) {
-  const style = UNIDADE_STYLE[unidade];
-  const gerais = useMemo(() => aggregateGerais(rows), [rows]);
-  const mensal = useMemo(() => aggregateMensal(rows), [rows]);
-
-  const dadosCombo = mensal.map((m) => ({
-    label: m.mes,
-    faturamento: m.faturamento,
-    ticket: m.ticket_medio,
-  }));
-
-  const porEstado = useMemo(() => aggregateBy(rows, (r) => r.cd_estado), [rows]);
-  const funilTop = porEstado.slice(0, 8).map((d) => ({ name: d.label, value: d.valor }));
-  const mapaData = porEstado.map((d) => ({ uf: d.label, valor: d.valor }));
-  const donutMix = porEstado.slice(0, 8);
-
-  const colsMensal: Column<AggregadosMensais>[] = [
-    { key: 'mes', header: 'Mês', render: (_v, r) => r.mes },
-    { key: 'vendas', header: 'Vendas', render: (_v, r) => formatNumber(r.vendas), align: 'right' },
-    { key: 'clientes', header: 'Clientes', render: (_v, r) => formatNumber(r.clientes), align: 'right' },
-    { key: 'quantidade', header: 'Quantidade', render: (_v, r) => formatNumber(r.quantidade, 2), align: 'right' },
-    { key: 'faturamento', header: 'Faturamento', render: (_v, r) => formatCurrency(r.faturamento), align: 'right' },
-    { key: 'impostos', header: 'Impostos', render: (_v, r) => formatCurrency(r.impostos), align: 'right' },
-    { key: 'liquido', header: 'Líquido', render: (_v, r) => formatCurrency(r.liquido), align: 'right' },
-    { key: 'devolucao', header: 'Devolução', render: (_v, r) => formatCurrency(r.devolucao), align: 'right' },
-    { key: 'ticket_medio', header: 'Ticket Médio', render: (_v, r) => formatCurrency(r.ticket_medio), align: 'right' },
-    { key: 'preco_medio', header: 'Preço Médio', render: (_v, r) => formatCurrency(r.preco_medio), align: 'right' },
-  ];
-
-  // Painéis específicos
-  const revendas = useMemo(
-    () =>
-      aggregateBy(
-        rows.filter((r) => r.unidade_negocio === 'GENIUS'),
-        (r) => r.ds_abr_fpj || r.cd_fpj || r.cd_grupo_cliente,
-      ).slice(0, 12),
-    [rows],
-  );
-  const obras = useMemo(
-    () =>
-      aggregateBy(
-        rows.filter((r) => r.unidade_negocio === 'ESTRUTURAL ZORTEA'),
-        (r) => r.ds_abr_prj || r.cd_prj,
-      ).slice(0, 20),
-    [rows],
-  );
-
-  const showGenius = unidade === 'GENIUS' || unidade === 'CONSOLIDADO';
-  const showEstrutural = unidade === 'ESTRUTURAL ZORTEA' || unidade === 'CONSOLIDADO';
-
+function BlocoErro({ err, onRetry }: { err: unknown; onRetry: () => void }) {
   return (
-    <div className="space-y-4">
-      <KpiGrid cols={5}>
-        <KpiCard title="Faturamento" value={gerais.faturamento} format="currency" variant="info" />
-        <KpiCard title="Faturamento Líquido" value={gerais.liquido} format="currency" variant="success" />
-        <KpiCard title="Impostos" value={gerais.impostos} format="currency" variant="warning" />
-        <KpiCard title="Devolução" value={gerais.devolucao} format="currency" variant="danger" />
-        <KpiCard title="Nº Vendas" value={gerais.vendas} format="number" />
-        <KpiCard title="Nº Clientes" value={gerais.clientes} format="number" />
-        <KpiCard title="Nº Estados" value={gerais.estados} format="number" />
-        <KpiCard title="Quantidade" value={gerais.quantidade} format="quantity" />
-        <KpiCard title="Ticket Médio" value={gerais.ticket_medio} format="currency" />
-        <KpiCard title="Preço Médio" value={gerais.preco_medio} format="currency" />
-      </KpiGrid>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ComboChartCard
-          title="Faturamento mensal x Ticket médio"
-          data={dadosCombo}
-          barKey="faturamento"
-          barLabel="Faturamento"
-          lineKey="ticket"
-          lineLabel="Ticket médio"
-          barColor={style.barColor}
-        />
-        <DonutChartCard title="Mix por estado (top 8)" data={donutMix} />
-      </div>
-
-      <Card>
-        <CardContent className="pt-4">
-          <DataTableBI columns={colsMensal} data={mensal} />
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <FunnelChartCard title="Top estados (funil)" data={funilTop} />
-        <BrazilMapCard title="Faturamento por estado" data={mapaData} colorVar={style.mapVar} />
-      </div>
-
-      {(showGenius || showEstrutural) && (
-        <div className={cn('grid grid-cols-1 gap-4', showGenius && showEstrutural && 'lg:grid-cols-2')}>
-          {showGenius && (
-            <BarChartCard
-              title="GENIUS — Faturamento por revenda"
-              data={revendas}
-              color={UNIDADE_STYLE.GENIUS.barColor}
-            />
-          )}
-          {showEstrutural && (
-            <TreemapChartCard
-              title="ESTRUTURAL ZORTEA — Faturamento por obra"
-              data={obras.map((o) => ({ name: o.label, value: o.valor }))}
-            />
-          )}
-        </div>
-      )}
-    </div>
+    <ErrorState
+      title={ERR_MSG}
+      message={String((err as any)?.message ?? '')}
+      onRetry={onRetry}
+    />
   );
 }
 
 export default function ComercialPage() {
-  const def = defaultAnomes();
-  const [draft, setDraft] = useState<ComercialFiltros>({ anomes_ini: def.ini, anomes_fim: def.fim });
-  const [filtros, setFiltros] = useState<ComercialFiltros>({ anomes_ini: def.ini, anomes_fim: def.fim });
+  const [draft, setDraft] = useState<ComercialParams>({
+    anomes_ini: '202601',
+    anomes_fim: '202606',
+    unidade_negocio: 'GENIUS',
+  });
+  const [filtros, setFiltros] = useState<ComercialParams>(draft);
 
-  const q = useQuery({
-    queryKey: ['bi-comercial', filtros],
-    queryFn: () => fetchComercial(filtros),
+  const style = UNIDADE_STYLE[filtros.unidade_negocio];
+  const unidade = filtros.unidade_negocio;
+
+  const qKpis = useQuery({
+    queryKey: ['bi-comercial', 'kpis', filtros],
+    queryFn: () => fetchComercialKpis(filtros),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+  const qMensal = useQuery({
+    queryKey: ['bi-comercial', 'mensal', filtros],
+    queryFn: () => fetchComercialMensal(filtros),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+  const qMix = useQuery({
+    queryKey: ['bi-comercial', 'mix', filtros],
+    queryFn: () => fetchComercialMix(filtros),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+  const qEstado = useQuery({
+    queryKey: ['bi-comercial', 'estado', filtros],
+    queryFn: () => fetchComercialEstado(filtros),
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+  const qRevenda = useQuery({
+    queryKey: ['bi-comercial', 'revenda', filtros],
+    queryFn: () => fetchComercialRevenda(filtros),
+    enabled: unidade === 'GENIUS' || unidade === 'CONSOLIDADO',
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+  const qObras = useQuery({
+    queryKey: ['bi-comercial', 'obras', filtros],
+    queryFn: () => fetchComercialObras(filtros),
+    enabled: unidade === 'ESTRUTURAL ZORTEA' || unidade === 'CONSOLIDADO',
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
-  const rows = q.data ?? [];
-  const rowsGenius = useMemo(() => rows.filter((r) => r.unidade_negocio === 'GENIUS'), [rows]);
-  const rowsEstrutural = useMemo(
-    () => rows.filter((r) => r.unidade_negocio === 'ESTRUTURAL ZORTEA'),
-    [rows],
+  const aplicar = () => setFiltros({ ...draft });
+  const atualizar = () => {
+    qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
+    if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
+    if (qObras.isFetched || unidade !== 'GENIUS') qObras.refetch();
+  };
+
+  const carregando =
+    qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching ||
+    qRevenda.isFetching || qObras.isFetching;
+
+  const kpis = qKpis.data ?? ({} as any);
+  const mensal = qMensal.data ?? [];
+  const mix = qMix.data ?? [];
+  const estados = qEstado.data ?? [];
+
+  // ----- gráficos derivados -----
+  const dadosCombo = useMemo(
+    () => mensal.map((m) => ({
+      label: m.anomes_emissao,
+      faturamento: n(m.faturamento),
+      meta: n(m.meta),
+    })),
+    [mensal],
   );
 
-  const aplicar = () => setFiltros({ ...draft });
+  const donutMix = useMemo(
+    () => mix.map((m) => ({ label: String(m.categoria ?? '-'), valor: n(m.faturamento) })),
+    [mix],
+  );
+
+  const estadoSorted = useMemo(
+    () => [...estados].sort((a, b) => n(b.faturamento) - n(a.faturamento)),
+    [estados],
+  );
+  const funilTop = estadoSorted.slice(0, 8).map((d) => ({ name: d.cd_estado, value: n(d.faturamento) }));
+  const mapaData = estadoSorted.map((d) => ({ uf: d.cd_estado, valor: n(d.faturamento) }));
+
+  // ----- colunas de tabelas -----
+  const colsMensal: Column<ComercialMensalRow>[] = [
+    { key: 'anomes_emissao', header: 'Ano/Mês', render: (_v, r) => r.anomes_emissao },
+    { key: 'faturamento', header: 'Faturamento', align: 'right', render: (_v, r) => formatCurrency(n(r.faturamento)) },
+    { key: 'fat_liquido', header: 'Líquido', align: 'right', render: (_v, r) => formatCurrency(n(r.fat_liquido)) },
+    { key: 'impostos', header: 'Impostos', align: 'right', render: (_v, r) => formatCurrency(n(r.impostos)) },
+    { key: 'devolucao', header: 'Devolução', align: 'right', render: (_v, r) => formatCurrency(n(r.devolucao)) },
+    { key: 'numero_vendas', header: 'Nº Vendas', align: 'right', render: (_v, r) => formatNumber(n(r.numero_vendas)) },
+    { key: 'numero_clientes', header: 'Nº Clientes', align: 'right', render: (_v, r) => formatNumber(n(r.numero_clientes)) },
+    { key: 'quantidade', header: 'Quantidade', align: 'right', render: (_v, r) => formatNumber(n(r.quantidade)) },
+    { key: 'ticket_medio', header: 'Ticket Médio', align: 'right', render: (_v, r) => formatCurrency(n(r.ticket_medio)) },
+    { key: 'preco_medio', header: 'Preço Médio', align: 'right', render: (_v, r) => formatCurrency(n(r.preco_medio)) },
+  ];
+
+  const colsRevenda: Column<ComercialRevendaRow>[] = [
+    { key: 'revenda', header: 'Revenda', render: (_v, r) => r.revenda },
+    { key: 'faturamento', header: 'Faturamento', align: 'right', render: (_v, r) => formatCurrency(n(r.faturamento)) },
+    { key: 'fat_liquido', header: 'Líquido', align: 'right', render: (_v, r) => formatCurrency(n(r.fat_liquido)) },
+    { key: 'numero_vendas', header: 'Nº Vendas', align: 'right', render: (_v, r) => formatNumber(n(r.numero_vendas)) },
+    { key: 'numero_clientes', header: 'Nº Clientes', align: 'right', render: (_v, r) => formatNumber(n(r.numero_clientes)) },
+  ];
+
+  const colsObras: Column<ComercialObrasRow>[] = [
+    { key: 'cd_prj', header: 'Cód.', render: (_v, r) => r.cd_prj },
+    { key: 'projeto', header: 'Projeto', render: (_v, r) => r.projeto ?? '-' },
+    { key: 'faturamento', header: 'Faturamento', align: 'right', render: (_v, r) => formatCurrency(n(r.faturamento)) },
+    { key: 'fat_liquido', header: 'Líquido', align: 'right', render: (_v, r) => formatCurrency(n(r.fat_liquido)) },
+    { key: 'numero_vendas', header: 'Nº Vendas', align: 'right', render: (_v, r) => formatNumber(n(r.numero_vendas)) },
+    { key: 'numero_clientes', header: 'Nº Clientes', align: 'right', render: (_v, r) => formatNumber(n(r.numero_clientes)) },
+  ];
+
+  const revendaRows = qRevenda.data ?? [];
+  const obrasRows = qObras.data ?? [];
+
+  const revendaBarData = revendaRows
+    .slice()
+    .sort((a, b) => n(b.faturamento) - n(a.faturamento))
+    .slice(0, 12)
+    .map((r) => ({ label: r.revenda, valor: n(r.faturamento) }));
+
+  const obrasTreeData = obrasRows
+    .slice()
+    .sort((a, b) => n(b.faturamento) - n(a.faturamento))
+    .slice(0, 30)
+    .map((o) => ({ name: o.projeto || o.cd_prj, value: n(o.faturamento) }));
+
+  const showRevenda = unidade === 'GENIUS' || unidade === 'CONSOLIDADO';
+  const showObras = unidade === 'ESTRUTURAL ZORTEA' || unidade === 'CONSOLIDADO';
 
   return (
     <div className="space-y-4 p-4">
       <PageHeader
-        title="Dashboard Comercial"
-        description="Faturamento comercial por unidade de negócio (somente fonte_acao = VM_FATURAMENTO)."
+        title="BI Comercial"
+        description="Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)."
         actions={
-          <Button size="sm" variant="outline" onClick={() => q.refetch()} disabled={q.isFetching}>
-            <RefreshCw className={cn('mr-1 h-3.5 w-3.5', q.isFetching && 'animate-spin')} />
-            Atualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <span className={cn('rounded-full px-3 py-0.5 text-xs font-semibold', style.chip)}>
+              {unidade}
+            </span>
+            <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
+              <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} />
+              Atualizar
+            </Button>
+          </div>
         }
       />
 
+      {/* Filtros */}
       <Card>
         <CardContent className="pt-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div>
+              <Label className="text-xs">Unidade</Label>
+              <Select
+                value={draft.unidade_negocio}
+                onValueChange={(v) => setDraft({ ...draft, unidade_negocio: v as UnidadeNegocio })}
+              >
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {UNIDADES.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <Label className="text-xs">AnoMês Início</Label>
               <Input
                 className="h-8 text-xs"
-                value={draft.anomes_ini ?? ''}
+                value={draft.anomes_ini}
                 placeholder="202601"
                 onChange={(e) => setDraft({ ...draft, anomes_ini: e.target.value })}
                 onKeyDown={(e) => e.key === 'Enter' && aplicar()}
@@ -346,46 +262,123 @@ export default function ComercialPage() {
               <Label className="text-xs">AnoMês Fim</Label>
               <Input
                 className="h-8 text-xs"
-                value={draft.anomes_fim ?? ''}
-                placeholder="202612"
+                value={draft.anomes_fim}
+                placeholder="202606"
                 onChange={(e) => setDraft({ ...draft, anomes_fim: e.target.value })}
                 onKeyDown={(e) => e.key === 'Enter' && aplicar()}
               />
             </div>
             <div className="flex items-end">
-              <Button size="sm" className="h-8 w-full" onClick={aplicar}>
-                Aplicar
-              </Button>
+              <Button size="sm" className="h-8 w-full" onClick={aplicar}>Aplicar</Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {q.isLoading ? (
-        <LoadingState height={400} />
-      ) : q.isError ? (
-        <ErrorState message={String((q.error as any)?.message ?? 'Erro ao carregar dados')} />
+      {/* KPIs */}
+      {qKpis.isLoading ? (
+        <LoadingState height={120} variant="skeleton" />
+      ) : qKpis.isError ? (
+        <Card><CardContent className="pt-4"><BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} /></CardContent></Card>
       ) : (
-        <DashboardTabs
-          defaultValue="CONSOLIDADO"
-          tabs={[
-            {
-              value: 'CONSOLIDADO',
-              label: 'CONSOLIDADO',
-              content: <PainelUnidade rows={rows} unidade="CONSOLIDADO" />,
-            },
-            {
-              value: 'GENIUS',
-              label: 'GENIUS',
-              content: <PainelUnidade rows={rowsGenius} unidade="GENIUS" />,
-            },
-            {
-              value: 'ESTRUTURAL ZORTEA',
-              label: 'ESTRUTURAL ZORTEA',
-              content: <PainelUnidade rows={rowsEstrutural} unidade="ESTRUTURAL ZORTEA" />,
-            },
-          ]}
-        />
+        <KpiGrid cols={7}>
+          <KpiCard title="Faturamento" value={n(kpis.faturamento)} format="currency" variant="info" />
+          <KpiCard title="Meta" value={n(kpis.meta)} format="currency" />
+          <KpiCard title="Diferença" value={n(kpis.diferenca)} format="currency"
+            variant={n(kpis.diferenca) >= 0 ? 'success' : 'danger'} />
+          <KpiCard title="% Atingimento" value={n(kpis.pct_atingimento)} format="percent"
+            variant={n(kpis.pct_atingimento) >= 100 ? 'success' : 'warning'} />
+          <KpiCard title="Faturamento Líquido" value={n(kpis.fat_liquido)} format="currency" variant="success" />
+          <KpiCard title="Impostos" value={n(kpis.impostos)} format="currency" variant="warning" />
+          <KpiCard title="Devolução" value={n(kpis.devolucao)} format="currency" variant="danger" />
+          <KpiCard title="Nº Vendas" value={n(kpis.numero_vendas)} format="number" />
+          <KpiCard title="Nº Clientes" value={n(kpis.numero_clientes)} format="number" />
+          <KpiCard title="Nº Estados" value={n(kpis.numero_estados)} format="number" />
+          <KpiCard title="Quantidade" value={n(kpis.quantidade)} format="quantity" />
+          <KpiCard title="Ticket Médio" value={n(kpis.ticket_medio)} format="currency" />
+          <KpiCard title="Preço Médio" value={n(kpis.preco_medio)} format="currency" />
+        </KpiGrid>
+      )}
+
+      {/* Mensal + Mix */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {qMensal.isLoading ? <LoadingState height={280} /> :
+          qMensal.isError ? <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} /> :
+          dadosCombo.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
+          <ComboChartCard
+            title="Faturamento mensal x Meta"
+            data={dadosCombo}
+            barKey="faturamento"
+            barLabel="Faturamento"
+            lineKey="meta"
+            lineLabel="Meta"
+            barColor={style.bar}
+          />}
+        {qMix.isLoading ? <LoadingState height={280} /> :
+          qMix.isError ? <BlocoErro err={qMix.error} onRetry={() => qMix.refetch()} /> :
+          donutMix.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
+          <DonutChartCard title="Mix acumulado" data={donutMix} />}
+      </div>
+
+      {/* Tabela mensal */}
+      <Card>
+        <CardContent className="pt-4">
+          {qMensal.isLoading ? <LoadingState height={200} variant="skeleton" /> :
+            qMensal.isError ? <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} /> :
+            mensal.length === 0 ? <EmptyState description={EMPTY_MSG} /> :
+            <DataTableBI columns={colsMensal} data={mensal} />}
+        </CardContent>
+      </Card>
+
+      {/* Estado: funil + mapa */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {qEstado.isLoading ? <LoadingState height={280} /> :
+          qEstado.isError ? <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} /> :
+          funilTop.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
+          <FunnelChartCard title="Top estados (faturamento)" data={funilTop} />}
+        {qEstado.isLoading ? <LoadingState height={280} /> :
+          qEstado.isError ? <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} /> :
+          mapaData.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
+          <BrazilMapCard title="Faturamento por estado" data={mapaData} colorVar={style.mapVar} />}
+      </div>
+
+      {/* Bloco específico */}
+      {(showRevenda || showObras) && (
+        <div className={cn('grid grid-cols-1 gap-4', showRevenda && showObras && 'lg:grid-cols-2')}>
+          {showRevenda && (
+            <div className="space-y-3">
+              {qRevenda.isLoading ? <LoadingState height={280} /> :
+                qRevenda.isError ? <BlocoErro err={qRevenda.error} onRetry={() => qRevenda.refetch()} /> :
+                revendaBarData.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
+                <BarChartCard
+                  title="GENIUS — Faturamento por revenda"
+                  data={revendaBarData}
+                  color={UNIDADE_STYLE.GENIUS.bar}
+                />}
+              {!qRevenda.isLoading && !qRevenda.isError && revendaRows.length > 0 && (
+                <Card><CardContent className="pt-4">
+                  <DataTableBI columns={colsRevenda} data={revendaRows} />
+                </CardContent></Card>
+              )}
+            </div>
+          )}
+          {showObras && (
+            <div className="space-y-3">
+              {qObras.isLoading ? <LoadingState height={280} /> :
+                qObras.isError ? <BlocoErro err={qObras.error} onRetry={() => qObras.refetch()} /> :
+                obrasTreeData.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
+                <TreemapChartCard
+                  title="ESTRUTURAL ZORTEA — Faturamento por obra"
+                  data={obrasTreeData}
+                />}
+              {!qObras.isLoading && !qObras.isError && obrasRows.length > 0 && (
+                <Card><CardContent className="pt-4">
+                  <DataTableBI columns={colsObras} data={obrasRows} />
+                </CardContent></Card>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
