@@ -120,23 +120,25 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
   }
 
   const handleLayoutChange = (next: Layout) => {
-    // No modo de visualização (incluindo link compartilhado), o layout salvo
-    // é a fonte única da verdade — não sobrescrevemos com o que o
-    // react-grid-layout recalcula, pois isso brigava com o efeito de
-    // ressincronização e causava tremor nos blocos.
+    // No modo de visualização, layout salvo é fonte única — não sobrescrever.
     if (!editing) return;
-    // Sincroniza estado local a partir do grid (drag/resize por arrasto).
+    // Apenas atualiza estado local (visual) durante drag/resize.
+    // NÃO emite onLayoutChange aqui — evita avalanche de saves/re-renders.
     setLocalLayout((prev) => {
+      let changed = false;
       const updated = { ...prev };
       next.forEach((l) => {
-        updated[l.i] = { x: l.x, y: l.y, w: l.w, h: l.h };
+        const cur = prev[l.i];
+        if (!cur || cur.x !== l.x || cur.y !== l.y || cur.w !== l.w || cur.h !== l.h) {
+          updated[l.i] = { x: l.x, y: l.y, w: l.w, h: l.h };
+          changed = true;
+        }
       });
-      return updated;
+      return changed ? updated : prev;
     });
-    emit(next);
   };
 
-  // Garante emit ao final do arrasto/resize (mesmo se já foi emitido durante).
+  // Commit final do gesto (drag/resize). Aqui sim emitimos para o pai.
   const handleStop = (next: Layout) => {
     setLocalLayout((prev) => {
       const updated = { ...prev };
@@ -145,7 +147,6 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
       });
       return updated;
     });
-    // Reseta dedupe para garantir persistência final.
     lastEmitted.current = '';
     emit(next);
   };

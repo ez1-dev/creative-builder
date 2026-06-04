@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye } from 'lucide-react';
@@ -448,12 +448,24 @@ export default function ComercialPage() {
       customMetrics.metrics, hiddenSeries]);
 
   // ===== Builder handlers =====
-  const handleLayoutChange = async (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
-    try {
-      await layout.saveLayout(next.map((it) => ({ type: it.type, layout: it.layout })));
-    } catch (e: any) {
-      toast.error(`Erro ao salvar layout: ${e?.message ?? e}`);
-    }
+  // Debounce do save de layout durante edição: evita avalanche de UPDATEs
+  // se o usuário fizer vários ajustes seguidos. PassagensLayoutGrid já só
+  // emite no commit (drag/resize stop), mas o debounce é blindagem extra.
+  const pendingLayoutRef = useRef<{ type: string; layout: { x: number; y: number; w: number; h: number } }[] | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); }, []);
+
+  const handleLayoutChange = (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
+    pendingLayoutRef.current = next;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      const payload = pendingLayoutRef.current;
+      pendingLayoutRef.current = null;
+      saveTimerRef.current = null;
+      if (!payload) return;
+      layout.saveLayout(payload.map((it) => ({ type: it.type, layout: it.layout })))
+        .catch((e: any) => toast.error(`Erro ao salvar layout: ${e?.message ?? e}`));
+    }, 700);
   };
 
   const handleHide = async (type: string) => {

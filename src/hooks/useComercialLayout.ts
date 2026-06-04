@@ -65,8 +65,8 @@ export function useComercialLayout(enabled: boolean = true) {
     return [...fromDefaults, ...customs].sort((a, b) => a.position - b.position);
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
     try {
       const { data: dash } = await supabase
         .from('dashboards')
@@ -78,7 +78,10 @@ export function useComercialLayout(enabled: boolean = true) {
 
       if (!dash) {
         setDashboardId(null);
-        setWidgets(COMERCIAL_DEFAULT_WIDGETS);
+        setWidgets((prev) => {
+          const same = JSON.stringify(prev) === JSON.stringify(COMERCIAL_DEFAULT_WIDGETS);
+          return same ? prev : COMERCIAL_DEFAULT_WIDGETS;
+        });
         return;
       }
       setDashboardId(dash.id);
@@ -104,9 +107,13 @@ export function useComercialLayout(enabled: boolean = true) {
           series: Array.isArray(cfg.series) ? cfg.series : undefined,
         };
       });
-      setWidgets(mergeWithDefaults(mapped));
+      const merged = mergeWithDefaults(mapped);
+      setWidgets((prev) => {
+        const same = JSON.stringify(prev) === JSON.stringify(merged);
+        return same ? prev : merged;
+      });
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [mergeWithDefaults]);
 
@@ -179,7 +186,7 @@ export function useComercialLayout(enabled: boolean = true) {
         });
       }
     }
-    await load();
+    await load({ silent: true });
   }, [ensureDashboard, load]);
 
   const resetLayout = useCallback(async () => {
