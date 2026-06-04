@@ -10,6 +10,7 @@ import {
   KpiCard,
   KpiGrid,
   DataTableBI,
+  DashboardTabs,
   NoDataState,
   LoadingState,
   ErrorState,
@@ -23,10 +24,14 @@ import {
   getPorMovimento,
   getPorTns,
   getDetalhes,
+  getUnidadeComercial,
+  getUnidadeTecnica,
   type FaturamentoValidacaoFiltros,
   type PorMovimentoRow,
   type PorTnsRow,
   type DetalheRow,
+  type UnidadeComercialRow,
+  type UnidadeTecnicaRow,
 } from '@/lib/bi/faturamentoValidacao';
 import { useToast } from '@/hooks/use-toast';
 
