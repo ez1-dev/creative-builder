@@ -6,7 +6,7 @@
  * Reutiliza o COMPONENT_REGISTRY e o schema da página Passagens
  * registrado em PAGE_REGISTRY.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
