@@ -136,3 +136,10 @@ export const getDetalhes = (
     page,
     page_size,
   });
+
+export const getUnidadeComercial = (f: FaturamentoValidacaoFiltros) =>
+  api.get<UnidadeComercialRow[]>('/api/bi/faturamento/unidade-comercial', toParams(f));
+
+export const getUnidadeTecnica = (f: FaturamentoValidacaoFiltros) =>
+  api.get<UnidadeTecnicaRow[]>('/api/bi/faturamento/unidade-tecnica', toParams(f));
+
