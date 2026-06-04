@@ -186,14 +186,14 @@ export function useComercialLayout(enabled: boolean = true) {
         });
       }
     }
-    await load();
+    await load({ silent: true });
   }, [ensureDashboard, load]);
 
   const resetLayout = useCallback(async () => {
     const id = await ensureDashboard();
     await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
     await supabase.rpc('upsert_bi_comercial_dashboard_default');
-    await load({ silent: true });
+    await load();
   }, [ensureDashboard, load]);
 
   const deleteWidget = useCallback(async (widgetType: string) => {
