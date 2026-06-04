@@ -101,6 +101,7 @@ export function useComercialLayout(enabled: boolean = true) {
           options: cfg.options,
           customTitle: cfg.customTitle,
           variant: cfg.variant,
+          series: Array.isArray(cfg.series) ? cfg.series : undefined,
         };
       });
       setWidgets(mergeWithDefaults(mapped));
