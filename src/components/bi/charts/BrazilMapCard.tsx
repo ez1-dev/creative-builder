@@ -13,6 +13,7 @@ export interface BrazilMapCardProps extends Omit<ChartCardShellProps, 'children'
   /** cor base (HSL string como `var(--primary)` sem prefixo `hsl()`) */
   colorVar?: string;
   valueFormatter?: (v: number) => string;
+  onItemClick?: (d: BrazilMapDatum) => void;
 }
 
 // Cartograma de UF — posição (row, col) aproximada para cada estado.
@@ -35,6 +36,7 @@ export function BrazilMapCard({
   colorVar = '--primary',
   valueFormatter = formatCurrency,
   height = 320,
+  onItemClick,
   ...shell
 }: BrazilMapCardProps) {
   const isEmpty = !data?.length;
@@ -65,13 +67,18 @@ export function BrazilMapCard({
             const v = d?.valor ?? 0;
             const intensity = max > 0 ? Math.max(0.12, v / max) : 0.12;
             const hasData = !!d && v > 0;
+            const clickable = !!onItemClick && hasData;
             return (
-              <div
+              <button
+                type="button"
                 key={uf}
-                title={d ? `${uf}: ${valueFormatter(v)}` : `${uf}: sem dados`}
+                disabled={!clickable}
+                onClick={() => clickable && onItemClick!(d!)}
+                title={d ? `${uf}: ${valueFormatter(v)}${clickable ? ' — Clique para detalhar' : ''}` : `${uf}: sem dados`}
                 className={cn(
                   'flex items-center justify-center rounded text-[10px] font-semibold tabular-nums',
-                  'border border-border/60',
+                  'border border-border/60 transition-transform',
+                  clickable && 'cursor-pointer hover:scale-110 hover:ring-2 hover:ring-ring',
                   hasData ? 'text-white' : 'text-muted-foreground',
                 )}
                 style={{
@@ -83,7 +90,7 @@ export function BrazilMapCard({
                 }}
               >
                 {uf}
-              </div>
+              </button>
             );
           })}
         </div>
