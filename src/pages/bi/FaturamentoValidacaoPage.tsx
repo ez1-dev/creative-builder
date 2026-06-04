@@ -19,6 +19,7 @@ import {
   formatDateBR,
   type Column,
 } from '@/components/bi';
+import { MultiSelectFilter } from '@/components/bi/MultiSelectFilter';
 import {
   getResumo,
   getPorMovimento,
@@ -34,6 +35,13 @@ import {
   type UnidadeTecnicaRow,
 } from '@/lib/bi/faturamentoValidacao';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+const FONTE_ACAO_OPTIONS = ['faturamento', 'faturamento_manual', 'fat_contabil', 'fat_trb', 'SEM_FONTE'];
+const UNIDADE_NEGOCIO_OPTIONS = ['GENIUS', 'ESTRUTURAL ZORTEA', 'SEM_UNIDADE'];
+const TP_MOVIMENTO_FALLBACK = ['S', 'E'];
+const ORIGEM_FALLBACK = ['PROP', 'TERC'];
+
 
 const num = (v: any) => {
   const n = Number(v);
