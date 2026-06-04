@@ -1,93 +1,93 @@
 
-# Biblioteca BI — Aparência e leitura dos gráficos
+## Objetivo
 
-Implementação faseada para evitar quebrar dashboards existentes. Toda configuração visual fica em um único objeto `visual_config` (JSON), opcional, com defaults sãos. Sem mudanças em SQL nem em regras de negócio.
+Adicionar no topo do BI Comercial (e replicar em BI Faturamento) um campo de texto + botão **"Gerar gráfico com IA"** que interpreta um pedido em linguagem natural, agrega os dados e renderiza um gráfico (rosca, pizza, barras ou linha) com legenda, tooltip, percentual e drill ao clicar na fatia.
 
-## Fase 1 — Modelo de dados e tipo `VisualConfig`
+## Arquitetura
 
-1. Criar `src/lib/bi/visualConfig.ts`:
-   - `export interface VisualConfig { title, subtitle, legend, dataLabels, resultDescription, axis, grid, tooltip, card }` exatamente no formato do JSON proposto pelo usuário.
-   - `DEFAULT_VISUAL_CONFIG` com defaults compatíveis com o look atual.
-   - `mergeVisualConfig(partial?)` → faz merge profundo com defaults (componentes sem `visual_config` continuam renderizando idênticos).
-   - `formatDataLabel(value, cfg.dataLabels)` cobrindo: `int | decimal | currency | percent | compact`, `decimals`, `prefix`, `suffix`.
-   - `interpolateDescription(text, vars)` para `{total}`, `{periodo}`, `{maior_valor}`, `{menor_valor}`, `{quantidade_registros}` (Fase 5, mas o esqueleto já entra).
-
-2. **Persistência**: NÃO criar coluna nova. Reaproveitar `bi_user_widgets.options JSONB` (já existe) salvando em `options.visual` o `VisualConfig`. Para widgets canônicos (`dashboard_widgets.config JSONB`) reusar `config.visual`. Zero migração de banco.
-
-## Fase 2 — Renderização respeitando `visual_config`
-
-Alterar `ChartCardShell` para receber `visualConfig?: VisualConfig` e aplicar:
-- `card.showHeader`, `card.showBorder`, `card.density` (`compacta|normal|detalhada` → padding/altura).
-- `title.visible/text/align/fontSize`, `subtitle.visible/text/fontSize`.
-- `resultDescription` (renderizado `above`/`below`/`beforeLegend`/`afterChart`).
-- Manter `subtitle` legado funcionando se `visual_config` estiver ausente.
-
-Atualizar os charts impactados (`BarChartCard`, `HorizontalBarChartCard`, `LineChartCard`, `AreaChartCard`, `ComboChartCard`, `PieChartCard`, `DonutChartCard`, `StackedBarChartCard`) para receber `visualConfig` e aplicar:
-- `<Legend>` condicional, `verticalAlign`/`align` mapeados de `legend.position` (`top|bottom|left|right`), `wrapperStyle.fontSize`, e renomes via `legend.seriesLabels`.
-- `<LabelList>` do Recharts quando `dataLabels.visible`, com `position` (Recharts: `top|bottom|inside|outside|left|right|center`), `fontSize`, e `formatter = formatDataLabel`.
-- `<CartesianGrid>` condicional (`grid.visible`).
-- `<XAxis>`/`<YAxis>` condicional (`axis.xVisible/yVisible`), `label` para `axis.xLabel/yLabel`, `tick.fontSize` de `axis.fontSize`.
-- `<Tooltip>` condicional (`tooltip.visible`), com `formatter` usando `formatDataLabel` quando definido.
-
-Charts especiais (radar, scatter, gauge, heatmap, treemap, calendar, funnel, waterfall) recebem só o subset que faz sentido (título, legenda, descrição, card, tooltip) — eixos/labels ignorados sem erro.
-
-No `componentRegistry.tsx`, propagar `options.visual` para os componentes nas chamadas `render(...)`:
-```ts
-const visual = mergeVisualConfig(options?.visual);
-return <BarChartCard ... visualConfig={visual} title={visual.title.text || title || ...} />;
+```text
+[Usuário] → input texto + botão
+    ↓
+Edge Function `bi-ia-chart` (Lovable AI Gateway, google/gemini-3-flash-preview)
+   1. Interpreta o prompt → JSON estruturado (tipo, métrica, dimensão, filtros)
+   2. Chama FastAPI /api/bi/comercial/detalhes (escopo=todas, mesmas regras do BI)
+   3. Agrega no servidor por `dimensao` somando `metrica` → series[]
+   4. Devolve { titulo, subtitulo, tipo_grafico, metrica, total, series:[{label,valor,percentual}], dimensao, filtros }
+    ↓
+Frontend: AiChartCard renderiza Donut/Pie/Bar/Line já existentes (DonutChartCard etc.)
+   + onClick na fatia → DrillSheet existente filtrando por (dimensao=label)
 ```
 
-## Fase 3 — Editor "Aparência e leitura do gráfico"
+Tudo segue o padrão já usado pelo `biblioteca-bi-suggest` (Edge Function + Lovable AI) e a biblioteca BI existente.
 
-Criar `src/components/bi/visual/VisualConfigEditor.tsx`:
-- Componente controlado: `value: VisualConfig`, `onChange(next)`.
-- Layout em `<Tabs>` shadcn com 6 abas: **Título**, **Legenda**, **Rótulos**, **Descrição**, **Eixos & Grade**, **Card**.
-- Cada aba usa primitivos shadcn (`Switch`, `Input`, `Select`, `Slider`, `Textarea`, `RadioGroup`).
-- Para "nome amigável das séries" (`legend.seriesLabels`): receber prop `availableSeriesKeys: string[]` e renderizar uma lista editável (chave → label).
-- Botões inferiores: **Restaurar padrão** (volta a `DEFAULT_VISUAL_CONFIG`).
+## Backend
 
-Integrar no `ConfigureChartDialog` (`src/components/passagens/ConfigureChartDialog.tsx`):
-- Acrescentar uma seção/aba "Aparência e leitura do gráfico" acima do preview.
-- Estado novo `visual` inicializado de `initial?.options?.visual` ou default.
-- O preview já existente passa `options.visual = visual` e mostra mudanças em tempo real.
-- Em `onApply`, persistir `options.visual` junto.
-- Botão "Restaurar padrão visual" reseta só o `visual` (separado do "Voltar ao padrão" que reseta o bloco inteiro).
+**Nova Edge Function** `supabase/functions/bi-ia-chart/index.ts` (verify_jwt=false, CORS padrão):
 
-Onde mais o editor aparece: o mesmo dialog é reutilizado por `PassagensDashboard`, `FrotaDashboard`, `MaquinasDashboard` (Dashboard Builder) — todos já vão herdar.
+- Recebe `{ prompt, filtros_base }` (filtros do header do BI: unidade, período, etc.)
+- Passo 1 — chama Lovable AI (`google/gemini-3-flash-preview`) com `Output.object` Zod schema:
+  ```ts
+  {
+    titulo: string, subtitulo: string,
+    tipo_grafico: 'donut'|'pie'|'bar'|'line',
+    metrica: 'faturamento'|'impostos'|'devolucao'|'custo'|'quantidade'|'numero_clientes'|'numero_vendas',
+    dimensao: 'unidade_negocio'|'cd_origem'|'cd_estado'|'cd_cliente'|'cd_tns'|'cd_rev_pedido'|'anomes_emissao',
+    filtros_extras: Record<string,string>,
+    top_n: number
+  }
+  ```
+  System prompt em PT-BR explicando catálogo de métricas/dimensões e regras (GENIUS=503, ESTRUTURAL ZORTEA=502, "peças vs serviços" → dimensao `cd_origem`).
+- Passo 2 — chama FastAPI existente `${FASTAPI_BASE_URL}/api/bi/comercial/detalhes` com filtros mesclados (escopo=`todas`, limit alto) e header `ngrok-skip-browser-warning: true`.
+- Passo 3 — agrega no Deno: agrupa por `dimensao`, soma a coluna mapeada (`vl_bruto`,`vl_impostos`,`vl_devolucao`,`qtd_produtos`, `count(distinct cd_cliente)`, `count(distinct cd_nf+cd_serie+cd_filial)`), ordena desc, corta em `top_n` (default 10, agrupando resto em "Outros" no donut/pie).
+- Passo 4 — devolve o payload final no formato pedido.
+- Erros 429/402 do AI Gateway repassados como mensagem clara.
 
-## Fase 4 — Aplicação fora do Dashboard Builder
+## Frontend
 
-- **`/biblioteca-bi`** (catálogo): adicionar botão "Configurar aparência" no preview de cada componente; abre `VisualConfigEditor` em standalone para o usuário experimentar (não persiste — só ilustrativo).
-- **`PaginaDashboardTemplate`** e usuários do registry (ex.: ComercialPage): nada a fazer; já recebem `options.visual` pelo widget store.
+**Novo client API** `src/lib/bi/iaChartApi.ts`:
+- `gerarGraficoIA(prompt, filtrosBase) → AiChartResult` via `supabase.functions.invoke('bi-ia-chart')`.
+- Types: `AiChartResult`, `AiChartSerie`.
 
-## Fase 5 — Variáveis dinâmicas em `resultDescription`
+**Novo componente** `src/components/bi/ai/AiChartGenerator.tsx`:
+- Card colapsável no topo da página (estilo do `ComponentSuggester`): `<Sparkles/> Gerar gráfico com IA`.
+- Textarea + botão "Gerar gráfico" (loading, exemplos clicáveis).
+- Recebe `filtrosBase` (filtros atuais da página) e `onDrill(dimensao, label) => void`.
+- Quando há resultado, renderiza abaixo o gráfico usando os cards já existentes:
+  - `donut` → `DonutChartCard` com `centerValue={total}` e `valueFormatter` por métrica.
+  - `pie` → `PieChartCard`.
+  - `bar` → `BarChartCard` (ou `HorizontalBarChartCard` se >8 itens).
+  - `line` → `LineChartCard`.
+- Passa `visualConfig` com `legend.visible`, `tooltip.visible`, `dataLabels` (percentual em donut/pie).
+- `onItemClick` da fatia/barra chama `onDrill(dimensao, label)`.
+- Botão "Limpar" / "Regerar".
 
-- `ChartCardShell` calcula `vars` a partir dos dados (`total`, `maior_valor`, `menor_valor`, `quantidade_registros`) e `periodo` vindo de prop opcional `periodLabel`. Passa para `interpolateDescription`.
-- Apenas substituição simples `{var}` → string formatada. Sem motor de fórmulas.
+**Integração nas páginas**:
+- `src/pages/bi/ComercialPage.tsx`: inserir `<AiChartGenerator filtrosBase={filters.base} onDrill={...} />` logo após o `FilterBar`. O `onDrill` aciona o `DrillSheet` já existente convertendo `dimensao→drill key` (mapa interno: `cd_estado→estado`, `cd_cliente→cliente`, `cd_origem→origem` etc.).
+- `src/pages/bi/FaturamentoValidacaoPage.tsx`: mesmo componente, com filtros locais da página (somente leitura — sem drill se não houver suporte).
 
-## Fase 6 — QA
+**Formatação**:
+- Reusa `formatCurrency`, `formatNumber` de `@/components/bi`.
+- Percentual no donut/pie via `visualConfig.dataLabels.format = 'percent'`.
 
-- Smoke check em `/bi/comercial`, `/passagens-aereas`, `/manutencao-frota`: dashboards sem `visual_config` continuam idênticos.
-- Editar 1 gráfico em `/passagens-aereas`: trocar título, ativar rótulos `currency` + prefixo `R$`, mover legenda para `right`, ativar descrição "below" — confirmar persistência após reload.
-- Garantir que `mergeVisualConfig(undefined)` nunca lance.
+## Segurança / Limites
 
-## Fora do escopo (deixar para depois)
+- Edge Function valida prompt (Zod, max 1000 chars), exige sessão Supabase (verifica `Authorization` → `supabase.auth.getUser`).
+- Lista de métricas/dimensões fechada (enum); qualquer valor fora cai em erro 400.
+- Limite de `top_n` (1..30) e timeout 30s na chamada FastAPI.
+- Sem SQL dinâmico — só chama endpoint existente `/api/bi/comercial/detalhes`.
 
-- "Aplicar estilo para todos os componentes do mesmo tipo" (botão fica desabilitado com tooltip "em breve").
-- Editor visual para `radar/scatter/heatmap/gauge/treemap/funnel/waterfall` específicos — só o subset comum.
-- Mudanças em `<Legend>` para gráficos `pie/donut` quando `position: left|right` (Recharts não suporta tudo igual — mapear para `top|bottom` com warning silencioso).
+## Entregáveis
 
-## Arquivos tocados (resumo)
+1. `supabase/functions/bi-ia-chart/index.ts` (nova).
+2. `src/lib/bi/iaChartApi.ts` (nova).
+3. `src/components/bi/ai/AiChartGenerator.tsx` (nova).
+4. Edits:
+   - `src/pages/bi/ComercialPage.tsx` — montar o gerador + ligar ao DrillSheet.
+   - `src/pages/bi/FaturamentoValidacaoPage.tsx` — montar o gerador (sem drill).
+5. `docs/bi-ia-chart.md` — contrato da função + exemplos de prompts.
 
-Novos:
-- `src/lib/bi/visualConfig.ts`
-- `src/components/bi/visual/VisualConfigEditor.tsx`
+## Fora de escopo
 
-Editados:
-- `src/components/bi/charts/ChartCardShell.tsx`
-- `src/components/bi/charts/{Bar,HorizontalBar,Line,Area,Combo,Pie,Donut,StackedBar}ChartCard.tsx`
-- `src/lib/bi/componentRegistry.tsx`
-- `src/components/passagens/ConfigureChartDialog.tsx`
-- `src/pages/BiComponentsDemoPage.tsx` (catálogo `/biblioteca-bi`)
-
-Sem migração de banco. Sem alteração em SQL/ETL/regra de negócio.
+- Persistir gráficos gerados no dashboard (pode vir depois via "Salvar como widget").
+- Suporte a múltiplas métricas/séries (combo). Inicialmente 1 métrica × 1 dimensão.
+- Tipos além de donut/pie/bar/line.
