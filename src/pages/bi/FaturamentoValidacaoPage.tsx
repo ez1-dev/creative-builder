@@ -272,6 +272,8 @@ export default function FaturamentoValidacaoPage() {
             {filtroField('cd_centro_custos_3', 'CD CC3', '001,...')}
             {filtroField('cd_nf', 'CD NF', '12345')}
             {filtroField('fonte_acao', 'Fonte Ação', 'faturamento,SEM_FONTE')}
+            {filtroField('unidade_negocio', 'Unidade Negócio', 'GENIUS,ESTRUTURAL ZORTEA')}
+
 
             <div className="flex items-end">
               <Button size="sm" className="h-8 w-full" onClick={aplicarFiltros}>
