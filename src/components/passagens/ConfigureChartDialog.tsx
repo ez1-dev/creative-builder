@@ -20,6 +20,8 @@ import {
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
+import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
+import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
 
 const COLOR_AWARE_TYPES = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
 
