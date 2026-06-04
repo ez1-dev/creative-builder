@@ -34,6 +34,7 @@ export * from './charts/ScatterChartCard';
 export * from './charts/HeatmapChartCard';
 export * from './charts/WaterfallChartCard';
 export * from './charts/FunnelChartCard';
+export * from './charts/BrazilMapCard';
 export * from './charts/SparklineCard';
 export * from './charts/CalendarHeatmapCard';
 
