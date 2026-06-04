@@ -15,10 +15,19 @@ RadioGroup.displayName = RadioGroupPrimitive.Root.displayName;
 const RadioGroupItem = React.forwardRef<
   React.ElementRef<typeof RadioGroupPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item>
->(({ className, ...props }, ref) => {
+>(({ className, id, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, title, value, ...props }, ref) => {
+  const autoId = React.useId();
+  const finalId = id ?? autoId;
+  const finalAriaLabel =
+    ariaLabel ?? (ariaLabelledBy ? undefined : title ?? value ?? undefined);
   return (
     <RadioGroupPrimitive.Item
       ref={ref}
+      id={finalId}
+      value={value}
+      title={title}
+      aria-label={finalAriaLabel}
+      aria-labelledby={ariaLabelledBy}
       className={cn(
         "aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
         className,
