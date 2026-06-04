@@ -751,54 +751,54 @@ export default function FaturamentoGeniusPage() {
 
       <FilterPanel onSearch={() => consultar(1)} onClear={limpar}>
         <div className="space-y-1">
-          <Label className="text-xs">Ano/Mês inicial (YYYYMM)</Label>
-          <Input value={filters.anomes_ini} onChange={(e) => update('anomes_ini', e.target.value)} placeholder="202501" maxLength={6} className="h-8 text-xs" />
+          <Label htmlFor="filtro-anomes-ini" className="text-xs">Ano/Mês inicial (YYYYMM)</Label>
+          <Input id="filtro-anomes-ini" name="filtro-anomes-ini" value={filters.anomes_ini} onChange={(e) => update('anomes_ini', e.target.value)} placeholder="202501" maxLength={6} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Ano/Mês final (YYYYMM)</Label>
-          <Input value={filters.anomes_fim} onChange={(e) => update('anomes_fim', e.target.value)} placeholder="202512" maxLength={6} className="h-8 text-xs" />
+          <Label htmlFor="filtro-anomes-fim" className="text-xs">Ano/Mês final (YYYYMM)</Label>
+          <Input id="filtro-anomes-fim" name="filtro-anomes-fim" value={filters.anomes_fim} onChange={(e) => update('anomes_fim', e.target.value)} placeholder="202512" maxLength={6} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Revenda</Label>
-          <Input value={filters.revenda} onChange={(e) => update('revenda', e.target.value)} className="h-8 text-xs" />
+          <Label htmlFor="filtro-revenda" className="text-xs">Revenda</Label>
+          <Input id="filtro-revenda" name="filtro-revenda" value={filters.revenda} onChange={(e) => update('revenda', e.target.value)} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Origem</Label>
+          <Label htmlFor="filtro-origem" className="text-xs">Origem</Label>
           <Select value={filters.origem} onValueChange={(v) => update('origem', v)}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="filtro-origem" name="filtro-origem" aria-label="Origem" className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {ORIGEM_OPTIONS.map((o) => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Tipo movimento</Label>
+          <Label htmlFor="filtro-tipo-movimento" className="text-xs">Tipo movimento</Label>
           <Select value={filters.tipo_movimento} onValueChange={(v) => update('tipo_movimento', v)}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger id="filtro-tipo-movimento" name="filtro-tipo-movimento" aria-label="Tipo movimento" className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {TIPO_MOV_OPTIONS.map((o) => <SelectItem key={o} value={o} className="text-xs">{o}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Cliente</Label>
-          <Input value={filters.cliente} onChange={(e) => update('cliente', e.target.value)} className="h-8 text-xs" />
+          <Label htmlFor="filtro-cliente" className="text-xs">Cliente</Label>
+          <Input id="filtro-cliente" name="filtro-cliente" value={filters.cliente} onChange={(e) => update('cliente', e.target.value)} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Representante</Label>
-          <Input value={filters.representante} onChange={(e) => update('representante', e.target.value)} className="h-8 text-xs" />
+          <Label htmlFor="filtro-representante" className="text-xs">Representante</Label>
+          <Input id="filtro-representante" name="filtro-representante" value={filters.representante} onChange={(e) => update('representante', e.target.value)} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Produto</Label>
-          <Input value={filters.produto} onChange={(e) => update('produto', e.target.value)} className="h-8 text-xs" />
+          <Label htmlFor="filtro-produto" className="text-xs">Produto</Label>
+          <Input id="filtro-produto" name="filtro-produto" value={filters.produto} onChange={(e) => update('produto', e.target.value)} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Pedido</Label>
-          <Input value={filters.pedido} onChange={(e) => update('pedido', e.target.value)} className="h-8 text-xs" />
+          <Label htmlFor="filtro-pedido" className="text-xs">Pedido</Label>
+          <Input id="filtro-pedido" name="filtro-pedido" value={filters.pedido} onChange={(e) => update('pedido', e.target.value)} className="h-8 text-xs" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">NF</Label>
-          <Input value={filters.nf} onChange={(e) => update('nf', e.target.value)} className="h-8 text-xs" />
+          <Label htmlFor="filtro-nf" className="text-xs">NF</Label>
+          <Input id="filtro-nf" name="filtro-nf" value={filters.nf} onChange={(e) => update('nf', e.target.value)} className="h-8 text-xs" />
         </div>
         <div className="flex items-center gap-2 pt-5">
           <Switch
