@@ -591,12 +591,19 @@ export default function ComercialPage() {
             {qEstado.isLoading ? <LoadingState height={280} /> :
               qEstado.isError ? <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} /> :
               horizTop.length === 0 ? <EmptyState description={EMPTY_MSG} height={280} /> :
-              <HorizontalBarChartCard
-                title="Top estados — clique p/ filtrar"
-                data={horizTop}
+              <BiSlot
+                slot={COMERCIAL_SLOTS.estados}
                 color={style.bar}
-                yWidth={60}
                 onItemClick={onClickEstado}
+                defaultRender={() => (
+                  <HorizontalBarChartCard
+                    title="Top estados — clique p/ filtrar"
+                    data={horizTop}
+                    color={style.bar}
+                    yWidth={60}
+                    onItemClick={onClickEstado}
+                  />
+                )}
               />}
             {qEstado.isLoading ? <LoadingState height={280} /> :
               qEstado.isError ? <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} /> :
