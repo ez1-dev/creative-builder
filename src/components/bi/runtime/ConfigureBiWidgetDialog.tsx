@@ -6,7 +6,7 @@
  *    OU substituir por um componente da Biblioteca BI compatível.
  *  - widget custom (custom-*): sempre Biblioteca BI.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -53,6 +53,13 @@ export function ConfigureBiWidgetDialog({
   onApply, onResetToDefault, kpis, series, rows,
   customMetrics = [], onCreateCustomMetric,
 }: Props) {
+  const uid = useId();
+  const idVariant = `${uid}-variant`;
+  const idBuiltinTitle = `${uid}-builtin-title`;
+  const idLibComponent = `${uid}-lib-component`;
+  const idLibSeries = `${uid}-lib-series`;
+  const idLibKpi = `${uid}-lib-kpi`;
+  const idLibTitle = `${uid}-lib-title`;
   const page = getPage('bi-comercial');
   const isCustom = blockType.startsWith('custom-');
   const compatibleLibIds = def?.libraryComponentIds ?? COMPONENT_REGISTRY.map((c) => c.id);
@@ -170,9 +177,9 @@ export function ConfigureBiWidgetDialog({
           {hasBuiltin && (
             <TabsContent value="builtin" className="space-y-3 pt-3">
               <div>
-                <Label className="text-xs">Visualização</Label>
+                <Label htmlFor={idVariant} className="text-xs">Visualização</Label>
                 <Select value={variant} onValueChange={setVariant}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id={idVariant} name="variant" aria-label="Visualização"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {variants.map((v) => (
                       <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
@@ -181,8 +188,8 @@ export function ConfigureBiWidgetDialog({
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Título (opcional)</Label>
-                <Input value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={fallbackTitle ?? def?.title} />
+                <Label htmlFor={idBuiltinTitle} className="text-xs">Título (opcional)</Label>
+                <Input id={idBuiltinTitle} name="builtin-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={fallbackTitle ?? def?.title} />
               </div>
             </TabsContent>
           )}
@@ -191,9 +198,9 @@ export function ConfigureBiWidgetDialog({
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-3">
                 <div>
-                  <Label className="text-xs">Componente</Label>
+                  <Label htmlFor={idLibComponent} className="text-xs">Componente</Label>
                   <Select value={componentId} onValueChange={setComponentId}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger id={idLibComponent} name="library-component" aria-label="Componente"><SelectValue /></SelectTrigger>
                     <SelectContent className="max-h-[300px]">
                       {libDefs.map((c) => (
                         <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
@@ -203,9 +210,9 @@ export function ConfigureBiWidgetDialog({
                 </div>
                 {inputs.some((i) => i.source === 'series') && (
                   <div>
-                    <Label className="text-xs">Série</Label>
+                    <Label htmlFor={idLibSeries} className="text-xs">Série</Label>
                     <Select value={seriesKey} onValueChange={setSeriesKey}>
-                      <SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger>
+                      <SelectTrigger id={idLibSeries} name="library-series" aria-label="Série"><SelectValue placeholder="Escolha" /></SelectTrigger>
                       <SelectContent>
                         {seriesOptions.map((s) => (
                           <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
@@ -216,9 +223,9 @@ export function ConfigureBiWidgetDialog({
                 )}
                 {inputs.some((i) => i.source === 'kpis') && (
                   <div>
-                    <Label className="text-xs">KPI</Label>
+                    <Label htmlFor={idLibKpi} className="text-xs">KPI</Label>
                     <Select value={valueKey} onValueChange={setValueKey}>
-                      <SelectTrigger><SelectValue placeholder="Escolha" /></SelectTrigger>
+                      <SelectTrigger id={idLibKpi} name="library-kpi" aria-label="KPI"><SelectValue placeholder="Escolha" /></SelectTrigger>
                       <SelectContent>
                         {kpiOptions.map((k) => (
                           <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>
@@ -228,8 +235,8 @@ export function ConfigureBiWidgetDialog({
                   </div>
                 )}
                 <div>
-                  <Label className="text-xs">Título (opcional)</Label>
-                  <Input value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
+                  <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
+                  <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
                 </div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">

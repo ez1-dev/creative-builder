@@ -2,7 +2,7 @@
  * Modal "Onde aplicar este componente?"
  * Inclui pré-visualização do widget + resumo de filtros/dados antes de salvar.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -28,6 +28,11 @@ export function ApplyComponentDialog({
   onOpenChange: (v: boolean) => void;
   componentId: string | null;
 }) {
+  const uid = useId();
+  const idPage = `${uid}-page`;
+  const idSection = `${uid}-section`;
+  const idTitle = `${uid}-title`;
+  const idSpan = `${uid}-span`;
   const def = componentId ? getComponent(componentId) : null;
   const liveCtx = usePageData();
 
@@ -158,9 +163,9 @@ export function ApplyComponentDialog({
           {/* ===== Coluna esquerda: configuração ===== */}
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs">Página alvo</Label>
+              <Label htmlFor={idPage} className="text-xs">Página alvo</Label>
               <Select value={pageKey} onValueChange={setPageKey}>
-                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectTrigger id={idPage} name="target-page" aria-label="Página alvo"><SelectValue placeholder="Selecione…" /></SelectTrigger>
                 <SelectContent>
                   {compatiblePages.map((p) => (
                     <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
@@ -170,9 +175,9 @@ export function ApplyComponentDialog({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs">Seção</Label>
+              <Label htmlFor={idSection} className="text-xs">Seção</Label>
               <Select value={section} onValueChange={setSection} disabled={!availableSections.length}>
-                <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                <SelectTrigger id={idSection} name="target-section" aria-label="Seção"><SelectValue placeholder="Selecione…" /></SelectTrigger>
                 <SelectContent>
                   {availableSections.map((s) => (
                     <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
@@ -189,9 +194,10 @@ export function ApplyComponentDialog({
                 {def.inputs.map((inp) => {
                   const opts = fieldOptions(inp.source);
                   const hasOptions = opts.length > 0;
+                  const inpId = `${uid}-input-${inp.key}`;
                   return (
                     <div key={inp.key} className="space-y-1">
-                      <Label className="text-xs">
+                      <Label htmlFor={inpId} className="text-xs">
                         {inp.label} {inp.required && <span className="text-destructive">*</span>}
                       </Label>
                       {hasOptions ? (
@@ -199,7 +205,7 @@ export function ApplyComponentDialog({
                           value={mapping[inp.key] ?? ''}
                           onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}
                         >
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione campo…" /></SelectTrigger>
+                          <SelectTrigger id={inpId} name={`input-${inp.key}`} aria-label={inp.label} className="h-8 text-xs"><SelectValue placeholder="Selecione campo…" /></SelectTrigger>
                           <SelectContent>
                             {opts.map((o: any) => (
                               <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
@@ -208,6 +214,8 @@ export function ApplyComponentDialog({
                         </Select>
                       ) : (
                         <Input
+                          id={inpId}
+                          name={`input-${inp.key}`}
                           className="h-8 text-xs"
                           placeholder={`Nome do campo (${inp.source})`}
                           value={mapping[inp.key] ?? ''}
@@ -227,13 +235,13 @@ export function ApplyComponentDialog({
 
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1 col-span-2">
-                <Label className="text-xs">Título (opcional)</Label>
-                <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={def.label} className="h-8 text-xs" />
+                <Label htmlFor={idTitle} className="text-xs">Título (opcional)</Label>
+                <Input id={idTitle} name="widget-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={def.label} className="h-8 text-xs" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Largura</Label>
+                <Label htmlFor={idSpan} className="text-xs">Largura</Label>
                 <Select value={String(span)} onValueChange={(v) => setSpan(Number(v))}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id={idSpan} name="widget-span" aria-label="Largura" className="h-8 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">1 col</SelectItem>
                     <SelectItem value="2">2 cols</SelectItem>
