@@ -1,61 +1,47 @@
 ## Objetivo
-Eliminar as piscadas/reloads visuais, garantir que auth/permissões carreguem apenas quando a sessão/usuário realmente mudar, manter geolocalização só por ação do usuário e corrigir os warnings restantes de acessibilidade de formulário.
+Eliminar a piscada/recarregamento visual sem alterar regra de negócio, garantindo que autenticação e permissões carreguem apenas no início da sessão ou quando o usuário realmente mudar.
 
 ## O que vou implementar
+1. **Estabilizar o AuthProvider**
+   - Remover o gatilho duplicado de sessão inicial em `src/contexts/AuthContext.tsx`.
+   - Fazer o carregamento do profile/ERP rodar apenas quando `user.id` mudar de fato.
+   - Tornar as atualizações de estado idempotentes para não disparar render sem mudança real.
+   - Revisar o fluxo `onAuthStateChange` + `getSession()` para impedir revalidação redundante.
 
-### 1) Estabilizar o fluxo de autenticação e profile
-- Revisar `src/contexts/AuthContext.tsx` para garantir inicialização previsível da sessão.
-- Ajustar o fluxo para que carregamento de profile/ERP rode apenas quando o `user.id` mudar de fato, não em todo refresh de token.
-- Tornar updates de estado totalmente idempotentes:
-  - evitar `setSession`, `setUser`, `setDisplayName`, `setErpUser`, `setApproved`, `setErpConnected` quando o valor não mudou;
-  - remover qualquer churn desnecessário do `value` do provider.
-- Validar que logs como `[Auth] profile loaded` e `[Auth] erp api ok` não se repitam por eventos irrelevantes.
+2. **Eliminar fan-out de permissões no layout principal**
+   - Consolidar a carga de permissões para ocorrer uma única vez por usuário autenticado.
+   - Revisar `src/contexts/PermissionsContext.tsx`, `src/hooks/useUserPermissions.ts`, `src/components/ProtectedRoute.tsx`, `src/components/AppSidebar.tsx` e `src/components/erp/AiAssistantChat.tsx` para garantir consumo passivo do estado já carregado.
+   - Remover dependências instáveis e evitar qualquer recálculo/carga repetida por múltiplos consumidores.
 
-### 2) Remover fan-out de carregamento de permissões
-- Revisar `src/hooks/useUserPermissions.ts` e o padrão de uso nos consumidores.
-- Hoje esse hook é chamado em múltiplos pontos globais (`ProtectedRoute`, `PostLoginRedirect`, `AppSidebar`, `AiAssistantChat`, páginas e botões), o que tende a disparar várias buscas iguais e repetir o log `[useUserPermissions] ready`.
-- Vou centralizar/cachear o resultado de permissões para que a carga ocorra uma vez por usuário autenticado e seja reutilizada pelos componentes.
-- Manter guards com `useRef` e comparação de payload para impedir recargas simultâneas e `setState` redundante.
+3. **Remover gatilhos de loop/reload indiretos**
+   - Auditar e ajustar trechos no layout principal e autenticação que possam causar navegação/reload cíclico, incluindo `src/components/UpdateNotifier.tsx`, `src/pages/AuthCallback.tsx` e `src/pages/LoginPage.tsx`.
+   - Garantir que `navigate`, `reload`, timers, polling e refetches não fiquem presos em efeitos recorrentes.
+   - Não mexer no erro de `postMessage` do preview/editor, apenas ignorar como causa funcional.
 
-### 3) Revisar hooks/efeitos relacionados a sessão
-- Inspecionar e ajustar hooks que dependem de auth/permissões para evitar efeitos em cascata e dependências instáveis.
-- Prioridade para pontos globais que amplificam rerender:
-  - `src/components/ProtectedRoute.tsx`
-  - `src/components/AppSidebar.tsx`
-  - `src/components/AppLayout.tsx`
-  - `src/components/erp/AiAssistantChat.tsx`
-  - hooks correlatos que consultem backend com base em `erpUser`/`user.id`.
-- Onde necessário, aplicar `useMemo`/`useCallback`/`useRef` e comparações rasas ou estruturais antes de atualizar estado.
+4. **Geolocalização só por ação do usuário**
+   - Confirmar e manter `src/components/HeaderInfo.tsx` sem chamada automática de geolocalização no carregamento.
+   - Se existir outro ponto chamando geolocalização em `useEffect`, remover.
 
-### 4) Manter geolocalização somente por clique explícito
-- Validar e finalizar o ajuste de `src/components/HeaderInfo.tsx` para que não exista chamada automática de geolocalização no carregamento.
-- Preservar o botão “Usar minha localização” no `onClick`, com tratamento de erro e fallback local, sem qualquer chamada via `useEffect`.
+5. **Corrigir os labels restantes**
+   - Corrigir os campos ainda sem associação correta de label em páginas/localizações encontradas na varredura, começando pelos formulários compartilhados e demais inputs/selects/textarea com warning real.
+   - Garantir `id` + `name` + `Label htmlFor`, ou `aria-label` quando não houver label visual.
 
-### 5) Corrigir os warnings restantes de formulário
-- Corrigir campos ainda sem associação adequada de label/id/name/aria-label.
-- Prioridade para os arquivos já mapeados com alta chance de warning real:
-  - `src/components/regras-senior/AlterarStatusRegraDialog.tsx`
-  - `src/pages/regras-senior/RegraEditorPage.tsx`
-  - `src/pages/PassagensAereasCompartilhadoPage.tsx`
-  - `src/pages/relatorios/RelatoriosPublicadosPage.tsx`
-  - `src/pages/relatorios/HistoricoExecucoesPage.tsx`
-  - filtros em `src/pages/FaturamentoGeniusPage.tsx`
-  - outros dialogs/listas/filtros apontados na varredura.
-- Substituir `<label>` solto por `Label htmlFor`, adicionar `id`/`name` nos campos, e usar `aria-label` quando o campo não tiver label visual.
-- Ajustar selects/switches/checkboxes para vínculos acessíveis consistentes.
-
-### 6) Validar sem alterar regra de negócio
-- Não mexer no erro `postMessage` do ambiente de preview, conforme solicitado.
-- Validar que o app não pisca e que auth/permissões não entram em loop no preview.
-- Fazer checagem final para garantir:
-  - auth/permissões carregando uma vez por sessão/usuário;
-  - ausência de geolocalização automática;
-  - redução/eliminação dos warnings de label/id/name no console.
+6. **Validar o comportamento final**
+   - Verificar no preview que os logs de auth/permissões deixem de se repetir em cascata e que a tela pare de piscar.
+   - Validar também fora do editor, no link publicado, para confirmar que o comportamento não depende do ambiente do preview.
 
 ## Detalhes técnicos
-- A principal causa provável do ruído atual é a combinação de:
-  - `useUserPermissions()` sendo instanciado em muitos componentes ao mesmo tempo;
-  - cargas repetidas baseadas em `erpUser` sem cache compartilhado;
-  - atualizações de estado/contexto em auth ainda disparando rerenders globais.
-- A correção vai priorizar arquitetura estável de leitura compartilhada de permissões, guards com `useRef`, dependências estáveis e updates idempotentes.
-- Não vou alterar regra de negócio do ERP nem o comportamento funcional das telas, apenas a forma como carregam e renderizam.
+- Arquivos centrais já inspecionados: `AuthContext.tsx`, `PermissionsContext.tsx`, `useUserPermissions.ts`, `ProtectedRoute.tsx`, `AppLayout.tsx`, `AppSidebar.tsx`, `HeaderInfo.tsx`, `UserTrackingProvider.tsx`, `UpdateNotifier.tsx`, `AuthCallback.tsx`, `LoginPage.tsx`.
+- Achados principais:
+  - `AuthContext` ainda faz tratamento duplicado da sessão inicial (`onAuthStateChange` + `getSession()`), o que pode gerar re-render extra mesmo sem novo usuário.
+  - O provider de auth ainda atualiza vários estados separados durante o bootstrap, aumentando churn visual.
+  - O provider de permissões já centraliza parte do problema, mas ainda precisa blindagem extra contra recargas/re-execuções e consumo em cascata no layout.
+  - `HeaderInfo` não está mais pedindo geolocalização automaticamente.
+  - Há labels restantes sem `htmlFor`/`id` em arquivos como os compartilhados de manutenção, além de outros formulários antigos que precisam de saneamento.
+
+## Resultado esperado
+- Sem piscada visual no carregamento normal.
+- Sem loop de `useEffect` em auth/permissões.
+- `loadProfile`, `checkErpApi` e `loadPermissions` executando uma vez por sessão/usuário.
+- Sem geolocalização automática.
+- Warnings restantes de label removidos.
