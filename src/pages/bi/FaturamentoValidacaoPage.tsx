@@ -19,6 +19,7 @@ import {
   formatDateBR,
   type Column,
 } from '@/components/bi';
+import { MultiSelectFilter } from '@/components/bi/MultiSelectFilter';
 import {
   getResumo,
   getPorMovimento,
@@ -34,6 +35,13 @@ import {
   type UnidadeTecnicaRow,
 } from '@/lib/bi/faturamentoValidacao';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+const FONTE_ACAO_OPTIONS = ['faturamento', 'faturamento_manual', 'fat_contabil', 'fat_trb', 'SEM_FONTE'];
+const UNIDADE_NEGOCIO_OPTIONS = ['GENIUS', 'ESTRUTURAL ZORTEA', 'SEM_UNIDADE'];
+const TP_MOVIMENTO_FALLBACK = ['S', 'E'];
+const ORIGEM_FALLBACK = ['PROP', 'TERC'];
+
 
 const num = (v: any) => {
   const n = Number(v);
@@ -99,6 +107,36 @@ export default function FaturamentoValidacaoPage() {
     retry: 1,
     refetchOnWindowFocus: false,
   });
+
+  const qOptions = useQuery({
+    queryKey: ['bi-fat-val', 'distinct-options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bi_faturamento')
+        .select('cd_tp_movimento, cd_origem')
+        .limit(5000);
+      if (error) throw error;
+      const tp = new Set<string>();
+      const og = new Set<string>();
+      (data ?? []).forEach((r: any) => {
+        if (r.cd_tp_movimento) tp.add(String(r.cd_tp_movimento));
+        if (r.cd_origem) og.add(String(r.cd_origem));
+      });
+      return {
+        tp_movimento: Array.from(tp).sort(),
+        origem: Array.from(og).sort(),
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  const tpMovimentoOptions = qOptions.data?.tp_movimento.length
+    ? qOptions.data.tp_movimento
+    : TP_MOVIMENTO_FALLBACK;
+  const origemOptions = qOptions.data?.origem.length
+    ? qOptions.data.origem
+    : ORIGEM_FALLBACK;
 
   const aplicarFiltros = () => {
     setFiltros({ ...draft });
@@ -269,15 +307,40 @@ export default function FaturamentoValidacaoPage() {
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {filtroField('anomes_ini', 'AnoMês Início', '202601')}
             {filtroField('anomes_fim', 'AnoMês Fim', '202612')}
-            {filtroField('cd_tp_movimento', 'CD Tp Movimento', 'S,E')}
-            {filtroField('cd_origem', 'CD Origem', 'PROP,...')}
+            <MultiSelectFilter
+              label="CD Tp Movimento"
+              options={tpMovimentoOptions}
+              value={draft.cd_tp_movimento ?? ''}
+              onChange={(v) => setDraft({ ...draft, cd_tp_movimento: v })}
+              placeholder="Todos"
+            />
+            <MultiSelectFilter
+              label="CD Origem"
+              options={origemOptions}
+              value={draft.cd_origem ?? ''}
+              onChange={(v) => setDraft({ ...draft, cd_origem: v })}
+              placeholder="Todos"
+            />
             {filtroField('cd_empresa', 'CD Empresa', '1,2')}
             {filtroField('cd_filial', 'CD Filial', '1,2,3')}
             {filtroField('cd_tns', 'CD TNS', '511,...')}
             {filtroField('cd_centro_custos_3', 'CD CC3', '001,...')}
             {filtroField('cd_nf', 'CD NF', '12345')}
-            {filtroField('fonte_acao', 'Fonte Ação', 'faturamento,SEM_FONTE')}
-            {filtroField('unidade_negocio', 'Unidade Negócio', 'GENIUS,ESTRUTURAL ZORTEA')}
+            <MultiSelectFilter
+              label="Fonte Ação"
+              options={FONTE_ACAO_OPTIONS}
+              value={draft.fonte_acao ?? ''}
+              onChange={(v) => setDraft({ ...draft, fonte_acao: v })}
+              placeholder="Todas"
+            />
+            <MultiSelectFilter
+              label="Unidade Negócio"
+              options={UNIDADE_NEGOCIO_OPTIONS}
+              value={draft.unidade_negocio ?? ''}
+              onChange={(v) => setDraft({ ...draft, unidade_negocio: v })}
+              placeholder="Todas"
+            />
+
 
 
             <div className="flex items-end">
