@@ -101,15 +101,63 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
 
   const resp = query.data;
 
+  const allowedNext = cur ? NEXT_DRILLS[cur.drill_type] : [];
+
+  const handlePushFromRow = (next: DrillType, row: Record<string, any>) => {
+    const fromKey = cur ? ROW_TO_CTX_KEY[cur.drill_type] : null;
+    const rowCtx: DrillContexto = {};
+    if (fromKey && row[fromKey] != null) {
+      (rowCtx as any)[fromKey] = String(row[fromKey]);
+    }
+    (['cd_nf', 'cd_produto', 'cd_cliente', 'cd_estado', 'cd_rev_pedido', 'anomes_emissao'] as (keyof DrillContexto)[])
+      .forEach((k) => {
+        if (row[k] != null && rowCtx[k] == null) (rowCtx as any)[k] = String(row[k]);
+      });
+    stack.pushDrill(next, rowCtx);
+  };
+
   const columns = useMemo<Column<Record<string, any>>[]>(() => {
     const cols = resp?.columns ?? [];
-    return cols.map((c) => ({
+    const base: Column<Record<string, any>>[] = cols.map((c) => ({
       key: c.key as any,
       header: c.label,
       align: c.align ?? (c.format === 'currency' || c.format === 'number' ? 'right' : 'left'),
       render: (_v: any, r: Record<string, any>) => fmtCell(r[c.key], c.format),
     }));
-  }, [resp?.columns]);
+    if (allowedNext.length > 0) {
+      base.push({
+        key: '__drill_actions__' as any,
+        header: '',
+        align: 'right',
+        render: (_v: any, r: Record<string, any>) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs">
+                Detalhar <ChevronRight className="h-3 w-3 ml-0.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel className="text-[11px]">Próximo nível</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {allowedNext.map((dt) => (
+                <DropdownMenuItem
+                  key={dt}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handlePushFromRow(dt, r);
+                  }}
+                >
+                  {DRILL_LABELS[dt]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      });
+    }
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resp?.columns, cur?.drill_type]);
 
   const chips = useMemo(() => {
     const ctx = cur?.contexto ?? {};
