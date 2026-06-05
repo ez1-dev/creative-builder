@@ -7,7 +7,8 @@ export type AiMetrica =
   | 'quantidade' | 'clientes' | 'vendas' | 'ticket_medio' | 'preco_medio';
 export type AiDimensao =
   | 'anomes_emissao' | 'unidade_negocio' | 'cd_origem' | 'cd_tp_movimento'
-  | 'cd_estado' | 'cd_cliente' | 'cd_prj' | 'cd_rev_pedido' | 'cd_tns';
+  | 'cd_estado' | 'cd_cliente' | 'cd_prj' | 'cd_rev_pedido' | 'cd_tns'
+  | 'categoria_custom';
 
 export interface IAChartSpec {
   titulo: string;
@@ -27,6 +28,14 @@ export interface AiChartSerie {
   filtros_drill?: Record<string, string> | null;
 }
 
+export interface AiChartDiagnostico {
+  linhas_view?: number;
+  filtros_aplicados?: Record<string, string>;
+  unidade_negocio?: string;
+  periodo?: { ini?: string; fim?: string };
+  dimensao?: string;
+}
+
 export interface AiChartResult {
   titulo: string;
   subtitulo: string;
@@ -37,6 +46,8 @@ export interface AiChartResult {
   series: AiChartSerie[];
   filtros: Record<string, string>;
   mostrar_percentual?: boolean;
+  mostrar_valor?: boolean;
+  diagnostico?: AiChartDiagnostico;
 }
 
 /**
@@ -77,6 +88,22 @@ export async function executarGraficoIA(
   for (const [k, v] of Object.entries(filtrosBase ?? {})) {
     if (v != null && String(v).length > 0) body[k] = String(v);
   }
+
+  // Defesa em profundidade: se o prompt pediu "total/consolidado/geral" e NÃO mencionou
+  // unidade específica, força CONSOLIDADO mesmo que o filtro global do dashboard esteja
+  // em GENIUS/ESTRUTURAL. O backend interpreta CONSOLIDADO como "sem filtro de unidade".
+  const p = String(prompt ?? '').toLowerCase();
+  const mencionaTotal = /\b(total|consolidad[oa]|geral)\b/.test(p);
+  const mencionaGenius = /\bgenius\b/.test(p);
+  const mencionaEstrutural = /\b(estrutural|zortea)\b/.test(p);
+  if (mencionaTotal && !mencionaGenius && !mencionaEstrutural) {
+    body.unidade_negocio = 'CONSOLIDADO';
+  } else if (mencionaGenius) {
+    body.unidade_negocio = 'GENIUS';
+  } else if (mencionaEstrutural) {
+    body.unidade_negocio = 'ESTRUTURAL ZORTEA';
+  }
+
   return api.post<AiChartResult>('/api/bi/comercial/ia-grafico', body);
 }
 

@@ -45,6 +45,7 @@ const DIM_LABEL: Record<AiDimensao, string> = {
   cd_prj: 'Projeto/Obra',
   cd_rev_pedido: 'Revenda',
   cd_tns: 'TNS',
+  categoria_custom: 'Categoria (Peças/Serviços)',
 };
 
 function fmtMetrica(metrica: AiMetrica) {
@@ -84,9 +85,41 @@ export function AiChartGenerator({ filtrosBase, onDrill }: Props) {
     onDrill(result.dimensao, label);
   };
 
+  const renderDiagnostico = () => {
+    if (!result) return null;
+    const diag = result.diagnostico ?? {};
+    const filtros = { ...(result.filtros ?? {}), ...(diag.filtros_aplicados ?? {}) };
+    const periodo = diag.periodo ?? {};
+    return (
+      <div className="rounded-md border border-dashed bg-muted/30 p-4 text-xs space-y-2">
+        <div className="font-medium text-foreground">Nenhum dado encontrado com os filtros aplicados.</div>
+        <ul className="space-y-1 text-muted-foreground">
+          {typeof diag.linhas_view === 'number' && (
+            <li><span className="text-foreground/80">Linhas na view:</span> {diag.linhas_view.toLocaleString('pt-BR')}</li>
+          )}
+          {(periodo.ini || periodo.fim) && (
+            <li><span className="text-foreground/80">Período:</span> {periodo.ini ?? '—'} → {periodo.fim ?? '—'}</li>
+          )}
+          <li><span className="text-foreground/80">Unidade:</span> {diag.unidade_negocio ?? result.filtros?.unidade_negocio ?? 'CONSOLIDADO'}</li>
+          <li><span className="text-foreground/80">Dimensão:</span> {diag.dimensao ?? result.dimensao}</li>
+          {Object.keys(filtros).length > 0 && (
+            <li>
+              <span className="text-foreground/80">Filtros aplicados:</span>{' '}
+              {Object.entries(filtros).map(([k, v]) => `${k}=${v}`).join(', ')}
+            </li>
+          )}
+        </ul>
+        <p className="text-[10px] text-muted-foreground">
+          Tente ajustar o período no topo do dashboard ou refraseie o pedido (ex.: trocar "Genius" por "total").
+        </p>
+      </div>
+    );
+  };
+
   const renderChart = () => {
     if (!result) return null;
     const series = Array.isArray(result?.series) ? result.series : [];
+    if (series.length === 0) return renderDiagnostico();
     const data = series.map((s: any) => ({ label: s?.label, valor: s?.valor }));
     const fmt = fmtMetrica(result.metrica);
     const visualConfig = {

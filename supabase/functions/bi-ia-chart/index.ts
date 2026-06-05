@@ -12,7 +12,8 @@ type Metrica =
   | "quantidade" | "clientes" | "vendas" | "ticket_medio" | "preco_medio";
 type Dimensao =
   | "anomes_emissao" | "unidade_negocio" | "cd_origem" | "cd_tp_movimento"
-  | "cd_estado" | "cd_cliente" | "cd_prj" | "cd_rev_pedido" | "cd_tns";
+  | "cd_estado" | "cd_cliente" | "cd_prj" | "cd_rev_pedido" | "cd_tns"
+  | "categoria_custom";
 
 const METRICAS: Metrica[] = [
   "faturamento", "faturamento_liquido", "impostos", "devolucao",
@@ -21,6 +22,7 @@ const METRICAS: Metrica[] = [
 const DIMENSOES: Dimensao[] = [
   "anomes_emissao", "unidade_negocio", "cd_origem", "cd_tp_movimento",
   "cd_estado", "cd_cliente", "cd_prj", "cd_rev_pedido", "cd_tns",
+  "categoria_custom",
 ];
 const TIPOS: TipoGrafico[] = ["donut", "pie", "bar", "line"];
 
@@ -32,8 +34,9 @@ Métricas (escolha UMA): ${METRICAS.join(", ")}.
 Dimensões (escolha UMA): ${DIMENSOES.join(", ")}.
 tipo_grafico: ${TIPOS.join(", ")}.
 
-MAPEAMENTOS:
-- "Peças vs Serviços" / "origem" / "tipo de item" => dimensao=cd_origem.
+MAPEAMENTOS DE DIMENSÃO:
+- "Peças e Serviços" / "peças vs serviços" / "categoria" / "tipo (peças/serviços)" => dimensao=categoria_custom, categorias=["PEÇAS","SERVIÇOS"].
+- "por origem" (sem mencionar peças/serviços) => cd_origem.
 - "tipo de movimento" / "entrada vs saída" => cd_tp_movimento.
 - "por estado" / "UF" => cd_estado.
 - "por cliente" => cd_cliente.
@@ -45,11 +48,18 @@ MAPEAMENTOS:
 - "rosca / donut / pizza" => donut ou pie.
 - "ticket médio" => ticket_medio. "preço médio" => preco_medio.
 
-FILTROS:
-- "Genius" => filtros.unidade_negocio = "GENIUS".
-- "Estrutural Zortea" => filtros.unidade_negocio = "ESTRUTURAL ZORTEA".
+REGRAS DE UNIDADE DE NEGÓCIO (CRÍTICO):
+- Se o prompt mencionar "Genius" => filtros.unidade_negocio = "GENIUS".
+- Se mencionar "Estrutural" ou "Zortea" => filtros.unidade_negocio = "ESTRUTURAL ZORTEA".
+- Se mencionar "total", "consolidado" ou "geral", OU não mencionar nenhuma unidade => filtros.unidade_negocio = "CONSOLIDADO" (o backend interpreta como "sem filtro de unidade").
+- NUNCA forçar GENIUS por padrão. NUNCA inferir GENIUS sem que a palavra apareça.
+
+OUTRAS REGRAS:
 - top_n entre 3 e 30 (default 10).
+- mostrar_valor: true se o prompt pedir "valor", "em reais", "R$"; senão default true.
+- mostrar_percentual: true se o prompt pedir "percentual", "porcentagem", "%"; senão default false.
 - titulo e subtitulo curtos em PT-BR.`;
+
 
 interface IAChartSpec {
   titulo: string;
@@ -58,9 +68,12 @@ interface IAChartSpec {
   metrica: Metrica;
   dimensao: Dimensao;
   filtros: Record<string, string>;
+  categorias?: string[];
   top_n: number;
   mostrar_percentual: boolean;
+  mostrar_valor?: boolean;
 }
+
 
 async function callLovableAI(prompt: string, contexto: string): Promise<IAChartSpec> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -94,10 +107,16 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAChartS
               filtros: {
                 type: "object",
                 additionalProperties: { type: "string" },
-                description: "Filtros inferidos do pedido. Apenas chaves da whitelist de dimensões.",
+                description: "Filtros inferidos do pedido. Apenas chaves da whitelist de dimensões. Use 'CONSOLIDADO' para unidade_negocio quando o prompt disser total/geral/consolidado ou não mencionar unidade.",
+              },
+              categorias: {
+                type: "array",
+                items: { type: "string" },
+                description: "Labels de categoria_custom quando dimensao='categoria_custom'. Default ['PEÇAS','SERVIÇOS'].",
               },
               top_n: { type: "number" },
               mostrar_percentual: { type: "boolean" },
+              mostrar_valor: { type: "boolean" },
             },
             required: ["titulo", "subtitulo", "tipo_grafico", "metrica", "dimensao", "filtros", "top_n", "mostrar_percentual"],
             additionalProperties: false,
@@ -126,8 +145,13 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAChartS
   cfg.top_n = Math.min(30, Math.max(3, Number(cfg.top_n) || 10));
   cfg.filtros = cfg.filtros && typeof cfg.filtros === "object" ? cfg.filtros : {};
   cfg.mostrar_percentual = Boolean(cfg.mostrar_percentual);
+  cfg.mostrar_valor = cfg.mostrar_valor === undefined ? true : Boolean(cfg.mostrar_valor);
+  if (cfg.dimensao === "categoria_custom" && (!Array.isArray(cfg.categorias) || cfg.categorias.length === 0)) {
+    cfg.categorias = ["PEÇAS", "SERVIÇOS"];
+  }
   return cfg;
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
