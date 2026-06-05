@@ -703,7 +703,10 @@ export default function ComercialPage() {
           description="Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)."
           actions={
             <div className="flex items-center gap-2">
-              <span className={cn('rounded-full px-3 py-0.5 text-xs font-semibold', style.chip)}>{unidade}</span>
+              <span
+                className="rounded-full px-3 py-0.5 text-xs font-semibold"
+                style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
+              >{unidade}</span>
               {editing ? (
                 <>
                   <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setAddOpen(true)}>
