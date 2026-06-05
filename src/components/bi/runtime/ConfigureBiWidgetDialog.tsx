@@ -254,6 +254,7 @@ export function ConfigureBiWidgetDialog({
                 <Label htmlFor={idBuiltinTitle} className="text-xs">Título (opcional)</Label>
                 <Input id={idBuiltinTitle} name="builtin-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={fallbackTitle ?? def?.title} />
               </div>
+              {titleAppearanceSection}
             </TabsContent>
           )}
 
