@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Copy, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Download, Upload, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
   CODIGO_POR_UNIDADE,
   type MetaFaturamento, type MetaFaturamentoInput, type UnidadeMeta,
 } from '@/lib/bi/metasFaturamentoApi';
+import { SincronizarMetasUpqueryDialog } from '@/components/bi/SincronizarMetasUpqueryDialog';
 
 const UNIDADES: UnidadeMeta[] = ['GENIUS', 'ESTRUTURAL ZORTEA'];
 
@@ -78,9 +79,15 @@ export default function MetasFaturamentoPage() {
       .sort((a, b) => (a.anomes < b.anomes ? 1 : -1));
   }, [metas]);
 
+  const metasUpquery = useMemo(
+    () => metasFiltradas.filter((m) => m.origem_meta === 'UPQUERY_VM_FATURAMENTO'),
+    [metasFiltradas],
+  );
+
   const [edit, setEdit] = useState<EditState>({ open: false, editing: null });
   const [delId, setDelId] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const invalidate = () => {
@@ -198,6 +205,9 @@ export default function MetasFaturamentoPage() {
               e.target.value = '';
             }}
           />
+          <Button variant="secondary" onClick={() => setSyncOpen(true)}>
+            <RefreshCcw className="mr-1 h-4 w-4" /> Sincronizar metas da UpQuery
+          </Button>
           <Button onClick={() => setEdit({ open: true, editing: null })}>
             <Plus className="mr-1 h-4 w-4" /> Nova meta
           </Button>
@@ -227,6 +237,7 @@ export default function MetasFaturamentoPage() {
                     <th className="px-2 py-2 text-left">Unidade</th>
                     <th className="px-2 py-2 text-right">Meta (R$)</th>
                     <th className="px-2 py-2 text-left">Observação</th>
+                    <th className="px-2 py-2 text-left">Origem</th>
                     <th className="px-2 py-2 text-left">Ativo</th>
                     <th className="px-2 py-2 text-right">Ações</th>
                   </tr>
@@ -241,6 +252,13 @@ export default function MetasFaturamentoPage() {
                       <td className="px-2 py-2"><Badge variant="outline">{m.unidade_negocio}</Badge></td>
                       <td className="px-2 py-2 text-right tabular-nums">{currency(Number(m.vl_meta))}</td>
                       <td className="px-2 py-2 text-muted-foreground">{m.observacao || '—'}</td>
+                      <td className="px-2 py-2">
+                        {m.origem_meta === 'UPQUERY_VM_FATURAMENTO' ? (
+                          <Badge variant="secondary">UpQuery</Badge>
+                        ) : (
+                          <Badge variant="outline">Manual</Badge>
+                        )}
+                      </td>
                       <td className="px-2 py-2">
                         <Switch
                           checked={m.ativo}
@@ -296,6 +314,56 @@ export default function MetasFaturamentoPage() {
           </CardContent>
         </Card>
       )}
+
+      {metasUpquery.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Metas importadas da UpQuery — por mês e unidade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="px-2 py-2 text-left">AnoMês</th>
+                    <th className="px-2 py-2 text-left">Unidade de Negócio</th>
+                    <th className="px-2 py-2 text-left">Código</th>
+                    <th className="px-2 py-2 text-left">Descrição</th>
+                    <th className="px-2 py-2 text-right">Valor Meta</th>
+                    <th className="px-2 py-2 text-left">Origem</th>
+                    <th className="px-2 py-2 text-left">Atualizado em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metasUpquery.map((m) => (
+                    <tr key={m.id} className="border-b hover:bg-muted/30">
+                      <td className="px-2 py-2 font-mono">{formatAnomes(m.anomes_emissao)}</td>
+                      <td className="px-2 py-2">{m.unidade_negocio}</td>
+                      <td className="px-2 py-2 font-mono">{m.codigo_unidade ?? CODIGO_POR_UNIDADE[m.unidade_negocio]}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{m.descricao_unidade ?? '—'}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{currency(Number(m.vl_meta))}</td>
+                      <td className="px-2 py-2"><Badge variant="secondary">UpQuery</Badge></td>
+                      <td className="px-2 py-2 text-xs text-muted-foreground">
+                        {m.origem_atualizada_em
+                          ? new Date(m.origem_atualizada_em).toLocaleString('pt-BR')
+                          : new Date(m.updated_at).toLocaleString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <SincronizarMetasUpqueryDialog
+        open={syncOpen}
+        onOpenChange={setSyncOpen}
+        defaultAnomesIni={anomesIni}
+        defaultAnomesFim={anomesFim}
+        onSuccess={() => invalidate()}
+      />
 
       <EditMetaDialog
         state={edit}

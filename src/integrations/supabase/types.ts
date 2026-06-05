@@ -416,6 +416,8 @@ export type Database = {
           id: string
           mes: number | null
           observacao: string | null
+          origem_atualizada_em: string | null
+          origem_meta: string
           unidade_negocio: string
           updated_at: string
           updated_by: string | null
@@ -432,6 +434,8 @@ export type Database = {
           id?: string
           mes?: number | null
           observacao?: string | null
+          origem_atualizada_em?: string | null
+          origem_meta?: string
           unidade_negocio: string
           updated_at?: string
           updated_by?: string | null
@@ -448,6 +452,8 @@ export type Database = {
           id?: string
           mes?: number | null
           observacao?: string | null
+          origem_atualizada_em?: string | null
+          origem_meta?: string
           unidade_negocio?: string
           updated_at?: string
           updated_by?: string | null

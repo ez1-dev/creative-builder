@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Play, RefreshCw, FileText, Code } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Play, RefreshCw, FileText, Code, RefreshCcw, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
@@ -19,6 +22,16 @@ import {
   type EtlAcao,
   type EtlExecucao,
 } from '@/lib/etl/api';
+import { sincronizarMetasUpquery } from '@/lib/bi/metasFaturamentoApi';
+
+const AUTO_SYNC_LS_KEY = 'etl.atu_comercial.auto_sync_metas';
+const NOMES_ATU_COMERCIAL = ['ATU_COMERCIAL', 'ATUALIZACAO_COMERCIAL'];
+const isAtuComercial = (nome: string | undefined) =>
+  !!nome && NOMES_ATU_COMERCIAL.some((n) => n.toUpperCase() === nome.toUpperCase());
+
+function pad6(n: number): string {
+  return String(n).padStart(6, '0');
+}
 
 const statusColor: Record<string, string> = {
   SUCESSO: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
@@ -46,6 +59,50 @@ export default function EtlTarefaDetalhePage() {
   const [logsModal, setLogsModal] = useState<{ open: boolean; execucaoId?: string }>({ open: false });
   const [sqlModal, setSqlModal] = useState<{ open: boolean; acao: EtlAcao | null }>({ open: false, acao: null });
   const { isAdmin } = useUserPermissions();
+
+  const tarefaAtuComercial = isAtuComercial(nome) || isAtuComercial(tarefa?.nome_tarefa);
+  const [autoSyncMetas, setAutoSyncMetas] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(AUTO_SYNC_LS_KEY) === '1';
+  });
+  const [ultimoPeriodo, setUltimoPeriodo] = useState<{ ini: number; fim: number } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const persistAutoSync = (v: boolean) => {
+    setAutoSyncMetas(v);
+    try {
+      window.localStorage.setItem(AUTO_SYNC_LS_KEY, v ? '1' : '0');
+    } catch { /* noop */ }
+  };
+
+  const sincronizarMetas = async (ini: number, fim: number) => {
+    setSyncing(true);
+    try {
+      const resp = await sincronizarMetasUpquery({
+        anomes_ini: pad6(ini),
+        anomes_fim: pad6(fim),
+        origem: 'UPQUERY_VM_FATURAMENTO',
+      });
+      if (resp.ok) {
+        toast.success(`Metas da UpQuery sincronizadas (${pad6(ini)} → ${pad6(fim)})`);
+      } else {
+        toast.error(`Falha na sincronização: ${resp.error || 'erro desconhecido'} (HTTP ${resp.status})`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao sincronizar metas da UpQuery');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleExecutado = (resp: { execucao_id: string; anomes_ini: number; anomes_fim: number }) => {
+    setUltimoPeriodo({ ini: resp.anomes_ini, fim: resp.anomes_fim });
+    load();
+    if (tarefaAtuComercial && autoSyncMetas) {
+      // Dispara o sync de metas em background.
+      sincronizarMetas(resp.anomes_ini, resp.anomes_fim);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -251,11 +308,62 @@ export default function EtlTarefaDetalhePage() {
         </Card>
       )}
 
+      {tarefaAtuComercial && !naoEncontrada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" /> Sincronização de Metas — BI Comercial
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded border p-3">
+              <div>
+                <Label htmlFor="auto-sync-metas" className="cursor-pointer text-sm font-medium">
+                  Sincronizar metas automaticamente após ATU_COMERCIAL
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Após uma execução bem-sucedida desta tarefa, importa automaticamente as metas
+                  da UpQuery para o mesmo período.
+                </p>
+              </div>
+              <Switch
+                id="auto-sync-metas"
+                checked={autoSyncMetas}
+                onCheckedChange={persistAutoSync}
+                aria-label="Auto-sincronizar metas após ATU_COMERCIAL"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!ultimoPeriodo || syncing}
+                onClick={() => ultimoPeriodo && sincronizarMetas(ultimoPeriodo.ini, ultimoPeriodo.fim)}
+              >
+                {syncing
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sincronizando…</>
+                  : <><RefreshCcw className="h-3.5 w-3.5 mr-1" /> Sincronizar metas da UpQuery para o mesmo período</>}
+              </Button>
+              {ultimoPeriodo ? (
+                <span className="text-xs text-muted-foreground">
+                  Período da última execução: {pad6(ultimoPeriodo.ini)} → {pad6(ultimoPeriodo.fim)}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Execute a tarefa para liberar a sincronização manual com o mesmo período.
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <ExecutarModal
         open={execModal.open}
         onOpenChange={(open) => setExecModal({ open, alvo: execModal.alvo })}
         alvo={execModal.alvo}
-        onExecutado={() => load()}
+        onExecutado={handleExecutado}
       />
       <LogsModal
         open={logsModal.open}

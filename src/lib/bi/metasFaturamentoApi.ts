@@ -3,6 +3,8 @@ import type { UnidadeNegocio } from './comercialApi';
 
 export type UnidadeMeta = 'GENIUS' | 'ESTRUTURAL ZORTEA';
 
+export type OrigemMeta = 'MANUAL' | 'UPQUERY_VM_FATURAMENTO' | string;
+
 export interface MetaFaturamento {
   id: string;
   anomes_emissao: string;            // 'YYYYMM'
@@ -14,6 +16,8 @@ export interface MetaFaturamento {
   vl_meta: number;
   observacao: string | null;
   ativo: boolean;
+  origem_meta: OrigemMeta;
+  origem_atualizada_em: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,7 +232,7 @@ export async function fetchMetaCloudTotal(params: {
 }): Promise<number | null> {
   let q = supabase
     .from('bi_meta_faturamento')
-    .select('vl_meta, unidade_negocio')
+    .select('vl_meta, unidade_negocio, anomes_emissao, origem_meta')
     .eq('ativo', true)
     .gte('anomes_emissao', params.anomes_ini)
     .lte('anomes_emissao', params.anomes_fim);
@@ -241,17 +245,33 @@ export async function fetchMetaCloudTotal(params: {
   if (error) throw error;
   if (!data || data.length === 0) return null;
 
+  // Precedência: UPQUERY_VM_FATURAMENTO > MANUAL para o par (anomes, unidade).
+  const porChave = new Map<string, { vl_meta: number; origem: string; unidade: string }>();
+  for (const r of data as any[]) {
+    const unidade = String(r.unidade_negocio);
+    const chave = `${r.anomes_emissao}|${unidade}`;
+    const origem = String(r.origem_meta ?? 'MANUAL');
+    const cur = porChave.get(chave);
+    if (!cur) {
+      porChave.set(chave, { vl_meta: Number(r.vl_meta || 0), origem, unidade });
+    } else if (cur.origem !== 'UPQUERY_VM_FATURAMENTO' && origem === 'UPQUERY_VM_FATURAMENTO') {
+      porChave.set(chave, { vl_meta: Number(r.vl_meta || 0), origem, unidade });
+    }
+  }
+
   const meses = monthsBetween(params.anomes_ini, params.anomes_fim);
 
   if (params.unidade_negocio === 'CONSOLIDADO') {
     const porUnidade = new Map<string, { soma: number; count: number }>();
-    for (const r of data) {
-      const u = String(r.unidade_negocio);
-      const cur = porUnidade.get(u) ?? { soma: 0, count: 0 };
-      cur.soma += Number(r.vl_meta || 0);
+    porChave.forEach(({ vl_meta, unidade }) => {
+      // Consolidado: somente GENIUS + ESTRUTURAL ZORTEA.
+      if (unidade !== 'GENIUS' && unidade !== 'ESTRUTURAL ZORTEA') return;
+      const cur = porUnidade.get(unidade) ?? { soma: 0, count: 0 };
+      cur.soma += vl_meta;
       cur.count += 1;
-      porUnidade.set(u, cur);
-    }
+      porUnidade.set(unidade, cur);
+    });
+    if (porUnidade.size === 0) return null;
     let total = 0;
     porUnidade.forEach(({ soma, count }) => {
       const mediaMensal = count > 0 ? soma / count : 0;
@@ -260,7 +280,43 @@ export async function fetchMetaCloudTotal(params: {
     return total;
   }
 
-  const soma = data.reduce((acc, r) => acc + Number(r.vl_meta || 0), 0);
-  const mediaMensal = soma / data.length;
+  const valores = Array.from(porChave.values()).map((v) => v.vl_meta);
+  if (valores.length === 0) return null;
+  const soma = valores.reduce((acc, v) => acc + v, 0);
+  const mediaMensal = soma / valores.length;
   return mediaMensal * meses;
 }
+
+/* ----------------- Sincronização UpQuery (via Edge Function) ----------------- */
+
+export interface SyncMetasUpqueryResponse {
+  ok: boolean;
+  status: number;
+  data?: {
+    linhas_detalhe?: number;
+    linhas_resumo?: number;
+    totais_por_mes?: Array<{ anomes_emissao: string; vl_meta: number }>;
+    totais_por_unidade?: Array<{ unidade_negocio: string; vl_meta: number }>;
+    [k: string]: any;
+  } | null;
+  error?: string;
+  periodo: { anomes_ini: string; anomes_fim: string; origem: string };
+}
+
+export async function sincronizarMetasUpquery(params: {
+  anomes_ini: string;
+  anomes_fim: string;
+  origem?: string;
+}): Promise<SyncMetasUpqueryResponse> {
+  const body = {
+    anomes_ini: params.anomes_ini,
+    anomes_fim: params.anomes_fim,
+    origem: params.origem ?? 'UPQUERY_VM_FATURAMENTO',
+  };
+  const { data, error } = await supabase.functions.invoke('sync-metas-upquery', { body });
+  if (error) {
+    throw new Error(error.message || 'Falha ao chamar Edge Function sync-metas-upquery');
+  }
+  return data as SyncMetasUpqueryResponse;
+}
+

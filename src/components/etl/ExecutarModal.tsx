@@ -22,7 +22,7 @@ interface ExecutarModalProps {
     | { tipo: 'tarefa'; nome: string; sqlTemplate?: string | null }
     | { tipo: 'acao'; idAcao: string; nomeTarefa?: string; sqlTemplate?: string | null }
     | null;
-  onExecutado?: (resp: { execucao_id: string }) => void;
+  onExecutado?: (resp: { execucao_id: string; anomes_ini: number; anomes_fim: number }) => void;
 }
 
 const anomesAtual = () => {
@@ -121,7 +121,7 @@ export function ExecutarModal({ open, onOpenChange, alvo, onExecutado }: Executa
           ? await executarTarefa(alvo.nome, payload)
           : await executarAcao(alvo.idAcao, payload);
       toast.success(`Execução iniciada: ${resp.execucao_id ?? resp.status}`);
-      onExecutado?.(resp);
+      onExecutado?.({ ...resp, anomes_ini: Number(anomesIni), anomes_fim: Number(anomesFim) });
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e?.message ?? 'Falha ao executar');
