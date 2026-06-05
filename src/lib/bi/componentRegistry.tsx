@@ -155,7 +155,9 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const v = ctx.kpis?.[mapping.value] ?? 0;
       const arr = SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => p.valor);
       const opts = (options ?? {}) as WidgetOptions;
-      return <KpiSparklineCard title={title || mapping.value} value={v} format={toKpiFormat(opts.valueFormat ?? opts.format ?? 'currency')} series={arr} />;
+      const fmt = (opts.valueFormat ?? opts.format ?? 'currency');
+      const kpiFmt = (fmt === 'compact' || fmt === 'auto' ? 'number' : fmt) as 'currency' | 'number' | 'percent';
+      return <KpiSparklineCard title={title || mapping.value} value={v} format={kpiFmt} series={arr} />;
     },
   },
   {
