@@ -7,7 +7,8 @@ export type AiMetrica =
   | 'quantidade' | 'clientes' | 'vendas' | 'ticket_medio' | 'preco_medio';
 export type AiDimensao =
   | 'anomes_emissao' | 'unidade_negocio' | 'cd_origem' | 'cd_tp_movimento'
-  | 'cd_estado' | 'cd_cliente' | 'cd_prj' | 'cd_rev_pedido' | 'cd_tns';
+  | 'cd_estado' | 'cd_cliente' | 'cd_prj' | 'cd_rev_pedido' | 'cd_tns'
+  | 'categoria_custom';
 
 export interface IAChartSpec {
   titulo: string;
