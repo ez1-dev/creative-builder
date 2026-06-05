@@ -452,6 +452,7 @@ export default function ComercialPage() {
       w?.type ?? '', w?.hidden ? 1 : 0, w?.componentId ?? '', w?.variant ?? '',
       w?.customTitle ?? '', JSON.stringify(w?.mapping ?? null),
       JSON.stringify(w?.options ?? null), JSON.stringify(w?.series ?? null),
+      w?.titleColor ?? '', w?.titleBold ? 1 : 0,
     ].join('|'))
     .join('~');
 
@@ -461,7 +462,9 @@ export default function ComercialPage() {
       const title = w.customTitle || w.title || w.type;
       out[w.type] = (
         <WidgetErrorBoundary widgetKey={w.type} title={title}>
-          {renderWidget(w)}
+          <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
+            {renderWidget(w)}
+          </WidgetTitleStyle>
         </WidgetErrorBoundary>
       );
     });
