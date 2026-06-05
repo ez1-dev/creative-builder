@@ -403,13 +403,13 @@ export default function ConfiguracoesPage() {
   };
 
   // ---- Telas por perfil ----
-  const toggleScreen = async (profileId: string, screenPath: string, screenName: string, field: 'can_view' | 'can_edit') => {
+  const toggleScreen = async (profileId: string, screenPath: string, screenName: string, field: 'can_view' | 'can_edit' | 'can_delete') => {
     const existing = profileScreens.find(ps => ps.profile_id === profileId && ps.screen_path === screenPath);
     if (existing) {
-      const newVal = !existing[field];
-      const updates = field === 'can_view' && !newVal
-        ? { can_view: false, can_edit: false }
-        : { [field]: newVal };
+      const newVal = !(existing as any)[field];
+      const updates: Partial<ProfileScreen> = field === 'can_view' && !newVal
+        ? { can_view: false, can_edit: false, can_delete: false }
+        : { [field]: newVal } as Partial<ProfileScreen>;
       const { error } = await supabase.from('profile_screens').update(updates).eq('id', existing.id);
       if (error) {
         toast.error('Erro ao atualizar permissão');
@@ -426,7 +426,9 @@ export default function ConfiguracoesPage() {
         screen_name: screenName,
         can_view: field === 'can_view',
         can_edit: field === 'can_edit',
+        can_delete: field === 'can_delete',
       }).select().single();
+
       if (error) {
         toast.error('Erro ao atualizar permissão');
         return;
