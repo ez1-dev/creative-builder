@@ -34,8 +34,9 @@ const emptyForm = (): Partial<ManutencaoFrota> => ({
 });
 
 export default function ManutencaoFrotaPage() {
-  const { canEdit, isAdmin } = useUserPermissions();
+  const { canEdit, canDelete, isAdmin } = useUserPermissions();
   const editAllowed = canEdit(PATH);
+  const deleteAllowed = canDelete(PATH);
   const { toast } = useToast();
 
   const [data, setData] = useState<ManutencaoFrota[]>([]);
