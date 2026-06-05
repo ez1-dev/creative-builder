@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import GridLayout, { WidthProvider, type Layout, type LayoutItem } from 'react-grid-layout/legacy';
-import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2, GripVertical } from 'lucide-react';
+import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2, GripVertical, FolderInput } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { PassagensWidget } from '@/hooks/usePassagensLayout';
 
 const ResponsiveGrid = WidthProvider(GridLayout);
+
+interface MoveTarget { id: string; title: string }
 
 interface Props {
   widgets: PassagensWidget[];
@@ -19,13 +22,17 @@ interface Props {
   configurableTypes?: string[];
   /** Callback para excluir permanentemente um bloco custom-*. */
   onDelete?: (type: string) => void;
+  /** Lista de blocos destino disponíveis no menu "Mover para…". */
+  moveTargets?: MoveTarget[];
+  /** Callback ao escolher um destino no menu de mover. */
+  onMoveToBlock?: (type: string, blockId: string) => void;
 }
 
 const MIN_W = 3;
 const MIN_H = 2;
 const MAX_W = 12;
 
-export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete }: Props) {
+export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete, moveTargets, onMoveToBlock }: Props) {
   const [isCompact, setIsCompact] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
   );
