@@ -1,24 +1,18 @@
 ## Objetivo
-Fazer o toggle **Excluir** aparecer corretamente em **Configurações > Permissões por Tela**, mantendo a permissão `can_delete` funcionando na tela de Frota.
+Tornar **Detalhes Impostos** disponível no botão **Trocar drill** em todos os níveis do drill BI Comercial.
 
-## O que vou fazer
-1. Revisar o fluxo completo da aba **Permissões por Tela** para identificar por que a UI exibida no preview não corresponde ao componente atual.
-2. Validar se há condição de renderização, aba/layout antigo, cache de estado ou problema de dados impedindo a terceira opção de aparecer.
-3. Ajustar a tela para garantir que cada perfil exiba explicitamente **Ver / Editar / Excluir** na área de permissões da tela selecionada.
-4. Confirmar que o salvamento continua enviando `can_delete` para `profile_screens` sem alterar o comportamento de `can_view` e `can_edit`.
-5. Verificar visualmente que a tela **/frota** pode receber a nova permissão pela interface.
+## Mudança
+- Em `src/lib/bi/comercialDrillCatalog.ts`, adicionar `'DETALHES_IMPOSTOS'` ao final do array `NEXT_DRILLS` para os níveis que hoje não o oferecem:
+  - `ACUMULADO`, `MENSAL`, `ESTADO`, `CLIENTE`, `REVENDA`.
+  - `PRODUTO` e `NOTA_FISCAL` já incluem.
+  - `DETALHES_IMPOSTOS` continua como folha (array vazio).
 
-## Evidências já confirmadas
-- O componente `PermissoesPorTelaPanel` já contém o bloco do switch **Excluir**.
-- `ConfiguracoesPage` já passa `onToggle` aceitando `can_delete`.
-- Os tipos já incluem `can_delete`.
-- Portanto, o problema parece estar na renderização efetiva da tela, não na ausência do campo no código digitado.
+## Critérios de aceite atendidos
+- Botão "Trocar drill" exibe **Detalhes Impostos** em qualquer nível.
+- Ao selecionar, o front envia `drill_type = "DETALHES_IMPOSTOS"` (já é o comportamento do hook e da API client).
+- Contexto acumulado é preservado pelo `mergeCtx` (já configurado para manter `cd_nf`, `cd_produto`, `anomes_emissao`, `cd_cliente`).
+- Tabela e CSV exibem as colunas devolvidas pelo backend (ICMS, IPI, PIS, COFINS, ISS, ICMS ST, DIFAL, Total Impostos) — a renderização é dirigida por `resp.columns`, então não precisa mudança de UI.
 
-## Resultado esperado
-- Na aba **Permissões por Tela**, ao selecionar uma tela, cada perfil mostra os três controles: **Ver**, **Editar** e **Excluir**.
-- O toggle **Excluir** persiste corretamente.
-- A permissão de exclusão da **Manutenção de Frota** continua restrita ao novo flag por tela.
-
-## Detalhes técnicos
-- Arquivos prováveis: `src/components/configuracoes/PermissoesPorTelaPanel.tsx`, `src/pages/ConfiguracoesPage.tsx`.
-- Vou focar só na camada de interface e integração da tela de permissões, sem expandir escopo para outros módulos.
+## Fora do escopo
+- Não altero `useComercialDrillStack`, `ComercialDrillDrawer`, nem `comercialDrillApi.ts` — já estão corretos para esse drill.
+- Nenhuma mudança no backend FastAPI.
