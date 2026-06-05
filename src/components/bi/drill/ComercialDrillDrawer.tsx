@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, Download, Filter, Loader2, RotateCw } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Download, Filter, Loader2, RotateCw, X } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
