@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
+import { useDashboardBlocks } from '@/hooks/useDashboardBlocks';
 
 export interface WidgetLayout {
   x: number;
@@ -9,6 +10,7 @@ export interface WidgetLayout {
   h: number;
 }
 
+
 export interface PassagensWidget {
   id: string;
   type: string;
@@ -16,6 +18,9 @@ export interface PassagensWidget {
   position: number;
   layout: WidgetLayout;
   hidden?: boolean;
+  /** Bloco ao qual o componente pertence. Obrigatório no banco; em widgets pendentes pode ficar
+   *  ausente até o salvamento, quando é resolvido para o bloco padrão. */
+  blockId?: string | null;
   /** Quando definido, sobrescreve o renderizador canônico pelo componente do COMPONENT_REGISTRY. */
   componentId?: string;
   /** Mapeamento de inputs -> chaves do PageDataContext (ex.: { series: 'evolucao_mensal' }). */
@@ -38,6 +43,8 @@ export interface SaveLayoutItem {
   /** Para widgets novos (custom-*): título e position de criação. */
   title?: string;
   position?: number;
+  /** Bloco onde o componente deve ser inserido (obrigatório para widgets novos). */
+  blockId?: string | null;
 }
 
 /**
@@ -108,6 +115,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             position: r.widget_position ?? 0,
             layout: (r.widget_layout ?? {}) as WidgetLayout,
             hidden: Boolean(cfg.hidden),
+            blockId: r.widget_block_id ?? null,
             componentId: cfg.componentId,
             mapping: cfg.mapping,
             options: cfg.options,
@@ -138,7 +146,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         setDashboardId(dash.id);
         const { data: rows } = await supabase
           .from('dashboard_widgets')
-          .select('id, type, title, position, layout, config')
+          .select('id, type, title, position, layout, config, block_id')
           .eq('dashboard_id', dash.id)
           .order('position');
         const mapped: PassagensWidget[] = (rows ?? []).map((r: any) => {
@@ -150,6 +158,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             position: r.position ?? 0,
             layout: (r.layout ?? {}) as WidgetLayout,
             hidden: Boolean(cfg.hidden),
+            blockId: r.block_id ?? null,
             componentId: cfg.componentId,
             mapping: cfg.mapping,
             options: cfg.options,
@@ -263,9 +272,9 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             saved += 1;
           }
         } else {
-          // Widget ainda não existe no banco — cria
+          // Widget ainda não existe no banco — cria. blockId vem do item; se ausente, cai no padrão.
           const def = PASSAGENS_DEFAULT_WIDGETS.find((d) => d.type === type);
-          const blockId = await ensureDefaultBlockId(id!);
+          const blockId = item.blockId ?? (await ensureDefaultBlockId(id!));
           const { error: insErr } = await supabase
             .from('dashboard_widgets')
             .insert({
@@ -322,5 +331,30 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
     await load();
   }, [load]);
 
-  return { widgets, dashboardId, loading, isAdmin, saveLayout, resetLayout, deleteWidget, reload: load };
+  // === Blocos ===
+  const blocksApi = useDashboardBlocks({
+    dashboardId,
+    shareToken,
+    module: 'passagens-aereas',
+    enabled,
+  });
+
+  return {
+    widgets,
+    dashboardId,
+    loading,
+    isAdmin,
+    saveLayout,
+    resetLayout,
+    deleteWidget,
+    reload: load,
+    blocks: blocksApi.blocks,
+    blocksLoading: blocksApi.loading,
+    reloadBlocks: blocksApi.reload,
+    createBlock: blocksApi.createBlock,
+    renameBlock: blocksApi.renameBlock,
+    reorderBlock: blocksApi.reorderBlock,
+    deleteBlock: blocksApi.deleteBlock,
+    moveWidgetToBlock: blocksApi.moveWidgetToBlock,
+  };
 }

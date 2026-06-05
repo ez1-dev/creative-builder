@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { BlockedLayoutGrid } from '@/components/bi/builder/BlockedLayoutGrid';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
 import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
@@ -112,7 +113,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   }, []);
 
   // === Layout customizável (drag & drop, salvo globalmente) ===
-  const { widgets, isAdmin, saveLayout, resetLayout, deleteWidget } = usePassagensLayout({
+  const {
+    widgets, isAdmin, saveLayout, resetLayout, deleteWidget,
+    blocks: dashboardBlocks, createBlock, renameBlock, deleteBlock, reorderBlock, moveWidgetToBlock,
+  } = usePassagensLayout({
     shareToken: shareToken ?? null,
   });
   const [editingLayout, setEditingLayout] = useState(false);
@@ -127,9 +131,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   // ===== Estados dos diálogos de configuração / customização =====
   const [configureType, setConfigureType] = useState<string | null>(null);
   const [addChartOpen, setAddChartOpen] = useState(false);
+  /** Bloco onde o próximo componente novo (via AddChartDialog ou IA) será inserido. */
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   // Customizações pendentes (aplicadas só após "Salvar layout")
   const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
   const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
+  /** Bloco para cada novo widget pendente: type -> blockId. */
+  const [pendingNewBlockIds, setPendingNewBlockIds] = useState<Record<string, string>>({});
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
 
   // Widgets a renderizar: aplica pendingHidden + pendingDeletes + pendingNewWidgets +
@@ -152,8 +160,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     });
     // Filtra deleções pendentes (custom-*)
     const filtered = base.filter((w) => !pendingDeletes?.has(w.type));
-    // Anexa novos widgets pendentes
+    // Anexa novos widgets pendentes — herdam bloco escolhido ou fallback ao 1º
     const maxPos = filtered.reduce((m, w) => Math.max(m, w.position), 0);
+    const fallback = dashboardBlocks[0]?.id ?? null;
     const news = (pendingNewWidgets ?? []).map((nw, i) => ({
       id: nw.type,
       type: nw.type,
@@ -161,6 +170,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       position: maxPos + 1 + i,
       layout: { x: 0, y: 999 + i * 8, w: 6, h: 8 },
       hidden: false,
+      blockId: pendingNewBlockIds[nw.type] ?? fallback,
       componentId: nw.componentId,
       mapping: nw.mapping,
       options: nw.options,
@@ -168,7 +178,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     }));
     return [...filtered, ...news];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes]);
+  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes, pendingNewBlockIds, dashboardBlocks]);
 
   const hiddenList = useMemo(
     () => effectiveWidgets.filter((w) => w.hidden),
@@ -857,7 +867,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <>
               <span className="text-xs font-medium text-primary">Modo edição: arraste, redimensione, configure ou oculte blocos</span>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setAddChartOpen(true)}>
+                <Button size="sm" variant="outline" onClick={() => {
+                  setActiveBlockId(dashboardBlocks[0]?.id ?? null);
+                  setAddChartOpen(true);
+                }}>
                   <Plus className="mr-1.5 h-4 w-4" />
                   Novo gráfico
                 </Button>
@@ -891,6 +904,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   setPendingHidden(null);
                   setPendingConfig({});
                   setPendingNewWidgets([]);
+                  setPendingNewBlockIds({});
                   setPendingDeletes(new Set());
                 }} disabled={savingLayout}>Cancelar</Button>
                 <Button size="sm" variant="outline" disabled={savingLayout} onClick={async () => {
@@ -901,6 +915,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     setEditingLayout(false);
                     setPendingLayout(null); setPendingHidden(null);
                     setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    setPendingNewBlockIds({});
                     toast.success('Layout restaurado.');
                   } catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
                   finally { setSavingLayout(false); }
@@ -947,6 +962,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         customTitle: cfg === null ? null : (cfg?.customTitle ?? nw?.title ?? undefined),
                         title: nw?.title ?? ew?.title,
                         position: positionByType.get(type) ?? ew?.position ?? 99,
+                        // Bloco: para widgets novos vem do pendingNewBlockIds; existentes ficam undefined
+                        // (a hook só usa blockId no INSERT — UPDATE ignora).
+                        blockId: nw ? (pendingNewBlockIds[type] ?? dashboardBlocks[0]?.id ?? null) : undefined,
                       };
                     });
                     await saveLayout(payload);
@@ -957,6 +975,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     setEditingLayout(false);
                     setPendingLayout(null); setPendingHidden(null);
                     setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    setPendingNewBlockIds({});
                     toast.success('Layout salvo para todos os usuários.');
                   }
                   catch (e: any) { toast.error(e?.message ?? 'Falha ao salvar layout'); }
@@ -974,8 +993,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         series={seriesPayload}
         rows={crossFiltered}
       >
-      <PassagensLayoutGrid
+      <BlockedLayoutGrid
         widgets={effectiveWidgets}
+        blocks={dashboardBlocks}
         editing={editingLayout}
         onLayoutChange={setPendingLayout}
         onHide={editingLayout ? (type) => {
@@ -993,6 +1013,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             const isNew = pendingNewWidgets.some((nw) => nw.type === type);
             if (isNew) {
               setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
+              setPendingNewBlockIds((prev) => {
+                const next = { ...prev };
+                delete next[type];
+                return next;
+              });
             } else {
               setPendingDeletes((prev) => {
                 const next = new Set(prev);
@@ -1002,7 +1027,32 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             }
           }
         } : undefined}
-        blocks={{
+        onAddComponent={editingLayout ? (blockId) => {
+          setActiveBlockId(blockId);
+          setAddChartOpen(true);
+        } : undefined}
+        onMoveWidgetToBlock={editingLayout ? async (type, blockId) => {
+          // Widget pendente (novo): só altera mapa em memória.
+          if (pendingNewWidgets.some((nw) => nw.type === type)) {
+            setPendingNewBlockIds((prev) => ({ ...prev, [type]: blockId }));
+            toast.success('Componente movido (será salvo ao clicar em Salvar)');
+            return;
+          }
+          // Widget persistido: chama RPC imediatamente.
+          const w = widgets.find((x) => x.type === type);
+          if (!w?.id) return;
+          try {
+            await moveWidgetToBlock(w.id, blockId);
+            toast.success('Componente movido');
+          } catch (e: any) {
+            toast.error(e?.message ?? 'Erro ao mover componente');
+          }
+        } : undefined}
+        onBlockCreate={editingLayout ? async () => { await createBlock(); } : undefined}
+        onBlockRename={editingLayout ? renameBlock : undefined}
+        onBlockDelete={editingLayout ? (id) => deleteBlock(id) : undefined}
+        onBlockReorder={editingLayout ? reorderBlock : undefined}
+        renderMap={{
           'kpis-row': (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
@@ -1730,11 +1780,20 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       )}
       <AddChartDialog
         open={addChartOpen}
-        onOpenChange={setAddChartOpen}
+        onOpenChange={(v) => {
+          setAddChartOpen(v);
+          if (!v) setActiveBlockId(null);
+        }}
         kpis={kpiPayload}
         series={seriesPayload}
         rows={crossFiltered}
-        onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
+        onAdd={(nw) => {
+          const blockId = activeBlockId ?? dashboardBlocks[0]?.id ?? null;
+          setPendingNewWidgets((prev) => [...prev, nw]);
+          if (blockId) {
+            setPendingNewBlockIds((prev) => ({ ...prev, [nw.type]: blockId }));
+          }
+        }}
       />
       </PageDataProvider>
 

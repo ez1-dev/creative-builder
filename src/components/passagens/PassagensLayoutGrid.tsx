@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import GridLayout, { WidthProvider, type Layout, type LayoutItem } from 'react-grid-layout/legacy';
-import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2, GripVertical } from 'lucide-react';
+import { Minus, Plus, MoveHorizontal, MoveVertical, X, Settings, Trash2, GripVertical, FolderInput } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import type { PassagensWidget } from '@/hooks/usePassagensLayout';
 
 const ResponsiveGrid = WidthProvider(GridLayout);
+
+interface MoveTarget { id: string; title: string }
 
 interface Props {
   widgets: PassagensWidget[];
@@ -19,13 +22,17 @@ interface Props {
   configurableTypes?: string[];
   /** Callback para excluir permanentemente um bloco custom-*. */
   onDelete?: (type: string) => void;
+  /** Lista de blocos destino disponíveis no menu "Mover para…". */
+  moveTargets?: MoveTarget[];
+  /** Callback ao escolher um destino no menu de mover. */
+  onMoveToBlock?: (type: string, blockId: string) => void;
 }
 
 const MIN_W = 3;
 const MIN_H = 2;
 const MAX_W = 12;
 
-export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete }: Props) {
+export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete, moveTargets, onMoveToBlock }: Props) {
   const [isCompact, setIsCompact] = useState<boolean>(() =>
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
   );
@@ -291,6 +298,36 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                     >
                       <Settings className="h-3.5 w-3.5" />
                     </Button>
+                  </>
+                )}
+                {onMoveToBlock && moveTargets && moveTargets.length > 0 && (
+                  <>
+                    <div className="h-4 w-px bg-border" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          title="Mover componente para outro bloco"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <FolderInput className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Mover para…</DropdownMenuLabel>
+                        {moveTargets.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            onClick={(e) => { e.stopPropagation(); onMoveToBlock(w.type, t.id); }}
+                          >
+                            {t.title}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </>
                 )}
                 {onDelete && w.type.startsWith('custom-') && (
