@@ -280,9 +280,20 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
           {chips.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {chips.map((c, i) => (
-                <Badge key={i} variant="secondary" className="text-[11px] font-normal">
-                  <span className="text-muted-foreground mr-1">{c.label}:</span>
+                <Badge key={i} variant="secondary" className="text-[11px] font-normal gap-1">
+                  <span className="text-muted-foreground">{c.label}:</span>
                   <span className="font-medium">{c.value}</span>
+                  {c.removeKey && (
+                    <button
+                      type="button"
+                      onClick={() => stack.removeContextKey(c.removeKey!)}
+                      className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm hover:bg-background/60"
+                      aria-label={`Remover ${c.label}`}
+                      title={`Remover ${c.label}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -299,7 +310,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
               onRetry={() => query.refetch()}
             />
           ) : !resp || resp.rows.length === 0 ? (
-            <EmptyState description="Sem registros para o contexto atual" />
+            <DrillEmptyDiagnostico stack={stack} response={resp} />
           ) : (
             <>
               <DataTableBI columns={columns} data={resp.rows} />
