@@ -65,9 +65,7 @@ export function UserWidgetsSlot({
             }
           }
         }
-        const unidadeOverride = ctx.page?.supportsUnidadeNegocio
-          ? (widgetOptions?.unidade_negocio as string | undefined)
-          : undefined;
+        const unidadeOverride = widgetOptions?.unidade_negocio as string | undefined;
         const mergedFiltros = unidadeOverride
           ? { ...(ctx.filtros ?? {}), unidade_negocio: unidadeOverride }
           : (ctx.filtros ?? {});
