@@ -90,6 +90,36 @@ const ESCOPO_LABELS: Record<ComercialDetalheEscopo, string> = {
   estados: 'Por estado',
 };
 
+function HexInput({ currentBg, onApply }: { currentBg: string | null; onApply: (c: string) => void }) {
+  const [val, setVal] = useState(currentBg ?? '');
+  const [err, setErr] = useState(false);
+  useEffect(() => { setVal(currentBg ?? ''); setErr(false); }, [currentBg]);
+  const valid = (v: string) => /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3}([0-9a-fA-F]{2})?)?$/.test(v.trim());
+  const apply = () => {
+    const v = val.trim();
+    if (!valid(v)) { setErr(true); return; }
+    setErr(false);
+    onApply(v);
+  };
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Input
+          value={val}
+          onChange={(e) => { setVal(e.target.value); if (err) setErr(false); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } }}
+          onBlur={apply}
+          placeholder="#dd4444"
+          className={cn('h-8 font-mono text-xs', err && 'border-destructive focus-visible:ring-destructive')}
+          spellCheck={false}
+        />
+        <Button type="button" size="sm" variant="outline" className="h-8" onClick={apply}>Aplicar</Button>
+      </div>
+      {err && <p className="text-[10px] text-destructive">Hex inválido. Ex.: #dd4444</p>}
+    </div>
+  );
+}
+
 function BlocoErro({ err, onRetry, msg = ERR_MSG }: { err: unknown; onRetry: () => void; msg?: string }) {
   return <ErrorState title={msg} message={String((err as any)?.message ?? '')} onRetry={onRetry} />;
 }
