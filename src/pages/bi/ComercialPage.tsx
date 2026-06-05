@@ -65,6 +65,7 @@ import {
 } from '@/lib/bi/comercialFilters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getUnidadeTheme } from './comercialTheme';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
