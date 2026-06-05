@@ -1950,6 +1950,7 @@ export type Database = {
       }
       profile_screens: {
         Row: {
+          can_delete: boolean
           can_edit: boolean
           can_view: boolean
           id: string
@@ -1958,6 +1959,7 @@ export type Database = {
           screen_path: string
         }
         Insert: {
+          can_delete?: boolean
           can_edit?: boolean
           can_view?: boolean
           id?: string
@@ -1966,6 +1968,7 @@ export type Database = {
           screen_path: string
         }
         Update: {
+          can_delete?: boolean
           can_edit?: boolean
           can_view?: boolean
           id?: string
@@ -2937,6 +2940,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_delete_frota: { Args: { _uid: string }; Returns: boolean }
       can_edit_bi_meta: { Args: { _uid: string }; Returns: boolean }
       can_edit_dashboard: {
         Args: { _dashboard_id: string; _uid: string }

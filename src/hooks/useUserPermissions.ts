@@ -19,6 +19,13 @@ export function useUserPermissions() {
       return p?.can_edit ?? false;
     };
 
+    const canDelete = (path: string) => {
+      if (isAdmin) return true;
+      const p = permissions.find((s) => s.screen_path === path);
+      return p?.can_delete ?? false;
+    };
+
+
     const hasPermissions = isAdmin || permissions.length > 0;
 
     const PRIORITY_PATHS = [
@@ -40,6 +47,7 @@ export function useUserPermissions() {
       loading,
       canView,
       canEdit,
+      canDelete,
       canUseAi,
       isAdmin,
       hasPermissions,
@@ -47,3 +55,4 @@ export function useUserPermissions() {
     };
   }, [permissions, canUseAi, isAdmin, loading]);
 }
+

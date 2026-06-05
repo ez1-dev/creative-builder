@@ -9,7 +9,9 @@ export interface ScreenPermission {
   screen_name: string;
   can_view: boolean;
   can_edit: boolean;
+  can_delete: boolean;
 }
+
 
 interface PermissionsState {
   permissions: ScreenPermission[];
@@ -37,12 +39,13 @@ function shallowEqualPerms(a: ScreenPermission[], b: ScreenPermission[]): boolea
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const x = a[i], y = b[i];
-    if (x.screen_path !== y.screen_path || x.can_view !== y.can_view || x.can_edit !== y.can_edit || x.screen_name !== y.screen_name) {
+    if (x.screen_path !== y.screen_path || x.can_view !== y.can_view || x.can_edit !== y.can_edit || x.can_delete !== y.can_delete || x.screen_name !== y.screen_name) {
       return false;
     }
   }
   return true;
 }
+
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { erpUser } = useAuth();
@@ -95,7 +98,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           withTimeout(
             supabase
               .from('profile_screens')
-              .select('screen_path, screen_name, can_view, can_edit')
+              .select('screen_path, screen_name, can_view, can_edit, can_delete')
               .in('profile_id', profileIds),
             QUERY_TIMEOUT_MS,
             'profile_screens',
@@ -120,10 +123,12 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (cur) {
             cur.can_view = cur.can_view || s.can_view;
             cur.can_edit = cur.can_edit || s.can_edit;
+            cur.can_delete = cur.can_delete || (s as any).can_delete;
           } else {
-            merged.set(s.screen_path, { ...s });
+            merged.set(s.screen_path, { ...s, can_delete: (s as any).can_delete ?? false });
           }
         }
+
         const next = Array.from(merged.values()).sort((a, b) => a.screen_path.localeCompare(b.screen_path));
         const nextAi = profiles.some((p: any) => p.ai_enabled);
         const nextAdmin = profiles.some((p: any) => p.name === 'Administrador');

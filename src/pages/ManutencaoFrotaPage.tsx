@@ -34,8 +34,9 @@ const emptyForm = (): Partial<ManutencaoFrota> => ({
 });
 
 export default function ManutencaoFrotaPage() {
-  const { canEdit, isAdmin } = useUserPermissions();
+  const { canEdit, canDelete, isAdmin } = useUserPermissions();
   const editAllowed = canEdit(PATH);
+  const deleteAllowed = canDelete(PATH);
   const { toast } = useToast();
 
   const [data, setData] = useState<ManutencaoFrota[]>([]);
@@ -157,7 +158,7 @@ export default function ManutencaoFrotaPage() {
                 <Plus className="mr-1 h-4 w-4" /> Novo registro
               </Button>
             )}
-            {isAdmin && (
+            {deleteAllowed && (
               <Button
                 variant="destructive" size="sm"
                 onClick={() => { setDeleteAllText(''); setDeleteAllOpen(true); }}
@@ -166,6 +167,7 @@ export default function ManutencaoFrotaPage() {
                 <Trash2 className="mr-1 h-4 w-4" /> Excluir todos
               </Button>
             )}
+
           </>
         }
       />
@@ -174,7 +176,7 @@ export default function ManutencaoFrotaPage() {
         data={data}
         loading={loading}
         onEdit={editAllowed ? handleOpenEdit : undefined}
-        onDelete={editAllowed ? setDeleteId : undefined}
+        onDelete={deleteAllowed ? setDeleteId : undefined}
       />
 
       <FrotaShareLinksDialog open={shareOpen} onOpenChange={setShareOpen} />

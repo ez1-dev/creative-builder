@@ -30,13 +30,14 @@ export interface ProfileScreenItem {
   screen_name: string;
   can_view: boolean;
   can_edit: boolean;
+  can_delete?: boolean;
 }
 
 interface Props {
   screens: ScreenItem[];
   profiles: ProfileItem[];
   profileScreens: ProfileScreenItem[];
-  onToggle: (profileId: string, screenPath: string, screenName: string, field: 'can_view' | 'can_edit') => void | Promise<void>;
+  onToggle: (profileId: string, screenPath: string, screenName: string, field: 'can_view' | 'can_edit' | 'can_delete') => void | Promise<void>;
   onRefresh: () => void | Promise<void>;
 }
 
@@ -151,9 +152,9 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
         screen_path: path,
         screen_name: name,
       };
-      if (mode === 'clear-all') return { ...base, can_view: false, can_edit: false };
-      if (mode === 'view-all')  return { ...base, can_view: true,  can_edit: existing?.can_edit ?? false };
-      return { ...base, can_view: true, can_edit: true };
+      if (mode === 'clear-all') return { ...base, can_view: false, can_edit: false, can_delete: false };
+      if (mode === 'view-all')  return { ...base, can_view: true,  can_edit: existing?.can_edit ?? false, can_delete: existing?.can_delete ?? false };
+      return { ...base, can_view: true, can_edit: true, can_delete: existing?.can_delete ?? false };
     });
     const { error } = await supabase
       .from('profile_screens')
@@ -178,6 +179,7 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
       screen_name: name,
       can_view: src?.can_view ?? false,
       can_edit: src?.can_edit ?? false,
+      can_delete: src?.can_delete ?? false,
     };
     const { error } = await supabase
       .from('profile_screens')
@@ -365,12 +367,15 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                   const perm = getPerm(p.id, selectedScreen.path);
                   const canView = !!perm?.can_view;
                   const canEdit = !!perm?.can_edit;
+                  const canDeletePerm = !!perm?.can_delete;
                   return (
                     <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/40">
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">{p.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {canView ? (canEdit ? 'Ver + Editar' : 'Apenas Ver') : 'Sem acesso'}
+                          {canView
+                            ? `${canEdit ? 'Ver + Editar' : 'Apenas Ver'}${canDeletePerm ? ' + Excluir' : ''}`
+                            : 'Sem acesso'}
                         </div>
                       </div>
                       <div className="flex items-center gap-6 shrink-0">
@@ -391,9 +396,19 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                             onCheckedChange={() => onToggle(p.id, selectedScreen.path, selectedScreen.name, 'can_edit')}
                           />
                         </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                          <span>Excluir</span>
+                          <Switch
+                            checked={canDeletePerm}
+                            disabled={!canView}
+                            aria-label={`Liberar exclusão para ${p.name}`}
+                            onCheckedChange={() => onToggle(p.id, selectedScreen.path, selectedScreen.name, 'can_delete')}
+                          />
+                        </label>
                       </div>
                     </div>
                   );
+
                 })}
                 {profiles.length === 0 && (
                   <p className="text-center text-sm text-muted-foreground py-8">
