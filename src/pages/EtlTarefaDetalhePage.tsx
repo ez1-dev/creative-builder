@@ -308,11 +308,62 @@ export default function EtlTarefaDetalhePage() {
         </Card>
       )}
 
+      {tarefaAtuComercial && !naoEncontrada && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" /> Sincronização de Metas — BI Comercial
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-3 rounded border p-3">
+              <div>
+                <Label htmlFor="auto-sync-metas" className="cursor-pointer text-sm font-medium">
+                  Sincronizar metas automaticamente após ATU_COMERCIAL
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Após uma execução bem-sucedida desta tarefa, importa automaticamente as metas
+                  da UpQuery para o mesmo período.
+                </p>
+              </div>
+              <Switch
+                id="auto-sync-metas"
+                checked={autoSyncMetas}
+                onCheckedChange={persistAutoSync}
+                aria-label="Auto-sincronizar metas após ATU_COMERCIAL"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!ultimoPeriodo || syncing}
+                onClick={() => ultimoPeriodo && sincronizarMetas(ultimoPeriodo.ini, ultimoPeriodo.fim)}
+              >
+                {syncing
+                  ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Sincronizando…</>
+                  : <><RefreshCcw className="h-3.5 w-3.5 mr-1" /> Sincronizar metas da UpQuery para o mesmo período</>}
+              </Button>
+              {ultimoPeriodo ? (
+                <span className="text-xs text-muted-foreground">
+                  Período da última execução: {pad6(ultimoPeriodo.ini)} → {pad6(ultimoPeriodo.fim)}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Execute a tarefa para liberar a sincronização manual com o mesmo período.
+                </span>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <ExecutarModal
         open={execModal.open}
         onOpenChange={(open) => setExecModal({ open, alvo: execModal.alvo })}
         alvo={execModal.alvo}
-        onExecutado={() => load()}
+        onExecutado={handleExecutado}
       />
       <LogsModal
         open={logsModal.open}
