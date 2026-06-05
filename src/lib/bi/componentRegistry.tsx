@@ -28,6 +28,26 @@ import {
 } from '@/components/bi';
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';
+import * as LucideIcons from 'lucide-react';
+import {
+  type WidgetOptions, applyTopNSort, toKpiFormat, computeComparacao,
+  resolveMeta, colorCss,
+} from './widgetOptions';
+
+/** Resolve um ícone lucide pelo nome; retorna null se inválido. */
+function resolveIcon(name?: string) {
+  if (!name) return null;
+  const Cmp = (LucideIcons as any)[name];
+  return typeof Cmp === 'function' ? Cmp : null;
+}
+
+/** Cor para charts: aceita token semântico ou string CSS direta. */
+function chartColor(opts?: WidgetOptions): string | undefined {
+  const c = opts?.color as any;
+  if (!c) return undefined;
+  if (typeof c === 'string' && (c.startsWith('hsl') || c.startsWith('#') || c.startsWith('rgb'))) return c;
+  return colorCss(c);
+}
 
 export interface MappingField {
   key: string;
@@ -102,10 +122,24 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'value', label: 'Valor', source: 'kpis', required: true }],
     autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
+    render: ({ title, mapping, ctx, options }) => {
       const def = mapping.value;
       const v = ctx.kpis?.[def];
-      return <KpiCard title={title || def} value={v ?? 0} format="currency" />;
+      const opts = (options ?? {}) as WidgetOptions;
+      const Icon = resolveIcon(opts.icon);
+      const variant = (opts.color === 'success' || opts.color === 'warning' || opts.color === 'danger' || opts.color === 'info') ? opts.color : undefined;
+      const cmp = computeComparacao(undefined, opts.comparacao);
+      return (
+        <KpiCard
+          title={title || def}
+          value={v ?? 0}
+          format={toKpiFormat(opts.valueFormat ?? opts.format ?? 'currency')}
+          icon={Icon ? <Icon className="h-4 w-4" /> : undefined}
+          variant={variant as any}
+          subtitle={opts.subtitle}
+          trend={cmp ? { value: cmp.deltaPct, label: opts.comparacao === 'mesmo_periodo_ano_anterior' ? 'vs ano ant.' : 'vs anterior' } : undefined}
+        />
+      );
     },
   },
   {
@@ -119,10 +153,13 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       { key: 'series', label: 'Série tendência', source: 'series', required: true },
     ],
     autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '', series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
+    render: ({ title, mapping, ctx, options }) => {
       const v = ctx.kpis?.[mapping.value] ?? 0;
       const arr = SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => p.valor);
-      return <KpiSparklineCard title={title || mapping.value} value={v} format="currency" series={arr} />;
+      const opts = (options ?? {}) as WidgetOptions;
+      const fmt = (opts.valueFormat ?? opts.format ?? 'currency');
+      const kpiFmt = (fmt === 'compact' || fmt === 'auto' ? 'number' : fmt) as 'currency' | 'number' | 'percent';
+      return <KpiSparklineCard title={title || mapping.value} value={v} format={kpiFmt} series={arr} />;
     },
   },
   {
@@ -133,14 +170,21 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'value', label: 'Valor', source: 'kpis', required: true }],
     autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <KpiTargetCard
-        title={title || mapping.value}
-        value={Number(ctx.kpis?.[mapping.value] ?? 0)}
-        target={Number(options?.target ?? 100)}
-        format={(options?.format as any) ?? 'number'}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const valor = Number(ctx.kpis?.[mapping.value] ?? 0);
+      const metaResolved = resolveMeta(opts.meta, ctx.kpis ?? {});
+      const target = metaResolved ?? Number(opts.target ?? 100);
+      const fmt = opts.valueFormat ?? opts.format ?? 'number';
+      return (
+        <KpiTargetCard
+          title={title || mapping.value}
+          value={valor}
+          target={target}
+          format={(fmt === 'compact' || fmt === 'auto' ? 'number' : fmt) as any}
+        />
+      );
+    },
   },
 
   // ===== Charts =====
@@ -151,15 +195,20 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <BarChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <BarChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'horizontal-bar-chart',
@@ -168,15 +217,20 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <HorizontalBarChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <HorizontalBarChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'line-chart',
@@ -185,14 +239,19 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <LineChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <LineChartCard
+          title={title || mapping.series}
+          data={data}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'area-chart',
@@ -201,14 +260,19 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <AreaChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <AreaChartCard
+          title={title || mapping.series}
+          data={data}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'donut-chart',
@@ -217,14 +281,18 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <DonutChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <DonutChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+        />
+      );
+    },
   },
   {
     id: 'pie-chart',
@@ -233,14 +301,18 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <PieChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <PieChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+        />
+      );
+    },
   },
   {
     id: 'ranking-chart',
@@ -249,14 +321,18 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <RankingChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        topN={Number(options?.topN ?? 10)}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), undefined, opts.sort);
+      return (
+        <RankingChartCard
+          title={title || mapping.series}
+          data={data}
+          topN={Number(opts.topN ?? 10)}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+        />
+      );
+    },
   },
   {
     id: 'funnel-chart',
@@ -265,12 +341,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <FunnelChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => ({ name: p.label, value: p.valor }))}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const arr = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <FunnelChartCard
+          title={title || mapping.series}
+          data={arr.map((p) => ({ name: p.label, value: p.valor }))}
+        />
+      );
+    },
   },
   {
     id: 'treemap-chart',
@@ -279,12 +359,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <TreemapChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => ({ name: p.label, value: p.valor }))}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const arr = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <TreemapChartCard
+          title={title || mapping.series}
+          data={arr.map((p) => ({ name: p.label, value: p.valor }))}
+        />
+      );
+    },
   },
   {
     id: 'radar-chart',
