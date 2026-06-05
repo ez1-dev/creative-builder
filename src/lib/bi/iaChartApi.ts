@@ -30,6 +30,8 @@ export interface AiChartSerie {
 
 export interface AiChartDiagnostico {
   linhas_view?: number;
+  linhas_filtradas?: number;
+  qtd_categorias?: number;
   filtros_aplicados?: Record<string, string>;
   unidade_negocio?: string;
   periodo?: { ini?: string; fim?: string };
