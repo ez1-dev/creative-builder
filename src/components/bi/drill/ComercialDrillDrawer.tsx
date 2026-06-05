@@ -309,24 +309,8 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
             <EmptyState description="Sem registros para o contexto atual" />
           ) : (
             <>
-              <DataTableBI
-                columns={columns}
-                data={resp.rows}
-                onRowClick={
-                  allowedNext.length > 0
-                    ? undefined // habilitamos via menu por linha abaixo
-                    : undefined
-                }
-                rowClassName={() => allowedNext.length > 0 ? 'cursor-pointer hover:bg-accent/40' : ''}
-              />
-              {/* Menu por linha: renderiza um dropdown invisível? Simplicidade: usa ação visível na primeira coluna. */}
-              {allowedNext.length > 0 && (
-                <RowActionsHint
-                  rows={resp.rows}
-                  allowedNext={allowedNext}
-                  onPush={handlePushFromRow}
-                />
-              )}
+              <DataTableBI columns={columns} data={resp.rows} />
+
               <div className="flex items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
                 <span>
                   {resp.rows.length} {resp.rows.length === 1 ? 'linha' : 'linhas'}
