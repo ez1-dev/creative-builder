@@ -28,6 +28,14 @@ export interface AiChartSerie {
   filtros_drill?: Record<string, string> | null;
 }
 
+export interface AiChartDiagnostico {
+  linhas_view?: number;
+  filtros_aplicados?: Record<string, string>;
+  unidade_negocio?: string;
+  periodo?: { ini?: string; fim?: string };
+  dimensao?: string;
+}
+
 export interface AiChartResult {
   titulo: string;
   subtitulo: string;
@@ -38,6 +46,8 @@ export interface AiChartResult {
   series: AiChartSerie[];
   filtros: Record<string, string>;
   mostrar_percentual?: boolean;
+  mostrar_valor?: boolean;
+  diagnostico?: AiChartDiagnostico;
 }
 
 /**
