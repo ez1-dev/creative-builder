@@ -1,101 +1,70 @@
 
 ## Objetivo
 
-1. Drill por Cliente exibir `cd_cliente - nm_cliente` em vez de só o código.
-2. Corrigir o breadcrumb que hoje rotula filtros herdados com o nome do drill atual (ex.: "Cliente: PA" quando PA é UF).
+Permitir que o drill CLIENTE do BI Comercial exiba `código - nome` do cliente, usando uma dimensão `public.bi_cliente` no Cloud, alimentada por sincronização a partir da E085CLI do ERP Senior.
 
-Mudanças concentradas no frontend; documento separado descreve o ajuste necessário na FastAPI/RPC.
+## Escopo
 
----
+### 1. Cloud — criar tabela `public.bi_cliente`
 
-## 1. Backend (documentado, não implementado pelo Lovable)
+Migration nova:
 
-Criar `docs/backend-bi-comercial-drill-cliente-nome.md` especificando para o time da FastAPI:
+- Tabela `public.bi_cliente`:
+  - `cd_cliente text primary key`
+  - `nm_cliente text`
+  - `nm_fantasia text`
+  - `atualizado_em timestamptz not null default now()`
+- GRANTs: `select` para `authenticated`; `all` para `service_role` (sem `anon` — dado interno).
+- RLS habilitada com policy de SELECT para `authenticated` (usuários logados leem; escrita só via service_role usado pelo ETL).
+- Índice `btree` em `lower(nm_cliente)` para busca futura.
 
-- Verificar na view `public.v_bi_faturamento_comercial` se existe coluna de nome do cliente (`nm_cliente` / `ds_cliente` / `nome_cliente`).
-- Se não existir, adicionar `nm_cliente` à view (preferência) ou fazer JOIN com a dimensão de cliente no SQL do drill.
-- Na rota `POST /api/bi/comercial/drill`, para `drill_type = "CLIENTE"`:
-  - `columns` deve incluir `{ key: "cliente_label", label: "Cliente" }` no lugar (ou além) de `cd_cliente`.
-  - Cada `row` deve devolver:
-    ```json
-    {
-      "cd_cliente": "8794",
-      "nm_cliente": "NOME DO CLIENTE",
-      "cliente_label": "8794 - NOME DO CLIENTE",
-      "filtros_drill": { "cd_cliente": "8794" }
-    }
-    ```
-  - `filtros_drill` continua usando **somente** `cd_cliente` — nunca o label.
-- Mesma ideia aplicável (futuramente) a Revenda/Produto, mas fora do escopo deste pedido.
+Sem trigger / sem `updated_at` extra — `atualizado_em` é gerenciado pelo ETL.
 
-Esse arquivo é apenas contrato — nenhuma migration ou edge function é alterada.
+### 2. Contrato backend — `docs/backend-bi-comercial-clientes-sincronizar.md` (novo)
 
----
+Documento para o time da FastAPI cobrindo:
 
-## 2. Frontend — breadcrumb correto
+- Rota `POST /api/bi/comercial/clientes/sincronizar`
+  - Lê E085CLI (CODCLI, NOMCLI, APECLI).
+  - UPSERT em `public.bi_cliente` via service role:
+    - `cd_cliente = CODCLI::text`
+    - `nm_cliente = NOMCLI`
+    - `nm_fantasia = APECLI`
+    - `atualizado_em = now()`
+  - Resposta: `{ inseridos, atualizados, total, duracao_ms }`.
+- Ajuste em `POST /api/bi/comercial/drill` (drill_type `CLIENTE`):
+  - `LEFT JOIN public.bi_cliente c ON c.cd_cliente = f.cd_cliente::text`
+  - Retornar colunas: `cd_cliente`, `nm_cliente`, `nm_fantasia`, `cliente_label = cd_cliente || ' - ' || coalesce(nm_cliente, '(sem nome)')`.
+  - `columns[]` continua expondo a coluna agregada como `cd_cliente` com `label: "Cliente"`; frontend renderiza usando `cliente_label`.
+  - `filtros_drill` permanece **apenas** `{ "cd_cliente": "<código>" }`. Nada de label.
+- Regra: o filtro técnico em todos os SQLs continua `WHERE cd_cliente = :cd_cliente`.
 
-Hoje `ComercialDrillDrawer.levelTitle` faz:
+### 3. Frontend
 
-```
-label = DRILL_LABELS[level.drill_type]
-+ ": " + primeiro valor não vazio do contexto
-```
+- `src/lib/bi/comercialDrillApi.ts`: adicionar `nm_fantasia` em `DrillRow` (já tem `nm_cliente` e `cliente_label`).
+- `ComercialDrillDrawer.tsx`: já trata `cliente_label` / fallback `${cd_cliente} - ${nm_cliente}` — nenhuma mudança funcional, só conferir que continua válido.
+- Página BI Comercial (`src/pages/bi/ComercialPage.tsx`): adicionar botão discreto **"Sincronizar clientes"** (visível só para admin via `is_admin`/`useIsSeniorAdmin`) que faz `POST /api/bi/comercial/clientes/sincronizar` via `api.post`, mostra toast com `inseridos/atualizados/total` e desabilita durante a chamada.
+- Atualizar `docs/backend-bi-comercial-drill-cliente-nome.md` apontando para o novo doc de sincronização.
 
-Resultado: nível "CLIENTE" com contexto `{ cd_estado: "PA" }` vira `"Cliente: PA"`.
+### 4. Memória do projeto
 
-### Correção
+- Atualizar `mem://features/drill-bi-comercial` mencionando dependência da tabela `bi_cliente` e da rota de sincronização.
 
-Calcular o rótulo do nível a partir do **filtro adicionado naquele push**, não do drill atual.
+## Critérios de aceite
 
-- Em `useComercialDrillStack.ts`:
-  - Estender `DrillStackLevel` com `addedFilter?: { key: keyof DrillContexto; value: string }`.
-  - Em `pushDrill`, comparar `newCtx` x `cur.contexto` e gravar a primeira chave nova (ou alterada) em `addedFilter`. Se nenhuma chave nova entrar (caso "Trocar drill"), `addedFilter` fica `undefined`.
-  - `openWith` e `replacePath`: gravar `addedFilter` a partir dos filtros iniciais informados, se houver.
+- Migration cria `public.bi_cliente` com GRANTs e RLS corretos.
+- Documento backend descreve sync + JOIN sem ambiguidade.
+- Botão "Sincronizar clientes" disponível para admin no BI Comercial.
+- Após o backend implementar o JOIN, o drill CLIENTE mostra `8794 - NOME DO CLIENTE`.
+- `filtros_drill` continua contendo apenas `cd_cliente`; clicar em Detalhar não vaza label.
 
-- Em `ComercialDrillDrawer.tsx` (`levelTitle`):
-  - Nível 0: `DRILL_LABELS[drill_type]` (ex.: "Acumulado").
-  - Demais níveis:
-    - Se `addedFilter` existir: rótulo = `"${CTX_LABELS[key]}: ${value} › ${DRILL_LABELS[drill_type]}"`
-      simplificado para o requisito: cada nível mostra o **filtro herdado** dele e o **nome do drill atual** vira apenas o último item.
-    - Implementação prática: para níveis intermediários exibir `"${CTX_LABELS[addedFilter.key]}: ${addedFilter.value}"`; para o último nível exibir `DRILL_LABELS[drill_type]` puro.
-  - Resultado para o cenário do bug:
-    `Acumulado › Estado: PA › Cliente` (último item é o drill atual sem valor).
+## Detalhes técnicos
 
-- Chips de contexto (`chips` no Drawer) já usam `CTX_LABELS[k]` corretamente; nada a mudar lá.
+- Tipo de `cd_cliente`: `text` no Cloud para tolerar diferenças de tipagem com o ERP (cast `::text` no JOIN).
+- ETL roda na FastAPI usando `SUPABASE_SERVICE_ROLE_KEY` (já configurado nos secrets do Cloud — mesmo padrão dos outros ETLs `bi_*`).
+- Não criar nenhuma RPC `bi_comercial_drill` no Cloud — o drill permanece 100% na FastAPI.
 
----
+## Fora de escopo
 
-## 3. Frontend — coluna Cliente com código + nome
-
-- `src/lib/bi/comercialDrillApi.ts`:
-  - Estender `DrillRow` com campos opcionais `nm_cliente?: string` e `cliente_label?: string` (apenas tipagem; aceita o que o backend mandar).
-
-- `src/components/bi/drill/ComercialDrillDrawer.tsx`:
-  - No `useMemo` de `columns`, depois de mapear `resp.columns`, aplicar fallback de render para a coluna `cd_cliente` quando o drill atual for `CLIENTE`:
-    - Se a linha tem `cliente_label`, renderiza ele.
-    - Senão, se tem `nm_cliente`, renderiza `"${cd_cliente} - ${nm_cliente}"`.
-    - Senão, mantém o valor atual.
-  - O cabeçalho passa a ser "Cliente" (já vem do backend) — sem mudança extra.
-  - `handlePushFromRow` continua usando `row.filtros_drill` (que segundo o contrato traz só `cd_cliente`), então o filtro técnico fica intacto.
-
-- CSV: como `downloadDrillCsv` usa `resp.columns` para montar o cabeçalho, ele continuará exportando os campos que o backend declarar. Sem mudança.
-
----
-
-## 4. Arquivos afetados
-
-- `docs/backend-bi-comercial-drill-cliente-nome.md` (novo, contrato para FastAPI)
-- `src/hooks/useComercialDrillStack.ts` (adicionar `addedFilter` em cada push)
-- `src/lib/bi/comercialDrillApi.ts` (tipos `nm_cliente`, `cliente_label`)
-- `src/components/bi/drill/ComercialDrillDrawer.tsx` (`levelTitle` novo + render override da coluna cliente)
-
-Sem alterações em Cloud, edge functions ou migrations.
-
----
-
-## 5. Critério de aceite
-
-- Breadcrumb mostra `Acumulado › Estado: PA › Cliente` (não mais `Cliente: PA`).
-- Quando a FastAPI passar a devolver `nm_cliente`/`cliente_label`, a coluna Cliente exibe `8794 - NOME DO CLIENTE`. Enquanto o backend não atualizar, o frontend continua exibindo apenas o código sem quebrar.
-- Clicar em "Detalhar" em uma linha de Cliente envia para o próximo drill apenas `cd_cliente`, nunca o label.
-- Chips de filtro continuam corretos (`UF: PA`, `Cliente: 8794`).
+- Sincronização agendada (cron) — só botão manual neste passo; pode ser adicionada depois.
+- Extensão para REVENDA / PRODUTO — segue o mesmo padrão futuro, mas não entra agora.
