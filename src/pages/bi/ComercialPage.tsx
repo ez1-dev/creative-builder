@@ -22,6 +22,7 @@ import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
+import { WidgetTitleStyle } from '@/components/bi/runtime/WidgetTitleStyle';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
