@@ -895,7 +895,13 @@ export default function ComercialPage() {
                     }
                     return;
                   }
-                  applyDrill(dim as BiComercialDrillKey, label);
+                  // Abre o drill drawer com o contexto da dimensão clicada
+                  if (dim === 'anomes_emissao') openDrill('MENSAL', { anomes_emissao: String(label) });
+                  else if (dim === 'cd_estado') openDrill('ESTADO', { cd_estado: String(label) });
+                  else if (dim === 'cd_cliente') openDrill('CLIENTE', { cd_cliente: String(label) });
+                  else if (dim === 'cd_rev_pedido') openDrill('REVENDA', { cd_rev_pedido: String(label) });
+                  else if (dim === 'categoria_custom') openDrill('ACUMULADO', { categoria_custom: String(label) });
+                  else openDrill('ACUMULADO', { [dim]: String(label) } as DrillContexto);
                 }}
               />
             </div>
