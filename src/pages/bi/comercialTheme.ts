@@ -36,6 +36,52 @@ export const unidadeThemes: Record<UnidadeNegocio, UnidadeTheme> = {
   },
 };
 
+// ---- Background override (per unidade, localStorage) ----
+
+const BG_KEY = (u: UnidadeNegocio) => `bi-comercial:bg-color:${u}`;
+
+export function getBgOverride(unidade: UnidadeNegocio): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(BG_KEY(unidade));
+  } catch {
+    return null;
+  }
+}
+
+export function setBgOverride(unidade: UnidadeNegocio, color: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(BG_KEY(unidade), color);
+  } catch {}
+}
+
+export function clearBgOverride(unidade: UnidadeNegocio): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(BG_KEY(unidade));
+  } catch {}
+}
+
 export function getUnidadeTheme(unidade: UnidadeNegocio): UnidadeTheme {
   return unidadeThemes[unidade] ?? unidadeThemes.CONSOLIDADO;
 }
+
+/** Tema efetivo: base da unidade + override de fundo (se houver). */
+export function getEffectiveTheme(unidade: UnidadeNegocio): UnidadeTheme {
+  const base = getUnidadeTheme(unidade);
+  const override = getBgOverride(unidade);
+  if (!override) return base;
+  return { ...base, pageBackground: override };
+}
+
+export const SUGGESTED_BG_COLORS: { label: string; value: string }[] = [
+  { label: 'Laranja claro', value: '#fff7ed' },
+  { label: 'Azul claro', value: '#eff6ff' },
+  { label: 'Verde claro', value: '#ecfdf5' },
+  { label: 'Roxo claro', value: '#f5f3ff' },
+  { label: 'Rosa claro', value: '#fdf2f8' },
+  { label: 'Amarelo claro', value: '#fefce8' },
+  { label: 'Cinza claro', value: '#f8fafc' },
+  { label: 'Branco', value: '#ffffff' },
+];
