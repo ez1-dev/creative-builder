@@ -1,74 +1,189 @@
 ## Objetivo
-Permitir sincronizar as metas de faturamento do BI Comercial a partir da UpQuery, chamando a FastAPI já existente (`POST /api/bi/comercial/metas/sincronizar`) sem expor o `CRON_SECRET` no frontend, e refletir o resultado na tela de metas, no BI Comercial e no ETL.
 
-## 1. Backend (Lovable Cloud)
+Substituir o drill atual (que só lista "Notas Fiscais" via `/api/bi/comercial/detalhes`) por um sistema de **drills multinível navegáveis** chamando um endpoint único `POST /api/bi/comercial/drill`, com breadcrumb, contexto acumulado, seletor de próximo nível e exportação CSV.
 
-### 1.1 Migração — coluna `origem_meta`
-Adicionar em `public.bi_meta_faturamento`:
+A FastAPI já expõe (ou vai expor) o endpoint. No Lovable só ajustamos frontend + camada de API.
 
-- `origem_meta text not null default 'MANUAL'` (valores esperados: `MANUAL`, `UPQUERY_VM_FATURAMENTO`)
-- `origem_atualizada_em timestamptz`
-- índice `(anomes_emissao, unidade_negocio, origem_meta)`
+---
 
-Regra de precedência (consulta do BI): quando existir linha `UPQUERY_VM_FATURAMENTO` para o par `(anomes, unidade)`, ela prevalece sobre `MANUAL`. Implementado no frontend em `fetchMetaCloudTotal` (sem mudar policies/grants existentes).
+## Drills suportados
 
-### 1.2 Edge Function `sync-metas-upquery` (proxy seguro)
-- `verify_jwt = true` (default — apenas usuários autenticados).
-- Lê `FASTAPI_BASE_URL` e `CRON_SECRET` do ambiente (já existem como secrets).
-- Faz `POST ${FASTAPI_BASE_URL}/api/bi/comercial/metas/sincronizar` com headers:
-  - `x-cron-secret: <CRON_SECRET>`
-  - `ngrok-skip-browser-warning: true`
-  - `Content-Type: application/json`
-- Body recebido do frontend e repassado: `{ anomes_ini, anomes_fim, origem }` (validação Zod).
-- Retorna ao frontend: `{ ok, status, data | error, periodo }` mantendo `linhas_detalhe`, `linhas_resumo`, `totais_por_mes`, `totais_por_unidade`.
-- CORS padrão Lovable.
+`ACUMULADO`, `MENSAL`, `ESTADO`, `CLIENTE`, `REVENDA`, `PRODUTO`, `NOTA_FISCAL`, `DETALHES_IMPOSTOS`.
 
-## 2. Frontend
+Cada drill define:
+- Coluna agrupadora (`groupKey`)
+- Próximos drills permitidos (ex.: Mensal → Estado, Cliente, Revenda, Produto, NF; NF → Detalhes Impostos)
+- Colunas padrão exibidas
 
-### 2.1 `src/lib/bi/metasFaturamentoApi.ts`
-- Adicionar campos `origem_meta` e `origem_atualizada_em` ao tipo `MetaFaturamento`.
-- Nova função `sincronizarMetasUpquery({ anomes_ini, anomes_fim })` que chama `supabase.functions.invoke('sync-metas-upquery', { body: { ..., origem: 'UPQUERY_VM_FATURAMENTO' } })`.
-- Ajustar `fetchMetaCloudTotal` para aplicar precedência UPQUERY > MANUAL por `(anomes, unidade)` antes de extrapolar (mantendo a regra atual de meses).
+---
 
-### 2.2 `src/pages/bi/MetasFaturamentoPage.tsx`
-- Header: novo botão **"Sincronizar metas da UpQuery"** abrindo um diálogo simples com:
-  - Anomês inicial (YYYY-MM, default = jan do ano filtrado)
-  - Anomês final (YYYY-MM, default = dez do ano filtrado)
-  - Ação dispara mutation; durante a chamada: toast/loader "Sincronizando metas da UpQuery..."
-- Após sucesso: invalida `['bi-metas']` e `['bi-comercial','meta-cloud']`, exibe Card de resumo com:
-  - `linhas_detalhe`, `linhas_resumo`
-  - tabela `totais_por_mes`
-  - tabela `totais_por_unidade`
-- Em caso de erro, alerta amigável com `status HTTP`, mensagem da API e período enviado.
-- Tabela de metas: nova coluna **Origem** com badge:
-  - `UPQUERY_VM_FATURAMENTO` → Badge "UpQuery" (variant secondary)
-  - `MANUAL` (ou null) → Badge "Manual" (variant outline)
-- Novo Card **"Metas importadas por mês e unidade"** (somente registros com `origem_meta = 'UPQUERY_VM_FATURAMENTO'`) com colunas: AnoMês, Unidade, Código, Descrição, Valor Meta, Origem, Atualizado em.
+## Camada de API
 
-### 2.3 BI Comercial
-- Como `fetchMetaCloudTotal` é a única fonte do card Meta, ajustar lá já cobre:
-  - Meta exibida usa UPQUERY quando existir; fallback MANUAL.
-  - Diferença = Faturamento − Meta; % Atingimento = Faturamento / Meta × 100 (já existem).
-  - CONSOLIDADO continua somando GENIUS + ESTRUTURAL ZORTEA apenas.
-- Invalidar `['bi-comercial','meta-cloud']` após sincronizar para refrescar os cards.
+**Novo:** `src/lib/bi/comercialDrillApi.ts`
 
-### 2.4 ETL `EtlTarefaDetalhePage`
-- Quando a tarefa for `ATU_COMERCIAL`:
-  - Após uma execução com status `SUCESSO`/`CONCLUIDA`, exibir ação "Sincronizar metas da UpQuery para o mesmo período" (usa `anomes_ini`/`anomes_fim` da execução; chama a mesma Edge Function).
-  - Adicionar um `Switch` local (persistido em `localStorage` por usuário, chave `etl.atu_comercial.auto_sync_metas`) **"Sincronizar metas automaticamente após ATU_COMERCIAL"**. Quando ligado, após sucesso do `executarTarefa('ATU_COMERCIAL', ...)`, dispara automaticamente a Edge Function com o mesmo período.
-- Sem alterações em outras tarefas.
+```ts
+export type DrillType =
+  | 'ACUMULADO' | 'MENSAL' | 'ESTADO' | 'CLIENTE'
+  | 'REVENDA'   | 'PRODUTO'| 'NOTA_FISCAL' | 'DETALHES_IMPOSTOS';
 
-## 3. Critérios de aceite mapeados
-- [x] Botão na tela `/bi/comercial/metas`.
-- [x] Chamada vai por Edge Function → FastAPI; `CRON_SECRET` nunca chega ao bundle do frontend.
-- [x] Após sincronizar, listagem é recarregada (invalidate de `['bi-metas']`).
-- [x] Cards do BI Comercial refletem nova meta (invalidate de `['bi-comercial','meta-cloud']` + precedência UPQUERY > MANUAL em `fetchMetaCloudTotal`).
-- [x] Badges Manual / UpQuery na lista; tabela de conferência das metas importadas.
-- [x] Erro mostra status, mensagem e período sem quebrar a tela.
-- [x] Integração no ETL com ação manual + opção de auto-sync.
+export interface DrillContexto {
+  anomes_emissao?: string;
+  cd_origem?: string;
+  cd_estado?: string;
+  cd_cliente?: string;
+  cd_rev_pedido?: string;
+  cd_prj?: string;
+  cd_tns?: string;
+  cd_tp_movimento?: string;
+  cd_nf?: string;
+  cd_produto?: string;
+  categoria_custom?: 'PEÇAS' | 'SERVIÇOS' | string;
+}
 
-## Out of scope
-- Não tocar em `src/integrations/supabase/{client,types}.ts` nem `.env`.
-- Não alterar SQL/ETL no FastAPI (rota já existe).
-- Não mudar policies/grants existentes de `bi_meta_faturamento` (a coluna nova herda as policies atuais).
-- Sem mudanças no consolidado para incluir "OUTROS".
+export interface DrillRequest {
+  drill_type: DrillType;
+  anomes_ini: string;
+  anomes_fim: string;
+  unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
+  contexto: DrillContexto;
+  page?: number;
+  page_size?: number;
+}
+
+export interface DrillResponse {
+  titulo: string;
+  drill_type: DrillType;
+  breadcrumb: { label: string; filtro: Record<string, any> }[];
+  columns: { key: string; label: string; align?: 'left'|'right'; format?: 'currency'|'number'|'date'|'text' }[];
+  rows: Record<string, any>[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export async function fetchComercialDrill(req: DrillRequest): Promise<DrillResponse>;
+export function downloadDrillCsv(resp: DrillResponse, filename?: string): void;
+```
+
+Chama via `api.post('/api/bi/comercial/drill', body)`. Trata erros (rede, 4xx/5xx) devolvendo erro tipado para a UI mostrar diagnóstico amigável.
+
+**Normalização de `categoria_custom`** (feita no client antes de enviar, e mantida no contexto):
+- `PEÇAS` → adiciona regra `cd_origem LIKE 'PE%'` (enviada como `categoria_custom`, FastAPI converte; mantemos também o campo bruto no contexto).
+- `SERVIÇOS` → `cd_origem LIKE 'SERV%' OR cd_tp_movimento LIKE 'SERV%'`.
+
+A conversão final é do backend; o frontend só passa `categoria_custom` no contexto.
+
+---
+
+## Mapa de transições entre drills
+
+`src/lib/bi/comercialDrillCatalog.ts`
+
+```ts
+NEXT_DRILLS: Record<DrillType, DrillType[]> = {
+  ACUMULADO:        ['MENSAL','ESTADO','CLIENTE','REVENDA','PRODUTO','NOTA_FISCAL'],
+  MENSAL:           ['ESTADO','CLIENTE','REVENDA','PRODUTO','NOTA_FISCAL'],
+  ESTADO:           ['CLIENTE','REVENDA','PRODUTO','NOTA_FISCAL'],
+  CLIENTE:          ['REVENDA','PRODUTO','NOTA_FISCAL'],
+  REVENDA:          ['CLIENTE','PRODUTO','NOTA_FISCAL'],
+  PRODUTO:          ['NOTA_FISCAL','DETALHES_IMPOSTOS'],
+  NOTA_FISCAL:      ['PRODUTO','DETALHES_IMPOSTOS'],
+  DETALHES_IMPOSTOS:[],
+};
+ROW_TO_CTX_KEY: Record<DrillType, keyof DrillContexto> // ex: CLIENTE → 'cd_cliente'
+DRILL_LABELS: Record<DrillType,string>
+```
+
+---
+
+## Estado do drill (refator do `useDrillSheet`)
+
+Estender o hook em `src/components/bi/drill/DrillSheet.tsx` (ou criar `useComercialDrillStack` específico em `src/hooks/useComercialDrillStack.ts` para não quebrar outros usos) com:
+
+- Pilha de níveis: `{ drill_type, contexto, response? }[]`
+- Ações: `openWith(initial)`, `pushDrill(drill_type, rowCtx)`, `pop()`, `goTo(index)`, `reopenSelector()`, `close()`
+- Cada `push` faz merge `contexto = { ...current.contexto, ...rowCtx }`.
+- `useQuery` por nível usando `keepPreviousData` e a chave `['comercial-drill', drill_type, contexto, page]`.
+
+Os filtros globais do dashboard (`filters`) permanecem intocados — eles só viram `anomes_ini`, `anomes_fim`, `unidade_negocio` e contexto inicial.
+
+---
+
+## UI do drawer
+
+Reescrever conteúdo do `<DrillSheet>` no `ComercialPage.tsx`:
+
+1. **Breadcrumb** já existente continua mostrando a pilha (`drill.sheetProps.levels`), agora alimentado com `title = DRILL_LABELS[drill_type] + valor`.
+2. **Toolbar** dentro do drawer:
+   - `DrillLevelSelector` (já existe) mostrando `NEXT_DRILLS[current.drill_type]` → `pushDrill`.
+   - Botão **"Trocar drill"** que reabre o seletor a qualquer momento.
+   - Botão **Exportar CSV** chamando `downloadDrillCsv`.
+   - Editor de colunas (popover já existente) passa a usar `response.columns` + `useDrillPresets` por `drill_type`.
+3. **Tabela** usa `DataTableBI`, gerada dinamicamente a partir de `response.columns` (com formatadores `currency`/`number`/`date`).
+   - Cada linha clicável: abre menu/popover com os próximos drills permitidos; cada item chama `pushDrill(nextType, rowCtx)` onde `rowCtx` é montado a partir de `ROW_TO_CTX_KEY[currentDrill]` e o valor da chave principal da linha (ex.: `cd_cliente`).
+4. **Paginação** simples (Anterior/Próxima + total) chamando `setPage` que dispara nova `useQuery`.
+5. **Estados**: `LoadingState`, `EmptyState` ("Sem registros para o contexto atual"), `ErrorState` com mensagem amigável + botão "Tentar novamente" (chamando `refetch`).
+
+---
+
+## Disparadores (cliques no dashboard)
+
+Em `ComercialPage.tsx` substituir `openDetalhes` e `applyDrill` por novo handler:
+
+```ts
+const openDrill = (drill_type, ctxFromClick = {}) =>
+  drillStack.openWith({
+    drill_type,
+    contexto: { ...ctxFromClick }, // anomes_emissao, cd_estado, etc.
+  });
+```
+
+Mapeamento de cliques:
+- KPI Faturamento/Meta/Líquido → `ACUMULADO`.
+- KPI Impostos → `ACUMULADO` (e o seletor leva a `DETALHES_IMPOSTOS`).
+- Gráfico/tabela **Mensal** → `MENSAL` (clique em barra: já abre `MENSAL` filtrado em `anomes_emissao = label`, ou usa `ACUMULADO` se for KPI).
+- Donut **Mix** → contexto `cd_origem` ou `categoria_custom` + drill `ACUMULADO`.
+- **Estado/Mapa** → `ESTADO` + `cd_estado`.
+- **Revenda** → `REVENDA` + `cd_rev_pedido`.
+- **Obra** → `ACUMULADO` + `cd_prj`.
+- AI Chart (`AiChartGenerator.onDrill`) → mapeia `dimensao` para `DrillType` correspondente e abre o stack com o `label` no contexto. Garantia: mesma sheet, mesmos próximos níveis.
+
+Os filtros globais (chips no header) continuam funcionando como hoje — não são mexidos pelo drill.
+
+---
+
+## Migração do código existente
+
+- Manter `fetchComercialDetalhes` e o escopo antigo apenas como fallback (não remover ainda) — mas o drawer principal passa a usar o novo endpoint. Remover do drawer a referência a `escopo` / `ESCOPO_LABELS` para Comercial.
+- `useDrillPresets` continua válido; usar como `pageKey='bi-comercial'` e `escopo = drill_type`.
+
+---
+
+## Arquivos
+
+**Criar**
+- `src/lib/bi/comercialDrillApi.ts` — tipos, `fetchComercialDrill`, `downloadDrillCsv`.
+- `src/lib/bi/comercialDrillCatalog.ts` — `NEXT_DRILLS`, `ROW_TO_CTX_KEY`, `DRILL_LABELS`.
+- `src/hooks/useComercialDrillStack.ts` — pilha + integração com `useQuery`.
+- `src/components/bi/drill/ComercialDrillDrawer.tsx` — drawer dedicado (usa `DrillSheet` interno + toolbar + tabela dinâmica + paginação + CSV).
+
+**Editar**
+- `src/pages/bi/ComercialPage.tsx` — substituir `useDrillSheet` + `<DrillSheet>` pelo novo drawer; trocar handlers `openDetalhes` / `onClickMensal` / `onClickEstado` / `onClickRevenda` / `onClickObra` / `onClickMix` para `openDrill(...)`; conectar `AiChartGenerator.onDrill`.
+- `src/components/bi/drill/DrillSheet.tsx` — sem mudanças funcionais (mantém breadcrumb/back).
+
+**Não tocar**
+- `src/integrations/supabase/*`, `.env`, FastAPI, esquema do banco.
+- Outros consumidores de `useDrillSheet` (compras, produção, etc.).
+
+---
+
+## Critérios de aceite (validação)
+
+- Clicar em uma barra de "Maio" abre drill com `contexto.anomes_emissao = 202605` e mostra próximos níveis.
+- Clicar em "GENIUS" no chip de unidade mantém `unidade_negocio = GENIUS` em toda a pilha.
+- Breadcrumb permite voltar a níveis anteriores sem perder o contexto pai.
+- Botão "Trocar drill" reabre o seletor de níveis a qualquer momento.
+- Tabela do drill `DETALHES_IMPOSTOS` mostra colunas `vl_icms, vl_ipi, vl_pis, vl_cofins, vl_iss, vl_icmsst, vl_difal, vl_impostos`.
+- Gráfico gerado pela IA dispara o mesmo drawer.
+- Em caso de erro de rede / 5xx, mostra `ErrorState` com mensagem amigável e botão de retry (sem tela em branco).
+- Exportar CSV gera arquivo com as colunas/linhas do nível atual.
