@@ -68,9 +68,12 @@ interface IAChartSpec {
   metrica: Metrica;
   dimensao: Dimensao;
   filtros: Record<string, string>;
+  categorias?: string[];
   top_n: number;
   mostrar_percentual: boolean;
+  mostrar_valor?: boolean;
 }
+
 
 async function callLovableAI(prompt: string, contexto: string): Promise<IAChartSpec> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
