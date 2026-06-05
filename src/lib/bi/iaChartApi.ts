@@ -65,19 +65,28 @@ export async function interpretarGraficoIA(
 }
 
 /**
- * Etapa 2 (FastAPI): executa o spec, calcula séries a partir da base segura no ERP.
+ * Etapa 2 (FastAPI): a FastAPI agora recebe o prompt original + filtros base
+ * (anomes_ini, anomes_fim, unidade_negocio, ...) e faz a interpretação/validação
+ * no backend, devolvendo as séries prontas.
  */
-export async function executarGraficoIA(spec: IAChartSpec): Promise<AiChartResult> {
-  return api.post<AiChartResult>('/api/bi/comercial/ia-grafico', spec);
+export async function executarGraficoIA(
+  prompt: string,
+  filtrosBase: Record<string, any>,
+): Promise<AiChartResult> {
+  const body: Record<string, any> = { prompt };
+  for (const [k, v] of Object.entries(filtrosBase ?? {})) {
+    if (v != null && String(v).length > 0) body[k] = String(v);
+  }
+  return api.post<AiChartResult>('/api/bi/comercial/ia-grafico', body);
 }
 
 /**
- * Composição: interpretar → executar. Mantém a assinatura pública usada pelo componente.
+ * Composição pública usada pelo componente.
+ * Envia direto ao FastAPI (prompt + filtros). A interpretação ocorre no backend.
  */
 export async function gerarGraficoIA(
   prompt: string,
   filtrosBase: Record<string, any>,
 ): Promise<AiChartResult> {
-  const spec = await interpretarGraficoIA(prompt, filtrosBase);
-  return executarGraficoIA(spec);
+  return executarGraficoIA(prompt, filtrosBase);
 }
