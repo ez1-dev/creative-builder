@@ -44,9 +44,15 @@ const modules = [
   { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
   { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
   { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
+  { title: 'Configurações', url: '/configuracoes', icon: Settings },
+];
+
+const biSubItems = [
+  { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
+  { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
+  { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
   { title: 'Central ETL', url: '/etl', icon: Database },
-  { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
 const cadastrosSubItems = [
