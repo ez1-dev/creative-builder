@@ -26,7 +26,7 @@ import { WidgetTitleStyle } from '@/components/bi/runtime/WidgetTitleStyle';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
-import { useComercialLayout, type ComercialWidget } from '@/hooks/useComercialLayout';
+import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
 import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
