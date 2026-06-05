@@ -32,6 +32,8 @@ export interface BiPageDef {
   route: string;
   sections: PageSection[];
   schema: PageDataSchema;
+  /** Página opera com filtro `unidade_negocio` (GENIUS / ESTRUTURAL ZORTEA / CONSOLIDADO). */
+  supportsUnidadeNegocio?: boolean;
 }
 
 export const PAGE_REGISTRY: BiPageDef[] = [
