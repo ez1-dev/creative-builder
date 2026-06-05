@@ -632,7 +632,7 @@ export default function ComercialPage() {
   };
 
   const presentTypes = layout.widgets.map((w) => w.type);
-  const configuringWidget = configType ? layout.widgets.find((w) => w.type === configType) : null;
+  const configuringWidget = configType ? effectiveWidgets.find((w) => w.type === configType) : null;
   const configuringDef = configType ? COMERCIAL_WIDGETS[configType] : undefined;
 
   return (
