@@ -66,7 +66,7 @@ export function KpiCard({
         {loading ? (
           <Skeleton className="h-7 3xl:h-10 w-24" />
         ) : (
-          <div className="text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight">{formatByKind(value as any, format)}</div>
+          <div data-widget-value className="text-xl 3xl:text-3xl 4xl:text-4xl 5xl:text-5xl font-bold tabular-nums tracking-tight">{formatByKind(value as any, format)}</div>
         )}
         {(subtitle || trend || status) && (
           <div className="flex items-center justify-between gap-2">

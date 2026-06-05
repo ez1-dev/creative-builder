@@ -1,50 +1,51 @@
-## Problema
-No BI Comercial, em **Editar dashboard**, o botão **Salvar Dashboard** só habilita quando o usuário redimensiona/move um bloco (atualiza `layoutDraft`). Mudanças no diálogo **Configurar bloco** (variante, título, cor/negrito do título, componente da Biblioteca BI, séries) e ações de **ocultar/excluir** já gravam direto no Cloud, então o botão Salvar nunca reflete essas mudanças — fica desabilitado mesmo quando há alterações.
-
 ## Objetivo
-Toda alteração feita em modo edição passa por um **rascunho local** e o botão **Salvar Dashboard** habilita sempre que houver qualquer mudança pendente — não só ajustes de tamanho/posição.
+Adicionar opção de **cor do resultado** (valor numérico do KPI / destaque do widget) no diálogo *Configurar bloco* do BI Comercial, junto com as opções de cor e negrito do título já existentes.
 
-## Mudanças em `src/pages/bi/ComercialPage.tsx`
+## Escopo
+- Apenas BI Comercial (mesmo fluxo já implementado para título).
+- Aplicar a KPIs (valor principal). Demais widgets (gráficos/tabelas) ignoram silenciosamente.
+- Sem mudanças de backend / lógica de negócio.
 
-### 1. Estado de rascunho unificado
-Substituir o `layoutDraft` atual por dois estados:
-- `layoutDraft: { type: string; layout: WidgetLayout }[] | null` (já existe — mantém para drag/resize).
-- `configDraft: Map<string, Partial<SaveLayoutItem>> | null` — alterações pendentes por bloco (variant, componentId, mapping, options, customTitle, series, titleColor, titleBold, hidden).
-- `pendingDeletes: Set<string> | null` — blocos marcados para exclusão.
+## Mudanças
 
-Derivar `dirty = !!layoutDraft || (configDraft && configDraft.size > 0) || (pendingDeletes && pendingDeletes.size > 0)`.
-Botão: `disabled={!dirty}`.
+### 1. `src/components/bi/runtime/WidgetTitleStyle.tsx`
+- Adicionar prop `valueColor?: string | null` (reaproveita `resolveTitleColor` / `TITLE_COLOR_PRESETS`).
+- Quando definida, injetar `--widget-value-color` no mesmo wrapper `data-widget-title-style` (renomeio interno do atributo segue o mesmo — apenas adiciona a var; sem renomear para não quebrar CSS).
+- Reexportar `VALUE_COLOR_PRESETS` (alias dos presets atuais) para clareza no dialog.
 
-### 2. Handlers em modo edição passam a usar drafts
-- `handleConfigApply` → escreve no `configDraft` (merge sobre `prev.get(type)`), **não** chama `layout.saveLayout`. Fecha o diálogo.
-- `handleConfigReset` → escreve no `configDraft` os campos zerados (não persiste).
-- `handleHide` → grava `{ hidden: true }` no `configDraft`.
-- `handleDelete` → adiciona em `pendingDeletes` (mantém `confirm`). Fora do `configDraft`.
-- `handleLayoutChange` → continua atualizando `layoutDraft`.
-- `handleAdd` (Adicionar bloco) → continua persistindo direto (operação cria registro novo, mais simples manter imediato), mas marca dirty=false porque já está salvo.
+### 2. `src/index.css`
+- Acrescentar regra:
+  ```css
+  [data-widget-title-style] [data-widget-value] {
+    color: var(--widget-value-color, inherit);
+  }
+  ```
 
-### 3. Merge para preview imediato
-Computar `effectiveWidgets` a partir de `layout.widgets`:
-- aplica overrides do `configDraft` em cada widget;
-- remove os de `pendingDeletes`;
-- aplica posições/tamanhos do `layoutDraft`.
+### 3. `src/components/bi/kpis/KpiCard.tsx`
+- Adicionar `data-widget-value` na `<div>` que renderiza `formatByKind(value, format)` (linha 69).
+- Idem para `KpiStatusCard` (mesmo padrão), se houver valor principal.
 
-Usar `effectiveWidgets` em vez de `visibleWidgets` na renderização (`blocks`, `ComercialDashboardGrid`, `widgetsContentKey`). Isso dá feedback visual imediato sem persistir.
+### 4. `src/components/bi/runtime/ConfigureBiWidgetDialog.tsx`
+- Estender `ConfigureValue` com `valueColor?: string | null`.
+- Estado `valueColor` (preset/hex/null) + input custom hex, espelhando o bloco de "Aparência do título".
+- Nova seção **"Cor do resultado"** logo abaixo de "Aparência do título" (em ambas as abas built-in e library).
+- Incluir `valueColor` em `handleApply`.
 
-### 4. `handleSaveDashboard`
-Monta a lista única para `layout.saveLayout([...])` combinando:
-- todos os tipos com mudança em `configDraft` (com `layout` atual ou do `layoutDraft`);
-- todos os tipos com mudança em `layoutDraft` (sem campos de config se não houver);
-- chama `layout.deleteWidget(type)` para cada item de `pendingDeletes`.
-Toast de sucesso/erro. Em erro, mantém drafts (não limpa) para o usuário tentar de novo. Em sucesso, limpa os três drafts e sai do modo edição.
+### 5. Persistência
+- `src/hooks/useComercialLayout.ts`: adicionar `valueColor?: string | null` em `ComercialWidget` e `SaveLayoutItem`; gravar/ler no payload de layout.
+- `src/lib/bi/normalize.ts`: incluir `valueColor` no helper de normalização.
+- `src/pages/bi/ComercialPage.tsx`:
+  - Passar `valueColor` para `<WidgetTitleStyle>` no `blocks` memo.
+  - Incluir `valueColor` no `widgetsContentKey` para re-render imediato.
+  - `configDraft` já é genérico (`Partial<SaveLayoutItem>`), então o draft unificado funciona sem mudanças adicionais.
 
-### 5. `handleCancelEdit`
-Limpa `layoutDraft`, `configDraft`, `pendingDeletes` e sai do modo edição (descartando alterações — `effectiveWidgets` volta a refletir o estado do banco).
-
-### 6. `handleEnterEdit`
-Garante drafts vazios ao entrar.
+## Critérios de aceitação
+- No edit mode → "Configurar bloco" de um KPI aparecem 2 grupos: *Aparência do título* (cor + negrito) e *Cor do resultado* (cor + hex custom).
+- Selecionar preset ou hex muda imediatamente a cor do número do KPI no preview.
+- Botão **Salvar Dashboard** habilita ao alterar a cor (já coberto pelo sistema de drafts unificado).
+- Cancelar descarta.
 
 ## Fora de escopo
-- Outros dashboards (Passagens, Frota, Máquinas) — esta entrega é só BI Comercial.
-- Histórico/undo granular além de Cancelar.
-- Persistência incremental (continua tudo-ou-nada ao salvar).
+- Cor de séries em gráficos.
+- Cor de células de tabela.
+- Negrito do resultado (apenas cor, conforme pedido).

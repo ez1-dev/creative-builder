@@ -20,6 +20,8 @@ export interface ComercialWidget {
   series?: MetricRef[];
   titleColor?: string;
   titleBold?: boolean;
+  valueColor?: string;
+
 }
 
 export interface SaveLayoutItem {
@@ -34,6 +36,8 @@ export interface SaveLayoutItem {
   series?: MetricRef[] | null;
   titleColor?: string | null;
   titleBold?: boolean | null;
+  valueColor?: string | null;
+
   title?: string;
   position?: number;
 }
@@ -131,6 +135,8 @@ export function useComercialLayout(enabled: boolean = true) {
           series: Array.isArray(cfg?.series) ? cfg.series : undefined,
           titleColor: cfg?.titleColor,
           titleBold: cfg?.titleBold,
+          valueColor: cfg?.valueColor,
+
         };
       });
       const merged = mergeWithDefaults(mapped);
@@ -188,6 +194,8 @@ export function useComercialLayout(enabled: boolean = true) {
       setOrDel('series', 'series');
       setOrDel('titleColor', 'titleColor');
       setOrDel('titleBold', 'titleBold');
+      setOrDel('valueColor', 'valueColor');
+
       return cfg;
     };
 
