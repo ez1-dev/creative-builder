@@ -380,7 +380,18 @@ export default function ComercialPage() {
     } else {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
+    if (kpiKey === 'impostos') {
+      return (
+        <Clickable
+          title="Clique para detalhar impostos"
+          onClick={() => openDrill('DETALHES_IMPOSTOS', buildCtxFromFilters())}
+        >
+          {inner}
+        </Clickable>
+      );
+    }
     return <Clickable onClick={() => openDetalhes(escopo, title)}>{inner}</Clickable>;
+
   }
 
   function renderSerieMensal(w: ComercialWidget): ReactNode {
