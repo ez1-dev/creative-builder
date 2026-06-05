@@ -153,12 +153,39 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAConfig
   return cfg;
 }
 
+function validateFastapiBase(): { ok: true; base: string } | { ok: false; code: string; message: string } {
+  const raw = Deno.env.get("FASTAPI_BASE_URL");
+  if (!raw) return { ok: false, code: "MISSING_BASE_URL", message: "Backend não configurado: defina FASTAPI_BASE_URL nos secrets do Cloud." };
+  const trimmed = raw.trim();
+  const cron = Deno.env.get("CRON_SECRET");
+  if (cron && trimmed === cron.trim()) {
+    return { ok: false, code: "INVALID_BASE_URL", message: "FASTAPI_BASE_URL está com o mesmo valor de CRON_SECRET. Corrija o secret para a URL pública da FastAPI (ex.: https://xxxx.ngrok-free.app)." };
+  }
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return { ok: false, code: "INVALID_BASE_URL", message: `FASTAPI_BASE_URL inválido: "${trimmed}". Deve começar com http:// ou https:// (ex.: https://xxxx.ngrok-free.app).` };
+  }
+  let parsed: URL;
+  try { parsed = new URL(trimmed); } catch {
+    return { ok: false, code: "INVALID_BASE_URL", message: `FASTAPI_BASE_URL inválido: "${trimmed}".` };
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === "localhost" || host === "127.0.0.1" || host.endsWith(".local")) {
+    return { ok: false, code: "LOCALHOST_NOT_ALLOWED", message: `FASTAPI_BASE_URL aponta para "${host}" — a Edge Function roda na nuvem. Use uma URL pública (ngrok, domínio próprio etc.).` };
+  }
+  return { ok: true, base: trimmed.replace(/\/$/, "") };
+}
+
 async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRow[]> {
-  const base = Deno.env.get("FASTAPI_BASE_URL");
-  if (!base) throw new Error("FASTAPI_BASE_URL ausente");
-  const url = new URL(`${base.replace(/\/$/, "")}/api/bi/comercial/detalhes`);
-  Object.entries(filtros).forEach(([k, v]) => {
-    if (v != null && String(v).length > 0) url.searchParams.set(k, String(v));
+  const v = validateFastapiBase();
+  if (!v.ok) {
+    const err: any = new Error(v.message);
+    err.code = v.code;
+    err.userFacing = true;
+    throw err;
+  }
+  const url = new URL(`${v.base}/api/bi/comercial/detalhes`);
+  Object.entries(filtros).forEach(([k, val]) => {
+    if (val != null && String(val).length > 0) url.searchParams.set(k, String(val));
   });
   url.searchParams.set("escopo", "todas");
   url.searchParams.set("limit", "20000");
@@ -294,11 +321,14 @@ serve(async (req) => {
     return new Response(JSON.stringify(payload), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: any) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("bi-ia-chart error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const code = e?.code ?? "INTERNAL_ERROR";
+    const userFacing = e?.userFacing === true;
+    console.error("bi-ia-chart error:", code, msg);
+    return new Response(JSON.stringify({ error: msg, code, fallback: userFacing }), {
+      status: userFacing ? 200 : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

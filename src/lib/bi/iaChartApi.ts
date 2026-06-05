@@ -37,6 +37,12 @@ export async function gerarGraficoIA(
     body: { prompt, filtros_base: filtros },
   });
   if (error) throw new Error(error.message ?? 'Erro ao gerar gráfico');
-  if ((data as any)?.error) throw new Error((data as any).error);
+  const payload = data as any;
+  if (payload?.error) {
+    const err = new Error(payload.error) as Error & { code?: string };
+    err.code = payload.code;
+    if (payload.code) console.warn('[bi-ia-chart]', payload.code, payload.error);
+    throw err;
+  }
   return data as AiChartResult;
 }
