@@ -33,9 +33,6 @@ const modules = [
   { title: 'Auditoria Tributária', url: '/auditoria-tributaria', icon: FileCheck },
   { title: 'Auditoria Apont. Genius', url: '/auditoria-apontamento-genius', icon: ClipboardCheck },
   { title: 'Faturamento Genius', url: '/faturamento-genius', icon: Receipt },
-  { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
-  { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
-  { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
   { title: 'Conciliação EDocs', url: '/conciliacao-edocs', icon: FileSearch },
   { title: 'Consulta NF Receb.', url: '/notas-recebimento', icon: FileInput },
   { title: 'Reserva Nº Série', url: '/numero-serie', icon: Hash },
@@ -47,9 +44,15 @@ const modules = [
   { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
   { title: 'Monitor Usuários Senior', url: '/monitor-usuarios-senior', icon: Users },
   { title: 'Gestão SGU', url: '/gestao-sgu-usuarios', icon: ShieldCheck },
+  { title: 'Configurações', url: '/configuracoes', icon: Settings },
+];
+
+const biSubItems = [
+  { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
+  { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
+  { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
   { title: 'Central ETL', url: '/etl', icon: Database },
-  { title: 'Configurações', url: '/configuracoes', icon: Settings },
 ];
 
 const cadastrosSubItems = [
@@ -98,6 +101,10 @@ export function AppSidebar() {
   const isRegrasSeniorActive = location.pathname.startsWith('/regras-senior');
   const isRelatoriosActive = location.pathname.startsWith('/relatorios');
   const isCadastrosActive = location.pathname.startsWith('/cadastros');
+  const isBiActive =
+    location.pathname.startsWith('/bi') ||
+    location.pathname.startsWith('/biblioteca-bi') ||
+    location.pathname.startsWith('/etl');
 
   const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi']);
   const isVisible = (url: string) => {
@@ -112,6 +119,8 @@ export function AppSidebar() {
   const showCadastrosGroup = visibleCadastros.length > 0;
   const visibleProducao = producaoSubItems.filter((m) => isVisible(m.url));
   const showProducaoGroup = visibleProducao.length > 0;
+  const visibleBi = biSubItems.filter((m) => isVisible(m.url));
+  const showBiGroup = visibleBi.length > 0;
   const visibleRegrasSenior = regrasSeniorSubItems.filter((m) => isVisible(m.url));
   const showRegrasSeniorGroup = visibleRegrasSenior.length > 0;
   const showRelatoriosGroup = isAdmin;
@@ -217,6 +226,42 @@ export function AppSidebar() {
             </Collapsible>
           </SidebarGroup>
         )}
+
+        {showBiGroup && (
+          <SidebarGroup>
+            <Collapsible defaultOpen={isBiActive}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70 hover:text-sidebar-foreground">
+                <span className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  {!collapsed && 'BI'}
+                </span>
+                {!collapsed && <ChevronDown className="h-3 w-3 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleBi.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild>
+                          <NavLink
+                            to={item.url}
+                            end
+                            className="hover:bg-sidebar-accent"
+                            activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                          >
+                            <item.icon className="mr-2 h-4 w-4" />
+                            {!collapsed && <span>{item.title}</span>}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarGroup>
+        )}
+
 
         {showRegrasSeniorGroup && (
           <SidebarGroup>
