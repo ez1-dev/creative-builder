@@ -149,7 +149,11 @@ const SERIES_LIKE = (s: any): { label: string; valor: number }[] => {
       }
       return { label: String(label ?? ''), valor: Number(valor ?? 0) };
     })
-    .filter((p) => p.label !== '' && Number.isFinite(p.valor));
+    .filter((p) => {
+      const t = p.label.trim().toLowerCase();
+      const invalid = t === '' || t === '-' || t === 'null' || t === 'undefined' || t === '(sem nome)';
+      return !invalid && Number.isFinite(p.valor);
+    });
 };
 
 export const COMPONENT_REGISTRY: BiComponentDef[] = [

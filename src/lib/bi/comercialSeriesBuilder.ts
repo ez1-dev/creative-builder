@@ -91,6 +91,24 @@ export function buildAnualSerie(rows: ComercialMensalRow[], metric: ComercialMet
 
 // ---------- Por estado / revenda / obra (queries existentes) ----------
 
+/** Tenta vários aliases de campo e devolve o primeiro com conteúdo. */
+export function pickLabel(row: Record<string, any>, candidates: string[], fallback = '(sem nome)'): string {
+  for (const k of candidates) {
+    const v = row?.[k];
+    if (v != null) {
+      const s = String(v).trim();
+      if (s.length > 0 && s !== '-' && s.toLowerCase() !== 'null' && s.toLowerCase() !== 'undefined') {
+        return s;
+      }
+    }
+  }
+  return fallback;
+}
+
+const ESTADO_LABEL_KEYS  = ['nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
+const REVENDA_LABEL_KEYS = ['nm_revenda', 'revenda_label', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
+const OBRA_LABEL_KEYS    = ['projeto', 'ds_abr_prj', 'nm_projeto', 'cd_prj'];
+
 export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMetric): SeriePoint[] {
   return rows.map((r) => {
     let v = 0;
@@ -101,7 +119,7 @@ export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMe
       // Métricas não disponíveis no endpoint atual — backend precisa estender.
       default: v = 0;
     }
-    return { label: String(r.cd_estado ?? '-'), valor: v };
+    return { label: pickLabel(r as any, ESTADO_LABEL_KEYS), valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
@@ -115,7 +133,7 @@ export function buildRevendaSerie(rows: ComercialRevendaRow[], metric: Comercial
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    return { label: String(r.revenda ?? '-'), valor: v };
+    return { label: pickLabel(r as any, REVENDA_LABEL_KEYS), valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
@@ -129,14 +147,14 @@ export function buildObrasSerie(rows: ComercialObrasRow[], metric: ComercialMetr
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    return { label: String(r.projeto || r.cd_prj || '-'), valor: v };
+    return { label: pickLabel(r as any, OBRA_LABEL_KEYS), valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
 export function buildMixSerie(rows: ComercialMixRow[], metric: ComercialMetric): SeriePoint[] {
   return rows.map((r) => {
     const v = metric === 'faturamento' ? n(r.faturamento) : n((r as any)[metric]);
-    return { label: String(r.categoria ?? '-'), valor: v };
+    return { label: pickLabel(r as any, ['categoria', 'label', 'nome']), valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
@@ -157,10 +175,12 @@ const METRIC_COLUMN_CANDIDATES: Record<ComercialMetric, string[]> = {
 
 /** Aliases de coluna label candidatos por dimensão de drill. */
 const LABEL_CANDIDATES: Record<string, string[]> = {
-  CLIENTE: ['cliente_label', 'nm_cliente', 'nm_fantasia', 'cd_cliente'],
-  PRODUTO: ['produto_label', 'ds_produto', 'descricao_produto', 'cd_produto'],
-  NOTA_FISCAL: ['nota_label', 'cd_nf', 'numero_nf'],
-  DETALHES_IMPOSTOS: ['imposto', 'tipo_imposto', 'descricao_imposto', 'label'],
+  ESTADO: ESTADO_LABEL_KEYS,
+  REVENDA: REVENDA_LABEL_KEYS,
+  CLIENTE: ['cliente_label', 'nm_cliente', 'nm_fantasia', 'cliente', 'cd_cliente'],
+  PRODUTO: ['produto_label', 'ds_produto', 'descricao_produto', 'produto', 'cd_produto'],
+  NOTA_FISCAL: ['nota_label', 'cd_nf', 'numero_nf', 'nr_nf', 'nf'],
+  DETALHES_IMPOSTOS: ['imposto', 'tipo_imposto', 'descricao_imposto', 'nm_imposto', 'label'],
 };
 
 function pickFirst(row: Record<string, any>, keys: string[]): any {
@@ -180,10 +200,9 @@ export function buildSerieFromDrill(
   const metricKeys = METRIC_COLUMN_CANDIDATES[metric] ?? [];
   return resp.rows
     .map((r) => {
-      const labelRaw = pickFirst(r, labelKeys);
       const valorRaw = pickFirst(r, metricKeys);
       return {
-        label: labelRaw != null ? String(labelRaw) : '-',
+        label: pickLabel(r, labelKeys),
         valor: n(valorRaw),
       };
     })
