@@ -46,13 +46,29 @@ export interface DrillBreadcrumbItem {
   filtro: Record<string, any>;
 }
 
+export interface DrillDiagnostico {
+  qtd_linhas_base?: number;
+  qtd_linhas_apos_unidade?: number;
+  qtd_linhas_apos_mes?: number;
+  qtd_linhas_apos_cliente?: number;
+  qtd_linhas_apos_uf?: number;
+  qtd_linhas_apos_revenda?: number;
+  qtd_linhas_apos_produto?: number;
+  filtros_aplicados?: Record<string, any>;
+}
+
+export interface DrillRow extends Record<string, any> {
+  filtros_drill?: Partial<DrillContexto>;
+}
+
 export interface DrillResponse {
   titulo: string;
   drill_type: DrillType;
   breadcrumb: DrillBreadcrumbItem[];
   columns: DrillColumn[];
-  rows: Record<string, any>[];
+  rows: DrillRow[];
   total: number;
+  diagnostico?: DrillDiagnostico;
   page: number;
   page_size: number;
 }
