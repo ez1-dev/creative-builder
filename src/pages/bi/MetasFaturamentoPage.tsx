@@ -79,6 +79,11 @@ export default function MetasFaturamentoPage() {
       .sort((a, b) => (a.anomes < b.anomes ? 1 : -1));
   }, [metas]);
 
+  const metasUpquery = useMemo(
+    () => metasFiltradas.filter((m) => m.origem_meta === 'UPQUERY_VM_FATURAMENTO'),
+    [metasFiltradas],
+  );
+
   const [edit, setEdit] = useState<EditState>({ open: false, editing: null });
   const [delId, setDelId] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
