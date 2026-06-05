@@ -39,12 +39,13 @@ function shallowEqualPerms(a: ScreenPermission[], b: ScreenPermission[]): boolea
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     const x = a[i], y = b[i];
-    if (x.screen_path !== y.screen_path || x.can_view !== y.can_view || x.can_edit !== y.can_edit || x.screen_name !== y.screen_name) {
+    if (x.screen_path !== y.screen_path || x.can_view !== y.can_view || x.can_edit !== y.can_edit || x.can_delete !== y.can_delete || x.screen_name !== y.screen_name) {
       return false;
     }
   }
   return true;
 }
+
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { erpUser } = useAuth();
