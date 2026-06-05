@@ -33,6 +33,40 @@ import {
   type WidgetOptions, applyTopNSort, toKpiFormat, computeComparacao,
   resolveMeta, colorCss,
 } from './widgetOptions';
+import { formatCurrency, formatNumber, formatPercent } from '@/components/bi/utils/formatters';
+
+/**
+ * Deriva o formatador adequado a partir do sufixo da chave de série.
+ * Convenção (Frota/Máquinas/etc): `<dim>__<metric>` ou `mensal__<metric>`.
+ * Mapeia métricas conhecidas para currency/percent/number.
+ */
+function formatterForSeriesKey(key?: string): (v: number) => string {
+  if (!key) return formatCurrency;
+  const m = /__([a-z0-9_]+)$/i.exec(key);
+  const metric = m?.[1] ?? '';
+  switch (metric) {
+    case 'pct':
+    case 'percent':
+    case 'pct_total':
+      return (v) => formatPercent(v, 2);
+    case 'qtd':
+    case 'quantidade':
+    case 'count':
+      return (v) => formatNumber(v, 0);
+    case 'km_sum':
+    case 'km_avg':
+    case 'km':
+      return (v) => `${formatNumber(v, 0)} km`;
+    case 'valor':
+    case 'ticket':
+    case 'rs_km':
+    case 'preco':
+    case 'preco_medio':
+      return formatCurrency;
+    default:
+      return formatCurrency;
+  }
+}
 
 /** Resolve um ícone lucide pelo nome; retorna null se inválido. */
 function resolveIcon(name?: string) {
@@ -199,12 +233,14 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <BarChartCard
           title={title || mapping.series}
           data={data}
           onItemClick={makeClickHandler(ctx, mapping.series)}
           visualConfig={opts.visual}
+          valueFormatter={valueFormatter}
           {...(color ? { color } : {})}
         />
       );
@@ -221,12 +257,14 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <HorizontalBarChartCard
           title={title || mapping.series}
           data={data}
           onItemClick={makeClickHandler(ctx, mapping.series)}
           visualConfig={opts.visual}
+          valueFormatter={valueFormatter}
           {...(color ? { color } : {})}
         />
       );
@@ -243,11 +281,13 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <LineChartCard
           title={title || mapping.series}
           data={data}
           visualConfig={opts.visual}
+          valueFormatter={valueFormatter}
           {...(color ? { color } : {})}
         />
       );
@@ -264,11 +304,13 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
       const color = chartColor(opts);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <AreaChartCard
           title={title || mapping.series}
           data={data}
           visualConfig={opts.visual}
+          valueFormatter={valueFormatter}
           {...(color ? { color } : {})}
         />
       );
@@ -284,12 +326,14 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <DonutChartCard
           title={title || mapping.series}
           data={data}
           onItemClick={makeClickHandler(ctx, mapping.series)}
           visualConfig={opts.visual}
+          valueFormatter={valueFormatter}
         />
       );
     },
@@ -304,12 +348,14 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <PieChartCard
           title={title || mapping.series}
           data={data}
           onItemClick={makeClickHandler(ctx, mapping.series)}
           visualConfig={opts.visual}
+          valueFormatter={valueFormatter}
         />
       );
     },
@@ -324,12 +370,14 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title, mapping, ctx, options }) => {
       const opts = (options ?? {}) as WidgetOptions;
       const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), undefined, opts.sort);
+      const valueFormatter = formatterForSeriesKey(mapping.series);
       return (
         <RankingChartCard
           title={title || mapping.series}
           data={data}
           topN={Number(opts.topN ?? 10)}
           onItemClick={makeClickHandler(ctx, mapping.series)}
+          valueFormatter={valueFormatter}
         />
       );
     },
