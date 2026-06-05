@@ -195,15 +195,20 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <BarChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <BarChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'horizontal-bar-chart',
@@ -212,15 +217,20 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <HorizontalBarChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <HorizontalBarChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'line-chart',
@@ -229,14 +239,19 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <LineChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <LineChartCard
+          title={title || mapping.series}
+          data={data}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'area-chart',
@@ -245,14 +260,19 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <AreaChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        visualConfig={options?.visual}
-        {...(options?.color ? { color: options.color as string } : {})}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      const color = chartColor(opts);
+      return (
+        <AreaChartCard
+          title={title || mapping.series}
+          data={data}
+          visualConfig={opts.visual}
+          {...(color ? { color } : {})}
+        />
+      );
+    },
   },
   {
     id: 'donut-chart',
@@ -261,14 +281,18 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <DonutChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <DonutChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+        />
+      );
+    },
   },
   {
     id: 'pie-chart',
@@ -277,14 +301,18 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <PieChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-        visualConfig={options?.visual}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <PieChartCard
+          title={title || mapping.series}
+          data={data}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+          visualConfig={opts.visual}
+        />
+      );
+    },
   },
   {
     id: 'ranking-chart',
@@ -293,14 +321,18 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <RankingChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series])}
-        topN={Number(options?.topN ?? 10)}
-        onItemClick={makeClickHandler(ctx, mapping.series)}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const data = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), undefined, opts.sort);
+      return (
+        <RankingChartCard
+          title={title || mapping.series}
+          data={data}
+          topN={Number(opts.topN ?? 10)}
+          onItemClick={makeClickHandler(ctx, mapping.series)}
+        />
+      );
+    },
   },
   {
     id: 'funnel-chart',
@@ -309,12 +341,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <FunnelChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => ({ name: p.label, value: p.valor }))}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const arr = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <FunnelChartCard
+          title={title || mapping.series}
+          data={arr.map((p) => ({ name: p.label, value: p.valor }))}
+        />
+      );
+    },
   },
   {
     id: 'treemap-chart',
@@ -323,12 +359,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [{ key: 'series', label: 'Série', source: 'series', required: true }],
     autoMap: (s) => ({ series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => (
-      <TreemapChartCard
-        title={title || mapping.series}
-        data={SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => ({ name: p.label, value: p.valor }))}
-      />
-    ),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const arr = applyTopNSort(SERIES_LIKE(ctx.series?.[mapping.series]), opts.topN, opts.sort);
+      return (
+        <TreemapChartCard
+          title={title || mapping.series}
+          data={arr.map((p) => ({ name: p.label, value: p.valor }))}
+        />
+      );
+    },
   },
   {
     id: 'radar-chart',
