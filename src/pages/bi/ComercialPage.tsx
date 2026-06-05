@@ -537,6 +537,8 @@ export default function ComercialPage() {
       options: next.options ?? null,
       customTitle: next.customTitle ?? null,
       series: next.series === undefined ? undefined : (next.series ?? null),
+      titleColor: next.titleColor ?? null,
+      titleBold: next.titleBold ?? null,
     }]);
     setConfigType(null);
   };
