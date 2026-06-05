@@ -787,6 +787,8 @@ export default function ComercialPage() {
                       className="h-8 w-12 cursor-pointer rounded border border-border bg-transparent"
                     />
                   </div>
+                  <HexInput currentBg={currentBg} onApply={handlePickBg} />
+
                   <Button size="sm" variant="ghost" className="w-full h-8 gap-1.5" onClick={handleResetBg}>
                     <RotateCw className="h-3.5 w-3.5" /> Restaurar padrão
                   </Button>
