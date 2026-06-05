@@ -20,6 +20,7 @@ import {
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
+import { SeriesSelectGroups } from './seriesSelectGroups';
 import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
 import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
 
@@ -154,10 +155,8 @@ export function ConfigureChartDialog({
               <Label className="text-xs">Série / dados</Label>
               <Select value={seriesKey} onValueChange={setSeriesKey}>
                 <SelectTrigger><SelectValue placeholder="Escolha uma série" /></SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {seriesOptions.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                  ))}
+                <SelectContent className="max-h-[320px]">
+                  <SeriesSelectGroups options={seriesOptions} />
                 </SelectContent>
               </Select>
             </div>
