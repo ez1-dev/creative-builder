@@ -6,6 +6,7 @@ export interface DrillStackLevel {
   drill_type: DrillType;
   contexto: DrillContexto;
   page: number;
+  addedFilter?: { key: keyof DrillContexto; value: string };
 }
 
 interface InternalState {
