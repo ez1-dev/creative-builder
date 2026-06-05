@@ -112,18 +112,23 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     stack.pushDrill(next, rowFilters);
   };
 
-  const columns = useMemo<Column<Record<string, any>>[]>(() => {
+  const displayColumns = useMemo(() => {
     const cols = resp?.columns ?? [];
-    const base: Column<Record<string, any>>[] = cols.map((c) => ({
+    if (cur?.drill_type !== 'CLIENTE') return cols;
+    if (cols.some((c) => c.key === 'nm_cliente')) return cols;
+    const idx = cols.findIndex((c) => c.key === 'cd_cliente');
+    if (idx < 0) return cols;
+    const nameCol = { key: 'nm_cliente', label: 'Nome do Cliente', align: 'left' as const, format: 'text' as any };
+    return [...cols.slice(0, idx + 1), nameCol, ...cols.slice(idx + 1)];
+  }, [resp?.columns, cur?.drill_type]);
+
+  const columns = useMemo<Column<Record<string, any>>[]>(() => {
+    const base: Column<Record<string, any>>[] = displayColumns.map((c) => ({
       key: c.key as any,
       header: c.label,
       align: c.align ?? (c.format === 'currency' || c.format === 'number' ? 'right' : 'left'),
       render: (_v: any, r: Record<string, any>) => {
-        // Override: drill CLIENTE → mostrar "cd_cliente - nm_cliente" quando o backend devolver.
-        if (cur?.drill_type === 'CLIENTE' && c.key === 'cd_cliente') {
-          if (r.cliente_label) return String(r.cliente_label);
-          if (r.nm_cliente && r.cd_cliente != null) return `${r.cd_cliente} - ${r.nm_cliente}`;
-        }
+        if (c.key === 'nm_cliente') return r.nm_cliente ?? '—';
         return fmtCell(r[c.key], c.format);
       },
     }));
@@ -160,7 +165,8 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     }
     return base;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resp?.columns, cur?.drill_type]);
+  }, [displayColumns, allowedNext]);
+
 
   const chips = useMemo(() => {
     const ctx = cur?.contexto ?? {};
