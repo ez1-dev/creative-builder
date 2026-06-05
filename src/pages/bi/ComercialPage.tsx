@@ -61,6 +61,12 @@ import {
   type ComercialDetalheRow,
   type ComercialMensalRow,
 } from '@/lib/bi/comercialApi';
+import { COMERCIAL_DIMENSOES, COMERCIAL_METRICAS } from '@/lib/bi/pageRegistry';
+import {
+  buildMensalSerie, buildAnualSerie, buildEstadoSerie, buildRevendaSerie,
+  buildObrasSerie, buildMixSerie, buildSerieFromDrill, dimToDrillType,
+} from '@/lib/bi/comercialSeriesBuilder';
+import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
 import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
