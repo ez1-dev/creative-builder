@@ -321,11 +321,14 @@ serve(async (req) => {
     return new Response(JSON.stringify(payload), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: any) {
     const msg = e instanceof Error ? e.message : String(e);
-    console.error("bi-ia-chart error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const code = e?.code ?? "INTERNAL_ERROR";
+    const userFacing = e?.userFacing === true;
+    console.error("bi-ia-chart error:", code, msg);
+    return new Response(JSON.stringify({ error: msg, code, fallback: userFacing }), {
+      status: userFacing ? 200 : 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
