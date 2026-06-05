@@ -712,6 +712,8 @@ export default function ComercialPage() {
             options: configuringWidget.options,
             customTitle: configuringWidget.customTitle,
             series: configuringWidget.series,
+            titleColor: configuringWidget.titleColor,
+            titleBold: configuringWidget.titleBold,
           }}
           blockType={configuringWidget.type}
           fallbackTitle={configuringWidget.title}
