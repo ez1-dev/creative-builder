@@ -197,7 +197,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
               <nav className="flex items-center gap-1 overflow-x-auto min-w-0 scrollbar-thin">
                 {stack.levels.map((lv, i) => {
                   const isLast = i === stack.levels.length - 1;
-                  const t = levelTitle(lv, i);
+                  const t = levelTitle(lv, i, isLast);
                   return (
                     <div key={i} className="flex items-center gap-1 shrink-0">
                       {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />}
