@@ -45,6 +45,7 @@ const DIM_LABEL: Record<AiDimensao, string> = {
   cd_prj: 'Projeto/Obra',
   cd_rev_pedido: 'Revenda',
   cd_tns: 'TNS',
+  categoria_custom: 'Categoria (Peças/Serviços)',
 };
 
 function fmtMetrica(metrica: AiMetrica) {
