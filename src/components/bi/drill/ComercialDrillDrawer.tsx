@@ -45,20 +45,24 @@ function fmtCell(v: any, format?: DrillColumn['format']) {
   return String(v);
 }
 
-function levelTitle(level: { drill_type: DrillType; contexto: DrillContexto }, index: number): string {
-  const label = DRILL_LABELS[level.drill_type];
-  if (index === 0) return label;
-  // tentar pegar o último valor relevante adicionado
-  const keys: (keyof DrillContexto)[] = [
-    'cd_nf', 'cd_produto', 'cd_cliente', 'cd_rev_pedido', 'cd_estado',
-    'anomes_emissao', 'cd_prj', 'cd_tns', 'cd_origem', 'cd_tp_movimento', 'categoria_custom',
-  ];
-  for (const k of keys) {
-    const v = level.contexto[k];
-    if (v) return `${label}: ${v}`;
+function levelTitle(
+  level: { drill_type: DrillType; contexto: DrillContexto; addedFilter?: { key: keyof DrillContexto; value: string } },
+  index: number,
+  isLast: boolean,
+): string {
+  const drillLabel = DRILL_LABELS[level.drill_type];
+  if (index === 0) return drillLabel;
+  // Para o último nível (atual), exibir apenas o nome do drill (sem valor).
+  if (isLast) return drillLabel;
+  // Para níveis intermediários, exibir o filtro que foi adicionado naquele push.
+  const added = level.addedFilter;
+  if (added) {
+    const keyLabel = CTX_LABELS[added.key] ?? String(added.key);
+    return `${keyLabel}: ${added.value}`;
   }
-  return label;
+  return drillLabel;
 }
+
 
 export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_negocio }: Props) {
   const cur = stack.current;
@@ -114,7 +118,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       key: c.key as any,
       header: c.label,
       align: c.align ?? (c.format === 'currency' || c.format === 'number' ? 'right' : 'left'),
-      render: (_v: any, r: Record<string, any>) => fmtCell(r[c.key], c.format),
+      render: (_v: any, r: Record<string, any>) => {
+        // Override: drill CLIENTE → mostrar "cd_cliente - nm_cliente" quando o backend devolver.
+        if (cur?.drill_type === 'CLIENTE' && c.key === 'cd_cliente') {
+          if (r.cliente_label) return String(r.cliente_label);
+          if (r.nm_cliente && r.cd_cliente != null) return `${r.cd_cliente} - ${r.nm_cliente}`;
+        }
+        return fmtCell(r[c.key], c.format);
+      },
     }));
     if (allowedNext.length > 0) {
       base.push({
@@ -193,7 +204,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
               <nav className="flex items-center gap-1 overflow-x-auto min-w-0 scrollbar-thin">
                 {stack.levels.map((lv, i) => {
                   const isLast = i === stack.levels.length - 1;
-                  const t = levelTitle(lv, i);
+                  const t = levelTitle(lv, i, isLast);
                   return (
                     <div key={i} className="flex items-center gap-1 shrink-0">
                       {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />}

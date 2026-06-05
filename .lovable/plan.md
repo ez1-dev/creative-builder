@@ -1,137 +1,101 @@
 
-## Problema
+## Objetivo
 
-O `ComercialDrillDrawer` hoje injeta no contexto qualquer coluna conhecida que vier na linha (`cd_nf`, `cd_produto`, `cd_cliente`, `cd_estado`, `cd_rev_pedido`, `anomes_emissao`) e o botão "Trocar drill" empurra o próximo nível **carregando todo o contexto anterior**. Isso gera combinações impossíveis (ex.: GENIUS + 202601 + cd_cliente 263 + cd_estado MS + cd_rev_pedido 4352), que vão à FastAPI e voltam vazias sem diagnóstico.
+1. Drill por Cliente exibir `cd_cliente - nm_cliente` em vez de só o código.
+2. Corrigir o breadcrumb que hoje rotula filtros herdados com o nome do drill atual (ex.: "Cliente: PA" quando PA é UF).
 
-A correção é toda no frontend: respeitar o `filtros_drill` que o backend emite por linha, deixar o usuário decidir o que carregar entre níveis, e tratar bem o "vazio".
-
----
-
-## Mudanças
-
-### 1. API: aceitar `filtros_drill` por linha e `diagnostico` no response
-
-`src/lib/bi/comercialDrillApi.ts`
-
-- Adicionar `filtros_drill?: Partial<DrillContexto>` em cada `row` (o backend já pode mandar; só vamos consumir).
-- Adicionar bloco opcional na resposta:
-
-```ts
-diagnostico?: {
-  qtd_linhas_base?: number;
-  qtd_linhas_apos_unidade?: number;
-  qtd_linhas_apos_mes?: number;
-  qtd_linhas_apos_cliente?: number;
-  qtd_linhas_apos_uf?: number;
-  qtd_linhas_apos_revenda?: number;
-  qtd_linhas_apos_produto?: number;
-  filtros_aplicados?: Record<string, any>;
-};
-```
-
-- `fetchComercialDrill` repassa esses campos sem transformar.
-- Sem mudança de URL nem de contrato de envio.
-
-### 2. Stack do drill: API mais restrita
-
-`src/hooks/useComercialDrillStack.ts`
-
-- `pushDrill(next, rowFilters, opts?: { mergeWithCurrent?: boolean })`:
-  - **default `mergeWithCurrent = false`** → o nível novo usa **apenas** `rowFilters` + os filtros do nível atual que pertencem a campos compatíveis com o `next` (ver tabela abaixo).
-  - Quando o usuário troca de drill via botão "Trocar drill", chamamos `pushDrill(next, {}, { mergeWithCurrent: true })` mas **passando pela mesma função de compatibilidade** (sem inventar `cd_cliente` etc.).
-- Nova ação `removeContextKey(key)`:
-  - Remove a chave do nível atual.
-  - Também limpa essa chave nos níveis ancestrais marcados (para o breadcrumb funcionar de verdade).
-- Nova ação `replacePath(next, rowFilters)` para o caso "limpar e começar caminho novo" (item 4 do pedido).
-- `goTo(index)` continua existindo (volta ao nível clicado, descarta filhos).
-
-**Tabela de compatibilidade** (novo arquivo `src/lib/bi/comercialDrillCatalog.ts`):
-
-```text
-ALLOWED_CTX_KEYS[next_drill] = chaves que podem sobreviver vindas do contexto anterior
-ACUMULADO         → todas
-MENSAL            → anomes_emissao, cd_origem, categoria_custom
-ESTADO            → anomes_emissao, cd_estado, cd_origem, categoria_custom
-CLIENTE           → anomes_emissao, cd_estado, cd_cliente, cd_origem, categoria_custom
-REVENDA           → anomes_emissao, cd_estado, cd_rev_pedido, cd_origem, categoria_custom
-PRODUTO           → anomes_emissao, cd_estado, cd_cliente, cd_rev_pedido, cd_produto, cd_origem, categoria_custom
-NOTA_FISCAL       → todas exceto cd_produto
-DETALHES_IMPOSTOS → cd_nf, cd_produto, anomes_emissao, cd_cliente
-```
-
-Função `mergeCtx(currentCtx, rowFilters, nextDrill, { keepAll })`:
-1. Se `keepAll` (usuário clicou em linha) → começa com `currentCtx` filtrado por `ALLOWED_CTX_KEYS[nextDrill]`, depois aplica `rowFilters` (row vence).
-2. Se troca manual (botão) → mesma coisa, mas `rowFilters` é vazio.
-3. `replacePath` → começa do zero, só `rowFilters`.
-
-### 3. Drawer: usar `row.filtros_drill` e parar de inferir colunas
-
-`src/components/bi/drill/ComercialDrillDrawer.tsx`
-
-- `handlePushFromRow(next, row)` passa a ser:
-
-```ts
-const rowFilters = (row.filtros_drill ?? {}) as DrillContexto;
-// Fallback compatível com backend antigo: só a chave do drill atual
-if (!row.filtros_drill && cur) {
-  const k = ROW_TO_CTX_KEY[cur.drill_type];
-  if (k && row[k] != null) rowFilters[k] = String(row[k]);
-}
-stack.pushDrill(next, rowFilters);
-```
-
-- Remover o `forEach` que copiava `cd_nf/cd_produto/cd_cliente/cd_estado/cd_rev_pedido/anomes_emissao` da linha — era a fonte principal do bug.
-- Botão **"Trocar drill"** chama `stack.pushDrill(dt, {}, { mergeWithCurrent: true })` (não soma nada novo, apenas filtra incompatíveis).
-- Nos chips de filtros aplicados (já existem), cada chip ganha um `×` que chama `stack.removeContextKey(key)`. Os chips fixos "Unidade" e "Período" continuam sem botão.
-
-### 4. Estado vazio com diagnóstico
-
-Novo componente `src/components/bi/drill/DrillEmptyDiagnostico.tsx`:
-
-- Renderiza quando `resp.rows.length === 0`.
-- Se `resp.diagnostico` existe: tabela compacta com `qtd_linhas_base → após_unidade → após_mes → após_cliente → após_uf → após_revenda → após_produto`, destacando o primeiro passo que zerou.
-- Lista de botões dinâmicos baseados em `cur.contexto`:
-  - "Remover Cliente" (se `cd_cliente`)
-  - "Remover Produto" (se `cd_produto`)
-  - "Remover Revenda" (se `cd_rev_pedido`)
-  - "Remover UF" (se `cd_estado`)
-  - "Voltar nível anterior" → `stack.pop()` (desabilitado se nível 1).
-- Mensagem: **"Não existem registros para esta combinação de filtros."**
-- Se não houver diagnóstico no payload, mostra só a mensagem + botões de remoção (compatibilidade com backend antigo).
-
-O drawer substitui o `<EmptyState description="Sem registros para o contexto atual" />` por `<DrillEmptyDiagnostico stack={stack} response={resp} />`.
-
-### 5. Pequenos cuidados
-
-- **Produto**: nada a fazer no normalize — `comercialDrillApi.cleanContexto` já preserva o valor cru como string, então `1-200000003` vai inteiro. Adicionar um comentário/teste mental para não strippar prefixo.
-- O `levelTitle` do breadcrumb continua igual.
-- Sem mudanças em `ComercialPage.tsx` (handlers de KPI/gráficos continuam abrindo o drill com `openWith`, que já parte de stack zerada).
-- Sem mudanças no backend, edge functions, schema ou `.env`.
+Mudanças concentradas no frontend; documento separado descreve o ajuste necessário na FastAPI/RPC.
 
 ---
 
-## Arquivos
+## 1. Backend (documentado, não implementado pelo Lovable)
 
-**Editar**
-- `src/lib/bi/comercialDrillApi.ts` — campos opcionais `filtros_drill` por row e `diagnostico` na resposta.
-- `src/lib/bi/comercialDrillCatalog.ts` — `ALLOWED_CTX_KEYS` + helper `mergeCtx`.
-- `src/hooks/useComercialDrillStack.ts` — `pushDrill` com `opts`, `removeContextKey`, `replacePath`, uso de `mergeCtx`.
-- `src/components/bi/drill/ComercialDrillDrawer.tsx` — usa `row.filtros_drill`, botão "Trocar drill" sem injetar contexto novo, chips com `×`, render do diagnóstico.
+Criar `docs/backend-bi-comercial-drill-cliente-nome.md` especificando para o time da FastAPI:
 
-**Criar**
-- `src/components/bi/drill/DrillEmptyDiagnostico.tsx`.
+- Verificar na view `public.v_bi_faturamento_comercial` se existe coluna de nome do cliente (`nm_cliente` / `ds_cliente` / `nome_cliente`).
+- Se não existir, adicionar `nm_cliente` à view (preferência) ou fazer JOIN com a dimensão de cliente no SQL do drill.
+- Na rota `POST /api/bi/comercial/drill`, para `drill_type = "CLIENTE"`:
+  - `columns` deve incluir `{ key: "cliente_label", label: "Cliente" }` no lugar (ou além) de `cd_cliente`.
+  - Cada `row` deve devolver:
+    ```json
+    {
+      "cd_cliente": "8794",
+      "nm_cliente": "NOME DO CLIENTE",
+      "cliente_label": "8794 - NOME DO CLIENTE",
+      "filtros_drill": { "cd_cliente": "8794" }
+    }
+    ```
+  - `filtros_drill` continua usando **somente** `cd_cliente` — nunca o label.
+- Mesma ideia aplicável (futuramente) a Revenda/Produto, mas fora do escopo deste pedido.
 
-**Não tocar**
-- FastAPI, `supabase/`, `.env`, `src/integrations/supabase/*`, demais consumidores de drill (compras/produção).
+Esse arquivo é apenas contrato — nenhuma migration ou edge function é alterada.
 
 ---
 
-## Critérios de aceite
+## 2. Frontend — breadcrumb correto
 
-- Drill Mensal de GENIUS/202601 traz dados (não inventa `cd_cliente`).
-- Drill Cliente partindo de 202601 mostra apenas clientes presentes naquele mês.
-- Clicar em "Trocar drill" não cria filtros novos; apenas troca o tipo e mantém só filtros compatíveis.
-- Breadcrumb chips têm `×` para remover qualquer filtro individual.
-- Combinação vazia mostra mensagem + tabela do diagnóstico (quando o backend mandar) + botões "Remover Cliente / Produto / Revenda / UF" e "Voltar nível anterior".
-- `cd_produto = 1-200000003` é enviado inteiro à FastAPI, sem perder o prefixo `1-`.
-- Nenhum nível profundo retorna vazio sem mostrar diagnóstico ou ações de recuperação.
+Hoje `ComercialDrillDrawer.levelTitle` faz:
+
+```
+label = DRILL_LABELS[level.drill_type]
++ ": " + primeiro valor não vazio do contexto
+```
+
+Resultado: nível "CLIENTE" com contexto `{ cd_estado: "PA" }` vira `"Cliente: PA"`.
+
+### Correção
+
+Calcular o rótulo do nível a partir do **filtro adicionado naquele push**, não do drill atual.
+
+- Em `useComercialDrillStack.ts`:
+  - Estender `DrillStackLevel` com `addedFilter?: { key: keyof DrillContexto; value: string }`.
+  - Em `pushDrill`, comparar `newCtx` x `cur.contexto` e gravar a primeira chave nova (ou alterada) em `addedFilter`. Se nenhuma chave nova entrar (caso "Trocar drill"), `addedFilter` fica `undefined`.
+  - `openWith` e `replacePath`: gravar `addedFilter` a partir dos filtros iniciais informados, se houver.
+
+- Em `ComercialDrillDrawer.tsx` (`levelTitle`):
+  - Nível 0: `DRILL_LABELS[drill_type]` (ex.: "Acumulado").
+  - Demais níveis:
+    - Se `addedFilter` existir: rótulo = `"${CTX_LABELS[key]}: ${value} › ${DRILL_LABELS[drill_type]}"`
+      simplificado para o requisito: cada nível mostra o **filtro herdado** dele e o **nome do drill atual** vira apenas o último item.
+    - Implementação prática: para níveis intermediários exibir `"${CTX_LABELS[addedFilter.key]}: ${addedFilter.value}"`; para o último nível exibir `DRILL_LABELS[drill_type]` puro.
+  - Resultado para o cenário do bug:
+    `Acumulado › Estado: PA › Cliente` (último item é o drill atual sem valor).
+
+- Chips de contexto (`chips` no Drawer) já usam `CTX_LABELS[k]` corretamente; nada a mudar lá.
+
+---
+
+## 3. Frontend — coluna Cliente com código + nome
+
+- `src/lib/bi/comercialDrillApi.ts`:
+  - Estender `DrillRow` com campos opcionais `nm_cliente?: string` e `cliente_label?: string` (apenas tipagem; aceita o que o backend mandar).
+
+- `src/components/bi/drill/ComercialDrillDrawer.tsx`:
+  - No `useMemo` de `columns`, depois de mapear `resp.columns`, aplicar fallback de render para a coluna `cd_cliente` quando o drill atual for `CLIENTE`:
+    - Se a linha tem `cliente_label`, renderiza ele.
+    - Senão, se tem `nm_cliente`, renderiza `"${cd_cliente} - ${nm_cliente}"`.
+    - Senão, mantém o valor atual.
+  - O cabeçalho passa a ser "Cliente" (já vem do backend) — sem mudança extra.
+  - `handlePushFromRow` continua usando `row.filtros_drill` (que segundo o contrato traz só `cd_cliente`), então o filtro técnico fica intacto.
+
+- CSV: como `downloadDrillCsv` usa `resp.columns` para montar o cabeçalho, ele continuará exportando os campos que o backend declarar. Sem mudança.
+
+---
+
+## 4. Arquivos afetados
+
+- `docs/backend-bi-comercial-drill-cliente-nome.md` (novo, contrato para FastAPI)
+- `src/hooks/useComercialDrillStack.ts` (adicionar `addedFilter` em cada push)
+- `src/lib/bi/comercialDrillApi.ts` (tipos `nm_cliente`, `cliente_label`)
+- `src/components/bi/drill/ComercialDrillDrawer.tsx` (`levelTitle` novo + render override da coluna cliente)
+
+Sem alterações em Cloud, edge functions ou migrations.
+
+---
+
+## 5. Critério de aceite
+
+- Breadcrumb mostra `Acumulado › Estado: PA › Cliente` (não mais `Cliente: PA`).
+- Quando a FastAPI passar a devolver `nm_cliente`/`cliente_label`, a coluna Cliente exibe `8794 - NOME DO CLIENTE`. Enquanto o backend não atualizar, o frontend continua exibindo apenas o código sem quebrar.
+- Clicar em "Detalhar" em uma linha de Cliente envia para o próximo drill apenas `cd_cliente`, nunca o label.
+- Chips de filtro continuam corretos (`UF: PA`, `Cliente: 8794`).
