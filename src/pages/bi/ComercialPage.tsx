@@ -702,6 +702,7 @@ export default function ComercialPage() {
                   <Pencil className="h-3.5 w-3.5" /> Editar dashboard
                 </Button>
               )}
+              <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
