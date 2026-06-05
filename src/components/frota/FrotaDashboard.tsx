@@ -26,6 +26,7 @@ import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid'
 import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
 import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { FROTA_DIMENSOES, FROTA_METRICAS } from '@/lib/bi/pageRegistry';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -268,15 +269,31 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     veiculos_atendidos: kpis.veiculos,
   }), [kpis]);
 
-  const seriesPayload = useMemo(() => ({
-    evolucao_mensal: porMes.map((p) => ({ name: p.label, value: p.valor })),
-    por_segmento: porSegmento.map((p) => ({ name: p.label, value: p.valor })),
-    top_veiculos: topVeiculos.map((p) => ({ name: p.label, value: p.valor })),
-    top_fornecedores: topFornecedores.map((p) => ({ name: p.label, value: p.valor })),
-    top_centros_custo: topCC.map((p) => ({ name: p.label, value: p.valor })),
-    top_motoristas: topMotoristas.map((p) => ({ name: p.label, value: p.valor })),
-    por_tipo_veiculo: porTipo.map((p) => ({ name: p.label, value: p.valor })),
-  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas, porTipo]);
+  const seriesPayload = useMemo(() => {
+    const out: Record<string, { name: string; value: number }[]> = {};
+    // mensal × métrica
+    FROTA_METRICAS.forEach((m) => {
+      out[`mensal__${m.key}`] = aggregateMensalFrota(crossFiltered, m.key);
+    });
+    // dimensão × métrica
+    FROTA_DIMENSOES.forEach((d) => {
+      const groups = groupByDim(crossFiltered, d.key);
+      FROTA_METRICAS.forEach((m) => {
+        out[`por_${d.key}__${m.key}`] = computeMetricByGroups(groups, m.key);
+      });
+    });
+    // aliases legados (objetos { label, valor }) — mantém widgets antigos funcionando
+    const toLegacy = (rows: { name: string; value: number }[]) =>
+      rows.map((p) => ({ label: p.name, valor: p.value }));
+    out.evolucao_mensal    = toLegacy(out['mensal__valor']) as any;
+    out.por_segmento       = toLegacy(out['por_segmento__valor']) as any;
+    out.top_veiculos       = toLegacy(out['por_placa__valor']) as any;
+    out.top_fornecedores   = toLegacy(out['por_fornecedor__valor']) as any;
+    out.top_centros_custo  = toLegacy(out['por_centro_custo__valor']) as any;
+    out.top_motoristas     = toLegacy(out['por_motorista__valor']) as any;
+    out.por_tipo_veiculo   = toLegacy(out['por_tipo_veiculo__valor']) as any;
+    return out;
+  }, [crossFiltered]);
 
   const drillLevelsConfig = useMemo(
     () => drillLevels
@@ -600,14 +617,39 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
               onItemClick: (seriesKey, datum) => {
                 const name = String(datum?.name ?? datum?.label ?? '');
                 if (!name) return;
+                // Mês: tanto alias legado quanto qualquer série `mensal__*`
+                if (seriesKey === 'evolucao_mensal' || seriesKey?.startsWith?.('mensal__')) {
+                  setSelMes((p) => toggleItem(p, name));
+                  return;
+                }
+                // Dimensões novas: `por_<dim>__<met>`
+                const m = seriesKey?.match?.(/^por_(.+?)__/);
+                const dim = m?.[1];
+                const dispatch: Record<string, (p: string[]) => string[]> = {
+                  segmento:     (p) => toggleItem(p, name),
+                  tipo_veiculo: (p) => toggleItem(p, name),
+                  placa:        (p) => toggleItem(p, name),
+                  fornecedor:   (p) => toggleItem(p, name),
+                  centro_custo: (p) => toggleItem(p, name),
+                  motorista:    (p) => toggleItem(p, name),
+                  descricao:    (p) => p, // sem cross-filter para descrição
+                };
+                switch (dim) {
+                  case 'segmento':     setSelSegmento(dispatch.segmento); return;
+                  case 'tipo_veiculo': setSelTipo(dispatch.tipo_veiculo); return;
+                  case 'placa':        setSelPlaca(dispatch.placa); return;
+                  case 'fornecedor':   setSelFornecedor(dispatch.fornecedor); return;
+                  case 'centro_custo': setSelCC(dispatch.centro_custo); return;
+                  case 'motorista':    setSelMotorista(dispatch.motorista); return;
+                }
+                // Aliases legados
                 switch (seriesKey) {
-                  case 'evolucao_mensal':    setSelMes((p) => toggleItem(p, name)); break;
-                  case 'por_segmento':       setSelSegmento((p) => toggleItem(p, name)); break;
-                  case 'top_veiculos':       setSelPlaca((p) => toggleItem(p, name)); break;
-                  case 'top_fornecedores':   setSelFornecedor((p) => toggleItem(p, name)); break;
-                  case 'top_centros_custo':  setSelCC((p) => toggleItem(p, name)); break;
-                  case 'top_motoristas':     setSelMotorista((p) => toggleItem(p, name)); break;
-                  case 'por_tipo_veiculo':   setSelTipo((p) => toggleItem(p, name)); break;
+                  case 'por_segmento':      setSelSegmento((p) => toggleItem(p, name)); break;
+                  case 'top_veiculos':      setSelPlaca((p) => toggleItem(p, name)); break;
+                  case 'top_fornecedores':  setSelFornecedor((p) => toggleItem(p, name)); break;
+                  case 'top_centros_custo': setSelCC((p) => toggleItem(p, name)); break;
+                  case 'top_motoristas':    setSelMotorista((p) => toggleItem(p, name)); break;
+                  case 'por_tipo_veiculo':  setSelTipo((p) => toggleItem(p, name)); break;
                   default: break;
                 }
               },
@@ -916,6 +958,91 @@ function renderChips(label: string, values: string[], onRemove: (v: string) => v
       </button>
     </Badge>
   ));
+}
+
+// ============= Agregação dimensão × métrica =============
+
+type FrotaDimKey = typeof FROTA_DIMENSOES[number]['key'];
+type FrotaMetricKey = typeof FROTA_METRICAS[number]['key'];
+
+function dimValue(r: ManutencaoFrota, key: FrotaDimKey): string {
+  switch (key) {
+    case 'placa':        return r.placa || '—';
+    case 'fornecedor':   return r.fornecedor || '—';
+    case 'descricao':    return (r.descricao || '—').trim() || '—';
+    case 'motorista':    return r.motorista || '—';
+    case 'centro_custo': return r.centro_custo || '—';
+    case 'segmento':     return r.segmento || 'NÃO INFORMADO';
+    case 'tipo_veiculo': return r.tipo_veiculo || 'NÃO INFORMADO';
+    default:             return '—';
+  }
+}
+
+function groupByDim(rows: ManutencaoFrota[], key: FrotaDimKey) {
+  const m = new Map<string, ManutencaoFrota[]>();
+  rows.forEach((r) => {
+    const k = dimValue(r, key);
+    const arr = m.get(k) ?? [];
+    arr.push(r);
+    m.set(k, arr);
+  });
+  return m;
+}
+
+function sumValor(rows: ManutencaoFrota[]) { return rows.reduce((s, r) => s + (r.valor || 0), 0); }
+function sumKm(rows: ManutencaoFrota[])    { return rows.reduce((s, r) => s + (r.quilometragem || 0), 0); }
+function countNonZeroKm(rows: ManutencaoFrota[]) {
+  return rows.reduce((s, r) => s + (r.quilometragem ? 1 : 0), 0);
+}
+
+function metricValue(rows: ManutencaoFrota[], met: FrotaMetricKey, totalValor: number): number {
+  const v = sumValor(rows);
+  const km = sumKm(rows);
+  switch (met) {
+    case 'valor':  return v;
+    case 'pct':    return totalValor > 0 ? (v / totalValor) * 100 : 0;
+    case 'qtd':    return rows.length;
+    case 'km_sum': return km;
+    case 'km_avg': {
+      const n = countNonZeroKm(rows);
+      return n > 0 ? km / n : 0;
+    }
+    case 'ticket': return rows.length > 0 ? v / rows.length : 0;
+    case 'rs_km':  return km > 0 ? v / km : 0;
+    default:       return 0;
+  }
+}
+
+function computeMetricByGroups(
+  groups: Map<string, ManutencaoFrota[]>,
+  met: FrotaMetricKey,
+) {
+  let totalValor = 0;
+  groups.forEach((rs) => { totalValor += sumValor(rs); });
+  const out: { name: string; value: number }[] = [];
+  groups.forEach((rs, name) => {
+    out.push({ name, value: metricValue(rs, met, totalValor) });
+  });
+  out.sort((a, b) => b.value - a.value);
+  return out;
+}
+
+function aggregateMensalFrota(rows: ManutencaoFrota[], met: FrotaMetricKey) {
+  const groups = new Map<string, ManutencaoFrota[]>();
+  rows.forEach((r) => {
+    const k = r.mes ?? '?';
+    const arr = groups.get(k) ?? [];
+    arr.push(r);
+    groups.set(k, arr);
+  });
+  let totalValor = 0;
+  groups.forEach((rs) => { totalValor += sumValor(rs); });
+  const out: { name: string; value: number }[] = [];
+  groups.forEach((rs, name) => {
+    out.push({ name, value: metricValue(rs, met, totalValor) });
+  });
+  out.sort((a, b) => MESES_ORDER.indexOf(a.name) - MESES_ORDER.indexOf(b.name));
+  return out;
 }
 
 function uniqueOpts(values: (string | null | undefined)[]) {

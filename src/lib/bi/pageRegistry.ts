@@ -26,6 +26,54 @@ export interface PageDataSchema {
   rows?: { key: string; label: string; fields: string[] };
 }
 
+/**
+ * Dimensões e métricas suportadas no dashboard de Manutenção de Frota.
+ * Exportadas para que o componente consiga construir o `seriesPayload`
+ * com as mesmas chaves declaradas aqui.
+ */
+export const FROTA_DIMENSOES = [
+  { key: 'placa',        label: 'Placa' },
+  { key: 'fornecedor',   label: 'Fornecedor' },
+  { key: 'descricao',    label: 'Descrição' },
+  { key: 'motorista',    label: 'Motorista' },
+  { key: 'centro_custo', label: 'Centro de Custo' },
+  { key: 'segmento',     label: 'Segmento' },
+  { key: 'tipo_veiculo', label: 'Tipo de Veículo' },
+] as const;
+
+export const FROTA_METRICAS = [
+  { key: 'valor',  label: 'Valor (R$)' },
+  { key: 'pct',    label: '% do total (valor)' },
+  { key: 'qtd',    label: 'Quantidade' },
+  { key: 'km_sum', label: 'KM (soma)' },
+  { key: 'km_avg', label: 'KM (média)' },
+  { key: 'ticket', label: 'Ticket médio (R$/manut.)' },
+  { key: 'rs_km',  label: 'R$ por KM' },
+] as const;
+
+function buildFrotaSeriesOptions(): { key: string; label: string }[] {
+  const out: { key: string; label: string }[] = [];
+  FROTA_METRICAS.forEach((m) => {
+    out.push({ key: `mensal__${m.key}`, label: `Evolução mensal · ${m.label}` });
+  });
+  FROTA_DIMENSOES.forEach((d) => {
+    FROTA_METRICAS.forEach((m) => {
+      out.push({ key: `por_${d.key}__${m.key}`, label: `${d.label} · ${m.label}` });
+    });
+  });
+  // Aliases legados (mantidos para layouts já salvos)
+  out.push(
+    { key: 'evolucao_mensal',    label: 'Evolução Mensal (R$) — legado' },
+    { key: 'por_segmento',       label: 'Por Segmento (R$) — legado' },
+    { key: 'top_veiculos',       label: 'Top Veículos (R$) — legado' },
+    { key: 'top_fornecedores',   label: 'Top Fornecedores (R$) — legado' },
+    { key: 'top_centros_custo',  label: 'Top Centros de Custo (R$) — legado' },
+    { key: 'top_motoristas',     label: 'Top Motoristas (R$) — legado' },
+    { key: 'por_tipo_veiculo',   label: 'Por Tipo de Veículo (R$) — legado' },
+  );
+  return out;
+}
+
 export interface BiPageDef {
   key: string;
   label: string;
@@ -290,14 +338,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
         { key: 'ticket_medio',        label: 'Ticket Médio',       format: 'currency' },
         { key: 'veiculos_atendidos',  label: 'Veículos Atendidos', format: 'number'   },
       ],
-      series: [
-        { key: 'evolucao_mensal',     label: 'Evolução Mensal (R$)' },
-        { key: 'por_segmento',        label: 'Por Segmento (R$)' },
-        { key: 'top_veiculos',        label: 'Top Veículos (R$)' },
-        { key: 'top_fornecedores',    label: 'Top Fornecedores (R$)' },
-        { key: 'top_centros_custo',   label: 'Top Centros de Custo (R$)' },
-        { key: 'top_motoristas',      label: 'Top Motoristas (R$)' },
-      ],
+      series: buildFrotaSeriesOptions(),
       rows: { key: 'dados', label: 'Manutenções', fields: ['data', 'placa', 'veiculo_descricao', 'fornecedor', 'descricao', 'valor', 'motorista', 'centro_custo', 'segmento'] },
     },
   },
