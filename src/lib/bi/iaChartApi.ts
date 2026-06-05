@@ -30,6 +30,8 @@ export interface AiChartSerie {
 
 export interface AiChartDiagnostico {
   linhas_view?: number;
+  linhas_filtradas?: number;
+  qtd_categorias?: number;
   filtros_aplicados?: Record<string, string>;
   unidade_negocio?: string;
   periodo?: { ini?: string; fim?: string };
@@ -89,6 +91,13 @@ export async function executarGraficoIA(
     if (v != null && String(v).length > 0) body[k] = String(v);
   }
 
+  // Fallback obrigatório de período: garante que anomes_ini/anomes_fim
+  // sempre cheguem ao backend (FastAPI exige para filtrar a view).
+  const aniRaw = (filtrosBase as any)?.anomes_ini;
+  const afiRaw = (filtrosBase as any)?.anomes_fim;
+  body.anomes_ini = aniRaw != null && String(aniRaw).length > 0 ? String(aniRaw) : '202601';
+  body.anomes_fim = afiRaw != null && String(afiRaw).length > 0 ? String(afiRaw) : '202606';
+
   // Defesa em profundidade: se o prompt pediu "total/consolidado/geral" e NÃO mencionou
   // unidade específica, força CONSOLIDADO mesmo que o filtro global do dashboard esteja
   // em GENIUS/ESTRUTURAL. O backend interpreta CONSOLIDADO como "sem filtro de unidade".
@@ -102,6 +111,8 @@ export async function executarGraficoIA(
     body.unidade_negocio = 'GENIUS';
   } else if (mencionaEstrutural) {
     body.unidade_negocio = 'ESTRUTURAL ZORTEA';
+  } else if (!body.unidade_negocio) {
+    body.unidade_negocio = 'CONSOLIDADO';
   }
 
   return api.post<AiChartResult>('/api/bi/comercial/ia-grafico', body);
