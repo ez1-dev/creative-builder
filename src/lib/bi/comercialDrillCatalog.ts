@@ -77,7 +77,11 @@ export const ALLOWED_CTX_KEYS: Record<DrillType, (keyof DrillContexto)[]> = {
     'anomes_emissao', 'cd_estado', 'cd_cliente', 'cd_rev_pedido', 'cd_nf',
     'cd_origem', 'cd_tns', 'cd_tp_movimento', 'cd_prj', 'categoria_custom',
   ],
-  DETALHES_IMPOSTOS: ['cd_nf', 'cd_produto', 'anomes_emissao', 'cd_cliente'],
+  DETALHES_IMPOSTOS: [
+    'anomes_emissao', 'cd_estado', 'cd_cliente', 'cd_rev_pedido', 'cd_produto',
+    'cd_derivacao', 'cd_nf', 'cd_origem', 'cd_tns', 'cd_tp_movimento', 'cd_prj',
+  ],
+
 };
 
 /**
