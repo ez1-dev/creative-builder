@@ -176,7 +176,7 @@ export default function ManutencaoFrotaPage() {
         data={data}
         loading={loading}
         onEdit={editAllowed ? handleOpenEdit : undefined}
-        onDelete={editAllowed ? setDeleteId : undefined}
+        onDelete={deleteAllowed ? setDeleteId : undefined}
       />
 
       <FrotaShareLinksDialog open={shareOpen} onOpenChange={setShareOpen} />
