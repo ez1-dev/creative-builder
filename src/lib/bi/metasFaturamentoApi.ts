@@ -3,6 +3,8 @@ import type { UnidadeNegocio } from './comercialApi';
 
 export type UnidadeMeta = 'GENIUS' | 'ESTRUTURAL ZORTEA';
 
+export type OrigemMeta = 'MANUAL' | 'UPQUERY_VM_FATURAMENTO' | string;
+
 export interface MetaFaturamento {
   id: string;
   anomes_emissao: string;            // 'YYYYMM'
@@ -14,6 +16,8 @@ export interface MetaFaturamento {
   vl_meta: number;
   observacao: string | null;
   ativo: boolean;
+  origem_meta: OrigemMeta;
+  origem_atualizada_em: string | null;
   created_at: string;
   updated_at: string;
 }
