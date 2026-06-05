@@ -62,12 +62,25 @@ export function UserWidgetsSlot({
             }
           }
         }
+        const unidadeOverride = ctx.page?.supportsUnidadeNegocio
+          ? (w.options?.unidade_negocio as string | undefined)
+          : undefined;
+        const widgetOptions = w.options ?? {};
+        const mergedFiltros = unidadeOverride
+          ? { ...(ctx.filtros ?? {}), unidade_negocio: unidadeOverride }
+          : ctx.filtros;
         return (
-          <UserWidgetFrame key={w.id} id={w.id} span={w.span as 1 | 2 | 3 | 4} onChanged={refresh}>
+          <UserWidgetFrame
+            key={w.id}
+            id={w.id}
+            span={w.span as 1 | 2 | 3 | 4}
+            onChanged={refresh}
+            unidadeOverride={unidadeOverride}
+          >
             {def.render({
               title: w.title ?? undefined,
               mapping: w.mapping ?? {},
-              options: w.options ?? {},
+              options: { ...widgetOptions, filtros: mergedFiltros },
               ctx: { kpis: ctx.kpis, series: ctx.series, rows: ctx.rows },
             })}
           </UserWidgetFrame>
