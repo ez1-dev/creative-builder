@@ -9,7 +9,9 @@ export interface ScreenPermission {
   screen_name: string;
   can_view: boolean;
   can_edit: boolean;
+  can_delete: boolean;
 }
+
 
 interface PermissionsState {
   permissions: ScreenPermission[];
