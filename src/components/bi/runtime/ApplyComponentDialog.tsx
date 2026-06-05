@@ -132,6 +132,27 @@ export function ApplyComponentDialog({
   const [saving, setSaving] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [unidadeNegocio, setUnidadeNegocio] = useState<UnidadeOpt>('__page__');
+  // ----- Aparência -----
+  const [color, setColor] = useState<WidgetColor | undefined>(undefined);
+  const [variant, setVariant] = useState<WidgetVariant>('solid');
+  const [icon, setIcon] = useState<string>('');
+  const [valueFormat, setValueFormat] = useState<WidgetValueFormat>('auto');
+  const [density, setDensity] = useState<WidgetDensity>('default');
+  const [height, setHeight] = useState<WidgetHeight>('md');
+  const [hideTitle, setHideTitle] = useState(false);
+  const [subtitle, setSubtitle] = useState('');
+  const [footerNote, setFooterNote] = useState('');
+  // ----- Dados -----
+  const [periodoTipo, setPeriodoTipo] = useState<'__page__' | WidgetPeriodoOverride['tipo']>('__page__');
+  const [periodoN, setPeriodoN] = useState<number>(3);
+  const [periodoIni, setPeriodoIni] = useState<string>('');
+  const [periodoFim, setPeriodoFim] = useState<string>('');
+  const [comparacao, setComparacao] = useState<WidgetComparacao>('nenhuma');
+  const [metaTipo, setMetaTipo] = useState<'__none__' | 'valor' | 'kpi'>('__none__');
+  const [metaValor, setMetaValor] = useState<number>(0);
+  const [metaKpi, setMetaKpi] = useState<string>('');
+  const [topN, setTopN] = useState<number>(0); // 0 = todos
+  const [sort, setSort] = useState<WidgetSort | '__none__'>('__none__');
 
   useEffect(() => {
     if (!open || !def) return;
