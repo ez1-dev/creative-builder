@@ -302,6 +302,7 @@ export function ConfigureBiWidgetDialog({
                   <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
                   <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
                 </div>
+                {titleAppearanceSection}
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">
                 <div className="mb-2 text-xs font-medium text-muted-foreground">Pré-visualização</div>
