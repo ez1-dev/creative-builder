@@ -26,6 +26,7 @@ import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid'
 import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
 import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { FROTA_DIMENSOES, FROTA_METRICAS } from '@/lib/bi/pageRegistry';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -932,6 +933,91 @@ function renderChips(label: string, values: string[], onRemove: (v: string) => v
       </button>
     </Badge>
   ));
+}
+
+// ============= Agregação dimensão × métrica =============
+
+type FrotaDimKey = typeof FROTA_DIMENSOES[number]['key'];
+type FrotaMetricKey = typeof FROTA_METRICAS[number]['key'];
+
+function dimValue(r: ManutencaoFrota, key: FrotaDimKey): string {
+  switch (key) {
+    case 'placa':        return r.placa || '—';
+    case 'fornecedor':   return r.fornecedor || '—';
+    case 'descricao':    return (r.descricao || '—').trim() || '—';
+    case 'motorista':    return r.motorista || '—';
+    case 'centro_custo': return r.centro_custo || '—';
+    case 'segmento':     return r.segmento || 'NÃO INFORMADO';
+    case 'tipo_veiculo': return r.tipo_veiculo || 'NÃO INFORMADO';
+    default:             return '—';
+  }
+}
+
+function groupByDim(rows: ManutencaoFrota[], key: FrotaDimKey) {
+  const m = new Map<string, ManutencaoFrota[]>();
+  rows.forEach((r) => {
+    const k = dimValue(r, key);
+    const arr = m.get(k) ?? [];
+    arr.push(r);
+    m.set(k, arr);
+  });
+  return m;
+}
+
+function sumValor(rows: ManutencaoFrota[]) { return rows.reduce((s, r) => s + (r.valor || 0), 0); }
+function sumKm(rows: ManutencaoFrota[])    { return rows.reduce((s, r) => s + (r.quilometragem || 0), 0); }
+function countNonZeroKm(rows: ManutencaoFrota[]) {
+  return rows.reduce((s, r) => s + (r.quilometragem ? 1 : 0), 0);
+}
+
+function metricValue(rows: ManutencaoFrota[], met: FrotaMetricKey, totalValor: number): number {
+  const v = sumValor(rows);
+  const km = sumKm(rows);
+  switch (met) {
+    case 'valor':  return v;
+    case 'pct':    return totalValor > 0 ? (v / totalValor) * 100 : 0;
+    case 'qtd':    return rows.length;
+    case 'km_sum': return km;
+    case 'km_avg': {
+      const n = countNonZeroKm(rows);
+      return n > 0 ? km / n : 0;
+    }
+    case 'ticket': return rows.length > 0 ? v / rows.length : 0;
+    case 'rs_km':  return km > 0 ? v / km : 0;
+    default:       return 0;
+  }
+}
+
+function computeMetricByGroups(
+  groups: Map<string, ManutencaoFrota[]>,
+  met: FrotaMetricKey,
+) {
+  let totalValor = 0;
+  groups.forEach((rs) => { totalValor += sumValor(rs); });
+  const out: { name: string; value: number }[] = [];
+  groups.forEach((rs, name) => {
+    out.push({ name, value: metricValue(rs, met, totalValor) });
+  });
+  out.sort((a, b) => b.value - a.value);
+  return out;
+}
+
+function aggregateMensalFrota(rows: ManutencaoFrota[], met: FrotaMetricKey) {
+  const groups = new Map<string, ManutencaoFrota[]>();
+  rows.forEach((r) => {
+    const k = r.mes ?? '?';
+    const arr = groups.get(k) ?? [];
+    arr.push(r);
+    groups.set(k, arr);
+  });
+  let totalValor = 0;
+  groups.forEach((rs) => { totalValor += sumValor(rs); });
+  const out: { name: string; value: number }[] = [];
+  groups.forEach((rs, name) => {
+    out.push({ name, value: metricValue(rs, met, totalValor) });
+  });
+  out.sort((a, b) => MESES_ORDER.indexOf(a.name) - MESES_ORDER.indexOf(b.name));
+  return out;
 }
 
 function uniqueOpts(values: (string | null | undefined)[]) {
