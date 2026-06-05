@@ -20,11 +20,13 @@ export interface SeriesOption {
 
 export function SeriesSelectGroups({ options }: { options: SeriesOption[] }) {
   const mensal: SeriesOption[] = [];
+  const anual: SeriesOption[] = [];
   const porDim: SeriesOption[] = [];
   const legado: SeriesOption[] = [];
 
   options.forEach((o) => {
     if (o.key.startsWith('mensal__')) mensal.push(o);
+    else if (o.key.startsWith('anual__')) anual.push(o);
     else if (/^por_.+__/.test(o.key)) porDim.push(o);
     else legado.push(o);
   });
