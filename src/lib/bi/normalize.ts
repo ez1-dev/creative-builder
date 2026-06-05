@@ -24,6 +24,8 @@ export interface NormalizedWidget {
   data: any[];
   series: any[];
   filtros: Record<string, any>;
+  titleColor: string | null;
+  titleBold: boolean;
   [k: string]: any;
 }
 
