@@ -96,6 +96,8 @@ export function ConfigureBiWidgetDialog({
     setValueKey(initial.mapping?.value ?? def?.kpiKey ?? '');
     setCustomTitle(initial.customTitle ?? '');
     setSeriesList(initial.series ?? []);
+    setTitleColor(initial.titleColor ?? 'default');
+    setTitleBold(Boolean(initial.titleBold));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
