@@ -192,3 +192,7 @@ html[data-tv="1"] :focus-visible {
 [data-widget-title-style].widget-title-bold :is(h3, [data-slot="card-title"], .card-title) {
   font-weight: 700;
 }
+[data-widget-title-style] [data-widget-value] {
+  color: var(--widget-value-color, inherit);
+}
+

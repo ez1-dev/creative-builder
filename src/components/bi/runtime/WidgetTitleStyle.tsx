@@ -41,15 +41,20 @@ export function resolveTitleColor(value: string | null | undefined): string | nu
 interface Props {
   color?: string | null;
   bold?: boolean | null;
+  valueColor?: string | null;
   children: ReactNode;
 }
 
-export function WidgetTitleStyle({ color, bold, children }: Props) {
-  const resolved = resolveTitleColor(color);
-  const hasStyle = !!resolved || !!bold;
+export const VALUE_COLOR_PRESETS = TITLE_COLOR_PRESETS;
+
+export function WidgetTitleStyle({ color, bold, valueColor, children }: Props) {
+  const resolvedTitle = resolveTitleColor(color);
+  const resolvedValue = resolveTitleColor(valueColor);
+  const hasStyle = !!resolvedTitle || !!bold || !!resolvedValue;
   if (!hasStyle) return <>{children}</>;
   const style: CSSProperties & Record<string, string> = {};
-  if (resolved) style['--widget-title-color'] = resolved;
+  if (resolvedTitle) style['--widget-title-color'] = resolvedTitle;
+  if (resolvedValue) style['--widget-value-color'] = resolvedValue;
   return (
     <div
       data-widget-title-style
@@ -60,3 +65,4 @@ export function WidgetTitleStyle({ color, bold, children }: Props) {
     </div>
   );
 }
+
