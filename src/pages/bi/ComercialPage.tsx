@@ -515,53 +515,74 @@ export default function ComercialPage() {
     setLayoutDraft(next);
   };
 
-  const handleSaveDashboard = async () => {
-    if (layoutDraft && layoutDraft.length > 0) {
-      try {
-        await layout.saveLayout(layoutDraft.map((it) => ({ type: it.type, layout: it.layout })));
-        toast.success('Dashboard salvo');
-      } catch (e: any) {
-        toast.error(`Erro ao salvar layout: ${e?.message ?? e}`);
-        return;
-      }
-    }
+  const clearDrafts = () => {
     setLayoutDraft(null);
+    setConfigDraft(new Map());
+    setPendingDeletes(new Set());
+  };
+
+  const handleSaveDashboard = async () => {
+    // Monta payload combinado: layout (drag/resize) + overrides de config.
+    const layoutByType = new Map((layoutDraft ?? []).map((it) => [it.type, it.layout]));
+    const types = new Set<string>([...layoutByType.keys(), ...configDraft.keys()]);
+    const items: SaveLayoutItem[] = [];
+    types.forEach((type) => {
+      const current = layout.widgets.find((x) => x.type === type);
+      if (!current) return;
+      const draftLayout = layoutByType.get(type) ?? current.layout;
+      const override = configDraft.get(type) ?? {};
+      items.push({ type, layout: draftLayout, ...override });
+    });
+
+    try {
+      if (items.length > 0) await layout.saveLayout(items);
+      for (const type of pendingDeletes) await layout.deleteWidget(type);
+      if (dirty) toast.success('Dashboard salvo');
+    } catch (e: any) {
+      toast.error(`Erro ao salvar: ${e?.message ?? e}`);
+      return;
+    }
+    clearDrafts();
     setEditing(false);
   };
 
   const handleCancelEdit = () => {
-    setLayoutDraft(null);
+    clearDrafts();
     setEditing(false);
   };
 
   const handleEnterEdit = () => {
-    setLayoutDraft(null);
+    clearDrafts();
     setEditing(true);
   };
 
-  const handleHide = async (type: string) => {
-    const w = layout.widgets.find((x) => x.type === type);
-    if (!w) return;
-    await layout.saveLayout([{ type, layout: w.layout, hidden: true }]);
+  const mergeConfigDraft = (type: string, patch: Partial<SaveLayoutItem>) => {
+    setConfigDraft((prev) => {
+      const next = new Map(prev);
+      const merged = { ...(next.get(type) ?? {}), ...patch };
+      next.set(type, merged);
+      return next;
+    });
   };
 
-  const handleDelete = async (type: string) => {
-    if (!confirm('Excluir este bloco permanentemente?')) return;
-    try {
-      await layout.deleteWidget(type);
-    } catch (e: any) {
-      toast.error(`Erro ao excluir: ${e?.message ?? e}`);
-    }
+  const handleHide = (type: string) => {
+    mergeConfigDraft(type, { hidden: true });
+  };
+
+  const handleDelete = (type: string) => {
+    if (!confirm('Excluir este bloco permanentemente? A exclusão só será gravada ao salvar o dashboard.')) return;
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.add(type);
+      return next;
+    });
   };
 
   const handleConfigure = (type: string) => setConfigType(type);
 
-  const handleConfigApply = async (next: any) => {
+  const handleConfigApply = (next: any) => {
     if (!configType) return;
-    const w = layout.widgets.find((x) => x.type === configType);
-    if (!w) return;
-    await layout.saveLayout([{
-      type: configType, layout: w.layout,
+    mergeConfigDraft(configType, {
       variant: next.variant ?? null,
       componentId: next.componentId ?? null,
       mapping: next.mapping ?? null,
@@ -570,21 +591,18 @@ export default function ComercialPage() {
       series: next.series === undefined ? undefined : (next.series ?? null),
       titleColor: next.titleColor ?? null,
       titleBold: next.titleBold ?? null,
-    }]);
+    });
     setConfigType(null);
   };
 
-  const handleConfigReset = async () => {
+  const handleConfigReset = () => {
     if (!configType) return;
-    const w = layout.widgets.find((x) => x.type === configType);
-    if (!w) return;
     const def = COMERCIAL_WIDGETS[configType];
-    await layout.saveLayout([{
-      type: configType, layout: w.layout,
+    mergeConfigDraft(configType, {
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
       titleColor: null, titleBold: null,
-    }]);
+    });
     setConfigType(null);
   };
 
