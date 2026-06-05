@@ -331,5 +331,30 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
     await load();
   }, [load]);
 
-  return { widgets, dashboardId, loading, isAdmin, saveLayout, resetLayout, deleteWidget, reload: load };
+  // === Blocos ===
+  const blocksApi = useDashboardBlocks({
+    dashboardId,
+    shareToken,
+    module: 'passagens-aereas',
+    enabled,
+  });
+
+  return {
+    widgets,
+    dashboardId,
+    loading,
+    isAdmin,
+    saveLayout,
+    resetLayout,
+    deleteWidget,
+    reload: load,
+    blocks: blocksApi.blocks,
+    blocksLoading: blocksApi.loading,
+    reloadBlocks: blocksApi.reload,
+    createBlock: blocksApi.createBlock,
+    renameBlock: blocksApi.renameBlock,
+    reorderBlock: blocksApi.reorderBlock,
+    deleteBlock: blocksApi.deleteBlock,
+    moveWidgetToBlock: blocksApi.moveWidgetToBlock,
+  };
 }
