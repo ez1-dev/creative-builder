@@ -152,9 +152,9 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
         screen_path: path,
         screen_name: name,
       };
-      if (mode === 'clear-all') return { ...base, can_view: false, can_edit: false };
-      if (mode === 'view-all')  return { ...base, can_view: true,  can_edit: existing?.can_edit ?? false };
-      return { ...base, can_view: true, can_edit: true };
+      if (mode === 'clear-all') return { ...base, can_view: false, can_edit: false, can_delete: false };
+      if (mode === 'view-all')  return { ...base, can_view: true,  can_edit: existing?.can_edit ?? false, can_delete: existing?.can_delete ?? false };
+      return { ...base, can_view: true, can_edit: true, can_delete: existing?.can_delete ?? false };
     });
     const { error } = await supabase
       .from('profile_screens')
