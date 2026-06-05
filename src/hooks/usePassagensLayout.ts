@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
+import { useDashboardBlocks } from '@/hooks/useDashboardBlocks';
 
 export interface WidgetLayout {
   x: number;
@@ -8,6 +9,7 @@ export interface WidgetLayout {
   w: number;
   h: number;
 }
+
 
 export interface PassagensWidget {
   id: string;
