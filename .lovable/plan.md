@@ -1,70 +1,55 @@
-## Objetivo
+## Diagnóstico
 
-Expandir o dropdown de **Série** da Biblioteca BI no BI Comercial (igual ao que foi feito em Frota), com combinações de **dimensão × métrica** para os cards configuráveis.
+Nos cards "Top estados" e "Ranking de revendas" os valores aparecem corretamente, mas os rótulos vêm vazios ("-" ou em branco). A causa está nos builders de série usados pelas novas chaves dinâmicas do BI Comercial:
 
-## Dimensões e métricas
+- `buildEstadoSerie` lê só `r.cd_estado`.
+- `buildRevendaSerie` lê só `r.revenda`.
+- `buildObrasSerie` lê só `r.projeto || r.cd_prj`.
+- `buildSerieFromDrill` (para CLIENTE/PRODUTO/NF/IMPOSTOS) tem uma lista enxuta de aliases de label.
 
-**Métricas (9):** Faturamento (R$), Líquido (R$), Impostos (R$), Devolução (R$), Nº Vendas, Nº Clientes, Quantidade, Ticket Médio (R$), Preço Médio (R$).
+Quando o backend responde com outro alias (ex.: `n`, `uf`, `sg_uf`, `nm_estado`, `nm_revenda`, `cd_rev_pedido`, `nm_fantasia`, `cliente`, `revenda_label`, etc. — que já aparecem em vários pontos do código, como `comercialFilters.ts` e `comercialDrillCatalog.ts`) o `label` cai para `'-'` e o ranking fica sem nomes.
 
-**Dimensões (8):**
-- `mes` — Evolução mensal (Ano/Mês)
-- `ano` — Evolução anual
-- `estado` — Por estado / UF
-- `revenda` — Top revendas
-- `cliente` — Top clientes (cd + nm via `bi_cliente`)
-- `produto` — Top produtos
-- `nota_fiscal` — Top notas fiscais
-- `detalhe_impostos` — Quebra ICMS / IPI / PIS / COFINS / ISS / DIFAL
+Além disso, o `SERIES_LIKE` em `componentRegistry.tsx` filtra `label !== ''`, mas aceita `'-'` como label válido, o que torna o vazio "silencioso" no UI.
 
-Total ≈ **72 combinações** (8 × 9) + chaves legadas (`mensal`, `mix`, `estados`, `revendas`, `obras`) preservadas como "— legado" para layouts já salvos.
+A correção é puramente de frontend (camada de mapeamento de dados → série); não envolve backend, KPIs, drill drawer nem novos endpoints.
 
-## Estratégia de dados
+## Mudanças propostas
 
-Sem novo endpoint dedicado. Reaproveitar o que já existe:
+### 1. `src/lib/bi/comercialSeriesBuilder.ts`
 
-1. **`mes` / `ano`** → derivar de `qMensal` (já traz por linha: faturamento, fat_liquido, impostos, devolucao, numero_vendas, numero_clientes, quantidade). Ticket médio = fat/nº vendas; Preço médio = fat/quantidade. `ano` agrega `mensal` por `ano_emissao`.
-2. **`estado` / `revenda`** → endpoints atuais (`fetchComercialEstado`, `fetchComercialRevenda`) trazem só faturamento; complementar com chamadas ao **drill API** já existente (`POST /api/bi/comercial/drill` com `drill_type=ESTADO|REVENDA`) que devolve todas as métricas agregadas (faturamento, líquido, impostos, qtd, nº vendas). Cache via React Query.
-3. **`cliente` / `produto` / `nota_fiscal` / `detalhe_impostos`** → consumir o **drill API** existente (`drill_type` correspondente), já documentado em `mem://features/drill-bi-comercial`. Carregamento lazy: só dispara fetch quando um widget pede aquela dimensão.
+Introduzir um helper `pickLabel(row, candidates)` que tenta múltiplos campos e cai para um placeholder consistente. Ampliar a busca de label nos builders existentes:
 
-Nenhuma mudança de backend é necessária — todo o catálogo do drill já cobre as dimensões pedidas.
+- **Estado** → tentar nesta ordem: `nm_estado`, `estado`, `sg_uf`, `uf`, `n`, `cd_estado`.
+- **Revenda** → `nm_revenda`, `revenda_label`, `revenda`, `nm_fantasia`, `cd_rev_pedido`.
+- **Obras** → `projeto`, `ds_abr_prj`, `nm_projeto`, `cd_prj`.
 
-## Mudanças de código
+Estender `LABEL_CANDIDATES` (drill):
 
-### `src/lib/bi/pageRegistry.ts`
-- Adicionar `COMERCIAL_DIMENSOES` e `COMERCIAL_METRICAS` exportados.
-- Função `buildComercialSeriesOptions()` análoga a `buildFrotaSeriesOptions()`, gerando chaves no padrão `por_<dim>__<metric>` + `mensal__<metric>` + `anual__<metric>`.
-- Manter chaves antigas (`mensal`, `mix`, `estados`, `revendas`, `obras`) com sufixo "— legado".
+- `CLIENTE`: `cliente_label`, `nm_cliente`, `nm_fantasia`, `cliente`, `cd_cliente`.
+- `PRODUTO`: `produto_label`, `ds_produto`, `descricao_produto`, `produto`, `cd_produto`.
+- `NOTA_FISCAL`: `nota_label`, `cd_nf`, `numero_nf`, `nr_nf`, `nf`.
+- `DETALHES_IMPOSTOS`: `imposto`, `tipo_imposto`, `descricao_imposto`, `nm_imposto`, `label`.
+- Adicionar fallback para `ESTADO`/`REVENDA`/`PRODUTO` caso o backend reuse o mesmo formato.
 
-### `src/lib/bi/comercialApi.ts`
-- Helper `fetchComercialDrillAgg(drillType, contexto, filters)` que chama o drill API e devolve `{ label, valor }` para uma métrica específica. Já existe a chamada — só envelopar.
+Trocar fallback `'-'` por `'(sem nome)'` para deixar visível quando o backend realmente não trouxer rótulo (evita confundir com bug).
 
-### `src/pages/bi/ComercialPage.tsx`
-- Novo hook `useSerieFromKey(seriesKey)` que:
-  - Faz parse `por_<dim>__<metric>` / `mensal__<metric>` / `anual__<metric>`.
-  - Para `mensal`/`anual`: deriva client-side de `qMensal`.
-  - Para `por_<dim>`: usa React Query com `queryKey: ['bi-comercial-serie', dim, metric, filters, unidade]` e chama drill API.
-  - Retorna `{ data, isLoading, isError, refetch }`.
-- No render dos widgets do tipo `serie`/`ranking`/`map`, usar `useSerieFromKey(widget.mapping.series)` em vez do switch fixo de tipos.
-- Manter os tipos legados (`mix`, `estados`, `revendas`, `obras`) operando como hoje.
+### 2. `src/lib/bi/componentRegistry.tsx` — `SERIES_LIKE`
 
-### `src/components/bi/charts/*` e `src/lib/bi/componentRegistry.tsx`
-- Já têm `formatterForSeriesKey()` (criado no último ciclo). Estender o mapeamento de sufixos para reconhecer os novos: `__faturamento`, `__liquido`, `__impostos`, `__devolucao`, `__nvendas`, `__nclientes`, `__quantidade`, `__ticket`, `__preco_medio`. Aplica `formatCurrency` ou `formatNumber` corretamente.
+Tratar `'-'`, `'null'`, `'undefined'`, `''` (com trim) como rótulos inválidos e descartar a linha — assim, se a série vier 100% sem nomes, o card mostra estado vazio em vez de uma lista de traços. Mantém retrocompatível com séries que têm rótulos válidos.
 
-### `src/components/passagens/seriesSelectGroups.tsx`
-- Estender o agrupamento para reconhecer prefixos `mensal__`, `anual__`, `por_*__*` (já cobre os dois primeiros) — só validar os labels dos grupos: **Evolução temporal**, **Por dimensão**, **Legado**.
+### 3. `src/pages/bi/ComercialPage.tsx` (mínimo)
+
+Os mapeamentos legados `estadosSerie` / `mapaData` / `revendaRank` / `obrasRank` (linhas ~266‑269) também usam o mesmo campo único. Trocar por chamadas ao novo helper `pickLabel` exportado do builder para o legado se beneficiar da mesma melhoria. Sem mudança de comportamento quando o backend já entrega `cd_estado`/`revenda`.
 
 ## Fora de escopo
 
-- Não cria endpoints novos no FastAPI.
-- Não mexe em ETL / tabelas `bi_*`.
-- Não altera os KPIs nem o drill drawer.
-- Layouts/preferências já salvas continuam funcionando via aliases legados.
+- Não alterar backend FastAPI nem endpoints.
+- Não mexer em filtros, drill drawer, KPIs nem catálogo de chaves de série.
+- Não tocar em `src/integrations/supabase/*` nem `.env`.
 
-## Critérios de aceitação
+## Critérios de aceite
 
-1. No diálogo "Configurar bloco → Biblioteca BI" do BI Comercial, o dropdown de **Série** mostra todas as combinações dimensão × métrica agrupadas em 3 seções (Evolução temporal, Por dimensão, Legado).
-2. Selecionar "Cliente · Faturamento (R$)" renderiza ranking real com `cd_cliente - nm_cliente`.
-3. Selecionar "Por estado · Quantidade" renderiza estados com a métrica de quantidade (não faturamento).
-4. Selecionar "Detalhe de impostos · Impostos (R$)" mostra barras com ICMS, IPI, PIS, COFINS, ISS, DIFAL.
-5. Valores em % formatam como `33,47%`; R$ como moeda; demais como número (sem cifrão).
-6. Layouts salvos antes da mudança continuam abrindo (chaves legadas preservadas).
+- "Top estados" mostra a UF/nome do estado em cada linha (qualquer um dos aliases acima já basta).
+- "Ranking de revendas" mostra o nome/código da revenda.
+- Se o backend não trouxer rótulo algum para uma linha, o card mostra estado vazio em vez de uma lista de `-`.
+- Demais séries (cliente, produto, NF, detalhe de impostos) também passam a exibir nomes quando o backend usa qualquer um dos aliases comuns.
