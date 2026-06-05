@@ -352,28 +352,3 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   );
 }
 
-/**
- * Lista compacta com botões de drill por linha — exibida abaixo da tabela
- * para evitar conflito com cliques de seleção/copy.
- */
-function RowActionsHint({
-  rows,
-  allowedNext,
-  onPush,
-}: {
-  rows: Record<string, any>[];
-  allowedNext: DrillType[];
-  onPush: (next: DrillType, row: Record<string, any>) => void;
-}) {
-  const [openIdx, setOpenIdx] = useState<number | null>(null);
-
-  return (
-    <div className="mt-2 -mb-2 hidden">
-      {/* placeholder; ações de drill estão integradas via menu na primeira célula no futuro */}
-      {rows.length}
-      {allowedNext.length}
-      {openIdx}
-      <button onClick={() => onPush(allowedNext[0], rows[0] ?? {})} />
-    </div>
-  );
-}
