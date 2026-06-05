@@ -192,18 +192,33 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
 
   const controller = new AbortController();
   const tid = setTimeout(() => controller.abort(), 45000);
+  let resp: Response;
   try {
-    const resp = await fetch(url.toString(), {
+    resp = await fetch(url.toString(), {
       headers: { "ngrok-skip-browser-warning": "true", "Accept": "application/json" },
       signal: controller.signal,
     });
+  } catch (e: any) {
+    clearTimeout(tid);
+    const isAbort = e?.name === "AbortError";
+    const err: any = new Error(isAbort
+      ? "Não foi possível conectar à FastAPI (tempo esgotado). Verifique se o backend está online."
+      : "Não foi possível conectar à FastAPI. Verifique se o backend está online.");
+    err.code = isAbort ? "FASTAPI_TIMEOUT" : "FASTAPI_UNREACHABLE";
+    err.userFacing = true;
+    console.error("FastAPI fetch failed:", e?.name, e?.message);
+    throw err;
+  }
+  try {
     if (!resp.ok) {
       const t = await resp.text();
       console.error("FastAPI error", resp.status, t);
-      throw new Error(`Falha ao consultar BI (${resp.status})`);
+      const err: any = new Error(`Não foi possível conectar à FastAPI (HTTP ${resp.status}).`);
+      err.code = "FASTAPI_HTTP_ERROR";
+      err.userFacing = true;
+      throw err;
     }
     const data = await resp.json();
-    // Desempacota mesmo padrão do unwrapRpcResponse
     if (Array.isArray(data)) {
       if (data.length === 1 && data[0] && typeof data[0] === "object" && "bi_comercial_detalhes" in data[0]) {
         return (data[0] as any).bi_comercial_detalhes ?? [];
