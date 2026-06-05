@@ -24,6 +24,8 @@ export interface NormalizedWidget {
   data: any[];
   series: any[];
   filtros: Record<string, any>;
+  titleColor: string | null;
+  titleBold: boolean;
   [k: string]: any;
 }
 
@@ -47,6 +49,8 @@ export function normalizeWidget<T extends Record<string, any>>(widget: T | null 
     data: Array.isArray(w?.data) ? w.data : [],
     series: Array.isArray(w?.series) ? w.series : [],
     filtros: w?.filtros ?? {},
+    titleColor: w?.titleColor ?? null,
+    titleBold: Boolean(w?.titleBold),
   };
 }
 

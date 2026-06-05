@@ -16,11 +16,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import type { ComercialWidgetDef } from '@/lib/bi/comercialWidgetCatalog';
 import type { MetricRef, CustomMetric } from '@/lib/bi/comercialMetrics';
 import { SeriesEditor } from './SeriesEditor';
+import { TITLE_COLOR_PRESETS, type WidgetTitleColorPreset } from './WidgetTitleStyle';
 
 export interface ConfigureValue {
   variant?: string | null;
@@ -29,6 +32,8 @@ export interface ConfigureValue {
   options?: Record<string, any> | null;
   customTitle?: string | null;
   series?: MetricRef[] | null;
+  titleColor?: string | null;
+  titleBold?: boolean | null;
 }
 
 interface Props {
@@ -74,6 +79,8 @@ export function ConfigureBiWidgetDialog({
   const [valueKey, setValueKey] = useState<string>(initial.mapping?.value ?? def?.kpiKey ?? '');
   const [customTitle, setCustomTitle] = useState<string>(initial.customTitle ?? '');
   const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
+  const [titleColor, setTitleColor] = useState<string>(initial.titleColor ?? 'default');
+  const [titleBold, setTitleBold] = useState<boolean>(Boolean(initial.titleBold));
 
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
   const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
@@ -89,6 +96,8 @@ export function ConfigureBiWidgetDialog({
     setValueKey(initial.mapping?.value ?? def?.kpiKey ?? '');
     setCustomTitle(initial.customTitle ?? '');
     setSeriesList(initial.series ?? []);
+    setTitleColor(initial.titleColor ?? 'default');
+    setTitleBold(Boolean(initial.titleBold));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -118,6 +127,10 @@ export function ConfigureBiWidgetDialog({
   }, [mode, libDef, inputs, seriesKey, valueKey, customTitle, kpis, series, rows, seriesOptions, kpiOptions]);
 
   const handleApply = () => {
+    const titleStyle = {
+      titleColor: titleColor && titleColor !== 'default' ? titleColor : null,
+      titleBold: titleBold ? true : null,
+    };
     if (mode === 'builtin') {
       onApply({
         variant,
@@ -126,6 +139,7 @@ export function ConfigureBiWidgetDialog({
         options: null,
         customTitle: customTitle.trim() || null,
         series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
+        ...titleStyle,
       });
     } else {
       const mapping: Record<string, string> = {};
@@ -140,10 +154,59 @@ export function ConfigureBiWidgetDialog({
         mapping,
         customTitle: customTitle.trim() || null,
         series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
+        ...titleStyle,
       });
     }
     onOpenChange(false);
   };
+
+  const titleAppearanceSection = (
+    <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+      <div className="text-xs font-semibold text-muted-foreground">Aparência do título</div>
+      <div className="space-y-1.5">
+        <Label className="text-xs">Cor da fonte</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {TITLE_COLOR_PRESETS.map((p) => {
+            const active = (titleColor || 'default') === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setTitleColor(p.key)}
+                aria-label={p.label}
+                title={p.label}
+                className={cn(
+                  'h-7 w-7 rounded-full border-2 transition-all',
+                  active ? 'border-foreground ring-2 ring-ring/40' : 'border-border hover:border-foreground/50',
+                )}
+                style={{ background: p.swatch }}
+              />
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <Label className="text-[11px] text-muted-foreground shrink-0">Custom (hex):</Label>
+          <Input
+            type="text"
+            value={titleColor.startsWith('#') ? titleColor : ''}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              if (!v) setTitleColor('default');
+              else setTitleColor(v.startsWith('#') ? v : `#${v}`);
+            }}
+            placeholder="#1f6feb"
+            className="h-7 text-xs max-w-[140px]"
+          />
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <Label htmlFor={`${uid}-bold`} className="text-xs cursor-pointer">
+          Título em negrito
+        </Label>
+        <Switch id={`${uid}-bold`} checked={titleBold} onCheckedChange={setTitleBold} />
+      </div>
+    </div>
+  );
 
   const variants = def?.variants ?? [];
   const hasBuiltin = !isCustom && variants.length > 0;
@@ -191,6 +254,7 @@ export function ConfigureBiWidgetDialog({
                 <Label htmlFor={idBuiltinTitle} className="text-xs">Título (opcional)</Label>
                 <Input id={idBuiltinTitle} name="builtin-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={fallbackTitle ?? def?.title} />
               </div>
+              {titleAppearanceSection}
             </TabsContent>
           )}
 
@@ -238,6 +302,7 @@ export function ConfigureBiWidgetDialog({
                   <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
                   <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
                 </div>
+                {titleAppearanceSection}
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">
                 <div className="mb-2 text-xs font-medium text-muted-foreground">Pré-visualização</div>

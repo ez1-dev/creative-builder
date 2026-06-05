@@ -22,6 +22,7 @@ import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
+import { WidgetTitleStyle } from '@/components/bi/runtime/WidgetTitleStyle';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
@@ -451,6 +452,7 @@ export default function ComercialPage() {
       w?.type ?? '', w?.hidden ? 1 : 0, w?.componentId ?? '', w?.variant ?? '',
       w?.customTitle ?? '', JSON.stringify(w?.mapping ?? null),
       JSON.stringify(w?.options ?? null), JSON.stringify(w?.series ?? null),
+      w?.titleColor ?? '', w?.titleBold ? 1 : 0,
     ].join('|'))
     .join('~');
 
@@ -460,7 +462,9 @@ export default function ComercialPage() {
       const title = w.customTitle || w.title || w.type;
       out[w.type] = (
         <WidgetErrorBoundary widgetKey={w.type} title={title}>
-          {renderWidget(w)}
+          <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
+            {renderWidget(w)}
+          </WidgetTitleStyle>
         </WidgetErrorBoundary>
       );
     });
@@ -533,6 +537,8 @@ export default function ComercialPage() {
       options: next.options ?? null,
       customTitle: next.customTitle ?? null,
       series: next.series === undefined ? undefined : (next.series ?? null),
+      titleColor: next.titleColor ?? null,
+      titleBold: next.titleBold ?? null,
     }]);
     setConfigType(null);
   };
@@ -546,6 +552,7 @@ export default function ComercialPage() {
       type: configType, layout: w.layout,
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
+      titleColor: null, titleBold: null,
     }]);
     setConfigType(null);
   };
@@ -705,6 +712,8 @@ export default function ComercialPage() {
             options: configuringWidget.options,
             customTitle: configuringWidget.customTitle,
             series: configuringWidget.series,
+            titleColor: configuringWidget.titleColor,
+            titleBold: configuringWidget.titleBold,
           }}
           blockType={configuringWidget.type}
           fallbackTitle={configuringWidget.title}
