@@ -1,52 +1,37 @@
+## Objetivo
+Resolver o erro da Edge Function `bi-ia-chart` causado pelo secret `FASTAPI_BASE_URL` estar com valor inválido (`123456`, igual ao `CRON_SECRET`), e garantir mensagem amigável quando a FastAPI estiver fora do ar.
 
-## Diagnóstico
+## Passos
 
-Os logs da Edge Function `bi-ia-chart` mostram a causa raiz:
+### 1. Atualizar o secret `FASTAPI_BASE_URL`
+Abrir o formulário seguro de secrets para você colar o valor correto:
+- `FASTAPI_BASE_URL` = `https://api-erp-renato.ngrok.app` (URL pública da FastAPI, sem `/` no final)
 
-```
-bi-ia-chart error: Invalid URL: '123456/api/bi/comercial/detalhes'
-```
+O secret `CRON_SECRET` permanece com seu token (`123456`) e não será alterado.
 
-O secret `FASTAPI_BASE_URL` está configurado com o valor `123456` em vez da URL pública do FastAPI (ex.: `https://xxxx.ngrok-free.app`). Como `bi-ia-chart` apenas faz `new URL(base + "/api/...")`, qualquer string que não seja URL absoluta quebra a função, ela lança erro e o retorno vira HTTP 500 — daí o "Edge Function returned a non-2xx status code" no frontend.
+Observação: o secret será atualizado via tool `update_secret` — você confirma o valor no formulário, não há necessidade de mexer no painel manualmente. A Edge Function relê o secret a cada invocação, então não precisa redeploy só para isso (mas farei um redeploy mesmo assim para garantir).
 
-A função `programacao-sync-fila` já tem validação rica desse mesmo secret. A `bi-ia-chart` não tem.
+### 2. Melhorar tratamento de erro de rede no `bi-ia-chart`
+A validação atual já cobre secret inválido. Falta tratar o caso "FastAPI fora do ar / inacessível":
+- Capturar `TypeError` / `AbortError` no `fetch` para `${baseUrl}/api/bi/comercial/detalhes`
+- Retornar HTTP 200 com `{ error: "Não foi possível conectar à FastAPI", code: "FASTAPI_UNREACHABLE", fallback: true }`
+- Frontend (`AiChartGenerator`) já mostra `e.message` no toast, então a mensagem aparecerá direto.
 
-## O que será feito
+### 3. Redeploy da Edge Function
+Após a edição, fazer redeploy de `bi-ia-chart`.
 
-### 1. Corrigir o secret `FASTAPI_BASE_URL` (ação do usuário)
+### 4. Validação
+Pedir para você testar no BI Comercial com o prompt:
+> "Crie um gráfico de rosca mostrando o faturamento da Genius separado por Peças e Serviços com percentual."
 
-O secret precisa apontar para a URL pública da FastAPI, exatamente como nas outras funções que já funcionam. Vou solicitar o valor correto via `add_secret` para reconfigurar.
+Critérios de aceite:
+- Sem erro de configuração de secret
+- Edge Function chama `https://api-erp-renato.ngrok.app/api/bi/comercial/detalhes`
+- Gráfico de rosca renderiza na tela
+- Se a FastAPI cair, toast mostra "Não foi possível conectar à FastAPI"
 
-### 2. Endurecer a Edge Function `bi-ia-chart`
+## Arquivos alterados
+- `supabase/functions/bi-ia-chart/index.ts` — tratar erro de rede do `fetch` para FastAPI
 
-Adicionar a mesma validação usada em `programacao-sync-fila` antes de montar a URL:
-
-- secret ausente → `{ error: "Backend não configurado: defina FASTAPI_BASE_URL nos secrets.", code: "MISSING_BASE_URL" }`
-- não começa com `http://` ou `https://` → `INVALID_BASE_URL` com a string recebida
-- termina com `/` → `INVALID_BASE_URL`
-- aponta para `localhost` / `127.0.0.1` → `LOCALHOST_NOT_ALLOWED`
-- igual a `CRON_SECRET` → mensagem específica indicando troca de secrets
-
-Em vez de devolver HTTP 500, a função passa a devolver **HTTP 200 com `{ error, code, fallback: true }`** para erros de configuração, evitando o crash genérico no frontend (padrão já usado em outras funções do projeto). Erros de runtime (LLM, fetch FastAPI) continuam com status apropriado mas sempre com CORS e JSON.
-
-### 3. Tratar a mensagem no frontend
-
-Em `src/lib/bi/iaChartApi.ts` e `src/components/bi/ai/AiChartGenerator.tsx`:
-
-- Quando a resposta vier com `error` (mesmo status 200), exibir um toast com a mensagem amigável ("Backend não configurado…") em vez do erro técnico atual.
-- Logar `code` no console para diagnóstico.
-
-## Arquivos a alterar
-
-- `supabase/functions/bi-ia-chart/index.ts` — validação de `FASTAPI_BASE_URL` + erros estruturados
-- `src/lib/bi/iaChartApi.ts` — propagar `error/code` da resposta
-- `src/components/bi/ai/AiChartGenerator.tsx` — toast com mensagem amigável
-
-## Fora de escopo
-
-- Reescrever a integração com o FastAPI ou a lógica de agregação (`fetchDetalhes`, `aggregate`)
-- Mudanças visuais nos gráficos ou no editor visual
-
-## Pergunta antes de implementar
-
-Qual é a URL pública atual da FastAPI (ngrok) que devo gravar em `FASTAPI_BASE_URL`? Vou pedi-la via secret na hora de aplicar o plano.
+## Secrets alterados
+- `FASTAPI_BASE_URL` (via formulário seguro)
