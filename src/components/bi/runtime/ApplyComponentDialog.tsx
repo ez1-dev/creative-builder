@@ -180,7 +180,7 @@ export function ApplyComponentDialog({
     setSaving(true);
     try {
       const options: Record<string, any> = {};
-      if (page?.supportsUnidadeNegocio) options.unidade_negocio = unidadeNegocio;
+      if (unidadeNegocio !== '__page__') options.unidade_negocio = unidadeNegocio;
       await createUserWidget({
         page_key: pageKey, section, component_id: def.id,
         title: title || null, span, ordem, mapping, options,
