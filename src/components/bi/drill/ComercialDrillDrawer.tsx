@@ -45,20 +45,24 @@ function fmtCell(v: any, format?: DrillColumn['format']) {
   return String(v);
 }
 
-function levelTitle(level: { drill_type: DrillType; contexto: DrillContexto }, index: number): string {
-  const label = DRILL_LABELS[level.drill_type];
-  if (index === 0) return label;
-  // tentar pegar o último valor relevante adicionado
-  const keys: (keyof DrillContexto)[] = [
-    'cd_nf', 'cd_produto', 'cd_cliente', 'cd_rev_pedido', 'cd_estado',
-    'anomes_emissao', 'cd_prj', 'cd_tns', 'cd_origem', 'cd_tp_movimento', 'categoria_custom',
-  ];
-  for (const k of keys) {
-    const v = level.contexto[k];
-    if (v) return `${label}: ${v}`;
+function levelTitle(
+  level: { drill_type: DrillType; contexto: DrillContexto; addedFilter?: { key: keyof DrillContexto; value: string } },
+  index: number,
+  isLast: boolean,
+): string {
+  const drillLabel = DRILL_LABELS[level.drill_type];
+  if (index === 0) return drillLabel;
+  // Para o último nível (atual), exibir apenas o nome do drill (sem valor).
+  if (isLast) return drillLabel;
+  // Para níveis intermediários, exibir o filtro que foi adicionado naquele push.
+  const added = level.addedFilter;
+  if (added) {
+    const keyLabel = CTX_LABELS[added.key] ?? String(added.key);
+    return `${keyLabel}: ${added.value}`;
   }
-  return label;
+  return drillLabel;
 }
+
 
 export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_negocio }: Props) {
   const cur = stack.current;
