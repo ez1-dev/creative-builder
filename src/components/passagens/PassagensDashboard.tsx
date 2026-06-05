@@ -984,8 +984,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         series={seriesPayload}
         rows={crossFiltered}
       >
-      <PassagensLayoutGrid
+      <BlockedLayoutGrid
         widgets={effectiveWidgets}
+        blocks={dashboardBlocks}
         editing={editingLayout}
         onLayoutChange={setPendingLayout}
         onHide={editingLayout ? (type) => {
@@ -1003,6 +1004,11 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             const isNew = pendingNewWidgets.some((nw) => nw.type === type);
             if (isNew) {
               setPendingNewWidgets((prev) => prev.filter((nw) => nw.type !== type));
+              setPendingNewBlockIds((prev) => {
+                const next = { ...prev };
+                delete next[type];
+                return next;
+              });
             } else {
               setPendingDeletes((prev) => {
                 const next = new Set(prev);
@@ -1012,7 +1018,33 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             }
           }
         } : undefined}
-        blocks={{
+        onAddComponent={editingLayout ? (blockId) => {
+          setActiveBlockId(blockId);
+          setAddChartOpen(true);
+        } : undefined}
+        onMoveWidgetToBlock={editingLayout ? async (type, blockId) => {
+          // Widget pendente (novo): só altera mapa em memória.
+          if (pendingNewWidgets.some((nw) => nw.type === type)) {
+            setPendingNewBlockIds((prev) => ({ ...prev, [type]: blockId }));
+            toast.success('Componente movido (será salvo ao clicar em Salvar)');
+            return;
+          }
+          // Widget persistido: chama RPC imediatamente.
+          const w = widgets.find((x) => x.type === type);
+          if (!w?.id) return;
+          try {
+            await moveWidgetToBlock(w.id, blockId);
+            toast.success('Componente movido');
+          } catch (e: any) {
+            toast.error(e?.message ?? 'Erro ao mover componente');
+          }
+        } : undefined}
+        onBlockCreate={editingLayout ? () => createBlock() : undefined}
+        onBlockRename={editingLayout ? renameBlock : undefined}
+        onBlockDelete={editingLayout ? (id) => deleteBlock(id) : undefined}
+        onBlockReorder={editingLayout ? reorderBlock : undefined}
+        renderMap={{
+          'kpis-row': (
           'kpis-row': (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
