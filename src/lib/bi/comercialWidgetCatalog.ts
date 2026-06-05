@@ -80,9 +80,9 @@ const LIB_TABLE_IDS = ['data-table'];
 export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
   // ===== KPIs =====
   'kpi-faturamento': { type:'kpi-faturamento', title:'Faturamento',  kind:'kpi', kpiKey:'faturamento',     variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
-  'kpi-liquido':     { type:'kpi-liquido',     title:'Líquido',      kind:'kpi', kpiKey:'fat_liquido',     variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
+  'kpi-liquido':     { type:'kpi-liquido',     title:'Fat. Líquido',  kind:'kpi', kpiKey:'fat_liquido',     variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
   'kpi-impostos':    { type:'kpi-impostos',    title:'Impostos',     kind:'kpi', kpiKey:'impostos',        variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
-  'kpi-devolucao':   { type:'kpi-devolucao',   title:'Devolução',    kind:'kpi', kpiKey:'devolucao',       variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
+  'kpi-devolucao':   { type:'kpi-devolucao',   title:'Devoluções',   kind:'kpi', kpiKey:'devolucao',       variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
   'kpi-vendas':      { type:'kpi-vendas',      title:'Nº Vendas',    kind:'kpi', kpiKey:'numero_vendas',   variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
   'kpi-clientes':    { type:'kpi-clientes',    title:'Nº Clientes',  kind:'kpi', kpiKey:'numero_clientes', variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
   'kpi-estados':     { type:'kpi-estados',     title:'Nº Estados',   kind:'kpi', kpiKey:'numero_estados',  variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
@@ -93,7 +93,7 @@ export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
   'kpi-diferenca':   { type:'kpi-diferenca',   title:'Diferença vs Meta', kind:'kpi', kpiKey:'diferenca', variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
 
   // ===== Compostos / visuais fixos =====
-  'resumo-faturamento': { type:'resumo-faturamento', title:'Resumo Faturamento', kind:'kpi', variants:[], libraryComponentIds:[] },
+  'resumo-faturamento': { type:'resumo-faturamento', title:'Faturamento',  kind:'kpi', variants:[], libraryComponentIds:[] },
   'gauge-atingimento':  { type:'gauge-atingimento',  title:'% Atingimento',      kind:'kpi', variants:[], libraryComponentIds:[] },
 
 
