@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw } from 'lucide-react';
@@ -89,6 +89,36 @@ const ESCOPO_LABELS: Record<ComercialDetalheEscopo, string> = {
   clientes: 'Por cliente',
   estados: 'Por estado',
 };
+
+function HexInput({ currentBg, onApply }: { currentBg: string | null; onApply: (c: string) => void }) {
+  const [val, setVal] = useState(currentBg ?? '');
+  const [err, setErr] = useState(false);
+  useEffect(() => { setVal(currentBg ?? ''); setErr(false); }, [currentBg]);
+  const valid = (v: string) => /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3}([0-9a-fA-F]{2})?)?$/.test(v.trim());
+  const apply = () => {
+    const v = val.trim();
+    if (!valid(v)) { setErr(true); return; }
+    setErr(false);
+    onApply(v);
+  };
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2">
+        <Input
+          value={val}
+          onChange={(e) => { setVal(e.target.value); if (err) setErr(false); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); apply(); } }}
+          onBlur={apply}
+          placeholder="#dd4444"
+          className={cn('h-8 font-mono text-xs', err && 'border-destructive focus-visible:ring-destructive')}
+          spellCheck={false}
+        />
+        <Button type="button" size="sm" variant="outline" className="h-8" onClick={apply}>Aplicar</Button>
+      </div>
+      {err && <p className="text-[10px] text-destructive">Hex inválido. Ex.: #dd4444</p>}
+    </div>
+  );
+}
 
 function BlocoErro({ err, onRetry, msg = ERR_MSG }: { err: unknown; onRetry: () => void; msg?: string }) {
   return <ErrorState title={msg} message={String((err as any)?.message ?? '')} onRetry={onRetry} />;
@@ -787,6 +817,8 @@ export default function ComercialPage() {
                       className="h-8 w-12 cursor-pointer rounded border border-border bg-transparent"
                     />
                   </div>
+                  <HexInput currentBg={currentBg} onApply={handlePickBg} />
+
                   <Button size="sm" variant="ghost" className="w-full h-8 gap-1.5" onClick={handleResetBg}>
                     <RotateCw className="h-3.5 w-3.5" /> Restaurar padrão
                   </Button>
