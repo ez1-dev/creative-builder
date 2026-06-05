@@ -819,6 +819,19 @@ export default function ComercialPage() {
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={handleSyncClientes}
+                  disabled={syncingClientes}
+                  title="Atualiza nomes dos clientes a partir do ERP (E085CLI)"
+                >
+                  <Users className={cn('h-3.5 w-3.5', syncingClientes && 'animate-pulse')} />
+                  Sincronizar clientes
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
                 <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
               </Button>
