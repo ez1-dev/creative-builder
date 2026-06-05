@@ -166,7 +166,7 @@ export function ApplyComponentDialog({
 
   const filtroChips = useMemo(() => {
     const f = previewCtx?.filtros ?? {};
-    return Object.entries(f).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && v.length === 0));
+    return Object.entries(f ?? {}).filter(([, v]) => v != null && v !== '' && !(Array.isArray(v) && v.length === 0));
   }, [previewCtx]);
 
   const save = async () => {

@@ -86,7 +86,8 @@ export function AiChartGenerator({ filtrosBase, onDrill }: Props) {
 
   const renderChart = () => {
     if (!result) return null;
-    const data = result.series.map((s) => ({ label: s.label, valor: s.valor }));
+    const series = Array.isArray(result?.series) ? result.series : [];
+    const data = series.map((s: any) => ({ label: s?.label, valor: s?.valor }));
     const fmt = fmtMetrica(result.metrica);
     const visualConfig = {
       legend: { visible: true, position: 'bottom' as const },
@@ -206,7 +207,7 @@ export function AiChartGenerator({ filtrosBase, onDrill }: Props) {
               <Badge variant="outline">{result.tipo_grafico}</Badge>
               <Badge variant="outline">{METRICA_LABEL[result.metrica]}</Badge>
               <Badge variant="outline">{DIM_LABEL[result.dimensao]}</Badge>
-              {Object.entries(result.filtros).map(([k, v]) => (
+              {Object.entries(result?.filtros ?? {}).map(([k, v]) => (
                 <Badge key={k} variant="secondary" className="font-normal">
                   <span className="text-muted-foreground mr-1">{k}:</span>{v}
                 </Badge>

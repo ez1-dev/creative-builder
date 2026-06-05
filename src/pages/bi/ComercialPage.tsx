@@ -33,6 +33,8 @@ import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comer
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
+import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
+import { normalizeWidget } from '@/lib/bi/normalize';
 import {
   Popover, PopoverContent, PopoverTrigger,
 } from '@/components/ui/popover';
@@ -407,7 +409,7 @@ export default function ComercialPage() {
       return def.render({
         title: w.customTitle || w.title || def.label,
         mapping: w.mapping ?? {},
-        ctx: { kpis, series: pageSeries, rows: mensal as any[] },
+        ctx: { kpis: kpis ?? {}, series: pageSeries ?? {}, rows: Array.isArray(mensal) ? (mensal as any[]) : [] },
         options: w.options ?? {},
       });
     } catch (e) {
@@ -438,21 +440,30 @@ export default function ComercialPage() {
     return <EmptyState description="Bloco sem configuração" />;
   }
 
-  const visibleWidgets = layout.widgets.filter((w) => !w.hidden);
+  const visibleWidgets = (Array.isArray(layout.widgets) ? layout.widgets : [])
+    .map((w) => normalizeWidget(w) as unknown as ComercialWidget)
+    .filter((w) => !w.hidden);
 
   // Chave estável: muda só quando o CONTEÚDO dos blocos muda (não na geometria).
   // Assim, resize/drag dos cards não recomputa `blocks` e os Recharts não remontam.
-  const widgetsContentKey = layout.widgets
+  const widgetsContentKey = (Array.isArray(layout.widgets) ? layout.widgets : [])
     .map((w) => [
-      w.type, w.hidden ? 1 : 0, w.componentId ?? '', w.variant ?? '',
-      w.customTitle ?? '', JSON.stringify(w.mapping ?? null),
-      JSON.stringify(w.options ?? null), JSON.stringify(w.series ?? null),
+      w?.type ?? '', w?.hidden ? 1 : 0, w?.componentId ?? '', w?.variant ?? '',
+      w?.customTitle ?? '', JSON.stringify(w?.mapping ?? null),
+      JSON.stringify(w?.options ?? null), JSON.stringify(w?.series ?? null),
     ].join('|'))
     .join('~');
 
   const blocks = useMemo(() => {
     const out: Record<string, ReactNode> = {};
-    visibleWidgets.forEach((w) => { out[w.type] = renderWidget(w); });
+    visibleWidgets.forEach((w) => {
+      const title = w.customTitle || w.title || w.type;
+      out[w.type] = (
+        <WidgetErrorBoundary widgetKey={w.type} title={title}>
+          {renderWidget(w)}
+        </WidgetErrorBoundary>
+      );
+    });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetsContentKey, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
