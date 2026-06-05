@@ -90,18 +90,28 @@ export function AiChartGenerator({ filtrosBase, onDrill }: Props) {
     const diag = result.diagnostico ?? {};
     const filtros = { ...(result.filtros ?? {}), ...(diag.filtros_aplicados ?? {}) };
     const periodo = diag.periodo ?? {};
+    const anomesIni = periodo.ini ?? (filtros as any)?.anomes_ini ?? (filtrosBase as any)?.anomes_ini ?? '—';
+    const anomesFim = periodo.fim ?? (filtros as any)?.anomes_fim ?? (filtrosBase as any)?.anomes_fim ?? '—';
+    const unidade = diag.unidade_negocio ?? result.filtros?.unidade_negocio ?? 'CONSOLIDADO';
+    const dimensao = diag.dimensao ?? result.dimensao;
+    const qtdCategorias = typeof diag.qtd_categorias === 'number'
+      ? diag.qtd_categorias
+      : (Array.isArray(result.series) ? result.series.length : 0);
     return (
       <div className="rounded-md border border-dashed bg-muted/30 p-4 text-xs space-y-2">
         <div className="font-medium text-foreground">Nenhum dado encontrado com os filtros aplicados.</div>
         <ul className="space-y-1 text-muted-foreground">
+          <li><span className="text-foreground/80">anomes_ini:</span> {anomesIni}</li>
+          <li><span className="text-foreground/80">anomes_fim:</span> {anomesFim}</li>
+          <li><span className="text-foreground/80">unidade_negocio:</span> {unidade}</li>
+          <li><span className="text-foreground/80">dimensao:</span> {dimensao}</li>
           {typeof diag.linhas_view === 'number' && (
-            <li><span className="text-foreground/80">Linhas na view:</span> {diag.linhas_view.toLocaleString('pt-BR')}</li>
+            <li><span className="text-foreground/80">qtd_linhas_base:</span> {diag.linhas_view.toLocaleString('pt-BR')}</li>
           )}
-          {(periodo.ini || periodo.fim) && (
-            <li><span className="text-foreground/80">Período:</span> {periodo.ini ?? '—'} → {periodo.fim ?? '—'}</li>
+          {typeof diag.linhas_filtradas === 'number' && (
+            <li><span className="text-foreground/80">qtd_linhas_filtradas:</span> {diag.linhas_filtradas.toLocaleString('pt-BR')}</li>
           )}
-          <li><span className="text-foreground/80">Unidade:</span> {diag.unidade_negocio ?? result.filtros?.unidade_negocio ?? 'CONSOLIDADO'}</li>
-          <li><span className="text-foreground/80">Dimensão:</span> {diag.dimensao ?? result.dimensao}</li>
+          <li><span className="text-foreground/80">qtd_categorias:</span> {qtdCategorias.toLocaleString('pt-BR')}</li>
           {Object.keys(filtros).length > 0 && (
             <li>
               <span className="text-foreground/80">Filtros aplicados:</span>{' '}
