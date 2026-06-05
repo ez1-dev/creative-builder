@@ -123,10 +123,12 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (cur) {
             cur.can_view = cur.can_view || s.can_view;
             cur.can_edit = cur.can_edit || s.can_edit;
+            cur.can_delete = cur.can_delete || (s as any).can_delete;
           } else {
-            merged.set(s.screen_path, { ...s });
+            merged.set(s.screen_path, { ...s, can_delete: (s as any).can_delete ?? false });
           }
         }
+
         const next = Array.from(merged.values()).sort((a, b) => a.screen_path.localeCompare(b.screen_path));
         const nextAi = profiles.some((p: any) => p.ai_enabled);
         const nextAdmin = profiles.some((p: any) => p.name === 'Administrador');
