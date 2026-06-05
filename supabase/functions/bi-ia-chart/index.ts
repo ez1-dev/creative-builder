@@ -107,10 +107,16 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAChartS
               filtros: {
                 type: "object",
                 additionalProperties: { type: "string" },
-                description: "Filtros inferidos do pedido. Apenas chaves da whitelist de dimensões.",
+                description: "Filtros inferidos do pedido. Apenas chaves da whitelist de dimensões. Use 'CONSOLIDADO' para unidade_negocio quando o prompt disser total/geral/consolidado ou não mencionar unidade.",
+              },
+              categorias: {
+                type: "array",
+                items: { type: "string" },
+                description: "Labels de categoria_custom quando dimensao='categoria_custom'. Default ['PEÇAS','SERVIÇOS'].",
               },
               top_n: { type: "number" },
               mostrar_percentual: { type: "boolean" },
+              mostrar_valor: { type: "boolean" },
             },
             required: ["titulo", "subtitulo", "tipo_grafico", "metrica", "dimensao", "filtros", "top_n", "mostrar_percentual"],
             additionalProperties: false,
@@ -139,8 +145,13 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAChartS
   cfg.top_n = Math.min(30, Math.max(3, Number(cfg.top_n) || 10));
   cfg.filtros = cfg.filtros && typeof cfg.filtros === "object" ? cfg.filtros : {};
   cfg.mostrar_percentual = Boolean(cfg.mostrar_percentual);
+  cfg.mostrar_valor = cfg.mostrar_valor === undefined ? true : Boolean(cfg.mostrar_valor);
+  if (cfg.dimensao === "categoria_custom" && (!Array.isArray(cfg.categorias) || cfg.categorias.length === 0)) {
+    cfg.categorias = ["PEÇAS", "SERVIÇOS"];
+  }
   return cfg;
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
