@@ -315,6 +315,56 @@ export default function MetasFaturamentoPage() {
         </Card>
       )}
 
+      {metasUpquery.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Metas importadas da UpQuery — por mês e unidade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="px-2 py-2 text-left">AnoMês</th>
+                    <th className="px-2 py-2 text-left">Unidade de Negócio</th>
+                    <th className="px-2 py-2 text-left">Código</th>
+                    <th className="px-2 py-2 text-left">Descrição</th>
+                    <th className="px-2 py-2 text-right">Valor Meta</th>
+                    <th className="px-2 py-2 text-left">Origem</th>
+                    <th className="px-2 py-2 text-left">Atualizado em</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metasUpquery.map((m) => (
+                    <tr key={m.id} className="border-b hover:bg-muted/30">
+                      <td className="px-2 py-2 font-mono">{formatAnomes(m.anomes_emissao)}</td>
+                      <td className="px-2 py-2">{m.unidade_negocio}</td>
+                      <td className="px-2 py-2 font-mono">{m.codigo_unidade ?? CODIGO_POR_UNIDADE[m.unidade_negocio]}</td>
+                      <td className="px-2 py-2 text-muted-foreground">{m.descricao_unidade ?? '—'}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">{currency(Number(m.vl_meta))}</td>
+                      <td className="px-2 py-2"><Badge variant="secondary">UpQuery</Badge></td>
+                      <td className="px-2 py-2 text-xs text-muted-foreground">
+                        {m.origem_atualizada_em
+                          ? new Date(m.origem_atualizada_em).toLocaleString('pt-BR')
+                          : new Date(m.updated_at).toLocaleString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <SincronizarMetasUpqueryDialog
+        open={syncOpen}
+        onOpenChange={setSyncOpen}
+        defaultAnomesIni={anomesIni}
+        defaultAnomesFim={anomesFim}
+        onSuccess={() => invalidate()}
+      />
+
       <EditMetaDialog
         state={edit}
         onClose={() => setEdit({ open: false, editing: null })}
