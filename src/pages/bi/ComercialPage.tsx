@@ -492,6 +492,24 @@ export default function ComercialPage() {
     ].join('|'))
     .join('~');
 
+  const blocks = useMemo(() => {
+    const out: Record<string, ReactNode> = {};
+    visibleWidgets.forEach((w) => {
+      const title = w.customTitle || w.title || w.type;
+      out[w.type] = (
+        <WidgetErrorBoundary widgetKey={w.type} title={title}>
+          <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
+            {renderWidget(w)}
+          </WidgetTitleStyle>
+        </WidgetErrorBoundary>
+      );
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetsContentKey, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
+      qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
+      customMetrics.metrics, hiddenSeries]);
+
   // ===== Builder handlers =====
   const handleLayoutChange = (next: { type: string; layout: WidgetLayout }[]) => {
     setLayoutDraft(next);
