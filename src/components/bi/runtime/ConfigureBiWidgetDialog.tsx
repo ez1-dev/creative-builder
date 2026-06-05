@@ -34,7 +34,9 @@ export interface ConfigureValue {
   series?: MetricRef[] | null;
   titleColor?: string | null;
   titleBold?: boolean | null;
+  valueColor?: string | null;
 }
+
 
 interface Props {
   open: boolean;
@@ -81,6 +83,8 @@ export function ConfigureBiWidgetDialog({
   const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
   const [titleColor, setTitleColor] = useState<string>(initial.titleColor ?? 'default');
   const [titleBold, setTitleBold] = useState<boolean>(Boolean(initial.titleBold));
+  const [valueColor, setValueColor] = useState<string>(initial.valueColor ?? 'default');
+
 
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
   const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
@@ -98,6 +102,8 @@ export function ConfigureBiWidgetDialog({
     setSeriesList(initial.series ?? []);
     setTitleColor(initial.titleColor ?? 'default');
     setTitleBold(Boolean(initial.titleBold));
+    setValueColor(initial.valueColor ?? 'default');
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -130,7 +136,9 @@ export function ConfigureBiWidgetDialog({
     const titleStyle = {
       titleColor: titleColor && titleColor !== 'default' ? titleColor : null,
       titleBold: titleBold ? true : null,
+      valueColor: valueColor && valueColor !== 'default' ? valueColor : null,
     };
+
     if (mode === 'builtin') {
       onApply({
         variant,
@@ -205,8 +213,45 @@ export function ConfigureBiWidgetDialog({
         </Label>
         <Switch id={`${uid}-bold`} checked={titleBold} onCheckedChange={setTitleBold} />
       </div>
+      <div className="space-y-1.5 pt-2 border-t">
+        <Label className="text-xs">Cor do resultado</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {TITLE_COLOR_PRESETS.map((p) => {
+            const active = (valueColor || 'default') === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setValueColor(p.key)}
+                aria-label={p.label}
+                title={p.label}
+                className={cn(
+                  'h-7 w-7 rounded-full border-2 transition-all',
+                  active ? 'border-foreground ring-2 ring-ring/40' : 'border-border hover:border-foreground/50',
+                )}
+                style={{ background: p.swatch }}
+              />
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2 pt-1">
+          <Label className="text-[11px] text-muted-foreground shrink-0">Custom (hex):</Label>
+          <Input
+            type="text"
+            value={valueColor.startsWith('#') ? valueColor : ''}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              if (!v) setValueColor('default');
+              else setValueColor(v.startsWith('#') ? v : `#${v}`);
+            }}
+            placeholder="#1f6feb"
+            className="h-7 text-xs max-w-[140px]"
+          />
+        </div>
+      </div>
     </div>
   );
+
 
   const variants = def?.variants ?? [];
   const hasBuiltin = !isCustom && variants.length > 0;
