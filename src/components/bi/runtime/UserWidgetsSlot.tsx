@@ -9,7 +9,9 @@ import { usePageData } from '@/lib/bi/PageDataContext';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { UserWidgetFrame } from './UserWidgetFrame';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
+import { WidgetShell } from './WidgetShell';
 import { LoadingState } from '../states/LoadingState';
+import { periodoOverrideToFiltros, type WidgetOptions } from '@/lib/bi/widgetOptions';
 
 export function UserWidgetsSlot({
   section,
@@ -50,7 +52,7 @@ export function UserWidgetsSlot({
         const def = getComponent(w.component_id);
         if (!def) return null;
         const mapping = w?.mapping ?? {};
-        const widgetOptions = w?.options ?? {};
+        const widgetOptions = (w?.options ?? {}) as WidgetOptions;
         if (import.meta.env.DEV) {
           for (const inp of def.inputs ?? []) {
             const fk = mapping?.[inp.key];
@@ -66,9 +68,13 @@ export function UserWidgetsSlot({
           }
         }
         const unidadeOverride = widgetOptions?.unidade_negocio as string | undefined;
-        const mergedFiltros = unidadeOverride
-          ? { ...(ctx.filtros ?? {}), unidade_negocio: unidadeOverride }
-          : (ctx.filtros ?? {});
+        const periodoFiltros = periodoOverrideToFiltros(widgetOptions?.periodo_override);
+        const mergedFiltros = {
+          ...(ctx.filtros ?? {}),
+          ...(unidadeOverride ? { unidade_negocio: unidadeOverride } : {}),
+          ...periodoFiltros,
+        };
+        const effectiveTitle = widgetOptions?.hideTitle ? '' : (w.title ?? undefined);
         return (
           <UserWidgetFrame
             key={w.id}
@@ -78,16 +84,18 @@ export function UserWidgetsSlot({
             unidadeOverride={unidadeOverride}
           >
             <WidgetErrorBoundary widgetKey={w.id} title={w.title ?? def.label}>
-              {def.render({
-                title: w.title ?? undefined,
-                mapping,
-                options: { ...(widgetOptions ?? {}), filtros: mergedFiltros },
-                ctx: {
-                  kpis: ctx.kpis ?? {},
-                  series: ctx.series ?? {},
-                  rows: Array.isArray(ctx.rows) ? ctx.rows : [],
-                },
-              })}
+              <WidgetShell options={widgetOptions}>
+                {def.render({
+                  title: effectiveTitle,
+                  mapping,
+                  options: { ...(widgetOptions ?? {}), filtros: mergedFiltros },
+                  ctx: {
+                    kpis: ctx.kpis ?? {},
+                    series: ctx.series ?? {},
+                    rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                  },
+                })}
+              </WidgetShell>
             </WidgetErrorBoundary>
           </UserWidgetFrame>
         );
