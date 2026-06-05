@@ -904,6 +904,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                   setPendingHidden(null);
                   setPendingConfig({});
                   setPendingNewWidgets([]);
+                  setPendingNewBlockIds({});
                   setPendingDeletes(new Set());
                 }} disabled={savingLayout}>Cancelar</Button>
                 <Button size="sm" variant="outline" disabled={savingLayout} onClick={async () => {
@@ -914,6 +915,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     setEditingLayout(false);
                     setPendingLayout(null); setPendingHidden(null);
                     setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    setPendingNewBlockIds({});
                     toast.success('Layout restaurado.');
                   } catch (e: any) { toast.error(e?.message ?? 'Falha ao restaurar layout'); }
                   finally { setSavingLayout(false); }
