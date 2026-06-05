@@ -18,6 +18,9 @@ export interface PassagensWidget {
   position: number;
   layout: WidgetLayout;
   hidden?: boolean;
+  /** Bloco ao qual o componente pertence. Obrigatório no banco; em widgets pendentes pode ficar
+   *  ausente até o salvamento, quando é resolvido para o bloco padrão. */
+  blockId?: string | null;
   /** Quando definido, sobrescreve o renderizador canônico pelo componente do COMPONENT_REGISTRY. */
   componentId?: string;
   /** Mapeamento de inputs -> chaves do PageDataContext (ex.: { series: 'evolucao_mensal' }). */
@@ -40,6 +43,8 @@ export interface SaveLayoutItem {
   /** Para widgets novos (custom-*): título e position de criação. */
   title?: string;
   position?: number;
+  /** Bloco onde o componente deve ser inserido (obrigatório para widgets novos). */
+  blockId?: string | null;
 }
 
 /**
