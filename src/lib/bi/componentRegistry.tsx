@@ -120,10 +120,66 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 1,
     inputs: [{ key: 'value', label: 'Valor', source: 'kpis', required: true }],
     autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
+    render: ({ title, mapping, ctx, options }) => {
       const def = mapping.value;
       const v = ctx.kpis?.[def];
-      return <KpiCard title={title || def} value={v ?? 0} format="currency" />;
+      const opts = (options ?? {}) as WidgetOptions;
+      const Icon = resolveIcon(opts.icon);
+      const variant = (opts.color === 'success' || opts.color === 'warning' || opts.color === 'danger' || opts.color === 'info') ? opts.color : undefined;
+      const cmp = computeComparacao(undefined, opts.comparacao);
+      return (
+        <KpiCard
+          title={title || def}
+          value={v ?? 0}
+          format={toKpiFormat(opts.valueFormat ?? opts.format ?? 'currency')}
+          icon={Icon ? <Icon className="h-4 w-4" /> : undefined}
+          variant={variant as any}
+          subtitle={opts.subtitle}
+          trend={cmp ? { value: cmp.deltaPct, label: opts.comparacao === 'mesmo_periodo_ano_anterior' ? 'vs ano ant.' : 'vs anterior' } : undefined}
+        />
+      );
+    },
+  },
+  {
+    id: 'kpi-sparkline',
+    kind: 'kpi',
+    label: 'KPI + Sparkline',
+    description: 'Indicador com micro-gráfico de tendência.',
+    defaultSpan: 1,
+    inputs: [
+      { key: 'value', label: 'Valor', source: 'kpis', required: true },
+      { key: 'series', label: 'Série tendência', source: 'series', required: true },
+    ],
+    autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '', series: s.series?.[0]?.key ?? '' }),
+    render: ({ title, mapping, ctx, options }) => {
+      const v = ctx.kpis?.[mapping.value] ?? 0;
+      const arr = SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => p.valor);
+      const opts = (options ?? {}) as WidgetOptions;
+      return <KpiSparklineCard title={title || mapping.value} value={v} format={toKpiFormat(opts.valueFormat ?? opts.format ?? 'currency')} series={arr} />;
+    },
+  },
+  {
+    id: 'kpi-target',
+    kind: 'kpi',
+    label: 'KPI vs Meta',
+    description: 'Barra de progresso contra meta.',
+    defaultSpan: 1,
+    inputs: [{ key: 'value', label: 'Valor', source: 'kpis', required: true }],
+    autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '' }),
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const valor = Number(ctx.kpis?.[mapping.value] ?? 0);
+      const metaResolved = resolveMeta(opts.meta, ctx.kpis ?? {});
+      const target = metaResolved ?? Number(opts.target ?? 100);
+      const fmt = opts.valueFormat ?? opts.format ?? 'number';
+      return (
+        <KpiTargetCard
+          title={title || mapping.value}
+          value={valor}
+          target={target}
+          format={(fmt === 'compact' || fmt === 'auto' ? 'number' : fmt) as any}
+        />
+      );
     },
   },
   {
