@@ -105,6 +105,7 @@ export function ApplyComponentDialog({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [unidadeNegocio, setUnidadeNegocio] = useState<UnidadeNegocio>('CONSOLIDADO');
 
   useEffect(() => {
     if (!open || !def) return;
@@ -119,7 +120,9 @@ export function ApplyComponentDialog({
     setTitle('');
     setSpan(def.defaultSpan);
     setOrdem(0);
-  }, [open, def, compatiblePages, liveCtx?.pageKey]);
+    const liveUn = liveCtx?.filtros?.unidade_negocio as UnidadeNegocio | undefined;
+    setUnidadeNegocio(liveUn && UNIDADES.some((u) => u.value === liveUn) ? liveUn : 'CONSOLIDADO');
+  }, [open, def, compatiblePages, liveCtx?.pageKey, liveCtx?.filtros]);
 
   const page = pageKey ? getPage(pageKey) : undefined;
   const availableSections = page && def ? getSectionsForKind(page, def.kind) : [];
