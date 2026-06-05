@@ -57,16 +57,9 @@ export function SeriesSelectGroups({ options }: { options: SeriesOption[] }) {
           ))}
         </SelectGroup>
       )}
-        <SelectGroup>
-          <SelectLabel>Por dimensão</SelectLabel>
-          {porDim.map((s) => (
-            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-          ))}
-        </SelectGroup>
-      )}
       {legado.length > 0 && (
         <SelectGroup>
-          <SelectLabel>{mensal.length + porDim.length > 0 ? 'Legado / outros' : 'Séries'}</SelectLabel>
+          <SelectLabel>{mensal.length + anual.length + porDim.length > 0 ? 'Legado / outros' : 'Séries'}</SelectLabel>
           {legado.map((s) => (
             <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
           ))}
