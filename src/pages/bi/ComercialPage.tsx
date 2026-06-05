@@ -22,6 +22,9 @@ import {
 } from '@/components/bi';
 
 import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
+import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer';
+import { useComercialDrillStack } from '@/hooks/useComercialDrillStack';
+import type { DrillType, DrillContexto } from '@/lib/bi/comercialDrillApi';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
