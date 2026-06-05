@@ -268,15 +268,31 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
     veiculos_atendidos: kpis.veiculos,
   }), [kpis]);
 
-  const seriesPayload = useMemo(() => ({
-    evolucao_mensal: porMes.map((p) => ({ name: p.label, value: p.valor })),
-    por_segmento: porSegmento.map((p) => ({ name: p.label, value: p.valor })),
-    top_veiculos: topVeiculos.map((p) => ({ name: p.label, value: p.valor })),
-    top_fornecedores: topFornecedores.map((p) => ({ name: p.label, value: p.valor })),
-    top_centros_custo: topCC.map((p) => ({ name: p.label, value: p.valor })),
-    top_motoristas: topMotoristas.map((p) => ({ name: p.label, value: p.valor })),
-    por_tipo_veiculo: porTipo.map((p) => ({ name: p.label, value: p.valor })),
-  }), [porMes, porSegmento, topVeiculos, topFornecedores, topCC, topMotoristas, porTipo]);
+  const seriesPayload = useMemo(() => {
+    const out: Record<string, { name: string; value: number }[]> = {};
+    // mensal × métrica
+    FROTA_METRICAS.forEach((m) => {
+      out[`mensal__${m.key}`] = aggregateMensalFrota(crossFiltered, m.key);
+    });
+    // dimensão × métrica
+    FROTA_DIMENSOES.forEach((d) => {
+      const groups = groupByDim(crossFiltered, d.key);
+      FROTA_METRICAS.forEach((m) => {
+        out[`por_${d.key}__${m.key}`] = computeMetricByGroups(groups, m.key);
+      });
+    });
+    // aliases legados (objetos { label, valor }) — mantém widgets antigos funcionando
+    const toLegacy = (rows: { name: string; value: number }[]) =>
+      rows.map((p) => ({ label: p.name, valor: p.value }));
+    out.evolucao_mensal    = toLegacy(out['mensal__valor']) as any;
+    out.por_segmento       = toLegacy(out['por_segmento__valor']) as any;
+    out.top_veiculos       = toLegacy(out['por_placa__valor']) as any;
+    out.top_fornecedores   = toLegacy(out['por_fornecedor__valor']) as any;
+    out.top_centros_custo  = toLegacy(out['por_centro_custo__valor']) as any;
+    out.top_motoristas     = toLegacy(out['por_motorista__valor']) as any;
+    out.por_tipo_veiculo   = toLegacy(out['por_tipo_veiculo__valor']) as any;
+    return out;
+  }, [crossFiltered]);
 
   const drillLevelsConfig = useMemo(
     () => drillLevels
