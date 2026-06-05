@@ -122,6 +122,8 @@ export const CTX_LABELS: Partial<Record<keyof DrillContexto, string>> = {
   cd_tp_movimento: 'Mov.',
   cd_nf: 'NF',
   cd_produto: 'Produto',
+  cd_derivacao: 'Derivação',
   categoria_custom: 'Categoria',
+
 };
 
