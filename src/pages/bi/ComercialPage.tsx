@@ -677,6 +677,26 @@ export default function ComercialPage() {
 
   return (
     <PageDataProvider pageKey={PAGE_KEY} kpis={kpis} series={pageSeries} rows={mensal as any[]} filtros={filters as any}>
+      <div
+        data-bi-comercial-theme
+        className="min-h-full -m-4 p-4 md:-m-6 md:p-6 transition-colors duration-300"
+        style={{
+          background: theme.pageBackground,
+          ['--bi-primary' as any]: theme.primary,
+          ['--bi-accent' as any]: theme.accent,
+          ['--bi-card-border' as any]: theme.cardBorder,
+        }}
+      >
+        <style>{`
+          [data-bi-comercial-theme] .bi-grid > * > .rounded-lg,
+          [data-bi-comercial-theme] .bi-grid > * > [class*="rounded"],
+          [data-bi-comercial-theme] [data-widget-frame] {
+            background-color: rgba(255,255,255,0.88) !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-color: var(--bi-card-border) !important;
+          }
+        `}</style>
       <DashboardPage>
         <PageHeader
           title="BI Comercial"
