@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw } from 'lucide-react';
+
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +66,7 @@ import {
 } from '@/lib/bi/comercialFilters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { getUnidadeTheme } from './comercialTheme';
+import { getEffectiveTheme, getBgOverride, setBgOverride, clearBgOverride, SUGGESTED_BG_COLORS } from './comercialTheme';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
@@ -131,7 +132,11 @@ export default function ComercialPage() {
   const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
-  const theme = getUnidadeTheme(unidade);
+  const [bgOverrideTick, setBgOverrideTick] = useState(0);
+  const theme = useMemo(() => getEffectiveTheme(unidade), [unidade, bgOverrideTick]);
+  const currentBg = getBgOverride(unidade);
+  const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
+  const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
 
   const qKpis    = useQuery({ queryKey: ['bi-comercial','kpis',filters],    queryFn: () => fetchComercialKpis(filters),    refetchOnWindowFocus: false, retry: 1 });
   const qMensal  = useQuery({ queryKey: ['bi-comercial','mensal',filters],  queryFn: () => fetchComercialMensal(filters),  refetchOnWindowFocus: false, retry: 1 });
@@ -744,6 +749,49 @@ export default function ComercialPage() {
                   <Pencil className="h-3.5 w-3.5" /> Editar dashboard
                 </Button>
               )}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" className="h-8 gap-1.5" title="Cor de fundo da página">
+                    <Palette className="h-3.5 w-3.5" />
+                    <span
+                      className="inline-block h-3.5 w-3.5 rounded-full border border-border"
+                      style={{ background: currentBg ?? theme.pageBackground }}
+                    />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 space-y-3">
+                  <div className="text-xs font-semibold text-muted-foreground">
+                    Fundo da unidade: <span className="text-foreground">{unidade}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {SUGGESTED_BG_COLORS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        onClick={() => handlePickBg(c.value)}
+                        title={c.label}
+                        className={cn(
+                          'h-8 w-full rounded-md border transition',
+                          currentBg === c.value ? 'ring-2 ring-primary border-primary' : 'border-border hover:scale-105'
+                        )}
+                        style={{ background: c.value }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-muted-foreground flex-1">Personalizada</label>
+                    <input
+                      type="color"
+                      value={(currentBg && /^#[0-9a-fA-F]{6}$/.test(currentBg)) ? currentBg : '#ffffff'}
+                      onChange={(e) => handlePickBg(e.target.value)}
+                      className="h-8 w-12 cursor-pointer rounded border border-border bg-transparent"
+                    />
+                  </div>
+                  <Button size="sm" variant="ghost" className="w-full h-8 gap-1.5" onClick={handleResetBg}>
+                    <RotateCw className="h-3.5 w-3.5" /> Restaurar padrão
+                  </Button>
+                </PopoverContent>
+              </Popover>
               <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>

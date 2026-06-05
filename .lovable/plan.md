@@ -1,48 +1,36 @@
-# Recolher Filtros e Gerador de Gráfico IA — /bi/comercial
+# Color picker por unidade em /bi/comercial
 
-Adicionar controles de recolher/expandir para os dois blocos do topo da página `/bi/comercial`, liberando espaço vertical para os dashboards.
+Adicionar um seletor de cor de fundo no header da página, que altera a cor da unidade atualmente selecionada (GENIUS / ESTRUTURAL ZORTEA / CONSOLIDADO). A escolha é salva no `localStorage` do navegador e sobrescreve o tema padrão definido em `comercialTheme.ts`.
 
-## Escopo
+## O que muda
 
-Apenas `src/pages/bi/ComercialPage.tsx`. Sem alterar componentes da biblioteca BI.
+1. **Botão "Cor da página"** no header da `/bi/comercial`, ao lado dos toggles existentes:
+   - Ícone `Palette` + amostra circular da cor atual
+   - Abre um `Popover` (shadcn) com:
+     - Input nativo `<input type="color">` para escolher qualquer cor
+     - 6–8 swatches sugeridos (laranja claro, azul claro, verde, roxo, cinza, branco, etc.)
+     - Botão "Restaurar padrão" que volta ao tema original da unidade
 
-## Mudanças
+2. **Override persistente por unidade**:
+   - Chave única: `bi-comercial:bg-color:<UNIDADE>`
+   - Apenas o `pageBackground` é sobrescrito; `primary`, `accent`, badges e cores dos gráficos continuam vindo de `comercialTheme.ts` (mantém a identidade visual da unidade)
+   - Se nenhuma cor foi escolhida, usa o `pageBackground` padrão do tema
 
-### 1. Estado local de visibilidade
-Adicionar dois `useState<boolean>`:
-- `filtrosOpen` (default: `true`)
-- `iaOpen` (default: `false` — fica recolhido por padrão, já que é uso pontual)
+3. **Aplicação dinâmica**:
+   - Função `getEffectiveTheme(unidade)` lê o override do localStorage e mescla com o tema base
+   - Ao trocar a unidade no filtro, o fundo passa a refletir a cor salva daquela unidade
+   - Se o usuário escolher uma cor enquanto está em GENIUS, só GENIUS muda; ESTRUTURAL e CONSOLIDADO continuam com suas cores
 
-Persistir em `localStorage` (`bi-comercial:filtros-open`, `bi-comercial:ia-open`) para lembrar a escolha do usuário entre sessões.
+## Escopo (NÃO mexer)
 
-### 2. Cabeçalho recolhível para Filtros
-Envolver o bloco atual de filtros em um container com um header clicável:
-- Título "Filtros" + chevron (`ChevronDown`/`ChevronUp` do lucide-react)
-- Quando recolhido, mostrar um resumo compacto na mesma linha: unidade ativa + período (ex: `GENIUS • 202601–202612`) e um botão pequeno "Aplicar" continua acessível, OU oculta tudo e o usuário precisa expandir para aplicar (definir abaixo).
-- Botão "Aplicar" e "Limpar" continuam dentro do bloco expandido.
+- Sem alterações no tema global do sistema
+- Sem alterações em outras páginas BI
+- Sem backend (puro frontend + localStorage)
+- Sem mexer em `primary`/`accent` — só fundo da página
+- Filtros recolhíveis, IA generator, dashboard editor, drill: tudo intacto
 
-### 3. Cabeçalho recolhível para Gerador de Gráfico IA
-Envolver `<AiChartGenerator />` em um bloco com header clicável:
-- Título "Gerar gráfico com IA" + ícone `Sparkles` + chevron
-- Quando recolhido: só o header (linha fina), economiza ~300px de altura
-- Quando expandido: renderiza o componente normalmente
+## Arquivos
 
-### 4. Estilo
-- Headers usam o mesmo padrão visual dos cards da página (`Card` shadcn + `border` + `hover:bg-accent/30`)
-- Respeitam o tema dinâmico já implementado (cor primária via `var(--bi-primary)`)
-- Transição suave (`transition-all`)
-
-## Comportamento
-
-- Estado inicial: Filtros expandido, Gerador IA recolhido.
-- Clicar no header alterna o estado e persiste em `localStorage`.
-- Recolher os dois libera ~400px de altura para os widgets do dashboard.
-- Nenhuma mudança em lógica de filtros, drill, edição de dashboard ou IA.
-
-## Critérios de aceite
-
-- Header "Filtros" e "Gerar gráfico com IA" são clicáveis e alternam visibilidade.
-- Estado persiste após reload.
-- Tema dinâmico por unidade continua funcionando.
-- Modo Editar Dashboard, salvar layout, drill e geração IA seguem intactos.
-- Nenhuma outra página é afetada.
+- `src/pages/bi/comercialTheme.ts` — adicionar helpers `getBgOverride(unidade)`, `setBgOverride(unidade, color)`, `clearBgOverride(unidade)`, `getEffectiveTheme(unidade)`
+- `src/pages/bi/ComercialPage.tsx` — novo botão Popover no header; usar `getEffectiveTheme` no lugar de `unidadeThemes[unidade]` para o `pageBackground`
+- (opcional) `src/pages/bi/BgColorPicker.tsx` — componente isolado do popover, se ficar maior que ~40 linhas
