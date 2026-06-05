@@ -1,21 +1,52 @@
-## Refinar gauge "% Atingimento" no estilo Upquery
+# Completar Permissões por Tela em Configurações
 
-Reescrever `src/components/bi/charts/GaugeAchievementCard.tsx` mantendo a mesma API (props `title`, `value`, `max`, `className`) e o atributo `data-widget-value`.
+## Problema
+A lista `ALL_SCREENS` em `src/pages/ConfiguracoesPage.tsx` está defasada em relação às rotas reais registradas em `src/App.tsx`. Várias telas — em especial os módulos **BI**, **Produção (Carga/Programação)**, **Cadastros**, **ETL**, **Regras Senior** e **Relatórios** — não aparecem na aba "Permissões por Tela", impedindo que perfis sejam configurados para elas.
 
-### Mudanças visuais
-- Substituir o gauge atual (Recharts Pie em 4 segmentos colados) por um SVG próprio com 4 segmentos (vermelho → laranja → amarelo → verde) separados por **pequenos gaps** entre eles — visual mais limpo e moderno, igual ao padrão Upquery.
-- **Ponteiro corrigido**: agora termina exatamente na borda interna do arco (não passa por baixo nem fica desproporcional). Atualmente, com valores baixos como 6,06%, o ponteiro saía quase horizontal e parecia "quebrado".
-- **Pivô central refinado**: círculo cheio escuro com um pontinho claro no meio (estilo relógio analógico).
-- Proporções ajustadas (arco mais cheio, melhor uso do espaço do card).
-- Transição suave do ponteiro ao mudar o valor.
+## Telas que serão adicionadas
 
-### O que NÃO muda
-- API do componente é preservada — qualquer página que já usa `<GaugeAchievementCard>` continua funcionando sem alteração.
-- Escala 0 → `max` (default 120%) mantida.
-- Tipografia do valor abaixo do arco mantida (com classes responsivas `3xl:` / `4xl:` para TV mode).
-- Cores semânticas (vermelho/laranja/amarelo/verde) preservadas.
+**BI**
+- `/bi/faturamento-validacao` — BI — Validação de Faturamento
+- `/bi/comercial` — BI Comercial
+- `/bi/comercial/metas` — BI Comercial — Metas de Faturamento
 
-### Arquivos
-- **Editar (rewrite):** `src/components/bi/charts/GaugeAchievementCard.tsx`
+**Produção (faltantes)**
+- `/producao/carga` — Produção — Carga de Produção
+- `/producao/carga/dashboard` — Produção — Carga (Dashboard BI)
+- `/producao/carga/recursos` — Produção — Carga por Centro de Recurso
+- `/producao/programacao` — Produção — Programação e Sequenciamento
 
-Nenhum outro arquivo é tocado e nenhuma página precisa de ajuste.
+**Cadastros**
+- `/cadastros/produtos` — Cadastros — Consulta de Produtos
+
+**Administração / Ferramentas**
+- `/etl` — ETL / Camada Analítica
+
+**Regras Senior**
+- `/regras-senior` — Regras Senior — Dashboard
+- `/regras-senior/regras` — Regras Senior — Lista de Regras
+- `/regras-senior/identificadores` — Regras Senior — Identificadores
+- `/regras-senior/auditoria` — Regras Senior — Auditoria
+- `/regras-senior/snapshots` — Regras Senior — Snapshots
+
+**Relatórios**
+- `/relatorios/desenvolvimento` — Relatórios — Desenvolvimento
+- `/relatorios/publicados` — Relatórios — Publicados
+- `/relatorios/execucoes` — Relatórios — Histórico de Execuções
+
+## Mudanças técnicas
+
+1. **`src/pages/ConfiguracoesPage.tsx`** — acrescentar as entradas acima ao array `ALL_SCREENS` (mantendo nomes consistentes com `src/lib/screenCatalog.ts`).
+
+2. **`src/components/configuracoes/PermissoesPorTelaPanel.tsx`** — atualizar a função `getModule()` para classificar as novas rotas nos grupos corretos:
+   - `bi` (novo módulo) ou agrupar BI dentro de `faturamento`/`administracao`: criar novo grupo **"BI / Analytics"** (chave `bi`) cobrindo `/bi/*` e `/etl`.
+   - `producao` já cobre `/producao/*` (ok).
+   - novo grupo **"Cadastros"** (chave `cadastros`) para `/cadastros/*`.
+   - novo grupo **"Regras Senior"** (chave `regras_senior`) para `/regras-senior*`.
+   - novo grupo **"Relatórios"** (chave `relatorios`) para `/relatorios/*`.
+   - Atualizar `MODULE_LABEL` e `MODULE_ORDER` com as novas chaves, mantendo `outras` como fallback.
+
+## Fora de escopo
+- Não cria/modifica políticas no Cloud (`profile_screens` já aceita qualquer `screen_path`).
+- Não altera permissões já gravadas — apenas torna as telas configuráveis.
+- Não mexe em `screenCatalog.ts` nem em `visualCatalog.ts`.
