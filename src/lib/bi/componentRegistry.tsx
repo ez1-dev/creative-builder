@@ -28,6 +28,24 @@ import {
 } from '@/components/bi';
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';
+import * as LucideIcons from 'lucide-react';
+import {
+  type WidgetOptions, applyTopNSort, toKpiFormat, computeComparacao,
+  resolveMeta, colorCss,
+} from './widgetOptions';
+
+/** Resolve um ícone lucide pelo nome; retorna null se inválido. */
+function resolveIcon(name?: string) {
+  if (!name) return null;
+  const Cmp = (LucideIcons as any)[name];
+  return typeof Cmp === 'function' ? Cmp : null;
+}
+
+/** Cor para charts: se options.color for um token (success/warning/...), converte; senão usa primary. */
+function chartColor(opts?: WidgetOptions): string {
+  if (!opts?.color) return 'hsl(var(--primary))';
+  return colorCss(opts.color);
+}
 
 export interface MappingField {
   key: string;
