@@ -22,7 +22,7 @@ export function DrillEmptyDiagnostico({ stack, response }: Props) {
   const ctx = cur?.contexto ?? {};
   const diag = response?.diagnostico;
 
-  const steps: Step[] = [
+  const stepDefs: Step[] = [
     { key: 'qtd_linhas_base', label: 'Base' },
     { key: 'qtd_linhas_apos_unidade', label: 'Após unidade' },
     { key: 'qtd_linhas_apos_mes', label: 'Após mês', removeKey: 'anomes_emissao' },
@@ -30,7 +30,8 @@ export function DrillEmptyDiagnostico({ stack, response }: Props) {
     { key: 'qtd_linhas_apos_cliente', label: 'Após cliente', removeKey: 'cd_cliente' },
     { key: 'qtd_linhas_apos_revenda', label: 'Após revenda', removeKey: 'cd_rev_pedido' },
     { key: 'qtd_linhas_apos_produto', label: 'Após produto', removeKey: 'cd_produto' },
-  ].map((s) => ({ ...s, value: (diag as any)?.[s.key] }));
+  ];
+  const steps: Step[] = stepDefs.map((s) => ({ ...s, value: (diag as any)?.[s.key] }));
 
   // Primeiro passo em que zerou (depois de já existir base > 0).
   let zeroIndex = -1;
