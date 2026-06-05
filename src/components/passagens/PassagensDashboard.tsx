@@ -1045,7 +1045,6 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
         onBlockReorder={editingLayout ? reorderBlock : undefined}
         renderMap={{
           'kpis-row': (
-          'kpis-row': (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         <KPICard title="Total Geral" value={formatCurrency(totalGeral)} icon={<DollarSign className="h-5 w-5" />} index={0} />
         {isCompact ? (
