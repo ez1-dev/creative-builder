@@ -37,16 +37,12 @@ import {
   // runtime: aplicar em páginas
   ApplyComponentButton,
   MyWidgetsPanel,
-} from '@/components/bi';
-import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingToggle';
-// continuação dos imports originais via segundo bloco abaixo (utilitários)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const __keepUtilsImportBelow = true;
   // utils
   formatCurrency, formatNumber, abbreviateNumber,
   type Column,
   type BiStatus,
 } from '@/components/bi';
+import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingToggle';
 
 // ============ MOCK DATA ============
 const mesesData = [
