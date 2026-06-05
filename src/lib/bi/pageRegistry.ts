@@ -113,6 +113,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
     key: 'faturamento-genius',
     label: 'Faturamento Genius',
     route: '/faturamento-genius',
+    supportsUnidadeNegocio: true,
     sections: [
       { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
       { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
