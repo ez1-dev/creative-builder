@@ -1039,7 +1039,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             toast.error(e?.message ?? 'Erro ao mover componente');
           }
         } : undefined}
-        onBlockCreate={editingLayout ? () => createBlock() : undefined}
+        onBlockCreate={editingLayout ? async () => { await createBlock(); } : undefined}
         onBlockRename={editingLayout ? renameBlock : undefined}
         onBlockDelete={editingLayout ? (id) => deleteBlock(id) : undefined}
         onBlockReorder={editingLayout ? reorderBlock : undefined}
