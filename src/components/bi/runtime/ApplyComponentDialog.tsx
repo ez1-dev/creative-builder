@@ -123,7 +123,11 @@ export function ApplyComponentDialog({
     setSpan(def.defaultSpan);
     setOrdem(0);
     const liveUn = liveCtx?.filtros?.unidade_negocio as UnidadeNegocio | undefined;
-    setUnidadeNegocio(liveUn && UNIDADES.some((u) => u.value === liveUn) ? liveUn : 'CONSOLIDADO');
+    if (initial?.supportsUnidadeNegocio && liveUn && UNIDADES.some((u) => u.value === liveUn)) {
+      setUnidadeNegocio(liveUn);
+    } else {
+      setUnidadeNegocio('__page__');
+    }
   }, [open, def, compatiblePages, liveCtx?.pageKey, liveCtx?.filtros]);
 
   const page = pageKey ? getPage(pageKey) : undefined;
