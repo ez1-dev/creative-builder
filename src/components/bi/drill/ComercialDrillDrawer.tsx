@@ -91,16 +91,21 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const allowedNext = cur ? NEXT_DRILLS[cur.drill_type] : [];
 
   const handlePushFromRow = (next: DrillType, row: Record<string, any>) => {
-    const fromKey = cur ? ROW_TO_CTX_KEY[cur.drill_type] : null;
-    const rowCtx: DrillContexto = {};
-    if (fromKey && row[fromKey] != null) {
-      (rowCtx as any)[fromKey] = String(row[fromKey]);
-    }
-    (['cd_nf', 'cd_produto', 'cd_cliente', 'cd_estado', 'cd_rev_pedido', 'anomes_emissao'] as (keyof DrillContexto)[])
-      .forEach((k) => {
-        if (row[k] != null && rowCtx[k] == null) (rowCtx as any)[k] = String(row[k]);
+    // Prioridade: usar filtros_drill que o backend devolve por linha.
+    // Sem isso, cair no fallback de pegar APENAS a chave agrupadora do drill atual.
+    const rowFilters: DrillContexto = {};
+    const fromBackend = row?.filtros_drill as Partial<DrillContexto> | undefined;
+    if (fromBackend && typeof fromBackend === 'object') {
+      Object.entries(fromBackend).forEach(([k, v]) => {
+        if (v != null && String(v).length > 0) (rowFilters as any)[k] = String(v);
       });
-    stack.pushDrill(next, rowCtx);
+    } else if (cur) {
+      const fromKey = ROW_TO_CTX_KEY[cur.drill_type];
+      if (fromKey && row[fromKey] != null) {
+        (rowFilters as any)[fromKey] = String(row[fromKey]);
+      }
+    }
+    stack.pushDrill(next, rowFilters);
   };
 
   const columns = useMemo<Column<Record<string, any>>[]>(() => {
