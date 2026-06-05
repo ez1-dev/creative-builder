@@ -272,9 +272,9 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             saved += 1;
           }
         } else {
-          // Widget ainda não existe no banco — cria
+          // Widget ainda não existe no banco — cria. blockId vem do item; se ausente, cai no padrão.
           const def = PASSAGENS_DEFAULT_WIDGETS.find((d) => d.type === type);
-          const blockId = await ensureDefaultBlockId(id!);
+          const blockId = item.blockId ?? (await ensureDefaultBlockId(id!));
           const { error: insErr } = await supabase
             .from('dashboard_widgets')
             .insert({
