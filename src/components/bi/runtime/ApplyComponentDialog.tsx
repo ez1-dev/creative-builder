@@ -223,17 +223,35 @@ export function ApplyComponentDialog({
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor={idSection} className="text-xs">Seção</Label>
-              <Select value={section} onValueChange={setSection} disabled={!availableSections.length}>
-                <SelectTrigger id={idSection} name="target-section" aria-label="Seção"><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                <SelectContent>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Bloco da página</Label>
+              {availableSections.length === 0 ? (
+                <div className="flex items-start gap-2 rounded-md border-2 border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-semibold">Nenhum bloco compatível</div>
+                    <div className="text-[11px] opacity-90">Esta página não aceita componentes do tipo "{def.kind}". Escolha outra página alvo.</div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  role="radiogroup"
+                  aria-label="Bloco da página"
+                  className="grid grid-cols-1 gap-1.5"
+                >
                   {availableSections.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+                    <BlocoCard
+                      key={s.key}
+                      section={s as any}
+                      selected={section === s.key}
+                      onSelect={() => setSection(s.key)}
+                      idPrefix={idSection}
+                    />
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
             </div>
+
 
             {def.inputs.length > 0 && page && (
               <div className="space-y-2 rounded-md border bg-muted/20 p-2">
