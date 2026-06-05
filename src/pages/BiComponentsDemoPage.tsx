@@ -301,6 +301,9 @@ export default function BiComponentsDemoPage() {
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
                 Aplicável em qualquer página
               </span>
+              <div className="ml-auto rounded-md border bg-card/60 px-2 py-1 shadow-sm">
+                <NumberRoundingToggle />
+              </div>
             </div>
           </div>
         </div>
