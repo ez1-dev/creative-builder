@@ -300,6 +300,36 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                     </Button>
                   </>
                 )}
+                {onMoveToBlock && moveTargets && moveTargets.length > 0 && (
+                  <>
+                    <div className="h-4 w-px bg-border" />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          title="Mover componente para outro bloco"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <FolderInput className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Mover para…</DropdownMenuLabel>
+                        {moveTargets.map((t) => (
+                          <DropdownMenuItem
+                            key={t.id}
+                            onClick={(e) => { e.stopPropagation(); onMoveToBlock(w.type, t.id); }}
+                          >
+                            {t.title}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </>
+                )}
                 {onDelete && w.type.startsWith('custom-') && (
                   <Button
                     type="button"
