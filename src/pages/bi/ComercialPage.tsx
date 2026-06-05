@@ -199,6 +199,25 @@ export default function ComercialPage() {
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
 
+  const { isAdmin } = useUserPermissions();
+  const [syncingClientes, setSyncingClientes] = useState(false);
+  const handleSyncClientes = async () => {
+    if (syncingClientes) return;
+    setSyncingClientes(true);
+    const tId = toast.loading('Sincronizando clientes do ERP...');
+    try {
+      const r = await api.post<any>('/api/bi/comercial/clientes/sincronizar', {});
+      const total = r?.total ?? 0;
+      const ins = r?.inseridos ?? 0;
+      const upd = r?.atualizados ?? 0;
+      toast.success(`Clientes sincronizados: ${total} (novos ${ins}, atualizados ${upd})`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar clientes: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingClientes(false);
+    }
+  };
+
   const kpisRaw = qKpis.data ?? ({} as any);
   // Override Meta / Diferença / % Atingimento usando bi_meta_faturamento (Cloud)
   // quando houver metas cadastradas para o período/UN. Caso contrário, mantém os
