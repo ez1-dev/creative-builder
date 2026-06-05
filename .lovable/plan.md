@@ -1,51 +1,41 @@
 ## Objetivo
-Adicionar opção de **cor do resultado** (valor numérico do KPI / destaque do widget) no diálogo *Configurar bloco* do BI Comercial, junto com as opções de cor e negrito do título já existentes.
+Adicionar 2 novos blocos prontos ao BI Comercial inspirados na referência:
+1. **Resumo Faturamento** — card único com Realizado / Meta / Diferença empilhados (3 valores grandes com rótulo acima).
+2. **Atingimento (Gauge)** — gauge semicircular vermelho→amarelo→verde com o `% Atingimento` abaixo.
 
-## Escopo
-- Apenas BI Comercial (mesmo fluxo já implementado para título).
-- Aplicar a KPIs (valor principal). Demais widgets (gráficos/tabelas) ignoram silenciosamente.
-- Sem mudanças de backend / lógica de negócio.
+Ambos consomem KPIs já calculados no `ComercialPage` (`faturamento`, `meta`, `diferenca`, `pct_atingimento`) — sem chamadas novas ao backend.
 
 ## Mudanças
 
-### 1. `src/components/bi/runtime/WidgetTitleStyle.tsx`
-- Adicionar prop `valueColor?: string | null` (reaproveita `resolveTitleColor` / `TITLE_COLOR_PRESETS`).
-- Quando definida, injetar `--widget-value-color` no mesmo wrapper `data-widget-title-style` (renomeio interno do atributo segue o mesmo — apenas adiciona a var; sem renomear para não quebrar CSS).
-- Reexportar `VALUE_COLOR_PRESETS` (alias dos presets atuais) para clareza no dialog.
+### 1. Novo componente `src/components/bi/kpis/KpiTriStackCard.tsx`
+Card com header opcional e 3 blocos verticais `{label, value, format, color?}`. Usa tokens semânticos; `data-widget-value` no valor principal (já compatível com a personalização de cor).
 
-### 2. `src/index.css`
-- Acrescentar regra:
-  ```css
-  [data-widget-title-style] [data-widget-value] {
-    color: var(--widget-value-color, inherit);
-  }
-  ```
+### 2. Novo componente `src/components/bi/charts/GaugeAchievementCard.tsx`
+Wrapper sobre o `GaugeChartCard` existente, fixando gradiente vermelho→amarelo→verde (faixas 0-60 / 60-90 / 90-120) e rótulo grande do percentual abaixo do arco. Aceita `value` (%) e `title`.
 
-### 3. `src/components/bi/kpis/KpiCard.tsx`
-- Adicionar `data-widget-value` na `<div>` que renderiza `formatByKind(value, format)` (linha 69).
-- Idem para `KpiStatusCard` (mesmo padrão), se houver valor principal.
+### 3. `src/lib/bi/comercialWidgetCatalog.ts`
+Adicionar dois novos tipos:
+- `'resumo-faturamento'` — `kind:'kpi'`, sem variantes (single shape), `libraryComponentIds: []` (não substituível).
+- `'gauge-atingimento'` — `kind:'kpi'`, sem variantes, `libraryComponentIds: []`.
 
-### 4. `src/components/bi/runtime/ConfigureBiWidgetDialog.tsx`
-- Estender `ConfigureValue` com `valueColor?: string | null`.
-- Estado `valueColor` (preset/hex/null) + input custom hex, espelhando o bloco de "Aparência do título".
-- Nova seção **"Cor do resultado"** logo abaixo de "Aparência do título" (em ambas as abas built-in e library).
-- Incluir `valueColor` em `handleApply`.
+### 4. `src/pages/bi/ComercialPage.tsx`
+- No `renderWidget` (switch por `type`), adicionar branches para `resumo-faturamento` (renderiza `KpiTriStackCard` com Realizado=`kpis.faturamento`, Meta=`kpis.meta`, Diferença=`kpis.diferenca`) e `gauge-atingimento` (renderiza `GaugeAchievementCard` com `kpis.pct_atingimento`).
+- Click em qualquer um abre `openDetalhes('todas', title)` (consistente com KPIs atuais).
+- Ambos respeitam loading / erro do `qKpis`.
 
-### 5. Persistência
-- `src/hooks/useComercialLayout.ts`: adicionar `valueColor?: string | null` em `ComercialWidget` e `SaveLayoutItem`; gravar/ler no payload de layout.
-- `src/lib/bi/normalize.ts`: incluir `valueColor` no helper de normalização.
-- `src/pages/bi/ComercialPage.tsx`:
-  - Passar `valueColor` para `<WidgetTitleStyle>` no `blocks` memo.
-  - Incluir `valueColor` no `widgetsContentKey` para re-render imediato.
-  - `configDraft` já é genérico (`Partial<SaveLayoutItem>`), então o draft unificado funciona sem mudanças adicionais.
+### 5. Catálogo "Adicionar bloco"
+O dialog `AddBiWidgetDialog` lista o catálogo automaticamente; basta os novos types existirem em `COMERCIAL_WIDGETS` para aparecerem na seção "KPIs".
+
+### 6. Estilo de personalização (cor título / resultado)
+Os novos componentes usam `CardTitle` e `data-widget-value` nos valores principais, então o WidgetTitleStyle já funciona neles sem mudanças adicionais. No `KpiTriStackCard` os 3 valores recebem `data-widget-value` para herdarem a cor.
 
 ## Critérios de aceitação
-- No edit mode → "Configurar bloco" de um KPI aparecem 2 grupos: *Aparência do título* (cor + negrito) e *Cor do resultado* (cor + hex custom).
-- Selecionar preset ou hex muda imediatamente a cor do número do KPI no preview.
-- Botão **Salvar Dashboard** habilita ao alterar a cor (já coberto pelo sistema de drafts unificado).
-- Cancelar descarta.
+- Em **Editar → Adicionar bloco** aparecem "Resumo Faturamento" e "Atingimento (Gauge)".
+- Resumo Faturamento mostra os 3 valores grandes empilhados com rótulos `Realizado / Meta / Diferença`.
+- Atingimento exibe o gauge semicircular colorido com o percentual abaixo.
+- Personalização de cor (título + resultado) funciona nos dois.
 
 ## Fora de escopo
-- Cor de séries em gráficos.
-- Cor de células de tabela.
-- Negrito do resultado (apenas cor, conforme pedido).
+- Configuração avançada de variantes (são blocos fixos).
+- Substituição via Biblioteca BI.
+- Edição das faixas do gauge.

@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   KpiCard, KpiSparklineCard, KpiTargetCard, KpiVariationCard,
+  KpiTriStackCard, GaugeAchievementCard,
   DataTableBI, LoadingState, ErrorState, EmptyState,
   ComboChartCard, DonutChartCard, PieChartCard,
   BarChartCard, HorizontalBarChartCard, LineChartCard, AreaChartCard,
@@ -18,6 +19,7 @@ import {
   formatCurrency, formatNumber,
   type Column,
 } from '@/components/bi';
+
 import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
@@ -421,6 +423,37 @@ export default function ComercialPage() {
   function renderWidget(w: ComercialWidget): ReactNode {
     // Override por componente da Biblioteca BI tem precedência sobre variant built-in
     if (w.componentId) return renderCustomLibrary(w);
+
+    // Blocos compostos / fixos (sem variantes)
+    if (w.type === 'resumo-faturamento') {
+      if (qKpis.isLoading) return <LoadingState height={200} />;
+      if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
+      const title = w.customTitle || w.title || 'Faturamento';
+      return (
+        <Clickable onClick={() => openDetalhes('todas', title)}>
+          <KpiTriStackCard
+            title={title}
+            items={[
+              { label: 'Realizado', value: n(kpis.faturamento), format: 'currency' },
+              { label: 'Meta',      value: n(kpis.meta),        format: 'currency' },
+              { label: 'Diferença', value: n(kpis.diferenca),   format: 'currency' },
+            ]}
+          />
+        </Clickable>
+      );
+    }
+    if (w.type === 'gauge-atingimento') {
+      if (qKpis.isLoading) return <LoadingState height={200} />;
+      if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
+      const title = w.customTitle || w.title || '% Atingimento';
+      return (
+        <Clickable onClick={() => openDetalhes('todas', title)}>
+          <GaugeAchievementCard title={title} value={n(kpis.pct_atingimento)} />
+        </Clickable>
+      );
+    }
+
+
 
     const def = COMERCIAL_WIDGETS[w.type];
     if (def) {

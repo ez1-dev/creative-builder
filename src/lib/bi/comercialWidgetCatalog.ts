@@ -92,6 +92,11 @@ export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
   'kpi-meta':        { type:'kpi-meta',        title:'Meta',         kind:'kpi', kpiKey:'meta',            variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
   'kpi-diferenca':   { type:'kpi-diferenca',   title:'Diferença vs Meta', kind:'kpi', kpiKey:'diferenca', variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
 
+  // ===== Compostos / visuais fixos =====
+  'resumo-faturamento': { type:'resumo-faturamento', title:'Resumo Faturamento', kind:'kpi', variants:[], libraryComponentIds:[] },
+  'gauge-atingimento':  { type:'gauge-atingimento',  title:'% Atingimento',      kind:'kpi', variants:[], libraryComponentIds:[] },
+
+
   // ===== Séries =====
   'serie-mensal':    { type:'serie-mensal', title:'Faturamento mensal x Meta', kind:'serie-mensal', variants:SERIE_MENSAL_VARIANTS, libraryComponentIds:LIB_CHART_IDS },
   'mix':             { type:'mix',          title:'Mix acumulado',             kind:'serie',        variants:SERIE_VARIANTS,        libraryComponentIds:LIB_CHART_IDS },
