@@ -12,7 +12,8 @@ type Metrica =
   | "quantidade" | "clientes" | "vendas" | "ticket_medio" | "preco_medio";
 type Dimensao =
   | "anomes_emissao" | "unidade_negocio" | "cd_origem" | "cd_tp_movimento"
-  | "cd_estado" | "cd_cliente" | "cd_prj" | "cd_rev_pedido" | "cd_tns";
+  | "cd_estado" | "cd_cliente" | "cd_prj" | "cd_rev_pedido" | "cd_tns"
+  | "categoria_custom";
 
 const METRICAS: Metrica[] = [
   "faturamento", "faturamento_liquido", "impostos", "devolucao",
@@ -21,6 +22,7 @@ const METRICAS: Metrica[] = [
 const DIMENSOES: Dimensao[] = [
   "anomes_emissao", "unidade_negocio", "cd_origem", "cd_tp_movimento",
   "cd_estado", "cd_cliente", "cd_prj", "cd_rev_pedido", "cd_tns",
+  "categoria_custom",
 ];
 const TIPOS: TipoGrafico[] = ["donut", "pie", "bar", "line"];
 
@@ -32,8 +34,9 @@ Métricas (escolha UMA): ${METRICAS.join(", ")}.
 Dimensões (escolha UMA): ${DIMENSOES.join(", ")}.
 tipo_grafico: ${TIPOS.join(", ")}.
 
-MAPEAMENTOS:
-- "Peças vs Serviços" / "origem" / "tipo de item" => dimensao=cd_origem.
+MAPEAMENTOS DE DIMENSÃO:
+- "Peças e Serviços" / "peças vs serviços" / "categoria" / "tipo (peças/serviços)" => dimensao=categoria_custom, categorias=["PEÇAS","SERVIÇOS"].
+- "por origem" (sem mencionar peças/serviços) => cd_origem.
 - "tipo de movimento" / "entrada vs saída" => cd_tp_movimento.
 - "por estado" / "UF" => cd_estado.
 - "por cliente" => cd_cliente.
@@ -45,11 +48,18 @@ MAPEAMENTOS:
 - "rosca / donut / pizza" => donut ou pie.
 - "ticket médio" => ticket_medio. "preço médio" => preco_medio.
 
-FILTROS:
-- "Genius" => filtros.unidade_negocio = "GENIUS".
-- "Estrutural Zortea" => filtros.unidade_negocio = "ESTRUTURAL ZORTEA".
+REGRAS DE UNIDADE DE NEGÓCIO (CRÍTICO):
+- Se o prompt mencionar "Genius" => filtros.unidade_negocio = "GENIUS".
+- Se mencionar "Estrutural" ou "Zortea" => filtros.unidade_negocio = "ESTRUTURAL ZORTEA".
+- Se mencionar "total", "consolidado" ou "geral", OU não mencionar nenhuma unidade => filtros.unidade_negocio = "CONSOLIDADO" (o backend interpreta como "sem filtro de unidade").
+- NUNCA forçar GENIUS por padrão. NUNCA inferir GENIUS sem que a palavra apareça.
+
+OUTRAS REGRAS:
 - top_n entre 3 e 30 (default 10).
+- mostrar_valor: true se o prompt pedir "valor", "em reais", "R$"; senão default true.
+- mostrar_percentual: true se o prompt pedir "percentual", "porcentagem", "%"; senão default false.
 - titulo e subtitulo curtos em PT-BR.`;
+
 
 interface IAChartSpec {
   titulo: string;
