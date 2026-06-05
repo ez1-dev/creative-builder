@@ -107,7 +107,7 @@ export function ApplyComponentDialog({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [unidadeNegocio, setUnidadeNegocio] = useState<UnidadeNegocio>('CONSOLIDADO');
+  const [unidadeNegocio, setUnidadeNegocio] = useState<UnidadeOpt>('__page__');
 
   useEffect(() => {
     if (!open || !def) return;
