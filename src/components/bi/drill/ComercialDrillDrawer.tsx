@@ -244,7 +244,8 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                         className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent transition-colors"
                         onClick={() => {
                           setSelectorOpenInline(false);
-                          stack.pushDrill(dt, {});
+                          // Trocar drill: NÃO adiciona filtro novo; mantém só o que for compatível.
+                          stack.pushDrill(dt, {}, { mergeWithCurrent: true });
                         }}
                       >
                         {DRILL_LABELS[dt]}
