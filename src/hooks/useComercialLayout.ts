@@ -129,6 +129,8 @@ export function useComercialLayout(enabled: boolean = true) {
           customTitle: cfg?.customTitle,
           variant: cfg?.variant,
           series: Array.isArray(cfg?.series) ? cfg.series : undefined,
+          titleColor: cfg?.titleColor,
+          titleBold: cfg?.titleBold,
         };
       });
       const merged = mergeWithDefaults(mapped);
