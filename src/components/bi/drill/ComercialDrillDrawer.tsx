@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { ArrowLeft, ChevronRight, Download, Filter, Loader2, RotateCw } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Download, Filter, Loader2, RotateCw, X } from 'lucide-react';
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  DataTableBI, LoadingState, EmptyState, ErrorState,
+  DataTableBI, LoadingState, ErrorState,
   formatCurrency, formatNumber, type Column,
 } from '@/components/bi';
 import { cn } from '@/lib/utils';
@@ -21,8 +21,9 @@ import {
   fetchComercialDrill, downloadDrillCsv,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
-import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY } from '@/lib/bi/comercialDrillCatalog';
+import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import type { ComercialDrillStack } from '@/hooks/useComercialDrillStack';
+import { DrillEmptyDiagnostico } from './DrillEmptyDiagnostico';
 
 interface Props {
   stack: ComercialDrillStack;
@@ -30,20 +31,6 @@ interface Props {
   anomes_fim: string;
   unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
 }
-
-const CTX_LABELS: Partial<Record<keyof DrillContexto, string>> = {
-  anomes_emissao: 'Mês',
-  cd_origem: 'Origem',
-  cd_estado: 'UF',
-  cd_cliente: 'Cliente',
-  cd_rev_pedido: 'Revenda',
-  cd_prj: 'Obra',
-  cd_tns: 'TNS',
-  cd_tp_movimento: 'Mov.',
-  cd_nf: 'NF',
-  cd_produto: 'Produto',
-  categoria_custom: 'Categoria',
-};
 
 function fmtCell(v: any, format?: DrillColumn['format']) {
   if (v == null || v === '') return '-';
@@ -104,16 +91,21 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const allowedNext = cur ? NEXT_DRILLS[cur.drill_type] : [];
 
   const handlePushFromRow = (next: DrillType, row: Record<string, any>) => {
-    const fromKey = cur ? ROW_TO_CTX_KEY[cur.drill_type] : null;
-    const rowCtx: DrillContexto = {};
-    if (fromKey && row[fromKey] != null) {
-      (rowCtx as any)[fromKey] = String(row[fromKey]);
-    }
-    (['cd_nf', 'cd_produto', 'cd_cliente', 'cd_estado', 'cd_rev_pedido', 'anomes_emissao'] as (keyof DrillContexto)[])
-      .forEach((k) => {
-        if (row[k] != null && rowCtx[k] == null) (rowCtx as any)[k] = String(row[k]);
+    // Prioridade: usar filtros_drill que o backend devolve por linha.
+    // Sem isso, cair no fallback de pegar APENAS a chave agrupadora do drill atual.
+    const rowFilters: DrillContexto = {};
+    const fromBackend = row?.filtros_drill as Partial<DrillContexto> | undefined;
+    if (fromBackend && typeof fromBackend === 'object') {
+      Object.entries(fromBackend).forEach(([k, v]) => {
+        if (v != null && String(v).length > 0) (rowFilters as any)[k] = String(v);
       });
-    stack.pushDrill(next, rowCtx);
+    } else if (cur) {
+      const fromKey = ROW_TO_CTX_KEY[cur.drill_type];
+      if (fromKey && row[fromKey] != null) {
+        (rowFilters as any)[fromKey] = String(row[fromKey]);
+      }
+    }
+    stack.pushDrill(next, rowFilters);
   };
 
   const columns = useMemo<Column<Record<string, any>>[]>(() => {
@@ -161,13 +153,13 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
 
   const chips = useMemo(() => {
     const ctx = cur?.contexto ?? {};
-    const out: { label: string; value: string }[] = [
+    const out: { label: string; value: string; removeKey?: keyof DrillContexto }[] = [
       { label: 'Unidade', value: unidade_negocio },
       { label: 'Período', value: `${anomes_ini} → ${anomes_fim}` },
     ];
     (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
       const v = ctx[k];
-      if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: String(v) });
+      if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: String(v), removeKey: k });
     });
     return out;
   }, [cur?.contexto, anomes_ini, anomes_fim, unidade_negocio]);
@@ -252,7 +244,8 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                         className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent transition-colors"
                         onClick={() => {
                           setSelectorOpenInline(false);
-                          stack.pushDrill(dt, {});
+                          // Trocar drill: NÃO adiciona filtro novo; mantém só o que for compatível.
+                          stack.pushDrill(dt, {}, { mergeWithCurrent: true });
                         }}
                       >
                         {DRILL_LABELS[dt]}
@@ -287,9 +280,20 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
           {chips.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-1">
               {chips.map((c, i) => (
-                <Badge key={i} variant="secondary" className="text-[11px] font-normal">
-                  <span className="text-muted-foreground mr-1">{c.label}:</span>
+                <Badge key={i} variant="secondary" className="text-[11px] font-normal gap-1">
+                  <span className="text-muted-foreground">{c.label}:</span>
                   <span className="font-medium">{c.value}</span>
+                  {c.removeKey && (
+                    <button
+                      type="button"
+                      onClick={() => stack.removeContextKey(c.removeKey!)}
+                      className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm hover:bg-background/60"
+                      aria-label={`Remover ${c.label}`}
+                      title={`Remover ${c.label}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
                 </Badge>
               ))}
             </div>
@@ -306,7 +310,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
               onRetry={() => query.refetch()}
             />
           ) : !resp || resp.rows.length === 0 ? (
-            <EmptyState description="Sem registros para o contexto atual" />
+            <DrillEmptyDiagnostico stack={stack} response={resp} />
           ) : (
             <>
               <DataTableBI columns={columns} data={resp.rows} />

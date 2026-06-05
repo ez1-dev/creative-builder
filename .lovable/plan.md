@@ -1,189 +1,137 @@
-## Objetivo
 
-Substituir o drill atual (que só lista "Notas Fiscais" via `/api/bi/comercial/detalhes`) por um sistema de **drills multinível navegáveis** chamando um endpoint único `POST /api/bi/comercial/drill`, com breadcrumb, contexto acumulado, seletor de próximo nível e exportação CSV.
+## Problema
 
-A FastAPI já expõe (ou vai expor) o endpoint. No Lovable só ajustamos frontend + camada de API.
+O `ComercialDrillDrawer` hoje injeta no contexto qualquer coluna conhecida que vier na linha (`cd_nf`, `cd_produto`, `cd_cliente`, `cd_estado`, `cd_rev_pedido`, `anomes_emissao`) e o botão "Trocar drill" empurra o próximo nível **carregando todo o contexto anterior**. Isso gera combinações impossíveis (ex.: GENIUS + 202601 + cd_cliente 263 + cd_estado MS + cd_rev_pedido 4352), que vão à FastAPI e voltam vazias sem diagnóstico.
 
----
-
-## Drills suportados
-
-`ACUMULADO`, `MENSAL`, `ESTADO`, `CLIENTE`, `REVENDA`, `PRODUTO`, `NOTA_FISCAL`, `DETALHES_IMPOSTOS`.
-
-Cada drill define:
-- Coluna agrupadora (`groupKey`)
-- Próximos drills permitidos (ex.: Mensal → Estado, Cliente, Revenda, Produto, NF; NF → Detalhes Impostos)
-- Colunas padrão exibidas
+A correção é toda no frontend: respeitar o `filtros_drill` que o backend emite por linha, deixar o usuário decidir o que carregar entre níveis, e tratar bem o "vazio".
 
 ---
 
-## Camada de API
+## Mudanças
 
-**Novo:** `src/lib/bi/comercialDrillApi.ts`
+### 1. API: aceitar `filtros_drill` por linha e `diagnostico` no response
+
+`src/lib/bi/comercialDrillApi.ts`
+
+- Adicionar `filtros_drill?: Partial<DrillContexto>` em cada `row` (o backend já pode mandar; só vamos consumir).
+- Adicionar bloco opcional na resposta:
 
 ```ts
-export type DrillType =
-  | 'ACUMULADO' | 'MENSAL' | 'ESTADO' | 'CLIENTE'
-  | 'REVENDA'   | 'PRODUTO'| 'NOTA_FISCAL' | 'DETALHES_IMPOSTOS';
-
-export interface DrillContexto {
-  anomes_emissao?: string;
-  cd_origem?: string;
-  cd_estado?: string;
-  cd_cliente?: string;
-  cd_rev_pedido?: string;
-  cd_prj?: string;
-  cd_tns?: string;
-  cd_tp_movimento?: string;
-  cd_nf?: string;
-  cd_produto?: string;
-  categoria_custom?: 'PEÇAS' | 'SERVIÇOS' | string;
-}
-
-export interface DrillRequest {
-  drill_type: DrillType;
-  anomes_ini: string;
-  anomes_fim: string;
-  unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
-  contexto: DrillContexto;
-  page?: number;
-  page_size?: number;
-}
-
-export interface DrillResponse {
-  titulo: string;
-  drill_type: DrillType;
-  breadcrumb: { label: string; filtro: Record<string, any> }[];
-  columns: { key: string; label: string; align?: 'left'|'right'; format?: 'currency'|'number'|'date'|'text' }[];
-  rows: Record<string, any>[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-export async function fetchComercialDrill(req: DrillRequest): Promise<DrillResponse>;
-export function downloadDrillCsv(resp: DrillResponse, filename?: string): void;
-```
-
-Chama via `api.post('/api/bi/comercial/drill', body)`. Trata erros (rede, 4xx/5xx) devolvendo erro tipado para a UI mostrar diagnóstico amigável.
-
-**Normalização de `categoria_custom`** (feita no client antes de enviar, e mantida no contexto):
-- `PEÇAS` → adiciona regra `cd_origem LIKE 'PE%'` (enviada como `categoria_custom`, FastAPI converte; mantemos também o campo bruto no contexto).
-- `SERVIÇOS` → `cd_origem LIKE 'SERV%' OR cd_tp_movimento LIKE 'SERV%'`.
-
-A conversão final é do backend; o frontend só passa `categoria_custom` no contexto.
-
----
-
-## Mapa de transições entre drills
-
-`src/lib/bi/comercialDrillCatalog.ts`
-
-```ts
-NEXT_DRILLS: Record<DrillType, DrillType[]> = {
-  ACUMULADO:        ['MENSAL','ESTADO','CLIENTE','REVENDA','PRODUTO','NOTA_FISCAL'],
-  MENSAL:           ['ESTADO','CLIENTE','REVENDA','PRODUTO','NOTA_FISCAL'],
-  ESTADO:           ['CLIENTE','REVENDA','PRODUTO','NOTA_FISCAL'],
-  CLIENTE:          ['REVENDA','PRODUTO','NOTA_FISCAL'],
-  REVENDA:          ['CLIENTE','PRODUTO','NOTA_FISCAL'],
-  PRODUTO:          ['NOTA_FISCAL','DETALHES_IMPOSTOS'],
-  NOTA_FISCAL:      ['PRODUTO','DETALHES_IMPOSTOS'],
-  DETALHES_IMPOSTOS:[],
+diagnostico?: {
+  qtd_linhas_base?: number;
+  qtd_linhas_apos_unidade?: number;
+  qtd_linhas_apos_mes?: number;
+  qtd_linhas_apos_cliente?: number;
+  qtd_linhas_apos_uf?: number;
+  qtd_linhas_apos_revenda?: number;
+  qtd_linhas_apos_produto?: number;
+  filtros_aplicados?: Record<string, any>;
 };
-ROW_TO_CTX_KEY: Record<DrillType, keyof DrillContexto> // ex: CLIENTE → 'cd_cliente'
-DRILL_LABELS: Record<DrillType,string>
 ```
 
----
+- `fetchComercialDrill` repassa esses campos sem transformar.
+- Sem mudança de URL nem de contrato de envio.
 
-## Estado do drill (refator do `useDrillSheet`)
+### 2. Stack do drill: API mais restrita
 
-Estender o hook em `src/components/bi/drill/DrillSheet.tsx` (ou criar `useComercialDrillStack` específico em `src/hooks/useComercialDrillStack.ts` para não quebrar outros usos) com:
+`src/hooks/useComercialDrillStack.ts`
 
-- Pilha de níveis: `{ drill_type, contexto, response? }[]`
-- Ações: `openWith(initial)`, `pushDrill(drill_type, rowCtx)`, `pop()`, `goTo(index)`, `reopenSelector()`, `close()`
-- Cada `push` faz merge `contexto = { ...current.contexto, ...rowCtx }`.
-- `useQuery` por nível usando `keepPreviousData` e a chave `['comercial-drill', drill_type, contexto, page]`.
+- `pushDrill(next, rowFilters, opts?: { mergeWithCurrent?: boolean })`:
+  - **default `mergeWithCurrent = false`** → o nível novo usa **apenas** `rowFilters` + os filtros do nível atual que pertencem a campos compatíveis com o `next` (ver tabela abaixo).
+  - Quando o usuário troca de drill via botão "Trocar drill", chamamos `pushDrill(next, {}, { mergeWithCurrent: true })` mas **passando pela mesma função de compatibilidade** (sem inventar `cd_cliente` etc.).
+- Nova ação `removeContextKey(key)`:
+  - Remove a chave do nível atual.
+  - Também limpa essa chave nos níveis ancestrais marcados (para o breadcrumb funcionar de verdade).
+- Nova ação `replacePath(next, rowFilters)` para o caso "limpar e começar caminho novo" (item 4 do pedido).
+- `goTo(index)` continua existindo (volta ao nível clicado, descarta filhos).
 
-Os filtros globais do dashboard (`filters`) permanecem intocados — eles só viram `anomes_ini`, `anomes_fim`, `unidade_negocio` e contexto inicial.
+**Tabela de compatibilidade** (novo arquivo `src/lib/bi/comercialDrillCatalog.ts`):
 
----
+```text
+ALLOWED_CTX_KEYS[next_drill] = chaves que podem sobreviver vindas do contexto anterior
+ACUMULADO         → todas
+MENSAL            → anomes_emissao, cd_origem, categoria_custom
+ESTADO            → anomes_emissao, cd_estado, cd_origem, categoria_custom
+CLIENTE           → anomes_emissao, cd_estado, cd_cliente, cd_origem, categoria_custom
+REVENDA           → anomes_emissao, cd_estado, cd_rev_pedido, cd_origem, categoria_custom
+PRODUTO           → anomes_emissao, cd_estado, cd_cliente, cd_rev_pedido, cd_produto, cd_origem, categoria_custom
+NOTA_FISCAL       → todas exceto cd_produto
+DETALHES_IMPOSTOS → cd_nf, cd_produto, anomes_emissao, cd_cliente
+```
 
-## UI do drawer
+Função `mergeCtx(currentCtx, rowFilters, nextDrill, { keepAll })`:
+1. Se `keepAll` (usuário clicou em linha) → começa com `currentCtx` filtrado por `ALLOWED_CTX_KEYS[nextDrill]`, depois aplica `rowFilters` (row vence).
+2. Se troca manual (botão) → mesma coisa, mas `rowFilters` é vazio.
+3. `replacePath` → começa do zero, só `rowFilters`.
 
-Reescrever conteúdo do `<DrillSheet>` no `ComercialPage.tsx`:
+### 3. Drawer: usar `row.filtros_drill` e parar de inferir colunas
 
-1. **Breadcrumb** já existente continua mostrando a pilha (`drill.sheetProps.levels`), agora alimentado com `title = DRILL_LABELS[drill_type] + valor`.
-2. **Toolbar** dentro do drawer:
-   - `DrillLevelSelector` (já existe) mostrando `NEXT_DRILLS[current.drill_type]` → `pushDrill`.
-   - Botão **"Trocar drill"** que reabre o seletor a qualquer momento.
-   - Botão **Exportar CSV** chamando `downloadDrillCsv`.
-   - Editor de colunas (popover já existente) passa a usar `response.columns` + `useDrillPresets` por `drill_type`.
-3. **Tabela** usa `DataTableBI`, gerada dinamicamente a partir de `response.columns` (com formatadores `currency`/`number`/`date`).
-   - Cada linha clicável: abre menu/popover com os próximos drills permitidos; cada item chama `pushDrill(nextType, rowCtx)` onde `rowCtx` é montado a partir de `ROW_TO_CTX_KEY[currentDrill]` e o valor da chave principal da linha (ex.: `cd_cliente`).
-4. **Paginação** simples (Anterior/Próxima + total) chamando `setPage` que dispara nova `useQuery`.
-5. **Estados**: `LoadingState`, `EmptyState` ("Sem registros para o contexto atual"), `ErrorState` com mensagem amigável + botão "Tentar novamente" (chamando `refetch`).
+`src/components/bi/drill/ComercialDrillDrawer.tsx`
 
----
-
-## Disparadores (cliques no dashboard)
-
-Em `ComercialPage.tsx` substituir `openDetalhes` e `applyDrill` por novo handler:
+- `handlePushFromRow(next, row)` passa a ser:
 
 ```ts
-const openDrill = (drill_type, ctxFromClick = {}) =>
-  drillStack.openWith({
-    drill_type,
-    contexto: { ...ctxFromClick }, // anomes_emissao, cd_estado, etc.
-  });
+const rowFilters = (row.filtros_drill ?? {}) as DrillContexto;
+// Fallback compatível com backend antigo: só a chave do drill atual
+if (!row.filtros_drill && cur) {
+  const k = ROW_TO_CTX_KEY[cur.drill_type];
+  if (k && row[k] != null) rowFilters[k] = String(row[k]);
+}
+stack.pushDrill(next, rowFilters);
 ```
 
-Mapeamento de cliques:
-- KPI Faturamento/Meta/Líquido → `ACUMULADO`.
-- KPI Impostos → `ACUMULADO` (e o seletor leva a `DETALHES_IMPOSTOS`).
-- Gráfico/tabela **Mensal** → `MENSAL` (clique em barra: já abre `MENSAL` filtrado em `anomes_emissao = label`, ou usa `ACUMULADO` se for KPI).
-- Donut **Mix** → contexto `cd_origem` ou `categoria_custom` + drill `ACUMULADO`.
-- **Estado/Mapa** → `ESTADO` + `cd_estado`.
-- **Revenda** → `REVENDA` + `cd_rev_pedido`.
-- **Obra** → `ACUMULADO` + `cd_prj`.
-- AI Chart (`AiChartGenerator.onDrill`) → mapeia `dimensao` para `DrillType` correspondente e abre o stack com o `label` no contexto. Garantia: mesma sheet, mesmos próximos níveis.
+- Remover o `forEach` que copiava `cd_nf/cd_produto/cd_cliente/cd_estado/cd_rev_pedido/anomes_emissao` da linha — era a fonte principal do bug.
+- Botão **"Trocar drill"** chama `stack.pushDrill(dt, {}, { mergeWithCurrent: true })` (não soma nada novo, apenas filtra incompatíveis).
+- Nos chips de filtros aplicados (já existem), cada chip ganha um `×` que chama `stack.removeContextKey(key)`. Os chips fixos "Unidade" e "Período" continuam sem botão.
 
-Os filtros globais (chips no header) continuam funcionando como hoje — não são mexidos pelo drill.
+### 4. Estado vazio com diagnóstico
 
----
+Novo componente `src/components/bi/drill/DrillEmptyDiagnostico.tsx`:
 
-## Migração do código existente
+- Renderiza quando `resp.rows.length === 0`.
+- Se `resp.diagnostico` existe: tabela compacta com `qtd_linhas_base → após_unidade → após_mes → após_cliente → após_uf → após_revenda → após_produto`, destacando o primeiro passo que zerou.
+- Lista de botões dinâmicos baseados em `cur.contexto`:
+  - "Remover Cliente" (se `cd_cliente`)
+  - "Remover Produto" (se `cd_produto`)
+  - "Remover Revenda" (se `cd_rev_pedido`)
+  - "Remover UF" (se `cd_estado`)
+  - "Voltar nível anterior" → `stack.pop()` (desabilitado se nível 1).
+- Mensagem: **"Não existem registros para esta combinação de filtros."**
+- Se não houver diagnóstico no payload, mostra só a mensagem + botões de remoção (compatibilidade com backend antigo).
 
-- Manter `fetchComercialDetalhes` e o escopo antigo apenas como fallback (não remover ainda) — mas o drawer principal passa a usar o novo endpoint. Remover do drawer a referência a `escopo` / `ESCOPO_LABELS` para Comercial.
-- `useDrillPresets` continua válido; usar como `pageKey='bi-comercial'` e `escopo = drill_type`.
+O drawer substitui o `<EmptyState description="Sem registros para o contexto atual" />` por `<DrillEmptyDiagnostico stack={stack} response={resp} />`.
+
+### 5. Pequenos cuidados
+
+- **Produto**: nada a fazer no normalize — `comercialDrillApi.cleanContexto` já preserva o valor cru como string, então `1-200000003` vai inteiro. Adicionar um comentário/teste mental para não strippar prefixo.
+- O `levelTitle` do breadcrumb continua igual.
+- Sem mudanças em `ComercialPage.tsx` (handlers de KPI/gráficos continuam abrindo o drill com `openWith`, que já parte de stack zerada).
+- Sem mudanças no backend, edge functions, schema ou `.env`.
 
 ---
 
 ## Arquivos
 
-**Criar**
-- `src/lib/bi/comercialDrillApi.ts` — tipos, `fetchComercialDrill`, `downloadDrillCsv`.
-- `src/lib/bi/comercialDrillCatalog.ts` — `NEXT_DRILLS`, `ROW_TO_CTX_KEY`, `DRILL_LABELS`.
-- `src/hooks/useComercialDrillStack.ts` — pilha + integração com `useQuery`.
-- `src/components/bi/drill/ComercialDrillDrawer.tsx` — drawer dedicado (usa `DrillSheet` interno + toolbar + tabela dinâmica + paginação + CSV).
-
 **Editar**
-- `src/pages/bi/ComercialPage.tsx` — substituir `useDrillSheet` + `<DrillSheet>` pelo novo drawer; trocar handlers `openDetalhes` / `onClickMensal` / `onClickEstado` / `onClickRevenda` / `onClickObra` / `onClickMix` para `openDrill(...)`; conectar `AiChartGenerator.onDrill`.
-- `src/components/bi/drill/DrillSheet.tsx` — sem mudanças funcionais (mantém breadcrumb/back).
+- `src/lib/bi/comercialDrillApi.ts` — campos opcionais `filtros_drill` por row e `diagnostico` na resposta.
+- `src/lib/bi/comercialDrillCatalog.ts` — `ALLOWED_CTX_KEYS` + helper `mergeCtx`.
+- `src/hooks/useComercialDrillStack.ts` — `pushDrill` com `opts`, `removeContextKey`, `replacePath`, uso de `mergeCtx`.
+- `src/components/bi/drill/ComercialDrillDrawer.tsx` — usa `row.filtros_drill`, botão "Trocar drill" sem injetar contexto novo, chips com `×`, render do diagnóstico.
+
+**Criar**
+- `src/components/bi/drill/DrillEmptyDiagnostico.tsx`.
 
 **Não tocar**
-- `src/integrations/supabase/*`, `.env`, FastAPI, esquema do banco.
-- Outros consumidores de `useDrillSheet` (compras, produção, etc.).
+- FastAPI, `supabase/`, `.env`, `src/integrations/supabase/*`, demais consumidores de drill (compras/produção).
 
 ---
 
-## Critérios de aceite (validação)
+## Critérios de aceite
 
-- Clicar em uma barra de "Maio" abre drill com `contexto.anomes_emissao = 202605` e mostra próximos níveis.
-- Clicar em "GENIUS" no chip de unidade mantém `unidade_negocio = GENIUS` em toda a pilha.
-- Breadcrumb permite voltar a níveis anteriores sem perder o contexto pai.
-- Botão "Trocar drill" reabre o seletor de níveis a qualquer momento.
-- Tabela do drill `DETALHES_IMPOSTOS` mostra colunas `vl_icms, vl_ipi, vl_pis, vl_cofins, vl_iss, vl_icmsst, vl_difal, vl_impostos`.
-- Gráfico gerado pela IA dispara o mesmo drawer.
-- Em caso de erro de rede / 5xx, mostra `ErrorState` com mensagem amigável e botão de retry (sem tela em branco).
-- Exportar CSV gera arquivo com as colunas/linhas do nível atual.
+- Drill Mensal de GENIUS/202601 traz dados (não inventa `cd_cliente`).
+- Drill Cliente partindo de 202601 mostra apenas clientes presentes naquele mês.
+- Clicar em "Trocar drill" não cria filtros novos; apenas troca o tipo e mantém só filtros compatíveis.
+- Breadcrumb chips têm `×` para remover qualquer filtro individual.
+- Combinação vazia mostra mensagem + tabela do diagnóstico (quando o backend mandar) + botões "Remover Cliente / Produto / Revenda / UF" e "Voltar nível anterior".
+- `cd_produto = 1-200000003` é enviado inteiro à FastAPI, sem perder o prefixo `1-`.
+- Nenhum nível profundo retorna vazio sem mostrar diagnóstico ou ações de recuperação.
