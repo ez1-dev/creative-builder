@@ -118,7 +118,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       key: c.key as any,
       header: c.label,
       align: c.align ?? (c.format === 'currency' || c.format === 'number' ? 'right' : 'left'),
-      render: (_v: any, r: Record<string, any>) => fmtCell(r[c.key], c.format),
+      render: (_v: any, r: Record<string, any>) => {
+        // Override: drill CLIENTE → mostrar "cd_cliente - nm_cliente" quando o backend devolver.
+        if (cur?.drill_type === 'CLIENTE' && c.key === 'cd_cliente') {
+          if (r.cliente_label) return String(r.cliente_label);
+          if (r.nm_cliente && r.cd_cliente != null) return `${r.cd_cliente} - ${r.nm_cliente}`;
+        }
+        return fmtCell(r[c.key], c.format);
+      },
     }));
     if (allowedNext.length > 0) {
       base.push({
