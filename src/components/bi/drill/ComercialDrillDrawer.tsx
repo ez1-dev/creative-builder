@@ -172,21 +172,6 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     return out;
   }, [cur?.contexto, anomes_ini, anomes_fim, unidade_negocio]);
 
-  const allowedNext = cur ? NEXT_DRILLS[cur.drill_type] : [];
-
-  const handlePushFromRow = (next: DrillType, row: Record<string, any>) => {
-    const fromKey = cur ? ROW_TO_CTX_KEY[cur.drill_type] : null;
-    const rowCtx: DrillContexto = {};
-    if (fromKey && row[fromKey] != null) {
-      (rowCtx as any)[fromKey] = String(row[fromKey]);
-    }
-    // alguns drills (ex.: NF) trazem também outras chaves úteis na linha
-    (['cd_nf', 'cd_produto', 'cd_cliente', 'cd_estado', 'cd_rev_pedido', 'anomes_emissao'] as (keyof DrillContexto)[])
-      .forEach((k) => {
-        if (row[k] != null && rowCtx[k] == null) (rowCtx as any)[k] = String(row[k]);
-      });
-    stack.pushDrill(next, rowCtx);
-  };
 
   const totalPaginas = useMemo(() => {
     if (!resp) return 1;
