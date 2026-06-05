@@ -20,18 +20,35 @@ POST /api/bi/comercial/ia-grafico
 Auth: Bearer token (igual aos demais).
 Headers: `Content-Type: application/json`, `ngrok-skip-browser-warning: true`.
 
-### Request body (IAChartSpec)
+### Request body
+
+A FastAPI agora recebe **dois formatos**:
+
+**Formato A — prompt cru (preferido)**: o frontend envia o texto do usuário + filtros base do dashboard. A FastAPI interpreta, monta o spec internamente e executa.
 
 ```json
 {
-  "titulo": "Faturamento Genius por Origem",
+  "prompt": "Crie um gráfico de rosca mostrando o faturamento total separado por Peças e Serviços, com percentual e valor em reais.",
+  "anomes_ini": "202601",
+  "anomes_fim": "202612",
+  "unidade_negocio": "CONSOLIDADO"
+}
+```
+
+**Formato B — spec estruturado (compatibilidade)**: usado quando a interpretação é feita fora (ex.: edge function `bi-ia-chart`).
+
+```json
+{
+  "titulo": "Faturamento por Categoria",
   "subtitulo": "Peças vs Serviços",
   "tipo_grafico": "donut",
   "metrica": "faturamento",
-  "dimensao": "cd_origem",
-  "filtros": { "unidade_negocio": "GENIUS" },
+  "dimensao": "categoria_custom",
+  "categorias": ["PEÇAS", "SERVIÇOS"],
+  "filtros": { "unidade_negocio": "CONSOLIDADO" },
   "top_n": 10,
-  "mostrar_percentual": true
+  "mostrar_percentual": true,
+  "mostrar_valor": true
 }
 ```
 
@@ -39,9 +56,42 @@ Headers: `Content-Type: application/json`, `ngrok-skip-browser-warning: true`.
 
 - `tipo_grafico`: `donut | pie | bar | line`
 - `metrica`: `faturamento | faturamento_liquido | impostos | devolucao | quantidade | clientes | vendas | ticket_medio | preco_medio`
-- `dimensao`: `anomes_emissao | unidade_negocio | cd_origem | cd_tp_movimento | cd_estado | cd_cliente | cd_prj | cd_rev_pedido | cd_tns`
-- `filtros`: aceitar **apenas** chaves da whitelist de dimensões. Qualquer outra chave → ignorar.
+- `dimensao`: `anomes_emissao | unidade_negocio | cd_origem | cd_tp_movimento | cd_estado | cd_cliente | cd_prj | cd_rev_pedido | cd_tns | categoria_custom`
+- `filtros`: aceitar **apenas** chaves da whitelist de dimensões reais (não inclui `categoria_custom`). Qualquer outra chave → ignorar.
+- `categorias`: lista de strings, usada apenas quando `dimensao = "categoria_custom"`. Default: `["PEÇAS", "SERVIÇOS"]`.
 - `top_n`: clamp em `[3, 30]` (default 10).
+- `mostrar_valor`: boolean (default `true`). Frontend usa para decidir se mostra rótulo de valor além do percentual.
+
+---
+
+## Interpretação do prompt (Formato A)
+
+Regras obrigatórias ao traduzir o texto do usuário em spec:
+
+### `unidade_negocio`
+
+- Prompt menciona **"Genius"** → `filtros.unidade_negocio = "GENIUS"`.
+- Prompt menciona **"Estrutural"** ou **"Zortea"** → `filtros.unidade_negocio = "ESTRUTURAL ZORTEA"`.
+- Prompt menciona **"total"**, **"consolidado"** ou **"geral"**, ou **não menciona unidade nenhuma** → `filtros.unidade_negocio = "CONSOLIDADO"` → **não aplicar filtro de unidade** no SQL.
+- O `unidade_negocio` do body (filtro base do dashboard) só é aplicado quando for diferente de `"CONSOLIDADO"` **e** o prompt não pediu explicitamente outra unidade ou usou "total".
+- **Nunca** forçar `GENIUS` por padrão.
+
+### Categoria Peças/Serviços
+
+- Prompt menciona "peças e serviços", "peças vs serviços", "categoria", "tipo (peças/serviços)" → `dimensao = "categoria_custom"`, `categorias = ["PEÇAS", "SERVIÇOS"]`.
+
+### Normalização textual
+
+Toda comparação de strings em `cd_origem`, `cd_tp_movimento`, `unidade_negocio` etc. deve usar:
+
+```sql
+upper(trim(coalesce(<campo>, '')))
+```
+
+---
+
+## Cálculo
+
 
 ---
 
