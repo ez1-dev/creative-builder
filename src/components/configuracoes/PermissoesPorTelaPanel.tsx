@@ -179,6 +179,7 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
       screen_name: name,
       can_view: src?.can_view ?? false,
       can_edit: src?.can_edit ?? false,
+      can_delete: src?.can_delete ?? false,
     };
     const { error } = await supabase
       .from('profile_screens')
