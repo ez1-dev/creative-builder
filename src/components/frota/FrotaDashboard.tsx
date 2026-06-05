@@ -617,14 +617,39 @@ export function FrotaDashboard({ data, loading, onEdit, onDelete, shareToken, re
               onItemClick: (seriesKey, datum) => {
                 const name = String(datum?.name ?? datum?.label ?? '');
                 if (!name) return;
+                // Mês: tanto alias legado quanto qualquer série `mensal__*`
+                if (seriesKey === 'evolucao_mensal' || seriesKey?.startsWith?.('mensal__')) {
+                  setSelMes((p) => toggleItem(p, name));
+                  return;
+                }
+                // Dimensões novas: `por_<dim>__<met>`
+                const m = seriesKey?.match?.(/^por_(.+?)__/);
+                const dim = m?.[1];
+                const dispatch: Record<string, (p: string[]) => string[]> = {
+                  segmento:     (p) => toggleItem(p, name),
+                  tipo_veiculo: (p) => toggleItem(p, name),
+                  placa:        (p) => toggleItem(p, name),
+                  fornecedor:   (p) => toggleItem(p, name),
+                  centro_custo: (p) => toggleItem(p, name),
+                  motorista:    (p) => toggleItem(p, name),
+                  descricao:    (p) => p, // sem cross-filter para descrição
+                };
+                switch (dim) {
+                  case 'segmento':     setSelSegmento(dispatch.segmento); return;
+                  case 'tipo_veiculo': setSelTipo(dispatch.tipo_veiculo); return;
+                  case 'placa':        setSelPlaca(dispatch.placa); return;
+                  case 'fornecedor':   setSelFornecedor(dispatch.fornecedor); return;
+                  case 'centro_custo': setSelCC(dispatch.centro_custo); return;
+                  case 'motorista':    setSelMotorista(dispatch.motorista); return;
+                }
+                // Aliases legados
                 switch (seriesKey) {
-                  case 'evolucao_mensal':    setSelMes((p) => toggleItem(p, name)); break;
-                  case 'por_segmento':       setSelSegmento((p) => toggleItem(p, name)); break;
-                  case 'top_veiculos':       setSelPlaca((p) => toggleItem(p, name)); break;
-                  case 'top_fornecedores':   setSelFornecedor((p) => toggleItem(p, name)); break;
-                  case 'top_centros_custo':  setSelCC((p) => toggleItem(p, name)); break;
-                  case 'top_motoristas':     setSelMotorista((p) => toggleItem(p, name)); break;
-                  case 'por_tipo_veiculo':   setSelTipo((p) => toggleItem(p, name)); break;
+                  case 'por_segmento':      setSelSegmento((p) => toggleItem(p, name)); break;
+                  case 'top_veiculos':      setSelPlaca((p) => toggleItem(p, name)); break;
+                  case 'top_fornecedores':  setSelFornecedor((p) => toggleItem(p, name)); break;
+                  case 'top_centros_custo': setSelCC((p) => toggleItem(p, name)); break;
+                  case 'top_motoristas':    setSelMotorista((p) => toggleItem(p, name)); break;
+                  case 'por_tipo_veiculo':  setSelTipo((p) => toggleItem(p, name)); break;
                   default: break;
                 }
               },
