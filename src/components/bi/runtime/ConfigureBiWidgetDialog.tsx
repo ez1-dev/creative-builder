@@ -79,6 +79,8 @@ export function ConfigureBiWidgetDialog({
   const [valueKey, setValueKey] = useState<string>(initial.mapping?.value ?? def?.kpiKey ?? '');
   const [customTitle, setCustomTitle] = useState<string>(initial.customTitle ?? '');
   const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
+  const [titleColor, setTitleColor] = useState<string>(initial.titleColor ?? 'default');
+  const [titleBold, setTitleBold] = useState<boolean>(Boolean(initial.titleBold));
 
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
   const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
