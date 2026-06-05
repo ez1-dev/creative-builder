@@ -131,9 +131,13 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
   // ===== Estados dos diálogos de configuração / customização =====
   const [configureType, setConfigureType] = useState<string | null>(null);
   const [addChartOpen, setAddChartOpen] = useState(false);
+  /** Bloco onde o próximo componente novo (via AddChartDialog ou IA) será inserido. */
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   // Customizações pendentes (aplicadas só após "Salvar layout")
   const [pendingConfig, setPendingConfig] = useState<Record<string, Partial<ConfigureChartValue> | null>>({});
   const [pendingNewWidgets, setPendingNewWidgets] = useState<NewChartValue[]>([]);
+  /** Bloco para cada novo widget pendente: type -> blockId. */
+  const [pendingNewBlockIds, setPendingNewBlockIds] = useState<Record<string, string>>({});
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
 
   // Widgets a renderizar: aplica pendingHidden + pendingDeletes + pendingNewWidgets +
@@ -156,8 +160,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     });
     // Filtra deleções pendentes (custom-*)
     const filtered = base.filter((w) => !pendingDeletes?.has(w.type));
-    // Anexa novos widgets pendentes
+    // Anexa novos widgets pendentes — herdam bloco escolhido ou fallback ao 1º
     const maxPos = filtered.reduce((m, w) => Math.max(m, w.position), 0);
+    const fallback = dashboardBlocks[0]?.id ?? null;
     const news = (pendingNewWidgets ?? []).map((nw, i) => ({
       id: nw.type,
       type: nw.type,
@@ -165,6 +170,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       position: maxPos + 1 + i,
       layout: { x: 0, y: 999 + i * 8, w: 6, h: 8 },
       hidden: false,
+      blockId: pendingNewBlockIds[nw.type] ?? fallback,
       componentId: nw.componentId,
       mapping: nw.mapping,
       options: nw.options,
@@ -172,7 +178,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
     }));
     return [...filtered, ...news];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes]);
+  }, [widgets, pendingHidden, pendingConfig, pendingNewWidgets, pendingDeletes, pendingNewBlockIds, dashboardBlocks]);
 
   const hiddenList = useMemo(
     () => effectiveWidgets.filter((w) => w.hidden),
