@@ -202,9 +202,25 @@ export async function importarMetasCsv(text: string): Promise<CsvImportResult> {
 }
 
 /**
- * Soma vl_meta (apenas ativos) para o intervalo + unidade.
+ * Calcula a meta total proporcional ao intervalo selecionado.
+ *
+ * Regra: soma vl_meta (ativos) das metas cadastradas dentro do intervalo
+ * e extrapola pela média mensal × quantidade de meses no intervalo. Assim,
+ * se o usuário cadastrou somente Jan (R$ 15M) e seleciona Jan..Jun, retorna
+ * 15M × 6 = 90M. Em CONSOLIDADO, faz isso por unidade e soma.
+ *
  * Retorna null se não houver nenhuma meta cadastrada no período.
  */
+function monthsBetween(ini: string, fim: string): number {
+  if (!/^\d{6}$/.test(ini) || !/^\d{6}$/.test(fim)) return 1;
+  const yi = Number(ini.slice(0, 4));
+  const mi = Number(ini.slice(4, 6));
+  const yf = Number(fim.slice(0, 4));
+  const mf = Number(fim.slice(4, 6));
+  const diff = (yf - yi) * 12 + (mf - mi) + 1;
+  return diff > 0 ? diff : 1;
+}
+
 export async function fetchMetaCloudTotal(params: {
   anomes_ini: string;
   anomes_fim: string;
@@ -224,5 +240,27 @@ export async function fetchMetaCloudTotal(params: {
   const { data, error } = await q;
   if (error) throw error;
   if (!data || data.length === 0) return null;
-  return data.reduce((acc, r) => acc + Number(r.vl_meta || 0), 0);
+
+  const meses = monthsBetween(params.anomes_ini, params.anomes_fim);
+
+  if (params.unidade_negocio === 'CONSOLIDADO') {
+    const porUnidade = new Map<string, { soma: number; count: number }>();
+    for (const r of data) {
+      const u = String(r.unidade_negocio);
+      const cur = porUnidade.get(u) ?? { soma: 0, count: 0 };
+      cur.soma += Number(r.vl_meta || 0);
+      cur.count += 1;
+      porUnidade.set(u, cur);
+    }
+    let total = 0;
+    porUnidade.forEach(({ soma, count }) => {
+      const mediaMensal = count > 0 ? soma / count : 0;
+      total += mediaMensal * meses;
+    });
+    return total;
+  }
+
+  const soma = data.reduce((acc, r) => acc + Number(r.vl_meta || 0), 0);
+  const mediaMensal = soma / data.length;
+  return mediaMensal * meses;
 }
