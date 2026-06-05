@@ -261,12 +261,12 @@ export default function ComercialPage() {
     return ((atu - ant) / Math.abs(ant)) * 100;
   }, [sparkSerie]);
 
-  const donutMix = useMemo(() => mix.map((m) => ({ label: String(m.categoria ?? '-'), valor: n(m.faturamento) })), [mix]);
+  const donutMix = useMemo(() => mix.map((m) => ({ label: pickLabel(m as any, ['categoria', 'label', 'nome']), valor: n(m.faturamento) })), [mix]);
   const estadoSorted = useMemo(() => [...estados].sort((a, b) => n(b.faturamento) - n(a.faturamento)), [estados]);
-  const estadosSerie = estadoSorted.map((d) => ({ label: d.cd_estado, valor: n(d.faturamento) }));
-  const mapaData = estadoSorted.map((d) => ({ uf: d.cd_estado, valor: n(d.faturamento) }));
-  const revendaRank = useMemo(() => revendaRows.map((r) => ({ label: r.revenda, valor: n(r.faturamento) })), [revendaRows]);
-  const obrasRank = useMemo(() => obrasRows.map((o) => ({ label: o.projeto || o.cd_prj, valor: n(o.faturamento), cd_prj: o.cd_prj })), [obrasRows]);
+  const estadosSerie = estadoSorted.map((d) => ({ label: pickLabel(d as any, ['nm_estado','estado','sg_uf','uf','n','cd_estado']), valor: n(d.faturamento) }));
+  const mapaData = estadoSorted.map((d) => ({ uf: pickLabel(d as any, ['sg_uf','uf','cd_estado','n']), valor: n(d.faturamento) }));
+  const revendaRank = useMemo(() => revendaRows.map((r) => ({ label: pickLabel(r as any, ['nm_revenda','revenda_label','revenda','nm_fantasia','cd_rev_pedido']), valor: n(r.faturamento) })), [revendaRows]);
+  const obrasRank = useMemo(() => obrasRows.map((o) => ({ label: pickLabel(o as any, ['projeto','ds_abr_prj','nm_projeto','cd_prj']), valor: n(o.faturamento), cd_prj: o.cd_prj })), [obrasRows]);
   const obrasSerie = obrasRank.map((o) => ({ label: o.label, valor: o.valor }));
 
   // ===== Drill multinível (novo /api/bi/comercial/drill) =====
