@@ -1,34 +1,55 @@
-# Plano: Refactor "componentes filhos obrigatórios de bloco"
+## Correção do 401 na Edge Function `bi-ia-chart`
 
-## Status (5 jun 2026)
+### Problema
+A chamada para `${FASTAPI_BASE_URL}/api/bi/comercial/detalhes` agora chega no backend (URL correta), mas o FastAPI rejeita com **HTTP 401 Unauthorized** porque a Edge Function não envia os headers de autenticação esperados (`x-cron-secret` e `Authorization: Bearer ...`).
 
-### Fase 1 — Fundação compartilhada ✅
-- Tabela `dashboard_blocks` + `dashboard_widgets.block_id NOT NULL`.
-- RPCs: `ensure_default_block`, `create_dashboard_block`, `update_dashboard_block`, `delete_dashboard_block`, `move_widget_to_block`, `can_edit_dashboard`.
-- RPCs públicas: `get_*_blocks_via_token` e `get_*_layout_via_token` retornam `block_id`.
-- Hook compartilhado: `src/hooks/useDashboardBlocks.ts`.
-- Componentes compartilhados:
-  - `src/components/bi/builder/BlockHeader.tsx`
-  - `src/components/bi/builder/BlockedLayoutGrid.tsx`
-- `PassagensLayoutGrid` ganhou props `moveTargets`/`onMoveToBlock` (menu "Mover para…" no toolbar do widget).
+Hoje, em `supabase/functions/bi-ia-chart/index.ts`, a função `fetchDetalhes` envia apenas:
+```ts
+headers: { "ngrok-skip-browser-warning": "true", "Accept": "application/json" }
+```
+Faltam as credenciais do `CRON_SECRET`.
 
-### Fase 2 — Passagens (referência) ✅
-- `usePassagensLayout` retorna `blocks` + helpers (createBlock, renameBlock, reorderBlock, deleteBlock, moveWidgetToBlock) e inclui `blockId` em cada widget.
-- `PassagensDashboard` migrado para `BlockedLayoutGrid`:
-  - "+ Adicionar componente" por bloco (define `activeBlockId`).
-  - Cancelar/Reset/Save limpam `pendingNewBlockIds`.
-  - `saveLayout` propaga `blockId` para widgets novos.
-  - "Novo gráfico" do header global usa o primeiro bloco como padrão.
+### Alteração (escopo mínimo)
 
-### Fase 3 — Frota / Máquinas / BI Comercial (próximo turno)
-- `useFrotaLayout`, `useMaquinasLayout`, `useComercialLayout`: compor `useDashboardBlocks` e expor `blockId` no widget + helpers.
-- `FrotaDashboard`, `MaquinasDashboard`, `ComercialDashboardGrid`: trocar grid único por `BlockedLayoutGrid` seguindo o mesmo padrão do `PassagensDashboard` (estados `activeBlockId`, `pendingNewBlockIds`).
-- TreeView (`src/components/bi/tree/TreeView.tsx`): adicionar nível Bloco — Dashboard → Bloco → Componente. Selecionar bloco no tree foca o respectivo `<section>` no canvas.
+**Arquivo:** `supabase/functions/bi-ia-chart/index.ts`  
+**Função:** `fetchDetalhes(filtros)`
 
-### Critérios de aceite (cobertos parcialmente)
-- (a) Salvar sem bloco impossível → banco. ✅
-- (b) Não arrastar fora de bloco → cada bloco é um grid isolado. ✅ Passagens; pendente nos 3 outros.
-- (c) Mover entre blocos → menu "Mover para…". ✅ Passagens; pendente.
-- (d) Vários blocos no dashboard → `createBlock` no rodapé. ✅ Passagens; pendente.
-- (e) Editar bloco e componente separadamente → header de bloco vs toolbar de widget. ✅ Passagens; pendente.
-- (f) Dashboards antigos migrados → "Bloco Principal" criado em todas as RPCs. ✅
+1. Ler `CRON_SECRET` do ambiente:
+   ```ts
+   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+   ```
+2. Se `CRON_SECRET` estiver vazio, retornar erro amigável (`code: "MISSING_CRON_SECRET"`) antes de fazer a request — evita bater no backend com header vazio e tomar 401 mascarado.
+3. Adicionar os headers de auth na chamada `fetch`:
+   ```ts
+   headers: {
+     "Content-Type": "application/json",
+     "Accept": "application/json",
+     "ngrok-skip-browser-warning": "true",
+     "x-cron-secret": cronSecret,
+     "Authorization": `Bearer ${cronSecret}`,
+   }
+   ```
+4. Tratar explicitamente `resp.status === 401` com mensagem amigável (`code: "FASTAPI_UNAUTHORIZED"`, "FastAPI rejeitou credenciais — verifique CRON_SECRET").
+5. Redeploy automático da função `bi-ia-chart` após a edição.
+
+### Validação de Secrets
+Conferir via `secrets--fetch_secrets` se já existem:
+- `FASTAPI_BASE_URL`
+- `CRON_SECRET`
+
+Se algum estiver faltando, solicitar via `secrets--add_secret`. Os valores exatos (`https://api-erp-renato.ngrok.app` e `123456`) **não** vão no código — ficam apenas nos secrets do Cloud.
+
+### Teste após deploy
+Chamar `supabase--curl_edge_functions` em `/bi-ia-chart` com um prompt simples (ex.: "Top 5 revendas por faturamento") e validar:
+- Status 200
+- Payload contém `series` e `total`
+- Sem erro 401 nos logs (`supabase--edge_function_logs`)
+
+### Critério de aceite
+- `bi-ia-chart` não retorna mais 401 ao chamar `/api/bi/comercial/detalhes`.
+- O componente "Gerar gráfico com IA" no BI Comercial renderiza o gráfico.
+- Logs da edge function mostram a request bem-sucedida.
+
+### Fora de escopo
+- Nenhuma mudança no frontend (`AiChartGenerator.tsx`, `iaChartApi.ts`).
+- Nenhuma mudança em outras edge functions ou no schema do banco.

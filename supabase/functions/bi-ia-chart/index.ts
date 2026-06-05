@@ -183,6 +183,14 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
     err.userFacing = true;
     throw err;
   }
+  const cronSecret = (Deno.env.get("CRON_SECRET") ?? "").trim();
+  if (!cronSecret) {
+    const err: any = new Error("CRON_SECRET ausente nos secrets do Cloud — configure para autenticar contra a FastAPI.");
+    err.code = "MISSING_CRON_SECRET";
+    err.userFacing = true;
+    throw err;
+  }
+
   const url = new URL(`${v.base}/api/bi/comercial/detalhes`);
   Object.entries(filtros).forEach(([k, val]) => {
     if (val != null && String(val).length > 0) url.searchParams.set(k, String(val));
@@ -195,7 +203,13 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
   let resp: Response;
   try {
     resp = await fetch(url.toString(), {
-      headers: { "ngrok-skip-browser-warning": "true", "Accept": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        "x-cron-secret": cronSecret,
+        "Authorization": `Bearer ${cronSecret}`,
+      },
       signal: controller.signal,
     });
   } catch (e: any) {
