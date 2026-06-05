@@ -132,7 +132,11 @@ export default function ComercialPage() {
   const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
-  const theme = getUnidadeTheme(unidade);
+  const [bgOverrideTick, setBgOverrideTick] = useState(0);
+  const theme = React.useMemo(() => getEffectiveTheme(unidade), [unidade, bgOverrideTick]);
+  const currentBg = getBgOverride(unidade);
+  const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
+  const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
 
   const qKpis    = useQuery({ queryKey: ['bi-comercial','kpis',filters],    queryFn: () => fetchComercialKpis(filters),    refetchOnWindowFocus: false, retry: 1 });
   const qMensal  = useQuery({ queryKey: ['bi-comercial','mensal',filters],  queryFn: () => fetchComercialMensal(filters),  refetchOnWindowFocus: false, retry: 1 });
