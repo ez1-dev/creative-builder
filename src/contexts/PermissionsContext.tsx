@@ -98,7 +98,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
           withTimeout(
             supabase
               .from('profile_screens')
-              .select('screen_path, screen_name, can_view, can_edit')
+              .select('screen_path, screen_name, can_view, can_edit, can_delete')
               .in('profile_id', profileIds),
             QUERY_TIMEOUT_MS,
             'profile_screens',
