@@ -867,7 +867,10 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             <>
               <span className="text-xs font-medium text-primary">Modo edição: arraste, redimensione, configure ou oculte blocos</span>
               <div className="ml-auto flex flex-wrap items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => setAddChartOpen(true)}>
+                <Button size="sm" variant="outline" onClick={() => {
+                  setActiveBlockId(dashboardBlocks[0]?.id ?? null);
+                  setAddChartOpen(true);
+                }}>
                   <Plus className="mr-1.5 h-4 w-4" />
                   Novo gráfico
                 </Button>
