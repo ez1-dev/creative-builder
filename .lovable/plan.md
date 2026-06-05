@@ -1,50 +1,38 @@
+# Liberar Unidade de Negócio no diálogo "Aplicar componente"
+
 ## Problema
+No `/biblioteca-bi`, ao clicar em **Aplicar em página…** num componente, o seletor de **Unidade de Negócio** só aparece quando a página alvo está marcada com `supportsUnidadeNegocio` (hoje: apenas `bi-comercial` e `faturamento-genius`). Para todas as outras páginas o usuário não consegue escolher unidade e o widget herda silenciosamente o filtro da página.
 
-O gráfico IA do BI Comercial retorna "Sem dados" mesmo havendo registros na base (2854 em `bi_faturamento`, 875 em `v_bi_faturamento_comercial`, com PEÇAS/SERVIÇOS/MÁQUINAS). Causa provável: a chamada para `POST /api/bi/comercial/ia-grafico` está sem `anomes_ini`/`anomes_fim` (ou enviando vazio), e o diagnóstico mostrado quando vem `series: []` não expõe o período de fato usado.
+## Objetivo
+Permitir que o usuário escolha a unidade ao aplicar qualquer componente, sem alterar comportamento padrão dos widgets já salvos.
 
-## Alterações (somente frontend)
+## Mudanças
 
-### 1. `src/lib/bi/iaChartApi.ts` — `executarGraficoIA`
+### 1. `src/components/bi/runtime/ApplyComponentDialog.tsx`
+- Remover a condição `page?.supportsUnidadeNegocio &&` que esconde o bloco do seletor — sempre renderizar o grupo "Unidade de Negócio".
+- Adicionar uma 4ª opção no array `UNIDADES`: `{ value: '__page__', label: 'Padrão da página', sub: 'Usa o filtro atual da página alvo', Icon: LayoutGrid }`.
+- Estado inicial:
+  - Se a página alvo tem `supportsUnidadeNegocio` e há `liveCtx.filtros.unidade_negocio`, manter o pré-selecionado atual.
+  - Caso contrário, default = `__page__`.
+- Ao salvar (`save`):
+  - Se `unidadeNegocio !== '__page__'`, gravar `options.unidade_negocio = unidadeNegocio`.
+  - Se `__page__`, não gravar a chave (igual ao comportamento atual).
+- Tooltip/legenda muda para: "Sobrepõe o filtro de unidade da página alvo apenas para este widget. Escolha 'Padrão da página' para herdar o filtro corrente."
 
-- Normalizar `filtrosBase` antes de montar o body:
-  - `anomes_ini`: usar `filtros.anomes_ini`; se vazio/`null`/`undefined`, fallback `"202601"`.
-  - `anomes_fim`: usar `filtros.anomes_fim`; se vazio, fallback `"202606"`.
-  - `unidade_negocio`: manter regra atual (CONSOLIDADO quando prompt diz total/geral/consolidado ou não menciona unidade; GENIUS / ESTRUTURAL ZORTEA quando explícito).
-- Sempre incluir `anomes_ini` e `anomes_fim` no body, mesmo que venham só do fallback.
-- Demais chaves do `filtrosBase` continuam sendo repassadas (drills etc.).
+### 2. `src/components/bi/runtime/UserWidgetsSlot.tsx`
+- Remover também o gate `ctx.page?.supportsUnidadeNegocio` no cálculo de `unidadeOverride` — se o widget tiver `options.unidade_negocio` definido, aplicar override em qualquer página. Isso garante que o valor escolhido no diálogo passe para o runtime mesmo em páginas genéricas.
 
-### 2. `src/components/bi/ai/AiChartGenerator.tsx` — `renderDiagnostico`
+### 3. (Opcional, mas recomendado) `src/lib/bi/pageRegistry.ts`
+- Sem mudanças. O flag `supportsUnidadeNegocio` continua válido para outras telas (ex.: legendas de filtros), só o diálogo deixa de usá-lo como gate.
 
-Ampliar o card de diagnóstico exibido quando `series.length === 0` para mostrar:
-
-- `anomes_ini` e `anomes_fim` (do `diagnostico.periodo` com fallback para os filtros enviados).
-- `unidade_negocio` (de `diagnostico` com fallback para `result.filtros`).
-- `dimensao` (de `diagnostico` com fallback para `result.dimensao`).
-- `qtd_linhas_base` (mapear `diagnostico.linhas_view`).
-- `qtd_linhas_filtradas` (novo campo opcional `diagnostico.linhas_filtradas` — se ausente, omitir).
-- `qtd_categorias` (novo campo opcional `diagnostico.qtd_categorias` — se ausente, derivar de `result.series?.length`).
-- Demais filtros aplicados (continua).
-
-Tudo defensivo com fallback `?? '—'` e sem quebrar quando o backend ainda não devolver os novos campos.
-
-### 3. `src/lib/bi/iaChartApi.ts` — tipo `AiChartDiagnostico`
-
-Adicionar campos opcionais para suportar a UI:
-
-```ts
-linhas_filtradas?: number;
-qtd_categorias?: number;
-```
-
-Mantidos opcionais para compatibilidade com o backend atual.
-
-## Não escopo
-
-- Não alterar a edge function `bi-ia-chart` nem o contrato em `docs/backend-bi-ia-grafico.md` (regras de `categoria_custom`, normalização SQL `PE%` / `SERV%` e fallback `CONSOLIDADO` já estão documentadas e implementadas).
-- Não alterar lógica de drill, layout do dashboard ou outras telas.
+## Não-mudanças
+- `AddBiWidgetDialog` (Adicionar bloco dentro do BI Comercial) — fora do escopo deste pedido.
+- Geração de gráfico IA — fora do escopo.
+- Edge functions e backend — nenhuma alteração.
+- Estrutura da tabela `user_widgets` — já aceita `options.unidade_negocio`.
 
 ## Critério de aceite
-
-- Body enviado para `/api/bi/comercial/ia-grafico` sempre contém `anomes_ini` e `anomes_fim` (com fallback `202601`/`202606`).
-- Para o prompt de "rosca Peças e Serviços", o body inclui `unidade_negocio: "CONSOLIDADO"` e o gráfico exibe PEÇAS e SERVIÇOS no período do dashboard.
-- Quando `series` vier vazio, o card de diagnóstico mostra `anomes_ini`, `anomes_fim`, `unidade_negocio`, `dimensao`, `qtd_linhas_base`, `qtd_linhas_filtradas` (quando disponível) e `qtd_categorias`.
+- Em `/biblioteca-bi`, abrir "Aplicar em página…" em qualquer componente: o bloco "Unidade de Negócio" aparece sempre, com 4 opções (Padrão da página, GENIUS, ESTRUTURAL ZORTEA, CONSOLIDADO).
+- Default = "Padrão da página" para páginas sem `supportsUnidadeNegocio`; para BI Comercial / Faturamento Genius o default segue o filtro atual da página.
+- Widget salvo com unidade específica passa a usar essa unidade no runtime em qualquer página alvo.
+- Widgets já existentes (sem `options.unidade_negocio`) continuam herdando o filtro da página — sem regressão.

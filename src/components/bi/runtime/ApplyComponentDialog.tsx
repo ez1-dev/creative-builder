@@ -23,7 +23,9 @@ import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as Table
 import { cn } from '@/lib/utils';
 import type { UnidadeNegocio } from '@/lib/bi/comercialFilters';
 
-const UNIDADES: { value: UnidadeNegocio; label: string; sub: string; Icon: typeof Building2 }[] = [
+type UnidadeOpt = UnidadeNegocio | '__page__';
+const UNIDADES: { value: UnidadeOpt; label: string; sub: string; Icon: typeof Building2 }[] = [
+  { value: '__page__',          label: 'Padrão da página',  sub: 'Usa o filtro atual da página', Icon: LayoutGrid },
   { value: 'GENIUS',            label: 'GENIUS',            sub: 'Revenda',     Icon: Building2 },
   { value: 'ESTRUTURAL ZORTEA', label: 'ESTRUTURAL ZORTEA', sub: 'Indústria',   Icon: Factory },
   { value: 'CONSOLIDADO',       label: 'CONSOLIDADO',       sub: 'Todas as UN', Icon: Boxes },
