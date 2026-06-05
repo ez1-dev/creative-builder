@@ -115,6 +115,7 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
             position: r.widget_position ?? 0,
             layout: (r.widget_layout ?? {}) as WidgetLayout,
             hidden: Boolean(cfg.hidden),
+            blockId: r.widget_block_id ?? null,
             componentId: cfg.componentId,
             mapping: cfg.mapping,
             options: cfg.options,
