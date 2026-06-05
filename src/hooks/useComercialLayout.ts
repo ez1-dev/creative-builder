@@ -18,6 +18,8 @@ export interface ComercialWidget {
   customTitle?: string;
   variant?: string;
   series?: MetricRef[];
+  titleColor?: string;
+  titleBold?: boolean;
 }
 
 export interface SaveLayoutItem {
@@ -30,6 +32,8 @@ export interface SaveLayoutItem {
   customTitle?: string | null;
   variant?: string | null;
   series?: MetricRef[] | null;
+  titleColor?: string | null;
+  titleBold?: boolean | null;
   title?: string;
   position?: number;
 }
