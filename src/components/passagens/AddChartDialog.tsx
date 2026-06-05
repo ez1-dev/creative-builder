@@ -17,6 +17,7 @@ import {
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from './ChartColorPicker';
+import { SeriesSelectGroups } from './seriesSelectGroups';
 
 const CHART_COMPONENTS = COMPONENT_REGISTRY.filter((c) => c.kind === 'chart');
 const COLOR_AWARE_TYPES = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
@@ -124,10 +125,8 @@ export function AddChartDialog({ open, onOpenChange, onAdd, kpis, series, rows, 
               <Label className="text-xs">Série / dados</Label>
               <Select value={seriesKey} onValueChange={setSeriesKey}>
                 <SelectTrigger><SelectValue placeholder="Escolha uma série" /></SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {seriesOptions.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                  ))}
+                <SelectContent className="max-h-[320px]">
+                  <SeriesSelectGroups options={seriesOptions} />
                 </SelectContent>
               </Select>
             </div>
