@@ -47,9 +47,9 @@ const MODULE = 'bi-comercial';
 /** Layout-padrão usado como fallback quando a tabela ainda está vazia. */
 export const COMERCIAL_DEFAULT_WIDGETS: ComercialWidget[] = [
   { id: 'kpi-faturamento', type: 'kpi-faturamento', title: 'Faturamento',  position: 0,  layout: { x: 0, y: 0, w: 3, h: 3 }, variant: 'number' },
-  { id: 'kpi-liquido',     type: 'kpi-liquido',     title: 'Líquido',      position: 1,  layout: { x: 3, y: 0, w: 3, h: 3 }, variant: 'number' },
+  { id: 'kpi-liquido',     type: 'kpi-liquido',     title: 'Fat. Líquido', position: 1,  layout: { x: 3, y: 0, w: 3, h: 3 }, variant: 'number' },
   { id: 'kpi-impostos',    type: 'kpi-impostos',    title: 'Impostos',     position: 2,  layout: { x: 6, y: 0, w: 3, h: 3 }, variant: 'number' },
-  { id: 'kpi-devolucao',   type: 'kpi-devolucao',   title: 'Devolução',    position: 3,  layout: { x: 9, y: 0, w: 3, h: 3 }, variant: 'number' },
+  { id: 'kpi-devolucao',   type: 'kpi-devolucao',   title: 'Devoluções',   position: 3,  layout: { x: 9, y: 0, w: 3, h: 3 }, variant: 'number' },
   { id: 'kpi-vendas',      type: 'kpi-vendas',      title: 'Nº Vendas',    position: 4,  layout: { x: 0, y: 3, w: 3, h: 3 }, variant: 'number' },
   { id: 'kpi-clientes',    type: 'kpi-clientes',    title: 'Nº Clientes',  position: 5,  layout: { x: 3, y: 3, w: 3, h: 3 }, variant: 'number' },
   { id: 'kpi-estados',     type: 'kpi-estados',     title: 'Nº Estados',   position: 6,  layout: { x: 6, y: 3, w: 3, h: 3 }, variant: 'number' },
