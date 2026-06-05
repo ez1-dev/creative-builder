@@ -21,7 +21,10 @@ import {
   type Column,
 } from '@/components/bi';
 
-import { DrillSheet, useDrillSheet } from '@/components/bi/drill/DrillSheet';
+
+import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer';
+import { useComercialDrillStack } from '@/hooks/useComercialDrillStack';
+import type { DrillType, DrillContexto } from '@/lib/bi/comercialDrillApi';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
 import { ConfigureBiWidgetDialog } from '@/components/bi/runtime/ConfigureBiWidgetDialog';
@@ -238,84 +241,51 @@ export default function ComercialPage() {
   const obrasRank = useMemo(() => obrasRows.map((o) => ({ label: o.projeto || o.cd_prj, valor: n(o.faturamento), cd_prj: o.cd_prj })), [obrasRows]);
   const obrasSerie = obrasRank.map((o) => ({ label: o.label, valor: o.valor }));
 
-  // ===== Drill =====
-  const drill = useDrillSheet<{ escopo: ComercialDetalheEscopo }>();
-  const escopoAtual = drill.current?.ctx?.escopo ?? 'todas';
+  // ===== Drill multinível (novo /api/bi/comercial/drill) =====
+  const drillStack = useComercialDrillStack();
 
-  const qDetalhes = useQuery({
-    queryKey: ['bi-comercial','detalhes', filters, escopoAtual, drill.state.open],
-    queryFn: () => fetchComercialDetalhes(filters, { escopo: escopoAtual, limit: 5000 }),
-    enabled: drill.state.open,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
-
-  const detalhesRows: ComercialDetalheRow[] = useMemo(() => {
-    const all = qDetalhes.data ?? [];
-    if (escopoAtual === 'devolucao') return all.filter((r) => n(r.vl_devolucao) !== 0);
-    return all;
-  }, [qDetalhes.data, escopoAtual]);
-
-  const allColsDetalhes: Column<ComercialDetalheRow>[] = [
-    { key:'anomes_emissao', header:'Ano/Mês', render:(_v,r)=> r.anomes_emissao ?? '-' },
-    { key:'unidade_negocio', header:'Unidade', render:(_v,r)=> r.unidade_negocio ?? '-' },
-    { key:'cd_tp_movimento', header:'Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '-' },
-    { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '-' },
-    { key:'cd_empresa', header:'Emp.', render:(_v,r)=> r.cd_empresa ?? '-' },
-    { key:'cd_filial', header:'Filial', render:(_v,r)=> r.cd_filial ?? '-' },
-    { key:'cd_nf', header:'NF', render:(_v,r)=> r.cd_nf ?? '-' },
-    { key:'cd_serie', header:'Série', render:(_v,r)=> r.cd_serie ?? '-' },
-    { key:'dt_emissao', header:'Emissão', render:(_v,r)=> r.dt_emissao ?? '-' },
-    { key:'cd_estado', header:'UF', render:(_v,r)=> r.cd_estado ?? '-' },
-    { key:'cd_cliente', header:'Cliente', render:(_v,r)=> r.cd_cliente ?? '-' },
-    { key:'cd_prj', header:'Projeto', render:(_v,r)=> r.cd_prj ?? '-' },
-    { key:'ds_abr_prj', header:'Descrição', render:(_v,r)=> r.ds_abr_prj ?? '-' },
-    { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '-' },
-    { key:'cd_tns', header:'TNS', render:(_v,r)=> r.cd_tns ?? '-' },
-    { key:'vl_bruto', header:'Bruto', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
-    { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_impostos)) },
-    { key:'vl_liquido', header:'Líquido', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_liquido)) },
-    { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_devolucao)) },
-    { key:'qtd_produtos', header:'Qtd.', align:'right', render:(_v,r)=> formatNumber(n(r.qtd_produtos)) },
-  ];
-  const DEFAULT_DRILL_COLS = allColsDetalhes.map((c) => String(c.key));
-
-  const drillPresets = useDrillPresets(PAGE_KEY);
-  const visibleDrillCols = drillPresets.presets[escopoAtual]?.visible ?? DEFAULT_DRILL_COLS;
-  const colsDetalhes = useMemo(
-    () => allColsDetalhes.filter((c) => visibleDrillCols.includes(String(c.key))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visibleDrillCols.join('|')],
-  );
-
-  const openDetalhes = (escopo: ComercialDetalheEscopo, titleExtra?: string) => {
-    const chipsList = [
-      { label: 'Unidade', value: filters.unidade_negocio },
-      { label: 'Período', value: `${filters.anomes_ini} → ${filters.anomes_fim}` },
-      ...chips.map((c) => ({ label: c.label, value: c.value })),
-    ];
-    drill.openWith({
-      title: titleExtra ? `Detalhamento do Drill — ${titleExtra}` : 'Detalhamento do Drill',
-      subtitle: ESCOPO_LABELS[escopo],
-      chips: chipsList,
-      ctx: { escopo },
-    });
+  const openDrill = (drill_type: DrillType, contexto: DrillContexto = {}) => {
+    drillStack.openWith({ drill_type, contexto });
   };
 
-  // ===== Drill handlers (chart clicks) =====
-  const onClickMensal = (d: any) => applyDrill('anomes_emissao', d?.label ?? d?.anomes_emissao);
+  // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
+  const openDetalhes = (escopo: ComercialDetalheEscopo, _titleExtra?: string) => {
+    const drillType: DrillType =
+      escopo === 'impostos' ? 'DETALHES_IMPOSTOS' :
+      escopo === 'estados' ? 'ESTADO' :
+      escopo === 'clientes' ? 'CLIENTE' :
+      escopo === 'vendas' ? 'NOTA_FISCAL' :
+      'ACUMULADO';
+    openDrill(drillType, {});
+  };
+
+  // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
+  const onClickMensal = (d: any) => {
+    const v = d?.label ?? d?.anomes_emissao;
+    if (v) openDrill('MENSAL', { anomes_emissao: String(v) });
+  };
   const onClickMix = (d: any) => {
     const map = drillFromMixCategoria(d?.label ?? d?.name ?? '');
-    if (map) applyDrill(map.key, map.value);
+    if (!map) return;
+    openDrill('ACUMULADO', { [map.key]: map.value } as DrillContexto);
   };
-  const onClickEstado = (d: any) => applyDrill('cd_estado', d?.label ?? d?.uf);
-  const onClickMapa = (d: { uf: string; valor: number }) => applyDrill('cd_estado', d.uf);
-  const onClickRevenda = (d: any) => applyDrill('cd_rev_pedido', d?.label ?? d?.revenda);
+  const onClickEstado = (d: any) => {
+    const v = d?.label ?? d?.uf;
+    if (v) openDrill('ESTADO', { cd_estado: String(v) });
+  };
+  const onClickMapa = (d: { uf: string; valor: number }) => {
+    if (d?.uf) openDrill('ESTADO', { cd_estado: String(d.uf) });
+  };
+  const onClickRevenda = (d: any) => {
+    const v = d?.label ?? d?.revenda;
+    if (v) openDrill('REVENDA', { cd_rev_pedido: String(v) });
+  };
   const onClickObra = (d: any) => {
     const found = obrasRank.find((o) => o.label === d?.name || o.label === d?.label);
     const cod = found?.cd_prj ?? d?.cd_prj ?? d?.label ?? d?.name;
-    applyDrill('cd_prj', cod);
+    if (cod) openDrill('ACUMULADO', { cd_prj: String(cod) });
   };
+
 
   // ===== Tabela mensal =====
   const colsMensal: Column<ComercialMensalRow>[] = [
@@ -410,7 +380,7 @@ export default function ComercialPage() {
               rows={rowsForChart}
               xKey="label"
               series={finalSeries}
-              onItemClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)}
+              onItemClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })}
               height={260}
             />
           </div>
@@ -418,7 +388,7 @@ export default function ComercialPage() {
       );
     }
 
-    if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)} /></CardContent></Card>;
+    if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
     if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     if (v === 'area')  return <AreaChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
@@ -522,7 +492,7 @@ export default function ComercialPage() {
         if (qMensal.isLoading) return <LoadingState height={240} variant="skeleton" />;
         if (qMensal.isError) return <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} />;
         if (mensal.length === 0) return <EmptyState description={EMPTY_MSG} />;
-        return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)} /></CardContent></Card>;
+        return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
       }
     }
     // Widget custom-* sem componentId — não deveria acontecer.
@@ -925,7 +895,13 @@ export default function ComercialPage() {
                     }
                     return;
                   }
-                  applyDrill(dim as BiComercialDrillKey, label);
+                  // Abre o drill drawer com o contexto da dimensão clicada
+                  if (dim === 'anomes_emissao') openDrill('MENSAL', { anomes_emissao: String(label) });
+                  else if (dim === 'cd_estado') openDrill('ESTADO', { cd_estado: String(label) });
+                  else if (dim === 'cd_cliente') openDrill('CLIENTE', { cd_cliente: String(label) });
+                  else if (dim === 'cd_rev_pedido') openDrill('REVENDA', { cd_rev_pedido: String(label) });
+                  else if (dim === 'categoria_custom') openDrill('ACUMULADO', { categoria_custom: String(label) });
+                  else openDrill('ACUMULADO', { [dim]: String(label) } as DrillContexto);
                 }}
               />
             </div>
@@ -988,59 +964,14 @@ export default function ComercialPage() {
         kpis={kpis} series={pageSeries} rows={mensal as any[]}
       />
 
-      {/* Drawer de detalhes com editor de colunas */}
-      <DrillSheet {...drill.sheetProps}>
-        <div className="mb-3 flex items-center justify-end gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 gap-1">
-                <Eye className="h-3.5 w-3.5" /> Colunas ({visibleDrillCols.length}/{allColsDetalhes.length})
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 max-h-96 overflow-auto">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold">Colunas visíveis</span>
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
-                  onClick={() => drillPresets.clearPreset(escopoAtual)}
-                >
-                  Padrão
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {allColsDetalhes.map((c) => {
-                  const k = String(c.key);
-                  const checked = visibleDrillCols.includes(k);
-                  return (
-                    <label key={k} className="flex items-center gap-2 text-xs cursor-pointer">
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(v) => {
-                          const next = v
-                            ? [...new Set([...visibleDrillCols, k])]
-                            : visibleDrillCols.filter((x) => x !== k);
-                          drillPresets.setPreset(escopoAtual, { visible: next });
-                        }}
-                      />
-                      <span>{String(c.header ?? k)}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-        {qDetalhes.isLoading ? (
-          <LoadingState height={300} variant="skeleton" />
-        ) : qDetalhes.isError ? (
-          <BlocoErro err={qDetalhes.error} onRetry={() => qDetalhes.refetch()} msg={ERR_DRILL} />
-        ) : detalhesRows.length === 0 ? (
-          <EmptyState description="Sem registros para os filtros selecionados" />
-        ) : (
-          <DataTableBI columns={colsDetalhes} data={detalhesRows} />
-        )}
-      </DrillSheet>
+      {/* Drawer de drill multinível */}
+      <ComercialDrillDrawer
+        stack={drillStack}
+        anomes_ini={filters.anomes_ini}
+        anomes_fim={filters.anomes_fim}
+        unidade_negocio={filters.unidade_negocio}
+      />
+
     </PageDataProvider>
   );
 }
