@@ -655,7 +655,7 @@ export default function ComercialPage() {
                   <Button size="sm" variant="ghost" className="h-8" onClick={handleCancelEdit}>
                     Cancelar
                   </Button>
-                  <Button size="sm" variant="default" className="h-8 gap-1" onClick={handleSaveDashboard} disabled={!layoutDraft}>
+                  <Button size="sm" variant="default" className="h-8 gap-1" onClick={handleSaveDashboard} disabled={!dirty}>
                     <Save className="h-3.5 w-3.5" /> Salvar Dashboard
                   </Button>
                 </>
