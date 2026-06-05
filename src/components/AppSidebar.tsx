@@ -101,6 +101,10 @@ export function AppSidebar() {
   const isRegrasSeniorActive = location.pathname.startsWith('/regras-senior');
   const isRelatoriosActive = location.pathname.startsWith('/relatorios');
   const isCadastrosActive = location.pathname.startsWith('/cadastros');
+  const isBiActive =
+    location.pathname.startsWith('/bi') ||
+    location.pathname.startsWith('/biblioteca-bi') ||
+    location.pathname.startsWith('/etl');
 
   const ALWAYS_VISIBLE = new Set<string>(['/biblioteca-bi']);
   const isVisible = (url: string) => {
@@ -115,6 +119,8 @@ export function AppSidebar() {
   const showCadastrosGroup = visibleCadastros.length > 0;
   const visibleProducao = producaoSubItems.filter((m) => isVisible(m.url));
   const showProducaoGroup = visibleProducao.length > 0;
+  const visibleBi = biSubItems.filter((m) => isVisible(m.url));
+  const showBiGroup = visibleBi.length > 0;
   const visibleRegrasSenior = regrasSeniorSubItems.filter((m) => isVisible(m.url));
   const showRegrasSeniorGroup = visibleRegrasSenior.length > 0;
   const showRelatoriosGroup = isAdmin;
