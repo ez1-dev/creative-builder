@@ -65,6 +65,7 @@ import {
 } from '@/lib/bi/comercialFilters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { getUnidadeTheme } from './comercialTheme';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
@@ -113,6 +114,7 @@ export default function ComercialPage() {
   const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
+  const theme = getUnidadeTheme(unidade);
 
   const qKpis    = useQuery({ queryKey: ['bi-comercial','kpis',filters],    queryFn: () => fetchComercialKpis(filters),    refetchOnWindowFocus: false, retry: 1 });
   const qMensal  = useQuery({ queryKey: ['bi-comercial','mensal',filters],  queryFn: () => fetchComercialMensal(filters),  refetchOnWindowFocus: false, retry: 1 });
@@ -675,13 +677,36 @@ export default function ComercialPage() {
 
   return (
     <PageDataProvider pageKey={PAGE_KEY} kpis={kpis} series={pageSeries} rows={mensal as any[]} filtros={filters as any}>
+      <div
+        data-bi-comercial-theme
+        className="min-h-full -m-4 p-4 md:-m-6 md:p-6 transition-colors duration-300"
+        style={{
+          background: theme.pageBackground,
+          ['--bi-primary' as any]: theme.primary,
+          ['--bi-accent' as any]: theme.accent,
+          ['--bi-card-border' as any]: theme.cardBorder,
+        }}
+      >
+        <style>{`
+          [data-bi-comercial-theme] .bi-grid > * > .rounded-lg,
+          [data-bi-comercial-theme] .bi-grid > * > [class*="rounded"],
+          [data-bi-comercial-theme] [data-widget-frame] {
+            background-color: rgba(255,255,255,0.88) !important;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-color: var(--bi-card-border) !important;
+          }
+        `}</style>
       <DashboardPage>
         <PageHeader
           title="BI Comercial"
           description="Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)."
           actions={
             <div className="flex items-center gap-2">
-              <span className={cn('rounded-full px-3 py-0.5 text-xs font-semibold', style.chip)}>{unidade}</span>
+              <span
+                className="rounded-full px-3 py-0.5 text-xs font-semibold"
+                style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
+              >{unidade}</span>
               {editing ? (
                 <>
                   <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setAddOpen(true)}>
@@ -786,6 +811,8 @@ export default function ComercialPage() {
           />
         )}
       </DashboardPage>
+      </div>
+
 
       {/* Diálogos de edição */}
       {configuringWidget && (
