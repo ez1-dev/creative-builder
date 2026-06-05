@@ -186,6 +186,8 @@ export function useComercialLayout(enabled: boolean = true) {
       setOrDel('customTitle', 'customTitle');
       setOrDel('variant', 'variant');
       setOrDel('series', 'series');
+      setOrDel('titleColor', 'titleColor');
+      setOrDel('titleBold', 'titleBold');
       return cfg;
     };
 
