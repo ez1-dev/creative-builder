@@ -1,55 +1,50 @@
+## Problema
+No BI Comercial, em **Editar dashboard**, o botão **Salvar Dashboard** só habilita quando o usuário redimensiona/move um bloco (atualiza `layoutDraft`). Mudanças no diálogo **Configurar bloco** (variante, título, cor/negrito do título, componente da Biblioteca BI, séries) e ações de **ocultar/excluir** já gravam direto no Cloud, então o botão Salvar nunca reflete essas mudanças — fica desabilitado mesmo quando há alterações.
+
 ## Objetivo
-No diálogo **Configurar bloco** do BI Comercial (Editar dashboard), adicionar dois ajustes de aparência do **título** do widget:
+Toda alteração feita em modo edição passa por um **rascunho local** e o botão **Salvar Dashboard** habilita sempre que houver qualquer mudança pendente — não só ajustes de tamanho/posição.
 
-1. **Cor da fonte do título** — seletor de cor (presets do design system + custom hex).
-2. **Negrito** — toggle on/off.
+## Mudanças em `src/pages/bi/ComercialPage.tsx`
 
-Aplica-se aos dois modos do diálogo (Variante padrão e Biblioteca BI) e a todos os tipos de bloco renderizados em `ComercialPage` (KPIs, gráficos, tabelas, mapa e componentes da Biblioteca BI).
+### 1. Estado de rascunho unificado
+Substituir o `layoutDraft` atual por dois estados:
+- `layoutDraft: { type: string; layout: WidgetLayout }[] | null` (já existe — mantém para drag/resize).
+- `configDraft: Map<string, Partial<SaveLayoutItem>> | null` — alterações pendentes por bloco (variant, componentId, mapping, options, customTitle, series, titleColor, titleBold, hidden).
+- `pendingDeletes: Set<string> | null` — blocos marcados para exclusão.
 
-## Mudanças
+Derivar `dirty = !!layoutDraft || (configDraft && configDraft.size > 0) || (pendingDeletes && pendingDeletes.size > 0)`.
+Botão: `disabled={!dirty}`.
 
-### 1. `src/components/bi/runtime/ConfigureBiWidgetDialog.tsx`
-- Adicionar estado `titleColor` (string preset key | hex | `null`) e `titleBold` (boolean), inicializados a partir de `initial.titleColor` / `initial.titleBold`.
-- Renderizar nova seção compartilhada **"Aparência do título"** (logo abaixo do campo Título, visível em ambas as abas "Variante padrão" e "Biblioteca BI"):
-  - **Cor**: swatch com presets semânticos (`default`, `primary`, `success`, `warning`, `destructive`, `muted`) + input para hex custom (`#RRGGBB`).
-  - **Negrito**: `Switch` com label "Título em negrito".
-- Em `handleApply`, incluir `titleColor` e `titleBold` no objeto enviado a `onApply` (campos top-level no `ConfigureValue`, `null` quando default).
-- Estender `ConfigureValue` com `titleColor?: string | null; titleBold?: boolean | null`.
+### 2. Handlers em modo edição passam a usar drafts
+- `handleConfigApply` → escreve no `configDraft` (merge sobre `prev.get(type)`), **não** chama `layout.saveLayout`. Fecha o diálogo.
+- `handleConfigReset` → escreve no `configDraft` os campos zerados (não persiste).
+- `handleHide` → grava `{ hidden: true }` no `configDraft`.
+- `handleDelete` → adiciona em `pendingDeletes` (mantém `confirm`). Fora do `configDraft`.
+- `handleLayoutChange` → continua atualizando `layoutDraft`.
+- `handleAdd` (Adicionar bloco) → continua persistindo direto (operação cria registro novo, mais simples manter imediato), mas marca dirty=false porque já está salvo.
 
-### 2. `src/lib/bi/normalize.ts` e `src/hooks/useComercialLayout.ts`
-- Adicionar `titleColor` e `titleBold` ao tipo `ComercialWidget` e à normalização, persistindo no layout (mesmo padrão de `customTitle`).
-- Em `useComercialLayout.applyWidgetConfig`, gravar/remover esses campos via `setOrDel` (igual `customTitle`).
+### 3. Merge para preview imediato
+Computar `effectiveWidgets` a partir de `layout.widgets`:
+- aplica overrides do `configDraft` em cada widget;
+- remove os de `pendingDeletes`;
+- aplica posições/tamanhos do `layoutDraft`.
 
-### 3. `src/pages/bi/ComercialPage.tsx`
-- No `blocks = useMemo(...)`, envolver o `renderWidget(w)` com um wrapper:
-  ```tsx
-  <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
-    {renderWidget(w)}
-  </WidgetTitleStyle>
-  ```
-- Incluir `w.titleColor` e `w.titleBold` na `widgetsContentKey` para que mudanças refletam.
-- Passar `titleColor`/`titleBold` para o `ConfigureBiWidgetDialog` via `initial`.
-- Propagar no `onApply` que persiste mudanças (linhas ~534 e ~706).
+Usar `effectiveWidgets` em vez de `visibleWidgets` na renderização (`blocks`, `ComercialDashboardGrid`, `widgetsContentKey`). Isso dá feedback visual imediato sem persistir.
 
-### 4. `src/components/bi/runtime/WidgetTitleStyle.tsx` (novo)
-Componente pequeno que renderiza um `<div>` com:
-- `style={{ '--widget-title-color': resolved }}` quando há cor.
-- classe `widget-title-bold` quando `bold === true`.
-- Resolve preset → token HSL (ex.: `success` → `hsl(var(--success))`); aceita hex como-is.
+### 4. `handleSaveDashboard`
+Monta a lista única para `layout.saveLayout([...])` combinando:
+- todos os tipos com mudança em `configDraft` (com `layout` atual ou do `layoutDraft`);
+- todos os tipos com mudança em `layoutDraft` (sem campos de config se não houver);
+- chama `layout.deleteWidget(type)` para cada item de `pendingDeletes`.
+Toast de sucesso/erro. Em erro, mantém drafts (não limpa) para o usuário tentar de novo. Em sucesso, limpa os três drafts e sai do modo edição.
 
-### 5. `src/index.css`
-Adicionar regras escopadas (não impactam widgets sem estilo aplicado):
-```css
-[data-widget-title-style] :is(.card-title, [data-slot="card-title"], h3, .text-lg.font-semibold) {
-  color: var(--widget-title-color, inherit);
-}
-[data-widget-title-style].widget-title-bold :is(.card-title, [data-slot="card-title"], h3, .text-lg.font-semibold) {
-  font-weight: 700;
-}
-```
-Seletor cobre `CardTitle` (shadcn) e variações usadas pelos KPI cards.
+### 5. `handleCancelEdit`
+Limpa `layoutDraft`, `configDraft`, `pendingDeletes` e sai do modo edição (descartando alterações — `effectiveWidgets` volta a refletir o estado do banco).
+
+### 6. `handleEnterEdit`
+Garante drafts vazios ao entrar.
 
 ## Fora de escopo
-- Cor/negrito do valor numérico do KPI ou de outros elementos (apenas título).
-- Persistência por usuário diferente do existente (continua no mesmo layout do dashboard).
-- Aplicar em outros dashboards (Passagens, Frota etc.) — só BI Comercial.
+- Outros dashboards (Passagens, Frota, Máquinas) — esta entrega é só BI Comercial.
+- Histórico/undo granular além de Cancelar.
+- Persistência incremental (continua tudo-ou-nada ao salvar).
