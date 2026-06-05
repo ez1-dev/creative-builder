@@ -59,6 +59,8 @@ export interface DrillDiagnostico {
 
 export interface DrillRow extends Record<string, any> {
   filtros_drill?: Partial<DrillContexto>;
+  nm_cliente?: string;
+  cliente_label?: string;
 }
 
 export interface DrillResponse {
