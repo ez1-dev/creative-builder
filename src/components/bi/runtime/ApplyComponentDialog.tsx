@@ -401,7 +401,13 @@ export function ApplyComponentDialog({
                   <code className="rounded bg-muted px-1 py-0.5">
                     {availableSections.find((s) => s.key === section)?.label ?? section ?? '—'}
                   </code>
-
+                  {page.supportsUnidadeNegocio && (
+                    <>
+                      <span className="text-muted-foreground">· Unidade:</span>
+                      <Badge variant="default" className="text-[10px] font-semibold">{unidadeNegocio}</Badge>
+                      <span className="text-[9px] text-muted-foreground italic">(override)</span>
+                    </>
+                  )}
                 </div>
 
                 {def.inputs.length > 0 && (
