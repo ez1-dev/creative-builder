@@ -108,6 +108,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     rows: Array.isArray(r.rows) ? r.rows : [],
     total: typeof r.total === 'number' ? r.total : (Array.isArray(r.rows) ? r.rows.length : 0),
     page: typeof r.page === 'number' ? r.page : (req.page ?? 1),
+    diagnostico: (r as any).diagnostico ?? undefined,
     page_size: typeof r.page_size === 'number' ? r.page_size : (req.page_size ?? 100),
   };
 }
