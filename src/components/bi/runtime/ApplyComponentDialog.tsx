@@ -167,6 +167,11 @@ export function ApplyComponentDialog({
     setTitle('');
     setSpan(def.defaultSpan);
     setOrdem(0);
+    setColor(undefined); setVariant('solid'); setIcon(''); setValueFormat('auto');
+    setDensity('default'); setHeight('md'); setHideTitle(false); setSubtitle(''); setFooterNote('');
+    setPeriodoTipo('__page__'); setPeriodoN(3); setPeriodoIni(''); setPeriodoFim('');
+    setComparacao('nenhuma'); setMetaTipo('__none__'); setMetaValor(0); setMetaKpi('');
+    setTopN(0); setSort('__none__');
     const liveUn = liveCtx?.filtros?.unidade_negocio as UnidadeNegocio | undefined;
     if (initial?.supportsUnidadeNegocio && liveUn && UNIDADES.some((u) => u.value === liveUn)) {
       setUnidadeNegocio(liveUn);
