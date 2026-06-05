@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,6 +110,23 @@ export default function ComercialPage() {
   const [draft, setDraft] = useState<{ anomes_ini: string; anomes_fim: string; unidade_negocio: UnidadeNegocio }>({
     anomes_ini: '202601', anomes_fim: '202606', unidade_negocio: 'GENIUS',
   });
+
+  const [filtrosOpen, setFiltrosOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const v = window.localStorage.getItem('bi-comercial:filtros-open');
+    return v === null ? true : v === '1';
+  });
+  const [iaOpen, setIaOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('bi-comercial:ia-open') === '1';
+  });
+  const toggleFiltros = () => setFiltrosOpen((v) => {
+    const n = !v; try { window.localStorage.setItem('bi-comercial:filtros-open', n ? '1' : '0'); } catch {} return n;
+  });
+  const toggleIa = () => setIaOpen((v) => {
+    const n = !v; try { window.localStorage.setItem('bi-comercial:ia-open', n ? '1' : '0'); } catch {} return n;
+  });
+
 
   const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
@@ -738,26 +755,49 @@ export default function ComercialPage() {
           }
         />
 
-        <FilterBar>
-          <div className="min-w-[180px] flex-1">
-            <SelectFilter label="Unidade" value={draft.unidade_negocio}
-              onChange={(v) => setDraft({ ...draft, unidade_negocio: v as UnidadeNegocio })}
-              options={UNIDADES.map((u) => ({ value: u, label: u }))} />
-          </div>
-          <div className="min-w-[140px] flex-1">
-            <Label htmlFor="anomes_ini" className="text-xs">AnoMês Início</Label>
-            <Input id="anomes_ini" name="anomes_ini" className="h-8 text-xs" value={draft.anomes_ini} placeholder="202601"
-              onChange={(e) => setDraft({ ...draft, anomes_ini: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
-          </div>
-          <div className="min-w-[140px] flex-1">
-            <Label htmlFor="anomes_fim" className="text-xs">AnoMês Fim</Label>
-            <Input id="anomes_fim" name="anomes_fim" className="h-8 text-xs" value={draft.anomes_fim} placeholder="202606"
-              onChange={(e) => setDraft({ ...draft, anomes_fim: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
-          </div>
-          <Button size="sm" className="h-8" onClick={aplicarFiltrosBase}>Aplicar</Button>
-        </FilterBar>
+        <div className="rounded-md border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={toggleFiltros}
+            className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/30 transition-colors"
+            aria-expanded={filtrosOpen}
+          >
+            <span className="flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5" />
+              Filtros
+              {!filtrosOpen && (
+                <span className="ml-2 normal-case tracking-normal text-foreground/80 font-normal">
+                  • {filters.unidade_negocio} • {filters.anomes_ini}–{filters.anomes_fim}
+                </span>
+              )}
+            </span>
+            {filtrosOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {filtrosOpen && (
+            <div className="border-t p-3">
+              <FilterBar>
+                <div className="min-w-[180px] flex-1">
+                  <SelectFilter label="Unidade" value={draft.unidade_negocio}
+                    onChange={(v) => setDraft({ ...draft, unidade_negocio: v as UnidadeNegocio })}
+                    options={UNIDADES.map((u) => ({ value: u, label: u }))} />
+                </div>
+                <div className="min-w-[140px] flex-1">
+                  <Label htmlFor="anomes_ini" className="text-xs">AnoMês Início</Label>
+                  <Input id="anomes_ini" name="anomes_ini" className="h-8 text-xs" value={draft.anomes_ini} placeholder="202601"
+                    onChange={(e) => setDraft({ ...draft, anomes_ini: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
+                </div>
+                <div className="min-w-[140px] flex-1">
+                  <Label htmlFor="anomes_fim" className="text-xs">AnoMês Fim</Label>
+                  <Input id="anomes_fim" name="anomes_fim" className="h-8 text-xs" value={draft.anomes_fim} placeholder="202606"
+                    onChange={(e) => setDraft({ ...draft, anomes_fim: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
+                </div>
+                <Button size="sm" className="h-8" onClick={aplicarFiltrosBase}>Aplicar</Button>
+              </FilterBar>
+            </div>
+          )}
+        </div>
 
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
@@ -780,19 +820,39 @@ export default function ComercialPage() {
           </div>
         )}
 
-        <AiChartGenerator
-          filtrosBase={filters}
-          onDrill={(dim, label) => {
-            if (dim === 'unidade_negocio') {
-              if (label === 'GENIUS' || label === 'ESTRUTURAL ZORTEA' || label === 'CONSOLIDADO') {
-                setBase({ unidade_negocio: label as UnidadeNegocio });
-                setDraft((d) => ({ ...d, unidade_negocio: label as UnidadeNegocio }));
-              }
-              return;
-            }
-            applyDrill(dim as BiComercialDrillKey, label);
-          }}
-        />
+        <div className="rounded-md border bg-card overflow-hidden">
+          <button
+            type="button"
+            onClick={toggleIa}
+            className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-accent/30 transition-colors"
+            aria-expanded={iaOpen}
+          >
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" />
+              Gerar gráfico com IA
+            </span>
+            {iaOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {iaOpen && (
+            <div className="border-t p-3">
+              <AiChartGenerator
+                filtrosBase={filters}
+                onDrill={(dim, label) => {
+                  if (dim === 'unidade_negocio') {
+                    if (label === 'GENIUS' || label === 'ESTRUTURAL ZORTEA' || label === 'CONSOLIDADO') {
+                      setBase({ unidade_negocio: label as UnidadeNegocio });
+                      setDraft((d) => ({ ...d, unidade_negocio: label as UnidadeNegocio }));
+                    }
+                    return;
+                  }
+                  applyDrill(dim as BiComercialDrillKey, label);
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+
 
 
 
