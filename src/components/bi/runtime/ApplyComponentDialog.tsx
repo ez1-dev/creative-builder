@@ -306,157 +306,312 @@ export function ApplyComponentDialog({
         <div className="grid gap-4 md:grid-cols-2">
           {/* ===== Coluna esquerda: configuração ===== */}
           <div className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor={idPage} className="text-xs">Página alvo</Label>
-              <Select value={pageKey} onValueChange={setPageKey}>
-                <SelectTrigger id={idPage} name="target-page" aria-label="Página alvo"><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                <SelectContent>
-                  {compatiblePages.map((p) => (
-                    <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Tabs defaultValue="onde">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="onde" className="text-xs"><MapPin className="h-3.5 w-3.5 mr-1" />Onde</TabsTrigger>
+                <TabsTrigger value="aparencia" className="text-xs"><Palette className="h-3.5 w-3.5 mr-1" />Aparência</TabsTrigger>
+                <TabsTrigger value="dados" className="text-xs"><Database className="h-3.5 w-3.5 mr-1" />Dados</TabsTrigger>
+              </TabsList>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Bloco da página</Label>
-              {availableSections.length === 0 ? (
-                <div className="flex items-start gap-2 rounded-md border-2 border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive">
-                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <div>
-                    <div className="font-semibold">Nenhum bloco compatível</div>
-                    <div className="text-[11px] opacity-90">Esta página não aceita componentes do tipo "{def.kind}". Escolha outra página alvo.</div>
-                  </div>
+              {/* ===== Onde ===== */}
+              <TabsContent value="onde" className="space-y-3 pt-3">
+                <div className="space-y-1">
+                  <Label htmlFor={idPage} className="text-xs">Página alvo</Label>
+                  <Select value={pageKey} onValueChange={setPageKey}>
+                    <SelectTrigger id={idPage} name="target-page" aria-label="Página alvo"><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                    <SelectContent>
+                      {compatiblePages.map((p) => (
+                        <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
-                <div
-                  role="radiogroup"
-                  aria-label="Bloco da página"
-                  className="grid grid-cols-1 gap-1.5"
-                >
-                  {availableSections.map((s) => (
-                    <BlocoCard
-                      key={s.key}
-                      section={s as any}
-                      selected={section === s.key}
-                      onSelect={() => setSection(s.key)}
-                      idPrefix={idSection}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs">Unidade de Negócio</Label>
-              <div
-                role="radiogroup"
-                aria-label="Unidade de Negócio"
-                className="grid grid-cols-1 gap-1.5"
-              >
-                {UNIDADES.map((u) => {
-                  const selected = unidadeNegocio === u.value;
-                  return (
-                    <button
-                      key={u.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => setUnidadeNegocio(u.value)}
-                      className={cn(
-                        'flex items-start gap-2 rounded-md border-2 bg-card p-2.5 text-left transition-all',
-                        'hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border',
-                      )}
-                    >
-                      <div className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                        selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                      )}>
-                        <u.Icon className="h-4 w-4" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Bloco da página</Label>
+                  {availableSections.length === 0 ? (
+                    <div className="flex items-start gap-2 rounded-md border-2 border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-semibold">Nenhum bloco compatível</div>
+                        <div className="text-[11px] opacity-90">Esta página não aceita componentes do tipo "{def.kind}". Escolha outra página alvo.</div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold leading-tight">{u.label}</div>
-                        <div className="text-[10px] text-muted-foreground mt-0.5">{u.sub}</div>
-                      </div>
-                      {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="text-[10px] text-muted-foreground italic">
-                Sobrepõe o filtro de unidade da página alvo apenas para este widget. Escolha "Padrão da página" para herdar o filtro corrente.
-              </div>
-            </div>
-
-
-
-
-            {def.inputs.length > 0 && page && (
-              <div className="space-y-2 rounded-md border bg-muted/20 p-2">
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Mapeamento de dados
-                </div>
-                {def.inputs.map((inp) => {
-                  const opts = fieldOptions(inp.source);
-                  const hasOptions = opts.length > 0;
-                  const inpId = `${uid}-input-${inp.key}`;
-                  return (
-                    <div key={inp.key} className="space-y-1">
-                      <Label htmlFor={inpId} className="text-xs">
-                        {inp.label} {inp.required && <span className="text-destructive">*</span>}
-                      </Label>
-                      {hasOptions ? (
-                        <Select
-                          value={mapping[inp.key] ?? ''}
-                          onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}
-                        >
-                          <SelectTrigger id={inpId} name={`input-${inp.key}`} aria-label={inp.label} className="h-8 text-xs"><SelectValue placeholder="Selecione campo…" /></SelectTrigger>
-                          <SelectContent>
-                            {opts.map((o: any) => (
-                              <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Input
-                          id={inpId}
-                          name={`input-${inp.key}`}
-                          className="h-8 text-xs"
-                          placeholder={`Nome do campo (${inp.source})`}
-                          value={mapping[inp.key] ?? ''}
-                          onChange={(e) => setMapping((m) => ({ ...m, [inp.key]: e.target.value }))}
-                        />
-                      )}
                     </div>
-                  );
-                })}
-                {(!page?.schema.kpis?.length && !page?.schema.series?.length && !page?.schema.rows) && (
-                  <div className="text-[10px] text-muted-foreground italic pt-1">
-                    Esta página aceita qualquer componente. Digite manualmente o nome do campo de dados — ele será resolvido em runtime quando a página publicar dados.
+                  ) : (
+                    <div role="radiogroup" aria-label="Bloco da página" className="grid grid-cols-1 gap-1.5">
+                      {availableSections.map((s) => (
+                        <BlocoCard key={s.key} section={s as any} selected={section === s.key} onSelect={() => setSection(s.key)} idPrefix={idSection} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {def.inputs.length > 0 && page && (
+                  <div className="space-y-2 rounded-md border bg-muted/20 p-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mapeamento de dados</div>
+                    {def.inputs.map((inp) => {
+                      const opts = fieldOptions(inp.source);
+                      const hasOptions = opts.length > 0;
+                      const inpId = `${uid}-input-${inp.key}`;
+                      return (
+                        <div key={inp.key} className="space-y-1">
+                          <Label htmlFor={inpId} className="text-xs">
+                            {inp.label} {inp.required && <span className="text-destructive">*</span>}
+                          </Label>
+                          {hasOptions ? (
+                            <Select value={mapping[inp.key] ?? ''} onValueChange={(v) => setMapping((m) => ({ ...m, [inp.key]: v }))}>
+                              <SelectTrigger id={inpId} name={`input-${inp.key}`} aria-label={inp.label} className="h-8 text-xs"><SelectValue placeholder="Selecione campo…" /></SelectTrigger>
+                              <SelectContent>
+                                {opts.map((o: any) => (
+                                  <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input id={inpId} name={`input-${inp.key}`} className="h-8 text-xs" placeholder={`Nome do campo (${inp.source})`} value={mapping[inp.key] ?? ''} onChange={(e) => setMapping((m) => ({ ...m, [inp.key]: e.target.value }))} />
+                          )}
+                        </div>
+                      );
+                    })}
+                    {(!page?.schema.kpis?.length && !page?.schema.series?.length && !page?.schema.rows) && (
+                      <div className="text-[10px] text-muted-foreground italic pt-1">
+                        Esta página aceita qualquer componente. Digite manualmente o nome do campo de dados — ele será resolvido em runtime quando a página publicar dados.
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1 col-span-2">
-                <Label htmlFor={idTitle} className="text-xs">Título (opcional)</Label>
-                <Input id={idTitle} name="widget-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={def.label} className="h-8 text-xs" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor={idSpan} className="text-xs">Largura</Label>
-                <Select value={String(span)} onValueChange={(v) => setSpan(Number(v))}>
-                  <SelectTrigger id={idSpan} name="widget-span" aria-label="Largura" className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 col</SelectItem>
-                    <SelectItem value="2">2 cols</SelectItem>
-                    <SelectItem value="3">3 cols</SelectItem>
-                    <SelectItem value="4">4 cols</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1 col-span-2">
+                    <Label htmlFor={idTitle} className="text-xs">Título (opcional)</Label>
+                    <Input id={idTitle} name="widget-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={def.label} className="h-8 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={idSpan} className="text-xs">Largura</Label>
+                    <Select value={String(span)} onValueChange={(v) => setSpan(Number(v))}>
+                      <SelectTrigger id={idSpan} name="widget-span" aria-label="Largura" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 col</SelectItem>
+                        <SelectItem value="2">2 cols</SelectItem>
+                        <SelectItem value="3">3 cols</SelectItem>
+                        <SelectItem value="4">4 cols</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Posição (ordem)</Label>
+                  <Input type="number" className="h-8 text-xs" value={ordem} onChange={(e) => setOrdem(Number(e.target.value) || 0)} placeholder="0 = primeiro" />
+                </div>
+              </TabsContent>
+
+              {/* ===== Aparência ===== */}
+              <TabsContent value="aparencia" className="space-y-3 pt-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Cor de destaque</Label>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    <button type="button" onClick={() => setColor(undefined)} className={cn('h-9 rounded-md border-2 text-[10px]', !color ? 'border-primary' : 'border-border')}>—</button>
+                    {COLOR_SWATCHES.map((c) => (
+                      <button key={c.value} type="button" aria-label={c.label} onClick={() => setColor(c.value)} className={cn('h-9 rounded-md border-2 flex items-center justify-center', color === c.value ? 'border-primary ring-2 ring-primary/30' : 'border-border')}>
+                        <span className={cn('h-5 w-5 rounded', c.cls)} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Variante visual</Label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(['solid', 'outline', 'ghost', 'gradient'] as WidgetVariant[]).map((v) => (
+                      <button key={v} type="button" onClick={() => setVariant(v)} className={cn('h-8 rounded-md border-2 text-[11px] capitalize', variant === v ? 'border-primary bg-primary/5' : 'border-border')}>{v}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {def.kind === 'kpi' && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Ícone (opcional)</Label>
+                    <Select value={icon || '__none__'} onValueChange={(v) => setIcon(v === '__none__' ? '' : v)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent className="max-h-72">
+                        <SelectItem value="__none__">— Nenhum</SelectItem>
+                        {ICON_CHOICES.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Formato</Label>
+                    <Select value={valueFormat} onValueChange={(v) => setValueFormat(v as WidgetValueFormat)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto</SelectItem>
+                        <SelectItem value="currency">Moeda</SelectItem>
+                        <SelectItem value="number">Número</SelectItem>
+                        <SelectItem value="percent">Percentual</SelectItem>
+                        <SelectItem value="compact">Compacto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Densidade</Label>
+                    <Select value={density} onValueChange={(v) => setDensity(v as WidgetDensity)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="compact">Compacto</SelectItem>
+                        <SelectItem value="default">Padrão</SelectItem>
+                        <SelectItem value="comfortable">Confortável</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Altura</Label>
+                    <Select value={height} onValueChange={(v) => setHeight(v as WidgetHeight)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sm">Pequena</SelectItem>
+                        <SelectItem value="md">Média</SelectItem>
+                        <SelectItem value="lg">Grande</SelectItem>
+                        <SelectItem value="xl">XG</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-md border p-2">
+                  <Label htmlFor="hide-title" className="text-xs">Esconder título do card</Label>
+                  <Switch id="hide-title" checked={hideTitle} onCheckedChange={setHideTitle} />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Subtítulo (opcional)</Label>
+                  <Input className="h-8 text-xs" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} placeholder="Texto abaixo do título" />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Rodapé / Nota / Fonte</Label>
+                  <Input className="h-8 text-xs" value={footerNote} onChange={(e) => setFooterNote(e.target.value)} placeholder="Ex.: Fonte: ERP — atualizado diariamente" />
+                </div>
+              </TabsContent>
+
+              {/* ===== Dados ===== */}
+              <TabsContent value="dados" className="space-y-3 pt-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Unidade de Negócio</Label>
+                  <div role="radiogroup" aria-label="Unidade de Negócio" className="grid grid-cols-1 gap-1.5">
+                    {UNIDADES.map((u) => {
+                      const selected = unidadeNegocio === u.value;
+                      return (
+                        <button key={u.value} type="button" role="radio" aria-checked={selected} onClick={() => setUnidadeNegocio(u.value)}
+                          className={cn('flex items-start gap-2 rounded-md border-2 bg-card p-2 text-left transition-all hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border')}>
+                          <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                            <u.Icon className="h-3.5 w-3.5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-semibold leading-tight">{u.label}</div>
+                            <div className="text-[10px] text-muted-foreground">{u.sub}</div>
+                          </div>
+                          {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 rounded-md border p-2">
+                  <Label className="text-xs">Período sobreposto</Label>
+                  <Select value={periodoTipo} onValueChange={(v) => setPeriodoTipo(v as any)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__page__">Padrão da página</SelectItem>
+                      <SelectItem value="ultimos_n_meses">Últimos N meses</SelectItem>
+                      <SelectItem value="mes_atual">Mês atual</SelectItem>
+                      <SelectItem value="ano_atual">Ano atual</SelectItem>
+                      <SelectItem value="custom">Custom (YYYYMM)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {periodoTipo === 'ultimos_n_meses' && (
+                    <Input type="number" min={1} max={36} className="h-8 text-xs" value={periodoN} onChange={(e) => setPeriodoN(Number(e.target.value) || 3)} placeholder="N meses" />
+                  )}
+                  {periodoTipo === 'custom' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input className="h-8 text-xs" value={periodoIni} onChange={(e) => setPeriodoIni(e.target.value)} placeholder="Início YYYYMM" />
+                      <Input className="h-8 text-xs" value={periodoFim} onChange={(e) => setPeriodoFim(e.target.value)} placeholder="Fim YYYYMM" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs">Comparação</Label>
+                  <Select value={comparacao} onValueChange={(v) => setComparacao(v as WidgetComparacao)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhuma">Nenhuma</SelectItem>
+                      <SelectItem value="periodo_anterior">vs Período anterior</SelectItem>
+                      <SelectItem value="mesmo_periodo_ano_anterior">vs Mesmo período ano anterior</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {def.kind === 'kpi' && (
+                  <div className="space-y-1.5 rounded-md border p-2">
+                    <Label className="text-xs">Meta</Label>
+                    <Select value={metaTipo} onValueChange={(v) => setMetaTipo(v as any)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Nenhuma</SelectItem>
+                        <SelectItem value="valor">Valor fixo</SelectItem>
+                        <SelectItem value="kpi">Apontar para KPI</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {metaTipo === 'valor' && (
+                      <Input type="number" className="h-8 text-xs" value={metaValor} onChange={(e) => setMetaValor(Number(e.target.value) || 0)} placeholder="Valor da meta" />
+                    )}
+                    {metaTipo === 'kpi' && (
+                      <Select value={metaKpi} onValueChange={setMetaKpi}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione KPI…" /></SelectTrigger>
+                        <SelectContent>
+                          {(page?.schema.kpis ?? []).map((k) => <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                {(def.kind === 'chart' || def.kind === 'table') && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Top N</Label>
+                      <Select value={String(topN)} onValueChange={(v) => setTopN(Number(v))}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Todos</SelectItem>
+                          <SelectItem value="5">Top 5</SelectItem>
+                          <SelectItem value="10">Top 10</SelectItem>
+                          <SelectItem value="20">Top 20</SelectItem>
+                          <SelectItem value="50">Top 50</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Ordenação</Label>
+                      <Select value={sort} onValueChange={(v) => setSort(v as any)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Original</SelectItem>
+                          <SelectItem value="desc">Maior → menor</SelectItem>
+                          <SelectItem value="asc">Menor → maior</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
 
           {/* ===== Coluna direita: pré-visualização ===== */}
