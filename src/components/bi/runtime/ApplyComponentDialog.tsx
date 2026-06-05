@@ -19,8 +19,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { buildPreviewCtx, describeMappedValue } from '@/lib/bi/previewData';
 import { toast } from 'sonner';
-import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge, Building2, Factory, Boxes } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { UnidadeNegocio } from '@/lib/bi/comercialFilters';
+
+const UNIDADES: { value: UnidadeNegocio; label: string; sub: string; Icon: typeof Building2 }[] = [
+  { value: 'GENIUS',            label: 'GENIUS',            sub: 'Revenda',     Icon: Building2 },
+  { value: 'ESTRUTURAL ZORTEA', label: 'ESTRUTURAL ZORTEA', sub: 'Indústria',   Icon: Factory },
+  { value: 'CONSOLIDADO',       label: 'CONSOLIDADO',       sub: 'Todas as UN', Icon: Boxes },
+];
 
 const KIND_ICON: Record<string, typeof Gauge> = {
   kpi: Gauge,
