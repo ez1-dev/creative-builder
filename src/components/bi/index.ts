@@ -15,6 +15,8 @@ export * from './kpis/KpiGrid';
 export * from './kpis/KpiComparisonCard';
 export * from './kpis/KpiVariationCard';
 export * from './kpis/KpiStatusCard';
+export * from './kpis/KpiTriStackCard';
+
 
 export * from './charts/ChartCardShell';
 export * from './charts/BarChartCard';
@@ -27,6 +29,8 @@ export * from './charts/StackedBarChartCard';
 export * from './charts/ComboChartCard';
 export * from './charts/RankingChartCard';
 export * from './charts/GaugeChartCard';
+export * from './charts/GaugeAchievementCard';
+
 export * from './charts/ProgressChartCard';
 export * from './charts/TreemapChartCard';
 export * from './charts/RadarChartCard';
