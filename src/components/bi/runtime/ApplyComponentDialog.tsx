@@ -270,49 +270,47 @@ export function ApplyComponentDialog({
               )}
             </div>
 
-            {page?.supportsUnidadeNegocio && (
-              <div className="space-y-1.5">
-                <Label className="text-xs">Unidade de Negócio</Label>
-                <div
-                  role="radiogroup"
-                  aria-label="Unidade de Negócio"
-                  className="grid grid-cols-1 gap-1.5"
-                >
-                  {UNIDADES.map((u) => {
-                    const selected = unidadeNegocio === u.value;
-                    return (
-                      <button
-                        key={u.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        onClick={() => setUnidadeNegocio(u.value)}
-                        className={cn(
-                          'flex items-start gap-2 rounded-md border-2 bg-card p-2.5 text-left transition-all',
-                          'hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border',
-                        )}
-                      >
-                        <div className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
-                          selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
-                        )}>
-                          <u.Icon className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold leading-tight">{u.label}</div>
-                          <div className="text-[10px] text-muted-foreground mt-0.5">{u.sub}</div>
-                        </div>
-                        {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="text-[10px] text-muted-foreground italic">
-                  Sobrepõe o filtro de unidade da página alvo para este widget.
-                </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Unidade de Negócio</Label>
+              <div
+                role="radiogroup"
+                aria-label="Unidade de Negócio"
+                className="grid grid-cols-1 gap-1.5"
+              >
+                {UNIDADES.map((u) => {
+                  const selected = unidadeNegocio === u.value;
+                  return (
+                    <button
+                      key={u.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setUnidadeNegocio(u.value)}
+                      className={cn(
+                        'flex items-start gap-2 rounded-md border-2 bg-card p-2.5 text-left transition-all',
+                        'hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border',
+                      )}
+                    >
+                      <div className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                        selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                      )}>
+                        <u.Icon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold leading-tight">{u.label}</div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5">{u.sub}</div>
+                      </div>
+                      {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+              <div className="text-[10px] text-muted-foreground italic">
+                Sobrepõe o filtro de unidade da página alvo apenas para este widget. Escolha "Padrão da página" para herdar o filtro corrente.
+              </div>
+            </div>
 
 
 
