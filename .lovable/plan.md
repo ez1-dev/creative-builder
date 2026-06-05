@@ -1,28 +1,21 @@
-Adicionar um campo de texto no popover de cor de fundo da `/bi/comercial` para o usuário digitar/colar um código hex (ex.: `#dd4444`) diretamente, além dos swatches e do color picker nativo já existentes.
+## Refinar gauge "% Atingimento" no estilo Upquery
 
-## O que muda
+Reescrever `src/components/bi/charts/GaugeAchievementCard.tsx` mantendo a mesma API (props `title`, `value`, `max`, `className`) e o atributo `data-widget-value`.
 
-No `Popover` do botão "Cor da página" (em `src/pages/bi/ComercialPage.tsx`):
+### Mudanças visuais
+- Substituir o gauge atual (Recharts Pie em 4 segmentos colados) por um SVG próprio com 4 segmentos (vermelho → laranja → amarelo → verde) separados por **pequenos gaps** entre eles — visual mais limpo e moderno, igual ao padrão Upquery.
+- **Ponteiro corrigido**: agora termina exatamente na borda interna do arco (não passa por baixo nem fica desproporcional). Atualmente, com valores baixos como 6,06%, o ponteiro saía quase horizontal e parecia "quebrado".
+- **Pivô central refinado**: círculo cheio escuro com um pontinho claro no meio (estilo relógio analógico).
+- Proporções ajustadas (arco mais cheio, melhor uso do espaço do card).
+- Transição suave do ponteiro ao mudar o valor.
 
-1. **Novo campo de texto** abaixo do color picker nativo:
-   - `<Input>` com placeholder `#dd4444`
-   - Aceita formatos `#RGB`, `#RRGGBB`, `#RRGGBBAA`
-   - Validação: aplica somente quando o valor casa com regex `^#[0-9a-fA-F]{3,8}$`
-   - Botão "Aplicar" ao lado (ou aplica no `Enter` / `onBlur`)
-   - Mostra mensagem discreta de erro se o valor for inválido
+### O que NÃO muda
+- API do componente é preservada — qualquer página que já usa `<GaugeAchievementCard>` continua funcionando sem alteração.
+- Escala 0 → `max` (default 120%) mantida.
+- Tipografia do valor abaixo do arco mantida (com classes responsivas `3xl:` / `4xl:` para TV mode).
+- Cores semânticas (vermelho/laranja/amarelo/verde) preservadas.
 
-2. **Sincronização bidirecional**:
-   - Ao escolher cor pelos swatches ou pelo color picker nativo, o campo de texto reflete o hex atual
-   - Ao digitar um hex válido, o color picker nativo e o preview do botão também atualizam
+### Arquivos
+- **Editar (rewrite):** `src/components/bi/charts/GaugeAchievementCard.tsx`
 
-3. **Persistência**: continua usando `setBgOverride(unidade, color)` no `localStorage` — sem mudanças em `comercialTheme.ts`.
-
-## Escopo (NÃO mexer)
-
-- Sem alterações em outras páginas, no tema global, ou no backend
-- Sem alterações nas cores `primary`/`accent`/badges/gráficos — só o `pageBackground`
-- Color picker nativo e swatches sugeridos continuam existindo
-
-## Arquivos
-
-- `src/pages/bi/ComercialPage.tsx` — adicionar `Input` de hex + estado local de validação dentro do `PopoverContent` já existente
+Nenhum outro arquivo é tocado e nenhuma página precisa de ajuste.
