@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
+import { BlockedLayoutGrid } from '@/components/bi/builder/BlockedLayoutGrid';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
 import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
 import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
