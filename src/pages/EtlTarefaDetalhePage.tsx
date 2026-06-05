@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Play, RefreshCw, FileText, Code } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, Play, RefreshCw, FileText, Code, RefreshCcw, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
@@ -19,6 +22,16 @@ import {
   type EtlAcao,
   type EtlExecucao,
 } from '@/lib/etl/api';
+import { sincronizarMetasUpquery } from '@/lib/bi/metasFaturamentoApi';
+
+const AUTO_SYNC_LS_KEY = 'etl.atu_comercial.auto_sync_metas';
+const NOMES_ATU_COMERCIAL = ['ATU_COMERCIAL', 'ATUALIZACAO_COMERCIAL'];
+const isAtuComercial = (nome: string | undefined) =>
+  !!nome && NOMES_ATU_COMERCIAL.some((n) => n.toUpperCase() === nome.toUpperCase());
+
+function pad6(n: number): string {
+  return String(n).padStart(6, '0');
+}
 
 const statusColor: Record<string, string> = {
   SUCESSO: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
