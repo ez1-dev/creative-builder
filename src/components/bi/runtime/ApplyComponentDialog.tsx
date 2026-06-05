@@ -19,7 +19,56 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { buildPreviewCtx, describeMappedValue } from '@/lib/bi/previewData';
 import { toast } from 'sonner';
-import { CheckCircle2, AlertTriangle, Eye } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+const KIND_ICON: Record<string, typeof Gauge> = {
+  kpi: Gauge,
+  chart: BarChart3,
+  map: BarChart3,
+  tree: BarChart3,
+  table: TableIcon,
+};
+
+function BlocoCard({
+  section, selected, onSelect, idPrefix,
+}: {
+  section: { key: string; label: string; accepts: string[]; cols?: number };
+  selected: boolean;
+  onSelect: () => void;
+  idPrefix: string;
+}) {
+  const primaryKind = section.accepts[0] ?? 'chart';
+  const Icon = KIND_ICON[primaryKind] ?? LayoutGrid;
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      id={`${idPrefix}-${section.key}`}
+      onClick={onSelect}
+      className={cn(
+        'flex items-start gap-2 rounded-md border-2 bg-card p-2.5 text-left transition-all',
+        'hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border',
+      )}
+    >
+      <div className={cn(
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+        selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+      )}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs font-semibold leading-tight">{section.label}</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">
+          Aceita: {section.accepts.join(', ')}
+        </div>
+      </div>
+      {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+    </button>
+  );
+}
 
 export function ApplyComponentDialog({
   open, onOpenChange, componentId,
