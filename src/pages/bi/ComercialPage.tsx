@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users } from 'lucide-react';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { api } from '@/lib/api';
 
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -196,6 +198,25 @@ export default function ComercialPage() {
     qMetaCloud.refetch();
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
+
+  const { isAdmin } = useUserPermissions();
+  const [syncingClientes, setSyncingClientes] = useState(false);
+  const handleSyncClientes = async () => {
+    if (syncingClientes) return;
+    setSyncingClientes(true);
+    const tId = toast.loading('Sincronizando clientes do ERP...');
+    try {
+      const r = await api.post<any>('/api/bi/comercial/clientes/sincronizar', {});
+      const total = r?.total ?? 0;
+      const ins = r?.inseridos ?? 0;
+      const upd = r?.atualizados ?? 0;
+      toast.success(`Clientes sincronizados: ${total} (novos ${ins}, atualizados ${upd})`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar clientes: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingClientes(false);
+    }
+  };
 
   const kpisRaw = qKpis.data ?? ({} as any);
   // Override Meta / Diferença / % Atingimento usando bi_meta_faturamento (Cloud)
@@ -798,6 +819,19 @@ export default function ComercialPage() {
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={handleSyncClientes}
+                  disabled={syncingClientes}
+                  title="Atualiza nomes dos clientes a partir do ERP (E085CLI)"
+                >
+                  <Users className={cn('h-3.5 w-3.5', syncingClientes && 'animate-pulse')} />
+                  Sincronizar clientes
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
                 <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
               </Button>
