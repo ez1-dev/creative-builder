@@ -62,7 +62,11 @@ export function AiChartGenerator({ filtrosBase, onDrill }: Props) {
   const [result, setResult] = useState<AiChartResult | null>(null);
 
   const submit = async () => {
-    if (!prompt.trim() || loading) return;
+    if (loading) return;
+    if (!prompt.trim()) {
+      toast.error('Digite o pedido do gráfico antes de gerar.');
+      return;
+    }
     setLoading(true);
     try {
       const data = await gerarGraficoIA(prompt, filtrosBase);
