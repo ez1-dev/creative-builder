@@ -204,21 +204,49 @@ export function ApplyComponentDialog({
   const canSave =
     authed === true && pageKey && section && def.inputs.every((i) => !i.required || !!mapping[i.key]);
 
+  // ----- Build options -----
+  const builtOptions = useMemo<WidgetOptions>(() => {
+    const o: WidgetOptions = {};
+    if (unidadeNegocio !== '__page__') o.unidade_negocio = unidadeNegocio;
+    if (color) o.color = color;
+    if (variant && variant !== 'solid') o.variant = variant;
+    if (icon) o.icon = icon;
+    if (valueFormat && valueFormat !== 'auto') o.valueFormat = valueFormat;
+    if (density && density !== 'default') o.density = density;
+    if (height && height !== 'md') o.height = height;
+    if (hideTitle) o.hideTitle = true;
+    if (subtitle.trim()) o.subtitle = subtitle.trim();
+    if (footerNote.trim()) o.footerNote = footerNote.trim();
+    if (periodoTipo !== '__page__') {
+      const po: WidgetPeriodoOverride = { tipo: periodoTipo };
+      if (periodoTipo === 'ultimos_n_meses') po.n = Math.max(1, periodoN);
+      if (periodoTipo === 'custom') { po.ini = periodoIni; po.fim = periodoFim; }
+      o.periodo_override = po;
+    }
+    if (comparacao !== 'nenhuma') o.comparacao = comparacao;
+    if (metaTipo === 'valor') o.meta = { tipo: 'valor', valor: metaValor } as WidgetMeta;
+    if (metaTipo === 'kpi' && metaKpi) o.meta = { tipo: 'kpi', kpiKey: metaKpi } as WidgetMeta;
+    if (topN > 0) o.topN = topN;
+    if (sort !== '__none__') o.sort = sort;
+    return o;
+  }, [unidadeNegocio, color, variant, icon, valueFormat, density, height, hideTitle, subtitle, footerNote, periodoTipo, periodoN, periodoIni, periodoFim, comparacao, metaTipo, metaValor, metaKpi, topN, sort]);
+
   // ----- Preview -----
   const previewCtx = useMemo(() => (page ? buildPreviewCtx(page, liveCtx) : null), [page, liveCtx]);
   const previewNode = useMemo(() => {
     if (!page || !previewCtx) return null;
     try {
-      return def.render({
-        title: title || def.label,
+      const rendered = def.render({
+        title: hideTitle ? '' : (title || def.label),
         mapping,
         ctx: { kpis: previewCtx.kpis, series: previewCtx.series, rows: previewCtx.rows },
-        options: {},
+        options: builtOptions,
       });
+      return <WidgetShell options={builtOptions}>{rendered}</WidgetShell>;
     } catch (e) {
       return <div className="text-xs text-destructive">Erro no preview: {(e as Error).message}</div>;
     }
-  }, [def, page, previewCtx, mapping, title]);
+  }, [def, page, previewCtx, mapping, title, builtOptions, hideTitle]);
 
   const filtroChips = useMemo(() => {
     const f = previewCtx?.filtros ?? {};
@@ -229,8 +257,7 @@ export function ApplyComponentDialog({
     if (!canSave) return;
     setSaving(true);
     try {
-      const options: Record<string, any> = {};
-      if (unidadeNegocio !== '__page__') options.unidade_negocio = unidadeNegocio;
+      const options: Record<string, any> = { ...builtOptions };
       await createUserWidget({
         page_key: pageKey, section, component_id: def.id,
         title: title || null, span, ordem, mapping, options,
