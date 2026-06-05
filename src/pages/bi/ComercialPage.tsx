@@ -28,6 +28,7 @@ import { WidgetTitleStyle } from '@/components/bi/runtime/WidgetTitleStyle';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
+import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingToggle';
 import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
@@ -701,6 +702,7 @@ export default function ComercialPage() {
                   <Pencil className="h-3.5 w-3.5" /> Editar dashboard
                 </Button>
               )}
+              <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
               <Button asChild size="sm" variant="outline" className="h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
