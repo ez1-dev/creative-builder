@@ -133,7 +133,7 @@ export default function ComercialPage() {
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
   const [bgOverrideTick, setBgOverrideTick] = useState(0);
-  const theme = React.useMemo(() => getEffectiveTheme(unidade), [unidade, bgOverrideTick]);
+  const theme = useMemo(() => getEffectiveTheme(unidade), [unidade, bgOverrideTick]);
   const currentBg = getBgOverride(unidade);
   const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
   const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
