@@ -42,7 +42,8 @@ interface Props {
 
 type ModuleKey =
   | 'producao' | 'compras' | 'estoque' | 'financeiro'
-  | 'faturamento' | 'operacional' | 'administracao' | 'outras';
+  | 'faturamento' | 'bi' | 'cadastros' | 'regras_senior'
+  | 'relatorios' | 'operacional' | 'administracao' | 'outras';
 
 const MODULE_LABEL: Record<ModuleKey, string> = {
   producao: 'Produção',
@@ -50,6 +51,10 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
   estoque: 'Estoque',
   financeiro: 'Financeiro / Contábil',
   faturamento: 'Faturamento',
+  bi: 'BI / Analytics',
+  cadastros: 'Cadastros',
+  regras_senior: 'Regras Senior',
+  relatorios: 'Relatórios',
   operacional: 'Operacional',
   administracao: 'Administração',
   outras: 'Outras',
@@ -57,11 +62,16 @@ const MODULE_LABEL: Record<ModuleKey, string> = {
 
 const MODULE_ORDER: ModuleKey[] = [
   'producao', 'compras', 'estoque', 'financeiro',
-  'faturamento', 'operacional', 'administracao', 'outras',
+  'faturamento', 'bi', 'cadastros', 'regras_senior',
+  'relatorios', 'operacional', 'administracao', 'outras',
 ];
 
 function getModule(path: string): ModuleKey {
   if (path.startsWith('/producao')) return 'producao';
+  if (path.startsWith('/bi/') || path === '/etl') return 'bi';
+  if (path.startsWith('/cadastros')) return 'cadastros';
+  if (path.startsWith('/regras-senior')) return 'regras_senior';
+  if (path.startsWith('/relatorios')) return 'relatorios';
   if (
     path === '/painel-compras' ||
     path === '/compras-produto' ||
