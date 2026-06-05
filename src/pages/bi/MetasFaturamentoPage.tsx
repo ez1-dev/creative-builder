@@ -200,6 +200,9 @@ export default function MetasFaturamentoPage() {
               e.target.value = '';
             }}
           />
+          <Button variant="secondary" onClick={() => setSyncOpen(true)}>
+            <RefreshCcw className="mr-1 h-4 w-4" /> Sincronizar metas da UpQuery
+          </Button>
           <Button onClick={() => setEdit({ open: true, editing: null })}>
             <Plus className="mr-1 h-4 w-4" /> Nova meta
           </Button>
@@ -229,6 +232,7 @@ export default function MetasFaturamentoPage() {
                     <th className="px-2 py-2 text-left">Unidade</th>
                     <th className="px-2 py-2 text-right">Meta (R$)</th>
                     <th className="px-2 py-2 text-left">Observação</th>
+                    <th className="px-2 py-2 text-left">Origem</th>
                     <th className="px-2 py-2 text-left">Ativo</th>
                     <th className="px-2 py-2 text-right">Ações</th>
                   </tr>
@@ -243,6 +247,13 @@ export default function MetasFaturamentoPage() {
                       <td className="px-2 py-2"><Badge variant="outline">{m.unidade_negocio}</Badge></td>
                       <td className="px-2 py-2 text-right tabular-nums">{currency(Number(m.vl_meta))}</td>
                       <td className="px-2 py-2 text-muted-foreground">{m.observacao || '—'}</td>
+                      <td className="px-2 py-2">
+                        {m.origem_meta === 'UPQUERY_VM_FATURAMENTO' ? (
+                          <Badge variant="secondary">UpQuery</Badge>
+                        ) : (
+                          <Badge variant="outline">Manual</Badge>
+                        )}
+                      </td>
                       <td className="px-2 py-2">
                         <Switch
                           checked={m.ativo}
