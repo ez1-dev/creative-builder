@@ -270,6 +270,21 @@ export default function ComercialPage() {
     drillStack.openWith({ drill_type, contexto });
   };
 
+  // Mapeia os filtros atuais do dashboard para o contexto inicial de um drill.
+  const buildCtxFromFilters = (): DrillContexto => {
+    const f: any = filters;
+    const ctx: DrillContexto = {};
+    const keys: (keyof DrillContexto)[] = [
+      'anomes_emissao','cd_cliente','cd_estado','cd_rev_pedido','cd_produto',
+      'cd_derivacao','cd_nf','cd_origem','cd_tns','cd_tp_movimento','cd_prj',
+    ];
+    keys.forEach((k) => {
+      const v = f?.[k];
+      if (v != null && String(v).length > 0) (ctx as any)[k] = String(v);
+    });
+    return ctx;
+  };
+
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
   const openDetalhes = (escopo: ComercialDetalheEscopo, _titleExtra?: string) => {
     const drillType: DrillType =
@@ -278,8 +293,9 @@ export default function ComercialPage() {
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
       'ACUMULADO';
-    openDrill(drillType, {});
+    openDrill(drillType, escopo === 'impostos' ? buildCtxFromFilters() : {});
   };
+
 
   // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
   const onClickMensal = (d: any) => {
