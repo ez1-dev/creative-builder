@@ -30,13 +30,14 @@ export interface ProfileScreenItem {
   screen_name: string;
   can_view: boolean;
   can_edit: boolean;
+  can_delete?: boolean;
 }
 
 interface Props {
   screens: ScreenItem[];
   profiles: ProfileItem[];
   profileScreens: ProfileScreenItem[];
-  onToggle: (profileId: string, screenPath: string, screenName: string, field: 'can_view' | 'can_edit') => void | Promise<void>;
+  onToggle: (profileId: string, screenPath: string, screenName: string, field: 'can_view' | 'can_edit' | 'can_delete') => void | Promise<void>;
   onRefresh: () => void | Promise<void>;
 }
 
