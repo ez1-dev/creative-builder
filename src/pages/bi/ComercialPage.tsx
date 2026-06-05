@@ -441,13 +441,49 @@ export default function ComercialPage() {
     return <EmptyState description="Bloco sem configuração" />;
   }
 
-  const visibleWidgets = (Array.isArray(layout.widgets) ? layout.widgets : [])
-    .map((w) => normalizeWidget(w) as unknown as ComercialWidget)
-    .filter((w) => !w.hidden);
+  // ===== Drafts de edição (botão Salvar habilita com qualquer mudança) =====
+  // Em modo edição, drag/resize, configurar bloco, ocultar e excluir só atualizam
+  // rascunhos locais. A persistência acontece apenas ao clicar em "Salvar Dashboard".
+  const [layoutDraft, setLayoutDraft] = useState<{ type: string; layout: WidgetLayout }[] | null>(null);
+  const [configDraft, setConfigDraft] = useState<Map<string, Partial<SaveLayoutItem>>>(() => new Map());
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(() => new Set());
 
-  // Chave estável: muda só quando o CONTEÚDO dos blocos muda (não na geometria).
-  // Assim, resize/drag dos cards não recomputa `blocks` e os Recharts não remontam.
-  const widgetsContentKey = (Array.isArray(layout.widgets) ? layout.widgets : [])
+  const dirty = !!(layoutDraft && layoutDraft.length > 0) || configDraft.size > 0 || pendingDeletes.size > 0;
+
+  // Aplica overrides dos drafts em cima dos widgets vindos do banco.
+  const effectiveWidgets = useMemo(() => {
+    const layoutByType = new Map((layoutDraft ?? []).map((it) => [it.type, it.layout]));
+    return (Array.isArray(layout.widgets) ? layout.widgets : [])
+      .filter((w) => !pendingDeletes.has(w.type))
+      .map((w) => {
+        const norm = normalizeWidget(w) as unknown as ComercialWidget;
+        const override = configDraft.get(norm.type);
+        const draftLayout = layoutByType.get(norm.type);
+        const merged: ComercialWidget = {
+          ...norm,
+          ...(override
+            ? {
+                hidden: override.hidden !== undefined ? Boolean(override.hidden) : norm.hidden,
+                variant: 'variant' in override ? (override.variant ?? undefined) : norm.variant,
+                componentId: 'componentId' in override ? (override.componentId ?? undefined) : norm.componentId,
+                mapping: 'mapping' in override ? (override.mapping ?? undefined) : norm.mapping,
+                options: 'options' in override ? (override.options ?? undefined) : norm.options,
+                customTitle: 'customTitle' in override ? (override.customTitle ?? undefined) : norm.customTitle,
+                series: 'series' in override ? (override.series ?? undefined) : norm.series,
+                titleColor: 'titleColor' in override ? (override.titleColor ?? undefined) : norm.titleColor,
+                titleBold: 'titleBold' in override ? (override.titleBold ?? undefined) : norm.titleBold,
+              }
+            : {}),
+          layout: draftLayout ?? norm.layout,
+        };
+        return merged;
+      });
+  }, [layout.widgets, layoutDraft, configDraft, pendingDeletes]);
+
+  const visibleWidgets = effectiveWidgets.filter((w) => !w.hidden);
+
+  // Chave estável: muda só quando o CONTEÚDO dos blocos muda (não a geometria).
+  const widgetsContentKey = effectiveWidgets
     .map((w) => [
       w?.type ?? '', w?.hidden ? 1 : 0, w?.componentId ?? '', w?.variant ?? '',
       w?.customTitle ?? '', JSON.stringify(w?.mapping ?? null),
@@ -456,31 +492,8 @@ export default function ComercialPage() {
     ].join('|'))
     .join('~');
 
-  const blocks = useMemo(() => {
-    const out: Record<string, ReactNode> = {};
-    visibleWidgets.forEach((w) => {
-      const title = w.customTitle || w.title || w.type;
-      out[w.type] = (
-        <WidgetErrorBoundary widgetKey={w.type} title={title}>
-          <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
-            {renderWidget(w)}
-          </WidgetTitleStyle>
-        </WidgetErrorBoundary>
-      );
-    });
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetsContentKey, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
-      qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
-      customMetrics.metrics, hiddenSeries]);
-
   // ===== Builder handlers =====
-  // Em modo edição, drag/resize só atualiza um DRAFT local. A persistência
-  // acontece apenas ao clicar em "Salvar Dashboard". Elimina UPDATEs durante
-  // o gesto, evita reload do banco e impede remount dos gráficos.
-  const [layoutDraft, setLayoutDraft] = useState<{ type: string; layout: { x: number; y: number; w: number; h: number } }[] | null>(null);
-
-  const handleLayoutChange = (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
+  const handleLayoutChange = (next: { type: string; layout: WidgetLayout }[]) => {
     setLayoutDraft(next);
   };
 
