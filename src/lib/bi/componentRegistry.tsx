@@ -41,10 +41,12 @@ function resolveIcon(name?: string) {
   return typeof Cmp === 'function' ? Cmp : null;
 }
 
-/** Cor para charts: se options.color for um token (success/warning/...), converte; senão usa primary. */
-function chartColor(opts?: WidgetOptions): string {
-  if (!opts?.color) return 'hsl(var(--primary))';
-  return colorCss(opts.color);
+/** Cor para charts: aceita token semântico ou string CSS direta. */
+function chartColor(opts?: WidgetOptions): string | undefined {
+  const c = opts?.color as any;
+  if (!c) return undefined;
+  if (typeof c === 'string' && (c.startsWith('hsl') || c.startsWith('#') || c.startsWith('rgb'))) return c;
+  return colorCss(c);
 }
 
 export interface MappingField {
