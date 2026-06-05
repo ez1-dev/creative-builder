@@ -25,27 +25,31 @@ const EXEMPLOS = [
 
 const METRICA_LABEL: Record<AiMetrica, string> = {
   faturamento: 'Faturamento',
+  faturamento_liquido: 'Faturamento Líquido',
   impostos: 'Impostos',
   devolucao: 'Devolução',
-  custo: 'Custo',
   quantidade: 'Quantidade',
-  numero_clientes: 'Nº de Clientes',
-  numero_vendas: 'Nº de Vendas',
+  clientes: 'Nº de Clientes',
+  vendas: 'Nº de Vendas',
+  ticket_medio: 'Ticket Médio',
+  preco_medio: 'Preço Médio',
 };
 
 const DIM_LABEL: Record<AiDimensao, string> = {
+  anomes_emissao: 'Ano/Mês',
   unidade_negocio: 'Unidade de Negócio',
   cd_origem: 'Origem',
+  cd_tp_movimento: 'Tipo de Movimento',
   cd_estado: 'Estado',
   cd_cliente: 'Cliente',
-  cd_tns: 'TNS',
+  cd_prj: 'Projeto/Obra',
   cd_rev_pedido: 'Revenda',
-  anomes_emissao: 'Ano/Mês',
+  cd_tns: 'TNS',
 };
 
 function fmtMetrica(metrica: AiMetrica) {
   return (v: number) => {
-    if (metrica === 'quantidade' || metrica === 'numero_clientes' || metrica === 'numero_vendas') {
+    if (metrica === 'quantidade' || metrica === 'clientes' || metrica === 'vendas') {
       return formatNumber(v);
     }
     return formatCurrency(v);
