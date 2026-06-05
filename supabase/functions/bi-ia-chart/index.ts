@@ -183,6 +183,14 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
     err.userFacing = true;
     throw err;
   }
+  const cronSecret = (Deno.env.get("CRON_SECRET") ?? "").trim();
+  if (!cronSecret) {
+    const err: any = new Error("CRON_SECRET ausente nos secrets do Cloud — configure para autenticar contra a FastAPI.");
+    err.code = "MISSING_CRON_SECRET";
+    err.userFacing = true;
+    throw err;
+  }
+
   const url = new URL(`${v.base}/api/bi/comercial/detalhes`);
   Object.entries(filtros).forEach(([k, val]) => {
     if (val != null && String(val).length > 0) url.searchParams.set(k, String(val));
@@ -195,7 +203,13 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
   let resp: Response;
   try {
     resp = await fetch(url.toString(), {
-      headers: { "ngrok-skip-browser-warning": "true", "Accept": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "ngrok-skip-browser-warning": "true",
+        "x-cron-secret": cronSecret,
+        "Authorization": `Bearer ${cronSecret}`,
+      },
       signal: controller.signal,
     });
   } catch (e: any) {
@@ -213,8 +227,13 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
     if (!resp.ok) {
       const t = await resp.text();
       console.error("FastAPI error", resp.status, t);
-      const err: any = new Error(`Não foi possível conectar à FastAPI (HTTP ${resp.status}).`);
-      err.code = "FASTAPI_HTTP_ERROR";
+      const unauthorized = resp.status === 401 || resp.status === 403;
+      const err: any = new Error(
+        unauthorized
+          ? `FastAPI rejeitou as credenciais (HTTP ${resp.status}). Verifique CRON_SECRET no Cloud.`
+          : `Não foi possível conectar à FastAPI (HTTP ${resp.status}).`,
+      );
+      err.code = unauthorized ? "FASTAPI_UNAUTHORIZED" : "FASTAPI_HTTP_ERROR";
       err.userFacing = true;
       throw err;
     }
