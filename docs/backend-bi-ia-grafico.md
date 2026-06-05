@@ -99,7 +99,26 @@ upper(trim(coalesce(<campo>, '')))
 
 Fonte: mesma view/CTE de faturamento já usada pelo BI Comercial (consolidado de `VM_FATURAMENTO`).
 
-Agregações por `dimensao`:
+### Dimensão `categoria_custom`
+
+Quando `dimensao = "categoria_custom"`, agregar usando o `CASE` normalizado:
+
+```sql
+case
+  when upper(trim(coalesce(cd_origem, ''))) like 'PE%' then 'PEÇAS'
+  when upper(trim(coalesce(cd_origem, ''))) like 'SERV%'
+    or upper(trim(coalesce(cd_tp_movimento, ''))) like 'SERV%' then 'SERVIÇOS'
+  else 'OUTROS'
+end as categoria
+```
+
+Manter apenas labels presentes em `categorias` (default `["PEÇAS", "SERVIÇOS"]`). Linhas classificadas como `OUTROS` são descartadas salvo se `"OUTROS"` constar em `categorias`.
+
+`filtros_drill` para cada série de `categoria_custom`: `null` (drill cruzado fica responsabilidade do frontend, que pode reaplicar filtro base + escolher a próxima dimensão).
+
+### Demais dimensões
+
+Agregações por `dimensao` (faturamento e variantes):
 
 | Métrica | Expressão |
 |---|---|
@@ -113,15 +132,15 @@ Agregações por `dimensao`:
 | `ticket_medio` | `SUM(vl_bruto) / NULLIF(COUNT(DISTINCT id_nf), 0)` |
 | `preco_medio` | `SUM(vl_bruto) / NULLIF(SUM(qtd_produtos), 0)` |
 
-Filtros: aplicar como `WHERE <coluna> = <valor>` para cada chave do `filtros`.
+Filtros: aplicar como `WHERE upper(trim(coalesce(<coluna>, ''))) = upper(trim(<valor>))` para cada chave do `filtros`. **Exceção**: quando `filtros.unidade_negocio = "CONSOLIDADO"`, **não** aplicar filtro de unidade.
 
 Ordenação:
 - Se `dimensao = anomes_emissao` → ordenar por label ascendente (cronológico).
 - Demais dimensões → ordenar por `valor DESC`.
 
 Top N:
-- Para dimensões não temporais, manter os top N e somar o restante em um bucket `"Outros"` (sem `filtros_drill`).
-- Para `anomes_emissao`, não agrupar em "Outros".
+- Para dimensões não temporais (exceto `categoria_custom`), manter os top N e somar o restante em um bucket `"Outros"` (sem `filtros_drill`).
+- Para `anomes_emissao` e `categoria_custom`, não agrupar em "Outros".
 
 ---
 
@@ -129,46 +148,43 @@ Top N:
 
 ```json
 {
-  "titulo": "Faturamento Genius por Origem",
+  "titulo": "Faturamento por Categoria",
   "subtitulo": "Peças vs Serviços",
   "tipo_grafico": "donut",
   "metrica": "faturamento",
-  "dimensao": "cd_origem",
+  "dimensao": "categoria_custom",
   "mostrar_percentual": true,
+  "mostrar_valor": true,
   "total": 1234567.89,
-  "filtros": { "unidade_negocio": "GENIUS" },
+  "filtros": { "unidade_negocio": "CONSOLIDADO" },
   "series": [
-    {
-      "label": "PECAS",
-      "valor": 800000.0,
-      "percentual": 64.8,
-      "filtros_drill": { "unidade_negocio": "GENIUS", "cd_origem": "PECAS" }
-    },
-    {
-      "label": "SERVICOS",
-      "valor": 434567.89,
-      "percentual": 35.2,
-      "filtros_drill": { "unidade_negocio": "GENIUS", "cd_origem": "SERVICOS" }
-    }
-  ]
+    { "label": "PEÇAS",    "valor": 800000.0,  "percentual": 64.8, "filtros_drill": null },
+    { "label": "SERVIÇOS", "valor": 434567.89, "percentual": 35.2, "filtros_drill": null }
+  ],
+  "diagnostico": {
+    "linhas_view": 12453,
+    "filtros_aplicados": { "anomes_ini": "202601", "anomes_fim": "202612" },
+    "unidade_negocio": "CONSOLIDADO",
+    "periodo": { "ini": "202601", "fim": "202612" },
+    "dimensao": "categoria_custom"
+  }
 }
 ```
 
 Regras:
 - `percentual` = `valor / total * 100` (0 quando `total = 0`).
-- `filtros_drill` = `filtros ∪ { [dimensao]: label }`. Para o bucket `"Outros"`, retornar `null`.
-- Devolver `titulo` e `subtitulo` exatamente como recebidos.
+- `filtros_drill` = `filtros ∪ { [dimensao]: label }`. Para o bucket `"Outros"` e para `categoria_custom`, retornar `null`.
+- Devolver `titulo` e `subtitulo` exatamente como recebidos (ou gerados pela interpretação no Formato A).
+- **Sempre** incluir o bloco `diagnostico` (também em sucesso) para permitir auditoria no frontend.
 
 ---
 
-## Erros
+## Erros e resultado vazio
 
-- `400` — payload inválido (enum fora da whitelist, body malformado).
+- `400` — payload inválido (enum fora da whitelist, body malformado, prompt vazio).
 - `401/403` — auth.
-- `422` — sem dados para os filtros informados. Body: `{ "error": "Nenhum dado encontrado", "code": "EMPTY_RESULT" }`.
+- **Resultado vazio**: **NÃO retornar 422**. Retornar `200` com `series: []`, `total: 0` e o bloco `diagnostico` preenchido (linhas na view, filtros aplicados, unidade, período, dimensão). O frontend usa esse bloco para mostrar diagnóstico amigável no lugar do gráfico em branco.
 - `5xx` — `{ "error": "...", "code": "INTERNAL_ERROR" }`.
-
-O frontend trata `error` no corpo e exibe via toast.
 
 ---
 
@@ -177,3 +193,5 @@ O frontend trata `error` no corpo e exibe via toast.
 - **Nunca** aceitar SQL livre vindo do body.
 - **Nunca** usar string interpolation com `filtros` direto na query — usar parâmetros nomeados.
 - Logar requests rejeitados por whitelist (possível tentativa de bypass).
+- Logar o spec interpretado quando o body for Formato A (prompt cru), incluindo `unidade_negocio` final, para auditoria.
+
