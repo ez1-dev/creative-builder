@@ -26,7 +26,7 @@ import { WidgetTitleStyle } from '@/components/bi/runtime/WidgetTitleStyle';
 import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
-import { useComercialLayout, type ComercialWidget } from '@/hooks/useComercialLayout';
+import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
 import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
@@ -441,13 +441,49 @@ export default function ComercialPage() {
     return <EmptyState description="Bloco sem configuração" />;
   }
 
-  const visibleWidgets = (Array.isArray(layout.widgets) ? layout.widgets : [])
-    .map((w) => normalizeWidget(w) as unknown as ComercialWidget)
-    .filter((w) => !w.hidden);
+  // ===== Drafts de edição (botão Salvar habilita com qualquer mudança) =====
+  // Em modo edição, drag/resize, configurar bloco, ocultar e excluir só atualizam
+  // rascunhos locais. A persistência acontece apenas ao clicar em "Salvar Dashboard".
+  const [layoutDraft, setLayoutDraft] = useState<{ type: string; layout: WidgetLayout }[] | null>(null);
+  const [configDraft, setConfigDraft] = useState<Map<string, Partial<SaveLayoutItem>>>(() => new Map());
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(() => new Set());
 
-  // Chave estável: muda só quando o CONTEÚDO dos blocos muda (não na geometria).
-  // Assim, resize/drag dos cards não recomputa `blocks` e os Recharts não remontam.
-  const widgetsContentKey = (Array.isArray(layout.widgets) ? layout.widgets : [])
+  const dirty = !!(layoutDraft && layoutDraft.length > 0) || configDraft.size > 0 || pendingDeletes.size > 0;
+
+  // Aplica overrides dos drafts em cima dos widgets vindos do banco.
+  const effectiveWidgets = useMemo(() => {
+    const layoutByType = new Map((layoutDraft ?? []).map((it) => [it.type, it.layout]));
+    return (Array.isArray(layout.widgets) ? layout.widgets : [])
+      .filter((w) => !pendingDeletes.has(w.type))
+      .map((w) => {
+        const norm = normalizeWidget(w) as unknown as ComercialWidget;
+        const override = configDraft.get(norm.type);
+        const draftLayout = layoutByType.get(norm.type);
+        const merged: ComercialWidget = {
+          ...norm,
+          ...(override
+            ? {
+                hidden: override.hidden !== undefined ? Boolean(override.hidden) : norm.hidden,
+                variant: 'variant' in override ? (override.variant ?? undefined) : norm.variant,
+                componentId: 'componentId' in override ? (override.componentId ?? undefined) : norm.componentId,
+                mapping: 'mapping' in override ? (override.mapping ?? undefined) : norm.mapping,
+                options: 'options' in override ? (override.options ?? undefined) : norm.options,
+                customTitle: 'customTitle' in override ? (override.customTitle ?? undefined) : norm.customTitle,
+                series: 'series' in override ? (override.series ?? undefined) : norm.series,
+                titleColor: 'titleColor' in override ? (override.titleColor ?? undefined) : norm.titleColor,
+                titleBold: 'titleBold' in override ? (override.titleBold ?? undefined) : norm.titleBold,
+              }
+            : {}),
+          layout: draftLayout ?? norm.layout,
+        };
+        return merged;
+      });
+  }, [layout.widgets, layoutDraft, configDraft, pendingDeletes]);
+
+  const visibleWidgets = effectiveWidgets.filter((w) => !w.hidden);
+
+  // Chave estável: muda só quando o CONTEÚDO dos blocos muda (não a geometria).
+  const widgetsContentKey = effectiveWidgets
     .map((w) => [
       w?.type ?? '', w?.hidden ? 1 : 0, w?.componentId ?? '', w?.variant ?? '',
       w?.customTitle ?? '', JSON.stringify(w?.mapping ?? null),
@@ -475,62 +511,78 @@ export default function ComercialPage() {
       customMetrics.metrics, hiddenSeries]);
 
   // ===== Builder handlers =====
-  // Em modo edição, drag/resize só atualiza um DRAFT local. A persistência
-  // acontece apenas ao clicar em "Salvar Dashboard". Elimina UPDATEs durante
-  // o gesto, evita reload do banco e impede remount dos gráficos.
-  const [layoutDraft, setLayoutDraft] = useState<{ type: string; layout: { x: number; y: number; w: number; h: number } }[] | null>(null);
-
-  const handleLayoutChange = (next: { type: string; layout: { x: number; y: number; w: number; h: number } }[]) => {
+  const handleLayoutChange = (next: { type: string; layout: WidgetLayout }[]) => {
     setLayoutDraft(next);
   };
 
-  const handleSaveDashboard = async () => {
-    if (layoutDraft && layoutDraft.length > 0) {
-      try {
-        await layout.saveLayout(layoutDraft.map((it) => ({ type: it.type, layout: it.layout })));
-        toast.success('Dashboard salvo');
-      } catch (e: any) {
-        toast.error(`Erro ao salvar layout: ${e?.message ?? e}`);
-        return;
-      }
-    }
+  const clearDrafts = () => {
     setLayoutDraft(null);
+    setConfigDraft(new Map());
+    setPendingDeletes(new Set());
+  };
+
+  const handleSaveDashboard = async () => {
+    // Monta payload combinado: layout (drag/resize) + overrides de config.
+    const layoutByType = new Map((layoutDraft ?? []).map((it) => [it.type, it.layout]));
+    const types = new Set<string>([...layoutByType.keys(), ...configDraft.keys()]);
+    const items: SaveLayoutItem[] = [];
+    types.forEach((type) => {
+      const current = layout.widgets.find((x) => x.type === type);
+      if (!current) return;
+      const draftLayout = layoutByType.get(type) ?? current.layout;
+      const override = configDraft.get(type) ?? {};
+      items.push({ type, layout: draftLayout, ...override });
+    });
+
+    try {
+      if (items.length > 0) await layout.saveLayout(items);
+      for (const type of pendingDeletes) await layout.deleteWidget(type);
+      if (dirty) toast.success('Dashboard salvo');
+    } catch (e: any) {
+      toast.error(`Erro ao salvar: ${e?.message ?? e}`);
+      return;
+    }
+    clearDrafts();
     setEditing(false);
   };
 
   const handleCancelEdit = () => {
-    setLayoutDraft(null);
+    clearDrafts();
     setEditing(false);
   };
 
   const handleEnterEdit = () => {
-    setLayoutDraft(null);
+    clearDrafts();
     setEditing(true);
   };
 
-  const handleHide = async (type: string) => {
-    const w = layout.widgets.find((x) => x.type === type);
-    if (!w) return;
-    await layout.saveLayout([{ type, layout: w.layout, hidden: true }]);
+  const mergeConfigDraft = (type: string, patch: Partial<SaveLayoutItem>) => {
+    setConfigDraft((prev) => {
+      const next = new Map(prev);
+      const merged = { ...(next.get(type) ?? {}), ...patch };
+      next.set(type, merged);
+      return next;
+    });
   };
 
-  const handleDelete = async (type: string) => {
-    if (!confirm('Excluir este bloco permanentemente?')) return;
-    try {
-      await layout.deleteWidget(type);
-    } catch (e: any) {
-      toast.error(`Erro ao excluir: ${e?.message ?? e}`);
-    }
+  const handleHide = (type: string) => {
+    mergeConfigDraft(type, { hidden: true });
+  };
+
+  const handleDelete = (type: string) => {
+    if (!confirm('Excluir este bloco permanentemente? A exclusão só será gravada ao salvar o dashboard.')) return;
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.add(type);
+      return next;
+    });
   };
 
   const handleConfigure = (type: string) => setConfigType(type);
 
-  const handleConfigApply = async (next: any) => {
+  const handleConfigApply = (next: any) => {
     if (!configType) return;
-    const w = layout.widgets.find((x) => x.type === configType);
-    if (!w) return;
-    await layout.saveLayout([{
-      type: configType, layout: w.layout,
+    mergeConfigDraft(configType, {
       variant: next.variant ?? null,
       componentId: next.componentId ?? null,
       mapping: next.mapping ?? null,
@@ -539,21 +591,18 @@ export default function ComercialPage() {
       series: next.series === undefined ? undefined : (next.series ?? null),
       titleColor: next.titleColor ?? null,
       titleBold: next.titleBold ?? null,
-    }]);
+    });
     setConfigType(null);
   };
 
-  const handleConfigReset = async () => {
+  const handleConfigReset = () => {
     if (!configType) return;
-    const w = layout.widgets.find((x) => x.type === configType);
-    if (!w) return;
     const def = COMERCIAL_WIDGETS[configType];
-    await layout.saveLayout([{
-      type: configType, layout: w.layout,
+    mergeConfigDraft(configType, {
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
       titleColor: null, titleBold: null,
-    }]);
+    });
     setConfigType(null);
   };
 
@@ -583,7 +632,7 @@ export default function ComercialPage() {
   };
 
   const presentTypes = layout.widgets.map((w) => w.type);
-  const configuringWidget = configType ? layout.widgets.find((w) => w.type === configType) : null;
+  const configuringWidget = configType ? effectiveWidgets.find((w) => w.type === configType) : null;
   const configuringDef = configType ? COMERCIAL_WIDGETS[configType] : undefined;
 
   return (
@@ -606,7 +655,7 @@ export default function ComercialPage() {
                   <Button size="sm" variant="ghost" className="h-8" onClick={handleCancelEdit}>
                     Cancelar
                   </Button>
-                  <Button size="sm" variant="default" className="h-8 gap-1" onClick={handleSaveDashboard} disabled={!layoutDraft}>
+                  <Button size="sm" variant="default" className="h-8 gap-1" onClick={handleSaveDashboard} disabled={!dirty}>
                     <Save className="h-3.5 w-3.5" /> Salvar Dashboard
                   </Button>
                 </>
