@@ -88,6 +88,22 @@ export async function executarGraficoIA(
   for (const [k, v] of Object.entries(filtrosBase ?? {})) {
     if (v != null && String(v).length > 0) body[k] = String(v);
   }
+
+  // Defesa em profundidade: se o prompt pediu "total/consolidado/geral" e NÃO mencionou
+  // unidade específica, força CONSOLIDADO mesmo que o filtro global do dashboard esteja
+  // em GENIUS/ESTRUTURAL. O backend interpreta CONSOLIDADO como "sem filtro de unidade".
+  const p = String(prompt ?? '').toLowerCase();
+  const mencionaTotal = /\b(total|consolidad[oa]|geral)\b/.test(p);
+  const mencionaGenius = /\bgenius\b/.test(p);
+  const mencionaEstrutural = /\b(estrutural|zortea)\b/.test(p);
+  if (mencionaTotal && !mencionaGenius && !mencionaEstrutural) {
+    body.unidade_negocio = 'CONSOLIDADO';
+  } else if (mencionaGenius) {
+    body.unidade_negocio = 'GENIUS';
+  } else if (mencionaEstrutural) {
+    body.unidade_negocio = 'ESTRUTURAL ZORTEA';
+  }
+
   return api.post<AiChartResult>('/api/bi/comercial/ia-grafico', body);
 }
 
