@@ -74,6 +74,57 @@ function buildFrotaSeriesOptions(): { key: string; label: string }[] {
   return out;
 }
 
+/**
+ * Dimensões e métricas suportadas no dashboard de BI Comercial.
+ * As chaves são consumidas pelo `pageSeries` em `ComercialPage.tsx`.
+ */
+export const COMERCIAL_DIMENSOES = [
+  { key: 'estado',           label: 'Estado / UF' },
+  { key: 'revenda',          label: 'Revenda' },
+  { key: 'obra',             label: 'Obra / Projeto' },
+  { key: 'cliente',          label: 'Cliente' },
+  { key: 'produto',          label: 'Produto' },
+  { key: 'nota_fiscal',      label: 'Nota Fiscal' },
+  { key: 'detalhe_impostos', label: 'Detalhe de Impostos' },
+  { key: 'mix',              label: 'Categoria (Mix)' },
+] as const;
+
+export const COMERCIAL_METRICAS = [
+  { key: 'faturamento', label: 'Faturamento (R$)' },
+  { key: 'liquido',     label: 'Líquido (R$)' },
+  { key: 'impostos',    label: 'Impostos (R$)' },
+  { key: 'devolucao',   label: 'Devolução (R$)' },
+  { key: 'nvendas',     label: 'Nº Vendas' },
+  { key: 'nclientes',   label: 'Nº Clientes' },
+  { key: 'quantidade',  label: 'Quantidade' },
+  { key: 'ticket',      label: 'Ticket Médio (R$)' },
+  { key: 'preco_medio', label: 'Preço Médio (R$)' },
+] as const;
+
+function buildComercialSeriesOptions(): { key: string; label: string }[] {
+  const out: { key: string; label: string }[] = [];
+  COMERCIAL_METRICAS.forEach((m) => {
+    out.push({ key: `mensal__${m.key}`, label: `Evolução mensal · ${m.label}` });
+  });
+  COMERCIAL_METRICAS.forEach((m) => {
+    out.push({ key: `anual__${m.key}`, label: `Evolução anual · ${m.label}` });
+  });
+  COMERCIAL_DIMENSOES.forEach((d) => {
+    COMERCIAL_METRICAS.forEach((m) => {
+      out.push({ key: `por_${d.key}__${m.key}`, label: `${d.label} · ${m.label}` });
+    });
+  });
+  // Aliases legados (mantidos para layouts já salvos).
+  out.push(
+    { key: 'mensal',   label: 'Faturamento mensal — legado' },
+    { key: 'mix',      label: 'Mix por categoria — legado' },
+    { key: 'estados',  label: 'Faturamento por estado — legado' },
+    { key: 'revendas', label: 'Top revendas (GENIUS) — legado' },
+    { key: 'obras',    label: 'Top obras (ESTRUTURAL) — legado' },
+  );
+  return out;
+}
+
 export interface BiPageDef {
   key: string;
   label: string;
