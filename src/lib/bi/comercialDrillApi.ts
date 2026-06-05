@@ -21,8 +21,10 @@ export interface DrillContexto {
   cd_tp_movimento?: string | null;
   cd_nf?: string | null;
   cd_produto?: string | null;
+  cd_derivacao?: string | null;
   categoria_custom?: string | null;
 }
+
 
 export interface DrillRequest {
   drill_type: DrillType;

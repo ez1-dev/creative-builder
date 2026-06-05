@@ -129,11 +129,11 @@ function BlocoErro({ err, onRetry, msg = ERR_MSG }: { err: unknown; onRetry: () 
   return <ErrorState title={msg} message={String((err as any)?.message ?? '')} onRetry={onRetry} />;
 }
 
-function Clickable({ children, onClick, className }: { children: ReactNode; onClick?: () => void; className?: string }) {
+function Clickable({ children, onClick, className, title }: { children: ReactNode; onClick?: () => void; className?: string; title?: string }) {
   if (!onClick) return <>{children}</>;
   return (
     <div
-      role="button" tabIndex={0} title="Clique para detalhar" onClick={onClick}
+      role="button" tabIndex={0} title={title ?? 'Clique para detalhar'} onClick={onClick}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
       className={cn('cursor-pointer outline-none rounded-md transition-shadow hover:ring-2 hover:ring-ring/50 h-full', className)}
     >
@@ -141,6 +141,7 @@ function Clickable({ children, onClick, className }: { children: ReactNode; onCl
     </div>
   );
 }
+
 
 export default function ComercialPage() {
   const [draft, setDraft] = useState<{ anomes_ini: string; anomes_fim: string; unidade_negocio: UnidadeNegocio }>({
@@ -269,6 +270,21 @@ export default function ComercialPage() {
     drillStack.openWith({ drill_type, contexto });
   };
 
+  // Mapeia os filtros atuais do dashboard para o contexto inicial de um drill.
+  const buildCtxFromFilters = (): DrillContexto => {
+    const f: any = filters;
+    const ctx: DrillContexto = {};
+    const keys: (keyof DrillContexto)[] = [
+      'anomes_emissao','cd_cliente','cd_estado','cd_rev_pedido','cd_produto',
+      'cd_derivacao','cd_nf','cd_origem','cd_tns','cd_tp_movimento','cd_prj',
+    ];
+    keys.forEach((k) => {
+      const v = f?.[k];
+      if (v != null && String(v).length > 0) (ctx as any)[k] = String(v);
+    });
+    return ctx;
+  };
+
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
   const openDetalhes = (escopo: ComercialDetalheEscopo, _titleExtra?: string) => {
     const drillType: DrillType =
@@ -277,8 +293,9 @@ export default function ComercialPage() {
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
       'ACUMULADO';
-    openDrill(drillType, {});
+    openDrill(drillType, escopo === 'impostos' ? buildCtxFromFilters() : {});
   };
+
 
   // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
   const onClickMensal = (d: any) => {
@@ -363,7 +380,18 @@ export default function ComercialPage() {
     } else {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
+    if (kpiKey === 'impostos') {
+      return (
+        <Clickable
+          title="Clique para detalhar impostos"
+          onClick={() => openDrill('DETALHES_IMPOSTOS', buildCtxFromFilters())}
+        >
+          {inner}
+        </Clickable>
+      );
+    }
     return <Clickable onClick={() => openDetalhes(escopo, title)}>{inner}</Clickable>;
+
   }
 
   function renderSerieMensal(w: ComercialWidget): ReactNode {
