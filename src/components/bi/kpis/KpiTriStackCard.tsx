@@ -4,12 +4,12 @@
  */
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { formatByKind, KpiFormatKind } from '../utils/formatters';
+import { formatByKind, KpiFormat } from '../utils/formatters';
 
 export interface TriStackItem {
   label: string;
   value: number | null | undefined;
-  format?: KpiFormatKind;
+  format?: KpiFormat;
   /** Cor opcional (CSS color) — sobrepõe a cor herdada do widget. */
   color?: string;
 }
