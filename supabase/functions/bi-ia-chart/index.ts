@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,51 +9,81 @@ const corsHeaders = {
 
 type TipoGrafico = "donut" | "pie" | "bar" | "line";
 type Metrica =
-  | "faturamento" | "impostos" | "devolucao" | "custo"
-  | "quantidade" | "numero_clientes" | "numero_vendas";
+  | "faturamento" | "faturamento_liquido" | "impostos" | "devolucao"
+  | "quantidade" | "clientes" | "vendas";
 type Dimensao =
-  | "unidade_negocio" | "cd_origem" | "cd_estado" | "cd_cliente"
-  | "cd_tns" | "cd_rev_pedido" | "anomes_emissao";
+  | "anomes_emissao" | "unidade_negocio" | "fonte_acao" | "cd_estado"
+  | "cd_cliente" | "cd_prj" | "cd_fpj" | "cd_tns"
+  | "cd_grupo_cliente" | "cd_representante";
 
 const METRICAS: Metrica[] = [
-  "faturamento", "impostos", "devolucao", "custo",
-  "quantidade", "numero_clientes", "numero_vendas",
+  "faturamento", "faturamento_liquido", "impostos", "devolucao",
+  "quantidade", "clientes", "vendas",
 ];
 const DIMENSOES: Dimensao[] = [
-  "unidade_negocio", "cd_origem", "cd_estado", "cd_cliente",
-  "cd_tns", "cd_rev_pedido", "anomes_emissao",
+  "anomes_emissao", "unidade_negocio", "fonte_acao", "cd_estado",
+  "cd_cliente", "cd_prj", "cd_fpj", "cd_tns",
+  "cd_grupo_cliente", "cd_representante",
 ];
 const TIPOS: TipoGrafico[] = ["donut", "pie", "bar", "line"];
 
-const METRICA_LABEL: Record<Metrica, string> = {
-  faturamento: "Faturamento",
-  impostos: "Impostos",
-  devolucao: "Devolução",
-  custo: "Custo",
-  quantidade: "Quantidade",
-  numero_clientes: "Nº de Clientes",
-  numero_vendas: "Nº de Vendas",
+const METRICA_COL: Record<Exclude<Metrica, "clientes" | "vendas">, string> = {
+  faturamento: "vl_bruto",
+  faturamento_liquido: "vl_liquido",
+  impostos: "impostos",
+  devolucao: "vl_devolucao",
+  quantidade: "qtd_produtos",
 };
 
-const SYSTEM_PROMPT = `Você é um assistente de BI para o módulo Comercial de um ERP.
-Sua tarefa: interpretar um pedido em linguagem natural (PT-BR) e devolver uma configuração de gráfico.
+const METRICA_LABEL: Record<Metrica, string> = {
+  faturamento: "Faturamento",
+  faturamento_liquido: "Faturamento Líquido",
+  impostos: "Impostos",
+  devolucao: "Devolução",
+  quantidade: "Quantidade",
+  clientes: "Nº de Clientes",
+  vendas: "Nº de Vendas",
+};
 
-REGRAS:
-- Sempre escolha UMA métrica e UMA dimensão.
-- tipo_grafico ∈ ${TIPOS.join(", ")}.
-- metrica ∈ ${METRICAS.join(", ")}.
-- dimensao ∈ ${DIMENSOES.join(", ")}.
-- Quando o usuário pedir "peças vs serviços" ou "máquinas vs serviços" use dimensao=cd_origem.
-- Quando o usuário pedir "por estado/UF" use cd_estado.
-- Quando o usuário pedir "por cliente" use cd_cliente.
-- Quando o usuário pedir "por revenda" use cd_rev_pedido.
-- Quando o usuário pedir "por mês/evolução temporal" use anomes_emissao e tipo_grafico=line ou bar.
-- Para "rosca/donut/pizza" use donut/pie.
-- Se o pedido citar "Genius" => filtros_extras.unidade_negocio = "GENIUS".
-- Se o pedido citar "Estrutural Zortea" => filtros_extras.unidade_negocio = "ESTRUTURAL ZORTEA".
+const DIM_LABEL: Record<Dimensao, string> = {
+  anomes_emissao: "Ano/Mês",
+  unidade_negocio: "Unidade de Negócio",
+  fonte_acao: "Origem (Peças/Serviços)",
+  cd_estado: "Estado",
+  cd_cliente: "Cliente",
+  cd_prj: "Projeto/Obra",
+  cd_fpj: "Forma Comercial (Revenda)",
+  cd_tns: "TNS",
+  cd_grupo_cliente: "Grupo de Cliente",
+  cd_representante: "Representante",
+};
+
+const SYSTEM_PROMPT = `Você é um assistente de BI Comercial de um ERP.
+Sua tarefa: interpretar um pedido em PT-BR e devolver uma configuração de gráfico.
+
+DADOS DISPONÍVEIS:
+- Fonte única: view de faturamento (notas fiscais).
+- Métricas (escolha UMA): ${METRICAS.join(", ")}.
+- Dimensões (escolha UMA): ${DIMENSOES.join(", ")}.
+- tipo_grafico: ${TIPOS.join(", ")}.
+
+MAPEAMENTOS OBRIGATÓRIOS:
+- "Peças vs Serviços", "máquinas vs serviços", "origem", "tipo de item" => dimensao=fonte_acao.
+- "por estado" / "UF" => cd_estado.
+- "por cliente" => cd_cliente.
+- "por revenda" / "forma comercial" => cd_fpj.
+- "por obra" / "projeto" => cd_prj.
+- "por grupo de cliente" => cd_grupo_cliente.
+- "por representante" / "vendedor" => cd_representante.
+- "por mês" / "evolução temporal" => anomes_emissao com tipo_grafico=line ou bar.
+- "rosca / donut / pizza" => donut ou pie.
+
+FILTROS:
+- "Genius" => filtros_extras.unidade_negocio = "GENIUS".
+- "Estrutural Zortea" => filtros_extras.unidade_negocio = "ESTRUTURAL ZORTEA".
 - top_n entre 3 e 30 (default 10).
-- titulo e subtitulo curtos, em PT-BR.
-- Use APENAS valores dos enums listados. Nunca invente outro nome.`;
+- titulo e subtitulo curtos em PT-BR.
+- Use APENAS valores dos enums listados. NUNCA invente outro nome.`;
 
 interface IAConfig {
   titulo: string;
@@ -62,27 +93,7 @@ interface IAConfig {
   dimensao: Dimensao;
   filtros_extras: Record<string, string>;
   top_n: number;
-}
-
-interface DetalheRow {
-  anomes_emissao?: string | null;
-  unidade_negocio?: string | null;
-  cd_tp_movimento?: string | null;
-  cd_origem?: string | null;
-  cd_empresa?: string | null;
-  cd_filial?: string | null;
-  cd_nf?: string | null;
-  cd_serie?: string | null;
-  cd_estado?: string | null;
-  cd_cliente?: string | null;
-  cd_prj?: string | null;
-  cd_rev_pedido?: string | null;
-  cd_tns?: string | null;
-  vl_bruto?: number | null;
-  vl_impostos?: number | null;
-  vl_liquido?: number | null;
-  vl_devolucao?: number | null;
-  qtd_produtos?: number | null;
+  mostrar_percentual: boolean;
 }
 
 const num = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
@@ -119,11 +130,12 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAConfig
               filtros_extras: {
                 type: "object",
                 additionalProperties: { type: "string" },
-                description: "Filtros extras inferidos do pedido (ex: unidade_negocio, cd_estado).",
+                description: "Filtros extras inferidos do pedido (ex: unidade_negocio).",
               },
               top_n: { type: "number" },
+              mostrar_percentual: { type: "boolean" },
             },
-            required: ["titulo", "subtitulo", "tipo_grafico", "metrica", "dimensao", "filtros_extras", "top_n"],
+            required: ["titulo", "subtitulo", "tipo_grafico", "metrica", "dimensao", "filtros_extras", "top_n", "mostrar_percentual"],
             additionalProperties: false,
           },
         },
@@ -144,116 +156,81 @@ async function callLovableAI(prompt: string, contexto: string): Promise<IAConfig
   if (!toolCall) throw new Error("Resposta da IA sem tool_call");
   const cfg = JSON.parse(toolCall.function.arguments) as IAConfig;
 
-  // Validações duras
   if (!TIPOS.includes(cfg.tipo_grafico)) cfg.tipo_grafico = "bar";
   if (!METRICAS.includes(cfg.metrica)) cfg.metrica = "faturamento";
   if (!DIMENSOES.includes(cfg.dimensao)) cfg.dimensao = "unidade_negocio";
   cfg.top_n = Math.min(30, Math.max(3, Number(cfg.top_n) || 10));
   cfg.filtros_extras = cfg.filtros_extras && typeof cfg.filtros_extras === "object" ? cfg.filtros_extras : {};
+  cfg.mostrar_percentual = Boolean(cfg.mostrar_percentual);
   return cfg;
 }
 
-function validateFastapiBase(): { ok: true; base: string } | { ok: false; code: string; message: string } {
-  const raw = Deno.env.get("FASTAPI_BASE_URL");
-  if (!raw) return { ok: false, code: "MISSING_BASE_URL", message: "Backend não configurado: defina FASTAPI_BASE_URL nos secrets do Cloud." };
-  const trimmed = raw.trim();
-  const cron = Deno.env.get("CRON_SECRET");
-  if (cron && trimmed === cron.trim()) {
-    return { ok: false, code: "INVALID_BASE_URL", message: "FASTAPI_BASE_URL está com o mesmo valor de CRON_SECRET. Corrija o secret para a URL pública da FastAPI (ex.: https://xxxx.ngrok-free.app)." };
-  }
-  if (!/^https?:\/\//i.test(trimmed)) {
-    return { ok: false, code: "INVALID_BASE_URL", message: `FASTAPI_BASE_URL inválido: "${trimmed}". Deve começar com http:// ou https:// (ex.: https://xxxx.ngrok-free.app).` };
-  }
-  let parsed: URL;
-  try { parsed = new URL(trimmed); } catch {
-    return { ok: false, code: "INVALID_BASE_URL", message: `FASTAPI_BASE_URL inválido: "${trimmed}".` };
-  }
-  const host = parsed.hostname.toLowerCase();
-  if (host === "localhost" || host === "127.0.0.1" || host.endsWith(".local")) {
-    return { ok: false, code: "LOCALHOST_NOT_ALLOWED", message: `FASTAPI_BASE_URL aponta para "${host}" — a Edge Function roda na nuvem. Use uma URL pública (ngrok, domínio próprio etc.).` };
-  }
-  return { ok: true, base: trimmed.replace(/\/$/, "") };
+interface ViewRow {
+  anomes_emissao?: string | null;
+  unidade_negocio?: string | null;
+  fonte_acao?: string | null;
+  cd_estado?: string | null;
+  cd_cliente?: string | null;
+  cd_prj?: string | null;
+  cd_fpj?: string | null;
+  cd_tns?: string | null;
+  cd_grupo_cliente?: string | null;
+  cd_representante?: string | null;
+  id_nf?: string | null;
+  vl_bruto?: number | null;
+  vl_liquido?: number | null;
+  impostos?: number | null;
+  vl_devolucao?: number | null;
+  qtd_produtos?: number | null;
 }
 
-async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRow[]> {
-  const v = validateFastapiBase();
-  if (!v.ok) {
-    const err: any = new Error(v.message);
-    err.code = v.code;
-    err.userFacing = true;
-    throw err;
-  }
-  const cronSecret = (Deno.env.get("CRON_SECRET") ?? "").trim();
-  if (!cronSecret) {
-    const err: any = new Error("CRON_SECRET ausente nos secrets do Cloud — configure para autenticar contra a FastAPI.");
-    err.code = "MISSING_CRON_SECRET";
-    err.userFacing = true;
-    throw err;
-  }
+async function fetchFromView(
+  sb: ReturnType<typeof createClient>,
+  filtros: Record<string, string>,
+  dimensao: Dimensao,
+  metrica: Metrica,
+): Promise<ViewRow[]> {
+  const cols = new Set<string>([dimensao]);
+  if (metrica === "clientes") cols.add("cd_cliente");
+  else if (metrica === "vendas") cols.add("id_nf");
+  else cols.add(METRICA_COL[metrica]);
 
-  const url = new URL(`${v.base}/api/bi/comercial/detalhes`);
-  Object.entries(filtros).forEach(([k, val]) => {
-    if (val != null && String(val).length > 0) url.searchParams.set(k, String(val));
-  });
-  url.searchParams.set("escopo", "todas");
-  url.searchParams.set("limit", "20000");
+  const select = Array.from(cols).join(",");
+  const PAGE = 1000;
+  const HARD_LIMIT = 50000;
+  const out: ViewRow[] = [];
+  let from = 0;
 
-  const controller = new AbortController();
-  const tid = setTimeout(() => controller.abort(), 45000);
-  let resp: Response;
-  try {
-    resp = await fetch(url.toString(), {
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "ngrok-skip-browser-warning": "true",
-        "x-cron-secret": cronSecret,
-        "Authorization": `Bearer ${cronSecret}`,
-      },
-      signal: controller.signal,
-    });
-  } catch (e: any) {
-    clearTimeout(tid);
-    const isAbort = e?.name === "AbortError";
-    const err: any = new Error(isAbort
-      ? "Não foi possível conectar à FastAPI (tempo esgotado). Verifique se o backend está online."
-      : "Não foi possível conectar à FastAPI. Verifique se o backend está online.");
-    err.code = isAbort ? "FASTAPI_TIMEOUT" : "FASTAPI_UNREACHABLE";
-    err.userFacing = true;
-    console.error("FastAPI fetch failed:", e?.name, e?.message);
-    throw err;
-  }
-  try {
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error("FastAPI error", resp.status, t);
-      const unauthorized = resp.status === 401 || resp.status === 403;
-      const err: any = new Error(
-        unauthorized
-          ? `FastAPI rejeitou as credenciais (HTTP ${resp.status}). Verifique CRON_SECRET no Cloud.`
-          : `Não foi possível conectar à FastAPI (HTTP ${resp.status}).`,
-      );
-      err.code = unauthorized ? "FASTAPI_UNAUTHORIZED" : "FASTAPI_HTTP_ERROR";
+  while (from < HARD_LIMIT) {
+    let q = sb.from("v_bi_faturamento_comercial").select(select).range(from, from + PAGE - 1);
+    for (const [k, v] of Object.entries(filtros)) {
+      if (!DIMENSOES.includes(k as Dimensao)) continue;
+      if (v == null || String(v).length === 0) continue;
+      q = q.eq(k, String(v));
+    }
+    const { data, error } = await q;
+    if (error) {
+      console.error("Supabase query error", error);
+      const err: any = new Error("Falha ao consultar dados de faturamento.");
+      err.code = "SUPABASE_QUERY_ERROR";
       err.userFacing = true;
       throw err;
     }
-    const data = await resp.json();
-    if (Array.isArray(data)) {
-      if (data.length === 1 && data[0] && typeof data[0] === "object" && "bi_comercial_detalhes" in data[0]) {
-        return (data[0] as any).bi_comercial_detalhes ?? [];
-      }
-      return data;
-    }
-    if (data && typeof data === "object" && "bi_comercial_detalhes" in data) {
-      return (data as any).bi_comercial_detalhes ?? [];
-    }
-    return [];
-  } finally {
-    clearTimeout(tid);
+    const rows = (data ?? []) as ViewRow[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
   }
+  return out;
 }
 
-function aggregate(rows: DetalheRow[], metrica: Metrica, dimensao: Dimensao, topN: number) {
+function aggregate(
+  rows: ViewRow[],
+  metrica: Metrica,
+  dimensao: Dimensao,
+  topN: number,
+  filtrosBase: Record<string, string>,
+) {
   const buckets = new Map<string, { valor: number; nfSet?: Set<string>; cliSet?: Set<string> }>();
   for (const r of rows) {
     const rawKey = (r as any)[dimensao];
@@ -261,40 +238,40 @@ function aggregate(rows: DetalheRow[], metrica: Metrica, dimensao: Dimensao, top
     let b = buckets.get(key);
     if (!b) {
       b = { valor: 0 };
-      if (metrica === "numero_vendas") b.nfSet = new Set();
-      if (metrica === "numero_clientes") b.cliSet = new Set();
+      if (metrica === "vendas") b.nfSet = new Set();
+      if (metrica === "clientes") b.cliSet = new Set();
       buckets.set(key, b);
     }
     switch (metrica) {
       case "faturamento": b.valor += num(r.vl_bruto); break;
-      case "impostos":    b.valor += num(r.vl_impostos); break;
-      case "devolucao":   b.valor += num(r.vl_devolucao); break;
-      case "custo":       b.valor += num((r as any).vl_custo ?? (r as any).vl_cmv ?? 0); break;
-      case "quantidade":  b.valor += num(r.qtd_produtos); break;
-      case "numero_vendas": {
-        const id = `${r.cd_empresa ?? ""}|${r.cd_filial ?? ""}|${r.cd_serie ?? ""}|${r.cd_nf ?? ""}`;
-        if (id !== "|||") b.nfSet!.add(id);
+      case "faturamento_liquido": b.valor += num(r.vl_liquido); break;
+      case "impostos": b.valor += num(r.impostos); break;
+      case "devolucao": b.valor += num(r.vl_devolucao); break;
+      case "quantidade": b.valor += num(r.qtd_produtos); break;
+      case "vendas":
+        if (r.id_nf != null && r.id_nf !== "") b.nfSet!.add(String(r.id_nf));
         break;
-      }
-      case "numero_clientes": {
+      case "clientes":
         if (r.cd_cliente != null && r.cd_cliente !== "") b.cliSet!.add(String(r.cd_cliente));
         break;
-      }
     }
   }
 
   let series = Array.from(buckets.entries()).map(([label, b]) => ({
     label,
-    valor: metrica === "numero_vendas" ? b.nfSet!.size
-         : metrica === "numero_clientes" ? b.cliSet!.size
+    valor: metrica === "vendas" ? b.nfSet!.size
+         : metrica === "clientes" ? b.cliSet!.size
          : b.valor,
   }));
 
-  series.sort((a, b) => b.valor - a.valor);
+  if (dimensao === "anomes_emissao") {
+    series.sort((a, b) => a.label.localeCompare(b.label));
+  } else {
+    series.sort((a, b) => b.valor - a.valor);
+  }
 
-  let outros = 0;
-  if (series.length > topN) {
-    outros = series.slice(topN).reduce((s, x) => s + x.valor, 0);
+  if (dimensao !== "anomes_emissao" && series.length > topN) {
+    const outros = series.slice(topN).reduce((s, x) => s + x.valor, 0);
     series = series.slice(0, topN);
     if (outros > 0) series.push({ label: "Outros", valor: outros });
   }
@@ -304,6 +281,9 @@ function aggregate(rows: DetalheRow[], metrica: Metrica, dimensao: Dimensao, top
     label: s.label,
     valor: s.valor,
     percentual: total > 0 ? (s.valor / total) * 100 : 0,
+    filtros_drill: s.label === "Outros"
+      ? null
+      : { ...filtrosBase, [dimensao]: s.label },
   }));
   return { series: out, total };
 }
@@ -326,27 +306,63 @@ serve(async (req) => {
       });
     }
 
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SUPABASE_URL || !SERVICE_ROLE) {
+      return new Response(JSON.stringify({
+        error: "Backend não configurado: SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes.",
+        code: "MISSING_CLOUD_CREDS",
+        fallback: true,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const sb = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+
     const ctxLines = Object.entries(filtrosBase)
       .filter(([, v]) => v != null && String(v).length > 0)
       .map(([k, v]) => `- ${k}: ${v}`).join("\n") || "(nenhum)";
 
     const cfg = await callLovableAI(prompt, ctxLines);
 
-    // Mescla filtros: base + extras inferidos pela IA (extras sobrescrevem se houver)
-    const mergedFiltros: Record<string, string> = { ...filtrosBase };
+    // Mescla filtros: base + extras inferidos pela IA (apenas chaves whitelisted)
+    const mergedFiltros: Record<string, string> = {};
+    for (const [k, v] of Object.entries(filtrosBase)) {
+      if (DIMENSOES.includes(k as Dimensao) && v != null && String(v).length > 0) {
+        mergedFiltros[k] = String(v);
+      }
+    }
     for (const [k, v] of Object.entries(cfg.filtros_extras || {})) {
-      if (v != null && String(v).length > 0) mergedFiltros[k] = String(v);
+      if (DIMENSOES.includes(k as Dimensao) && v != null && String(v).length > 0) {
+        mergedFiltros[k] = String(v);
+      }
     }
 
-    const rows = await fetchDetalhes(mergedFiltros);
-    const { series, total } = aggregate(rows, cfg.metrica, cfg.dimensao, cfg.top_n);
+    const rows = await fetchFromView(sb, mergedFiltros, cfg.dimensao, cfg.metrica);
+
+    if (rows.length === 0) {
+      return new Response(JSON.stringify({
+        error: "Nenhum dado encontrado para os filtros informados.",
+        code: "EMPTY_RESULT",
+        fallback: true,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { series, total } = aggregate(rows, cfg.metrica, cfg.dimensao, cfg.top_n, mergedFiltros);
+
+    if (total === 0) {
+      return new Response(JSON.stringify({
+        error: "Os filtros retornaram registros, mas a métrica selecionada ficou zerada.",
+        code: "EMPTY_METRIC",
+        fallback: true,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const payload = {
-      titulo: cfg.titulo || `${METRICA_LABEL[cfg.metrica]} por ${cfg.dimensao}`,
+      titulo: cfg.titulo || `${METRICA_LABEL[cfg.metrica]} por ${DIM_LABEL[cfg.dimensao]}`,
       subtitulo: cfg.subtitulo || "",
       tipo_grafico: cfg.tipo_grafico,
       metrica: cfg.metrica,
       dimensao: cfg.dimensao,
+      mostrar_percentual: cfg.mostrar_percentual,
       total,
       series,
       filtros: mergedFiltros,
