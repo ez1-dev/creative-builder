@@ -111,6 +111,23 @@ export default function ComercialPage() {
     anomes_ini: '202601', anomes_fim: '202606', unidade_negocio: 'GENIUS',
   });
 
+  const [filtrosOpen, setFiltrosOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    const v = window.localStorage.getItem('bi-comercial:filtros-open');
+    return v === null ? true : v === '1';
+  });
+  const [iaOpen, setIaOpen] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('bi-comercial:ia-open') === '1';
+  });
+  const toggleFiltros = () => setFiltrosOpen((v) => {
+    const n = !v; try { window.localStorage.setItem('bi-comercial:filtros-open', n ? '1' : '0'); } catch {} return n;
+  });
+  const toggleIa = () => setIaOpen((v) => {
+    const n = !v; try { window.localStorage.setItem('bi-comercial:ia-open', n ? '1' : '0'); } catch {} return n;
+  });
+
+
   const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
