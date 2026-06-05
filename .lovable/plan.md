@@ -1,39 +1,40 @@
 ## Objetivo
 
-No drill por Cliente, exibir o nome em uma **coluna própria** ao lado do código, em vez de concatenar `código - nome` na coluna `Cliente`.
+Em Manutenção de Frota, restringir a exclusão de registros (individual e "Excluir todos") a usuários explicitamente autorizados, através de um novo flag `can_delete` por tela em Configurações > Permissões.
 
-Resultado esperado:
+## Mudanças
 
-```
-Cliente | Nome do Cliente            | Linhas | Faturamento | ...
-8865    | EMPRESA XYZ LTDA           | 2      | 650000      | ...
-5235    | COMERCIAL ABC               | 1      | 250000      | ...
-```
+### 1. Banco
 
-## Mudanças (somente frontend)
+- Adicionar coluna `can_delete boolean not null default false` em `public.profile_screens`.
+- Criar função `public.can_delete_frota(_uid uuid)` (security definer) que retorna `true` se:
+  - `is_admin(_uid)` ou
+  - existe um `profile_screens` com `screen_path = '/frota' AND can_delete = true` para algum perfil ligado ao usuário via `user_access` / `profiles.erp_user`.
+- Substituir a policy `Editors can delete manutencao_frota` em `public.manutencao_frota` por uma que use `can_delete_frota(auth.uid())`.
+- Insert/Update permanecem com `can_edit_frota` (sem mudança).
 
-Arquivo: `src/components/bi/drill/ComercialDrillDrawer.tsx`
+### 2. Contexto de permissões (frontend)
 
-1. **Remover o override de célula** que concatena `cd_cliente - nm_cliente` na coluna `Cliente` (linhas 122–126). A coluna `Cliente` volta a mostrar só o código.
+- `src/contexts/PermissionsContext.tsx`: incluir `can_delete` em `ScreenPermission`, no `select` de `profile_screens`, no `merge` (OR entre perfis) e no `shallowEqualPerms`.
+- `src/hooks/useUserPermissions.ts`: adicionar `canDelete(path)` (true se `isAdmin` ou `perm.can_delete`).
 
-2. **Injetar uma coluna sintética `nm_cliente`** logo após `cd_cliente` quando `cur?.drill_type === 'CLIENTE'`:
-   - `key: 'nm_cliente'`
-   - `header: 'Nome do Cliente'`
-   - `align: 'left'`
-   - `render`: `r.nm_cliente ?? '—'`
-   - Se a coluna já vier do backend em `resp.columns`, não duplicar.
+### 3. UI de Permissões
 
-3. **CSV**: `downloadDrillCsv` usa `resp.columns`. Para o CSV refletir a nova coluna, montar uma cópia da resposta com a coluna `nm_cliente` inserida (mesma regra do item 2) e passar essa cópia para `downloadDrillCsv` quando `drill_type === 'CLIENTE'`.
+- `src/components/configuracoes/PermissoesPorTelaPanel.tsx`: adicionar coluna/switch "Excluir" ao lado de "Visualizar" e "Editar"; suportar o campo na função de toggle e nos modos em massa (clear-all mantém false; view-all/edit-all não ativam can_delete por padrão — exclusão só com toggle explícito).
 
-## Fora do escopo
+### 4. Manutenção de Frota (`src/pages/ManutencaoFrotaPage.tsx`)
 
-- Backend: contrato já documentado em `docs/backend-bi-comercial-clientes-sincronizar.md`; idealmente o backend passa a incluir `nm_cliente` em `resp.columns` para o drill CLIENTE — quando fizer, o passo de injeção no frontend vira no-op por causa da deduplicação.
-- Filtros técnicos (`filtros_drill`) e breadcrumb continuam iguais — só `cd_cliente`.
-- Nenhuma mudança em REVENDA / PRODUTO.
+- Obter `canDelete('/frota')` do hook.
+- `onDelete={canDelete('/frota') ? setDeleteId : undefined}` (não mostra mais o botão de lixeira na tabela para quem só edita).
+- Botão "Excluir todos" passa a depender de `canDelete('/frota')` em vez de `isAdmin` (admin continua coberto porque `canDelete` retorna true para admin).
 
 ## Critérios de aceite
 
-- Drill Cliente mostra duas colunas: `Cliente` (código) e `Nome do Cliente`.
-- CSV exporta as duas colunas.
-- Clicar em "Detalhar" continua mandando apenas `cd_cliente` no próximo nível.
-- Breadcrumb inalterado.
+- Usuário com `can_edit` mas sem `can_delete` em `/frota` não vê os botões de lixeira nem "Excluir todos", e qualquer tentativa direta falha no banco (RLS).
+- Usuário com `can_delete` (ou admin) consegue excluir normalmente.
+- Visualizar e Editar continuam funcionando exatamente como hoje para todos os perfis.
+- Toggle "Excluir" aparece em Configurações > Permissões e persiste em `profile_screens`.
+
+## Fora do escopo
+
+- Outros módulos (Manutenção de Máquinas, Passagens, etc.) continuam com a regra atual; podemos estender o mesmo padrão depois se quiser.
