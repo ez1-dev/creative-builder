@@ -158,7 +158,7 @@ export default function ManutencaoFrotaPage() {
                 <Plus className="mr-1 h-4 w-4" /> Novo registro
               </Button>
             )}
-            {isAdmin && (
+            {deleteAllowed && (
               <Button
                 variant="destructive" size="sm"
                 onClick={() => { setDeleteAllText(''); setDeleteAllOpen(true); }}
@@ -167,6 +167,7 @@ export default function ManutencaoFrotaPage() {
                 <Trash2 className="mr-1 h-4 w-4" /> Excluir todos
               </Button>
             )}
+
           </>
         }
       />
