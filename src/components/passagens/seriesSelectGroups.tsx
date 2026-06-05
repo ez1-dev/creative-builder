@@ -41,7 +41,22 @@ export function SeriesSelectGroups({ options }: { options: SeriesOption[] }) {
           ))}
         </SelectGroup>
       )}
+      {anual.length > 0 && (
+        <SelectGroup>
+          <SelectLabel>Evolução anual</SelectLabel>
+          {anual.map((s) => (
+            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+          ))}
+        </SelectGroup>
+      )}
       {porDim.length > 0 && (
+        <SelectGroup>
+          <SelectLabel>Por dimensão</SelectLabel>
+          {porDim.map((s) => (
+            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+          ))}
+        </SelectGroup>
+      )}
         <SelectGroup>
           <SelectLabel>Por dimensão</SelectLabel>
           {porDim.map((s) => (
