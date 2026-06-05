@@ -21,8 +21,9 @@ import {
   fetchComercialDrill, downloadDrillCsv,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
-import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY } from '@/lib/bi/comercialDrillCatalog';
+import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import type { ComercialDrillStack } from '@/hooks/useComercialDrillStack';
+import { DrillEmptyDiagnostico } from './DrillEmptyDiagnostico';
 
 interface Props {
   stack: ComercialDrillStack;
@@ -30,20 +31,6 @@ interface Props {
   anomes_fim: string;
   unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
 }
-
-const CTX_LABELS: Partial<Record<keyof DrillContexto, string>> = {
-  anomes_emissao: 'Mês',
-  cd_origem: 'Origem',
-  cd_estado: 'UF',
-  cd_cliente: 'Cliente',
-  cd_rev_pedido: 'Revenda',
-  cd_prj: 'Obra',
-  cd_tns: 'TNS',
-  cd_tp_movimento: 'Mov.',
-  cd_nf: 'NF',
-  cd_produto: 'Produto',
-  categoria_custom: 'Categoria',
-};
 
 function fmtCell(v: any, format?: DrillColumn['format']) {
   if (v == null || v === '') return '-';
