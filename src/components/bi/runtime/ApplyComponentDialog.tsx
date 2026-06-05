@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PAGE_REGISTRY, getPage, getSectionsForKind } from '@/lib/bi/pageRegistry';
 import { getComponent } from '@/lib/bi/componentRegistry';
@@ -19,9 +21,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { buildPreviewCtx, describeMappedValue } from '@/lib/bi/previewData';
 import { toast } from 'sonner';
-import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge, Building2, Factory, Boxes } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge, Building2, Factory, Boxes, Palette, Database, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { UnidadeNegocio } from '@/lib/bi/comercialFilters';
+import type {
+  WidgetOptions, WidgetColor, WidgetVariant, WidgetDensity, WidgetHeight,
+  WidgetValueFormat, WidgetComparacao, WidgetMeta, WidgetPeriodoOverride, WidgetSort,
+} from '@/lib/bi/widgetOptions';
+import { WidgetShell } from './WidgetShell';
+
+const COLOR_SWATCHES: { value: WidgetColor; label: string; cls: string }[] = [
+  { value: 'primary', label: 'Primary',  cls: 'bg-[hsl(var(--primary))]' },
+  { value: 'success', label: 'Success',  cls: 'bg-[hsl(var(--success))]' },
+  { value: 'warning', label: 'Warning',  cls: 'bg-[hsl(var(--warning))]' },
+  { value: 'danger',  label: 'Danger',   cls: 'bg-[hsl(var(--destructive))]' },
+  { value: 'info',    label: 'Info',     cls: 'bg-[hsl(var(--info,215_70%_45%))]' },
+  { value: 'muted',   label: 'Neutro',   cls: 'bg-[hsl(var(--muted-foreground))]' },
+];
+
+const ICON_CHOICES = [
+  'TrendingUp', 'TrendingDown', 'DollarSign', 'BarChart3', 'LineChart', 'PieChart',
+  'Users', 'ShoppingCart', 'Package', 'Truck', 'Building2', 'Factory', 'Boxes',
+  'Target', 'Zap', 'Activity', 'Gauge', 'Award', 'Star', 'CheckCircle2',
+  'AlertTriangle', 'Clock', 'Calendar', 'MapPin', 'Globe', 'Percent',
+  'CreditCard', 'Wallet', 'Receipt', 'FileText', 'Database', 'Layers',
+];
 
 type UnidadeOpt = UnidadeNegocio | '__page__';
 const UNIDADES: { value: UnidadeOpt; label: string; sub: string; Icon: typeof Building2 }[] = [
