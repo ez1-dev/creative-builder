@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Copy, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Copy, Download, Upload, RefreshCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ import {
   CODIGO_POR_UNIDADE,
   type MetaFaturamento, type MetaFaturamentoInput, type UnidadeMeta,
 } from '@/lib/bi/metasFaturamentoApi';
+import { SincronizarMetasUpqueryDialog } from '@/components/bi/SincronizarMetasUpqueryDialog';
 
 const UNIDADES: UnidadeMeta[] = ['GENIUS', 'ESTRUTURAL ZORTEA'];
 
@@ -81,6 +82,7 @@ export default function MetasFaturamentoPage() {
   const [edit, setEdit] = useState<EditState>({ open: false, editing: null });
   const [delId, setDelId] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const invalidate = () => {
