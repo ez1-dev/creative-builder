@@ -153,13 +153,13 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
 
   const chips = useMemo(() => {
     const ctx = cur?.contexto ?? {};
-    const out: { label: string; value: string }[] = [
+    const out: { label: string; value: string; removeKey?: keyof DrillContexto }[] = [
       { label: 'Unidade', value: unidade_negocio },
       { label: 'Período', value: `${anomes_ini} → ${anomes_fim}` },
     ];
     (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
       const v = ctx[k];
-      if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: String(v) });
+      if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: String(v), removeKey: k });
     });
     return out;
   }, [cur?.contexto, anomes_ini, anomes_fim, unidade_negocio]);
