@@ -47,6 +47,7 @@ export function useUserPermissions() {
       loading,
       canView,
       canEdit,
+      canDelete,
       canUseAi,
       isAdmin,
       hasPermissions,
@@ -54,3 +55,4 @@ export function useUserPermissions() {
     };
   }, [permissions, canUseAi, isAdmin, loading]);
 }
+
