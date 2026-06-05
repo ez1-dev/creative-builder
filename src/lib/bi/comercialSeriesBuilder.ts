@@ -200,10 +200,9 @@ export function buildSerieFromDrill(
   const metricKeys = METRIC_COLUMN_CANDIDATES[metric] ?? [];
   return resp.rows
     .map((r) => {
-      const labelRaw = pickFirst(r, labelKeys);
       const valorRaw = pickFirst(r, metricKeys);
       return {
-        label: labelRaw != null ? String(labelRaw) : '-',
+        label: pickLabel(r, labelKeys),
         valor: n(valorRaw),
       };
     })
