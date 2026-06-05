@@ -16,11 +16,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
 import type { ComercialWidgetDef } from '@/lib/bi/comercialWidgetCatalog';
 import type { MetricRef, CustomMetric } from '@/lib/bi/comercialMetrics';
 import { SeriesEditor } from './SeriesEditor';
+import { TITLE_COLOR_PRESETS, type WidgetTitleColorPreset } from './WidgetTitleStyle';
 
 export interface ConfigureValue {
   variant?: string | null;
@@ -29,6 +32,8 @@ export interface ConfigureValue {
   options?: Record<string, any> | null;
   customTitle?: string | null;
   series?: MetricRef[] | null;
+  titleColor?: string | null;
+  titleBold?: boolean | null;
 }
 
 interface Props {
