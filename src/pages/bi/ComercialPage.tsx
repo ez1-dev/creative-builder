@@ -380,7 +380,7 @@ export default function ComercialPage() {
               rows={rowsForChart}
               xKey="label"
               series={finalSeries}
-              onItemClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)}
+              onItemClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })}
               height={260}
             />
           </div>
@@ -388,7 +388,7 @@ export default function ComercialPage() {
       );
     }
 
-    if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)} /></CardContent></Card>;
+    if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
     if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     if (v === 'area')  return <AreaChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
@@ -492,7 +492,7 @@ export default function ComercialPage() {
         if (qMensal.isLoading) return <LoadingState height={240} variant="skeleton" />;
         if (qMensal.isError) return <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} />;
         if (mensal.length === 0) return <EmptyState description={EMPTY_MSG} />;
-        return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => applyDrill('anomes_emissao', r.anomes_emissao)} /></CardContent></Card>;
+        return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
       }
     }
     // Widget custom-* sem componentId — não deveria acontecer.
