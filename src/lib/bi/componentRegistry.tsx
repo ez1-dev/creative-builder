@@ -184,40 +184,6 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       );
     },
   },
-  {
-    id: 'kpi-sparkline',
-    kind: 'kpi',
-    label: 'KPI + Sparkline',
-    description: 'Indicador com micro-gráfico de tendência.',
-    defaultSpan: 1,
-    inputs: [
-      { key: 'value', label: 'Valor', source: 'kpis', required: true },
-      { key: 'series', label: 'Série tendência', source: 'series', required: true },
-    ],
-    autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '', series: s.series?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx }) => {
-      const v = ctx.kpis?.[mapping.value] ?? 0;
-      const arr = SERIES_LIKE(ctx.series?.[mapping.series]).map((p) => p.valor);
-      return <KpiSparklineCard title={title || mapping.value} value={v} format="currency" series={arr} />;
-    },
-  },
-  {
-    id: 'kpi-target',
-    kind: 'kpi',
-    label: 'KPI vs Meta',
-    description: 'Barra de progresso contra meta.',
-    defaultSpan: 1,
-    inputs: [{ key: 'value', label: 'Valor', source: 'kpis', required: true }],
-    autoMap: (s) => ({ value: s.kpis?.[0]?.key ?? '' }),
-    render: ({ title, mapping, ctx, options }) => (
-      <KpiTargetCard
-        title={title || mapping.value}
-        value={Number(ctx.kpis?.[mapping.value] ?? 0)}
-        target={Number(options?.target ?? 100)}
-        format={(options?.format as any) ?? 'number'}
-      />
-    ),
-  },
 
   // ===== Charts =====
   {
