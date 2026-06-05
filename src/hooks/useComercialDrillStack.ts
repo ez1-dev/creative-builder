@@ -27,18 +27,37 @@ export interface PushOpts {
   mergeWithCurrent?: boolean;
 }
 
+/** Retorna a primeira chave adicionada/alterada entre prev e next. */
+function diffAddedFilter(
+  prev: DrillContexto,
+  next: DrillContexto,
+): { key: keyof DrillContexto; value: string } | undefined {
+  const keys = Object.keys(next) as (keyof DrillContexto)[];
+  for (const k of keys) {
+    const nv = next[k];
+    if (nv == null || String(nv).length === 0) continue;
+    const pv = prev?.[k];
+    if (pv == null || String(pv) !== String(nv)) {
+      return { key: k, value: String(nv) };
+    }
+  }
+  return undefined;
+}
+
 export function useComercialDrillStack() {
   const [s, setS] = useState<InternalState>(INITIAL);
 
   const openWith = useCallback((init: OpenInitial) => {
+    const ctx = mergeCtx({}, init.contexto || {}, init.drill_type, { keepAll: true });
+    const added = diffAddedFilter({}, ctx);
     setS({
       open: true,
       selectorOpen: false,
       levels: [{
         drill_type: init.drill_type,
-        // Filtra contexto inicial pelas chaves compatíveis com o drill alvo.
-        contexto: mergeCtx({}, init.contexto || {}, init.drill_type, { keepAll: true }),
+        contexto: ctx,
         page: 1,
+        addedFilter: added,
       }],
     });
   }, []);
@@ -49,10 +68,11 @@ export function useComercialDrillStack() {
       setS((prev) => {
         const cur = prev.levels[prev.levels.length - 1];
         const newCtx = mergeCtx(cur?.contexto || {}, rowFilters, next, { keepAll });
+        const added = diffAddedFilter(cur?.contexto || {}, newCtx);
         return {
           ...prev,
           selectorOpen: false,
-          levels: [...prev.levels, { drill_type: next, contexto: newCtx, page: 1 }],
+          levels: [...prev.levels, { drill_type: next, contexto: newCtx, page: 1, addedFilter: added }],
         };
       });
     },
@@ -61,16 +81,20 @@ export function useComercialDrillStack() {
 
   /** Limpa stack e começa novo caminho com somente os filtros informados. */
   const replacePath = useCallback((next: DrillType, rowFilters: DrillContexto = {}) => {
+    const ctx = mergeCtx({}, rowFilters, next, { keepAll: true });
+    const added = diffAddedFilter({}, ctx);
     setS({
       open: true,
       selectorOpen: false,
       levels: [{
         drill_type: next,
-        contexto: mergeCtx({}, rowFilters, next, { keepAll: true }),
+        contexto: ctx,
         page: 1,
+        addedFilter: added,
       }],
     });
   }, []);
+
 
   /** Remove uma chave do contexto do nível atual. */
   const removeContextKey = useCallback((key: keyof DrillContexto) => {
