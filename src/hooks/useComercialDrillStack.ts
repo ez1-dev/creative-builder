@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { DrillType, DrillContexto } from '@/lib/bi/comercialDrillApi';
+import { mergeCtx } from '@/lib/bi/comercialDrillCatalog';
 
 export interface DrillStackLevel {
   drill_type: DrillType;
@@ -20,6 +21,11 @@ export interface OpenInitial {
   contexto?: DrillContexto;
 }
 
+export interface PushOpts {
+  /** Quando true (padrão), preserva chaves compatíveis do contexto atual. */
+  mergeWithCurrent?: boolean;
+}
+
 export function useComercialDrillStack() {
   const [s, setS] = useState<InternalState>(INITIAL);
 
@@ -27,24 +33,60 @@ export function useComercialDrillStack() {
     setS({
       open: true,
       selectorOpen: false,
-      levels: [{ drill_type: init.drill_type, contexto: { ...(init.contexto || {}) }, page: 1 }],
+      levels: [{
+        drill_type: init.drill_type,
+        // Filtra contexto inicial pelas chaves compatíveis com o drill alvo.
+        contexto: mergeCtx({}, init.contexto || {}, init.drill_type, { keepAll: true }),
+        page: 1,
+      }],
     });
   }, []);
 
   const pushDrill = useCallback(
-    (next: DrillType, ctxFromRow: DrillContexto = {}) => {
+    (next: DrillType, rowFilters: DrillContexto = {}, opts: PushOpts = {}) => {
+      const keepAll = opts.mergeWithCurrent !== false; // default true
       setS((prev) => {
         const cur = prev.levels[prev.levels.length - 1];
-        const mergedCtx = { ...(cur?.contexto || {}), ...ctxFromRow };
+        const newCtx = mergeCtx(cur?.contexto || {}, rowFilters, next, { keepAll });
         return {
           ...prev,
           selectorOpen: false,
-          levels: [...prev.levels, { drill_type: next, contexto: mergedCtx, page: 1 }],
+          levels: [...prev.levels, { drill_type: next, contexto: newCtx, page: 1 }],
         };
       });
     },
     [],
   );
+
+  /** Limpa stack e começa novo caminho com somente os filtros informados. */
+  const replacePath = useCallback((next: DrillType, rowFilters: DrillContexto = {}) => {
+    setS({
+      open: true,
+      selectorOpen: false,
+      levels: [{
+        drill_type: next,
+        contexto: mergeCtx({}, rowFilters, next, { keepAll: true }),
+        page: 1,
+      }],
+    });
+  }, []);
+
+  /** Remove uma chave do contexto do nível atual. */
+  const removeContextKey = useCallback((key: keyof DrillContexto) => {
+    setS((prev) => {
+      if (prev.levels.length === 0) return prev;
+      const last = prev.levels[prev.levels.length - 1];
+      const newCtx = { ...last.contexto };
+      delete (newCtx as any)[key];
+      return {
+        ...prev,
+        levels: [
+          ...prev.levels.slice(0, -1),
+          { ...last, contexto: newCtx, page: 1 },
+        ],
+      };
+    });
+  }, []);
 
   const pop = useCallback(() => {
     setS((prev) => {
@@ -91,6 +133,8 @@ export function useComercialDrillStack() {
       selectorOpen: s.selectorOpen,
       openWith,
       pushDrill,
+      replacePath,
+      removeContextKey,
       pop,
       goTo,
       close,
@@ -98,7 +142,7 @@ export function useComercialDrillStack() {
       setPage,
       toggleSelector,
     }),
-    [s, current, openWith, pushDrill, pop, goTo, close, setOpen, setPage, toggleSelector],
+    [s, current, openWith, pushDrill, replacePath, removeContextKey, pop, goTo, close, setOpen, setPage, toggleSelector],
   );
 }
 
