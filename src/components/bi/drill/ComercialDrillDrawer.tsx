@@ -12,7 +12,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  DataTableBI, LoadingState, EmptyState, ErrorState,
+  DataTableBI, LoadingState, ErrorState,
   formatCurrency, formatNumber, type Column,
 } from '@/components/bi';
 import { cn } from '@/lib/utils';
