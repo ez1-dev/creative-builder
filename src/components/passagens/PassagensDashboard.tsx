@@ -960,6 +960,9 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                         customTitle: cfg === null ? null : (cfg?.customTitle ?? nw?.title ?? undefined),
                         title: nw?.title ?? ew?.title,
                         position: positionByType.get(type) ?? ew?.position ?? 99,
+                        // Bloco: para widgets novos vem do pendingNewBlockIds; existentes ficam undefined
+                        // (a hook só usa blockId no INSERT — UPDATE ignora).
+                        blockId: nw ? (pendingNewBlockIds[type] ?? dashboardBlocks[0]?.id ?? null) : undefined,
                       };
                     });
                     await saveLayout(payload);
@@ -970,6 +973,7 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
                     setEditingLayout(false);
                     setPendingLayout(null); setPendingHidden(null);
                     setPendingConfig({}); setPendingNewWidgets([]); setPendingDeletes(new Set());
+                    setPendingNewBlockIds({});
                     toast.success('Layout salvo para todos os usuários.');
                   }
                   catch (e: any) { toast.error(e?.message ?? 'Falha ao salvar layout'); }
