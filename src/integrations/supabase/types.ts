@@ -788,6 +788,50 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_blocks: {
+        Row: {
+          cols: number
+          config: Json
+          created_at: string
+          dashboard_id: string
+          id: string
+          layout: Json
+          ordem: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          cols?: number
+          config?: Json
+          created_at?: string
+          dashboard_id: string
+          id?: string
+          layout?: Json
+          ordem?: number
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          cols?: number
+          config?: Json
+          created_at?: string
+          dashboard_id?: string
+          id?: string
+          layout?: Json
+          ordem?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_blocks_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_cache: {
         Row: {
           cache_key: string
@@ -814,6 +858,7 @@ export type Database = {
       }
       dashboard_widgets: {
         Row: {
+          block_id: string
           config: Json
           created_at: string
           dashboard_id: string
@@ -825,6 +870,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          block_id: string
           config?: Json
           created_at?: string
           dashboard_id: string
@@ -836,6 +882,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          block_id?: string
           config?: Json
           created_at?: string
           dashboard_id?: string
@@ -847,6 +894,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "dashboard_widgets_block_id_fkey"
+            columns: ["block_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_blocks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "dashboard_widgets_dashboard_id_fkey"
             columns: ["dashboard_id"]
@@ -2904,10 +2958,23 @@ export type Database = {
             }
             Returns: string
           }
+      ensure_default_block: { Args: { _dashboard_id: string }; Returns: string }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
+      get_frota_blocks_via_token: {
+        Args: { _token: string }
+        Returns: {
+          block_id: string
+          cols: number
+          config: Json
+          layout: Json
+          ordem: number
+          title: string
+        }[]
+      }
       get_frota_layout_via_token: {
         Args: { _token: string }
         Returns: {
+          widget_block_id: string
           widget_config: Json
           widget_id: string
           widget_layout: Json
@@ -2957,9 +3024,21 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_maquinas_blocks_via_token: {
+        Args: { _token: string }
+        Returns: {
+          block_id: string
+          cols: number
+          config: Json
+          layout: Json
+          ordem: number
+          title: string
+        }[]
+      }
       get_maquinas_layout_via_token: {
         Args: { _token: string }
         Returns: {
+          widget_block_id: string
           widget_config: Json
           widget_id: string
           widget_layout: Json
@@ -3008,9 +3087,21 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_passagens_blocks_via_token: {
+        Args: { _token: string }
+        Returns: {
+          block_id: string
+          cols: number
+          config: Json
+          layout: Json
+          ordem: number
+          title: string
+        }[]
+      }
       get_passagens_layout_via_token: {
         Args: { _token: string }
         Returns: {
+          widget_block_id: string
           widget_config: Json
           widget_id: string
           widget_layout: Json

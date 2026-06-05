@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 import type { MetricRef } from '@/lib/bi/comercialMetrics';
 
 export interface WidgetLayout { x: number; y: number; w: number; h: number }
@@ -190,8 +191,10 @@ export function useComercialLayout(enabled: boolean = true) {
         await supabase.from('dashboard_widgets').update(payload).eq('id', ex.id);
       } else {
         const def = COMERCIAL_DEFAULT_WIDGETS.find((d) => d.type === item.type);
+        const blockId = await ensureDefaultBlockId(id);
         await supabase.from('dashboard_widgets').insert({
           dashboard_id: id,
+          block_id: blockId,
           type: item.type,
           title: item.title ?? def?.title ?? item.type,
           position: item.position ?? def?.position ?? 99,

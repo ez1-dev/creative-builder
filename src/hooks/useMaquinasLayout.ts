@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 import type { PassagensWidget, WidgetLayout, SaveLayoutItem } from '@/hooks/usePassagensLayout';
 
 export type MaquinasWidget = PassagensWidget;
@@ -124,8 +125,9 @@ export function useMaquinasLayout({ shareToken, enabled = true }: Options = {}) 
         if (upErr) errors.push(`${type}: ${upErr.message}`);
       } else {
         const def = MAQUINAS_DEFAULT_WIDGETS.find((d) => d.type === type);
+        const blockId = await ensureDefaultBlockId(id!);
         const { error: insErr } = await supabase.from('dashboard_widgets').insert({
-          dashboard_id: id, type,
+          dashboard_id: id!, block_id: blockId, type,
           title: item.title ?? def?.title ?? type,
           position: item.position ?? def?.position ?? 99,
           layout: layout as any, config: nextConfig as any,

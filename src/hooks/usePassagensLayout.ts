@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 
 export interface WidgetLayout {
   x: number;
@@ -264,10 +265,12 @@ export function usePassagensLayout({ shareToken, enabled = true }: Options = {})
         } else {
           // Widget ainda não existe no banco — cria
           const def = PASSAGENS_DEFAULT_WIDGETS.find((d) => d.type === type);
+          const blockId = await ensureDefaultBlockId(id!);
           const { error: insErr } = await supabase
             .from('dashboard_widgets')
             .insert({
-              dashboard_id: id,
+              dashboard_id: id!,
+              block_id: blockId,
               type,
               title: item.title ?? def?.title ?? type,
               position: item.position ?? def?.position ?? 99,
