@@ -472,6 +472,8 @@ export default function ComercialPage() {
                 series: 'series' in override ? (override.series ?? undefined) : norm.series,
                 titleColor: 'titleColor' in override ? (override.titleColor ?? undefined) : norm.titleColor,
                 titleBold: 'titleBold' in override ? (override.titleBold ?? undefined) : norm.titleBold,
+                valueColor: 'valueColor' in override ? (override.valueColor ?? undefined) : norm.valueColor,
+
               }
             : {}),
           layout: draftLayout ?? norm.layout,
@@ -488,7 +490,7 @@ export default function ComercialPage() {
       w?.type ?? '', w?.hidden ? 1 : 0, w?.componentId ?? '', w?.variant ?? '',
       w?.customTitle ?? '', JSON.stringify(w?.mapping ?? null),
       JSON.stringify(w?.options ?? null), JSON.stringify(w?.series ?? null),
-      w?.titleColor ?? '', w?.titleBold ? 1 : 0,
+      w?.titleColor ?? '', w?.titleBold ? 1 : 0, w?.valueColor ?? '',
     ].join('|'))
     .join('~');
 
@@ -498,7 +500,7 @@ export default function ComercialPage() {
       const title = w.customTitle || w.title || w.type;
       out[w.type] = (
         <WidgetErrorBoundary widgetKey={w.type} title={title}>
-          <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
+          <WidgetTitleStyle color={w.titleColor} bold={w.titleBold} valueColor={(w as any).valueColor}>
             {renderWidget(w)}
           </WidgetTitleStyle>
         </WidgetErrorBoundary>
@@ -591,6 +593,8 @@ export default function ComercialPage() {
       series: next.series === undefined ? undefined : (next.series ?? null),
       titleColor: next.titleColor ?? null,
       titleBold: next.titleBold ?? null,
+      valueColor: next.valueColor ?? null,
+
     });
     setConfigType(null);
   };
@@ -601,7 +605,7 @@ export default function ComercialPage() {
     mergeConfigDraft(configType, {
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
-      titleColor: null, titleBold: null,
+      titleColor: null, titleBold: null, valueColor: null,
     });
     setConfigType(null);
   };
@@ -763,6 +767,8 @@ export default function ComercialPage() {
             series: configuringWidget.series,
             titleColor: configuringWidget.titleColor,
             titleBold: configuringWidget.titleBold,
+            valueColor: (configuringWidget as any).valueColor,
+
           }}
           blockType={configuringWidget.type}
           fallbackTitle={configuringWidget.title}
