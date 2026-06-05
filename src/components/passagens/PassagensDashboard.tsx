@@ -1771,11 +1771,20 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
       )}
       <AddChartDialog
         open={addChartOpen}
-        onOpenChange={setAddChartOpen}
+        onOpenChange={(v) => {
+          setAddChartOpen(v);
+          if (!v) setActiveBlockId(null);
+        }}
         kpis={kpiPayload}
         series={seriesPayload}
         rows={crossFiltered}
-        onAdd={(nw) => setPendingNewWidgets((prev) => [...prev, nw])}
+        onAdd={(nw) => {
+          const blockId = activeBlockId ?? dashboardBlocks[0]?.id ?? null;
+          setPendingNewWidgets((prev) => [...prev, nw]);
+          if (blockId) {
+            setPendingNewBlockIds((prev) => ({ ...prev, [nw.type]: blockId }));
+          }
+        }}
       />
       </PageDataProvider>
 
