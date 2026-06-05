@@ -108,21 +108,23 @@ export function useComercialLayout(enabled: boolean = true) {
         .select('id, type, title, position, layout, config')
         .eq('dashboard_id', dash.id)
         .order('position');
-      const mapped: ComercialWidget[] = (rows ?? []).map((r: any) => {
-        const cfg = (r.config ?? {}) as any;
+      const mapped: ComercialWidget[] = (Array.isArray(rows) ? rows : []).map((r: any) => {
+        const safe = r ?? {};
+        const cfg = (safe.config ?? {}) as any;
+        const layout = (safe.layout ?? { x: 0, y: 0, w: 4, h: 4 }) as WidgetLayout;
         return {
-          id: r.id,
-          type: r.type,
-          title: r.title,
-          position: r.position ?? 0,
-          layout: (r.layout ?? { x: 0, y: 0, w: 4, h: 4 }) as WidgetLayout,
-          hidden: Boolean(cfg.hidden),
-          componentId: cfg.componentId,
-          mapping: cfg.mapping,
-          options: cfg.options,
-          customTitle: cfg.customTitle,
-          variant: cfg.variant,
-          series: Array.isArray(cfg.series) ? cfg.series : undefined,
+          id: safe.id,
+          type: safe.type ?? 'unknown',
+          title: safe.title ?? 'Bloco',
+          position: typeof safe.position === 'number' ? safe.position : 0,
+          layout,
+          hidden: Boolean(cfg?.hidden),
+          componentId: cfg?.componentId,
+          mapping: cfg?.mapping ?? undefined,
+          options: cfg?.options ?? undefined,
+          customTitle: cfg?.customTitle,
+          variant: cfg?.variant,
+          series: Array.isArray(cfg?.series) ? cfg.series : undefined,
         };
       });
       const merged = mergeWithDefaults(mapped);

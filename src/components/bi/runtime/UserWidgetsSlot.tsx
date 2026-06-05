@@ -8,6 +8,7 @@ import { useUserWidgets } from '@/hooks/useUserWidgets';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { UserWidgetFrame } from './UserWidgetFrame';
+import { WidgetErrorBoundary } from './WidgetErrorBoundary';
 import { LoadingState } from '../states/LoadingState';
 
 export function UserWidgetsSlot({
@@ -48,27 +49,28 @@ export function UserWidgetsSlot({
       {items.map((w) => {
         const def = getComponent(w.component_id);
         if (!def) return null;
+        const mapping = w?.mapping ?? {};
+        const widgetOptions = w?.options ?? {};
         if (import.meta.env.DEV) {
-          for (const inp of def.inputs) {
-            const fk = w.mapping?.[inp.key];
+          for (const inp of def.inputs ?? []) {
+            const fk = mapping?.[inp.key];
             if (!fk) continue;
             const bag =
               inp.source === 'kpis' ? ctx.kpis :
               inp.source === 'series' ? ctx.series :
               null;
-            if (bag && !(fk in bag)) {
+            if (bag && !(fk in (bag ?? {}))) {
               // eslint-disable-next-line no-console
               console.warn(`[BI] Widget "${w.title ?? def.label}" (${w.component_id}) refere-se a ${inp.source}.${fk} que não existe em PageDataContext da página "${ctx.pageKey}".`);
             }
           }
         }
         const unidadeOverride = ctx.page?.supportsUnidadeNegocio
-          ? (w.options?.unidade_negocio as string | undefined)
+          ? (widgetOptions?.unidade_negocio as string | undefined)
           : undefined;
-        const widgetOptions = w.options ?? {};
         const mergedFiltros = unidadeOverride
           ? { ...(ctx.filtros ?? {}), unidade_negocio: unidadeOverride }
-          : ctx.filtros;
+          : (ctx.filtros ?? {});
         return (
           <UserWidgetFrame
             key={w.id}
@@ -77,12 +79,18 @@ export function UserWidgetsSlot({
             onChanged={refresh}
             unidadeOverride={unidadeOverride}
           >
-            {def.render({
-              title: w.title ?? undefined,
-              mapping: w.mapping ?? {},
-              options: { ...widgetOptions, filtros: mergedFiltros },
-              ctx: { kpis: ctx.kpis, series: ctx.series, rows: ctx.rows },
-            })}
+            <WidgetErrorBoundary widgetKey={w.id} title={w.title ?? def.label}>
+              {def.render({
+                title: w.title ?? undefined,
+                mapping,
+                options: { ...(widgetOptions ?? {}), filtros: mergedFiltros },
+                ctx: {
+                  kpis: ctx.kpis ?? {},
+                  series: ctx.series ?? {},
+                  rows: Array.isArray(ctx.rows) ? ctx.rows : [],
+                },
+              })}
+            </WidgetErrorBoundary>
           </UserWidgetFrame>
         );
       })}
