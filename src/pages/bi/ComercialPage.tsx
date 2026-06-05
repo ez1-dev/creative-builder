@@ -347,13 +347,55 @@ export default function ComercialPage() {
   const customMetrics = useCustomMetrics(PAGE_KEY);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, Set<number>>>({});
 
-  const pageSeries: Record<string, any> = {
-    mensal: dadosCombo,
-    mix: donutMix,
-    estados: estadosSerie,
-    revendas: revendaRank,
-    obras: obrasSerie,
-  };
+  // ===== Catálogo de séries dinâmicas (dim × métrica) =====
+  // Coleta as chaves de série referenciadas pelos widgets visíveis para
+  // disparar fetch lazy via drill API apenas quando necessário.
+  const referencedSeriesKeys = useMemo(() => {
+    const keys = new Set<string>();
+    (layout.widgets ?? []).forEach((w) => {
+      const s = (w as any)?.mapping?.series;
+      if (typeof s === 'string' && s.length > 0) keys.add(s);
+    });
+    return Array.from(keys);
+  }, [layout.widgets]);
+
+  const drillSeries = useComercialDrillSeries({
+    seriesKeys: referencedSeriesKeys,
+    anomes_ini: filters.anomes_ini,
+    anomes_fim: filters.anomes_fim,
+    unidade_negocio: filters.unidade_negocio,
+  });
+
+  const pageSeries: Record<string, any> = useMemo(() => {
+    const out: Record<string, any> = {
+      // Aliases legados
+      mensal: dadosCombo,
+      mix: donutMix,
+      estados: estadosSerie,
+      revendas: revendaRank,
+      obras: obrasSerie,
+    };
+    // mensal__/anual__/por_<estado|revenda|obra|mix>__ derivados client-side
+    COMERCIAL_METRICAS.forEach((m) => {
+      out[`mensal__${m.key}`] = buildMensalSerie(mensal as any, m.key as any);
+      out[`anual__${m.key}`]  = buildAnualSerie(mensal as any, m.key as any);
+      out[`por_estado__${m.key}`]  = buildEstadoSerie(estados as any, m.key as any);
+      out[`por_revenda__${m.key}`] = buildRevendaSerie(revendaRows as any, m.key as any);
+      out[`por_obra__${m.key}`]    = buildObrasSerie(obrasRows as any, m.key as any);
+      out[`por_mix__${m.key}`]     = buildMixSerie(mix as any, m.key as any);
+    });
+    // Drill-backed (cliente/produto/nota_fiscal/detalhe_impostos)
+    COMERCIAL_DIMENSOES.forEach((d) => {
+      const drillType = dimToDrillType(d.key);
+      if (!drillType) return;
+      const resp = drillSeries.byDim[`por_${d.key}`];
+      COMERCIAL_METRICAS.forEach((m) => {
+        out[`por_${d.key}__${m.key}`] = buildSerieFromDrill(resp, drillType, m.key as any);
+      });
+    });
+    return out;
+  }, [dadosCombo, donutMix, estadosSerie, revendaRank, obrasSerie,
+      mensal, estados, revendaRows, obrasRows, mix, drillSeries.byDim]);
 
   // ===== Renderer dos blocos =====
   function renderKpi(def: typeof COMERCIAL_WIDGETS[string], w: ComercialWidget): ReactNode {
