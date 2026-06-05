@@ -129,11 +129,11 @@ function BlocoErro({ err, onRetry, msg = ERR_MSG }: { err: unknown; onRetry: () 
   return <ErrorState title={msg} message={String((err as any)?.message ?? '')} onRetry={onRetry} />;
 }
 
-function Clickable({ children, onClick, className }: { children: ReactNode; onClick?: () => void; className?: string }) {
+function Clickable({ children, onClick, className, title }: { children: ReactNode; onClick?: () => void; className?: string; title?: string }) {
   if (!onClick) return <>{children}</>;
   return (
     <div
-      role="button" tabIndex={0} title="Clique para detalhar" onClick={onClick}
+      role="button" tabIndex={0} title={title ?? 'Clique para detalhar'} onClick={onClick}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
       className={cn('cursor-pointer outline-none rounded-md transition-shadow hover:ring-2 hover:ring-ring/50 h-full', className)}
     >
@@ -141,6 +141,7 @@ function Clickable({ children, onClick, className }: { children: ReactNode; onCl
     </div>
   );
 }
+
 
 export default function ComercialPage() {
   const [draft, setDraft] = useState<{ anomes_ini: string; anomes_fim: string; unidade_negocio: UnidadeNegocio }>({
