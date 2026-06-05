@@ -552,6 +552,7 @@ export default function ComercialPage() {
       type: configType, layout: w.layout,
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
+      titleColor: null, titleBold: null,
     }]);
     setConfigType(null);
   };
