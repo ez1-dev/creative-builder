@@ -339,8 +339,11 @@ export function ApplyComponentDialog({
                 <div className="flex flex-wrap items-center gap-1">
                   <span className="text-muted-foreground">Rota:</span>
                   <code className="rounded bg-muted px-1 py-0.5">{page.route}</code>
-                  <span className="text-muted-foreground">· Seção:</span>
-                  <code className="rounded bg-muted px-1 py-0.5">{section || '—'}</code>
+                  <span className="text-muted-foreground">· Bloco:</span>
+                  <code className="rounded bg-muted px-1 py-0.5">
+                    {availableSections.find((s) => s.key === section)?.label ?? section ?? '—'}
+                  </code>
+
                 </div>
 
                 {def.inputs.length > 0 && (
