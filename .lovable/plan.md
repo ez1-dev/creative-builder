@@ -1,36 +1,55 @@
-## Novo grupo "BI" na sidebar
+## Objetivo
+No diálogo **Configurar bloco** do BI Comercial (Editar dashboard), adicionar dois ajustes de aparência do **título** do widget:
 
-Criar grupo colapsável `BI` em `src/components/AppSidebar.tsx`, no mesmo padrão dos grupos `Produção`, `Cadastros`, `Regras Senior` e `Relatórios`.
+1. **Cor da fonte do título** — seletor de cor (presets do design system + custom hex).
+2. **Negrito** — toggle on/off.
 
-### Itens movidos para o grupo BI
-Remover do array `modules` (lista raiz) e mover para `biSubItems`:
+Aplica-se aos dois modos do diálogo (Variante padrão e Biblioteca BI) e a todos os tipos de bloco renderizados em `ComercialPage` (KPIs, gráficos, tabelas, mapa e componentes da Biblioteca BI).
 
-- Validação BI Faturamento → `/bi/faturamento-validacao` (FileCheck)
-- BI Comercial → `/bi/comercial` (BarChart3)
-- Metas de Faturamento → `/bi/comercial/metas` (BarChart3)
-- Biblioteca BI → `/biblioteca-bi` (Palette)
-- Central ETL → `/etl` (Database)
+## Mudanças
 
-Observação: itens como "Painel de Compras", "Faturamento Genius", "Carga — Dashboard BI" continuam onde estão (são módulos operacionais de cada área, não a área de BI corporativo). Caso queira mover algum desses também, ajustar antes de implementar.
+### 1. `src/components/bi/runtime/ConfigureBiWidgetDialog.tsx`
+- Adicionar estado `titleColor` (string preset key | hex | `null`) e `titleBold` (boolean), inicializados a partir de `initial.titleColor` / `initial.titleBold`.
+- Renderizar nova seção compartilhada **"Aparência do título"** (logo abaixo do campo Título, visível em ambas as abas "Variante padrão" e "Biblioteca BI"):
+  - **Cor**: swatch com presets semânticos (`default`, `primary`, `success`, `warning`, `destructive`, `muted`) + input para hex custom (`#RRGGBB`).
+  - **Negrito**: `Switch` com label "Título em negrito".
+- Em `handleApply`, incluir `titleColor` e `titleBold` no objeto enviado a `onApply` (campos top-level no `ConfigureValue`, `null` quando default).
+- Estender `ConfigureValue` com `titleColor?: string | null; titleBold?: boolean | null`.
 
-### Implementação
+### 2. `src/lib/bi/normalize.ts` e `src/hooks/useComercialLayout.ts`
+- Adicionar `titleColor` e `titleBold` ao tipo `ComercialWidget` e à normalização, persistindo no layout (mesmo padrão de `customTitle`).
+- Em `useComercialLayout.applyWidgetConfig`, gravar/remover esses campos via `setOrDel` (igual `customTitle`).
 
-1. Em `AppSidebar.tsx`:
-   - Criar `biSubItems` com os 5 itens acima.
-   - Adicionar `isBiActive = location.pathname.startsWith('/bi') || pathname === '/biblioteca-bi' || pathname.startsWith('/etl')`.
-   - Filtrar via `isVisible` (mesma lógica de permissões; `/biblioteca-bi` permanece em `ALWAYS_VISIBLE`).
-   - Renderizar `<SidebarGroup>` com `<Collapsible defaultOpen={isBiActive}>`, ícone `BarChart3` no header, label "BI".
-   - Mostrar grupo só se `visibleBi.length > 0`.
-2. Remover os 5 itens correspondentes do array `modules`.
-3. Sem mudanças em rotas, permissões, `screenCatalog.ts` ou backend.
+### 3. `src/pages/bi/ComercialPage.tsx`
+- No `blocks = useMemo(...)`, envolver o `renderWidget(w)` com um wrapper:
+  ```tsx
+  <WidgetTitleStyle color={w.titleColor} bold={w.titleBold}>
+    {renderWidget(w)}
+  </WidgetTitleStyle>
+  ```
+- Incluir `w.titleColor` e `w.titleBold` na `widgetsContentKey` para que mudanças refletam.
+- Passar `titleColor`/`titleBold` para o `ConfigureBiWidgetDialog` via `initial`.
+- Propagar no `onApply` que persiste mudanças (linhas ~534 e ~706).
 
-### Diagrama final da sidebar
+### 4. `src/components/bi/runtime/WidgetTitleStyle.tsx` (novo)
+Componente pequeno que renderiza um `<div>` com:
+- `style={{ '--widget-title-color': resolved }}` quando há cor.
+- classe `widget-title-bold` quando `bold === true`.
+- Resolve preset → token HSL (ex.: `success` → `hsl(var(--success))`); aceita hex como-is.
 
-```text
-Módulos (operacionais)
-Cadastros        ▾
-Produção         ▾
-BI               ▾   ← novo
-Regras Senior    ▾
-Relatórios       ▾
+### 5. `src/index.css`
+Adicionar regras escopadas (não impactam widgets sem estilo aplicado):
+```css
+[data-widget-title-style] :is(.card-title, [data-slot="card-title"], h3, .text-lg.font-semibold) {
+  color: var(--widget-title-color, inherit);
+}
+[data-widget-title-style].widget-title-bold :is(.card-title, [data-slot="card-title"], h3, .text-lg.font-semibold) {
+  font-weight: 700;
+}
 ```
+Seletor cobre `CardTitle` (shadcn) e variações usadas pelos KPI cards.
+
+## Fora de escopo
+- Cor/negrito do valor numérico do KPI ou de outros elementos (apenas título).
+- Persistência por usuário diferente do existente (continua no mesmo layout do dashboard).
+- Aplicar em outros dashboards (Passagens, Frota etc.) — só BI Comercial.
