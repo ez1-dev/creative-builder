@@ -60,6 +60,50 @@ export default function EtlTarefaDetalhePage() {
   const [sqlModal, setSqlModal] = useState<{ open: boolean; acao: EtlAcao | null }>({ open: false, acao: null });
   const { isAdmin } = useUserPermissions();
 
+  const tarefaAtuComercial = isAtuComercial(nome) || isAtuComercial(tarefa?.nome_tarefa);
+  const [autoSyncMetas, setAutoSyncMetas] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(AUTO_SYNC_LS_KEY) === '1';
+  });
+  const [ultimoPeriodo, setUltimoPeriodo] = useState<{ ini: number; fim: number } | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const persistAutoSync = (v: boolean) => {
+    setAutoSyncMetas(v);
+    try {
+      window.localStorage.setItem(AUTO_SYNC_LS_KEY, v ? '1' : '0');
+    } catch { /* noop */ }
+  };
+
+  const sincronizarMetas = async (ini: number, fim: number) => {
+    setSyncing(true);
+    try {
+      const resp = await sincronizarMetasUpquery({
+        anomes_ini: pad6(ini),
+        anomes_fim: pad6(fim),
+        origem: 'UPQUERY_VM_FATURAMENTO',
+      });
+      if (resp.ok) {
+        toast.success(`Metas da UpQuery sincronizadas (${pad6(ini)} → ${pad6(fim)})`);
+      } else {
+        toast.error(`Falha na sincronização: ${resp.error || 'erro desconhecido'} (HTTP ${resp.status})`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha ao sincronizar metas da UpQuery');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleExecutado = (resp: { execucao_id: string; anomes_ini: number; anomes_fim: number }) => {
+    setUltimoPeriodo({ ini: resp.anomes_ini, fim: resp.anomes_fim });
+    load();
+    if (tarefaAtuComercial && autoSyncMetas) {
+      // Dispara o sync de metas em background.
+      sincronizarMetas(resp.anomes_ini, resp.anomes_fim);
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     setNaoEncontrada(false);
