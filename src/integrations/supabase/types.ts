@@ -2908,6 +2908,10 @@ export type Database = {
     }
     Functions: {
       can_edit_bi_meta: { Args: { _uid: string }; Returns: boolean }
+      can_edit_dashboard: {
+        Args: { _dashboard_id: string; _uid: string }
+        Returns: boolean
+      }
       can_edit_frota: { Args: { _uid: string }; Returns: boolean }
       can_edit_maquinas: { Args: { _uid: string }; Returns: boolean }
       can_edit_passagens: { Args: { _uid: string }; Returns: boolean }
@@ -2918,6 +2922,10 @@ export type Database = {
       cleanup_old_navegacao_logs: { Args: never; Returns: undefined }
       cleanup_old_search_history: { Args: never; Returns: undefined }
       cleanup_old_user_activity: { Args: never; Returns: undefined }
+      create_dashboard_block: {
+        Args: { _dashboard_id: string; _title?: string }
+        Returns: string
+      }
       create_frota_share_link: {
         Args: {
           _expires_at?: string
@@ -2958,6 +2966,10 @@ export type Database = {
             }
             Returns: string
           }
+      delete_dashboard_block: {
+        Args: { _block_id: string; _move_widgets_to?: string }
+        Returns: undefined
+      }
       ensure_default_block: { Args: { _dashboard_id: string }; Returns: string }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
       get_frota_blocks_via_token: {
@@ -3173,6 +3185,20 @@ export type Database = {
       }
       get_share_link_visuals: { Args: { _token: string }; Returns: string[] }
       is_admin: { Args: { _uid: string }; Returns: boolean }
+      move_widget_to_block: {
+        Args: { _block_id: string; _widget_id: string }
+        Returns: undefined
+      }
+      update_dashboard_block: {
+        Args: {
+          _block_id: string
+          _cols?: number
+          _config?: Json
+          _ordem?: number
+          _title?: string
+        }
+        Returns: undefined
+      }
       upsert_bi_comercial_dashboard_default: { Args: never; Returns: string }
       upsert_frota_dashboard_default: { Args: never; Returns: string }
       upsert_maquinas_dashboard_default: { Args: never; Returns: string }
