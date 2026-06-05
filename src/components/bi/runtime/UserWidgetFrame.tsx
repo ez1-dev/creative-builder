@@ -12,11 +12,12 @@ import { deleteUserWidget } from '@/hooks/useUserWidgets';
 import { toast } from 'sonner';
 
 export function UserWidgetFrame({
-  id, span = 1, onChanged, children,
+  id, span = 1, onChanged, unidadeOverride, children,
 }: {
   id: string;
   span?: number;
   onChanged: () => void;
+  unidadeOverride?: string;
   children: ReactNode;
 }) {
   const [busy, setBusy] = useState(false);
@@ -42,19 +43,29 @@ export function UserWidgetFrame({
 
   return (
     <div className={`group relative ${colSpan}`}>
-      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover:opacity-100">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={busy}>
-              <MoreVertical className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={remove} className="text-destructive">
-              <Trash2 className="mr-2 h-3.5 w-3.5" /> Remover
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="absolute right-1 top-1 z-10 flex items-center gap-1">
+        {unidadeOverride && (
+          <span
+            title="Unidade fixada para este widget (sobrepõe o filtro da página)"
+            className="rounded bg-primary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground shadow-sm"
+          >
+            {unidadeOverride}
+          </span>
+        )}
+        <div className="opacity-0 transition-opacity group-hover:opacity-100">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6" disabled={busy}>
+                <MoreVertical className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={remove} className="text-destructive">
+                <Trash2 className="mr-2 h-3.5 w-3.5" /> Remover
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       {children}
     </div>

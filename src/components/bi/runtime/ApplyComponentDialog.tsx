@@ -19,8 +19,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePageData } from '@/lib/bi/PageDataContext';
 import { buildPreviewCtx, describeMappedValue } from '@/lib/bi/previewData';
 import { toast } from 'sonner';
-import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Eye, LayoutGrid, BarChart3, Table as TableIcon, Gauge, Building2, Factory, Boxes } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { UnidadeNegocio } from '@/lib/bi/comercialFilters';
+
+const UNIDADES: { value: UnidadeNegocio; label: string; sub: string; Icon: typeof Building2 }[] = [
+  { value: 'GENIUS',            label: 'GENIUS',            sub: 'Revenda',     Icon: Building2 },
+  { value: 'ESTRUTURAL ZORTEA', label: 'ESTRUTURAL ZORTEA', sub: 'Indústria',   Icon: Factory },
+  { value: 'CONSOLIDADO',       label: 'CONSOLIDADO',       sub: 'Todas as UN', Icon: Boxes },
+];
 
 const KIND_ICON: Record<string, typeof Gauge> = {
   kpi: Gauge,
@@ -98,6 +105,7 @@ export function ApplyComponentDialog({
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [unidadeNegocio, setUnidadeNegocio] = useState<UnidadeNegocio>('CONSOLIDADO');
 
   useEffect(() => {
     if (!open || !def) return;
@@ -112,7 +120,9 @@ export function ApplyComponentDialog({
     setTitle('');
     setSpan(def.defaultSpan);
     setOrdem(0);
-  }, [open, def, compatiblePages, liveCtx?.pageKey]);
+    const liveUn = liveCtx?.filtros?.unidade_negocio as UnidadeNegocio | undefined;
+    setUnidadeNegocio(liveUn && UNIDADES.some((u) => u.value === liveUn) ? liveUn : 'CONSOLIDADO');
+  }, [open, def, compatiblePages, liveCtx?.pageKey, liveCtx?.filtros]);
 
   const page = pageKey ? getPage(pageKey) : undefined;
   const availableSections = page && def ? getSectionsForKind(page, def.kind) : [];
@@ -163,9 +173,11 @@ export function ApplyComponentDialog({
     if (!canSave) return;
     setSaving(true);
     try {
+      const options: Record<string, any> = {};
+      if (page?.supportsUnidadeNegocio) options.unidade_negocio = unidadeNegocio;
       await createUserWidget({
         page_key: pageKey, section, component_id: def.id,
-        title: title || null, span, ordem, mapping, options: {},
+        title: title || null, span, ordem, mapping, options,
       });
       toast.success('Componente aplicado!', {
         description: `Acesse ${page?.route} para visualizar.`,
@@ -251,6 +263,52 @@ export function ApplyComponentDialog({
                 </div>
               )}
             </div>
+
+            {page?.supportsUnidadeNegocio && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">Unidade de Negócio</Label>
+                <div
+                  role="radiogroup"
+                  aria-label="Unidade de Negócio"
+                  className="grid grid-cols-1 gap-1.5"
+                >
+                  {UNIDADES.map((u) => {
+                    const selected = unidadeNegocio === u.value;
+                    return (
+                      <button
+                        key={u.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setUnidadeNegocio(u.value)}
+                        className={cn(
+                          'flex items-start gap-2 rounded-md border-2 bg-card p-2.5 text-left transition-all',
+                          'hover:border-primary/50 hover:bg-accent/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          selected ? 'border-primary bg-primary/5 ring-2 ring-primary/30' : 'border-border',
+                        )}
+                      >
+                        <div className={cn(
+                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                          selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground',
+                        )}>
+                          <u.Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold leading-tight">{u.label}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">{u.sub}</div>
+                        </div>
+                        {selected && <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="text-[10px] text-muted-foreground italic">
+                  Sobrepõe o filtro de unidade da página alvo para este widget.
+                </div>
+              </div>
+            )}
+
+
 
 
             {def.inputs.length > 0 && page && (
@@ -343,7 +401,13 @@ export function ApplyComponentDialog({
                   <code className="rounded bg-muted px-1 py-0.5">
                     {availableSections.find((s) => s.key === section)?.label ?? section ?? '—'}
                   </code>
-
+                  {page.supportsUnidadeNegocio && (
+                    <>
+                      <span className="text-muted-foreground">· Unidade:</span>
+                      <Badge variant="default" className="text-[10px] font-semibold">{unidadeNegocio}</Badge>
+                      <span className="text-[9px] text-muted-foreground italic">(override)</span>
+                    </>
+                  )}
                 </div>
 
                 {def.inputs.length > 0 && (

@@ -32,6 +32,8 @@ export interface BiPageDef {
   route: string;
   sections: PageSection[];
   schema: PageDataSchema;
+  /** Página opera com filtro `unidade_negocio` (GENIUS / ESTRUTURAL ZORTEA / CONSOLIDADO). */
+  supportsUnidadeNegocio?: boolean;
 }
 
 export const PAGE_REGISTRY: BiPageDef[] = [
@@ -111,6 +113,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
     key: 'faturamento-genius',
     label: 'Faturamento Genius',
     route: '/faturamento-genius',
+    supportsUnidadeNegocio: true,
     sections: [
       { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
       { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
@@ -239,6 +242,7 @@ export const PAGE_REGISTRY: BiPageDef[] = [
     key: 'bi-comercial',
     label: 'BI Comercial',
     route: '/bi/comercial',
+    supportsUnidadeNegocio: true,
     sections: [
       { key: 'kpis',   label: 'Linha de KPIs',     accepts: ['kpi'],                  cols: 4 },
       { key: 'charts', label: 'Linha de gráficos', accepts: ['chart', 'map', 'tree'], cols: 3 },
