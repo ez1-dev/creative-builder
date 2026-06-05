@@ -958,59 +958,14 @@ export default function ComercialPage() {
         kpis={kpis} series={pageSeries} rows={mensal as any[]}
       />
 
-      {/* Drawer de detalhes com editor de colunas */}
-      <DrillSheet {...drill.sheetProps}>
-        <div className="mb-3 flex items-center justify-end gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 gap-1">
-                <Eye className="h-3.5 w-3.5" /> Colunas ({visibleDrillCols.length}/{allColsDetalhes.length})
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 max-h-96 overflow-auto">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold">Colunas visíveis</span>
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground underline"
-                  onClick={() => drillPresets.clearPreset(escopoAtual)}
-                >
-                  Padrão
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {allColsDetalhes.map((c) => {
-                  const k = String(c.key);
-                  const checked = visibleDrillCols.includes(k);
-                  return (
-                    <label key={k} className="flex items-center gap-2 text-xs cursor-pointer">
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(v) => {
-                          const next = v
-                            ? [...new Set([...visibleDrillCols, k])]
-                            : visibleDrillCols.filter((x) => x !== k);
-                          drillPresets.setPreset(escopoAtual, { visible: next });
-                        }}
-                      />
-                      <span>{String(c.header ?? k)}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-        {qDetalhes.isLoading ? (
-          <LoadingState height={300} variant="skeleton" />
-        ) : qDetalhes.isError ? (
-          <BlocoErro err={qDetalhes.error} onRetry={() => qDetalhes.refetch()} msg={ERR_DRILL} />
-        ) : detalhesRows.length === 0 ? (
-          <EmptyState description="Sem registros para os filtros selecionados" />
-        ) : (
-          <DataTableBI columns={colsDetalhes} data={detalhesRows} />
-        )}
-      </DrillSheet>
+      {/* Drawer de drill multinível */}
+      <ComercialDrillDrawer
+        stack={drillStack}
+        anomes_ini={filters.anomes_ini}
+        anomes_fim={filters.anomes_fim}
+        unidade_negocio={filters.unidade_negocio}
+      />
+
     </PageDataProvider>
   );
 }
