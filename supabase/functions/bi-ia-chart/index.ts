@@ -227,8 +227,13 @@ async function fetchDetalhes(filtros: Record<string, string>): Promise<DetalheRo
     if (!resp.ok) {
       const t = await resp.text();
       console.error("FastAPI error", resp.status, t);
-      const err: any = new Error(`Não foi possível conectar à FastAPI (HTTP ${resp.status}).`);
-      err.code = "FASTAPI_HTTP_ERROR";
+      const unauthorized = resp.status === 401 || resp.status === 403;
+      const err: any = new Error(
+        unauthorized
+          ? `FastAPI rejeitou as credenciais (HTTP ${resp.status}). Verifique CRON_SECRET no Cloud.`
+          : `Não foi possível conectar à FastAPI (HTTP ${resp.status}).`,
+      );
+      err.code = unauthorized ? "FASTAPI_UNAUTHORIZED" : "FASTAPI_HTTP_ERROR";
       err.userFacing = true;
       throw err;
     }
