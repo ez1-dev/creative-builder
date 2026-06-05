@@ -52,6 +52,8 @@ function formatterForSeriesKey(key?: string): (v: number) => string {
     case 'qtd':
     case 'quantidade':
     case 'count':
+    case 'nvendas':
+    case 'nclientes':
       return (v) => formatNumber(v, 0);
     case 'km_sum':
     case 'km_avg':
@@ -62,6 +64,10 @@ function formatterForSeriesKey(key?: string): (v: number) => string {
     case 'rs_km':
     case 'preco':
     case 'preco_medio':
+    case 'faturamento':
+    case 'liquido':
+    case 'impostos':
+    case 'devolucao':
       return formatCurrency;
     default:
       return formatCurrency;

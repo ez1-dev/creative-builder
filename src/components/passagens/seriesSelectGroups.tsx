@@ -20,11 +20,13 @@ export interface SeriesOption {
 
 export function SeriesSelectGroups({ options }: { options: SeriesOption[] }) {
   const mensal: SeriesOption[] = [];
+  const anual: SeriesOption[] = [];
   const porDim: SeriesOption[] = [];
   const legado: SeriesOption[] = [];
 
   options.forEach((o) => {
     if (o.key.startsWith('mensal__')) mensal.push(o);
+    else if (o.key.startsWith('anual__')) anual.push(o);
     else if (/^por_.+__/.test(o.key)) porDim.push(o);
     else legado.push(o);
   });
@@ -39,6 +41,14 @@ export function SeriesSelectGroups({ options }: { options: SeriesOption[] }) {
           ))}
         </SelectGroup>
       )}
+      {anual.length > 0 && (
+        <SelectGroup>
+          <SelectLabel>Evolução anual</SelectLabel>
+          {anual.map((s) => (
+            <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+          ))}
+        </SelectGroup>
+      )}
       {porDim.length > 0 && (
         <SelectGroup>
           <SelectLabel>Por dimensão</SelectLabel>
@@ -49,7 +59,7 @@ export function SeriesSelectGroups({ options }: { options: SeriesOption[] }) {
       )}
       {legado.length > 0 && (
         <SelectGroup>
-          <SelectLabel>{mensal.length + porDim.length > 0 ? 'Legado / outros' : 'Séries'}</SelectLabel>
+          <SelectLabel>{mensal.length + anual.length + porDim.length > 0 ? 'Legado / outros' : 'Séries'}</SelectLabel>
           {legado.map((s) => (
             <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
           ))}
