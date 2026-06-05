@@ -184,3 +184,11 @@ html[data-tv="1"] :focus-visible {
   outline: 3px solid hsl(var(--primary));
   outline-offset: 2px;
 }
+
+/* ----- Personalização de título de widget BI ----- */
+[data-widget-title-style] :is(h3, [data-slot="card-title"], .card-title) {
+  color: var(--widget-title-color, inherit);
+}
+[data-widget-title-style].widget-title-bold :is(h3, [data-slot="card-title"], .card-title) {
+  font-weight: 700;
+}
