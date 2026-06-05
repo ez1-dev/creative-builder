@@ -811,6 +811,8 @@ export default function ComercialPage() {
           />
         )}
       </DashboardPage>
+      </div>
+
 
       {/* Diálogos de edição */}
       {configuringWidget && (
