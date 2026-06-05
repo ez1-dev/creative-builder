@@ -367,12 +367,15 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                   const perm = getPerm(p.id, selectedScreen.path);
                   const canView = !!perm?.can_view;
                   const canEdit = !!perm?.can_edit;
+                  const canDeletePerm = !!perm?.can_delete;
                   return (
                     <div key={p.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/40">
                       <div className="min-w-0">
                         <div className="text-sm font-medium truncate">{p.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {canView ? (canEdit ? 'Ver + Editar' : 'Apenas Ver') : 'Sem acesso'}
+                          {canView
+                            ? `${canEdit ? 'Ver + Editar' : 'Apenas Ver'}${canDeletePerm ? ' + Excluir' : ''}`
+                            : 'Sem acesso'}
                         </div>
                       </div>
                       <div className="flex items-center gap-6 shrink-0">
@@ -393,9 +396,19 @@ export function PermissoesPorTelaPanel({ screens, profiles, profileScreens, onTo
                             onCheckedChange={() => onToggle(p.id, selectedScreen.path, selectedScreen.name, 'can_edit')}
                           />
                         </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                          <span>Excluir</span>
+                          <Switch
+                            checked={canDeletePerm}
+                            disabled={!canView}
+                            aria-label={`Liberar exclusão para ${p.name}`}
+                            onCheckedChange={() => onToggle(p.id, selectedScreen.path, selectedScreen.name, 'can_delete')}
+                          />
+                        </label>
                       </div>
                     </div>
                   );
+
                 })}
                 {profiles.length === 0 && (
                   <p className="text-center text-sm text-muted-foreground py-8">
