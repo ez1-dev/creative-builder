@@ -173,9 +173,11 @@ export function ApplyComponentDialog({
     if (!canSave) return;
     setSaving(true);
     try {
+      const options: Record<string, any> = {};
+      if (page?.supportsUnidadeNegocio) options.unidade_negocio = unidadeNegocio;
       await createUserWidget({
         page_key: pageKey, section, component_id: def.id,
-        title: title || null, span, ordem, mapping, options: {},
+        title: title || null, span, ordem, mapping, options,
       });
       toast.success('Componente aplicado!', {
         description: `Acesse ${page?.route} para visualizar.`,
