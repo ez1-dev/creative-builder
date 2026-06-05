@@ -2,8 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { getEffectiveTheme, getBgOverride, setBgOverride, clearBgOverride, SUGGESTED_BG_COLORS } from './comercialTheme';
+import { Palette, RotateCw } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -67,7 +66,7 @@ import {
 } from '@/lib/bi/comercialFilters';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { getUnidadeTheme } from './comercialTheme';
+import { getEffectiveTheme, getBgOverride, setBgOverride, clearBgOverride, SUGGESTED_BG_COLORS } from './comercialTheme';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];
