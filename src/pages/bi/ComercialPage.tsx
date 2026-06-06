@@ -66,6 +66,9 @@ import {
   buildMensalSerie, buildAnualSerie, buildEstadoSerie, buildRevendaSerie,
   buildObrasSerie, buildMixSerie, buildSerieFromDrill, dimToDrillType, pickLabel,
 } from '@/lib/bi/comercialSeriesBuilder';
+import {
+  pickComercialLabel, extractDrillCtx, KPI_DRILL_MAP, drillTypeFromSeriesKey,
+} from '@/lib/bi/comercialDrillContract';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
 import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
 import {
@@ -261,20 +264,36 @@ export default function ComercialPage() {
     return ((atu - ant) / Math.abs(ant)) * 100;
   }, [sparkSerie]);
 
-  const donutMix = useMemo(() => mix.map((m) => ({ label: pickLabel(m as any, ['categoria', 'label', 'nome']), valor: n(m.faturamento) })), [mix]);
+  const donutMix = useMemo(() => mix.map((m) => ({
+    label: pickComercialLabel(m as any, ['categoria']),
+    categoria: (m as any)?.categoria ?? null,
+    valor: n(m.faturamento),
+  })), [mix]);
   const estadoSorted = useMemo(() => [...estados].sort((a, b) => n(b.faturamento) - n(a.faturamento)), [estados]);
-  const estadosSerie = estadoSorted.map((d) => ({ label: pickLabel(d as any, ['nm_estado','estado','sg_uf','uf','n','cd_estado']), valor: n(d.faturamento) }));
-  const mapaData = estadoSorted.map((d) => ({ uf: pickLabel(d as any, ['sg_uf','uf','cd_estado','n']), valor: n(d.faturamento) }));
-  const revendaRank = useMemo(() => revendaRows.map((r) => ({ label: pickLabel(r as any, ['nm_revenda','revenda_label','revenda','nm_fantasia','cd_rev_pedido']), valor: n(r.faturamento) })), [revendaRows]);
-  const obrasRank = useMemo(() => obrasRows.map((o) => ({ label: pickLabel(o as any, ['projeto','ds_abr_prj','nm_projeto','cd_prj']), valor: n(o.faturamento), cd_prj: o.cd_prj })), [obrasRows]);
-  const obrasSerie = obrasRank.map((o) => ({ label: o.label, valor: o.valor }));
+  const estadosSerie = estadoSorted.map((d) => ({
+    label: pickComercialLabel(d as any),
+    cd_estado: (d as any)?.cd_estado ?? (d as any)?.sg_uf ?? (d as any)?.uf ?? null,
+    valor: n(d.faturamento),
+  }));
+  const mapaData = estadoSorted.map((d) => ({
+    uf: pickLabel(d as any, ['sg_uf','uf','cd_estado','n']),
+    cd_estado: (d as any)?.cd_estado ?? (d as any)?.sg_uf ?? (d as any)?.uf ?? null,
+    valor: n(d.faturamento),
+  }));
+  const revendaRank = useMemo(() => revendaRows.map((r: any) => ({
+    label: pickComercialLabel(r),
+    cd_rev_pedido: r?.cd_rev_pedido ?? null,
+    valor: n(r.faturamento),
+  })), [revendaRows]);
+  const obrasRank = useMemo(() => obrasRows.map((o: any) => ({
+    label: pickComercialLabel(o),
+    valor: n(o.faturamento),
+    cd_prj: o?.cd_prj ?? null,
+  })), [obrasRows]);
+  const obrasSerie = obrasRank.map((o) => ({ label: o.label, cd_prj: o.cd_prj, valor: o.valor }));
 
   // ===== Drill multinível (novo /api/bi/comercial/drill) =====
   const drillStack = useComercialDrillStack();
-
-  const openDrill = (drill_type: DrillType, contexto: DrillContexto = {}) => {
-    drillStack.openWith({ drill_type, contexto });
-  };
 
   // Mapeia os filtros atuais do dashboard para o contexto inicial de um drill.
   const buildCtxFromFilters = (): DrillContexto => {
@@ -282,13 +301,20 @@ export default function ComercialPage() {
     const ctx: DrillContexto = {};
     const keys: (keyof DrillContexto)[] = [
       'anomes_emissao','cd_cliente','cd_estado','cd_rev_pedido','cd_produto',
-      'cd_derivacao','cd_nf','cd_origem','cd_tns','cd_tp_movimento','cd_prj',
+      'cd_derivacao','cd_nf','cd_origem','cd_tns','cd_tp_movimento','cd_prj','categoria_custom',
     ];
     keys.forEach((k) => {
       const v = f?.[k];
       if (v != null && String(v).length > 0) (ctx as any)[k] = String(v);
     });
     return ctx;
+  };
+
+  const openDrill = (drill_type: DrillType, contexto: DrillContexto = {}) => {
+    // Sempre mescla com os filtros atuais do dashboard, garantindo
+    // preservação do contexto acumulado (chaves novas sobrescrevem).
+    const merged: DrillContexto = { ...buildCtxFromFilters(), ...contexto };
+    drillStack.openWith({ drill_type, contexto: merged });
   };
 
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
@@ -298,36 +324,38 @@ export default function ComercialPage() {
       escopo === 'estados' ? 'ESTADO' :
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
-      'ACUMULADO';
-    openDrill(drillType, escopo === 'impostos' ? buildCtxFromFilters() : {});
+      'NOTA_FISCAL';
+    openDrill(drillType, {});
   };
 
 
   // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
   const onClickMensal = (d: any) => {
-    const v = d?.label ?? d?.anomes_emissao;
-    if (v) openDrill('MENSAL', { anomes_emissao: String(v) });
+    const ctx = extractDrillCtx(d, 'MENSAL');
+    if (Object.keys(ctx).length > 0) openDrill('MENSAL', ctx);
   };
   const onClickMix = (d: any) => {
-    const map = drillFromMixCategoria(d?.label ?? d?.name ?? '');
+    // Mix usa categorias custom (origem/tipo movimento), não DrillType direto.
+    const map = drillFromMixCategoria(d?.categoria ?? d?.label ?? d?.name ?? '');
     if (!map) return;
-    openDrill('ACUMULADO', { [map.key]: map.value } as DrillContexto);
+    openDrill('NOTA_FISCAL', { [map.key]: map.value } as DrillContexto);
   };
   const onClickEstado = (d: any) => {
-    const v = d?.label ?? d?.uf;
-    if (v) openDrill('ESTADO', { cd_estado: String(v) });
+    const ctx = extractDrillCtx(d, 'ESTADO');
+    if (Object.keys(ctx).length > 0) openDrill('ESTADO', ctx);
   };
-  const onClickMapa = (d: { uf: string; valor: number }) => {
-    if (d?.uf) openDrill('ESTADO', { cd_estado: String(d.uf) });
+  const onClickMapa = (d: { uf: string; cd_estado?: string | null; valor: number }) => {
+    const cd = d?.cd_estado ?? d?.uf;
+    if (cd && String(cd) !== '(sem nome)') openDrill('ESTADO', { cd_estado: String(cd) });
   };
   const onClickRevenda = (d: any) => {
-    const v = d?.label ?? d?.revenda;
-    if (v) openDrill('REVENDA', { cd_rev_pedido: String(v) });
+    const ctx = extractDrillCtx(d, 'REVENDA');
+    if (Object.keys(ctx).length > 0) openDrill('REVENDA', ctx);
   };
   const onClickObra = (d: any) => {
     const found = obrasRank.find((o) => o.label === d?.name || o.label === d?.label);
-    const cod = found?.cd_prj ?? d?.cd_prj ?? d?.label ?? d?.name;
-    if (cod) openDrill('ACUMULADO', { cd_prj: String(cod) });
+    const cod = found?.cd_prj ?? d?.cd_prj;
+    if (cod && String(cod) !== '(sem nome)') openDrill('NOTA_FISCAL', { cd_prj: String(cod) });
   };
 
 
@@ -411,12 +439,9 @@ export default function ComercialPage() {
     const variant = w.variant ?? 'number';
     const isCurrency = ['faturamento','fat_liquido','impostos','devolucao','meta','diferenca','ticket_medio','preco_medio'].includes(kpiKey);
     const format = isCurrency ? 'currency' : 'number';
-    const escopo: ComercialDetalheEscopo =
-      kpiKey === 'impostos' ? 'impostos' :
-      kpiKey === 'devolucao' ? 'devolucao' :
-      kpiKey === 'numero_vendas' ? 'vendas' :
-      kpiKey === 'numero_clientes' ? 'clientes' :
-      kpiKey === 'numero_estados' ? 'estados' : 'todas';
+    const drillType = KPI_DRILL_MAP[kpiKey] ?? 'NOTA_FISCAL';
+    const tooltip = kpiKey === 'impostos' ? 'Clique para detalhar impostos' : 'Clique para detalhar';
+    const ctxExtra: DrillContexto = kpiKey === 'devolucao' ? { categoria_custom: 'devolucao' } : {};
 
     let inner: ReactNode;
     if (variant === 'sparkline') {
@@ -428,17 +453,11 @@ export default function ComercialPage() {
     } else {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
-    if (kpiKey === 'impostos') {
-      return (
-        <Clickable
-          title="Clique para detalhar impostos"
-          onClick={() => openDrill('DETALHES_IMPOSTOS', buildCtxFromFilters())}
-        >
-          {inner}
-        </Clickable>
-      );
-    }
-    return <Clickable onClick={() => openDetalhes(escopo, title)}>{inner}</Clickable>;
+    return (
+      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra)}>
+        {inner}
+      </Clickable>
+    );
 
   }
 
@@ -531,10 +550,17 @@ export default function ComercialPage() {
     const def = getComponent(w.componentId);
     if (!def) return <ErrorState title={`Componente "${w.componentId}" não encontrado`} />;
     try {
+      // Drill-type pode vir configurado em options.drillType; senão deduz pela seriesKey.
+      const optsDrillType: DrillType | undefined = (w.options as any)?.drillType;
+      const onItemClick = (seriesKey: string, datum: any) => {
+        const dt = optsDrillType ?? drillTypeFromSeriesKey(seriesKey);
+        const ctx = extractDrillCtx(datum, dt);
+        if (Object.keys(ctx).length > 0) openDrill(dt, ctx);
+      };
       return def.render({
         title: w.customTitle || w.title || def.label,
         mapping: w.mapping ?? {},
-        ctx: { kpis: kpis ?? {}, series: pageSeries ?? {}, rows: Array.isArray(mensal) ? (mensal as any[]) : [] },
+        ctx: { kpis: kpis ?? {}, series: pageSeries ?? {}, rows: Array.isArray(mensal) ? (mensal as any[]) : [], onItemClick },
         options: w.options ?? {},
       });
     } catch (e) {
@@ -552,7 +578,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
       return (
-        <Clickable onClick={() => openDetalhes('todas', title)}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
           <KpiTriStackCard
             title={title}
             items={[
@@ -569,7 +595,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
       return (
-        <Clickable onClick={() => openDetalhes('todas', title)}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
           <GaugeAchievementCard title={title} value={n(kpis.pct_atingimento)} />
         </Clickable>
       );

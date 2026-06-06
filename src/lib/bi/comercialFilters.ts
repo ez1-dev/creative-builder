@@ -11,7 +11,10 @@ export type BiComercialDrillKey =
   | 'cd_origem'
   | 'cd_tp_movimento'
   | 'cd_tns'
-  | 'cd_nf';
+  | 'cd_nf'
+  | 'cd_produto'
+  | 'cd_derivacao'
+  | 'categoria_custom';
 
 export const DRILL_LABELS: Record<BiComercialDrillKey, string> = {
   anomes_emissao: 'Ano/Mês',
@@ -23,6 +26,9 @@ export const DRILL_LABELS: Record<BiComercialDrillKey, string> = {
   cd_tp_movimento: 'Tipo Movimento',
   cd_tns: 'TNS',
   cd_nf: 'Nota Fiscal',
+  cd_produto: 'Produto',
+  cd_derivacao: 'Derivação',
+  categoria_custom: 'Categoria',
 };
 
 export type BiComercialFilters = {
