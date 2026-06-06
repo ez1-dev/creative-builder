@@ -105,9 +105,9 @@ export function pickLabel(row: Record<string, any>, candidates: string[], fallba
   return fallback;
 }
 
-const ESTADO_LABEL_KEYS  = ['nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
-const REVENDA_LABEL_KEYS = ['nm_revenda', 'revenda_label', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
-const OBRA_LABEL_KEYS    = ['projeto', 'ds_abr_prj', 'nm_projeto', 'cd_prj'];
+const ESTADO_LABEL_KEYS  = ['display_label', 'label', 'estado_label', 'nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
+const REVENDA_LABEL_KEYS = ['display_label', 'label', 'revenda_label', 'nm_revenda', 'ds_revenda', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
+const OBRA_LABEL_KEYS    = ['display_label', 'label', 'obra_label', 'projeto', 'ds_abr_prj', 'nm_projeto', 'cd_prj'];
 
 export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMetric): SeriePoint[] {
   return rows.map((r) => {
