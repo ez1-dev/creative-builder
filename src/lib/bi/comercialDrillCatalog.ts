@@ -97,9 +97,6 @@ export function mergeCtx(
   nextDrill: DrillType,
   opts: { keepAll: boolean } = { keepAll: true },
 ): DrillContexto {
-  // Import dinâmico evita ciclo entre catalog -> contract.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { cleanDrillValue } = require('./comercialDrillContract') as typeof import('./comercialDrillContract');
   const allowed = new Set(ALLOWED_CTX_KEYS[nextDrill]);
   const out: DrillContexto = {};
   if (opts.keepAll) {
