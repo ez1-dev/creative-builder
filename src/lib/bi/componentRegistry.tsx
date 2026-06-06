@@ -119,7 +119,7 @@ export interface BiComponentDef {
   }) => ReactNode;
 }
 
-/** Helper interno: monta o handler de clique a partir do ctx, normalizando datum para { name, value }. */
+/** Helper interno: monta o handler de clique a partir do ctx, normalizando datum para { name, value, ...original }. */
 function makeClickHandler(
   ctx: { onItemClick?: (seriesKey: string, datum: any) => void },
   seriesKey: string,
@@ -128,7 +128,9 @@ function makeClickHandler(
   return (d: any) => {
     const name = d?.name ?? d?.label ?? '';
     const value = Number(d?.value ?? d?.valor ?? 0);
-    ctx.onItemClick!(seriesKey, { name: String(name), value, label: d?.label, valor: d?.valor });
+    // Mantém TODOS os campos originais (cd_*, filtros_drill, etc.) para que o
+    // contrato de drill global possa extrair o filtro técnico correto.
+    ctx.onItemClick!(seriesKey, { ...(d ?? {}), name: String(name), value, label: d?.label, valor: d?.valor });
   };
 }
 
