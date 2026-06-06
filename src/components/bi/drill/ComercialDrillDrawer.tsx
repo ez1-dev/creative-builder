@@ -85,7 +85,7 @@ function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (f === 'percent') {
     const num = Number(v);
     if (!Number.isFinite(num)) return String(v);
-    return `${formatNumber(num, { maximumFractionDigits: 2 })}%`;
+    return `${formatNumber(num, 2)}%`;
   }
   if (f === 'number') {
     const num = Number(v);
