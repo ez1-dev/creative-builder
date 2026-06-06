@@ -1,48 +1,75 @@
-# Corrigir limpeza de filtros e diagnóstico do drill BI Comercial
+# Plano de correção do drill do BI Comercial
 
 ## Objetivo
-Eliminar valores inválidos (`undefined`, `"null"`, `"(sem nome)"`, `"TODOS"`, `"CONSOLIDADO"`, etc.) do contexto enviado para `/api/bi/comercial/drill`, e mostrar um diagnóstico completo com todos os filtros aplicados e o filtro que zerou o resultado.
+Padronizar a limpeza de filtros técnicos e o diagnóstico do drill para impedir filtros ocultos/inválidos no payload e deixar explícito qual filtro zerou a base.
 
-## Mudanças
+## O que vou implementar
 
-### 1. `src/lib/bi/comercialDrillContract.ts`
-- Adicionar `cleanDrillValue(value)` e `cleanDrillContext(ctx)` conforme a especificação do usuário (lista de inválidos: `undefined`, `null`, `(sem nome)`, `sem nome`, `todos`, `todas`, `consolidado`, vazio).
-- Aplicar `cleanDrillValue` dentro de `extractDrillCtx` (a função já ignora alguns sentinelas, mas a lista será unificada).
-- Exportar ambas para uso no app inteiro.
+### 1. Sanitização global do contexto de drill
+- Reforçar a função global `cleanDrillValue(value)` para transformar em `null` qualquer valor inválido:
+  - `undefined`
+  - `null`
+  - `"undefined"`
+  - `"null"`
+  - vazio
+  - `"(sem nome)"`
+  - `"sem nome"`
+  - `"TODOS"` / `"Todos"` / `"todas"`
+  - `"CONSOLIDADO"`
+- Garantir que `cleanDrillContext(contexto)` normalize todas as chaves técnicas do drill.
+- Garantir que o payload final enviado ao backend sempre use apenas contexto já limpo.
 
-### 2. `src/lib/bi/comercialDrillApi.ts`
-- Substituir o `cleanContexto` atual por `cleanDrillContext` importado do contract, garantindo que o payload final NUNCA leva valores inválidos.
-- Continuar removendo chaves com valor `null` antes do POST.
+### 2. Prioridade correta na montagem do payload
+- Padronizar a composição do contexto para seguir esta ordem:
+  1. filtros globais do dashboard como base
+  2. contexto atual do stack
+  3. `row.filtros_drill` por último, vencendo os anteriores
+- Impedir fallback para `row.label` quando `row.filtros_drill` existir.
+- Impedir qualquer uso de `"(sem nome)"` como filtro técnico.
+- Aplicar essa mesma regra tanto na abertura inicial do drawer quanto no avanço entre níveis do drill.
 
-### 3. `src/lib/bi/comercialDrillCatalog.ts` (`mergeCtx`)
-- Filtrar valores inválidos via `cleanDrillValue` ao copiar do `currentCtx` e do `rowFilters`, para não propagar lixo entre níveis.
+### 3. Limpeza de filtros residuais no stack
+- Ajustar a abertura de drill por KPI/card para começar somente com filtros globais válidos, sem reaproveitar filtros técnicos residuais de outro drill.
+- Garantir que mudanças de nível e “Trocar drill” preservem apenas chaves compatíveis com o nível alvo e já sanitizadas.
+- Garantir que remover filtros pelo diagnóstico/chips também mantenha o contexto consistente.
 
-### 4. `src/hooks/useComercialDrillStack.ts`
-- Em `openWith`, `pushDrill` e `replacePath`, passar o contexto inicial por `cleanDrillContext` antes do `mergeCtx`.
-- Adicionar opção `resetCtx` para drills de KPI/Card: quando true (chamado pelos KPIs Impostos, Faturamento, etc.), o stack é aberto somente com filtros globais do dashboard, sem reaproveitar resíduo de drill anterior.
+### 4. Diagnóstico visual completo
+- Expandir o diagnóstico para mostrar todos os filtros técnicos que podem zerar a consulta, incluindo:
+  - `cd_nf`
+  - `cd_tns`
+  - `cd_origem`
+  - `cd_tp_movimento`
+  - `cd_prj`
+  - `cd_derivacao`
+  - `categoria_custom`
+- Exibir todos os filtros aplicados com base no contexto efetivamente enviado.
+- Exibir `filtro_que_zerou` de forma destacada quando vier na resposta.
+- Quando `rows = []` e `qtd_linhas_apos_unidade > 0`, mostrar também:
+  - filtros aplicados completos
+  - filtro que zerou
+  - payload enviado
 
-### 5. `src/pages/bi/ComercialPage.tsx`
-- Em todos os `openDrill` de KPI/Card (Faturamento, Impostos, Devolução, Nº Clientes, etc.), chamar `stack.openWith({ ..., resetCtx: true })`.
-- Em cliques de linha/gráfico, garantir que o contexto vem de `extractDrillCtx(row, drillType)` (já usa `row.filtros_drill` quando existir) — não usar `row.label` como filtro técnico.
-- Passar o contexto final por `cleanDrillContext` antes de pushar no stack.
+### 5. Tipagem e contrato do drill
+- Atualizar os tipos do diagnóstico para cobrir todos os campos adicionais usados na tela.
+- Incluir no contrato do drill o payload sanitizado exibido no diagnóstico, sem mudar o backend.
+- Manter compatibilidade com GENIUS, ESTRUTURAL ZORTEA e CONSOLIDADO na interface, mas sem enviar `CONSOLIDADO` como filtro técnico dentro do `contexto`.
 
-### 6. `src/components/bi/drill/DrillEmptyDiagnostico.tsx`
-- Expandir `stepDefs` para mostrar TODOS os filtros aplicados, com uma linha por chave de contexto presente (`anomes_emissao`, `cd_estado`, `cd_cliente`, `cd_prj`, `cd_rev_pedido`, `cd_origem`, `cd_tp_movimento`, `cd_tns`, `cd_nf`, `cd_produto`, `cd_derivacao`, `categoria_custom`), com botão "remover" ao lado de cada um.
-- Renderizar destaque "Filtro que zerou: X" quando `diagnostico.filtro_que_zerou` vier preenchido (adicionar campo opcional em `DrillDiagnostico`).
-- Quando `rows.length === 0` e `qtd_linhas_apos_unidade > 0`, exibir a mensagem: *"Existem dados para unidade/período, mas a combinação de filtros adicionais zerou o resultado."*
-- Manter o passo "Base" mas mostrar também a contagem após cada filtro adicional retornado pelo backend (loop dinâmico em `diagnostico.qtd_linhas_apos_*`).
+## Arquivos a ajustar
+- `src/lib/bi/comercialDrillContract.ts`
+- `src/lib/bi/comercialDrillApi.ts`
+- `src/lib/bi/comercialDrillCatalog.ts`
+- `src/hooks/useComercialDrillStack.ts`
+- `src/components/bi/drill/ComercialDrillDrawer.tsx`
+- `src/components/bi/drill/DrillEmptyDiagnostico.tsx`
+- `src/pages/bi/ComercialPage.tsx`
 
-### 7. `src/lib/bi/comercialDrillApi.ts` — tipo `DrillDiagnostico`
-- Adicionar `filtro_que_zerou?: string` e `qtd_linhas_apos_origem?`, `qtd_linhas_apos_nf?`, `qtd_linhas_apos_categoria?` (opcionais) para acompanhar campos extras do backend.
+## Detalhes técnicos
+- Centralizar a limpeza em `cleanDrillValue` / `cleanDrillContext` / `compactDrillContext`.
+- Passar o contexto sanitizado até a requisição, em vez de limpar parcialmente em pontos isolados.
+- Usar o contexto final efetivamente enviado para compor a área de diagnóstico, evitando divergência entre tela e payload.
+- Adicionar no diagnóstico a visualização do payload do request para identificar rapidamente o filtro oculto que zerou a base.
 
-## Critério de aceite
-- Nenhum payload de `/api/bi/comercial/drill` contém `"undefined"`, `"null"`, `"(sem nome)"`, `"TODOS"`, `"Todos"` ou `"CONSOLIDADO"` em contexto técnico.
-- O diagnóstico lista todos os filtros aplicados (não só 6 fixos).
-- Mostra "Filtro que zerou: X" quando o backend informar.
-- Drill de KPI ignora filtros residuais de drills anteriores.
-- Quando há 792 linhas para a unidade/período, a tela passa a trazer dados após a limpeza.
-
-## Fora de escopo
-- Backend FastAPI (a normalização é puramente client-side).
-- Outros módulos BI.
-- Mudança visual além do diagnóstico.
+## Resultado esperado
+- Nenhum payload enviará `"undefined"`, `"null"`, `"(sem nome)"`, `"TODOS"` ou `"CONSOLIDADO"` como filtro técnico.
+- O drill voltará a trazer dados quando houver base válida para GENIUS/período e o problema for filtro residual/inválido.
+- O diagnóstico mostrará exatamente qual filtro zerou a base e com qual payload isso ocorreu.

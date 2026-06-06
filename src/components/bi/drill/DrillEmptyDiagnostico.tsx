@@ -25,8 +25,11 @@ const DIAG_STEPS: StepDef[] = [
   { key: 'qtd_linhas_apos_revenda', label: 'Após revenda', removeKey: 'cd_rev_pedido' },
   { key: 'qtd_linhas_apos_produto', label: 'Após produto', removeKey: 'cd_produto' },
   { key: 'qtd_linhas_apos_origem', label: 'Após origem', removeKey: 'cd_origem' },
+  { key: 'qtd_linhas_apos_tp_movimento', label: 'Após mov.', removeKey: 'cd_tp_movimento' },
+  { key: 'qtd_linhas_apos_tns', label: 'Após TNS', removeKey: 'cd_tns' },
   { key: 'qtd_linhas_apos_nf', label: 'Após NF', removeKey: 'cd_nf' },
   { key: 'qtd_linhas_apos_obra', label: 'Após obra', removeKey: 'cd_prj' },
+  { key: 'qtd_linhas_apos_derivacao', label: 'Após derivação', removeKey: 'cd_derivacao' },
   { key: 'qtd_linhas_apos_categoria', label: 'Após categoria', removeKey: 'categoria_custom' },
 ];
 
@@ -154,6 +157,17 @@ export function DrillEmptyDiagnostico({ stack, response }: Props) {
             </tbody>
           </table>
         </div>
+      )}
+
+      {(diag as any)?.payload_enviado && (
+        <details className="w-full max-w-md rounded-md border bg-muted/20 text-left">
+          <summary className="cursor-pointer px-3 py-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+            Payload enviado
+          </summary>
+          <pre className="px-3 py-2 text-[11px] leading-snug font-mono whitespace-pre-wrap break-all text-foreground/80">
+            {JSON.stringify((diag as any).payload_enviado, null, 2)}
+          </pre>
+        </details>
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-2">
