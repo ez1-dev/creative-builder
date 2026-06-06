@@ -147,10 +147,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     const base: Column<Record<string, any>>[] = displayColumns.map((c) => ({
       key: c.key as any,
       header: c.label,
-      align: c.align ?? (c.format === 'currency' || c.format === 'number' ? 'right' : 'left'),
+      align: c.align ?? (inferFormat(c.key, c.format) === 'currency' || inferFormat(c.key, c.format) === 'number' ? 'right' : 'left'),
       render: (_v: any, r: Record<string, any>) => {
         if (c.key === 'nm_cliente') return r.nm_cliente ?? '—';
-        return fmtCell(r[c.key], c.format);
+        return fmtCell(r[c.key], c.format, c.key);
       },
     }));
     if (allowedNext.length > 0) {
