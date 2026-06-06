@@ -42,14 +42,36 @@ const CURRENCY_KEYS = new Set([
   'icms', 'pis', 'cofins', 'ipi', 'iss', 'st', 'difal', 'fcp',
 ]);
 const NUMBER_KEYS = new Set([
-  'quantidade', 'qtd', 'qt', 'numero_vendas', 'numero_clientes', 'numero_estados', 'pct_atingimento',
+  'quantidade', 'qtd', 'qt', 'numero_vendas', 'numero_clientes', 'numero_estados',
 ]);
 
-function inferFormat(key: string, format?: DrillColumn['format']): DrillColumn['format'] | undefined {
+const CURRENCY_PREFIXES = ['vl_', 'valor_', 'vlr_', 'total_', 'base_'];
+const CURRENCY_SUBSTRINGS = [
+  'imposto', 'icms', 'pis', 'cofins', 'ipi', 'iss', 'difal', 'fcp',
+  'csll', 'irpj', 'inss', 'iof', 'st_', '_st',
+  'base_calculo', 'base_icms',
+  'vl_bruto', 'vl_liquido', 'vl_nf', 'vl_total',
+  'frete', 'seguro', 'desconto', 'acrescimo', 'outros',
+];
+const NUMBER_PREFIXES = ['qtd_', 'qt_', 'num_', 'numero_'];
+const PERCENT_KEYS = new Set(['aliquota', 'pct_atingimento']);
+const PERCENT_PREFIXES = ['pct_', 'aliq_', 'perc_'];
+const PERCENT_SUFFIXES = ['_pct', '_perc', '_percent'];
+
+type InferredFormat = DrillColumn['format'] | 'percent';
+
+function inferFormat(key: string, format?: DrillColumn['format']): InferredFormat | undefined {
   if (format) return format;
   const k = (key || '').toLowerCase();
+  if (!k) return undefined;
+  if (PERCENT_KEYS.has(k)) return 'percent';
+  if (PERCENT_PREFIXES.some((p) => k.startsWith(p))) return 'percent';
+  if (PERCENT_SUFFIXES.some((s) => k.endsWith(s))) return 'percent';
   if (CURRENCY_KEYS.has(k)) return 'currency';
+  if (CURRENCY_PREFIXES.some((p) => k.startsWith(p))) return 'currency';
+  if (CURRENCY_SUBSTRINGS.some((s) => k.includes(s))) return 'currency';
   if (NUMBER_KEYS.has(k)) return 'number';
+  if (NUMBER_PREFIXES.some((p) => k.startsWith(p))) return 'number';
   return undefined;
 }
 
@@ -59,6 +81,11 @@ function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (f === 'currency') {
     const num = Number(v);
     return Number.isFinite(num) ? formatCurrency(num) : String(v);
+  }
+  if (f === 'percent') {
+    const num = Number(v);
+    if (!Number.isFinite(num)) return String(v);
+    return `${formatNumber(num, { maximumFractionDigits: 2 })}%`;
   }
   if (f === 'number') {
     const num = Number(v);
