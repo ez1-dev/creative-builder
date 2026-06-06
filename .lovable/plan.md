@@ -1,94 +1,48 @@
+# Corrigir limpeza de filtros e diagnóstico do drill BI Comercial
+
 ## Objetivo
+Eliminar valores inválidos (`undefined`, `"null"`, `"(sem nome)"`, `"TODOS"`, `"CONSOLIDADO"`, etc.) do contexto enviado para `/api/bi/comercial/drill`, e mostrar um diagnóstico completo com todos os filtros aplicados e o filtro que zerou o resultado.
 
-Padronizar globalmente no BI Comercial (1) a forma de exibir o **nome (label)** em todo componente visual e (2) o **drill** (clique → POST `/api/bi/comercial/drill`) em KPIs, cards, gráficos, tabelas, rankings e listas — incluindo os widgets gerados pela Biblioteca BI / IA. Resolver causa raiz, não tela por tela.
+## Mudanças
 
----
+### 1. `src/lib/bi/comercialDrillContract.ts`
+- Adicionar `cleanDrillValue(value)` e `cleanDrillContext(ctx)` conforme a especificação do usuário (lista de inválidos: `undefined`, `null`, `(sem nome)`, `sem nome`, `todos`, `todas`, `consolidado`, vazio).
+- Aplicar `cleanDrillValue` dentro de `extractDrillCtx` (a função já ignora alguns sentinelas, mas a lista será unificada).
+- Exportar ambas para uso no app inteiro.
 
-## 1. Camada global de label — `pickComercialLabel`
+### 2. `src/lib/bi/comercialDrillApi.ts`
+- Substituir o `cleanContexto` atual por `cleanDrillContext` importado do contract, garantindo que o payload final NUNCA leva valores inválidos.
+- Continuar removendo chaves com valor `null` antes do POST.
 
-Arquivo: `src/lib/bi/comercialSeriesBuilder.ts`
+### 3. `src/lib/bi/comercialDrillCatalog.ts` (`mergeCtx`)
+- Filtrar valores inválidos via `cleanDrillValue` ao copiar do `currentCtx` e do `rowFilters`, para não propagar lixo entre níveis.
 
-- Adicionar helper exportado:
-  ```ts
-  export const COMERCIAL_LABEL_FALLBACK_KEYS = [
-    'display_label','label',
-    'cliente_label','revenda_label','produto_label','estado_label','obra_label','nf_label',
-    'nome','name','descricao',
-    'nm_revenda','ds_revenda','nm_cliente','ds_cliente','nm_fantasia',
-    'nm_estado','sg_uf','uf',
-    'ds_produto','descricao_produto',
-    'cd_rev_pedido','cd_cliente','cd_produto','cd_estado','cd_nf','cd_prj',
-  ];
-  export const pickComercialLabel = (row, extra=[]) =>
-    pickLabel(row, [...extra, ...COMERCIAL_LABEL_FALLBACK_KEYS], '(sem nome)');
-  ```
-- Atualizar `REVENDA_LABEL_KEYS` para incluir `label`, `ds_revenda` e `revenda_label` no topo, e `LABEL_CANDIDATES` (CLIENTE/PRODUTO/ESTADO/NF) para incluir `label` e `display_label` no topo. Assim toda série derivada do drill (`por_revenda__*`, `por_cliente__*`, etc.) já vem com nome.
-- Não usar mais `'(sem nome)'` como filtro técnico em lugar nenhum.
+### 4. `src/hooks/useComercialDrillStack.ts`
+- Em `openWith`, `pushDrill` e `replacePath`, passar o contexto inicial por `cleanDrillContext` antes do `mergeCtx`.
+- Adicionar opção `resetCtx` para drills de KPI/Card: quando true (chamado pelos KPIs Impostos, Faturamento, etc.), o stack é aberto somente com filtros globais do dashboard, sem reaproveitar resíduo de drill anterior.
 
-## 2. Camada global de drill — `comercialDrillContract.ts` (novo)
+### 5. `src/pages/bi/ComercialPage.tsx`
+- Em todos os `openDrill` de KPI/Card (Faturamento, Impostos, Devolução, Nº Clientes, etc.), chamar `stack.openWith({ ..., resetCtx: true })`.
+- Em cliques de linha/gráfico, garantir que o contexto vem de `extractDrillCtx(row, drillType)` (já usa `row.filtros_drill` quando existir) — não usar `row.label` como filtro técnico.
+- Passar o contexto final por `cleanDrillContext` antes de pushar no stack.
 
-Arquivo novo: `src/lib/bi/comercialDrillContract.ts`
+### 6. `src/components/bi/drill/DrillEmptyDiagnostico.tsx`
+- Expandir `stepDefs` para mostrar TODOS os filtros aplicados, com uma linha por chave de contexto presente (`anomes_emissao`, `cd_estado`, `cd_cliente`, `cd_prj`, `cd_rev_pedido`, `cd_origem`, `cd_tp_movimento`, `cd_tns`, `cd_nf`, `cd_produto`, `cd_derivacao`, `categoria_custom`), com botão "remover" ao lado de cada um.
+- Renderizar destaque "Filtro que zerou: X" quando `diagnostico.filtro_que_zerou` vier preenchido (adicionar campo opcional em `DrillDiagnostico`).
+- Quando `rows.length === 0` e `qtd_linhas_apos_unidade > 0`, exibir a mensagem: *"Existem dados para unidade/período, mas a combinação de filtros adicionais zerou o resultado."*
+- Manter o passo "Base" mas mostrar também a contagem após cada filtro adicional retornado pelo backend (loop dinâmico em `diagnostico.qtd_linhas_apos_*`).
 
-- `DRILL_KEY_FROM_TYPE: Record<DrillType, keyof DrillContexto>` mapeando a coluna técnica esperada por tipo:
-  - MENSAL→`anomes_emissao`, ESTADO→`cd_estado`, CLIENTE→`cd_cliente`, REVENDA→`cd_rev_pedido`, PRODUTO→`cd_produto`, NOTA_FISCAL→`cd_nf`, OBRAS→`cd_prj`.
-- `extractDrillCtx(row, drillType)`: se `row.filtros_drill` existir, devolve-o tal qual (depois de limpar vazios); senão monta `{ [DRILL_KEY_FROM_TYPE[drillType]]: row[<código técnico>] ?? row.label }` ignorando `'(sem nome)'`.
-- `KPI_DRILL_MAP`: faturamento/fat_liquido/devolucao/numero_vendas→`NOTA_FISCAL`; impostos→`DETALHES_IMPOSTOS`; numero_clientes→`CLIENTE`; numero_estados→`ESTADO`; quantidade→`PRODUTO`. (devolução: adicionar `categoria_custom: 'devolucao'` se backend já suporta, senão só NOTA_FISCAL).
-- `DRILL_LABELS` (já existe em `comercialFilters.ts`) — incluir `OBRAS: 'Obras'` no menu Trocar drill.
+### 7. `src/lib/bi/comercialDrillApi.ts` — tipo `DrillDiagnostico`
+- Adicionar `filtro_que_zerou?: string` e `qtd_linhas_apos_origem?`, `qtd_linhas_apos_nf?`, `qtd_linhas_apos_categoria?` (opcionais) para acompanhar campos extras do backend.
 
-## 3. ComercialPage.tsx — usar contratos globais
-
-- `revendaRank`, `estadosSerie`, `mapaData`, `donutMix`, `obrasRank` passam a propagar a chave técnica:
-  ```ts
-  revendaRank = revendaRows.map(r => ({
-    label: pickComercialLabel(r),
-    cd_rev_pedido: r.cd_rev_pedido ?? null,
-    valor: n(r.faturamento),
-  }));
-  ```
-  análogo para cliente (`cd_cliente`), estado (`cd_estado`/`sg_uf`), produto (`cd_produto`), obra (`cd_prj`).
-- Reescrever todos os `onClickXxx` para usar `extractDrillCtx(row, tipo)` + `buildCtxFromFilters()` (preservar contexto acumulado). Nunca passar `(sem nome)` como filtro.
-- `renderKpi`: substituir mapeamento ad-hoc por `KPI_DRILL_MAP[kpiKey]`; sempre passa `Clickable` com `title="Clique para detalhar"`. Impostos → DETALHES_IMPOSTOS já com `buildCtxFromFilters()`.
-- `resumo-faturamento` e `gauge-atingimento`: abrem `NOTA_FISCAL` em vez de `ACUMULADO`.
-
-## 4. Drill em widgets da Biblioteca BI / IA
-
-Arquivo: `src/lib/bi/componentRegistry.tsx` + `src/components/bi/runtime/ComercialDashboardGrid.tsx`
-
-- Estender `ComponentRenderCtx` com `onDrill?: (drillType, ctx) => void` e `drillType?` por componente. O renderer da página injeta `onDrill = openDrill` e usa `extractDrillCtx`.
-- Em cada renderer de gráfico/tabela/ranking do registry, passar `onItemClick={(d) => ctx.onDrill?.(resolveDrillType(d, fallback), extractDrillCtx(d, fallback))}`. Resolução de fallback vem das `options.drillType` configuradas no widget; se ausente, deduz pela dimensão da série (mapa `dim→DrillType` que já existe em `dimToDrillType`).
-- `ConfigureBiWidgetDialog.tsx`: adicionar select "Drill ao clicar" com os 9 valores oficiais + "(auto pela dimensão)". Persistir em `options.drillType`.
-
-## 5. Componentes visuais base — aceitar `onItemClick` uniforme
-
-Verificação/ajuste mínimo em `src/components/bi/charts/*` e `tables/*`:
-
-- `KpiCard` já aceita `onClick`. Garantir que `KpiSparklineCard`, `KpiTargetCard`, `KpiVariationCard`, `KpiTriStackCard`, `GaugeAchievementCard` também aceitem e propaguem `onClick` + `title`/`tooltip`. (envoltório `<Clickable>` continua válido).
-- `BarChartCard`, `HorizontalBarChartCard`, `LineChartCard`, `AreaChartCard`, `DonutChartCard`, `PieChartCard`, `ComboChartCard`, `TreemapChartCard`, `BrazilMapCard`, `RankingChartCard`, `RankingTable`, `DataTableBI`, `MultiSeriesChartCard`: todos já têm `onItemClick`/`onRowClick`. Onde o ponto da série não expõe os campos técnicos (ex.: Recharts Line/Area), adicionar `onClick` no `Line`/`Area` que devolve o `payload` completo (não só `label`).
-- Em `RankingTable` adicionar coluna/botão "Detalhar" quando `onItemClick` estiver definido (acessibilidade + clique linha).
-
-## 6. Preservação de contexto acumulado
-
-`useComercialDrillStack.pushDrill` já preserva contexto via `mergeCtx({ keepAll: true })`. Garantir que **toda** chamada externa de drill use `openDrill`/`pushDrill` com `extractDrillCtx(row, type)` (que retorna apenas as chaves novas), e nunca substitua o contexto. Adicionar testes leves em `comercialDrillCatalog` se já houver suíte.
-
-## 7. CSV de drill
-
-`downloadDrillCsv` em `comercialDrillApi.ts`: ao serializar, se existir coluna técnica + label correspondente (`cd_cliente`/`cliente_label`), exportar ambas (label primeiro, código entre parênteses no header). Sem mudanças no backend.
-
----
-
-## Critérios de aceite
-
-- Ranking de revendas exibe `PAULO CESAR`, `TRADICAO MAQUINAS`, `AGROTEC NUNES`, `ARESI`, `CLIENTE FINAL`, `OUTROS` — nunca `(sem nome)` se houver label ou código.
-- Clique em qualquer KPI (inclusive Impostos), card, barra, linha, fatia, treemap, mapa, linha de tabela ou item de ranking abre o drawer de drill com o `drill_type` correto.
-- `cd_rev_pedido`, `cd_cliente`, `cd_estado`, `cd_produto`, `cd_nf`, `cd_prj` são enviados como código técnico, nunca como `(sem nome)` ou label visual.
-- Contexto acumulado é preservado entre níveis em todos os caminhos.
-- Menu "Trocar drill" inclui ACUMULADO, MENSAL, ESTADO, CLIENTE, REVENDA, PRODUTO, NOTA_FISCAL, DETALHES_IMPOSTOS, OBRAS com rótulos amigáveis.
-- Vale para GENIUS, ESTRUTURAL ZORTEA e CONSOLIDADO.
-- Widgets da Biblioteca BI / IA respeitam o mesmo contrato via `options.drillType` + `onDrill`.
+## Critério de aceite
+- Nenhum payload de `/api/bi/comercial/drill` contém `"undefined"`, `"null"`, `"(sem nome)"`, `"TODOS"`, `"Todos"` ou `"CONSOLIDADO"` em contexto técnico.
+- O diagnóstico lista todos os filtros aplicados (não só 6 fixos).
+- Mostra "Filtro que zerou: X" quando o backend informar.
+- Drill de KPI ignora filtros residuais de drills anteriores.
+- Quando há 792 linhas para a unidade/período, a tela passa a trazer dados após a limpeza.
 
 ## Fora de escopo
-
-- Backend FastAPI (RPC, payload, suporte a `somente_devolucao`/`categoria_custom`).
-- Páginas BI que não sejam `/bi/comercial`.
-- Mudanças visuais (cores, layout, animações), além do botão "Detalhar" no `RankingTable`.
-- Configurador visual (já unificado em iteração anterior).
+- Backend FastAPI (a normalização é puramente client-side).
+- Outros módulos BI.
+- Mudança visual além do diagnóstico.
