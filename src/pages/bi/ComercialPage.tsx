@@ -439,12 +439,9 @@ export default function ComercialPage() {
     const variant = w.variant ?? 'number';
     const isCurrency = ['faturamento','fat_liquido','impostos','devolucao','meta','diferenca','ticket_medio','preco_medio'].includes(kpiKey);
     const format = isCurrency ? 'currency' : 'number';
-    const escopo: ComercialDetalheEscopo =
-      kpiKey === 'impostos' ? 'impostos' :
-      kpiKey === 'devolucao' ? 'devolucao' :
-      kpiKey === 'numero_vendas' ? 'vendas' :
-      kpiKey === 'numero_clientes' ? 'clientes' :
-      kpiKey === 'numero_estados' ? 'estados' : 'todas';
+    const drillType = KPI_DRILL_MAP[kpiKey] ?? 'NOTA_FISCAL';
+    const tooltip = kpiKey === 'impostos' ? 'Clique para detalhar impostos' : 'Clique para detalhar';
+    const ctxExtra: DrillContexto = kpiKey === 'devolucao' ? { categoria_custom: 'devolucao' } : {};
 
     let inner: ReactNode;
     if (variant === 'sparkline') {
@@ -456,17 +453,11 @@ export default function ComercialPage() {
     } else {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
-    if (kpiKey === 'impostos') {
-      return (
-        <Clickable
-          title="Clique para detalhar impostos"
-          onClick={() => openDrill('DETALHES_IMPOSTOS', buildCtxFromFilters())}
-        >
-          {inner}
-        </Clickable>
-      );
-    }
-    return <Clickable onClick={() => openDetalhes(escopo, title)}>{inner}</Clickable>;
+    return (
+      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra)}>
+        {inner}
+      </Clickable>
+    );
 
   }
 
