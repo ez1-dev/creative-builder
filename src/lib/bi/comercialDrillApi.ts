@@ -84,7 +84,6 @@ export interface DrillResponse {
   page_size: number;
 }
 
-import { compactDrillContext } from './comercialDrillContract';
 
 /** Remove campos nulos/vazios/sentinela do contexto antes de enviar à FastAPI. */
 function cleanContexto(ctx: DrillContexto): DrillContexto {
