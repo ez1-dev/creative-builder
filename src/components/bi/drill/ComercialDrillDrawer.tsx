@@ -116,18 +116,18 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
   const allowedNext = cur ? NEXT_DRILLS[cur.drill_type] : [];
 
   const handlePushFromRow = (next: DrillType, row: Record<string, any>) => {
-    // Prioridade: usar filtros_drill que o backend devolve por linha.
-    // Sem isso, cair no fallback de pegar APENAS a chave agrupadora do drill atual.
-    const rowFilters: DrillContexto = {};
+    // Prioridade: usar filtros_drill que o backend devolve por linha (sempre vence).
+    // Sem isso, cair no fallback da chave técnica agrupadora do drill atual.
+    // NUNCA usar row.label como filtro técnico.
+    let rowFilters: DrillContexto = {};
     const fromBackend = row?.filtros_drill as Partial<DrillContexto> | undefined;
     if (fromBackend && typeof fromBackend === 'object') {
-      Object.entries(fromBackend).forEach(([k, v]) => {
-        if (v != null && String(v).length > 0) (rowFilters as any)[k] = String(v);
-      });
+      rowFilters = compactDrillContext(fromBackend as DrillContexto);
     } else if (cur) {
       const fromKey = ROW_TO_CTX_KEY[cur.drill_type];
-      if (fromKey && row[fromKey] != null) {
-        (rowFilters as any)[fromKey] = String(row[fromKey]);
+      if (fromKey) {
+        const v = cleanDrillValue(row[fromKey]);
+        if (v != null) (rowFilters as any)[fromKey] = v;
       }
     }
     stack.pushDrill(next, rowFilters);
@@ -196,8 +196,8 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       { label: 'Período', value: `${anomes_ini} → ${anomes_fim}` },
     ];
     (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
-      const v = ctx[k];
-      if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: String(v), removeKey: k });
+      const v = cleanDrillValue(ctx[k]);
+      if (v) out.push({ label: CTX_LABELS[k] ?? String(k), value: v, removeKey: k });
     });
     return out;
   }, [cur?.contexto, anomes_ini, anomes_fim, unidade_negocio]);

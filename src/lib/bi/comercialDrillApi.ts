@@ -61,8 +61,13 @@ export interface DrillDiagnostico {
   qtd_linhas_apos_nf?: number;
   qtd_linhas_apos_categoria?: number;
   qtd_linhas_apos_obra?: number;
+  qtd_linhas_apos_tns?: number;
+  qtd_linhas_apos_tp_movimento?: number;
+  qtd_linhas_apos_derivacao?: number;
   filtro_que_zerou?: string;
   filtros_aplicados?: Record<string, any>;
+  /** Payload contexto efetivamente enviado ao backend (preenchido no client). */
+  payload_enviado?: Record<string, any>;
 }
 
 export interface DrillRow extends Record<string, any> {
@@ -91,12 +96,13 @@ function cleanContexto(ctx: DrillContexto): DrillContexto {
 }
 
 export async function fetchComercialDrill(req: DrillRequest): Promise<DrillResponse> {
+  const contextoLimpo = cleanContexto(req.contexto || {});
   const body = {
     drill_type: req.drill_type,
     anomes_ini: req.anomes_ini,
     anomes_fim: req.anomes_fim,
     unidade_negocio: req.unidade_negocio,
-    contexto: cleanContexto(req.contexto || {}),
+    contexto: contextoLimpo,
     page: req.page ?? 1,
     page_size: req.page_size ?? 100,
   };
@@ -107,6 +113,18 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
       ? (data as any).bi_comercial_drill
       : data;
   const r = (unwrapped ?? {}) as Partial<DrillResponse>;
+  const diagBackend = ((r as any).diagnostico ?? {}) as DrillDiagnostico;
+  // Anexa o payload efetivamente enviado ao diagnóstico para a UI exibir.
+  const diagnostico: DrillDiagnostico = {
+    ...diagBackend,
+    payload_enviado: {
+      drill_type: body.drill_type,
+      anomes_ini: body.anomes_ini,
+      anomes_fim: body.anomes_fim,
+      unidade_negocio: body.unidade_negocio,
+      contexto: contextoLimpo,
+    },
+  };
   return {
     titulo: r.titulo ?? '',
     drill_type: (r.drill_type ?? req.drill_type) as DrillType,
@@ -115,7 +133,7 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
     rows: Array.isArray(r.rows) ? r.rows : [],
     total: typeof r.total === 'number' ? r.total : (Array.isArray(r.rows) ? r.rows.length : 0),
     page: typeof r.page === 'number' ? r.page : (req.page ?? 1),
-    diagnostico: (r as any).diagnostico ?? undefined,
+    diagnostico,
     page_size: typeof r.page_size === 'number' ? r.page_size : (req.page_size ?? 100),
   };
 }

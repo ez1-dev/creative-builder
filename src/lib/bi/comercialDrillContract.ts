@@ -25,7 +25,9 @@ export const COMERCIAL_LABEL_FALLBACK_KEYS: string[] = [
 /** Valores sentinela inválidos para um filtro técnico de drill. */
 const INVALID_FILTER_VALUES = new Set<string>([
   'undefined', 'null', '(sem nome)', 'sem nome',
-  'todos', 'todas', 'consolidado',
+  'todos', 'todas', 'todo', 'all',
+  'consolidado',
+  '-', '—', 'n/a', 'na',
 ]);
 
 /**
