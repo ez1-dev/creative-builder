@@ -110,6 +110,8 @@ export function ConfigureBiWidgetDialog({
     setTitleColor(initial.titleColor ?? 'default');
     setTitleBold(Boolean(initial.titleBold));
     setValueColor(initial.valueColor ?? 'default');
+    setChartColor(initial.options?.color ?? DEFAULT_CHART_COLOR);
+    setVisual(mergeVisualConfig(initial.options?.visual));
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
