@@ -96,17 +96,20 @@ export function mergeCtx(
   nextDrill: DrillType,
   opts: { keepAll: boolean } = { keepAll: true },
 ): DrillContexto {
+  // Import dinâmico evita ciclo entre catalog -> contract.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { cleanDrillValue } = require('./comercialDrillContract') as typeof import('./comercialDrillContract');
   const allowed = new Set(ALLOWED_CTX_KEYS[nextDrill]);
   const out: DrillContexto = {};
   if (opts.keepAll) {
     (Object.keys(currentCtx) as (keyof DrillContexto)[]).forEach((k) => {
-      const v = currentCtx[k];
-      if (v != null && String(v).length > 0 && allowed.has(k)) (out as any)[k] = String(v);
+      const v = cleanDrillValue(currentCtx[k]);
+      if (v != null && allowed.has(k)) (out as any)[k] = v;
     });
   }
   (Object.keys(rowFilters || {}) as (keyof DrillContexto)[]).forEach((k) => {
-    const v = (rowFilters as any)[k];
-    if (v != null && String(v).length > 0 && allowed.has(k)) (out as any)[k] = String(v);
+    const v = cleanDrillValue((rowFilters as any)[k]);
+    if (v != null && allowed.has(k)) (out as any)[k] = v;
   });
   return out;
 }
