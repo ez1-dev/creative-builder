@@ -310,11 +310,17 @@ export default function ComercialPage() {
     return ctx;
   };
 
-  const openDrill = (drill_type: DrillType, contexto: DrillContexto = {}) => {
-    // Sempre mescla com os filtros atuais do dashboard, garantindo
-    // preservação do contexto acumulado (chaves novas sobrescrevem).
-    const merged: DrillContexto = { ...buildCtxFromFilters(), ...contexto };
-    drillStack.openWith({ drill_type, contexto: merged });
+  const openDrill = (
+    drill_type: DrillType,
+    contexto: DrillContexto = {},
+    opts: { resetDrillFilters?: boolean } = {},
+  ) => {
+    // Para drill de KPI/Card (resetDrillFilters=true) não reaproveita filtros
+    // técnicos residuais de outro drill aplicados ao dashboard — usa só os
+    // filtros globais (anomes_ini/fim/unidade já vão no payload via fetch).
+    const base = opts.resetDrillFilters ? {} : buildCtxFromFilters();
+    const merged: DrillContexto = { ...base, ...contexto };
+    drillStack.openWith({ drill_type, contexto: merged, resetCtx: opts.resetDrillFilters });
   };
 
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
@@ -325,8 +331,9 @@ export default function ComercialPage() {
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
       'NOTA_FISCAL';
-    openDrill(drillType, {});
+    openDrill(drillType, {}, { resetDrillFilters: true });
   };
+
 
 
   // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
