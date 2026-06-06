@@ -368,6 +368,9 @@ export function ConfigureBiWidgetDialog({
                   <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
                   <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
                 </div>
+                {supportsChartColor && (
+                  <ChartColorPicker value={chartColor} onChange={setChartColor} />
+                )}
                 {titleAppearanceSection}
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">
