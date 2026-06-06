@@ -56,6 +56,11 @@ export interface DrillDiagnostico {
   qtd_linhas_apos_uf?: number;
   qtd_linhas_apos_revenda?: number;
   qtd_linhas_apos_produto?: number;
+  qtd_linhas_apos_origem?: number;
+  qtd_linhas_apos_nf?: number;
+  qtd_linhas_apos_categoria?: number;
+  qtd_linhas_apos_obra?: number;
+  filtro_que_zerou?: string;
   filtros_aplicados?: Record<string, any>;
 }
 
