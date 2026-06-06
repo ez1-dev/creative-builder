@@ -83,14 +83,11 @@ export interface DrillResponse {
   page_size: number;
 }
 
-/** Remove campos nulos/vazios do contexto antes de enviar à FastAPI. */
+import { compactDrillContext } from './comercialDrillContract';
+
+/** Remove campos nulos/vazios/sentinela do contexto antes de enviar à FastAPI. */
 function cleanContexto(ctx: DrillContexto): DrillContexto {
-  const out: DrillContexto = {};
-  (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
-    const v = ctx[k];
-    if (v != null && String(v).length > 0) (out as any)[k] = String(v);
-  });
-  return out;
+  return compactDrillContext(ctx);
 }
 
 export async function fetchComercialDrill(req: DrillRequest): Promise<DrillResponse> {
