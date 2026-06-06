@@ -6,7 +6,7 @@
  *    OU substituir por um componente da Biblioteca BI compatível.
  *  - widget custom (custom-*): sempre Biblioteca BI.
  */
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
