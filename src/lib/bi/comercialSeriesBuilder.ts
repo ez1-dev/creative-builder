@@ -177,10 +177,10 @@ const METRIC_COLUMN_CANDIDATES: Record<ComercialMetric, string[]> = {
 const LABEL_CANDIDATES: Record<string, string[]> = {
   ESTADO: ESTADO_LABEL_KEYS,
   REVENDA: REVENDA_LABEL_KEYS,
-  CLIENTE: ['cliente_label', 'nm_cliente', 'nm_fantasia', 'cliente', 'cd_cliente'],
-  PRODUTO: ['produto_label', 'ds_produto', 'descricao_produto', 'produto', 'cd_produto'],
-  NOTA_FISCAL: ['nota_label', 'cd_nf', 'numero_nf', 'nr_nf', 'nf'],
-  DETALHES_IMPOSTOS: ['imposto', 'tipo_imposto', 'descricao_imposto', 'nm_imposto', 'label'],
+  CLIENTE: ['display_label', 'label', 'cliente_label', 'nm_cliente', 'nm_fantasia', 'cliente', 'cd_cliente'],
+  PRODUTO: ['display_label', 'label', 'produto_label', 'ds_produto', 'descricao_produto', 'produto', 'cd_produto'],
+  NOTA_FISCAL: ['display_label', 'label', 'nf_label', 'nota_label', 'cd_nf', 'numero_nf', 'nr_nf', 'nf'],
+  DETALHES_IMPOSTOS: ['display_label', 'label', 'imposto', 'tipo_imposto', 'descricao_imposto', 'nm_imposto'],
 };
 
 function pickFirst(row: Record<string, any>, keys: string[]): any {
