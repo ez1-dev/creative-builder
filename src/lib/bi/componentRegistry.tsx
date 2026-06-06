@@ -134,7 +134,7 @@ function makeClickHandler(
   };
 }
 
-const SERIES_LIKE = (s: any): { label: string; valor: number }[] => {
+const SERIES_LIKE = (s: any): { label: string; valor: number; [k: string]: any }[] => {
   if (!Array.isArray(s)) return [];
   return s
     .map((p) => {
@@ -149,7 +149,8 @@ const SERIES_LIKE = (s: any): { label: string; valor: number }[] => {
           void k;
         }
       }
-      return { label: String(label ?? ''), valor: Number(valor ?? 0) };
+      // Preserva campos originais (cd_*, filtros_drill, etc.) para drill global.
+      return { ...p, label: String(label ?? ''), valor: Number(valor ?? 0) };
     })
     .filter((p) => {
       const t = p.label.trim().toLowerCase();
