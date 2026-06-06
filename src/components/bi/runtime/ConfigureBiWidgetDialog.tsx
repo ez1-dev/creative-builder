@@ -396,6 +396,19 @@ export function ConfigureBiWidgetDialog({
           )}
         </Tabs>
 
+        <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-md border p-3 space-y-2">
+          <div className="text-[11px] text-muted-foreground">
+            Aparência e leitura do gráfico — estas opções têm efeito nos componentes da Biblioteca BI.
+          </div>
+          <VisualConfigEditor
+            value={visual}
+            onChange={setVisual}
+            availableSeriesKeys={['valor']}
+          />
+        </div>
+
+
+
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
           <div>
             {onResetToDefault && !isCustom && (
