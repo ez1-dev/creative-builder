@@ -201,10 +201,12 @@ export function buildSerieFromDrill(
   return resp.rows
     .map((r) => {
       const valorRaw = pickFirst(r, metricKeys);
+      // Preserva filtros_drill + campos técnicos para o contrato de drill global.
       return {
+        ...r,
         label: pickLabel(r, labelKeys),
         valor: n(valorRaw),
-      };
+      } as SeriePoint;
     })
     .sort((a, b) => b.valor - a.valor);
 }
