@@ -20,6 +20,12 @@ const INITIAL: InternalState = { open: false, levels: [], selectorOpen: false };
 export interface OpenInitial {
   drill_type: DrillType;
   contexto?: DrillContexto;
+  /**
+   * Se true, ignora qualquer estado anterior do stack e abre apenas com o
+   * contexto recebido. Usado por cliques em KPI/Card para não reaproveitar
+   * filtros residuais de um drill anterior.
+   */
+  resetCtx?: boolean;
 }
 
 export interface PushOpts {
