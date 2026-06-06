@@ -24,6 +24,11 @@ import type { ComercialWidgetDef } from '@/lib/bi/comercialWidgetCatalog';
 import type { MetricRef, CustomMetric } from '@/lib/bi/comercialMetrics';
 import { SeriesEditor } from './SeriesEditor';
 import { TITLE_COLOR_PRESETS, type WidgetTitleColorPreset } from './WidgetTitleStyle';
+import { ChartColorPicker, DEFAULT_CHART_COLOR } from '@/components/passagens/ChartColorPicker';
+import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
+import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
+
+const COLOR_AWARE_LIB_IDS = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
 
 export interface ConfigureValue {
   variant?: string | null;

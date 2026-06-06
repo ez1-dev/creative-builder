@@ -1,55 +1,47 @@
-## Diagnóstico
+## Objetivo
 
-Nos cards "Top estados" e "Ranking de revendas" os valores aparecem corretamente, mas os rótulos vêm vazios ("-" ou em branco). A causa está nos builders de série usados pelas novas chaves dinâmicas do BI Comercial:
+Trazer para o **configurador do BI Comercial** (`ConfigureBiWidgetDialog`) as mesmas opções visuais avançadas que já existem no configurador da Manutenção de Frota / Passagens / Máquinas (`ConfigureChartDialog`), **sem perder** o que o BI Comercial já tem (variantes do catálogo, Biblioteca BI, multi-séries, cores de título/resultado).
 
-- `buildEstadoSerie` lê só `r.cd_estado`.
-- `buildRevendaSerie` lê só `r.revenda`.
-- `buildObrasSerie` lê só `r.projeto || r.cd_prj`.
-- `buildSerieFromDrill` (para CLIENTE/PRODUTO/NF/IMPOSTOS) tem uma lista enxuta de aliases de label.
+Resultado: ao clicar em "Configurar bloco" em qualquer card do BI Comercial, o usuário enxerga as mesmas abas de aparência (Título, Legenda, Rótulos, Descrição, Eixos & Grade, Card) e a paleta de cor da série (Padrão / Sucesso / Aviso / Destaque / Acento / Suave + hex livre) que já aparecem no print enviado.
 
-Quando o backend responde com outro alias (ex.: `n`, `uf`, `sg_uf`, `nm_estado`, `nm_revenda`, `cd_rev_pedido`, `nm_fantasia`, `cliente`, `revenda_label`, etc. — que já aparecem em vários pontos do código, como `comercialFilters.ts` e `comercialDrillCatalog.ts`) o `label` cai para `'-'` e o ranking fica sem nomes.
+## Escopo
 
-Além disso, o `SERIES_LIKE` em `componentRegistry.tsx` filtra `label !== ''`, mas aceita `'-'` como label válido, o que torna o vazio "silencioso" no UI.
+**Somente frontend / camada de apresentação.** Nada de backend, schema, RLS, edge functions ou alteração nos dados/séries.
 
-A correção é puramente de frontend (camada de mapeamento de dados → série); não envolve backend, KPIs, drill drawer nem novos endpoints.
+### Arquivos a alterar
 
-## Mudanças propostas
+1. `src/components/bi/runtime/ConfigureBiWidgetDialog.tsx`
+   - Adicionar dois estados novos: `color` (string, default `DEFAULT_CHART_COLOR`) e `visual` (`VisualConfig`, via `mergeVisualConfig(initial.options?.visual)`).
+   - Importar `ChartColorPicker` (`@/components/passagens/ChartColorPicker`) e `VisualConfigEditor` (`@/components/bi/visual/VisualConfigEditor`), além de `DEFAULT_VISUAL_CONFIG / mergeVisualConfig / VisualConfig` de `@/lib/bi/visualConfig`.
+   - Resetar esses estados quando o diálogo abre (mesmo padrão do `useEffect` existente).
+   - **Aba "Biblioteca BI"**: na coluna esquerda, abaixo do título, mostrar o `ChartColorPicker` quando `libDef.id` estiver em `COLOR_AWARE_TYPES` (`bar-chart`, `horizontal-bar-chart`, `line-chart`, `area-chart`). Empacotar `options.color` no `previewNode` e no `handleApply` (modo `library`).
+   - **Bloco "Aparência e leitura do gráfico"**: renderizar abaixo das abas (visível tanto em "Variante padrão" quanto em "Biblioteca BI") um container colapsado com scroll contendo `<VisualConfigEditor value={visual} onChange={setVisual} availableSeriesKeys={['valor']} />`. Mesma altura/estilo do `ConfigureChartDialog` (`max-h-[50vh] overflow-y-auto rounded-md border p-3`).
+   - **Persistência**: ao aplicar, montar `options` incluindo `color` (se diferente do padrão e o componente suportar) e `visual` (se diferente de `DEFAULT_VISUAL_CONFIG`). Em modo `builtin`, manter `componentId: null` mas passar `options` quando o widget canônico aceitar (mesmo merge que hoje — quando `null` é descartado pelo backend de layout, o `visual`/`color` viaja no `options` que já é persistido em `config.options` no `dashboard_widgets`).
+   - Aumentar `DialogContent` para `max-w-5xl max-h-[90vh] overflow-y-auto` (igual ao de Passagens) para caber o editor.
 
-### 1. `src/lib/bi/comercialSeriesBuilder.ts`
+2. `src/components/passagens/ChartColorPicker.tsx`
+   - Sem alteração. Apenas reutilizar.
 
-Introduzir um helper `pickLabel(row, candidates)` que tenta múltiplos campos e cai para um placeholder consistente. Ampliar a busca de label nos builders existentes:
+3. `src/components/bi/visual/VisualConfigEditor.tsx`
+   - Sem alteração. Apenas reutilizar.
 
-- **Estado** → tentar nesta ordem: `nm_estado`, `estado`, `sg_uf`, `uf`, `n`, `cd_estado`.
-- **Revenda** → `nm_revenda`, `revenda_label`, `revenda`, `nm_fantasia`, `cd_rev_pedido`.
-- **Obras** → `projeto`, `ds_abr_prj`, `nm_projeto`, `cd_prj`.
+### O que NÃO muda
 
-Estender `LABEL_CANDIDATES` (drill):
+- Abas existentes (Variante padrão / Biblioteca BI / Séries) e a edição multi-séries permanecem.
+- Edição de cor de título/resultado (`titleAppearanceSection`) permanece — fica em paralelo ao novo painel "Aparência e leitura do gráfico" (são coisas diferentes: uma estiliza o cabeçalho do card, outra estiliza o conteúdo do gráfico).
+- Catálogo de widgets, hooks de dados, drill, RPC, edge functions, FastAPI: nada disso é tocado.
+- Configurador de Frota/Passagens/Máquinas: continua exatamente como está.
 
-- `CLIENTE`: `cliente_label`, `nm_cliente`, `nm_fantasia`, `cliente`, `cd_cliente`.
-- `PRODUTO`: `produto_label`, `ds_produto`, `descricao_produto`, `produto`, `cd_produto`.
-- `NOTA_FISCAL`: `nota_label`, `cd_nf`, `numero_nf`, `nr_nf`, `nf`.
-- `DETALHES_IMPOSTOS`: `imposto`, `tipo_imposto`, `descricao_imposto`, `nm_imposto`, `label`.
-- Adicionar fallback para `ESTADO`/`REVENDA`/`PRODUTO` caso o backend reuse o mesmo formato.
+## Compatibilidade
 
-Trocar fallback `'-'` por `'(sem nome)'` para deixar visível quando o backend realmente não trouxer rótulo (evita confundir com bug).
+- Widgets já configurados sem `options.visual` continuam renderizando idênticos: `mergeVisualConfig(undefined)` retorna o padrão e o JSON do `options` permanece sem a chave `visual`.
+- Cards canônicos do BI Comercial que não passam por `COMPONENT_REGISTRY.render` ignoram `options.visual` naturalmente (as variantes built-in têm seu próprio render); a aparência avançada só passa a valer quando o card está em modo "Biblioteca BI". O `ChartColorPicker` também só se aplica a componentes da biblioteca compatíveis.
+- Onde o usuário usar uma variante built-in que não consome `options.visual`, o painel fica visível e gravado, mas sem efeito visual até o card ser trocado para Biblioteca BI. Vou indicar isso com um pequeno texto auxiliar no topo do painel: "Estas opções têm efeito nos componentes da Biblioteca BI."
 
-### 2. `src/lib/bi/componentRegistry.tsx` — `SERIES_LIKE`
+## Aceitação
 
-Tratar `'-'`, `'null'`, `'undefined'`, `''` (com trim) como rótulos inválidos e descartar a linha — assim, se a série vier 100% sem nomes, o card mostra estado vazio em vez de uma lista de traços. Mantém retrocompatível com séries que têm rótulos válidos.
-
-### 3. `src/pages/bi/ComercialPage.tsx` (mínimo)
-
-Os mapeamentos legados `estadosSerie` / `mapaData` / `revendaRank` / `obrasRank` (linhas ~266‑269) também usam o mesmo campo único. Trocar por chamadas ao novo helper `pickLabel` exportado do builder para o legado se beneficiar da mesma melhoria. Sem mudança de comportamento quando o backend já entrega `cd_estado`/`revenda`.
-
-## Fora de escopo
-
-- Não alterar backend FastAPI nem endpoints.
-- Não mexer em filtros, drill drawer, KPIs nem catálogo de chaves de série.
-- Não tocar em `src/integrations/supabase/*` nem `.env`.
-
-## Critérios de aceite
-
-- "Top estados" mostra a UF/nome do estado em cada linha (qualquer um dos aliases acima já basta).
-- "Ranking de revendas" mostra o nome/código da revenda.
-- Se o backend não trouxer rótulo algum para uma linha, o card mostra estado vazio em vez de uma lista de `-`.
-- Demais séries (cliente, produto, NF, detalhe de impostos) também passam a exibir nomes quando o backend usa qualquer um dos aliases comuns.
+1. Em `/bi/comercial`, ao "Configurar bloco" de qualquer gráfico, o diálogo mostra as abas atuais **+** o painel "Aparência e leitura do gráfico" idêntico ao do print de Frota (Título, Legenda, Rótulos, Descrição, Eixos & Grade, Card).
+2. Na aba "Biblioteca BI", quando o componente selecionado é bar/horizontal-bar/line/area, aparece o `ChartColorPicker` (Padrão/Sucesso/Aviso/Destaque/Acento/Suave + hex).
+3. As opções escolhidas são aplicadas no preview do diálogo e persistem após Aplicar + recarregar a página.
+4. Widgets existentes continuam renderizando como antes (nenhum efeito até o usuário alterar algo).
+5. Configurador de Frota/Passagens/Máquinas continua igual.
