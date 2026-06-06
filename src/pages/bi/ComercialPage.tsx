@@ -585,7 +585,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
       return (
-        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <KpiTriStackCard
             title={title}
             items={[
@@ -602,7 +602,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
       return (
-        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <GaugeAchievementCard title={title} value={n(kpis.pct_atingimento)} />
         </Clickable>
       );
