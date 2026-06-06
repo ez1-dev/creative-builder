@@ -310,11 +310,17 @@ export default function ComercialPage() {
     return ctx;
   };
 
-  const openDrill = (drill_type: DrillType, contexto: DrillContexto = {}) => {
-    // Sempre mescla com os filtros atuais do dashboard, garantindo
-    // preservação do contexto acumulado (chaves novas sobrescrevem).
-    const merged: DrillContexto = { ...buildCtxFromFilters(), ...contexto };
-    drillStack.openWith({ drill_type, contexto: merged });
+  const openDrill = (
+    drill_type: DrillType,
+    contexto: DrillContexto = {},
+    opts: { resetDrillFilters?: boolean } = {},
+  ) => {
+    // Para drill de KPI/Card (resetDrillFilters=true) não reaproveita filtros
+    // técnicos residuais de outro drill aplicados ao dashboard — usa só os
+    // filtros globais (anomes_ini/fim/unidade já vão no payload via fetch).
+    const base = opts.resetDrillFilters ? {} : buildCtxFromFilters();
+    const merged: DrillContexto = { ...base, ...contexto };
+    drillStack.openWith({ drill_type, contexto: merged, resetCtx: opts.resetDrillFilters });
   };
 
   // Compatibilidade com handlers antigos que mapeavam KPI -> escopo de notas
@@ -325,8 +331,9 @@ export default function ComercialPage() {
       escopo === 'clientes' ? 'CLIENTE' :
       escopo === 'vendas' ? 'NOTA_FISCAL' :
       'NOTA_FISCAL';
-    openDrill(drillType, {});
+    openDrill(drillType, {}, { resetDrillFilters: true });
   };
+
 
 
   // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
@@ -454,7 +461,7 @@ export default function ComercialPage() {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
     return (
-      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra)}>
+      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra, { resetDrillFilters: true })}>
         {inner}
       </Clickable>
     );
@@ -578,7 +585,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
       return (
-        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <KpiTriStackCard
             title={title}
             items={[
@@ -595,7 +602,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
       return (
-        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <GaugeAchievementCard title={title} value={n(kpis.pct_atingimento)} />
         </Clickable>
       );

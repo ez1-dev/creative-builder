@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { compactDrillContext } from './comercialDrillContract';
 
 export type DrillType =
   | 'ACUMULADO'
@@ -56,6 +57,11 @@ export interface DrillDiagnostico {
   qtd_linhas_apos_uf?: number;
   qtd_linhas_apos_revenda?: number;
   qtd_linhas_apos_produto?: number;
+  qtd_linhas_apos_origem?: number;
+  qtd_linhas_apos_nf?: number;
+  qtd_linhas_apos_categoria?: number;
+  qtd_linhas_apos_obra?: number;
+  filtro_que_zerou?: string;
   filtros_aplicados?: Record<string, any>;
 }
 
@@ -78,14 +84,10 @@ export interface DrillResponse {
   page_size: number;
 }
 
-/** Remove campos nulos/vazios do contexto antes de enviar à FastAPI. */
+
+/** Remove campos nulos/vazios/sentinela do contexto antes de enviar à FastAPI. */
 function cleanContexto(ctx: DrillContexto): DrillContexto {
-  const out: DrillContexto = {};
-  (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
-    const v = ctx[k];
-    if (v != null && String(v).length > 0) (out as any)[k] = String(v);
-  });
-  return out;
+  return compactDrillContext(ctx);
 }
 
 export async function fetchComercialDrill(req: DrillRequest): Promise<DrillResponse> {
