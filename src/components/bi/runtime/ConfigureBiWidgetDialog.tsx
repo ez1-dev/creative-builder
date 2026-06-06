@@ -6,7 +6,7 @@
  *    OU substituir por um componente da Biblioteca BI compatível.
  *  - widget custom (custom-*): sempre Biblioteca BI.
  */
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
@@ -24,6 +24,11 @@ import type { ComercialWidgetDef } from '@/lib/bi/comercialWidgetCatalog';
 import type { MetricRef, CustomMetric } from '@/lib/bi/comercialMetrics';
 import { SeriesEditor } from './SeriesEditor';
 import { TITLE_COLOR_PRESETS, type WidgetTitleColorPreset } from './WidgetTitleStyle';
+import { ChartColorPicker, DEFAULT_CHART_COLOR } from '@/components/passagens/ChartColorPicker';
+import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
+import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
+
+const COLOR_AWARE_LIB_IDS = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
 
 export interface ConfigureValue {
   variant?: string | null;
@@ -84,6 +89,8 @@ export function ConfigureBiWidgetDialog({
   const [titleColor, setTitleColor] = useState<string>(initial.titleColor ?? 'default');
   const [titleBold, setTitleBold] = useState<boolean>(Boolean(initial.titleBold));
   const [valueColor, setValueColor] = useState<string>(initial.valueColor ?? 'default');
+  const [chartColor, setChartColor] = useState<string>(initial.options?.color ?? DEFAULT_CHART_COLOR);
+  const [visual, setVisual] = useState<VisualConfig>(mergeVisualConfig(initial.options?.visual));
 
 
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
@@ -103,6 +110,8 @@ export function ConfigureBiWidgetDialog({
     setTitleColor(initial.titleColor ?? 'default');
     setTitleBold(Boolean(initial.titleBold));
     setValueColor(initial.valueColor ?? 'default');
+    setChartColor(initial.options?.color ?? DEFAULT_CHART_COLOR);
+    setVisual(mergeVisualConfig(initial.options?.visual));
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -111,6 +120,15 @@ export function ConfigureBiWidgetDialog({
   const seriesOptions = page?.schema.series ?? [];
   const kpiOptions = page?.schema.kpis ?? [];
   const inputs = libDef?.inputs ?? [];
+
+  const supportsChartColor = !!libDef && COLOR_AWARE_LIB_IDS.has(libDef.id);
+
+  const buildLibraryOptions = useCallback(() => {
+    const opts: Record<string, any> = {};
+    if (supportsChartColor && chartColor && chartColor !== DEFAULT_CHART_COLOR) opts.color = chartColor;
+    if (JSON.stringify(visual) !== JSON.stringify(DEFAULT_VISUAL_CONFIG)) opts.visual = visual;
+    return opts;
+  }, [supportsChartColor, chartColor, visual]);
 
   const previewNode = useMemo(() => {
     if (mode !== 'library' || !libDef) return null;
@@ -125,12 +143,12 @@ export function ConfigureBiWidgetDialog({
         title: customTitle || libDef.label,
         mapping,
         ctx: { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] },
-        options: {},
+        options: buildLibraryOptions(),
       });
     } catch (e) {
       return <div className="text-xs text-destructive">Erro: {(e as Error).message}</div>;
     }
-  }, [mode, libDef, inputs, seriesKey, valueKey, customTitle, kpis, series, rows, seriesOptions, kpiOptions]);
+  }, [mode, libDef, inputs, seriesKey, valueKey, customTitle, kpis, series, rows, seriesOptions, kpiOptions, buildLibraryOptions]);
 
   const handleApply = () => {
     const titleStyle = {
@@ -139,12 +157,14 @@ export function ConfigureBiWidgetDialog({
       valueColor: valueColor && valueColor !== 'default' ? valueColor : null,
     };
 
+    const visualOptions = buildLibraryOptions();
+
     if (mode === 'builtin') {
       onApply({
         variant,
         componentId: null,
         mapping: null,
-        options: null,
+        options: Object.keys(visualOptions).length > 0 ? visualOptions : null,
         customTitle: customTitle.trim() || null,
         series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
         ...titleStyle,
@@ -160,6 +180,7 @@ export function ConfigureBiWidgetDialog({
         variant: null,
         componentId,
         mapping,
+        options: Object.keys(visualOptions).length > 0 ? visualOptions : null,
         customTitle: customTitle.trim() || null,
         series: supportsSeries ? (seriesList.length ? seriesList : null) : undefined,
         ...titleStyle,
@@ -259,7 +280,7 @@ export function ConfigureBiWidgetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Configurar bloco</DialogTitle>
           <DialogDescription>
@@ -347,6 +368,9 @@ export function ConfigureBiWidgetDialog({
                   <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
                   <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
                 </div>
+                {supportsChartColor && (
+                  <ChartColorPicker value={chartColor} onChange={setChartColor} />
+                )}
                 {titleAppearanceSection}
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">
@@ -371,6 +395,19 @@ export function ConfigureBiWidgetDialog({
             </TabsContent>
           )}
         </Tabs>
+
+        <div className="mt-4 max-h-[50vh] overflow-y-auto rounded-md border p-3 space-y-2">
+          <div className="text-[11px] text-muted-foreground">
+            Aparência e leitura do gráfico — estas opções têm efeito nos componentes da Biblioteca BI.
+          </div>
+          <VisualConfigEditor
+            value={visual}
+            onChange={setVisual}
+            availableSeriesKeys={['valor']}
+          />
+        </div>
+
+
 
         <DialogFooter className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
           <div>
