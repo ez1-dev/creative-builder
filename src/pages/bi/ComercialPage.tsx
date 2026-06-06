@@ -550,10 +550,17 @@ export default function ComercialPage() {
     const def = getComponent(w.componentId);
     if (!def) return <ErrorState title={`Componente "${w.componentId}" não encontrado`} />;
     try {
+      // Drill-type pode vir configurado em options.drillType; senão deduz pela seriesKey.
+      const optsDrillType: DrillType | undefined = (w.options as any)?.drillType;
+      const onItemClick = (seriesKey: string, datum: any) => {
+        const dt = optsDrillType ?? drillTypeFromSeriesKey(seriesKey);
+        const ctx = extractDrillCtx(datum, dt);
+        if (Object.keys(ctx).length > 0) openDrill(dt, ctx);
+      };
       return def.render({
         title: w.customTitle || w.title || def.label,
         mapping: w.mapping ?? {},
-        ctx: { kpis: kpis ?? {}, series: pageSeries ?? {}, rows: Array.isArray(mensal) ? (mensal as any[]) : [] },
+        ctx: { kpis: kpis ?? {}, series: pageSeries ?? {}, rows: Array.isArray(mensal) ? (mensal as any[]) : [], onItemClick },
         options: w.options ?? {},
       });
     } catch (e) {
