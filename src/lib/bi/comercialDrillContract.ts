@@ -22,6 +22,58 @@ export const COMERCIAL_LABEL_FALLBACK_KEYS: string[] = [
   'cd_rev_pedido', 'cd_cliente', 'cd_produto', 'cd_estado', 'cd_nf', 'cd_prj', 'cd_derivacao',
 ];
 
+/** Valores sentinela inválidos para um filtro técnico de drill. */
+const INVALID_FILTER_VALUES = new Set<string>([
+  'undefined', 'null', '(sem nome)', 'sem nome',
+  'todos', 'todas', 'consolidado',
+]);
+
+/**
+ * Normaliza um valor de filtro de drill. Devolve null quando o valor é
+ * `undefined`, `null`, vazio, ou um sentinela visual (ex.: "(sem nome)",
+ * "TODOS", "CONSOLIDADO"). Caso contrário, devolve a string trim().
+ */
+export function cleanDrillValue(value: any): string | null {
+  if (value === undefined || value === null) return null;
+  const v = String(value).trim();
+  if (!v) return null;
+  if (INVALID_FILTER_VALUES.has(v.toLowerCase())) return null;
+  return v;
+}
+
+/** Lista das chaves técnicas conhecidas de um DrillContexto. */
+export const ALL_DRILL_CTX_KEYS: (keyof DrillContexto)[] = [
+  'anomes_emissao', 'cd_estado', 'cd_cliente', 'cd_prj', 'cd_rev_pedido',
+  'cd_origem', 'cd_tp_movimento', 'cd_tns', 'cd_nf', 'cd_produto',
+  'cd_derivacao', 'categoria_custom',
+];
+
+/**
+ * Aplica `cleanDrillValue` a todas as chaves conhecidas de um DrillContexto.
+ * Chaves cujo valor virar null são incluídas como null no objeto resultante.
+ * Use `compactDrillContext` para remover os nulls antes de enviar à API.
+ */
+export function cleanDrillContext(contexto: Partial<DrillContexto> | null | undefined): Record<keyof DrillContexto, string | null> {
+  const out = {} as Record<keyof DrillContexto, string | null>;
+  ALL_DRILL_CTX_KEYS.forEach((k) => {
+    out[k] = cleanDrillValue((contexto as any)?.[k]);
+  });
+  return out;
+}
+
+/**
+ * Versão "compacta": só inclui chaves cujo valor sobreviveu à limpeza.
+ * Use ao montar payloads ou contexto para o stack de drill.
+ */
+export function compactDrillContext(contexto: Partial<DrillContexto> | null | undefined): DrillContexto {
+  const out: DrillContexto = {};
+  ALL_DRILL_CTX_KEYS.forEach((k) => {
+    const v = cleanDrillValue((contexto as any)?.[k]);
+    if (v != null) (out as any)[k] = v;
+  });
+  return out;
+}
+
 const isBadLabel = (s: any): boolean => {
   if (s == null) return true;
   const t = String(s).trim().toLowerCase();
