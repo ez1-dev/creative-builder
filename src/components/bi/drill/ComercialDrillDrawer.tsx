@@ -32,13 +32,34 @@ interface Props {
   unidade_negocio: 'GENIUS' | 'ESTRUTURAL ZORTEA' | 'CONSOLIDADO';
 }
 
-function fmtCell(v: any, format?: DrillColumn['format']) {
+const CURRENCY_KEYS = new Set([
+  'faturamento', 'fat_liquido', 'faturamento_liquido', 'valor_liquido',
+  'impostos', 'imposto', 'valor_imposto',
+  'devolucao', 'valor_devolucao',
+  'ticket_medio', 'preco_medio', 'meta', 'diferenca',
+  'valor', 'valor_total', 'valor_nf', 'vl_nf', 'vl_total',
+  'icms', 'pis', 'cofins', 'ipi', 'iss', 'st', 'difal', 'fcp',
+]);
+const NUMBER_KEYS = new Set([
+  'quantidade', 'qtd', 'qt', 'numero_vendas', 'numero_clientes', 'numero_estados', 'pct_atingimento',
+]);
+
+function inferFormat(key: string, format?: DrillColumn['format']): DrillColumn['format'] | undefined {
+  if (format) return format;
+  const k = (key || '').toLowerCase();
+  if (CURRENCY_KEYS.has(k)) return 'currency';
+  if (NUMBER_KEYS.has(k)) return 'number';
+  return undefined;
+}
+
+function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (v == null || v === '') return '-';
-  if (format === 'currency') {
+  const f = inferFormat(key ?? '', format);
+  if (f === 'currency') {
     const num = Number(v);
     return Number.isFinite(num) ? formatCurrency(num) : String(v);
   }
-  if (format === 'number') {
+  if (f === 'number') {
     const num = Number(v);
     return Number.isFinite(num) ? formatNumber(num) : String(v);
   }
