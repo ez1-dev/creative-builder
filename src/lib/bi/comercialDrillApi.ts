@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { compactDrillContext } from './comercialDrillContract';
 
 export type DrillType =
   | 'ACUMULADO'
