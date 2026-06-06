@@ -461,7 +461,7 @@ export default function ComercialPage() {
       inner = <KpiCard title={title} value={value} format={format} />;
     }
     return (
-      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra)}>
+      <Clickable title={tooltip} onClick={() => openDrill(drillType, ctxExtra, { resetDrillFilters: true })}>
         {inner}
       </Clickable>
     );
