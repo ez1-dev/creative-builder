@@ -588,7 +588,7 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
       return (
-        <Clickable onClick={() => openDetalhes('todas', title)}>
+        <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {})}>
           <GaugeAchievementCard title={title} value={n(kpis.pct_atingimento)} />
         </Clickable>
       );
