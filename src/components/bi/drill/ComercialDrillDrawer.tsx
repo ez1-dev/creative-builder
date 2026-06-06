@@ -22,6 +22,7 @@ import {
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
+import { cleanDrillValue, compactDrillContext } from '@/lib/bi/comercialDrillContract';
 import type { ComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { DrillEmptyDiagnostico } from './DrillEmptyDiagnostico';
 
