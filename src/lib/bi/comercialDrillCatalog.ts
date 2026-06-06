@@ -1,4 +1,5 @@
 import type { DrillType, DrillContexto } from './comercialDrillApi';
+import { cleanDrillValue } from './comercialDrillContract';
 
 export const DRILL_LABELS: Record<DrillType, string> = {
   ACUMULADO: 'Acumulado',
