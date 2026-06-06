@@ -68,6 +68,7 @@ import {
 } from '@/lib/bi/comercialSeriesBuilder';
 import {
   pickComercialLabel, extractDrillCtx, KPI_DRILL_MAP, drillTypeFromSeriesKey,
+  cleanDrillValue, compactDrillContext,
 } from '@/lib/bi/comercialDrillContract';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
 import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
@@ -304,8 +305,8 @@ export default function ComercialPage() {
       'cd_derivacao','cd_nf','cd_origem','cd_tns','cd_tp_movimento','cd_prj','categoria_custom',
     ];
     keys.forEach((k) => {
-      const v = f?.[k];
-      if (v != null && String(v).length > 0) (ctx as any)[k] = String(v);
+      const v = cleanDrillValue(f?.[k]);
+      if (v != null) (ctx as any)[k] = v;
     });
     return ctx;
   };
@@ -316,10 +317,10 @@ export default function ComercialPage() {
     opts: { resetDrillFilters?: boolean } = {},
   ) => {
     // Para drill de KPI/Card (resetDrillFilters=true) não reaproveita filtros
-    // técnicos residuais de outro drill aplicados ao dashboard — usa só os
-    // filtros globais (anomes_ini/fim/unidade já vão no payload via fetch).
+    // técnicos residuais — usa só os filtros globais (anomes/un já vão fora do contexto).
     const base = opts.resetDrillFilters ? {} : buildCtxFromFilters();
-    const merged: DrillContexto = { ...base, ...contexto };
+    // row.filtros_drill (contexto) vence sobre base; tudo passa por sanitização.
+    const merged = compactDrillContext({ ...base, ...contexto });
     drillStack.openWith({ drill_type, contexto: merged, resetCtx: opts.resetDrillFilters });
   };
 
