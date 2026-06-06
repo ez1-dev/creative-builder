@@ -115,49 +115,37 @@ const TECH_KEYS_BY_TYPE: Partial<Record<DrillType, string[]>> = {
   NOTA_FISCAL: ['cd_nf', 'numero_nf', 'nr_nf'],
 };
 
-/** Remove chaves vazias/sentinela do contexto. */
-function cleanCtx(ctx: DrillContexto | null | undefined): DrillContexto {
-  const out: DrillContexto = {};
-  if (!ctx) return out;
-  (Object.keys(ctx) as (keyof DrillContexto)[]).forEach((k) => {
-    const v = (ctx as any)[k];
-    if (v != null && String(v).trim().length > 0 && String(v).trim() !== '(sem nome)') {
-      (out as any)[k] = String(v).trim();
-    }
-  });
-  return out;
-}
-
 /**
  * Extrai o contexto adicional a partir de uma linha clicada.
  *
  * Regra (em ordem):
- * 1. Se `row.filtros_drill` existir, usa-o (limpando vazios).
+ * 1. Se `row.filtros_drill` existir, usa-o (limpando vazios e sentinelas).
  * 2. Senão monta `{ [coluna técnica do drillType]: valor }` usando candidatos
- *    técnicos. Como último recurso usa `row.label` (mas nunca "(sem nome)").
+ *    técnicos. Como último recurso usa `row.label` (mas nunca um sentinela).
  */
 export function extractDrillCtx(row: Record<string, any> | null | undefined, drillType: DrillType): DrillContexto {
   if (!row) return {};
   if (row.filtros_drill && typeof row.filtros_drill === 'object') {
-    return cleanCtx(row.filtros_drill as DrillContexto);
+    return compactDrillContext(row.filtros_drill as DrillContexto);
   }
   const techKeys = TECH_KEYS_BY_TYPE[drillType] ?? [];
   for (const k of techKeys) {
-    const v = row[k];
-    if (v != null && String(v).trim().length > 0 && String(v).trim() !== '(sem nome)') {
+    const v = cleanDrillValue(row[k]);
+    if (v) {
       const targetKey = DRILL_KEY_FROM_TYPE[drillType];
       if (!targetKey) return {};
-      return { [targetKey]: String(v).trim() } as DrillContexto;
+      return { [targetKey]: v } as DrillContexto;
     }
   }
   // último recurso: label (texto visual). Só usa se não for sentinela.
-  const lbl = row.label;
+  const lbl = cleanDrillValue(row.label);
   const targetKey = DRILL_KEY_FROM_TYPE[drillType];
-  if (targetKey && lbl != null && String(lbl).trim().length > 0 && String(lbl).trim() !== '(sem nome)') {
-    return { [targetKey]: String(lbl).trim() } as DrillContexto;
+  if (targetKey && lbl) {
+    return { [targetKey]: lbl } as DrillContexto;
   }
   return {};
 }
+
 
 /** Mapeamento KPI (chave do objeto kpis) -> DrillType padrão. */
 export const KPI_DRILL_MAP: Record<string, DrillType> = {
