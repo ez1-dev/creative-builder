@@ -66,6 +66,9 @@ import {
   buildMensalSerie, buildAnualSerie, buildEstadoSerie, buildRevendaSerie,
   buildObrasSerie, buildMixSerie, buildSerieFromDrill, dimToDrillType, pickLabel,
 } from '@/lib/bi/comercialSeriesBuilder';
+import {
+  pickComercialLabel, extractDrillCtx, KPI_DRILL_MAP, drillTypeFromSeriesKey,
+} from '@/lib/bi/comercialDrillContract';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
 import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
 import {
