@@ -1,67 +1,39 @@
 ## Objetivo
 
-Corrigir o card "Ranking de revendas" (e todos os outros rankings/séries/donuts do BI Comercial) para exibir o label correto da dimensão — não mais o código cru `202601` nem `anomes_emissao`. A regra de prioridade já existe em `pickDimensionLabel` (`src/lib/bi/dimensionLabels.ts`); o problema é que `ComercialPage.tsx` ainda usa o adapter genérico antigo `pickComercialLabel`, que não amarra a linha à dimensão correta e cai em qualquer chave disponível.
+Backend agora devolve `categoria_label` (rótulo já pronto, agnóstico de dimensão) em todos os rankings/gráficos do BI Comercial, além dos campos específicos (`revenda_label`, `nm_revenda`, `estado_label`, `nm_estado`, `obra_label`, `ds_obra`, `produto_label`, `ds_produto`) e `serie_label` para legendas de séries temporais.
 
-## O que muda
+Frontend só precisa garantir: **render `row.categoria_label` com fallback para `row.label`** — sem precisar inferir dimensão. Os adapters existentes (`pickDimensionLabel`) continuam funcionando como camada secundária.
 
-Apenas frontend/apresentação. Nenhum endpoint, nenhuma migration, nenhuma alteração em `filtros_drill` (continua só com códigos crus).
+## Mudanças (apenas apresentação)
 
-### 1. `src/pages/bi/ComercialPage.tsx` — trocar `pickComercialLabel` por `pickDimensionLabel` com a dimensão certa em cada bloco
+### 1. `src/lib/bi/dimensionLabels.ts`
+Adicionar `'categoria_label'` no topo de `labelKeys` de **todas** as dimensões (cliente, revenda, estado, obra, produto). Assim, qualquer consumidor que já usa `pickDimensionLabel` passa a respeitar `categoria_label` automaticamente como primeira opção, antes mesmo de `serie_label`/`*_label` específico.
 
-| Bloco (memo) | Dimensão | Mudança |
-|---|---|---|
-| `donutMix` | n/a (categoria custom) | manter `pickComercialLabel(m, ['categoria'])` |
-| `estadosSerie` | `estado` | `label: pickDimensionLabel(d, 'estado')` (fallback já cai em `formatEstadoLabel`) |
-| `mapaData.uf` | continua só a sigla (mapa precisa de UF de 2 letras) | sem mudança |
-| `revendaRank` | `revenda` | `label: pickDimensionLabel(r, 'revenda')` |
-| `obrasRank` | `obra` | `label: pickDimensionLabel(o, 'obra')` |
+Ordem final de `labelKeys` por dimensão:
+`['categoria_label', 'serie_label', '<dim>_label', 'display_label']`
 
-Importa `pickDimensionLabel` de `@/lib/bi/dimensionLabels`.
+### 2. `src/lib/bi/comercialSeriesBuilder.ts`
+- Adicionar `'categoria_label'` no topo de `ESTADO_LABEL_KEYS`, `REVENDA_LABEL_KEYS`, `OBRA_LABEL_KEYS`.
+- Em `LABEL_CANDIDATES` (drills CLIENTE, PRODUTO, NOTA_FISCAL, DETALHES_IMPOSTOS), também prefixar `'categoria_label'`.
+- Em `buildMixSerie`, trocar `pickLabel(r, ['categoria', 'label', 'nome'])` por `pickLabel(r, ['categoria_label', 'categoria', 'label', 'nome'])`.
 
-### 2. `src/lib/bi/dimensionLabels.ts` — alinhar fallback à regra pedida
+### 3. `src/pages/bi/ComercialPage.tsx`
+Os memos `estadosSerie`, `revendaRank`, `obrasRank` já chamam `pickDimensionLabel(..., '<dim>')` — herdam automaticamente o suporte a `categoria_label` via mudança #1. Nada a alterar.
 
-A regra do usuário é estrita:
+Para o `donutMix` (categoria custom), atualizar a chamada de `pickComercialLabel(m, ['categoria'])` para incluir `categoria_label` como primeira chave: `pickComercialLabel(m, ['categoria_label', 'categoria'])`.
 
-```
-revenda_label || `${cd_rev_pedido} - ${nm_revenda}` || nm_revenda || cd_rev_pedido
-```
-
-A implementação atual já segue essa ordem (`*_label` → `code - name` → `name` → `code`), mas faltam dois ajustes pontuais:
-
-- `obra`: adicionar `cd_obra` na lista de `codeKeys` (hoje só lê `cd_prj`/`cd_projeto`/`numero_projeto`).
-- Garantir a prioridade do `serie_label` para nomes de séries: adicionar `'serie_label'` no topo de **todas** as `labelKeys` de cada dimensão (cliente, revenda, estado, obra, produto). Isto cobre o requisito "para gráficos com série, `serie_label` deve ser usado antes de `serie`".
-
-### 3. `src/lib/bi/comercialSeriesBuilder.ts` — usar adapter por dimensão também onde ainda há fallback velho
-
-Hoje `buildEstadoSerie`, `buildRevendaSerie`, `buildObrasSerie` já chamam `pickDimensionLabel`, mas caem em `pickLabel(..., LABEL_KEYS)` se vazio. Trocar o fallback final por:
-
-- `buildEstadoSerie` → fallback `formatEstadoLabel(r.cd_estado ?? r.uf ?? r.sg_uf)`.
-- `buildRevendaSerie` / `buildObrasSerie` → fallback `String(cd_rev_pedido ?? cd_prj ?? '—')`.
-
-Isso elimina a chance do builder cair em `anomes_emissao` (que estava acidentalmente no array `ESTADO_LABEL_KEYS` antigo).
-
-`buildSerieFromDrill` (drills CLIENTE/PRODUTO/NF) também passa a usar `pickDimensionLabel(r, dim)` quando a dimensão é mapeável (`CLIENTE`→`cliente`, `PRODUTO`→`produto`, `REVENDA`→`revenda`, `ESTADO`→`estado`), com fallback para `pickLabel` nos drills que não têm dimensão visual definida (NF, DETALHES_IMPOSTOS).
-
-### 4. Confirmar comportamento — sem mudanças no contrato de drill
-
-- `filtros_drill` continua exclusivamente com códigos (`cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_cliente`, `cd_produto`).
-- `extractDrillCtx` / `compactDrillContext` permanecem inalterados.
-- O label nunca entra em `filtros_drill`.
-
-## Por que o ranking mostra `202601, 202605, ...`
-
-Esse é literalmente o valor de `cd_rev_pedido` que o backend devolve para a unidade GENIUS — a numeração interna da revenda nesse ERP coincide com algo que parece anomes. Como a tabela `bi_revenda` ainda não foi populada pelo backend (endpoint `POST /api/bi/comercial/revendas/sincronizar` ainda não foi chamado / implementado), o backend não está enviando `nm_revenda` nem `revenda_label`. Resultado: `pickDimensionLabel` legitimamente cai no código.
-
-**Após este ajuste**: o card vai exibir o código até a sincronização de revendas rodar; quando o backend passar a enviar `nm_revenda`/`revenda_label`, automaticamente vira `"202601 - Nome da Revenda"` sem nenhuma mudança extra no frontend.
+### 4. `src/components/bi/drill/ComercialDrillDrawer.tsx`
+Se o drawer renderiza linhas crus, garantir que a coluna de "rótulo" use `row.categoria_label ?? row.label ?? <fallback existente>`. Verificar implementação atual e ajustar só se necessário (a injeção de colunas de nome já implementada continua válida como safety-net visual).
 
 ## Fora de escopo
 
-- Implementar o endpoint backend de sincronização (já documentado em `docs/backend-bi-comercial-revendas-sincronizar.md`).
-- Mudar layout, cores, ordenação ou regras de cross-filter.
-- Mexer no Drawer de drill — já foi feito no turno anterior.
+- `filtros_drill` permanece **inalterado** (só códigos crus: `cd_cliente`, `cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_produto`).
+- Sem mudanças em contratos, endpoints, migrations, layout, cores ou cross-filter.
+- Safety-nets via `bi_cliente`/`bi_produto`/`bi_revenda` continuam ativos.
 
 ## Arquivos tocados
 
-- `src/pages/bi/ComercialPage.tsx` — 4 substituições pontuais nos memos `estadosSerie`, `revendaRank`, `obrasRank` (donut/mix mantém categoria).
-- `src/lib/bi/dimensionLabels.ts` — adicionar `serie_label` no topo de cada `labelKeys` e `cd_obra` em `obra.codeKeys`.
-- `src/lib/bi/comercialSeriesBuilder.ts` — ajustar fallback final dos builders por dimensão e passar a usar `pickDimensionLabel` em `buildSerieFromDrill` quando aplicável.
+- `src/lib/bi/dimensionLabels.ts` — `categoria_label` no topo das 5 dimensões.
+- `src/lib/bi/comercialSeriesBuilder.ts` — `categoria_label` em todos os arrays de labelKeys e em `buildMixSerie`.
+- `src/pages/bi/ComercialPage.tsx` — apenas o donut/mix.
+- `src/components/bi/drill/ComercialDrillDrawer.tsx` — verificar/ajustar coluna de label (se já não respeitar).

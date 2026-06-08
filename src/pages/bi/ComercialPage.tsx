@@ -310,7 +310,7 @@ export default function ComercialPage() {
   }, [sparkSerie]);
 
   const donutMix = useMemo(() => mix.map((m) => ({
-    label: pickComercialLabel(m as any, ['categoria']),
+    label: pickComercialLabel(m as any, ['categoria_label', 'serie_label', 'categoria']),
     categoria: (m as any)?.categoria ?? null,
     valor: n(m.faturamento),
   })), [mix]);
