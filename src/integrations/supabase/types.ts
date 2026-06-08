@@ -692,6 +692,36 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_revenda: {
+        Row: {
+          ativo: boolean
+          cd_empresa: number | null
+          cd_rev_pedido: string
+          created_at: string
+          nm_fantasia: string | null
+          nm_revenda: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cd_empresa?: number | null
+          cd_rev_pedido: string
+          created_at?: string
+          nm_fantasia?: string | null
+          nm_revenda?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cd_empresa?: number | null
+          cd_rev_pedido?: string
+          created_at?: string
+          nm_fantasia?: string | null
+          nm_revenda?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bi_tipo_despesa: {
         Row: {
           codigo: string
