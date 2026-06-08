@@ -23,7 +23,8 @@ interface Props {
 export function ChartContextMenu({
   children, drillType, onOpenDrill, onClearAll, activeFiltersCount,
 }: Props) {
-  const nextList: DrillType[] = drillType ? (NEXT_DRILLS[drillType] ?? []) : [];
+  const nextList: DrillType[] = (drillType ? (NEXT_DRILLS[drillType] ?? []) : [])
+    .filter((d) => ENABLED_DRILLS.has(d));
 
   return (
     <ContextMenu>
