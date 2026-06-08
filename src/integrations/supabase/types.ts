@@ -545,6 +545,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_produto: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          cd_familia: string | null
+          cd_origem: string | null
+          cd_produto: string
+          cd_unidade_medida: string | null
+          ds_produto: string | null
+          tipo_item: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          cd_familia?: string | null
+          cd_origem?: string | null
+          cd_produto: string
+          cd_unidade_medida?: string | null
+          ds_produto?: string | null
+          tipo_item?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          cd_familia?: string | null
+          cd_origem?: string | null
+          cd_produto?: string
+          cd_unidade_medida?: string | null
+          ds_produto?: string | null
+          tipo_item?: string | null
+        }
+        Relationships: []
+      }
       bi_projetos: {
         Row: {
           cliente: string | null
