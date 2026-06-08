@@ -1,91 +1,126 @@
-# Expandir drills do BI Comercial
+## Objetivo
 
-## Situação atual
+Hoje os gráficos e o drawer de drill do BI Comercial mostram apenas códigos (ex.: `202601`, `cd_prj=80100`, `SP`). Vamos exibir **código + nome** em todas as 4 dimensões — **Cliente, Revenda, Estado, Obra/Projeto** — em:
 
-O menu de clique-direito (`ChartContextMenu` → "Detalhar em…") usa `NEXT_DRILLS[drill_type]` do catálogo. Hoje só existem 8 níveis: `ACUMULADO, MENSAL, ESTADO, CLIENTE, REVENDA, PRODUTO, NOTA_FISCAL, DETALHES_IMPOSTOS`.
+1. Gráficos/rankings da página `/bi/comercial` (barra, ranking, donut, treemap, mapa, séries customizadas).
+2. Drawer multinível de drill (`ComercialDrillDrawer`) — colunas `cliente_label`, `revenda_label`, `estado_label`, `obra_label`.
+3. Chips de filtro ativos no topo da página.
 
-A print mostra um menu com **Cliente, Estado, Mensal, Nota Fiscal, Obra, Projeto, Tipo Serviço** — então:
+Cross-filter continua usando **só o código** (`cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_cliente`) — o label é puramente apresentação.
 
-1. Faltam no menu: **Revenda, Produto, Acumulado, Detalhes Impostos** (já existem no backend, só não aparecem para esse gráfico de origem).
-2. Não existem ainda como drill: **Obra (`cd_prj`)**, **Projeto** e **Tipo Serviço (`cd_tns` / `cd_tp_movimento`)** — exigem mudanças no backend FastAPI (`/api/bi/comercial/drill`).
+---
 
-## Parte 1 — Frontend: exibir todos os drills compatíveis (sem backend)
+## Estratégia de origem dos nomes
 
-Ajustar `NEXT_DRILLS` em `src/lib/bi/comercialDrillCatalog.ts` para que **todo nível ofereça todos os outros como destino** (exceto ele mesmo e `ACUMULADO` só fora dele mesmo). Hoje há podas arbitrárias — ex.: `PRODUTO` só leva a `NOTA_FISCAL`/`DETALHES_IMPOSTOS`. Vamos liberar a navegação livre, pois o backend já aceita qualquer combinação de filtros via `contexto`.
+| Dimensão | Fonte | Status |
+|---|---|---|
+| Cliente | `public.bi_cliente` (já existe) | OK — backend já entrega `cliente_label` |
+| Produto | `public.bi_produto` (já existe) | OK |
+| Revenda | **`public.bi_revenda` (criar)** + sync ERP (E140REV / equivalente) | Novo |
+| Obra/Projeto | `public.bi_projetos` (**já existe**, 5 colunas) — verificar se tem `ds_obra`/`nome` | Possivelmente já dá; senão estender sync |
+| Estado (UF) | Mapa fixo no frontend (`AC → Acre`, …) | Sem backend |
 
-Novo `NEXT_DRILLS` (cada nível → todos os outros, na ordem do catálogo):
+---
+
+## Parte 1 — Lovable Cloud: nova tabela `bi_revenda`
+
+Migração (CREATE TABLE + GRANTs + RLS + policy de leitura para `authenticated`; escrita só `service_role`):
 
 ```text
-ACUMULADO  → MENSAL, ESTADO, CLIENTE, REVENDA, PRODUTO, OBRA, PROJETO, TIPO_SERVICO, NOTA_FISCAL, DETALHES_IMPOSTOS
-MENSAL     → ESTADO, CLIENTE, REVENDA, PRODUTO, OBRA, PROJETO, TIPO_SERVICO, NOTA_FISCAL, DETALHES_IMPOSTOS
-ESTADO     → MENSAL, CLIENTE, REVENDA, PRODUTO, OBRA, PROJETO, TIPO_SERVICO, NOTA_FISCAL, DETALHES_IMPOSTOS
-CLIENTE    → MENSAL, ESTADO, REVENDA, PRODUTO, OBRA, PROJETO, TIPO_SERVICO, NOTA_FISCAL, DETALHES_IMPOSTOS
-REVENDA    → MENSAL, ESTADO, CLIENTE, PRODUTO, OBRA, PROJETO, TIPO_SERVICO, NOTA_FISCAL, DETALHES_IMPOSTOS
-PRODUTO    → MENSAL, ESTADO, CLIENTE, REVENDA, OBRA, PROJETO, TIPO_SERVICO, NOTA_FISCAL, DETALHES_IMPOSTOS
-NOTA_FISCAL→ MENSAL, ESTADO, CLIENTE, REVENDA, PRODUTO, OBRA, PROJETO, TIPO_SERVICO, DETALHES_IMPOSTOS
+bi_revenda
+├─ cd_rev_pedido text PRIMARY KEY      -- código usado em v_bi_faturamento_comercial
+├─ nm_revenda text
+├─ nm_fantasia text NULL
+├─ cd_empresa int NULL
+├─ ativo bool default true
+├─ created_at / updated_at
 ```
 
-Os três novos (OBRA, PROJETO, TIPO_SERVICO) só são exibidos no menu **após** o backend respondê-los (ver Parte 2). Até lá, ficam ocultos via *feature flag* simples: constante `ENABLED_DRILLS` em `comercialDrillCatalog.ts` que filtra `NEXT_DRILLS`. Quando o backend for entregue, basta ligar.
+Padrão idêntico a `bi_cliente` / `bi_produto`. Frontend nunca grava — só `service_role` (FastAPI).
 
-## Parte 2 — Novos níveis: Obra, Projeto, Tipo Serviço
+---
 
-### Decisão de modelo
+## Parte 2 — Backend FastAPI (3 documentos novos em `docs/`)
 
-- **Obra** = agrupar por `cd_prj` (já existe como filtro). Label vem da dimensão `bi_projetos` (já no Cloud).
-- **Projeto** = `cd_prj` **mais** descrição longa do projeto. Se for o mesmo agrupador que Obra, **escolher um único nome** para não duplicar (sugestão: manter só "Obra" e dropar "Projeto"). Confirmar abaixo.
-- **Tipo Serviço** = agrupar por `cd_tns` (Transação) **ou** `cd_tp_movimento`. Precisa decisão.
+### 2.1 `docs/backend-bi-comercial-revendas-sincronizar.md`
+- `POST /api/bi/comercial/revendas/sincronizar` — lê E140REV (ou tabela cadastral equivalente do ERP Senior) e faz UPSERT em `public.bi_revenda` via service role.
+- Resposta: `{ inseridos, atualizados, total }`.
 
-### Frontend (depois do backend pronto)
+### 2.2 `docs/backend-bi-comercial-drill-labels.md` (extensão dos contratos existentes)
+Para cada `drill_type`, o backend deve devolver `*_label` quando agregar pela dimensão:
 
-1. `comercialDrillApi.ts` — adicionar tipos novos em `DrillType`:
-   ```ts
-   'OBRA' | 'TIPO_SERVICO'   // + 'PROJETO' se mantido
-   ```
-2. `comercialDrillCatalog.ts`:
-   - `DRILL_LABELS`: `OBRA: 'Obra'`, `TIPO_SERVICO: 'Tipo Serviço'`.
-   - `ROW_TO_CTX_KEY`: `OBRA: 'cd_prj'`, `TIPO_SERVICO: 'cd_tns'`.
-   - `ALLOWED_CTX_KEYS`: definir quais chaves o nível aceita herdar (padrão: tempo + UF + cliente + revenda + origem + categoria + a própria chave).
-   - `NEXT_DRILLS`: incluir nas listas acima.
-3. `comercialDrillContract.ts` / `cleanContexto`: garantir que `cd_prj` e `cd_tns` sigam compactados.
-4. `ComercialDrillDrawer.tsx`: já é genérico — só precisa renderizar as colunas que o backend devolver. Nenhuma mudança específica.
+| drill_type | Coluna agregada | Label esperado |
+|---|---|---|
+| ESTADO | `cd_estado` | `estado_label = cd_estado || ' - ' || nm_estado` (lookup fixo no backend) |
+| REVENDA | `cd_rev_pedido` | LEFT JOIN `bi_revenda` → `revenda_label = cd_rev_pedido || ' - ' || nm_revenda` |
+| CLIENTE | `cd_cliente` | já entrega `cliente_label` (manter) |
+| PRODUTO | `cd_produto` | já entrega `produto_label` (manter) |
+| (qualquer drill agrupado por obra) | `cd_prj` | `obra_label = cd_prj || ' - ' || ds_obra` via `bi_projetos` |
 
-### Backend (`docs/backend-bi-comercial-drills-novos.md` — novo)
+Regras invioláveis:
+- `filtros_drill` em **toda linha** continua contendo **APENAS o código** (`cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_cliente`). Nunca o label.
+- `*_label` é estritamente apresentação.
 
-Endpoint inalterado: `POST /api/bi/comercial/drill`. Aceitar três novos valores em `drill_type`:
+### 2.3 `docs/backend-bi-comercial-series-labels.md` (séries agregadas)
+Endpoints de séries que hoje agregam por `cd_rev_pedido` / `cd_estado` / `cd_prj` no “Ranking de revendas”, “Top estados”, “Faturamento por obra”, etc., devem passar a devolver junto:
 
-| drill_type    | Agrupador                | Colunas mínimas devolvidas                                                                 |
-| ------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
-| `OBRA`        | `cd_prj`                 | `cd_prj`, `ds_projeto` (via `bi_projetos`), métricas (`fat_bruto`, `fat_liquido`, `qtde`, `nfs`) |
-| `TIPO_SERVICO`| `cd_tns` (+ `cd_tp_movimento` opcional) | `cd_tns`, `ds_tns`, métricas idem                                                          |
+```json
+{ "cd_rev_pedido": "202601", "nm_revenda": "...", "revenda_label": "202601 - ...", "valor": 4119 }
+```
 
-- `filtros_drill` de cada linha: **somente** a chave agrupadora (`{ cd_prj }` ou `{ cd_tns }`), seguindo o padrão já em vigor para `PRODUTO`/`CLIENTE`.
-- `ALLOWED_CTX_KEYS` herdadas: tempo (`anomes_emissao`), `cd_estado`, `cd_cliente`, `cd_rev_pedido`, `cd_origem`, `categoria_custom`, e a própria chave do nível.
-- LEFT JOIN com `bi_projetos` (Obra) — `bi_projetos` já existe no Cloud, mas o backend acessa via réplica/ETL. Se a descrição de TNS não estiver disponível, devolver só `cd_tns`.
-- Diagnóstico: acrescentar `qtd_linhas_apos_obra` (já existe) e `qtd_linhas_apos_tns` (já existe).
+Mesma regra para `cd_estado` / `nm_estado` / `estado_label` e `cd_prj` / `ds_obra` / `obra_label`.
 
-Sem migração no Cloud — `bi_projetos` já tem `cd_prj`/`ds_projeto`. Para TNS, se quiser descrição, criar `bi_tns` em outro plano (não escopo agora).
+---
 
-## Mudanças por arquivo
+## Parte 3 — Frontend
 
-1. **`src/lib/bi/comercialDrillCatalog.ts`** — reescrever `NEXT_DRILLS` (todos × todos), adicionar `ENABLED_DRILLS` para gating dos novos. Quando os 3 novos forem habilitados, atualizar `DRILL_LABELS`, `ROW_TO_CTX_KEY`, `ALLOWED_CTX_KEYS`.
-2. **`src/lib/bi/comercialDrillApi.ts`** — expandir union `DrillType` com `'OBRA' | 'TIPO_SERVICO'` (gated).
-3. **`src/components/bi/runtime/ChartContextMenu.tsx`** — aplicar filtro `ENABLED_DRILLS` ao `nextList`.
-4. **`docs/backend-bi-comercial-drills-novos.md`** (novo) — contrato para a equipe de backend.
-5. **`mem/features/drill-bi-comercial.md`** — atualizar pilha e regras de `filtros_drill`.
+### 3.1 Catálogo de UF (puro frontend)
+- Novo: `src/lib/bi/ufLabels.ts` com `UF_LABELS: Record<string, string>` (27 UFs + DF).
+- Helper `formatEstadoLabel(cd_estado)` → `"SP - São Paulo"`.
 
-## Perguntas a confirmar antes de implementar
+### 3.2 Adapter genérico de label
+- Novo: `src/lib/bi/dimensionLabels.ts` exportando `pickDimensionLabel(row, dim)` que prioriza:
+  1. `*_label` do backend
+  2. `cd_xxx + ' - ' + nm_xxx` se nome veio na linha
+  3. `cd_xxx` puro
 
-1. **Projeto vs Obra**: são a mesma coisa (`cd_prj`)? Posso manter apenas "Obra" e dropar "Projeto" do menu?
-2. **Tipo Serviço**: agrupar por `cd_tns` (transação) ou `cd_tp_movimento` (tipo de movimento)?
-3. Os três novos drills exigem trabalho no FastAPI. Implemento já a Parte 1 (liberar todos os drills existentes no menu) e deixo Parte 2 documentada para o backend, ou aguardo o backend ficar pronto antes de qualquer mudança?
+Usado pelos componentes BI da lib (`Ranking`, `BarChart`, `Treemap`, `MapaUF`, `DrillDownTable`, `ChartContextMenu` breadcrumb).
+
+### 3.3 Componentes da biblioteca BI (`src/components/bi/...`)
+- Adaptar widgets já existentes que renderizam `label` (ranking de revendas, top estados, treemap de obras, top clientes…) para chamar `pickDimensionLabel` antes de exibir.
+- Não muda o cross-filter — continua mandando o **código** para `toggleDrill`.
+
+### 3.4 Drawer de drill (`src/components/bi/drill/DrillDownTable.tsx`)
+- Já injeta coluna “Descrição do Produto” quando `ds_produto` vem sem coluna. Replicar padrão:
+  - Drill `REVENDA` → injetar coluna "Revenda" exibindo `revenda_label`.
+  - Drill `ESTADO` → injetar coluna "Estado" exibindo `estado_label` (com fallback `formatEstadoLabel`).
+  - Drill agrupado por `cd_prj` → injetar coluna "Obra" com `obra_label`.
+
+### 3.5 Chips de filtro (`src/lib/bi/comercialFilters.ts` + componente que renderiza chips em `ComercialPage`)
+- `DrillChip` ganha `displayValue` opcional.
+- `useComercialFilters` mantém o `value` (código) e calcula `displayValue` via cache de labels em memória (alimentado pelas respostas do backend) + `formatEstadoLabel` para UF.
+- Chip mostra `displayValue`; ao remover, continua usando `key`+`value` (código).
+
+### 3.6 Botão "Sincronizar revendas" (header `/bi/comercial`)
+- Mesma UX dos botões "Sincronizar clientes" / "Sincronizar produtos" (admin-only).
+- Chama `POST /api/bi/comercial/revendas/sincronizar` via `api.ts`.
+
+### 3.7 Atualizações de memória / docs
+- `mem/features/drill-bi-comercial.md`: registrar `bi_revenda`, `*_label` p/ REVENDA/ESTADO/OBRA, `formatEstadoLabel` no frontend, regra `filtros_drill` continua só com código.
+
+---
 
 ## Fora de escopo
 
-- Criar `bi_tns` ou sincronizar TNS do ERP (plano separado se quiser nome do serviço).
-- Mudar `ComercialDrillDrawer` — ele já é dimensão-agnóstico.
-- Cross-filter por essas novas chaves (já funciona automaticamente quando o backend devolver `filtros_drill`).
+- Mexer no fluxo de cross-filter / `toggleDrill` (continua por código).
+- Backfill histórico — backend popula `bi_revenda` na 1ª sincronização.
+- Drill por TNS / Tipo Movimento (tratado em outro plano).
 
-## Critério de aceite
+---
 
-- Menu "Detalhar em…" passa a mostrar **todos os drills existentes** a partir de qualquer gráfico (Parte 1, sem backend).
-- Após Parte 2, clicar em "Obra" / "Tipo Serviço" abre o drawer com a grid agrupada e permite continuar drillando para qualquer outro nível.
+## Detalhes técnicos resumidos
+
+- **Migração Cloud**: criar `public.bi_revenda` com GRANTs `SELECT → authenticated`, `ALL → service_role`, RLS habilitado, policy `SELECT USING (true)` para authenticated.
+- **`bi_projetos`**: confirmar via `supabase--read_query` se já há coluna de descrição da obra; se faltar, adicionar na mesma migração.
+- **Cache de labels frontend**: simples `Map<string, string>` por chave (`revenda:202601 → "..."`) preenchido conforme respostas do backend chegam — sem persistência, sem fetch extra.
+- **Compatibilidade**: enquanto backend não devolver `*_label` ou tabela não estiver populada, fallback exibe apenas o código (comportamento atual). Nenhuma quebra.
