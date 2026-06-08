@@ -163,13 +163,26 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
 
   const displayColumns = useMemo(() => {
     const cols = resp?.columns ?? [];
-    if (cur?.drill_type !== 'CLIENTE') return cols;
-    if (cols.some((c) => c.key === 'nm_cliente')) return cols;
-    const idx = cols.findIndex((c) => c.key === 'cd_cliente');
-    if (idx < 0) return cols;
-    const nameCol = { key: 'nm_cliente', label: 'Nome do Cliente', align: 'left' as const, format: 'text' as any };
-    return [...cols.slice(0, idx + 1), nameCol, ...cols.slice(idx + 1)];
+    let out = cols;
+    // CLIENTE: injeta nm_cliente após cd_cliente se backend não devolveu.
+    if (cur?.drill_type === 'CLIENTE' && !out.some((c) => c.key === 'nm_cliente')) {
+      const idx = out.findIndex((c) => c.key === 'cd_cliente');
+      if (idx >= 0) {
+        const nameCol = { key: 'nm_cliente', label: 'Nome do Cliente', align: 'left' as const, format: 'text' as any };
+        out = [...out.slice(0, idx + 1), nameCol, ...out.slice(idx + 1)];
+      }
+    }
+    // PRODUTO/NOTA_FISCAL/DETALHES_IMPOSTOS: injeta ds_produto após cd_produto.
+    if (out.some((c) => c.key === 'cd_produto') && !out.some((c) => c.key === 'ds_produto' || c.key === 'nm_produto')) {
+      const idx = out.findIndex((c) => c.key === 'cd_produto');
+      if (idx >= 0) {
+        const descCol = { key: 'ds_produto', label: 'Descrição do Produto', align: 'left' as const, format: 'text' as any };
+        out = [...out.slice(0, idx + 1), descCol, ...out.slice(idx + 1)];
+      }
+    }
+    return out;
   }, [resp?.columns, cur?.drill_type]);
+
 
   const columns = useMemo<Column<Record<string, any>>[]>(() => {
     const base: Column<Record<string, any>>[] = displayColumns.map((c) => ({
