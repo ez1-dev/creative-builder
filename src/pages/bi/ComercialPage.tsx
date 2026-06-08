@@ -72,6 +72,7 @@ import {
   pickComercialLabel, extractDrillCtx, KPI_DRILL_MAP, drillTypeFromSeriesKey,
   cleanDrillValue, compactDrillContext,
 } from '@/lib/bi/comercialDrillContract';
+import { pickDimensionLabel } from '@/lib/bi/dimensionLabels';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
 import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
 import {
