@@ -23,6 +23,7 @@ import {
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import { cleanDrillValue, compactDrillContext } from '@/lib/bi/comercialDrillContract';
+import { formatEstadoLabel as formatEstadoLabelLocal, ufName as ufNameLocal } from '@/lib/bi/ufLabels';
 import type { ComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { DrillEmptyDiagnostico } from './DrillEmptyDiagnostico';
 
