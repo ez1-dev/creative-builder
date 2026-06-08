@@ -121,7 +121,8 @@ export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMe
       // Métricas não disponíveis no endpoint atual — backend precisa estender.
       default: v = 0;
     }
-    const label = pickDimensionLabel(r as any, 'estado') || pickLabel(r as any, ESTADO_LABEL_KEYS);
+    const code = (r as any)?.cd_estado ?? (r as any)?.uf ?? (r as any)?.sg_uf;
+    const label = pickDimensionLabel(r as any, 'estado') || (code ? formatEstadoLabel(String(code)) : '—');
     return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
