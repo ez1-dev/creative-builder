@@ -175,7 +175,7 @@ export default function ComercialPage() {
   });
 
 
-  const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
+  const { filters, setBase, applyDrill, toggleDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
   const [bgOverrideTick, setBgOverrideTick] = useState(0);
