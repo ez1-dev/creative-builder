@@ -106,6 +106,7 @@ export function pickLabel(row: Record<string, any>, candidates: string[], fallba
 }
 
 import { pickDimensionLabel } from './dimensionLabels';
+import { formatEstadoLabel } from './ufLabels';
 
 const ESTADO_LABEL_KEYS  = ['serie_label', 'display_label', 'label', 'estado_label', 'nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
 const REVENDA_LABEL_KEYS = ['serie_label', 'display_label', 'label', 'revenda_label', 'nm_revenda', 'ds_revenda', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
