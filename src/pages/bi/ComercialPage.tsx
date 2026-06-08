@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package } from 'lucide-react';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { api } from '@/lib/api';
 
@@ -226,6 +226,24 @@ export default function ComercialPage() {
       toast.error(`Falha ao sincronizar clientes: ${e?.message ?? e}`, { id: tId });
     } finally {
       setSyncingClientes(false);
+    }
+  };
+
+  const [syncingProdutos, setSyncingProdutos] = useState(false);
+  const handleSyncProdutos = async () => {
+    if (syncingProdutos) return;
+    setSyncingProdutos(true);
+    const tId = toast.loading('Sincronizando produtos do ERP...');
+    try {
+      const r = await api.post<any>('/api/bi/comercial/produtos/sincronizar', {});
+      const total = r?.qtd_total ?? 0;
+      const prods = r?.qtd_produtos ?? 0;
+      const servs = r?.qtd_servicos ?? 0;
+      toast.success(`Produtos sincronizados: ${total} (produtos ${prods}, serviços ${servs})`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar produtos: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingProdutos(false);
     }
   };
 
@@ -944,6 +962,19 @@ export default function ComercialPage() {
                 >
                   <Users className={cn('h-3.5 w-3.5', syncingClientes && 'animate-pulse')} />
                   Sincronizar clientes
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={handleSyncProdutos}
+                  disabled={syncingProdutos}
+                  title="Atualiza descrições dos produtos a partir do ERP (E075PRO/E080SER)"
+                >
+                  <Package className={cn('h-3.5 w-3.5', syncingProdutos && 'animate-pulse')} />
+                  Sincronizar produtos
                 </Button>
               )}
 
