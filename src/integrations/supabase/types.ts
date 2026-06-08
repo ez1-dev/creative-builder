@@ -545,6 +545,27 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_produto: {
+        Row: {
+          atualizado_em: string
+          cd_produto: string
+          ds_produto: string | null
+          nm_produto: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cd_produto: string
+          ds_produto?: string | null
+          nm_produto?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cd_produto?: string
+          ds_produto?: string | null
+          nm_produto?: string | null
+        }
+        Relationships: []
+      }
       bi_projetos: {
         Row: {
           cliente: string | null
