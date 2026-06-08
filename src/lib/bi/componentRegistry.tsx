@@ -412,6 +412,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           data={arr.map((p) => ({ name: p.label, value: p.valor }))}
         />
       );
+    },
   },
   {
     id: 'brazil-map',
@@ -444,7 +445,6 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         />
       );
     },
-  },
   },
   {
     id: 'treemap-chart',
