@@ -248,6 +248,25 @@ export default function ComercialPage() {
     }
   };
 
+  const [syncingRevendas, setSyncingRevendas] = useState(false);
+  const handleSyncRevendas = async () => {
+    if (syncingRevendas) return;
+    setSyncingRevendas(true);
+    const tId = toast.loading('Sincronizando revendas do ERP...');
+    try {
+      const r = await api.post<any>('/api/bi/comercial/revendas/sincronizar', {});
+      const total = r?.total ?? 0;
+      const ins = r?.inseridos ?? 0;
+      const upd = r?.atualizados ?? 0;
+      toast.success(`Revendas sincronizadas: ${total} (novas ${ins}, atualizadas ${upd})`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar revendas: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingRevendas(false);
+    }
+  };
+
+
 
 
 
