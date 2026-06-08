@@ -138,7 +138,7 @@ export function buildRevendaSerie(rows: ComercialRevendaRow[], metric: Comercial
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    const label = pickDimensionLabel(r as any, 'revenda') || pickLabel(r as any, REVENDA_LABEL_KEYS);
+    const label = pickDimensionLabel(r as any, 'revenda') || String((r as any)?.cd_rev_pedido ?? '—');
     return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
