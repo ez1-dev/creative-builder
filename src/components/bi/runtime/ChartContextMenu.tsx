@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/context-menu';
 import { Filter, MousePointerClick, X, ChevronRight } from 'lucide-react';
 import type { DrillType } from '@/lib/bi/comercialDrillApi';
-import { DRILL_LABELS, NEXT_DRILLS } from '@/lib/bi/comercialDrillCatalog';
+import { DRILL_LABELS, NEXT_DRILLS, ENABLED_DRILLS } from '@/lib/bi/comercialDrillCatalog';
 
 interface Props {
   children: ReactNode;
@@ -23,7 +23,8 @@ interface Props {
 export function ChartContextMenu({
   children, drillType, onOpenDrill, onClearAll, activeFiltersCount,
 }: Props) {
-  const nextList: DrillType[] = drillType ? (NEXT_DRILLS[drillType] ?? []) : [];
+  const nextList: DrillType[] = (drillType ? (NEXT_DRILLS[drillType] ?? []) : [])
+    .filter((d) => ENABLED_DRILLS.has(d));
 
   return (
     <ContextMenu>
