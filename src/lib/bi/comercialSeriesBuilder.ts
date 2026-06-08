@@ -198,6 +198,13 @@ function pickFirst(row: Record<string, any>, keys: string[]): any {
   return null;
 }
 
+const DRILL_TO_DIM: Partial<Record<DrillType, 'cliente'|'revenda'|'estado'|'obra'|'produto'>> = {
+  CLIENTE: 'cliente',
+  REVENDA: 'revenda',
+  ESTADO: 'estado',
+  PRODUTO: 'produto',
+};
+
 export function buildSerieFromDrill(
   resp: DrillResponse | undefined,
   drillType: DrillType,
@@ -206,13 +213,15 @@ export function buildSerieFromDrill(
   if (!resp || !Array.isArray(resp.rows)) return [];
   const labelKeys = LABEL_CANDIDATES[drillType] ?? ['label'];
   const metricKeys = METRIC_COLUMN_CANDIDATES[metric] ?? [];
+  const dim = DRILL_TO_DIM[drillType];
   return resp.rows
     .map((r) => {
       const valorRaw = pickFirst(r, metricKeys);
+      const label = dim ? (pickDimensionLabel(r, dim) || pickLabel(r, labelKeys)) : pickLabel(r, labelKeys);
       // Preserva filtros_drill + campos técnicos para o contrato de drill global.
       return {
         ...r,
-        label: pickLabel(r, labelKeys),
+        label,
         valor: n(valorRaw),
       } as SeriePoint;
     })
