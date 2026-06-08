@@ -162,7 +162,7 @@ export function buildObrasSerie(rows: ComercialObrasRow[], metric: ComercialMetr
 export function buildMixSerie(rows: ComercialMixRow[], metric: ComercialMetric): SeriePoint[] {
   return rows.map((r) => {
     const v = metric === 'faturamento' ? n(r.faturamento) : n((r as any)[metric]);
-    return { label: pickLabel(r as any, ['categoria', 'label', 'nome']), valor: v };
+    return { label: pickLabel(r as any, ['categoria_label', 'serie_label', 'categoria', 'label', 'nome']), valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
