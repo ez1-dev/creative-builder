@@ -104,7 +104,7 @@ export function useComercialFilters(initial: BiComercialFilters) {
 
   const chips = useMemo(() => getActiveDrillChips(filters), [filters]);
 
-  return { filters, setFilters, setBase, applyDrill, removeDrill, clearDrill, chips };
+  return { filters, setFilters, setBase, applyDrill, toggleDrill, removeDrill, clearDrill, chips };
 }
 
 /** Mapeia categoria do donut "Mix" para o filtro de drill correto. */
