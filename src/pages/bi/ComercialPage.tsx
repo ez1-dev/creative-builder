@@ -359,33 +359,45 @@ export default function ComercialPage() {
 
 
 
-  // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
+  // ===== Cross-filter por clique esquerdo (filtra a página inteira) =====
+  // Cada handler extrai a chave técnica do datum e chama toggleDrill:
+  //   - mesmo valor: remove o filtro (toggle)
+  //   - valor diferente: substitui
+  // Para abrir o drawer de drill use clique direito → menu "Detalhar em…".
+  const applyCtxAsCrossFilter = (ctx: DrillContexto) => {
+    const keys = Object.keys(ctx) as (keyof DrillContexto)[];
+    for (const k of keys) {
+      const v = cleanDrillValue((ctx as any)[k]);
+      if (v != null && (k as string) in DRILL_LABELS) {
+        toggleDrill(k as BiComercialDrillKey, v);
+        return;
+      }
+    }
+  };
   const onClickMensal = (d: any) => {
     const ctx = extractDrillCtx(d, 'MENSAL');
-    if (Object.keys(ctx).length > 0) openDrill('MENSAL', ctx);
+    applyCtxAsCrossFilter(ctx);
   };
   const onClickMix = (d: any) => {
-    // Mix usa categorias custom (origem/tipo movimento), não DrillType direto.
     const map = drillFromMixCategoria(d?.categoria ?? d?.label ?? d?.name ?? '');
-    if (!map) return;
-    openDrill('NOTA_FISCAL', { [map.key]: map.value } as DrillContexto);
+    if (map) toggleDrill(map.key, map.value);
   };
   const onClickEstado = (d: any) => {
     const ctx = extractDrillCtx(d, 'ESTADO');
-    if (Object.keys(ctx).length > 0) openDrill('ESTADO', ctx);
+    applyCtxAsCrossFilter(ctx);
   };
   const onClickMapa = (d: { uf: string; cd_estado?: string | null; valor: number }) => {
     const cd = d?.cd_estado ?? d?.uf;
-    if (cd && String(cd) !== '(sem nome)') openDrill('ESTADO', { cd_estado: String(cd) });
+    if (cd && String(cd) !== '(sem nome)') toggleDrill('cd_estado', String(cd));
   };
   const onClickRevenda = (d: any) => {
     const ctx = extractDrillCtx(d, 'REVENDA');
-    if (Object.keys(ctx).length > 0) openDrill('REVENDA', ctx);
+    applyCtxAsCrossFilter(ctx);
   };
   const onClickObra = (d: any) => {
     const found = obrasRank.find((o) => o.label === d?.name || o.label === d?.label);
     const cod = found?.cd_prj ?? d?.cd_prj;
-    if (cod && String(cod) !== '(sem nome)') openDrill('NOTA_FISCAL', { cd_prj: String(cod) });
+    if (cod && String(cod) !== '(sem nome)') toggleDrill('cd_prj', String(cod));
   };
 
 
