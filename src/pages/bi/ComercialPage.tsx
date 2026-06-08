@@ -717,14 +717,40 @@ export default function ComercialPage() {
     ].join('|'))
     .join('~');
 
+  const widgetDrillType = (w: ComercialWidget): DrillType | undefined => {
+    const def = COMERCIAL_WIDGETS[w.type];
+    if (def?.kind === 'kpi') return KPI_DRILL_MAP[def.kpiKey!] ?? 'NOTA_FISCAL';
+    if (def?.kind === 'serie-mensal') return 'MENSAL';
+    if (def?.type === 'estados') return 'ESTADO';
+    if (def?.type === 'revendas') return 'REVENDA';
+    if (def?.type === 'obras') return 'NOTA_FISCAL';
+    if (def?.type === 'mix') return 'NOTA_FISCAL';
+    if (def?.kind === 'table') return 'MENSAL';
+    if (w.componentId) {
+      const optsDrillType: DrillType | undefined = (w.options as any)?.drillType;
+      if (optsDrillType) return optsDrillType;
+      const s = (w as any)?.mapping?.series;
+      if (typeof s === 'string') return drillTypeFromSeriesKey(s);
+    }
+    return 'NOTA_FISCAL';
+  };
+
   const blocks = useMemo(() => {
     const out: Record<string, ReactNode> = {};
     visibleWidgets.forEach((w) => {
       const title = w.customTitle || w.title || w.type;
+      const dt = widgetDrillType(w);
       out[w.type] = (
         <WidgetErrorBoundary widgetKey={w.type} title={title}>
           <WidgetTitleStyle color={w.titleColor} bold={w.titleBold} valueColor={(w as any).valueColor}>
-            {renderWidget(w)}
+            <ChartContextMenu
+              drillType={dt}
+              onOpenDrill={(next) => openDrill(next, {})}
+              onClearAll={clearDrill}
+              activeFiltersCount={chips.length}
+            >
+              {renderWidget(w)}
+            </ChartContextMenu>
           </WidgetTitleStyle>
         </WidgetErrorBoundary>
       );
@@ -733,7 +759,7 @@ export default function ComercialPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetsContentKey, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
       qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
-      customMetrics.metrics, hiddenSeries]);
+      customMetrics.metrics, hiddenSeries, chips.length]);
 
   // ===== Builder handlers =====
   const handleLayoutChange = (next: { type: string; layout: WidgetLayout }[]) => {
