@@ -153,7 +153,7 @@ export function buildObrasSerie(rows: ComercialObrasRow[], metric: ComercialMetr
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    const label = pickDimensionLabel(r as any, 'obra') || pickLabel(r as any, OBRA_LABEL_KEYS);
+    const label = pickDimensionLabel(r as any, 'obra') || String((r as any)?.cd_prj ?? (r as any)?.cd_obra ?? '—');
     return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
