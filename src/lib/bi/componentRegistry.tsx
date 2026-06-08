@@ -412,7 +412,39 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
           data={arr.map((p) => ({ name: p.label, value: p.valor }))}
         />
       );
+  },
+  {
+    id: 'brazil-map',
+    kind: 'chart',
+    label: 'Mapa do Brasil',
+    defaultSpan: 2,
+    inputs: [{ key: 'series', label: 'Série (por UF)', source: 'series', required: true }],
+    autoMap: (s) => {
+      const pref = s.series?.find((x) => /estado|uf/i.test(x.key))?.key;
+      return { series: pref ?? s.series?.[0]?.key ?? '' };
     },
+    render: ({ title, mapping, ctx, options }) => {
+      const opts = (options ?? {}) as WidgetOptions;
+      const arr = SERIES_LIKE(ctx.series?.[mapping.series]);
+      const data = arr
+        .map((p: any) => {
+          const raw = String(p.uf ?? p.label ?? '').trim().toUpperCase();
+          const m = raw.match(/[A-Z]{2}/);
+          const uf = m ? m[0] : '';
+          return uf ? { uf, valor: Number(p.valor ?? 0), label: p.label } : null;
+        })
+        .filter(Boolean) as { uf: string; valor: number; label?: string }[];
+      return (
+        <BrazilMapCard
+          title={title || mapping.series}
+          data={data}
+          colorVar={opts.color ? undefined : '--primary'}
+          valueFormatter={formatterForSeriesKey(mapping.series)}
+          onItemClick={(d) => makeClickHandler(ctx, mapping.series)?.({ label: d.uf, valor: d.valor })}
+        />
+      );
+    },
+  },
   },
   {
     id: 'treemap-chart',
