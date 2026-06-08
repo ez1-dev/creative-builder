@@ -1,47 +1,103 @@
-# BI Comercial — Nome do produto direto do ERP (sem sync)
+# Backend: Enriquecimento de Descrição do Produto no Drill
 
-Contrato para o time da FastAPI. **Não existe** mais tabela `public.bi_produto`
-no Cloud, nem rota de sincronização de produtos. O nome do produto é
-resolvido a cada chamada de drill, lendo direto do ERP Senior.
+Aplica-se a `POST /api/bi/comercial/drill`. O frontend agora exibe a coluna
+"Descrição do Produto" em todos os drills com `cd_produto` e usa `produto_label`
+na coluna "Produto". O backend FastAPI precisa fornecer esses campos.
 
-## 1. JOIN nos drills que devolvem `cd_produto`
+## Pré-requisito
 
-Em `POST /api/bi/comercial/drill`, drills afetados:
-`PRODUTO`, `NOTA_FISCAL`, `DETALHES_IMPOSTOS` (qualquer um que liste
-`cd_produto`).
+A dimensão `public.bi_produto` deve estar populada via
+`POST /api/bi/comercial/produtos/sincronizar`
+(ver `docs/backend-bi-comercial-produtos-sincronizar.md`).
+
+## LEFT JOIN na query base
+
+Onde a query lê `public.v_bi_faturamento_comercial f`, fazer:
 
 ```sql
-SELECT
-  f.cd_produto,
-  p.DESPRO AS ds_produto,
-  p.NOMRED AS nm_produto,
-  /* demais campos / métricas */
-FROM v_bi_faturamento_comercial f
-LEFT JOIN E075PRO p ON p.CODPRO = f.cd_produto
-WHERE ...
+left join public.bi_produto p
+  on p.cd_produto = f.cd_produto::text
 ```
 
-Resposta deve incluir, em `columns`, a coluna
-`{ "key": "ds_produto", "label": "Descrição do Produto", "align": "left" }`
-imediatamente após `cd_produto`. Cada `row` traz `ds_produto`
-(e opcionalmente `nm_produto`).
+Se a query usa `to_jsonb(f)` para gerar a linha (`raw` CTE), enriquecer:
 
-## 2. Regras invioláveis
+```sql
+raw as (
+  select
+    to_jsonb(f)
+    ||
+    jsonb_build_object(
+      'ds_produto', p.ds_produto,
+      'produto_label',
+        case
+          when p.ds_produto is not null and trim(p.ds_produto) <> ''
+            then f.cd_produto::text || ' - ' || p.ds_produto
+          else f.cd_produto::text
+        end
+    ) as j
+  from public.v_bi_faturamento_comercial f
+  left join public.bi_produto p
+    on p.cd_produto = f.cd_produto::text
+)
+```
 
-- `filtros_drill` continua contendo **somente** `cd_produto`. Nunca incluir
-  `ds_produto`/`nm_produto`/label como filtro técnico.
-- SQLs subsequentes sempre filtram por `WHERE cd_produto = :cd_produto`.
+Cada linha de drill que tenha produto deve devolver:
 
-## 3. Performance
+```json
+{
+  "cd_produto": "1-250001067",
+  "ds_produto": "DESCRIÇÃO DO PRODUTO",
+  "produto_label": "1-250001067 - DESCRIÇÃO DO PRODUTO"
+}
+```
 
-- Drills são paginados (`page_size` ~100), então o JOIN é barato.
-- Se necessário, o backend pode manter um cache em memória do mapa
-  `CODPRO → DESPRO` (TTL curto, p.ex. 5–15 min). É detalhe interno e
-  **não muda o contrato**.
+## _DRILL_COLUMNS
 
-## 4. Frontend
+- **`NOTA_FISCAL`**: incluir `{"key":"cd_produto","label":"Produto"}` e
+  `{"key":"ds_produto","label":"Descrição"}`.
+- **`PRODUTO`**: usar `{"key":"produto_label","label":"Produto"}` e
+  `{"key":"ds_produto","label":"Descrição"}`.
+- **`DETALHES_IMPOSTOS`**: incluir `{"key":"cd_produto","label":"Produto"}` e
+  `{"key":"ds_produto","label":"Descrição"}`.
 
-- O drawer (`ComercialDrillDrawer`) injeta a coluna `ds_produto` como
-  fallback quando o backend ainda devolve só `cd_produto` (mostra `—`).
-  Após o JOIN entrar no ar, a célula passa a mostrar a descrição.
-- **Não existe** botão "Sincronizar produtos" na página `/bi/comercial`.
+## _drill_enriquecer_rows (fallback)
+
+Se a query não trouxer `produto_label` por algum motivo:
+
+```python
+cd = r.get("cd_produto")
+ds = (
+    r.get("ds_produto")
+    or r.get("descricao_produto")
+    or r.get("nm_produto")
+    or r.get("des_produto")
+)
+if isinstance(ds, str):
+    ds = ds.strip()
+if cd:
+    if ds:
+        r["produto_label"] = f"{cd} - {ds}"
+        r["ds_produto"] = ds
+    else:
+        r["produto_label"] = str(cd)
+```
+
+## Regra crítica: filtros_drill
+
+`filtros_drill` em cada linha **NUNCA** pode conter `produto_label`. Apenas o código:
+
+```json
+{ "filtros_drill": { "cd_produto": "1-250001067" } }
+```
+
+Caso contrário, o drill-down quebra (tenta filtrar pela string concatenada).
+
+## Critérios de aceite
+
+- Drill por Nota Fiscal mostra descrição do produto.
+- Drill por Produto mostra "código - descrição" na coluna Produto e a descrição em
+  coluna separada.
+- Drill de Impostos mostra a descrição.
+- CSV exporta a descrição.
+- Detalhamento (clique em "Detalhar") continua filtrando por `cd_produto`.
+- Sem descrição cadastrada, exibe apenas o código (sem quebrar).
