@@ -229,6 +229,25 @@ export default function ComercialPage() {
     }
   };
 
+  const [syncingProdutos, setSyncingProdutos] = useState(false);
+  const handleSyncProdutos = async () => {
+    if (syncingProdutos) return;
+    setSyncingProdutos(true);
+    const tId = toast.loading('Sincronizando produtos do ERP...');
+    try {
+      const r = await api.post<any>('/api/bi/comercial/produtos/sincronizar', {});
+      const total = r?.total ?? 0;
+      const ins = r?.inseridos ?? 0;
+      const upd = r?.atualizados ?? 0;
+      toast.success(`Produtos sincronizados: ${total} (novos ${ins}, atualizados ${upd})`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar produtos: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingProdutos(false);
+    }
+  };
+
+
   const kpisRaw = qKpis.data ?? ({} as any);
   // Override Meta / Diferença / % Atingimento usando bi_meta_faturamento (Cloud)
   // quando houver metas cadastradas para o período/UN. Caso contrário, mantém os
