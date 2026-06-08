@@ -44,6 +44,7 @@ import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
+import { ChartContextMenu } from '@/components/bi/runtime/ChartContextMenu';
 import { normalizeWidget } from '@/lib/bi/normalize';
 import {
   Popover, PopoverContent, PopoverTrigger,
@@ -175,7 +176,7 @@ export default function ComercialPage() {
   });
 
 
-  const { filters, setBase, applyDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
+  const { filters, setBase, applyDrill, toggleDrill, removeDrill, clearDrill, chips } = useComercialFilters(draft);
   const style = UNIDADE_STYLE[filters.unidade_negocio];
   const unidade = filters.unidade_negocio;
   const [bgOverrideTick, setBgOverrideTick] = useState(0);
@@ -359,33 +360,45 @@ export default function ComercialPage() {
 
 
 
-  // ===== Drill handlers (chart clicks) — abrem o drawer com contexto =====
+  // ===== Cross-filter por clique esquerdo (filtra a página inteira) =====
+  // Cada handler extrai a chave técnica do datum e chama toggleDrill:
+  //   - mesmo valor: remove o filtro (toggle)
+  //   - valor diferente: substitui
+  // Para abrir o drawer de drill use clique direito → menu "Detalhar em…".
+  const applyCtxAsCrossFilter = (ctx: DrillContexto) => {
+    const keys = Object.keys(ctx) as (keyof DrillContexto)[];
+    for (const k of keys) {
+      const v = cleanDrillValue((ctx as any)[k]);
+      if (v != null && (k as string) in DRILL_LABELS) {
+        toggleDrill(k as BiComercialDrillKey, v);
+        return;
+      }
+    }
+  };
   const onClickMensal = (d: any) => {
     const ctx = extractDrillCtx(d, 'MENSAL');
-    if (Object.keys(ctx).length > 0) openDrill('MENSAL', ctx);
+    applyCtxAsCrossFilter(ctx);
   };
   const onClickMix = (d: any) => {
-    // Mix usa categorias custom (origem/tipo movimento), não DrillType direto.
     const map = drillFromMixCategoria(d?.categoria ?? d?.label ?? d?.name ?? '');
-    if (!map) return;
-    openDrill('NOTA_FISCAL', { [map.key]: map.value } as DrillContexto);
+    if (map) toggleDrill(map.key, map.value);
   };
   const onClickEstado = (d: any) => {
     const ctx = extractDrillCtx(d, 'ESTADO');
-    if (Object.keys(ctx).length > 0) openDrill('ESTADO', ctx);
+    applyCtxAsCrossFilter(ctx);
   };
   const onClickMapa = (d: { uf: string; cd_estado?: string | null; valor: number }) => {
     const cd = d?.cd_estado ?? d?.uf;
-    if (cd && String(cd) !== '(sem nome)') openDrill('ESTADO', { cd_estado: String(cd) });
+    if (cd && String(cd) !== '(sem nome)') toggleDrill('cd_estado', String(cd));
   };
   const onClickRevenda = (d: any) => {
     const ctx = extractDrillCtx(d, 'REVENDA');
-    if (Object.keys(ctx).length > 0) openDrill('REVENDA', ctx);
+    applyCtxAsCrossFilter(ctx);
   };
   const onClickObra = (d: any) => {
     const found = obrasRank.find((o) => o.label === d?.name || o.label === d?.label);
     const cod = found?.cd_prj ?? d?.cd_prj;
-    if (cod && String(cod) !== '(sem nome)') openDrill('NOTA_FISCAL', { cd_prj: String(cod) });
+    if (cod && String(cod) !== '(sem nome)') toggleDrill('cd_prj', String(cod));
   };
 
 
@@ -705,14 +718,40 @@ export default function ComercialPage() {
     ].join('|'))
     .join('~');
 
+  const widgetDrillType = (w: ComercialWidget): DrillType | undefined => {
+    const def = COMERCIAL_WIDGETS[w.type];
+    if (def?.kind === 'kpi') return KPI_DRILL_MAP[def.kpiKey!] ?? 'NOTA_FISCAL';
+    if (def?.kind === 'serie-mensal') return 'MENSAL';
+    if (def?.type === 'estados') return 'ESTADO';
+    if (def?.type === 'revendas') return 'REVENDA';
+    if (def?.type === 'obras') return 'NOTA_FISCAL';
+    if (def?.type === 'mix') return 'NOTA_FISCAL';
+    if (def?.kind === 'table') return 'MENSAL';
+    if (w.componentId) {
+      const optsDrillType: DrillType | undefined = (w.options as any)?.drillType;
+      if (optsDrillType) return optsDrillType;
+      const s = (w as any)?.mapping?.series;
+      if (typeof s === 'string') return drillTypeFromSeriesKey(s);
+    }
+    return 'NOTA_FISCAL';
+  };
+
   const blocks = useMemo(() => {
     const out: Record<string, ReactNode> = {};
     visibleWidgets.forEach((w) => {
       const title = w.customTitle || w.title || w.type;
+      const dt = widgetDrillType(w);
       out[w.type] = (
         <WidgetErrorBoundary widgetKey={w.type} title={title}>
           <WidgetTitleStyle color={w.titleColor} bold={w.titleBold} valueColor={(w as any).valueColor}>
-            {renderWidget(w)}
+            <ChartContextMenu
+              drillType={dt}
+              onOpenDrill={(next) => openDrill(next, {})}
+              onClearAll={clearDrill}
+              activeFiltersCount={chips.length}
+            >
+              {renderWidget(w)}
+            </ChartContextMenu>
           </WidgetTitleStyle>
         </WidgetErrorBoundary>
       );
@@ -721,7 +760,7 @@ export default function ComercialPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetsContentKey, kpis, mensal, mix, estados, revendaRows, obrasRows, filters,
       qKpis.isLoading, qMensal.isLoading, qMix.isLoading, qEstado.isLoading, qRevenda.isLoading, qObras.isLoading,
-      customMetrics.metrics, hiddenSeries]);
+      customMetrics.metrics, hiddenSeries, chips.length]);
 
   // ===== Builder handlers =====
   const handleLayoutChange = (next: { type: string; layout: WidgetLayout }[]) => {
@@ -1033,7 +1072,7 @@ export default function ComercialPage() {
 
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
-            <span className="font-semibold text-muted-foreground">Drill ativo:</span>
+            <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
             <Badge variant="outline" className="font-medium">{filters.unidade_negocio}</Badge>
             {chips.map((c) => (
               <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
@@ -1047,7 +1086,7 @@ export default function ComercialPage() {
               </Badge>
             ))}
             <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" onClick={clearDrill}>
-              <X className="h-3 w-3" /> Limpar Drill
+              <X className="h-3 w-3" /> Limpar filtros
             </Button>
           </div>
         )}

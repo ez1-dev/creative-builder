@@ -60,6 +60,28 @@ export function useComercialFilters(initial: BiComercialFilters) {
     [],
   );
 
+  /**
+   * Cross-filter por clique esquerdo no gráfico: se o valor já estiver ativo
+   * para a mesma chave, remove (toggle). Senão, substitui.
+   */
+  const toggleDrill = useCallback(
+    (key: BiComercialDrillKey, value: string | number | null | undefined) => {
+      if (value == null || value === '') return;
+      const v = String(value);
+      setFilters((f) => {
+        const cur = f[key];
+        const next = { ...f };
+        if (cur != null && String(cur) === v) {
+          delete next[key];
+        } else {
+          (next as any)[key] = v;
+        }
+        return next;
+      });
+    },
+    [],
+  );
+
   const removeDrill = useCallback((key: BiComercialDrillKey) => {
     setFilters((f) => {
       const next = { ...f };
@@ -82,7 +104,7 @@ export function useComercialFilters(initial: BiComercialFilters) {
 
   const chips = useMemo(() => getActiveDrillChips(filters), [filters]);
 
-  return { filters, setFilters, setBase, applyDrill, removeDrill, clearDrill, chips };
+  return { filters, setFilters, setBase, applyDrill, toggleDrill, removeDrill, clearDrill, chips };
 }
 
 /** Mapeia categoria do donut "Mix" para o filtro de drill correto. */
