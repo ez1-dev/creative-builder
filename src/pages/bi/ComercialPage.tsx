@@ -229,23 +229,8 @@ export default function ComercialPage() {
     }
   };
 
-  const [syncingProdutos, setSyncingProdutos] = useState(false);
-  const handleSyncProdutos = async () => {
-    if (syncingProdutos) return;
-    setSyncingProdutos(true);
-    const tId = toast.loading('Sincronizando produtos do ERP...');
-    try {
-      const r = await api.post<any>('/api/bi/comercial/produtos/sincronizar', {});
-      const total = r?.total ?? 0;
-      const ins = r?.inseridos ?? 0;
-      const upd = r?.atualizados ?? 0;
-      toast.success(`Produtos sincronizados: ${total} (novos ${ins}, atualizados ${upd})`, { id: tId });
-    } catch (e: any) {
-      toast.error(`Falha ao sincronizar produtos: ${e?.message ?? e}`, { id: tId });
-    } finally {
-      setSyncingProdutos(false);
-    }
-  };
+
+
 
 
   const kpisRaw = qKpis.data ?? ({} as any);
@@ -961,19 +946,8 @@ export default function ComercialPage() {
                   Sincronizar clientes
                 </Button>
               )}
-              {isAdmin && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 gap-1"
-                  onClick={handleSyncProdutos}
-                  disabled={syncingProdutos}
-                  title="Atualiza descrições dos produtos a partir do ERP (E075PRO)"
-                >
-                  <Sparkles className={cn('h-3.5 w-3.5', syncingProdutos && 'animate-pulse')} />
-                  Sincronizar produtos
-                </Button>
-              )}
+
+
 
               <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
                 <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
