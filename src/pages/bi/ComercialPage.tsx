@@ -1108,22 +1108,39 @@ export default function ComercialPage() {
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
             <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
             <Badge variant="outline" className="font-medium">{filters.unidade_negocio}</Badge>
-            {chips.map((c) => (
-              <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
-                <span className="text-muted-foreground">{c.label}:</span>
-                <span>{c.value}</span>
-                <button type="button" onClick={() => removeDrill(c.key as BiComercialDrillKey)}
-                  aria-label={`Remover filtro ${DRILL_LABELS[c.key as BiComercialDrillKey]}`}
-                  className="ml-0.5 rounded-sm p-0.5 hover:bg-background">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
+            {chips.map((c) => {
+              let display = c.value;
+              if (c.key === 'cd_estado') {
+                display = formatEstadoLabel(c.value);
+              } else if (c.key === 'cd_rev_pedido') {
+                const row = (qRevenda.data ?? []).find((r: any) =>
+                  String(r.cd_rev_pedido ?? '') === c.value);
+                const nm = row?.nm_revenda ?? row?.nm_fantasia ?? row?.ds_revenda;
+                if (nm) display = `${c.value} - ${nm}`;
+              } else if (c.key === 'cd_prj') {
+                const row = (qObras.data ?? []).find((r: any) =>
+                  String(r.cd_prj ?? '') === c.value);
+                const nm = row?.ds_obra ?? row?.ds_abr_prj ?? row?.nm_projeto;
+                if (nm) display = `${c.value} - ${nm}`;
+              }
+              return (
+                <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
+                  <span className="text-muted-foreground">{c.label}:</span>
+                  <span>{display}</span>
+                  <button type="button" onClick={() => removeDrill(c.key as BiComercialDrillKey)}
+                    aria-label={`Remover filtro ${DRILL_LABELS[c.key as BiComercialDrillKey]}`}
+                    className="ml-0.5 rounded-sm p-0.5 hover:bg-background">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
             <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" onClick={clearDrill}>
               <X className="h-3 w-3" /> Limpar filtros
             </Button>
           </div>
         )}
+
 
         <div className="rounded-md border bg-card overflow-hidden">
           <button
