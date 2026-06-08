@@ -106,10 +106,11 @@ export function pickLabel(row: Record<string, any>, candidates: string[], fallba
 }
 
 import { pickDimensionLabel } from './dimensionLabels';
+import { formatEstadoLabel } from './ufLabels';
 
-const ESTADO_LABEL_KEYS  = ['display_label', 'label', 'estado_label', 'nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
-const REVENDA_LABEL_KEYS = ['display_label', 'label', 'revenda_label', 'nm_revenda', 'ds_revenda', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
-const OBRA_LABEL_KEYS    = ['display_label', 'label', 'obra_label', 'projeto', 'ds_abr_prj', 'nm_projeto', 'cd_prj'];
+const ESTADO_LABEL_KEYS  = ['serie_label', 'display_label', 'label', 'estado_label', 'nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
+const REVENDA_LABEL_KEYS = ['serie_label', 'display_label', 'label', 'revenda_label', 'nm_revenda', 'ds_revenda', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
+const OBRA_LABEL_KEYS    = ['serie_label', 'display_label', 'label', 'obra_label', 'projeto', 'ds_abr_prj', 'nm_projeto', 'cd_prj'];
 
 export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMetric): SeriePoint[] {
   return rows.map((r) => {
@@ -121,7 +122,8 @@ export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMe
       // Métricas não disponíveis no endpoint atual — backend precisa estender.
       default: v = 0;
     }
-    const label = pickDimensionLabel(r as any, 'estado') || pickLabel(r as any, ESTADO_LABEL_KEYS);
+    const code = (r as any)?.cd_estado ?? (r as any)?.uf ?? (r as any)?.sg_uf;
+    const label = pickDimensionLabel(r as any, 'estado') || (code ? formatEstadoLabel(String(code)) : '—');
     return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
@@ -136,7 +138,7 @@ export function buildRevendaSerie(rows: ComercialRevendaRow[], metric: Comercial
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    const label = pickDimensionLabel(r as any, 'revenda') || pickLabel(r as any, REVENDA_LABEL_KEYS);
+    const label = pickDimensionLabel(r as any, 'revenda') || String((r as any)?.cd_rev_pedido ?? '—');
     return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
@@ -151,7 +153,7 @@ export function buildObrasSerie(rows: ComercialObrasRow[], metric: ComercialMetr
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    const label = pickDimensionLabel(r as any, 'obra') || pickLabel(r as any, OBRA_LABEL_KEYS);
+    const label = pickDimensionLabel(r as any, 'obra') || String((r as any)?.cd_prj ?? (r as any)?.cd_obra ?? '—');
     return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
@@ -196,6 +198,13 @@ function pickFirst(row: Record<string, any>, keys: string[]): any {
   return null;
 }
 
+const DRILL_TO_DIM: Partial<Record<DrillType, 'cliente'|'revenda'|'estado'|'obra'|'produto'>> = {
+  CLIENTE: 'cliente',
+  REVENDA: 'revenda',
+  ESTADO: 'estado',
+  PRODUTO: 'produto',
+};
+
 export function buildSerieFromDrill(
   resp: DrillResponse | undefined,
   drillType: DrillType,
@@ -204,13 +213,15 @@ export function buildSerieFromDrill(
   if (!resp || !Array.isArray(resp.rows)) return [];
   const labelKeys = LABEL_CANDIDATES[drillType] ?? ['label'];
   const metricKeys = METRIC_COLUMN_CANDIDATES[metric] ?? [];
+  const dim = DRILL_TO_DIM[drillType];
   return resp.rows
     .map((r) => {
       const valorRaw = pickFirst(r, metricKeys);
+      const label = dim ? (pickDimensionLabel(r, dim) || pickLabel(r, labelKeys)) : pickLabel(r, labelKeys);
       // Preserva filtros_drill + campos técnicos para o contrato de drill global.
       return {
         ...r,
-        label: pickLabel(r, labelKeys),
+        label,
         valor: n(valorRaw),
       } as SeriePoint;
     })

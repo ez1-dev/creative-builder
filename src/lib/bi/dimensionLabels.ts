@@ -17,27 +17,27 @@ const DIM_SPECS: Record<LabelDimension, DimSpec> = {
   cliente: {
     codeKeys: ['cd_cliente'],
     nameKeys: ['nm_cliente', 'nm_fantasia', 'cliente'],
-    labelKeys: ['cliente_label', 'display_label'],
+    labelKeys: ['serie_label', 'cliente_label', 'display_label'],
   },
   revenda: {
     codeKeys: ['cd_rev_pedido', 'cd_revenda'],
     nameKeys: ['nm_revenda', 'ds_revenda', 'revenda', 'nm_fantasia'],
-    labelKeys: ['revenda_label', 'display_label'],
+    labelKeys: ['serie_label', 'revenda_label', 'display_label'],
   },
   estado: {
     codeKeys: ['cd_estado', 'uf', 'sg_uf'],
     nameKeys: ['nm_estado', 'estado'],
-    labelKeys: ['estado_label', 'display_label'],
+    labelKeys: ['serie_label', 'estado_label', 'display_label'],
   },
   obra: {
-    codeKeys: ['cd_prj', 'numero_projeto', 'cd_projeto'],
+    codeKeys: ['cd_prj', 'cd_obra', 'numero_projeto', 'cd_projeto'],
     nameKeys: ['ds_obra', 'ds_abr_prj', 'nm_projeto', 'nome_projeto', 'projeto'],
-    labelKeys: ['obra_label', 'projeto_label', 'display_label'],
+    labelKeys: ['serie_label', 'obra_label', 'projeto_label', 'display_label'],
   },
   produto: {
     codeKeys: ['cd_produto'],
     nameKeys: ['ds_produto', 'descricao_produto', 'descricao', 'nm_produto'],
-    labelKeys: ['produto_label', 'display_label'],
+    labelKeys: ['serie_label', 'produto_label', 'display_label'],
   },
 };
 
