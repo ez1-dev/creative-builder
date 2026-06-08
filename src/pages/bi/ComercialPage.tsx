@@ -316,7 +316,7 @@ export default function ComercialPage() {
   })), [mix]);
   const estadoSorted = useMemo(() => [...estados].sort((a, b) => n(b.faturamento) - n(a.faturamento)), [estados]);
   const estadosSerie = estadoSorted.map((d) => ({
-    label: pickComercialLabel(d as any),
+    label: pickDimensionLabel(d as any, 'estado'),
     cd_estado: (d as any)?.cd_estado ?? (d as any)?.sg_uf ?? (d as any)?.uf ?? null,
     valor: n(d.faturamento),
   }));
@@ -326,12 +326,12 @@ export default function ComercialPage() {
     valor: n(d.faturamento),
   }));
   const revendaRank = useMemo(() => revendaRows.map((r: any) => ({
-    label: pickComercialLabel(r),
+    label: pickDimensionLabel(r, 'revenda'),
     cd_rev_pedido: r?.cd_rev_pedido ?? null,
     valor: n(r.faturamento),
   })), [revendaRows]);
   const obrasRank = useMemo(() => obrasRows.map((o: any) => ({
-    label: pickComercialLabel(o),
+    label: pickDimensionLabel(o, 'obra'),
     valor: n(o.faturamento),
     cd_prj: o?.cd_prj ?? null,
   })), [obrasRows]);
