@@ -1,126 +1,67 @@
 ## Objetivo
 
-Hoje os gráficos e o drawer de drill do BI Comercial mostram apenas códigos (ex.: `202601`, `cd_prj=80100`, `SP`). Vamos exibir **código + nome** em todas as 4 dimensões — **Cliente, Revenda, Estado, Obra/Projeto** — em:
+Corrigir o card "Ranking de revendas" (e todos os outros rankings/séries/donuts do BI Comercial) para exibir o label correto da dimensão — não mais o código cru `202601` nem `anomes_emissao`. A regra de prioridade já existe em `pickDimensionLabel` (`src/lib/bi/dimensionLabels.ts`); o problema é que `ComercialPage.tsx` ainda usa o adapter genérico antigo `pickComercialLabel`, que não amarra a linha à dimensão correta e cai em qualquer chave disponível.
 
-1. Gráficos/rankings da página `/bi/comercial` (barra, ranking, donut, treemap, mapa, séries customizadas).
-2. Drawer multinível de drill (`ComercialDrillDrawer`) — colunas `cliente_label`, `revenda_label`, `estado_label`, `obra_label`.
-3. Chips de filtro ativos no topo da página.
+## O que muda
 
-Cross-filter continua usando **só o código** (`cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_cliente`) — o label é puramente apresentação.
+Apenas frontend/apresentação. Nenhum endpoint, nenhuma migration, nenhuma alteração em `filtros_drill` (continua só com códigos crus).
 
----
+### 1. `src/pages/bi/ComercialPage.tsx` — trocar `pickComercialLabel` por `pickDimensionLabel` com a dimensão certa em cada bloco
 
-## Estratégia de origem dos nomes
-
-| Dimensão | Fonte | Status |
+| Bloco (memo) | Dimensão | Mudança |
 |---|---|---|
-| Cliente | `public.bi_cliente` (já existe) | OK — backend já entrega `cliente_label` |
-| Produto | `public.bi_produto` (já existe) | OK |
-| Revenda | **`public.bi_revenda` (criar)** + sync ERP (E140REV / equivalente) | Novo |
-| Obra/Projeto | `public.bi_projetos` (**já existe**, 5 colunas) — verificar se tem `ds_obra`/`nome` | Possivelmente já dá; senão estender sync |
-| Estado (UF) | Mapa fixo no frontend (`AC → Acre`, …) | Sem backend |
+| `donutMix` | n/a (categoria custom) | manter `pickComercialLabel(m, ['categoria'])` |
+| `estadosSerie` | `estado` | `label: pickDimensionLabel(d, 'estado')` (fallback já cai em `formatEstadoLabel`) |
+| `mapaData.uf` | continua só a sigla (mapa precisa de UF de 2 letras) | sem mudança |
+| `revendaRank` | `revenda` | `label: pickDimensionLabel(r, 'revenda')` |
+| `obrasRank` | `obra` | `label: pickDimensionLabel(o, 'obra')` |
 
----
+Importa `pickDimensionLabel` de `@/lib/bi/dimensionLabels`.
 
-## Parte 1 — Lovable Cloud: nova tabela `bi_revenda`
+### 2. `src/lib/bi/dimensionLabels.ts` — alinhar fallback à regra pedida
 
-Migração (CREATE TABLE + GRANTs + RLS + policy de leitura para `authenticated`; escrita só `service_role`):
+A regra do usuário é estrita:
 
-```text
-bi_revenda
-├─ cd_rev_pedido text PRIMARY KEY      -- código usado em v_bi_faturamento_comercial
-├─ nm_revenda text
-├─ nm_fantasia text NULL
-├─ cd_empresa int NULL
-├─ ativo bool default true
-├─ created_at / updated_at
+```
+revenda_label || `${cd_rev_pedido} - ${nm_revenda}` || nm_revenda || cd_rev_pedido
 ```
 
-Padrão idêntico a `bi_cliente` / `bi_produto`. Frontend nunca grava — só `service_role` (FastAPI).
+A implementação atual já segue essa ordem (`*_label` → `code - name` → `name` → `code`), mas faltam dois ajustes pontuais:
 
----
+- `obra`: adicionar `cd_obra` na lista de `codeKeys` (hoje só lê `cd_prj`/`cd_projeto`/`numero_projeto`).
+- Garantir a prioridade do `serie_label` para nomes de séries: adicionar `'serie_label'` no topo de **todas** as `labelKeys` de cada dimensão (cliente, revenda, estado, obra, produto). Isto cobre o requisito "para gráficos com série, `serie_label` deve ser usado antes de `serie`".
 
-## Parte 2 — Backend FastAPI (3 documentos novos em `docs/`)
+### 3. `src/lib/bi/comercialSeriesBuilder.ts` — usar adapter por dimensão também onde ainda há fallback velho
 
-### 2.1 `docs/backend-bi-comercial-revendas-sincronizar.md`
-- `POST /api/bi/comercial/revendas/sincronizar` — lê E140REV (ou tabela cadastral equivalente do ERP Senior) e faz UPSERT em `public.bi_revenda` via service role.
-- Resposta: `{ inseridos, atualizados, total }`.
+Hoje `buildEstadoSerie`, `buildRevendaSerie`, `buildObrasSerie` já chamam `pickDimensionLabel`, mas caem em `pickLabel(..., LABEL_KEYS)` se vazio. Trocar o fallback final por:
 
-### 2.2 `docs/backend-bi-comercial-drill-labels.md` (extensão dos contratos existentes)
-Para cada `drill_type`, o backend deve devolver `*_label` quando agregar pela dimensão:
+- `buildEstadoSerie` → fallback `formatEstadoLabel(r.cd_estado ?? r.uf ?? r.sg_uf)`.
+- `buildRevendaSerie` / `buildObrasSerie` → fallback `String(cd_rev_pedido ?? cd_prj ?? '—')`.
 
-| drill_type | Coluna agregada | Label esperado |
-|---|---|---|
-| ESTADO | `cd_estado` | `estado_label = cd_estado || ' - ' || nm_estado` (lookup fixo no backend) |
-| REVENDA | `cd_rev_pedido` | LEFT JOIN `bi_revenda` → `revenda_label = cd_rev_pedido || ' - ' || nm_revenda` |
-| CLIENTE | `cd_cliente` | já entrega `cliente_label` (manter) |
-| PRODUTO | `cd_produto` | já entrega `produto_label` (manter) |
-| (qualquer drill agrupado por obra) | `cd_prj` | `obra_label = cd_prj || ' - ' || ds_obra` via `bi_projetos` |
+Isso elimina a chance do builder cair em `anomes_emissao` (que estava acidentalmente no array `ESTADO_LABEL_KEYS` antigo).
 
-Regras invioláveis:
-- `filtros_drill` em **toda linha** continua contendo **APENAS o código** (`cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_cliente`). Nunca o label.
-- `*_label` é estritamente apresentação.
+`buildSerieFromDrill` (drills CLIENTE/PRODUTO/NF) também passa a usar `pickDimensionLabel(r, dim)` quando a dimensão é mapeável (`CLIENTE`→`cliente`, `PRODUTO`→`produto`, `REVENDA`→`revenda`, `ESTADO`→`estado`), com fallback para `pickLabel` nos drills que não têm dimensão visual definida (NF, DETALHES_IMPOSTOS).
 
-### 2.3 `docs/backend-bi-comercial-series-labels.md` (séries agregadas)
-Endpoints de séries que hoje agregam por `cd_rev_pedido` / `cd_estado` / `cd_prj` no “Ranking de revendas”, “Top estados”, “Faturamento por obra”, etc., devem passar a devolver junto:
+### 4. Confirmar comportamento — sem mudanças no contrato de drill
 
-```json
-{ "cd_rev_pedido": "202601", "nm_revenda": "...", "revenda_label": "202601 - ...", "valor": 4119 }
-```
+- `filtros_drill` continua exclusivamente com códigos (`cd_rev_pedido`, `cd_estado`, `cd_prj`, `cd_cliente`, `cd_produto`).
+- `extractDrillCtx` / `compactDrillContext` permanecem inalterados.
+- O label nunca entra em `filtros_drill`.
 
-Mesma regra para `cd_estado` / `nm_estado` / `estado_label` e `cd_prj` / `ds_obra` / `obra_label`.
+## Por que o ranking mostra `202601, 202605, ...`
 
----
+Esse é literalmente o valor de `cd_rev_pedido` que o backend devolve para a unidade GENIUS — a numeração interna da revenda nesse ERP coincide com algo que parece anomes. Como a tabela `bi_revenda` ainda não foi populada pelo backend (endpoint `POST /api/bi/comercial/revendas/sincronizar` ainda não foi chamado / implementado), o backend não está enviando `nm_revenda` nem `revenda_label`. Resultado: `pickDimensionLabel` legitimamente cai no código.
 
-## Parte 3 — Frontend
-
-### 3.1 Catálogo de UF (puro frontend)
-- Novo: `src/lib/bi/ufLabels.ts` com `UF_LABELS: Record<string, string>` (27 UFs + DF).
-- Helper `formatEstadoLabel(cd_estado)` → `"SP - São Paulo"`.
-
-### 3.2 Adapter genérico de label
-- Novo: `src/lib/bi/dimensionLabels.ts` exportando `pickDimensionLabel(row, dim)` que prioriza:
-  1. `*_label` do backend
-  2. `cd_xxx + ' - ' + nm_xxx` se nome veio na linha
-  3. `cd_xxx` puro
-
-Usado pelos componentes BI da lib (`Ranking`, `BarChart`, `Treemap`, `MapaUF`, `DrillDownTable`, `ChartContextMenu` breadcrumb).
-
-### 3.3 Componentes da biblioteca BI (`src/components/bi/...`)
-- Adaptar widgets já existentes que renderizam `label` (ranking de revendas, top estados, treemap de obras, top clientes…) para chamar `pickDimensionLabel` antes de exibir.
-- Não muda o cross-filter — continua mandando o **código** para `toggleDrill`.
-
-### 3.4 Drawer de drill (`src/components/bi/drill/DrillDownTable.tsx`)
-- Já injeta coluna “Descrição do Produto” quando `ds_produto` vem sem coluna. Replicar padrão:
-  - Drill `REVENDA` → injetar coluna "Revenda" exibindo `revenda_label`.
-  - Drill `ESTADO` → injetar coluna "Estado" exibindo `estado_label` (com fallback `formatEstadoLabel`).
-  - Drill agrupado por `cd_prj` → injetar coluna "Obra" com `obra_label`.
-
-### 3.5 Chips de filtro (`src/lib/bi/comercialFilters.ts` + componente que renderiza chips em `ComercialPage`)
-- `DrillChip` ganha `displayValue` opcional.
-- `useComercialFilters` mantém o `value` (código) e calcula `displayValue` via cache de labels em memória (alimentado pelas respostas do backend) + `formatEstadoLabel` para UF.
-- Chip mostra `displayValue`; ao remover, continua usando `key`+`value` (código).
-
-### 3.6 Botão "Sincronizar revendas" (header `/bi/comercial`)
-- Mesma UX dos botões "Sincronizar clientes" / "Sincronizar produtos" (admin-only).
-- Chama `POST /api/bi/comercial/revendas/sincronizar` via `api.ts`.
-
-### 3.7 Atualizações de memória / docs
-- `mem/features/drill-bi-comercial.md`: registrar `bi_revenda`, `*_label` p/ REVENDA/ESTADO/OBRA, `formatEstadoLabel` no frontend, regra `filtros_drill` continua só com código.
-
----
+**Após este ajuste**: o card vai exibir o código até a sincronização de revendas rodar; quando o backend passar a enviar `nm_revenda`/`revenda_label`, automaticamente vira `"202601 - Nome da Revenda"` sem nenhuma mudança extra no frontend.
 
 ## Fora de escopo
 
-- Mexer no fluxo de cross-filter / `toggleDrill` (continua por código).
-- Backfill histórico — backend popula `bi_revenda` na 1ª sincronização.
-- Drill por TNS / Tipo Movimento (tratado em outro plano).
+- Implementar o endpoint backend de sincronização (já documentado em `docs/backend-bi-comercial-revendas-sincronizar.md`).
+- Mudar layout, cores, ordenação ou regras de cross-filter.
+- Mexer no Drawer de drill — já foi feito no turno anterior.
 
----
+## Arquivos tocados
 
-## Detalhes técnicos resumidos
-
-- **Migração Cloud**: criar `public.bi_revenda` com GRANTs `SELECT → authenticated`, `ALL → service_role`, RLS habilitado, policy `SELECT USING (true)` para authenticated.
-- **`bi_projetos`**: confirmar via `supabase--read_query` se já há coluna de descrição da obra; se faltar, adicionar na mesma migração.
-- **Cache de labels frontend**: simples `Map<string, string>` por chave (`revenda:202601 → "..."`) preenchido conforme respostas do backend chegam — sem persistência, sem fetch extra.
-- **Compatibilidade**: enquanto backend não devolver `*_label` ou tabela não estiver populada, fallback exibe apenas o código (comportamento atual). Nenhuma quebra.
+- `src/pages/bi/ComercialPage.tsx` — 4 substituições pontuais nos memos `estadosSerie`, `revendaRank`, `obrasRank` (donut/mix mantém categoria).
+- `src/lib/bi/dimensionLabels.ts` — adicionar `serie_label` no topo de cada `labelKeys` e `cd_obra` em `obra.codeKeys`.
+- `src/lib/bi/comercialSeriesBuilder.ts` — ajustar fallback final dos builders por dimensão e passar a usar `pickDimensionLabel` em `buildSerieFromDrill` quando aplicável.
