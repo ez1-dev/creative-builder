@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package } from 'lucide-react';
+import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package, Building2 } from 'lucide-react';
+import { formatEstadoLabel } from '@/lib/bi/ufLabels';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { api } from '@/lib/api';
 
@@ -247,6 +248,25 @@ export default function ComercialPage() {
       setSyncingProdutos(false);
     }
   };
+
+  const [syncingRevendas, setSyncingRevendas] = useState(false);
+  const handleSyncRevendas = async () => {
+    if (syncingRevendas) return;
+    setSyncingRevendas(true);
+    const tId = toast.loading('Sincronizando revendas do ERP...');
+    try {
+      const r = await api.post<any>('/api/bi/comercial/revendas/sincronizar', {});
+      const total = r?.total ?? 0;
+      const ins = r?.inseridos ?? 0;
+      const upd = r?.atualizados ?? 0;
+      toast.success(`Revendas sincronizadas: ${total} (novas ${ins}, atualizadas ${upd})`, { id: tId });
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar revendas: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingRevendas(false);
+    }
+  };
+
 
 
 
@@ -1016,6 +1036,20 @@ export default function ComercialPage() {
                   Sincronizar produtos
                 </Button>
               )}
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={handleSyncRevendas}
+                  disabled={syncingRevendas}
+                  title="Atualiza nomes das revendas a partir do ERP"
+                >
+                  <Building2 className={cn('h-3.5 w-3.5', syncingRevendas && 'animate-pulse')} />
+                  Sincronizar revendas
+                </Button>
+              )}
+
 
 
 
@@ -1074,22 +1108,40 @@ export default function ComercialPage() {
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
             <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
             <Badge variant="outline" className="font-medium">{filters.unidade_negocio}</Badge>
-            {chips.map((c) => (
-              <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
-                <span className="text-muted-foreground">{c.label}:</span>
-                <span>{c.value}</span>
-                <button type="button" onClick={() => removeDrill(c.key as BiComercialDrillKey)}
-                  aria-label={`Remover filtro ${DRILL_LABELS[c.key as BiComercialDrillKey]}`}
-                  className="ml-0.5 rounded-sm p-0.5 hover:bg-background">
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ))}
+            {chips.map((c) => {
+              let display = c.value;
+              if (c.key === 'cd_estado') {
+                display = formatEstadoLabel(c.value);
+              } else if (c.key === 'cd_rev_pedido') {
+                const row: any = (qRevenda.data ?? []).find((r: any) =>
+                  String(r.cd_rev_pedido ?? '') === c.value);
+                const nm = row?.nm_revenda ?? row?.nm_fantasia ?? row?.ds_revenda ?? row?.revenda;
+                if (nm) display = `${c.value} - ${nm}`;
+              } else if (c.key === 'cd_prj') {
+                const row: any = (qObras.data ?? []).find((r: any) =>
+                  String(r.cd_prj ?? '') === c.value);
+                const nm = row?.ds_obra ?? row?.ds_abr_prj ?? row?.nm_projeto ?? row?.projeto;
+                if (nm) display = `${c.value} - ${nm}`;
+              }
+
+              return (
+                <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
+                  <span className="text-muted-foreground">{c.label}:</span>
+                  <span>{display}</span>
+                  <button type="button" onClick={() => removeDrill(c.key as BiComercialDrillKey)}
+                    aria-label={`Remover filtro ${DRILL_LABELS[c.key as BiComercialDrillKey]}`}
+                    className="ml-0.5 rounded-sm p-0.5 hover:bg-background">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
             <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" onClick={clearDrill}>
               <X className="h-3 w-3" /> Limpar filtros
             </Button>
           </div>
         )}
+
 
         <div className="rounded-md border bg-card overflow-hidden">
           <button

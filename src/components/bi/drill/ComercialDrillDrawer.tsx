@@ -23,6 +23,7 @@ import {
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
 import { cleanDrillValue, compactDrillContext } from '@/lib/bi/comercialDrillContract';
+import { formatEstadoLabel as formatEstadoLabelLocal, ufName as ufNameLocal } from '@/lib/bi/ufLabels';
 import type { ComercialDrillStack } from '@/hooks/useComercialDrillStack';
 import { DrillEmptyDiagnostico } from './DrillEmptyDiagnostico';
 
@@ -180,6 +181,30 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         out = [...out.slice(0, idx + 1), descCol, ...out.slice(idx + 1)];
       }
     }
+    // REVENDA: injeta nm_revenda após cd_rev_pedido.
+    if (out.some((c) => c.key === 'cd_rev_pedido') && !out.some((c) => c.key === 'nm_revenda' || c.key === 'revenda_label')) {
+      const idx = out.findIndex((c) => c.key === 'cd_rev_pedido');
+      if (idx >= 0) {
+        const nameCol = { key: 'nm_revenda', label: 'Nome da Revenda', align: 'left' as const, format: 'text' as any };
+        out = [...out.slice(0, idx + 1), nameCol, ...out.slice(idx + 1)];
+      }
+    }
+    // ESTADO: injeta nm_estado após cd_estado.
+    if (out.some((c) => c.key === 'cd_estado') && !out.some((c) => c.key === 'nm_estado' || c.key === 'estado_label')) {
+      const idx = out.findIndex((c) => c.key === 'cd_estado');
+      if (idx >= 0) {
+        const nameCol = { key: 'nm_estado', label: 'Estado', align: 'left' as const, format: 'text' as any };
+        out = [...out.slice(0, idx + 1), nameCol, ...out.slice(idx + 1)];
+      }
+    }
+    // OBRA: injeta ds_obra após cd_prj.
+    if (out.some((c) => c.key === 'cd_prj') && !out.some((c) => c.key === 'ds_obra' || c.key === 'nm_projeto' || c.key === 'obra_label')) {
+      const idx = out.findIndex((c) => c.key === 'cd_prj');
+      if (idx >= 0) {
+        const nameCol = { key: 'ds_obra', label: 'Descrição da Obra', align: 'left' as const, format: 'text' as any };
+        out = [...out.slice(0, idx + 1), nameCol, ...out.slice(idx + 1)];
+      }
+    }
     return out;
   }, [resp?.columns, cur?.drill_type]);
 
@@ -190,13 +215,20 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       header: c.label,
       align: c.align ?? (inferFormat(c.key, c.format) === 'currency' || inferFormat(c.key, c.format) === 'number' ? 'right' : 'left'),
       render: (_v: any, r: Record<string, any>) => {
-        if (c.key === 'nm_cliente') return r.nm_cliente ?? '—';
+        if (c.key === 'nm_cliente') return r.nm_cliente ?? r.nm_fantasia ?? '—';
         if (c.key === 'cd_produto') return r.produto_label ?? r.cd_produto ?? '—';
         if (c.key === 'ds_produto') return r.ds_produto ?? r.descricao_produto ?? r.produto_descricao ?? r.descricao ?? r.nm_produto ?? '—';
+        if (c.key === 'cd_rev_pedido') return r.revenda_label ?? r.cd_rev_pedido ?? '—';
+        if (c.key === 'nm_revenda') return r.nm_revenda ?? r.ds_revenda ?? r.nm_fantasia ?? '—';
+        if (c.key === 'cd_estado') return r.estado_label ?? formatEstadoLabelLocal(r.cd_estado);
+        if (c.key === 'nm_estado') return r.nm_estado ?? ufNameLocal(r.cd_estado) ?? '—';
+        if (c.key === 'cd_prj') return r.obra_label ?? r.cd_prj ?? '—';
+        if (c.key === 'ds_obra') return r.ds_obra ?? r.ds_abr_prj ?? r.nm_projeto ?? r.nome_projeto ?? '—';
         return fmtCell(r[c.key], c.format, c.key);
       },
 
     }));
+
     if (allowedNext.length > 0) {
       base.push({
         key: '__drill_actions__' as any,

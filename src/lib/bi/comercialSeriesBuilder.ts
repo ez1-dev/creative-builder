@@ -105,6 +105,8 @@ export function pickLabel(row: Record<string, any>, candidates: string[], fallba
   return fallback;
 }
 
+import { pickDimensionLabel } from './dimensionLabels';
+
 const ESTADO_LABEL_KEYS  = ['display_label', 'label', 'estado_label', 'nm_estado', 'estado', 'sg_uf', 'uf', 'n', 'cd_estado'];
 const REVENDA_LABEL_KEYS = ['display_label', 'label', 'revenda_label', 'nm_revenda', 'ds_revenda', 'revenda', 'nm_fantasia', 'cd_rev_pedido'];
 const OBRA_LABEL_KEYS    = ['display_label', 'label', 'obra_label', 'projeto', 'ds_abr_prj', 'nm_projeto', 'cd_prj'];
@@ -119,7 +121,8 @@ export function buildEstadoSerie(rows: ComercialEstadoRow[], metric: ComercialMe
       // Métricas não disponíveis no endpoint atual — backend precisa estender.
       default: v = 0;
     }
-    return { label: pickLabel(r as any, ESTADO_LABEL_KEYS), valor: v };
+    const label = pickDimensionLabel(r as any, 'estado') || pickLabel(r as any, ESTADO_LABEL_KEYS);
+    return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
@@ -133,7 +136,8 @@ export function buildRevendaSerie(rows: ComercialRevendaRow[], metric: Comercial
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    return { label: pickLabel(r as any, REVENDA_LABEL_KEYS), valor: v };
+    const label = pickDimensionLabel(r as any, 'revenda') || pickLabel(r as any, REVENDA_LABEL_KEYS);
+    return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
 
@@ -147,9 +151,11 @@ export function buildObrasSerie(rows: ComercialObrasRow[], metric: ComercialMetr
       case 'nclientes':   v = n(r.numero_clientes); break;
       default: v = 0;
     }
-    return { label: pickLabel(r as any, OBRA_LABEL_KEYS), valor: v };
+    const label = pickDimensionLabel(r as any, 'obra') || pickLabel(r as any, OBRA_LABEL_KEYS);
+    return { label, valor: v };
   }).sort((a, b) => b.valor - a.valor);
 }
+
 
 export function buildMixSerie(rows: ComercialMixRow[], metric: ComercialMetric): SeriePoint[] {
   return rows.map((r) => {
