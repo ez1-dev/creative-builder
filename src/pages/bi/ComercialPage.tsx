@@ -1036,6 +1036,20 @@ export default function ComercialPage() {
                   Sincronizar produtos
                 </Button>
               )}
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={handleSyncRevendas}
+                  disabled={syncingRevendas}
+                  title="Atualiza nomes das revendas a partir do ERP"
+                >
+                  <Building2 className={cn('h-3.5 w-3.5', syncingRevendas && 'animate-pulse')} />
+                  Sincronizar revendas
+                </Button>
+              )}
+
 
 
 
