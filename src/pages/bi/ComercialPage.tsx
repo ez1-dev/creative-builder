@@ -44,6 +44,7 @@ import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
+import { ChartContextMenu } from '@/components/bi/runtime/ChartContextMenu';
 import { normalizeWidget } from '@/lib/bi/normalize';
 import {
   Popover, PopoverContent, PopoverTrigger,
