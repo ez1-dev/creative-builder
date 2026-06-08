@@ -191,7 +191,8 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       align: c.align ?? (inferFormat(c.key, c.format) === 'currency' || inferFormat(c.key, c.format) === 'number' ? 'right' : 'left'),
       render: (_v: any, r: Record<string, any>) => {
         if (c.key === 'nm_cliente') return r.nm_cliente ?? '—';
-        if (c.key === 'ds_produto') return r.ds_produto ?? r.nm_produto ?? '—';
+        if (c.key === 'cd_produto') return r.produto_label ?? r.cd_produto ?? '—';
+        if (c.key === 'ds_produto') return r.ds_produto ?? r.descricao_produto ?? r.nm_produto ?? '—';
         return fmtCell(r[c.key], c.format, c.key);
       },
 
