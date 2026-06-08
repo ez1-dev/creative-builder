@@ -1072,7 +1072,7 @@ export default function ComercialPage() {
 
         {chips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
-            <span className="font-semibold text-muted-foreground">Drill ativo:</span>
+            <span className="font-semibold text-muted-foreground">Filtros ativos:</span>
             <Badge variant="outline" className="font-medium">{filters.unidade_negocio}</Badge>
             {chips.map((c) => (
               <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
