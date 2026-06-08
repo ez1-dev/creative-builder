@@ -964,6 +964,19 @@ export default function ComercialPage() {
                   Sincronizar clientes
                 </Button>
               )}
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1"
+                  onClick={handleSyncProdutos}
+                  disabled={syncingProdutos}
+                  title="Atualiza descrições dos produtos a partir do ERP (E075PRO/E080SER)"
+                >
+                  <Package className={cn('h-3.5 w-3.5', syncingProdutos && 'animate-pulse')} />
+                  Sincronizar produtos
+                </Button>
+              )}
 
 
 
