@@ -12,15 +12,38 @@ export const DRILL_LABELS: Record<DrillType, string> = {
   DETALHES_IMPOSTOS: 'Detalhes Impostos',
 };
 
+/**
+ * Lista de drill_types habilitados na UI. Os 3 novos (OBRA/PROJETO/TIPO_SERVICO)
+ * dependem de suporte no backend FastAPI — ver docs/backend-bi-comercial-drills-novos.md.
+ * Quando o endpoint /api/bi/comercial/drill aceitar esses tipos, basta acrescentar
+ * aqui (e em DrillType + DRILL_LABELS + ROW_TO_CTX_KEY + ALLOWED_CTX_KEYS).
+ */
+export const ENABLED_DRILLS: ReadonlySet<DrillType> = new Set<DrillType>([
+  'ACUMULADO', 'MENSAL', 'ESTADO', 'CLIENTE', 'REVENDA',
+  'PRODUTO', 'NOTA_FISCAL', 'DETALHES_IMPOSTOS',
+]);
+
+/**
+ * Cada nível pode navegar para qualquer outro (exceto ele mesmo). O backend
+ * resolve qualquer combinação de filtros via contexto. A UI filtra por
+ * ENABLED_DRILLS na renderização do menu.
+ */
+const ALL_DRILLS: DrillType[] = [
+  'MENSAL', 'ESTADO', 'CLIENTE', 'REVENDA', 'PRODUTO',
+  'NOTA_FISCAL', 'DETALHES_IMPOSTOS', 'ACUMULADO',
+];
+function nextFor(self: DrillType): DrillType[] {
+  return ALL_DRILLS.filter((d) => d !== self);
+}
 export const NEXT_DRILLS: Record<DrillType, DrillType[]> = {
-  ACUMULADO: ['MENSAL', 'ESTADO', 'CLIENTE', 'REVENDA', 'PRODUTO', 'NOTA_FISCAL', 'DETALHES_IMPOSTOS'],
-  MENSAL: ['ESTADO', 'CLIENTE', 'REVENDA', 'PRODUTO', 'NOTA_FISCAL', 'DETALHES_IMPOSTOS'],
-  ESTADO: ['CLIENTE', 'REVENDA', 'PRODUTO', 'NOTA_FISCAL', 'DETALHES_IMPOSTOS'],
-  CLIENTE: ['REVENDA', 'PRODUTO', 'NOTA_FISCAL', 'DETALHES_IMPOSTOS'],
-  REVENDA: ['CLIENTE', 'PRODUTO', 'NOTA_FISCAL', 'DETALHES_IMPOSTOS'],
-  PRODUTO: ['NOTA_FISCAL', 'DETALHES_IMPOSTOS'],
-  NOTA_FISCAL: ['PRODUTO', 'DETALHES_IMPOSTOS'],
-  DETALHES_IMPOSTOS: [],
+  ACUMULADO: nextFor('ACUMULADO'),
+  MENSAL: nextFor('MENSAL'),
+  ESTADO: nextFor('ESTADO'),
+  CLIENTE: nextFor('CLIENTE'),
+  REVENDA: nextFor('REVENDA'),
+  PRODUTO: nextFor('PRODUTO'),
+  NOTA_FISCAL: nextFor('NOTA_FISCAL'),
+  DETALHES_IMPOSTOS: nextFor('DETALHES_IMPOSTOS'),
 };
 
 
