@@ -1086,7 +1086,7 @@ export default function ComercialPage() {
               </Badge>
             ))}
             <Button size="sm" variant="ghost" className="ml-auto h-6 gap-1 px-2 text-xs" onClick={clearDrill}>
-              <X className="h-3 w-3" /> Limpar Drill
+              <X className="h-3 w-3" /> Limpar filtros
             </Button>
           </div>
         )}
