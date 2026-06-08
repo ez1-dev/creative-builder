@@ -1113,16 +1113,17 @@ export default function ComercialPage() {
               if (c.key === 'cd_estado') {
                 display = formatEstadoLabel(c.value);
               } else if (c.key === 'cd_rev_pedido') {
-                const row = (qRevenda.data ?? []).find((r: any) =>
+                const row: any = (qRevenda.data ?? []).find((r: any) =>
                   String(r.cd_rev_pedido ?? '') === c.value);
-                const nm = row?.nm_revenda ?? row?.nm_fantasia ?? row?.ds_revenda;
+                const nm = row?.nm_revenda ?? row?.nm_fantasia ?? row?.ds_revenda ?? row?.revenda;
                 if (nm) display = `${c.value} - ${nm}`;
               } else if (c.key === 'cd_prj') {
-                const row = (qObras.data ?? []).find((r: any) =>
+                const row: any = (qObras.data ?? []).find((r: any) =>
                   String(r.cd_prj ?? '') === c.value);
-                const nm = row?.ds_obra ?? row?.ds_abr_prj ?? row?.nm_projeto;
+                const nm = row?.ds_obra ?? row?.ds_abr_prj ?? row?.nm_projeto ?? row?.projeto;
                 if (nm) display = `${c.value} - ${nm}`;
               }
+
               return (
                 <Badge key={c.key} variant="secondary" className="gap-1 pr-1 font-medium">
                   <span className="text-muted-foreground">{c.label}:</span>
