@@ -1,45 +1,80 @@
-# Coluna Desconto em "Detalhamento por Nota Fiscal"
 
-## Verificação do backend
-O type `ComercialDetalheRow` em `src/lib/bi/comercialApi.ts` **não inclui** `vl_desconto` hoje, e nenhuma referência ao campo aparece no frontend para esse endpoint. Não há ambiente para chamar `/api/bi/comercial/detalhes` durante o plano para confirmar se a API já devolve a coluna, então o plano cobre os dois cenários:
+# Plano — Mapa de calor coroplético do Brasil (BI Comercial)
 
-- Se o backend já retornar `vl_desconto`: o frontend passa a usá-lo direto.
-- Se não retornar: adicionar `COALESCE(vl_desconto, 0) AS vl_desconto` no SQL do endpoint (doc abaixo). Enquanto isso, a coluna no grid mostrará R$ 0,00.
+Criar um componente novo de mapa **geográfico real** do Brasil por UF, lado a lado com o cartograma atual (`BrazilStateMapWidget`), sem alterá-lo. Já plugar nos dados reais existentes (`fetchComercialEstado`) e disponibilizar uma demo na página `/bi-components` (BiComponentsDemoPage).
 
-## Mudanças no frontend
+## O que será entregue
 
-### 1. `src/lib/bi/comercialApi.ts`
-Adicionar campo opcional no type:
-```ts
-vl_desconto?: number | null;
+1. **GeoJSON local** dos estados do Brasil em `public/maps/brasil-estados.geojson`, com `properties.sigla` (UF) garantido. Baixado de fonte pública confiável (IBGE-derived, ex.: `codeforgermany/click_that_hood` ou repositório IBGE), e normalizado se necessário (script único, não recorrente).
+   - Carregamento on-demand via `fetch('/maps/brasil-estados.geojson')` com cache via TanStack Query (`staleTime: Infinity`), evitando peso no bundle JS.
+
+2. **Dependência nova**: `react-simple-maps` (+ types). Leve, SVG, sem dependência de tiles.
+
+3. **Componente puro visual** `src/components/bi/maps/BrazilHeatMap.tsx`:
+   ```ts
+   type BrazilHeatMapDatum = { uf: string; valor: number; label?: string };
+   type BrazilHeatMapProps = {
+     data: BrazilHeatMapDatum[];
+     title?: string;
+     subtitle?: string;
+     height?: number;
+     loading?: boolean;
+     error?: string | null;
+     valueFormatter?: (v: number) => string;   // default formatCurrency
+     colorVar?: string;                         // default '--primary'
+     onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
+     showLegend?: boolean;                      // default true
+   };
+   ```
+   - Usa `ChartCardShell` (mesmo padrão dos outros widgets BI) para estados loading/empty/error.
+   - Carrega GeoJSON internamente via `useQuery(['geo-brasil-uf'], …)`.
+   - Cor por intensidade `hsl(var(--primary) / X)` com `X = max(0.12, valor/maxValor)`; sem dado = `hsl(var(--muted))`. Token semântico, **sem hardcode**.
+   - Tooltip nativo (`<title>` + estado hover) mostrando `UF - Nome (formatEstadoLabel)` e valor formatado. Sem libs extras de tooltip.
+   - Legenda horizontal (gradient + min/max), reutilizando o padrão visual já presente em `BrazilStateMapWidget`.
+   - Click chama `onStateClick(uf, datum)` apenas quando há dado.
+   - Responsivo: `ComposableMap` com `projection="geoMercator"` ajustado ao bounding box do Brasil, `ResponsiveContainer`-style via `width:100%` + `viewBox`.
+
+4. **Util de cor** em `src/lib/bi/mapUtils.ts`:
+   - `getHeatIntensity(valor, min, max)` → número 0.12..1.
+   - `buildUfValueMap(data)` → `Map<UF, datum>`.
+   - Reaproveita `formatEstadoLabel`/`ufName` de `src/lib/bi/ufLabels.ts`.
+
+5. **Widget plugado em dados reais** `src/components/bi/comercial/BrazilHeatMapWidget.tsx`:
+   - Mesma assinatura de filtros que `BrazilStateMapWidget` (`BiComercialFilters`).
+   - Usa `fetchComercialEstado(filters)` + normalizador já existente para extrair `{ uf, valor }`.
+   - Passa para `<BrazilHeatMap />`.
+   - **Não substitui** o widget cartograma — fica disponível para uso opcional em páginas/blocos futuros.
+
+6. **Demo** em `src/pages/BiComponentsDemoPage.tsx`: nova seção "Mapa coroplético do Brasil (novo)" mostrando o `BrazilHeatMap` com dados mock + uma instância do `BrazilHeatMapWidget` (real) lado a lado para comparação com o cartograma atual.
+
+## O que NÃO muda
+
+- `BrazilStateMapWidget` e `BrazilMapCard` continuam intactos.
+- BI Comercial (`/bi/comercial`) **não** é alterado — nenhuma troca de widget em produção.
+- Sem alteração de backend; usa endpoint `/api/bi/comercial/estado` já existente.
+- Sem nova rota; aproveita `/bi-components` (página de demo já existente).
+
+## Detalhes técnicos
+
+- **Projeção**: `geoMercator().center([-54, -14]).scale(700)` (ajustada empiricamente para caber o Brasil em 16:9; revalidada na demo).
+- **Acessibilidade**: cada `<Geography>` recebe `aria-label="SP - São Paulo: R$ X"` e `role="button"` quando `onStateClick` existe.
+- **Performance**: GeoJSON ~250 KB; servido de `/public` com cache HTTP do Vite/preview; parseado uma vez por sessão via TanStack Query.
+- **Tokens**: cor base configurável por `colorVar` (default `--primary`), cinza via `--muted`, borda `--border`. Sem `text-white`/`bg-black`.
+
+## Arquivos
+
+```text
+public/maps/brasil-estados.geojson                       (novo)
+src/components/bi/maps/BrazilHeatMap.tsx                 (novo)
+src/components/bi/comercial/BrazilHeatMapWidget.tsx      (novo)
+src/lib/bi/mapUtils.ts                                   (novo)
+src/pages/BiComponentsDemoPage.tsx                       (editar — adicionar seção demo)
+package.json                                             (add react-simple-maps + @types)
 ```
-(logo após `vl_impostos`).
 
-### 2. `src/pages/bi/ComercialPage.tsx` — `colsDetalhes`
-Inserir a coluna **entre `vl_bruto` e `vl_impostos`**:
-```ts
-{ key:'vl_desconto', header:'Desconto', align:'right',
-  render:(_v,r)=> formatCurrency(n(r.vl_desconto)) },
-```
-Segue o mesmo padrão das outras colunas monetárias do grid (`formatCurrency(n(...))`, `align:'right'`). Mantém compatibilidade quando o backend ainda não devolve o campo (`n(undefined) === 0`).
+## Validação
 
-> Observação: as demais colunas do grid não usam `groupable`/`aggregate`/`summaryInGroupHeader` em monetárias intermediárias (só `vl_bruto`, `vl_liquido` e `qtd_produtos` aparecem com `summaryInGroupHeader`). Mantemos a coluna nova consistente com `vl_impostos` e `vl_devolucao` (sem agregação no header). O componente `DataTableBI` exporta as colunas visíveis, então a coluna entra automaticamente em CSV/Excel.
-
-## Backend (somente se a API não devolver `vl_desconto`)
-
-Criar `docs/backend-bi-comercial-detalhes-desconto.md` com:
-- Endpoint: `GET /api/bi/comercial/detalhes`.
-- Ajuste: adicionar `COALESCE(vl_desconto, 0) AS vl_desconto` ao SELECT (origem `VM_FATURAMENTO.VL_DESCONTO`, já existente — não alterar UpQuery/ERP).
-- Sem mudanças em filtros, parâmetros, paginação ou shape do envelope.
-- Aceite: payload de cada linha contém `vl_desconto` numérico.
-
-## Fora de escopo
-- Drill `NOTA_FISCAL`/`DETALHES_IMPOSTOS` (já listam descontos via lógica própria do drawer).
-- VM_FATURAMENTO / UpQuery / ERP.
-- Outros grids/módulos.
-
-## Aceite
-- Grid "Detalhamento por Nota Fiscal" mostra coluna "Desconto" entre "Vl. Bruto" e "Impostos".
-- Valor formatado em moeda BR, alinhado à direita.
-- CSV e Excel exportados a partir do grid incluem a nova coluna.
-- Se o backend ainda não retornar `vl_desconto`, a coluna aparece zerada até o ajuste do SQL documentado.
+- Demo `/bi-components` mostra o mapa colorido por intensidade, tooltip nativo no hover, click logando UF no console.
+- Loading/empty/error visíveis (forçar via filtros sem retorno).
+- Sem hardcode de cor; alternar dark/light mantém contraste correto.
+- Cartograma original continua funcionando em `/bi/comercial`.
