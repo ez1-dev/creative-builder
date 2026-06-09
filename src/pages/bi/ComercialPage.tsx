@@ -690,11 +690,16 @@ export default function ComercialPage() {
       if (qKpis.isLoading) return <LoadingState height={200} />;
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
+      const kg: any = kpis;
+      const fatLiquidoG = Number(kg?.faturamento_liquido ?? kg?.fat_liquido ?? kg?.realizado ?? 0);
+      const metaG = Number(kg?.meta ?? kg?.vl_meta ?? 0);
+      const atingimento = metaG > 0 ? (fatLiquidoG / metaG) * 100 : 0;
       return (
         <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
-          <GaugeAchievementCard title={title} value={n(kpis.pct_atingimento)} />
+          <GaugeAchievementCard title={title} value={atingimento} />
         </Clickable>
       );
+
     }
 
 
