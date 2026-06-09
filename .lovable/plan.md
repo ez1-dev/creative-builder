@@ -1,42 +1,48 @@
-## Ordenação padrão das grids do BI Comercial
+# Right-click no KPI Impostos: ir direto pro Detalhamento de Impostos
 
-A prop `defaultSort` já existe no `DataTable` e está repassada pelo `DataTableBI`. Faltam dois ajustes: validar a chave quando as colunas mudam e corrigir as chaves passadas em `ComercialPage` (as atuais — `vl_tot_fat` — não existem nos dados, então a ordenação cai no fallback).
+## Diagnóstico
 
-### Mudanças
+Hoje o menu de contexto (botão direito) dos widgets do BI Comercial mostra:
+1. Cabeçalho com o nome do drill atual (ex.: "DETALHES IMPOSTOS")
+2. "Clique esquerdo: filtrar" (desabilitado, só informativo)
+3. Submenu "Detalhar em…" listando os **próximos** drills (NEXT_DRILLS)
 
-**1. `src/components/erp/DataTable.tsx` — validar `sortKey` quando as colunas mudam**
+Falta uma ação top-level que abra o drill **do próprio widget**. No KPI de Impostos isso faz com que o usuário precise usar o clique esquerdo (ou descer pelo submenu pra encontrar outro nível) — não dá pra ir direto no Detalhamento de Impostos pelo menu.
 
-Hoje, se a coluna ordenada sumir (ex.: `cd_rev_pedido` quando `unidade === 'ESTRUTURAL ZORTEA'`), `sortKey` continua apontando para uma chave inexistente. Adicionar `useEffect` que:
+## Mudança
 
-- Verifica se `sortKey` está presente em `columns.map(c => c.key)`.
-- Se não estiver, limpa `sortKey`/`sortDir` (cai no fallback automático: 1ª coluna numérica `desc`, comportamento já existente).
+Arquivo: `src/components/bi/runtime/ChartContextMenu.tsx`
 
-Não recriar o estado a cada render — só limpar quando a chave realmente desaparecer.
+Adicionar, logo abaixo do item informativo "Clique esquerdo: filtrar" e antes do submenu "Detalhar em…", um item top-level:
 
-**2. `src/components/bi/tables/DataTableBI.tsx`**
+```
+Detalhar em {DRILL_LABELS[drillType]}
+```
 
-Sem alterações — já repassa `defaultSort`.
+Comportamento:
+- Só renderiza quando `drillType` está definido e está em `ENABLED_DRILLS`.
+- `onSelect` chama `onOpenDrill(drillType)` — mesmo handler do clique esquerdo do KPI, que já abre o drawer no drill correspondente com `resetDrillFilters` (lógica fica no caller).
+- Ícone de filtro, mesmo estilo dos demais itens.
+- Separador entre esse item primário e o submenu "Detalhar em…".
 
-**3. `src/pages/bi/ComercialPage.tsx`**
+Resultado no KPI Impostos (drillType = `DETALHES_IMPOSTOS`):
+1. Clique esquerdo: filtrar (info)
+2. **Detalhar em Detalhes Impostos**  ← novo, primeiro item acionável
+3. Detalhar em… (submenu com os demais níveis)
+4. Limpar todos os filtros (quando houver)
 
-Corrigir as chaves para refletir os campos que realmente existem nos dados:
+Como `widgetDrillType()` em `ComercialPage.tsx` já define o drill correto pra cada widget (KPI, mensal, estados, revendas etc.), a mesma melhoria aparece em todos os widgets — o primeiro item do menu sempre será "abrir o drill desse widget", o que é o comportamento esperado.
 
-- **Mensal** (`colsMensal`): trocar `vl_tot_fat` por `faturamento` (campo principal de faturamento da linha mensal).
-- **Detalhamento por Nota Fiscal** (`colsDetalhes`): trocar `vl_tot_fat` por `vl_liquido` (existe na linha; fallback natural seria `vl_bruto`).
+## Fora de escopo
 
-Observação: o spec do usuário mencionou `vl_tot_fat`, mas esse campo não existe em nenhum dos dois conjuntos de dados. Mantendo o mesmo intuito (faturamento desc), uso os campos reais já renderizados nas colunas.
+- Backend, API, filtros, contrato de drill, drawer.
+- `ComercialPage.tsx` e demais arquivos.
+- Lógica de `KPI_DRILL_MAP` / `NEXT_DRILLS`.
 
-### Fora de escopo
+## Critérios de aceite
 
-- API / backend / contrato de drill.
-- Filtros, drill, agrupamentos.
-- Outras telas (Passagens etc.).
-
-### Validação
-
-- `/bi/comercial` → aba Mensal abre ordenada por **Faturamento desc**.
-- Detalhamento por Nota Fiscal abre ordenado por **Líquido desc** (maiores NFs no topo).
-- Mudar unidade para **ESTRUTURAL ZORTEA** (remove coluna Revenda) não quebra a ordenação — se a chave atual sumir, cai no fallback automático.
-- Demais grids (sem `defaultSort` explícito) continuam ordenando pela 1ª coluna numérica `desc`.
-- Clique no cabeçalho continua alternando `asc → desc → sem ordenação`.
-- Sem erro React #310 (não há novos hooks condicionais; o `useEffect` adicionado é incondicional).
+- Botão direito no KPI Impostos mostra "Detalhar em Detalhes Impostos" como **primeira** ação acionável.
+- Clicar nesse item abre o drawer no drill `DETALHES_IMPOSTOS` (mesmo resultado do clique esquerdo).
+- Submenu "Detalhar em…" continua listando os próximos níveis.
+- Outros widgets ganham coerentemente o mesmo item top-level com o label do próprio drill.
+- Sem React #310, sem erros de console.

@@ -8,6 +8,7 @@ import { Filter, MousePointerClick, X, ChevronRight } from 'lucide-react';
 import type { DrillType } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ENABLED_DRILLS } from '@/lib/bi/comercialDrillCatalog';
 
+
 interface Props {
   children: ReactNode;
   /** Drill type associado ao gráfico (origem do clique direito). */
@@ -40,6 +41,18 @@ export function ChartContextMenu({
           <MousePointerClick className="h-3.5 w-3.5" />
           Clique esquerdo: filtrar
         </ContextMenuItem>
+        {drillType && ENABLED_DRILLS.has(drillType) && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              className="text-xs gap-2"
+              onSelect={(e) => { e.preventDefault(); onOpenDrill(drillType); }}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Detalhar em {DRILL_LABELS[drillType]}
+            </ContextMenuItem>
+          </>
+        )}
         {nextList.length > 0 && (
           <ContextMenuSub>
             <ContextMenuSubTrigger className="text-xs gap-2">
@@ -60,6 +73,7 @@ export function ChartContextMenu({
             </ContextMenuSubContent>
           </ContextMenuSub>
         )}
+
         {activeFiltersCount > 0 && (
           <>
             <ContextMenuSeparator />
