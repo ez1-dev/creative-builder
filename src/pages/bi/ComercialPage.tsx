@@ -653,24 +653,26 @@ export default function ComercialPage() {
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
       const k: any = kpis;
-      const realizado = Number(
+      const bruto = Number(k?.faturamento ?? k?.vl_bruto ?? 0);
+      const liquido = Number(
         k?.faturamento_liquido
         ?? k?.fat_liquido
         ?? k?.vl_realizado
         ?? k?.realizado
-        ?? k?.faturamento
+        ?? bruto
         ?? 0
       );
       const meta = Number(k?.meta ?? k?.vl_meta ?? 0);
-      const diferenca = realizado - meta;
+      const diferenca = liquido - meta;
       return (
         <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <KpiTriStackCard
             title={title}
             items={[
-              { label: 'Realizado', value: realizado, format: 'currency' },
-              { label: 'Meta',      value: meta,      format: 'currency' },
-              { label: 'Diferença', value: diferenca, format: 'currency' },
+              { label: 'Fat. Bruto',   value: bruto,     format: 'currency' },
+              { label: 'Fat. Líquido', value: liquido,   format: 'currency' },
+              { label: 'Meta',         value: meta,      format: 'currency' },
+              { label: 'Diferença',    value: diferenca, format: 'currency' },
             ]}
             headerAction={isAdmin ? (
               <Button

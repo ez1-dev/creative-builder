@@ -16,7 +16,7 @@ export interface TriStackItem {
 
 export interface KpiTriStackCardProps {
   title?: string;
-  items: [TriStackItem, TriStackItem, TriStackItem];
+  items: TriStackItem[];
   className?: string;
   headerAction?: React.ReactNode;
 }
