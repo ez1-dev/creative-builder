@@ -662,7 +662,7 @@ export default function ComercialPage() {
         ?? bruto
         ?? 0
       );
-      const meta = Number(k?.meta ?? k?.vl_meta ?? 0);
+      const meta = Number(k?.meta ?? k?.vl_meta ?? k?.total_meta ?? 0);
       const diferenca = liquido - meta;
       return (
         <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
