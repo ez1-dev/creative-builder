@@ -266,12 +266,12 @@ export function downloadDrillCsv(resp: DrillResponse, filename?: string) {
 
 export async function downloadDrillXlsx(resp: DrillResponse, filename?: string) {
   const XLSX = await import('xlsx');
-  const cols = resp.columns ?? [];
+  const { columns: cols, rows } = withLiquidoAndTotals(resp);
   const header = cols.map((c) => c.label);
-  const data = (resp.rows ?? []).map((row) =>
+  const data = rows.map((row) =>
     cols.map((c) => {
       const v = row[c.key];
-      if (v == null) return '';
+      if (v == null || v === '') return '';
       if (typeof v === 'number') return Number.isFinite(v) ? v : '';
       if (c.format === 'currency' || c.format === 'number') {
         const n = Number(v);
