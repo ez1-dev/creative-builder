@@ -75,7 +75,7 @@ import {
 } from '@/lib/bi/comercialDrillContract';
 import { pickDimensionLabel } from '@/lib/bi/dimensionLabels';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
-import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
+import { fetchMetaCloudTotal, sincronizarMetasUpquery } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
   drillFromMixCategoria,
