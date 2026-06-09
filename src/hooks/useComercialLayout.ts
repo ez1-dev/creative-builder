@@ -62,10 +62,23 @@ export const COMERCIAL_DEFAULT_WIDGETS: ComercialWidget[] = [
   { id: 'table-mensal',    type: 'table-mensal',    title: 'Tabela mensal',             position: 13, layout: { x: 0, y: 30, w: 12, h: 10 },variant: 'table' },
 ];
 
+export type ComercialLayoutMode = 'official' | 'personal';
+const MODE_STORAGE_KEY = 'bi-comercial:layout-mode';
+
+function readStoredMode(): ComercialLayoutMode {
+  if (typeof window === 'undefined') return 'official';
+  const v = window.localStorage.getItem(MODE_STORAGE_KEY);
+  return v === 'personal' ? 'personal' : 'official';
+}
+
 export function useComercialLayout(enabled: boolean = true) {
   const [widgets, setWidgets] = useState<ComercialWidget[]>(COMERCIAL_DEFAULT_WIDGETS);
   const [dashboardId, setDashboardId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setModeState] = useState<ComercialLayoutMode>(() => readStoredMode());
+  const [hasPersonal, setHasPersonal] = useState(false);
+  const [isPersonalEffective, setIsPersonalEffective] = useState(false);
+
 
   const mergeWithDefaults = useCallback((rows: ComercialWidget[]): ComercialWidget[] => {
     const byType = new Map(rows.map((r) => [r.type, r]));
@@ -94,15 +107,41 @@ export function useComercialLayout(enabled: boolean = true) {
   const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!opts?.silent) setLoading(true);
     try {
-      const { data: dash } = await supabase
-        .from('dashboards')
-        .select('id')
-        .eq('module', MODULE)
-        .is('owner_id', null)
-        .eq('is_default', true)
-        .maybeSingle();
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id ?? null;
 
-      if (!dash) {
+      // Detecta se existe pessoal para este usuário.
+      let personalId: string | null = null;
+      if (uid) {
+        const { data: personal } = await supabase
+          .from('dashboards')
+          .select('id')
+          .eq('module', MODULE)
+          .eq('owner_id', uid)
+          .maybeSingle();
+        personalId = personal?.id ?? null;
+      }
+      setHasPersonal(Boolean(personalId));
+
+      // Modo efetivo: se pediu pessoal mas não existe, cai pro oficial.
+      const effectiveMode: ComercialLayoutMode = mode === 'personal' && personalId ? 'personal' : 'official';
+      setIsPersonalEffective(effectiveMode === 'personal');
+
+      let dashId: string | null = null;
+      if (effectiveMode === 'personal' && personalId) {
+        dashId = personalId;
+      } else {
+        const { data: dash } = await supabase
+          .from('dashboards')
+          .select('id')
+          .eq('module', MODULE)
+          .is('owner_id', null)
+          .eq('is_default', true)
+          .maybeSingle();
+        dashId = dash?.id ?? null;
+      }
+
+      if (!dashId) {
         setDashboardId(null);
         setWidgets((prev) => {
           const same = JSON.stringify(prev) === JSON.stringify(COMERCIAL_DEFAULT_WIDGETS);
@@ -110,11 +149,11 @@ export function useComercialLayout(enabled: boolean = true) {
         });
         return;
       }
-      setDashboardId(dash.id);
+      setDashboardId(dashId);
       const { data: rows } = await supabase
         .from('dashboard_widgets')
         .select('id, type, title, position, layout, config')
-        .eq('dashboard_id', dash.id)
+        .eq('dashboard_id', dashId)
         .order('position');
       const mapped: ComercialWidget[] = (Array.isArray(rows) ? rows : []).map((r: any) => {
         const safe = r ?? {};
@@ -144,11 +183,39 @@ export function useComercialLayout(enabled: boolean = true) {
     } finally {
       if (!opts?.silent) setLoading(false);
     }
-  }, [mergeWithDefaults]);
+  }, [mergeWithDefaults, mode]);
 
   useEffect(() => { if (enabled) load(); }, [enabled, load]);
 
+  const setMode = useCallback((next: ComercialLayoutMode) => {
+    setModeState(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(MODE_STORAGE_KEY, next);
+    }
+  }, []);
+
+  const forkToPersonal = useCallback(async (): Promise<string> => {
+    const { data, error } = await supabase.rpc('fork_bi_comercial_dashboard');
+    if (error) throw error;
+    setHasPersonal(true);
+    setMode('personal');
+    return data as unknown as string;
+  }, [setMode]);
+
+  const resetPersonal = useCallback(async () => {
+    const { error } = await supabase.rpc('reset_bi_comercial_personal_dashboard');
+    if (error) throw error;
+    setHasPersonal(false);
+    setMode('official');
+    await load();
+  }, [load, setMode]);
+
   const ensureDashboard = useCallback(async (): Promise<string> => {
+    if (isPersonalEffective) {
+      // Já temos personal, devolve o id atual; senão fork.
+      if (dashboardId) return dashboardId;
+      return await forkToPersonal();
+    }
     const { data: dash } = await supabase
       .from('dashboards')
       .select('id')
@@ -165,7 +232,8 @@ export function useComercialLayout(enabled: boolean = true) {
     const id = data as unknown as string;
     setDashboardId(id);
     return id;
-  }, []);
+  }, [dashboardId, forkToPersonal, isPersonalEffective]);
+
 
   const saveLayout = useCallback(async (next: SaveLayoutItem[]) => {
     const id = await ensureDashboard();
@@ -225,11 +293,17 @@ export function useComercialLayout(enabled: boolean = true) {
   }, [ensureDashboard, load]);
 
   const resetLayout = useCallback(async () => {
+    if (isPersonalEffective) {
+      await supabase.rpc('reset_bi_comercial_personal_dashboard');
+      await supabase.rpc('fork_bi_comercial_dashboard');
+      await load();
+      return;
+    }
     const id = await ensureDashboard();
     await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
     await supabase.rpc('upsert_bi_comercial_dashboard_default');
     await load();
-  }, [ensureDashboard, load]);
+  }, [ensureDashboard, isPersonalEffective, load]);
 
   const deleteWidget = useCallback(async (widgetType: string) => {
     const id = dashboardId ?? (await ensureDashboard());
@@ -237,5 +311,10 @@ export function useComercialLayout(enabled: boolean = true) {
     await load();
   }, [dashboardId, ensureDashboard, load]);
 
-  return { widgets, dashboardId, loading, saveLayout, resetLayout, deleteWidget, reload: load };
+  return {
+    widgets, dashboardId, loading,
+    saveLayout, resetLayout, deleteWidget, reload: load,
+    mode, setMode, isPersonal: isPersonalEffective, hasPersonal,
+    forkToPersonal, resetPersonal,
+  };
 }

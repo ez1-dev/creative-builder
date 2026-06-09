@@ -861,10 +861,48 @@ export default function ComercialPage() {
     setEditing(false);
   };
 
+  // Edição permitida se: modo pessoal (sempre pode) OU modo oficial e admin.
+  const canEditDashboard = layout.isPersonal || isAdmin;
+
   const handleEnterEdit = () => {
+    if (!canEditDashboard) {
+      toast.info('Para editar, ative "Minha versão" no topo da página.');
+      return;
+    }
     clearDrafts();
     setEditing(true);
   };
+
+  const handleToggleMode = async (next: 'official' | 'personal') => {
+    if (editing) {
+      toast.error('Saia do modo de edição antes de trocar de versão.');
+      return;
+    }
+    if (next === 'personal' && !layout.hasPersonal) {
+      if (!confirm('Criar sua cópia pessoal do dashboard? Você poderá editá-la livremente sem afetar a versão oficial.')) return;
+      try {
+        await layout.forkToPersonal();
+        await layout.reload();
+        toast.success('Sua versão pessoal foi criada');
+      } catch (e: any) {
+        toast.error(`Erro ao criar versão pessoal: ${e?.message ?? e}`);
+      }
+      return;
+    }
+    layout.setMode(next);
+    await layout.reload();
+  };
+
+  const handleResetPersonal = async () => {
+    if (!confirm('Apagar sua versão pessoal e voltar a ver o dashboard oficial da empresa?')) return;
+    try {
+      await layout.resetPersonal();
+      toast.success('Sua versão pessoal foi removida');
+    } catch (e: any) {
+      toast.error(`Erro: ${e?.message ?? e}`);
+    }
+  };
+
 
   const mergeConfigDraft = (type: string, patch: Partial<SaveLayoutItem>) => {
     setConfigDraft((prev) => {
@@ -979,6 +1017,33 @@ export default function ComercialPage() {
                 className="rounded-full px-3 py-0.5 text-xs font-semibold"
                 style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
               >{unidade}</span>
+
+              {/* Toggle Oficial / Minha versão */}
+              <div className="inline-flex items-center rounded-md border bg-card p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleToggleMode('official')}
+                  disabled={editing}
+                  className={cn(
+                    'h-7 rounded-sm px-2 font-medium transition-colors',
+                    !layout.isPersonal ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    editing && 'opacity-50 cursor-not-allowed',
+                  )}
+                  title="Ver o dashboard padrão da empresa"
+                >Oficial</button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleMode('personal')}
+                  disabled={editing}
+                  className={cn(
+                    'h-7 rounded-sm px-2 font-medium transition-colors',
+                    layout.isPersonal ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    editing && 'opacity-50 cursor-not-allowed',
+                  )}
+                  title="Ver/editar a sua versão pessoal do dashboard"
+                >Minha versão</button>
+              </div>
+
               {editing ? (
                 <>
                   <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1" onClick={() => setAddOpen(true)}>
@@ -995,9 +1060,29 @@ export default function ComercialPage() {
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleEnterEdit}>
-                  <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1"
+                    onClick={handleEnterEdit}
+                    disabled={!canEditDashboard}
+                    title={canEditDashboard ? 'Editar dashboard' : 'Ative "Minha versão" para editar (apenas administradores editam o oficial)'}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
+                  </Button>
+                  {layout.isPersonal && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="hidden md:inline-flex h-8 gap-1"
+                      onClick={handleResetPersonal}
+                      title="Apagar minha versão pessoal e voltar ao oficial"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" /> Voltar ao oficial
+                    </Button>
+                  )}
+                </>
               )}
               <Popover>
                 <PopoverTrigger asChild>
