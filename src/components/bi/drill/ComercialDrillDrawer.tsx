@@ -105,10 +105,31 @@ function stripCodePrefix(value: any, code: any): string {
   if (!v) return '-';
   const c = code == null ? '' : String(code).trim();
   if (!c) return v;
-  const re = new RegExp('^' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-—:]?\\s*');
+  const re = new RegExp('^' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-–—:]?\\s*');
   const stripped = v.replace(re, '').trim();
   return stripped || v;
 }
+
+const LABEL_TO_CODE_KEY: Record<string, string> = {
+  nm_cliente: 'cd_cliente',
+  cliente_label: 'cd_cliente',
+  nome_cliente: 'cd_cliente',
+  nm_fantasia: 'cd_cliente',
+  ds_produto: 'cd_produto',
+  produto_label: 'cd_produto',
+  descricao_produto: 'cd_produto',
+  produto_descricao: 'cd_produto',
+  nm_produto: 'cd_produto',
+  nm_revenda: 'cd_rev_pedido',
+  revenda_label: 'cd_rev_pedido',
+  ds_revenda: 'cd_rev_pedido',
+  ds_obra: 'cd_prj',
+  obra_label: 'cd_prj',
+  nm_projeto: 'cd_prj',
+  nome_projeto: 'cd_prj',
+  ds_abr_prj: 'cd_prj',
+};
+
 
 function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (v == null || v === '') return '-';
