@@ -1012,7 +1012,7 @@ export default function ComercialPage() {
       <DashboardPage>
         <PageHeader
           title="BI Comercial"
-          description="Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)."
+          description={isAdmin ? "Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)." : undefined}
           actions={
             <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
               <span
@@ -1131,10 +1131,12 @@ export default function ComercialPage() {
                   </Button>
                 </PopoverContent>
               </Popover>
-              <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
-              <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
-                <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
-              </Button>
+              {isAdmin && <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />}
+              {isAdmin && (
+                <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
+                  <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
+                </Button>
+              )}
               {isAdmin && (
                 <Button
                   size="sm"
@@ -1178,9 +1180,11 @@ export default function ComercialPage() {
 
 
 
-              <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
-                <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
-              </Button>
+              {isAdmin && (
+                <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
+                  <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
+                </Button>
+              )}
             </div>
           }
         />
