@@ -34,12 +34,12 @@ export function BarChartCard({
           </defs>
           {vc.grid.visible && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />}
           {vc.axis.xVisible && (
-            <XAxis dataKey="label" tick={{ fontSize: vc.axis.fontSize }}
-              label={vc.axis.xLabel ? { value: vc.axis.xLabel, position: 'insideBottom', offset: -4, fontSize: vc.axis.fontSize } : undefined} />
+            <XAxis dataKey="label" tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }}
+              label={vc.axis.xLabel ? { value: vc.axis.xLabel, position: 'insideBottom', offset: -4, fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) } : undefined} />
           )}
           {vc.axis.yVisible && (
-            <YAxis tickFormatter={tickCurrencyAbbrev} tick={{ fontSize: vc.axis.fontSize }}
-              label={vc.axis.yLabel ? { value: vc.axis.yLabel, angle: -90, position: 'insideLeft', fontSize: vc.axis.fontSize } : undefined} />
+            <YAxis tickFormatter={tickCurrencyAbbrev} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }}
+              label={vc.axis.yLabel ? { value: vc.axis.yLabel, angle: -90, position: 'insideLeft', fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) } : undefined} />
           )}
           {vc.tooltip.visible && (
             <Tooltip
@@ -48,7 +48,7 @@ export function BarChartCard({
             />
           )}
           {vc.legend.visible && (
-            <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize }} />
+            <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize, fontFamily: fontFamilyCss(vc.legend.fontFamily) }} />
           )}
           {showAverage && avg > 0 && (
             <ReferenceLine y={avg} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4"
@@ -59,7 +59,7 @@ export function BarChartCard({
             onClick={(d: any) => onItemClick?.(d as BarChartDatum)}>
             {vc.dataLabels.visible && (
               <LabelList dataKey="valor" position={vc.dataLabels.position as any}
-                style={{ fontSize: vc.dataLabels.fontSize, fill: 'hsl(var(--foreground))' }}
+                style={{ fontSize: vc.dataLabels.fontSize, fontFamily: fontFamilyCss(vc.dataLabels.fontFamily), fill: 'hsl(var(--foreground))' }}
                 formatter={fmtLabel as any} />
             )}
           </Bar>

@@ -31,19 +31,19 @@ export function ComboChartCard({
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           {vc.grid.visible && <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />}
-          {vc.axis.xVisible && <XAxis dataKey={xKey} tick={{ fontSize: vc.axis.fontSize }} />}
-          {vc.axis.yVisible && <YAxis tickFormatter={tickCurrencyAbbrev} tick={{ fontSize: vc.axis.fontSize }} />}
+          {vc.axis.xVisible && <XAxis dataKey={xKey} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }} />}
+          {vc.axis.yVisible && <YAxis tickFormatter={tickCurrencyAbbrev} tick={{ fontSize: vc.axis.fontSize, fontFamily: fontFamilyCss(vc.axis.fontFamily) }} />}
           {vc.tooltip.visible && (
             <Tooltip formatter={(v: number) => vc.dataLabels.visible ? fmtLabel(v) : valueFormatter(v)}
               contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
           )}
-          {vc.legend.visible && <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize }} />}
+          {vc.legend.visible && <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize, fontFamily: fontFamilyCss(vc.legend.fontFamily) }} />}
           <Bar dataKey={barKey} name={barName} fill={barColor} radius={[4, 4, 0, 0]}
             cursor={onItemClick ? 'pointer' : undefined}
             onClick={(d: any) => onItemClick?.(d?.payload ?? d)}>
             {vc.dataLabels.visible && (
               <LabelList dataKey={barKey} position={vc.dataLabels.position as any}
-                style={{ fontSize: vc.dataLabels.fontSize, fill: 'hsl(var(--foreground))' }}
+                style={{ fontSize: vc.dataLabels.fontSize, fontFamily: fontFamilyCss(vc.dataLabels.fontFamily), fill: 'hsl(var(--foreground))' }}
                 formatter={fmtLabel as any} />
             )}
           </Bar>
