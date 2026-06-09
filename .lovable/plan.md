@@ -1,48 +1,62 @@
-# Right-click no KPI Impostos: ir direto pro Detalhamento de Impostos
+# Limpar código duplicado no Nome do Cliente (Detalhes de Impostos)
 
 ## Diagnóstico
 
-Hoje o menu de contexto (botão direito) dos widgets do BI Comercial mostra:
-1. Cabeçalho com o nome do drill atual (ex.: "DETALHES IMPOSTOS")
-2. "Clique esquerdo: filtrar" (desabilitado, só informativo)
-3. Submenu "Detalhar em…" listando os **próximos** drills (NEXT_DRILLS)
+Em `src/components/bi/drill/ComercialDrillDrawer.tsx` o `stripCodePrefix` já é aplicado quando a chave da coluna é exatamente `nm_cliente`:
 
-Falta uma ação top-level que abra o drill **do próprio widget**. No KPI de Impostos isso faz com que o usuário precise usar o clique esquerdo (ou descer pelo submenu pra encontrar outro nível) — não dá pra ir direto no Detalhamento de Impostos pelo menu.
+```ts
+if (c.key === 'nm_cliente') return stripCodePrefix(r.nm_cliente ?? r.cliente_label ?? ..., r.cd_cliente);
+```
+
+O problema no drill `DETALHES_IMPOSTOS` é que o backend devolve a coluna com outra chave (provavelmente `cliente_label` ou `nome_cliente`, contendo `"4352 - ARESI COMERCIO E PECAS LTDA"`). Como não bate em `nm_cliente`, cai no `fmtCell` genérico e o código aparece duplicado.
+
+O mesmo risco existe para produto/revenda/obra quando o backend envia somente a versão `*_label`.
 
 ## Mudança
 
-Arquivo: `src/components/bi/runtime/ChartContextMenu.tsx`
+Arquivo único: `src/components/bi/drill/ComercialDrillDrawer.tsx`
 
-Adicionar, logo abaixo do item informativo "Clique esquerdo: filtrar" e antes do submenu "Detalhar em…", um item top-level:
+1. Criar um mapa de chaves de label → chave do código:
 
+```ts
+const LABEL_TO_CODE_KEY: Record<string, string> = {
+  nm_cliente: 'cd_cliente',
+  cliente_label: 'cd_cliente',
+  nome_cliente: 'cd_cliente',
+  nm_fantasia: 'cd_cliente',
+  ds_produto: 'cd_produto',
+  produto_label: 'cd_produto',
+  descricao_produto: 'cd_produto',
+  nm_revenda: 'cd_rev_pedido',
+  revenda_label: 'cd_rev_pedido',
+  ds_revenda: 'cd_rev_pedido',
+  ds_obra: 'cd_prj',
+  obra_label: 'cd_prj',
+  nm_projeto: 'cd_prj',
+};
 ```
-Detalhar em {DRILL_LABELS[drillType]}
+
+2. No render genérico de cada coluna (dentro do `useMemo` que monta `columns`), antes do `fmtCell`, verificar:
+
+```ts
+const codeKey = LABEL_TO_CODE_KEY[c.key];
+if (codeKey) return stripCodePrefix(r[c.key], r[codeKey]);
 ```
 
-Comportamento:
-- Só renderiza quando `drillType` está definido e está em `ENABLED_DRILLS`.
-- `onSelect` chama `onOpenDrill(drillType)` — mesmo handler do clique esquerdo do KPI, que já abre o drawer no drill correspondente com `resetDrillFilters` (lógica fica no caller).
-- Ícone de filtro, mesmo estilo dos demais itens.
-- Separador entre esse item primário e o submenu "Detalhar em…".
+Isso preserva o tratamento atual para os ramos específicos (`nm_cliente`, `ds_produto`, etc.) e adiciona cobertura automática para as variantes que vierem do backend.
 
-Resultado no KPI Impostos (drillType = `DETALHES_IMPOSTOS`):
-1. Clique esquerdo: filtrar (info)
-2. **Detalhar em Detalhes Impostos**  ← novo, primeiro item acionável
-3. Detalhar em… (submenu com os demais níveis)
-4. Limpar todos os filtros (quando houver)
-
-Como `widgetDrillType()` em `ComercialPage.tsx` já define o drill correto pra cada widget (KPI, mensal, estados, revendas etc.), a mesma melhoria aparece em todos os widgets — o primeiro item do menu sempre será "abrir o drill desse widget", o que é o comportamento esperado.
+3. Garantir que `stripCodePrefix` aceite separadores `-`, `–`, `—` e `:` (já cobre `-` e `—`; adicionar `–` en-dash por segurança).
 
 ## Fora de escopo
 
-- Backend, API, filtros, contrato de drill, drawer.
-- `ComercialPage.tsx` e demais arquivos.
-- Lógica de `KPI_DRILL_MAP` / `NEXT_DRILLS`.
+- Backend, API, contrato de drill, filtros.
+- `ComercialPage.tsx`, catálogo de drills, outros drawers.
+- Remover o código `cd_cliente` da resposta — só ajuste de exibição.
 
-## Critérios de aceite
+## Critério de aceite
 
-- Botão direito no KPI Impostos mostra "Detalhar em Detalhes Impostos" como **primeira** ação acionável.
-- Clicar nesse item abre o drawer no drill `DETALHES_IMPOSTOS` (mesmo resultado do clique esquerdo).
-- Submenu "Detalhar em…" continua listando os próximos níveis.
-- Outros widgets ganham coerentemente o mesmo item top-level com o label do próprio drill.
+- No drawer "Detalhes de Impostos": coluna "Cliente" continua `4352`; coluna "Nome Cliente" passa a mostrar `ARESI COMERCIO E PECAS LTDA` (sem o `4352 - ` prefixado).
+- Funciona independentemente da chave que o backend usar (`nm_cliente`, `cliente_label`, `nome_cliente`).
+- Mesma limpeza aplicada a produto, revenda e obra quando vier `*_label` com prefixo de código.
+- Sem regressão nos demais drills (CLIENTE, PRODUTO, REVENDA, NOTA_FISCAL).
 - Sem React #310, sem erros de console.

@@ -105,10 +105,31 @@ function stripCodePrefix(value: any, code: any): string {
   if (!v) return '-';
   const c = code == null ? '' : String(code).trim();
   if (!c) return v;
-  const re = new RegExp('^' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-—:]?\\s*');
+  const re = new RegExp('^' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-–—:]?\\s*');
   const stripped = v.replace(re, '').trim();
   return stripped || v;
 }
+
+const LABEL_TO_CODE_KEY: Record<string, string> = {
+  nm_cliente: 'cd_cliente',
+  cliente_label: 'cd_cliente',
+  nome_cliente: 'cd_cliente',
+  nm_fantasia: 'cd_cliente',
+  ds_produto: 'cd_produto',
+  produto_label: 'cd_produto',
+  descricao_produto: 'cd_produto',
+  produto_descricao: 'cd_produto',
+  nm_produto: 'cd_produto',
+  nm_revenda: 'cd_rev_pedido',
+  revenda_label: 'cd_rev_pedido',
+  ds_revenda: 'cd_rev_pedido',
+  ds_obra: 'cd_prj',
+  obra_label: 'cd_prj',
+  nm_projeto: 'cd_prj',
+  nome_projeto: 'cd_prj',
+  ds_abr_prj: 'cd_prj',
+};
+
 
 function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (v == null || v === '') return '-';
@@ -262,7 +283,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         if (c.key === 'nm_estado') return r.nm_estado ?? ufNameLocal(r.cd_estado) ?? '—';
         if (c.key === 'cd_prj') return r.cd_prj ?? '—';
         if (c.key === 'ds_obra') return stripCodePrefix(r.ds_obra ?? r.obra_label ?? r.ds_abr_prj ?? r.nm_projeto ?? r.nome_projeto, r.cd_prj);
+        const codeKey = LABEL_TO_CODE_KEY[c.key];
+        if (codeKey && r[codeKey] != null) return stripCodePrefix(r[c.key], r[codeKey]);
         return fmtCell(r[c.key], c.format, c.key);
+
       },
 
     }));
