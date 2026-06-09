@@ -138,17 +138,32 @@ export async function fetchComercialDrill(req: DrillRequest): Promise<DrillRespo
   };
 }
 
+function isNumericString(value: string): boolean {
+  return /^-?\d+(\.\d+)?$/.test(value.trim());
+}
+
 function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
   if (v == null) return '';
+
+  if (typeof v === 'number') {
+    return Number.isFinite(v) ? String(v).replace('.', ',') : '';
+  }
+
   if (format === 'currency' || format === 'number') {
     const num = Number(v);
-    if (Number.isFinite(num)) return String(num).replace('.', ',');
-    return String(v);
+    if (Number.isFinite(num)) return String(v).replace('.', ',');
   }
+
   const s = String(v);
+
+  if (isNumericString(s)) {
+    return s.replace('.', ',');
+  }
+
   if (s.includes('"') || s.includes(';') || s.includes('\n')) {
     return `"${s.replace(/"/g, '""')}"`;
   }
+
   return s;
 }
 
@@ -168,4 +183,47 @@ export function downloadDrillCsv(resp: DrillResponse, filename?: string) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export async function downloadDrillXlsx(resp: DrillResponse, filename?: string) {
+  const XLSX = await import('xlsx');
+  const cols = resp.columns ?? [];
+  const header = cols.map((c) => c.label);
+  const data = (resp.rows ?? []).map((row) =>
+    cols.map((c) => {
+      const v = row[c.key];
+      if (v == null) return '';
+      if (typeof v === 'number') return Number.isFinite(v) ? v : '';
+      if (c.format === 'currency' || c.format === 'number') {
+        const n = Number(v);
+        if (Number.isFinite(n)) return n;
+      }
+      if (typeof v === 'string' && isNumericString(v)) {
+        const n = Number(v);
+        if (Number.isFinite(n)) return n;
+      }
+      return String(v);
+    }),
+  );
+  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
+  const ref = ws['!ref'];
+  if (ref) {
+    const range = XLSX.utils.decode_range(ref);
+    cols.forEach((c, ci) => {
+      const isCurrency = c.format === 'currency';
+      const isNumber = c.format === 'number';
+      if (!isCurrency && !isNumber) return;
+      for (let r = 1; r <= range.e.r; r++) {
+        const addr = XLSX.utils.encode_cell({ r, c: ci });
+        const cell = (ws as any)[addr];
+        if (cell && typeof cell.v === 'number') {
+          cell.t = 'n';
+          cell.z = isCurrency ? 'R$ #,##0.00' : '#,##0.00';
+        }
+      }
+    });
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Drill');
+  XLSX.writeFile(wb, filename || `drill-${resp.drill_type.toLowerCase()}.xlsx`);
 }

@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
-  fetchComercialDrill, downloadDrillCsv,
+  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
@@ -438,6 +438,15 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
+                onClick={() => resp && downloadDrillXlsx({ ...resp, columns: displayColumns })}
+                disabled={!resp || resp.rows.length === 0}
+              >
+                <Download className="h-3.5 w-3.5" /> Excel
               </Button>
               <Button
                 size="sm"
