@@ -60,6 +60,7 @@ const ALL_SCREENS = [
   { path: '/bi/faturamento-validacao', name: 'BI - Validação de Faturamento' },
   { path: '/bi/comercial', name: 'BI Comercial' },
   { path: '/bi/comercial/metas', name: 'BI Comercial - Metas de Faturamento' },
+  { path: '/bi/faturamento/relatorio-executivo', name: 'BI - Relatório Executivo de Faturamento' },
   { path: '/etl', name: 'ETL / Camada Analítica' },
   { path: '/regras-senior', name: 'Regras Senior - Dashboard' },
   { path: '/regras-senior/regras', name: 'Regras Senior - Lista de Regras' },
