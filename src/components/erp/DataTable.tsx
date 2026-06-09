@@ -305,6 +305,11 @@ export function DataTable<T extends Record<string, any>>({
     return defaultNumberFormat(total);
   }, []);
 
+  const summaryCols = useMemo(
+    () => columns.filter((c) => c.summaryInGroupHeader && numericKeys.includes(c.key)),
+    [columns, numericKeys],
+  );
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -349,11 +354,6 @@ export function DataTable<T extends Record<string, any>>({
         );
       })}
     </TableRow>
-  );
-
-  const summaryCols = useMemo(
-    () => columns.filter((c) => c.summaryInGroupHeader && numericKeys.includes(c.key)),
-    [columns, numericKeys],
   );
 
   const renderGroupNode = (node: GroupNode<T>, rowCounter: { i: number }) => {
