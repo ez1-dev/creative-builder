@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Download, FileSpreadsheet, Printer, Sparkles, ChevronLeft, Loader2, FileText } from 'lucide-react';
+import { Download, FileSpreadsheet, Printer, Sparkles, ChevronLeft, Loader2 } from 'lucide-react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
