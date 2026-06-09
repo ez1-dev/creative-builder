@@ -18,6 +18,7 @@ import {
   StackedBarChartCard, ComboChartCard, GaugeChartCard, ProgressChartCard,
   ScatterChartCard, HeatmapChartCard, WaterfallChartCard, CalendarHeatmapCard,
   BrazilMapCard,
+  BrazilStateMapWidget,
   
   TreeView,
   Timeline,
@@ -29,6 +30,7 @@ import {
 } from '@/components/bi';
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';
+import { usePageData } from './PageDataContext';
 import * as LucideIcons from 'lucide-react';
 import {
   type WidgetOptions, applyTopNSort, toKpiFormat, computeComparacao,
@@ -80,6 +82,27 @@ function resolveIcon(name?: string) {
   if (!name) return null;
   const Cmp = (LucideIcons as any)[name];
   return typeof Cmp === 'function' ? Cmp : null;
+}
+
+/**
+ * Host do `brazil-state-map` no registry: lê filtros do PageDataContext (quando
+ * a página alvo expõe um BiComercialFilters em `filtros`) e renderiza o mapa.
+ * Quando a página não é o BI Comercial, faz fallback para um cartograma vazio.
+ */
+function BrazilStateMapRegistryHost({ title }: { title?: string }) {
+  const pd = usePageData();
+  const filtros = (pd?.filtros ?? {}) as any;
+  return (
+    <BrazilStateMapWidget
+      title={title || 'Faturamento por Estado'}
+      filters={{
+        anomes_ini: String(filtros.anomes_ini ?? ''),
+        anomes_fim: String(filtros.anomes_fim ?? ''),
+        unidade_negocio: (filtros.unidade_negocio ?? 'CONSOLIDADO') as any,
+        ...filtros,
+      }}
+    />
+  );
 }
 
 /** Cor para charts: aceita token semântico ou string CSS direta. */
@@ -445,6 +468,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         />
       );
     },
+  },
+  {
+    id: 'brazil-state-map',
+    kind: 'chart',
+    label: 'Mapa Brasil por Estado',
+    description: 'Faturamento por UF no mapa do Brasil (BI Comercial).',
+    defaultSpan: 2,
+    inputs: [],
+    autoMap: () => ({}),
+    render: ({ title }) => <BrazilStateMapRegistryHost title={title} />,
   },
   {
     id: 'treemap-chart',

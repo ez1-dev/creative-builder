@@ -18,6 +18,7 @@ import {
   TreemapChartCard, RadarChartCard, ScatterChartCard, HeatmapChartCard,
   WaterfallChartCard, FunnelChartCard, SparklineCard, CalendarHeatmapCard,
   BrazilMapCard,
+  BrazilStateMapWidget,
   // tree
   TreeView,
   // tables
@@ -497,6 +498,18 @@ export default function BiComponentsDemoPage() {
                       { uf: 'SC', valor: 480_000, label: 'Santa Catarina' },
                       { uf: 'CE', valor: 310_000, label: 'Ceará' },
                     ]}
+                  />
+                </WithApply>
+                <WithApply componentId="brazil-state-map">
+                  <BrazilStateMapWidget
+                    title="Mapa Brasil por Estado"
+                    subtitle="BI Comercial — faturamento por UF (dados reais)"
+                    filters={{
+                      anomes_ini: `${new Date().getFullYear()}01`,
+                      anomes_fim: `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+                      unidade_negocio: 'CONSOLIDADO',
+                    }}
+                    onDrill={(p) => console.log('drill estado:', p)}
                   />
                 </WithApply>
                 <WithApply componentId="heatmap-chart">

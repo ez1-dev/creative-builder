@@ -60,7 +60,8 @@ const RANKING_VARIANTS = [
 ];
 
 const MAP_VARIANTS = [
-  { value: 'map', label: 'Mapa do Brasil' },
+  { value: 'map', label: 'Mapa do Brasil (cartograma)' },
+  { value: 'state-map', label: 'Mapa Brasil por Estado' },
   { value: 'horizontal-bar', label: 'Barras horizontais' },
   { value: 'ranking', label: 'Ranking' },
   { value: 'table', label: 'Tabela' },
@@ -100,7 +101,7 @@ export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
   // ===== Séries =====
   'serie-mensal':    { type:'serie-mensal', title:'Faturamento mensal x Meta', kind:'serie-mensal', variants:SERIE_MENSAL_VARIANTS, libraryComponentIds:LIB_CHART_IDS },
   'mix':             { type:'mix',          title:'Mix acumulado',             kind:'serie',        variants:SERIE_VARIANTS,        libraryComponentIds:LIB_CHART_IDS },
-  'estados':         { type:'estados',      title:'Top estados',               kind:'map',          variants:MAP_VARIANTS,          libraryComponentIds:LIB_CHART_IDS },
+  'estados':         { type:'estados',      title:'Top estados',               kind:'map',          variants:MAP_VARIANTS,          libraryComponentIds:['brazil-state-map', ...LIB_CHART_IDS] },
   'revendas':        { type:'revendas',     title:'Ranking de revendas',       kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:LIB_CHART_IDS },
   'obras':           { type:'obras',        title:'Faturamento por obra',      kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:LIB_CHART_IDS },
 

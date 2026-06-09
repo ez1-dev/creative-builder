@@ -87,6 +87,12 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'compras.chart-mapa-brasil', label: 'Mapa: Distribuição por UF (Brasil)' },
     ],
   },
+  {
+    module: 'BI Comercial / Faturamento',
+    items: [
+      { key: 'comercial.chart-mapa-brasil', label: 'Mapa: Faturamento por Estado (Brasil)' },
+    ],
+  },
 ];
 
 export const ALL_VISUAL_KEYS: string[] = VISUAL_CATALOG.flatMap((g) => g.items.map((i) => i.key));
