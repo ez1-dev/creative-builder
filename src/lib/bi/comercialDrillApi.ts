@@ -247,9 +247,9 @@ function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
 }
 
 export function downloadDrillCsv(resp: DrillResponse, filename?: string) {
-  const cols = resp.columns ?? [];
+  const { columns: cols, rows } = withLiquidoAndTotals(resp);
   const header = cols.map((c) => c.label).join(';');
-  const lines = (resp.rows ?? []).map((row) =>
+  const lines = rows.map((row) =>
     cols.map((c) => fmtCsvValue(row[c.key], c.format)).join(';'),
   );
   const csv = '\uFEFF' + [header, ...lines].join('\n');
