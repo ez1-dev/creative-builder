@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, RotateCcw, Sparkles, X, Pencil, Save, Plus, Eye, ChevronDown, ChevronUp, Filter, Palette, RotateCw, Users, Package, Building2 } from 'lucide-react';
@@ -101,6 +101,8 @@ const ERR_DRILL = 'Não foi possível carregar os dados do drill';
 const EMPTY_MSG = 'Sem dados para o período selecionado';
 const PAGE_KEY = 'bi-comercial';
 
+const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
+
 const ESCOPO_LABELS: Record<ComercialDetalheEscopo, string> = {
   todas: 'Todas as notas',
   impostos: 'Detalhamento de impostos',
@@ -189,6 +191,13 @@ export default function ComercialPage() {
   const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
   const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
 
+  // Guarda o último período efetivamente aplicado no topo (botão "Aplicar filtros").
+  // Não usar `draft` para restaurar — ele pode estar em edição e fora de sincronia.
+  const periodoTopoAplicadoRef = useRef<{ anomes_ini: string; anomes_fim: string }>({
+    anomes_ini: filters.anomes_ini,
+    anomes_fim: filters.anomes_fim,
+  });
+
   const qKpis    = useQuery({ queryKey: ['bi-comercial','kpis',filters],    queryFn: () => fetchComercialKpis(filters),    refetchOnWindowFocus: false, retry: 1 });
   const qMensal  = useQuery({ queryKey: ['bi-comercial','mensal',filters],  queryFn: () => fetchComercialMensal(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qMix     = useQuery({ queryKey: ['bi-comercial','mix',filters],     queryFn: () => fetchComercialMix(filters),     refetchOnWindowFocus: false, retry: 1 });
@@ -196,7 +205,10 @@ export default function ComercialPage() {
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
 
-  const aplicarFiltrosBase = () => setBase({ ...draft });
+  const aplicarFiltrosBase = () => {
+    setBase({ ...draft });
+    periodoTopoAplicadoRef.current = { anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim };
+  };
   const atualizar = () => {
     qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
@@ -400,20 +412,30 @@ export default function ComercialPage() {
   };
   const onClickMensal = (d: any) => {
     const ctx = extractDrillCtx(d, 'MENSAL');
-    const anomes = cleanDrillValue(ctx.anomes_emissao) ?? cleanDrillValue(d?.anomes_emissao) ?? cleanDrillValue(d?.label);
-    if (!anomes) {
+    const raw =
+      d?.anomes_emissao ?? d?.anomes ?? d?.mes ?? ctx.anomes_emissao ?? d?.label ?? null;
+    const anomes = normalizeAnomes(raw);
+
+    console.log('Clique mensal:', d);
+    console.log('Anomes selecionado:', anomes);
+    console.log('Base antes:', { anomes_ini: filters.anomes_ini, anomes_fim: filters.anomes_fim });
+
+    if (anomes.length !== 6) {
       applyCtxAsCrossFilter(ctx);
       return;
     }
+
     const isSameMonth = filters.anomes_ini === anomes && filters.anomes_fim === anomes;
     if (isSameMonth) {
-      // toggle off: restaura a janela do filtro do topo
-      setBase({ anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim });
+      // toggle off: restaura o último período aplicado no topo
+      const restore = periodoTopoAplicadoRef.current;
+      setBase({ anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
       removeDrill('anomes_emissao');
+      console.log('Base depois:', { anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
     } else {
-      // reescopa a janela base para o mês clicado (KPIs e meta passam a refletir o mês)
-      setBase({ anomes_ini: String(anomes), anomes_fim: String(anomes) });
+      setBase({ anomes_ini: anomes, anomes_fim: anomes });
       removeDrill('anomes_emissao');
+      console.log('Base depois:', { anomes_ini: anomes, anomes_fim: anomes });
     }
   };
   const onClickMix = (d: any) => {
