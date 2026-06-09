@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type HTMLAttributes } from 'react';
 import { Plus, MoreVertical, Pencil, Trash2, ArrowUp, ArrowDown, GripVertical, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ interface Props {
   onDelete?: () => Promise<void> | void;
   onMoveUp?: () => Promise<void> | void;
   onMoveDown?: () => Promise<void> | void;
+  /** Props (draggable, onDragStart, etc.) aplicadas no handle de arraste. */
+  dragHandleProps?: HTMLAttributes<HTMLSpanElement> & { draggable?: boolean };
 }
 
 export function BlockHeader({
