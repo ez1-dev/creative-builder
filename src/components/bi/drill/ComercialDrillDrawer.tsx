@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
-  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx,
+  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichRowsWithNotaTotals,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
