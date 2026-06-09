@@ -283,7 +283,10 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         if (c.key === 'nm_estado') return r.nm_estado ?? ufNameLocal(r.cd_estado) ?? '—';
         if (c.key === 'cd_prj') return r.cd_prj ?? '—';
         if (c.key === 'ds_obra') return stripCodePrefix(r.ds_obra ?? r.obra_label ?? r.ds_abr_prj ?? r.nm_projeto ?? r.nome_projeto, r.cd_prj);
+        const codeKey = LABEL_TO_CODE_KEY[c.key];
+        if (codeKey && r[codeKey] != null) return stripCodePrefix(r[c.key], r[codeKey]);
         return fmtCell(r[c.key], c.format, c.key);
+
       },
 
     }));
