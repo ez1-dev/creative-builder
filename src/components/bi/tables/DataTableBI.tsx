@@ -11,6 +11,7 @@ export interface DataTableBIProps<T> {
   enableSearch?: boolean;
   onRowClick?: (row: T, index: number) => void;
   rowClassName?: (row: T, index: number) => string;
+  defaultSort?: { key: string; dir: 'asc' | 'desc' } | null;
   pagination?: {
     pagina: number;
     totalPaginas: number;
