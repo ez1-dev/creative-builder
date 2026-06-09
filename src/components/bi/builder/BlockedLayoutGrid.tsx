@@ -79,6 +79,31 @@ export function BlockedLayoutGrid({
 
   const ordered = useMemo(() => [...blocks].sort((a, b) => a.ordem - b.ordem), [blocks]);
 
+  // ---- Drag & drop nativo para reordenar blocos ----
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  const reorderTo = async (sourceId: string, targetId: string, position: 'before' | 'after') => {
+    if (!onBlockReorder || sourceId === targetId) return;
+    const ids = ordered.map((b) => b.id);
+    const from = ids.indexOf(sourceId);
+    if (from < 0) return;
+    ids.splice(from, 1);
+    let to = ids.indexOf(targetId);
+    if (to < 0) return;
+    if (position === 'after') to += 1;
+    ids.splice(to, 0, sourceId);
+    // Aplica novas ordens (10, 20, 30…) em paralelo
+    await Promise.all(
+      ids.map((id, i) => {
+        const cur = ordered.find((b) => b.id === id);
+        const nextOrdem = (i + 1) * 10;
+        if (cur && cur.ordem === nextOrdem) return Promise.resolve();
+        return Promise.resolve(onBlockReorder(id, nextOrdem));
+      }),
+    );
+  };
+
   return (
     <div className="space-y-4">
       {ordered.map((block, idx) => {
@@ -86,8 +111,36 @@ export function BlockedLayoutGrid({
         const moveTargets = editing
           ? ordered.filter((b) => b.id !== block.id).map((b) => ({ id: b.id, title: b.title }))
           : undefined;
+        const isDragging = dragId === block.id;
+        const isOver = overId === block.id && dragId && dragId !== block.id;
         return (
-          <section key={block.id} className="rounded-lg border bg-card p-3 space-y-3">
+          <section
+            key={block.id}
+            onDragOver={(e) => {
+              if (!editing || !dragId) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              if (overId !== block.id) setOverId(block.id);
+            }}
+            onDragLeave={(e) => {
+              if (overId === block.id) setOverId((cur) => (cur === block.id ? null : cur));
+            }}
+            onDrop={(e) => {
+              if (!editing || !dragId) return;
+              e.preventDefault();
+              const src = dragId;
+              const rect = e.currentTarget.getBoundingClientRect();
+              const position: 'before' | 'after' = e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+              setDragId(null);
+              setOverId(null);
+              reorderTo(src, block.id, position).catch((err: any) =>
+                toast.error(err?.message ?? 'Erro ao reordenar blocos'),
+              );
+            }}
+            className={`rounded-lg border bg-card p-3 space-y-3 transition-all ${
+              isDragging ? 'block-sortable-dragging' : ''
+            } ${isOver ? 'block-sortable-over' : ''}`}
+          >
             <BlockHeader
               title={block.title}
               count={blockWidgets.filter((w) => !w.hidden).length}
