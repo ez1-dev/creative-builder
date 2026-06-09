@@ -62,6 +62,7 @@ const RANKING_VARIANTS = [
 const MAP_VARIANTS = [
   { value: 'map', label: 'Mapa do Brasil (cartograma)' },
   { value: 'state-map', label: 'Mapa Brasil por Estado' },
+  { value: 'heatmap', label: 'Mapa de Calor (coroplético)' },
   { value: 'horizontal-bar', label: 'Barras horizontais' },
   { value: 'ranking', label: 'Ranking' },
   { value: 'table', label: 'Tabela' },
