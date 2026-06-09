@@ -267,14 +267,14 @@ export function DataTable<T extends Record<string, any>>({
       if (va == null) return 1;
       if (vb == null) return -1;
       if (typeof va === 'number' && typeof vb === 'number') {
-        return sortDir === 'asc' ? va - vb : vb - va;
+        return sortDirLocal === 'asc' ? va - vb : vb - va;
       }
       const sa = String(va).toLowerCase();
       const sb = String(vb).toLowerCase();
       const cmp = sa.localeCompare(sb, 'pt-BR');
-      return sortDir === 'asc' ? cmp : -cmp;
+      return sortDirLocal === 'asc' ? cmp : -cmp;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [filteredData, sortKey, sortDir, defaultSort, numericKeys]);
 
   const tree = useMemo(
     () => (groupable && groupKeys.length ? buildTree(sortedData, groupKeys, numericKeys) : []),
