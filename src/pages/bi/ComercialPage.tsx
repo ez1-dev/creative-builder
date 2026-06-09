@@ -336,9 +336,13 @@ export default function ComercialPage() {
   }, [detalhesRaw, clientesMap]);
 
 
+  const mensalMultiYear = useMemo(() => {
+    const anos = new Set(mensal.map((m) => normalizeAnomes(m.anomes_emissao).slice(0, 4)).filter(Boolean));
+    return anos.size > 1;
+  }, [mensal]);
   const dadosCombo = useMemo(
-    () => mensal.map((m) => ({ label: m.anomes_emissao, faturamento: n(m.faturamento), meta: n(m.meta) })),
-    [mensal],
+    () => mensal.map((m) => ({ label: formatAnomesMes(m.anomes_emissao, { withYear: mensalMultiYear, abbr: mensalMultiYear }), faturamento: n(m.faturamento), meta: n(m.meta) })),
+    [mensal, mensalMultiYear],
   );
   const sparkSerie = useMemo(() => mensal.map((m) => n(m.faturamento)), [mensal]);
   const sparkTrend = useMemo(() => {
