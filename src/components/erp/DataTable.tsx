@@ -166,10 +166,11 @@ export function DataTable<T extends Record<string, any>>({
   onRowClick,
   enableSearch = true,
   groupable = true,
+  defaultSort,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [sortKey, setSortKey] = useState<string | null>(defaultSort?.key ?? null);
+  const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? null);
   const [groupKeys, setGroupKeys] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
