@@ -1,55 +1,61 @@
-## Objetivo
+# Colunas Total da Nota / Total Líquido da Nota nas drills
 
-Nos exports CSV e Excel das drills do BI Comercial:
-1. Adicionar **coluna "Valor Líquido"** calculada no frontend.
-2. Adicionar **linha "TOTAL"** ao final, somando todas as colunas numéricas.
+Adicionar duas colunas calculadas por NF, repetidas em todas as linhas pertencentes à mesma nota, visíveis na grid do drawer e nos exports CSV/Excel.
 
-## Arquivo único afetado
+## Arquivo
 
-`src/lib/bi/comercialDrillApi.ts` — funções `downloadDrillCsv` e `downloadDrillXlsx`.
-
-(Sem alterações no `ComercialDrillDrawer.tsx`, no backend, na API ou no contrato de drill.)
+`src/lib/bi/comercialDrillApi.ts` — concentra a lógica de enriquecimento já usada pelo drawer e pelos exports (`withLiquidoAndTotals`).
 
 ## Mudanças
 
-### 1. Helper `withLiquidoAndTotals(resp)`
+### 1. Helpers novos em `comercialDrillApi.ts`
 
-Recebe `DrillResponse` e devolve `{ columns, rows }` enriquecidos:
+- `getNotaKey(row)`: monta chave `cd_empresa|cd_filial|cd_nf|cd_serie`; se empresa+filial vazios, usa `cd_nf|cd_serie` (fallback aceita `nf`/`serie`).
+- `toNumberSafe(v)`: aceita number, string com vírgula/ponto e milhar BR; retorna 0 quando inválido.
+- `getValorTotalLinha(row)`: ordem `vl_total → vl_tot_fat → vl_bruto → valor_total → vl_contabil`.
+- `getValorLiquidoLinha(row)`: ordem `vl_liquido → vl_tot_liq → valor_liquido → liquido → vl_total_liquido`. Reaproveita o `valor_liquido` que já calculamos quando aplicável.
 
-- **Coluna Valor Líquido**: se as linhas tiverem ao menos `valor_total` (e algum dos redutores `valor_devolucao`/`valor_impostos`/`valor_desconto`), insere logo após `valor_total` uma coluna `valor_liquido` (label "Valor Líquido", format `currency`).
-  - Fórmula por linha (mesma do `FaturamentoGeniusPage`):
-    ```
-    valor_liquido = (valor_total||0)
-                  - (valor_devolucao||0)
-                  - Math.abs(valor_impostos||0)
-                  - (valor_desconto||0)
-    ```
-  - Se o backend já enviar `valor_liquido` ou `fat_liquido`, usa o backend (não duplica).
+### 2. Função `enriquecerComTotaisNota(columns, rows)`
 
-- **Linha TOTAL**: append de uma linha extra onde:
-  - 1ª coluna textual recebe `"TOTAL"`.
-  - Cada coluna `format: 'currency' | 'number'` recebe `SUM` da coluna (ignorando não-numéricos).
-  - Demais colunas ficam vazias.
+- Primeiro tenta usar campos já prontos por linha:
+  - `total_nota`: `vl_total_nota → total_nota → vl_nf → valor_total_nota`
+  - `total_liquido_nota`: `vl_liquido_nota → total_liquido_nota → valor_liquido_nota`
+  - Se presentes em qualquer linha, usa direto sem agrupar.
+- Caso contrário, percorre `rows`, agrupa por `getNotaKey` e soma `getValorTotalLinha` / `getValorLiquidoLinha` (ignora chaves vazias).
+- Devolve `rows` com `total_nota` e `total_liquido_nota` injetados em cada linha + `columns` com duas colunas novas no final (`format: 'currency'`, `align: 'right'`).
+- Só adiciona as colunas se a drill tiver indício de NF (`cd_nf`/`nf` em alguma linha ou coluna). Caso contrário, retorna inalterado — evita poluir drills agregadas (ACUMULADO, MENSAL, ESTADO etc.).
 
-### 2. `downloadDrillCsv` e `downloadDrillXlsx`
+### 3. Integração com `withLiquidoAndTotals`
 
-Cada uma chama `withLiquidoAndTotals(resp)` antes de gerar o arquivo e usa os `columns`/`rows` retornados. Mantém:
-- CSV: separador `;`, BOM, vírgula decimal (lógica atual de `fmtCsvValue` já trata número e numérico-string).
-- Excel: tipos numéricos nativos, formato `R$ #,##0.00` para currency, `#,##0.00` para number.
+Ordem: `enriquecerComTotaisNota` roda **antes** de gerar a linha TOTAL e **depois** da coluna Valor Líquido. A linha TOTAL existente continua somando colunas `currency/number` linha a linha — `total_nota` e `total_liquido_nota` ficarão **em branco** nessa linha (evita duplicação por NF). Implementação: marcar essas duas chaves num `Set` e, no loop da linha TOTAL, deixar `''` para elas.
 
-A linha TOTAL deve ser formatada normalmente — números viram número no Excel; no CSV usam vírgula decimal.
+### 4. Exposição no drawer (`ComercialDrillDrawer.tsx`)
 
-## Critérios de aceite
+Hoje o drawer renderiza a grid a partir de `resp.columns`/`resp.rows` brutos e só passa `withLiquidoAndTotals` nos botões CSV/Excel. Para as colunas aparecerem **na tela** também:
 
-- Drill "Detalhes de Impostos" e qualquer outra com `valor_total`:
-  - export contém coluna **Valor Líquido** com `valor_total − devolução − |impostos| − desconto`.
-  - última linha mostra **TOTAL** com a soma de todas as colunas monetárias (incluindo Valor Líquido).
-- Datas, NF, série, código de produto não são somados nem alterados.
-- CSV mantém vírgula decimal; Excel mantém número nativo + formato monetário.
-- Nada muda no backend, no drawer ou nas drills exibidas em tela — só no arquivo exportado.
+- Extrair a parte de enriquecimento de NF para função exportada `enrichRowsWithNotaTotals(resp)` retornando `{ columns, rows }` (sem a linha TOTAL).
+- No `useMemo` de `displayColumns`/dados da tabela, aplicar `enrichRowsWithNotaTotals` ao `resp` antes das injeções existentes (nm_cliente, ds_produto etc.).
+- Passar `rows` enriquecidas para `DataTableBI`.
+- Os botões CSV/Excel continuam chamando `downloadDrillCsv`/`downloadDrillXlsx`, que internamente chamam `withLiquidoAndTotals` (que por sua vez chama o enriquecimento + linha TOTAL com as duas colunas zeradas).
+
+### 5. Formatação
+
+- CSV: `fmtCsvValue` com `format: 'currency'` já converte ponto em vírgula → ok.
+- Excel: loop existente aplica `R$ #,##0.00` em colunas `currency` → ok.
+- Grid: `fmtCell` já formata `currency` via `formatCurrency`.
 
 ## Fora de escopo
 
-- UI do drawer (sem coluna nova em tela).
-- Modo "Milhões" (export continua em valor bruto).
-- Outros módulos (Passagens, Frota, Máquinas).
+- Backend / API.
+- Outras drills/módulos (Passagens, Frota, Máquinas).
+- Modo "milhões": CSV continua bruto.
+- Rodapé do DataTable na tela (sem rodapé de soma automático hoje).
+
+## Aceite
+
+- Drills com NF (`NOTA_FISCAL`, `DETALHES_IMPOSTOS` e qualquer outra que tenha `cd_nf` por linha) mostram "Total da Nota" e "Total Líquido da Nota" na grid e nos exports.
+- Linhas da mesma NF repetem os mesmos valores.
+- Linha TOTAL do export deixa essas duas colunas vazias (não duplica).
+- CSV usa vírgula decimal; Excel mantém número/moeda.
+- Datas, códigos, NF e série inalterados.
+- Drills sem NF (ACUMULADO, MENSAL, ESTADO etc.) não ganham as colunas.
