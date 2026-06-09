@@ -23,8 +23,6 @@ import {
 import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
 import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
 import {
-  
-  
   TreeView,
   Timeline,
   DataTableBI, ChartCardShell,
@@ -33,6 +31,7 @@ import {
   type Column,
   type BiStatus,
 } from '@/components/bi';
+
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';
 import { usePageData } from './PageDataContext';
