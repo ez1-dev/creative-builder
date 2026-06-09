@@ -1,39 +1,36 @@
-## Objetivo
+## Diagnóstico
 
-No card **Resumo Faturamento** (`/bi/comercial`), mostrar **Faturamento Bruto** e **Faturamento Líquido** lado a lado com **Meta** e **Diferença**, em vez de apenas "Realizado" (que hoje vem do líquido).
+Rodei `rg -n "30000000|30\.000\.000|metaDefault|defaultMeta|fallbackMeta"` no projeto — **zero ocorrências**. Não existe valor fixo de R$ 30.000.000 no frontend. O card hoje (linhas 651–691 de `ComercialPage.tsx`) já:
+
+- Usa `??` (não `||`) para Meta: `Number(k?.meta ?? k?.vl_meta ?? 0)`.
+- Lê `kpis` direto de `qKpis.data` (sem mock, sem override Cloud — removido na rodada anterior).
+- Calcula `Diferença = liquido − meta`.
+
+Se o card está exibindo R$ 30.000.000, o valor está vindo **da própria API** em `kpis.meta` (provavelmente da tabela `bi_meta_faturamento`). O log temporário confirmará isso.
 
 ## Mudanças
 
-### 1. `src/components/bi/kpis/KpiTriStackCard.tsx`
-- Afrouxar o type `items` de tupla fixa `[TriStackItem, TriStackItem, TriStackItem]` para `TriStackItem[]` (mínimo 1).
-- Render já usa `.map`, então funciona com N itens automaticamente. Sem outras mudanças visuais.
+### 1. `src/pages/bi/ComercialPage.tsx` — bloco `resumo-faturamento`
+- Adicionar `total_meta` à cadeia de fallback da Meta (conforme pedido):
+  ```ts
+  const meta = Number(k?.meta ?? k?.vl_meta ?? k?.total_meta ?? 0);
+  ```
+- Tudo o mais permanece (já está usando `??`, sem mock, sem hardcode).
 
-### 2. `src/pages/bi/ComercialPage.tsx` — bloco `resumo-faturamento` (linhas 651–690)
-Trocar os 3 itens atuais por 4:
-
+### 2. `src/lib/bi/comercialApi.ts` — log temporário do payload bruto
+Dentro de `fetchComercialKpis`, antes do `unwrapRpcResponse`:
 ```ts
-const bruto = Number(k?.faturamento ?? k?.vl_bruto ?? 0);
-const liquido = Number(
-  k?.faturamento_liquido ?? k?.fat_liquido ?? k?.vl_realizado ?? k?.realizado ?? bruto ?? 0
-);
-const meta = Number(k?.meta ?? k?.vl_meta ?? 0);
-// Diferença continua medindo atingimento da meta — usa o LÍQUIDO (mesma base do gauge/% atingimento)
-const diferenca = liquido - meta;
-
-items={[
-  { label: 'Fat. Bruto',    value: bruto,     format: 'currency' },
-  { label: 'Fat. Líquido',  value: liquido,   format: 'currency' },
-  { label: 'Meta',          value: meta,      format: 'currency' },
-  { label: 'Diferença',     value: diferenca, format: 'currency' },
-]}
+// eslint-disable-next-line no-console
+console.log('KPIS COMERCIAL RAW:', data);
 ```
+Marcar com comentário `// TODO: remover após confirmar origem da meta` para facilitar a limpeza depois.
 
-Diferença permanece `líquido − meta` (consistente com `% Atingimento` que está calculado pelo backend com base no líquido). Se preferir bruto, é só uma linha — me avise antes de implementar.
-
-### 3. Diferença visual
-Como agora são 4 valores na mesma altura de card, o texto fica um pouco mais comprimido — `KpiTriStackCard` já usa `justify-around` e `leading-tight`, então não há quebra de layout. Sem mudança de CSS.
+### 3. Tipo `ComercialKpis`
+Adicionar `total_meta?: number | null` aos fallbacks opcionais já existentes.
 
 ## Fora de escopo
-- Backend / API: não mexer. Os campos `faturamento` (bruto) e `faturamento_liquido` (líquido) já vêm de `/api/bi/comercial/kpis`.
-- Outros widgets (`gauge-atingimento`, `kpi-meta`, etc.) — sem mudança.
-- Renomear o componente (`TriStack` deixa de ser literalmente "tri", mas mantemos o nome para não impactar imports em outras telas).
+- Backend / RPC `bi_comercial_kpis` — se a API estiver retornando 30M, é problema do dado em `bi_meta_faturamento` (UPQUERY ou MANUAL). Resolvido fora do frontend.
+- Outros widgets (`kpi-meta`, `gauge-atingimento`, `serie-mensal`) — já leem `kpis.meta` direto da API, sem fallback fixo.
+
+## Validação
+Após o deploy: abrir `/bi/comercial`, console deve imprimir `KPIS COMERCIAL RAW: { ..., meta: <valor>, ... }`. Se `meta` vier 30M no log, o problema está na API/Cloud; se vier outro valor mas o card exibir 30M, há mock em outro lugar (não foi encontrado nesta varredura, mas o log confirmaria).
