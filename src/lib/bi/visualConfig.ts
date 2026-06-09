@@ -65,16 +65,19 @@ export interface VisualConfig {
     text: string;
     align: TitleAlign;
     fontSize: number;
+    fontFamily: FontFamilyKey;
   };
   subtitle: {
     visible: boolean;
     text: string;
     fontSize: number;
+    fontFamily: FontFamilyKey;
   };
   legend: {
     visible: boolean;
     position: LegendPosition;
     fontSize: number;
+    fontFamily: FontFamilyKey;
     /** Renomeia séries por chave (dataKey → label exibido). */
     seriesLabels: Record<string, string>;
   };
@@ -82,6 +85,7 @@ export interface VisualConfig {
     visible: boolean;
     position: DataLabelPosition;
     fontSize: number;
+    fontFamily: FontFamilyKey;
     format: DataLabelFormat;
     decimals: number;
     prefix: string;
@@ -92,6 +96,7 @@ export interface VisualConfig {
     text: string;
     position: ResultDescriptionPosition;
     fontSize: number;
+    fontFamily: FontFamilyKey;
   };
   axis: {
     xVisible: boolean;
@@ -99,6 +104,7 @@ export interface VisualConfig {
     xLabel: string;
     yLabel: string;
     fontSize: number;
+    fontFamily: FontFamilyKey;
   };
   grid: { visible: boolean };
   tooltip: { visible: boolean };
@@ -110,12 +116,12 @@ export interface VisualConfig {
 }
 
 export const DEFAULT_VISUAL_CONFIG: VisualConfig = {
-  title:     { visible: true,  text: '',           align: 'left',  fontSize: 14 },
-  subtitle:  { visible: true,  text: '',           fontSize: 11 },
-  legend:    { visible: true,  position: 'bottom', fontSize: 11, seriesLabels: {} },
-  dataLabels:{ visible: false, position: 'top',    fontSize: 11, format: 'compact', decimals: 0, prefix: '', suffix: '' },
-  resultDescription: { visible: false, text: '', position: 'below', fontSize: 12 },
-  axis:      { xVisible: true, yVisible: true, xLabel: '', yLabel: '', fontSize: 10 },
+  title:     { visible: true,  text: '',           align: 'left',  fontSize: 14, fontFamily: 'default' },
+  subtitle:  { visible: true,  text: '',           fontSize: 11, fontFamily: 'default' },
+  legend:    { visible: true,  position: 'bottom', fontSize: 11, fontFamily: 'default', seriesLabels: {} },
+  dataLabels:{ visible: false, position: 'top',    fontSize: 11, fontFamily: 'default', format: 'compact', decimals: 0, prefix: '', suffix: '' },
+  resultDescription: { visible: false, text: '', position: 'below', fontSize: 12, fontFamily: 'default' },
+  axis:      { xVisible: true, yVisible: true, xLabel: '', yLabel: '', fontSize: 10, fontFamily: 'default' },
   grid:      { visible: true },
   tooltip:   { visible: true },
   card:      { showHeader: true, showBorder: true, density: 'normal' },
