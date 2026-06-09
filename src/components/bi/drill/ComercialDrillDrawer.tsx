@@ -18,7 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 
 import {
-  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx,
+  fetchComercialDrill, downloadDrillCsv, downloadDrillXlsx, enrichRowsWithNotaTotals,
   type DrillColumn, type DrillContexto, type DrillResponse, type DrillType,
 } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ROW_TO_CTX_KEY, CTX_LABELS } from '@/lib/bi/comercialDrillCatalog';
@@ -221,8 +221,13 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     stack.pushDrill(next, rowFilters);
   };
 
+  const enrichedBase = useMemo(() => {
+    if (!resp) return { columns: [] as DrillColumn[], rows: [] as Record<string, any>[] };
+    return enrichRowsWithNotaTotals({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
+  }, [resp]);
+
   const displayColumns = useMemo(() => {
-    const cols = resp?.columns ?? [];
+    const cols = enrichedBase.columns;
     let out = cols;
     // CLIENTE: injeta nm_cliente após cd_cliente se backend não devolveu.
     if (cur?.drill_type === 'CLIENTE' && !out.some((c) => c.key === 'nm_cliente')) {
@@ -265,7 +270,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       }
     }
     return out;
-  }, [resp?.columns, cur?.drill_type]);
+  }, [enrichedBase, cur?.drill_type]);
 
 
   const columns = useMemo<Column<Record<string, any>>[]>(() => {
@@ -498,7 +503,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
             <DrillEmptyDiagnostico stack={stack} response={resp} />
           ) : (
             <>
-              <DataTableBI columns={columns} data={resp.rows} />
+              <DataTableBI columns={columns} data={enrichedBase.rows} />
 
               <div className="flex items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
                 <span>
