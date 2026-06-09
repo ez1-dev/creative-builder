@@ -558,6 +558,44 @@ export function DataTable<T extends Record<string, any>>({
               sortedData.map((row, rowIndex) => renderLeafRow(row, rowIndex))
             )}
           </TableBody>
+          {sortedData.length > 0 && numericKeys.length > 0 && (
+            <tfoot>
+              <TableRow className="hover:bg-transparent border-t-2">
+                {columns.map((col, colIndex) => {
+                  const isNumeric = numericKeys.includes(col.key);
+                  const isFirst = colIndex === 0;
+                  const total = isNumeric
+                    ? sortedData.reduce((acc, r) => acc + Number(r?.[col.key] ?? 0), 0)
+                    : 0;
+                  const isLastSticky = colIndex === lastStickyIndex;
+                  const stickyStyle: React.CSSProperties = col.sticky
+                    ? {
+                        position: 'sticky',
+                        left: stickyOffsets[colIndex],
+                        bottom: 0,
+                        zIndex: 30,
+                        minWidth: col.stickyWidth || 120,
+                      }
+                    : { position: 'sticky', bottom: 0, zIndex: 10 };
+                  return (
+                    <TableCell
+                      key={col.key}
+                      style={stickyStyle}
+                      className={`whitespace-nowrap text-xs font-semibold bg-muted ${
+                        col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
+                      } ${col.className || ''} ${isLastSticky ? 'shadow-[2px_0_5px_-2px_rgba(0,0,0,0.15)]' : ''}`}
+                    >
+                      {isNumeric ? (
+                        renderAggregate(col, total)
+                      ) : isFirst ? (
+                        <span className="text-muted-foreground">Total ({sortedData.length})</span>
+                      ) : null}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
