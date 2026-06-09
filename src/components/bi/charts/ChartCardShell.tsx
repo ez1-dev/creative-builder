@@ -12,6 +12,7 @@ import {
   mergeVisualConfig,
   interpolateDescription,
   densitySpacing,
+  fontFamilyCss,
 } from '@/lib/bi/visualConfig';
 import { cn } from '@/lib/utils';
 
@@ -62,7 +63,7 @@ export function ChartCardShell({
   const descNode = descText ? (
     <p
       className={cn('text-muted-foreground', vc.card.density === 'compacta' ? 'px-2' : 'px-1')}
-      style={{ fontSize: vc.resultDescription.fontSize }}
+      style={{ fontSize: vc.resultDescription.fontSize, fontFamily: fontFamilyCss(vc.resultDescription.fontFamily) }}
     >
       {descText}
     </p>
@@ -93,14 +94,14 @@ export function ChartCardShell({
               {vc.title.visible && (
                 <CardTitle
                   className="flex items-center gap-2 font-semibold"
-                  style={{ fontSize: vc.title.fontSize }}
+                  style={{ fontSize: vc.title.fontSize, fontFamily: fontFamilyCss(vc.title.fontFamily) }}
                 >
                   {icon && <span className="text-muted-foreground">{icon}</span>}
                   {displayTitle}
                 </CardTitle>
               )}
               {vc.subtitle.visible && displaySubtitle && (
-                <p className="text-muted-foreground" style={{ fontSize: vc.subtitle.fontSize }}>
+                <p className="text-muted-foreground" style={{ fontSize: vc.subtitle.fontSize, fontFamily: fontFamilyCss(vc.subtitle.fontFamily) }}>
                   {displaySubtitle}
                 </p>
               )}

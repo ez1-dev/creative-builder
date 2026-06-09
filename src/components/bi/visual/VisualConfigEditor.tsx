@@ -18,6 +18,7 @@ import {
 import {
   DEFAULT_VISUAL_CONFIG,
   mergeVisualConfig,
+  FONT_FAMILY_OPTIONS,
   type VisualConfig,
   type LegendPosition,
   type DataLabelFormat,
@@ -25,6 +26,7 @@ import {
   type TitleAlign,
   type ResultDescriptionPosition,
   type CardDensity,
+  type FontFamilyKey,
 } from '@/lib/bi/visualConfig';
 
 interface Props {
@@ -96,6 +98,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte do título (px)" value={cfg.title.fontSize} min={10} max={32}
               onChange={(n) => update((d) => { d.title.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte do título" value={cfg.title.fontFamily}
+            onChange={(v) => update((d) => { d.title.fontFamily = v; })} />
 
           <hr className="my-2" />
 
@@ -109,6 +113,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
           </div>
           <NumberField label="Fonte do subtítulo (px)" value={cfg.subtitle.fontSize} min={8} max={24}
             onChange={(n) => update((d) => { d.subtitle.fontSize = n; })} />
+          <FontFamilyField label="Família da fonte do subtítulo" value={cfg.subtitle.fontFamily}
+            onChange={(v) => update((d) => { d.subtitle.fontFamily = v; })} />
         </TabsContent>
 
         {/* ===== Legenda ===== */}
@@ -133,6 +139,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte da legenda (px)" value={cfg.legend.fontSize} min={8} max={20}
               onChange={(n) => update((d) => { d.legend.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte da legenda" value={cfg.legend.fontFamily}
+            onChange={(v) => update((d) => { d.legend.fontFamily = v; })} />
           {availableSeriesKeys.length > 0 && (
             <div className="space-y-2">
               <Label className="text-xs">Nome amigável das séries</Label>
@@ -177,6 +185,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             </div>
             <NumberField label="Fonte (px)" value={cfg.dataLabels.fontSize} min={8} max={20}
               onChange={(n) => update((d) => { d.dataLabels.fontSize = n; })} />
+            <FontFamilyField label="Família da fonte" value={cfg.dataLabels.fontFamily}
+              onChange={(v) => update((d) => { d.dataLabels.fontFamily = v; })} />
             <div>
               <Label className="text-xs">Formato</Label>
               <Select value={cfg.dataLabels.format} onValueChange={(v) => update((d) => { d.dataLabels.format = v as DataLabelFormat; })}>
@@ -237,6 +247,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte (px)" value={cfg.resultDescription.fontSize} min={9} max={20}
               onChange={(n) => update((d) => { d.resultDescription.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte" value={cfg.resultDescription.fontFamily}
+            onChange={(v) => update((d) => { d.resultDescription.fontFamily = v; })} />
         </TabsContent>
 
         {/* ===== Eixos e grade ===== */}
@@ -261,6 +273,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte dos eixos (px)" value={cfg.axis.fontSize} min={8} max={16}
               onChange={(n) => update((d) => { d.axis.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte dos eixos" value={cfg.axis.fontFamily}
+            onChange={(v) => update((d) => { d.axis.fontFamily = v; })} />
           <hr className="my-2" />
           <Row>
             <Switch checked={cfg.grid.visible} onCheckedChange={(v) => update((d) => { d.grid.visible = v; })} />
@@ -317,6 +331,24 @@ function NumberField({ label, value, onChange, min, max }: { label: string; valu
           if (Number.isFinite(n)) onChange(n);
         }}
       />
+    </div>
+  );
+}
+
+function FontFamilyField({ label, value, onChange }: { label: string; value: FontFamilyKey; onChange: (v: FontFamilyKey) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      <Select value={value ?? 'default'} onValueChange={(v) => onChange(v as FontFamilyKey)}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {FONT_FAMILY_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value} style={{ fontFamily: opt.value === 'default' ? undefined : undefined }}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

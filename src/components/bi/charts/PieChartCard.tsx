@@ -3,7 +3,7 @@ import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { BI_PALETTE } from '../utils/chartHelpers';
 import { BarChartDatum } from './BarChartCard';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
@@ -32,7 +32,7 @@ export function PieChartCard({
               {data.map((_, i) => <Cell key={i} fill={BI_PALETTE[i % BI_PALETTE.length]} />)}
               {vc.dataLabels.visible && (
                 <LabelList dataKey="valor" position={vc.dataLabels.position === 'inside' ? 'inside' : 'outside'}
-                  style={{ fontSize: vc.dataLabels.fontSize, fill: 'hsl(var(--foreground))' }}
+                  style={{ fontSize: vc.dataLabels.fontSize, fontFamily: fontFamilyCss(vc.dataLabels.fontFamily), fill: 'hsl(var(--foreground))' }}
                   formatter={fmtLabel as any} />
               )}
             </Pie>
@@ -41,7 +41,7 @@ export function PieChartCard({
                 contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
             )}
             {vc.legend.visible && (
-              <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize }} />
+              <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize, fontFamily: fontFamilyCss(vc.legend.fontFamily) }} />
             )}
           </PieChart>
         </ResponsiveContainer>

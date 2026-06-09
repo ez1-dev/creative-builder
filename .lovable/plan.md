@@ -1,37 +1,48 @@
-## Objetivo
+# Seletor de fonte por widget — Biblioteca BI
 
-No modo "Editar dashboard", permitir reordenar blocos arrastando-os livremente para cima/baixo, em vez de depender do menu "Mover para cima/baixo".
+Hoje o `VisualConfigEditor` (aba "Configurar" de cada widget) só permite ajustar **tamanho** da fonte de título, subtítulo, legenda, rótulos, eixos e descrição. Vamos adicionar a escolha da **família de fonte**, salva por widget no mesmo `options.visual` que já é persistido em `bi_user_widgets` / `dashboard_widgets`.
+
+## Escopo
+
+- Por **widget** (cada card/gráfico tem sua fonte).
+- Aplicado a: título, subtítulo, legenda, rótulos de dados, eixos, descrição do resultado e — quando aplicável — rótulos do Treemap (caso da imagem enviada).
+- Fontes disponíveis no seletor:
+  - `Padrão` (herda do app — Inter/system)
+  - `Serif` (Georgia, "Times New Roman", serif)
+  - `Monospace` (ui-monospace, Menlo, Consolas, monospace)
+  - Fontes do Google: `Roboto`, `Poppins`, `Inter`, `Nunito`, `Montserrat`, `Source Sans 3`, `Roboto Mono`, `IBM Plex Serif`
 
 ## Mudanças
 
-### 1. `src/components/bi/builder/BlockedLayoutGrid.tsx`
-- Envolver a lista de `<section>` em `@dnd-kit/sortable` (já presente em outros pontos do projeto; senão usar HTML5 drag nativo para evitar nova dep).
-- Cada bloco vira um item sortable, com:
-  - Handle de arraste visível no header do bloco (apenas em `editing`), usando o ícone `GripVertical` já exibido no `BlockHeader`.
-  - Cursor `grab/grabbing`, ring/sombra ao arrastar, placeholder com borda primária (mesmo padrão visual do grid de widgets).
-- Ao soltar (`onDragEnd`):
-  - Calcular nova ordem local (atualização otimista da lista `ordered`).
-  - Chamar `onBlockReorder` para CADA bloco cuja `ordem` mudou, em paralelo (ou um único reorder do bloco movido com a nova `ordem` calculada a partir dos vizinhos — preferir setar ordem = índice * 10 para todos afetados).
-- Manter os itens "Mover para cima/baixo" no dropdown como fallback de acessibilidade.
+### 1. `src/lib/bi/visualConfig.ts`
+- Novo tipo `FontFamilyKey` com as opções acima + mapa `FONT_FAMILY_STACKS` (key → CSS `font-family`).
+- Adicionar `fontFamily?: FontFamilyKey` em cada bloco que já tem `fontSize`: `title`, `subtitle`, `legend`, `dataLabels`, `resultDescription`, `axis`.
+- Default = `'default'` em todos.
+- `mergeVisualConfig` herda automaticamente (já faz spread por bloco).
+- Helper `fontFamilyCss(key?)` → string CSS, retorna `undefined` para `'default'` (não emite style).
 
-### 2. `src/components/bi/builder/BlockHeader.tsx`
-- Expor uma `prop` `dragHandleProps?: HTMLAttributes` aplicada ao container do `GripVertical` (quando `editing`), para o dnd-kit anexar listeners.
-- Tornar o ícone `GripVertical` maior/mais óbvio (cursor `grab`, padding clicável, tooltip "Arraste para reordenar bloco").
+### 2. `src/components/bi/visual/VisualConfigEditor.tsx`
+- Novo subcomponente `FontFamilyField` (Select shadcn) reutilizado em cada seção que já tem `NumberField` de fonte.
+- Adicionar uma linha "Família da fonte" ao lado de cada "Fonte (px)" — em: Título, Subtítulo, Legenda, Rótulos de dados, Descrição do resultado, Eixos.
+- Tooltip curto explicando que `Padrão` herda do app.
 
-### 3. `src/index.css`
-- Estilos para `.block-sortable-dragging` (sombra forte, opacity 0.95, z-index alto) e `.block-sortable-over` (linha guia ou ring primário).
+### 3. `src/components/bi/charts/ChartCardShell.tsx`
+- Onde já aplica `style={{ fontSize: ... }}` (título, subtítulo, descrição), adicionar `fontFamily: fontFamilyCss(vc.<bloco>.fontFamily)`.
 
-### 4. Hook `useDashboardBlocks` (opcional)
-- Adicionar helper `reorderBlocks(ids: string[])` que faz um único round-trip atualizando todas as `ordem` de uma vez, evitando N chamadas RPC ao arrastar. Se não quisermos backend novo, manter N chamadas via `update_dashboard_block`.
+### 4. Aplicar nos gráficos onde o estilo de fonte chega via props ao Recharts
+- `BarChartCard`, `LineChartCard`, `AreaChartCard`, `HorizontalBarChartCard`, `StackedBarChartCard`, `ComboChartCard`, `MultiSeriesChartCard`, `PieChartCard`, `RadarChartCard`, `ScatterChartCard`, `FunnelChartCard`, `WaterfallChartCard`, `TreemapChartCard`:
+  - Em `<Legend wrapperStyle={...}>`, `<XAxis tick={{...}}>`, `<YAxis tick={...}>`, e nos `<LabelList style={...}>` / labels de rótulo (incluindo o conteúdo SVG `<text>` do TreemapChartCard que renderiza os blocos coloridos da imagem enviada): adicionar `fontFamily` calculada a partir do bloco correspondente do `VisualConfig`.
+- Estritamente aditivo — nada muda se o usuário não escolher fonte.
 
-## Detalhes técnicos
-
-- Biblioteca: usar **`@dnd-kit/core` + `@dnd-kit/sortable`** se já estiver no `package.json` (verificar antes); caso contrário, implementar drag nativo HTML5 (`draggable`, `onDragStart/Over/Drop`) para não adicionar dependência. Drag nativo é suficiente porque os blocos são apenas linhas verticais — não há grid 2D entre blocos.
-- A reordenação é apenas vertical (lista). O `react-grid-layout` continua sendo usado **dentro** de cada bloco para widgets — sem mudança.
-- Persistência: continua usando `update_dashboard_block(_ordem)` já existente. Sem migração de banco.
+### 5. `index.html`
+- Carregar Google Fonts apenas das famílias escolhidas (link `display=swap`), em um único `<link>` consolidado. Sem peso pesado: apenas regular + 600 para cada.
 
 ## Fora de escopo
+- Fonte global da Biblioteca BI / app inteiro.
+- Editor para fontes customizadas (upload).
+- Mudanças em KPIs/`KpiCard` — apenas gráficos via `ChartCardShell` por enquanto (pode ser feito num passo seguinte se quiser).
+- Backend / migrations (campo já cabe em `options.visual` JSON existente).
 
-- Arrastar widgets entre blocos (continua via menu "Mover para…").
-- Reordenar blocos no modo de visualização (apenas em `editing`).
-- Mudanças no backend / RPCs.
+## Validação
+- Abrir `/biblioteca-bi`, configurar um Treemap (ex.: "Faturamento Estado") e trocar fonte para `Poppins` — rótulos PA/SP/PR devem renderizar em Poppins.
+- Verificar que widgets antigos sem `fontFamily` continuam idênticos.

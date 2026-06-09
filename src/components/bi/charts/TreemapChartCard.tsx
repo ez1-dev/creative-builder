@@ -3,6 +3,7 @@ import { ResponsiveContainer, Treemap, Tooltip } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { BI_PALETTE } from '../utils/chartHelpers';
 import { formatCurrency } from '../utils/formatters';
+import { mergeVisualConfig, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface TreemapDatum { name: string; value: number; children?: TreemapDatum[] }
 
@@ -39,18 +40,20 @@ function truncateToWidth(label: string, maxChars: number) {
   return `${label.slice(0, Math.max(1, maxChars - 1))}…`;
 }
 
-export function TreemapChartCard({ data, valueFormatter = formatCurrency, height = 280, onItemClick, ...shell }: TreemapChartCardProps) {
+export function TreemapChartCard({ data, valueFormatter = formatCurrency, height = 280, onItemClick, visualConfig, ...shell }: TreemapChartCardProps) {
   const isEmpty = !data?.length;
   const total = useMemo(() => (data ?? []).reduce((s, d) => s + Number(d?.value || 0), 0), [data]);
+  const vc = mergeVisualConfig(visualConfig);
+  const labelFontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
   return (
-    <ChartCardShell {...shell} height={height} isEmpty={isEmpty}>
+    <ChartCardShell {...shell} height={height} isEmpty={isEmpty} visualConfig={visualConfig}>
       <ResponsiveContainer width="100%" height={height}>
         <Treemap
           data={data}
           dataKey="value"
           stroke="hsl(var(--background))"
           fill="hsl(var(--primary))"
-          content={<CustomCell onItemClick={onItemClick} total={total} />}
+          content={<CustomCell onItemClick={onItemClick} total={total} fontFamily={labelFontFamily} />}
         >
           <Tooltip
             cursor={{ fill: 'transparent' }}
@@ -58,7 +61,7 @@ export function TreemapChartCard({ data, valueFormatter = formatCurrency, height
               const pct = total > 0 ? ((v / total) * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : '0';
               return [`${valueFormatter(v)} (${pct}%)`, ''] as any;
             }}
-            contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }}
+            contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12, fontFamily: labelFontFamily }}
           />
         </Treemap>
       </ResponsiveContainer>
@@ -67,7 +70,7 @@ export function TreemapChartCard({ data, valueFormatter = formatCurrency, height
 }
 
 function CustomCell(props: any) {
-  const { x, y, width, height, index, name, value, onItemClick, total } = props;
+  const { x, y, width, height, index, name, value, onItemClick, total, fontFamily } = props;
   if (!width || !height || width < 2 || height < 2) return null;
   const color = BI_PALETTE[index % BI_PALETTE.length];
   const textColor = pickTextColor(color);
@@ -109,7 +112,7 @@ function CustomCell(props: any) {
           fill={textColor}
           fontSize={nameFs}
           fontWeight={700}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', fontFamily }}
         >
           {truncateToWidth(String(name ?? ''), maxChars)}
         </text>
@@ -121,7 +124,7 @@ function CustomCell(props: any) {
           fill={textColor}
           fontSize={valueFs}
           fontWeight={500}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', fontFamily }}
         >
           {formatCompactCurrency(Number(value || 0))}
         </text>
@@ -133,7 +136,7 @@ function CustomCell(props: any) {
           fill={mutedColor}
           fontSize={pctFs}
           fontWeight={500}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', fontFamily }}
         >
           {pctStr}
         </text>
