@@ -500,7 +500,7 @@ export default function ComercialPage() {
     { key:'cd_tp_movimento', header:'Tipo Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '' },
     { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
     { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
-    { key:'cd_cliente', header:'Cliente', render:(_v,r)=> r.cd_cliente ?? '' },
+    { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> r.cliente_label ?? r.cd_cliente ?? '' },
     { key:'cd_prj', header:'Obra', render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '') },
     { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
     { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
