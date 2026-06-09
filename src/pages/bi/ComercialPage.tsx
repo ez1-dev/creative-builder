@@ -75,7 +75,7 @@ import {
 } from '@/lib/bi/comercialDrillContract';
 import { pickDimensionLabel } from '@/lib/bi/dimensionLabels';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
-import { fetchMetaCloudTotal } from '@/lib/bi/metasFaturamentoApi';
+import { fetchMetaCloudTotal, sincronizarMetasUpquery } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
   drillFromMixCategoria,
@@ -266,6 +266,31 @@ export default function ComercialPage() {
       toast.error(`Falha ao sincronizar revendas: ${e?.message ?? e}`, { id: tId });
     } finally {
       setSyncingRevendas(false);
+    }
+  };
+
+  const [syncingMetas, setSyncingMetas] = useState(false);
+  const handleSyncMetas = async () => {
+    if (syncingMetas) return;
+    setSyncingMetas(true);
+    const tId = toast.loading('Sincronizando metas (UpQuery)...');
+    try {
+      const r = await sincronizarMetasUpquery({
+        anomes_ini: filters.anomes_ini,
+        anomes_fim: filters.anomes_fim,
+      });
+      if (!r.ok) {
+        toast.error(`Falha ao sincronizar metas: ${r.error ?? 'erro desconhecido'}`, { id: tId });
+      } else {
+        const linhas = r.data?.linhas_resumo ?? r.data?.linhas_detalhe ?? 0;
+        toast.success(`Metas sincronizadas (${linhas} linhas).`, { id: tId });
+        await qMetaCloud.refetch();
+        await qKpis.refetch();
+      }
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar metas: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingMetas(false);
     }
   };
 
@@ -661,6 +686,18 @@ export default function ComercialPage() {
               { label: 'Meta',      value: n(kpis.meta),        format: 'currency' },
               { label: 'Diferença', value: n(kpis.diferenca),   format: 'currency' },
             ]}
+            headerAction={isAdmin ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                title="Atualizar metas (UpQuery)"
+                disabled={syncingMetas}
+                onClick={(e) => { e.stopPropagation(); handleSyncMetas(); }}
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', syncingMetas && 'animate-spin')} />
+              </Button>
+            ) : undefined}
           />
         </Clickable>
       );

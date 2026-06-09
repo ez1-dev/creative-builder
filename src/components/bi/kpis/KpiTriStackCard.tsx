@@ -18,16 +18,24 @@ export interface KpiTriStackCardProps {
   title?: string;
   items: [TriStackItem, TriStackItem, TriStackItem];
   className?: string;
+  headerAction?: React.ReactNode;
 }
 
-export function KpiTriStackCard({ title, items, className }: KpiTriStackCardProps) {
+export function KpiTriStackCard({ title, items, className, headerAction }: KpiTriStackCardProps) {
   return (
     <Card className={cn('h-full flex flex-col', className)}>
-      {title && (
+      {(title || headerAction) && (
         <CardHeader className="pb-2">
-          <CardTitle className="text-center text-sm 3xl:text-base font-semibold">
-            {title}
-          </CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="flex-1 text-center text-sm 3xl:text-base font-semibold">
+              {title}
+            </CardTitle>
+            {headerAction && (
+              <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                {headerAction}
+              </div>
+            )}
+          </div>
         </CardHeader>
       )}
       <CardContent className="flex-1 flex flex-col justify-around items-center gap-2 py-3">
