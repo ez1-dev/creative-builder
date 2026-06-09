@@ -109,6 +109,26 @@ function BrazilStateMapRegistryHost({ title }: { title?: string }) {
   );
 }
 
+/**
+ * Host do `brazil-heat-map-comercial`: heatmap geográfico do BI Comercial
+ * usando os filtros expostos pelo PageDataContext da página alvo.
+ */
+function BrazilHeatMapComercialHost({ title }: { title?: string }) {
+  const pd = usePageData();
+  const filtros = (pd?.filtros ?? {}) as any;
+  return (
+    <BrazilHeatMapWidget
+      title={title || 'Mapa de Calor — Faturamento por Estado'}
+      filters={{
+        anomes_ini: String(filtros.anomes_ini ?? ''),
+        anomes_fim: String(filtros.anomes_fim ?? ''),
+        unidade_negocio: (filtros.unidade_negocio ?? 'CONSOLIDADO') as any,
+        ...filtros,
+      }}
+    />
+  );
+}
+
 /** Cor para charts: aceita token semântico ou string CSS direta. */
 function chartColor(opts?: WidgetOptions): string | undefined {
   const c = opts?.color as any;
