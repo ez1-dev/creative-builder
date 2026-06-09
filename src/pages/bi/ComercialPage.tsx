@@ -1045,14 +1045,14 @@ export default function ComercialPage() {
                 </PopoverContent>
               </Popover>
               <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
-              <Button asChild size="sm" variant="outline" className="h-8 gap-1">
+              <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
               {isAdmin && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1"
+                  className="hidden md:inline-flex h-8 gap-1"
                   onClick={handleSyncClientes}
                   disabled={syncingClientes}
                   title="Atualiza nomes dos clientes a partir do ERP (E085CLI)"
@@ -1065,7 +1065,7 @@ export default function ComercialPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1"
+                  className="hidden md:inline-flex h-8 gap-1"
                   onClick={handleSyncProdutos}
                   disabled={syncingProdutos}
                   title="Atualiza descrições dos produtos a partir do ERP (E075PRO/E080SER)"
@@ -1078,7 +1078,7 @@ export default function ComercialPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1"
+                  className="hidden md:inline-flex h-8 gap-1"
                   onClick={handleSyncRevendas}
                   disabled={syncingRevendas}
                   title="Atualiza nomes das revendas a partir do ERP"
