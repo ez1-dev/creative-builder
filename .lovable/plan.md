@@ -1,75 +1,35 @@
-# Corrigir orientação da impressão de OP (forçada para paisagem por outro CSS)
+# Corrigir página em branco no início da impressão de OP
 
 ## Causa
 
-Duas regras `@page` globais coexistem no bundle:
+Após introduzir `@page op-print` e aplicar `page: op-print` apenas em `.op-sheet`, `.op-print-page`, etc., o Chromium inicia o documento na página padrão (sem nome) e dispara uma quebra de página automática antes do primeiro elemento com `page` nomeado diferente. Resultado: a primeira folha sai em branco.
 
-- `src/components/producao/op-print.css:410` → `@page { size: A4 portrait; margin: 8mm }`
-- `src/pages/bi/relatorio.css:87` → `@page { size: A4 landscape; margin: 10mm }`
+## Solução
 
-Como `@page` sem nome se aplica ao documento inteiro e ambos os arquivos ficam carregados na SPA depois que o usuário navega pelo Relatório Executivo, a última declaração vence — saída do PDF: 841.92×594.96pt (A4 paisagem) em vez de retrato.
+Aplicar `page: op-print` também na raiz da árvore imprimível, para que o documento inteiro já comece na página nomeada e nenhum break inicial seja inserido.
 
-## Solução: páginas nomeadas (`@page <nome>`)
+### `src/components/producao/op-print.css` — dentro do `@media print`
 
-Usar `@page` nomeado em cada stylesheet e amarrar o nome ao elemento raiz daquele documento via `page: <nome>`. Assim cada folha respeita sua própria orientação independente de ordem de carga.
-
-### 1. `src/components/producao/op-print.css`
-
-Substituir:
+Adicionar regra:
 
 ```css
-@page { size: A4 portrait; margin: 8mm; }
-```
-
-por:
-
-```css
-@page op-print { size: A4 portrait; margin: 8mm; }
-```
-
-E dentro do `@media print`, adicionar:
-
-```css
-.op-sheet,
-.op-print-page,
-.op-operation-page,
-.operation-single-page,
-.componentes-page,
-.op-drawing-page,
-.op-missing-drawing-page {
+html, body, .print-root, .op-print-batch, .op-print-group {
   page: op-print;
 }
 ```
 
-### 2. `src/pages/bi/relatorio.css`
+Manter o `page: op-print` já adicionado nas folhas individuais (`.op-sheet`, etc.) — não causa break adicional porque o valor é o mesmo herdado.
 
-Substituir:
+### `src/pages/bi/relatorio.css` — dentro do `@media print`
 
-```css
-@page { size: A4 landscape; margin: 10mm; }
-```
-
-por:
-
-```css
-@page rel-doc { size: A4 landscape; margin: 10mm; }
-```
-
-E dentro do `@media print` daquele arquivo, adicionar:
-
-```css
-#rel-doc { page: rel-doc; }
-```
-
-(Já existe `#rel-doc` como container do documento imprimível.)
+Como `#rel-doc` agora também declara `page: rel-doc`, garantir que `html, body` continuem na página padrão (não nomear globalmente) para não interferir em outras telas. Manter como está; somente `#rel-doc` muda o named page. Isso já está OK e não exige alteração — só verificar que o impressão do Relatório Executivo segue saindo em paisagem.
 
 ## Critérios de aceite
 
-- Imprimir uma OP gera PDF/papel em A4 **retrato** (595×842pt), independentemente de o usuário ter aberto antes a tela de Relatório Executivo.
-- Imprimir o Relatório Executivo continua saindo em A4 paisagem.
-- Não muda nada de layout, margens internas ou conteúdo dos relatórios.
+- Impressão de OP começa imediatamente na primeira folha (sem página em branco no início), em A4 retrato.
+- Impressão do Relatório Executivo segue em A4 paisagem, sem regressão.
 
 ## Fora de escopo
 
-- Outros ajustes do layout de impressão de OP (já feitos na rodada anterior).
-- Backend / dados.
+- Demais ajustes de layout da OP.
+- Backend/dados.
