@@ -363,9 +363,9 @@ export function OpPrintSheet({
           <col style={{ width: "22%" }} />
         </colgroup>
 
-        <tbody>
-          {Array.from({ length: apontamentoBlocos }).flatMap((_, r) => [
-            <tr key={`apt-${i}-${r}-h1`} className="op-apt-head">
+        {Array.from({ length: apontamentoBlocos }).map((_, r) => (
+          <tbody key={`apt-${i}-${r}`} className="op-apt-block">
+            <tr className="op-apt-head">
               <th>inicio</th>
               <th>data</th>
               <th>tempo setup</th>
@@ -373,9 +373,8 @@ export function OpPrintSheet({
               <th>data</th>
               <th>qtd produzida</th>
               <th>refugo</th>
-            </tr>,
-
-            <tr key={`apt-${i}-${r}-d1`} className="op-apt-fill">
+            </tr>
+            <tr className="op-apt-fill">
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
@@ -383,23 +382,21 @@ export function OpPrintSheet({
               <td>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
-            </tr>,
-
-            <tr key={`apt-${i}-${r}-h2`} className="op-apt-head">
+            </tr>
+            <tr className="op-apt-head">
               <th>Cod. desvio</th>
               <th colSpan={4}>obs</th>
               <th>operador</th>
               <th>check</th>
-            </tr>,
-
-            <tr key={`apt-${i}-${r}-d2`} className="op-apt-fill op-apt-row-end">
+            </tr>
+            <tr className="op-apt-fill op-apt-row-end">
               <td>&nbsp;</td>
               <td colSpan={4}>&nbsp;</td>
               <td>&nbsp;</td>
               <td>&nbsp;</td>
-            </tr>,
-          ])}
-        </tbody>
+            </tr>
+          </tbody>
+        ))}
       </table>
     </div>
   );

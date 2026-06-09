@@ -7,7 +7,7 @@
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  padding: 8mm;
+  padding: 4mm;
   box-sizing: border-box;
 }
 
@@ -15,10 +15,26 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   margin-top: 12px;
   margin-bottom: 12px;
+  max-height: 297mm;
+  overflow: hidden;
 }
 
 .op-sheet * {
   box-sizing: border-box;
+}
+
+/* Blocos de apontamento — manter cada bloco (4 linhas) inteiro entre páginas */
+.op-apontamento-table tbody.op-apt-block {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.op-apontamento-table tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.op-apontamento-table tr.op-apt-head th {
+  text-align: center;
+  vertical-align: middle;
 }
 
 .op-sheet .op-box {
@@ -360,35 +376,35 @@
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  margin-top: 4px;
-  font-size: 9pt;
+  margin-top: 2pt;
+  font-size: 7pt;
 }
 
 .op-apontamento-table th,
 .op-apontamento-table td {
-  border: 1px solid #000;
-  padding: 0 4px;
-  line-height: 1.1;
+  border: 0.5pt solid #000;
+  padding: 0 2pt;
+  line-height: 1;
   vertical-align: middle;
   overflow: hidden;
 }
 
 .op-apontamento-table tr.op-apt-head th {
-  height: 5mm;
-  padding: 0 4px;
-  font-size: 7.5pt;
+  height: 3.8mm;
+  padding: 0 2pt;
+  font-size: 6.6pt;
   font-weight: bold;
   background: #f0f0f0;
-  text-align: left;
+  text-align: center;
 }
 
 .op-apontamento-table tr.op-apt-fill td {
-  height: 11mm;
+  height: 10.5mm;
 }
 
 .op-apontamento-table tr.op-apt-row-end td {
-  border-bottom: 4px solid #000;
-  padding-bottom: 2mm;
+  border-bottom: 1.8pt solid #000;
+  padding-bottom: 0.6mm;
 }
 
 @page {
