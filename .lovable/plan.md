@@ -1,46 +1,57 @@
-## Tabela mensal — abrir por Nota Fiscal
 
-Trocar/expandir o widget **Tabela mensal** para exibir todas as informações em nível de **Nota Fiscal**, usando o endpoint já existente `/api/bi/comercial/detalhes` (função `fetchComercialDetalhes`, escopo `'todas'`).
+## Ajustes no Detalhamento por Nota Fiscal
 
-### Alterações em `src/pages/bi/ComercialPage.tsx`
+### 1. `src/lib/bi/comercialApi.ts` — `fetchComercialDetalhes`
 
-1. **Nova query** ao lado de `qMensal`:
-   ```ts
-   const qDetalhes = useQuery({
-     queryKey: ['bi-comercial','detalhes', filters],
-     queryFn: () => fetchComercialDetalhes(filters, { escopo: 'todas', limit: 5000 }),
-     refetchOnWindowFocus: false,
-     retry: 1,
-   });
-   const detalhes = qDetalhes.data ?? [];
-   ```
+Trocar a assinatura/implementação para paginar:
 
-2. **Novas colunas** `colsDetalhes: Column<ComercialDetalheRow>[]` cobrindo todos os campos retornados pela API:
-   - Ano/Mês, Dt. Emissão, Unidade, Empresa, Filial, NF, Série, TNS, Tipo Mov., Origem
-   - Estado, Cliente, Obra (cd_prj + ds_abr_prj), Revenda
-   - Vl. Bruto, Impostos, Líquido, Devolução, Qtd. Produtos
-   - Formatação: `formatCurrency` para valores monetários, `formatNumber` para quantidades, datas como string ISO.
+```ts
+export async function fetchComercialDetalhes(
+  p: ComercialParams,
+  opts?: {
+    escopo?: ComercialDetalheEscopo;
+    page?: number;
+    page_size?: number;   // máx 500 (limite backend)
+    maxRows?: number;     // default 5000
+  },
+): Promise<ComercialDetalheRow[]> { ... }
+```
 
-3. **Render do widget** (linha ~754, branch `def.kind === 'table'`): trocar a fonte de `mensal` para `detalhes`:
-   - Loading/erro/empty passam a observar `qDetalhes`.
-   - `DataTableBI columns={colsDetalhes} data={detalhes}` com `onRowClick` abrindo drill `'NOTA_FISCAL'` (`{ cd_nf: r.cd_nf, cd_serie: r.cd_serie, cd_empresa: r.cd_empresa, cd_filial: r.cd_filial }`).
-   - O mesmo render aplica-se ao bloco da linha ~611 (variant `'table'` do widget `serie-mensal` quando configurado como tabela) — manter usando `colsMensal` ali (é o combo configurado como tabela, não a Tabela mensal dedicada).
+Comportamento:
 
-4. **Loading agregado** (`carregando`): incluir `qDetalhes.isFetching`.
+- Remover envio de `limit`.
+- `page_size = Math.min(opts?.page_size ?? 500, 500)`.
+- `maxRows = opts?.maxRows ?? 5000`.
+- Loop: `page` inicia em `opts?.page ?? 1` e incrementa.
+- A cada chamada, montar query com `escopo`, `page`, `page_size` via `buildQuery`.
+- Extrair as linhas tolerando múltiplos envelopes:
+  1. `unwrapRpcResponse(data, 'bi_comercial_detalhes')`.
+  2. Se resultado for objeto, tentar nas chaves nessa ordem: `items`, `data`, `dados`, `rows`, `resultado`.
+  3. Se for array, usar direto.
+- Tentar capturar `total` (campos `total`, `total_registros`, `count`) quando o envelope for objeto.
+- Concatenar em um acumulador.
+- Parar quando: `acc.length >= maxRows`, ou `pageRows.length < page_size`, ou `total != null && acc.length >= total`.
+- Retornar `acc.slice(0, maxRows)`.
 
-5. **Botão "Atualizar"** (`atualizar()`): adicionar `qDetalhes.refetch()`.
+### 2. `src/pages/bi/ComercialPage.tsx`
 
-6. **Título do widget** (`useComercialLayout.ts`, item `table-mensal`): renomear de `'Tabela mensal'` para `'Detalhamento por Nota Fiscal'`. Também atualizar `comercialWidgetCatalog.ts` (`'table-mensal'.title`).
+- `qDetalhes` chama `fetchComercialDetalhes(filters, { escopo: 'todas', maxRows: 5000 })` (sem `limit`).
+- `queryKey` continua `['bi-comercial','detalhes', filters]`.
+- Widget `table-mensal` (kind `table`) renderiza `DataTableBI` com `colsDetalhes` e `data={detalhes}`.
+- `onRowClick`: abre drill `NOTA_FISCAL` com `{ cd_nf, cd_serie, cd_empresa, cd_filial }` (mantém o já implementado).
+- Colunas (`colsDetalhes`) na ordem:
+  Ano/Mês (`anomes_emissao`), Data Emissão (`dt_emissao`), Unidade (`unidade_negocio`), Empresa (`cd_empresa`), Filial (`cd_filial`), NF (`cd_nf`), Série (`cd_serie`), TNS (`cd_tns`), Tipo Movimento (`cd_tp_movimento`), Origem (`cd_origem`), Estado (`cd_estado`), Cliente (`cd_cliente`), Obra (`cd_prj` + `ds_abr_prj`), Revenda (`cd_rev_pedido`), Vl. Bruto (`vl_bruto`, currency), Impostos (`vl_impostos`, currency), Vl. Líquido (`vl_liquido`, currency), Devolução (`vl_devolucao`, currency), Qtd. Produtos (`qtd_produtos`, number).
+- Filtros base + cross-filters continuam aplicados via `filters` (sem mudanças).
+- `carregando` inclui `qDetalhes.isFetching`; `atualizar()` chama `qDetalhes.refetch()` (já implementado, manter).
 
-### Considerações
+### 3. Catálogo / layout
 
-- `limit: 5000` evita payload gigante; pode ser aumentado depois conforme uso. O `DataTableBI` já tem busca, ordenação e agrupamento ("Agrupar por"), o que o usuário pode usar para reagregar por Ano/Mês visualmente.
-- Filtros do topo + cross-filters (estado/cliente/revenda/obra/mês) continuam aplicados automaticamente, pois `fetchComercialDetalhes` recebe `filters` completo.
-- Sem mudanças no backend (FastAPI já expõe `/api/bi/comercial/detalhes`).
+- `useComercialLayout.ts` e `comercialWidgetCatalog.ts`: confirmar título `"Detalhamento por Nota Fiscal"` para `table-mensal` (já aplicado — sem mudança adicional).
 
-### Acceptance criteria
+### Acceptance
 
-- O bloco "Tabela mensal" passa a se chamar "Detalhamento por Nota Fiscal" e mostra uma linha por NF com todas as colunas listadas acima.
-- Filtros base e cross-filter por mês/estado/cliente/revenda/obra continuam afetando as linhas exibidas.
-- Clicar numa linha abre o drill `NOTA_FISCAL` no drawer.
-- O combo `serie-mensal` em variant `table` permanece com colunas mensais agregadas (inalterado).
+- Nenhuma request contém `limit=5000`; em vez disso há 1..N chamadas com `page=1,2,...` e `page_size=500`.
+- Loop para em `maxRows=5000`, em página parcial, ou ao atingir `total`.
+- Grid mostra uma linha por NF com todas as colunas listadas.
+- Clique em linha abre drill `NOTA_FISCAL`.
+- Filtros e cross-filters continuam refletindo no resultado.
