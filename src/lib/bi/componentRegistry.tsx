@@ -504,6 +504,48 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     render: ({ title }) => <BrazilStateMapRegistryHost title={title} />,
   },
   {
+    id: 'brazil-heat-map',
+    kind: 'chart',
+    label: 'Mapa de Calor Brasil (UF)',
+    description: 'Mapa coroplético do Brasil por Estado, baseado em série {uf, valor}.',
+    defaultSpan: 2,
+    inputs: [{ key: 'series', label: 'Série (por UF)', source: 'series', required: true }],
+    autoMap: (s) => {
+      const pref = s.series?.find((x) => /estado|uf/i.test(x.key))?.key;
+      return { series: pref ?? s.series?.[0]?.key ?? '' };
+    },
+    render: ({ title, mapping, ctx }) => {
+      const arr = SERIES_LIKE(ctx.series?.[mapping.series]);
+      const data = arr
+        .map((p: any) => {
+          const raw = String(p.uf ?? p.label ?? '').trim().toUpperCase();
+          const m = raw.match(/[A-Z]{2}/);
+          const uf = m ? m[0] : '';
+          return uf ? { uf, valor: Number(p.valor ?? 0), label: p.label } : null;
+        })
+        .filter(Boolean) as { uf: string; valor: number; label?: string }[];
+      const onClick = makeClickHandler(ctx, mapping.series);
+      return (
+        <BrazilHeatMap
+          title={title || mapping.series}
+          data={data}
+          valueFormatter={formatterForSeriesKey(mapping.series)}
+          onStateClick={onClick ? (uf, d) => onClick({ label: uf, valor: d?.valor ?? 0 }) : undefined}
+        />
+      );
+    },
+  },
+  {
+    id: 'brazil-heat-map-comercial',
+    kind: 'chart',
+    label: 'Mapa de Calor Brasil — Comercial',
+    description: 'Heatmap por UF do BI Comercial usando filtros da página.',
+    defaultSpan: 2,
+    inputs: [],
+    autoMap: () => ({}),
+    render: ({ title }) => <BrazilHeatMapComercialHost title={title} />,
+  },
+  {
     id: 'treemap-chart',
     kind: 'chart',
     label: 'Treemap',
