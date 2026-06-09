@@ -84,6 +84,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'compras.top-fornecedores', label: 'Top Fornecedores (Valor Líquido)' },
       { key: 'compras.top-familias', label: 'Top Famílias por Valor Líquido' },
       { key: 'compras.top-origens', label: 'Top Origens por Valor Líquido' },
+      { key: 'compras.chart-mapa-brasil', label: 'Mapa: Distribuição por UF (Brasil)' },
     ],
   },
 ];
