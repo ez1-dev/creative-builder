@@ -28,6 +28,7 @@ import {
 
 import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer';
 import { useComercialDrillStack } from '@/hooks/useComercialDrillStack';
+import { useBiClientesMap } from '@/hooks/useBiClientesMap';
 import type { DrillType, DrillContexto } from '@/lib/bi/comercialDrillApi';
 import { DashboardPage } from '@/components/bi/layout/DashboardLayout';
 import { ComercialDashboardGrid } from '@/components/bi/runtime/ComercialDashboardGrid';
@@ -309,7 +310,16 @@ export default function ComercialPage() {
   const estados = qEstado.data ?? [];
   const revendaRows = qRevenda.data ?? [];
   const obrasRows = qObras.data ?? [];
-  const detalhes = qDetalhes.data ?? [];
+  const detalhesRaw = qDetalhes.data ?? [];
+  const { data: clientesMap } = useBiClientesMap();
+  const detalhes = useMemo(() => {
+    return detalhesRaw.map((row) => {
+      const cd = String((row as any).cd_cliente ?? '').trim();
+      const c = clientesMap?.get(cd);
+      const nome = c?.nm_fantasia || c?.nm_cliente || '';
+      return { ...row, cliente_label: nome ? `${cd} — ${nome}` : cd };
+    });
+  }, [detalhesRaw, clientesMap]);
 
 
   const dadosCombo = useMemo(
@@ -490,7 +500,7 @@ export default function ComercialPage() {
     { key:'cd_tp_movimento', header:'Tipo Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '' },
     { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
     { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
-    { key:'cd_cliente', header:'Cliente', render:(_v,r)=> r.cd_cliente ?? '' },
+    { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> r.cliente_label ?? r.cd_cliente ?? '' },
     { key:'cd_prj', header:'Obra', render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '') },
     { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
     { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
