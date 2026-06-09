@@ -19,6 +19,7 @@ import {
   WaterfallChartCard, FunnelChartCard, SparklineCard, CalendarHeatmapCard,
   BrazilMapCard,
   BrazilStateMapWidget,
+  // (importes diretos abaixo p/ o novo mapa coroplético)
   // tree
   TreeView,
   // tables
@@ -45,6 +46,8 @@ import {
   type BiStatus,
 } from '@/components/bi';
 import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingToggle';
+import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
+import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
 
 // ============ MOCK DATA ============
 const mesesData = [
@@ -512,6 +515,35 @@ export default function BiComponentsDemoPage() {
                     onDrill={(p) => console.log('drill estado:', p)}
                   />
                 </WithApply>
+                <DemoBlock name="BrazilHeatMap" description="Mapa coroplético geográfico (mock)" nonApplicable>
+                  <BrazilHeatMap
+                    title="Faturamento por UF (mapa real)"
+                    subtitle="react-simple-maps + GeoJSON local"
+                    data={[
+                      { uf: 'SP', valor: 3_250_000 },
+                      { uf: 'SC', valor: 1_250_000 },
+                      { uf: 'PR', valor: 980_000 },
+                      { uf: 'RS', valor: 760_000 },
+                      { uf: 'MG', valor: 1_120_000 },
+                      { uf: 'RJ', valor: 890_000 },
+                      { uf: 'BA', valor: 420_000 },
+                      { uf: 'CE', valor: 280_000 },
+                    ]}
+                    onStateClick={(uf) => console.log('clique mapa:', uf)}
+                  />
+                </DemoBlock>
+                <DemoBlock name="BrazilHeatMapWidget" description="Mapa coroplético plugado em /api/bi/comercial/estado" nonApplicable>
+                  <BrazilHeatMapWidget
+                    title="Faturamento por Estado (mapa real)"
+                    subtitle="BI Comercial — dados reais"
+                    filters={{
+                      anomes_ini: `${new Date().getFullYear()}01`,
+                      anomes_fim: `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}`,
+                      unidade_negocio: 'CONSOLIDADO',
+                    }}
+                    onDrill={(p) => console.log('drill mapa real:', p)}
+                  />
+                </DemoBlock>
                 <WithApply componentId="heatmap-chart">
                   <HeatmapChartCard title="Compras por dia × hora"
                     data={Array.from({ length: 35 }, (_, i) => ({
