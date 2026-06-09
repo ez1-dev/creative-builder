@@ -101,6 +101,8 @@ const ERR_DRILL = 'Não foi possível carregar os dados do drill';
 const EMPTY_MSG = 'Sem dados para o período selecionado';
 const PAGE_KEY = 'bi-comercial';
 
+const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
+
 const ESCOPO_LABELS: Record<ComercialDetalheEscopo, string> = {
   todas: 'Todas as notas',
   impostos: 'Detalhamento de impostos',
