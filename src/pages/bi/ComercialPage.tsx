@@ -287,22 +287,9 @@ export default function ComercialPage() {
 
 
 
-  const kpisRaw = qKpis.data ?? ({} as any);
-  // Override Meta / Diferença / % Atingimento usando bi_meta_faturamento (Cloud)
-  // quando houver metas cadastradas para o período/UN. Caso contrário, mantém os
-  // valores vindos do ERP (via FastAPI).
-  const kpis = useMemo(() => {
-    const metaOverride = qMetaCloud.data;
-    if (metaOverride == null) return kpisRaw;
-    const fat = Number(kpisRaw.faturamento ?? 0);
-    const meta = Number(metaOverride);
-    return {
-      ...kpisRaw,
-      meta,
-      diferenca: fat - meta,
-      pct_atingimento: meta > 0 ? (fat / meta) * 100 : null,
-    };
-  }, [kpisRaw, qMetaCloud.data]);
+  // Meta / Realizado / Diferença vêm exclusivamente de /api/bi/comercial/kpis.
+  // Nenhum override no frontend — a RPC bi_comercial_kpis lê bi_meta_faturamento.
+  const kpis = qKpis.data ?? ({} as any);
   const mensal = qMensal.data ?? [];
   const mix = qMix.data ?? [];
   const estados = qEstado.data ?? [];
