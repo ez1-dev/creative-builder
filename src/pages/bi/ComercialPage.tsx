@@ -1001,7 +1001,7 @@ export default function ComercialPage() {
               )}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button size="sm" variant="outline" className="h-8 gap-1.5" title="Cor de fundo da página">
+                  <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1.5" title="Cor de fundo da página">
                     <Palette className="h-3.5 w-3.5" />
                     <span
                       className="inline-block h-3.5 w-3.5 rounded-full border border-border"
