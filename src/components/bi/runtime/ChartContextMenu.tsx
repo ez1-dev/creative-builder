@@ -8,6 +8,7 @@ import { Filter, MousePointerClick, X, ChevronRight } from 'lucide-react';
 import type { DrillType } from '@/lib/bi/comercialDrillApi';
 import { DRILL_LABELS, NEXT_DRILLS, ENABLED_DRILLS } from '@/lib/bi/comercialDrillCatalog';
 
+
 interface Props {
   children: ReactNode;
   /** Drill type associado ao gráfico (origem do clique direito). */
