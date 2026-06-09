@@ -1,42 +1,33 @@
-## Objetivo
-Aplicar ordenação automática "do maior para o menor" em todas as grids do BI Comercial, equivalente ao comportamento das Passagens Aéreas (onde os grupos/listagens já vêm ordenados por valor desc).
+## Bugs no drill "Detalhes de Impostos"
 
-## Abordagem
+Dois ajustes pontuais em `src/components/bi/drill/ComercialDrillDrawer.tsx`. Sem mudanças de backend/API.
 
-A grid base é o `DataTable` (via wrapper `DataTableBI`). Ele já suporta clique no cabeçalho para ordenar, mas inicia sem ordenação aplicada — exibe os dados na ordem retornada pelo backend.
+### 1. Coluna "Ano/Mês" exibindo "R$ 202.605"
 
-A mudança será mínima e centralizada no componente `DataTable`:
+Causa: a coluna `anomes_emissao` está sendo formatada como moeda (provável `format: 'currency'` vindo do backend ou casamento equivocado em `inferFormat`). Valor `202605` no modo "sem decimais" vira `R$ 202.605`.
 
-1. Adicionar suporte a `defaultSort?: { key: string; dir: 'asc' | 'desc' }` em `Column`/props (sem quebrar nada existente).
-2. Se nenhum `defaultSort` for passado, aplicar fallback automático: ordenar pela **primeira coluna numérica detectada** em ordem decrescente, no estado inicial (`useState` inicial de `sortKey`/`sortDir`).
-3. Propagar a prop opcional via `DataTableBI`.
+Correção: tratar chaves de período/data como **texto puro**, ignorando qualquer `format` numérico. Em `inferFormat` (e/ou no render), forçar `raw` para chaves que casem com:
 
-Em `src/pages/bi/ComercialPage.tsx`, passar `defaultSort` explícito para as grids principais para garantir o critério correto:
-- **Grid Mensal** (`colsMensal`): ordenar por `anomes_emissao` desc (mês mais recente no topo) **ou** por `vl_tot_fat` desc — confirmaremos com o fallback "primeira coluna numérica". Usaremos `vl_tot_fat` desc para alinhar com o padrão "maior → menor".
-- **Grid Detalhamento por Nota Fiscal** (`colsDetalhes`): `vl_tot_fat` desc.
-- **Demais grids BI** que usam `DataTableBI` (drill drawer e similares): herdam o fallback automático (1ª coluna numérica desc), sem precisar mudar página a página.
+- `anomes_emissao`, `anomes`, `ano_mes`, `periodo`, `mes_ref`, `competencia`
+- sufixos/prefixos: `dt_`, `data_`, `_data`, `_dt`
 
-## Arquivos a alterar
+Exibição: formatar `anomes_emissao` como `YYYY/MM` (ex.: `2026/05`) para leitura.
 
-- `src/components/erp/DataTable.tsx`
-  - Adicionar prop opcional `defaultSort?: { key: string; dir: 'asc' | 'desc' }`.
-  - Inicializar `sortKey`/`sortDir` com `defaultSort`, ou, se ausente, com a primeira coluna detectada como numérica em `desc`.
-  - Manter a interação manual de clique no header inalterada.
+### 2. Código do cliente duplicado ("8865" e "8865 - PAULO...")
 
-- `src/components/bi/tables/DataTableBI.tsx`
-  - Repassar a nova prop `defaultSort` para o `DataTable`.
+Causa: backend devolve `cd_cliente` (código) **e** `nm_cliente` já contendo `cliente_label` (`"8865 - PAULO CESAR..."`). Aparece o código duas vezes.
 
-- `src/pages/bi/ComercialPage.tsx`
-  - Passar `defaultSort={{ key: 'vl_tot_fat', dir: 'desc' }}` para a `DataTableBI` da grid Mensal e da grid de Detalhamento por Nota Fiscal.
+Correção no render de `nm_cliente` (linha 218): se o valor começa com `"{cd_cliente} - "`, remover esse prefixo e exibir só o nome. Mesma regra aplicada para `ds_produto`, `nm_revenda`, `ds_obra` (defensivo, mesmo padrão de label do backend).
 
-## Fora do escopo
-- Nenhuma alteração de backend, API, drill ou colunas existentes.
-- Sem mexer no comportamento de agrupamento (que já ordena grupos por 1ª coluna numérica desc).
-- Sem mexer em `useBiClientesMap`, hooks ou ordem de hooks (problema #310 já tratado).
+### Fora de escopo
 
-## Validação
-- Abrir `/bi/comercial`, verificar:
-  - Grid Mensal com linhas ordenadas por `vl_tot_fat` desc.
-  - Detalhamento por Nota Fiscal com maiores valores no topo.
-  - Clicar no header continua alternando asc/desc/none normalmente.
-- Verificar que outras telas que usam `DataTable` (ERP) continuam funcionando — a mudança é retrocompatível: fallback só é aplicado quando há coluna numérica detectada e nenhum estado prévio.
+- Backend / contrato de colunas.
+- Outras telas do BI Comercial.
+- Lógica de ordenação (mantida como está).
+
+### Validação
+
+Abrir `/bi/comercial`, drill até "Detalhes Impostos" de uma NF:
+- "Ano/Mês" mostra `2026/05` (não `R$ ...`).
+- Coluna "Cliente" mostra `8865`; "Nome Cliente" mostra `PAULO CESAR MASSARO THIBES CORDEIRO` (sem o código repetido).
+- Demais drills (CLIENTE, REVENDA, PRODUTO) continuam exibindo nomes normalmente.
