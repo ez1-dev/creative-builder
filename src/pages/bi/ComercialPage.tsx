@@ -310,7 +310,16 @@ export default function ComercialPage() {
   const estados = qEstado.data ?? [];
   const revendaRows = qRevenda.data ?? [];
   const obrasRows = qObras.data ?? [];
-  const detalhes = qDetalhes.data ?? [];
+  const detalhesRaw = qDetalhes.data ?? [];
+  const { data: clientesMap } = useBiClientesMap();
+  const detalhes = useMemo(() => {
+    return detalhesRaw.map((row) => {
+      const cd = String((row as any).cd_cliente ?? '').trim();
+      const c = clientesMap?.get(cd);
+      const nome = c?.nm_fantasia || c?.nm_cliente || '';
+      return { ...row, cliente_label: nome ? `${cd} — ${nome}` : cd };
+    });
+  }, [detalhesRaw, clientesMap]);
 
 
   const dadosCombo = useMemo(
