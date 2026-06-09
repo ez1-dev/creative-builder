@@ -19,6 +19,7 @@ import {
   ComboChartCard, DonutChartCard, PieChartCard,
   BarChartCard, HorizontalBarChartCard, LineChartCard, AreaChartCard,
   RankingChartCard, RankingTable, TreemapChartCard, BrazilMapCard,
+  BrazilStateMapWidget,
   FilterBar, SelectFilter,
   formatCurrency, formatNumber,
   type Column,
@@ -603,7 +604,17 @@ export default function ComercialPage() {
     if (qEstado.isError) return <BlocoErro err={qEstado.error} onRetry={() => qEstado.refetch()} />;
     if (mapaData.length === 0) return <EmptyState description={EMPTY_MSG} height={240} />;
     const title = w.customTitle || w.title;
-    if ((w.variant ?? 'map') === 'map') {
+    const variant = w.variant ?? 'map';
+    if (variant === 'state-map') {
+      return (
+        <BrazilStateMapWidget
+          title={title}
+          filters={filters}
+          onDrill={(p) => toggleDrill('cd_estado', p.valor)}
+        />
+      );
+    }
+    if (variant === 'map') {
       return <BrazilMapCard title={title} data={mapaData} colorVar={style.mapVar} onItemClick={onClickMapa} />;
     }
     return renderSerieGeneric(w, estadosSerie, onClickEstado, qEstado.isLoading, qEstado.isError, qEstado.error, () => qEstado.refetch());
