@@ -18,6 +18,7 @@ import {
   StackedBarChartCard, ComboChartCard, GaugeChartCard, ProgressChartCard,
   ScatterChartCard, HeatmapChartCard, WaterfallChartCard, CalendarHeatmapCard,
   BrazilMapCard,
+  BrazilStateMapWidget,
   
   TreeView,
   Timeline,
@@ -29,6 +30,7 @@ import {
 } from '@/components/bi';
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';
+import { usePageData } from './PageDataContext';
 import * as LucideIcons from 'lucide-react';
 import {
   type WidgetOptions, applyTopNSort, toKpiFormat, computeComparacao,
