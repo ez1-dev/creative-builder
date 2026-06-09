@@ -104,6 +104,19 @@ const PAGE_KEY = 'bi-comercial';
 
 const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
 
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_PT_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function formatAnomesMes(anomes: unknown, opts?: { withYear?: boolean; abbr?: boolean }): string {
+  const s = normalizeAnomes(anomes);
+  if (s.length !== 6) return String(anomes ?? '');
+  const ano = s.slice(0, 4);
+  const mes = parseInt(s.slice(4, 6), 10);
+  if (!(mes >= 1 && mes <= 12)) return String(anomes);
+  const arr = opts?.abbr ? MESES_PT_ABBR : MESES_PT;
+  const nome = arr[mes - 1];
+  return opts?.withYear ? `${opts.abbr ? nome : MESES_PT_ABBR[mes - 1]}/${ano.slice(2)}` : nome;
+}
+
 const ESCOPO_LABELS: Record<ComercialDetalheEscopo, string> = {
   todas: 'Todas as notas',
   impostos: 'Detalhamento de impostos',
@@ -323,9 +336,13 @@ export default function ComercialPage() {
   }, [detalhesRaw, clientesMap]);
 
 
+  const mensalMultiYear = useMemo(() => {
+    const anos = new Set(mensal.map((m) => normalizeAnomes(m.anomes_emissao).slice(0, 4)).filter(Boolean));
+    return anos.size > 1;
+  }, [mensal]);
   const dadosCombo = useMemo(
-    () => mensal.map((m) => ({ label: m.anomes_emissao, faturamento: n(m.faturamento), meta: n(m.meta) })),
-    [mensal],
+    () => mensal.map((m) => ({ label: formatAnomesMes(m.anomes_emissao, { withYear: mensalMultiYear, abbr: mensalMultiYear }), faturamento: n(m.faturamento), meta: n(m.meta) })),
+    [mensal, mensalMultiYear],
   );
   const sparkSerie = useMemo(() => mensal.map((m) => n(m.faturamento)), [mensal]);
   const sparkTrend = useMemo(() => {
@@ -630,7 +647,7 @@ export default function ComercialPage() {
       // Em variantes não-combo, força o tipo de gráfico igual para todas as séries
       const forceType = v === 'bar' || v === 'line' || v === 'area' ? v as 'bar'|'line'|'area' : undefined;
       const finalSeries = visible.map((s) => forceType ? { ...s, chartType: forceType } : s);
-      const rowsForChart = mensal.map((m) => ({ ...m, label: m.anomes_emissao }));
+      const rowsForChart = mensal.map((m) => ({ ...m, label: formatAnomesMes(m.anomes_emissao, { withYear: mensalMultiYear, abbr: mensalMultiYear }) }));
       return (
         <div className="h-full flex flex-col">
           <SeriesChips
