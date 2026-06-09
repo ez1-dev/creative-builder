@@ -1180,9 +1180,11 @@ export default function ComercialPage() {
 
 
 
-              <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
-                <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
-              </Button>
+              {isAdmin && (
+                <Button size="sm" variant="outline" onClick={atualizar} disabled={carregando}>
+                  <RefreshCw className={cn('mr-1 h-3.5 w-3.5', carregando && 'animate-spin')} /> Atualizar
+                </Button>
+              )}
             </div>
           }
         />
