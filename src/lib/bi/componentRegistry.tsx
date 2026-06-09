@@ -458,7 +458,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     autoMap: () => ({}),
     render: ({ title }) => <BrazilStateMapRegistryHost title={title} />,
   },
-
+  {
     id: 'treemap-chart',
     kind: 'chart',
     label: 'Treemap',
