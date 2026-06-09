@@ -84,7 +84,7 @@
 
 .rel-footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid hsl(var(--border)); text-align: center; font-size: 10px; color: hsl(var(--muted-foreground)); }
 
-@page { size: A4 landscape; margin: 10mm; }
+@page rel-doc { size: A4 landscape; margin: 10mm; }
 
 @media print {
   html, body {
