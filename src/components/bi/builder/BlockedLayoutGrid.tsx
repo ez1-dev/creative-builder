@@ -142,6 +142,24 @@ export function BlockedLayoutGrid({
             } ${isOver ? 'block-sortable-over' : ''}`}
           >
             <BlockHeader
+              dragHandleProps={
+                editing && onBlockReorder
+                  ? {
+                      draggable: true,
+                      onDragStart: (e) => {
+                        setDragId(block.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        try {
+                          e.dataTransfer.setData('text/plain', block.id);
+                        } catch {}
+                      },
+                      onDragEnd: () => {
+                        setDragId(null);
+                        setOverId(null);
+                      },
+                    }
+                  : undefined
+              }
               title={block.title}
               count={blockWidgets.filter((w) => !w.hidden).length}
               editing={editing}
