@@ -106,6 +106,9 @@ export function unwrapRpcResponse<T = any>(data: any, key: string): T {
 
 export async function fetchComercialKpis(p: ComercialParams): Promise<ComercialKpis> {
   const data = await api.get<any>('/api/bi/comercial/kpis', buildQuery(p));
+  // TODO: remover após confirmar origem da meta
+  // eslint-disable-next-line no-console
+  console.log('KPIS COMERCIAL RAW:', data);
   const out = unwrapRpcResponse<ComercialKpis>(data, 'bi_comercial_kpis');
   return (Array.isArray(out) ? out[0] : out) ?? ({} as ComercialKpis);
 }
