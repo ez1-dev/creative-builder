@@ -185,6 +185,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             </div>
             <NumberField label="Fonte (px)" value={cfg.dataLabels.fontSize} min={8} max={20}
               onChange={(n) => update((d) => { d.dataLabels.fontSize = n; })} />
+            <FontFamilyField label="Família da fonte" value={cfg.dataLabels.fontFamily}
+              onChange={(v) => update((d) => { d.dataLabels.fontFamily = v; })} />
             <div>
               <Label className="text-xs">Formato</Label>
               <Select value={cfg.dataLabels.format} onValueChange={(v) => update((d) => { d.dataLabels.format = v as DataLabelFormat; })}>
