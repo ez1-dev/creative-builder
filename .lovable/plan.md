@@ -1,12 +1,9 @@
-## Mudança
-
-No card "Resumo Faturamento" (`src/pages/bi/ComercialPage.tsx`, bloco `resumo-faturamento`), trocar o cálculo de `diferenca` para usar o **bruto** em vez do líquido:
+Em `src/pages/bi/ComercialPage.tsx`, bloco `gauge-atingimento`, calcular o atingimento sobre o **bruto** (mesma base da Diferença) em vez do líquido, mantendo a meta retornada pela API:
 
 ```ts
-const diferenca = bruto - meta;
+const bruto = Number(k?.faturamento ?? 0);
+const meta  = Number(k?.meta ?? k?.vl_meta ?? 0);
+const atingimento = meta > 0 ? (bruto / meta) * 100 : 0;
 ```
 
-Gauge `% Atingimento` permanece como está (líquido / meta) — não foi pedido para mudar.
-
-## Fora de escopo
-- Backend, sincronização de meta, demais cards.
+Card "Resumo Faturamento" não muda.
