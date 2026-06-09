@@ -86,6 +86,7 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { getEffectiveTheme, getBgOverride, setBgOverride, clearBgOverride, SUGGESTED_BG_COLORS } from './comercialTheme';
+import { AnomesSelect } from '@/components/bi/comercial/AnomesSelect';
 
 const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
 const UNIDADES: UnidadeNegocio[] = ['CONSOLIDADO', 'GENIUS', 'ESTRUTURAL ZORTEA'];

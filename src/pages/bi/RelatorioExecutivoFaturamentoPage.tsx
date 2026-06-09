@@ -25,6 +25,7 @@ import {
 } from '@/components/bi/relatorio-executivo/RelatorioBlocos';
 import { gerarRelatorioPptx } from '@/components/bi/relatorio-executivo/exportPptx';
 import './relatorio.css';
+import { AnomesSelect } from '@/components/bi/comercial/AnomesSelect';
 
 type Etapa = 'wizard' | 'preview';
 type NivelDetalhe = 'curto' | 'completo';

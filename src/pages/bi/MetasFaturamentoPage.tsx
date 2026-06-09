@@ -26,6 +26,7 @@ import {
   type MetaFaturamento, type MetaFaturamentoInput, type UnidadeMeta,
 } from '@/lib/bi/metasFaturamentoApi';
 import { SincronizarMetasUpqueryDialog } from '@/components/bi/SincronizarMetasUpqueryDialog';
+import { AnomesSelect } from '@/components/bi/comercial/AnomesSelect';
 
 const UNIDADES: UnidadeMeta[] = ['GENIUS', 'ESTRUTURAL ZORTEA'];
 
