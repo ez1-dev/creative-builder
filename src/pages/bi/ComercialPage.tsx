@@ -951,7 +951,7 @@ export default function ComercialPage() {
     <PageDataProvider pageKey={PAGE_KEY} kpis={kpis} series={pageSeries} rows={mensal as any[]} filtros={filters as any}>
       <div
         data-bi-comercial-theme
-        className="min-h-full -m-4 p-4 md:-m-6 md:p-6 transition-colors duration-300"
+        className="min-h-full -m-2 p-2 sm:-m-4 sm:p-4 md:-m-6 md:p-6 transition-colors duration-300"
         style={{
           background: theme.pageBackground,
           ['--bi-primary' as any]: theme.primary,
@@ -974,7 +974,7 @@ export default function ComercialPage() {
           title="BI Comercial"
           description="Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)."
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <span
                 className="rounded-full px-3 py-0.5 text-xs font-semibold"
                 style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
@@ -1045,14 +1045,14 @@ export default function ComercialPage() {
                 </PopoverContent>
               </Popover>
               <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
-              <Button asChild size="sm" variant="outline" className="h-8 gap-1">
+              <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
                 <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
               </Button>
               {isAdmin && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1"
+                  className="hidden md:inline-flex h-8 gap-1"
                   onClick={handleSyncClientes}
                   disabled={syncingClientes}
                   title="Atualiza nomes dos clientes a partir do ERP (E085CLI)"
@@ -1065,7 +1065,7 @@ export default function ComercialPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1"
+                  className="hidden md:inline-flex h-8 gap-1"
                   onClick={handleSyncProdutos}
                   disabled={syncingProdutos}
                   title="Atualiza descrições dos produtos a partir do ERP (E075PRO/E080SER)"
@@ -1078,7 +1078,7 @@ export default function ComercialPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 gap-1"
+                  className="hidden md:inline-flex h-8 gap-1"
                   onClick={handleSyncRevendas}
                   disabled={syncingRevendas}
                   title="Atualiza nomes das revendas a partir do ERP"
@@ -1119,24 +1119,24 @@ export default function ComercialPage() {
           {filtrosOpen && (
             <div className="border-t p-3">
               <FilterBar>
-                <div className="min-w-[180px] flex-1">
+                <div className="w-full sm:min-w-[180px] sm:flex-1">
                   <SelectFilter label="Unidade" value={draft.unidade_negocio}
                     onChange={(v) => setDraft({ ...draft, unidade_negocio: v as UnidadeNegocio })}
                     options={UNIDADES.map((u) => ({ value: u, label: u }))} />
                 </div>
-                <div className="min-w-[140px] flex-1">
+                <div className="w-full sm:min-w-[140px] sm:flex-1">
                   <Label htmlFor="anomes_ini" className="text-xs">AnoMês Início</Label>
                   <Input id="anomes_ini" name="anomes_ini" className="h-8 text-xs" value={draft.anomes_ini} placeholder="202601"
                     onChange={(e) => setDraft({ ...draft, anomes_ini: e.target.value })}
                     onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
                 </div>
-                <div className="min-w-[140px] flex-1">
+                <div className="w-full sm:min-w-[140px] sm:flex-1">
                   <Label htmlFor="anomes_fim" className="text-xs">AnoMês Fim</Label>
                   <Input id="anomes_fim" name="anomes_fim" className="h-8 text-xs" value={draft.anomes_fim} placeholder="202606"
                     onChange={(e) => setDraft({ ...draft, anomes_fim: e.target.value })}
                     onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
                 </div>
-                <Button size="sm" className="h-8" onClick={aplicarFiltrosBase}>Aplicar</Button>
+                <Button size="sm" className="h-8 w-full sm:w-auto" onClick={aplicarFiltrosBase}>Aplicar</Button>
               </FilterBar>
             </div>
           )}

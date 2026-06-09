@@ -1,90 +1,40 @@
-## Relatório Executivo de Faturamento
+## Objetivo
 
-Nova página dentro do módulo BI Comercial onde o diretor monta o relatório em 3 passos (Filtros → Blocos → Gerar) e exporta em **PDF** e **PPTX**, com **comentários da IA**.
+Adaptar a página `BI Comercial` (`/bi/comercial`) para funcionar bem em celular, tablet e desktop, sem perder nenhuma funcionalidade existente (edição, drill, IA, sincronizações).
 
-### Rota e navegação
-- Nova rota `/bi/faturamento/relatorio-executivo` (lazy).
-- Item no `AppSidebar` dentro de "BI / Comercial" → "Relatório Executivo".
-- Botão "Gerar relatório executivo" no topo de `/bi/comercial` (atalho).
+Hoje a página assume largura desktop: barra de ações com ~10 botões em linha única, FilterBar com `min-width` fixo e, principalmente, o grid de widgets usa `react-grid-layout` legacy com `cols={12}` fixo — em telas pequenas os blocos ficam ilegíveis ou cortados.
 
-### Fluxo (wizard em 3 passos numa única tela)
+## Mudanças
 
-**Passo 1 — Filtros**
-- Período: presets (Mês atual, Mês anterior, Trimestre, YTD, 12 meses, Personalizado) + date range.
-- Comparativos (toggles): `Ano anterior`, `Meta`.
-- Multi-select com busca: Revenda, Cliente, Produto, Estado (UF). Reutiliza fontes já usadas no drill comercial.
-- Nível de detalhe (radio): `Executivo curto` (KPIs + 2 gráficos + 1 ranking + comentários IA) ou `Completo` (todos os blocos + tabela analítica).
+### 1. `src/pages/bi/ComercialPage.tsx` — header e filtros
+- Envolver as ações do `PageHeader` em um container `flex flex-wrap gap-2 justify-end` para os botões quebrarem linha em telas estreitas.
+- Em mobile (`md:hidden`) agrupar os botões secundários (Biblioteca BI, Sincronizar clientes/produtos/revendas, cor de fundo) dentro de um menu "Mais ações" (DropdownMenu existente do shadcn). Em `md:` para cima continua igual.
+- Botão "Atualizar" e "Editar dashboard" permanecem sempre visíveis; os textos viram só ícone em `< sm` (mantendo `title` para acessibilidade).
+- FilterBar: trocar os `min-w-[180px]/[140px] flex-1` por classes responsivas (`w-full sm:min-w-[160px] sm:flex-1`) e adicionar `flex-wrap gap-2`. Botão "Aplicar" vira `w-full sm:w-auto`.
+- Chips de filtros ativos já usam `flex-wrap` — apenas garantir `text-[11px] sm:text-xs` e que o botão "Limpar filtros" não force overflow (`ml-auto` → `sm:ml-auto`).
 
-**Passo 2 — Blocos** (checkboxes, todos marcados por padrão no modo Completo)
-- KPIs do topo (Faturado, Líquido, Impostos, Devolução, Ticket médio, vs Meta %, vs Ano anterior %).
-- Evolução mensal (linha/área) + Meta vs Realizado.
-- Rankings: Revenda, Cliente, Produto, Estado (top 10 cada, barras horizontais + tabela).
-- Margem e impostos (% imposto sobre bruto, devolução %, líquido por categoria).
-- Comentários automáticos por IA (3 seções: Destaques, Alertas, Recomendações).
-- Tabela analítica final (paginada).
+### 2. `src/components/passagens/PassagensLayoutGrid.tsx` — grid responsivo
+Esse componente é compartilhado, então a mudança beneficia tudo que reusa (Passagens, Comercial, Programação).
+- Trocar `import GridLayout, { WidthProvider }` por `import { Responsive, WidthProvider }` de `react-grid-layout/legacy`.
+- Configurar:
+  - `breakpoints={{ lg: 1200, md: 900, sm: 640, xs: 0 }}`
+  - `cols={{ lg: 12, md: 12, sm: 6, xs: 2 }}`
+  - `layouts={{ lg: layoutItems, md: layoutItems, sm: collapseToCols(layoutItems, 6), xs: collapseToCols(layoutItems, 2) }}`
+- Helper `collapseToCols(items, cols)` (novo, no mesmo arquivo): cada widget vira `w = cols` e empilha verticalmente (`x=0`, `y` incremental), preservando `h` original. Garante leitura linear no celular sem quebrar drag/resize quando o usuário voltar ao desktop (só o layout `lg`/`md` é persistido — ver próximo item).
+- `onLayoutChange` continua salvando só o layout do breakpoint atual quando for `lg` ou `md`; em `sm`/`xs` ignora persistência (`if (breakpoint === 'sm' || breakpoint === 'xs') return;`) para não sobrescrever a configuração desktop do usuário.
+- Em `sm`/`xs` forçar `isDraggable={false}` e `isResizable={false}` (edição de layout só faz sentido no desktop). Banner discreto "Edição de layout disponível em telas maiores" quando `editing && breakpoint in {sm,xs}`.
 
-**Passo 3 — Pré-visualizar / Exportar**
-- Renderiza o relatório em uma tela HTML A4-paisagem (tokens BI atuais, identidade azul corporativa).
-- Botões: `Exportar PDF`, `Exportar PPTX`, `Imprimir`.
+### 3. Toques finais de CSS
+- `src/pages/bi/ComercialPage.tsx` wrapper: trocar `-m-4 p-4 md:-m-6 md:p-6` por `-m-2 p-2 sm:-m-4 sm:p-4 md:-m-6 md:p-6` para ganhar área útil no celular.
+- KPIs e charts já são responsivos via `recharts ResponsiveContainer`; apenas garantir altura mínima 220px no mobile (CSS no widget frame: `min-h-[220px]`).
 
-### Dados (reaproveitando camada BI existente)
-- Hook novo `useRelatorioExecutivoFaturamento(filtros, blocos)` que orquestra chamadas já existentes:
-  - KPIs e séries mensais: `comercialApi` + `comercialMetrics` (mesmas funções que `ComercialPage`).
-  - Meta vs Realizado: `metasFaturamentoApi` (`bi_meta_faturamento`).
-  - Rankings: usa o contrato de drill já documentado (`comercialDrillApi` níveis REVENDA/CLIENTE/PRODUTO/ESTADO) limitando top N.
-  - Tabela analítica final: query paginada sobre `bi_faturamento` (mesma usada no drill DETALHES).
-- Cache em memória durante a sessão para não refazer chamadas ao trocar blocos.
+### 4. Validação
+- Testar via `preview_ui--set_preview_device_viewport` em `mobile`, `tablet`, `desktop`:
+  - header não quebra layout, botões acessíveis;
+  - filtros empilham e o "Aplicar" cobre largura;
+  - widgets empilham 1 por linha no mobile, 2 por linha em `sm`, layout salvo do usuário em `md`+;
+  - edição de dashboard fica desabilitada com aviso no mobile.
 
-### Comentários por IA
-- Edge function nova `relatorio-executivo-ia` (Supabase) que recebe o pacote de KPIs/rankings/series já calculados e retorna JSON `{ destaques: string[], alertas: string[], recomendacoes: string[] }`.
-- Modelo: `google/gemini-3-flash-preview` via Lovable AI Gateway (sem chave do usuário).
-- Frontend chama a função e renderiza as 3 listas no bloco "Comentários".
-
-### Exportação
-
-**PDF (no browser, sem dependência nova)**
-- Estilo `@media print` na página do relatório: `@page { size: A4 landscape; margin: 12mm }`, `page-break-after: always` entre seções.
-- Botão "Exportar PDF" dispara `window.print()` (usuário escolhe "Salvar como PDF"). Sem libs extras.
-
-**PPTX (cliente)**
-- Adicionar dependência `pptxgenjs`.
-- Função `gerarPptx(dados)` monta:
-  - Slide 1: Capa (logo/título/período/filtros aplicados).
-  - Slide 2: KPIs (6 cards grandes).
-  - Slide 3: Evolução mensal + Meta vs Realizado (chart como imagem PNG capturada do DOM com `html-to-image` — já leve, ~15kB).
-  - Slides 4-7: Rankings (1 por dimensão).
-  - Slide 8: Margem e impostos.
-  - Slide 9: Comentários da IA (3 colunas).
-  - Slide 10+: Tabela analítica (se modo Completo).
-- Download direto pelo browser.
-
-### Componentes novos
-```
-src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx     # wizard + preview
-src/components/bi/relatorio-executivo/
-  FiltrosStep.tsx
-  BlocosStep.tsx
-  PreviewRelatorio.tsx        # layout HTML A4 paisagem
-  blocos/KpisBloco.tsx
-  blocos/EvolucaoMensalBloco.tsx
-  blocos/RankingBloco.tsx     # genérico por dimensão
-  blocos/MargemImpostosBloco.tsx
-  blocos/ComentariosIaBloco.tsx
-  blocos/TabelaAnaliticaBloco.tsx
-  exportPptx.ts
-src/hooks/useRelatorioExecutivoFaturamento.ts
-supabase/functions/relatorio-executivo-ia/index.ts
-docs/relatorio-executivo-faturamento.md                 # contrato e exemplos
-```
-
-### Fora do escopo
-- Agendamento por e-mail / envio automático (pode virar fase 2).
-- Edição livre do layout (drag-drop). O usuário escolhe blocos via checkbox, sem reposicionar.
-- Novos endpoints no FastAPI — tudo via camada BI já existente e Lovable AI Gateway.
-
-### Critérios de aceite
-1. Em `/bi/faturamento/relatorio-executivo`, o usuário escolhe período/filtros/blocos e vê preview com dados reais.
-2. "Exportar PDF" gera PDF paisagem legível com todos os blocos marcados.
-3. "Exportar PPTX" baixa `.pptx` válido (abre no PowerPoint/Keynote/Google Slides) com 1 ideia por slide.
-4. Bloco "Comentários IA" mostra 3 listas geradas pela edge function.
-5. Modo `Executivo curto` cabe em 1 página PDF / 4 slides PPTX.
+## Fora de escopo
+- Não altera Drill Drawer, AI Chart Generator nem lógica de dados.
+- Não muda os outros dashboards (Passagens/Programação) além do ganho herdado do grid responsivo.
