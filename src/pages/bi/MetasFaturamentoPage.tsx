@@ -26,6 +26,7 @@ import {
   type MetaFaturamento, type MetaFaturamentoInput, type UnidadeMeta,
 } from '@/lib/bi/metasFaturamentoApi';
 import { SincronizarMetasUpqueryDialog } from '@/components/bi/SincronizarMetasUpqueryDialog';
+import { AnomesSelect } from '@/components/bi/comercial/AnomesSelect';
 
 const UNIDADES: UnidadeMeta[] = ['GENIUS', 'ESTRUTURAL ZORTEA'];
 
@@ -455,15 +456,13 @@ function EditMetaDialog({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor={idAnomes}>Anomês</Label>
-              <Input
+              <AnomesSelect
                 id={idAnomes}
-                name="anomes_emissao"
-                placeholder="YYYY-MM"
-                value={anomes ? `${anomes.slice(0, 4)}${anomes.length > 4 ? '-' + anomes.slice(4, 6) : ''}` : ''}
-                onChange={(e) => setAnomes(parseAnomesInput(e.target.value))}
+                value={anomes || `${new Date().getFullYear()}01`}
+                onChange={setAnomes}
                 disabled={!!editing}
+                compact={false}
               />
-              <p className="mt-1 text-xs text-muted-foreground">Formato YYYY-MM (ex: 2026-06)</p>
             </div>
             <div>
               <Label htmlFor={idUnidade}>Unidade de negócio</Label>
