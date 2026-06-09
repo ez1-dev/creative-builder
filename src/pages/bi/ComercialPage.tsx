@@ -974,7 +974,7 @@ export default function ComercialPage() {
           title="BI Comercial"
           description="Faturamento comercial validado (fonte_acao = VM_FATURAMENTO)."
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <span
                 className="rounded-full px-3 py-0.5 text-xs font-semibold"
                 style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
