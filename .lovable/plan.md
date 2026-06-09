@@ -1,37 +1,60 @@
-## Problema
+## Objetivo
 
-No BI Comercial em smartphone/tablet, dois sintomas claros:
+Permitir que cada usuário com acesso ao `/bi/comercial` tenha o **seu próprio dashboard pessoal**, sem afetar o dashboard "oficial" da empresa. O padrão continua sendo a fonte de verdade visualizada por todos por default; ao clicar em **"Personalizar minha versão"**, o usuário cria uma cópia individual e passa a editar essa cópia. Só **Administradores** editam o oficial.
 
-1. **Widgets fora do lugar / cortados**: o grid (`PassagensLayoutGrid`) só empilha quando a largura é `< 768px`. Em tablet (768–1023px) ele ainda renderiza com `cols=12` fixos, então gráficos que ocupam `w=4` viram colunas estreitíssimas e tabelas/cards vazam horizontalmente.
-2. **"Trava ao navegar" (scroll preso)**: cada bloco do grid usa `overflow-auto` no wrapper. No mobile, quando o dedo encosta dentro do widget, o gesto vira scroll interno do widget (muitas vezes sem conteúdo extra para rolar) e a página principal não rola mais — o usuário precisa achar a "borda" entre blocos para conseguir descer. Some-se a barra de header com 10+ botões e o usuário fica preso.
+## Modelo de dados (reaproveita o que já existe)
+
+A tabela `dashboards` já tem `owner_id` (nullable). Hoje o BI Comercial usa só o registro com `owner_id IS NULL` (oficial). Vamos passar a usar:
+
+- `owner_id IS NULL` → dashboard **oficial** (único, editável só por admin).
+- `owner_id = auth.uid()` + `module = 'bi-comercial'` → dashboard **pessoal** do usuário (criado sob demanda copiando o oficial).
+
+`dashboard_widgets` e `dashboard_blocks` já referenciam `dashboard_id`, então não muda estrutura — só passamos a ter mais de um dashboard por módulo.
 
 ## Mudanças
 
-### 1. `src/components/passagens/PassagensLayoutGrid.tsx` — empilhar também em tablet e liberar scroll
-- Subir o breakpoint compacto de `< 768` para `< 1024` (`isCompact = window.innerWidth < 1024`). Tablets também passam a empilhar 1 widget por linha — única forma de manter os blocos legíveis sem reformular toda a lógica de drag/resize.
-- Atualizar o listener `resize` para o mesmo limiar.
-- No render compacto (empilhado), trocar o wrapper de cada bloco para `overflow-visible` (ou nenhum overflow), de forma que o scroll do dedo bole a **página** e não fique preso ao widget.
-- No render desktop (grid editável) manter `overflow-auto` como hoje.
-- Manter banner "Edição de layout disponível em telas maiores" no modo compacto e desabilitar drag/resize (já é o comportamento atual quando `isCompact`).
+### 1. Migração (Cloud)
 
-### 2. `src/pages/bi/ComercialPage.tsx` — header e filtros mais enxutos no mobile
-- Ações do header: hoje só "Biblioteca BI" e os 3 sincronizadores ficam `hidden md:inline-flex`. Mover também os botões "Adicionar bloco", "Restaurar padrão" e "Cor de fundo" para dentro de um `DropdownMenu` "Mais ações" visível só `< md`. Em `≥ md` continua exatamente igual.
-- Sempre visíveis (qualquer largura): chip da unidade, "Editar dashboard" (ou Cancelar/Salvar quando `editing`), "Atualizar".
-- Ajustar o `<div className="flex flex-wrap items-center justify-end gap-2">` para `justify-start sm:justify-end` para não criar "buracos" estranhos quando quebra linha no celular.
-- Bloco "Gerar gráfico com IA" e bloco "Filtros": adicionar `data-no-drag` não é necessário (já não estão dentro do grid), mas garantir que o `Popover` da paleta de cores feche em mobile (`modal={true}` no `Popover`) para não bloquear toques.
-- Cabeçalho de filtros já está OK desde a iteração anterior — sem mudança.
+- Criar RPC `fork_bi_comercial_dashboard()` (SECURITY DEFINER): se o usuário ainda não tem dashboard pessoal de `bi-comercial`, copia o oficial (dashboard + blocks + widgets) para um novo `dashboards` com `owner_id = auth.uid()` e retorna o id. Se já existe, retorna o id existente. Idempotente.
+- Criar RPC `reset_bi_comercial_personal_dashboard()`: apaga o dashboard pessoal do usuário (cascade nos widgets/blocks via FK existente) — usado quando ele quer "voltar ao padrão".
+- Atualizar `can_edit_dashboard`: para `module = 'bi-comercial'`, retornar `true` se for dono OU se `owner_id IS NULL` e `is_admin(uid)`. Hoje retorna `true` para qualquer um — isso é o que precisa endurecer.
+- Garantir GRANTs e policies (`dashboards` já tem policies de leitura própria + leitura de oficiais; checar se cobrem o caso novo).
 
-### 3. `src/components/AppLayout.tsx` — verificação rápida
-- `main` usa `overflow-auto`. Não muda — esse é o container principal que precisa rolar. Apenas confirmar que nada interno consome o gesto (problema corrigido no item 1).
+### 2. `src/hooks/useComercialLayout.ts`
 
-### 4. Validação
-- `preview_ui--set_preview_device_viewport` em `mobile` (375px) e `tablet` (820px) na rota `/bi/comercial`:
-  - widgets empilhados ocupando largura total, sem corte horizontal;
-  - scroll vertical da página fluido ao tocar em qualquer widget;
-  - header com 4–5 botões visíveis + menu "Mais ações" agrupando o resto;
-  - filtros e chips quebram linha sem overflow.
+- Adicionar parâmetro/estado `mode: 'official' | 'personal'` persistido em `localStorage` por usuário (`bi-comercial:layout-mode`).
+- `load()`: em `personal`, buscar `dashboards` com `owner_id = auth.uid()` e `module = 'bi-comercial'`; se não existir, fazer **fallback automático** para o oficial em modo somente-leitura (até o usuário clicar em "Personalizar").
+- `ensureDashboard()`: em `personal`, chama RPC `fork_bi_comercial_dashboard` em vez do upsert do oficial.
+- Novo helper `forkToPersonal()` e `resetPersonal()` expostos pelo hook.
+- `canEdit` exposto pelo hook: `true` se modo = personal **ou** (modo = official **e** `isAdmin`).
+
+### 3. `src/pages/bi/ComercialPage.tsx`
+
+- Junto ao chip da unidade, adicionar um **toggle/segmented control** "Padrão da empresa" ↔ "Minha versão" (só aparece se o usuário NÃO for admin; admin vê os dois mas sempre pode editar).
+- Botão "Editar dashboard" só habilitado se `canEdit` (do hook).
+- Ao ativar "Minha versão" pela primeira vez, abrir confirm: "Criar sua cópia pessoal do dashboard? Você poderá editá-la livremente sem afetar a versão oficial."
+- Em "Minha versão", adicionar no menu de ações um item "Restaurar para o padrão da empresa" → chama `resetPersonal()` + recarrega.
+- Indicador visual sutil: badge "Minha versão" / "Oficial" no topo da página.
+
+### 4. Permissão de edição do oficial (admin-only)
+
+- No frontend: esconder/desabilitar botões de edição quando `mode === 'official'` e usuário não é admin (já temos `useUserPermissions` + `is_admin`).
+- No backend: a função `can_edit_dashboard` (item 1) bloqueia tentativas de save mesmo se o cliente burlar.
+
+### 5. Migração silenciosa do dashboard atual
+
+- Nada a migrar de dados: o oficial atual continua sendo o oficial. Usuários começam vendo o oficial e, se quiserem, criam a cópia pessoal.
 
 ## Fora de escopo
 
-- Não muda dados, drill, IA, sincronizações nem layout salvo do usuário no desktop.
-- Não mexe em outros dashboards (Passagens, Programação herdam a melhoria do grid de graça).
+- Múltiplos dashboards por usuário (segunda opção do menu) — fica para depois.
+- Compartilhamento de dashboard pessoal com outros usuários.
+- Replicar essa lógica em outros módulos (Passagens, Frota, Máquinas, Programação) — só BI Comercial agora.
+- Não muda dados/drill/IA/sincronizações.
+
+## Validação
+
+- Criar usuário comum: ver o oficial em modo leitura, botão "Editar" desabilitado.
+- Clicar "Personalizar minha versão" → cópia criada → consegue editar/salvar layout sem afetar outros usuários.
+- Logar como admin: consegue editar o oficial; usuários comuns veem a alteração na visualização "Padrão da empresa".
+- "Restaurar para o padrão": dashboard pessoal removido, usuário volta a ver o oficial.
