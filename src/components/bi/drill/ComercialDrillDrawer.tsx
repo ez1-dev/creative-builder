@@ -269,6 +269,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         out = [...out.slice(0, idx + 1), nameCol, ...out.slice(idx + 1)];
       }
     }
+    out = out.filter((c) => c.key !== 'cd_filial');
     return out;
   }, [enrichedBase, cur?.drill_type]);
 
@@ -439,7 +440,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillCsv({ ...resp, columns: displayColumns })}
+                onClick={() => resp && downloadDrillCsv({ ...resp, columns: enrichedBase.columns })}
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> CSV
@@ -448,7 +449,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 size="sm"
                 variant="outline"
                 className="h-7 gap-1 text-xs"
-                onClick={() => resp && downloadDrillXlsx({ ...resp, columns: displayColumns })}
+                onClick={() => resp && downloadDrillXlsx({ ...resp, columns: enrichedBase.columns })}
                 disabled={!resp || resp.rows.length === 0}
               >
                 <Download className="h-3.5 w-3.5" /> Excel
