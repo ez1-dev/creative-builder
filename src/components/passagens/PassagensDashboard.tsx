@@ -33,6 +33,7 @@ import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
 import { BlockedLayoutGrid } from '@/components/bi/builder/BlockedLayoutGrid';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
+import { BrazilMapCard } from '@/components/bi';
 import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
 import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
