@@ -84,7 +84,7 @@ export function useRelatorioExecutivoFaturamento(
 
   const qDetalhes = useQuery({
     queryKey: ['rel-exec', 'detalhes', filtros],
-    queryFn: () => fetchComercialDetalhes(filtros, { escopo: 'todas', limit: 500 }),
+    queryFn: () => fetchComercialDetalhes(filtros, { escopo: 'todas', maxRows: 500, page_size: 500 }),
     enabled: enabled && blocos.tabela,
   });
 
