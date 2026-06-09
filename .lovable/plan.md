@@ -1,31 +1,42 @@
 ## Objetivo
-Eliminar o erro React #310 no BI Comercial sem alterar API, backend ou drill.
+Aplicar ordenação automática "do maior para o menor" em todas as grids do BI Comercial, equivalente ao comportamento das Passagens Aéreas (onde os grupos/listagens já vêm ordenados por valor desc).
 
-## Plano
-1. Corrigir a ordem dos hooks no componente de tabela base
-   - Ajustar `src/components/erp/DataTable.tsx` para que nenhum hook fique depois de `return` condicional.
-   - O principal candidato é `summaryCols`, que hoje está em `useMemo(...)` após `if (loading) return ...`, padrão que pode gerar exatamente `Rendered more hooks than during the previous render` quando a tabela alterna entre loading e carregada.
+## Abordagem
 
-2. Fazer uma revisão pontual do fluxo BI Comercial para garantir estabilidade de hooks
-   - Revisar `src/pages/bi/ComercialPage.tsx` para manter hooks e custom hooks apenas no topo do componente.
-   - Revisar `src/components/bi/drill/ComercialDrillDrawer.tsx` e o fluxo da grid para confirmar que mudanças de unidade, agrupamento e abertura do detalhamento não introduzem chamadas condicionais de hooks.
-   - Manter intactas as regras já pedidas para coluna Revenda e exibição de Obra.
+A grid base é o `DataTable` (via wrapper `DataTableBI`). Ele já suporta clique no cabeçalho para ordenar, mas inicia sem ordenação aplicada — exibe os dados na ordem retornada pelo backend.
 
-3. Validar o cenário crítico do usuário
-   - Abrir o BI Comercial.
-   - Agrupar por Cliente.
-   - Alternar unidade entre `GENIUS`, `ESTRUTURAL ZORTEA` e `CONSOLIDADO`.
-   - Abrir `Detalhamento por Nota Fiscal`.
-   - Confirmar que o erro #310 não reaparece.
+A mudança será mínima e centralizada no componente `DataTable`:
 
-## Detalhes técnicos
-- Erro oficial React #310: `Rendered more hooks than during the previous render`.
-- Sinal mais forte encontrado: `src/components/erp/DataTable.tsx` chama hooks no topo e também possui um `useMemo` declarado depois de um `return` condicional de loading.
-- Isso explica bem o comportamento intermitente no fluxo da grid/detalhamento, porque o mesmo componente pode renderizar uma vez em loading e outra vez com dados, mudando a quantidade de hooks executados.
+1. Adicionar suporte a `defaultSort?: { key: string; dir: 'asc' | 'desc' }` em `Column`/props (sem quebrar nada existente).
+2. Se nenhum `defaultSort` for passado, aplicar fallback automático: ordenar pela **primeira coluna numérica detectada** em ordem decrescente, no estado inicial (`useState` inicial de `sortKey`/`sortDir`).
+3. Propagar a prop opcional via `DataTableBI`.
 
-## Fora de escopo
-- API
-- Backend
-- Banco
-- Alterações no contrato do drill
-- Mudanças visuais fora do necessário para estabilizar a renderização
+Em `src/pages/bi/ComercialPage.tsx`, passar `defaultSort` explícito para as grids principais para garantir o critério correto:
+- **Grid Mensal** (`colsMensal`): ordenar por `anomes_emissao` desc (mês mais recente no topo) **ou** por `vl_tot_fat` desc — confirmaremos com o fallback "primeira coluna numérica". Usaremos `vl_tot_fat` desc para alinhar com o padrão "maior → menor".
+- **Grid Detalhamento por Nota Fiscal** (`colsDetalhes`): `vl_tot_fat` desc.
+- **Demais grids BI** que usam `DataTableBI` (drill drawer e similares): herdam o fallback automático (1ª coluna numérica desc), sem precisar mudar página a página.
+
+## Arquivos a alterar
+
+- `src/components/erp/DataTable.tsx`
+  - Adicionar prop opcional `defaultSort?: { key: string; dir: 'asc' | 'desc' }`.
+  - Inicializar `sortKey`/`sortDir` com `defaultSort`, ou, se ausente, com a primeira coluna detectada como numérica em `desc`.
+  - Manter a interação manual de clique no header inalterada.
+
+- `src/components/bi/tables/DataTableBI.tsx`
+  - Repassar a nova prop `defaultSort` para o `DataTable`.
+
+- `src/pages/bi/ComercialPage.tsx`
+  - Passar `defaultSort={{ key: 'vl_tot_fat', dir: 'desc' }}` para a `DataTableBI` da grid Mensal e da grid de Detalhamento por Nota Fiscal.
+
+## Fora do escopo
+- Nenhuma alteração de backend, API, drill ou colunas existentes.
+- Sem mexer no comportamento de agrupamento (que já ordena grupos por 1ª coluna numérica desc).
+- Sem mexer em `useBiClientesMap`, hooks ou ordem de hooks (problema #310 já tratado).
+
+## Validação
+- Abrir `/bi/comercial`, verificar:
+  - Grid Mensal com linhas ordenadas por `vl_tot_fat` desc.
+  - Detalhamento por Nota Fiscal com maiores valores no topo.
+  - Clicar no header continua alternando asc/desc/none normalmente.
+- Verificar que outras telas que usam `DataTable` (ERP) continuam funcionando — a mudança é retrocompatível: fallback só é aplicado quando há coluna numérica detectada e nenhum estado prévio.

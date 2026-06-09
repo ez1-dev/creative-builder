@@ -43,6 +43,8 @@ interface DataTableProps<T> {
   enableSearch?: boolean;
   /** Habilita a barra "Agrupar por" + soma nas colunas numéricas. Default: true. */
   groupable?: boolean;
+  /** Ordenação inicial. Se omitido, aplica fallback automático: 1ª coluna numérica em desc. */
+  defaultSort?: { key: string; dir: 'asc' | 'desc' } | null;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -164,10 +166,11 @@ export function DataTable<T extends Record<string, any>>({
   onRowClick,
   enableSearch = true,
   groupable = true,
+  defaultSort,
 }: DataTableProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [sortKey, setSortKey] = useState<string | null>(defaultSort?.key ?? null);
+  const [sortDir, setSortDir] = useState<SortDir>(defaultSort?.dir ?? null);
   const [groupKeys, setGroupKeys] = useState<string[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const searchRef = useRef<HTMLInputElement>(null);
@@ -250,22 +253,28 @@ export function DataTable<T extends Record<string, any>>({
   }, [safeData, debouncedSearch, columns]);
 
   const sortedData = useMemo(() => {
-    if (!sortKey || !sortDir) return filteredData;
+    // Fallback automático: se nenhum sort manual está aplicado e defaultSort não é null explícito,
+    // ordena pela 1ª coluna numérica em desc.
+    const effectiveKey = sortKey ?? (defaultSort === null ? null : numericKeys[0] ?? null);
+    const effectiveDir: SortDir = sortDir ?? (defaultSort === null ? null : (numericKeys[0] ? 'desc' : null));
+    if (!effectiveKey || !effectiveDir) return filteredData;
+    const sortKeyLocal = effectiveKey;
+    const sortDirLocal = effectiveDir;
     return [...filteredData].sort((a, b) => {
-      const va = a[sortKey];
-      const vb = b[sortKey];
+      const va = a[sortKeyLocal];
+      const vb = b[sortKeyLocal];
       if (va == null && vb == null) return 0;
       if (va == null) return 1;
       if (vb == null) return -1;
       if (typeof va === 'number' && typeof vb === 'number') {
-        return sortDir === 'asc' ? va - vb : vb - va;
+        return sortDirLocal === 'asc' ? va - vb : vb - va;
       }
       const sa = String(va).toLowerCase();
       const sb = String(vb).toLowerCase();
       const cmp = sa.localeCompare(sb, 'pt-BR');
-      return sortDir === 'asc' ? cmp : -cmp;
+      return sortDirLocal === 'asc' ? cmp : -cmp;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [filteredData, sortKey, sortDir, defaultSort, numericKeys]);
 
   const tree = useMemo(
     () => (groupable && groupKeys.length ? buildTree(sortedData, groupKeys, numericKeys) : []),

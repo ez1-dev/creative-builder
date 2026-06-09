@@ -656,7 +656,7 @@ export default function ComercialPage() {
       );
     }
 
-    if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
+    if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} defaultSort={{ key: 'vl_tot_fat', dir: 'desc' }} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
     if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     if (v === 'area')  return <AreaChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
@@ -803,7 +803,7 @@ export default function ComercialPage() {
         if (qDetalhes.isLoading) return <LoadingState height={240} variant="skeleton" />;
         if (qDetalhes.isError) return <BlocoErro err={qDetalhes.error} onRetry={() => qDetalhes.refetch()} />;
         if (detalhes.length === 0) return <EmptyState description={EMPTY_MSG} />;
-        return <Card><CardContent className="pt-4"><DataTableBI columns={colsDetalhes} data={detalhes} onRowClick={(r) => openDrill('NOTA_FISCAL', { cd_nf: r.cd_nf ?? undefined, cd_serie: r.cd_serie ?? undefined, cd_empresa: r.cd_empresa ?? undefined, cd_filial: r.cd_filial ?? undefined } as any)} /></CardContent></Card>;
+        return <Card><CardContent className="pt-4"><DataTableBI columns={colsDetalhes} data={detalhes} defaultSort={{ key: 'vl_tot_fat', dir: 'desc' }} onRowClick={(r) => openDrill('NOTA_FISCAL', { cd_nf: r.cd_nf ?? undefined, cd_serie: r.cd_serie ?? undefined, cd_empresa: r.cd_empresa ?? undefined, cd_filial: r.cd_filial ?? undefined } as any)} /></CardContent></Card>;
       }
     }
     // Widget custom-* sem componentId — não deveria acontecer.
