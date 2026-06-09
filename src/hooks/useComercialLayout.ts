@@ -62,10 +62,23 @@ export const COMERCIAL_DEFAULT_WIDGETS: ComercialWidget[] = [
   { id: 'table-mensal',    type: 'table-mensal',    title: 'Tabela mensal',             position: 13, layout: { x: 0, y: 30, w: 12, h: 10 },variant: 'table' },
 ];
 
+export type ComercialLayoutMode = 'official' | 'personal';
+const MODE_STORAGE_KEY = 'bi-comercial:layout-mode';
+
+function readStoredMode(): ComercialLayoutMode {
+  if (typeof window === 'undefined') return 'official';
+  const v = window.localStorage.getItem(MODE_STORAGE_KEY);
+  return v === 'personal' ? 'personal' : 'official';
+}
+
 export function useComercialLayout(enabled: boolean = true) {
   const [widgets, setWidgets] = useState<ComercialWidget[]>(COMERCIAL_DEFAULT_WIDGETS);
   const [dashboardId, setDashboardId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setModeState] = useState<ComercialLayoutMode>(() => readStoredMode());
+  const [hasPersonal, setHasPersonal] = useState(false);
+  const [isPersonalEffective, setIsPersonalEffective] = useState(false);
+
 
   const mergeWithDefaults = useCallback((rows: ComercialWidget[]): ComercialWidget[] => {
     const byType = new Map(rows.map((r) => [r.type, r]));
