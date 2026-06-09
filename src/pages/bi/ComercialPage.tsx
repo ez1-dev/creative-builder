@@ -269,6 +269,31 @@ export default function ComercialPage() {
     }
   };
 
+  const [syncingMetas, setSyncingMetas] = useState(false);
+  const handleSyncMetas = async () => {
+    if (syncingMetas) return;
+    setSyncingMetas(true);
+    const tId = toast.loading('Sincronizando metas (UpQuery)...');
+    try {
+      const r = await sincronizarMetasUpquery({
+        anomes_ini: filters.anomes_ini,
+        anomes_fim: filters.anomes_fim,
+      });
+      if (!r.ok) {
+        toast.error(`Falha ao sincronizar metas: ${r.error ?? 'erro desconhecido'}`, { id: tId });
+      } else {
+        const linhas = r.data?.linhas_resumo ?? r.data?.linhas_detalhe ?? 0;
+        toast.success(`Metas sincronizadas (${linhas} linhas).`, { id: tId });
+        await qMetaCloud.refetch();
+        await qKpis.refetch();
+      }
+    } catch (e: any) {
+      toast.error(`Falha ao sincronizar metas: ${e?.message ?? e}`, { id: tId });
+    } finally {
+      setSyncingMetas(false);
+    }
+  };
+
 
 
 
