@@ -165,16 +165,58 @@ export interface ComercialDetalheRow {
 
 export async function fetchComercialDetalhes(
   p: ComercialParams,
-  opts?: { escopo?: ComercialDetalheEscopo; limit?: number },
+  opts?: {
+    escopo?: ComercialDetalheEscopo;
+    page?: number;
+    page_size?: number; // máx 500 (limite backend)
+    maxRows?: number;   // default 5000
+  },
 ): Promise<ComercialDetalheRow[]> {
-  const data = await api.get<any>(
-    '/api/bi/comercial/detalhes',
-    buildQuery(p, {
-      escopo: opts?.escopo ?? 'todas',
-      limit: opts?.limit ? String(opts.limit) : undefined,
-    }),
-  );
-  const out = unwrapRpcResponse<ComercialDetalheRow[]>(data, 'bi_comercial_detalhes');
-  return Array.isArray(out) ? out : [];
+  const pageSize = Math.min(Math.max(opts?.page_size ?? 500, 1), 500);
+  const maxRows = opts?.maxRows ?? 5000;
+  const startPage = opts?.page ?? 1;
+  const escopo = opts?.escopo ?? 'todas';
+
+  const acc: ComercialDetalheRow[] = [];
+  let page = startPage;
+  let total: number | null = null;
+
+  const maxIter = Math.ceil(maxRows / pageSize) + 1;
+  for (let i = 0; i < maxIter; i++) {
+    const data = await api.get<any>(
+      '/api/bi/comercial/detalhes',
+      buildQuery(p, {
+        escopo,
+        page: String(page),
+        page_size: String(pageSize),
+      }),
+    );
+
+    const unwrapped = unwrapRpcResponse<any>(data, 'bi_comercial_detalhes');
+
+    let pageRows: ComercialDetalheRow[] = [];
+    if (Array.isArray(unwrapped)) {
+      pageRows = unwrapped as ComercialDetalheRow[];
+    } else if (unwrapped && typeof unwrapped === 'object') {
+      const obj = unwrapped as Record<string, any>;
+      const arrKey = ['items', 'data', 'dados', 'rows', 'resultado'].find(
+        (k) => Array.isArray(obj[k]),
+      );
+      if (arrKey) pageRows = obj[arrKey] as ComercialDetalheRow[];
+      const totalRaw = obj.total ?? obj.total_registros ?? obj.count;
+      if (typeof totalRaw === 'number' && Number.isFinite(totalRaw)) total = totalRaw;
+    }
+
+    if (pageRows.length > 0) acc.push(...pageRows);
+
+    const reachedMax = acc.length >= maxRows;
+    const partialPage = pageRows.length < pageSize;
+    const reachedTotal = total != null && acc.length >= total;
+    if (reachedMax || partialPage || reachedTotal) break;
+
+    page += 1;
+  }
+
+  return acc.slice(0, maxRows);
 }
 
