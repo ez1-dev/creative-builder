@@ -1,33 +1,42 @@
-## Bugs no drill "Detalhes de Impostos"
+## Ordenação padrão das grids do BI Comercial
 
-Dois ajustes pontuais em `src/components/bi/drill/ComercialDrillDrawer.tsx`. Sem mudanças de backend/API.
+A prop `defaultSort` já existe no `DataTable` e está repassada pelo `DataTableBI`. Faltam dois ajustes: validar a chave quando as colunas mudam e corrigir as chaves passadas em `ComercialPage` (as atuais — `vl_tot_fat` — não existem nos dados, então a ordenação cai no fallback).
 
-### 1. Coluna "Ano/Mês" exibindo "R$ 202.605"
+### Mudanças
 
-Causa: a coluna `anomes_emissao` está sendo formatada como moeda (provável `format: 'currency'` vindo do backend ou casamento equivocado em `inferFormat`). Valor `202605` no modo "sem decimais" vira `R$ 202.605`.
+**1. `src/components/erp/DataTable.tsx` — validar `sortKey` quando as colunas mudam**
 
-Correção: tratar chaves de período/data como **texto puro**, ignorando qualquer `format` numérico. Em `inferFormat` (e/ou no render), forçar `raw` para chaves que casem com:
+Hoje, se a coluna ordenada sumir (ex.: `cd_rev_pedido` quando `unidade === 'ESTRUTURAL ZORTEA'`), `sortKey` continua apontando para uma chave inexistente. Adicionar `useEffect` que:
 
-- `anomes_emissao`, `anomes`, `ano_mes`, `periodo`, `mes_ref`, `competencia`
-- sufixos/prefixos: `dt_`, `data_`, `_data`, `_dt`
+- Verifica se `sortKey` está presente em `columns.map(c => c.key)`.
+- Se não estiver, limpa `sortKey`/`sortDir` (cai no fallback automático: 1ª coluna numérica `desc`, comportamento já existente).
 
-Exibição: formatar `anomes_emissao` como `YYYY/MM` (ex.: `2026/05`) para leitura.
+Não recriar o estado a cada render — só limpar quando a chave realmente desaparecer.
 
-### 2. Código do cliente duplicado ("8865" e "8865 - PAULO...")
+**2. `src/components/bi/tables/DataTableBI.tsx`**
 
-Causa: backend devolve `cd_cliente` (código) **e** `nm_cliente` já contendo `cliente_label` (`"8865 - PAULO CESAR..."`). Aparece o código duas vezes.
+Sem alterações — já repassa `defaultSort`.
 
-Correção no render de `nm_cliente` (linha 218): se o valor começa com `"{cd_cliente} - "`, remover esse prefixo e exibir só o nome. Mesma regra aplicada para `ds_produto`, `nm_revenda`, `ds_obra` (defensivo, mesmo padrão de label do backend).
+**3. `src/pages/bi/ComercialPage.tsx`**
+
+Corrigir as chaves para refletir os campos que realmente existem nos dados:
+
+- **Mensal** (`colsMensal`): trocar `vl_tot_fat` por `faturamento` (campo principal de faturamento da linha mensal).
+- **Detalhamento por Nota Fiscal** (`colsDetalhes`): trocar `vl_tot_fat` por `vl_liquido` (existe na linha; fallback natural seria `vl_bruto`).
+
+Observação: o spec do usuário mencionou `vl_tot_fat`, mas esse campo não existe em nenhum dos dois conjuntos de dados. Mantendo o mesmo intuito (faturamento desc), uso os campos reais já renderizados nas colunas.
 
 ### Fora de escopo
 
-- Backend / contrato de colunas.
-- Outras telas do BI Comercial.
-- Lógica de ordenação (mantida como está).
+- API / backend / contrato de drill.
+- Filtros, drill, agrupamentos.
+- Outras telas (Passagens etc.).
 
 ### Validação
 
-Abrir `/bi/comercial`, drill até "Detalhes Impostos" de uma NF:
-- "Ano/Mês" mostra `2026/05` (não `R$ ...`).
-- Coluna "Cliente" mostra `8865`; "Nome Cliente" mostra `PAULO CESAR MASSARO THIBES CORDEIRO` (sem o código repetido).
-- Demais drills (CLIENTE, REVENDA, PRODUTO) continuam exibindo nomes normalmente.
+- `/bi/comercial` → aba Mensal abre ordenada por **Faturamento desc**.
+- Detalhamento por Nota Fiscal abre ordenado por **Líquido desc** (maiores NFs no topo).
+- Mudar unidade para **ESTRUTURAL ZORTEA** (remove coluna Revenda) não quebra a ordenação — se a chave atual sumir, cai no fallback automático.
+- Demais grids (sem `defaultSort` explícito) continuam ordenando pela 1ª coluna numérica `desc`.
+- Clique no cabeçalho continua alternando `asc → desc → sem ordenação`.
+- Sem erro React #310 (não há novos hooks condicionais; o `useEffect` adicionado é incondicional).

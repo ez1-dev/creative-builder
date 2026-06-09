@@ -188,6 +188,17 @@ export function DataTable<T extends Record<string, any>>({
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Se a coluna ordenada deixar de existir (ex.: troca de unidade remove Revenda),
+  // limpa o sort para cair no fallback automático.
+  useEffect(() => {
+    if (!sortKey) return;
+    const exists = columns.some((c) => c.key === sortKey);
+    if (!exists) {
+      setSortKey(null);
+      setSortDir(null);
+    }
+  }, [columns, sortKey]);
+
   const handleSort = useCallback((key: string) => {
     setSortKey(prev => {
       if (prev === key) {
