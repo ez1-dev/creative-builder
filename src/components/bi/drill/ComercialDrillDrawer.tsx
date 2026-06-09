@@ -441,7 +441,14 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
                 variant="outline"
                 className="h-7 gap-1 text-xs"
                 onClick={() => resp && downloadDrillCsv({ ...resp, columns: enrichedBase.columns })}
-...
+                disabled={!resp || resp.rows.length === 0}
+              >
+                <Download className="h-3.5 w-3.5" /> CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 text-xs"
                 onClick={() => resp && downloadDrillXlsx({ ...resp, columns: enrichedBase.columns })}
                 disabled={!resp || resp.rows.length === 0}
               >
