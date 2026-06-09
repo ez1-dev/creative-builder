@@ -11,7 +11,7 @@
  * ou padrão global do usuário) na montagem.
  */
 
-export type NumberRoundingMode = 'full' | 'no-decimals' | 'abbreviated';
+export type NumberRoundingMode = 'full' | 'no-decimals' | 'abbreviated' | 'millions';
 
 let current: NumberRoundingMode = 'full';
 const listeners = new Set<(m: NumberRoundingMode) => void>();
@@ -35,10 +35,12 @@ export const NUMBER_ROUNDING_LABEL: Record<NumberRoundingMode, string> = {
   'full': 'Completo',
   'no-decimals': 'Sem decimais',
   'abbreviated': 'Abreviado',
+  'millions': 'Milhões (MI)',
 };
 
 export const NUMBER_ROUNDING_DESC: Record<NumberRoundingMode, string> = {
   'full': 'R$ 53.065.883,93',
   'no-decimals': 'R$ 53.065.884',
   'abbreviated': 'R$ 53,07 mi',
+  'millions': 'R$ 0,378 mi',
 };
