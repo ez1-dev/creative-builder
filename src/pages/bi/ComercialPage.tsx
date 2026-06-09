@@ -456,8 +456,9 @@ export default function ComercialPage() {
       const s = (w as any)?.mapping?.series;
       if (typeof s === 'string' && s.length > 0) keys.add(s);
     });
+    if (previewSeriesKey) keys.add(previewSeriesKey);
     return Array.from(keys);
-  }, [layout.widgets]);
+  }, [layout.widgets, previewSeriesKey]);
 
   const drillSeries = useComercialDrillSeries({
     seriesKeys: referencedSeriesKeys,
