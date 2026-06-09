@@ -521,7 +521,7 @@ export default function BiComponentsDemoPage() {
                     onDrill={(p) => console.log('drill estado:', p)}
                   />
                 </WithApply>
-                <DemoBlock name="BrazilHeatMap" description="Mapa coroplético geográfico (mock)" nonApplicable>
+                <WithApply componentId="brazil-heat-map">
                   <BrazilHeatMap
                     title="Faturamento por UF (mapa real)"
                     subtitle="react-simple-maps + GeoJSON local"
@@ -537,7 +537,7 @@ export default function BiComponentsDemoPage() {
                     ]}
                     onStateClick={(uf) => console.log('clique mapa:', uf)}
                   />
-                </DemoBlock>
+                </WithApply>
                 <DemoBlock name="BrazilHeatMapWidget" description="Mapa coroplético plugado em /api/bi/comercial/estado" nonApplicable>
                   <BrazilHeatMapWidget
                     title="Faturamento por Estado (mapa real)"
