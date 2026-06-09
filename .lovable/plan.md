@@ -1,29 +1,52 @@
-## Problema
+## Refinamento `onClickMensal` em `src/pages/bi/ComercialPage.tsx`
 
-Ao clicar numa barra do gráfico **Faturamento mensal x Meta**, o cross-filter aplica apenas `anomes_emissao = AAAA-MM` em `filters`. Os endpoints `/api/bi/comercial/kpis` e `/api/bi/comercial/mensal` recalculam **faturamento** com esse filtro, mas o valor de **meta** (KPI agregado e linha do combo) continua refletindo o intervalo `anomes_ini..anomes_fim` original — por isso a meta não muda quando o usuário "fatia" um único mês no clique.
+### Alterações
 
-## Solução (frontend, escopo mínimo)
+1. **Helper de normalização** (módulo, fora do componente):
+   ```ts
+   const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
+   ```
 
-Quando o cross-filter for por **mês específico** (chave `anomes_emissao`), reduzir também a janela base para esse mês, garantindo que toda a página (KPIs, meta, linha de meta no combo, mix, estado, revenda, obras) fique no mesmo recorte temporal.
+2. **Ref do período aplicado** (dentro de `ComercialPage`, após `useComercialFilters`):
+   ```ts
+   const periodoTopoAplicadoRef = useRef<{ anomes_ini: string; anomes_fim: string }>({
+     anomes_ini: filters.anomes_ini,
+     anomes_fim: filters.anomes_fim,
+   });
+   ```
+   Inicializa com o período base atual (não com `draft`, que pode estar editado).
 
-### Alterações em `src/pages/bi/ComercialPage.tsx`
+3. **`aplicarFiltrosBase`** atualiza a ref antes/depois do `setBase`:
+   ```ts
+   const aplicarFiltrosBase = () => {
+     setBase({ ...draft });
+     periodoTopoAplicadoRef.current = { anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim };
+   };
+   ```
 
-1. **`onClickMensal`** (linha ~401): em vez de só chamar `applyCtxAsCrossFilter`, fazer:
-   - extrair `anomes = d.anomes_emissao` (ou via `extractDrillCtx(d, 'MENSAL').anomes_emissao`);
-   - se `anomes` igual ao filtro atual `anomes_ini === anomes_fim === anomes` → **toggle off**: restaurar `anomes_ini/anomes_fim` ao `draft` (período do filtro do topo) e remover o drill `anomes_emissao`;
-   - caso contrário: `setBase({ anomes_ini: anomes, anomes_fim: anomes })` e `removeDrill('anomes_emissao')` (não precisa do drill — a meta passa a ser a do mês porque a janela base é o próprio mês).
+4. **`onClickMensal`** reescrito:
+   - Coleta candidatos: `d.anomes_emissao`, `d.anomes`, `d.mes`, e `extractDrillCtx(d, 'MENSAL').anomes_emissao`.
+   - `const anomes = normalizeAnomes(<primeiro candidato truthy>);`
+   - Se vazio (6 dígitos não obtidos): fallback `applyCtxAsCrossFilter(extractDrillCtx(d, 'MENSAL'))` e sair.
+   - Logs temporários:
+     ```ts
+     console.log('Clique mensal:', d);
+     console.log('Anomes selecionado:', anomes);
+     console.log('Base antes:', { anomes_ini: filters.anomes_ini, anomes_fim: filters.anomes_fim });
+     ```
+   - Toggle off: se `filters.anomes_ini === anomes && filters.anomes_fim === anomes`, restaurar `periodoTopoAplicadoRef.current` via `setBase(...)` e `removeDrill('anomes_emissao')`.
+   - Caso contrário: `setBase({ anomes_ini: anomes, anomes_fim: anomes })` e `removeDrill('anomes_emissao')`.
+   - Log final: `console.log('Base depois:', { anomes_ini: anomes, anomes_fim: anomes });`
 
-2. **Chips** continuam funcionando para os demais drills; o mês selecionado aparece naturalmente no card "Período" (já que `anomes_ini = anomes_fim`).
+5. **Sem alterações** em endpoints, contratos de API, `applyCtxAsCrossFilter`, ou nos demais handlers (`onClickMix`, `onClickEstado`, `onClickMapa`, `onClickRevenda`, `onClickObra`).
 
-3. Nenhuma mudança em `applyCtxAsCrossFilter`, `toggleDrill`, ou nos demais handlers (estado, revenda, mix, obra) — eles continuam usando drill key.
+### Imports
+
+- Adicionar `useRef` em `react` import se ainda não estiver presente.
 
 ### Acceptance criteria
 
-- Clicar em uma barra mensal: KPIs (Faturamento, Meta, Diferença, % Atingimento) e a linha de Meta do combo passam a refletir somente aquele mês.
-- Clicar novamente na mesma barra: período volta ao intervalo original do filtro do topo.
-- Demais cliques (estado, revenda, mix, obra) continuam usando o cross-filter por drill key, sem alterar a janela `anomes_ini/anomes_fim`.
-
-## Fora de escopo
-
-- Ajustes no backend FastAPI (não necessário com esta abordagem).
-- Mudanças visuais no chart ou nos chips.
+- Clicar em uma barra mensal: período do topo passa a ser o mês clicado (KPIs, Meta, Diferença, % Atingimento e linha de Meta recalculam).
+- Clicar de novo no mesmo mês: período volta ao último período aplicado no botão "Aplicar filtros" do topo (não ao `draft` em edição).
+- Logs aparecem no console com `d`, `anomes`, base antes e depois.
+- Demais cliques (estado, revenda, mix, obra) continuam inalterados.
