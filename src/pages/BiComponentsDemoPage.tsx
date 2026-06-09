@@ -17,6 +17,7 @@ import {
   GaugeChartCard, ProgressChartCard,
   TreemapChartCard, RadarChartCard, ScatterChartCard, HeatmapChartCard,
   WaterfallChartCard, FunnelChartCard, SparklineCard, CalendarHeatmapCard,
+  BrazilMapCard,
   // tree
   TreeView,
   // tables
