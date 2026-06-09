@@ -16,6 +16,7 @@ export * from './kpis/KpiComparisonCard';
 export * from './kpis/KpiVariationCard';
 export * from './kpis/KpiStatusCard';
 export * from './kpis/KpiTriStackCard';
+export * from './kpis/FaturamentoRealizadoMetaCard';
 
 
 export * from './charts/ChartCardShell';
