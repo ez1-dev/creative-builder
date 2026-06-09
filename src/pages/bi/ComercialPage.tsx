@@ -658,7 +658,7 @@ export default function ComercialPage() {
         k?.faturamento_liquido ?? k?.fat_liquido ?? k?.realizado ?? 0
       );
       const meta = Number(k?.meta ?? k?.vl_meta ?? 0);
-      const diferenca = fatLiquido - meta;
+      const diferenca = bruto - meta;
       return (
         <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <KpiTriStackCard
