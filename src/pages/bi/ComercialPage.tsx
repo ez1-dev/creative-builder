@@ -204,17 +204,18 @@ export default function ComercialPage() {
   const qEstado  = useQuery({ queryKey: ['bi-comercial','estado',filters],  queryFn: () => fetchComercialEstado(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
+  const qDetalhes= useQuery({ queryKey: ['bi-comercial','detalhes',filters],queryFn: () => fetchComercialDetalhes(filters, { escopo: 'todas', limit: 5000 }), refetchOnWindowFocus: false, retry: 1 });
 
   const aplicarFiltrosBase = () => {
     setBase({ ...draft });
     periodoTopoAplicadoRef.current = { anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim };
   };
   const atualizar = () => {
-    qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
+    qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch(); qDetalhes.refetch();
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
     if (qObras.isFetched || unidade !== 'GENIUS') qObras.refetch();
   };
-  const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
+  const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching || qDetalhes.isFetching;
 
   const { isAdmin } = useUserPermissions();
   const [syncingClientes, setSyncingClientes] = useState(false);
@@ -308,6 +309,7 @@ export default function ComercialPage() {
   const estados = qEstado.data ?? [];
   const revendaRows = qRevenda.data ?? [];
   const obrasRows = qObras.data ?? [];
+  const detalhes = qDetalhes.data ?? [];
 
 
   const dadosCombo = useMemo(
@@ -474,6 +476,30 @@ export default function ComercialPage() {
     { key:'ticket_medio', header:'Ticket Médio', align:'right', render:(_v,r)=> formatCurrency(n(r.ticket_medio)) },
     { key:'preco_medio', header:'Preço Médio', align:'right', render:(_v,r)=> formatCurrency(n(r.preco_medio)) },
   ];
+
+  // ===== Detalhamento por Nota Fiscal =====
+  const colsDetalhes: Column<ComercialDetalheRow>[] = [
+    { key:'anomes_emissao', header:'Ano/Mês', render:(_v,r)=> r.anomes_emissao ?? '' },
+    { key:'dt_emissao', header:'Dt. Emissão', render:(_v,r)=> r.dt_emissao ? String(r.dt_emissao).slice(0,10) : '' },
+    { key:'unidade_negocio', header:'Unidade', render:(_v,r)=> r.unidade_negocio ?? '' },
+    { key:'cd_empresa', header:'Empresa', render:(_v,r)=> r.cd_empresa ?? '' },
+    { key:'cd_filial', header:'Filial', render:(_v,r)=> r.cd_filial ?? '' },
+    { key:'cd_nf', header:'NF', render:(_v,r)=> r.cd_nf ?? '' },
+    { key:'cd_serie', header:'Série', render:(_v,r)=> r.cd_serie ?? '' },
+    { key:'cd_tns', header:'TNS', render:(_v,r)=> r.cd_tns ?? '' },
+    { key:'cd_tp_movimento', header:'Tipo Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '' },
+    { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
+    { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
+    { key:'cd_cliente', header:'Cliente', render:(_v,r)=> r.cd_cliente ?? '' },
+    { key:'cd_prj', header:'Obra', render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '') },
+    { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
+    { key:'vl_bruto', header:'Vl. Bruto', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
+    { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_impostos)) },
+    { key:'vl_liquido', header:'Líquido', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_liquido)) },
+    { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_devolucao)) },
+    { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', render:(_v,r)=> formatNumber(n(r.qtd_produtos)) },
+  ];
+
 
   // ===== Layout / Builder =====
   const layout = useComercialLayout();
@@ -752,10 +778,10 @@ export default function ComercialPage() {
       if (def.type === 'revendas') return renderSerieGeneric(w, revendaRank, onClickRevenda, qRevenda.isLoading, qRevenda.isError, qRevenda.error, () => qRevenda.refetch());
       if (def.type === 'obras') return renderSerieGeneric(w, obrasSerie, onClickObra, qObras.isLoading, qObras.isError, qObras.error, () => qObras.refetch());
       if (def.kind === 'table') {
-        if (qMensal.isLoading) return <LoadingState height={240} variant="skeleton" />;
-        if (qMensal.isError) return <BlocoErro err={qMensal.error} onRetry={() => qMensal.refetch()} />;
-        if (mensal.length === 0) return <EmptyState description={EMPTY_MSG} />;
-        return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
+        if (qDetalhes.isLoading) return <LoadingState height={240} variant="skeleton" />;
+        if (qDetalhes.isError) return <BlocoErro err={qDetalhes.error} onRetry={() => qDetalhes.refetch()} />;
+        if (detalhes.length === 0) return <EmptyState description={EMPTY_MSG} />;
+        return <Card><CardContent className="pt-4"><DataTableBI columns={colsDetalhes} data={detalhes} onRowClick={(r) => openDrill('NOTA_FISCAL', { cd_nf: r.cd_nf ?? undefined, cd_serie: r.cd_serie ?? undefined, cd_empresa: r.cd_empresa ?? undefined, cd_filial: r.cd_filial ?? undefined } as any)} /></CardContent></Card>;
       }
     }
     // Widget custom-* sem componentId — não deveria acontecer.

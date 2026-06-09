@@ -106,7 +106,7 @@ export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
   'obras':           { type:'obras',        title:'Faturamento por obra',      kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:LIB_CHART_IDS },
 
   // ===== Tabela =====
-  'table-mensal':    { type:'table-mensal', title:'Tabela mensal', kind:'table', variants:[{value:'table',label:'Tabela'}], libraryComponentIds:LIB_TABLE_IDS },
+  'table-mensal':    { type:'table-mensal', title:'Detalhamento por Nota Fiscal', kind:'table', variants:[{value:'table',label:'Tabela'}], libraryComponentIds:LIB_TABLE_IDS },
 };
 
 export const KPI_CATALOG = Object.values(COMERCIAL_WIDGETS).filter((w) => w.kind === 'kpi');
