@@ -113,6 +113,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
           </div>
           <NumberField label="Fonte do subtítulo (px)" value={cfg.subtitle.fontSize} min={8} max={24}
             onChange={(n) => update((d) => { d.subtitle.fontSize = n; })} />
+          <FontFamilyField label="Família da fonte do subtítulo" value={cfg.subtitle.fontFamily}
+            onChange={(v) => update((d) => { d.subtitle.fontFamily = v; })} />
         </TabsContent>
 
         {/* ===== Legenda ===== */}
