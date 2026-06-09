@@ -18,6 +18,7 @@ import {
 import {
   DEFAULT_VISUAL_CONFIG,
   mergeVisualConfig,
+  FONT_FAMILY_OPTIONS,
   type VisualConfig,
   type LegendPosition,
   type DataLabelFormat,
@@ -25,6 +26,7 @@ import {
   type TitleAlign,
   type ResultDescriptionPosition,
   type CardDensity,
+  type FontFamilyKey,
 } from '@/lib/bi/visualConfig';
 
 interface Props {
