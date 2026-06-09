@@ -1,52 +1,46 @@
-## Refinamento `onClickMensal` em `src/pages/bi/ComercialPage.tsx`
+## Tabela mensal — abrir por Nota Fiscal
 
-### Alterações
+Trocar/expandir o widget **Tabela mensal** para exibir todas as informações em nível de **Nota Fiscal**, usando o endpoint já existente `/api/bi/comercial/detalhes` (função `fetchComercialDetalhes`, escopo `'todas'`).
 
-1. **Helper de normalização** (módulo, fora do componente):
+### Alterações em `src/pages/bi/ComercialPage.tsx`
+
+1. **Nova query** ao lado de `qMensal`:
    ```ts
-   const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
-   ```
-
-2. **Ref do período aplicado** (dentro de `ComercialPage`, após `useComercialFilters`):
-   ```ts
-   const periodoTopoAplicadoRef = useRef<{ anomes_ini: string; anomes_fim: string }>({
-     anomes_ini: filters.anomes_ini,
-     anomes_fim: filters.anomes_fim,
+   const qDetalhes = useQuery({
+     queryKey: ['bi-comercial','detalhes', filters],
+     queryFn: () => fetchComercialDetalhes(filters, { escopo: 'todas', limit: 5000 }),
+     refetchOnWindowFocus: false,
+     retry: 1,
    });
-   ```
-   Inicializa com o período base atual (não com `draft`, que pode estar editado).
-
-3. **`aplicarFiltrosBase`** atualiza a ref antes/depois do `setBase`:
-   ```ts
-   const aplicarFiltrosBase = () => {
-     setBase({ ...draft });
-     periodoTopoAplicadoRef.current = { anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim };
-   };
+   const detalhes = qDetalhes.data ?? [];
    ```
 
-4. **`onClickMensal`** reescrito:
-   - Coleta candidatos: `d.anomes_emissao`, `d.anomes`, `d.mes`, e `extractDrillCtx(d, 'MENSAL').anomes_emissao`.
-   - `const anomes = normalizeAnomes(<primeiro candidato truthy>);`
-   - Se vazio (6 dígitos não obtidos): fallback `applyCtxAsCrossFilter(extractDrillCtx(d, 'MENSAL'))` e sair.
-   - Logs temporários:
-     ```ts
-     console.log('Clique mensal:', d);
-     console.log('Anomes selecionado:', anomes);
-     console.log('Base antes:', { anomes_ini: filters.anomes_ini, anomes_fim: filters.anomes_fim });
-     ```
-   - Toggle off: se `filters.anomes_ini === anomes && filters.anomes_fim === anomes`, restaurar `periodoTopoAplicadoRef.current` via `setBase(...)` e `removeDrill('anomes_emissao')`.
-   - Caso contrário: `setBase({ anomes_ini: anomes, anomes_fim: anomes })` e `removeDrill('anomes_emissao')`.
-   - Log final: `console.log('Base depois:', { anomes_ini: anomes, anomes_fim: anomes });`
+2. **Novas colunas** `colsDetalhes: Column<ComercialDetalheRow>[]` cobrindo todos os campos retornados pela API:
+   - Ano/Mês, Dt. Emissão, Unidade, Empresa, Filial, NF, Série, TNS, Tipo Mov., Origem
+   - Estado, Cliente, Obra (cd_prj + ds_abr_prj), Revenda
+   - Vl. Bruto, Impostos, Líquido, Devolução, Qtd. Produtos
+   - Formatação: `formatCurrency` para valores monetários, `formatNumber` para quantidades, datas como string ISO.
 
-5. **Sem alterações** em endpoints, contratos de API, `applyCtxAsCrossFilter`, ou nos demais handlers (`onClickMix`, `onClickEstado`, `onClickMapa`, `onClickRevenda`, `onClickObra`).
+3. **Render do widget** (linha ~754, branch `def.kind === 'table'`): trocar a fonte de `mensal` para `detalhes`:
+   - Loading/erro/empty passam a observar `qDetalhes`.
+   - `DataTableBI columns={colsDetalhes} data={detalhes}` com `onRowClick` abrindo drill `'NOTA_FISCAL'` (`{ cd_nf: r.cd_nf, cd_serie: r.cd_serie, cd_empresa: r.cd_empresa, cd_filial: r.cd_filial }`).
+   - O mesmo render aplica-se ao bloco da linha ~611 (variant `'table'` do widget `serie-mensal` quando configurado como tabela) — manter usando `colsMensal` ali (é o combo configurado como tabela, não a Tabela mensal dedicada).
 
-### Imports
+4. **Loading agregado** (`carregando`): incluir `qDetalhes.isFetching`.
 
-- Adicionar `useRef` em `react` import se ainda não estiver presente.
+5. **Botão "Atualizar"** (`atualizar()`): adicionar `qDetalhes.refetch()`.
+
+6. **Título do widget** (`useComercialLayout.ts`, item `table-mensal`): renomear de `'Tabela mensal'` para `'Detalhamento por Nota Fiscal'`. Também atualizar `comercialWidgetCatalog.ts` (`'table-mensal'.title`).
+
+### Considerações
+
+- `limit: 5000` evita payload gigante; pode ser aumentado depois conforme uso. O `DataTableBI` já tem busca, ordenação e agrupamento ("Agrupar por"), o que o usuário pode usar para reagregar por Ano/Mês visualmente.
+- Filtros do topo + cross-filters (estado/cliente/revenda/obra/mês) continuam aplicados automaticamente, pois `fetchComercialDetalhes` recebe `filters` completo.
+- Sem mudanças no backend (FastAPI já expõe `/api/bi/comercial/detalhes`).
 
 ### Acceptance criteria
 
-- Clicar em uma barra mensal: período do topo passa a ser o mês clicado (KPIs, Meta, Diferença, % Atingimento e linha de Meta recalculam).
-- Clicar de novo no mesmo mês: período volta ao último período aplicado no botão "Aplicar filtros" do topo (não ao `draft` em edição).
-- Logs aparecem no console com `d`, `anomes`, base antes e depois.
-- Demais cliques (estado, revenda, mix, obra) continuam inalterados.
+- O bloco "Tabela mensal" passa a se chamar "Detalhamento por Nota Fiscal" e mostra uma linha por NF com todas as colunas listadas acima.
+- Filtros base e cross-filter por mês/estado/cliente/revenda/obra continuam afetando as linhas exibidas.
+- Clicar numa linha abre o drill `NOTA_FISCAL` no drawer.
+- O combo `serie-mensal` em variant `table` permanece com colunas mensais agregadas (inalterado).
