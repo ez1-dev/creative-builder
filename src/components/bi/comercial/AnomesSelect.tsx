@@ -42,30 +42,38 @@ export function AnomesSelect({
 
   const triggerCls = compact ? 'h-8 text-xs' : 'h-9 text-sm';
 
+  const subLabelCls = 'text-[10px] uppercase tracking-wide text-muted-foreground';
+
   return (
     <div className={className}>
-      {label && <Label htmlFor={id} className="text-xs">{label}</Label>}
-      <div className="grid grid-cols-[1fr_88px] gap-1">
-        <Select value={mes} onValueChange={(v) => emit(ano, v)} disabled={disabled}>
-          <SelectTrigger id={id} aria-label={label ? `${label} - mês` : 'Mês'} className={triggerCls}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MESES.map((m) => (
-              <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={ano} onValueChange={(v) => emit(v, mes)} disabled={disabled}>
-          <SelectTrigger aria-label={label ? `${label} - ano` : 'Ano'} className={triggerCls}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {anos.map((y) => (
-              <SelectItem key={y} value={y}>{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {label && <div className="mb-1 text-xs font-medium text-foreground">{label}</div>}
+      <div className="grid grid-cols-[1fr_92px] gap-2">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor={id} className={subLabelCls}>Mês</Label>
+          <Select value={mes} onValueChange={(v) => emit(ano, v)} disabled={disabled}>
+            <SelectTrigger id={id} aria-label={label ? `${label} - mês` : 'Mês'} className={triggerCls}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MESES.map((m) => (
+                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label className={subLabelCls}>Ano</Label>
+          <Select value={ano} onValueChange={(v) => emit(v, mes)} disabled={disabled}>
+            <SelectTrigger aria-label={label ? `${label} - ano` : 'Ano'} className={triggerCls}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {anos.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
     </div>
   );

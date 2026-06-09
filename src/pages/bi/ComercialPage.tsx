@@ -1218,17 +1218,17 @@ export default function ComercialPage() {
                 </div>
                 <AnomesSelect
                   id="anomes_ini"
-                  label="Período — De"
+                  label="Período inicial"
                   value={draft.anomes_ini}
                   onChange={(v) => setDraft({ ...draft, anomes_ini: v })}
-                  className="w-full sm:min-w-[180px] sm:flex-1"
+                  className="w-full sm:min-w-[220px] sm:flex-1"
                 />
                 <AnomesSelect
                   id="anomes_fim"
-                  label="Período — Até"
+                  label="Período final"
                   value={draft.anomes_fim}
                   onChange={(v) => setDraft({ ...draft, anomes_fim: v })}
-                  className="w-full sm:min-w-[180px] sm:flex-1"
+                  className="w-full sm:min-w-[220px] sm:flex-1"
                 />
                 <Button size="sm" className="h-8 w-full sm:w-auto" onClick={aplicarFiltrosBase}>Aplicar</Button>
               </FilterBar>
