@@ -293,11 +293,17 @@ export function useComercialLayout(enabled: boolean = true) {
   }, [ensureDashboard, load]);
 
   const resetLayout = useCallback(async () => {
+    if (isPersonalEffective) {
+      await supabase.rpc('reset_bi_comercial_personal_dashboard');
+      await supabase.rpc('fork_bi_comercial_dashboard');
+      await load();
+      return;
+    }
     const id = await ensureDashboard();
     await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
     await supabase.rpc('upsert_bi_comercial_dashboard_default');
     await load();
-  }, [ensureDashboard, load]);
+  }, [ensureDashboard, isPersonalEffective, load]);
 
   const deleteWidget = useCallback(async (widgetType: string) => {
     const id = dashboardId ?? (await ensureDashboard());
@@ -305,5 +311,10 @@ export function useComercialLayout(enabled: boolean = true) {
     await load();
   }, [dashboardId, ensureDashboard, load]);
 
-  return { widgets, dashboardId, loading, saveLayout, resetLayout, deleteWidget, reload: load };
+  return {
+    widgets, dashboardId, loading,
+    saveLayout, resetLayout, deleteWidget, reload: load,
+    mode, setMode, isPersonal: isPersonalEffective, hasPersonal,
+    forkToPersonal, resetPersonal,
+  };
 }
