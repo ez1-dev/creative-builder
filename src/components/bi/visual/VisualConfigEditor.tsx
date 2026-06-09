@@ -334,3 +334,21 @@ function NumberField({ label, value, onChange, min, max }: { label: string; valu
     </div>
   );
 }
+
+function FontFamilyField({ label, value, onChange }: { label: string; value: FontFamilyKey; onChange: (v: FontFamilyKey) => void }) {
+  return (
+    <div>
+      <Label className="text-xs">{label}</Label>
+      <Select value={value ?? 'default'} onValueChange={(v) => onChange(v as FontFamilyKey)}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {FONT_FAMILY_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value} style={{ fontFamily: opt.value === 'default' ? undefined : undefined }}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
