@@ -7,7 +7,7 @@
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  padding: 8mm;
+  padding: 4mm;
   box-sizing: border-box;
 }
 
@@ -15,10 +15,26 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
   margin-top: 12px;
   margin-bottom: 12px;
+  max-height: 297mm;
+  overflow: hidden;
 }
 
 .op-sheet * {
   box-sizing: border-box;
+}
+
+/* Blocos de apontamento — manter cada bloco (4 linhas) inteiro entre páginas */
+.op-apontamento-table tbody.op-apt-block {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.op-apontamento-table tr {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+.op-apontamento-table tr.op-apt-head th {
+  text-align: center;
+  vertical-align: middle;
 }
 
 .op-sheet .op-box {
