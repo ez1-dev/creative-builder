@@ -171,6 +171,16 @@
   background: hsl(var(--accent));
 }
 
+/* Reordenação de blocos (dashboard builder) */
+.block-sortable-dragging {
+  opacity: 0.55;
+  box-shadow: 0 18px 40px -12px hsl(var(--primary) / 0.45);
+}
+.block-sortable-over {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.35);
+}
+
 /* ===== Big-screen / TV scaling (≥1920px) ===== */
 /* Tailwind utilities use rem, so bumping html font-size scales everything. */
 @media (min-width: 1920px) {

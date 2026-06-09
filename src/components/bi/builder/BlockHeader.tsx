@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type HTMLAttributes } from 'react';
 import { Plus, MoreVertical, Pencil, Trash2, ArrowUp, ArrowDown, GripVertical, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ interface Props {
   onDelete?: () => Promise<void> | void;
   onMoveUp?: () => Promise<void> | void;
   onMoveDown?: () => Promise<void> | void;
+  /** Props (draggable, onDragStart, etc.) aplicadas no handle de arraste. */
+  dragHandleProps?: HTMLAttributes<HTMLSpanElement> & { draggable?: boolean };
 }
 
 export function BlockHeader({
@@ -28,6 +30,7 @@ export function BlockHeader({
   onDelete,
   onMoveUp,
   onMoveDown,
+  dragHandleProps,
 }: Props) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(title);
@@ -45,7 +48,15 @@ export function BlockHeader({
   return (
     <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2">
       <div className="flex items-center gap-2 min-w-0">
-        {editing && <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />}
+        {editing && (
+          <span
+            {...(dragHandleProps ?? {})}
+            title="Arraste para reordenar bloco"
+            className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-grab active:cursor-grabbing select-none shrink-0"
+          >
+            <GripVertical className="h-4 w-4" />
+          </span>
+        )}
         {renaming && editing ? (
           <div className="flex items-center gap-1">
             <Input
