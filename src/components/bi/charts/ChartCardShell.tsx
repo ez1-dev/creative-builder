@@ -63,7 +63,7 @@ export function ChartCardShell({
   const descNode = descText ? (
     <p
       className={cn('text-muted-foreground', vc.card.density === 'compacta' ? 'px-2' : 'px-1')}
-      style={{ fontSize: vc.resultDescription.fontSize }}
+      style={{ fontSize: vc.resultDescription.fontSize, fontFamily: fontFamilyCss(vc.resultDescription.fontFamily) }}
     >
       {descText}
     </p>
