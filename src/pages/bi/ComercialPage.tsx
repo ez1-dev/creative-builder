@@ -24,6 +24,7 @@ import {
   formatCurrency, formatNumber,
   type Column,
 } from '@/components/bi';
+import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
 
 
 import { ComercialDrillDrawer } from '@/components/bi/drill/ComercialDrillDrawer';
@@ -710,6 +711,21 @@ export default function ComercialPage() {
     if (mapaData.length === 0) return <EmptyState description={EMPTY_MSG} height={240} />;
     const title = w.customTitle || w.title;
     const variant = w.variant ?? 'map';
+    if (variant === 'heatmap') {
+      const selUf = (filters as any)?.cd_estado ?? null;
+      const heatData = mapaData
+        .map((d) => ({ uf: String(d.uf ?? '').toUpperCase(), valor: d.valor }))
+        .filter((d) => /^[A-Z]{2}$/.test(d.uf));
+      return (
+        <BrazilHeatMap
+          title={title}
+          data={heatData}
+          selectedUf={selUf}
+          valueFormatter={formatCurrency}
+          onStateClick={(uf) => toggleDrill('cd_estado', uf)}
+        />
+      );
+    }
     if (variant === 'state-map') {
       return (
         <BrazilStateMapWidget
