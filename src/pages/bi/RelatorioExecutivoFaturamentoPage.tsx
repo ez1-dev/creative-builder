@@ -149,43 +149,96 @@ export default function RelatorioExecutivoFaturamentoPage() {
   };
 
   if (etapa === 'wizard') {
+    const presetAtivo = PRESETS.find(
+      (p) => p.ini() === filtros.anomes_ini && p.fim() === filtros.anomes_fim,
+    )?.id;
+
+    const blocosCatalogo = [
+      { k: 'kpis' as const, l: 'Visão geral (KPIs)', icon: Gauge },
+      { k: 'evolucao' as const, l: 'Evolução + Meta', icon: TrendingUp },
+      { k: 'rankings' as const, l: 'Rankings', icon: BarChart3 },
+      { k: 'margem' as const, l: 'Margem e Impostos', icon: Percent },
+      { k: 'comentariosIa' as const, l: 'Comentários IA', icon: Sparkles },
+      { k: 'tabela' as const, l: 'Tabela analítica', icon: TableIcon },
+    ];
+
+    const SectionHeader = ({ icon: Icon, children }: { icon: any; children: React.ReactNode }) => (
+      <div className="flex items-center gap-2 text-foreground font-medium">
+        <div className="p-1.5 bg-primary/10 text-primary rounded-md">
+          <Icon className="w-4 h-4" />
+        </div>
+        <h2 className="text-sm">{children}</h2>
+      </div>
+    );
+
     return (
-      <div className="space-y-4">
-        <PageHeader
-          title="Relatório Executivo de Faturamento"
-          description="Monte um relatório executivo com KPIs, gráficos, rankings e comentários gerados por IA."
-        />
+      <div className="max-w-5xl mx-auto">
+        <Card className="overflow-hidden">
+          <div className="px-8 py-6 border-b border-border">
+            <h1 className="text-xl font-semibold text-foreground">Relatório Executivo de Faturamento</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure os parâmetros para gerar a análise executiva com suporte de IA.
+            </p>
+          </div>
 
-
-        <Card>
-          <CardContent className="p-6 space-y-6">
-            {/* Período */}
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">1. Período</Label>
-              <div className="flex flex-wrap gap-2 mb-3">
-                {PRESETS.map((p) => (
-                  <Button key={p.id} variant="outline" size="sm" onClick={() => aplicarPreset(p)}>{p.label}</Button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-3 max-w-md">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Início (AAAAMM)</Label>
-                  <Input value={filtros.anomes_ini} onChange={(e) => setFiltros({ ...filtros, anomes_ini: e.target.value })} maxLength={6} />
+          <div className="p-8 space-y-10">
+            {/* 1. Período */}
+            <section className="space-y-4">
+              <SectionHeader icon={Calendar}>1. Período de Análise</SectionHeader>
+              <div className="flex flex-wrap items-end gap-6 bg-muted/30 p-4 rounded-lg border border-border">
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Presets</Label>
+                  <div className="inline-flex p-1 bg-muted rounded-lg gap-1 flex-wrap">
+                    {PRESETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => aplicarPreset(p)}
+                        className={cn(
+                          'px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                          presetAtivo === p.id
+                            ? 'bg-background shadow-sm text-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Fim (AAAAMM)</Label>
-                  <Input value={filtros.anomes_fim} onChange={(e) => setFiltros({ ...filtros, anomes_fim: e.target.value })} maxLength={6} />
+                <div className="flex gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Início (AAAAMM)</Label>
+                    <Input
+                      className="w-32"
+                      value={filtros.anomes_ini}
+                      onChange={(e) => setFiltros({ ...filtros, anomes_ini: e.target.value })}
+                      maxLength={6}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fim (AAAAMM)</Label>
+                    <Input
+                      className="w-32"
+                      value={filtros.anomes_fim}
+                      onChange={(e) => setFiltros({ ...filtros, anomes_fim: e.target.value })}
+                      maxLength={6}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Unidade + drills */}
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">2. Filtros</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-w-3xl">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Unidade de Negócio</Label>
-                  <Select value={filtros.unidade_negocio} onValueChange={(v) => setFiltros({ ...filtros, unidade_negocio: v as UnidadeNegocio })}>
+            {/* 2. Filtros */}
+            <section className="space-y-4">
+              <SectionHeader icon={Filter}>2. Filtros Adicionais</SectionHeader>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Unidade de Negócio</Label>
+                  <Select
+                    value={filtros.unidade_negocio}
+                    onValueChange={(v) => setFiltros({ ...filtros, unidade_negocio: v as UnidadeNegocio })}
+                  >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CONSOLIDADO">Consolidado</SelectItem>
@@ -194,68 +247,110 @@ export default function RelatorioExecutivoFaturamentoPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Cliente (cód)</Label>
-                  <Input value={drillCliente} onChange={(e) => setDrillCliente(e.target.value)} placeholder="opcional" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Cliente (cód)</Label>
+                  <Input placeholder="Opcional" value={drillCliente} onChange={(e) => setDrillCliente(e.target.value)} />
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Revenda (cód)</Label>
-                  <Input value={drillRevenda} onChange={(e) => setDrillRevenda(e.target.value)} placeholder="opcional" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Revenda (cód)</Label>
+                  <Input placeholder="Opcional" value={drillRevenda} onChange={(e) => setDrillRevenda(e.target.value)} />
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Estado (UF)</Label>
-                  <Input value={drillEstado} onChange={(e) => setDrillEstado(e.target.value.toUpperCase())} placeholder="opcional" maxLength={2} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Estado (UF)</Label>
+                  <Input placeholder="Opcional" maxLength={2} value={drillEstado} onChange={(e) => setDrillEstado(e.target.value.toUpperCase())} />
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Produto (cód)</Label>
-                  <Input value={drillProduto} onChange={(e) => setDrillProduto(e.target.value)} placeholder="opcional" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Produto (cód)</Label>
+                  <Input placeholder="Opcional" value={drillProduto} onChange={(e) => setDrillProduto(e.target.value)} />
                 </div>
               </div>
-            </div>
+            </section>
 
-            {/* Nível */}
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">3. Nível de detalhe</Label>
-              <RadioGroup value={nivel} onValueChange={(v) => setNivel(v as NivelDetalhe)} className="flex gap-6">
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="curto" id="nivel-curto" />
-                  <Label htmlFor="nivel-curto" className="cursor-pointer">Executivo curto (KPIs + 2 gráficos + IA)</Label>
+            {/* 3 + 4 */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+              <section className="md:col-span-4 space-y-4">
+                <SectionHeader icon={FileText}>3. Nível de Detalhe</SectionHeader>
+                <div className="space-y-3">
+                  {([
+                    { v: 'curto' as const, title: 'Executivo curto', desc: 'KPIs + 2 gráficos + IA' },
+                    { v: 'completo' as const, title: 'Completo', desc: 'Todos os blocos + tabela' },
+                  ]).map((opt) => {
+                    const ativo = nivel === opt.v;
+                    return (
+                      <label
+                        key={opt.v}
+                        className={cn(
+                          'flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors',
+                          ativo
+                            ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/10'
+                            : 'border-border bg-background hover:bg-muted/50',
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name="nivel"
+                          className="mt-0.5 w-4 h-4 accent-primary"
+                          checked={ativo}
+                          onChange={() => setNivel(opt.v)}
+                        />
+                        <div>
+                          <p className={cn('text-sm font-medium', ativo ? 'text-primary' : 'text-foreground')}>{opt.title}</p>
+                          <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="completo" id="nivel-completo" />
-                  <Label htmlFor="nivel-completo" className="cursor-pointer">Completo (todos os blocos + tabela)</Label>
+              </section>
+
+              <section className="md:col-span-8 space-y-4">
+                <SectionHeader icon={LayoutGrid}>4. Blocos do Relatório</SectionHeader>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {blocosCatalogo.map((b) => {
+                    const ativo = blocos[b.k];
+                    const Icon = b.icon;
+                    return (
+                      <button
+                        key={b.k}
+                        type="button"
+                        onClick={() => toggleBloco(b.k)}
+                        className={cn(
+                          'flex items-center gap-3 p-3 border rounded-lg text-left transition-all',
+                          ativo
+                            ? 'border-primary/40 bg-background ring-1 ring-primary/10 shadow-sm'
+                            : 'border-border bg-background hover:border-primary/30',
+                        )}
+                      >
+                        <div className={cn(
+                          'w-8 h-8 flex items-center justify-center rounded',
+                          ativo ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+                        )}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className={cn('text-sm font-medium flex-1', ativo ? 'text-foreground' : 'text-muted-foreground')}>
+                          {b.l}
+                        </span>
+                        <div className={cn(
+                          'w-4 h-4 rounded-full flex items-center justify-center border',
+                          ativo ? 'bg-primary border-primary' : 'border-border',
+                        )}>
+                          {ativo && <Check className="w-3 h-3 text-primary-foreground" strokeWidth={3} />}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              </RadioGroup>
+              </section>
             </div>
+          </div>
 
-            {/* Blocos */}
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">4. Blocos do relatório</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {[
-                  { k: 'kpis' as const, l: 'Visão geral (KPIs)' },
-                  { k: 'evolucao' as const, l: 'Evolução mensal + Meta' },
-                  { k: 'rankings' as const, l: 'Rankings (Revenda, Estado, Obra)' },
-                  { k: 'margem' as const, l: 'Margem e Impostos' },
-                  { k: 'comentariosIa' as const, l: 'Comentários por IA' },
-                  { k: 'tabela' as const, l: 'Tabela analítica final' },
-                ].map((b) => (
-                  <label key={b.k} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox checked={blocos[b.k]} onCheckedChange={() => toggleBloco(b.k)} />
-                    {b.l}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => navigate('/bi/comercial')}>Cancelar</Button>
-              <Button onClick={() => setEtapa('preview')}>
-                <Sparkles className="h-4 w-4 mr-2" />
-                Gerar relatório
-              </Button>
-            </div>
-          </CardContent>
+          <div className="px-8 py-5 bg-muted/30 border-t border-border flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => navigate('/bi/comercial')}>Cancelar</Button>
+            <Button onClick={() => setEtapa('preview')}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Gerar relatório
+            </Button>
+          </div>
         </Card>
       </div>
     );
