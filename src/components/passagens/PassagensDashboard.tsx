@@ -1396,6 +1396,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
             />
           ),
           } : {}),
+          ...((canSeeVisual('passagens.chart-mapa-brasil') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-mapa-brasil': (
+            <BrazilMapCard
+              title="Mapa do Brasil — Cartograma por UF"
+              subtitle="Intensidade pelo valor total das passagens"
+              data={porUF.map((u) => ({ uf: u.name, valor: u.valor }))}
+              valueFormatter={formatCurrency}
+              onItemClick={(d) => setSelectedUF((prev) => toggleItem(prev, d.uf))}
+              height={360}
+            />
+          ),
+          } : {}),
           'tabela-registros': (
       <Card>
         <CardHeader className="flex flex-col gap-3 p-3 sm:p-6 md:flex-row md:items-center md:justify-between">
