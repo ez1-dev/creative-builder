@@ -152,10 +152,124 @@ function toNumberOrNull(v: any): number | null {
   return null;
 }
 
+function toNumberSafe(value: any): number {
+  if (value == null || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const s = String(value).trim();
+  if (!s) return 0;
+  const hasComma = s.includes(',');
+  const normalized = hasComma ? s.replace(/\./g, '').replace(',', '.') : s;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getNotaKey(row: any): string {
+  const emp = String(row?.cd_empresa ?? '').trim();
+  const fil = String(row?.cd_filial ?? '').trim();
+  const nf = String(row?.cd_nf ?? row?.nf ?? '').trim();
+  const serie = String(row?.cd_serie ?? row?.serie ?? '').trim();
+  if (emp || fil) return `${emp}|${fil}|${nf}|${serie}`;
+  return `${nf}|${serie}`;
+}
+
+function getValorTotalLinha(row: any): number {
+  return toNumberSafe(
+    row?.vl_total ?? row?.vl_tot_fat ?? row?.vl_bruto ?? row?.valor_total ?? row?.vl_contabil ?? 0,
+  );
+}
+
+function getValorLiquidoLinha(row: any): number {
+  return toNumberSafe(
+    row?.vl_liquido ??
+      row?.vl_tot_liq ??
+      row?.valor_liquido ??
+      row?.liquido ??
+      row?.vl_total_liquido ??
+      0,
+  );
+}
+
+const NOTA_TOTAL_KEYS = ['vl_total_nota', 'total_nota', 'vl_nf', 'valor_total_nota'] as const;
+const NOTA_LIQUIDO_KEYS = ['vl_liquido_nota', 'total_liquido_nota', 'valor_liquido_nota'] as const;
+
+/**
+ * Enriquece colunas/linhas com Total da Nota e Total Líquido da Nota,
+ * agrupados por NF (cd_empresa|cd_filial|cd_nf|cd_serie). Valores são
+ * repetidos em todas as linhas da mesma NF.
+ *
+ * Só aplica em drills que tenham indício de NF por linha. Caso contrário,
+ * retorna inalterado para não poluir drills agregadas.
+ */
+export function enrichRowsWithNotaTotals(resp: Pick<DrillResponse, 'columns' | 'rows'>): {
+  columns: DrillColumn[];
+  rows: DrillRow[];
+} {
+  const cols = [...(resp.columns ?? [])];
+  const rows = [...(resp.rows ?? [])];
+
+  if (!rows.length) return { columns: cols, rows };
+
+  const hasNfCol = cols.some((c) => c.key === 'cd_nf' || c.key === 'nf');
+  const hasNfInRow = rows.some(
+    (r) => (r && r.cd_nf != null && r.cd_nf !== '') || (r && (r as any).nf != null && (r as any).nf !== ''),
+  );
+  if (!hasNfCol && !hasNfInRow) return { columns: cols, rows };
+
+  const alreadyHasTotalNota = cols.some((c) => c.key === 'total_nota');
+  const alreadyHasLiquidoNota = cols.some((c) => c.key === 'total_liquido_nota');
+
+  const backendTotalKey = NOTA_TOTAL_KEYS.find((k) => rows.some((r) => r?.[k] != null && r?.[k] !== ''));
+  const backendLiquidoKey = NOTA_LIQUIDO_KEYS.find((k) => rows.some((r) => r?.[k] != null && r?.[k] !== ''));
+
+  let totalsMap: Map<string, { totalNota: number; totalLiquidoNota: number }> | null = null;
+  if (!backendTotalKey || !backendLiquidoKey) {
+    totalsMap = new Map();
+    for (const r of rows) {
+      const key = getNotaKey(r);
+      if (!key.replace(/\|/g, '').trim()) continue;
+      const cur = totalsMap.get(key) ?? { totalNota: 0, totalLiquidoNota: 0 };
+      cur.totalNota += getValorTotalLinha(r);
+      cur.totalLiquidoNota += getValorLiquidoLinha(r);
+      totalsMap.set(key, cur);
+    }
+  }
+
+  const enrichedRows: DrillRow[] = rows.map((r) => {
+    const key = getNotaKey(r);
+    const agg = totalsMap?.get(key);
+    const totalNota = backendTotalKey
+      ? toNumberSafe(r?.[backendTotalKey])
+      : agg?.totalNota ?? 0;
+    const totalLiquidoNota = backendLiquidoKey
+      ? toNumberSafe(r?.[backendLiquidoKey])
+      : agg?.totalLiquidoNota ?? 0;
+    return { ...r, total_nota: totalNota, total_liquido_nota: totalLiquidoNota };
+  });
+
+  const newCols: DrillColumn[] = [...cols];
+  if (!alreadyHasTotalNota) {
+    newCols.push({ key: 'total_nota', label: 'Total da Nota', align: 'right', format: 'currency' });
+  }
+  if (!alreadyHasLiquidoNota) {
+    newCols.push({
+      key: 'total_liquido_nota',
+      label: 'Total Líquido da Nota',
+      align: 'right',
+      format: 'currency',
+    });
+  }
+
+  return { columns: newCols, rows: enrichedRows };
+}
+
+/** Chaves que NÃO devem ser somadas no rodapé TOTAL (evita duplicar valores por NF). */
+const SKIP_TOTAL_SUM_KEYS = new Set(['total_nota', 'total_liquido_nota']);
+
 /**
  * Enriquece a resposta de drill para exportação:
  *  - insere coluna "Valor Líquido" (calculada) logo após valor_total quando aplicável;
- *  - acrescenta linha "TOTAL" somando todas as colunas numéricas/monetárias.
+ *  - adiciona colunas Total da Nota / Total Líquido da Nota agrupadas por NF;
+ *  - acrescenta linha "TOTAL" somando colunas numéricas/monetárias (exceto totais por NF).
  */
 function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; rows: DrillRow[] } {
   const cols = [...(resp.columns ?? [])];
@@ -190,11 +304,16 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
     workingCols = [...cols.slice(0, idx + 1), liquidoCol, ...cols.slice(idx + 1)];
   }
 
-  // 2) Linha TOTAL
+  // 2) Total da Nota / Total Líquido da Nota
+  const enriched = enrichRowsWithNotaTotals({ columns: workingCols, rows: workingRows });
+  workingCols = enriched.columns;
+  workingRows = enriched.rows;
+
+  // 3) Linha TOTAL
   const totalRow: DrillRow = {};
   let labelPlaced = false;
   workingCols.forEach((c) => {
-    if (c.format === 'currency' || c.format === 'number') {
+    if ((c.format === 'currency' || c.format === 'number') && !SKIP_TOTAL_SUM_KEYS.has(c.key)) {
       let sum = 0;
       let any = false;
       for (const r of workingRows) {
@@ -205,6 +324,8 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
         }
       }
       totalRow[c.key] = any ? sum : '';
+    } else if (SKIP_TOTAL_SUM_KEYS.has(c.key)) {
+      totalRow[c.key] = '';
     } else if (!labelPlaced) {
       totalRow[c.key] = 'TOTAL';
       labelPlaced = true;
@@ -213,7 +334,6 @@ function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; ro
     }
   });
   if (!labelPlaced && workingCols.length > 0) {
-    // Todas as colunas eram numéricas — força label na primeira
     totalRow[workingCols[0].key] = 'TOTAL';
   }
   workingRows = [...workingRows, totalRow];
