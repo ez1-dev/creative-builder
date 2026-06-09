@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { tickCurrencyAbbrev } from '../utils/chartHelpers';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface BarChartDatum { label: string; valor: number; [k: string]: any }
 

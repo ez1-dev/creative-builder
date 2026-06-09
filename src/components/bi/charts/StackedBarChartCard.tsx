@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { tickCurrencyAbbrev, BI_PALETTE } from '../utils/chartHelpers';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface StackedBarSeries { dataKey: string; label: string; color?: string }
 

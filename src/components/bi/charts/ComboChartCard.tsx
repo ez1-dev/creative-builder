@@ -2,7 +2,7 @@ import { ComposedChart, Bar, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, C
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { tickCurrencyAbbrev } from '../utils/chartHelpers';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface ComboChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: any[];
