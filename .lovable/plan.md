@@ -1,43 +1,42 @@
-# Corrigir impressão em PDF do Relatório Executivo de Faturamento
+# Refinar wizard do Relatório Executivo de Faturamento
 
-## Diagnóstico
+Aplicar o layout selecionado (cards por seção + presets segmented + cards de blocos) somente na **etapa wizard** de `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`. Lógica, hooks e etapa de preview ficam intactas.
 
-`exportarPdf` chama `window.print()`. O conteúdo do relatório está em `#rel-doc`, mas o shell do app (`AppLayout`) envolve a tela em:
+## Mudanças (apenas frontend/UI)
 
-- `<SidebarProvider>` + `<AppSidebar>`
-- `<header data-tv-hide>` e `<footer data-tv-hide>`
-- `<main className="flex-1 overflow-auto">`
-- `<AiAssistantChat />`
+**`src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`** — reescrever o bloco `if (etapa === 'wizard')` (linhas 151–262):
 
-O CSS atual em `src/pages/bi/relatorio.css` só esconde `nav, aside, header[role="banner"]` — esses seletores **não** batem com os elementos reais. Resultado: o navegador imprime a sidebar/headers e o `overflow-auto` do `<main>` corta o conteúdo, fazendo o relatório aparecer em branco ou parcial no PDF.
+- Remover o `PageHeader` (substituído por header próprio dentro do card).
+- Card único (`Card`) com:
+  - **Header** interno: título "Relatório Executivo de Faturamento" + descrição curta. Usar tokens (`text-foreground`, `text-muted-foreground`, `border-b`).
+  - **Seção 1 — Período**: cabeçalho com ícone Calendar em chip `bg-primary/10 text-primary`. Container `bg-muted/30 border border-border rounded-lg p-4` com:
+    - Segmented control para presets (`inline-flex p-1 bg-muted rounded-lg`, botão ativo com `bg-background shadow-sm`). Detectar preset ativo comparando ini/fim atual.
+    - Inputs Início/Fim AAAAMM lado a lado.
+  - **Seção 2 — Filtros**: ícone Filter. Grid `grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4` com 5 campos (Unidade, Cliente, Revenda, Estado, Produto).
+  - **Seção 3 + 4 lado a lado** em `grid md:grid-cols-12 gap-8`:
+    - `md:col-span-4` Nível de detalhe (ícone FileText): dois `<label>` cards radio com título + subtítulo; ativo com `border-primary bg-primary/5`.
+    - `md:col-span-8` Blocos do relatório (ícone LayoutGrid): grid `grid-cols-2 gap-3` com 6 cards toggleáveis (ícone + label + bolinha check). Ativo: `border-primary/40 ring-1 ring-primary/10`, ícone em `bg-primary/10 text-primary`, check `bg-primary`. Inativo: `border-border`, ícone em `bg-muted text-muted-foreground`, círculo vazio. Ícones por bloco: `Gauge` (KPIs), `TrendingUp` (Evolução), `BarChart3` (Rankings), `Percent` (Margem), `Sparkles` (IA), `Table` (Tabela).
+  - **Footer sticky-like**: `border-t bg-muted/30 px-6 py-4 flex justify-end gap-3` com Cancelar (ghost) + Gerar relatório (primário com `Sparkles`).
+- Container externo: `max-w-5xl mx-auto`.
 
-## Solução
+### Padrões obrigatórios
 
-Adotar o mesmo padrão já consolidado em `src/components/producao/op-print.css`: isolar o nó imprimível via `visibility`, garantindo que somente `#rel-doc` (e seus filhos) fiquem visíveis na impressão, e neutralizar containers com `overflow`/`position`.
-
-### Mudanças
-
-**`src/pages/bi/relatorio.css`** — substituir o bloco `@media print` por:
-
-- `@page { size: A4 landscape; margin: 10mm }`
-- `html, body { background:#fff !important; margin:0 !important; -webkit-print-color-adjust:exact; print-color-adjust:exact }`
-- `body * { visibility: hidden !important }`
-- `#rel-doc, #rel-doc * { visibility: visible !important }`
-- `#rel-doc { position: absolute !important; left:0; top:0; width:100% !important; max-width:none !important; padding:0 !important; box-shadow:none !important; background:#fff !important }`
-- Manter `.rel-bloco { page-break-inside: avoid }` e adicionar `page-break-inside: avoid` em `.rel-kpi`, `.rel-ranking` e linhas de `.rel-tabela-detalhe tr` para evitar cortes feios.
-- Esconder explicitamente itens fora do escopo do relatório (caso visibility-hidden não baste por z-index/transform):
-  `[data-sidebar], header[data-tv-hide], footer[data-tv-hide], [data-radix-popper-content-wrapper], .ai-assistant-chat { display:none !important }`
-
-Nada muda no TSX — `exportarPdf = () => window.print()` continua suficiente, agora que o CSS isola corretamente o documento.
+- Somente tokens semânticos do design system: `hsl(var(--primary))`, `bg-background`, `text-foreground`, `text-muted-foreground`, `bg-muted`, `border-border`, `bg-primary/5`, `border-primary/40`, `ring-primary/10`. **Nenhum `slate-*`, `blue-*`, `zinc-*`, `text-white`, `bg-black`** do protótipo.
+- Reusar componentes shadcn já importados (`Card`, `Input`, `Select`, `Label`, `Button`) — substituir apenas a estrutura visual.
+- Manter `RadioGroup`/`Checkbox` por trás (como `<input>` invisível ou usando o componente shadcn dentro do label), preservando acessibilidade e os handlers existentes (`setNivel`, `toggleBloco`, `setFiltros`, `aplicarPreset`).
+- Ícones via `lucide-react` (adicionar imports: `Calendar`, `Filter`, `FileText`, `LayoutGrid`, `Gauge`, `TrendingUp`, `BarChart3`, `Percent`, `Table`, `Check`).
 
 ### Fora de escopo
 
-- Geração de PDF client-side (jsPDF/html2canvas) — segue usando o diálogo nativo de impressão do navegador.
-- Exportação PPTX, lógica dos blocos e dados.
-- Outras telas que imprimem (Produção/OP já tem seu próprio CSS funcional).
+- Etapa `preview` (documento impresso) — não alterar.
+- Lógica de dados, hooks, IA, exportação PDF/PPTX.
+- `relatorio.css` e CSS de impressão.
+- Outras telas BI.
 
-## Como validar
+## Validação
 
-1. `/bi/faturamento/relatorio-executivo` → gerar relatório → "Exportar PDF (Imprimir)".
-2. Na pré-visualização: sidebar/header/footer/chat invisíveis, todas as seções (KPIs, evolução, rankings, margem, comentários IA, tabela analítica) renderizadas até o final.
-3. Quebra de página ocorre entre blocos, sem cortar cards/tabelas no meio.
+1. `/bi/faturamento/relatorio-executivo` (etapa wizard) → visual igual ao protótipo aprovado, em tons azul corporativo do design system.
+2. Presets selecionam o segmento certo (Mês atual / Anterior / Trimestre / YTD / 12m) e atualizam ini/fim.
+3. Filtros, nível, blocos continuam editáveis e propagam para o estado.
+4. "Gerar relatório" leva para a preview existente sem regressão.
+5. Tema escuro continua legível (tokens semânticos).
