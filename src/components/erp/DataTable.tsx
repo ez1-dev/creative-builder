@@ -229,7 +229,7 @@ export function DataTable<T extends Record<string, any>>({
           : inferNumeric(safeData, col.key) && !NON_SUMMABLE_NAME.test(col.key);
       if (autoNumeric) nums.push(col.key);
 
-      const canGroup = col.groupable ?? !autoNumeric;
+      const canGroup = col.groupable ?? true;
       if (canGroup) groupables.push(col);
     }
     return { numericKeys: nums, groupableCols: groupables };
