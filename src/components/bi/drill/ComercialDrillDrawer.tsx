@@ -61,9 +61,33 @@ const PERCENT_SUFFIXES = ['_pct', '_perc', '_percent'];
 
 type InferredFormat = DrillColumn['format'] | 'percent';
 
-function inferFormat(key: string, format?: DrillColumn['format']): InferredFormat | undefined {
-  if (format) return format;
+const PERIOD_KEYS = new Set([
+  'anomes_emissao', 'anomes', 'ano_mes', 'periodo', 'mes_ref', 'competencia',
+]);
+const DATE_PREFIXES = ['dt_', 'data_'];
+const DATE_SUFFIXES = ['_data', '_dt'];
+
+function isPeriodOrDateKey(key: string): boolean {
   const k = (key || '').toLowerCase();
+  if (!k) return false;
+  if (PERIOD_KEYS.has(k)) return true;
+  if (DATE_PREFIXES.some((p) => k.startsWith(p))) return true;
+  if (DATE_SUFFIXES.some((s) => k.endsWith(s))) return true;
+  return false;
+}
+
+function formatAnomes(v: any): string {
+  if (v == null || v === '') return '-';
+  const s = String(v).replace(/\D/g, '');
+  if (s.length === 6) return `${s.slice(0, 4)}/${s.slice(4, 6)}`;
+  return String(v);
+}
+
+function inferFormat(key: string, format?: DrillColumn['format']): InferredFormat | undefined {
+  const k = (key || '').toLowerCase();
+  // Período/data nunca é numérico, mesmo se backend mandar format: 'currency'.
+  if (isPeriodOrDateKey(k)) return undefined;
+  if (format) return format;
   if (!k) return undefined;
   if (PERCENT_KEYS.has(k)) return 'percent';
   if (PERCENT_PREFIXES.some((p) => k.startsWith(p))) return 'percent';
@@ -76,8 +100,22 @@ function inferFormat(key: string, format?: DrillColumn['format']): InferredForma
   return undefined;
 }
 
+function stripCodePrefix(value: any, code: any): string {
+  const v = value == null ? '' : String(value).trim();
+  if (!v) return '-';
+  const c = code == null ? '' : String(code).trim();
+  if (!c) return v;
+  const re = new RegExp('^' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-—:]?\\s*');
+  const stripped = v.replace(re, '').trim();
+  return stripped || v;
+}
+
 function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (v == null || v === '') return '-';
+  if (isPeriodOrDateKey(key ?? '')) {
+    if (PERIOD_KEYS.has((key ?? '').toLowerCase())) return formatAnomes(v);
+    return String(v);
+  }
   const f = inferFormat(key ?? '', format);
   if (f === 'currency') {
     const num = Number(v);
@@ -215,15 +253,15 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       header: c.label,
       align: c.align ?? (inferFormat(c.key, c.format) === 'currency' || inferFormat(c.key, c.format) === 'number' ? 'right' : 'left'),
       render: (_v: any, r: Record<string, any>) => {
-        if (c.key === 'nm_cliente') return r.nm_cliente ?? r.nm_fantasia ?? '—';
-        if (c.key === 'cd_produto') return r.produto_label ?? r.cd_produto ?? '—';
-        if (c.key === 'ds_produto') return r.ds_produto ?? r.descricao_produto ?? r.produto_descricao ?? r.descricao ?? r.nm_produto ?? '—';
-        if (c.key === 'cd_rev_pedido') return r.revenda_label ?? r.cd_rev_pedido ?? '—';
-        if (c.key === 'nm_revenda') return r.nm_revenda ?? r.ds_revenda ?? r.nm_fantasia ?? '—';
+        if (c.key === 'nm_cliente') return stripCodePrefix(r.nm_cliente ?? r.cliente_label ?? r.nm_fantasia, r.cd_cliente);
+        if (c.key === 'cd_produto') return r.cd_produto ?? '—';
+        if (c.key === 'ds_produto') return stripCodePrefix(r.ds_produto ?? r.produto_label ?? r.descricao_produto ?? r.produto_descricao ?? r.descricao ?? r.nm_produto, r.cd_produto);
+        if (c.key === 'cd_rev_pedido') return r.cd_rev_pedido ?? '—';
+        if (c.key === 'nm_revenda') return stripCodePrefix(r.nm_revenda ?? r.revenda_label ?? r.ds_revenda ?? r.nm_fantasia, r.cd_rev_pedido);
         if (c.key === 'cd_estado') return r.estado_label ?? formatEstadoLabelLocal(r.cd_estado);
         if (c.key === 'nm_estado') return r.nm_estado ?? ufNameLocal(r.cd_estado) ?? '—';
-        if (c.key === 'cd_prj') return r.obra_label ?? r.cd_prj ?? '—';
-        if (c.key === 'ds_obra') return r.ds_obra ?? r.ds_abr_prj ?? r.nm_projeto ?? r.nome_projeto ?? '—';
+        if (c.key === 'cd_prj') return r.cd_prj ?? '—';
+        if (c.key === 'ds_obra') return stripCodePrefix(r.ds_obra ?? r.obra_label ?? r.ds_abr_prj ?? r.nm_projeto ?? r.nome_projeto, r.cd_prj);
         return fmtCell(r[c.key], c.format, c.key);
       },
 
