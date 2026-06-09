@@ -209,17 +209,17 @@ export default function RelatorioExecutivoFaturamentoPage() {
                 </div>
                 <div className="flex gap-4">
                   <AnomesSelect
-                    label="Início"
+                    label="Período inicial"
                     value={filtros.anomes_ini}
                     onChange={(v) => setFiltros({ ...filtros, anomes_ini: v })}
-                    className="w-44"
+                    className="w-56"
                     compact={false}
                   />
                   <AnomesSelect
-                    label="Fim"
+                    label="Período final"
                     value={filtros.anomes_fim}
                     onChange={(v) => setFiltros({ ...filtros, anomes_fim: v })}
-                    className="w-44"
+                    className="w-56"
                     compact={false}
                   />
                 </div>
