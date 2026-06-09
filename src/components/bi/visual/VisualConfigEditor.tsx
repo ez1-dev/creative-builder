@@ -139,6 +139,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte da legenda (px)" value={cfg.legend.fontSize} min={8} max={20}
               onChange={(n) => update((d) => { d.legend.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte da legenda" value={cfg.legend.fontFamily}
+            onChange={(v) => update((d) => { d.legend.fontFamily = v; })} />
           {availableSeriesKeys.length > 0 && (
             <div className="space-y-2">
               <Label className="text-xs">Nome amigável das séries</Label>
