@@ -43,6 +43,8 @@ interface DataTableProps<T> {
   enableSearch?: boolean;
   /** Habilita a barra "Agrupar por" + soma nas colunas numéricas. Default: true. */
   groupable?: boolean;
+  /** Ordenação inicial. Se omitido, aplica fallback automático: 1ª coluna numérica em desc. */
+  defaultSort?: { key: string; dir: 'asc' | 'desc' } | null;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
