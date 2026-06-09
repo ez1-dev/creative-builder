@@ -503,7 +503,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
             <DrillEmptyDiagnostico stack={stack} response={resp} />
           ) : (
             <>
-              <DataTableBI columns={columns} data={resp.rows} />
+              <DataTableBI columns={columns} data={enrichedBase.rows} />
 
               <div className="flex items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
                 <span>
