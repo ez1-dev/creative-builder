@@ -304,6 +304,8 @@ export default function ComercialPage() {
 
   // Meta / Realizado / Diferença vêm exclusivamente de /api/bi/comercial/kpis.
   // Nenhum override no frontend — a RPC bi_comercial_kpis lê bi_meta_faturamento.
+  const { data: clientesMap } = useBiClientesMap();
+
   const kpis = qKpis.data ?? ({} as any);
   const mensal = qMensal.data ?? [];
   const mix = qMix.data ?? [];
@@ -311,7 +313,6 @@ export default function ComercialPage() {
   const revendaRows = qRevenda.data ?? [];
   const obrasRows = qObras.data ?? [];
   const detalhesRaw = qDetalhes.data ?? [];
-  const { data: clientesMap } = useBiClientesMap();
   const detalhes = useMemo(() => {
     return detalhesRaw.map((row) => {
       const cd = String((row as any).cd_cliente ?? '').trim();
