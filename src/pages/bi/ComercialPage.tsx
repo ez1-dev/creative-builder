@@ -951,7 +951,7 @@ export default function ComercialPage() {
     <PageDataProvider pageKey={PAGE_KEY} kpis={kpis} series={pageSeries} rows={mensal as any[]} filtros={filters as any}>
       <div
         data-bi-comercial-theme
-        className="min-h-full -m-4 p-4 md:-m-6 md:p-6 transition-colors duration-300"
+        className="min-h-full -m-2 p-2 sm:-m-4 sm:p-4 md:-m-6 md:p-6 transition-colors duration-300"
         style={{
           background: theme.pageBackground,
           ['--bi-primary' as any]: theme.primary,
