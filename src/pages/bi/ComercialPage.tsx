@@ -309,6 +309,7 @@ export default function ComercialPage() {
   const estados = qEstado.data ?? [];
   const revendaRows = qRevenda.data ?? [];
   const obrasRows = qObras.data ?? [];
+  const detalhes = qDetalhes.data ?? [];
 
 
   const dadosCombo = useMemo(
