@@ -19,7 +19,10 @@ import {
   ScatterChartCard, HeatmapChartCard, WaterfallChartCard, CalendarHeatmapCard,
   BrazilMapCard,
   BrazilStateMapWidget,
-  
+} from '@/components/bi';
+import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
+import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
+import {
   TreeView,
   Timeline,
   DataTableBI, ChartCardShell,
@@ -28,6 +31,7 @@ import {
   type Column,
   type BiStatus,
 } from '@/components/bi';
+
 import type { PageDataSchema } from './pageRegistry';
 import type { WidgetKind } from './pageRegistry';
 import { usePageData } from './PageDataContext';
@@ -95,6 +99,26 @@ function BrazilStateMapRegistryHost({ title }: { title?: string }) {
   return (
     <BrazilStateMapWidget
       title={title || 'Faturamento por Estado'}
+      filters={{
+        anomes_ini: String(filtros.anomes_ini ?? ''),
+        anomes_fim: String(filtros.anomes_fim ?? ''),
+        unidade_negocio: (filtros.unidade_negocio ?? 'CONSOLIDADO') as any,
+        ...filtros,
+      }}
+    />
+  );
+}
+
+/**
+ * Host do `brazil-heat-map-comercial`: heatmap geográfico do BI Comercial
+ * usando os filtros expostos pelo PageDataContext da página alvo.
+ */
+function BrazilHeatMapComercialHost({ title }: { title?: string }) {
+  const pd = usePageData();
+  const filtros = (pd?.filtros ?? {}) as any;
+  return (
+    <BrazilHeatMapWidget
+      title={title || 'Mapa de Calor — Faturamento por Estado'}
       filters={{
         anomes_ini: String(filtros.anomes_ini ?? ''),
         anomes_fim: String(filtros.anomes_fim ?? ''),
@@ -478,6 +502,48 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     inputs: [],
     autoMap: () => ({}),
     render: ({ title }) => <BrazilStateMapRegistryHost title={title} />,
+  },
+  {
+    id: 'brazil-heat-map',
+    kind: 'chart',
+    label: 'Mapa de Calor Brasil (UF)',
+    description: 'Mapa coroplético do Brasil por Estado, baseado em série {uf, valor}.',
+    defaultSpan: 2,
+    inputs: [{ key: 'series', label: 'Série (por UF)', source: 'series', required: true }],
+    autoMap: (s) => {
+      const pref = s.series?.find((x) => /estado|uf/i.test(x.key))?.key;
+      return { series: pref ?? s.series?.[0]?.key ?? '' };
+    },
+    render: ({ title, mapping, ctx }) => {
+      const arr = SERIES_LIKE(ctx.series?.[mapping.series]);
+      const data = arr
+        .map((p: any) => {
+          const raw = String(p.uf ?? p.label ?? '').trim().toUpperCase();
+          const m = raw.match(/[A-Z]{2}/);
+          const uf = m ? m[0] : '';
+          return uf ? { uf, valor: Number(p.valor ?? 0), label: p.label } : null;
+        })
+        .filter(Boolean) as { uf: string; valor: number; label?: string }[];
+      const onClick = makeClickHandler(ctx, mapping.series);
+      return (
+        <BrazilHeatMap
+          title={title || mapping.series}
+          data={data}
+          valueFormatter={formatterForSeriesKey(mapping.series)}
+          onStateClick={onClick ? (uf, d) => onClick({ label: uf, valor: d?.valor ?? 0 }) : undefined}
+        />
+      );
+    },
+  },
+  {
+    id: 'brazil-heat-map-comercial',
+    kind: 'chart',
+    label: 'Mapa de Calor Brasil — Comercial',
+    description: 'Heatmap por UF do BI Comercial usando filtros da página.',
+    defaultSpan: 2,
+    inputs: [],
+    autoMap: () => ({}),
+    render: ({ title }) => <BrazilHeatMapComercialHost title={title} />,
   },
   {
     id: 'treemap-chart',
