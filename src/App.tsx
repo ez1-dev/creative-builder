@@ -54,6 +54,7 @@ import EtlTarefaDetalhePage from "@/pages/EtlTarefaDetalhePage";
 import FaturamentoValidacaoPage from "@/pages/bi/FaturamentoValidacaoPage";
 import ComercialPage from "@/pages/bi/ComercialPage";
 import MetasFaturamentoPage from "@/pages/bi/MetasFaturamentoPage";
+import RelatorioExecutivoFaturamentoPage from "@/pages/bi/RelatorioExecutivoFaturamentoPage";
 import BalancoPatrimonialPage from "@/pages/contabilidade/BalancoPatrimonialPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
