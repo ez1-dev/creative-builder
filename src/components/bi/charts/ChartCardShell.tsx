@@ -94,14 +94,14 @@ export function ChartCardShell({
               {vc.title.visible && (
                 <CardTitle
                   className="flex items-center gap-2 font-semibold"
-                  style={{ fontSize: vc.title.fontSize }}
+                  style={{ fontSize: vc.title.fontSize, fontFamily: fontFamilyCss(vc.title.fontFamily) }}
                 >
                   {icon && <span className="text-muted-foreground">{icon}</span>}
                   {displayTitle}
                 </CardTitle>
               )}
               {vc.subtitle.visible && displaySubtitle && (
-                <p className="text-muted-foreground" style={{ fontSize: vc.subtitle.fontSize }}>
+                <p className="text-muted-foreground" style={{ fontSize: vc.subtitle.fontSize, fontFamily: fontFamilyCss(vc.subtitle.fontFamily) }}>
                   {displaySubtitle}
                 </p>
               )}
