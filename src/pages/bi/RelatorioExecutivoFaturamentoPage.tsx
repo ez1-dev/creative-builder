@@ -207,24 +207,20 @@ export default function RelatorioExecutivoFaturamentoPage() {
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Início (AAAAMM)</Label>
-                    <Input
-                      className="w-32"
-                      value={filtros.anomes_ini}
-                      onChange={(e) => setFiltros({ ...filtros, anomes_ini: e.target.value })}
-                      maxLength={6}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fim (AAAAMM)</Label>
-                    <Input
-                      className="w-32"
-                      value={filtros.anomes_fim}
-                      onChange={(e) => setFiltros({ ...filtros, anomes_fim: e.target.value })}
-                      maxLength={6}
-                    />
-                  </div>
+                  <AnomesSelect
+                    label="Início"
+                    value={filtros.anomes_ini}
+                    onChange={(v) => setFiltros({ ...filtros, anomes_ini: v })}
+                    className="w-44"
+                    compact={false}
+                  />
+                  <AnomesSelect
+                    label="Fim"
+                    value={filtros.anomes_fim}
+                    onChange={(v) => setFiltros({ ...filtros, anomes_fim: v })}
+                    className="w-44"
+                    compact={false}
+                  />
                 </div>
               </div>
             </section>

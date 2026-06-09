@@ -1215,18 +1215,20 @@ export default function ComercialPage() {
                     onChange={(v) => setDraft({ ...draft, unidade_negocio: v as UnidadeNegocio })}
                     options={UNIDADES.map((u) => ({ value: u, label: u }))} />
                 </div>
-                <div className="w-full sm:min-w-[140px] sm:flex-1">
-                  <Label htmlFor="anomes_ini" className="text-xs">AnoMês Início</Label>
-                  <Input id="anomes_ini" name="anomes_ini" className="h-8 text-xs" value={draft.anomes_ini} placeholder="202601"
-                    onChange={(e) => setDraft({ ...draft, anomes_ini: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
-                </div>
-                <div className="w-full sm:min-w-[140px] sm:flex-1">
-                  <Label htmlFor="anomes_fim" className="text-xs">AnoMês Fim</Label>
-                  <Input id="anomes_fim" name="anomes_fim" className="h-8 text-xs" value={draft.anomes_fim} placeholder="202606"
-                    onChange={(e) => setDraft({ ...draft, anomes_fim: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && aplicarFiltrosBase()} />
-                </div>
+                <AnomesSelect
+                  id="anomes_ini"
+                  label="AnoMês Início"
+                  value={draft.anomes_ini}
+                  onChange={(v) => setDraft({ ...draft, anomes_ini: v })}
+                  className="w-full sm:min-w-[180px] sm:flex-1"
+                />
+                <AnomesSelect
+                  id="anomes_fim"
+                  label="AnoMês Fim"
+                  value={draft.anomes_fim}
+                  onChange={(v) => setDraft({ ...draft, anomes_fim: v })}
+                  className="w-full sm:min-w-[180px] sm:flex-1"
+                />
                 <Button size="sm" className="h-8 w-full sm:w-auto" onClick={aplicarFiltrosBase}>Aplicar</Button>
               </FilterBar>
             </div>
