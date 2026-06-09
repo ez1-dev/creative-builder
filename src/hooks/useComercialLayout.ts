@@ -59,7 +59,7 @@ export const COMERCIAL_DEFAULT_WIDGETS: ComercialWidget[] = [
   { id: 'estados',         type: 'estados',         title: 'Top estados',               position: 10, layout: { x: 0, y: 14, w: 6, h: 8 }, variant: 'map' },
   { id: 'revendas',        type: 'revendas',        title: 'Ranking de revendas',       position: 11, layout: { x: 6, y: 14, w: 6, h: 8 }, variant: 'ranking' },
   { id: 'obras',           type: 'obras',           title: 'Faturamento por obra',      position: 12, layout: { x: 0, y: 22, w: 12, h: 8 },variant: 'treemap' },
-  { id: 'table-mensal',    type: 'table-mensal',    title: 'Tabela mensal',             position: 13, layout: { x: 0, y: 30, w: 12, h: 10 },variant: 'table' },
+  { id: 'table-mensal',    type: 'table-mensal',    title: 'Detalhamento por Nota Fiscal', position: 13, layout: { x: 0, y: 30, w: 12, h: 10 },variant: 'table' },
 ];
 
 export type ComercialLayoutMode = 'official' | 'personal';
