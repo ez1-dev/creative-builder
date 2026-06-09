@@ -400,7 +400,21 @@ export default function ComercialPage() {
   };
   const onClickMensal = (d: any) => {
     const ctx = extractDrillCtx(d, 'MENSAL');
-    applyCtxAsCrossFilter(ctx);
+    const anomes = cleanDrillValue(ctx.anomes_emissao) ?? cleanDrillValue(d?.anomes_emissao) ?? cleanDrillValue(d?.label);
+    if (!anomes) {
+      applyCtxAsCrossFilter(ctx);
+      return;
+    }
+    const isSameMonth = filters.anomes_ini === anomes && filters.anomes_fim === anomes;
+    if (isSameMonth) {
+      // toggle off: restaura a janela do filtro do topo
+      setBase({ anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim });
+      removeDrill('anomes_emissao');
+    } else {
+      // reescopa a janela base para o mês clicado (KPIs e meta passam a refletir o mês)
+      setBase({ anomes_ini: String(anomes), anomes_fim: String(anomes) });
+      removeDrill('anomes_emissao');
+    }
   };
   const onClickMix = (d: any) => {
     const map = drillFromMixCategoria(d?.categoria ?? d?.label ?? d?.name ?? '');
