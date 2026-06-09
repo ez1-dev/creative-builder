@@ -17,6 +17,7 @@ import {
   GaugeChartCard, ProgressChartCard,
   TreemapChartCard, RadarChartCard, ScatterChartCard, HeatmapChartCard,
   WaterfallChartCard, FunnelChartCard, SparklineCard, CalendarHeatmapCard,
+  BrazilMapCard,
   // tree
   TreeView,
   // tables
@@ -480,6 +481,23 @@ export default function BiComponentsDemoPage() {
                       { name: 'Pedidos', value: 240 },
                       { name: 'Recebidas', value: 180 },
                     ]} />
+                </WithApply>
+                <WithApply componentId="brazil-map">
+                  <BrazilMapCard
+                    title="Faturamento por UF"
+                    subtitle="Cartograma — intensidade por valor"
+                    valueFormatter={formatCurrency}
+                    data={[
+                      { uf: 'SP', valor: 2_450_000, label: 'São Paulo' },
+                      { uf: 'RJ', valor: 1_180_000, label: 'Rio de Janeiro' },
+                      { uf: 'MG', valor: 980_000, label: 'Minas Gerais' },
+                      { uf: 'RS', valor: 760_000, label: 'Rio Grande do Sul' },
+                      { uf: 'PR', valor: 640_000, label: 'Paraná' },
+                      { uf: 'BA', valor: 520_000, label: 'Bahia' },
+                      { uf: 'SC', valor: 480_000, label: 'Santa Catarina' },
+                      { uf: 'CE', valor: 310_000, label: 'Ceará' },
+                    ]}
+                  />
                 </WithApply>
                 <WithApply componentId="heatmap-chart">
                   <HeatmapChartCard title="Compras por dia × hora"

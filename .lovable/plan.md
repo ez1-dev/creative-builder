@@ -1,24 +1,20 @@
-## Mapa do Brasil na Biblioteca BI
+## Adicionar Mapa do Brasil ao showcase `/bi-components-demo`
 
-O componente `BrazilMapCard` já existe em `src/components/bi/charts/BrazilMapCard.tsx` (cartograma com as 27 UFs, intensidade por valor, click-to-drill), mas só é usado direto na página `/bi/comercial`. Ele não está registrado no `componentRegistry`, então não aparece em `/biblioteca-bi` nem pode ser aplicado como widget pelo usuário.
+O `BrazilMapCard` já está registrado em `componentRegistry.tsx` e aparece em `/biblioteca-bi`, mas o catálogo visual hard-coded em `src/pages/BiComponentsDemoPage.tsx` não o renderiza. Esta é a razão de ele estar "faltando" no preview de gráficos.
 
-### O que fazer
+### Mudança
 
-Adicionar uma entrada nova no `src/lib/bi/componentRegistry.tsx`:
+**Arquivo:** `src/pages/BiComponentsDemoPage.tsx`
 
-- `id: 'brazil-map'`
-- `kind: 'chart'`
-- `label: 'Mapa do Brasil'`
-- `defaultSpan: 2`
-- `inputs`: uma série (`series`, obrigatória) — espera itens cuja `label` (ou campo `uf`) seja a sigla da UF.
-- `autoMap`: pega a primeira série disponível, preferindo as cujo `key` contenha `estado` ou `uf`.
-- `render`: usa `SERIES_LIKE`, mapeia cada ponto para `{ uf: <sigla 2 letras extraída de p.uf|p.label>, valor: p.valor, label: p.label }`, e renderiza `<BrazilMapCard data={...} valueFormatter={formatterForSeriesKey(mapping.series)} onItemClick={makeClickHandler(ctx, mapping.series)} />`.
-- Importar `BrazilMapCard` no bloco de imports `from '@/components/bi'` (já está exportado pelo barrel).
-
-Extração da UF: se `p.uf` existir usa direto; senão tenta os 2 primeiros caracteres alfabéticos de `p.label` (ex.: "SP - São Paulo" → "SP"). Itens sem UF reconhecida ficam fora do mapa (cinza).
+1. Incluir `BrazilMapCard` no import barrel `@/components/bi`.
+2. Criar mock estático com ~8 UFs (SP, RJ, MG, RS, PR, BA, SC, CE) com valores fictícios em reais.
+3. Inserir novo bloco dentro do `<ChartGrid>` envolvido por `<WithApply componentId="brazil-map">`, posicionado após o `FunnelChartCard` e antes do `HeatmapChartCard`, com:
+   - `title="Faturamento por UF"`
+   - `subtitle="Cartograma — intensidade por valor"`
+   - `valueFormatter={formatCurrency}`
 
 ### Fora de escopo
 
-- Não mexer em `BrazilMapCard.tsx` em si.
-- Não mexer no `visualCatalog` (controle de permissões por gráfico) — pode ser feito depois se o usuário quiser uma chave dedicada para esse mapa.
-- Não criar mapa por município/região (só UF, igual ao componente atual).
+- Não alterar `BrazilMapCard.tsx`, `componentRegistry.tsx` ou `visualCatalog.ts`.
+- Não mexer na seção "Estados visuais" (LoadingState, ErrorState, etc.) — está correta.
+- Sem nova permissão dedicada agora (pode ser adicionada depois se necessário).
