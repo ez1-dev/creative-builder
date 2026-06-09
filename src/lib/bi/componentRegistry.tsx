@@ -19,6 +19,11 @@ import {
   ScatterChartCard, HeatmapChartCard, WaterfallChartCard, CalendarHeatmapCard,
   BrazilMapCard,
   BrazilStateMapWidget,
+} from '@/components/bi';
+import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
+import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
+import {
+  
   
   TreeView,
   Timeline,
