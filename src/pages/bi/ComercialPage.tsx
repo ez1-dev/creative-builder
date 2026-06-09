@@ -204,7 +204,7 @@ export default function ComercialPage() {
   const qEstado  = useQuery({ queryKey: ['bi-comercial','estado',filters],  queryFn: () => fetchComercialEstado(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
-  const qDetalhes= useQuery({ queryKey: ['bi-comercial','detalhes',filters],queryFn: () => fetchComercialDetalhes(filters, { escopo: 'todas', limit: 5000 }), refetchOnWindowFocus: false, retry: 1 });
+  const qDetalhes= useQuery({ queryKey: ['bi-comercial','detalhes',filters],queryFn: () => fetchComercialDetalhes(filters, { escopo: 'todas', maxRows: 5000 }), refetchOnWindowFocus: false, retry: 1 });
 
   const aplicarFiltrosBase = () => {
     setBase({ ...draft });
