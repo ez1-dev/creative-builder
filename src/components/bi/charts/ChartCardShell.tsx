@@ -12,6 +12,7 @@ import {
   mergeVisualConfig,
   interpolateDescription,
   densitySpacing,
+  fontFamilyCss,
 } from '@/lib/bi/visualConfig';
 import { cn } from '@/lib/utils';
 
