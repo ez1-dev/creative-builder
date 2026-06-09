@@ -12,6 +12,53 @@ export type TitleAlign = 'left' | 'center' | 'right';
 export type ResultDescriptionPosition = 'above' | 'below' | 'beforeLegend' | 'afterChart';
 export type CardDensity = 'compacta' | 'normal' | 'detalhada';
 
+export type FontFamilyKey =
+  | 'default'
+  | 'serif'
+  | 'mono'
+  | 'inter'
+  | 'roboto'
+  | 'poppins'
+  | 'nunito'
+  | 'montserrat'
+  | 'source-sans-3'
+  | 'roboto-mono'
+  | 'ibm-plex-serif';
+
+export const FONT_FAMILY_OPTIONS: { value: FontFamilyKey; label: string }[] = [
+  { value: 'default',        label: 'Padrão (do app)' },
+  { value: 'serif',          label: 'Serif' },
+  { value: 'mono',           label: 'Monospace' },
+  { value: 'inter',          label: 'Inter' },
+  { value: 'roboto',         label: 'Roboto' },
+  { value: 'poppins',        label: 'Poppins' },
+  { value: 'nunito',         label: 'Nunito' },
+  { value: 'montserrat',     label: 'Montserrat' },
+  { value: 'source-sans-3',  label: 'Source Sans 3' },
+  { value: 'roboto-mono',    label: 'Roboto Mono' },
+  { value: 'ibm-plex-serif', label: 'IBM Plex Serif' },
+];
+
+const FONT_FAMILY_STACKS: Record<FontFamilyKey, string | undefined> = {
+  'default':        undefined,
+  'serif':          'Georgia, "Times New Roman", serif',
+  'mono':           'ui-monospace, Menlo, Consolas, "Liberation Mono", monospace',
+  'inter':          '"Inter", system-ui, sans-serif',
+  'roboto':         '"Roboto", system-ui, sans-serif',
+  'poppins':        '"Poppins", system-ui, sans-serif',
+  'nunito':         '"Nunito", system-ui, sans-serif',
+  'montserrat':     '"Montserrat", system-ui, sans-serif',
+  'source-sans-3':  '"Source Sans 3", system-ui, sans-serif',
+  'roboto-mono':    '"Roboto Mono", ui-monospace, monospace',
+  'ibm-plex-serif': '"IBM Plex Serif", Georgia, serif',
+};
+
+/** Retorna CSS font-family ou undefined para herdar do app. */
+export function fontFamilyCss(key?: FontFamilyKey | null): string | undefined {
+  if (!key || key === 'default') return undefined;
+  return FONT_FAMILY_STACKS[key];
+}
+
 export interface VisualConfig {
   title: {
     visible: boolean;
