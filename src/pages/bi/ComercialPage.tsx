@@ -194,23 +194,12 @@ export default function ComercialPage() {
   const qEstado  = useQuery({ queryKey: ['bi-comercial','estado',filters],  queryFn: () => fetchComercialEstado(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
-  const qMetaCloud = useQuery({
-    queryKey: ['bi-comercial','meta-cloud', filters.anomes_ini, filters.anomes_fim, filters.unidade_negocio],
-    queryFn: () => fetchMetaCloudTotal({
-      anomes_ini: filters.anomes_ini,
-      anomes_fim: filters.anomes_fim,
-      unidade_negocio: filters.unidade_negocio,
-    }),
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
 
   const aplicarFiltrosBase = () => setBase({ ...draft });
   const atualizar = () => {
     qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
     if (qObras.isFetched || unidade !== 'GENIUS') qObras.refetch();
-    qMetaCloud.refetch();
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
 
