@@ -34,11 +34,10 @@ export interface ComercialKpis {
   preco_medio: number | null;
   // Fallbacks opcionais que a API pode devolver (mapeados no card Resumo Faturamento)
   faturamento_liquido?: number | null;
-  vl_realizado?: number | null;
   realizado?: number | null;
   vl_meta?: number | null;
-  total_meta?: number | null;
 }
+
 
 export interface ComercialMensalRow {
   anomes_emissao: string;
