@@ -273,7 +273,6 @@ export default function ComercialPage() {
       } else {
         const linhas = r.data?.linhas_resumo ?? r.data?.linhas_detalhe ?? 0;
         toast.success(`Metas sincronizadas (${linhas} linhas).`, { id: tId });
-        await qMetaCloud.refetch();
         await qKpis.refetch();
       }
     } catch (e: any) {
