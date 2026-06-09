@@ -1,44 +1,44 @@
-# Formatar eixo X do gráfico "Faturamento mensal x Meta"
+## Objetivo
 
-## Problema
+Adicionar um quarto modo de arredondamento global do BI: **"Milhões (MI)"**, que força todos os valores monetários e numéricos a serem exibidos em milhões com 3 casas decimais (ex.: `378.245` → `R$ 0,378 mi`, `1.400.000` → `R$ 1,400 mi`).
 
-No gráfico `Faturamento mensal x Meta` do BI Comercial, o eixo X mostra o `anomes_emissao` cru:
-`202601, 202602, 202603, 202604, 202605, 202606`.
+O modo é opcional — o usuário escolhe no toggle existente, junto com Completo / Sem decimais / Abreviado.
 
-O usuário quer ver o nome do mês: `Janeiro, Fevereiro, Março, Abril, Maio, Junho`.
+## Mudanças
 
-## Diagnóstico
+### 1. `src/lib/bi/numberFormatMode.ts`
+- Adicionar `'millions'` ao tipo `NumberRoundingMode`.
+- `NUMBER_ROUNDING_LABEL.millions = 'Milhões (MI)'`.
+- `NUMBER_ROUNDING_DESC.millions = 'R$ 0,378 mi'`.
 
-Em `src/pages/bi/ComercialPage.tsx`:
+### 2. `src/components/bi/utils/formatters.ts`
+- Criar helper interno `formatMillions(value, currency)` → divide por 1.000.000 e formata com 3 casas decimais pt-BR; sufixo ` mi`, prefixo `R$ ` se `currency`.
+- Em `formatCurrency`: se `mode === 'millions'` → `formatMillions(v, true)`.
+- Em `formatNumber`: se `mode === 'millions'` → `formatMillions(v, false)`.
+- Em `formatQuantity`: se `mode === 'millions'` → mesma escala (suffix preservado).
+- `formatPercent` continua intocado (regra existente).
 
-- Linha 327: `mensal.map((m) => ({ label: m.anomes_emissao, faturamento: ..., meta: ... }))` — alimenta o widget legado.
-- Linha 633: `mensal.map((m) => ({ ...m, label: m.anomes_emissao }))` — alimenta o `ComboChartCard` (que é o widget visível na imagem, `serie-mensal` variant `combo`).
+### 3. Eixos / ticks dos gráficos
+- `src/components/bi/utils/chartHelpers.ts`: `tickCurrencyAbbrev` hoje sempre abrevia. Tornar consciente do modo: quando `millions`, retornar `R$ X,XXX mi` (3 casas). Demais modos: comportamento atual preservado.
 
-O `label` é usado como categoria do eixo X. Hoje vai como string `YYYYMM`.
+### 4. Toggle UI
+- `src/components/bi/runtime/NumberRoundingToggle.tsx`: nenhum hardcode — itera sobre `NUMBER_ROUNDING_LABEL`, então o novo modo aparece automaticamente. Verificar e confirmar.
 
-## Solução
+### 5. Persistência da preferência
+- `src/hooks/useBiDisplayPrefs.ts`: já salva strings genéricas; basta validar que `'millions'` é aceito (sem allowlist restritiva). Ajustar se houver enum guard.
 
-1. Criar helper local `formatAnomesMes(anomes: string): string` em `ComercialPage.tsx` (ou reusar de `src/lib/format.ts` se já houver — verificar e criar lá se fizer mais sentido). Mapeia `'YYYYMM'` → nome do mês em PT-BR.
-   - Convenção: usar capitalizado completo (`Janeiro`, `Fevereiro`, …, `Dezembro`).
-   - Quando o período abrange mais de um ano civil, sufixar com `/AA` (ex.: `Dez/25`) para não confundir; quando só um ano, mostra apenas o nome do mês.
-   - Fallback: se entrada inválida, devolve a string original.
+## Fora de escopo
 
-2. Aplicar o formatter ao montar `label` nas duas linhas (327 e 633) do `ComercialPage.tsx`.
+- Backend / API / contratos de drill.
+- Tabelas e drills do BI (continuam respeitando o modo global como hoje — vão herdar automaticamente via `formatCurrency`).
+- Formatadores de `src/lib/format.ts` (legacy, fora da biblioteca BI).
+- `formatPercent` continua sem modo.
 
-3. NÃO alterar:
-   - Backend / API / contrato.
-   - Tabela mensal (colunas `Ano/Mês` continuam `YYYYMM`).
-   - Drill (`handleClickMensal` continua usando `anomes` via `normalizeAnomes`; o campo `label` não é usado como filtro técnico).
-   - Outros widgets/gráficos.
+## Validação
 
-## Arquivos afetados
-
-- `src/pages/bi/ComercialPage.tsx` — adicionar helper e aplicar nos dois `label`.
-
-## Critério de aceite
-
-- Eixo X do "Faturamento mensal x Meta" mostra `Janeiro, Fevereiro, Março, Abril, Maio, Junho` em vez de `202601…202606`.
-- Tooltip do gráfico mostra o mesmo label legível.
-- Clique no mês continua abrindo o drill correto (drilldown mensal não quebra).
-- Tabela mensal e demais widgets inalterados.
-- Sem erros de console.
+1. Ir em `/bi/comercial`, selecionar "Milhões (MI)" no toggle.
+2. KPIs mostram `R$ 0,378 mi` em vez de `R$ 378.245`.
+3. Gráfico "Faturamento mensal x Meta": eixo Y em `R$ 0,500 mi`, `R$ 1,000 mi`; tooltip e labels coerentes.
+4. Treemap "Faturamento Estado": rótulos em `mi`.
+5. Trocar para "Completo" / "Abreviado" / "Sem decimais" — comportamento anterior preservado.
+6. Sem erros de console; preferência persiste após reload.
