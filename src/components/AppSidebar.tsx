@@ -50,6 +50,7 @@ const modules = [
 const biSubItems = [
   { title: 'BI Comercial', url: '/bi/comercial', icon: BarChart3 },
   { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
+  { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileCheck },
   { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
   { title: 'Central ETL', url: '/etl', icon: Database },
