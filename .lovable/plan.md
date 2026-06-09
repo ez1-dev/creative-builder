@@ -1,39 +1,29 @@
-# Ajustar layout dos rótulos do AnomesSelect
-
 ## Problema
-Hoje o `AnomesSelect` mostra apenas um rótulo único acima dos dois selects (Mês e Ano), e a string "AnoMês" sai grudada. O usuário quer:
-1. Cada select com seu próprio rótulo logo acima ("Mês" acima do select de mês, "Ano" acima do select de ano).
-2. Um título de grupo legível ("Período inicial" / "Período final") em cima de tudo.
 
-## Mudança
+Ao clicar numa barra do gráfico **Faturamento mensal x Meta**, o cross-filter aplica apenas `anomes_emissao = AAAA-MM` em `filters`. Os endpoints `/api/bi/comercial/kpis` e `/api/bi/comercial/mensal` recalculam **faturamento** com esse filtro, mas o valor de **meta** (KPI agregado e linha do combo) continua refletindo o intervalo `anomes_ini..anomes_fim` original — por isso a meta não muda quando o usuário "fatia" um único mês no clique.
 
-### `src/components/bi/comercial/AnomesSelect.tsx`
-Reformatar o render:
+## Solução (frontend, escopo mínimo)
 
-```
-[ Label de grupo: "Período inicial" ]
-[ Mês ]   [ Ano ]
-[Janeiro▼] [2026▼]
-```
+Quando o cross-filter for por **mês específico** (chave `anomes_emissao`), reduzir também a janela base para esse mês, garantindo que toda a página (KPIs, meta, linha de meta no combo, mix, estado, revenda, obras) fique no mesmo recorte temporal.
 
-- Manter `Label` principal (opcional, vindo da prop `label`) acima de tudo, em `text-xs font-medium text-muted-foreground`.
-- Acima de cada `Select`, adicionar um pequeno `Label` ("Mês" e "Ano") em `text-[10px] uppercase tracking-wide text-muted-foreground`.
-- Estrutura por coluna: `<div className="flex flex-col gap-1"><Label>Mês</Label><Select.../></div>`.
-- Manter o grid `grid-cols-[1fr_88px] gap-2` para o par de selects.
+### Alterações em `src/pages/bi/ComercialPage.tsx`
 
-### `src/pages/bi/ComercialPage.tsx`
-Trocar as labels do grupo para evitar "AnoMês":
-- `label="Período — De"` → `label="Período inicial"`
-- `label="Período — Até"` → `label="Período final"`
+1. **`onClickMensal`** (linha ~401): em vez de só chamar `applyCtxAsCrossFilter`, fazer:
+   - extrair `anomes = d.anomes_emissao` (ou via `extractDrillCtx(d, 'MENSAL').anomes_emissao`);
+   - se `anomes` igual ao filtro atual `anomes_ini === anomes_fim === anomes` → **toggle off**: restaurar `anomes_ini/anomes_fim` ao `draft` (período do filtro do topo) e remover o drill `anomes_emissao`;
+   - caso contrário: `setBase({ anomes_ini: anomes, anomes_fim: anomes })` e `removeDrill('anomes_emissao')` (não precisa do drill — a meta passa a ser a do mês porque a janela base é o próprio mês).
 
-### `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`
-- `label="Início"` → `label="Período inicial"`
-- `label="Fim"`    → `label="Período final"`
+2. **Chips** continuam funcionando para os demais drills; o mês selecionado aparece naturalmente no card "Período" (já que `anomes_ini = anomes_fim`).
 
-## Fora do escopo
-- `MetasFaturamentoPage` (diálogo de cadastro single — já usa label "Anomês" do `<Label>` externo). Sem alteração.
+3. Nenhuma mudança em `applyCtxAsCrossFilter`, `toggleDrill`, ou nos demais handlers (estado, revenda, mix, obra) — eles continuam usando drill key.
 
-## Critério de aceite
-- Bloco de filtros mostra "Período inicial" no topo, e logo abaixo dois selects com mini-rótulos "Mês" e "Ano".
-- Equivalente para "Período final".
-- Sem a string "AnoMês" colada em lugar nenhum.
+### Acceptance criteria
+
+- Clicar em uma barra mensal: KPIs (Faturamento, Meta, Diferença, % Atingimento) e a linha de Meta do combo passam a refletir somente aquele mês.
+- Clicar novamente na mesma barra: período volta ao intervalo original do filtro do topo.
+- Demais cliques (estado, revenda, mix, obra) continuam usando o cross-filter por drill key, sem alterar a janela `anomes_ini/anomes_fim`.
+
+## Fora de escopo
+
+- Ajustes no backend FastAPI (não necessário com esta abordagem).
+- Mudanças visuais no chart ou nos chips.
