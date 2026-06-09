@@ -443,6 +443,7 @@ export default function ComercialPage() {
   const [editing, setEditing] = useState(false);
   const [configType, setConfigType] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [previewSeriesKey, setPreviewSeriesKey] = useState<string | null>(null);
   const customMetrics = useCustomMetrics(PAGE_KEY);
   const [hiddenSeries, setHiddenSeries] = useState<Record<string, Set<number>>>({});
 
@@ -455,8 +456,9 @@ export default function ComercialPage() {
       const s = (w as any)?.mapping?.series;
       if (typeof s === 'string' && s.length > 0) keys.add(s);
     });
+    if (previewSeriesKey) keys.add(previewSeriesKey);
     return Array.from(keys);
-  }, [layout.widgets]);
+  }, [layout.widgets, previewSeriesKey]);
 
   const drillSeries = useComercialDrillSeries({
     seriesKeys: referencedSeriesKeys,
@@ -1354,11 +1356,13 @@ export default function ComercialPage() {
         />
       )}
       <AddBiWidgetDialog
-        open={addOpen} onOpenChange={setAddOpen}
+        open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (!v) setPreviewSeriesKey(null); }}
         presentTypes={presentTypes}
         onAdd={handleAdd}
         kpis={kpis} series={pageSeries} rows={mensal as any[]}
+        onPreviewSeriesChange={setPreviewSeriesKey}
       />
+
 
       {/* Drawer de drill multinível */}
       <ComercialDrillDrawer

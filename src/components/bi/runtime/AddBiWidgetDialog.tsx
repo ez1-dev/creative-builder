@@ -40,9 +40,12 @@ interface Props {
   kpis?: Record<string, any>;
   series?: Record<string, any>;
   rows?: any[];
+  /** Notifica a página da série atualmente selecionada na aba "Biblioteca" para que ela
+   *  dispare o fetch lazy correspondente e a pré-visualização tenha dados. */
+  onPreviewSeriesChange?: (key: string | null) => void;
 }
 
-export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpis, series, rows }: Props) {
+export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpis, series, rows, onPreviewSeriesChange }: Props) {
   const uid = useId();
   const idCatalogBlock = `${uid}-catalog-block`;
   const idCatalogTitle = `${uid}-catalog-title`;
@@ -77,6 +80,24 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
 
   const libDef = useMemo(() => getComponent(componentId), [componentId]);
   const inputs = libDef?.inputs ?? [];
+  const libUsesSeries = inputs.some((i) => i.source === 'series');
+
+  // Notifica a página da série em preview para disparar fetch lazy (drill-backed).
+  useEffect(() => {
+    if (!onPreviewSeriesChange) return;
+    if (open && tab === 'library' && libUsesSeries && seriesKey) {
+      onPreviewSeriesChange(seriesKey);
+    } else {
+      onPreviewSeriesChange(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, libUsesSeries, seriesKey]);
+
+  useEffect(() => {
+    if (!open && onPreviewSeriesChange) onPreviewSeriesChange(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
 
   const previewNode = useMemo(() => {
     if (tab !== 'library' || !libDef) return null;
