@@ -412,20 +412,30 @@ export default function ComercialPage() {
   };
   const onClickMensal = (d: any) => {
     const ctx = extractDrillCtx(d, 'MENSAL');
-    const anomes = cleanDrillValue(ctx.anomes_emissao) ?? cleanDrillValue(d?.anomes_emissao) ?? cleanDrillValue(d?.label);
-    if (!anomes) {
+    const raw =
+      d?.anomes_emissao ?? d?.anomes ?? d?.mes ?? ctx.anomes_emissao ?? d?.label ?? null;
+    const anomes = normalizeAnomes(raw);
+
+    console.log('Clique mensal:', d);
+    console.log('Anomes selecionado:', anomes);
+    console.log('Base antes:', { anomes_ini: filters.anomes_ini, anomes_fim: filters.anomes_fim });
+
+    if (anomes.length !== 6) {
       applyCtxAsCrossFilter(ctx);
       return;
     }
+
     const isSameMonth = filters.anomes_ini === anomes && filters.anomes_fim === anomes;
     if (isSameMonth) {
-      // toggle off: restaura a janela do filtro do topo
-      setBase({ anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim });
+      // toggle off: restaura o último período aplicado no topo
+      const restore = periodoTopoAplicadoRef.current;
+      setBase({ anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
       removeDrill('anomes_emissao');
+      console.log('Base depois:', { anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
     } else {
-      // reescopa a janela base para o mês clicado (KPIs e meta passam a refletir o mês)
-      setBase({ anomes_ini: String(anomes), anomes_fim: String(anomes) });
+      setBase({ anomes_ini: anomes, anomes_fim: anomes });
       removeDrill('anomes_emissao');
+      console.log('Base depois:', { anomes_ini: anomes, anomes_fim: anomes });
     }
   };
   const onClickMix = (d: any) => {
