@@ -1356,11 +1356,13 @@ export default function ComercialPage() {
         />
       )}
       <AddBiWidgetDialog
-        open={addOpen} onOpenChange={setAddOpen}
+        open={addOpen} onOpenChange={(v) => { setAddOpen(v); if (!v) setPreviewSeriesKey(null); }}
         presentTypes={presentTypes}
         onAdd={handleAdd}
         kpis={kpis} series={pageSeries} rows={mensal as any[]}
+        onPreviewSeriesChange={setPreviewSeriesKey}
       />
+
 
       {/* Drawer de drill multinível */}
       <ComercialDrillDrawer
