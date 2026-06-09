@@ -3,10 +3,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MESES: { value: string; label: string }[] = [
-  { value: '01', label: 'Jan' }, { value: '02', label: 'Fev' }, { value: '03', label: 'Mar' },
-  { value: '04', label: 'Abr' }, { value: '05', label: 'Mai' }, { value: '06', label: 'Jun' },
-  { value: '07', label: 'Jul' }, { value: '08', label: 'Ago' }, { value: '09', label: 'Set' },
-  { value: '10', label: 'Out' }, { value: '11', label: 'Nov' }, { value: '12', label: 'Dez' },
+  { value: '01', label: 'Janeiro' },   { value: '02', label: 'Fevereiro' }, { value: '03', label: 'Março' },
+  { value: '04', label: 'Abril' },     { value: '05', label: 'Maio' },      { value: '06', label: 'Junho' },
+  { value: '07', label: 'Julho' },     { value: '08', label: 'Agosto' },    { value: '09', label: 'Setembro' },
+  { value: '10', label: 'Outubro' },   { value: '11', label: 'Novembro' },  { value: '12', label: 'Dezembro' },
 ];
 
 const ANO_INICIAL = 2022;
@@ -45,7 +45,7 @@ export function AnomesSelect({
   return (
     <div className={className}>
       {label && <Label htmlFor={id} className="text-xs">{label}</Label>}
-      <div className="grid grid-cols-2 gap-1">
+      <div className="grid grid-cols-[1fr_88px] gap-1">
         <Select value={mes} onValueChange={(v) => emit(ano, v)} disabled={disabled}>
           <SelectTrigger id={id} aria-label={label ? `${label} - mês` : 'Mês'} className={triggerCls}>
             <SelectValue />

@@ -1,39 +1,38 @@
-# Lista dinâmica de Mês e Ano nos filtros BI Comercial
+# Mês por extenso nos filtros do BI Comercial
 
-## Objetivo
-Substituir os inputs livres "AnoMês Início" e "AnoMês Fim" (formato `202601`) por dois `Select`s lado a lado em cada campo: **Mês** (Jan–Dez) e **Ano** (2022 até ano atual + 1). O valor enviado ao backend continua sendo `AAAAMM`, sem mudanças de contrato.
+## Contexto
+Os filtros AnoMês Início/Fim já foram convertidos em dois selects (Mês + Ano) no commit anterior, mas os meses estão abreviados (`Jan`, `Fev`, `Mar`…). O usuário quer ver os nomes por extenso (`Janeiro`, `Fevereiro`…).
 
-## Componente compartilhado
+A imagem em anexo ainda mostra os inputs antigos (`202601` / `202606`) — provavelmente o preview ainda não recarregou. Não é regressão; basta dar refresh para ver os selects que já estão no ar.
 
-Criar `src/components/bi/comercial/AnomesSelect.tsx`:
+## Mudança
 
-- Props: `label`, `value` (`string` AAAAMM), `onChange(next: string)`, `id?`.
-- Calcula `anoAtual = new Date().getFullYear()`; lista de anos = `[2022 ... anoAtual + 1]` em ordem decrescente.
-- Lista de meses fixa: `['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']` → valor `01..12`.
-- Faz parse defensivo do `value` (`YYYY` + `MM`); se inválido, default `anoAtual` + `01`.
-- Render: `<Label>` + grid `grid-cols-2 gap-1`, dois `<Select>` shadcn `h-8 text-xs`.
-- Ao mudar mês ou ano, emite `onChange(`${ano}${mes}`)`.
+### `src/components/bi/comercial/AnomesSelect.tsx`
+Trocar a constante `MESES` para nomes completos em PT-BR:
 
-## Locais a atualizar
+```ts
+const MESES = [
+  { value: '01', label: 'Janeiro' },
+  { value: '02', label: 'Fevereiro' },
+  { value: '03', label: 'Março' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Maio' },
+  { value: '06', label: 'Junho' },
+  { value: '07', label: 'Julho' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Setembro' },
+  { value: '10', label: 'Outubro' },
+  { value: '11', label: 'Novembro' },
+  { value: '12', label: 'Dezembro' },
+];
+```
 
-### 1. `src/pages/bi/ComercialPage.tsx`
-- Importar `AnomesSelect`.
-- **Bloco principal (linhas ~1219–1228):** substituir os dois `<Input>` por `<AnomesSelect label="AnoMês Início" value={draft.anomes_ini} onChange={(v)=>setDraft({...draft, anomes_ini:v})} />` e equivalente para `anomes_fim`.
-- **Subcomponente de filtros menor (linhas ~90–140, próximo do botão `Aplicar` em 135):** aplicar a mesma substituição.
-
-### 2. `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`
-- Localizar os inputs de `anomes_ini`/`anomes_fim` e substituí-los pelo `AnomesSelect`. Mantém o mesmo `draft`/`apply` existente.
-
-### 3. `src/pages/bi/MetasFaturamentoPage.tsx`
-- Mesma substituição nos inputs de filtro de período.
+Como o nome agora é mais longo, ajustar o grid de `grid-cols-2 gap-1` para `grid-cols-[1fr_88px] gap-1` (mês mais largo, ano fixo) para evitar truncamento em telas estreitas.
 
 ## Fora do escopo
-- Não alterar contrato/queries (`fetchComercial*`, edge functions): seguem recebendo `AAAAMM`.
-- Não criar endpoint dinâmico de anos disponíveis (range fixo 2022→ano+1 conforme decidido).
-- Sem mudança em drill drawer, IA, layouts ou demais telas.
+- Não mexer em `Comercial`, `Relatório Executivo` ou `Metas` — todos já consomem `AnomesSelect`, então a mudança propaga automaticamente.
+- Sem alteração de contrato (segue enviando `AAAAMM`).
 
 ## Critério de aceite
-- Em `/bi/comercial`, `/bi/comercial/relatorio-executivo` e `/bi/comercial/metas`, os campos AnoMês Início e Fim aparecem como dois selects (Mês + Ano).
-- Selecionar Mar/2026 grava `202603` no estado e envia ao backend.
-- Valor inicial reflete o `filters` atual; após "Aplicar", dashboards atualizam normalmente.
-- Anos listados: 2022 até `ano atual + 1`, ordem decrescente.
+- Filtros do BI Comercial mostram `Janeiro`, `Fevereiro`, …, `Dezembro` no dropdown de mês.
+- Selecionar "Março" + "2026" envia `202603` ao backend.
