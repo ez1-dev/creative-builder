@@ -47,6 +47,7 @@ export * from './layout/Timeline';
 export * from './kpis/KpiSparklineCard';
 export * from './kpis/KpiTargetCard';
 export * from './templates/ComprasDashboardTemplate';
+export * from './comercial/BrazilStateMapWidget';
 export * from './ai/ComponentSuggester';
 
 export * from './tables/DataTableBI';
