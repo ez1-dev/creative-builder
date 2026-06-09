@@ -1,132 +1,55 @@
 ## Objetivo
 
-1. Garantir que **todos os CSVs de drill do BI Comercial** saiam com vírgula decimal (padrão BR), preservando datas, períodos, códigos, NFs e textos.
-2. Adicionar um botão **"Excel"** (.xlsx) ao lado do botão CSV no `ComercialDrillDrawer`, exportando os mesmos dados visíveis.
+Nos exports CSV e Excel das drills do BI Comercial:
+1. Adicionar **coluna "Valor Líquido"** calculada no frontend.
+2. Adicionar **linha "TOTAL"** ao final, somando todas as colunas numéricas.
 
-Sem mudanças em backend, contrato de drill, modo Milhões ou separador de coluna.
+## Arquivo único afetado
 
----
+`src/lib/bi/comercialDrillApi.ts` — funções `downloadDrillCsv` e `downloadDrillXlsx`.
 
-## 1. `src/lib/bi/comercialDrillApi.ts` — corrigir `fmtCsvValue`
+(Sem alterações no `ComercialDrillDrawer.tsx`, no backend, na API ou no contrato de drill.)
 
-Substituir a função atual pela versão sugerida pelo usuário:
+## Mudanças
 
-```ts
-function isNumericString(value: string): boolean {
-  return /^-?\d+(\.\d+)?$/.test(value.trim());
-}
+### 1. Helper `withLiquidoAndTotals(resp)`
 
-function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
-  if (v == null) return '';
+Recebe `DrillResponse` e devolve `{ columns, rows }` enriquecidos:
 
-  if (typeof v === 'number') {
-    return Number.isFinite(v) ? String(v).replace('.', ',') : '';
-  }
+- **Coluna Valor Líquido**: se as linhas tiverem ao menos `valor_total` (e algum dos redutores `valor_devolucao`/`valor_impostos`/`valor_desconto`), insere logo após `valor_total` uma coluna `valor_liquido` (label "Valor Líquido", format `currency`).
+  - Fórmula por linha (mesma do `FaturamentoGeniusPage`):
+    ```
+    valor_liquido = (valor_total||0)
+                  - (valor_devolucao||0)
+                  - Math.abs(valor_impostos||0)
+                  - (valor_desconto||0)
+    ```
+  - Se o backend já enviar `valor_liquido` ou `fat_liquido`, usa o backend (não duplica).
 
-  if (format === 'currency' || format === 'number') {
-    const num = Number(v);
-    if (Number.isFinite(num)) return String(v).replace('.', ',');
-  }
+- **Linha TOTAL**: append de uma linha extra onde:
+  - 1ª coluna textual recebe `"TOTAL"`.
+  - Cada coluna `format: 'currency' | 'number'` recebe `SUM` da coluna (ignorando não-numéricos).
+  - Demais colunas ficam vazias.
 
-  const s = String(v);
+### 2. `downloadDrillCsv` e `downloadDrillXlsx`
 
-  if (isNumericString(s)) {
-    return s.replace('.', ',');
-  }
+Cada uma chama `withLiquidoAndTotals(resp)` antes de gerar o arquivo e usa os `columns`/`rows` retornados. Mantém:
+- CSV: separador `;`, BOM, vírgula decimal (lógica atual de `fmtCsvValue` já trata número e numérico-string).
+- Excel: tipos numéricos nativos, formato `R$ #,##0.00` para currency, `#,##0.00` para number.
 
-  if (s.includes('"') || s.includes(';') || s.includes('\n')) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
+A linha TOTAL deve ser formatada normalmente — números viram número no Excel; no CSV usam vírgula decimal.
 
-  return s;
-}
-```
+## Critérios de aceite
 
-Regex `^-?\d+(\.\d+)?$` preserva:
-- datas `2026-04-23` (tem `-` no meio)
-- períodos `202601` (inteiro, vira `202601` — sem ponto, sem alteração)
-- códigos `1-200001072` (tem `-` no meio)
-- NFs e séries (não-numéricas puras ou inteiros sem ponto, inalteradas)
-
-Valores como `-1343.14`, `0.35` viram `-1343,14`, `0,35`.
-
----
-
-## 2. Adicionar exportação Excel (.xlsx)
-
-### 2a. `src/lib/bi/comercialDrillApi.ts` — nova função `downloadDrillXlsx`
-
-Usar `xlsx` (SheetJS) — checar se já está em `package.json`; caso não, adicionar `xlsx`.
-
-```ts
-import * as XLSX from 'xlsx';
-
-export function downloadDrillXlsx(resp: DrillResponse, filename?: string) {
-  const cols = resp.columns ?? [];
-  const header = cols.map((c) => c.label);
-  const data = (resp.rows ?? []).map((row) =>
-    cols.map((c) => {
-      const v = row[c.key];
-      if (v == null) return '';
-      if (typeof v === 'number') return Number.isFinite(v) ? v : '';
-      if (c.format === 'currency' || c.format === 'number') {
-        const n = Number(v);
-        if (Number.isFinite(n)) return n;
-      }
-      return String(v);
-    }),
-  );
-  const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
-  // formato numérico/moeda nas colunas numéricas
-  const range = XLSX.utils.decode_range(ws['!ref']!);
-  cols.forEach((c, ci) => {
-    if (c.format === 'currency' || c.format === 'number') {
-      for (let r = 1; r <= range.e.r; r++) {
-        const addr = XLSX.utils.encode_cell({ r, c: ci });
-        const cell = ws[addr];
-        if (cell && typeof cell.v === 'number') {
-          cell.t = 'n';
-          cell.z = c.format === 'currency' ? 'R$ #,##0.00' : '#,##0.00';
-        }
-      }
-    }
-  });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Drill');
-  XLSX.writeFile(wb, filename || `drill-${resp.drill_type.toLowerCase()}.xlsx`);
-}
-```
-
-Valores numéricos vão como **número nativo** no Excel (o Excel aplica a localização do usuário — vírgula no BR), sem necessidade de replace manual.
-
-### 2b. `src/components/bi/drill/ComercialDrillDrawer.tsx`
-
-Adicionar botão "Excel" ao lado do botão CSV (linhas ~433–441):
-
-```tsx
-<Button
-  size="sm"
-  variant="outline"
-  className="h-7 gap-1 text-xs"
-  onClick={() => resp && downloadDrillXlsx({ ...resp, columns: displayColumns })}
-  disabled={!resp || resp.rows.length === 0}
->
-  <Download className="h-3.5 w-3.5" /> Excel
-</Button>
-```
-
-E adicionar `downloadDrillXlsx` ao import existente de `@/lib/bi/comercialDrillApi`.
-
----
+- Drill "Detalhes de Impostos" e qualquer outra com `valor_total`:
+  - export contém coluna **Valor Líquido** com `valor_total − devolução − |impostos| − desconto`.
+  - última linha mostra **TOTAL** com a soma de todas as colunas monetárias (incluindo Valor Líquido).
+- Datas, NF, série, código de produto não são somados nem alterados.
+- CSV mantém vírgula decimal; Excel mantém número nativo + formato monetário.
+- Nada muda no backend, no drawer ou nas drills exibidas em tela — só no arquivo exportado.
 
 ## Fora de escopo
 
-- Backend, contrato `/api/bi/comercial/drill`.
-- Modo "Milhões" no CSV/XLSX — exporta valor bruto.
-- Outros exports do projeto (`ExportButton` continua usando endpoint do FastAPI).
-
-## Validação
-
-1. Drill "Detalhes de Impostos" → CSV → ICMS/IPI/PIS/COFINS/Impostos com vírgula (`-1343,14`); datas `2026-04-23`, períodos `202601`, código `1-200001072`, NFs inalterados.
-2. Mesmo drill → botão "Excel" baixa `.xlsx`; abrindo no Excel, colunas monetárias são numéricas com formato `R$`, somáveis.
-3. Repetir em drills CLIENTE, REVENDA, PRODUTO, NOTA_FISCAL.
+- UI do drawer (sem coluna nova em tela).
+- Modo "Milhões" (export continua em valor bruto).
+- Outros módulos (Passagens, Frota, Máquinas).
