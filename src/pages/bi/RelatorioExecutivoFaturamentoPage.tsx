@@ -154,8 +154,8 @@ export default function RelatorioExecutivoFaturamentoPage() {
         <PageHeader
           title="Relatório Executivo de Faturamento"
           description="Monte um relatório executivo com KPIs, gráficos, rankings e comentários gerados por IA."
-          icon={FileText}
         />
+
 
         <Card>
           <CardContent className="p-6 space-y-6">
