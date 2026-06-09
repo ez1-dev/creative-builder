@@ -1131,10 +1131,12 @@ export default function ComercialPage() {
                   </Button>
                 </PopoverContent>
               </Popover>
-              <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />
-              <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
-                <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
-              </Button>
+              {isAdmin && <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />}
+              {isAdmin && (
+                <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
+                  <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
+                </Button>
+              )}
               {isAdmin && (
                 <Button
                   size="sm"
