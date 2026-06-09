@@ -269,6 +269,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
         out = [...out.slice(0, idx + 1), nameCol, ...out.slice(idx + 1)];
       }
     }
+    out = out.filter((c) => c.key !== 'cd_filial');
     return out;
   }, [enrichedBase, cur?.drill_type]);
 
