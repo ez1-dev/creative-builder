@@ -34,6 +34,8 @@ export interface BrazilHeatMapProps
   geoUrl?: string;
   showLegend?: boolean;
   onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
+  /** UF selecionada (cross-filter ativo) — recebe destaque visual. */
+  selectedUf?: string | null;
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
@@ -46,6 +48,7 @@ export function BrazilHeatMap({
   height = 360,
   showLegend = true,
   onStateClick,
+  selectedUf = null,
   ...shell
 }: BrazilHeatMapProps) {
   const geoQuery = useQuery({
