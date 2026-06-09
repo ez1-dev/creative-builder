@@ -686,6 +686,18 @@ export default function ComercialPage() {
               { label: 'Meta',      value: n(kpis.meta),        format: 'currency' },
               { label: 'Diferença', value: n(kpis.diferenca),   format: 'currency' },
             ]}
+            headerAction={isAdmin ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                title="Atualizar metas (UpQuery)"
+                disabled={syncingMetas}
+                onClick={(e) => { e.stopPropagation(); handleSyncMetas(); }}
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', syncingMetas && 'animate-spin')} />
+              </Button>
+            ) : undefined}
           />
         </Clickable>
       );
