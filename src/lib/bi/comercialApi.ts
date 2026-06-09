@@ -37,6 +37,7 @@ export interface ComercialKpis {
   vl_realizado?: number | null;
   realizado?: number | null;
   vl_meta?: number | null;
+  total_meta?: number | null;
 }
 
 export interface ComercialMensalRow {
