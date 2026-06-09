@@ -270,7 +270,7 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
       }
     }
     return out;
-  }, [resp?.columns, cur?.drill_type]);
+  }, [enrichedBase, cur?.drill_type]);
 
 
   const columns = useMemo<Column<Record<string, any>>[]>(() => {
