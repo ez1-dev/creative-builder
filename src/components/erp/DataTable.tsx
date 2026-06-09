@@ -29,6 +29,8 @@ export interface Column<T> {
   groupable?: boolean;
   /** Formatador opcional para o valor agregado. Se omitido usa `render` (com row vazia) ou toLocaleString. */
   aggregateFormatter?: (v: number) => React.ReactNode;
+  /** Se true, inclui essa coluna no resumo inline da linha de grupo (ao lado do rótulo). */
+  summaryInGroupHeader?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -349,6 +351,11 @@ export function DataTable<T extends Record<string, any>>({
     </TableRow>
   );
 
+  const summaryCols = useMemo(
+    () => columns.filter((c) => c.summaryInGroupHeader && numericKeys.includes(c.key)),
+    [columns, numericKeys],
+  );
+
   const renderGroupNode = (node: GroupNode<T>, rowCounter: { i: number }) => {
     const isOpen = expanded.has(node.key);
     const groupCol = columns.find((c) => c.key === node.colKey);
@@ -373,11 +380,26 @@ export function DataTable<T extends Record<string, any>>({
               style={isFirst ? { paddingLeft: 8 + indent } : undefined}
             >
               {isFirst ? (
-                <span className="inline-flex items-center gap-1">
-                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                  <span className="text-muted-foreground">{groupCol?.header}:</span>
-                  <span>{node.value}</span>
-                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{node.count}</Badge>
+                <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="inline-flex items-center gap-1">
+                    {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    <span className="text-muted-foreground">{groupCol?.header}:</span>
+                    <span>{node.value}</span>
+                    <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">{node.count}</Badge>
+                  </span>
+                  {summaryCols.length > 0 && (
+                    <span className="inline-flex flex-wrap items-center gap-x-2 text-[11px] font-normal text-muted-foreground">
+                      {summaryCols.map((sc, i) => (
+                        <span key={sc.key} className="inline-flex items-center gap-1">
+                          {i > 0 && <span className="opacity-50">·</span>}
+                          <span>{sc.header}:</span>
+                          <span className="font-semibold text-foreground">
+                            {renderAggregate(sc, node.totals[sc.key] ?? 0)}
+                          </span>
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
               ) : isNumeric ? (
                 renderAggregate(col, total)

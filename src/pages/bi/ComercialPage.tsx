@@ -493,11 +493,11 @@ export default function ComercialPage() {
     { key:'cd_cliente', header:'Cliente', render:(_v,r)=> r.cd_cliente ?? '' },
     { key:'cd_prj', header:'Obra', render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '') },
     { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
-    { key:'vl_bruto', header:'Vl. Bruto', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
+    { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
     { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_impostos)) },
-    { key:'vl_liquido', header:'Líquido', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_liquido)) },
+    { key:'vl_liquido', header:'Líquido', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_liquido)) },
     { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_devolucao)) },
-    { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', render:(_v,r)=> formatNumber(n(r.qtd_produtos)) },
+    { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatNumber(n(r.qtd_produtos)) },
   ];
 
 

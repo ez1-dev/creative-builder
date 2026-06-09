@@ -1,57 +1,54 @@
+# Totalizadores na linha do grupo (Detalhamento por Nota Fiscal)
 
-## Ajustes no Detalhamento por Nota Fiscal
+## Problema
 
-### 1. `src/lib/bi/comercialApi.ts` — `fetchComercialDetalhes`
+Hoje, ao agrupar a grid por uma coluna (ex.: Origem → MÁQUINAS / PEÇAS), a linha de grupo mostra apenas:
 
-Trocar a assinatura/implementação para paginar:
-
-```ts
-export async function fetchComercialDetalhes(
-  p: ComercialParams,
-  opts?: {
-    escopo?: ComercialDetalheEscopo;
-    page?: number;
-    page_size?: number;   // máx 500 (limite backend)
-    maxRows?: number;     // default 5000
-  },
-): Promise<ComercialDetalheRow[]> { ... }
+```
+> Origem: PEÇAS  [786]
 ```
 
-Comportamento:
+Os valores agregados (Vl. Bruto, Impostos, Vl. Líquido, Devolução, Qtd. Produtos) já são calculados pelo `DataTable`, mas ficam renderizados nas células das colunas numéricas — que estão fora da área visível (precisa rolar bastante para a direita). Resultado prático: o usuário percebe a linha como "vazia".
 
-- Remover envio de `limit`.
-- `page_size = Math.min(opts?.page_size ?? 500, 500)`.
-- `maxRows = opts?.maxRows ?? 5000`.
-- Loop: `page` inicia em `opts?.page ?? 1` e incrementa.
-- A cada chamada, montar query com `escopo`, `page`, `page_size` via `buildQuery`.
-- Extrair as linhas tolerando múltiplos envelopes:
-  1. `unwrapRpcResponse(data, 'bi_comercial_detalhes')`.
-  2. Se resultado for objeto, tentar nas chaves nessa ordem: `items`, `data`, `dados`, `rows`, `resultado`.
-  3. Se for array, usar direto.
-- Tentar capturar `total` (campos `total`, `total_registros`, `count`) quando o envelope for objeto.
-- Concatenar em um acumulador.
-- Parar quando: `acc.length >= maxRows`, ou `pageRows.length < page_size`, ou `total != null && acc.length >= total`.
-- Retornar `acc.slice(0, maxRows)`.
+## Objetivo
 
-### 2. `src/pages/bi/ComercialPage.tsx`
+Quando um agrupador estiver ativo, mostrar um **resumo inline** dos principais totalizadores ao lado do rótulo do grupo, visível sem precisar rolar a tabela, mantendo também os totais nas colunas numéricas correspondentes (como hoje) e o rodapé "Total (N)".
 
-- `qDetalhes` chama `fetchComercialDetalhes(filters, { escopo: 'todas', maxRows: 5000 })` (sem `limit`).
-- `queryKey` continua `['bi-comercial','detalhes', filters]`.
-- Widget `table-mensal` (kind `table`) renderiza `DataTableBI` com `colsDetalhes` e `data={detalhes}`.
-- `onRowClick`: abre drill `NOTA_FISCAL` com `{ cd_nf, cd_serie, cd_empresa, cd_filial }` (mantém o já implementado).
-- Colunas (`colsDetalhes`) na ordem:
-  Ano/Mês (`anomes_emissao`), Data Emissão (`dt_emissao`), Unidade (`unidade_negocio`), Empresa (`cd_empresa`), Filial (`cd_filial`), NF (`cd_nf`), Série (`cd_serie`), TNS (`cd_tns`), Tipo Movimento (`cd_tp_movimento`), Origem (`cd_origem`), Estado (`cd_estado`), Cliente (`cd_cliente`), Obra (`cd_prj` + `ds_abr_prj`), Revenda (`cd_rev_pedido`), Vl. Bruto (`vl_bruto`, currency), Impostos (`vl_impostos`, currency), Vl. Líquido (`vl_liquido`, currency), Devolução (`vl_devolucao`, currency), Qtd. Produtos (`qtd_produtos`, number).
-- Filtros base + cross-filters continuam aplicados via `filters` (sem mudanças).
-- `carregando` inclui `qDetalhes.isFetching`; `atualizar()` chama `qDetalhes.refetch()` (já implementado, manter).
+Exemplo desejado:
 
-### 3. Catálogo / layout
+```
+> Origem: PEÇAS  [786]   Vl. Bruto: R$ 1.234.567,89 · Líquido: R$ 1.100.000,00 · Qtd: 9.876
+> Origem: MÁQUINAS [8]   Vl. Bruto: R$    98.765,43 · Líquido: R$    90.000,00 · Qtd:   120
+```
 
-- `useComercialLayout.ts` e `comercialWidgetCatalog.ts`: confirmar título `"Detalhamento por Nota Fiscal"` para `table-mensal` (já aplicado — sem mudança adicional).
+## Mudanças
 
-### Acceptance
+### 1. `src/components/erp/DataTable.tsx`
 
-- Nenhuma request contém `limit=5000`; em vez disso há 1..N chamadas com `page=1,2,...` e `page_size=500`.
-- Loop para em `maxRows=5000`, em página parcial, ou ao atingir `total`.
-- Grid mostra uma linha por NF com todas as colunas listadas.
-- Clique em linha abre drill `NOTA_FISCAL`.
-- Filtros e cross-filters continuam refletindo no resultado.
+- Estender a interface `Column<T>` com um flag opcional:
+  - `summaryInGroupHeader?: boolean` — quando `true`, a coluna entra no resumo inline da linha do grupo.
+- Na função `renderGroupNode`, na célula do rótulo (primeira coluna, onde já vai o chevron + "Origem: PEÇAS"):
+  - Calcular a lista de colunas marcadas com `summaryInGroupHeader` que também sejam numéricas (`numericKeys`).
+  - Renderizar, ao lado do `<Badge>` de contagem, uma sequência de chips/textos no formato `Header: valor` separados por `·`, usando `renderAggregate(col, node.totals[col.key])` para formatar (assim respeita `aggregateFormatter` / `render`).
+  - Estilo discreto (`text-[11px] text-muted-foreground`), com `flex-wrap` para não quebrar layout em telas estreitas.
+- Manter a renderização atual dos totais nas células das colunas numéricas (sem alteração) e o `<tfoot>` "Total (N)".
+- Se nenhuma coluna for marcada com `summaryInGroupHeader`, o comportamento atual fica idêntico (sem regressão para outras telas que usam `DataTable`).
+
+### 2. `src/pages/bi/ComercialPage.tsx` (widget "Detalhamento por Nota Fiscal")
+
+- No array `colsDetalhes`, marcar as colunas-chave com `summaryInGroupHeader: true`:
+  - `vl_bruto` (Vl. Bruto)
+  - `vl_liquido` (Vl. Líquido)
+  - `qtd_produtos` (Qtd. Produtos)
+- (Opcional, se ficar curto) também marcar `vl_impostos` e `vl_devolucao`. Padrão sugerido: apenas as 3 acima para não poluir a linha.
+
+## Critérios de aceite
+
+- Com o agrupador "Origem" ativo, cada linha de grupo mostra contagem + Vl. Bruto, Vl. Líquido e Qtd. Produtos formatados, visíveis sem rolar horizontalmente.
+- Os totais nas colunas numéricas (à direita) continuam aparecendo ao rolar.
+- O rodapé "Total (N) + somas" continua funcionando.
+- Telas que usam `DataTable` sem marcar `summaryInGroupHeader` permanecem inalteradas.
+
+## Fora de escopo
+
+- Não alterar API/backend, paginação `fetchComercialDetalhes`, drill `NOTA_FISCAL`, ou demais widgets do dashboard Comercial.
