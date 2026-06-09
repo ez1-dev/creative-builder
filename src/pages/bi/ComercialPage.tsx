@@ -191,6 +191,13 @@ export default function ComercialPage() {
   const handlePickBg = (color: string) => { setBgOverride(unidade, color); setBgOverrideTick((t) => t + 1); };
   const handleResetBg = () => { clearBgOverride(unidade); setBgOverrideTick((t) => t + 1); };
 
+  // Guarda o último período efetivamente aplicado no topo (botão "Aplicar filtros").
+  // Não usar `draft` para restaurar — ele pode estar em edição e fora de sincronia.
+  const periodoTopoAplicadoRef = useRef<{ anomes_ini: string; anomes_fim: string }>({
+    anomes_ini: filters.anomes_ini,
+    anomes_fim: filters.anomes_fim,
+  });
+
   const qKpis    = useQuery({ queryKey: ['bi-comercial','kpis',filters],    queryFn: () => fetchComercialKpis(filters),    refetchOnWindowFocus: false, retry: 1 });
   const qMensal  = useQuery({ queryKey: ['bi-comercial','mensal',filters],  queryFn: () => fetchComercialMensal(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qMix     = useQuery({ queryKey: ['bi-comercial','mix',filters],     queryFn: () => fetchComercialMix(filters),     refetchOnWindowFocus: false, retry: 1 });
@@ -198,7 +205,10 @@ export default function ComercialPage() {
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
 
-  const aplicarFiltrosBase = () => setBase({ ...draft });
+  const aplicarFiltrosBase = () => {
+    setBase({ ...draft });
+    periodoTopoAplicadoRef.current = { anomes_ini: draft.anomes_ini, anomes_fim: draft.anomes_fim };
+  };
   const atualizar = () => {
     qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
