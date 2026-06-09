@@ -407,7 +407,7 @@
   padding-bottom: 0.6mm;
 }
 
-@page {
+@page op-print {
   size: A4 portrait;
   margin: 8mm;
 }
@@ -477,6 +477,16 @@
   .op-sheet--preview {
     box-shadow: none !important;
     margin: 0 auto !important;
+  }
+
+  .op-sheet,
+  .op-print-page,
+  .op-operation-page,
+  .operation-single-page,
+  .componentes-page,
+  .op-drawing-page,
+  .op-missing-drawing-page {
+    page: op-print;
   }
 
   .op-sheet,
