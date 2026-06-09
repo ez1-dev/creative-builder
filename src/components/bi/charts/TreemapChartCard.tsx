@@ -3,6 +3,7 @@ import { ResponsiveContainer, Treemap, Tooltip } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { BI_PALETTE } from '../utils/chartHelpers';
 import { formatCurrency } from '../utils/formatters';
+import { mergeVisualConfig, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface TreemapDatum { name: string; value: number; children?: TreemapDatum[] }
 
