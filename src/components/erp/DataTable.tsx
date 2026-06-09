@@ -29,6 +29,8 @@ export interface Column<T> {
   groupable?: boolean;
   /** Formatador opcional para o valor agregado. Se omitido usa `render` (com row vazia) ou toLocaleString. */
   aggregateFormatter?: (v: number) => React.ReactNode;
+  /** Se true, inclui essa coluna no resumo inline da linha de grupo (ao lado do rótulo). */
+  summaryInGroupHeader?: boolean;
 }
 
 interface DataTableProps<T> {
