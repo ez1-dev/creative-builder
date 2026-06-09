@@ -273,6 +273,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte dos eixos (px)" value={cfg.axis.fontSize} min={8} max={16}
               onChange={(n) => update((d) => { d.axis.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte dos eixos" value={cfg.axis.fontFamily}
+            onChange={(v) => update((d) => { d.axis.fontFamily = v; })} />
           <hr className="my-2" />
           <Row>
             <Switch checked={cfg.grid.visible} onCheckedChange={(v) => update((d) => { d.grid.visible = v; })} />
