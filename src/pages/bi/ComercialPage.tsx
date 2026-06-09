@@ -104,6 +104,19 @@ const PAGE_KEY = 'bi-comercial';
 
 const normalizeAnomes = (value: unknown) => String(value ?? '').replace(/\D/g, '').slice(0, 6);
 
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_PT_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function formatAnomesMes(anomes: unknown, opts?: { withYear?: boolean; abbr?: boolean }): string {
+  const s = normalizeAnomes(anomes);
+  if (s.length !== 6) return String(anomes ?? '');
+  const ano = s.slice(0, 4);
+  const mes = parseInt(s.slice(4, 6), 10);
+  if (!(mes >= 1 && mes <= 12)) return String(anomes);
+  const arr = opts?.abbr ? MESES_PT_ABBR : MESES_PT;
+  const nome = arr[mes - 1];
+  return opts?.withYear ? `${opts.abbr ? nome : MESES_PT_ABBR[mes - 1]}/${ano.slice(2)}` : nome;
+}
+
 const ESCOPO_LABELS: Record<ComercialDetalheEscopo, string> = {
   todas: 'Todas as notas',
   impostos: 'Detalhamento de impostos',
