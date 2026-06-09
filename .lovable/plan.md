@@ -1,80 +1,74 @@
 
-# Plano — Mapa de calor coroplético do Brasil (BI Comercial)
+# Plano — Mapa de Calor Brasil no BI Comercial
 
-Criar um componente novo de mapa **geográfico real** do Brasil por UF, lado a lado com o cartograma atual (`BrazilStateMapWidget`), sem alterá-lo. Já plugar nos dados reais existentes (`fetchComercialEstado`) e disponibilizar uma demo na página `/bi-components` (BiComponentsDemoPage).
+Reaproveitar todo o trabalho já feito (`BrazilHeatMap`, `BrazilHeatMapWidget`, GeoJSON local, util de intensidade) e plugá-lo no widget `estados` do BI Comercial como **mais uma variante**, mantendo o mesmo dataset (`qEstado` / `mapaData`) e o mesmo cross-filter (`toggleDrill('cd_estado', uf)`) usado pelo cartograma.
 
-## O que será entregue
+## O que muda
 
-1. **GeoJSON local** dos estados do Brasil em `public/maps/brasil-estados.geojson`, com `properties.sigla` (UF) garantido. Baixado de fonte pública confiável (IBGE-derived, ex.: `codeforgermany/click_that_hood` ou repositório IBGE), e normalizado se necessário (script único, não recorrente).
-   - Carregamento on-demand via `fetch('/maps/brasil-estados.geojson')` com cache via TanStack Query (`staleTime: Infinity`), evitando peso no bundle JS.
+### 1. `src/components/bi/maps/BrazilHeatMap.tsx`
+- Adicionar prop opcional `selectedUf?: string | null`.
+- Quando UF estiver selecionada: `stroke: hsl(var(--ring))`, `strokeWidth: 2`, sem reduzir opacidade; demais estados ficam `opacity: 0.55`. Mantém clique para "togglar".
 
-2. **Dependência nova**: `react-simple-maps` (+ types). Leve, SVG, sem dependência de tiles.
+### 2. `src/lib/bi/comercialWidgetCatalog.ts`
+- Em `MAP_VARIANTS`, inserir nova variante após `state-map`:
+  ```ts
+  { value: 'heatmap', label: 'Mapa de Calor (coroplético)' },
+  ```
+- Em `libraryComponentIds` do widget `estados`, acrescentar id `'brazil-heatmap'` (apenas para troca via Biblioteca, opcional).
 
-3. **Componente puro visual** `src/components/bi/maps/BrazilHeatMap.tsx`:
-   ```ts
-   type BrazilHeatMapDatum = { uf: string; valor: number; label?: string };
-   type BrazilHeatMapProps = {
-     data: BrazilHeatMapDatum[];
-     title?: string;
-     subtitle?: string;
-     height?: number;
-     loading?: boolean;
-     error?: string | null;
-     valueFormatter?: (v: number) => string;   // default formatCurrency
-     colorVar?: string;                         // default '--primary'
-     onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
-     showLegend?: boolean;                      // default true
-   };
-   ```
-   - Usa `ChartCardShell` (mesmo padrão dos outros widgets BI) para estados loading/empty/error.
-   - Carrega GeoJSON internamente via `useQuery(['geo-brasil-uf'], …)`.
-   - Cor por intensidade `hsl(var(--primary) / X)` com `X = max(0.12, valor/maxValor)`; sem dado = `hsl(var(--muted))`. Token semântico, **sem hardcode**.
-   - Tooltip nativo (`<title>` + estado hover) mostrando `UF - Nome (formatEstadoLabel)` e valor formatado. Sem libs extras de tooltip.
-   - Legenda horizontal (gradient + min/max), reutilizando o padrão visual já presente em `BrazilStateMapWidget`.
-   - Click chama `onStateClick(uf, datum)` apenas quando há dado.
-   - Responsivo: `ComposableMap` com `projection="geoMercator"` ajustado ao bounding box do Brasil, `ResponsiveContainer`-style via `width:100%` + `viewBox`.
+### 3. `src/pages/bi/ComercialPage.tsx` (função `renderEstados`)
+- Antes do `if (variant === 'state-map')` adicionar:
+  ```tsx
+  if (variant === 'heatmap') {
+    const selUf = (filters as any)?.cd_estado ?? null;
+    return (
+      <BrazilHeatMap
+        title={title}
+        data={mapaData.filter(d => /^[A-Z]{2}$/.test(String(d.uf || '').toUpperCase()))
+                      .map(d => ({ uf: String(d.uf).toUpperCase(), valor: d.valor }))}
+        selectedUf={selUf}
+        valueFormatter={formatCurrency}  // já respeita NumberRoundingToggle global (formatCurrency BI)
+        onStateClick={(uf) => toggleDrill('cd_estado', uf)}
+      />
+    );
+  }
+  ```
+- Importar `BrazilHeatMap` de `@/components/bi/maps/BrazilHeatMap` no topo do arquivo.
+- **Não** vamos usar `BrazilHeatMapWidget` aqui — ele refazia o fetch; usar `mapaData` (já em memória, já com filtros aplicados) é mais leve e segue o padrão do cartograma.
 
-4. **Util de cor** em `src/lib/bi/mapUtils.ts`:
-   - `getHeatIntensity(valor, min, max)` → número 0.12..1.
-   - `buildUfValueMap(data)` → `Map<UF, datum>`.
-   - Reaproveita `formatEstadoLabel`/`ufName` de `src/lib/bi/ufLabels.ts`.
+### 4. Catálogo de componentes (`BiComponentsDemoPage.tsx`)
+- Sem mudanças (a demo já existe).
 
-5. **Widget plugado em dados reais** `src/components/bi/comercial/BrazilHeatMapWidget.tsx`:
-   - Mesma assinatura de filtros que `BrazilStateMapWidget` (`BiComercialFilters`).
-   - Usa `fetchComercialEstado(filters)` + normalizador já existente para extrair `{ uf, valor }`.
-   - Passa para `<BrazilHeatMap />`.
-   - **Não substitui** o widget cartograma — fica disponível para uso opcional em páginas/blocos futuros.
+## Comportamento garantido
 
-6. **Demo** em `src/pages/BiComponentsDemoPage.tsx`: nova seção "Mapa coroplético do Brasil (novo)" mostrando o `BrazilHeatMap` com dados mock + uma instância do `BrazilHeatMapWidget` (real) lado a lado para comparação com o cartograma atual.
+- Mapa coroplético geográfico (react-simple-maps + GeoJSON `public/maps/brasil-estados.geojson`).
+- Cada UF colorida por intensidade `hsl(var(--primary) / x)`; sem dado = `hsl(var(--muted))`. Sem cor hardcoded.
+- Tooltip nativo: "SP - São Paulo: R$ X mi" (`formatCurrency` já segue modo global).
+- Legenda horizontal min → max abaixo do mapa.
+- Click no estado: `toggleDrill('cd_estado', uf)` → mesmo cross-filter usado pelo cartograma. Clicar de novo na mesma UF remove o filtro (comportamento já implementado em `toggleDrill`).
+- Estado selecionado destacado por `selectedUf` (lido de `filters.cd_estado`).
+- Filtros do topo (`anomes_*`, `unidade_negocio`, `cliente`, `obra`, `revenda`, `origem`) já são aplicados via `qEstado` — sem nada a fazer.
+- Compatível com erro React #310: todos os hooks no topo do `BrazilHeatMap`; nenhum hook em map/callback.
 
 ## O que NÃO muda
 
-- `BrazilStateMapWidget` e `BrazilMapCard` continuam intactos.
-- BI Comercial (`/bi/comercial`) **não** é alterado — nenhuma troca de widget em produção.
-- Sem alteração de backend; usa endpoint `/api/bi/comercial/estado` já existente.
-- Sem nova rota; aproveita `/bi-components` (página de demo já existente).
-
-## Detalhes técnicos
-
-- **Projeção**: `geoMercator().center([-54, -14]).scale(700)` (ajustada empiricamente para caber o Brasil em 16:9; revalidada na demo).
-- **Acessibilidade**: cada `<Geography>` recebe `aria-label="SP - São Paulo: R$ X"` e `role="button"` quando `onStateClick` existe.
-- **Performance**: GeoJSON ~250 KB; servido de `/public` com cache HTTP do Vite/preview; parseado uma vez por sessão via TanStack Query.
-- **Tokens**: cor base configurável por `colorVar` (default `--primary`), cinza via `--muted`, borda `--border`. Sem `text-white`/`bg-black`.
+- Backend: **nenhuma** alteração; reusa `/api/bi/comercial/estado` já consumido.
+- Cartograma (`BrazilStateMapWidget`) e mapa em grid (`BrazilMapCard`) continuam disponíveis como variantes.
+- Demais widgets, KPIs, drills e grids inalterados.
+- Exportação não implementada (fora do escopo, conforme pedido).
 
 ## Arquivos
 
 ```text
-public/maps/brasil-estados.geojson                       (novo)
-src/components/bi/maps/BrazilHeatMap.tsx                 (novo)
-src/components/bi/comercial/BrazilHeatMapWidget.tsx      (novo)
-src/lib/bi/mapUtils.ts                                   (novo)
-src/pages/BiComponentsDemoPage.tsx                       (editar — adicionar seção demo)
-package.json                                             (add react-simple-maps + @types)
+src/components/bi/maps/BrazilHeatMap.tsx        (editar — prop selectedUf)
+src/lib/bi/comercialWidgetCatalog.ts            (editar — nova variante)
+src/pages/bi/ComercialPage.tsx                  (editar — render variant heatmap)
 ```
 
 ## Validação
 
-- Demo `/bi-components` mostra o mapa colorido por intensidade, tooltip nativo no hover, click logando UF no console.
-- Loading/empty/error visíveis (forçar via filtros sem retorno).
-- Sem hardcode de cor; alternar dark/light mantém contraste correto.
-- Cartograma original continua funcionando em `/bi/comercial`.
+- Em `/bi/comercial`, no bloco "Top estados" (widget `estados`), abrir Configurar → selecionar variante "Mapa de Calor (coroplético)". O mapa do Brasil aparece colorido conforme faturamento.
+- Clique em SP: chip `Estado: SP` aparece, KPIs/gráficos atualizam, estado SP fica destacado.
+- Clique novamente em SP: filtro removido.
+- Filtros do topo alteram intensidade/dados em tempo real.
+- Sem novo fetch dedicado (reusa `qEstado`).
