@@ -80,6 +80,24 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
 
   const libDef = useMemo(() => getComponent(componentId), [componentId]);
   const inputs = libDef?.inputs ?? [];
+  const libUsesSeries = inputs.some((i) => i.source === 'series');
+
+  // Notifica a página da série em preview para disparar fetch lazy (drill-backed).
+  useEffect(() => {
+    if (!onPreviewSeriesChange) return;
+    if (open && tab === 'library' && libUsesSeries && seriesKey) {
+      onPreviewSeriesChange(seriesKey);
+    } else {
+      onPreviewSeriesChange(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, tab, libUsesSeries, seriesKey]);
+
+  useEffect(() => {
+    if (!open && onPreviewSeriesChange) onPreviewSeriesChange(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
 
   const previewNode = useMemo(() => {
     if (tab !== 'library' || !libDef) return null;
