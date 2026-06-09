@@ -1,40 +1,37 @@
-## Objetivo
+## Problema
 
-Adaptar a página `BI Comercial` (`/bi/comercial`) para funcionar bem em celular, tablet e desktop, sem perder nenhuma funcionalidade existente (edição, drill, IA, sincronizações).
+No BI Comercial em smartphone/tablet, dois sintomas claros:
 
-Hoje a página assume largura desktop: barra de ações com ~10 botões em linha única, FilterBar com `min-width` fixo e, principalmente, o grid de widgets usa `react-grid-layout` legacy com `cols={12}` fixo — em telas pequenas os blocos ficam ilegíveis ou cortados.
+1. **Widgets fora do lugar / cortados**: o grid (`PassagensLayoutGrid`) só empilha quando a largura é `< 768px`. Em tablet (768–1023px) ele ainda renderiza com `cols=12` fixos, então gráficos que ocupam `w=4` viram colunas estreitíssimas e tabelas/cards vazam horizontalmente.
+2. **"Trava ao navegar" (scroll preso)**: cada bloco do grid usa `overflow-auto` no wrapper. No mobile, quando o dedo encosta dentro do widget, o gesto vira scroll interno do widget (muitas vezes sem conteúdo extra para rolar) e a página principal não rola mais — o usuário precisa achar a "borda" entre blocos para conseguir descer. Some-se a barra de header com 10+ botões e o usuário fica preso.
 
 ## Mudanças
 
-### 1. `src/pages/bi/ComercialPage.tsx` — header e filtros
-- Envolver as ações do `PageHeader` em um container `flex flex-wrap gap-2 justify-end` para os botões quebrarem linha em telas estreitas.
-- Em mobile (`md:hidden`) agrupar os botões secundários (Biblioteca BI, Sincronizar clientes/produtos/revendas, cor de fundo) dentro de um menu "Mais ações" (DropdownMenu existente do shadcn). Em `md:` para cima continua igual.
-- Botão "Atualizar" e "Editar dashboard" permanecem sempre visíveis; os textos viram só ícone em `< sm` (mantendo `title` para acessibilidade).
-- FilterBar: trocar os `min-w-[180px]/[140px] flex-1` por classes responsivas (`w-full sm:min-w-[160px] sm:flex-1`) e adicionar `flex-wrap gap-2`. Botão "Aplicar" vira `w-full sm:w-auto`.
-- Chips de filtros ativos já usam `flex-wrap` — apenas garantir `text-[11px] sm:text-xs` e que o botão "Limpar filtros" não force overflow (`ml-auto` → `sm:ml-auto`).
+### 1. `src/components/passagens/PassagensLayoutGrid.tsx` — empilhar também em tablet e liberar scroll
+- Subir o breakpoint compacto de `< 768` para `< 1024` (`isCompact = window.innerWidth < 1024`). Tablets também passam a empilhar 1 widget por linha — única forma de manter os blocos legíveis sem reformular toda a lógica de drag/resize.
+- Atualizar o listener `resize` para o mesmo limiar.
+- No render compacto (empilhado), trocar o wrapper de cada bloco para `overflow-visible` (ou nenhum overflow), de forma que o scroll do dedo bole a **página** e não fique preso ao widget.
+- No render desktop (grid editável) manter `overflow-auto` como hoje.
+- Manter banner "Edição de layout disponível em telas maiores" no modo compacto e desabilitar drag/resize (já é o comportamento atual quando `isCompact`).
 
-### 2. `src/components/passagens/PassagensLayoutGrid.tsx` — grid responsivo
-Esse componente é compartilhado, então a mudança beneficia tudo que reusa (Passagens, Comercial, Programação).
-- Trocar `import GridLayout, { WidthProvider }` por `import { Responsive, WidthProvider }` de `react-grid-layout/legacy`.
-- Configurar:
-  - `breakpoints={{ lg: 1200, md: 900, sm: 640, xs: 0 }}`
-  - `cols={{ lg: 12, md: 12, sm: 6, xs: 2 }}`
-  - `layouts={{ lg: layoutItems, md: layoutItems, sm: collapseToCols(layoutItems, 6), xs: collapseToCols(layoutItems, 2) }}`
-- Helper `collapseToCols(items, cols)` (novo, no mesmo arquivo): cada widget vira `w = cols` e empilha verticalmente (`x=0`, `y` incremental), preservando `h` original. Garante leitura linear no celular sem quebrar drag/resize quando o usuário voltar ao desktop (só o layout `lg`/`md` é persistido — ver próximo item).
-- `onLayoutChange` continua salvando só o layout do breakpoint atual quando for `lg` ou `md`; em `sm`/`xs` ignora persistência (`if (breakpoint === 'sm' || breakpoint === 'xs') return;`) para não sobrescrever a configuração desktop do usuário.
-- Em `sm`/`xs` forçar `isDraggable={false}` e `isResizable={false}` (edição de layout só faz sentido no desktop). Banner discreto "Edição de layout disponível em telas maiores" quando `editing && breakpoint in {sm,xs}`.
+### 2. `src/pages/bi/ComercialPage.tsx` — header e filtros mais enxutos no mobile
+- Ações do header: hoje só "Biblioteca BI" e os 3 sincronizadores ficam `hidden md:inline-flex`. Mover também os botões "Adicionar bloco", "Restaurar padrão" e "Cor de fundo" para dentro de um `DropdownMenu` "Mais ações" visível só `< md`. Em `≥ md` continua exatamente igual.
+- Sempre visíveis (qualquer largura): chip da unidade, "Editar dashboard" (ou Cancelar/Salvar quando `editing`), "Atualizar".
+- Ajustar o `<div className="flex flex-wrap items-center justify-end gap-2">` para `justify-start sm:justify-end` para não criar "buracos" estranhos quando quebra linha no celular.
+- Bloco "Gerar gráfico com IA" e bloco "Filtros": adicionar `data-no-drag` não é necessário (já não estão dentro do grid), mas garantir que o `Popover` da paleta de cores feche em mobile (`modal={true}` no `Popover`) para não bloquear toques.
+- Cabeçalho de filtros já está OK desde a iteração anterior — sem mudança.
 
-### 3. Toques finais de CSS
-- `src/pages/bi/ComercialPage.tsx` wrapper: trocar `-m-4 p-4 md:-m-6 md:p-6` por `-m-2 p-2 sm:-m-4 sm:p-4 md:-m-6 md:p-6` para ganhar área útil no celular.
-- KPIs e charts já são responsivos via `recharts ResponsiveContainer`; apenas garantir altura mínima 220px no mobile (CSS no widget frame: `min-h-[220px]`).
+### 3. `src/components/AppLayout.tsx` — verificação rápida
+- `main` usa `overflow-auto`. Não muda — esse é o container principal que precisa rolar. Apenas confirmar que nada interno consome o gesto (problema corrigido no item 1).
 
 ### 4. Validação
-- Testar via `preview_ui--set_preview_device_viewport` em `mobile`, `tablet`, `desktop`:
-  - header não quebra layout, botões acessíveis;
-  - filtros empilham e o "Aplicar" cobre largura;
-  - widgets empilham 1 por linha no mobile, 2 por linha em `sm`, layout salvo do usuário em `md`+;
-  - edição de dashboard fica desabilitada com aviso no mobile.
+- `preview_ui--set_preview_device_viewport` em `mobile` (375px) e `tablet` (820px) na rota `/bi/comercial`:
+  - widgets empilhados ocupando largura total, sem corte horizontal;
+  - scroll vertical da página fluido ao tocar em qualquer widget;
+  - header com 4–5 botões visíveis + menu "Mais ações" agrupando o resto;
+  - filtros e chips quebram linha sem overflow.
 
 ## Fora de escopo
-- Não altera Drill Drawer, AI Chart Generator nem lógica de dados.
-- Não muda os outros dashboards (Passagens/Programação) além do ganho herdado do grid responsivo.
+
+- Não muda dados, drill, IA, sincronizações nem layout salvo do usuário no desktop.
+- Não mexe em outros dashboards (Passagens, Programação herdam a melhoria do grid de graça).
