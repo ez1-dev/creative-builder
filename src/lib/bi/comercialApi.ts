@@ -158,6 +158,7 @@ export interface ComercialDetalheRow {
   cd_tns?: string | null;
   vl_bruto?: number | null;
   vl_impostos?: number | null;
+  vl_desconto?: number | null;
   vl_liquido?: number | null;
   vl_devolucao?: number | null;
   qtd_produtos?: number | null;
