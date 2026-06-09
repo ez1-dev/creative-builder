@@ -75,7 +75,7 @@ import {
 } from '@/lib/bi/comercialDrillContract';
 import { pickDimensionLabel } from '@/lib/bi/dimensionLabels';
 import { useComercialDrillSeries } from '@/hooks/useComercialDrillSeries';
-import { fetchMetaCloudTotal, sincronizarMetasUpquery } from '@/lib/bi/metasFaturamentoApi';
+import { sincronizarMetasUpquery } from '@/lib/bi/metasFaturamentoApi';
 import {
   useComercialFilters,
   drillFromMixCategoria,
@@ -194,23 +194,12 @@ export default function ComercialPage() {
   const qEstado  = useQuery({ queryKey: ['bi-comercial','estado',filters],  queryFn: () => fetchComercialEstado(filters),  refetchOnWindowFocus: false, retry: 1 });
   const qRevenda = useQuery({ queryKey: ['bi-comercial','revenda',filters], queryFn: () => fetchComercialRevenda(filters), enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
   const qObras   = useQuery({ queryKey: ['bi-comercial','obras',filters],   queryFn: () => fetchComercialObras(filters),   enabled: unidade==='ESTRUTURAL ZORTEA'||unidade==='CONSOLIDADO', refetchOnWindowFocus: false, retry: 1 });
-  const qMetaCloud = useQuery({
-    queryKey: ['bi-comercial','meta-cloud', filters.anomes_ini, filters.anomes_fim, filters.unidade_negocio],
-    queryFn: () => fetchMetaCloudTotal({
-      anomes_ini: filters.anomes_ini,
-      anomes_fim: filters.anomes_fim,
-      unidade_negocio: filters.unidade_negocio,
-    }),
-    refetchOnWindowFocus: false,
-    retry: 1,
-  });
 
   const aplicarFiltrosBase = () => setBase({ ...draft });
   const atualizar = () => {
     qKpis.refetch(); qMensal.refetch(); qMix.refetch(); qEstado.refetch();
     if (qRevenda.isFetched || unidade !== 'ESTRUTURAL ZORTEA') qRevenda.refetch();
     if (qObras.isFetched || unidade !== 'GENIUS') qObras.refetch();
-    qMetaCloud.refetch();
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching;
 
@@ -284,7 +273,6 @@ export default function ComercialPage() {
       } else {
         const linhas = r.data?.linhas_resumo ?? r.data?.linhas_detalhe ?? 0;
         toast.success(`Metas sincronizadas (${linhas} linhas).`, { id: tId });
-        await qMetaCloud.refetch();
         await qKpis.refetch();
       }
     } catch (e: any) {
@@ -299,22 +287,9 @@ export default function ComercialPage() {
 
 
 
-  const kpisRaw = qKpis.data ?? ({} as any);
-  // Override Meta / Diferença / % Atingimento usando bi_meta_faturamento (Cloud)
-  // quando houver metas cadastradas para o período/UN. Caso contrário, mantém os
-  // valores vindos do ERP (via FastAPI).
-  const kpis = useMemo(() => {
-    const metaOverride = qMetaCloud.data;
-    if (metaOverride == null) return kpisRaw;
-    const fat = Number(kpisRaw.faturamento ?? 0);
-    const meta = Number(metaOverride);
-    return {
-      ...kpisRaw,
-      meta,
-      diferenca: fat - meta,
-      pct_atingimento: meta > 0 ? (fat / meta) * 100 : null,
-    };
-  }, [kpisRaw, qMetaCloud.data]);
+  // Meta / Realizado / Diferença vêm exclusivamente de /api/bi/comercial/kpis.
+  // Nenhum override no frontend — a RPC bi_comercial_kpis lê bi_meta_faturamento.
+  const kpis = qKpis.data ?? ({} as any);
   const mensal = qMensal.data ?? [];
   const mix = qMix.data ?? [];
   const estados = qEstado.data ?? [];
@@ -677,14 +652,25 @@ export default function ComercialPage() {
       if (qKpis.isLoading) return <LoadingState height={200} />;
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
+      const k: any = kpis;
+      const realizado = Number(
+        k?.faturamento_liquido
+        ?? k?.fat_liquido
+        ?? k?.vl_realizado
+        ?? k?.realizado
+        ?? k?.faturamento
+        ?? 0
+      );
+      const meta = Number(k?.meta ?? k?.vl_meta ?? 0);
+      const diferenca = realizado - meta;
       return (
         <Clickable title="Clique para detalhar" onClick={() => openDrill('NOTA_FISCAL', {}, { resetDrillFilters: true })}>
           <KpiTriStackCard
             title={title}
             items={[
-              { label: 'Realizado', value: n(kpis.faturamento), format: 'currency' },
-              { label: 'Meta',      value: n(kpis.meta),        format: 'currency' },
-              { label: 'Diferença', value: n(kpis.diferenca),   format: 'currency' },
+              { label: 'Realizado', value: realizado, format: 'currency' },
+              { label: 'Meta',      value: meta,      format: 'currency' },
+              { label: 'Diferença', value: diferenca, format: 'currency' },
             ]}
             headerAction={isAdmin ? (
               <Button
