@@ -981,22 +981,22 @@ export default function ComercialPage() {
               >{unidade}</span>
               {editing ? (
                 <>
-                  <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setAddOpen(true)}>
+                  <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1" onClick={() => setAddOpen(true)}>
                     <Plus className="h-3.5 w-3.5" /> Adicionar bloco
                   </Button>
-                  <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleResetLayout}>
+                  <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1" onClick={handleResetLayout}>
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar padrão
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8" onClick={handleCancelEdit}>
                     Cancelar
                   </Button>
                   <Button size="sm" variant="default" className="h-8 gap-1" onClick={handleSaveDashboard} disabled={!dirty}>
-                    <Save className="h-3.5 w-3.5" /> Salvar Dashboard
+                    <Save className="h-3.5 w-3.5" /> Salvar
                   </Button>
                 </>
               ) : (
                 <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleEnterEdit}>
-                  <Pencil className="h-3.5 w-3.5" /> Editar dashboard
+                  <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
                 </Button>
               )}
               <Popover>
