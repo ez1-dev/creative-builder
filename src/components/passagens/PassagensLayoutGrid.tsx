@@ -119,6 +119,11 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
   if (isCompact) {
     return (
       <div className="space-y-4">
+        {editing && (
+          <div className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            Edição de layout (arrastar/redimensionar) disponível em telas maiores. Os blocos abaixo são exibidos empilhados.
+          </div>
+        )}
         {orderedWidgets.map((w) => (
           <div key={w.type}>{blocks[w.type]}</div>
         ))}
