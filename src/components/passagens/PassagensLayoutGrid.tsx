@@ -34,10 +34,10 @@ const MAX_W = 12;
 
 export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, onHide, onConfigure, configurableTypes, onDelete, moveTargets, onMoveToBlock }: Props) {
   const [isCompact, setIsCompact] = useState<boolean>(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 1024 : false,
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false,
   );
   useEffect(() => {
-    const onResize = () => setIsCompact(window.innerWidth < 1024);
+    const onResize = () => setIsCompact(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
