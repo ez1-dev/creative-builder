@@ -84,6 +84,27 @@ function resolveIcon(name?: string) {
   return typeof Cmp === 'function' ? Cmp : null;
 }
 
+/**
+ * Host do `brazil-state-map` no registry: lê filtros do PageDataContext (quando
+ * a página alvo expõe um BiComercialFilters em `filtros`) e renderiza o mapa.
+ * Quando a página não é o BI Comercial, faz fallback para um cartograma vazio.
+ */
+function BrazilStateMapRegistryHost({ title }: { title?: string }) {
+  const pd = usePageData();
+  const filtros = (pd?.filtros ?? {}) as any;
+  return (
+    <BrazilStateMapWidget
+      title={title || 'Faturamento por Estado'}
+      filters={{
+        anomes_ini: String(filtros.anomes_ini ?? ''),
+        anomes_fim: String(filtros.anomes_fim ?? ''),
+        unidade_negocio: (filtros.unidade_negocio ?? 'CONSOLIDADO') as any,
+        ...filtros,
+      }}
+    />
+  );
+}
+
 /** Cor para charts: aceita token semântico ou string CSS direta. */
 function chartColor(opts?: WidgetOptions): string | undefined {
   const c = opts?.color as any;
