@@ -40,9 +40,12 @@ interface Props {
   kpis?: Record<string, any>;
   series?: Record<string, any>;
   rows?: any[];
+  /** Notifica a página da série atualmente selecionada na aba "Biblioteca" para que ela
+   *  dispare o fetch lazy correspondente e a pré-visualização tenha dados. */
+  onPreviewSeriesChange?: (key: string | null) => void;
 }
 
-export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpis, series, rows }: Props) {
+export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpis, series, rows, onPreviewSeriesChange }: Props) {
   const uid = useId();
   const idCatalogBlock = `${uid}-catalog-block`;
   const idCatalogTitle = `${uid}-catalog-title`;
