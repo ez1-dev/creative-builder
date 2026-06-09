@@ -221,8 +221,13 @@ export function ComercialDrillDrawer({ stack, anomes_ini, anomes_fim, unidade_ne
     stack.pushDrill(next, rowFilters);
   };
 
+  const enrichedBase = useMemo(() => {
+    if (!resp) return { columns: [] as DrillColumn[], rows: [] as Record<string, any>[] };
+    return enrichRowsWithNotaTotals({ columns: resp.columns ?? [], rows: resp.rows ?? [] });
+  }, [resp]);
+
   const displayColumns = useMemo(() => {
-    const cols = resp?.columns ?? [];
+    const cols = enrichedBase.columns;
     let out = cols;
     // CLIENTE: injeta nm_cliente após cd_cliente se backend não devolveu.
     if (cur?.drill_type === 'CLIENTE' && !out.some((c) => c.key === 'nm_cliente')) {
