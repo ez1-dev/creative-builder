@@ -126,7 +126,7 @@ const App = () => (
               <Route path="/bi/faturamento-validacao" element={<ProtectedRoute path="/bi/faturamento-validacao"><FaturamentoValidacaoPage /></ProtectedRoute>} />
               <Route path="/bi/comercial" element={<ProtectedRoute path="/bi/comercial"><ComercialPage /></ProtectedRoute>} />
               <Route path="/bi/comercial/metas" element={<ProtectedRoute path="/bi/comercial/metas"><MetasFaturamentoPage /></ProtectedRoute>} />
-              <Route path="/bi/faturamento/relatorio-executivo" element={<ProtectedRoute path="/bi/comercial"><RelatorioExecutivoFaturamentoPage /></ProtectedRoute>} />
+              <Route path="/bi/faturamento/relatorio-executivo" element={<ProtectedRoute path="/bi/faturamento/relatorio-executivo"><RelatorioExecutivoFaturamentoPage /></ProtectedRoute>} />
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               {/* Regras Senior */}
