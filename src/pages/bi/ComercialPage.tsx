@@ -1017,6 +1017,33 @@ export default function ComercialPage() {
                 className="rounded-full px-3 py-0.5 text-xs font-semibold"
                 style={{ backgroundColor: theme.chipBg, color: theme.chipText }}
               >{unidade}</span>
+
+              {/* Toggle Oficial / Minha versão */}
+              <div className="inline-flex items-center rounded-md border bg-card p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleToggleMode('official')}
+                  disabled={editing}
+                  className={cn(
+                    'h-7 rounded-sm px-2 font-medium transition-colors',
+                    !layout.isPersonal ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    editing && 'opacity-50 cursor-not-allowed',
+                  )}
+                  title="Ver o dashboard padrão da empresa"
+                >Oficial</button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleMode('personal')}
+                  disabled={editing}
+                  className={cn(
+                    'h-7 rounded-sm px-2 font-medium transition-colors',
+                    layout.isPersonal ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    editing && 'opacity-50 cursor-not-allowed',
+                  )}
+                  title="Ver/editar a sua versão pessoal do dashboard"
+                >Minha versão</button>
+              </div>
+
               {editing ? (
                 <>
                   <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1" onClick={() => setAddOpen(true)}>
@@ -1033,9 +1060,29 @@ export default function ComercialPage() {
                   </Button>
                 </>
               ) : (
-                <Button size="sm" variant="outline" className="h-8 gap-1" onClick={handleEnterEdit}>
-                  <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1"
+                    onClick={handleEnterEdit}
+                    disabled={!canEditDashboard}
+                    title={canEditDashboard ? 'Editar dashboard' : 'Ative "Minha versão" para editar (apenas administradores editam o oficial)'}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
+                  </Button>
+                  {layout.isPersonal && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="hidden md:inline-flex h-8 gap-1"
+                      onClick={handleResetPersonal}
+                      title="Apagar minha versão pessoal e voltar ao oficial"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" /> Voltar ao oficial
+                    </Button>
+                  )}
+                </>
               )}
               <Popover>
                 <PopoverTrigger asChild>
