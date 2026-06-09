@@ -477,6 +477,30 @@ export default function ComercialPage() {
     { key:'preco_medio', header:'Preço Médio', align:'right', render:(_v,r)=> formatCurrency(n(r.preco_medio)) },
   ];
 
+  // ===== Detalhamento por Nota Fiscal =====
+  const colsDetalhes: Column<ComercialDetalheRow>[] = [
+    { key:'anomes_emissao', header:'Ano/Mês', render:(_v,r)=> r.anomes_emissao ?? '' },
+    { key:'dt_emissao', header:'Dt. Emissão', render:(_v,r)=> r.dt_emissao ? String(r.dt_emissao).slice(0,10) : '' },
+    { key:'unidade_negocio', header:'Unidade', render:(_v,r)=> r.unidade_negocio ?? '' },
+    { key:'cd_empresa', header:'Empresa', render:(_v,r)=> r.cd_empresa ?? '' },
+    { key:'cd_filial', header:'Filial', render:(_v,r)=> r.cd_filial ?? '' },
+    { key:'cd_nf', header:'NF', render:(_v,r)=> r.cd_nf ?? '' },
+    { key:'cd_serie', header:'Série', render:(_v,r)=> r.cd_serie ?? '' },
+    { key:'cd_tns', header:'TNS', render:(_v,r)=> r.cd_tns ?? '' },
+    { key:'cd_tp_movimento', header:'Tipo Mov.', render:(_v,r)=> r.cd_tp_movimento ?? '' },
+    { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
+    { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
+    { key:'cd_cliente', header:'Cliente', render:(_v,r)=> r.cd_cliente ?? '' },
+    { key:'cd_prj', header:'Obra', render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '') },
+    { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
+    { key:'vl_bruto', header:'Vl. Bruto', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
+    { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_impostos)) },
+    { key:'vl_liquido', header:'Líquido', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_liquido)) },
+    { key:'vl_devolucao', header:'Devolução', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_devolucao)) },
+    { key:'qtd_produtos', header:'Qtd. Produtos', align:'right', render:(_v,r)=> formatNumber(n(r.qtd_produtos)) },
+  ];
+
+
   // ===== Layout / Builder =====
   const layout = useComercialLayout();
   const [editing, setEditing] = useState(false);
