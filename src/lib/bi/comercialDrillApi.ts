@@ -142,6 +142,85 @@ function isNumericString(value: string): boolean {
   return /^-?\d+(\.\d+)?$/.test(value.trim());
 }
 
+function toNumberOrNull(v: any): number | null {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string' && isNumericString(v)) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Enriquece a resposta de drill para exportação:
+ *  - insere coluna "Valor Líquido" (calculada) logo após valor_total quando aplicável;
+ *  - acrescenta linha "TOTAL" somando todas as colunas numéricas/monetárias.
+ */
+function withLiquidoAndTotals(resp: DrillResponse): { columns: DrillColumn[]; rows: DrillRow[] } {
+  const cols = [...(resp.columns ?? [])];
+  const rows = [...(resp.rows ?? [])];
+
+  const hasKey = (k: string) => cols.some((c) => c.key === k);
+  const hasValorTotal = hasKey('valor_total');
+  const hasAnyReductor =
+    hasKey('valor_devolucao') || hasKey('valor_impostos') || hasKey('valor_desconto');
+  const hasLiquidoBackend = hasKey('valor_liquido') || hasKey('fat_liquido');
+
+  let workingRows: DrillRow[] = rows;
+  let workingCols: DrillColumn[] = cols;
+
+  // 1) Coluna Valor Líquido (se possível e não vier do backend)
+  if (hasValorTotal && hasAnyReductor && !hasLiquidoBackend) {
+    workingRows = rows.map((r) => {
+      const vt = Number(r.valor_total) || 0;
+      const vd = Number(r.valor_devolucao) || 0;
+      const vi = Number(r.valor_impostos) || 0;
+      const vds = Number(r.valor_desconto) || 0;
+      const liquido = vt - vd - Math.abs(vi) - vds;
+      return { ...r, valor_liquido: liquido };
+    });
+    const idx = cols.findIndex((c) => c.key === 'valor_total');
+    const liquidoCol: DrillColumn = {
+      key: 'valor_liquido',
+      label: 'Valor Líquido',
+      align: 'right',
+      format: 'currency',
+    };
+    workingCols = [...cols.slice(0, idx + 1), liquidoCol, ...cols.slice(idx + 1)];
+  }
+
+  // 2) Linha TOTAL
+  const totalRow: DrillRow = {};
+  let labelPlaced = false;
+  workingCols.forEach((c) => {
+    if (c.format === 'currency' || c.format === 'number') {
+      let sum = 0;
+      let any = false;
+      for (const r of workingRows) {
+        const n = toNumberOrNull(r[c.key]);
+        if (n !== null) {
+          sum += n;
+          any = true;
+        }
+      }
+      totalRow[c.key] = any ? sum : '';
+    } else if (!labelPlaced) {
+      totalRow[c.key] = 'TOTAL';
+      labelPlaced = true;
+    } else {
+      totalRow[c.key] = '';
+    }
+  });
+  if (!labelPlaced && workingCols.length > 0) {
+    // Todas as colunas eram numéricas — força label na primeira
+    totalRow[workingCols[0].key] = 'TOTAL';
+  }
+  workingRows = [...workingRows, totalRow];
+
+  return { columns: workingCols, rows: workingRows };
+}
+
 function fmtCsvValue(v: any, format?: DrillColumn['format']): string {
   if (v == null) return '';
 
