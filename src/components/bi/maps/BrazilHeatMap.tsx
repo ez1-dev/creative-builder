@@ -144,10 +144,6 @@ export function BrazilHeatMap({
                         <title>{tooltip}</title>
                       </Geography>
                     );
-                      >
-                        <title>{tooltip}</title>
-                      </Geography>
-                    );
                   })
                 }
               </Geographies>
