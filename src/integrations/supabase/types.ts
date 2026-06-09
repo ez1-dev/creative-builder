@@ -3069,6 +3069,7 @@ export type Database = {
       }
       ensure_default_block: { Args: { _dashboard_id: string }; Returns: string }
       force_user_logout: { Args: { _user_id: string }; Returns: undefined }
+      fork_bi_comercial_dashboard: { Args: never; Returns: string }
       get_frota_blocks_via_token: {
         Args: { _token: string }
         Returns: {
@@ -3286,6 +3287,7 @@ export type Database = {
         Args: { _block_id: string; _widget_id: string }
         Returns: undefined
       }
+      reset_bi_comercial_personal_dashboard: { Args: never; Returns: undefined }
       update_dashboard_block: {
         Args: {
           _block_id: string
