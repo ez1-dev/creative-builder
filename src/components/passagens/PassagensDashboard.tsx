@@ -33,6 +33,7 @@ import { usePassagensLayout } from '@/hooks/usePassagensLayout';
 import { PassagensLayoutGrid } from '@/components/passagens/PassagensLayoutGrid';
 import { BlockedLayoutGrid } from '@/components/bi/builder/BlockedLayoutGrid';
 import { MapaDestinosCard } from '@/components/passagens/MapaDestinosCard';
+import { BrazilMapCard } from '@/components/bi';
 import { ConfigureChartDialog, type ConfigureChartValue } from '@/components/passagens/ConfigureChartDialog';
 import { AddChartDialog, type NewChartValue } from '@/components/passagens/AddChartDialog';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
@@ -1393,6 +1394,18 @@ export function PassagensDashboard({ data, loading, onEdit, onDelete, onExport, 
               data={filtered}
               selectedDestino={selectedDestino}
               onSelectDestino={(c) => setSelectedDestino((prev) => toggleItem(prev, c))}
+            />
+          ),
+          } : {}),
+          ...((canSeeVisual('passagens.chart-mapa-brasil') || canSeeVisual('passagens.kpis-charts')) ? {
+          'chart-mapa-brasil': (
+            <BrazilMapCard
+              title="Mapa do Brasil — Cartograma por UF"
+              subtitle="Intensidade pelo valor total das passagens"
+              data={porUF.map((u) => ({ uf: u.name, valor: u.valor }))}
+              valueFormatter={formatCurrency}
+              onItemClick={(d) => setSelectedUF((prev) => toggleItem(prev, d.uf))}
+              height={360}
             />
           ),
           } : {}),
