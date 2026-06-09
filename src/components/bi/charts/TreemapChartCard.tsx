@@ -70,7 +70,7 @@ export function TreemapChartCard({ data, valueFormatter = formatCurrency, height
 }
 
 function CustomCell(props: any) {
-  const { x, y, width, height, index, name, value, onItemClick, total } = props;
+  const { x, y, width, height, index, name, value, onItemClick, total, fontFamily } = props;
   if (!width || !height || width < 2 || height < 2) return null;
   const color = BI_PALETTE[index % BI_PALETTE.length];
   const textColor = pickTextColor(color);
