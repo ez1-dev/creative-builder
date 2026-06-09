@@ -84,10 +84,47 @@
 
 .rel-footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid hsl(var(--border)); text-align: center; font-size: 10px; color: hsl(var(--muted-foreground)); }
 
+@page { size: A4 landscape; margin: 10mm; }
+
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
-  body, html { background: white !important; }
-  .rel-doc { box-shadow: none !important; max-width: 100%; padding: 0; }
-  .rel-bloco { page-break-inside: avoid; }
-  nav, aside, header[role="banner"] { display: none !important; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Isola o documento imprimível: tudo invisível, só #rel-doc aparece */
+  body * { visibility: hidden !important; }
+  #rel-doc, #rel-doc * { visibility: visible !important; }
+
+  #rel-doc {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+  }
+
+  /* Garante remoção do chrome do app mesmo com transform/z-index */
+  [data-sidebar],
+  aside[data-sidebar="sidebar"],
+  header[data-tv-hide="true"],
+  footer[data-tv-hide="true"],
+  [data-radix-popper-content-wrapper],
+  .ai-assistant-chat,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .rel-bloco,
+  .rel-kpi,
+  .rel-ranking { page-break-inside: avoid; }
+  .rel-tabela-detalhe tr { page-break-inside: avoid; }
 }
