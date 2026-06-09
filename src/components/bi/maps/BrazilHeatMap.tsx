@@ -101,6 +101,9 @@ export function BrazilHeatMap({
                     const hasData = !!datum && v > 0;
                     const clickable = !!onStateClick && hasData;
                     const labelFull = formatEstadoLabel(uf);
+                    const selUf = selectedUf ? String(selectedUf).toUpperCase() : null;
+                    const isSelected = !!selUf && selUf === uf;
+                    const dimmed = !!selUf && !isSelected;
                     const tooltip = hasData
                       ? `${labelFull}: ${valueFormatter(v)}${clickable ? ' — Clique para detalhar' : ''}`
                       : `${labelFull}: sem dados`;
@@ -118,8 +121,9 @@ export function BrazilHeatMap({
                         style={{
                           default: {
                             fill,
-                            stroke: 'hsl(var(--border))',
-                            strokeWidth: 0.6,
+                            stroke: isSelected ? 'hsl(var(--ring))' : 'hsl(var(--border))',
+                            strokeWidth: isSelected ? 2 : 0.6,
+                            opacity: dimmed ? 0.55 : 1,
                             outline: 'none',
                             cursor: clickable ? 'pointer' : 'default',
                             transition: 'fill 120ms ease, opacity 120ms ease',
@@ -127,8 +131,8 @@ export function BrazilHeatMap({
                           hover: {
                             fill,
                             stroke: 'hsl(var(--ring))',
-                            strokeWidth: clickable ? 1.4 : 0.8,
-                            opacity: clickable ? 0.85 : 1,
+                            strokeWidth: isSelected ? 2 : clickable ? 1.4 : 0.8,
+                            opacity: dimmed ? 0.75 : clickable ? 0.85 : 1,
                             outline: 'none',
                           },
                           pressed: {
@@ -136,6 +140,10 @@ export function BrazilHeatMap({
                             outline: 'none',
                           },
                         }}
+                      >
+                        <title>{tooltip}</title>
+                      </Geography>
+                    );
                       >
                         <title>{tooltip}</title>
                       </Geography>
