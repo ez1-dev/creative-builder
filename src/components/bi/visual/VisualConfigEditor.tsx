@@ -247,6 +247,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte (px)" value={cfg.resultDescription.fontSize} min={9} max={20}
               onChange={(n) => update((d) => { d.resultDescription.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte" value={cfg.resultDescription.fontFamily}
+            onChange={(v) => update((d) => { d.resultDescription.fontFamily = v; })} />
         </TabsContent>
 
         {/* ===== Eixos e grade ===== */}
