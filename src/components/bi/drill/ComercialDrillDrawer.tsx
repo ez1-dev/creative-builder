@@ -61,9 +61,33 @@ const PERCENT_SUFFIXES = ['_pct', '_perc', '_percent'];
 
 type InferredFormat = DrillColumn['format'] | 'percent';
 
-function inferFormat(key: string, format?: DrillColumn['format']): InferredFormat | undefined {
-  if (format) return format;
+const PERIOD_KEYS = new Set([
+  'anomes_emissao', 'anomes', 'ano_mes', 'periodo', 'mes_ref', 'competencia',
+]);
+const DATE_PREFIXES = ['dt_', 'data_'];
+const DATE_SUFFIXES = ['_data', '_dt'];
+
+function isPeriodOrDateKey(key: string): boolean {
   const k = (key || '').toLowerCase();
+  if (!k) return false;
+  if (PERIOD_KEYS.has(k)) return true;
+  if (DATE_PREFIXES.some((p) => k.startsWith(p))) return true;
+  if (DATE_SUFFIXES.some((s) => k.endsWith(s))) return true;
+  return false;
+}
+
+function formatAnomes(v: any): string {
+  if (v == null || v === '') return '-';
+  const s = String(v).replace(/\D/g, '');
+  if (s.length === 6) return `${s.slice(0, 4)}/${s.slice(4, 6)}`;
+  return String(v);
+}
+
+function inferFormat(key: string, format?: DrillColumn['format']): InferredFormat | undefined {
+  const k = (key || '').toLowerCase();
+  // Período/data nunca é numérico, mesmo se backend mandar format: 'currency'.
+  if (isPeriodOrDateKey(k)) return undefined;
+  if (format) return format;
   if (!k) return undefined;
   if (PERCENT_KEYS.has(k)) return 'percent';
   if (PERCENT_PREFIXES.some((p) => k.startsWith(p))) return 'percent';
@@ -76,8 +100,22 @@ function inferFormat(key: string, format?: DrillColumn['format']): InferredForma
   return undefined;
 }
 
+function stripCodePrefix(value: any, code: any): string {
+  const v = value == null ? '' : String(value).trim();
+  if (!v) return '-';
+  const c = code == null ? '' : String(code).trim();
+  if (!c) return v;
+  const re = new RegExp('^' + c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-—:]?\\s*');
+  const stripped = v.replace(re, '').trim();
+  return stripped || v;
+}
+
 function fmtCell(v: any, format?: DrillColumn['format'], key?: string) {
   if (v == null || v === '') return '-';
+  if (isPeriodOrDateKey(key ?? '')) {
+    if (PERIOD_KEYS.has((key ?? '').toLowerCase())) return formatAnomes(v);
+    return String(v);
+  }
   const f = inferFormat(key ?? '', format);
   if (f === 'currency') {
     const num = Number(v);
