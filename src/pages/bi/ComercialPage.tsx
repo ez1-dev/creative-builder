@@ -647,7 +647,7 @@ export default function ComercialPage() {
       // Em variantes não-combo, força o tipo de gráfico igual para todas as séries
       const forceType = v === 'bar' || v === 'line' || v === 'area' ? v as 'bar'|'line'|'area' : undefined;
       const finalSeries = visible.map((s) => forceType ? { ...s, chartType: forceType } : s);
-      const rowsForChart = mensal.map((m) => ({ ...m, label: m.anomes_emissao }));
+      const rowsForChart = mensal.map((m) => ({ ...m, label: formatAnomesMes(m.anomes_emissao, { withYear: mensalMultiYear, abbr: mensalMultiYear }) }));
       return (
         <div className="h-full flex flex-col">
           <SeriesChips
