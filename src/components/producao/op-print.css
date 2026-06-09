@@ -422,6 +422,14 @@
     print-color-adjust: exact !important;
   }
 
+  html,
+  body,
+  .print-root,
+  .op-print-batch,
+  .op-print-group {
+    page: op-print;
+  }
+
   body * {
     visibility: hidden !important;
   }
