@@ -11,7 +11,7 @@ import {
   type NumberRoundingMode,
 } from '@/lib/bi/numberFormatMode';
 
-const MODES: NumberRoundingMode[] = ['full', 'no-decimals', 'abbreviated'];
+const MODES: NumberRoundingMode[] = ['full', 'no-decimals', 'abbreviated', 'millions'];
 
 interface Props {
   /**

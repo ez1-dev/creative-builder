@@ -1,4 +1,6 @@
 // BI lib — paleta e helpers de gráficos.
+import { getNumberRoundingMode } from '@/lib/bi/numberFormatMode';
+
 export const BI_PALETTE = [
   'hsl(215,70%,45%)',
   'hsl(142,70%,40%)',
@@ -13,6 +15,9 @@ export const BI_PALETTE = [
 ];
 
 export const tickCurrencyAbbrev = (v: number) => {
+  if (getNumberRoundingMode() === 'millions') {
+    return `R$ ${(v / 1_000_000).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} mi`;
+  }
   const abs = Math.abs(v);
   if (abs >= 1_000_000) return `R$ ${(v / 1_000_000).toFixed(1)}M`;
   if (abs >= 1_000) return `R$ ${(v / 1_000).toFixed(0)}k`;

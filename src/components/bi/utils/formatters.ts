@@ -7,9 +7,19 @@
 
 import { getNumberRoundingMode } from '@/lib/bi/numberFormatMode';
 
+function formatMillions(value: number, currency: boolean): string {
+  const n = value / 1_000_000;
+  const formatted = n.toLocaleString('pt-BR', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
+  return `${currency ? 'R$ ' : ''}${formatted} mi`;
+}
+
 export function formatCurrency(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '-';
   const mode = getNumberRoundingMode();
+  if (mode === 'millions') return formatMillions(value, true);
   if (mode === 'abbreviated') return abbreviateNumber(value, true);
   if (mode === 'no-decimals') {
     return value.toLocaleString('pt-BR', {
@@ -25,6 +35,7 @@ export function formatCurrency(value: number | null | undefined): string {
 export function formatNumber(value: number | null | undefined, decimals = 0): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '-';
   const mode = getNumberRoundingMode();
+  if (mode === 'millions') return formatMillions(value, false);
   if (mode === 'abbreviated') return abbreviateNumber(value, false);
   const effDecimals = mode === 'no-decimals' ? 0 : decimals;
   return value.toLocaleString('pt-BR', {
@@ -42,6 +53,10 @@ export function formatPercent(value: number | null | undefined, decimals = 2): s
 export function formatQuantity(value: number | null | undefined, suffix = ''): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '-';
   const mode = getNumberRoundingMode();
+  if (mode === 'millions') {
+    const n = formatMillions(value, false);
+    return suffix ? `${n} ${suffix}` : n;
+  }
   if (mode === 'abbreviated') {
     const n = abbreviateNumber(value, false);
     return suffix ? `${n} ${suffix}` : n;
