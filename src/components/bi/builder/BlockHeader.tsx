@@ -30,6 +30,7 @@ export function BlockHeader({
   onDelete,
   onMoveUp,
   onMoveDown,
+  dragHandleProps,
 }: Props) {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(title);
