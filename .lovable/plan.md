@@ -1,26 +1,22 @@
-## Ocultar coluna "Revenda" conforme Unidade
+## Corrigir duplicidade do código na coluna Obra
 
-Na grid **Detalhamento por Nota Fiscal** (`src/pages/bi/ComercialPage.tsx`):
+Em `src/pages/bi/ComercialPage.tsx`, coluna `cd_prj` do `colsDetalhes` (linha ~504):
 
-- `GENIUS` → mostrar coluna Revenda (comportamento atual).
-- `ESTRUTURAL ZORTEA` → ocultar coluna Revenda.
-- `CONSOLIDADO` → mostrar coluna Revenda.
-
-### Mudança técnica
-
-Transformar `colsDetalhes` (linhas ~491–511) em um `useMemo` dependente de `unidade`, filtrando a entrada `cd_rev_pedido` quando `unidade === 'ESTRUTURAL ZORTEA'`:
-
+Substituir:
 ```ts
-const colsDetalhes = useMemo<Column<ComercialDetalheRow>[]>(() => {
-  const cols = [ /* mesma lista atual */ ];
-  return unidade === 'ESTRUTURAL ZORTEA'
-    ? cols.filter(c => c.key !== 'cd_rev_pedido')
-    : cols;
-}, [unidade]);
+render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '')
+```
+
+Por:
+```ts
+render:(_v,r)=> {
+  const cd = String(r.cd_prj ?? '').trim();
+  const ds = String(r.ds_abr_prj ?? '').trim();
+  if (!ds) return cd;
+  if (cd && ds.startsWith(cd)) return ds;
+  return cd ? `${cd} — ${ds}` : ds;
+}
 ```
 
 ### Fora de escopo
-
-- Backend (`/api/bi/comercial/detalhes`) — continua retornando `cd_rev_pedido`.
-- Outras grids/gráficos de revenda (já têm `enabled: unidade==='GENIUS'||unidade==='CONSOLIDADO'`).
-- Agrupamento e drill por revenda — inalterados.
+Backend, API, drill, demais colunas — inalterados.

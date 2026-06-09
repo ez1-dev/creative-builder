@@ -502,7 +502,13 @@ export default function ComercialPage() {
       { key:'cd_origem', header:'Origem', render:(_v,r)=> r.cd_origem ?? '' },
       { key:'cd_estado', header:'Estado', render:(_v,r)=> r.cd_estado ?? '' },
       { key:'cliente_label', header:'Cliente', groupable: true, render:(_v,r:any)=> r.cliente_label ?? r.cd_cliente ?? '' },
-      { key:'cd_prj', header:'Obra', render:(_v,r)=> r.ds_abr_prj ? `${r.cd_prj ?? ''} — ${r.ds_abr_prj}` : (r.cd_prj ?? '') },
+      { key:'cd_prj', header:'Obra', render:(_v,r)=> {
+        const cd = String(r.cd_prj ?? '').trim();
+        const ds = String(r.ds_abr_prj ?? '').trim();
+        if (!ds) return cd;
+        if (cd && ds.startsWith(cd)) return ds;
+        return cd ? `${cd} — ${ds}` : ds;
+      } },
       { key:'cd_rev_pedido', header:'Revenda', render:(_v,r)=> r.cd_rev_pedido ?? '' },
       { key:'vl_bruto', header:'Vl. Bruto', align:'right', summaryInGroupHeader: true, render:(_v,r)=> formatCurrency(n(r.vl_bruto)) },
       { key:'vl_impostos', header:'Impostos', align:'right', render:(_v,r)=> formatCurrency(n(r.vl_impostos)) },
