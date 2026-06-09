@@ -112,7 +112,7 @@ function CustomCell(props: any) {
           fill={textColor}
           fontSize={nameFs}
           fontWeight={700}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', fontFamily }}
         >
           {truncateToWidth(String(name ?? ''), maxChars)}
         </text>
@@ -124,7 +124,7 @@ function CustomCell(props: any) {
           fill={textColor}
           fontSize={valueFs}
           fontWeight={500}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', fontFamily }}
         >
           {formatCompactCurrency(Number(value || 0))}
         </text>
@@ -136,7 +136,7 @@ function CustomCell(props: any) {
           fill={mutedColor}
           fontSize={pctFs}
           fontWeight={500}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', fontFamily }}
         >
           {pctStr}
         </text>
