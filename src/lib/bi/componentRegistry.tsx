@@ -449,6 +449,16 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     },
   },
   {
+    id: 'brazil-state-map',
+    kind: 'chart',
+    label: 'Mapa Brasil por Estado',
+    description: 'Faturamento por UF no mapa do Brasil (BI Comercial).',
+    defaultSpan: 2,
+    inputs: [],
+    autoMap: () => ({}),
+    render: ({ title }) => <BrazilStateMapRegistryHost title={title} />,
+  },
+
     id: 'treemap-chart',
     kind: 'chart',
     label: 'Treemap',
