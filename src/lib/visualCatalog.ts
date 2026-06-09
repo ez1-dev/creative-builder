@@ -23,6 +23,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'frota.chart-top-fornecedores', label: 'Gráfico: Top Fornecedores' },
       { key: 'frota.chart-top-cc',           label: 'Gráfico: Top Centros de Custo' },
       { key: 'frota.chart-top-motoristas',   label: 'Gráfico: Top Motoristas' },
+      { key: 'frota.chart-mapa-brasil',      label: 'Mapa: Distribuição por UF (Brasil)' },
     ],
   },
   {
@@ -35,6 +36,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'maquinas.chart-top-cc',           label: 'Gráfico: Top Centros de Custo' },
       { key: 'maquinas.chart-top-descricoes',   label: 'Gráfico: Top Descrições' },
       { key: 'maquinas.drill-hierarquico',      label: 'Drill-down hierárquico' },
+      { key: 'maquinas.chart-mapa-brasil',      label: 'Mapa: Distribuição por UF (Brasil)' },
     ],
   },
   {
@@ -47,6 +49,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'passagens.chart-top-cidades',     label: 'Gráfico: Top Cidades de Destino' },
       { key: 'passagens.chart-top-uf',          label: 'Gráfico: Top Estados (UF)' },
       { key: 'passagens.chart-top-destinos-valor', label: 'Gráfico: Top Destinos por Valor' },
+      { key: 'passagens.chart-mapa-brasil',     label: 'Mapa: Cartograma por UF (Brasil)' },
     ],
   },
   {
@@ -55,6 +58,7 @@ export const VISUAL_CATALOG: VisualGroup[] = [
       { key: 'producao.cargas-periodo', label: 'Cargas por Período' },
       { key: 'producao.status-projetos', label: 'Status dos Projetos' },
       { key: 'producao.top-saldo-patio', label: 'Top Projetos com Maior Saldo em Pátio' },
+      { key: 'producao.mapa-brasil',     label: 'Mapa: Distribuição por UF (Brasil)' },
     ],
   },
   {
