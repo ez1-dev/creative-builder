@@ -98,6 +98,8 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <NumberField label="Fonte do título (px)" value={cfg.title.fontSize} min={10} max={32}
               onChange={(n) => update((d) => { d.title.fontSize = n; })} />
           </div>
+          <FontFamilyField label="Família da fonte do título" value={cfg.title.fontFamily}
+            onChange={(v) => update((d) => { d.title.fontFamily = v; })} />
 
           <hr className="my-2" />
 
