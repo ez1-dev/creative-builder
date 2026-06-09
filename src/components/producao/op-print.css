@@ -407,7 +407,7 @@
   padding-bottom: 0.6mm;
 }
 
-@page {
+@page op-print {
   size: A4 portrait;
   margin: 8mm;
 }
