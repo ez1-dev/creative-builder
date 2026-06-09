@@ -861,10 +861,48 @@ export default function ComercialPage() {
     setEditing(false);
   };
 
+  // Edição permitida se: modo pessoal (sempre pode) OU modo oficial e admin.
+  const canEditDashboard = layout.isPersonal || isAdmin;
+
   const handleEnterEdit = () => {
+    if (!canEditDashboard) {
+      toast.info('Para editar, ative "Minha versão" no topo da página.');
+      return;
+    }
     clearDrafts();
     setEditing(true);
   };
+
+  const handleToggleMode = async (next: 'official' | 'personal') => {
+    if (editing) {
+      toast.error('Saia do modo de edição antes de trocar de versão.');
+      return;
+    }
+    if (next === 'personal' && !layout.hasPersonal) {
+      if (!confirm('Criar sua cópia pessoal do dashboard? Você poderá editá-la livremente sem afetar a versão oficial.')) return;
+      try {
+        await layout.forkToPersonal();
+        await layout.reload();
+        toast.success('Sua versão pessoal foi criada');
+      } catch (e: any) {
+        toast.error(`Erro ao criar versão pessoal: ${e?.message ?? e}`);
+      }
+      return;
+    }
+    layout.setMode(next);
+    await layout.reload();
+  };
+
+  const handleResetPersonal = async () => {
+    if (!confirm('Apagar sua versão pessoal e voltar a ver o dashboard oficial da empresa?')) return;
+    try {
+      await layout.resetPersonal();
+      toast.success('Sua versão pessoal foi removida');
+    } catch (e: any) {
+      toast.error(`Erro: ${e?.message ?? e}`);
+    }
+  };
+
 
   const mergeConfigDraft = (type: string, patch: Partial<SaveLayoutItem>) => {
     setConfigDraft((prev) => {
