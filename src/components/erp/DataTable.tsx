@@ -253,10 +253,16 @@ export function DataTable<T extends Record<string, any>>({
   }, [safeData, debouncedSearch, columns]);
 
   const sortedData = useMemo(() => {
-    if (!sortKey || !sortDir) return filteredData;
+    // Fallback automático: se nenhum sort manual está aplicado e defaultSort não é null explícito,
+    // ordena pela 1ª coluna numérica em desc.
+    const effectiveKey = sortKey ?? (defaultSort === null ? null : numericKeys[0] ?? null);
+    const effectiveDir: SortDir = sortDir ?? (defaultSort === null ? null : (numericKeys[0] ? 'desc' : null));
+    if (!effectiveKey || !effectiveDir) return filteredData;
+    const sortKeyLocal = effectiveKey;
+    const sortDirLocal = effectiveDir;
     return [...filteredData].sort((a, b) => {
-      const va = a[sortKey];
-      const vb = b[sortKey];
+      const va = a[sortKeyLocal];
+      const vb = b[sortKeyLocal];
       if (va == null && vb == null) return 0;
       if (va == null) return 1;
       if (vb == null) return -1;
