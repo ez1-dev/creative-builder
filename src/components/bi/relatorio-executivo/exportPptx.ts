@@ -125,16 +125,17 @@ export async function gerarRelatorioPptx(
   if (blocos.tabela && dados.detalhes.length) {
     const s = pptx.addSlide();
     s.addText('Tabela Analítica (top 20)', { x: 0.5, y: 0.3, w: 12, h: 0.6, fontSize: 24, bold: true, color: AZUL });
-    const head = ['Mês', 'UN', 'NF', 'Estado', 'Cliente', 'Bruto', 'Imposto', 'Líquido'];
+    const head = ['Mês', 'UN', 'NF', 'Estado', 'Cliente', 'Bruto', 'Imposto', 'Líquido']
+      .map((t) => ({ text: t, options: { bold: true, fill: { color: 'E2E8F0' } } }));
     const body = dados.detalhes.slice(0, 20).map((r) => [
-      fmtAnomes(r.anomes_emissao ?? ''),
-      r.unidade_negocio ?? '—',
-      r.cd_nf ?? '—',
-      r.cd_estado ?? '—',
-      String(r.cd_cliente ?? '—'),
-      fmtBRL(num(r.vl_bruto)),
-      fmtBRL(num(r.vl_impostos)),
-      fmtBRL(num(r.vl_liquido)),
+      { text: fmtAnomes(r.anomes_emissao ?? '') },
+      { text: r.unidade_negocio ?? '—' },
+      { text: r.cd_nf ?? '—' },
+      { text: r.cd_estado ?? '—' },
+      { text: String(r.cd_cliente ?? '—') },
+      { text: fmtBRL(num(r.vl_bruto)) },
+      { text: fmtBRL(num(r.vl_impostos)) },
+      { text: fmtBRL(num(r.vl_liquido)) },
     ]);
     s.addTable([head, ...body], {
       x: 0.5, y: 1.0, w: 12.3, fontSize: 9, fontFace: 'Calibri',
@@ -142,6 +143,7 @@ export async function gerarRelatorioPptx(
       colW: [1.0, 1.6, 1.1, 1.0, 2.6, 1.6, 1.6, 1.8],
     });
   }
+
 
   const ts = new Date().toISOString().slice(0, 10);
   await pptx.writeFile({ fileName: `relatorio-faturamento-${ts}.pptx` });
