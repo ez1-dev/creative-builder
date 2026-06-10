@@ -221,7 +221,11 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
             tabIndex={editing ? 0 : -1}
             onKeyDown={(e) => handleKeyDown(e, w.type)}
             className={cn(
-              'overflow-auto relative outline-none',
+              'relative outline-none isolate',
+              // Em edição, overflow-visible garante que o chrome (drag bar + botões)
+              // nunca seja escondido por filhos com h-full/bg/sombra. Fora de edição,
+              // mantém overflow-auto para scroll interno normal.
+              editing ? 'overflow-visible' : 'overflow-auto',
               editing && 'rounded-lg ring-1 ring-primary/30 hover:ring-primary/60 focus-visible:ring-2 focus-visible:ring-primary transition-shadow pt-11',
             )}
           >
