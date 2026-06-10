@@ -29,10 +29,14 @@ export interface BrazilHeatMapProps
   data: BrazilHeatMapDatum[];
   /** Mantido por compat — não usado mais (paleta é fixa multi-cor). */
   colorVar?: string;
+  /** Stops da paleta de calor (5 cores: mín → máx). */
+  colorStops?: string[];
   valueFormatter?: (v: number) => string;
   geoUrl?: string;
   showLegend?: boolean;
   legendTitle?: string;
+  /** Conteúdo extra renderizado ao lado do título da legenda (ex.: editor de paleta). */
+  legendExtras?: React.ReactNode;
   onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
   selectedUf?: string | null;
 }
