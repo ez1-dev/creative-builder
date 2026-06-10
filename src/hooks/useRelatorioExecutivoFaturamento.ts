@@ -14,6 +14,7 @@ export type BlocoKey =
   | 'kpis'
   | 'evolucao'
   | 'rankings'
+  | 'pareto'
   | 'margem'
   | 'comentariosIa'
   | 'tabela';
@@ -22,17 +23,18 @@ export interface BlocosSelecionados {
   kpis: boolean;
   evolucao: boolean;
   rankings: boolean;
+  pareto: boolean;
   margem: boolean;
   comentariosIa: boolean;
   tabela: boolean;
 }
 
 export const BLOCOS_PADRAO: BlocosSelecionados = {
-  kpis: true, evolucao: true, rankings: true, margem: true, comentariosIa: true, tabela: true,
+  kpis: true, evolucao: true, rankings: true, pareto: true, margem: true, comentariosIa: true, tabela: true,
 };
 
 export const BLOCOS_CURTO: BlocosSelecionados = {
-  kpis: true, evolucao: true, rankings: true, margem: false, comentariosIa: true, tabela: false,
+  kpis: true, evolucao: true, rankings: true, pareto: true, margem: false, comentariosIa: true, tabela: false,
 };
 
 export interface RelatorioDados {
