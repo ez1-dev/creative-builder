@@ -46,6 +46,7 @@ import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
 import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
 import { ChartContextMenu } from '@/components/bi/runtime/ChartContextMenu';
