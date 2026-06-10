@@ -826,7 +826,7 @@ export default function ComercialPage() {
 
 
 
-    const def = COMERCIAL_WIDGETS[w.type];
+    const def = getWidgetDef(w.type);
     if (def) {
       if (def.kind === 'kpi') return renderKpi(def, w);
       if (def.kind === 'serie-mensal') return renderSerieMensal(w);
