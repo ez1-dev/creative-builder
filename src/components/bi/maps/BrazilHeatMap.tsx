@@ -107,9 +107,12 @@ export function BrazilHeatMap({
         {/* Legenda vertical à esquerda */}
         {showLegend && max > 0 && (
           <div className="flex flex-col items-start justify-center gap-2 shrink-0" style={{ minWidth: 72 }}>
-            <span className="text-[11px] font-medium text-muted-foreground leading-tight whitespace-pre-line">
-              {legendTitle}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground leading-tight whitespace-pre-line">
+                {legendTitle}
+              </span>
+              {legendExtras}
+            </div>
             <div className="flex items-stretch gap-2" style={{ height: Math.min(240, mapHeight * 0.75) }}>
               <div
                 className="w-4 rounded-full border border-border"
