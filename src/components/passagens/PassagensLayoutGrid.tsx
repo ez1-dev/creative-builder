@@ -380,6 +380,26 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6"
+                    title="Mover para a esquerda (troca com o bloco ao lado)"
+                    onClick={(e) => { e.stopPropagation(); moveCol(w.type, -1); }}
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="Mover para a direita (troca com o bloco ao lado)"
+                    onClick={(e) => { e.stopPropagation(); moveCol(w.type, +1); }}
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
                     title="Mover para cima (troca com o bloco acima)"
                     onClick={(e) => { e.stopPropagation(); moveRow(w.type, -1); }}
                   >
