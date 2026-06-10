@@ -92,6 +92,7 @@ Responda APENAS um JSON com este formato exato:
       destaques: safeList(parsed.destaques),
       alertas: safeList(parsed.alertas),
       recomendacoes: safeList(parsed.recomendacoes),
+      pareto_analise: typeof parsed.pareto_analise === 'string' ? parsed.pareto_analise : null,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err?.message ?? 'erro desconhecido' }), {
