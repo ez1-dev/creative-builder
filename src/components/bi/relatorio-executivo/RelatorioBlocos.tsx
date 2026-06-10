@@ -274,7 +274,7 @@ export function TabelaAnaliticaBloco({ dados }: BlocoProps) {
                 <td>{r.unidade_negocio ?? '—'}</td>
                 <td>{r.cd_nf ?? '—'}</td>
                 <td>{r.cd_estado ?? '—'}</td>
-                <td>{r.cd_cliente ?? '—'}</td>
+                <td>{r.cd_cliente ? rotuloCliente(String(r.cd_cliente), clientesMap) : '—'}</td>
                 <td>{r.ds_abr_prj ?? r.cd_prj ?? '—'}</td>
                 <td className="text-right tabular-nums">{formatCurrency(num(r.vl_bruto))}</td>
                 <td className="text-right tabular-nums">{formatCurrency(num(r.vl_impostos))}</td>
