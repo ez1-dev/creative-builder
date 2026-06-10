@@ -151,9 +151,10 @@ export function RankingsBloco({ dados }: BlocoProps) {
     <section className="rel-bloco">
       <h2 className="rel-bloco-titulo">Rankings por Dimensão</h2>
       <div className="grid grid-cols-2 gap-4">
-        <RankingTopN titulo="Top Revendas" rows={dados.rankings.revenda} labelKey="revenda" valueKey="faturamento" chartId="rk-rev" />
-        <RankingTopN titulo="Top Estados" rows={dados.rankings.estado} labelKey="cd_estado" valueKey="faturamento" chartId="rk-est" />
-        <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} labelKey="projeto" valueKey="faturamento" chartId="rk-obr" />
+        <RankingTopN titulo="Top Revendas" rows={dados.rankings.revenda} dim="revenda" valueKey="faturamento" chartId="rk-rev" />
+        <RankingTopN titulo="Top Estados" rows={dados.rankings.estado} dim="estado" valueKey="faturamento" chartId="rk-est" />
+        <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} dim="obra" valueKey="faturamento" chartId="rk-obr" />
+
       </div>
     </section>
   );
