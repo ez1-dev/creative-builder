@@ -160,6 +160,8 @@ export function ApplyComponentDialog({
   const [metaKpi, setMetaKpi] = useState<string>('');
   const [topN, setTopN] = useState<number>(0); // 0 = todos
   const [sort, setSort] = useState<WidgetSort | '__none__'>('__none__');
+  const [colorStops, setColorStops] = useState<string[]>(HEAT_COLOR_STOPS);
+  const supportsHeatPalette = !!def && HEAT_MAP_LIB_IDS.has(def.id);
 
   useEffect(() => {
     if (!open || !def) return;
