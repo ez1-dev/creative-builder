@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { api } from '@/lib/api';
+import { useCallback, useState } from "react";
+import { api } from "@/lib/api";
 import type {
   OpcaoCentroRecurso,
   OpcaoEmpresa,
@@ -12,18 +12,15 @@ import type {
   OpcaoSituacao,
   OpcoesImpressao,
   OpcoesImpressaoParams,
-} from '@/lib/producao/opcoesImpressao';
+} from "@/lib/producao/opcoesImpressao";
 
-const isOri100 = (v: unknown) => String(v ?? '') === '100';
-const isCancelada = (v: unknown) => String(v ?? '').toUpperCase() === 'C';
+const isOri100 = (v: unknown) => String(v ?? "") === "100";
+const isCancelada = (v: unknown) => String(v ?? "").toUpperCase() === "C";
 const dropOri100Origens = (arr: OpcaoOrigem[] = []) =>
   arr.filter((o: any) => !isOri100(o?.cod_ori ?? o?.codigo ?? o?.value));
-const dropOri100Ops = (arr: OpcaoOp[] = []) =>
-  arr.filter((o: any) => !isOri100(o?.cod_ori));
-const dropCanceladas = (arr: OpcaoOp[] = []) =>
-  arr.filter((o: any) => !isCancelada(o?.sit_orp));
-const dropSituacaoCancelada = (arr: OpcaoSituacao[] = []) =>
-  arr.filter((s: any) => !isCancelada(s?.sit_orp));
+const dropOri100Ops = (arr: OpcaoOp[] = []) => arr.filter((o: any) => !isOri100(o?.cod_ori));
+const dropCanceladas = (arr: OpcaoOp[] = []) => arr.filter((o: any) => !isCancelada(o?.sit_orp));
+const dropSituacaoCancelada = (arr: OpcaoSituacao[] = []) => arr.filter((s: any) => !isCancelada(s?.sit_orp));
 const sanitizeOps = (arr: OpcaoOp[] = []) => dropCanceladas(dropOri100Ops(arr));
 
 export interface RefinementCtx {
@@ -54,11 +51,11 @@ export function useOpcoesImpressaoOp() {
 
   const fetchOpcoes = useCallback(async (params: OpcoesImpressaoParams = {}) => {
     const q: Record<string, any> = {};
-    if (params.cod_emp !== undefined && params.cod_emp !== '' && params.cod_emp !== null) {
+    if (params.cod_emp !== undefined && params.cod_emp !== "" && params.cod_emp !== null) {
       const n = Number(params.cod_emp);
       if (Number.isFinite(n)) q.cod_emp = n;
     }
-    if (params.num_orp !== undefined && params.num_orp !== '' && params.num_orp !== null) {
+    if (params.num_orp !== undefined && params.num_orp !== "" && params.num_orp !== null) {
       const n = Number(params.num_orp);
       if (Number.isFinite(n)) q.num_orp = n;
     }
@@ -71,32 +68,43 @@ export function useOpcoesImpressaoOp() {
     if (params.sit_orp && !isCancelada(params.sit_orp)) q.sit_orp = params.sit_orp;
     if (params.q) q.q = params.q;
     if (params.limite_ops !== undefined) q.limite_ops = params.limite_ops;
-    return api.get<OpcoesImpressao>('/api/producao/ordem-producao/opcoes', q);
+    return api.get<OpcoesImpressao>("/api/producao/ordem-producao/opcoes", q);
   }, []);
 
-  const reloadBase = useCallback(async (cod_emp: string = '1') => {
-    setLoading(true);
-    try {
-      const res = await fetchOpcoes({ cod_emp, limite_ops: 80 });
-      setEmpresas(res.empresas ?? []);
-      setOrigens(dropOri100Origens(res.origens ?? []));
-      setPedidos(res.pedidos ?? []);
-      setRelatoriosProducao(res.relatorios_producao ?? []);
-      setSituacoes(dropSituacaoCancelada(res.situacoes ?? []));
-      setOps(sanitizeOps(res.ordens_producao ?? []));
-      setEstagios(res.estagios ?? []);
-      setCentrosRecurso(res.centros_recurso ?? []);
-      setProdutos(res.produtos ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchOpcoes]);
+  const reloadBase = useCallback(
+    async (cod_emp: string = "1") => {
+      setLoading(true);
+      try {
+        const res = await fetchOpcoes({ cod_emp, limite_ops: 80 });
+        setEmpresas(res.empresas ?? []);
+        setOrigens(dropOri100Origens(res.origens ?? []));
+        setPedidos(res.pedidos ?? []);
+        setRelatoriosProducao(res.relatorios_producao ?? []);
+        setSituacoes(dropSituacaoCancelada(res.situacoes ?? []));
+        setOps(sanitizeOps(res.ordens_producao ?? []));
+        setEstagios(res.estagios ?? []);
+        setCentrosRecurso(res.centros_recurso ?? []);
+        setProdutos(res.produtos ?? []);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchOpcoes],
+  );
 
   const reloadByPedido = useCallback(
     async (cod_emp: string, num_ped: string, sit_orp?: string, ref: RefinementCtx = {}) => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, num_ped, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, cod_pro: ref.cod_pro, limite_ops: 200 });
+        const res = await fetchOpcoes({
+          cod_emp,
+          num_ped,
+          sit_orp,
+          cod_cre: ref.cod_cre,
+          cod_etg: ref.cod_etg,
+          cod_pro: ref.cod_pro,
+          limite_ops: 200,
+        });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
         if (res.produtos) setProdutos(res.produtos);
@@ -115,7 +123,15 @@ export function useOpcoesImpressaoOp() {
     async (cod_emp: string, rel_prd: string, sit_orp?: string, ref: RefinementCtx = {}) => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, rel_prd, sit_orp, cod_cre: ref.cod_cre, cod_etg: ref.cod_etg, cod_pro: ref.cod_pro, limite_ops: 200 });
+        const res = await fetchOpcoes({
+          cod_emp,
+          rel_prd,
+          sit_orp,
+          cod_cre: ref.cod_cre,
+          cod_etg: ref.cod_etg,
+          cod_pro: ref.cod_pro,
+          limite_ops: 200,
+        });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
         if (res.produtos) setProdutos(res.produtos);
@@ -180,7 +196,7 @@ export function useOpcoesImpressaoOp() {
           cod_cre: ctx.cod_cre,
           cod_etg: ctx.cod_etg,
           cod_pro: ctx.cod_pro,
-          limite_ops: 200,
+          limite_ops: 500,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
@@ -269,34 +285,43 @@ export function useOpcoesImpressaoOp() {
     [fetchOpcoes],
   );
 
-  const reloadOpContexto = useCallback(async (cod_emp: string, cod_ori: string, num_orp: string) => {
-    const res = await fetchOpcoes({ cod_emp, cod_ori, num_orp });
-    setEstagios(res.estagios ?? []);
-    setCentrosRecurso(res.centros_recurso ?? []);
-  }, [fetchOpcoes]);
+  const reloadOpContexto = useCallback(
+    async (cod_emp: string, cod_ori: string, num_orp: string) => {
+      const res = await fetchOpcoes({ cod_emp, cod_ori, num_orp });
+      setEstagios(res.estagios ?? []);
+      setCentrosRecurso(res.centros_recurso ?? []);
+    },
+    [fetchOpcoes],
+  );
 
-  const reloadCres = useCallback(async (cod_emp: string, cod_ori: string, num_orp: string, cod_etg?: string) => {
-    const res = await fetchOpcoes({ cod_emp, cod_ori, num_orp, cod_etg });
-    setCentrosRecurso(res.centros_recurso ?? []);
-  }, [fetchOpcoes]);
+  const reloadCres = useCallback(
+    async (cod_emp: string, cod_ori: string, num_orp: string, cod_etg?: string) => {
+      const res = await fetchOpcoes({ cod_emp, cod_ori, num_orp, cod_etg });
+      setCentrosRecurso(res.centros_recurso ?? []);
+    },
+    [fetchOpcoes],
+  );
 
-  const searchOps = useCallback(async (q: string, ctx: SearchOpsContext = {}): Promise<OpcaoOp[]> => {
-    const res = await fetchOpcoes({
-      cod_emp: ctx.cod_emp,
-      cod_ori: ctx.cod_ori,
-      num_ped: ctx.num_ped,
-      rel_prd: ctx.rel_prd,
-      sit_orp: ctx.sit_orp,
-      cod_cre: ctx.cod_cre,
-      cod_etg: ctx.cod_etg,
-      cod_pro: ctx.cod_pro,
-      q,
-      limite_ops: 200,
-    });
-    const list = sanitizeOps(res.ordens_producao ?? []);
-    setOps(list);
-    return list;
-  }, [fetchOpcoes]);
+  const searchOps = useCallback(
+    async (q: string, ctx: SearchOpsContext = {}): Promise<OpcaoOp[]> => {
+      const res = await fetchOpcoes({
+        cod_emp: ctx.cod_emp,
+        cod_ori: ctx.cod_ori,
+        num_ped: ctx.num_ped,
+        rel_prd: ctx.rel_prd,
+        sit_orp: ctx.sit_orp,
+        cod_cre: ctx.cod_cre,
+        cod_etg: ctx.cod_etg,
+        cod_pro: ctx.cod_pro,
+        q,
+        limite_ops: 200,
+      });
+      const list = sanitizeOps(res.ordens_producao ?? []);
+      setOps(list);
+      return list;
+    },
+    [fetchOpcoes],
+  );
 
   const searchProdutos = useCallback(
     async (q: string, ctx: { cod_emp?: string } = {}): Promise<OpcaoProduto[]> => {
@@ -313,8 +338,26 @@ export function useOpcoesImpressaoOp() {
   );
 
   return {
-    empresas, origens, pedidos, relatoriosProducao, situacoes, ops, estagios, centrosRecurso, produtos, loading,
-    reloadBase, reloadByPedido, reloadByRelatorio, reloadByOrigem, reloadBySituacao, reloadByCentroRecurso,
-    reloadByProduto, reloadOpContexto, reloadCres, searchOps, searchProdutos,
+    empresas,
+    origens,
+    pedidos,
+    relatoriosProducao,
+    situacoes,
+    ops,
+    estagios,
+    centrosRecurso,
+    produtos,
+    loading,
+    reloadBase,
+    reloadByPedido,
+    reloadByRelatorio,
+    reloadByOrigem,
+    reloadBySituacao,
+    reloadByCentroRecurso,
+    reloadByProduto,
+    reloadOpContexto,
+    reloadCres,
+    searchOps,
+    searchProdutos,
   };
 }
