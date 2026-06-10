@@ -72,9 +72,10 @@ export function PieChartCard({
     const cx = cw / 2;
     const cy = ch / 2;
     const RADIAN = Math.PI / 180;
-    const lineH = fs * 1.2;
+    const layerFs = data.length > 6 ? Math.max(9, fs - 1) : fs;
+    const lineH = layerFs * 1.2;
     const blockH = lineH * 2;
-    const minGap = blockH + 4;
+    const minGap = blockH + 8;
 
     let startAngle = 90;
     const left: RichItem[] = [];
@@ -114,24 +115,26 @@ export function PieChartCard({
       const horizEnd = it.side === 'right' ? it.labelX - 2 : it.labelX + 2;
       const anchor = it.side === 'right' ? 'start' : 'end';
       const textX = it.labelX;
+      const dotX = it.side === 'right' ? it.labelX + 1 : it.labelX - 1;
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
           <polyline
             fill="none"
-            stroke="hsl(var(--muted-foreground))"
-            strokeWidth={1}
-            opacity={0.6}
+            stroke={it.color}
+            strokeWidth={1.5}
+            opacity={0.9}
             points={`${it.anchorX},${it.anchorY} ${horizStart},${it.elbowY} ${horizEnd},${it.y}`}
           />
+          <circle cx={dotX} cy={it.y} r={3} fill={it.color} />
           <text
             x={textX}
             y={it.y}
             textAnchor={anchor}
-            fontSize={fs}
+            fontSize={layerFs}
             fill="hsl(var(--foreground))"
             style={{ fontFamily }}
           >
-            {it.line1 && <tspan x={textX} dy="-0.25em">{it.line1}</tspan>}
+            {it.line1 && <tspan x={textX} dy="-0.25em" fill={it.color} style={{ fontWeight: 600 }}>{it.line1}</tspan>}
             {it.line2 && <tspan x={textX} dy={it.line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{it.line2}</tspan>}
           </text>
         </g>
