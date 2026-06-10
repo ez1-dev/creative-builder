@@ -343,7 +343,16 @@ export default function ComercialPage() {
     return anos.size > 1;
   }, [mensal]);
   const dadosCombo = useMemo(
-    () => mensal.map((m) => ({ label: formatAnomesMes(m.anomes_emissao, { withYear: mensalMultiYear, abbr: mensalMultiYear }), faturamento: n(m.faturamento), meta: n(m.meta) })),
+    () => mensal.map((m) => {
+      const anomes = normalizeAnomes(m.anomes_emissao);
+      return {
+        label: formatAnomesMes(m.anomes_emissao, { withYear: mensalMultiYear, abbr: mensalMultiYear }),
+        anomes_emissao: anomes,
+        filtros_drill: { anomes_emissao: anomes },
+        faturamento: n(m.faturamento),
+        meta: n(m.meta),
+      };
+    }),
     [mensal, mensalMultiYear],
   );
   const sparkSerie = useMemo(() => mensal.map((m) => n(m.faturamento)), [mensal]);
@@ -443,31 +452,26 @@ export default function ComercialPage() {
     }
   };
   const onClickMensal = (d: any) => {
-    const ctx = extractDrillCtx(d, 'MENSAL');
-    const raw =
-      d?.anomes_emissao ?? d?.anomes ?? d?.mes ?? ctx.anomes_emissao ?? d?.label ?? null;
-    const anomes = normalizeAnomes(raw);
-
-    console.log('Clique mensal:', d);
-    console.log('Anomes selecionado:', anomes);
-    console.log('Base antes:', { anomes_ini: filters.anomes_ini, anomes_fim: filters.anomes_fim });
-
-    if (anomes.length !== 6) {
-      applyCtxAsCrossFilter(ctx);
-      return;
-    }
+    // Nunca usar label visual ("Maio") como valor técnico. Preferir filtros_drill,
+    // depois colunas técnicas, e por último o payload do recharts.
+    const tech =
+      d?.filtros_drill?.anomes_emissao ??
+      d?.anomes_emissao ??
+      d?.chave ??
+      d?.payload?.anomes_emissao ??
+      d?.activePayload?.[0]?.payload?.anomes_emissao ??
+      null;
+    const anomes = normalizeAnomes(tech);
+    if (anomes.length !== 6) return; // sem chave técnica válida → ignora clique
 
     const isSameMonth = filters.anomes_ini === anomes && filters.anomes_fim === anomes;
     if (isSameMonth) {
-      // toggle off: restaura o último período aplicado no topo
       const restore = periodoTopoAplicadoRef.current;
       setBase({ anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
       removeDrill('anomes_emissao');
-      console.log('Base depois:', { anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
     } else {
       setBase({ anomes_ini: anomes, anomes_fim: anomes });
       removeDrill('anomes_emissao');
-      console.log('Base depois:', { anomes_ini: anomes, anomes_fim: anomes });
     }
   };
   const onClickMix = (d: any) => {
@@ -677,7 +681,7 @@ export default function ComercialPage() {
     }
 
     if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} defaultSort={{ key: 'faturamento', dir: 'desc' }} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
-    if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
+    if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento,anomes_emissao:d.anomes_emissao,filtros_drill:d.filtros_drill}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     if (v === 'area')  return <AreaChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     return <ComboChartCard title={title} data={dadosCombo} barKey="faturamento" barLabel="Faturamento" lineKey="meta" lineLabel="Meta" barColor={style.bar} onItemClick={onClickMensal} />;
@@ -1362,7 +1366,9 @@ export default function ComercialPage() {
             <Badge variant="outline" className="font-medium">{filters.unidade_negocio}</Badge>
             {chips.map((c) => {
               let display = c.value;
-              if (c.key === 'cd_estado') {
+              if (c.key === 'anomes_emissao') {
+                display = formatAnomesMes(c.value, { withYear: true });
+              } else if (c.key === 'cd_estado') {
                 display = formatEstadoLabel(c.value);
               } else if (c.key === 'cd_rev_pedido') {
                 const row: any = (qRevenda.data ?? []).find((r: any) =>
