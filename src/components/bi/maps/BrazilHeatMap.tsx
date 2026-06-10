@@ -45,7 +45,7 @@ export function BrazilHeatMap({
   data,
   valueFormatter = formatCurrency,
   geoUrl = DEFAULT_GEO_URL,
-  height = 360,
+  height = 440,
   showLegend = true,
   legendTitle = 'Fat. (R$)',
   onStateClick,
