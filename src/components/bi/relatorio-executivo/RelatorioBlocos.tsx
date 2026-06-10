@@ -3,6 +3,7 @@ import type { RelatorioDados } from '@/hooks/useRelatorioExecutivoFaturamento';
 import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Cell, ReferenceLine } from 'recharts';
 import { useMemo, useState } from 'react';
+import { pickDimensionLabel, type LabelDimension } from '@/lib/bi/dimensionLabels';
 
 const pct = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(1)}%`;
 const num = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? 0 : Number(v);
@@ -104,11 +105,11 @@ export function EvolucaoBloco({ dados, filtros }: BlocoProps) {
 }
 
 // ---------- Rankings ----------
-function RankingTopN({ titulo, rows, labelKey, valueKey, chartId }: {
-  titulo: string; rows: any[]; labelKey: string; valueKey: string; chartId: string;
+function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
+  titulo: string; rows: any[]; dim: LabelDimension; valueKey: string; chartId: string;
 }) {
   const top = [...rows]
-    .map((r) => ({ label: String(r[labelKey] ?? '—'), value: num(r[valueKey]) }))
+    .map((r) => ({ label: pickDimensionLabel(r, dim) || '—', value: num(r[valueKey]) }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
   const total = top.reduce((acc, r) => acc + r.value, 0);
@@ -150,9 +151,10 @@ export function RankingsBloco({ dados }: BlocoProps) {
     <section className="rel-bloco">
       <h2 className="rel-bloco-titulo">Rankings por Dimensão</h2>
       <div className="grid grid-cols-2 gap-4">
-        <RankingTopN titulo="Top Revendas" rows={dados.rankings.revenda} labelKey="revenda" valueKey="faturamento" chartId="rk-rev" />
-        <RankingTopN titulo="Top Estados" rows={dados.rankings.estado} labelKey="cd_estado" valueKey="faturamento" chartId="rk-est" />
-        <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} labelKey="projeto" valueKey="faturamento" chartId="rk-obr" />
+        <RankingTopN titulo="Top Revendas" rows={dados.rankings.revenda} dim="revenda" valueKey="faturamento" chartId="rk-rev" />
+        <RankingTopN titulo="Top Estados" rows={dados.rankings.estado} dim="estado" valueKey="faturamento" chartId="rk-est" />
+        <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} dim="obra" valueKey="faturamento" chartId="rk-obr" />
+
       </div>
     </section>
   );
