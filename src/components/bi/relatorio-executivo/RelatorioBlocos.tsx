@@ -63,12 +63,21 @@ export function EvolucaoBloco({ dados, filtros }: BlocoProps) {
     metasMap.set(m.anomes_emissao, (metasMap.get(m.anomes_emissao) ?? 0) + Number(m.vl_meta ?? 0));
   }
 
-  const data = dados.mensal.map((r) => ({
-    anomes: fmtAnomes(r.anomes_emissao),
-    Faturamento: num(r.faturamento),
-    Líquido: num(r.fat_liquido),
-    Meta: metasMap.get(r.anomes_emissao) ?? null,
-  }));
+  const data = dados.mensal.map((r: any) => {
+    const metaCloud = metasMap.get(r.anomes_emissao);
+    const metaApi = r.meta != null ? Number(r.meta) : null;
+    const Meta = metaCloud != null && metaCloud > 0
+      ? metaCloud
+      : (metaApi != null && metaApi > 0 ? metaApi : null);
+    return {
+      anomes: fmtAnomes(r.anomes_emissao),
+      Faturamento: num(r.faturamento),
+      Líquido: num(r.fat_liquido),
+      Meta,
+    };
+  });
+
+  const temMeta = data.some((d) => d.Meta != null);
 
   return (
     <section className="rel-bloco">
@@ -83,7 +92,10 @@ export function EvolucaoBloco({ dados, filtros }: BlocoProps) {
             <Legend wrapperStyle={{ fontSize: 12 }} />
             <Bar dataKey="Faturamento" fill="hsl(var(--primary))" />
             <Line type="monotone" dataKey="Líquido" stroke="hsl(var(--success))" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="Meta" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+            {temMeta && (
+              <Line type="monotone" dataKey="Meta" stroke="hsl(var(--destructive))" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 3 }} connectNulls />
+            )}
+
           </ComposedChart>
         </ResponsiveContainer>
       </div>
