@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
-import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
+import { COMERCIAL_WIDGETS, makeDuplicateType, baseWidgetType } from '@/lib/bi/comercialWidgetCatalog';
 
 export interface NewWidgetValue {
   type: string;
@@ -69,8 +69,8 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
   useEffect(() => {
     if (!open) return;
     setTab('catalog');
-    const firstAvail = allCatalog.find((w) => !presentTypes.includes(w.type));
-    setCatalogType(firstAvail?.type ?? '');
+    const firstAvail = allCatalog.find((w) => !presentTypes.some((t) => baseWidgetType(t) === w.type));
+    setCatalogType(firstAvail?.type ?? allCatalog[0]?.type ?? '');
     setComponentId('bar-chart');
     setSeriesKey(seriesOptions[0]?.key ?? '');
     setValueKey(kpiOptions[0]?.key ?? '');
@@ -123,8 +123,9 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
     if (tab === 'catalog') {
       const def = COMERCIAL_WIDGETS[catalogType];
       if (!def) return;
+      const alreadyPresent = presentTypes.some((t) => baseWidgetType(t) === def.type);
       onAdd({
-        type: def.type,
+        type: alreadyPresent ? makeDuplicateType(def.type) : def.type,
         title: title.trim() || def.title,
         variant: def.variants[0]?.value,
       });
@@ -167,10 +168,10 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
                 <SelectTrigger id={idCatalogBlock} name="catalog-block" aria-label="Bloco do catálogo"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {allCatalog.map((w) => {
-                    const present = presentTypes.includes(w.type);
+                    const count = presentTypes.filter((t) => baseWidgetType(t) === w.type).length;
                     return (
-                      <SelectItem key={w.type} value={w.type} disabled={present}>
-                        {w.title} {present && '(já adicionado)'}
+                      <SelectItem key={w.type} value={w.type}>
+                        {w.title}{count > 0 ? ` (×${count})` : ''}
                       </SelectItem>
                     );
                   })}

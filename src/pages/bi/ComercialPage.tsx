@@ -42,7 +42,7 @@ import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingTogg
 import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
-import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
+import { COMERCIAL_WIDGETS, getWidgetDef, baseWidgetType } from '@/lib/bi/comercialWidgetCatalog';
 import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
@@ -770,7 +770,7 @@ export default function ComercialPage() {
     if (w.componentId) return renderCustomLibrary(w);
 
     // Blocos compostos / fixos (sem variantes)
-    if (w.type === 'resumo-faturamento') {
+    if (baseWidgetType(w.type) === 'resumo-faturamento') {
       if (qKpis.isLoading) return <LoadingState height={200} />;
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
@@ -808,7 +808,7 @@ export default function ComercialPage() {
         </Clickable>
       );
     }
-    if (w.type === 'gauge-atingimento') {
+    if (baseWidgetType(w.type) === 'gauge-atingimento') {
       if (qKpis.isLoading) return <LoadingState height={200} />;
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
@@ -826,7 +826,7 @@ export default function ComercialPage() {
 
 
 
-    const def = COMERCIAL_WIDGETS[w.type];
+    const def = getWidgetDef(w.type);
     if (def) {
       if (def.kind === 'kpi') return renderKpi(def, w);
       if (def.kind === 'serie-mensal') return renderSerieMensal(w);
@@ -899,7 +899,7 @@ export default function ComercialPage() {
     .join('~');
 
   const widgetDrillType = (w: ComercialWidget): DrillType | undefined => {
-    const def = COMERCIAL_WIDGETS[w.type];
+    const def = getWidgetDef(w.type);
     if (def?.kind === 'kpi') return KPI_DRILL_MAP[def.kpiKey!] ?? 'NOTA_FISCAL';
     if (def?.kind === 'serie-mensal') return 'MENSAL';
     if (def?.type === 'estados') return 'ESTADO';
@@ -1069,7 +1069,7 @@ export default function ComercialPage() {
 
   const handleConfigReset = () => {
     if (!configType) return;
-    const def = COMERCIAL_WIDGETS[configType];
+    const def = getWidgetDef(configType);
     mergeConfigDraft(configType, {
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
@@ -1105,7 +1105,7 @@ export default function ComercialPage() {
 
   const presentTypes = layout.widgets.map((w) => w.type);
   const configuringWidget = configType ? effectiveWidgets.find((w) => w.type === configType) : null;
-  const configuringDef = configType ? COMERCIAL_WIDGETS[configType] : undefined;
+  const configuringDef = configType ? getWidgetDef(configType) : undefined;
 
   return (
     <PageDataProvider pageKey={PAGE_KEY} kpis={kpis} series={pageSeries} rows={mensal as any[]} filtros={filters as any}>
