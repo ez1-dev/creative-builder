@@ -75,7 +75,7 @@ export function useOpcoesImpressaoOp() {
     async (cod_emp: string = "1") => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, limite_ops: 500 });
+        const res = await fetchOpcoes({ cod_emp, limite_ops: 80 });
         setEmpresas(res.empresas ?? []);
         setOrigens(dropOri100Origens(res.origens ?? []));
         setPedidos(res.pedidos ?? []);
@@ -103,7 +103,7 @@ export function useOpcoesImpressaoOp() {
           cod_cre: ref.cod_cre,
           cod_etg: ref.cod_etg,
           cod_pro: ref.cod_pro,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
@@ -130,7 +130,7 @@ export function useOpcoesImpressaoOp() {
           cod_cre: ref.cod_cre,
           cod_etg: ref.cod_etg,
           cod_pro: ref.cod_pro,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
@@ -164,7 +164,7 @@ export function useOpcoesImpressaoOp() {
           cod_etg: ctx.cod_etg,
           cod_pro: ctx.cod_pro,
           q: ctx.q,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOps(sanitizeOps(res.ordens_producao ?? []));
         if (res.produtos) setProdutos(res.produtos);
@@ -196,7 +196,7 @@ export function useOpcoesImpressaoOp() {
           cod_cre: ctx.cod_cre,
           cod_etg: ctx.cod_etg,
           cod_pro: ctx.cod_pro,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
@@ -234,7 +234,7 @@ export function useOpcoesImpressaoOp() {
           cod_etg: ctx.cod_etg,
           cod_pro: ctx.cod_pro,
           q: ctx.q,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOps(sanitizeOps(res.ordens_producao ?? []));
         if (res.produtos) setProdutos(res.produtos);
@@ -269,7 +269,7 @@ export function useOpcoesImpressaoOp() {
           sit_orp: ctx.sit_orp,
           cod_cre: ctx.cod_cre,
           cod_etg: ctx.cod_etg,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
@@ -314,7 +314,7 @@ export function useOpcoesImpressaoOp() {
         cod_etg: ctx.cod_etg,
         cod_pro: ctx.cod_pro,
         q,
-        limite_ops: 500,
+        limite_ops: 200,
       });
       const list = sanitizeOps(res.ordens_producao ?? []);
       setOps(list);
@@ -328,7 +328,7 @@ export function useOpcoesImpressaoOp() {
       const res = await fetchOpcoes({
         cod_emp: ctx.cod_emp,
         q: q || undefined,
-        limite_ops: 500,
+        limite_ops: 200,
       });
       const list = res.produtos ?? [];
       setProdutos(list);
