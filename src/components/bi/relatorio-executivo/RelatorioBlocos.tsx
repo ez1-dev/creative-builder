@@ -254,6 +254,7 @@ export function ComentariosIaBloco({ comentarios, loading, error }: {
 // ---------- Tabela Analítica ----------
 export function TabelaAnaliticaBloco({ dados }: BlocoProps) {
   const rows = dados.detalhes.slice(0, 100);
+  const { data: clientesMap } = useBiClientesMap();
   if (!rows.length) return null;
   return (
     <section className="rel-bloco">
