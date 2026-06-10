@@ -29,6 +29,13 @@ import type {
   WidgetValueFormat, WidgetComparacao, WidgetMeta, WidgetPeriodoOverride, WidgetSort,
 } from '@/lib/bi/widgetOptions';
 import { WidgetShell } from './WidgetShell';
+import { HeatPaletteEditor } from '@/components/bi/maps/HeatPaletteEditor';
+import { HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
+
+const HEAT_MAP_LIB_IDS = new Set(['brazil-heat-map', 'brazil-heat-map-comercial']);
+function stopsEqual(a: string[], b: string[]) {
+  return a.length === b.length && a.every((v, i) => v.toLowerCase() === b[i]?.toLowerCase());
+}
 
 const COLOR_SWATCHES: { value: WidgetColor; label: string; cls: string }[] = [
   { value: 'primary', label: 'Primary',  cls: 'bg-[hsl(var(--primary))]' },
