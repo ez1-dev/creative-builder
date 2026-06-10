@@ -107,15 +107,40 @@ export function ConfigureBiWidgetDialog({
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
   const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
 
+  const libDef = useMemo(() => getComponent(componentId), [componentId]);
+  const seriesOptions = page?.schema.series ?? [];
+  const kpiOptions = page?.schema.kpis ?? [];
+  const inputs = libDef?.inputs ?? [];
+
+  const computeDefaultMapping = useCallback((compId: string, existing?: Record<string, string> | null) => {
+    const d = getComponent(compId);
+    if (!d) return existing ?? {};
+    let auto: Record<string, string> = {};
+    try {
+      auto = d.autoMap?.({ kpis: kpiOptions as any, series: seriesOptions as any } as any) ?? {};
+    } catch { /* noop */ }
+    const result: Record<string, string> = {};
+    d.inputs.forEach((inp) => {
+      const fromExisting = existing?.[inp.key];
+      if (fromExisting) { result[inp.key] = fromExisting; return; }
+      const fromAuto = auto[inp.key];
+      if (fromAuto) { result[inp.key] = fromAuto; return; }
+      if (inp.source === 'series') result[inp.key] = seriesOptions[0]?.key ?? '';
+      else if (inp.source === 'kpis') result[inp.key] = (def?.kpiKey as string) ?? kpiOptions[0]?.key ?? '';
+      else result[inp.key] = 'dados';
+    });
+    return result;
+  }, [kpiOptions, seriesOptions, def?.kpiKey]);
+
   useEffect(() => {
     if (!open) return;
     const lib = startsAsLibrary ? 'library' : 'builtin';
     setMode(lib);
     setActiveTab(lib);
     setVariant(initial.variant ?? def?.variants[0]?.value ?? '');
-    setComponentId(initial.componentId ?? libDefs[0]?.id ?? '');
-    setSeriesKey(initial.mapping?.series ?? '');
-    setValueKey(initial.mapping?.value ?? def?.kpiKey ?? '');
+    const initialCompId = initial.componentId ?? libDefs[0]?.id ?? '';
+    setComponentId(initialCompId);
+    setInputMapping(computeDefaultMapping(initialCompId, initial.mapping ?? undefined));
     setCustomTitle(initial.customTitle ?? '');
     setSeriesList(initial.series ?? []);
     setTitleColor(initial.titleColor ?? 'default');
@@ -132,10 +157,12 @@ export function ConfigureBiWidgetDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const libDef = useMemo(() => getComponent(componentId), [componentId]);
-  const seriesOptions = page?.schema.series ?? [];
-  const kpiOptions = page?.schema.kpis ?? [];
-  const inputs = libDef?.inputs ?? [];
+  // Quando troca de componente na aba Biblioteca, recalcula mapping default
+  useEffect(() => {
+    if (!open) return;
+    setInputMapping((prev) => computeDefaultMapping(componentId, prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [componentId]);
 
   const supportsChartColor = !!libDef && COLOR_AWARE_LIB_IDS.has(libDef.id);
   const supportsHeatPalette = !!libDef && HEAT_MAP_LIB_IDS.has(libDef.id);
@@ -148,25 +175,31 @@ export function ConfigureBiWidgetDialog({
     return opts;
   }, [supportsChartColor, chartColor, visual, supportsHeatPalette, colorStops]);
 
+  const resolveMapping = useCallback(() => {
+    const mapping: Record<string, string> = {};
+    inputs.forEach((inp) => {
+      const v = inputMapping[inp.key];
+      if (v) mapping[inp.key] = v;
+      else if (inp.source === 'series') mapping[inp.key] = seriesOptions[0]?.key ?? '';
+      else if (inp.source === 'kpis') mapping[inp.key] = kpiOptions[0]?.key ?? '';
+      else mapping[inp.key] = 'dados';
+    });
+    return mapping;
+  }, [inputs, inputMapping, seriesOptions, kpiOptions]);
+
   const previewNode = useMemo(() => {
     if (mode !== 'library' || !libDef) return null;
     try {
-      const mapping: Record<string, string> = {};
-      inputs.forEach((inp) => {
-        if (inp.source === 'series') mapping[inp.key] = seriesKey || seriesOptions[0]?.key || '';
-        else if (inp.source === 'kpis') mapping[inp.key] = valueKey || kpiOptions[0]?.key || '';
-        else mapping[inp.key] = 'dados';
-      });
       return libDef.render({
         title: customTitle || libDef.label,
-        mapping,
+        mapping: resolveMapping(),
         ctx: { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] },
         options: buildLibraryOptions(),
       });
     } catch (e) {
       return <div className="text-xs text-destructive">Erro: {(e as Error).message}</div>;
     }
-  }, [mode, libDef, inputs, seriesKey, valueKey, customTitle, kpis, series, rows, seriesOptions, kpiOptions, buildLibraryOptions]);
+  }, [mode, libDef, resolveMapping, customTitle, kpis, series, rows, buildLibraryOptions]);
 
   const handleApply = () => {
     const titleStyle = {
