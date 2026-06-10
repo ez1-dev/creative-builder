@@ -1,26 +1,27 @@
-# Plano
-
 ## Objetivo
-Fazer o cabeçalho do relatório aparecer corretamente no layout de impressão/PDF, incluindo:
-- Título: `Relatório Executivo de Faturamento`
-- Subtítulo: `Período 202601 – 202606 • Unidade: CONSOLIDADO`
+Restabelecer a exportação em PDF do Relatório Executivo de Faturamento sem mexer no conteúdo do relatório, apenas no fluxo de impressão e nos estilos necessários para ele aparecer corretamente no diálogo “Salvar como PDF”.
 
-## O que vou ajustar
-1. Revisar o container imprimível `#rel-doc` para evitar que o topo seja cortado ou suprimido no modo de impressão.
-2. Fortalecer as regras de impressão do cabeçalho (`.rel-header`, `.rel-titulo`, `.rel-subtitulo`, `.rel-data`) para garantir renderização visível no PDF.
-3. Ajustar a estrutura do topo do documento, se necessário, para impedir que o cabeçalho seja afetado por regras globais de `visibility`, fluxo de layout ou quebra de página.
-4. Validar que o cabeçalho continue visível tanto no preview quanto na exportação por `window.print()`.
+## O que vou corrigir
+1. Ajustar a regra de impressão que hoje esconde elementos do `body` para não ocultar o próprio documento `#rel-doc` quando ele é movido para impressão.
+2. Tornar o fluxo `exportarPdf` mais resiliente, garantindo restauração do DOM mesmo se o `afterprint` não disparar ou o usuário cancelar a impressão.
+3. Revisar o container imprimível para evitar que o relatório fique invisível ou fora do fluxo na hora de gerar o PDF.
+4. Validar o comportamento no preview, especificamente se o clique em “Exportar PDF (Imprimir)” volta a abrir o diálogo de impressão e mantém o relatório íntegro.
 
-## Arquivos envolvidos
-- `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`
-- `src/pages/bi/relatorio.css`
+## Resultado esperado
+- O botão “Exportar PDF (Imprimir)” volta a funcionar.
+- O navegador abre o fluxo de impressão/salvar como PDF.
+- O relatório visível no preview é o mesmo que entra no PDF.
+- O layout do cabeçalho e dos blocos continua preservado.
 
 ## Detalhes técnicos
-- O cabeçalho já está presente no DOM dentro de `#rel-doc`.
-- A causa provável está no CSS de impressão atual, que usa isolamento por `visibility` em todo o `body` e posicionamento absoluto de `#rel-doc`, combinação que pode fazer o topo do documento não entrar corretamente na composição do PDF.
-- A correção ficará só no frontend/layout de impressão, sem mexer em backend nem na lógica dos dados.
+- Arquivos alvo: `src/pages/bi/relatorio.css` e `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`
+- Causa provável encontrada: a regra `body.printing-rel-doc > *:not(#rel-print-portal)` usa `display: none`, mas o `#rel-doc` é anexado direto no `body`; como ele não é exceção da regra, acaba sendo escondido junto com o resto.
+- Ajuste previsto:
+  - excluir explicitamente `#rel-doc` da regra que oculta os irmãos do `body`
+  - adicionar fallback de restauração no `exportarPdf`
+  - manter o documento em fluxo visível durante `window.print()`
 
 ## Fora de escopo
-- Alterar conteúdo do relatório
+- Alterar dados do relatório
 - Mudar exportação PPTX
-- Ajustar outros blocos além do cabeçalho impresso
+- Refazer o layout visual do relatório
