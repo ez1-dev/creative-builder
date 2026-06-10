@@ -1,9 +1,10 @@
+import { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, LabelList } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { tickCurrencyAbbrev } from '../utils/chartHelpers';
 import { BarChartDatum } from './BarChartCard';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, formatRichLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface AreaChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
@@ -15,10 +16,29 @@ export function AreaChartCard({ data, valueFormatter = formatCurrency, color = '
   const vc = mergeVisualConfig(visualConfig);
   const seriesLabel = vc.legend.seriesLabels['valor'] ?? 'Valor';
   const fmtLabel = (v: any) => formatDataLabel(v, vc.dataLabels);
+  const total = useMemo(() => (data ?? []).reduce((s, d) => s + Number(d?.valor || 0), 0), [data]);
+  const rich = vc.dataLabels.visible && !!vc.dataLabels.richLabel;
+  const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
+
+  const renderRichPointLabel = (props: any) => {
+    const { x, y, value, index } = props;
+    const row = data[index];
+    const { line1, line2 } = formatRichLabel({ name: row?.label, value: Number(value || 0), total, cfg: vc.dataLabels });
+    const cx = Number(x) || 0;
+    const cy = (Number(y) || 0) - 8;
+    const fs = vc.dataLabels.fontSize;
+    return (
+      <text x={cx} y={cy} textAnchor="middle" fontSize={fs} fill="hsl(var(--foreground))" style={{ fontFamily, pointerEvents: 'none' }}>
+        {line1 && <tspan x={cx} dy="-0.6em">{line1}</tspan>}
+        {line2 && <tspan x={cx} dy={line1 ? '1.1em' : '0'} fill="hsl(var(--muted-foreground))">{line2}</tspan>}
+      </text>
+    );
+  };
+
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <ResponsiveContainer width="100%" height={height}>
-        <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: rich ? 32 : 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="bi-area-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.6} />
@@ -35,9 +55,11 @@ export function AreaChartCard({ data, valueFormatter = formatCurrency, color = '
           {vc.legend.visible && <Legend {...legendPositionProps(vc.legend.position)} wrapperStyle={{ fontSize: vc.legend.fontSize, fontFamily: fontFamilyCss(vc.legend.fontFamily) }} />}
           <Area type="monotone" dataKey="valor" name={seriesLabel} stroke={color} fill="url(#bi-area-grad)" strokeWidth={2}>
             {vc.dataLabels.visible && (
-              <LabelList dataKey="valor" position={vc.dataLabels.position as any}
-                style={{ fontSize: vc.dataLabels.fontSize, fontFamily: fontFamilyCss(vc.dataLabels.fontFamily), fill: 'hsl(var(--foreground))' }}
-                formatter={fmtLabel as any} />
+              rich
+                ? <LabelList dataKey="valor" content={renderRichPointLabel as any} />
+                : <LabelList dataKey="valor" position={vc.dataLabels.position as any}
+                    style={{ fontSize: vc.dataLabels.fontSize, fontFamily, fill: 'hsl(var(--foreground))' }}
+                    formatter={fmtLabel as any} />
             )}
           </Area>
         </AreaChart>
