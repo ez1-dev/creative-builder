@@ -1069,7 +1069,7 @@ export default function ComercialPage() {
 
   const handleConfigReset = () => {
     if (!configType) return;
-    const def = COMERCIAL_WIDGETS[configType];
+    const def = getWidgetDef(configType);
     mergeConfigDraft(configType, {
       variant: def?.variants[0]?.value ?? null,
       componentId: null, mapping: null, options: null, customTitle: null,
