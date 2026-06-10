@@ -42,7 +42,7 @@ import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingTogg
 import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
-import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
+import { COMERCIAL_WIDGETS, getWidgetDef, baseWidgetType } from '@/lib/bi/comercialWidgetCatalog';
 import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
