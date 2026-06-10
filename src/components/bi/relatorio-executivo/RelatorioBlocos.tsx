@@ -171,15 +171,17 @@ function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
   );
 }
 
-export function RankingsBloco({ dados }: BlocoProps) {
+export function RankingsBloco({ dados, filtros }: BlocoProps) {
+  const isGenius = filtros?.unidade_negocio === 'GENIUS';
   return (
     <section className="rel-bloco">
       <h2 className="rel-bloco-titulo">Rankings por Dimensão</h2>
       <div className="grid grid-cols-2 gap-4">
         <RankingTopN titulo="Top Revendas" rows={dados.rankings.revenda} dim="revenda" valueKey="faturamento" chartId="rk-rev" />
         <RankingTopN titulo="Top Estados" rows={dados.rankings.estado} dim="estado" valueKey="faturamento" chartId="rk-est" />
-        <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} dim="obra" valueKey="faturamento" chartId="rk-obr" />
-
+        {!isGenius && (
+          <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} dim="obra" valueKey="faturamento" chartId="rk-obr" />
+        )}
       </div>
     </section>
   );
