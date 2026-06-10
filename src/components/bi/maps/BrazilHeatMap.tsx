@@ -89,6 +89,17 @@ export function BrazilHeatMap({
   const max = valores.length ? Math.max(...valores) : 0;
   const total = valores.reduce((s, v) => s + v, 0);
 
+  const ufsInRange = useMemo(() => {
+    if (!selectedRange) return [] as string[];
+    const [lo, hi] = selectedRange;
+    return (data ?? [])
+      .filter((d) => {
+        const v = Number(d?.valor ?? 0);
+        return v > 0 && v >= lo && v <= hi;
+      })
+      .map((d) => String(d.uf).toUpperCase());
+  }, [data, selectedRange]);
+
   const isEmpty = !data?.length;
   const loading = shell.loading || geoQuery.isLoading;
   const error =
@@ -96,6 +107,7 @@ export function BrazilHeatMap({
 
   const mapHeight = Math.max(280, height - 40);
   const legendGradient = `linear-gradient(to top, ${stops.join(', ')})`;
+  const legendHeight = Math.min(240, mapHeight * 0.75);
 
   const zoomIn = () =>
     setPosition((p) => ({ ...p, zoom: Math.min(8, p.zoom * 1.5) }));
