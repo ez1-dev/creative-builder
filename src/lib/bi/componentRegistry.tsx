@@ -675,6 +675,44 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       />
     ),
   },
+  {
+    id: 'faturamento-realizado-meta-card',
+    kind: 'kpi',
+    label: 'Faturamento — Realizado / Meta / Diferença',
+    description: 'Card isolado com Realizado, Meta e Diferença (cálculo automático).',
+    defaultSpan: 1,
+    inputs: [
+      { key: 'realizado', label: 'Realizado', source: 'kpis', required: true },
+      { key: 'meta', label: 'Meta', source: 'kpis', required: true },
+      { key: 'diferenca', label: 'Diferença (opcional)', source: 'kpis' },
+    ],
+    autoMap: (s) => {
+      const kpis = s.kpis ?? [];
+      const find = (re: RegExp) =>
+        kpis.find((k) => re.test(k.key) || re.test(k.label ?? ''))?.key ?? '';
+      return {
+        realizado: find(/realizad|faturament(?!.*meta)/i) || kpis[0]?.key || '',
+        meta: find(/meta/i) || kpis[1]?.key || '',
+        diferenca: find(/diferen|gap|saldo/i) || '',
+      };
+    },
+    render: ({ title, mapping, ctx, options }) => {
+      const realizado = Number(ctx.kpis?.[mapping.realizado] ?? 0);
+      const meta = Number(ctx.kpis?.[mapping.meta] ?? 0);
+      const difRaw = mapping.diferenca ? ctx.kpis?.[mapping.diferenca] : undefined;
+      const diferenca = difRaw == null || difRaw === '' ? undefined : Number(difRaw);
+      return (
+        <FaturamentoRealizadoMetaCard
+          title={title || 'Faturamento'}
+          realizado={realizado}
+          meta={meta}
+          diferenca={diferenca}
+          format={(options?.valueFormat as any) === 'number' ? 'number' : 'currency'}
+        />
+      );
+    },
+  },
+
 
   // ===== Charts adicionais =====
   {
