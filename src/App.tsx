@@ -56,7 +56,6 @@ import FaturamentoValidacaoPage from "@/pages/bi/FaturamentoValidacaoPage";
 import ComercialPage from "@/pages/bi/ComercialPage";
 import MetasFaturamentoPage from "@/pages/bi/MetasFaturamentoPage";
 import RelatorioExecutivoFaturamentoPage from "@/pages/bi/RelatorioExecutivoFaturamentoPage";
-import TauxAdminPage from "@/pages/bi/TauxAdminPage";
 import RelatorioExecutivoPassagensPage from "@/pages/relatorios/RelatorioExecutivoPassagensPage";
 import RelatorioExecutivoFrotaPage from "@/pages/relatorios/RelatorioExecutivoFrotaPage";
 import RelatorioExecutivoMaquinasPage from "@/pages/relatorios/RelatorioExecutivoMaquinasPage";
@@ -136,7 +135,6 @@ const App = () => (
               <Route path="/bi/comercial" element={<ProtectedRoute path="/bi/comercial"><ComercialPage /></ProtectedRoute>} />
               <Route path="/bi/comercial/metas" element={<ProtectedRoute path="/bi/comercial/metas"><MetasFaturamentoPage /></ProtectedRoute>} />
               <Route path="/bi/faturamento/relatorio-executivo" element={<ProtectedRoute path="/bi/faturamento/relatorio-executivo"><RelatorioExecutivoFaturamentoPage /></ProtectedRoute>} />
-              <Route path="/bi/taux" element={<ProtectedRoute path="/bi/taux"><TauxAdminPage /></ProtectedRoute>} />
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               {/* Regras Senior */}

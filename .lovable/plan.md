@@ -1,58 +1,29 @@
-# BI - TAUX / Dimensões
+# Mover TAUX / Dimensões para dentro da Central de Integrações (/etl)
 
-Tela administrativa nova que consome três endpoints do FastAPI (`/api/bi/taux/status`, `/api/bi/taux/sync`, `/api/bi/taux/{nome}`) usando o cliente HTTP existente (`src/lib/api.ts`), que já injeta `Authorization: Bearer <token>`, header `ngrok-skip-browser-warning` e trata 401 redirecionando ao login. Nada nos módulos comerciais existentes é alterado.
+Acoplar o painel TAUX como um card extra dentro da página `/etl` (Central de Integrações), no mesmo padrão visual das outras seções, e remover a rota standalone `/bi/taux` (junto com o item de menu) — mantendo apenas a tela ETL como ponto de entrada, igual ao gancho do ATU_COMERCIAL.
 
-## O que será criado
+## Mudanças
 
-### 1. Camada de API — `src/lib/bi/tauxApi.ts`
-Wrapper sobre `apiClient.request` com tipos:
-- `getTauxStatus()` → `GET /api/bi/taux/status` → `TauxStatus[]` (`{ taux, tabela, total_registros, ultima_sincronizacao, status, erro? }`).
-- `syncTaux(tabelas?: string[])` → `POST /api/bi/taux/sync` com `{ tabelas: tabelas ?? [], acionado_por: 'MANUAL' }`.
-- `getTauxData(nome, { q, limit, offset })` → `GET /api/bi/taux/{nome}?...` → `{ data: Record<string,unknown>[]; total?: number; columns?: string[] }` (colunas inferidas das chaves do primeiro registro se o backend não enviar).
+1. **Novo componente** `src/components/etl/TauxPanel.tsx`
+   - Card com `CardHeader` ("TAUX / Dimensões") e ação **Sincronizar todas as TAUX** no canto.
+   - Mini-KPIs em linha (4 contadores compactos): Total de TAUX, Concluídas, Com erro, Última sincronização — usando o mesmo visual dos KPIs já presentes na `EtlAdminPage`.
+   - `DataTable` (mesmo componente já usado nessa página) com colunas: TAUX, Tabela Cloud, Registros, Última sincronização, Status (badge + spinner enquanto INICIADO/EXECUTANDO + tooltip com `erro` quando ERRO), Ações (Visualizar / Sincronizar esta TAUX).
+   - Polling automático a cada 5 s enquanto alguma TAUX estiver em execução; refetch após cada sync; toasts de sucesso/erro.
+   - Reaproveita `src/lib/bi/tauxApi.ts` (`getTauxStatus`, `syncTaux`, `TAUX_LIST`) e `src/components/bi/taux/TauxViewerDialog.tsx` já criados (sem mexer neles).
 
-Constante `TAUX_LIST` com os 15 nomes informados, usada para fallback quando o status vier vazio.
+2. **`src/pages/EtlAdminPage.tsx`**
+   - Importar e renderizar `<TauxPanel />` logo abaixo do card "Tarefas" existente (ordem: KPIs → Tarefas → TAUX / Dimensões).
+   - Nenhuma outra alteração nas tarefas atuais.
 
-### 2. Página — `src/pages/bi/TauxAdminPage.tsx`
-Layout no padrão do app (`PageHeader` + cards + `DataTableBI`):
+3. **Remover a tela standalone**
+   - `src/App.tsx`: remover o import `TauxAdminPage` e a `<Route path="/bi/taux">`.
+   - `src/components/AppSidebar.tsx`: remover o item `TAUX / Dimensões` adicionado em `biSubItems`.
+   - `src/lib/screenCatalog.ts`: remover a entrada `/bi/taux`.
+   - `src/pages/bi/TauxAdminPage.tsx`: excluir o arquivo (não terá mais uso).
 
-- **Header** com botão **"Sincronizar todas as TAUX"** (chama `syncTaux()` sem lista).
-- **Cards de status** (`KpiCard` da `@/components/bi`):
-  - Total de TAUX
-  - TAUX concluídas (status `CONCLUIDO`/`OK`)
-  - TAUX com erro (status `ERRO`)
-  - Total de registros (soma)
-  - Última sincronização geral (max `ultima_sincronizacao`)
-- **Tabela de status** (`DataTableBI`) com colunas: TAUX, Tabela Supabase, Total de registros (formatado), Última sincronização (data/hora pt-BR), Status (`StatusBadge`), Ações.
-  - Status mapeados por cor: verde (CONCLUIDO/OK), vermelho (ERRO — com tooltip exibindo `erro`), amarelo (INICIADO/EXECUTANDO — spinner), cinza (IGNORADA/desconhecido).
-  - Ações por linha: **Visualizar** (abre dialog) e **Sincronizar esta TAUX** (botão com spinner enquanto em execução; estado por-linha em `syncingSet: Set<string>`).
-- **Refetch** automático após qualquer sync (`getTauxStatus()`); polling leve (a cada 5 s) enquanto houver itens em `INICIADO/EXECUTANDO`, parando ao concluir.
-- Toasts (sonner) para sucesso/erro em todas as chamadas. Erros de rede já vêm tratados pelo `apiClient` (401 → mensagem; tela não trava).
-
-### 3. Modal "Visualizar" — `src/components/bi/taux/TauxViewerDialog.tsx`
-- Dialog shadcn full-width com:
-  - Cabeçalho com nome da TAUX e tabela Supabase associada.
-  - Campo de busca `q` (debounce 300 ms) + select de `limit` (50/100/200/500, default 100).
-  - Tabela renderizada dinamicamente: colunas = chaves do primeiro item (ou `columns` retornado pelo backend), valores formatados via `String(v ?? '')` com formatação especial para datas ISO e números.
-  - Paginação por `offset` (botões Anterior/Próxima + indicador "página X"); se o backend retornar `total`, mostra contagem real.
-  - Loading skeleton + estado vazio.
-
-### 4. Roteamento e navegação
-- `src/App.tsx`: adicionar `import TauxAdminPage from "@/pages/bi/TauxAdminPage"` e a rota:
-  ```tsx
-  <Route path="/bi/taux" element={<ProtectedRoute path="/bi/taux"><TauxAdminPage /></ProtectedRoute>} />
-  ```
-- `src/lib/screenCatalog.ts`: registrar a tela `/bi/taux` (label "BI - TAUX / Dimensões", grupo "BI") para aparecer no controle de permissões.
-- `src/components/AppSidebar.tsx`: adicionar item no grupo BI apontando para `/bi/taux` (visível conforme `canView`).
-
-## Detalhes técnicos
-
-- **Auth**: tudo passa pelo `apiClient.request`, que já adiciona o Bearer salvo no login e trata 401.
-- **CORS / ngrok**: o header `ngrok-skip-browser-warning` já é injetado.
-- **Estado**: `useQuery` (`@tanstack/react-query`) para `status`, `useMutation` para sync (com `onSettled` invalidando o status). Consulta de dados da TAUX no dialog usa `useQuery` com `queryKey: ['taux', nome, q, limit, offset]`.
-- **Sem novas migrações**: a tela é 100% consumidor do FastAPI; tabelas TAUX já existem no Supabase (apenas leitura visual no app via API).
-- **Permissões**: rota protegida pelo padrão existente; admins veem por padrão. Outros usuários precisam da tela `/bi/taux` liberada no perfil.
+4. **Permissão**
+   - Não é necessária nova permissão — quem já tem acesso a `/etl` vê o painel automaticamente, exatamente como o gancho de metas do ATU_COMERCIAL.
 
 ## Fora de escopo
-- Não altera nenhum módulo comercial nem reaproveita consumos atuais.
-- Não cria edge function nem grava nada no Cloud — apenas leitura/escrita via FastAPI.
-- Filtros futuros que consumirão TAUX ficam preparados (API client + tipos prontos), mas não são integrados agora.
+- Não alterar `tauxApi.ts` nem o `TauxViewerDialog`.
+- Não alterar nada nos módulos comerciais nem nas tarefas ETL existentes.
