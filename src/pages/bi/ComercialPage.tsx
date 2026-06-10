@@ -1105,7 +1105,7 @@ export default function ComercialPage() {
 
   const presentTypes = layout.widgets.map((w) => w.type);
   const configuringWidget = configType ? effectiveWidgets.find((w) => w.type === configType) : null;
-  const configuringDef = configType ? COMERCIAL_WIDGETS[configType] : undefined;
+  const configuringDef = configType ? getWidgetDef(configType) : undefined;
 
   return (
     <PageDataProvider pageKey={PAGE_KEY} kpis={kpis} series={pageSeries} rows={mensal as any[]} filtros={filters as any}>
