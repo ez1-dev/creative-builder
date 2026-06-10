@@ -1366,7 +1366,9 @@ export default function ComercialPage() {
             <Badge variant="outline" className="font-medium">{filters.unidade_negocio}</Badge>
             {chips.map((c) => {
               let display = c.value;
-              if (c.key === 'cd_estado') {
+              if (c.key === 'anomes_emissao') {
+                display = formatAnomesMes(c.value, { withYear: true });
+              } else if (c.key === 'cd_estado') {
                 display = formatEstadoLabel(c.value);
               } else if (c.key === 'cd_rev_pedido') {
                 const row: any = (qRevenda.data ?? []).find((r: any) =>
