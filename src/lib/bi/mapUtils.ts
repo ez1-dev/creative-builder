@@ -69,9 +69,11 @@ export function heatColor(t: number, stops: string[] = HEAT_COLOR_STOPS): string
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-/** Atalho: cor de calor a partir de valor e máximo. */
+/** Atalho: cor de calor a partir de valor e máximo. Cinza claro quando sem dado. */
 export function heatColorFromValue(valor: number, max: number): string {
-  if (!max || max <= 0 || !Number.isFinite(valor) || valor <= 0) return 'hsl(var(--muted))';
+  if (!Number.isFinite(valor) || valor <= 0 || !Number.isFinite(max) || max <= 0) {
+    return '#e5e7eb';
+  }
   return heatColor(Math.min(1, valor / max));
 }
 

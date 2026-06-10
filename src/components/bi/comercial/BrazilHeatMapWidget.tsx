@@ -43,8 +43,8 @@ function normalizeRow(row: any): BrazilHeatMapDatum | null {
 }
 
 export function BrazilHeatMapWidget({
-  title = 'Faturamento por Estado (mapa)',
-  subtitle,
+  title = 'Faturamento por UF',
+  subtitle = 'Mapa de calor por estado',
   filters,
   height = 380,
   onDrill,

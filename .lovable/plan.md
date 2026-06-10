@@ -1,34 +1,42 @@
 ## Objetivo
 
-Ajustar o `BrazilHeatMap` (mapa geográfico real usado em BI Comercial) para ficar parecido com a referência enviada:
+Refinar o `BrazilHeatMap` (já em escala Spectral) para ficar mais próximo da referência: mapa maior e centralizado, siglas com contorno branco para contraste, zoom/pan com botões, tooltip mais informativo e título de produto. Sem mexer em API, filtros, drill ou no widget cartograma.
 
-- Escala de cor multi-tom (azul → ciano → verde → amarelo → laranja → vermelho) ao invés do gradiente mono `--primary`.
-- Rótulo da UF (sigla) desenhado dentro de cada estado.
-- Legenda vertical à esquerda com título `Fat. (R$)`, valor máximo no topo e `0` na base, com barra de gradiente correspondente.
-- Mapa centralizado no card, com proporções equilibradas (sem sobrar grande espaço lateral).
+## Escopo
 
-Nenhuma alteração no widget cartograma (`BrazilStateMapWidget`) nem no fluxo de dados/`Aplicar` — apenas no componente visual `BrazilHeatMap` (que é o item “Mapa de Calor (geo)” aplicado pelo botão Aplicar).
+Arquivos alterados:
+1. `src/components/bi/maps/BrazilHeatMap.tsx` — refinos visuais + ZoomableGroup + label com stroke + tooltip rico + título limpo.
+2. `src/lib/bi/mapUtils.ts` — adicionar `heatColorFromValue` no formato pedido (cinza `#e5e7eb` para sem dado) mantendo helpers atuais.
+3. `src/components/bi/comercial/BrazilHeatMapWidget.tsx` — só ajuste do `title`/`subtitle` default ("Faturamento por UF" / "Mapa de calor por estado"), sem mudar props nem lógica.
 
-## Arquivos afetados
+Não muda: `comercialApi`, `comercialWidgetCatalog`, `componentRegistry`, `BrazilStateMapWidget` (cartograma), `fetchComercialEstado`, filtros, drill, applyCtxAsCrossFilter.
 
-1. `src/components/bi/maps/BrazilHeatMap.tsx`
-   - Substituir intensidade única por escala de cor categórica/contínua usando paleta tipo Spectral:
-     - Stops em HSL puro (sem token): `#2c7bb6`, `#abd9e9`, `#ffffbf`, `#fdae61`, `#d7191c` (mesma família da referência).
-     - Função `heatColor(t)` que interpola entre stops; `t = v / max`.
-   - Adicionar `<text>` com a sigla da UF no centróide de cada `<Geography>` usando `geoCentroid` de `d3-geo` (já instalado via `react-simple-maps`/`d3-geo`).
-   - Trocar legenda horizontal por legenda vertical à esquerda:
-     - Título “Fat. (R$)” em cima.
-     - Valor formatado do `max` no topo da barra, `0` embaixo.
-     - Barra com `linear-gradient(to top, ...mesmas stops...)`.
-   - Layout do card: `flex-row` com legenda à esquerda (largura fixa ~110px) e o `<ComposableMap>` ocupando o restante, centralizado vertical e horizontalmente; ajustar `projectionConfig.scale` para preencher melhor o container.
+## Mudanças detalhadas
 
-2. `src/lib/bi/mapUtils.ts`
-   - Exportar `HEAT_COLOR_STOPS` e helper `heatColorFromValue(valor, max)` para reuso.
+### `mapUtils.ts`
+- Manter `HEAT_COLOR_STOPS`, `heatColor`, `buildUfValueMap`.
+- Substituir `heatColorFromValue` para devolver `#e5e7eb` quando `valor<=0` ou sem dado (em vez de `hsl(var(--muted))`), garantindo contraste explícito com a paleta.
 
-## Detalhes técnicos
+### `BrazilHeatMap.tsx`
+- **Layout**: container `flex` com legenda à esquerda (largura fixa ~80px) e área do mapa `flex-1` centralizada. Mapa `<ComposableMap width=680 height=520 projectionConfig={{scale:760, center:[-54,-15]}}>` com `style={{ width:'100%', maxWidth:'760px', height:'auto' }}`.
+- **ZoomableGroup**: importar de `react-simple-maps`. Estado local `position = { coordinates:[-54,-15], zoom:1 }`. `minZoom=1`, `maxZoom=8`. Botões flutuantes no canto superior direito do mapa: `+`, `−`, `⟲` (reset). Implementados como `<button>` absolutos sobre o container do mapa, usando tokens (`bg-background/90 border-border`).
+- **Siglas**: manter `geoCentroid` + `<Marker>` + `<text>`. Adicionar `stroke="#fff"`, `strokeWidth={2.5}`, `paintOrder="stroke"` para contorno branco; `fill="#111827"`; `fontSize=10`, `fontWeight=600`; `pointerEvents:'none'`. Esconder label quando `zoom<=1` e estado for muito pequeno (lista fixa: DF, SE, AL, PB, RN, PE — ou medir bounding box do path; vamos usar a lista fixa por simplicidade e por já corresponder ao problema visível no print).
+- **Cores**: usar `heatColorFromValue(v, max)` (cinza `#e5e7eb` para sem dado).
+- **Hover/seleção**: `default.stroke = isSelected ? '#111827' : '#ffffff'`, `strokeWidth = isSelected ? 2 : 0.6`; `hover.stroke = '#111827'`, `strokeWidth = 1.4`.
+- **Tooltip nativo (`<title>`)**: incluir nome completo, UF, faturamento formatado e participação `% = v/total*100` (calcular `total = sum(valores)`). Texto sem valor: `"<Estado> (UF) — Sem faturamento no período"`.
+- **Legenda vertical**: já existe; ajustar para barra `h-[220px] w-4 rounded-full` com `linear-gradient(to top, HEAT_COLOR_STOPS)`, título `Fat. (R$)`, max formatado no topo, `0` na base. Continua usando `valueFormatter` (respeita modo global de arredondamento).
+- **Título**: o `title`/`subtitle` vêm via props (definidos no Widget); o componente em si não hardcoda.
 
-- A paleta é fixa (não usa tokens semânticos) porque a referência exige cores específicas de escala de calor; isso é uma exceção justificada para visualização de dados, igual ao que já acontece em outras libs de chart.
-- `geoCentroid` retorna `[lon, lat]`; usar com `<Marker coordinates>` do `react-simple-maps` para posicionar o `<text>` da sigla. Fonte ~10px, `fill: #111`, `pointerEvents: none`.
-- Tooltip nativo (`<title>`) e `onStateClick` continuam iguais.
-- Largura interna ajustada: container `flex-1`, `<ComposableMap width=520 height=height-40>` com `projectionConfig.scale ≈ 820` e `center=[-54,-15]`.
-- `BrazilHeatMapWidget` (consumidor) não muda.
+### `BrazilHeatMapWidget.tsx`
+- Trocar defaults: `title="Faturamento por UF"`, `subtitle="Mapa de calor por estado"`.
+
+## Critérios de aceite
+
+- Mapa centralizado, ocupando bem o card, sem sobra lateral grande.
+- Escala azul → ciano → amarelo → laranja → vermelho aplicada.
+- Estados sem dado em cinza claro (`#e5e7eb`), distintos do azul mais baixo.
+- Siglas legíveis com contorno branco; siglas de estados pequenos somem em zoom 1.
+- Legenda vertical à esquerda com `Fat. (R$)`, max e 0.
+- Botões de zoom/reset funcionam; pan via arrasto.
+- Clique por UF continua chamando `onStateClick` (drill/cross-filter intactos).
+- Sem mudança em backend/API.
