@@ -22,6 +22,7 @@ import {
 } from '@/components/bi';
 import { BrazilHeatMap } from '@/components/bi/maps/BrazilHeatMap';
 import { BrazilHeatMapWidget } from '@/components/bi/comercial/BrazilHeatMapWidget';
+import { FaturamentoRealizadoMetaCard } from '@/components/bi/kpis/FaturamentoRealizadoMetaCard';
 import {
   TreeView,
   Timeline,
