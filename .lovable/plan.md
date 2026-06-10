@@ -1,39 +1,33 @@
-## Contexto
+## Diagnóstico
 
-O painel TAUX já está acoplado em `/etl` (card `TauxPanel`) com KPIs, status, sync individual/global e visualização. Este plano cobre **apenas o que ainda não existe** no spec do usuário, sem mexer em módulos comerciais nem no fluxo já validado.
+O frontend já distingue corretamente tarefa × ação:
 
-## O que falta
+- `/etl` → "Executar" em uma linha da tabela `etl_tarefas` chama `executarTarefa(nome)` → `POST /api/etl/tarefas/{nome}/executar`.
+- `/etl/tarefas/:nome` → botão "Executar tarefa" idem; botão "Executar" dentro da grade de ações é o único que chama `POST /api/etl/acoes/{id_acao}/executar`.
 
-### 1. `src/lib/bi/tauxApi.ts` — pequenos ajustes
-- Adicionar à `TAUX_LIST` as duas constantes que faltam: `TAUX_LOCAL_SN` e `TAUX_PROD`.
-- Em `getTauxStatus`, também aceitar a chave `dados` da resposta (além de `data` / `items` já cobertos via `pickList`) e mapear `tabela_supabase` → `tabela` quando o backend usar o nome da spec.
-- `syncTaux(tabelas?)`:
-  - Quando `tabelas` for `undefined`/vazio → enviar `{ acionado_por: 'MANUAL', limpar_antes: false }` (sem o campo `tabelas`, conforme spec “sincronizar todas”).
-  - Quando vier lista → `{ tabelas, acionado_por: 'MANUAL', limpar_antes: false }`.
-- Nova função `getTauxLog(limit = 100)` → `GET /api/bi/taux/log?limit=...`, retornando array tipado `TauxLogEntry { nome_tabela, tabela_supabase, status, qtd_linhas, erro, acionado_por, iniciado_em, finalizado_em }`.
+O único lugar que chama "ATU_COMERCIAL" é o botão **"Atualizar Comercial"** em `src/pages/FaturamentoGeniusPage.tsx` (linhas 491-524), que dispara `POST /api/faturamento-genius/atualizar` (endpoint custom da FastAPI, não /api/etl/*). É esse endpoint do backend que internamente está chamando `executar_acao("ATU_COMERCIAL")` em vez de `executar_tarefa("ATU_COMERCIAL")` — daí o erro `Ação ETL não encontrada: ATU_COMERCIAL`.
 
-### 2. Novo `src/components/etl/TauxLogDialog.tsx`
-- Modal acionado por um botão **"Ver log"** no header do `TauxPanel`.
-- Tabela com as colunas do spec; mesmas cores de status já usadas no painel (verde/azul/amarelo/cinza/vermelho).
-- Botão **Atualizar** + auto-refresh a cada 10 s enquanto aberto.
-- Tooltip com `erro` quando houver.
+Como o Lovable não toca no FastAPI, a correção é especificada em documento de patch para o time backend, e o frontend ganha apenas robustez para tratar mensagens novas.
 
-### 3. `TauxPanel.tsx` — wire-up mínimo
-- Adicionar botão **"Ver log"** ao lado de "Sincronizar todas as TAUX".
-- Estado `logOpen` + render do `<TauxLogDialog />`.
-- Sem outras mudanças visuais.
+## Mudanças
 
-### 4. Novo utilitário de filtros futuros: `src/lib/bi/tauxFilterApi.ts`
-Helpers simples que apenas envelopam `getTauxData` para os filtros listados no spec (clientes, produtos, representantes, famílias, filiais, centro de custos). Cada um aceita `(q, limit?)` e devolve `{ value, label }[]` heurístico (primeiro campo string como label, primeiro campo `*_id`/`codigo`/`id` como value). Não consumido por ninguém ainda — pronto para os próximos painéis.
+### 1. Novo doc `docs/backend-faturamento-genius-atualizar-PATCH.md`
+Especifica como `/api/faturamento-genius/atualizar` deve funcionar:
 
-### 5. Não fazer
-- Não criar rota `/bi/taux` (foi removida por decisão anterior do usuário).
-- Não tocar em `TauxViewerDialog`, módulos comerciais, compras, recebimentos ou faturamento.
-- Não adicionar tratamento custom de 401 (já coberto centralmente em `src/lib/api.ts`).
+- Buscar `etl_tarefas` por `codigo_tarefa = 'ATU_COMERCIAL'` (ou `nome_tarefa`, mantendo retrocompatibilidade) → obter `tarefa_id`.
+- Listar `etl_acoes WHERE tarefa_id = :id AND ativa = true ORDER BY ordem`.
+- Criar 1 linha em `etl_execucoes` (status `EM_EXECUCAO`).
+- Para cada ação, criar linha em `etl_acao_execucoes` e executar respeitando `caso_erro` (ABORTAR vs CONTINUAR).
+- Aceitar payload com `anomes_ini`/`anomes_fim` (case-insensitive). Substituir placeholders `$[ANOMES_INI]` / `$[ANOMES_FIM]`.
+- Retornar `{ execucao_id, status, mensagem }`.
+- **Nunca** chamar `executar_acao("ATU_COMERCIAL")` — `ATU_COMERCIAL` é tarefa, não ação. Se chamado erroneamente como ação, retornar 400 com mensagem clara ("ATU_COMERCIAL é uma tarefa; use /api/etl/tarefas/ATU_COMERCIAL/executar").
+- Critérios de aceite (replicar os do usuário): linha em `etl_execucoes`, linhas em `etl_acao_execucoes` para `VM_FATURAMENTO`, `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL`, `VM_FAT_TRB` na ordem cadastrada.
 
-## Arquivos
+Inclui exemplo de payload, SQL de validação no Supabase Cloud (consultar `etl_tarefas`/`etl_acoes`/`etl_execucoes`) e snippet Python sugerido.
 
-- editar `src/lib/bi/tauxApi.ts`
-- criar `src/components/etl/TauxLogDialog.tsx`
-- editar `src/components/etl/TauxPanel.tsx`
-- criar `src/lib/bi/tauxFilterApi.ts`
+### 2. Pequeno hardening no frontend (`src/pages/FaturamentoGeniusPage.tsx`)
+Em `atualizarComercial`, quando a resposta vier com erro contendo "Ação ETL não encontrada: ATU_COMERCIAL", trocar a mensagem genérica por um aviso explicando que o backend FastAPI ainda não aplicou o patch (apontando o doc), em vez de só toast `err?.message`. Não muda o fluxo de chamada — continua `POST /api/faturamento-genius/atualizar`, que é o contrato correto.
+
+### Fora do escopo
+- Não alterar `src/lib/etl/api.ts`, `ExecutarModal`, nem `EtlAdminPage` / `EtlTarefaDetalhePage`: já usam corretamente `executarTarefa` vs `executarAcao`.
+- Não criar rota nova nem mexer em tabelas do Cloud.

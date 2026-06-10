@@ -508,6 +508,8 @@ export default function FaturamentoGeniusPage() {
         await consultar(1);
       }
     } catch (err: any) {
+      const rawMsg = String(err?.message ?? '');
+      const isAtuComoAcao = /A[çc][ãa]o ETL n[ãa]o encontrada:\s*ATU_COMERCIAL/i.test(rawMsg);
       if (err?.statusCode === 404) {
         setBackendIndisponivel(true);
         toast.error(MSG_404);
@@ -515,8 +517,12 @@ export default function FaturamentoGeniusPage() {
         setFonteIndisponivel(true);
         setError(MSG_FONTE);
         toast.error(MSG_FONTE);
+      } else if (isAtuComoAcao) {
+        toast.error(
+          'Backend chamando ATU_COMERCIAL como ação. Aplique o patch em docs/backend-faturamento-genius-atualizar-PATCH.md (ATU_COMERCIAL é tarefa, não ação).',
+        );
       } else {
-        toast.error(err?.message || 'Falha ao atualizar comercial');
+        toast.error(rawMsg || 'Falha ao atualizar comercial');
       }
     } finally {
       setUpdating(false);
