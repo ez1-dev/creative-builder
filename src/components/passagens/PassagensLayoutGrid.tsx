@@ -220,6 +220,42 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     });
   };
 
+  /**
+   * Move um widget para esquerda/direita trocando o X com o vizinho mais próximo
+   * na mesma faixa horizontal (sobreposição vertical em Y).
+   */
+  const moveCol = (type: string, dir: -1 | 1) => {
+    const items = orderedWidgets.map((wd) => {
+      const l = localLayout[wd.type] ?? wd.layout;
+      return { type: wd.type, x: l.x, y: l.y, w: l.w, h: l.h };
+    });
+    const me = items.find((it) => it.type === type);
+    if (!me) return;
+    const overlapsY = (a: typeof me, b: typeof me) =>
+      a.y < b.y + b.h && b.y < a.y + a.h;
+    const candidates = items
+      .filter((it) => it.type !== type && overlapsY(it, me))
+      .filter((it) => (dir === -1 ? it.x + it.w <= me.x || it.x < me.x : it.x >= me.x + me.w || it.x > me.x));
+    if (candidates.length === 0) return;
+    candidates.sort((a, b) => (dir === -1 ? b.x - a.x : a.x - b.x));
+    const neighbor = candidates[0];
+    setLocalLayout((prev) => {
+      const myCur = prev[me.type] ?? { x: me.x, y: me.y, w: me.w, h: me.h };
+      const nbCur = prev[neighbor.type] ?? { x: neighbor.x, y: neighbor.y, w: neighbor.w, h: neighbor.h };
+      const updated = {
+        ...prev,
+        [me.type]: { ...myCur, x: neighbor.x },
+        [neighbor.type]: { ...nbCur, x: myCur.x },
+      };
+      const layoutOut: Layout = orderedWidgets.map((wd) => {
+        const l = updated[wd.type] ?? wd.layout;
+        return { i: wd.type, x: l.x, y: l.y, w: l.w, h: l.h };
+      });
+      emit(layoutOut);
+      return updated;
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, type: string) => {
     if (!editing) return;
     // Só ativa quando o foco está no wrapper (evita disparar dentro de inputs/buttons internos).
