@@ -39,6 +39,8 @@ export interface BrazilHeatMapProps
   legendExtras?: React.ReactNode;
   onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
   selectedUf?: string | null;
+  /** Se definido, habilita stops clicáveis sobre a barra da legenda. */
+  onColorStopsChange?: (next: string[]) => void;
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
@@ -56,6 +58,7 @@ export function BrazilHeatMap({
   legendExtras,
   onStateClick,
   selectedUf = null,
+  onColorStopsChange,
   ...shell
 }: BrazilHeatMapProps) {
   const stops = colorStops && colorStops.length >= 2 ? colorStops : HEAT_COLOR_STOPS;
@@ -115,10 +118,34 @@ export function BrazilHeatMap({
             </div>
             <div className="flex items-stretch gap-2" style={{ height: Math.min(240, mapHeight * 0.75) }}>
               <div
-                className="w-4 rounded-full border border-border"
+                className="relative w-4 rounded-full border border-border"
                 style={{ background: legendGradient }}
-                aria-hidden
-              />
+              >
+                {onColorStopsChange &&
+                  stops.map((c, i) => (
+                    <div
+                      key={i}
+                      className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-background shadow cursor-pointer hover:scale-125 transition-transform"
+                      style={{
+                        top: `${(1 - i / (stops.length - 1)) * 100}%`,
+                        background: c,
+                      }}
+                      title={`Stop ${i + 1} — clique para mudar a cor`}
+                    >
+                      <input
+                        type="color"
+                        value={c}
+                        onChange={(e) =>
+                          onColorStopsChange(
+                            stops.map((x, j) => (j === i ? e.target.value : x)),
+                          )
+                        }
+                        className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
+                        aria-label={`Cor do stop ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+              </div>
               <div className="flex flex-col justify-between text-[10px] tabular-nums text-muted-foreground">
                 <span>{valueFormatter(max)}</span>
                 <span>0</span>
