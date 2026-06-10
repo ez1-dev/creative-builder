@@ -87,7 +87,7 @@ export function BrazilHeatMap({
     shell.error ?? (geoQuery.isError ? (geoQuery.error as Error)?.message ?? 'Erro ao carregar mapa' : null);
 
   const mapHeight = Math.max(280, height - 40);
-  const legendGradient = `linear-gradient(to top, ${HEAT_COLOR_STOPS.join(', ')})`;
+  const legendGradient = `linear-gradient(to top, ${stops.join(', ')})`;
 
   const zoomIn = () =>
     setPosition((p) => ({ ...p, zoom: Math.min(8, p.zoom * 1.5) }));
