@@ -106,6 +106,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
             obras: dados.rankings.obras.slice(0, 10),
           },
           metas: dados.metas,
+          pareto: blocos.pareto ? buildParetoPayload(dados, 'cliente') : null,
         };
         const { data, error } = await supabase.functions.invoke('relatorio-executivo-ia', {
           body: payload,
@@ -118,6 +119,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
           alertas: data?.alertas ?? [],
           recomendacoes: data?.recomendacoes ?? [],
         });
+        setParetoAnalise(typeof data?.pareto_analise === 'string' ? data.pareto_analise : null);
       } catch (e: any) {
         if (!cancelled) setIaError(e?.message ?? 'Falha ao gerar comentários');
       } finally {
