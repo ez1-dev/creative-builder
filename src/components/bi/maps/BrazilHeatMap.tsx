@@ -70,6 +70,7 @@ export function BrazilHeatMap({
     coordinates: DEFAULT_CENTER,
     zoom: 1,
   });
+  const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
 
   const geoQuery = useQuery({
     queryKey: ['geo-brasil-uf', geoUrl],
