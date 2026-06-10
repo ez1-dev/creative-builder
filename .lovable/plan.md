@@ -1,24 +1,24 @@
-## Objetivo
-Deixar todos os gráficos de pizza/rosca exatamente como o exemplo "Por Motivo de Viagem" anexado: rótulos limpos (NOME em cima, R$ valor (%) embaixo), encostados na fatia, **sem linhas-guia** e sem deslocamentos visíveis. Aplicar no componente único — não criar novos gráficos.
+## Problema
+Na aba "Rótulos" do editor visual, os campos abaixo dos toggles "Mostrar nome / Mostrar percentual" ficam visualmente desorganizados: o `grid grid-cols-2` mistura selects, números, fonte e Prefixo/Sufixo em alturas e larguras irregulares; o bloco condicional dos rótulos enriquecidos cola sem respiro nos campos seguintes.
 
-## Mudanças
-Arquivo único: `src/components/bi/charts/PieChartCard.tsx` → `RichLabelsLayer`.
+## Mudanças (apenas UI — `src/components/bi/visual/VisualConfigEditor.tsx`, aba `rotulos`)
 
-1. **Remover leader lines** — apagar o `<polyline>` e toda a lógica de `displaced`/`anchorX`/`anchorY`/`elbowX`/`elbowY`/offset horizontal do texto. O texto fica sempre em `labelX` puro (igual ao exemplo).
+1. **Agrupar em seções claras** dentro da aba, cada uma com card sutil (`rounded-md border bg-muted/20 p-3 space-y-3`):
+   - **Conteúdo do rótulo** — toggle "Exibir valores", toggle "Rótulos enriquecidos" + texto explicativo, e (quando rich) os switches "Mostrar nome / Mostrar percentual" lado a lado.
+   - **Aparência** — Posição, Fonte (px), Família da fonte.
+   - **Formato** — Formato, Casas decimais, Prefixo, Sufixo (Prefixo/Sufixo só quando NÃO for rich).
 
-2. **Anti-colisão suave (mantida, porém invisível)** — continua deslocando Y para não sobrepor, mas sem desenhar linha. Para reduzir deslocamentos perceptíveis em fatias muito pequenas:
-   - Aumentar `labelR` para `outerRadius + 18` (mais respiro).
-   - `minGap = blockH + 2` (gap mínimo justo).
-   - Reduzir `outerRadius` para `82` quando `rich` (sobra mais espaço lateral para os rótulos).
+2. **Grid consistente** — usar `grid grid-cols-2 gap-x-3 gap-y-3` em cada seção e marcar campos largos (Família da fonte) com `col-span-2` para não quebrar o alinhamento. Labels uniformes `text-xs font-medium text-muted-foreground`.
 
-3. **textAnchor** continua `start` (direita) / `end` (esquerda), baseado em `labelX >= cx`.
+3. **Desabilitar (não esconder) campos** quando `dataLabels.visible = false`, para evitar o layout "pulando". Usar `opacity-60 pointer-events-none` no wrapper das seções Aparência/Formato.
 
-4. **Nada muda** em: paleta, `formatRichLabel` (NOME negrito + valor/% muted), fonte, donut, tooltip, legend, modo simples (`rich=false`), `PieChart` margins.
+4. **Toggle Rich** — manter o card destacado, mas reduzir borda/padding (`p-2.5`) e alinhar os dois switches internos em `grid grid-cols-2 gap-2` com largura igual.
+
+5. **Nada muda** em comportamento/estado (`cfg.dataLabels.*`), tipos, outras abas, ou nos componentes de gráfico. Apenas reorganização visual.
+
+## Arquivo
+- `src/components/bi/visual/VisualConfigEditor.tsx` (somente o bloco da aba `rotulos`, linhas ~165–245)
 
 ## Resultado esperado
-- Visual idêntico ao print enviado em qualquer pizza/rosca BI.
-- Fatias pequenas vizinhas continuam separadas verticalmente pela anti-colisão, mas sem linhas — exatamente como o exemplo "FÉRIAS / VIAGEM ADMINISTRA... / DEMISSÃO" do print.
-- Nenhum gráfico novo é criado; apenas o componente compartilhado é ajustado.
-
-## Arquivos
-- `src/components/bi/charts/PieChartCard.tsx` (único)
+- Aba "Rótulos" com 3 blocos visualmente separados, alinhamento consistente, sem campos "soltos" entre toggles e selects.
+- Sem mudança funcional: as mesmas opções continuam disponíveis e produzindo o mesmo efeito nos gráficos.
