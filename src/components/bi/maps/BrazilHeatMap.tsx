@@ -58,6 +58,7 @@ export function BrazilHeatMap({
   legendExtras,
   onStateClick,
   selectedUf = null,
+  onColorStopsChange,
   ...shell
 }: BrazilHeatMapProps) {
   const stops = colorStops && colorStops.length >= 2 ? colorStops : HEAT_COLOR_STOPS;
