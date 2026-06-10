@@ -42,6 +42,7 @@ export function TauxPanel() {
   const queryClient = useQueryClient();
   const [syncingSet, setSyncingSet] = useState<Set<string>>(new Set());
   const [viewer, setViewer] = useState<{ nome: string; tabela?: string } | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const statusQuery = useQuery({
     queryKey: ['taux-status'],
