@@ -12,7 +12,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MaquinasDashboard, type ManutencaoMaquina, TIPO_MAQUINA_OPTIONS } from '@/components/maquinas/MaquinasDashboard';
+import { MaquinasDashboard, type ManutencaoMaquina } from '@/components/maquinas/MaquinasDashboard';
+import { TipoMaquinaCombobox } from '@/components/maquinas/TipoMaquinaCombobox';
 import { MaquinasShareLinksDialog } from '@/components/maquinas/MaquinasShareLinksDialog';
 import { ImportarMaquinasDialog } from '@/components/maquinas/ImportarMaquinasDialog';
 
