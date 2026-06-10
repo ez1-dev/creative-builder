@@ -124,6 +124,11 @@ export function ConfigureBiWidgetDialog({
     setValueColor(initial.valueColor ?? 'default');
     setChartColor(initial.options?.color ?? DEFAULT_CHART_COLOR);
     setVisual(mergeVisualConfig(initial.options?.visual));
+    setColorStops(
+      Array.isArray(initial.options?.colorStops) && initial.options!.colorStops.length >= 2
+        ? initial.options!.colorStops
+        : HEAT_COLOR_STOPS,
+    );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -134,13 +139,15 @@ export function ConfigureBiWidgetDialog({
   const inputs = libDef?.inputs ?? [];
 
   const supportsChartColor = !!libDef && COLOR_AWARE_LIB_IDS.has(libDef.id);
+  const supportsHeatPalette = !!libDef && HEAT_MAP_LIB_IDS.has(libDef.id);
 
   const buildLibraryOptions = useCallback(() => {
     const opts: Record<string, any> = {};
     if (supportsChartColor && chartColor && chartColor !== DEFAULT_CHART_COLOR) opts.color = chartColor;
     if (JSON.stringify(visual) !== JSON.stringify(DEFAULT_VISUAL_CONFIG)) opts.visual = visual;
+    if (supportsHeatPalette && !stopsEqual(colorStops, HEAT_COLOR_STOPS)) opts.colorStops = colorStops;
     return opts;
-  }, [supportsChartColor, chartColor, visual]);
+  }, [supportsChartColor, chartColor, visual, supportsHeatPalette, colorStops]);
 
   const previewNode = useMemo(() => {
     if (mode !== 'library' || !libDef) return null;
