@@ -62,9 +62,8 @@ export function PieChartCard({
   const rich = vc.dataLabels.visible && !!vc.dataLabels.richLabel;
   const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
   const fs = vc.dataLabels.fontSize;
-  // Quando rich, reduz raio para dar espaço a leader lines + labels laterais
-  const outerRadius = rich ? 70 : 90;
-  const innerRadius = donut ? (rich ? 42 : 55) : 0;
+  const outerRadius = rich ? 88 : 90;
+  const innerRadius = donut ? (rich ? 54 : 55) : 0;
 
   const RichLabelsLayer = (props: any) => {
     if (!rich || !data?.length) return null;
@@ -74,10 +73,9 @@ export function PieChartCard({
     const cy = ch / 2;
     const RADIAN = Math.PI / 180;
     const lineH = fs * 1.2;
-    const blockH = lineH * 2; // 2 linhas
+    const blockH = lineH * 2;
     const minGap = blockH + 4;
 
-    // Calcula ângulos a partir dos valores (sentido Recharts: começa em 90°, sentido anti-horário)
     let startAngle = 90;
     const left: RichItem[] = [];
     const right: RichItem[] = [];
@@ -87,18 +85,20 @@ export function PieChartCard({
       const sweep = pct * 360;
       const mid = startAngle - sweep / 2;
       startAngle -= sweep;
+      const isTiny = pct > 0 && pct < 0.02;
       const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
       const anchorX = cx + outerRadius * Math.cos(-mid * RADIAN);
       const anchorY = cy + outerRadius * Math.sin(-mid * RADIAN);
       const side: 'left' | 'right' = anchorX >= cx ? 'right' : 'left';
-      const elbowR = outerRadius + 12;
+      const elbowR = outerRadius + 14;
       const elbowX = cx + elbowR * Math.cos(-mid * RADIAN);
       const elbowY = cy + elbowR * Math.sin(-mid * RADIAN);
-      const labelX = side === 'right' ? cw - 6 : 6;
+      const labelX = side === 'right' ? elbowX + 8 : elbowX - 8;
       const item: RichItem = {
         side, anchorX, anchorY, elbowX, elbowY,
         targetY: elbowY, y: elbowY, labelX,
-        line1, line2,
+        line1: isTiny ? '' : line1,
+        line2,
         color: BI_PALETTE[i % BI_PALETTE.length],
       };
       (side === 'right' ? right : left).push(item);
@@ -110,16 +110,18 @@ export function PieChartCard({
     resolveCollisions(left, minGap, top, bot);
 
     const renderItem = (it: RichItem, k: number) => {
-      const horizX = it.side === 'right' ? it.labelX - 4 : it.labelX + 4;
+      const horizStart = it.elbowX;
+      const horizEnd = it.side === 'right' ? it.labelX - 2 : it.labelX + 2;
+      const anchor = it.side === 'right' ? 'start' : 'end';
       const textX = it.labelX;
-      const anchor = it.side === 'right' ? 'end' : 'start';
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
           <polyline
             fill="none"
             stroke="hsl(var(--muted-foreground))"
             strokeWidth={1}
-            points={`${it.anchorX},${it.anchorY} ${it.elbowX},${it.elbowY} ${horizX},${it.y}`}
+            opacity={0.6}
+            points={`${it.anchorX},${it.anchorY} ${horizStart},${it.elbowY} ${horizEnd},${it.y}`}
           />
           <text
             x={textX}
@@ -138,6 +140,7 @@ export function PieChartCard({
 
     return <g>{right.map(renderItem)}{left.map(renderItem)}</g>;
   };
+
 
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
