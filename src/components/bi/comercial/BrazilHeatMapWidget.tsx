@@ -51,6 +51,8 @@ export function BrazilHeatMapWidget({
   height = 380,
   onDrill,
 }: BrazilHeatMapWidgetProps) {
+  const [colorStops, setColorStops] = useState<string[]>(HEAT_COLOR_STOPS);
+
   const query = useQuery({
     queryKey: ['bi-comercial-estado-heatmap', filters],
     queryFn: () => fetchComercialEstado(filters),
@@ -69,6 +71,8 @@ export function BrazilHeatMapWidget({
       subtitle={subtitle}
       height={height}
       data={data}
+      colorStops={colorStops}
+      legendExtras={<HeatPaletteEditor value={colorStops} onChange={setColorStops} />}
       loading={query.isLoading}
       error={query.isError ? (query.error as Error)?.message ?? 'Erro ao carregar' : null}
       onStateClick={
