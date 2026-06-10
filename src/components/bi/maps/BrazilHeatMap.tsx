@@ -17,6 +17,7 @@ import { ChartCardShell, type ChartCardShellProps } from '@/components/bi/charts
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { formatEstadoLabel } from '@/lib/bi/ufLabels';
 import { buildUfValueMap, heatColorFromValue, HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
+import { InteractiveHeatLegend } from './InteractiveHeatLegend';
 
 export interface BrazilHeatMapDatum {
   uf: string;
@@ -41,6 +42,8 @@ export interface BrazilHeatMapProps
   selectedUf?: string | null;
   /** Se definido, habilita stops clicáveis sobre a barra da legenda. */
   onColorStopsChange?: (next: string[]) => void;
+  /** Se definido, mostra botão "Aplicar" quando uma faixa estiver selecionada. */
+  onRangeApply?: (payload: { cd_estado_in: string[]; valor_min: number; valor_max: number }) => void;
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
@@ -59,6 +62,7 @@ export function BrazilHeatMap({
   onStateClick,
   selectedUf = null,
   onColorStopsChange,
+  onRangeApply,
   ...shell
 }: BrazilHeatMapProps) {
   const stops = colorStops && colorStops.length >= 2 ? colorStops : HEAT_COLOR_STOPS;
@@ -66,6 +70,7 @@ export function BrazilHeatMap({
     coordinates: DEFAULT_CENTER,
     zoom: 1,
   });
+  const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);
 
   const geoQuery = useQuery({
     queryKey: ['geo-brasil-uf', geoUrl],
@@ -84,6 +89,17 @@ export function BrazilHeatMap({
   const max = valores.length ? Math.max(...valores) : 0;
   const total = valores.reduce((s, v) => s + v, 0);
 
+  const ufsInRange = useMemo(() => {
+    if (!selectedRange) return [] as string[];
+    const [lo, hi] = selectedRange;
+    return (data ?? [])
+      .filter((d) => {
+        const v = Number(d?.valor ?? 0);
+        return v > 0 && v >= lo && v <= hi;
+      })
+      .map((d) => String(d.uf).toUpperCase());
+  }, [data, selectedRange]);
+
   const isEmpty = !data?.length;
   const loading = shell.loading || geoQuery.isLoading;
   const error =
@@ -91,6 +107,7 @@ export function BrazilHeatMap({
 
   const mapHeight = Math.max(280, height - 40);
   const legendGradient = `linear-gradient(to top, ${stops.join(', ')})`;
+  const legendHeight = Math.min(240, mapHeight * 0.75);
 
   const zoomIn = () =>
     setPosition((p) => ({ ...p, zoom: Math.min(8, p.zoom * 1.5) }));
@@ -109,48 +126,28 @@ export function BrazilHeatMap({
       <div className="flex h-full w-full items-center justify-center gap-4">
         {/* Legenda vertical à esquerda */}
         {showLegend && max > 0 && (
-          <div className="flex flex-col items-start justify-center gap-2 shrink-0" style={{ minWidth: 72 }}>
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] font-medium text-muted-foreground leading-tight whitespace-pre-line">
-                {legendTitle}
-              </span>
-              {legendExtras}
-            </div>
-            <div className="flex items-stretch gap-2" style={{ height: Math.min(240, mapHeight * 0.75) }}>
-              <div
-                className="relative w-4 rounded-full border border-border"
-                style={{ background: legendGradient }}
-              >
-                {onColorStopsChange &&
-                  stops.map((c, i) => (
-                    <div
-                      key={i}
-                      className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-background shadow cursor-pointer hover:scale-125 transition-transform"
-                      style={{
-                        top: `${(1 - i / (stops.length - 1)) * 100}%`,
-                        background: c,
-                      }}
-                      title={`Stop ${i + 1} — clique para mudar a cor`}
-                    >
-                      <input
-                        type="color"
-                        value={c}
-                        onChange={(e) =>
-                          onColorStopsChange(
-                            stops.map((x, j) => (j === i ? e.target.value : x)),
-                          )
-                        }
-                        className="absolute inset-0 h-full w-full opacity-0 cursor-pointer"
-                        aria-label={`Cor do stop ${i + 1}`}
-                      />
-                    </div>
-                  ))}
-              </div>
-              <div className="flex flex-col justify-between text-[10px] tabular-nums text-muted-foreground">
-                <span>{valueFormatter(max)}</span>
-                <span>0</span>
-              </div>
-            </div>
+          <div className="flex items-center justify-center shrink-0">
+            <InteractiveHeatLegend
+              max={max}
+              height={legendHeight}
+              gradient={legendGradient}
+              title={legendTitle}
+              titleExtras={legendExtras}
+              selectedRange={selectedRange}
+              onRangeChange={setSelectedRange}
+              onRangeApply={
+                onRangeApply && selectedRange
+                  ? () =>
+                      onRangeApply({
+                        cd_estado_in: ufsInRange,
+                        valor_min: selectedRange[0],
+                        valor_max: selectedRange[1],
+                      })
+                  : undefined
+              }
+              formatValue={valueFormatter}
+              ufsInRange={ufsInRange}
+            />
           </div>
         )}
 
@@ -219,11 +216,17 @@ export function BrazilHeatMap({
                         const selUf = selectedUf ? String(selectedUf).toUpperCase() : null;
                         const isSelected = !!selUf && selUf === uf;
                         const dimmed = !!selUf && !isSelected;
+                        const inRange =
+                          !selectedRange ||
+                          (hasData && v >= selectedRange[0] && v <= selectedRange[1]);
+                        const rangeFade = selectedRange && hasData && !inRange ? 0.18 : 1;
                         const pct = hasData && total > 0 ? (v / total) * 100 : 0;
                         const tooltip = hasData
                           ? `${labelFull}\nFaturamento: ${valueFormatter(v)}\nParticipação: ${formatPercent(pct, 1)}${clickable ? '\nClique para detalhar' : ''}`
                           : `${labelFull} — Sem faturamento no período`;
                         const fill = heatColorFromValue(v, max, stops);
+                        const baseOpacity = (dimmed ? 0.55 : 1) * rangeFade;
+                        const hoverOpacity = (dimmed ? 0.75 : clickable ? 0.85 : 1) * (inRange ? 1 : 0.35);
                         return (
                           <Geography
                             key={geo.rsmKey}
@@ -237,7 +240,7 @@ export function BrazilHeatMap({
                                 fill,
                                 stroke: isSelected ? '#111827' : '#ffffff',
                                 strokeWidth: isSelected ? 2 : 0.6,
-                                opacity: dimmed ? 0.55 : 1,
+                                opacity: baseOpacity,
                                 outline: 'none',
                                 cursor: clickable ? 'pointer' : 'default',
                                 transition: 'fill 120ms ease, opacity 120ms ease',
@@ -246,7 +249,7 @@ export function BrazilHeatMap({
                                 fill,
                                 stroke: '#111827',
                                 strokeWidth: isSelected ? 2 : 1.4,
-                                opacity: dimmed ? 0.75 : clickable ? 0.85 : 1,
+                                opacity: hoverOpacity,
                                 outline: 'none',
                               },
                               pressed: { fill, outline: 'none' },

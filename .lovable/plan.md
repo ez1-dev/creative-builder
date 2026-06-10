@@ -1,44 +1,87 @@
 ## Objetivo
 
-Tornar a própria **barra vertical da legenda** interativa: as 5 paradas de cor viram pequenos círculos clicáveis sobre a barra. Clicar em um stop abre um color picker nativo; ao escolher a cor, o gradiente da legenda e o mapa repintam na hora.
+Transformar a barra vertical da legenda do `BrazilHeatMap` em uma **legenda interativa de faixa**: hover mostra valor, arrastar handles seleciona uma faixa `[min, max]`, estados fora da faixa ficam esmaecidos, e há ações de Limpar / Aplicar faixa.
 
 ## Escopo
 
-Alterar apenas `src/components/bi/maps/BrazilHeatMap.tsx`. Sem mudanças em backend, API, drill, zoom/pan ou no `mapUtils.ts`/`HeatPaletteEditor`. O editor popover atual continua existindo (ao lado de "Fat. (R$)") — agora soma-se a interação direta na barra.
+- **Editar:** `src/components/bi/maps/BrazilHeatMap.tsx`
+- **Novo:** `src/components/bi/maps/InteractiveHeatLegend.tsx` (extrai a barra + handles + tooltip + ações para legibilidade)
+- **Opcional:** `src/lib/bi/mapUtils.ts` — apenas se precisar de helper puro `getValueFromPointer`. Provavelmente fica inline no componente.
 
-## Como vai funcionar
+Sem mudanças em backend, API, drill, zoom/pan, widget cartograma, demais gráficos. O `BrazilHeatMapWidget` (BI Comercial) ganha apenas o repasse opcional de `onRangeApply` — sem nova lógica de filtro: vai chamar o `onDrill` existente quando for o caso (se for aceito; caso contrário, o botão Aplicar fica oculto).
 
-1. A barra vertical (`w-4`) ganha um wrapper `relative`.
-2. Para cada um dos 5 stops, renderizar um círculo absoluto centrado na barra, posicionado verticalmente em `bottom: ${(i/4)*100}%` (índice 0 = base, 4 = topo).
-3. Cada círculo:
-   - 14 px, `rounded-full`, `border-2 border-background`, `shadow`, `cursor-pointer`
-   - `background = stops[i]`
-   - contém um `<input type="color" class="absolute inset-0 opacity-0 cursor-pointer" value={stops[i]} onChange={...}>` para abrir o picker nativo no clique
-   - `title` mostra "Stop X — clique para mudar a cor"
-4. O `onChange` propaga via nova prop opcional `onColorStopsChange?: (stops: string[]) => void`. Se ausente, os círculos ficam apenas visuais (não-editáveis).
-5. `BrazilHeatMapWidget` (BI Comercial) já tem o `useState` — passa `onColorStopsChange={setColorStops}` para habilitar a edição direta.
+## Comportamento
+
+### Legenda interativa
+- Wrapper `relative` na barra vertical existente (gradiente preservado).
+- **Pointer events** (`onPointerDown/Move/Up/Leave` + `setPointerCapture`) — funciona mouse e touch.
+- **Hover**: linha horizontal fina + tooltip mostrando `formatValue(valor)` na posição Y do ponteiro.
+- **Arraste**: clicar perto de um handle "agarra" aquele handle; arrastar atualiza `selectedRange` garantindo `min ≤ max`.
+- **2 handles**: marcadores triangulares pequenos à direita da barra (topo = max da faixa, base = min). Cursor `ns-resize`, drag tooltip.
+- **Overlay**: regiões fora da faixa cobertas por faixa branco/transparente (~`rgba(255,255,255,0.55)`) sobre a barra de gradiente.
+- **Duplo clique na barra** → reseta a seleção (`setSelectedRange(null)`).
+- Quando `selectedRange === null`, a barra opera só em modo hover; clique inicial define a faixa começando por aquele valor com o outro handle no extremo mais próximo.
+
+### Conversão pointer ↔ valor
+```ts
+function valueFromY(clientY, rect, max) {
+  const y = clamp(clientY - rect.top, 0, rect.height);
+  return clamp((1 - y / rect.height) * max, 0, max);
+}
+function yFromValue(value, height, max) {
+  return (1 - value / max) * height;
+}
+```
+
+### Estados do mapa
+```ts
+const selUf = ...
+const inRange = !selectedRange || (v >= selectedRange[0] && v <= selectedRange[1]);
+opacity = (dimmed ? 0.55 : 1) * (inRange ? 1 : 0.18);
+```
+Mantém stroke/fill atuais para `isSelected` e hover. Estados sem dados continuam cinza (não afetados pela faixa).
+
+### UFs da faixa
+`useMemo` lista UFs cujo valor cai dentro da faixa. Renderiza abaixo da legenda:
+- até 6 UFs: `Estados na faixa: MS, SP, PA, MT`
+- mais que 6: `Estados na faixa: N UFs`
+
+### Ações
+- `Limpar` — sempre visível quando `selectedRange != null`.
+- `Aplicar faixa` — só visível se `onRangeApply` foi passado E há ≥1 UF na faixa. Envia `{ cd_estado_in, valor_min, valor_max }`.
+
+### Texto adicional
+```
+Faixa
+R$ X até R$ Y
+[Aplicar faixa] [Limpar]
+```
 
 ## Detalhes técnicos
 
-- Nova prop em `BrazilHeatMapProps`: `onColorStopsChange?: (next: string[]) => void`.
-- A barra vira:
-  ```tsx
-  <div className="relative w-4 rounded-full border border-border" style={{background: legendGradient, height}}>
-    {editable && stops.map((c, i) => (
-      <div key={i} className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-background shadow cursor-pointer"
-           style={{ top: `${(1 - i/(stops.length-1))*100}%`, background: c }}>
-        <input type="color" value={c} onChange={e => onColorStopsChange!(stops.map((x,j)=>j===i?e.target.value:x))}
-               className="absolute inset-0 opacity-0 cursor-pointer" aria-label={`Cor stop ${i+1}`} />
-      </div>
-    ))}
-  </div>
+### `BrazilHeatMap.tsx`
+- Nova prop opcional:
+  ```ts
+  onRangeApply?: (payload: { cd_estado_in: string[]; valor_min: number; valor_max: number }) => void;
   ```
-- `BrazilHeatMapWidget.tsx`: adicionar `onColorStopsChange={setColorStops}` ao `<BrazilHeatMap />`.
+- Estado interno: `const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);`
+- Substituir o bloco atual da barra (linhas 119–151) por `<InteractiveHeatLegend ... />`.
+- Calcular `ufsDentroDaFaixa` por `useMemo([data, selectedRange])`.
+- Aplicar `opacity` adicional no `style.default`/`hover` dos `Geography`.
+- Reset automático: quando `max === 0` ou `data` muda drasticamente (ex: novo período sem UFs na faixa), manter `selectedRange` — usuário decide quando limpar.
+
+### `InteractiveHeatLegend.tsx`
+- Renderiza: título + extras (slot p/ `HeatPaletteEditor`), barra vertical (gradiente + overlay + 2 handles + linha de hover + tooltip), labels max/0, e quando faixa ativa: bloco "Faixa" + botões.
+- Internamente usa `useRef<HTMLDivElement>` para a barra; cálculo via `getBoundingClientRect()`.
+- `setPointerCapture` no `pointerdown` para arraste fluido fora da barra.
+
+### `BrazilHeatMapWidget.tsx` (BI Comercial)
+- Adiciona `onRangeApply` que chama o `onDrill` existente quando o ERP aceita lista. Como o contrato atual de `onDrill` espera `valor: string`, e suportar lista é mudança de contrato, esta versão deixa o `onRangeApply` **indefinido por padrão** — o botão Aplicar simplesmente não aparece. A faixa continua funcionando como destaque visual (atende ao requisito "se não aceitar múltiplas UFs, apenas manter destaque visual").
 
 ## Garantias
-
-- Zero alteração em backend/API/dados.
-- Acessibilidade: cada stop tem `aria-label`; teclado abre o picker nativo via `<input type="color">`.
-- Sem cores hardcoded de UI (tokens semânticos para borda/sombra; os valores `stops[i]` são dados visuais).
-- Sem React error #310 — handlers estáveis, sem hooks condicionais.
-- Editor popover (botão Palette) continua disponível para presets.
+- Zero alteração em backend/API/contrato de drill.
+- Zoom/pan/reset, clique em UF, drill/context menu inalterados.
+- Sem hooks condicionais → sem React error #310.
+- Sem cores hardcoded de UI (tokens semânticos); cores de stops e overlay são dados visuais.
+- Mobile/touch funcionam (Pointer Events + capture).
+- Formatação respeita `valueFormatter` já injetado (cheio/abreviado/mi).
