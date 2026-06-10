@@ -38,7 +38,7 @@ export interface BrazilHeatMapProps
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
-const DEFAULT_CENTER: [number, number] = [-54, -15];
+const DEFAULT_CENTER: [number, number] = [-54, -14];
 const SMALL_UFS = new Set(['DF', 'SE', 'AL', 'PB', 'RN', 'PE', 'ES', 'RJ']);
 
 export function BrazilHeatMap({
