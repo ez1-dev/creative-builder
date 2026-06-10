@@ -4,6 +4,23 @@ import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Cell, ReferenceLine } from 'recharts';
 import { useMemo, useState } from 'react';
 import { pickDimensionLabel, type LabelDimension } from '@/lib/bi/dimensionLabels';
+import { useBiClientesMap, type BiClienteInfo } from '@/hooks/useBiClientesMap';
+
+function primeiroNomeCliente(info?: BiClienteInfo): string {
+  const raw = (info?.nm_cliente ?? info?.nm_fantasia ?? '').trim();
+  if (!raw) return '';
+  const token = raw.split(/\s+/)[0] ?? '';
+  const limpo = token.replace(/[^\p{L}0-9]/gu, '');
+  if (!limpo) return '';
+  return limpo.charAt(0).toUpperCase() + limpo.slice(1).toLowerCase();
+}
+
+function rotuloCliente(cd: string, mapa?: Map<string, BiClienteInfo>): string {
+  const code = String(cd ?? '').trim();
+  if (!code) return '(sem identificação)';
+  const nome = primeiroNomeCliente(mapa?.get(code));
+  return nome ? `${code} - ${nome}` : `Cliente ${code}`;
+}
 
 const pct = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(1)}%`;
 const num = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? 0 : Number(v);
