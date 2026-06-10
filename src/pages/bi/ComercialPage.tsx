@@ -452,31 +452,26 @@ export default function ComercialPage() {
     }
   };
   const onClickMensal = (d: any) => {
-    const ctx = extractDrillCtx(d, 'MENSAL');
-    const raw =
-      d?.anomes_emissao ?? d?.anomes ?? d?.mes ?? ctx.anomes_emissao ?? d?.label ?? null;
-    const anomes = normalizeAnomes(raw);
-
-    console.log('Clique mensal:', d);
-    console.log('Anomes selecionado:', anomes);
-    console.log('Base antes:', { anomes_ini: filters.anomes_ini, anomes_fim: filters.anomes_fim });
-
-    if (anomes.length !== 6) {
-      applyCtxAsCrossFilter(ctx);
-      return;
-    }
+    // Nunca usar label visual ("Maio") como valor técnico. Preferir filtros_drill,
+    // depois colunas técnicas, e por último o payload do recharts.
+    const tech =
+      d?.filtros_drill?.anomes_emissao ??
+      d?.anomes_emissao ??
+      d?.chave ??
+      d?.payload?.anomes_emissao ??
+      d?.activePayload?.[0]?.payload?.anomes_emissao ??
+      null;
+    const anomes = normalizeAnomes(tech);
+    if (anomes.length !== 6) return; // sem chave técnica válida → ignora clique
 
     const isSameMonth = filters.anomes_ini === anomes && filters.anomes_fim === anomes;
     if (isSameMonth) {
-      // toggle off: restaura o último período aplicado no topo
       const restore = periodoTopoAplicadoRef.current;
       setBase({ anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
       removeDrill('anomes_emissao');
-      console.log('Base depois:', { anomes_ini: restore.anomes_ini, anomes_fim: restore.anomes_fim });
     } else {
       setBase({ anomes_ini: anomes, anomes_fim: anomes });
       removeDrill('anomes_emissao');
-      console.log('Base depois:', { anomes_ini: anomes, anomes_fim: anomes });
     }
   };
   const onClickMix = (d: any) => {
