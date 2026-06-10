@@ -329,10 +329,10 @@ function agregarPorChave(rows: any[], labelKey: string, valueKey: string): Array
   return Array.from(map.entries()).map(([label, valor]) => ({ label, valor }));
 }
 
-function formatLabel(dim: ParetoDimensao, raw: string): string {
+function formatLabel(dim: ParetoDimensao, raw: string, clientesMap?: Map<string, BiClienteInfo>): string {
   const v = String(raw ?? '').trim();
   if (!v) return '(sem identificação)';
-  if (dim === 'cliente') return `Cliente ${v}`;
+  if (dim === 'cliente') return rotuloCliente(v, clientesMap);
   if (dim === 'estado') return `UF ${v}`;
   if (dim === 'obra') return v;
   return v;
