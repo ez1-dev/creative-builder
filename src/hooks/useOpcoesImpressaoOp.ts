@@ -75,7 +75,7 @@ export function useOpcoesImpressaoOp() {
     async (cod_emp: string = "1") => {
       setLoading(true);
       try {
-        const res = await fetchOpcoes({ cod_emp, limite_ops: 80 });
+        const res = await fetchOpcoes({ cod_emp, limite_ops: 500 });
         setEmpresas(res.empresas ?? []);
         setOrigens(dropOri100Origens(res.origens ?? []));
         setPedidos(res.pedidos ?? []);
