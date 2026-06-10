@@ -76,7 +76,7 @@ export function PieChartCard({
     const lineH = layerFs * 1.2;
     const blockH = lineH * 2;
     const minGap = blockH + 4;
-    const labelR = outerRadius + 12;
+    const labelR = outerRadius + 14;
 
     let startAngle = 90;
     const left: RichItem[] = [];
@@ -88,11 +88,15 @@ export function PieChartCard({
       const mid = startAngle - sweep / 2;
       startAngle -= sweep;
       const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
-      const lx = cx + labelR * Math.cos(-mid * RADIAN);
-      const ly = cy + labelR * Math.sin(-mid * RADIAN);
+      const cosA = Math.cos(-mid * RADIAN);
+      const sinA = Math.sin(-mid * RADIAN);
+      const ax = cx + outerRadius * cosA;
+      const ay = cy + outerRadius * sinA;
+      const lx = cx + labelR * cosA;
+      const ly = cy + labelR * sinA;
       const side: 'left' | 'right' = lx >= cx ? 'right' : 'left';
       const item: RichItem = {
-        side, anchorX: lx, anchorY: ly, elbowX: lx, elbowY: ly,
+        side, anchorX: ax, anchorY: ay, elbowX: lx, elbowY: ly,
         targetY: ly, y: ly, labelX: lx,
         line1, line2,
         color: BI_PALETTE[i % BI_PALETTE.length],
@@ -106,10 +110,20 @@ export function PieChartCard({
     resolveCollisions(left, minGap, top, bot);
 
     const renderItem = (it: RichItem, k: number) => {
+      const displaced = Math.abs(it.y - it.targetY) > 2;
       const anchor = it.side === 'right' ? 'start' : 'end';
-      const textX = it.labelX;
+      const textX = displaced ? (it.side === 'right' ? it.labelX + 6 : it.labelX - 6) : it.labelX;
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
+          {displaced && (
+            <polyline
+              points={`${it.anchorX},${it.anchorY} ${it.labelX},${it.y} ${textX},${it.y}`}
+              fill="none"
+              stroke={it.color}
+              strokeOpacity={0.5}
+              strokeWidth={1}
+            />
+          )}
           <text
             x={textX}
             y={it.y}
@@ -127,6 +141,7 @@ export function PieChartCard({
 
     return <g>{right.map(renderItem)}{left.map(renderItem)}</g>;
   };
+
 
 
   return (
