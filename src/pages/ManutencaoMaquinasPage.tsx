@@ -174,12 +174,11 @@ export default function ManutencaoMaquinasPage() {
             <div className="md:col-span-2"><Label>Máquina *</Label><Input value={form.maquina ?? ''} onChange={(e) => setForm({ ...form, maquina: e.target.value })} placeholder="PONTE ROLANTE PINTURA" /></div>
             <div>
               <Label>Tipo de Máquina</Label>
-              <Select value={form.tipo_maquina ?? 'OUTROS'} onValueChange={(v) => setForm({ ...form, tipo_maquina: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TIPO_MAQUINA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <TipoMaquinaCombobox
+                value={form.tipo_maquina ?? ''}
+                onChange={(v) => setForm({ ...form, tipo_maquina: v })}
+                canCreate={editAllowed}
+              />
             </div>
             <div className="md:col-span-2"><Label>Fornecedor</Label><Input value={form.fornecedor ?? ''} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} /></div>
             <div className="md:col-span-3"><Label>Descrição do item / serviço</Label><Textarea value={form.descricao ?? ''} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={2} /></div>
