@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { COMPONENT_REGISTRY, getComponent } from '@/lib/bi/componentRegistry';
 import { getPage } from '@/lib/bi/pageRegistry';
-import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
+import { COMERCIAL_WIDGETS, makeDuplicateType, baseWidgetType } from '@/lib/bi/comercialWidgetCatalog';
 
 export interface NewWidgetValue {
   type: string;
