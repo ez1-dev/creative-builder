@@ -337,6 +337,29 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
+                <div className="h-4 w-px bg-border" />
+                <div className="flex items-center gap-0.5" title="Mover bloco (sem arrastar)">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="Mover para cima (troca com o bloco acima)"
+                    onClick={(e) => { e.stopPropagation(); moveRow(w.type, -1); }}
+                  >
+                    <ArrowUp className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="Mover para baixo (troca com o bloco abaixo)"
+                    onClick={(e) => { e.stopPropagation(); moveRow(w.type, +1); }}
+                  >
+                    <ArrowDown className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
                 {onConfigure && (configurableTypes?.includes(w.type) || w.type.startsWith('custom-')) && (
                   <>
                     <div className="h-4 w-px bg-border" />
