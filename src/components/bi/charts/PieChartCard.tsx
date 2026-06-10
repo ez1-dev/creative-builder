@@ -76,7 +76,40 @@ export function PieChartCard({
     const lineH = layerFs * 1.2;
     const blockH = lineH * 2;
     const minGap = blockH + 8;
-...
+
+    let startAngle = 90;
+    const left: RichItem[] = [];
+    const right: RichItem[] = [];
+    data.forEach((d, i) => {
+      const v = Number(d?.valor || 0);
+      const pct = total > 0 ? v / total : 0;
+      const sweep = pct * 360;
+      const mid = startAngle - sweep / 2;
+      startAngle -= sweep;
+      const isTiny = pct > 0 && pct < 0.02;
+      const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
+      const anchorX = cx + outerRadius * Math.cos(-mid * RADIAN);
+      const anchorY = cy + outerRadius * Math.sin(-mid * RADIAN);
+      const side: 'left' | 'right' = anchorX >= cx ? 'right' : 'left';
+      const elbowR = outerRadius + 14;
+      const elbowX = cx + elbowR * Math.cos(-mid * RADIAN);
+      const elbowY = cy + elbowR * Math.sin(-mid * RADIAN);
+      const labelX = side === 'right' ? elbowX + 8 : elbowX - 8;
+      const item: RichItem = {
+        side, anchorX, anchorY, elbowX, elbowY,
+        targetY: elbowY, y: elbowY, labelX,
+        line1: isTiny ? '' : line1,
+        line2,
+        color: BI_PALETTE[i % BI_PALETTE.length],
+      };
+      (side === 'right' ? right : left).push(item);
+    });
+
+    const top = blockH / 2 + 2;
+    const bot = ch - blockH / 2 - 2;
+    resolveCollisions(right, minGap, top, bot);
+    resolveCollisions(left, minGap, top, bot);
+
     const renderItem = (it: RichItem, k: number) => {
       const horizStart = it.elbowX;
       const horizEnd = it.side === 'right' ? it.labelX - 2 : it.labelX + 2;
