@@ -278,7 +278,7 @@ export function useComercialLayout(enabled: boolean = true) {
         if (typeof item.title === 'string' && item.title) payload.title = item.title;
         await supabase.from('dashboard_widgets').update(payload).eq('id', ex.id);
       } else {
-        const def = COMERCIAL_DEFAULT_WIDGETS.find((d) => d.type === item.type);
+        const def = COMERCIAL_DEFAULT_WIDGETS.find((d) => d.type === baseWidgetType(item.type));
         const blockId = await ensureDefaultBlockId(id);
         await supabase.from('dashboard_widgets').insert({
           dashboard_id: id,
