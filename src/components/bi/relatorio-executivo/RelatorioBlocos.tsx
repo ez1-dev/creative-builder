@@ -353,7 +353,7 @@ export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: str
   }, [dim, dados]);
 
   const { items, total, vitais } = useMemo(() => calcularPareto(baseRows), [baseRows]);
-  const top = items.slice(0, 20).map((it) => ({ ...it, label: formatLabel(dim, it.label) }));
+  const top = items.slice(0, 20).map((it) => ({ ...it, label: formatLabel(dim, it.label, clientesMap) }));
   const pctVitais = items.length > 0 ? (vitais / items.length) * 100 : 0;
   const pctVitaisFat = items.slice(0, vitais).reduce((s, i) => s + i.pct, 0);
   const valorVitais = items.slice(0, vitais).reduce((s, i) => s + i.valor, 0);
