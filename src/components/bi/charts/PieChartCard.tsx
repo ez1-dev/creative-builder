@@ -17,17 +17,13 @@ export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' 
 
 interface RichItem {
   side: 'left' | 'right';
-  anchorX: number;
-  anchorY: number;
-  elbowX: number;
-  elbowY: number;
-  targetY: number;
   y: number;
   labelX: number;
   line1: string;
   line2: string;
   color: string;
 }
+
 
 function resolveCollisions(items: RichItem[], minGap: number, top: number, bottom: number) {
   // Empurra para baixo
