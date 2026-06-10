@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 import type { MetricRef } from '@/lib/bi/comercialMetrics';
+import { baseWidgetType } from '@/lib/bi/comercialWidgetCatalog';
 
 export interface WidgetLayout { x: number; y: number; w: number; h: number }
 
