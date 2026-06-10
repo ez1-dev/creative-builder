@@ -180,6 +180,46 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
     });
   };
 
+  /**
+   * Move um widget para cima/baixo trocando o Y com o vizinho mais próximo.
+   * Alternativa amigável ao drag-and-drop (útil quando o grid fica "ruim de
+   * arrastar", ex.: muitos blocos pequenos). Considera apenas widgets cujas
+   * faixas verticais [y, y+h) se sobreponham horizontalmente em X.
+   */
+  const moveRow = (type: string, dir: -1 | 1) => {
+    const items = orderedWidgets.map((wd) => {
+      const l = localLayout[wd.type] ?? wd.layout;
+      return { type: wd.type, x: l.x, y: l.y, w: l.w, h: l.h };
+    });
+    const me = items.find((it) => it.type === type);
+    if (!me) return;
+    const overlapsX = (a: typeof me, b: typeof me) =>
+      a.x < b.x + b.w && b.x < a.x + a.w;
+    const candidates = items
+      .filter((it) => it.type !== type && overlapsX(it, me))
+      .filter((it) => (dir === -1 ? it.y + it.h <= me.y || it.y < me.y : it.y >= me.y + me.h || it.y > me.y));
+    if (candidates.length === 0) return;
+    // Vizinho = candidato mais próximo na direção desejada.
+    candidates.sort((a, b) => (dir === -1 ? b.y - a.y : a.y - b.y));
+    const neighbor = candidates[0];
+    // Troca os Y dos dois blocos.
+    setLocalLayout((prev) => {
+      const myCur = prev[me.type] ?? { x: me.x, y: me.y, w: me.w, h: me.h };
+      const nbCur = prev[neighbor.type] ?? { x: neighbor.x, y: neighbor.y, w: neighbor.w, h: neighbor.h };
+      const updated = {
+        ...prev,
+        [me.type]: { ...myCur, y: neighbor.y },
+        [neighbor.type]: { ...nbCur, y: myCur.y },
+      };
+      const layoutOut: Layout = orderedWidgets.map((wd) => {
+        const l = updated[wd.type] ?? wd.layout;
+        return { i: wd.type, x: l.x, y: l.y, w: l.w, h: l.h };
+      });
+      emit(layoutOut);
+      return updated;
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>, type: string) => {
     if (!editing) return;
     // Só ativa quando o foco está no wrapper (evita disparar dentro de inputs/buttons internos).
