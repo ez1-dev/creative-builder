@@ -10,9 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw, Trash2, FileText, Cog } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MaquinasDashboard, type ManutencaoMaquina, TIPO_MAQUINA_OPTIONS } from '@/components/maquinas/MaquinasDashboard';
+import { MaquinasDashboard, type ManutencaoMaquina } from '@/components/maquinas/MaquinasDashboard';
+import { TipoMaquinaCombobox } from '@/components/maquinas/TipoMaquinaCombobox';
 import { MaquinasShareLinksDialog } from '@/components/maquinas/MaquinasShareLinksDialog';
 import { ImportarMaquinasDialog } from '@/components/maquinas/ImportarMaquinasDialog';
 
@@ -131,6 +132,13 @@ export default function ManutencaoMaquinasPage() {
               </Link>
             </Button>
             {editAllowed && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/manutencao-maquinas/tipos">
+                  <Cog className="mr-1 h-4 w-4" /> Tipos de máquina
+                </Link>
+              </Button>
+            )}
+            {editAllowed && (
               <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
                 <Share2 className="mr-1 h-4 w-4" /> Compartilhar
               </Button>
@@ -173,12 +181,11 @@ export default function ManutencaoMaquinasPage() {
             <div className="md:col-span-2"><Label>Máquina *</Label><Input value={form.maquina ?? ''} onChange={(e) => setForm({ ...form, maquina: e.target.value })} placeholder="PONTE ROLANTE PINTURA" /></div>
             <div>
               <Label>Tipo de Máquina</Label>
-              <Select value={form.tipo_maquina ?? 'OUTROS'} onValueChange={(v) => setForm({ ...form, tipo_maquina: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TIPO_MAQUINA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <TipoMaquinaCombobox
+                value={form.tipo_maquina ?? ''}
+                onChange={(v) => setForm({ ...form, tipo_maquina: v })}
+                canCreate={editAllowed}
+              />
             </div>
             <div className="md:col-span-2"><Label>Fornecedor</Label><Input value={form.fornecedor ?? ''} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} /></div>
             <div className="md:col-span-3"><Label>Descrição do item / serviço</Label><Textarea value={form.descricao ?? ''} onChange={(e) => setForm({ ...form, descricao: e.target.value })} rows={2} /></div>

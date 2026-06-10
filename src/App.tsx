@@ -45,6 +45,7 @@ import ManutencaoFrotaPage from "@/pages/ManutencaoFrotaPage";
 import ManutencaoFrotaCompartilhadoPage from "@/pages/ManutencaoFrotaCompartilhadoPage";
 import ManutencaoMaquinasPage from "@/pages/ManutencaoMaquinasPage";
 import ManutencaoMaquinasCompartilhadoPage from "@/pages/ManutencaoMaquinasCompartilhadoPage";
+import TiposMaquinaPage from "@/pages/maquinas/TiposMaquinaPage";
 import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
@@ -121,6 +122,7 @@ const App = () => (
               <Route path="/frota/relatorio-executivo" element={<ProtectedRoute path="/frota"><RelatorioExecutivoFrotaPage /></ProtectedRoute>} />
               <Route path="/manutencao-maquinas" element={<ProtectedRoute path="/manutencao-maquinas"><ManutencaoMaquinasPage /></ProtectedRoute>} />
               <Route path="/manutencao-maquinas/relatorio-executivo" element={<ProtectedRoute path="/manutencao-maquinas"><RelatorioExecutivoMaquinasPage /></ProtectedRoute>} />
+              <Route path="/manutencao-maquinas/tipos" element={<ProtectedRoute path="/manutencao-maquinas"><TiposMaquinaPage /></ProtectedRoute>} />
               <Route path="/monitor-usuarios-senior" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/usuarios-conectados" element={<ProtectedRoute path="/monitor-usuarios-senior"><MonitorUsuariosSeniorPage /></ProtectedRoute>} />
               <Route path="/gestao-sgu-usuarios" element={<ProtectedRoute path="/gestao-sgu-usuarios"><GestaoSguUsuariosPage /></ProtectedRoute>} />

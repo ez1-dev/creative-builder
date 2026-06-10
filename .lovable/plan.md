@@ -1,61 +1,49 @@
 ## Objetivo
-Reaproveitar a lógica do Relatório Executivo de Faturamento para gerar relatórios executivos análogos em **Passagens Aéreas**, **Manutenção de Frota** e **Manutenção de Máquinas**.
 
-## Resposta curta
-Sim, dá pra fazer. A estrutura atual (wizard de período/filtros → preview com blocos → exportação PDF/PPTX + comentários IA) é genérica o bastante para virar um template reutilizável.
+Permitir cadastrar novos "Tipo de Máquina" na tela `/manutencao-maquinas` sem ficar preso à lista fixa (`TIPO_MAQUINA_OPTIONS`), com duas formas de uso: digitar direto no formulário (com sugestões dos tipos já existentes) e uma tela dedicada para gerenciar a lista oficial.
 
-## Estratégia
-Extrair a parte “chassi” do relatório executivo (que hoje vive em `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx` + `relatorio.css` + `RelatorioBlocos.tsx`) para um conjunto de componentes genéricos, e criar uma página de relatório específica por módulo consumindo os dados já existentes em cada dashboard.
+## Mudanças
 
-### Componentes genéricos a criar (em `src/components/relatorio-executivo/`)
-- `RelatorioWizard` — período, filtros adicionais (slots), nível de detalhe, seleção de blocos.
-- `RelatorioDocument` — container `#rel-doc` com header (título, subtítulo, data), footer, e fluxo de impressão PDF já corrigido.
-- `RelatorioToolbar` — botões “Editar filtros”, “Exportar PDF”, “Exportar PPTX”.
-- Blocos reutilizáveis: `KpisBloco`, `EvolucaoBloco`, `RankingsBloco`, `ParetoBloco`, `ComentariosIaBloco`, `TabelaAnaliticaBloco` — recebendo dados via props tipadas (não mais acoplados a `RelatorioDados` do faturamento).
-- Hook `useRelatorioIa` genérico para chamar a edge function de comentários, parametrizando o contexto.
+### 1. Backend (Cloud) — nova tabela `tipos_maquina`
 
-### Por módulo (cada um vira uma página dedicada)
-1. **Passagens Aéreas** (`/passagens-aereas/relatorio-executivo`)
-   - KPIs: total de passagens, valor total, ticket médio, nº colaboradores, principais destinos.
-   - Evolução mensal de gasto e quantidade.
-   - Rankings: Top colaboradores, Top destinos, Top companhias.
-   - Tabela analítica: últimas passagens.
-   - Fonte: tabelas Cloud já usadas pelo `PassagensDashboard`.
+Migration criando:
+- `public.tipos_maquina` (`nome` text único upper, `ativo` boolean default true, `created_by`, `created_at`, `updated_at`)
+- GRANT para `authenticated` + `service_role`
+- RLS:
+  - SELECT: qualquer usuário autenticado
+  - INSERT/UPDATE/DELETE: `is_admin(auth.uid())` OR `can_edit_maquinas(auth.uid())`
+- Trigger `update_updated_at_column`
+- Trigger normalizando `nome` para UPPER/trim
+- Seed inicial com os valores já existentes em `TIPO_MAQUINA_OPTIONS` + os distintos já gravados em `manutencao_maquinas.tipo_maquina`
 
-2. **Manutenção de Frota** (`/manutencao-frota/relatorio-executivo`)
-   - KPIs: total gasto, nº ordens, custo médio por veículo, km rodado, custo/km.
-   - Evolução mensal de custo e ordens.
-   - Rankings: Top veículos, Top tipos de serviço, Top fornecedores.
-   - Tabela analítica: últimas ordens de manutenção.
+Obs.: a coluna `manutencao_maquinas.tipo_maquina` continua sendo `text` livre — não vira FK, para não quebrar histórico nem importações. A tabela `tipos_maquina` serve como catálogo/sugestão.
 
-3. **Manutenção de Máquinas** (`/manutencao-maquinas/relatorio-executivo`)
-   - KPIs: custo total, nº intervenções, MTBF/MTTR (se houver), top máquina por custo.
-   - Evolução mensal de custos e paradas.
-   - Rankings: Top máquinas, Top tipos de falha, Top responsáveis.
-   - Tabela analítica: últimas intervenções.
+### 2. Componente `TipoMaquinaCombobox`
 
-### Comentários IA
-- Edge function `relatorio-executivo-ia` recebe hoje um payload específico de faturamento. Vou generalizar aceitando um campo `modulo` (`faturamento` | `passagens` | `frota` | `maquinas`) com prompt específico por módulo, mantendo retrocompatibilidade.
+Novo `src/components/maquinas/TipoMaquinaCombobox.tsx`:
+- Carrega `tipos_maquina` ativos via supabase
+- Combobox (Command + Popover do shadcn) com busca
+- Botão "Criar novo tipo: XYZ" quando o termo digitado não existe — insere na tabela (se usuário tiver permissão) e seleciona
+- Se usuário sem permissão de edit: comporta como select simples
 
-### Exportação PDF
-- Mesma técnica já corrigida (mover `#rel-doc` para `body`, classe `printing-rel-doc`, fallback de restauração). Estilos `relatorio.css` viram compartilhados.
+### 3. Formulário em `ManutencaoMaquinasPage.tsx`
 
-### Exportação PPTX
-- Generalizar `exportPptx.ts` para receber a definição dos slides via props (título, KPIs, séries, rankings) em vez de assumir o shape de faturamento.
+Trocar o `<Select>` de `tipo_maquina` pelo `TipoMaquinaCombobox`. Manter valor em UPPER (já normalizado por trigger).
 
-## Entregáveis sugeridos (em ordem)
-1. Extrair chassi genérico + migrar Faturamento para usá-lo (regressão zero).
-2. Generalizar edge function IA e helper PPTX.
-3. Implementar Relatório Executivo de Passagens Aéreas.
-4. Implementar Relatório Executivo de Manutenção de Frota.
-5. Implementar Relatório Executivo de Manutenção de Máquinas.
-6. Adicionar entradas no menu lateral / botões “Relatório Executivo” em cada dashboard.
+### 4. Tela de gestão `/manutencao-maquinas/tipos`
+
+Nova página `src/pages/maquinas/TiposMaquinaPage.tsx`:
+- Lista a tabela `tipos_maquina` (nome, ativo, criado em)
+- Ações (somente quem tem `can_edit_maquinas` / admin): adicionar, renomear, ativar/desativar, excluir
+- Aviso ao excluir tipo que ainda está em uso em `manutencao_maquinas` (apenas informativo — não bloqueia, já que a coluna é livre)
+
+Adicionar rota em `App.tsx` e botão "Gerenciar tipos" no header de `ManutencaoMaquinasPage` (visível só com permissão de edit).
+
+### 5. Componentes derivados
+
+`MaquinasDashboard` e gráficos `chart-tipo-maquina` continuam funcionando, pois leem direto do registro — sem mudança.
 
 ## Fora de escopo
-- Mudar a UI dos dashboards existentes.
-- Criar novas tabelas ou ETL — vou usar as fontes de dados já existentes em cada módulo.
 
-## Perguntas antes de começar
-1. Quer que eu faça tudo de uma vez (passos 1 a 6) ou prefere ir por módulo, validando cada relatório?
-2. Para **cada** módulo, os blocos sugeridos cobrem o que você precisa, ou tem KPI/ranking específico que faltou?
-3. Os comentários IA devem usar o mesmo tom executivo (Destaques / Alertas / Recomendações) dos relatórios de faturamento?
+- Migrar `tipo_maquina` para FK
+- Replicar a mesma ideia em Frota/Passagens (pode ser feito depois com a mesma estrutura)
