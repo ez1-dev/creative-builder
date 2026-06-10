@@ -96,7 +96,7 @@ export function PieChartCard({
       const elbowY = cy + elbowR * Math.sin(-mid * RADIAN);
       const labelX = side === 'right' ? cw - 6 : 6;
       const item: RichItem = {
-        side, anchorX, anchorY, elbowX,
+        side, anchorX, anchorY, elbowX, elbowY,
         targetY: elbowY, y: elbowY, labelX,
         line1, line2,
         color: BI_PALETTE[i % BI_PALETTE.length],
