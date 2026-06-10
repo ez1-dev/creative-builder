@@ -98,7 +98,7 @@
   /* Marca o body para esconder tudo que não pertence ao documento imprimível.
      Usamos display:none nos irmãos do #rel-doc (em vez de visibility:hidden)
      para evitar que o cabeçalho fique fora do fluxo no PDF. */
-  body.printing-rel-doc > *:not(#rel-print-portal) {
+  body.printing-rel-doc > *:not(#rel-doc):not(#rel-print-portal) {
     display: none !important;
   }
 

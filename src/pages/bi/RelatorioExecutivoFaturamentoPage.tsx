@@ -146,16 +146,28 @@ export default function RelatorioExecutivoFaturamentoPage() {
     if (originalParent) originalParent.insertBefore(placeholder, doc);
     document.body.appendChild(doc);
     document.body.classList.add('printing-rel-doc');
+    let restored = false;
     const restore = () => {
+      if (restored) return;
+      restored = true;
       document.body.classList.remove('printing-rel-doc');
       if (originalParent && placeholder.parentNode === originalParent) {
         originalParent.insertBefore(doc, placeholder);
+        placeholder.remove();
+      } else if (placeholder.parentNode) {
         placeholder.remove();
       }
       window.removeEventListener('afterprint', restore);
     };
     window.addEventListener('afterprint', restore);
-    setTimeout(() => window.print(), 50);
+    setTimeout(() => {
+      try {
+        window.print();
+      } finally {
+        // Fallback: alguns navegadores não disparam afterprint de forma confiável
+        setTimeout(restore, 1000);
+      }
+    }, 50);
   };
 
 
