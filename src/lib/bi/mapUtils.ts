@@ -70,10 +70,24 @@ export function heatColor(t: number, stops: string[] = HEAT_COLOR_STOPS): string
 }
 
 /** Atalho: cor de calor a partir de valor e máximo. Cinza claro quando sem dado. */
-export function heatColorFromValue(valor: number, max: number): string {
+export function heatColorFromValue(
+  valor: number,
+  max: number,
+  stops: string[] = HEAT_COLOR_STOPS,
+): string {
   if (!Number.isFinite(valor) || valor <= 0 || !Number.isFinite(max) || max <= 0) {
     return '#e5e7eb';
   }
-  return heatColor(Math.min(1, valor / max));
+  return heatColor(Math.min(1, valor / max), stops);
 }
+
+/** Presets de paletas de calor (5 stops do menor para o maior). */
+export const HEAT_PRESETS: Record<string, string[]> = {
+  Spectral: HEAT_COLOR_STOPS,
+  'Azul corporativo': ['#eff6ff', '#bfdbfe', '#60a5fa', '#2563eb', '#1e3a8a'],
+  Verde: ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a', '#14532d'],
+  Quente: ['#fff7ed', '#fed7aa', '#fb923c', '#ea580c', '#7c2d12'],
+  Frio: ['#ecfeff', '#a5f3fc', '#22d3ee', '#0891b2', '#164e63'],
+  Viridis: ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725'],
+};
 

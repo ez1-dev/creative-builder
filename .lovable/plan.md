@@ -1,34 +1,48 @@
-# Ajuste de enquadramento do BrazilHeatMap
+## Objetivo
 
-## Problema
-O mapa está cortado: faltam o extremo norte (RR, AP, parte do AM/PA) e o extremo sul (RS, SC). A combinação atual `scale: 760` + `width: 680` + `height: 520` + `center: [-54, -15]` projeta o Brasil maior do que o viewBox, e os rótulos de UFs como RR/AP/SC/RS ficam fora da área visível.
+Tornar a legenda (pedestal) do mapa de calor **interativa**: o usuário pode escolher uma paleta pronta ou customizar cada cor (stops) e o mapa repinta em tempo real. Estado vive só na sessão; aplica-se somente ao mapa do BI Comercial (não muda o tema global de outros heatmaps).
 
-## Causa
-- `scale` muito alto para o tamanho do viewBox.
-- `height/width` do `ComposableMap` com proporção que não acomoda a forma do Brasil (mais alto que largo).
-- Centro vertical em `-15` desloca o mapa para cima, cortando o sul.
+## Escopo de arquivos
 
-## Mudanças (somente em `src/components/bi/maps/BrazilHeatMap.tsx`)
+Alterar apenas:
 
-1. **Projeção**: reduzir `scale` para que o Brasil inteiro caiba com folga, e recentrar verticalmente.
-   - `projectionConfig={{ scale: 620, center: [-54, -14] }}`
-   - `width={620}`, `height={620}` (proporção ~1:1, que casa melhor com a silhueta do Brasil).
-   - `style={{ width: '100%', height: '100%', maxWidth: 720 }}` (deixa o SVG escalar dentro do card sem estourar).
+- `src/components/bi/maps/BrazilHeatMap.tsx` — aceitar paleta dinâmica via prop e usar nos estados + legenda
+- `src/lib/bi/mapUtils.ts` — permitir `heatColorFromValue(valor, max, stops?)` recebendo paleta opcional
+- `src/components/bi/comercial/BrazilHeatMapWidget.tsx` — guardar paleta em `useState`, abrir popover com presets + color pickers, passar `colorStops` para `BrazilHeatMap`
 
-2. **Container do mapa**: trocar `maxWidth: 760` por `maxWidth: 720` e garantir `h-full` para usar toda altura do card, sem reservar mais espaço que o necessário para a legenda.
+**Novo arquivo:**
+- `src/components/bi/maps/HeatPaletteEditor.tsx` — popover de edição (presets + 5 color pickers + reset)
 
-3. **Altura do card**: aumentar `DEFAULT_HEIGHT` de `360` para `440` (somente o default; o widget continua podendo sobrescrever via prop `height`). Isso dá espaço vertical para o Brasil inteiro sem espremer a legenda.
+Sem mudanças em backend, API, fluxo de dados, drill, zoom/pan ou clique de estado.
 
-4. **Legenda**: manter à esquerda, mas reduzir `minWidth` de `80` para `72` e a altura da barra para `Math.min(240, mapHeight * 0.75)` para acompanhar o novo `mapHeight`.
+## Como vai funcionar
 
-5. **Siglas**: manter `geoCentroid` + `Marker`. Como a escala diminui, ajustar `fontSize` base para `9` (zoom 1) e `8` quando `zoom > 1`, evitando sobreposição em estados pequenos.
+1. Próximo ao topo da legenda vertical aparece um pequeno botão "Paleta" (ícone Palette).
+2. Ao clicar, abre um `Popover` (shadcn) com:
+   - **Presets** (chips clicáveis): Spectral (atual), Azul corporativo, Verde, Quente, Frio, Viridis. Cada preset preenche os 5 stops.
+   - **5 color pickers** (`<input type="color">` estilizado) representando: 0% → 25% → 50% → 75% → 100%. Editar qualquer um atualiza o gradiente da barra de legenda e repinta o mapa.
+   - Botão "Restaurar padrão" volta para Spectral.
+3. A barra vertical da legenda continua mostrando o gradiente — agora derivado dos stops escolhidos.
+4. Estado vive em `useState` no `BrazilHeatMapWidget` (não persiste; reseta ao recarregar).
 
-## Não muda
-- Paleta `HEAT_COLOR_STOPS`, `heatColor`, `heatColorFromValue`, `buildUfValueMap` (sem mexer em `mapUtils.ts`).
-- API, fetch, filtros, drill, cross-filter, zoom/pan, tooltip nativo, `BrazilHeatMapWidget`, `comercialWidgetCatalog`.
+## Detalhes técnicos
 
-## Validação
-- Abrir `/bi/comercial` no preview: mapa deve mostrar de RR/AP (norte) até RS (sul) sem corte.
-- Legenda continua à esquerda com "Fat. (R$)", máximo no topo e 0 embaixo.
-- Siglas legíveis dentro dos estados grandes; siglas de UFs pequenas seguem ocultas em zoom 1.
-- Zoom/pan/reset e clique por UF continuam funcionando.
+- `mapUtils.ts`: `heatColor(t, stops)` já aceita `stops`. Estender `heatColorFromValue(valor, max, stops = HEAT_COLOR_STOPS)`. Exportar `HEAT_PRESETS: Record<string, string[]>` com 5–6 paletas de 5 cores cada.
+- `BrazilHeatMap.tsx`: nova prop opcional `colorStops?: string[]` (default `HEAT_COLOR_STOPS`). Usar em:
+  - `legendGradient = linear-gradient(to top, ${colorStops.join(', ')})`
+  - cada `Geography.fill = heatColorFromValue(v, max, colorStops)` (hover/default/pressed)
+  - nova prop opcional `legendExtras?: ReactNode` renderizada ao lado do título "Fat. (R$)" para hospedar o botão da paleta sem o BrazilHeatMap precisar conhecer o editor.
+- `HeatPaletteEditor.tsx`: componente controlado (`value: string[]`, `onChange`), usa `Popover` + `Button` shadcn + tokens semânticos (sem cores hardcoded fora dos próprios swatches da paleta — que são dados, não tokens).
+- `BrazilHeatMapWidget.tsx`: 
+  ```tsx
+  const [stops, setStops] = useState<string[]>(HEAT_COLOR_STOPS);
+  <BrazilHeatMap colorStops={stops} legendExtras={<HeatPaletteEditor value={stops} onChange={setStops} />} ... />
+  ```
+
+## Garantias
+
+- Nada de cores hardcoded em components fora dos próprios swatches de presets (são valores de dados visuais, não estilo de UI).
+- Zero impacto em outros mapas/heatmaps do projeto.
+- Sem chamadas de API novas, sem migrations, sem mudança de contrato.
+- Zoom, pan, reset, clique-para-drill, tooltip e siglas continuam idênticos.
+- Sem React error #310 (todos os hooks no topo, dependências estáveis).

@@ -5,9 +5,11 @@
  * (`fetchComercialEstado`). Mantém a mesma assinatura de filtros do
  * `BrazilStateMapWidget` (cartograma), mas renderiza o mapa geográfico real.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BrazilHeatMap, type BrazilHeatMapDatum } from '@/components/bi/maps/BrazilHeatMap';
+import { HeatPaletteEditor } from '@/components/bi/maps/HeatPaletteEditor';
+import { HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
 import { fetchComercialEstado } from '@/lib/bi/comercialApi';
 import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { ufName } from '@/lib/bi/ufLabels';
@@ -49,6 +51,8 @@ export function BrazilHeatMapWidget({
   height = 380,
   onDrill,
 }: BrazilHeatMapWidgetProps) {
+  const [colorStops, setColorStops] = useState<string[]>(HEAT_COLOR_STOPS);
+
   const query = useQuery({
     queryKey: ['bi-comercial-estado-heatmap', filters],
     queryFn: () => fetchComercialEstado(filters),
@@ -67,6 +71,8 @@ export function BrazilHeatMapWidget({
       subtitle={subtitle}
       height={height}
       data={data}
+      colorStops={colorStops}
+      legendExtras={<HeatPaletteEditor value={colorStops} onChange={setColorStops} />}
       loading={query.isLoading}
       error={query.isError ? (query.error as Error)?.message ?? 'Erro ao carregar' : null}
       onStateClick={

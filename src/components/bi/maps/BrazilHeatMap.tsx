@@ -29,10 +29,14 @@ export interface BrazilHeatMapProps
   data: BrazilHeatMapDatum[];
   /** Mantido por compat — não usado mais (paleta é fixa multi-cor). */
   colorVar?: string;
+  /** Stops da paleta de calor (5 cores: mín → máx). */
+  colorStops?: string[];
   valueFormatter?: (v: number) => string;
   geoUrl?: string;
   showLegend?: boolean;
   legendTitle?: string;
+  /** Conteúdo extra renderizado ao lado do título da legenda (ex.: editor de paleta). */
+  legendExtras?: React.ReactNode;
   onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
   selectedUf?: string | null;
 }
@@ -43,15 +47,18 @@ const SMALL_UFS = new Set(['DF', 'SE', 'AL', 'PB', 'RN', 'PE', 'ES', 'RJ']);
 
 export function BrazilHeatMap({
   data,
+  colorStops,
   valueFormatter = formatCurrency,
   geoUrl = DEFAULT_GEO_URL,
   height = 440,
   showLegend = true,
   legendTitle = 'Fat. (R$)',
+  legendExtras,
   onStateClick,
   selectedUf = null,
   ...shell
 }: BrazilHeatMapProps) {
+  const stops = colorStops && colorStops.length >= 2 ? colorStops : HEAT_COLOR_STOPS;
   const [position, setPosition] = useState<{ coordinates: [number, number]; zoom: number }>({
     coordinates: DEFAULT_CENTER,
     zoom: 1,
@@ -80,7 +87,7 @@ export function BrazilHeatMap({
     shell.error ?? (geoQuery.isError ? (geoQuery.error as Error)?.message ?? 'Erro ao carregar mapa' : null);
 
   const mapHeight = Math.max(280, height - 40);
-  const legendGradient = `linear-gradient(to top, ${HEAT_COLOR_STOPS.join(', ')})`;
+  const legendGradient = `linear-gradient(to top, ${stops.join(', ')})`;
 
   const zoomIn = () =>
     setPosition((p) => ({ ...p, zoom: Math.min(8, p.zoom * 1.5) }));
@@ -100,9 +107,12 @@ export function BrazilHeatMap({
         {/* Legenda vertical à esquerda */}
         {showLegend && max > 0 && (
           <div className="flex flex-col items-start justify-center gap-2 shrink-0" style={{ minWidth: 72 }}>
-            <span className="text-[11px] font-medium text-muted-foreground leading-tight whitespace-pre-line">
-              {legendTitle}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-medium text-muted-foreground leading-tight whitespace-pre-line">
+                {legendTitle}
+              </span>
+              {legendExtras}
+            </div>
             <div className="flex items-stretch gap-2" style={{ height: Math.min(240, mapHeight * 0.75) }}>
               <div
                 className="w-4 rounded-full border border-border"
@@ -186,7 +196,7 @@ export function BrazilHeatMap({
                         const tooltip = hasData
                           ? `${labelFull}\nFaturamento: ${valueFormatter(v)}\nParticipação: ${formatPercent(pct, 1)}${clickable ? '\nClique para detalhar' : ''}`
                           : `${labelFull} — Sem faturamento no período`;
-                        const fill = heatColorFromValue(v, max);
+                        const fill = heatColorFromValue(v, max, stops);
                         return (
                           <Geography
                             key={geo.rsmKey}
