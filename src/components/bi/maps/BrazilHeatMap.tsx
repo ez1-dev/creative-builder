@@ -231,7 +231,7 @@ export function BrazilHeatMap({
                           return null;
                         }
                         if (!centroid || !Number.isFinite(centroid[0])) return null;
-                        const fontSize = position.zoom > 1 ? 9 : 10;
+                        const fontSize = position.zoom > 1 ? 8 : 9;
                         return (
                           <Marker key={`lbl-${geo.rsmKey}`} coordinates={centroid}>
                             <text
