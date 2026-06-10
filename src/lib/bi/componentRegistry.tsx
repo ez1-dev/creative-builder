@@ -113,7 +113,7 @@ function BrazilStateMapRegistryHost({ title }: { title?: string }) {
  * Host do `brazil-heat-map-comercial`: heatmap geográfico do BI Comercial
  * usando os filtros expostos pelo PageDataContext da página alvo.
  */
-function BrazilHeatMapComercialHost({ title }: { title?: string }) {
+function BrazilHeatMapComercialHost({ title, colorStops }: { title?: string; colorStops?: string[] }) {
   const pd = usePageData();
   const filtros = (pd?.filtros ?? {}) as any;
   return (
@@ -125,6 +125,7 @@ function BrazilHeatMapComercialHost({ title }: { title?: string }) {
         unidade_negocio: (filtros.unidade_negocio ?? 'CONSOLIDADO') as any,
         ...filtros,
       }}
+      initialColorStops={colorStops}
     />
   );
 }
