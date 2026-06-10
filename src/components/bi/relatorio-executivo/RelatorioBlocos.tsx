@@ -299,12 +299,20 @@ function agregarPorChave(rows: any[], labelKey: string, valueKey: string): Array
   return Array.from(map.entries()).map(([label, valor]) => ({ label, valor }));
 }
 
+function formatLabel(dim: ParetoDimensao, raw: string): string {
+  const v = String(raw ?? '').trim();
+  if (!v) return '(sem identificação)';
+  if (dim === 'cliente') return `Cliente ${v}`;
+  if (dim === 'estado') return `UF ${v}`;
+  if (dim === 'obra') return v;
+  return v;
+}
+
 export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: string | null }) {
   const [dim, setDim] = useState<ParetoDimensao>('cliente');
 
   const baseRows = useMemo(() => {
     if (dim === 'cliente') {
-      // tenta detalhes (cd_cliente + vl_bruto). fallback para rankings.revenda se vazio
       const r = agregarPorChave(dados.detalhes, 'cd_cliente', 'vl_bruto');
       return r.length > 0 ? r : agregarPorChave(dados.rankings.revenda, 'revenda', 'faturamento');
     }
@@ -314,13 +322,29 @@ export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: str
   }, [dim, dados]);
 
   const { items, total, vitais } = useMemo(() => calcularPareto(baseRows), [baseRows]);
-  const top = items.slice(0, 20);
+  const top = items.slice(0, 20).map((it) => ({ ...it, label: formatLabel(dim, it.label) }));
   const pctVitais = items.length > 0 ? (vitais / items.length) * 100 : 0;
   const pctVitaisFat = items.slice(0, vitais).reduce((s, i) => s + i.pct, 0);
+  const valorVitais = items.slice(0, vitais).reduce((s, i) => s + i.valor, 0);
+  const valorCauda = total - valorVitais;
+  const pctCauda = 100 - pctVitaisFat;
 
   const dimLabel: Record<ParetoDimensao, string> = {
     cliente: 'Clientes', revenda: 'Revendas', estado: 'Estados', obra: 'Obras',
   };
+  const dimSingular: Record<ParetoDimensao, string> = {
+    cliente: 'cliente', revenda: 'revenda', estado: 'estado', obra: 'obra',
+  };
+
+  // Risco de concentração
+  let risco: { label: string; cls: string };
+  if (pctVitaisFat >= 80 && vitais <= 5) {
+    risco = { label: 'ALTO', cls: 'bg-destructive/15 text-destructive border-destructive/30' };
+  } else if (pctVitaisFat >= 70) {
+    risco = { label: 'MÉDIO', cls: 'bg-warning/15 text-warning border-warning/30' };
+  } else {
+    risco = { label: 'BAIXO', cls: 'bg-success/15 text-success border-success/30' };
+  }
 
   if (!items.length) {
     return (
@@ -330,6 +354,9 @@ export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: str
       </section>
     );
   }
+
+  const maxValor = top[0]?.valor ?? 1;
+  const listaPrincipais = top.slice(0, Math.min(vitais, 10));
 
   return (
     <section className="rel-bloco">
@@ -348,8 +375,26 @@ export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: str
         ))}
       </div>
 
+      {/* Mini-KPIs */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="border border-border rounded-md p-2 bg-muted/30">
+          <div className="text-[10px] uppercase text-muted-foreground tracking-wide">Total de {dimLabel[dim].toLowerCase()}</div>
+          <div className="text-lg font-semibold text-foreground tabular-nums">{items.length}</div>
+        </div>
+        <div className="border border-border rounded-md p-2 bg-primary/5">
+          <div className="text-[10px] uppercase text-muted-foreground tracking-wide">Concentração 80%</div>
+          <div className="text-lg font-semibold text-primary tabular-nums">
+            {vitais} <span className="text-xs text-muted-foreground font-normal">({pctVitais.toFixed(1)}%)</span>
+          </div>
+        </div>
+        <div className="border border-border rounded-md p-2 bg-muted/30">
+          <div className="text-[10px] uppercase text-muted-foreground tracking-wide">% do faturamento (vitais)</div>
+          <div className="text-lg font-semibold text-foreground tabular-nums">{pctVitaisFat.toFixed(1)}%</div>
+        </div>
+      </div>
+
       <p className="text-sm text-foreground mb-2">
-        <strong>{vitais}</strong> {dimLabel[dim].toLowerCase()} ({pctVitais.toFixed(1)}% do total de {items.length}) geram <strong>{pctVitaisFat.toFixed(1)}%</strong> do faturamento.
+        <strong>{vitais}</strong> {vitais === 1 ? dimSingular[dim] : dimLabel[dim].toLowerCase()} ({pctVitais.toFixed(1)}% do total de {items.length}) concentram <strong>{pctVitaisFat.toFixed(1)}%</strong> do faturamento.
       </p>
 
       <div className="h-72 rel-chart" data-rel-chart="pareto">
@@ -377,37 +422,80 @@ export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: str
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-3 text-xs">
-        <div>
-          <h3 className="font-semibold text-primary mb-1">Vital few ({vitais})</h3>
-          <ul className="space-y-0.5">
-            {items.slice(0, Math.min(vitais, 8)).map((it, i) => (
-              <li key={i} className="flex justify-between">
-                <span className="truncate pr-2">{i + 1}. {it.label}</span>
-                <span className="tabular-nums">{it.pct.toFixed(1)}% ({formatCurrency(it.valor)})</span>
-              </li>
-            ))}
-            {vitais > 8 && <li className="text-muted-foreground">… +{vitais - 8} itens</li>}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 text-xs">
+        {/* Coluna esquerda — Principais */}
+        <div className="border border-border rounded-md p-3 bg-background">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-primary text-sm">Principais (Poucos Vitais)</h3>
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">{vitais}</span>
+          </div>
+          <ul className="space-y-2">
+            {listaPrincipais.map((it, i) => {
+              const barPct = maxValor > 0 ? (it.valor / maxValor) * 100 : 0;
+              return (
+                <li key={i} className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold shrink-0">
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between gap-2">
+                      <span className="truncate text-foreground">{it.label}</span>
+                      <span className="tabular-nums text-muted-foreground shrink-0">{formatCurrency(it.valor)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${barPct}%` }} />
+                      </div>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary tabular-nums shrink-0">
+                        {it.pct.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+            {vitais > listaPrincipais.length && (
+              <li className="text-muted-foreground text-center pt-1">… +{vitais - listaPrincipais.length} {dimLabel[dim].toLowerCase()}</li>
+            )}
           </ul>
         </div>
-        <div>
-          <h3 className="font-semibold text-muted-foreground mb-1">Useful many ({items.length - vitais})</h3>
-          <p className="text-muted-foreground">
-            Representam {(100 - pctVitaisFat).toFixed(1)}% do faturamento ({formatCurrency(total - items.slice(0, vitais).reduce((s, i) => s + i.valor, 0))}).
-          </p>
-          <p className="mt-1 text-muted-foreground">
-            Oportunidade de desenvolvimento da cauda longa para reduzir concentração.
+
+        {/* Coluna direita — Cauda longa + risco */}
+        <div className="border border-border rounded-md p-3 bg-muted/20 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-muted-foreground text-sm">Demais (Cauda Longa)</h3>
+            <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-semibold">
+              {items.length - vitais}
+            </span>
+          </div>
+
+          <div>
+            <div className="text-3xl font-bold text-foreground tabular-nums leading-none">
+              {pctCauda.toFixed(1)}<span className="text-lg font-semibold text-muted-foreground">%</span>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">do faturamento total</div>
+            <div className="text-sm font-medium text-foreground tabular-nums mt-1">{formatCurrency(valorCauda)}</div>
+          </div>
+
+          <div className={`flex items-center gap-2 px-2 py-1.5 rounded border ${risco.cls}`}>
+            <span className="text-[10px] uppercase tracking-wide font-semibold">Risco de concentração:</span>
+            <span className="text-xs font-bold">{risco.label}</span>
+          </div>
+
+          <p className="text-muted-foreground leading-relaxed">
+            Oportunidade: desenvolver {dimLabel[dim].toLowerCase()} da cauda longa para reduzir a dependência dos {vitais} principais.
           </p>
         </div>
       </div>
 
       {analiseIa && (
-        <div className="mt-3 p-3 border-l-2 border-primary bg-primary/5 text-xs">
-          <p className="font-semibold text-primary mb-1">Análise IA — Concentração 80/20</p>
-          <p className="text-foreground whitespace-pre-wrap">{analiseIa}</p>
+        <div className="mt-4 p-4 border-l-4 border-primary bg-primary/5 rounded-r-md">
+          <p className="font-semibold text-primary mb-1.5 text-sm">Insight da IA — Concentração 80/20</p>
+          <p className="text-foreground whitespace-pre-wrap text-xs leading-relaxed">{analiseIa}</p>
         </div>
       )}
     </section>
+
   );
 }
 
