@@ -168,10 +168,10 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
                 <SelectTrigger id={idCatalogBlock} name="catalog-block" aria-label="Bloco do catálogo"><SelectValue /></SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {allCatalog.map((w) => {
-                    const present = presentTypes.includes(w.type);
+                    const count = presentTypes.filter((t) => baseWidgetType(t) === w.type).length;
                     return (
-                      <SelectItem key={w.type} value={w.type} disabled={present}>
-                        {w.title} {present && '(já adicionado)'}
+                      <SelectItem key={w.type} value={w.type}>
+                        {w.title}{count > 0 ? ` (×${count})` : ''}
                       </SelectItem>
                     );
                   })}
