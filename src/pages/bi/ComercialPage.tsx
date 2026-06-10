@@ -46,6 +46,7 @@ import { COMERCIAL_WIDGETS } from '@/lib/bi/comercialWidgetCatalog';
 import { resolveMetric, COMERCIAL_METRICS, type MetricRef } from '@/lib/bi/comercialMetrics';
 import { getComponent } from '@/lib/bi/componentRegistry';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 import { AiChartGenerator } from '@/components/bi/ai/AiChartGenerator';
 import { WidgetErrorBoundary } from '@/components/bi/runtime/WidgetErrorBoundary';
 import { ChartContextMenu } from '@/components/bi/runtime/ChartContextMenu';
@@ -1488,6 +1489,13 @@ export default function ComercialPage() {
         onPreviewSeriesChange={setPreviewSeriesKey}
       />
 
+
+      {/* Widgets aplicados via Biblioteca BI (botão "Aplicar") */}
+      <div className="space-y-6 mt-6">
+        <UserWidgetsSlot section="kpis"   cols={4} emptyHint={false} />
+        <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+        <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
+      </div>
 
       {/* Drawer de drill multinível */}
       <ComercialDrillDrawer
