@@ -42,6 +42,8 @@ export interface BrazilHeatMapProps
   selectedUf?: string | null;
   /** Se definido, habilita stops clicáveis sobre a barra da legenda. */
   onColorStopsChange?: (next: string[]) => void;
+  /** Se definido, mostra botão "Aplicar" quando uma faixa estiver selecionada. */
+  onRangeApply?: (payload: { cd_estado_in: string[]; valor_min: number; valor_max: number }) => void;
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
