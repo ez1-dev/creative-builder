@@ -45,6 +45,7 @@ import ManutencaoFrotaPage from "@/pages/ManutencaoFrotaPage";
 import ManutencaoFrotaCompartilhadoPage from "@/pages/ManutencaoFrotaCompartilhadoPage";
 import ManutencaoMaquinasPage from "@/pages/ManutencaoMaquinasPage";
 import ManutencaoMaquinasCompartilhadoPage from "@/pages/ManutencaoMaquinasCompartilhadoPage";
+import TiposMaquinaPage from "@/pages/maquinas/TiposMaquinaPage";
 import MonitorUsuariosSeniorPage from "@/pages/MonitorUsuariosSeniorPage";
 import GestaoSguUsuariosPage from "@/pages/GestaoSguUsuariosPage";
 import DemonstrativoComprasRecebimentosPage from "@/pages/DemonstrativoComprasRecebimentosPage";
