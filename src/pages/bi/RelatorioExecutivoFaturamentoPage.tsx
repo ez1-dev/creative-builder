@@ -21,7 +21,7 @@ import {
 import type { BiComercialFilters, UnidadeNegocio } from '@/lib/bi/comercialFilters';
 import {
   KpisBloco, EvolucaoBloco, RankingsBloco, MargemImpostosBloco,
-  ComentariosIaBloco, TabelaAnaliticaBloco,
+  ComentariosIaBloco, TabelaAnaliticaBloco, ParetoBloco, buildParetoPayload,
 } from '@/components/bi/relatorio-executivo/RelatorioBlocos';
 import { gerarRelatorioPptx } from '@/components/bi/relatorio-executivo/exportPptx';
 import './relatorio.css';
