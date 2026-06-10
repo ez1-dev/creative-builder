@@ -27,8 +27,15 @@ import { TITLE_COLOR_PRESETS, type WidgetTitleColorPreset } from './WidgetTitleS
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from '@/components/passagens/ChartColorPicker';
 import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
 import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
+import { HeatPaletteEditor } from '@/components/bi/maps/HeatPaletteEditor';
+import { HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
 
 const COLOR_AWARE_LIB_IDS = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
+const HEAT_MAP_LIB_IDS = new Set(['brazil-heat-map', 'brazil-heat-map-comercial']);
+
+function stopsEqual(a: string[], b: string[]) {
+  return a.length === b.length && a.every((v, i) => v.toLowerCase() === b[i]?.toLowerCase());
+}
 
 export interface ConfigureValue {
   variant?: string | null;
