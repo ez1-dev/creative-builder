@@ -115,17 +115,15 @@ export function PieChartCard({
       const horizEnd = it.side === 'right' ? it.labelX - 2 : it.labelX + 2;
       const anchor = it.side === 'right' ? 'start' : 'end';
       const textX = it.labelX;
-      const dotX = it.side === 'right' ? it.labelX + 1 : it.labelX - 1;
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
           <polyline
             fill="none"
-            stroke={it.color}
-            strokeWidth={1.5}
-            opacity={0.9}
+            stroke="hsl(var(--muted-foreground))"
+            strokeWidth={1}
+            opacity={0.5}
             points={`${it.anchorX},${it.anchorY} ${horizStart},${it.elbowY} ${horizEnd},${it.y}`}
           />
-          <circle cx={dotX} cy={it.y} r={3} fill={it.color} />
           <text
             x={textX}
             y={it.y}
@@ -134,7 +132,7 @@ export function PieChartCard({
             fill="hsl(var(--foreground))"
             style={{ fontFamily }}
           >
-            {it.line1 && <tspan x={textX} dy="-0.25em" fill={it.color} style={{ fontWeight: 600 }}>{it.line1}</tspan>}
+            {it.line1 && <tspan x={textX} dy="-0.25em" fill="hsl(var(--foreground))" style={{ fontWeight: 600 }}>{it.line1}</tspan>}
             {it.line2 && <tspan x={textX} dy={it.line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{it.line2}</tspan>}
           </text>
         </g>
