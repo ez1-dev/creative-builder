@@ -82,10 +82,11 @@ export function useComercialLayout(enabled: boolean = true) {
 
 
   const mergeWithDefaults = useCallback((rows: ComercialWidget[]): ComercialWidget[] => {
-    const byType = new Map(rows.map((r) => [r.type, r]));
-    const fromDefaults = COMERCIAL_DEFAULT_WIDGETS.map((d) => byType.get(d.type) ?? d);
-    const customs = rows.filter((r) => !COMERCIAL_DEFAULT_WIDGETS.some((d) => d.type === r.type));
-    return [...fromDefaults, ...customs].sort((a, b) => a.position - b.position);
+    // Mantém TODAS as linhas salvas (inclui duplicatas com sufixo __c-). Para cada
+    // bloco default que não tem nenhuma instância salva (base type), injeta o default.
+    const savedBaseTypes = new Set(rows.map((r) => baseWidgetType(r.type)));
+    const missingDefaults = COMERCIAL_DEFAULT_WIDGETS.filter((d) => !savedBaseTypes.has(d.type));
+    return [...rows, ...missingDefaults].sort((a, b) => a.position - b.position);
   }, []);
 
   // Reaproveita as referências dos widgets quando nada mudou item a item.
