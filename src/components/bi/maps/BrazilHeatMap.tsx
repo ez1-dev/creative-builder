@@ -196,7 +196,7 @@ export function BrazilHeatMap({
                         const tooltip = hasData
                           ? `${labelFull}\nFaturamento: ${valueFormatter(v)}\nParticipação: ${formatPercent(pct, 1)}${clickable ? '\nClique para detalhar' : ''}`
                           : `${labelFull} — Sem faturamento no período`;
-                        const fill = heatColorFromValue(v, max);
+                        const fill = heatColorFromValue(v, max, stops);
                         return (
                           <Geography
                             key={geo.rsmKey}
