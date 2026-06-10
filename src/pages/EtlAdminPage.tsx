@@ -10,6 +10,7 @@ import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
 import { LogsModal } from '@/components/etl/LogsModal';
 import { TauxPanel } from '@/components/etl/TauxPanel';
+import { AtuContabilidadePanel } from '@/components/etl/contabilidade/AtuContabilidadePanel';
 import { listarTarefas, ultimasExecucoes, type EtlTarefa } from '@/lib/etl/api';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -152,6 +153,8 @@ export default function EtlAdminPage() {
       </Card>
 
       <TauxPanel />
+
+      <AtuContabilidadePanel />
 
       <ExecutarModal
         open={execModal.open}
