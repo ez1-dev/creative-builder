@@ -808,7 +808,7 @@ export default function ComercialPage() {
         </Clickable>
       );
     }
-    if (w.type === 'gauge-atingimento') {
+    if (baseWidgetType(w.type) === 'gauge-atingimento') {
       if (qKpis.isLoading) return <LoadingState height={200} />;
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || '% Atingimento';
