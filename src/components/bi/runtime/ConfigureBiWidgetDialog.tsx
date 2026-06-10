@@ -384,32 +384,29 @@ export function ConfigureBiWidgetDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                {inputs.some((i) => i.source === 'series') && (
-                  <div>
-                    <Label htmlFor={idLibSeries} className="text-xs">Série</Label>
-                    <Select value={seriesKey} onValueChange={setSeriesKey}>
-                      <SelectTrigger id={idLibSeries} name="library-series" aria-label="Série"><SelectValue placeholder="Escolha" /></SelectTrigger>
-                      <SelectContent>
-                        {seriesOptions.map((s) => (
-                          <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {inputs.some((i) => i.source === 'kpis') && (
-                  <div>
-                    <Label htmlFor={idLibKpi} className="text-xs">KPI</Label>
-                    <Select value={valueKey} onValueChange={setValueKey}>
-                      <SelectTrigger id={idLibKpi} name="library-kpi" aria-label="KPI"><SelectValue placeholder="Escolha" /></SelectTrigger>
-                      <SelectContent>
-                        {kpiOptions.map((k) => (
-                          <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {inputs.filter((i) => i.source === 'series' || i.source === 'kpis').map((inp) => {
+                  const isSeries = inp.source === 'series';
+                  const opts = isSeries ? seriesOptions : kpiOptions;
+                  const selectId = `${uid}-lib-input-${inp.key}`;
+                  return (
+                    <div key={inp.key}>
+                      <Label htmlFor={selectId} className="text-xs">
+                        {inp.label}{inp.required ? ' *' : ''}
+                      </Label>
+                      <Select
+                        value={inputMapping[inp.key] ?? ''}
+                        onValueChange={(v) => setInputMapping((m) => ({ ...m, [inp.key]: v }))}
+                      >
+                        <SelectTrigger id={selectId} aria-label={inp.label}><SelectValue placeholder="Escolha" /></SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {opts.map((o: any) => (
+                            <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
                 <div>
                   <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
                   <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
