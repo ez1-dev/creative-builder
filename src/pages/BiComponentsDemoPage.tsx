@@ -538,7 +538,7 @@ export default function BiComponentsDemoPage() {
                     onStateClick={(uf) => console.log('clique mapa:', uf)}
                   />
                 </WithApply>
-                <DemoBlock name="BrazilHeatMapWidget" description="Mapa coroplético plugado em /api/bi/comercial/estado" nonApplicable>
+                <WithApply componentId="brazil-heat-map-comercial">
                   <BrazilHeatMapWidget
                     title="Faturamento por Estado (mapa real)"
                     subtitle="BI Comercial — dados reais"
@@ -549,7 +549,7 @@ export default function BiComponentsDemoPage() {
                     }}
                     onDrill={(p) => console.log('drill mapa real:', p)}
                   />
-                </DemoBlock>
+                </WithApply>
                 <WithApply componentId="heatmap-chart">
                   <HeatmapChartCard title="Compras por dia × hora"
                     data={Array.from({ length: 35 }, (_, i) => ({
