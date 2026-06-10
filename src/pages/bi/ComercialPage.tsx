@@ -681,7 +681,7 @@ export default function ComercialPage() {
     }
 
     if (v === 'table') return <Card><CardContent className="pt-4"><DataTableBI columns={colsMensal} data={mensal} defaultSort={{ key: 'faturamento', dir: 'desc' }} onRowClick={(r) => openDrill('MENSAL', { anomes_emissao: String(r.anomes_emissao) })} /></CardContent></Card>;
-    if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} onItemClick={onClickMensal} />;
+    if (v === 'bar')   return <BarChartCard  title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento,anomes_emissao:d.anomes_emissao,filtros_drill:d.filtros_drill}))} color={style.bar} onItemClick={onClickMensal} />;
     if (v === 'line')  return <LineChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     if (v === 'area')  return <AreaChartCard title={title} data={dadosCombo.map(d=>({label:d.label,valor:d.faturamento}))} color={style.bar} />;
     return <ComboChartCard title={title} data={dadosCombo} barKey="faturamento" barLabel="Faturamento" lineKey="meta" lineLabel="Meta" barColor={style.bar} onItemClick={onClickMensal} />;
