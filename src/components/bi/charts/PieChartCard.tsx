@@ -75,7 +75,12 @@ export function PieChartCard({
     const layerFs = data.length > 6 ? Math.max(9, fs - 1) : fs;
     const lineH = layerFs * 1.2;
     const blockH = lineH * 2;
-    const minGap = blockH + 8;
+    const minGap = blockH + (data.length > 8 ? 10 : 6);
+
+    // Coluna fixa de labels por lado
+    const sideMargin = 8;
+    const rightLabelX = cw - sideMargin;
+    const leftLabelX = sideMargin;
 
     let startAngle = 90;
     const left: RichItem[] = [];
@@ -86,7 +91,6 @@ export function PieChartCard({
       const sweep = pct * 360;
       const mid = startAngle - sweep / 2;
       startAngle -= sweep;
-      const isTiny = pct > 0 && pct < 0.02;
       const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
       const anchorX = cx + outerRadius * Math.cos(-mid * RADIAN);
       const anchorY = cy + outerRadius * Math.sin(-mid * RADIAN);
@@ -94,11 +98,11 @@ export function PieChartCard({
       const elbowR = outerRadius + 14;
       const elbowX = cx + elbowR * Math.cos(-mid * RADIAN);
       const elbowY = cy + elbowR * Math.sin(-mid * RADIAN);
-      const labelX = side === 'right' ? elbowX + 8 : elbowX - 8;
+      const labelX = side === 'right' ? rightLabelX : leftLabelX;
       const item: RichItem = {
         side, anchorX, anchorY, elbowX, elbowY,
         targetY: elbowY, y: elbowY, labelX,
-        line1: isTiny ? '' : line1,
+        line1,
         line2,
         color: BI_PALETTE[i % BI_PALETTE.length],
       };
@@ -111,9 +115,8 @@ export function PieChartCard({
     resolveCollisions(left, minGap, top, bot);
 
     const renderItem = (it: RichItem, k: number) => {
-      const horizStart = it.elbowX;
-      const horizEnd = it.side === 'right' ? it.labelX - 2 : it.labelX + 2;
-      const anchor = it.side === 'right' ? 'start' : 'end';
+      const horizEnd = it.side === 'right' ? it.labelX - 4 : it.labelX + 4;
+      const anchor = it.side === 'right' ? 'end' : 'start';
       const textX = it.labelX;
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
@@ -122,7 +125,7 @@ export function PieChartCard({
             stroke="hsl(var(--muted-foreground))"
             strokeWidth={1}
             opacity={0.5}
-            points={`${it.anchorX},${it.anchorY} ${horizStart},${it.elbowY} ${horizEnd},${it.y}`}
+            points={`${it.anchorX},${it.anchorY} ${it.elbowX},${it.elbowY} ${horizEnd},${it.y}`}
           />
           <text
             x={textX}
@@ -147,7 +150,7 @@ export function PieChartCard({
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <div className="relative">
         <ResponsiveContainer width="100%" height={height}>
-          <PieChart>
+          <PieChart margin={rich ? { top: 8, right: 130, bottom: 8, left: 130 } : undefined}>
             <Pie data={data} dataKey="valor" nameKey="label" cx="50%" cy="50%"
               innerRadius={innerRadius} outerRadius={outerRadius} paddingAngle={donut ? 2 : 0}
               cursor={onItemClick ? 'pointer' : undefined}
