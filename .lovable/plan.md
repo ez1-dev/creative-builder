@@ -1,74 +1,37 @@
-## Objetivo
+## Diagnóstico
 
-Tornar o **Mapa de Calor do Brasil por UF** (heatmap geográfico real, baseado em GeoJSON) disponível em **qualquer dashboard de BI**, da mesma forma que `brazil-map` (cartograma) já está disponível hoje via Biblioteca BI / Dashboard Builder.
+Na demo `/bi-components` os dois cards do mapa de calor (`BrazilHeatMap` e `BrazilHeatMapWidget`) aparecem com o rótulo "uso direto via import" e **sem** o botão "Aplicar". O `BrazilHeatMapWidget` continua envolto em `DemoBlock ... nonApplicable` (linha 541 da página), por isso o usuário não consegue aplicá-lo a uma página.
 
-Hoje o `BrazilHeatMap` só é usado:
-- Direto no `ComercialPage` via `BrazilHeatMapWidget` (acoplado a `fetchComercialEstado`)
-- Na demo (`BiComponentsDemoPage`)
+Além disso, na imagem fica claro que mesmo o card do `BrazilHeatMap` (já trocado para `WithApply componentId="brazil-heat-map"`) não está mostrando o botão "Aplicar" porque o `WithApply` usa `opacity-70 group-hover:opacity-100` num overlay absoluto — em monitores menores / com a UI mais densa, o botão fica praticamente invisível e dá a impressão de não existir.
 
-Ele **não aparece** no `COMPONENT_REGISTRY` e por isso **não pode** ser arrastado no Dashboard Builder nem adicionado pelo dialog "Adicionar bloco" em outros BIs (Faturamento Validação, Metas, Relatório Executivo, Passagens Aéreas, dashboards do Dashboard Builder, etc.).
+## O que será corrigido
 
-## O que será feito
+### 1. Demo do Mapa de Calor — habilitar Aplicar nos dois cards
 
-### 1. Registrar `brazil-heat-map` (genérico, data-driven) no `COMPONENT_REGISTRY`
+Arquivo: `src/pages/BiComponentsDemoPage.tsx`
 
-Arquivo: `src/lib/bi/componentRegistry.tsx`
+- Trocar o `DemoBlock name="BrazilHeatMapWidget" ... nonApplicable` por `<WithApply componentId="brazil-heat-map-comercial">`, mantendo título/subtítulo via props do próprio widget.
+- Manter o card `BrazilHeatMap` em `WithApply componentId="brazil-heat-map"` (já feito).
 
-Novo item de registro, espelhando o padrão do `brazil-map` existente, mas renderizando `<BrazilHeatMap />` (mapa coroplético geográfico real) em vez do cartograma:
+### 2. WithApply — botão "Aplicar" sempre visível
 
-- `id: 'brazil-heat-map'`
-- `label: 'Mapa de Calor Brasil (UF)'`
-- `description: 'Mapa coroplético do Brasil por Estado, baseado em série {uf, valor}.'`
-- `kind: 'chart'`, `defaultSpan: 2`
-- `inputs`: uma série `por UF` (mesma assinatura do `brazil-map`)
-- `autoMap`: prioriza séries cuja key bate `/estado|uf/i`
-- `render`: extrai `{uf, valor, label}` da série e renderiza `<BrazilHeatMap data={...} valueFormatter={formatterForSeriesKey(...)} onStateClick={...} />`, usando `makeClickHandler` para cross-filter no dashboard host
+Arquivo: `src/pages/BiComponentsDemoPage.tsx` (função `WithApply`)
 
-Resultado: **qualquer página** que passe séries pelo `PageDataContext` (Dashboard Builder, Passagens Aéreas, novos BIs) ganha o heatmap na biblioteca, com mapeamento de dados via dialog "Configurar bloco".
+- Remover o `opacity-70 group-hover:opacity-100` e deixar o botão sempre visível (igual ao botão do `DemoBlock`/`Compras por dia × hora` da imagem).
+- Posicionar acima do título do card (z-10 mantido) para não cobrir o ícone de expandir.
 
-### 2. Registrar `brazil-heat-map-comercial` (host BI Comercial)
+### 3. Garantir que os dois IDs aparecem em alguma página compatível
 
-Mesmo padrão do `BrazilStateMapRegistryHost` atual, mas usando `BrazilHeatMapWidget` (que já chama `fetchComercialEstado` com filtros do `PageDataContext`):
-
-- `id: 'brazil-heat-map-comercial'`
-- `label: 'Mapa de Calor Brasil — Comercial'`
-- `description: 'Heatmap por UF do BI Comercial usando filtros da página.'`
-- `inputs: []`, `autoMap: () => ({})`
-- `render`: `<BrazilHeatMapComercialHost title={title} />` lendo `filtros` do `usePageData()`
-
-Isso garante paridade com o `brazil-state-map` atual (cartograma do Comercial) — o usuário pode escolher entre os dois.
-
-### 3. Atualizar `comercialWidgetCatalog`
-
-Arquivo: `src/lib/bi/comercialWidgetCatalog.ts`, entrada `'estados'`:
-
-```ts
-libraryComponentIds: ['brazil-state-map', 'brazil-heat-map-comercial', 'brazil-heat-map', ...LIB_CHART_IDS]
-```
-
-Assim o dialog "Substituir/Configurar bloco" no BI Comercial passa a oferecer também o heatmap.
-
-### 4. Demo
-
-Em `src/pages/BiComponentsDemoPage.tsx`, adicionar uma seção `WithApply componentId="brazil-heat-map"` ao lado do `brazil-state-map` para validar o componente no fluxo do registry (mapeamento + render).
-
-### 5. Sem mudanças de backend
-
-Reusa dados que cada BI já expõe (séries por UF no `PageDataContext` ou filtros do Comercial). Nenhum endpoint novo.
+Os componentes novos foram registrados como `kind: 'chart'`. Vou validar (somente leitura) em `src/lib/bi/pageRegistry.ts` que existe pelo menos uma página com seção `chart` — assim o dialog `ApplyComponentDialog` lista páginas de destino. Se nenhuma página compatível existir para `brazil-heat-map-comercial` (que tem `inputs: []`), basta a condição de `kind chart`, então não é necessário mudar nada lá; a verificação serve só para confirmar.
 
 ## Arquivos afetados
 
-- `src/lib/bi/componentRegistry.tsx` — registra 2 novos componentes + host wrapper para o heatmap Comercial
-- `src/lib/bi/comercialWidgetCatalog.ts` — adiciona os novos ids à entrada `estados`
-- `src/pages/BiComponentsDemoPage.tsx` — demo do `brazil-heat-map`
+- `src/pages/BiComponentsDemoPage.tsx` — wrapper do segundo card + ajuste de visibilidade do botão em `WithApply`
 
-Não altera:
-- `BrazilHeatMap.tsx` / `BrazilHeatMapWidget.tsx` (já genéricos o suficiente)
-- `BrazilStateMapWidget` / `brazil-state-map` (mantidos para compatibilidade)
-- Layout default dos BIs existentes (usuário adiciona/substitui via Builder/Dialog)
+Não muda:
+- `componentRegistry.tsx`, `comercialWidgetCatalog.ts`, `BrazilHeatMap*`
+- Backend / dados
 
-## Como o usuário usará depois
+## Resultado esperado
 
-- **Dashboard Builder / Biblioteca BI**: o card "Mapa de Calor Brasil (UF)" aparece no catálogo de componentes; arrastar e mapear uma série `{uf, valor}`.
-- **BI Comercial**: no dialog "Configurar bloco" do widget `estados`, escolher entre `Cartograma`, `Mapa de Calor (Comercial)` ou `Mapa de Calor (genérico via série)`.
-- **Outros BIs (Validação, Metas, Relatório Executivo, Passagens Aéreas)**: adicionar via "Adicionar bloco" apontando para uma série por UF do contexto da página.
+Ambos os cards do mapa de calor passam a exibir um botão "Aplicar" sempre visível no canto superior direito, abrindo o `ApplyComponentDialog` para escolher a página/seção/título e gravar em `bi_user_widgets`.
