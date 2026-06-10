@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export const TAUX_LIST = [
   'TAUX_AGRUPAMENTO',
