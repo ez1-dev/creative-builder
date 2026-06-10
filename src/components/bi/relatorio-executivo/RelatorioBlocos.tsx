@@ -143,7 +143,7 @@ function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
           {top.slice(0, 5).map((r, i) => (
             <tr key={i}>
               <td>{i+1}</td>
-              <td>{r.label}</td>
+              <td>{r.fullLabel}</td>
               <td className="text-right tabular-nums">{formatCurrency(r.value)}</td>
               <td className="text-right tabular-nums">{total>0?((r.value/total)*100).toFixed(1):'0.0'}%</td>
             </tr>
