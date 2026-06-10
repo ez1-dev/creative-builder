@@ -139,6 +139,10 @@ export default function EtlAdminPage() {
         <KpiCard label="Última execução" value={fmtDate(ultimaExecucaoGlobal)} icon={<Clock className="h-4 w-4" />} small />
       </div>
 
+      <AtuContabilidadePanel />
+
+      <TauxPanel />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">Tarefas</CardTitle>
@@ -151,10 +155,6 @@ export default function EtlAdminPage() {
           )}
         </CardContent>
       </Card>
-
-      <TauxPanel />
-
-      <AtuContabilidadePanel />
 
       <ExecutarModal
         open={execModal.open}
