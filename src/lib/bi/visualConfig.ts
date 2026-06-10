@@ -90,6 +90,12 @@ export interface VisualConfig {
     decimals: number;
     prefix: string;
     suffix: string;
+    /** Rótulo enriquecido: nome + valor + percentual (estilo "Por Motivo de Viagem"). */
+    richLabel?: boolean;
+    /** Quando richLabel=true, exibe o nome da categoria. Default true. */
+    showName?: boolean;
+    /** Quando richLabel=true, exibe o percentual. Default true. */
+    showPercent?: boolean;
   };
   resultDescription: {
     visible: boolean;
