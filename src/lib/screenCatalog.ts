@@ -29,6 +29,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/bi/faturamento-validacao':  { codigo: 'BI_FAT_VAL',    nome: 'Validação BI Faturamento' },
   '/bi/comercial':              { codigo: 'BI_COMERCIAL',  nome: 'BI Comercial' },
   '/bi/faturamento/relatorio-executivo': { codigo: 'BI_FAT_REL_EXEC', nome: 'BI - Relatório Executivo de Faturamento' },
+  '/bi/taux':                   { codigo: 'BI_TAUX',       nome: 'BI - TAUX / Dimensões' },
 
 
 };
