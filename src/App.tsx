@@ -56,7 +56,6 @@ import FaturamentoValidacaoPage from "@/pages/bi/FaturamentoValidacaoPage";
 import ComercialPage from "@/pages/bi/ComercialPage";
 import MetasFaturamentoPage from "@/pages/bi/MetasFaturamentoPage";
 import RelatorioExecutivoFaturamentoPage from "@/pages/bi/RelatorioExecutivoFaturamentoPage";
-import TauxAdminPage from "@/pages/bi/TauxAdminPage";
 import RelatorioExecutivoPassagensPage from "@/pages/relatorios/RelatorioExecutivoPassagensPage";
 import RelatorioExecutivoFrotaPage from "@/pages/relatorios/RelatorioExecutivoFrotaPage";
 import RelatorioExecutivoMaquinasPage from "@/pages/relatorios/RelatorioExecutivoMaquinasPage";
