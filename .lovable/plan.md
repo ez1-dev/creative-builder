@@ -1,57 +1,37 @@
-## Objetivo
-Incluir no **Relatório Executivo de Faturamento** um novo bloco **"Análise de Pareto (80/20)"** com gráfico clássico (barras decrescentes + linha de % acumulado e marcador 80%) e uma análise textual gerada pela IA específica para esse bloco.
+## Problema
+No bloco "Evolução Mensal — Realizado vs Meta" (Relatório Executivo de Faturamento), a linha vermelha tracejada "Meta" não aparece porque o componente busca as metas exclusivamente em `dados.metas` (tabela `bi_meta_faturamento` do Lovable Cloud), que está vazia / sem metas para o período. Resultado: todos os pontos do dataset ficam com `Meta: null` e o Recharts não desenha a linha.
 
-## Escopo (somente frontend + edge function existente)
+Porém, o endpoint que alimenta `dados.mensal` (`fetchComercialMensal` → `ComercialMensalRow`) já devolve um campo `meta` por mês vindo do FastAPI/UpQuery. Esse dado não está sendo usado.
 
-### 1. Novo bloco no catálogo
-- Em `useRelatorioExecutivoFaturamento.ts`:
-  - Adicionar `pareto: boolean` em `BlocosSelecionados`.
-  - Incluir `pareto: true` em `BLOCOS_PADRAO` e `BLOCOS_CURTO`.
-  - O bloco reutiliza os dados já carregados de `rankings` (revenda/estado/obras) + `detalhes` para derivar Pareto por cliente/produto sem nova chamada de API.
+## Solução (apenas frontend)
+Ajustar `EvolucaoBloco` em `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx`:
 
-### 2. Componente `ParetoBloco`
-- Arquivo: `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx` (novo export `ParetoBloco`).
-- Permite escolher a dimensão analisada (clientes, revendas, produtos, obras) via tabs internas; padrão: **clientes** (derivado de `dados.detalhes` agregando `vl_bruto` por `cd_cliente`) e fallback para `revenda` se detalhes estiver vazio.
-- Renderiza `ComposedChart` (Recharts):
-  - Barras `Faturamento` ordenadas desc (top 20).
-  - Linha `% Acumulado` em eixo Y direito (0–100%).
-  - `ReferenceLine` horizontal em 80% (cor `--warning`).
-  - Tooltip com valor absoluto + % individual + % acumulado.
-- Mini-tabela abaixo destacando os itens **dentro dos 80%** (badge "Vital few") vs restante ("Useful many"), com contagens e participação.
-- Resumo textual fixo: `X clientes (Y% do total) geram 80% do faturamento`.
+1. Ao montar o `data` do gráfico, definir `Meta` com **fallback em cascata**:
+   - 1º: soma das metas cadastradas em `bi_meta_faturamento` para o `anomes_emissao` (respeitando o filtro de unidade de negócio) — comportamento atual.
+   - 2º: se não houver, usar `r.meta` retornado pela própria linha de `dados.mensal` (FastAPI).
+   - 3º: `null` se nenhum dos dois existir.
 
-### 3. Cálculo Pareto
-- Helper interno `calcularPareto(rows, labelKey, valueKey)`:
-  1. ordena desc, 2. calcula soma total, 3. acumula %, 4. marca `isVital` até `acumulado ≥ 80%`.
-- Sem alteração de API/backend.
+2. Garantir que a `<Line dataKey="Meta">` use `connectNulls` para não quebrar a linha caso algum mês fique sem meta.
 
-### 4. Wizard
-- Em `RelatorioExecutivoFaturamentoPage.tsx`, adicionar item no `blocosCatalogo`: `{ k: 'pareto', l: 'Pareto 80/20', icon: <novo ícone> }` (usar `Target` do `lucide-react`).
-- Renderizar `<ParetoBloco />` no preview entre Rankings e Margem.
+3. Se **todos** os pontos forem `null`, ocultar a entrada "Meta" da legenda (passar `legendType="none"` condicional) para não confundir o usuário. Caso contrário, manter linha vermelha tracejada como hoje.
 
-### 5. Análise da IA
-- Estender o payload enviado para `supabase/functions/relatorio-executivo-ia`:
-  - Acrescentar campo `pareto` com `{ dimensao, total_itens, itens_vitais, pct_itens_vitais, pct_concentracao_top5, top: [{label, valor, pct, pct_acumulado}] }` (até 20 itens).
-- Edge function `relatorio-executivo-ia/index.ts`:
-  - Aceitar novo campo `pareto` no body.
-  - Incluir no prompt instrução: "Se `PARETO` for fornecido, gere 1 destaque + 1 alerta + 1 recomendação **específicos** sobre concentração 80/20 (risco de dependência de poucos clientes, oportunidade de fidelização da cauda longa, etc.)".
-  - Manter o mesmo schema de retorno (`destaques`/`alertas`/`recomendacoes`) — as conclusões do Pareto entram naturalmente nas listas existentes, sem quebrar UI atual.
-- Opcional (Nice-to-have): adicionar campo extra `pareto_analise` no JSON de retorno (string curta) renderizado no rodapé do `ParetoBloco`. Se ausente, o bloco fica só com gráfico + resumo numérico.
+## Fora de escopo
+- Não alterar API/backend nem o hook `useRelatorioExecutivoFaturamento`.
+- Não mexer no cadastro de metas (`bi_meta_faturamento`) nem em outras telas.
+- Não tocar nos demais blocos do relatório.
 
-### 6. Exportações
-- `exportPptx.ts`: adicionar slide do Pareto seguindo padrão dos demais (chart + texto). Fora deste plano se você preferir manter PPTX como está — confirmar.
+## Detalhes técnicos
+Arquivo único: `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx`, função `EvolucaoBloco` (linhas ~59-92).
 
-## Arquivos a alterar
-- `src/hooks/useRelatorioExecutivoFaturamento.ts` (tipo + presets)
-- `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx` (novo `ParetoBloco` + helper)
-- `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx` (catálogo, payload IA, render preview)
-- `supabase/functions/relatorio-executivo-ia/index.ts` (aceitar `pareto`, prompt enriquecido, opcional `pareto_analise` no JSON)
+```tsx
+const Meta = metasMap.get(r.anomes_emissao) ?? (r.meta != null ? Number(r.meta) : null);
+// ...
+<Line type="monotone" dataKey="Meta" stroke="hsl(var(--destructive))"
+      strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls />
+```
 
-## Fora do escopo
-- Alterações no FastAPI / views BI.
-- Mudança de visual em outros blocos.
-- Suporte a Pareto multi-dimensão simultâneo (será via tabs, uma dimensão visível por vez).
-
-## Dúvidas (responda antes de implementar, opcional)
-1. Dimensão padrão do Pareto: **Clientes** ou **Revendas**?
-2. Incluir o slide Pareto no PPTX também?
+## Critérios de aceite
+- Linha "Meta" aparece no gráfico sempre que houver meta cadastrada no Cloud **ou** meta retornada pelo FastAPI no `mensal`.
+- Não gera React error #310.
+- Demais linhas (Faturamento, Líquido) continuam intactas.
+- Tooltip e legenda continuam formatados em R$.
