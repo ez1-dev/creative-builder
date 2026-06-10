@@ -245,7 +245,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
               <div
                 data-no-drag
                 onMouseDown={(e) => e.stopPropagation()}
-                className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded-md border bg-background/95 p-1 shadow-md backdrop-blur"
+                className="absolute right-2 top-2 z-50 flex items-center gap-1 rounded-md border bg-background/95 p-1 shadow-md backdrop-blur pointer-events-auto"
               >
                 <div className="flex items-center gap-0.5" title="Largura">
                   <MoveHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
