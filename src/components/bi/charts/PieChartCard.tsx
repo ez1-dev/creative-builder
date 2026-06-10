@@ -1,9 +1,10 @@
+import { useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { BI_PALETTE } from '../utils/chartHelpers';
 import { BarChartDatum } from './BarChartCard';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, formatRichLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
@@ -19,6 +20,25 @@ export function PieChartCard({
 }: PieChartCardProps) {
   const vc = mergeVisualConfig(visualConfig);
   const fmtLabel = (v: any) => formatDataLabel(v, vc.dataLabels);
+  const total = useMemo(() => (data ?? []).reduce((s, d) => s + Number(d?.valor || 0), 0), [data]);
+  const rich = vc.dataLabels.visible && !!vc.dataLabels.richLabel;
+  const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
+
+  const richLabelRenderer = (e: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = (e.outerRadius ?? 90) + 22;
+    const x = e.cx + radius * Math.cos(-e.midAngle * RADIAN);
+    const y = e.cy + radius * Math.sin(-e.midAngle * RADIAN);
+    const { line1, line2 } = formatRichLabel({ name: e.name, value: Number(e.value || 0), total, cfg: vc.dataLabels });
+    const anchor = x > e.cx ? 'start' : 'end';
+    return (
+      <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={anchor} fontSize={vc.dataLabels.fontSize} style={{ fontFamily }}>
+        {line1 && <tspan x={x} dy="-0.3em">{line1}</tspan>}
+        {line2 && <tspan x={x} dy={line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{line2}</tspan>}
+      </text>
+    );
+  };
+
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <div className="relative">
@@ -28,11 +48,13 @@ export function PieChartCard({
               innerRadius={donut ? 55 : 0} outerRadius={90} paddingAngle={donut ? 2 : 0}
               cursor={onItemClick ? 'pointer' : undefined}
               onClick={(d: any) => onItemClick?.(d as BarChartDatum)}
+              label={rich ? richLabelRenderer : undefined}
+              labelLine={rich ? { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 } : false}
             >
               {data.map((_, i) => <Cell key={i} fill={BI_PALETTE[i % BI_PALETTE.length]} />)}
-              {vc.dataLabels.visible && (
+              {vc.dataLabels.visible && !rich && (
                 <LabelList dataKey="valor" position={vc.dataLabels.position === 'inside' ? 'inside' : 'outside'}
-                  style={{ fontSize: vc.dataLabels.fontSize, fontFamily: fontFamilyCss(vc.dataLabels.fontFamily), fill: 'hsl(var(--foreground))' }}
+                  style={{ fontSize: vc.dataLabels.fontSize, fontFamily, fill: 'hsl(var(--foreground))' }}
                   formatter={fmtLabel as any} />
               )}
             </Pie>
