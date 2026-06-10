@@ -1,7 +1,8 @@
 import { formatCurrency, formatNumber } from '@/components/bi';
 import type { RelatorioDados } from '@/hooks/useRelatorioExecutivoFaturamento';
 import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
-import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Cell } from 'recharts';
+import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Cell, ReferenceLine } from 'recharts';
+import { useMemo, useState } from 'react';
 
 const pct = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(1)}%`;
 const num = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? 0 : Number(v);
@@ -244,4 +245,185 @@ export function TabelaAnaliticaBloco({ dados }: BlocoProps) {
       </div>
     </section>
   );
+}
+
+// ---------- Pareto 80/20 ----------
+type ParetoDimensao = 'cliente' | 'revenda' | 'estado' | 'obra';
+
+interface ParetoItem {
+  label: string;
+  valor: number;
+  pct: number;
+  pctAcum: number;
+  isVital: boolean;
+}
+
+function calcularPareto(rows: Array<{ label: string; valor: number }>): {
+  items: ParetoItem[]; total: number; vitais: number;
+} {
+  const filtered = rows.filter((r) => Number.isFinite(r.valor) && r.valor > 0);
+  const sorted = [...filtered].sort((a, b) => b.valor - a.valor);
+  const total = sorted.reduce((s, r) => s + r.valor, 0);
+  let acum = 0;
+  let vitalReached = false;
+  const items: ParetoItem[] = sorted.map((r) => {
+    const p = total > 0 ? (r.valor / total) * 100 : 0;
+    acum += p;
+    const isVital = !vitalReached;
+    if (acum >= 80) vitalReached = true;
+    return { label: r.label, valor: r.valor, pct: p, pctAcum: acum, isVital };
+  });
+  const vitais = items.filter((i) => i.isVital).length;
+  return { items, total, vitais };
+}
+
+function agregarPorChave(rows: any[], labelKey: string, valueKey: string): Array<{ label: string; valor: number }> {
+  const map = new Map<string, number>();
+  for (const r of rows ?? []) {
+    const k = String(r?.[labelKey] ?? '').trim();
+    if (!k) continue;
+    map.set(k, (map.get(k) ?? 0) + num(r?.[valueKey]));
+  }
+  return Array.from(map.entries()).map(([label, valor]) => ({ label, valor }));
+}
+
+export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: string | null }) {
+  const [dim, setDim] = useState<ParetoDimensao>('cliente');
+
+  const baseRows = useMemo(() => {
+    if (dim === 'cliente') {
+      // tenta detalhes (cd_cliente + vl_bruto). fallback para rankings.revenda se vazio
+      const r = agregarPorChave(dados.detalhes, 'cd_cliente', 'vl_bruto');
+      return r.length > 0 ? r : agregarPorChave(dados.rankings.revenda, 'revenda', 'faturamento');
+    }
+    if (dim === 'revenda') return agregarPorChave(dados.rankings.revenda, 'revenda', 'faturamento');
+    if (dim === 'estado') return agregarPorChave(dados.rankings.estado, 'cd_estado', 'faturamento');
+    return agregarPorChave(dados.rankings.obras, 'projeto', 'faturamento');
+  }, [dim, dados]);
+
+  const { items, total, vitais } = useMemo(() => calcularPareto(baseRows), [baseRows]);
+  const top = items.slice(0, 20);
+  const pctVitais = items.length > 0 ? (vitais / items.length) * 100 : 0;
+  const pctVitaisFat = items.slice(0, vitais).reduce((s, i) => s + i.pct, 0);
+
+  const dimLabel: Record<ParetoDimensao, string> = {
+    cliente: 'Clientes', revenda: 'Revendas', estado: 'Estados', obra: 'Obras',
+  };
+
+  if (!items.length) {
+    return (
+      <section className="rel-bloco">
+        <h2 className="rel-bloco-titulo">Análise de Pareto 80/20</h2>
+        <p className="text-sm text-muted-foreground">Sem dados suficientes para calcular o Pareto.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rel-bloco">
+      <h2 className="rel-bloco-titulo">Análise de Pareto 80/20 — {dimLabel[dim]}</h2>
+
+      <div className="flex gap-1 mb-3 print:hidden">
+        {(['cliente','revenda','estado','obra'] as ParetoDimensao[]).map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDim(d)}
+            className={`px-3 py-1 text-xs rounded border ${dim === d ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:text-foreground'}`}
+          >
+            {dimLabel[d]}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-sm text-foreground mb-2">
+        <strong>{vitais}</strong> {dimLabel[dim].toLowerCase()} ({pctVitais.toFixed(1)}% do total de {items.length}) geram <strong>{pctVitaisFat.toFixed(1)}%</strong> do faturamento.
+      </p>
+
+      <div className="h-72 rel-chart" data-rel-chart="pareto">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={top} margin={{ top: 10, right: 40, left: 0, bottom: 30 }}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+            <XAxis dataKey="label" fontSize={10} angle={-30} textAnchor="end" interval={0} height={60} />
+            <YAxis yAxisId="left" fontSize={11} tickFormatter={(v) => Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
+            <YAxis yAxisId="right" orientation="right" fontSize={11} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+            <Tooltip
+              formatter={(value: any, name: any) => {
+                if (name === '% Acumulado') return `${Number(value).toFixed(1)}%`;
+                return formatCurrency(Number(value));
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar yAxisId="left" dataKey="valor" name="Faturamento" fill="hsl(var(--primary))">
+              {top.map((it, i) => (
+                <Cell key={i} fill={it.isVital ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground) / 0.5)'} />
+              ))}
+            </Bar>
+            <Line yAxisId="right" type="monotone" dataKey="pctAcum" name="% Acumulado" stroke="hsl(var(--warning))" strokeWidth={2} dot={{ r: 3 }} />
+            <ReferenceLine yAxisId="right" y={80} stroke="hsl(var(--destructive))" strokeDasharray="4 4" label={{ value: '80%', position: 'right', fontSize: 11, fill: 'hsl(var(--destructive))' }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mt-3 text-xs">
+        <div>
+          <h3 className="font-semibold text-primary mb-1">Vital few ({vitais})</h3>
+          <ul className="space-y-0.5">
+            {items.slice(0, Math.min(vitais, 8)).map((it, i) => (
+              <li key={i} className="flex justify-between">
+                <span className="truncate pr-2">{i + 1}. {it.label}</span>
+                <span className="tabular-nums">{it.pct.toFixed(1)}% ({formatCurrency(it.valor)})</span>
+              </li>
+            ))}
+            {vitais > 8 && <li className="text-muted-foreground">… +{vitais - 8} itens</li>}
+          </ul>
+        </div>
+        <div>
+          <h3 className="font-semibold text-muted-foreground mb-1">Useful many ({items.length - vitais})</h3>
+          <p className="text-muted-foreground">
+            Representam {(100 - pctVitaisFat).toFixed(1)}% do faturamento ({formatCurrency(total - items.slice(0, vitais).reduce((s, i) => s + i.valor, 0))}).
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            Oportunidade de desenvolvimento da cauda longa para reduzir concentração.
+          </p>
+        </div>
+      </div>
+
+      {analiseIa && (
+        <div className="mt-3 p-3 border-l-2 border-primary bg-primary/5 text-xs">
+          <p className="font-semibold text-primary mb-1">Análise IA — Concentração 80/20</p>
+          <p className="text-foreground whitespace-pre-wrap">{analiseIa}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function buildParetoPayload(dados: RelatorioDados, dim: ParetoDimensao = 'cliente') {
+  const baseRows = (() => {
+    if (dim === 'cliente') {
+      const r = agregarPorChave(dados.detalhes, 'cd_cliente', 'vl_bruto');
+      return r.length > 0 ? r : agregarPorChave(dados.rankings.revenda, 'revenda', 'faturamento');
+    }
+    if (dim === 'revenda') return agregarPorChave(dados.rankings.revenda, 'revenda', 'faturamento');
+    if (dim === 'estado') return agregarPorChave(dados.rankings.estado, 'cd_estado', 'faturamento');
+    return agregarPorChave(dados.rankings.obras, 'projeto', 'faturamento');
+  })();
+  const { items, total, vitais } = calcularPareto(baseRows);
+  const pctVitais = items.length > 0 ? (vitais / items.length) * 100 : 0;
+  const top5 = items.slice(0, 5).reduce((s, i) => s + i.pct, 0);
+  return {
+    dimensao: dim,
+    total_itens: items.length,
+    itens_vitais: vitais,
+    pct_itens_vitais: Number(pctVitais.toFixed(2)),
+    pct_concentracao_top5: Number(top5.toFixed(2)),
+    total_faturamento: total,
+    top: items.slice(0, 20).map((i) => ({
+      label: i.label,
+      valor: i.valor,
+      pct: Number(i.pct.toFixed(2)),
+      pct_acumulado: Number(i.pctAcum.toFixed(2)),
+    })),
+  };
 }

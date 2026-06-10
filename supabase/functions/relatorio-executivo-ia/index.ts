@@ -11,6 +11,7 @@ interface IaResponse {
   destaques: string[];
   alertas: string[];
   recomendacoes: string[];
+  pareto_analise?: string;
 }
 
 Deno.serve(async (req) => {
@@ -25,7 +26,13 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { contexto, kpis, mensal, rankings, metas } = body ?? {};
+    const { contexto, kpis, mensal, rankings, metas, pareto } = body ?? {};
+
+    const paretoSection = pareto
+      ? `\nPARETO 80/20 (${pareto.dimensao}): ${JSON.stringify(pareto)}\n` +
+        `Inclua nos arrays acima pelo menos 1 destaque, 1 alerta e 1 recomendação ESPECÍFICOS sobre a concentração 80/20 (risco de dependência, oportunidade na cauda longa, fidelização). ` +
+        `Adicione também o campo "pareto_analise": parágrafo de 2-3 frases curtas analisando a concentração observada — cite números (quantos itens vitais, % de concentração do top 5).`
+      : '';
 
     const prompt = `Você é um analista executivo. Gere comentários para um relatório de FATURAMENTO para a diretoria.
 Use linguagem objetiva, em PT-BR, frases curtas (máx 22 palavras cada), sem jargão técnico. NÃO invente números — use apenas os dados abaixo.
@@ -34,13 +41,13 @@ CONTEXTO: ${JSON.stringify(contexto)}
 KPIS: ${JSON.stringify(kpis)}
 EVOLUÇÃO MENSAL (últimos pontos): ${JSON.stringify(mensal?.slice(-12) ?? [])}
 RANKINGS (top): ${JSON.stringify(rankings)}
-METAS: ${JSON.stringify(metas)}
+METAS: ${JSON.stringify(metas)}${paretoSection}
 
 Responda APENAS um JSON com este formato exato:
 {
   "destaques": ["...", "...", "..."],
   "alertas": ["...", "..."],
-  "recomendacoes": ["...", "...", "..."]
+  "recomendacoes": ["...", "...", "..."]${pareto ? ',\n  "pareto_analise": "..."' : ''}
 }
 - 3 a 5 destaques (o que está indo bem, fatos positivos).
 - 2 a 4 alertas (riscos, quedas, concentrações, devoluções/impostos altos).
@@ -85,6 +92,7 @@ Responda APENAS um JSON com este formato exato:
       destaques: safeList(parsed.destaques),
       alertas: safeList(parsed.alertas),
       recomendacoes: safeList(parsed.recomendacoes),
+      pareto_analise: typeof parsed.pareto_analise === 'string' ? parsed.pareto_analise : null,
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (err: any) {
     return new Response(JSON.stringify({ error: err?.message ?? 'erro desconhecido' }), {

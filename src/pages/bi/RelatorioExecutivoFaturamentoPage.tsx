@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Download, FileSpreadsheet, Printer, Sparkles, ChevronLeft, Loader2,
-  Calendar, Filter, FileText, LayoutGrid, Gauge, TrendingUp, BarChart3, Percent, Table as TableIcon, Check,
+  Calendar, Filter, FileText, LayoutGrid, Gauge, TrendingUp, BarChart3, Percent, Table as TableIcon, Check, Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -21,7 +21,7 @@ import {
 import type { BiComercialFilters, UnidadeNegocio } from '@/lib/bi/comercialFilters';
 import {
   KpisBloco, EvolucaoBloco, RankingsBloco, MargemImpostosBloco,
-  ComentariosIaBloco, TabelaAnaliticaBloco,
+  ComentariosIaBloco, TabelaAnaliticaBloco, ParetoBloco, buildParetoPayload,
 } from '@/components/bi/relatorio-executivo/RelatorioBlocos';
 import { gerarRelatorioPptx } from '@/components/bi/relatorio-executivo/exportPptx';
 import './relatorio.css';
@@ -74,6 +74,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
   const [comentarios, setComentarios] = useState<{
     destaques: string[]; alertas: string[]; recomendacoes: string[];
   } | null>(null);
+  const [paretoAnalise, setParetoAnalise] = useState<string | null>(null);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaError, setIaError] = useState<string | null>(null);
   const [exportandoPptx, setExportandoPptx] = useState(false);
@@ -105,6 +106,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
             obras: dados.rankings.obras.slice(0, 10),
           },
           metas: dados.metas,
+          pareto: blocos.pareto ? buildParetoPayload(dados, 'cliente') : null,
         };
         const { data, error } = await supabase.functions.invoke('relatorio-executivo-ia', {
           body: payload,
@@ -117,6 +119,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
           alertas: data?.alertas ?? [],
           recomendacoes: data?.recomendacoes ?? [],
         });
+        setParetoAnalise(typeof data?.pareto_analise === 'string' ? data.pareto_analise : null);
       } catch (e: any) {
         if (!cancelled) setIaError(e?.message ?? 'Falha ao gerar comentários');
       } finally {
@@ -158,6 +161,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
       { k: 'kpis' as const, l: 'Visão geral (KPIs)', icon: Gauge },
       { k: 'evolucao' as const, l: 'Evolução + Meta', icon: TrendingUp },
       { k: 'rankings' as const, l: 'Rankings', icon: BarChart3 },
+      { k: 'pareto' as const, l: 'Pareto 80/20', icon: Target },
       { k: 'margem' as const, l: 'Margem e Impostos', icon: Percent },
       { k: 'comentariosIa' as const, l: 'Comentários IA', icon: Sparkles },
       { k: 'tabela' as const, l: 'Tabela analítica', icon: TableIcon },
@@ -403,6 +407,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
             {blocos.kpis && <KpisBloco dados={dados} filtros={filtrosFinais} />}
             {blocos.evolucao && <EvolucaoBloco dados={dados} filtros={filtrosFinais} />}
             {blocos.rankings && <RankingsBloco dados={dados} filtros={filtrosFinais} />}
+            {blocos.pareto && <ParetoBloco dados={dados} filtros={filtrosFinais} analiseIa={paretoAnalise} />}
             {blocos.margem && <MargemImpostosBloco dados={dados} filtros={filtrosFinais} />}
             {blocos.comentariosIa && (
               <ComentariosIaBloco comentarios={comentarios} loading={iaLoading} error={iaError} />

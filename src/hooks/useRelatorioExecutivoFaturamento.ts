@@ -14,6 +14,7 @@ export type BlocoKey =
   | 'kpis'
   | 'evolucao'
   | 'rankings'
+  | 'pareto'
   | 'margem'
   | 'comentariosIa'
   | 'tabela';
@@ -22,17 +23,18 @@ export interface BlocosSelecionados {
   kpis: boolean;
   evolucao: boolean;
   rankings: boolean;
+  pareto: boolean;
   margem: boolean;
   comentariosIa: boolean;
   tabela: boolean;
 }
 
 export const BLOCOS_PADRAO: BlocosSelecionados = {
-  kpis: true, evolucao: true, rankings: true, margem: true, comentariosIa: true, tabela: true,
+  kpis: true, evolucao: true, rankings: true, pareto: true, margem: true, comentariosIa: true, tabela: true,
 };
 
 export const BLOCOS_CURTO: BlocosSelecionados = {
-  kpis: true, evolucao: true, rankings: true, margem: false, comentariosIa: true, tabela: false,
+  kpis: true, evolucao: true, rankings: true, pareto: true, margem: false, comentariosIa: true, tabela: false,
 };
 
 export interface RelatorioDados {
@@ -67,25 +69,25 @@ export function useRelatorioExecutivoFaturamento(
   const qRevenda = useQuery({
     queryKey: ['rel-exec', 'revenda', filtros],
     queryFn: () => fetchComercialRevenda(filtros),
-    enabled: enabled && blocos.rankings,
+    enabled: enabled && (blocos.rankings || blocos.pareto),
   });
 
   const qEstado = useQuery({
     queryKey: ['rel-exec', 'estado', filtros],
     queryFn: () => fetchComercialEstado(filtros),
-    enabled: enabled && blocos.rankings,
+    enabled: enabled && (blocos.rankings || blocos.pareto),
   });
 
   const qObras = useQuery({
     queryKey: ['rel-exec', 'obras', filtros],
     queryFn: () => fetchComercialObras(filtros),
-    enabled: enabled && blocos.rankings,
+    enabled: enabled && (blocos.rankings || blocos.pareto),
   });
 
   const qDetalhes = useQuery({
     queryKey: ['rel-exec', 'detalhes', filtros],
     queryFn: () => fetchComercialDetalhes(filtros, { escopo: 'todas', maxRows: 500, page_size: 500 }),
-    enabled: enabled && blocos.tabela,
+    enabled: enabled && (blocos.tabela || blocos.pareto),
   });
 
   const qMetas = useQuery({

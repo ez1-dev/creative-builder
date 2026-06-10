@@ -1,87 +1,57 @@
 ## Objetivo
+Incluir no **Relatório Executivo de Faturamento** um novo bloco **"Análise de Pareto (80/20)"** com gráfico clássico (barras decrescentes + linha de % acumulado e marcador 80%) e uma análise textual gerada pela IA específica para esse bloco.
 
-Transformar a barra vertical da legenda do `BrazilHeatMap` em uma **legenda interativa de faixa**: hover mostra valor, arrastar handles seleciona uma faixa `[min, max]`, estados fora da faixa ficam esmaecidos, e há ações de Limpar / Aplicar faixa.
+## Escopo (somente frontend + edge function existente)
 
-## Escopo
+### 1. Novo bloco no catálogo
+- Em `useRelatorioExecutivoFaturamento.ts`:
+  - Adicionar `pareto: boolean` em `BlocosSelecionados`.
+  - Incluir `pareto: true` em `BLOCOS_PADRAO` e `BLOCOS_CURTO`.
+  - O bloco reutiliza os dados já carregados de `rankings` (revenda/estado/obras) + `detalhes` para derivar Pareto por cliente/produto sem nova chamada de API.
 
-- **Editar:** `src/components/bi/maps/BrazilHeatMap.tsx`
-- **Novo:** `src/components/bi/maps/InteractiveHeatLegend.tsx` (extrai a barra + handles + tooltip + ações para legibilidade)
-- **Opcional:** `src/lib/bi/mapUtils.ts` — apenas se precisar de helper puro `getValueFromPointer`. Provavelmente fica inline no componente.
+### 2. Componente `ParetoBloco`
+- Arquivo: `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx` (novo export `ParetoBloco`).
+- Permite escolher a dimensão analisada (clientes, revendas, produtos, obras) via tabs internas; padrão: **clientes** (derivado de `dados.detalhes` agregando `vl_bruto` por `cd_cliente`) e fallback para `revenda` se detalhes estiver vazio.
+- Renderiza `ComposedChart` (Recharts):
+  - Barras `Faturamento` ordenadas desc (top 20).
+  - Linha `% Acumulado` em eixo Y direito (0–100%).
+  - `ReferenceLine` horizontal em 80% (cor `--warning`).
+  - Tooltip com valor absoluto + % individual + % acumulado.
+- Mini-tabela abaixo destacando os itens **dentro dos 80%** (badge "Vital few") vs restante ("Useful many"), com contagens e participação.
+- Resumo textual fixo: `X clientes (Y% do total) geram 80% do faturamento`.
 
-Sem mudanças em backend, API, drill, zoom/pan, widget cartograma, demais gráficos. O `BrazilHeatMapWidget` (BI Comercial) ganha apenas o repasse opcional de `onRangeApply` — sem nova lógica de filtro: vai chamar o `onDrill` existente quando for o caso (se for aceito; caso contrário, o botão Aplicar fica oculto).
+### 3. Cálculo Pareto
+- Helper interno `calcularPareto(rows, labelKey, valueKey)`:
+  1. ordena desc, 2. calcula soma total, 3. acumula %, 4. marca `isVital` até `acumulado ≥ 80%`.
+- Sem alteração de API/backend.
 
-## Comportamento
+### 4. Wizard
+- Em `RelatorioExecutivoFaturamentoPage.tsx`, adicionar item no `blocosCatalogo`: `{ k: 'pareto', l: 'Pareto 80/20', icon: <novo ícone> }` (usar `Target` do `lucide-react`).
+- Renderizar `<ParetoBloco />` no preview entre Rankings e Margem.
 
-### Legenda interativa
-- Wrapper `relative` na barra vertical existente (gradiente preservado).
-- **Pointer events** (`onPointerDown/Move/Up/Leave` + `setPointerCapture`) — funciona mouse e touch.
-- **Hover**: linha horizontal fina + tooltip mostrando `formatValue(valor)` na posição Y do ponteiro.
-- **Arraste**: clicar perto de um handle "agarra" aquele handle; arrastar atualiza `selectedRange` garantindo `min ≤ max`.
-- **2 handles**: marcadores triangulares pequenos à direita da barra (topo = max da faixa, base = min). Cursor `ns-resize`, drag tooltip.
-- **Overlay**: regiões fora da faixa cobertas por faixa branco/transparente (~`rgba(255,255,255,0.55)`) sobre a barra de gradiente.
-- **Duplo clique na barra** → reseta a seleção (`setSelectedRange(null)`).
-- Quando `selectedRange === null`, a barra opera só em modo hover; clique inicial define a faixa começando por aquele valor com o outro handle no extremo mais próximo.
+### 5. Análise da IA
+- Estender o payload enviado para `supabase/functions/relatorio-executivo-ia`:
+  - Acrescentar campo `pareto` com `{ dimensao, total_itens, itens_vitais, pct_itens_vitais, pct_concentracao_top5, top: [{label, valor, pct, pct_acumulado}] }` (até 20 itens).
+- Edge function `relatorio-executivo-ia/index.ts`:
+  - Aceitar novo campo `pareto` no body.
+  - Incluir no prompt instrução: "Se `PARETO` for fornecido, gere 1 destaque + 1 alerta + 1 recomendação **específicos** sobre concentração 80/20 (risco de dependência de poucos clientes, oportunidade de fidelização da cauda longa, etc.)".
+  - Manter o mesmo schema de retorno (`destaques`/`alertas`/`recomendacoes`) — as conclusões do Pareto entram naturalmente nas listas existentes, sem quebrar UI atual.
+- Opcional (Nice-to-have): adicionar campo extra `pareto_analise` no JSON de retorno (string curta) renderizado no rodapé do `ParetoBloco`. Se ausente, o bloco fica só com gráfico + resumo numérico.
 
-### Conversão pointer ↔ valor
-```ts
-function valueFromY(clientY, rect, max) {
-  const y = clamp(clientY - rect.top, 0, rect.height);
-  return clamp((1 - y / rect.height) * max, 0, max);
-}
-function yFromValue(value, height, max) {
-  return (1 - value / max) * height;
-}
-```
+### 6. Exportações
+- `exportPptx.ts`: adicionar slide do Pareto seguindo padrão dos demais (chart + texto). Fora deste plano se você preferir manter PPTX como está — confirmar.
 
-### Estados do mapa
-```ts
-const selUf = ...
-const inRange = !selectedRange || (v >= selectedRange[0] && v <= selectedRange[1]);
-opacity = (dimmed ? 0.55 : 1) * (inRange ? 1 : 0.18);
-```
-Mantém stroke/fill atuais para `isSelected` e hover. Estados sem dados continuam cinza (não afetados pela faixa).
+## Arquivos a alterar
+- `src/hooks/useRelatorioExecutivoFaturamento.ts` (tipo + presets)
+- `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx` (novo `ParetoBloco` + helper)
+- `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx` (catálogo, payload IA, render preview)
+- `supabase/functions/relatorio-executivo-ia/index.ts` (aceitar `pareto`, prompt enriquecido, opcional `pareto_analise` no JSON)
 
-### UFs da faixa
-`useMemo` lista UFs cujo valor cai dentro da faixa. Renderiza abaixo da legenda:
-- até 6 UFs: `Estados na faixa: MS, SP, PA, MT`
-- mais que 6: `Estados na faixa: N UFs`
+## Fora do escopo
+- Alterações no FastAPI / views BI.
+- Mudança de visual em outros blocos.
+- Suporte a Pareto multi-dimensão simultâneo (será via tabs, uma dimensão visível por vez).
 
-### Ações
-- `Limpar` — sempre visível quando `selectedRange != null`.
-- `Aplicar faixa` — só visível se `onRangeApply` foi passado E há ≥1 UF na faixa. Envia `{ cd_estado_in, valor_min, valor_max }`.
-
-### Texto adicional
-```
-Faixa
-R$ X até R$ Y
-[Aplicar faixa] [Limpar]
-```
-
-## Detalhes técnicos
-
-### `BrazilHeatMap.tsx`
-- Nova prop opcional:
-  ```ts
-  onRangeApply?: (payload: { cd_estado_in: string[]; valor_min: number; valor_max: number }) => void;
-  ```
-- Estado interno: `const [selectedRange, setSelectedRange] = useState<[number, number] | null>(null);`
-- Substituir o bloco atual da barra (linhas 119–151) por `<InteractiveHeatLegend ... />`.
-- Calcular `ufsDentroDaFaixa` por `useMemo([data, selectedRange])`.
-- Aplicar `opacity` adicional no `style.default`/`hover` dos `Geography`.
-- Reset automático: quando `max === 0` ou `data` muda drasticamente (ex: novo período sem UFs na faixa), manter `selectedRange` — usuário decide quando limpar.
-
-### `InteractiveHeatLegend.tsx`
-- Renderiza: título + extras (slot p/ `HeatPaletteEditor`), barra vertical (gradiente + overlay + 2 handles + linha de hover + tooltip), labels max/0, e quando faixa ativa: bloco "Faixa" + botões.
-- Internamente usa `useRef<HTMLDivElement>` para a barra; cálculo via `getBoundingClientRect()`.
-- `setPointerCapture` no `pointerdown` para arraste fluido fora da barra.
-
-### `BrazilHeatMapWidget.tsx` (BI Comercial)
-- Adiciona `onRangeApply` que chama o `onDrill` existente quando o ERP aceita lista. Como o contrato atual de `onDrill` espera `valor: string`, e suportar lista é mudança de contrato, esta versão deixa o `onRangeApply` **indefinido por padrão** — o botão Aplicar simplesmente não aparece. A faixa continua funcionando como destaque visual (atende ao requisito "se não aceitar múltiplas UFs, apenas manter destaque visual").
-
-## Garantias
-- Zero alteração em backend/API/contrato de drill.
-- Zoom/pan/reset, clique em UF, drill/context menu inalterados.
-- Sem hooks condicionais → sem React error #310.
-- Sem cores hardcoded de UI (tokens semânticos); cores de stops e overlay são dados visuais.
-- Mobile/touch funcionam (Pointer Events + capture).
-- Formatação respeita `valueFormatter` já injetado (cheio/abreviado/mi).
+## Dúvidas (responda antes de implementar, opcional)
+1. Dimensão padrão do Pareto: **Clientes** ou **Revendas**?
+2. Incluir o slide Pareto no PPTX também?
