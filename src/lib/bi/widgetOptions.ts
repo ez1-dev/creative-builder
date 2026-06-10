@@ -57,6 +57,9 @@ export interface WidgetOptions {
   max?: number;
   status?: string;
   filtros?: Record<string, any>;
+
+  // Mapa de calor (BrazilHeatMap): stops persistidos (paleta padrão do widget)
+  colorStops?: string[];
 }
 
 // ----- Color tokens -----
