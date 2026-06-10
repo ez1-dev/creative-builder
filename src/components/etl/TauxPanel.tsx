@@ -260,6 +260,7 @@ export function TauxPanel() {
         nome={viewer?.nome ?? null}
         tabela={viewer?.tabela}
       />
+      <TauxLogDialog open={logOpen} onOpenChange={setLogOpen} />
     </Card>
   );
 }
