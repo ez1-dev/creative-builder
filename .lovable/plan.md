@@ -1,46 +1,41 @@
 ## Problema
-Ao gerar o PDF (via `window.print()`), o cabeçalho do `#rel-doc` não mostra o título "Relatório Executivo de Faturamento" nem o subtítulo "Período … • Unidade: …". O HTML está correto (`<h1 class="rel-titulo">` + `<p class="rel-subtitulo">` em `RelatorioExecutivoFaturamentoPage.tsx`), mas o conteúdo some no PDF.
 
-Causa provável: `.rel-titulo` e `.rel-subtitulo` usam `color: hsl(var(--primary))` e `hsl(var(--muted-foreground))`. O container pai recebe Tailwind `bg-white text-slate-900`, e em alguns navegadores/contextos de impressão as variáveis CSS do tema (definidas em `:root`/`.dark`) podem resolver para tons claros que somem sobre o fundo branco do PDF — ou o `border-bottom: 3px solid hsl(var(--primary))` do `.rel-header` cobre o texto se a cor primária resolver para algo muito claro. Além disso, falta margem superior segura no `@page`.
+No bloco **Rankings por Dimensão** do Relatório Executivo, o gráfico e a tabela de **Top Revendas** mostram apenas traços (`—`) no lugar dos nomes. Isso acontece tanto no preview da tela quanto no PDF (já que o PDF imprime o mesmo DOM).
 
-## Solução (apenas CSS de impressão)
-Arquivo único: `src/pages/bi/relatorio.css`.
+Causa raiz: o endpoint `GET /api/bi/comercial/revenda` retorna apenas o código da revenda (`revenda: string`), sem `nm_revenda` nem `revenda_label`. O helper `pickDimensionLabel('revenda', row)` então só consegue devolver o código — e nas linhas em que o código está vazio/nulo, devolve `''`, virando `'—'` na UI.
 
-1. Dentro do bloco `@media print`, forçar cores explícitas seguras para o cabeçalho, independentes das variáveis do tema:
-   ```css
-   #rel-doc .rel-header { border-bottom-color: #1d4ed8 !important; }
-   #rel-doc .rel-titulo {
-     color: #1d4ed8 !important;       /* azul corporativo */
-     font-size: 22px !important;
-     font-weight: 700 !important;
-     display: block !important;
-   }
-   #rel-doc .rel-subtitulo {
-     color: #334155 !important;        /* slate-700 */
-     font-size: 13px !important;
-     display: block !important;
-   }
-   #rel-doc .rel-data { color: #475569 !important; }
-   #rel-doc .rel-bloco-titulo {
-     color: #1d4ed8 !important;
-     border-left-color: #1d4ed8 !important;
-   }
-   ```
+O catálogo de nomes já existe no Lovable Cloud na tabela `bi_revenda` (`cd_rev_pedido` + `nm_revenda`), populada pela rotina `revendas/sincronizar`. A correção mais segura e sem mexer no backend é enriquecer os rankings client-side usando esse catálogo.
 
-2. Garantir que o `.rel-header` não seja recortado adicionando `padding-top: 4mm` ao `#rel-doc` em modo print (hoje está `padding: 0`):
-   ```css
-   #rel-doc { padding: 4mm 6mm !important; }
-   ```
+## Escopo
 
-3. Reforçar `visibility: visible !important` e `display: flex !important` no `.rel-header` para evitar que algum reset/utility do Tailwind o oculte.
+Apenas o bloco **Rankings por Dimensão** (`RankingsBloco` em `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx`) e o hook que alimenta o relatório. Nada de mudanças no backend FastAPI, no PDF/CSS, em outras páginas do BI nem no Pareto.
 
-## Fora de escopo
-- Não alterar o HTML do cabeçalho nem o componente `RelatorioExecutivoFaturamentoPage.tsx`.
-- Não alterar lógica do `exportarPdf` (continua usando `window.print()`).
-- Não mexer nos demais blocos do relatório, nem no design system global.
+## Mudanças
 
-## Critérios de aceite
-- Ao imprimir/exportar PDF, a primeira página mostra: título "Relatório Executivo de Faturamento" em azul, subtítulo "Período 202601 – 202606 • Unidade: CONSOLIDADO" em cinza, e data à direita.
-- Borda azul inferior do cabeçalho visível.
-- Demais blocos não afetados.
-- Sem warning de console novo.
+1. **Novo hook `useRevendaCatalog`** (em `src/lib/bi/revendaCatalog.ts`):
+   - Faz `supabase.from('bi_revenda').select('cd_rev_pedido,nm_revenda')` uma vez (cache via React Query, `staleTime` longo).
+   - Retorna um `Map<string, string>` de `cd_rev_pedido → nm_revenda`.
+
+2. **`useRelatorioExecutivoFaturamento`**:
+   - Consome `useRevendaCatalog` e enriquece `dados.rankings.revenda`, adicionando em cada linha `nm_revenda` e `revenda_label = "<cd> - <nm>"` quando houver match. Linhas sem match permanecem com o código.
+
+3. **`RankingsBloco` / `RankingTopN`**:
+   - Continua usando `pickDimensionLabel(row, 'revenda')` — que já lê `revenda_label` e `nm_revenda` automaticamente, então passa a exibir o nome correto no eixo Y do gráfico e na coluna "Revendas" da tabela.
+   - Pequenos ajustes de UX: aumentar `YAxis width` no `RankingTopN` para caber rótulos como `123456 - REVENDA SP CENTRO` sem cortar (e truncar com `…` quando passar de N caracteres).
+
+4. **Top Obras**: verificar se o endpoint já manda `projeto` (nome). Se sim, nada a fazer (o `pickDimensionLabel('obra')` já cobre). Caso `projeto` venha vazio, fallback continua mostrando o código `cd_prj`. Sem mudanças adicionais.
+
+5. **Top Estados**: já funciona via `formatEstadoLabel(cd_estado)`. Sem mudanças.
+
+## Out of scope
+
+- Backend FastAPI (não vamos pedir para adicionar `nm_revenda` no endpoint).
+- Estilos de impressão / `relatorio.css` (a correção é puramente de dados; PDF herda automaticamente).
+- Outros blocos do relatório (KPIs, Evolução, Pareto, Margem, Tabela Analítica, Comentários IA).
+- Outras páginas do BI que consomem o mesmo endpoint.
+
+## Como validar
+
+1. Abrir `/bi/comercial/relatorio-executivo`, gerar relatório com período padrão.
+2. No bloco "Rankings por Dimensão → Top Revendas", o eixo Y do gráfico e a coluna "Revendas" da tabela devem mostrar `código - NOME DA REVENDA` (ou só o nome quando o código não existir).
+3. Clicar em "Imprimir / PDF" e conferir que o mesmo aparece no PDF exportado.
