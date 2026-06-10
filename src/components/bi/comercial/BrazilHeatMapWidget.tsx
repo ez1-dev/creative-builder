@@ -52,8 +52,11 @@ export function BrazilHeatMapWidget({
   filters,
   height = 380,
   onDrill,
+  initialColorStops,
 }: BrazilHeatMapWidgetProps) {
-  const [colorStops, setColorStops] = useState<string[]>(HEAT_COLOR_STOPS);
+  const [colorStops, setColorStops] = useState<string[]>(
+    initialColorStops && initialColorStops.length >= 2 ? initialColorStops : HEAT_COLOR_STOPS,
+  );
 
   const query = useQuery({
     queryKey: ['bi-comercial-estado-heatmap', filters],
