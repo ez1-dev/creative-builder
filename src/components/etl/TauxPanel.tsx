@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Eye, RefreshCw, Loader2, AlertTriangle, Database } from 'lucide-react';
+import { Eye, RefreshCw, Loader2, AlertTriangle, Database, FileText } from 'lucide-react';
 import { DataTable, type Column } from '@/components/erp/DataTable';
 import { getTauxStatus, syncTaux, TAUX_LIST, type TauxStatus } from '@/lib/bi/tauxApi';
 import { TauxViewerDialog } from '@/components/bi/taux/TauxViewerDialog';
+import { TauxLogDialog } from '@/components/etl/TauxLogDialog';
 
 const STATUS_COLOR: Record<string, string> = {
   CONCLUIDO: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
