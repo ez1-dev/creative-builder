@@ -17,6 +17,7 @@ import { ChartCardShell, type ChartCardShellProps } from '@/components/bi/charts
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { formatEstadoLabel } from '@/lib/bi/ufLabels';
 import { buildUfValueMap, heatColorFromValue, HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
+import { InteractiveHeatLegend } from './InteractiveHeatLegend';
 
 export interface BrazilHeatMapDatum {
   uf: string;
