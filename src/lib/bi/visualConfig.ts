@@ -125,7 +125,7 @@ export const DEFAULT_VISUAL_CONFIG: VisualConfig = {
   title:     { visible: true,  text: '',           align: 'left',  fontSize: 14, fontFamily: 'default' },
   subtitle:  { visible: true,  text: '',           fontSize: 11, fontFamily: 'default' },
   legend:    { visible: true,  position: 'bottom', fontSize: 11, fontFamily: 'default', seriesLabels: {} },
-  dataLabels:{ visible: false, position: 'top',    fontSize: 11, fontFamily: 'default', format: 'compact', decimals: 0, prefix: '', suffix: '' },
+  dataLabels:{ visible: false, position: 'top',    fontSize: 11, fontFamily: 'default', format: 'compact', decimals: 0, prefix: '', suffix: '', richLabel: false, showName: true, showPercent: true },
   resultDescription: { visible: false, text: '', position: 'below', fontSize: 12, fontFamily: 'default' },
   axis:      { xVisible: true, yVisible: true, xLabel: '', yLabel: '', fontSize: 10, fontFamily: 'default' },
   grid:      { visible: true },
