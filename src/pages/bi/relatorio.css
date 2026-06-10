@@ -106,12 +106,47 @@
     top: 0 !important;
     width: 100% !important;
     max-width: none !important;
-    padding: 0 !important;
+    padding: 4mm 6mm !important;
     margin: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
     border-radius: 0 !important;
+    color: #0f172a !important;
   }
+
+  /* Cabeçalho do relatório — forçar cores e visibilidade no PDF */
+  #rel-doc .rel-header {
+    display: flex !important;
+    visibility: visible !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    border-bottom: 3px solid #1d4ed8 !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 14px !important;
+  }
+  #rel-doc .rel-header > * { visibility: visible !important; }
+  #rel-doc .rel-titulo {
+    color: #1d4ed8 !important;
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    display: block !important;
+    margin: 0 !important;
+  }
+  #rel-doc .rel-subtitulo {
+    color: #334155 !important;
+    font-size: 13px !important;
+    display: block !important;
+    margin: 4px 0 0 !important;
+  }
+  #rel-doc .rel-data {
+    color: #475569 !important;
+    font-size: 12px !important;
+  }
+  #rel-doc .rel-bloco-titulo {
+    color: #1d4ed8 !important;
+    border-left-color: #1d4ed8 !important;
+  }
+
 
   /* Garante remoção do chrome do app mesmo com transform/z-index */
   [data-sidebar],
