@@ -53,6 +53,7 @@ const biSubItems = [
   { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileCheck },
   { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
+  { title: 'TAUX / Dimensões', url: '/bi/taux', icon: Database },
   { title: 'Central ETL', url: '/etl', icon: Database },
 ];
 
