@@ -339,6 +339,7 @@ function formatLabel(dim: ParetoDimensao, raw: string, clientesMap?: Map<string,
 }
 
 export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: string | null }) {
+  const { data: clientesMap } = useBiClientesMap();
   const [dim, setDim] = useState<ParetoDimensao>('cliente');
 
   const baseRows = useMemo(() => {
