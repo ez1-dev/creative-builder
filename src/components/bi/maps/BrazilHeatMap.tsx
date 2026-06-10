@@ -39,6 +39,8 @@ export interface BrazilHeatMapProps
   legendExtras?: React.ReactNode;
   onStateClick?: (uf: string, datum?: BrazilHeatMapDatum) => void;
   selectedUf?: string | null;
+  /** Se definido, habilita stops clicáveis sobre a barra da legenda. */
+  onColorStopsChange?: (next: string[]) => void;
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
