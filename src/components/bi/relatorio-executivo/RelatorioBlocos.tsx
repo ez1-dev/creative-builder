@@ -105,11 +105,11 @@ export function EvolucaoBloco({ dados, filtros }: BlocoProps) {
 }
 
 // ---------- Rankings ----------
-function RankingTopN({ titulo, rows, labelKey, valueKey, chartId }: {
-  titulo: string; rows: any[]; labelKey: string; valueKey: string; chartId: string;
+function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
+  titulo: string; rows: any[]; dim: LabelDimension; valueKey: string; chartId: string;
 }) {
   const top = [...rows]
-    .map((r) => ({ label: String(r[labelKey] ?? '—'), value: num(r[valueKey]) }))
+    .map((r) => ({ label: pickDimensionLabel(r, dim) || '—', value: num(r[valueKey]) }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
   const total = top.reduce((acc, r) => acc + r.value, 0);
