@@ -231,7 +231,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
           >
             {editing && (
               <div
-                className="drag-handle group absolute inset-x-0 top-0 z-10 flex h-10 items-center gap-2 rounded-t-lg border-b border-border/60 bg-muted/70 px-2 cursor-grab active:cursor-grabbing select-none backdrop-blur"
+                className="drag-handle group absolute inset-x-0 top-0 z-40 flex h-10 items-center gap-2 rounded-t-lg border-b border-border/60 bg-muted/95 px-2 cursor-grab active:cursor-grabbing select-none backdrop-blur shadow-sm"
                 title="Arraste daqui para mover este bloco"
               >
                 <div className="flex items-center gap-1.5 rounded-md bg-background/80 px-2 py-1 text-xs font-medium shadow-sm max-w-[55%]">
