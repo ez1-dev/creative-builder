@@ -899,7 +899,7 @@ export default function ComercialPage() {
     .join('~');
 
   const widgetDrillType = (w: ComercialWidget): DrillType | undefined => {
-    const def = COMERCIAL_WIDGETS[w.type];
+    const def = getWidgetDef(w.type);
     if (def?.kind === 'kpi') return KPI_DRILL_MAP[def.kpiKey!] ?? 'NOTA_FISCAL';
     if (def?.kind === 'serie-mensal') return 'MENSAL';
     if (def?.type === 'estados') return 'ESTADO';
