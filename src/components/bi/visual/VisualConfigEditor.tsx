@@ -163,86 +163,104 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
 
         {/* ===== Rótulos de dados ===== */}
         <TabsContent value="rotulos" className="space-y-3 pt-3">
-          <Row>
-            <Switch checked={cfg.dataLabels.visible} onCheckedChange={(v) => update((d) => { d.dataLabels.visible = v; })} />
-            <Label>Exibir valores no gráfico</Label>
-          </Row>
-
-          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          {/* ===== Conteúdo do rótulo ===== */}
+          <div className="rounded-md border bg-muted/20 p-3 space-y-3">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Conteúdo do rótulo</div>
             <Row>
-              <Switch
-                checked={!!cfg.dataLabels.richLabel}
-                disabled={!cfg.dataLabels.visible}
-                onCheckedChange={(v) => update((d) => { d.dataLabels.richLabel = v; })}
-              />
-              <Label>Rótulos enriquecidos (nome + valor + %)</Label>
+              <Switch checked={cfg.dataLabels.visible} onCheckedChange={(v) => update((d) => { d.dataLabels.visible = v; })} />
+              <Label>Exibir valores no gráfico</Label>
             </Row>
-            <p className="text-[11px] text-muted-foreground">
-              Mesmo estilo do gráfico "Por Motivo de Viagem". Funciona melhor em Pizza/Rosca, Barras, Treemap e Linha/Área.
-            </p>
-            {cfg.dataLabels.richLabel && (
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <Row>
-                  <Switch checked={cfg.dataLabels.showName !== false} onCheckedChange={(v) => update((d) => { d.dataLabels.showName = v; })} />
-                  <Label className="text-xs">Mostrar nome</Label>
-                </Row>
-                <Row>
-                  <Switch checked={cfg.dataLabels.showPercent !== false} onCheckedChange={(v) => update((d) => { d.dataLabels.showPercent = v; })} />
-                  <Label className="text-xs">Mostrar percentual</Label>
-                </Row>
-              </div>
-            )}
+
+            <div className="rounded-md border bg-background p-2.5 space-y-2">
+              <Row>
+                <Switch
+                  checked={!!cfg.dataLabels.richLabel}
+                  disabled={!cfg.dataLabels.visible}
+                  onCheckedChange={(v) => update((d) => { d.dataLabels.richLabel = v; })}
+                />
+                <Label>Rótulos enriquecidos (nome + valor + %)</Label>
+              </Row>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Mesmo estilo do gráfico "Por Motivo de Viagem". Funciona melhor em Pizza/Rosca, Barras, Treemap e Linha/Área.
+              </p>
+              {cfg.dataLabels.richLabel && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <Row>
+                    <Switch checked={cfg.dataLabels.showName !== false} onCheckedChange={(v) => update((d) => { d.dataLabels.showName = v; })} />
+                    <Label className="text-xs">Mostrar nome</Label>
+                  </Row>
+                  <Row>
+                    <Switch checked={cfg.dataLabels.showPercent !== false} onCheckedChange={(v) => update((d) => { d.dataLabels.showPercent = v; })} />
+                    <Label className="text-xs">Mostrar percentual</Label>
+                  </Row>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Posição</Label>
-              <Select value={cfg.dataLabels.position} onValueChange={(v) => update((d) => { d.dataLabels.position = v as DataLabelPosition; })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="top">Acima</SelectItem>
-                  <SelectItem value="bottom">Abaixo</SelectItem>
-                  <SelectItem value="inside">Dentro</SelectItem>
-                  <SelectItem value="outside">Fora</SelectItem>
-                  <SelectItem value="left">Esquerda</SelectItem>
-                  <SelectItem value="right">Direita</SelectItem>
-                  <SelectItem value="center">Centro</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* ===== Aparência ===== */}
+          <div className={`rounded-md border bg-muted/20 p-3 space-y-3 ${!cfg.dataLabels.visible ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Aparência</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Posição</Label>
+                <Select value={cfg.dataLabels.position} onValueChange={(v) => update((d) => { d.dataLabels.position = v as DataLabelPosition; })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="top">Acima</SelectItem>
+                    <SelectItem value="bottom">Abaixo</SelectItem>
+                    <SelectItem value="inside">Dentro</SelectItem>
+                    <SelectItem value="outside">Fora</SelectItem>
+                    <SelectItem value="left">Esquerda</SelectItem>
+                    <SelectItem value="right">Direita</SelectItem>
+                    <SelectItem value="center">Centro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <NumberField label="Fonte (px)" value={cfg.dataLabels.fontSize} min={8} max={20}
+                onChange={(n) => update((d) => { d.dataLabels.fontSize = n; })} />
+              <div className="col-span-2">
+                <FontFamilyField label="Família da fonte" value={cfg.dataLabels.fontFamily}
+                  onChange={(v) => update((d) => { d.dataLabels.fontFamily = v; })} />
+              </div>
             </div>
-            <NumberField label="Fonte (px)" value={cfg.dataLabels.fontSize} min={8} max={20}
-              onChange={(n) => update((d) => { d.dataLabels.fontSize = n; })} />
-            <FontFamilyField label="Família da fonte" value={cfg.dataLabels.fontFamily}
-              onChange={(v) => update((d) => { d.dataLabels.fontFamily = v; })} />
-            <div>
-              <Label className="text-xs">Formato</Label>
-              <Select value={cfg.dataLabels.format} onValueChange={(v) => update((d) => { d.dataLabels.format = v as DataLabelFormat; })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="int">Número inteiro</SelectItem>
-                  <SelectItem value="decimal">Decimal</SelectItem>
-                  <SelectItem value="currency">Moeda (R$)</SelectItem>
-                  <SelectItem value="percent">Percentual</SelectItem>
-                  <SelectItem value="compact">Compacto (1,2 mi)</SelectItem>
-                </SelectContent>
-              </Select>
+          </div>
+
+          {/* ===== Formato ===== */}
+          <div className={`rounded-md border bg-muted/20 p-3 space-y-3 ${!cfg.dataLabels.visible ? 'opacity-60 pointer-events-none' : ''}`}>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Formato</div>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+              <div>
+                <Label className="text-xs font-medium text-muted-foreground">Formato</Label>
+                <Select value={cfg.dataLabels.format} onValueChange={(v) => update((d) => { d.dataLabels.format = v as DataLabelFormat; })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="int">Número inteiro</SelectItem>
+                    <SelectItem value="decimal">Decimal</SelectItem>
+                    <SelectItem value="currency">Moeda (R$)</SelectItem>
+                    <SelectItem value="percent">Percentual</SelectItem>
+                    <SelectItem value="compact">Compacto (1,2 mi)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <NumberField label="Casas decimais" value={cfg.dataLabels.decimals} min={0} max={4}
+                onChange={(n) => update((d) => { d.dataLabels.decimals = n; })} />
+              {!cfg.dataLabels.richLabel && (
+                <>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Prefixo</Label>
+                    <Input value={cfg.dataLabels.prefix} onChange={(e) => update((d) => { d.dataLabels.prefix = e.target.value; })} placeholder="R$ " />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium text-muted-foreground">Sufixo</Label>
+                    <Input value={cfg.dataLabels.suffix} onChange={(e) => update((d) => { d.dataLabels.suffix = e.target.value; })} placeholder="kg / un / %" />
+                  </div>
+                </>
+              )}
             </div>
-            <NumberField label="Casas decimais" value={cfg.dataLabels.decimals} min={0} max={4}
-              onChange={(n) => update((d) => { d.dataLabels.decimals = n; })} />
-            {!cfg.dataLabels.richLabel && (
-              <>
-                <div>
-                  <Label className="text-xs">Prefixo</Label>
-                  <Input value={cfg.dataLabels.prefix} onChange={(e) => update((d) => { d.dataLabels.prefix = e.target.value; })} placeholder="R$ " />
-                </div>
-                <div>
-                  <Label className="text-xs">Sufixo</Label>
-                  <Input value={cfg.dataLabels.suffix} onChange={(e) => update((d) => { d.dataLabels.suffix = e.target.value; })} placeholder="kg / un / %" />
-                </div>
-              </>
-            )}
           </div>
         </TabsContent>
+
 
 
         {/* ===== Descrição do resultado ===== */}
