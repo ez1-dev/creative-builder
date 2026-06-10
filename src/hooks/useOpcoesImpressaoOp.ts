@@ -196,7 +196,7 @@ export function useOpcoesImpressaoOp() {
           cod_cre: ctx.cod_cre,
           cod_etg: ctx.cod_etg,
           cod_pro: ctx.cod_pro,
-          limite_ops: 500,
+          limite_ops: 200,
         });
         setOrigens(dropOri100Origens(res.origens ?? []));
         setOps(sanitizeOps(res.ordens_producao ?? []));
