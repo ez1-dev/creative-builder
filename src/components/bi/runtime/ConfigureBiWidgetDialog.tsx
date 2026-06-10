@@ -390,6 +390,22 @@ export function ConfigureBiWidgetDialog({
                 {supportsChartColor && (
                   <ChartColorPicker value={chartColor} onChange={setChartColor} />
                 )}
+                {supportsHeatPalette && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Paleta do mapa</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+                      <div
+                        className="h-4 flex-1 rounded border border-border"
+                        style={{ background: `linear-gradient(to right, ${colorStops.join(', ')})` }}
+                        aria-hidden
+                      />
+                      <HeatPaletteEditor value={colorStops} onChange={setColorStops} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Escolha um preset ou customize os 5 stops (mín → máx).
+                    </p>
+                  </div>
+                )}
                 {titleAppearanceSection}
               </div>
               <div className="rounded-md border bg-muted/30 p-3 min-h-[240px]">
