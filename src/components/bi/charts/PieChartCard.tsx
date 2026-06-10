@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LabelList } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend, LabelList, Customized } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { BI_PALETTE } from '../utils/chartHelpers';
@@ -15,6 +15,43 @@ export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' 
   onItemClick?: (d: BarChartDatum) => void;
 }
 
+interface RichItem {
+  side: 'left' | 'right';
+  anchorX: number; // ponto na borda da fatia
+  anchorY: number;
+  elbowX: number;  // cotovelo da leader
+  targetY: number; // Y desejado do label
+  y: number;       // Y final após colisão
+  labelX: number;  // X do texto
+  line1: string;
+  line2: string;
+  color: string;
+}
+
+function resolveCollisions(items: RichItem[], minGap: number, top: number, bottom: number) {
+  // Empurra para baixo
+  items.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < items.length; i++) {
+    const prev = items[i - 1];
+    const cur = items[i];
+    if (cur.y - prev.y < minGap) cur.y = prev.y + minGap;
+  }
+  // Empurra para cima se estourou
+  if (items.length && items[items.length - 1].y > bottom) {
+    items[items.length - 1].y = bottom;
+    for (let i = items.length - 2; i >= 0; i--) {
+      if (items[i + 1].y - items[i].y < minGap) items[i].y = items[i + 1].y - minGap;
+    }
+  }
+  // Garante topo
+  if (items.length && items[0].y < top) {
+    items[0].y = top;
+    for (let i = 1; i < items.length; i++) {
+      if (items[i].y - items[i - 1].y < minGap) items[i].y = items[i - 1].y + minGap;
+    }
+  }
+}
+
 export function PieChartCard({
   data, valueFormatter = formatCurrency, donut, centerLabel, centerValue, onItemClick, height = 280, visualConfig, ...shell
 }: PieChartCardProps) {
@@ -23,20 +60,82 @@ export function PieChartCard({
   const total = useMemo(() => (data ?? []).reduce((s, d) => s + Number(d?.valor || 0), 0), [data]);
   const rich = vc.dataLabels.visible && !!vc.dataLabels.richLabel;
   const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
+  const fs = vc.dataLabels.fontSize;
+  // Quando rich, reduz raio para dar espaço a leader lines + labels laterais
+  const outerRadius = rich ? 70 : 90;
+  const innerRadius = donut ? (rich ? 42 : 55) : 0;
 
-  const richLabelRenderer = (e: any) => {
+  const RichLabelsLayer = (props: any) => {
+    if (!rich || !data?.length) return null;
+    const { width: cw, height: ch } = props;
+    if (!cw || !ch) return null;
+    const cx = cw / 2;
+    const cy = ch / 2;
     const RADIAN = Math.PI / 180;
-    const radius = (e.outerRadius ?? 90) + 22;
-    const x = e.cx + radius * Math.cos(-e.midAngle * RADIAN);
-    const y = e.cy + radius * Math.sin(-e.midAngle * RADIAN);
-    const { line1, line2 } = formatRichLabel({ name: e.name, value: Number(e.value || 0), total, cfg: vc.dataLabels });
-    const anchor = x > e.cx ? 'start' : 'end';
-    return (
-      <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={anchor} fontSize={vc.dataLabels.fontSize} style={{ fontFamily }}>
-        {line1 && <tspan x={x} dy="-0.3em">{line1}</tspan>}
-        {line2 && <tspan x={x} dy={line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{line2}</tspan>}
-      </text>
-    );
+    const lineH = fs * 1.2;
+    const blockH = lineH * 2; // 2 linhas
+    const minGap = blockH + 4;
+
+    // Calcula ângulos a partir dos valores (sentido Recharts: começa em 90°, sentido anti-horário)
+    let startAngle = 90;
+    const left: RichItem[] = [];
+    const right: RichItem[] = [];
+    data.forEach((d, i) => {
+      const v = Number(d?.valor || 0);
+      const pct = total > 0 ? v / total : 0;
+      const sweep = pct * 360;
+      const mid = startAngle - sweep / 2;
+      startAngle -= sweep;
+      const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
+      const anchorX = cx + outerRadius * Math.cos(-mid * RADIAN);
+      const anchorY = cy + outerRadius * Math.sin(-mid * RADIAN);
+      const side: 'left' | 'right' = anchorX >= cx ? 'right' : 'left';
+      const elbowR = outerRadius + 12;
+      const elbowX = cx + elbowR * Math.cos(-mid * RADIAN);
+      const elbowY = cy + elbowR * Math.sin(-mid * RADIAN);
+      const labelX = side === 'right' ? cw - 6 : 6;
+      const item: RichItem = {
+        side, anchorX, anchorY, elbowX,
+        targetY: elbowY, y: elbowY, labelX,
+        line1, line2,
+        color: BI_PALETTE[i % BI_PALETTE.length],
+      };
+      (side === 'right' ? right : left).push(item);
+    });
+
+    const top = blockH / 2 + 2;
+    const bot = ch - blockH / 2 - 2;
+    resolveCollisions(right, minGap, top, bot);
+    resolveCollisions(left, minGap, top, bot);
+
+    const renderItem = (it: RichItem, k: number) => {
+      const horizX = it.side === 'right' ? it.labelX - 4 : it.labelX + 4;
+      const textX = it.labelX;
+      const anchor = it.side === 'right' ? 'end' : 'start';
+      return (
+        <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
+          <polyline
+            fill="none"
+            stroke="hsl(var(--muted-foreground))"
+            strokeWidth={1}
+            points={`${it.anchorX},${it.anchorY} ${it.elbowX},${it.elbowY} ${horizX},${it.y}`}
+          />
+          <text
+            x={textX}
+            y={it.y}
+            textAnchor={anchor}
+            fontSize={fs}
+            fill="hsl(var(--foreground))"
+            style={{ fontFamily }}
+          >
+            {it.line1 && <tspan x={textX} dy="-0.25em">{it.line1}</tspan>}
+            {it.line2 && <tspan x={textX} dy={it.line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{it.line2}</tspan>}
+          </text>
+        </g>
+      );
+    };
+
+    return <g>{right.map(renderItem)}{left.map(renderItem)}</g>;
   };
 
   return (
@@ -45,11 +144,11 @@ export function PieChartCard({
         <ResponsiveContainer width="100%" height={height}>
           <PieChart>
             <Pie data={data} dataKey="valor" nameKey="label" cx="50%" cy="50%"
-              innerRadius={donut ? 55 : 0} outerRadius={90} paddingAngle={donut ? 2 : 0}
+              innerRadius={innerRadius} outerRadius={outerRadius} paddingAngle={donut ? 2 : 0}
               cursor={onItemClick ? 'pointer' : undefined}
               onClick={(d: any) => onItemClick?.(d as BarChartDatum)}
-              label={rich ? richLabelRenderer : undefined}
-              labelLine={rich ? { stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1 } : false}
+              labelLine={false}
+              isAnimationActive={false}
             >
               {data.map((_, i) => <Cell key={i} fill={BI_PALETTE[i % BI_PALETTE.length]} />)}
               {vc.dataLabels.visible && !rich && (
@@ -58,6 +157,7 @@ export function PieChartCard({
                   formatter={fmtLabel as any} />
               )}
             </Pie>
+            {rich && <Customized component={RichLabelsLayer as any} />}
             {vc.tooltip.visible && (
               <Tooltip formatter={(v: number) => vc.dataLabels.visible ? fmtLabel(v) : valueFormatter(v)}
                 contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />

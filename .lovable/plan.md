@@ -1,84 +1,43 @@
-# Rótulos enriquecidos (nome + valor + %) na Biblioteca BI
+## Problema
 
-## Objetivo
+Nos gráficos de pizza com rótulos enriquecidos, as fatias pequenas (TRATOR, CARREGADEIRA, EMPILHADEIRA — todas próximas a 3%) geram rótulos no mesmo ângulo e acabam **empilhados um sobre o outro** (ver "CARREGADEIRA / EMPILHADEIRA" sobrepostos na imagem).
 
-Reproduzir o estilo de rótulos do gráfico "Por Motivo de Viagem" (nome + R$ abreviado + percentual) como uma opção reutilizável no `VisualConfigEditor`, valendo para qualquer página BI que use os componentes da biblioteca.
+A causa: `richLabelRenderer` no `PieChartCard.tsx` posiciona cada label puramente pelo `midAngle` da fatia, sem considerar colisão vertical com labels vizinhos.
 
-Referência visual (já existente em `PassagensDashboard.tsx` linhas 1186-1206):
+## Solução: anti-colisão de rótulos externos (estilo "outside labels com leader lines")
 
-```text
-CONTRATAÇÃO
-R$143 Mil (18,9%)
-```
+Vou trocar a renderização label-a-label do Recharts por uma **camada única de labels desenhada após o Pie**, que:
 
-## Mudanças
+1. Calcula a posição "ideal" de cada label (igual hoje: ângulo médio × raio + offset).
+2. Separa em dois grupos: **lado esquerdo** (x < cx) e **lado direito** (x ≥ cx).
+3. Ordena cada grupo por Y e aplica algoritmo de **empurra-vizinho**: se dois labels estão a menos de `minGap` (≈ altura do label + 4px), empurra o de baixo para baixo e o de cima para cima até caberem.
+4. Limita ao retângulo do chart (não sai pelo topo/base).
+5. Desenha **linha-guia** (leader line) curva da borda da fatia até o label ajustado, igual ferramentas BI clássicas (Power BI / Tableau).
+6. Para fatias muito pequenas (< 2% por padrão, configurável), oculta o nome e mantém só valor+% — ou agrupa visualmente caso ainda colida.
 
-### 1. `src/lib/bi/visualConfig.ts`
-Adicionar 2 campos opcionais em `dataLabels` (compatível com configs salvas):
-- `richLabel: boolean` — ativa rótulo "nome + valor + %"
-- `showName: boolean` — controla se exibe o nome da categoria (default true quando rich)
-- `showPercent: boolean` — controla se exibe o percentual (default true quando rich)
+### Mudanças técnicas
 
-Default: `richLabel: false`, `showName: true`, `showPercent: true`. Atualizar `DEFAULT_VISUAL_CONFIG`, `mergeVisualConfig` (já cobre por spread).
+**`src/components/bi/charts/PieChartCard.tsx`**
+- Remover `label={richLabelRenderer}` e `labelLine` do `<Pie>`.
+- Adicionar um `<Customized component={RichLabelsLayer} />` dentro do `<PieChart>` que recebe via props os dados, total, raio, cx/cy e desenha:
+  - Para cada fatia: ponto na borda → cotovelo → linha horizontal até o label.
+  - Texto em 2 linhas (nome / valor+%), com `text-anchor` por lado.
+- Função `resolveCollisions(items, minGap, chartHeight)`:
+  - Pass 1: empurra para baixo varrendo top→bottom.
+  - Pass 2: empurra para cima varrendo bottom→top.
+- Ajustar `outerRadius` levemente (de 90 para ~78–82) quando `rich` ativo, para reservar margem lateral às leader lines.
+- Aumentar margem do `ResponsiveContainer` lateral via padding interno do SVG (sem mexer no shell).
 
-Adicionar helper `formatRichLabel({ name, value, total, cfg })` que retorna:
-- nome truncado em 18 chars + "…"
-- valor formatado por `formatDataLabel` (já existe; usuário escolheu "compact")
-- `(xx,x%)` calculado em cima de `total`
+**Sem mudanças** em: VisualConfigEditor, visualConfig.ts, Bar/Line/Area/Treemap, backend, persistência.
 
-### 2. `src/components/bi/visual/VisualConfigEditor.tsx`
-Na aba "Rótulos", logo abaixo do switch "Exibir valores no gráfico", adicionar:
-- Switch **"Rótulos enriquecidos (nome + valor + %)"** (vincula `dataLabels.richLabel`)
-- Quando ligado, exibir 2 sub-switches: "Mostrar nome" e "Mostrar percentual"
-- Texto de ajuda: "Igual ao gráfico 'Por Motivo de Viagem'. Funciona melhor em Pizza/Rosca, Barras, Treemap e Linha/Área."
+### Critérios de aceite
 
-Quando `richLabel` está ativo, ocultar campos de "Prefixo/Sufixo" (não fazem sentido) e manter Formato/Decimais (controlam o valor numérico).
+- Em "Por Segmento" e "Por Tipo de Veículo" da Manutenção Frota: **nenhum rótulo se sobrepõe**.
+- Linhas-guia conectam cada label à sua fatia mesmo quando o label foi deslocado.
+- Pizza normal (sem rótulos enriquecidos) continua igual.
+- Donut continua funcionando (mesmo componente).
+- Funciona em qualquer página BI que use Pizza/Rosca.
 
-### 3. Componentes de gráfico — adotar `richLabel`
+### Arquivos a editar
 
-Em cada componente abaixo, calcular `total = sum(data.valor)` e, quando `vc.dataLabels.visible && vc.dataLabels.richLabel`, renderizar rótulo customizado em vez do `LabelList` padrão.
-
-**`PieChartCard.tsx` / `DonutChartCard.tsx`**
-- Trocar `LabelList` por `label` customizado no `<Pie>` (estilo exato de `PassagensDashboard.tsx` 1189-1206 — texto SVG com `<tspan>` em 2 linhas posicionado em `outerRadius + 22`)
-- Ativar `labelLine` quando `richLabel` está ligado
-
-**`BarChartCard.tsx` / `HorizontalBarChartCard.tsx`**
-- Substituir `LabelList` simples por `LabelList` com `content={renderRichBarLabel}` que desenha 2 linhas SVG (nome em cima, "valor (%)" embaixo) acima/à direita da barra
-
-**`TreemapChartCard.tsx`**
-- No `content` do Treemap, quando `richLabel` ativo, renderizar nome + valor + % dentro do retângulo (ocultar se a área for menor que ~80×40 px)
-
-**`LineChartCard.tsx` / `AreaChartCard.tsx`**
-- Trocar `LabelList` por componente que renderiza 2 linhas em cada ponto (nome do eixo X + valor/%). Reduzir auto-skip se ficar denso
-
-### 4. Sem mudança em
-- `MultiSeriesChartCard.tsx`, mapas, KPIs, tabelas, ranking — escopo definido pelo usuário
-- Backend/ETL
-- Persistência (`config.visual` já guarda objeto livre)
-
-## Compatibilidade
-
-- Configs antigas continuam funcionando (`richLabel` ausente → comportamento atual via `LabelList`)
-- Toggle é puramente cosmético; não muda dados nem mapping
-- `ConfigureChartDialog` já passa `visual` para `options.visual` — sem mudança
-
-## Validação
-
-1. `/passagens-aereas` — confirmar que o card "Por Motivo de Viagem" continua igual (não muda — é código próprio)
-2. `/bi/comercial` — em qualquer bloco Pizza/Rosca, ativar "Rótulos enriquecidos" e verificar nome+R$ Mil+%
-3. Em um bloco de Barras, ativar e ver rótulo acima de cada barra com 2 linhas
-4. Em Treemap, confirmar que rótulos aparecem nos blocos grandes e somem nos pequenos
-5. Em Linha/Área, confirmar que cada ponto mostra rótulo legível
-6. Desativar o toggle e confirmar volta ao `LabelList` simples
-7. Salvar/recarregar página e confirmar persistência
-
-## Arquivos editados
-- `src/lib/bi/visualConfig.ts` (campos + helper)
-- `src/components/bi/visual/VisualConfigEditor.tsx` (3 switches)
-- `src/components/bi/charts/PieChartCard.tsx`
-- `src/components/bi/charts/DonutChartCard.tsx`
-- `src/components/bi/charts/BarChartCard.tsx`
-- `src/components/bi/charts/HorizontalBarChartCard.tsx`
-- `src/components/bi/charts/TreemapChartCard.tsx`
-- `src/components/bi/charts/LineChartCard.tsx`
-- `src/components/bi/charts/AreaChartCard.tsx`
+- `src/components/bi/charts/PieChartCard.tsx` (único)
