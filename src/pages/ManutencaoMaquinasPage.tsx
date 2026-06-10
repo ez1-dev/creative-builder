@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Share2, Upload, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { MaquinasDashboard, type ManutencaoMaquina, TIPO_MAQUINA_OPTIONS } from '@/components/maquinas/MaquinasDashboard';
 import { MaquinasShareLinksDialog } from '@/components/maquinas/MaquinasShareLinksDialog';
 import { ImportarMaquinasDialog } from '@/components/maquinas/ImportarMaquinasDialog';
@@ -123,6 +124,11 @@ export default function ManutencaoMaquinasPage() {
           <>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/manutencao-maquinas/relatorio-executivo">
+                <FileText className="mr-1 h-4 w-4" /> Relatório Executivo
+              </Link>
             </Button>
             {editAllowed && (
               <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>

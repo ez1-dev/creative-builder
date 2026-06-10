@@ -17,7 +17,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2, Upload, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { FrotaDashboard, type ManutencaoFrota } from '@/components/frota/FrotaDashboard';
 import { FrotaShareLinksDialog } from '@/components/frota/FrotaShareLinksDialog';
 import { ImportarFrotaDialog } from '@/components/frota/ImportarFrotaDialog';
@@ -142,6 +143,11 @@ export default function ManutencaoFrotaPage() {
           <>
             <Button variant="outline" size="sm" onClick={load} disabled={loading}>
               <RefreshCw className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/frota/relatorio-executivo">
+                <FileText className="mr-1 h-4 w-4" /> Relatório Executivo
+              </Link>
             </Button>
             {editAllowed && (
               <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>

@@ -17,7 +17,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Share2, Upload, RefreshCw, Trash2 } from 'lucide-react';
+import { Plus, Share2, Upload, RefreshCw, Trash2, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import {
   PassagensDashboard, exportPassagensCsv, exportPassagensXlsx, TIPO_DESPESA_OPTIONS, type Passagem,
 } from '@/components/passagens/PassagensDashboard';
@@ -177,6 +178,11 @@ export default function PassagensAereasPage() {
               title="Recarregar dados"
             >
               <RefreshCw className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/passagens-aereas/relatorio-executivo">
+                <FileText className="mr-1 h-4 w-4" /> Relatório Executivo
+              </Link>
             </Button>
             {editAllowed && (
               <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
