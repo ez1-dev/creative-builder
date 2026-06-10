@@ -17,12 +17,13 @@ export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' 
 
 interface RichItem {
   side: 'left' | 'right';
-  anchorX: number; // ponto na borda da fatia
+  anchorX: number;
   anchorY: number;
-  elbowX: number;  // cotovelo da leader
-  targetY: number; // Y desejado do label
-  y: number;       // Y final após colisão
-  labelX: number;  // X do texto
+  elbowX: number;
+  elbowY: number;
+  targetY: number;
+  y: number;
+  labelX: number;
   line1: string;
   line2: string;
   color: string;
