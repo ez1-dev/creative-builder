@@ -69,25 +69,25 @@ export function useRelatorioExecutivoFaturamento(
   const qRevenda = useQuery({
     queryKey: ['rel-exec', 'revenda', filtros],
     queryFn: () => fetchComercialRevenda(filtros),
-    enabled: enabled && blocos.rankings,
+    enabled: enabled && (blocos.rankings || blocos.pareto),
   });
 
   const qEstado = useQuery({
     queryKey: ['rel-exec', 'estado', filtros],
     queryFn: () => fetchComercialEstado(filtros),
-    enabled: enabled && blocos.rankings,
+    enabled: enabled && (blocos.rankings || blocos.pareto),
   });
 
   const qObras = useQuery({
     queryKey: ['rel-exec', 'obras', filtros],
     queryFn: () => fetchComercialObras(filtros),
-    enabled: enabled && blocos.rankings,
+    enabled: enabled && (blocos.rankings || blocos.pareto),
   });
 
   const qDetalhes = useQuery({
     queryKey: ['rel-exec', 'detalhes', filtros],
     queryFn: () => fetchComercialDetalhes(filtros, { escopo: 'todas', maxRows: 500, page_size: 500 }),
-    enabled: enabled && blocos.tabela,
+    enabled: enabled && (blocos.tabela || blocos.pareto),
   });
 
   const qMetas = useQuery({
