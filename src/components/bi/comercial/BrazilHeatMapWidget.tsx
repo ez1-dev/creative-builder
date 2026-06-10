@@ -27,6 +27,8 @@ export interface BrazilHeatMapWidgetProps {
   filters: BiComercialFilters;
   height?: number;
   onDrill?: (payload: BrazilHeatMapWidgetDrill) => void;
+  /** Paleta inicial (persistida via options.colorStops). Usuário ainda pode trocar em runtime. */
+  initialColorStops?: string[];
 }
 
 function normalizeRow(row: any): BrazilHeatMapDatum | null {
