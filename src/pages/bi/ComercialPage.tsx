@@ -1490,6 +1490,13 @@ export default function ComercialPage() {
       />
 
 
+      {/* Widgets aplicados via Biblioteca BI (botão "Aplicar") */}
+      <div className="space-y-6 mt-6">
+        <UserWidgetsSlot section="kpis"   cols={4} emptyHint={false} />
+        <UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
+        <UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
+      </div>
+
       {/* Drawer de drill multinível */}
       <ComercialDrillDrawer
         stack={drillStack}
