@@ -69,8 +69,8 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
   useEffect(() => {
     if (!open) return;
     setTab('catalog');
-    const firstAvail = allCatalog.find((w) => !presentTypes.includes(w.type));
-    setCatalogType(firstAvail?.type ?? '');
+    const firstAvail = allCatalog.find((w) => !presentTypes.some((t) => baseWidgetType(t) === w.type));
+    setCatalogType(firstAvail?.type ?? allCatalog[0]?.type ?? '');
     setComponentId('bar-chart');
     setSeriesKey(seriesOptions[0]?.key ?? '');
     setValueKey(kpiOptions[0]?.key ?? '');
