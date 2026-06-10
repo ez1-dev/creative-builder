@@ -98,6 +98,11 @@ export function ConfigureBiWidgetDialog({
   const [valueColor, setValueColor] = useState<string>(initial.valueColor ?? 'default');
   const [chartColor, setChartColor] = useState<string>(initial.options?.color ?? DEFAULT_CHART_COLOR);
   const [visual, setVisual] = useState<VisualConfig>(mergeVisualConfig(initial.options?.visual));
+  const [colorStops, setColorStops] = useState<string[]>(
+    Array.isArray(initial.options?.colorStops) && initial.options!.colorStops.length >= 2
+      ? initial.options!.colorStops
+      : HEAT_COLOR_STOPS,
+  );
 
 
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
