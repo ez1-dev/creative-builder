@@ -1,48 +1,44 @@
 ## Objetivo
 
-Tornar a legenda (pedestal) do mapa de calor **interativa**: o usuário pode escolher uma paleta pronta ou customizar cada cor (stops) e o mapa repinta em tempo real. Estado vive só na sessão; aplica-se somente ao mapa do BI Comercial (não muda o tema global de outros heatmaps).
+Tornar a própria **barra vertical da legenda** interativa: as 5 paradas de cor viram pequenos círculos clicáveis sobre a barra. Clicar em um stop abre um color picker nativo; ao escolher a cor, o gradiente da legenda e o mapa repintam na hora.
 
-## Escopo de arquivos
+## Escopo
 
-Alterar apenas:
-
-- `src/components/bi/maps/BrazilHeatMap.tsx` — aceitar paleta dinâmica via prop e usar nos estados + legenda
-- `src/lib/bi/mapUtils.ts` — permitir `heatColorFromValue(valor, max, stops?)` recebendo paleta opcional
-- `src/components/bi/comercial/BrazilHeatMapWidget.tsx` — guardar paleta em `useState`, abrir popover com presets + color pickers, passar `colorStops` para `BrazilHeatMap`
-
-**Novo arquivo:**
-- `src/components/bi/maps/HeatPaletteEditor.tsx` — popover de edição (presets + 5 color pickers + reset)
-
-Sem mudanças em backend, API, fluxo de dados, drill, zoom/pan ou clique de estado.
+Alterar apenas `src/components/bi/maps/BrazilHeatMap.tsx`. Sem mudanças em backend, API, drill, zoom/pan ou no `mapUtils.ts`/`HeatPaletteEditor`. O editor popover atual continua existindo (ao lado de "Fat. (R$)") — agora soma-se a interação direta na barra.
 
 ## Como vai funcionar
 
-1. Próximo ao topo da legenda vertical aparece um pequeno botão "Paleta" (ícone Palette).
-2. Ao clicar, abre um `Popover` (shadcn) com:
-   - **Presets** (chips clicáveis): Spectral (atual), Azul corporativo, Verde, Quente, Frio, Viridis. Cada preset preenche os 5 stops.
-   - **5 color pickers** (`<input type="color">` estilizado) representando: 0% → 25% → 50% → 75% → 100%. Editar qualquer um atualiza o gradiente da barra de legenda e repinta o mapa.
-   - Botão "Restaurar padrão" volta para Spectral.
-3. A barra vertical da legenda continua mostrando o gradiente — agora derivado dos stops escolhidos.
-4. Estado vive em `useState` no `BrazilHeatMapWidget` (não persiste; reseta ao recarregar).
+1. A barra vertical (`w-4`) ganha um wrapper `relative`.
+2. Para cada um dos 5 stops, renderizar um círculo absoluto centrado na barra, posicionado verticalmente em `bottom: ${(i/4)*100}%` (índice 0 = base, 4 = topo).
+3. Cada círculo:
+   - 14 px, `rounded-full`, `border-2 border-background`, `shadow`, `cursor-pointer`
+   - `background = stops[i]`
+   - contém um `<input type="color" class="absolute inset-0 opacity-0 cursor-pointer" value={stops[i]} onChange={...}>` para abrir o picker nativo no clique
+   - `title` mostra "Stop X — clique para mudar a cor"
+4. O `onChange` propaga via nova prop opcional `onColorStopsChange?: (stops: string[]) => void`. Se ausente, os círculos ficam apenas visuais (não-editáveis).
+5. `BrazilHeatMapWidget` (BI Comercial) já tem o `useState` — passa `onColorStopsChange={setColorStops}` para habilitar a edição direta.
 
 ## Detalhes técnicos
 
-- `mapUtils.ts`: `heatColor(t, stops)` já aceita `stops`. Estender `heatColorFromValue(valor, max, stops = HEAT_COLOR_STOPS)`. Exportar `HEAT_PRESETS: Record<string, string[]>` com 5–6 paletas de 5 cores cada.
-- `BrazilHeatMap.tsx`: nova prop opcional `colorStops?: string[]` (default `HEAT_COLOR_STOPS`). Usar em:
-  - `legendGradient = linear-gradient(to top, ${colorStops.join(', ')})`
-  - cada `Geography.fill = heatColorFromValue(v, max, colorStops)` (hover/default/pressed)
-  - nova prop opcional `legendExtras?: ReactNode` renderizada ao lado do título "Fat. (R$)" para hospedar o botão da paleta sem o BrazilHeatMap precisar conhecer o editor.
-- `HeatPaletteEditor.tsx`: componente controlado (`value: string[]`, `onChange`), usa `Popover` + `Button` shadcn + tokens semânticos (sem cores hardcoded fora dos próprios swatches da paleta — que são dados, não tokens).
-- `BrazilHeatMapWidget.tsx`: 
+- Nova prop em `BrazilHeatMapProps`: `onColorStopsChange?: (next: string[]) => void`.
+- A barra vira:
   ```tsx
-  const [stops, setStops] = useState<string[]>(HEAT_COLOR_STOPS);
-  <BrazilHeatMap colorStops={stops} legendExtras={<HeatPaletteEditor value={stops} onChange={setStops} />} ... />
+  <div className="relative w-4 rounded-full border border-border" style={{background: legendGradient, height}}>
+    {editable && stops.map((c, i) => (
+      <div key={i} className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full border-2 border-background shadow cursor-pointer"
+           style={{ top: `${(1 - i/(stops.length-1))*100}%`, background: c }}>
+        <input type="color" value={c} onChange={e => onColorStopsChange!(stops.map((x,j)=>j===i?e.target.value:x))}
+               className="absolute inset-0 opacity-0 cursor-pointer" aria-label={`Cor stop ${i+1}`} />
+      </div>
+    ))}
+  </div>
   ```
+- `BrazilHeatMapWidget.tsx`: adicionar `onColorStopsChange={setColorStops}` ao `<BrazilHeatMap />`.
 
 ## Garantias
 
-- Nada de cores hardcoded em components fora dos próprios swatches de presets (são valores de dados visuais, não estilo de UI).
-- Zero impacto em outros mapas/heatmaps do projeto.
-- Sem chamadas de API novas, sem migrations, sem mudança de contrato.
-- Zoom, pan, reset, clique-para-drill, tooltip e siglas continuam idênticos.
-- Sem React error #310 (todos os hooks no topo, dependências estáveis).
+- Zero alteração em backend/API/dados.
+- Acessibilidade: cada stop tem `aria-label`; teclado abre o picker nativo via `<input type="color">`.
+- Sem cores hardcoded de UI (tokens semânticos para borda/sombra; os valores `stops[i]` são dados visuais).
+- Sem React error #310 — handlers estáveis, sem hooks condicionais.
+- Editor popover (botão Palette) continua disponível para presets.
