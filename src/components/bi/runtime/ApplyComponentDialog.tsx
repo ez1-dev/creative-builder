@@ -431,6 +431,23 @@ export function ApplyComponentDialog({
                   </div>
                 </div>
 
+                {supportsHeatPalette && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Paleta do mapa de calor</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+                      <div
+                        className="h-4 flex-1 rounded border border-border"
+                        style={{ background: `linear-gradient(to right, ${colorStops.join(', ')})` }}
+                        aria-hidden
+                      />
+                      <HeatPaletteEditor value={colorStops} onChange={setColorStops} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Escolha um preset ou customize os 5 stops (mín → máx).
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-1">
                   <Label className="text-xs">Variante visual</Label>
                   <div className="grid grid-cols-4 gap-1.5">
