@@ -161,6 +161,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
       { k: 'kpis' as const, l: 'Visão geral (KPIs)', icon: Gauge },
       { k: 'evolucao' as const, l: 'Evolução + Meta', icon: TrendingUp },
       { k: 'rankings' as const, l: 'Rankings', icon: BarChart3 },
+      { k: 'pareto' as const, l: 'Pareto 80/20', icon: Target },
       { k: 'margem' as const, l: 'Margem e Impostos', icon: Percent },
       { k: 'comentariosIa' as const, l: 'Comentários IA', icon: Sparkles },
       { k: 'tabela' as const, l: 'Tabela analítica', icon: TableIcon },
