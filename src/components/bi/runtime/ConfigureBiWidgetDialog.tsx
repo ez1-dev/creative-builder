@@ -89,8 +89,7 @@ export function ConfigureBiWidgetDialog({
   const [activeTab, setActiveTab] = useState<'builtin' | 'library' | 'series'>(startsAsLibrary ? 'library' : 'builtin');
   const [variant, setVariant] = useState<string>(initial.variant ?? def?.variants[0]?.value ?? '');
   const [componentId, setComponentId] = useState<string>(initial.componentId ?? libDefs[0]?.id ?? '');
-  const [seriesKey, setSeriesKey] = useState<string>(initial.mapping?.series ?? '');
-  const [valueKey, setValueKey] = useState<string>(initial.mapping?.value ?? def?.kpiKey ?? '');
+  const [inputMapping, setInputMapping] = useState<Record<string, string>>(initial.mapping ?? {});
   const [customTitle, setCustomTitle] = useState<string>(initial.customTitle ?? '');
   const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
   const [titleColor, setTitleColor] = useState<string>(initial.titleColor ?? 'default');
