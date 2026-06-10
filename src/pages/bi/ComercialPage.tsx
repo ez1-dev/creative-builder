@@ -983,8 +983,9 @@ export default function ComercialPage() {
     setEditing(false);
   };
 
-  // Edição permitida se: modo pessoal (sempre pode) OU modo oficial e admin.
-  const canEditDashboard = layout.isPersonal || isAdmin;
+  // Edição permitida se: modo pessoal (sempre pode) OU admin OU usuário tem can_edit em /bi/comercial.
+  const canEditOfficial = isAdmin || canEdit('/bi/comercial');
+  const canEditDashboard = layout.isPersonal || canEditOfficial;
 
   const handleEnterEdit = () => {
     if (!canEditDashboard) {
