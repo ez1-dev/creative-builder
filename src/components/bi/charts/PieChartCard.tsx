@@ -75,12 +75,8 @@ export function PieChartCard({
     const layerFs = data.length > 6 ? Math.max(9, fs - 1) : fs;
     const lineH = layerFs * 1.2;
     const blockH = lineH * 2;
-    const minGap = blockH + (data.length > 8 ? 10 : 6);
-
-    // Coluna fixa de labels por lado
-    const sideMargin = 8;
-    const rightLabelX = cw - sideMargin;
-    const leftLabelX = sideMargin;
+    const minGap = blockH + 4;
+    const labelR = outerRadius + 12;
 
     let startAngle = 90;
     const left: RichItem[] = [];
@@ -92,18 +88,13 @@ export function PieChartCard({
       const mid = startAngle - sweep / 2;
       startAngle -= sweep;
       const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
-      const anchorX = cx + outerRadius * Math.cos(-mid * RADIAN);
-      const anchorY = cy + outerRadius * Math.sin(-mid * RADIAN);
-      const side: 'left' | 'right' = anchorX >= cx ? 'right' : 'left';
-      const elbowR = outerRadius + 14;
-      const elbowX = cx + elbowR * Math.cos(-mid * RADIAN);
-      const elbowY = cy + elbowR * Math.sin(-mid * RADIAN);
-      const labelX = side === 'right' ? rightLabelX : leftLabelX;
+      const lx = cx + labelR * Math.cos(-mid * RADIAN);
+      const ly = cy + labelR * Math.sin(-mid * RADIAN);
+      const side: 'left' | 'right' = lx >= cx ? 'right' : 'left';
       const item: RichItem = {
-        side, anchorX, anchorY, elbowX, elbowY,
-        targetY: elbowY, y: elbowY, labelX,
-        line1,
-        line2,
+        side, anchorX: lx, anchorY: ly, elbowX: lx, elbowY: ly,
+        targetY: ly, y: ly, labelX: lx,
+        line1, line2,
         color: BI_PALETTE[i % BI_PALETTE.length],
       };
       (side === 'right' ? right : left).push(item);
@@ -115,18 +106,10 @@ export function PieChartCard({
     resolveCollisions(left, minGap, top, bot);
 
     const renderItem = (it: RichItem, k: number) => {
-      const horizEnd = it.side === 'right' ? it.labelX - 4 : it.labelX + 4;
-      const anchor = it.side === 'right' ? 'end' : 'start';
+      const anchor = it.side === 'right' ? 'start' : 'end';
       const textX = it.labelX;
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
-          <polyline
-            fill="none"
-            stroke="hsl(var(--muted-foreground))"
-            strokeWidth={1}
-            opacity={0.5}
-            points={`${it.anchorX},${it.anchorY} ${it.elbowX},${it.elbowY} ${horizEnd},${it.y}`}
-          />
           <text
             x={textX}
             y={it.y}
