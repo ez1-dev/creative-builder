@@ -380,7 +380,7 @@ export default function BiComponentsDemoPage() {
               <DemoBlock name="KpiStatusCard" applyId="kpi-status">
                 <KpiStatusCard title="Recebimento" value={92.5} format="percent" status="recebido" />
               </DemoBlock>
-              <DemoBlock name="FaturamentoRealizadoMetaCard" description="Card isolado Realizado / Meta / Diferença" nonApplicable>
+              <DemoBlock name="FaturamentoRealizadoMetaCard" description="Card isolado Realizado / Meta / Diferença" applyId="faturamento-realizado-meta-card">
                 <div className="max-w-xs">
                   <FaturamentoRealizadoMetaCard realizado={54_176_118} meta={76_059_798} />
                 </div>
