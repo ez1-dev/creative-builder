@@ -38,14 +38,14 @@ export interface BrazilHeatMapProps
 }
 
 const DEFAULT_GEO_URL = '/maps/brasil-estados.geojson';
-const DEFAULT_CENTER: [number, number] = [-54, -15];
+const DEFAULT_CENTER: [number, number] = [-54, -14];
 const SMALL_UFS = new Set(['DF', 'SE', 'AL', 'PB', 'RN', 'PE', 'ES', 'RJ']);
 
 export function BrazilHeatMap({
   data,
   valueFormatter = formatCurrency,
   geoUrl = DEFAULT_GEO_URL,
-  height = 360,
+  height = 440,
   showLegend = true,
   legendTitle = 'Fat. (R$)',
   onStateClick,
@@ -99,11 +99,11 @@ export function BrazilHeatMap({
       <div className="flex h-full w-full items-center justify-center gap-4">
         {/* Legenda vertical à esquerda */}
         {showLegend && max > 0 && (
-          <div className="flex flex-col items-start justify-center gap-2 shrink-0" style={{ minWidth: 80 }}>
+          <div className="flex flex-col items-start justify-center gap-2 shrink-0" style={{ minWidth: 72 }}>
             <span className="text-[11px] font-medium text-muted-foreground leading-tight whitespace-pre-line">
               {legendTitle}
             </span>
-            <div className="flex items-stretch gap-2" style={{ height: Math.min(220, mapHeight * 0.7) }}>
+            <div className="flex items-stretch gap-2" style={{ height: Math.min(240, mapHeight * 0.75) }}>
               <div
                 className="w-4 rounded-full border border-border"
                 style={{ background: legendGradient }}
@@ -119,8 +119,8 @@ export function BrazilHeatMap({
 
         {/* Mapa centralizado */}
         <div
-          className="relative flex-1 flex items-center justify-center"
-          style={{ maxWidth: 760 }}
+          className="relative flex-1 flex items-center justify-center h-full"
+          style={{ maxWidth: 720 }}
         >
           {/* Controles de zoom */}
           {geoQuery.data && (
@@ -155,10 +155,10 @@ export function BrazilHeatMap({
           {geoQuery.data && (
             <ComposableMap
               projection="geoMercator"
-              projectionConfig={{ scale: 760, center: DEFAULT_CENTER }}
-              width={680}
-              height={520}
-              style={{ width: '100%', maxWidth: '760px', height: 'auto' }}
+              projectionConfig={{ scale: 620, center: DEFAULT_CENTER }}
+              width={620}
+              height={620}
+              style={{ width: '100%', height: '100%', maxWidth: '720px', maxHeight: '100%' }}
             >
               <ZoomableGroup
                 zoom={position.zoom}
@@ -231,7 +231,7 @@ export function BrazilHeatMap({
                           return null;
                         }
                         if (!centroid || !Number.isFinite(centroid[0])) return null;
-                        const fontSize = position.zoom > 1 ? 9 : 10;
+                        const fontSize = position.zoom > 1 ? 8 : 9;
                         return (
                           <Marker key={`lbl-${geo.rsmKey}`} coordinates={centroid}>
                             <text
