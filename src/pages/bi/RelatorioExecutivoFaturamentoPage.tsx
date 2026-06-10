@@ -74,6 +74,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
   const [comentarios, setComentarios] = useState<{
     destaques: string[]; alertas: string[]; recomendacoes: string[];
   } | null>(null);
+  const [paretoAnalise, setParetoAnalise] = useState<string | null>(null);
   const [iaLoading, setIaLoading] = useState(false);
   const [iaError, setIaError] = useState<string | null>(null);
   const [exportandoPptx, setExportandoPptx] = useState(false);
