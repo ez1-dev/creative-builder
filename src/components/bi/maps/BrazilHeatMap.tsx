@@ -216,11 +216,17 @@ export function BrazilHeatMap({
                         const selUf = selectedUf ? String(selectedUf).toUpperCase() : null;
                         const isSelected = !!selUf && selUf === uf;
                         const dimmed = !!selUf && !isSelected;
+                        const inRange =
+                          !selectedRange ||
+                          (hasData && v >= selectedRange[0] && v <= selectedRange[1]);
+                        const rangeFade = selectedRange && hasData && !inRange ? 0.18 : 1;
                         const pct = hasData && total > 0 ? (v / total) * 100 : 0;
                         const tooltip = hasData
                           ? `${labelFull}\nFaturamento: ${valueFormatter(v)}\nParticipação: ${formatPercent(pct, 1)}${clickable ? '\nClique para detalhar' : ''}`
                           : `${labelFull} — Sem faturamento no período`;
                         const fill = heatColorFromValue(v, max, stops);
+                        const baseOpacity = (dimmed ? 0.55 : 1) * rangeFade;
+                        const hoverOpacity = (dimmed ? 0.75 : clickable ? 0.85 : 1) * (inRange ? 1 : 0.35);
                         return (
                           <Geography
                             key={geo.rsmKey}
