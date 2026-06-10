@@ -47,15 +47,18 @@ const SMALL_UFS = new Set(['DF', 'SE', 'AL', 'PB', 'RN', 'PE', 'ES', 'RJ']);
 
 export function BrazilHeatMap({
   data,
+  colorStops,
   valueFormatter = formatCurrency,
   geoUrl = DEFAULT_GEO_URL,
   height = 440,
   showLegend = true,
   legendTitle = 'Fat. (R$)',
+  legendExtras,
   onStateClick,
   selectedUf = null,
   ...shell
 }: BrazilHeatMapProps) {
+  const stops = colorStops && colorStops.length >= 2 ? colorStops : HEAT_COLOR_STOPS;
   const [position, setPosition] = useState<{ coordinates: [number, number]; zoom: number }>({
     coordinates: DEFAULT_CENTER,
     zoom: 1,
