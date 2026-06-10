@@ -138,7 +138,26 @@ export default function RelatorioExecutivoFaturamentoPage() {
     setBlocos((b) => ({ ...b, [k]: !b[k] }));
   };
 
-  const exportarPdf = () => window.print();
+  const exportarPdf = () => {
+    const doc = document.getElementById('rel-doc');
+    if (!doc) { window.print(); return; }
+    const originalParent = doc.parentElement;
+    const placeholder = document.createComment('rel-doc-placeholder');
+    if (originalParent) originalParent.insertBefore(placeholder, doc);
+    document.body.appendChild(doc);
+    document.body.classList.add('printing-rel-doc');
+    const restore = () => {
+      document.body.classList.remove('printing-rel-doc');
+      if (originalParent && placeholder.parentNode === originalParent) {
+        originalParent.insertBefore(doc, placeholder);
+        placeholder.remove();
+      }
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    setTimeout(() => window.print(), 50);
+  };
+
 
   const exportarPptx = async () => {
     setExportandoPptx(true);

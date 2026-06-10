@@ -95,26 +95,42 @@
     print-color-adjust: exact !important;
   }
 
-  /* Isola o documento imprimível: tudo invisível, só #rel-doc aparece */
-  body * { visibility: hidden !important; }
-  #rel-doc, #rel-doc * { visibility: visible !important; }
+  /* Marca o body para esconder tudo que não pertence ao documento imprimível.
+     Usamos display:none nos irmãos do #rel-doc (em vez de visibility:hidden)
+     para evitar que o cabeçalho fique fora do fluxo no PDF. */
+  body.printing-rel-doc > *:not(#rel-print-portal) {
+    display: none !important;
+  }
 
+  /* Esconde chrome do app fora do documento */
+  [data-sidebar],
+  aside[data-sidebar="sidebar"],
+  header[data-tv-hide="true"],
+  footer[data-tv-hide="true"],
+  [data-radix-popper-content-wrapper],
+  .ai-assistant-chat,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Documento imprimível: fluxo normal a partir do topo da página */
   #rel-doc {
     page: rel-doc;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
+    position: static !important;
+    display: block !important;
+    visibility: visible !important;
     width: 100% !important;
     max-width: none !important;
-    padding: 4mm 6mm !important;
+    padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
     background: #fff !important;
     border-radius: 0 !important;
     color: #0f172a !important;
   }
+  #rel-doc * { visibility: visible !important; }
 
-  /* Cabeçalho do relatório — forçar cores e visibilidade no PDF */
+  /* Cabeçalho do relatório — forçar visibilidade e que não quebre na primeira página */
   #rel-doc .rel-header {
     display: flex !important;
     visibility: visible !important;
@@ -122,9 +138,13 @@
     align-items: flex-start !important;
     border-bottom: 3px solid #1d4ed8 !important;
     padding-bottom: 10px !important;
-    margin-bottom: 14px !important;
+    margin: 0 0 14px !important;
+    page-break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-inside: avoid !important;
+    break-after: avoid !important;
   }
-  #rel-doc .rel-header > * { visibility: visible !important; }
+  #rel-doc .rel-header > * { visibility: visible !important; display: block !important; }
   #rel-doc .rel-titulo {
     color: #1d4ed8 !important;
     font-size: 22px !important;
@@ -141,22 +161,11 @@
   #rel-doc .rel-data {
     color: #475569 !important;
     font-size: 12px !important;
+    display: block !important;
   }
   #rel-doc .rel-bloco-titulo {
     color: #1d4ed8 !important;
     border-left-color: #1d4ed8 !important;
-  }
-
-
-  /* Garante remoção do chrome do app mesmo com transform/z-index */
-  [data-sidebar],
-  aside[data-sidebar="sidebar"],
-  header[data-tv-hide="true"],
-  footer[data-tv-hide="true"],
-  [data-radix-popper-content-wrapper],
-  .ai-assistant-chat,
-  .print\:hidden {
-    display: none !important;
   }
 
   .rel-bloco,
@@ -164,3 +173,4 @@
   .rel-ranking { page-break-inside: avoid; }
   .rel-tabela-detalhe tr { page-break-inside: avoid; }
 }
+
