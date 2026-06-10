@@ -1,39 +1,63 @@
-# Bug: "Faturamento — Realizado / Meta / Diferença" usa o mesmo valor nas 3 linhas
+# Permitir duplicar blocos do catálogo BI Comercial
 
-## Diagnóstico
+## Problema
 
-O componente `faturamento-realizado-meta-card` declara 3 inputs do tipo `kpis` no registry (`realizado`, `meta`, `diferenca`), mas o diálogo `ConfigureBiWidgetDialog.tsx` mantém **um único estado** `valueKey` e o aplica em **todos** os inputs `source === 'kpis'`:
+No diálogo "Adicionar bloco", todo bloco do catálogo já presente fica `disabled` com `(já adicionado)`. Hoje o sistema usa `widget.type` como identificador único (chave de banco `dashboard_widgets.type`, de render, de hidden-state, de drag/drop, de delete). Por isso o catálogo não permite repetir um bloco.
 
-```ts
-inputs.forEach((inp) => {
-  if (inp.source === 'kpis') mapping[inp.key] = valueKey || kpiOptions[0]?.key || '';
-  ...
-});
-```
+A solução escolhida ("permitir duplicar qualquer bloco do catálogo") exige separar **identidade da instância** (única por widget na tela) da **identidade do tipo** (qual definição do catálogo é usada para renderizar).
 
-Resultado: ao aplicar o card da Biblioteca BI, `realizado`, `meta` e `diferenca` apontam para a mesma chave (Faturamento Bruto), e o card mostra `R$ 2.095.099` nas três linhas — em vez de Realizado/Meta/Diferença reais como o bloco built-in faz.
+## Estratégia
 
-O mesmo problema afetaria qualquer componente futuro com >1 input `kpis` ou `series`.
+Introduzir o conceito de **`instanceType`** sem mexer no banco:
 
-## Plano
+- Banco continua salvando o campo `type`, mas pode receber valores como `kpi-faturamento__c-1730xxxx` para instâncias duplicadas.
+- Em qualquer lookup contra `COMERCIAL_WIDGETS`, usamos o "tipo base" (parte antes de `__c-`).
+- Todas as chaves em memória (`hidden[*]`, `out[*]`, `pendingDeletes`, `layoutDraft`, `presentTypes`) passam a usar `w.type` (já único por instância) — não muda nada nelas, só garante que duplicatas terão `type` diferente.
 
-### 1. `ConfigureBiWidgetDialog.tsx` — mapeamento por input
-- Substituir os estados únicos `seriesKey` / `valueKey` por um único `Record<string, string>` (`inputMapping`) com uma chave por `input.key`.
-- Inicializar a partir de `initial.mapping` quando existir; senão, usar `def.kpiKey` para o primeiro `kpis` e os primeiros valores disponíveis do schema para os demais.
-- Renderizar **um Select por input** (um para cada input `kpis` ou `series`) com label = `input.label`, em vez dos dois Selects fixos atuais ("Série" e "KPI").
-- Em `handleApply` e no `previewNode`, montar o `mapping` lendo `inputMapping[input.key]` para cada input.
-- Reset no `useEffect([open])` segue a mesma lógica.
+Assim a refatoração é cirúrgica: tudo que hoje indexa por `w.type` continua válido; só precisamos:
 
-### 2. Pré-seleção inteligente para o card de Faturamento
-- Quando `componentId === 'faturamento-realizado-meta-card'` e `initial.mapping` estiver vazio, aplicar o `autoMap` já definido no registry (`faturamento_bruto/liquido`, `meta`, `diferenca`) para que ao abrir o diálogo as três linhas já venham com KPIs distintos sensatos.
-- Genérico: se o `libDef.autoMap` existir e não houver mapping inicial, usar `autoMap({ kpis: kpiOptions, series: seriesOptions, rows })` como default.
+1. Mintar tipos derivados ao adicionar duplicata.
+2. Resolver `def` por **tipo base** (não pelo tipo exato) nas poucas chamadas a `COMERCIAL_WIDGETS[w.type]`.
+3. Permitir múltiplas linhas com `type` base igual em `mergeWithDefaults` (que hoje dedupa por type).
 
-### 3. Sem mudanças em backend / outros componentes
-- Componentes com 1 só input continuam idênticos visualmente (um Select, mesmo label).
-- Nenhum impacto em widgets built-in nem nos blocos `custom-*` já salvos com mapping completo.
+## Mudanças
+
+### 1. `src/lib/bi/comercialWidgetCatalog.ts`
+- Exportar helper `baseWidgetType(type: string): string` → retorna a parte antes de `__c-`.
+- Exportar `getWidgetDef(type: string)` → `COMERCIAL_WIDGETS[baseWidgetType(type)]`.
+
+### 2. `src/components/bi/runtime/AddBiWidgetDialog.tsx`
+- Remover `disabled={present}` no `<SelectItem>` e o sufixo `(já adicionado)`. Em vez disso mostrar contador `(× N)` quando já existe ≥1 instância para informar o usuário.
+- Em `handleAdd`, quando `presentTypes.includes(def.type)` → emitir `type: \`${def.type}__c-${Date.now()}\``. Caso contrário, mantém `def.type` original (preserva blocos do catálogo padrão).
+- `firstAvail` inicial continua escolhendo um não-presente, mas se todos estiverem presentes, fica no primeiro mesmo assim.
+
+### 3. `src/hooks/useComercialLayout.ts`
+- `mergeWithDefaults`: hoje faz `byType.get(d.type) ?? d` — substituir por lógica que **inclui todas as instâncias salvas** e só usa default quando o tipo base não tem nenhuma instância salva. Pseudo:
+  ```ts
+  const savedBaseTypes = new Set(rows.map(r => baseWidgetType(r.type)));
+  const defaultsFaltando = COMERCIAL_DEFAULT_WIDGETS.filter(d => !savedBaseTypes.has(d.type));
+  return [...rows, ...defaultsFaltando].sort(by position);
+  ```
+- `reuseIdentity`: trocar `prevByType` por map por `type` (já é único por instância) — manter.
+- `saveLayout`: `byType` continua válido (cada instância tem type único). Mas o fallback `COMERCIAL_DEFAULT_WIDGETS.find((d) => d.type === item.type)` precisa usar `baseWidgetType(item.type)`.
+- `deleteWidget(type)`: já deleta por type exato — funciona.
+
+### 4. `src/pages/bi/ComercialPage.tsx`
+- Todas as chamadas a `COMERCIAL_WIDGETS[w.type]` (linhas ~829, ~902 e similares) → trocar por `getWidgetDef(w.type)`.
+- Branches especiais `if (w.type === 'resumo-faturamento')` / `'gauge-atingimento')` → comparar `baseWidgetType(w.type)`.
+- `presentTypes` continua `widgets.map(w => w.type)` (passa para o diálogo só pra mostrar contador).
+
+### 5. Layout inicial de duplicatas
+- Em `handleAddWidget` (ComercialPage) o cálculo de `maxY` já posiciona o novo bloco no final. Mantém.
 
 ## Critérios de aceite
-- Ao aplicar "Faturamento — Realizado / Meta / Diferença" no bloco "Resumo Faturamento", a pré-visualização mostra 3 valores diferentes (Realizado/Meta/Diferença) já no primeiro abrir do diálogo.
-- O usuário pode trocar individualmente qual KPI alimenta cada linha via 3 dropdowns separados.
-- Após Aplicar, o card renderizado na página BI exibe os valores corretos (ex.: Realizado ≈ R$ 1.828.517, Meta ≈ R$ 8.328.422, Diferença ≈ −R$ 6.500.000) em vez de repetir o mesmo número.
-- Componentes com apenas 1 input KPI/Série continuam funcionando como hoje.
+- Posso abrir "Adicionar bloco" → catálogo, escolher "Faturamento" mesmo já existindo, e clicar Adicionar.
+- Aparece um segundo card "Faturamento" no dashboard, sem sobrescrever o original.
+- Cada duplicata pode ser configurada, movida, redimensionada, ocultada e deletada independentemente.
+- Recarregar a página preserva ambas (vêm do banco como linhas distintas com `type` distinto).
+- "Voltar ao padrão" (reset) volta ao layout inicial sem duplicatas.
+- Blocos do catálogo padrão (ex.: `kpi-faturamento`) que nunca foram duplicados continuam usando o `type` simples no banco.
+
+## Fora do escopo
+- Não cria UI para "Duplicar bloco" no menu de cada card (pode ser adicionada depois reaproveitando o mesmo mecanismo).
+- Não mexe na aba "Da Biblioteca BI" (já permite duplicar via `custom-*`).
