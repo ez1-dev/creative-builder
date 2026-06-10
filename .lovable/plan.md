@@ -1,36 +1,23 @@
-## Problema
-O bloco "FaturamentoRealizadoMetaCard — Card isolado Realizado / Meta / Diferença" do catálogo `/biblioteca-bi` está marcado como `nonApplicable` (rótulo "uso direto via import") e por isso não tem o botão **Aplicar**. Logo, não dá para inseri-lo em nenhuma página BI.
+## Objetivo
+Hoje, ao filtrar por **Pedido** ou **Relatório de Produção** na tela `/producao/impressao-ordem-producao`, o hook `useOpcoesImpressaoOp` envia `limite_ops=200` para `GET /api/producao/ordem-producao/opcoes`. Resultado: agrupamento 74453 mostra apenas 200 OPs em vez das 401 reais.
 
-## Causa
-- `src/pages/BiComponentsDemoPage.tsx` (linha ~383) usa `<DemoBlock ... nonApplicable>`, sem `applyId`.
-- O componente não está registrado em `COMPONENT_REGISTRY` (`src/lib/bi/componentRegistry.tsx`), então `ApplyComponentDialog` não o conhece.
+## Mudança
 
-## Solução
+### `src/hooks/useOpcoesImpressaoOp.ts`
+Trocar todos os `limite_ops` numéricos para **1000**, em todas as funções de recarga e busca:
 
-### 1. Registrar no `COMPONENT_REGISTRY`
-Novo item:
-- `id: 'faturamento-realizado-meta-card'`
-- `kind: 'kpi'`
-- `label: 'Faturamento — Realizado / Meta / Diferença'`
-- `description: 'Card isolado com Realizado, Meta e Diferença (cálculo automático).'`
-- `defaultSpan: 1`
-- `inputs:`
-  - `realizado` — `source: 'kpis'`, required
-  - `meta` — `source: 'kpis'`, required
-  - `diferenca` — `source: 'kpis'`, opcional (se vazio, o card já calcula `realizado - meta`)
-- `autoMap`: tenta achar KPIs cujo `key`/`label` casem com /realizad/, /meta/, /diferen/. Fallback: primeiros 2 KPIs.
-- `render`: lê `ctx.kpis[mapping.realizado]`, `ctx.kpis[mapping.meta]`, `ctx.kpis[mapping.diferenca]` (este último pode ser vazio) e renderiza `<FaturamentoRealizadoMetaCard realizado={...} meta={...} diferenca={...} title={title || 'Faturamento'} />`.
-- Import já parcial: adicionar `import { FaturamentoRealizadoMetaCard } from '@/components/bi/kpis/FaturamentoRealizadoMetaCard';`.
+- `reloadBase` → `limite_ops: 1000` (era 80)
+- `reloadByPedido`, `reloadByRelatorio`, `reloadByOrigem`, `reloadBySituacao`, `reloadByCentroRecurso`, `reloadByProduto` → `limite_ops: 1000` (era 200)
+- `searchOps`, `searchProdutos` → `limite_ops: 1000` (era 200)
 
-### 2. Liberar Aplicar no catálogo
-`src/pages/BiComponentsDemoPage.tsx`:
-- Trocar `nonApplicable` por `applyId="faturamento-realizado-meta-card"` no `DemoBlock` desse card.
+Manter a passagem condicional já existente em `fetchOpcoes` (`if (params.limite_ops !== undefined) q.limite_ops = params.limite_ops`) — só os valores defaults mudam.
 
-## Fora de escopo
-- Não mexer no card em si (já funciona standalone).
-- Não criar novos KPIs no schema das páginas BI — o usuário escolhe entre os KPIs já existentes (ex.: `faturamento_realizado`, `meta_faturamento`, `diferenca_meta` no BI Comercial).
+### Resto do código
+- `opcoes.ops` já é usado integralmente em `opsFiltradas` (`src/pages/producao/ImpressaoOrdemProducaoPage.tsx`) — não há `.slice(0, 200)` nem `pageSize` fixo na lista principal. O contador exibido (`opsFiltradas.length`) já reflete o total retornado.
+- `SelectBuscavel` (slice 0,200) e `OpAutocomplete`/`ProdutoAutocomplete` (slice 0,100) são limites de **renderização de combobox**, não da lista principal de OPs, e ficam fora do escopo desta mudança.
 
 ## Critério de aceite
-1. Em `/biblioteca-bi`, o bloco "FaturamentoRealizadoMetaCard" agora mostra o botão **Aplicar**.
-2. Ao clicar, abre o `ApplyComponentDialog` com três selects (Realizado, Meta, Diferença opcional) listando os KPIs da página escolhida.
-3. Salvar cria um widget na página/seção escolhida; o card aparece renderizado com os valores reais.
+1. Selecionar Empresa = 1 + Relatório de Produção 74453 dispara
+   `GET /api/producao/ordem-producao/opcoes?cod_emp=1&rel_prd=74453&limite_ops=1000`.
+2. O contador "X OP(s) encontradas" mostra **401** (após drop de canceladas/ori 100, conforme `sanitizeOps`) ou o total efetivamente retornado por `ordens_producao` quando todos os filtros vierem em branco.
+3. Demais filtros (Pedido, Origem, Situação, Centro de Recurso, Produto, busca de OPs/produtos) também passam a usar `limite_ops=1000`.
