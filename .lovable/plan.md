@@ -1,33 +1,38 @@
-## Diagnóstico
 
-O frontend já distingue corretamente tarefa × ação:
+## Objetivo
 
-- `/etl` → "Executar" em uma linha da tabela `etl_tarefas` chama `executarTarefa(nome)` → `POST /api/etl/tarefas/{nome}/executar`.
-- `/etl/tarefas/:nome` → botão "Executar tarefa" idem; botão "Executar" dentro da grade de ações é o único que chama `POST /api/etl/acoes/{id_acao}/executar`.
-
-O único lugar que chama "ATU_COMERCIAL" é o botão **"Atualizar Comercial"** em `src/pages/FaturamentoGeniusPage.tsx` (linhas 491-524), que dispara `POST /api/faturamento-genius/atualizar` (endpoint custom da FastAPI, não /api/etl/*). É esse endpoint do backend que internamente está chamando `executar_acao("ATU_COMERCIAL")` em vez de `executar_tarefa("ATU_COMERCIAL")` — daí o erro `Ação ETL não encontrada: ATU_COMERCIAL`.
-
-Como o Lovable não toca no FastAPI, a correção é especificada em documento de patch para o time backend, e o frontend ganha apenas robustez para tratar mensagens novas.
+Hoje a paleta de cores do mapa de calor (presets Spectral/Azul/Verde/Quente/Frio/Viridis + customizar stops) só aparece no ícone 🎨 dentro do próprio card, em runtime. Quero a mesma opção dentro do **diálogo "Configurar bloco"** (botão "Editar dashboard" → widget de mapa), para que a paleta escolhida fique persistida no widget e seja a padrão ao renderizar.
 
 ## Mudanças
 
-### 1. Novo doc `docs/backend-faturamento-genius-atualizar-PATCH.md`
-Especifica como `/api/faturamento-genius/atualizar` deve funcionar:
+### 1. Contrato de options (`src/lib/bi/widgetOptions.ts`)
+- Adicionar campo opcional `colorStops?: string[]` em `WidgetOptions`. Usado apenas por componentes de mapa de calor.
 
-- Buscar `etl_tarefas` por `codigo_tarefa = 'ATU_COMERCIAL'` (ou `nome_tarefa`, mantendo retrocompatibilidade) → obter `tarefa_id`.
-- Listar `etl_acoes WHERE tarefa_id = :id AND ativa = true ORDER BY ordem`.
-- Criar 1 linha em `etl_execucoes` (status `EM_EXECUCAO`).
-- Para cada ação, criar linha em `etl_acao_execucoes` e executar respeitando `caso_erro` (ABORTAR vs CONTINUAR).
-- Aceitar payload com `anomes_ini`/`anomes_fim` (case-insensitive). Substituir placeholders `$[ANOMES_INI]` / `$[ANOMES_FIM]`.
-- Retornar `{ execucao_id, status, mensagem }`.
-- **Nunca** chamar `executar_acao("ATU_COMERCIAL")` — `ATU_COMERCIAL` é tarefa, não ação. Se chamado erroneamente como ação, retornar 400 com mensagem clara ("ATU_COMERCIAL é uma tarefa; use /api/etl/tarefas/ATU_COMERCIAL/executar").
-- Critérios de aceite (replicar os do usuário): linha em `etl_execucoes`, linhas em `etl_acao_execucoes` para `VM_FATURAMENTO`, `VM_FATURAMENTO_MANUAL`, `VM_FAT_CONTABIL`, `VM_FAT_TRB` na ordem cadastrada.
+### 2. Diálogo de configuração (`src/components/bi/runtime/ConfigureBiWidgetDialog.tsx`)
+- Detectar quando o componente selecionado é um mapa de calor:
+  `HEAT_MAP_LIB_IDS = new Set(['brazil-heat-map', 'brazil-heat-map-comercial'])`.
+- Novo estado `colorStops: string[]` inicializado de `initial.options?.colorStops` ou de `HEAT_COLOR_STOPS`.
+- Renderizar `<HeatPaletteEditor value={colorStops} onChange={setColorStops} />` (com label "Paleta do mapa") logo abaixo do `ChartColorPicker`, somente quando `HEAT_MAP_LIB_IDS.has(libDef.id)`.
+- Em `buildLibraryOptions()`, persistir `opts.colorStops = colorStops` se diferente do default Spectral; usar o mesmo helper `arraysEqual` da `HeatPaletteEditor`.
+- Reset no `useEffect([open])`.
+- Como o painel já tem pré-visualização à direita, o mapa atualiza imediatamente ao trocar a paleta.
 
-Inclui exemplo de payload, SQL de validação no Supabase Cloud (consultar `etl_tarefas`/`etl_acoes`/`etl_execucoes`) e snippet Python sugerido.
+### 3. Diálogo "Adicionar / aplicar componente da Biblioteca BI" (`src/components/bi/runtime/ApplyComponentDialog.tsx`)
+- Mesma lógica: detectar `brazil-heat-map`/`brazil-heat-map-comercial`, oferecer o `HeatPaletteEditor` na seção de Aparência, incluir `colorStops` em `builtOptions`. Assim a paleta também pode ser definida na criação do widget.
 
-### 2. Pequeno hardening no frontend (`src/pages/FaturamentoGeniusPage.tsx`)
-Em `atualizarComercial`, quando a resposta vier com erro contendo "Ação ETL não encontrada: ATU_COMERCIAL", trocar a mensagem genérica por um aviso explicando que o backend FastAPI ainda não aplicou o patch (apontando o doc), em vez de só toast `err?.message`. Não muda o fluxo de chamada — continua `POST /api/faturamento-genius/atualizar`, que é o contrato correto.
+### 4. Registro de componentes (`src/lib/bi/componentRegistry.tsx`)
+- `brazil-heat-map` (render): passar `colorStops={options?.colorStops}` para `<BrazilHeatMap>`.
+- `BrazilHeatMapComercialHost`: aceitar e repassar `colorStops` via prop.
 
-### Fora do escopo
-- Não alterar `src/lib/etl/api.ts`, `ExecutarModal`, nem `EtlAdminPage` / `EtlTarefaDetalhePage`: já usam corretamente `executarTarefa` vs `executarAcao`.
-- Não criar rota nova nem mexer em tabelas do Cloud.
+### 5. Widget de heatmap comercial (`src/components/bi/comercial/BrazilHeatMapWidget.tsx`)
+- Aceitar prop opcional `initialColorStops?: string[]`. Inicializar o `useState` com ela (fallback `HEAT_COLOR_STOPS`). O usuário ainda pode trocar em runtime pelo ícone 🎨, mas o valor configurado vira a base padrão.
+
+## Fora de escopo
+- Não mexer no editor de cor genérico do mapa em runtime (continua funcionando).
+- Não mexer no `BrazilStateMapWidget` (cartograma) — ele não usa paleta de stops.
+- Sem alterações de backend.
+
+## Critério de aceite
+1. Em qualquer página BI, clicar em "Editar dashboard" → widget do mapa de calor → "Configurar" → aparece um seletor "Paleta do mapa" com os mesmos presets do popover do card.
+2. Trocar a paleta no diálogo atualiza a pré-visualização e, ao salvar, o mapa volta a ser renderizado com a paleta escolhida (persistida em `bi_user_widgets.options.colorStops`).
+3. Mapas existentes sem `colorStops` continuam usando Spectral (sem regressão).

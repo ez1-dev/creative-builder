@@ -29,6 +29,13 @@ import type {
   WidgetValueFormat, WidgetComparacao, WidgetMeta, WidgetPeriodoOverride, WidgetSort,
 } from '@/lib/bi/widgetOptions';
 import { WidgetShell } from './WidgetShell';
+import { HeatPaletteEditor } from '@/components/bi/maps/HeatPaletteEditor';
+import { HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
+
+const HEAT_MAP_LIB_IDS = new Set(['brazil-heat-map', 'brazil-heat-map-comercial']);
+function stopsEqual(a: string[], b: string[]) {
+  return a.length === b.length && a.every((v, i) => v.toLowerCase() === b[i]?.toLowerCase());
+}
 
 const COLOR_SWATCHES: { value: WidgetColor; label: string; cls: string }[] = [
   { value: 'primary', label: 'Primary',  cls: 'bg-[hsl(var(--primary))]' },
@@ -153,6 +160,8 @@ export function ApplyComponentDialog({
   const [metaKpi, setMetaKpi] = useState<string>('');
   const [topN, setTopN] = useState<number>(0); // 0 = todos
   const [sort, setSort] = useState<WidgetSort | '__none__'>('__none__');
+  const [colorStops, setColorStops] = useState<string[]>(HEAT_COLOR_STOPS);
+  const supportsHeatPalette = !!def && HEAT_MAP_LIB_IDS.has(def.id);
 
   useEffect(() => {
     if (!open || !def) return;
@@ -172,6 +181,7 @@ export function ApplyComponentDialog({
     setPeriodoTipo('__page__'); setPeriodoN(3); setPeriodoIni(''); setPeriodoFim('');
     setComparacao('nenhuma'); setMetaTipo('__none__'); setMetaValor(0); setMetaKpi('');
     setTopN(0); setSort('__none__');
+    setColorStops(HEAT_COLOR_STOPS);
     const liveUn = liveCtx?.filtros?.unidade_negocio as UnidadeNegocio | undefined;
     if (initial?.supportsUnidadeNegocio && liveUn && UNIDADES.some((u) => u.value === liveUn)) {
       setUnidadeNegocio(liveUn);
@@ -228,8 +238,9 @@ export function ApplyComponentDialog({
     if (metaTipo === 'kpi' && metaKpi) o.meta = { tipo: 'kpi', kpiKey: metaKpi } as WidgetMeta;
     if (topN > 0) o.topN = topN;
     if (sort !== '__none__') o.sort = sort;
+    if (supportsHeatPalette && !stopsEqual(colorStops, HEAT_COLOR_STOPS)) o.colorStops = colorStops;
     return o;
-  }, [unidadeNegocio, color, variant, icon, valueFormat, density, height, hideTitle, subtitle, footerNote, periodoTipo, periodoN, periodoIni, periodoFim, comparacao, metaTipo, metaValor, metaKpi, topN, sort]);
+  }, [unidadeNegocio, color, variant, icon, valueFormat, density, height, hideTitle, subtitle, footerNote, periodoTipo, periodoN, periodoIni, periodoFim, comparacao, metaTipo, metaValor, metaKpi, topN, sort, supportsHeatPalette, colorStops]);
 
   // ----- Preview -----
   const previewCtx = useMemo(() => (page ? buildPreviewCtx(page, liveCtx) : null), [page, liveCtx]);
@@ -419,6 +430,23 @@ export function ApplyComponentDialog({
                     ))}
                   </div>
                 </div>
+
+                {supportsHeatPalette && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Paleta do mapa de calor</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+                      <div
+                        className="h-4 flex-1 rounded border border-border"
+                        style={{ background: `linear-gradient(to right, ${colorStops.join(', ')})` }}
+                        aria-hidden
+                      />
+                      <HeatPaletteEditor value={colorStops} onChange={setColorStops} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Escolha um preset ou customize os 5 stops (mín → máx).
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <Label className="text-xs">Variante visual</Label>

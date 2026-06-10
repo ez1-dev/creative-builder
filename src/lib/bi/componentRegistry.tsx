@@ -113,7 +113,7 @@ function BrazilStateMapRegistryHost({ title }: { title?: string }) {
  * Host do `brazil-heat-map-comercial`: heatmap geográfico do BI Comercial
  * usando os filtros expostos pelo PageDataContext da página alvo.
  */
-function BrazilHeatMapComercialHost({ title }: { title?: string }) {
+function BrazilHeatMapComercialHost({ title, colorStops }: { title?: string; colorStops?: string[] }) {
   const pd = usePageData();
   const filtros = (pd?.filtros ?? {}) as any;
   return (
@@ -125,6 +125,7 @@ function BrazilHeatMapComercialHost({ title }: { title?: string }) {
         unidade_negocio: (filtros.unidade_negocio ?? 'CONSOLIDADO') as any,
         ...filtros,
       }}
+      initialColorStops={colorStops}
     />
   );
 }
@@ -514,7 +515,7 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
       const pref = s.series?.find((x) => /estado|uf/i.test(x.key))?.key;
       return { series: pref ?? s.series?.[0]?.key ?? '' };
     },
-    render: ({ title, mapping, ctx }) => {
+    render: ({ title, mapping, ctx, options }) => {
       const arr = SERIES_LIKE(ctx.series?.[mapping.series]);
       const data = arr
         .map((p: any) => {
@@ -525,10 +526,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
         })
         .filter(Boolean) as { uf: string; valor: number; label?: string }[];
       const onClick = makeClickHandler(ctx, mapping.series);
+      const stops = Array.isArray((options as any)?.colorStops) ? (options as any).colorStops : undefined;
       return (
         <BrazilHeatMap
           title={title || mapping.series}
           data={data}
+          colorStops={stops}
           valueFormatter={formatterForSeriesKey(mapping.series)}
           onStateClick={onClick ? (uf, d) => onClick({ label: uf, valor: d?.valor ?? 0 }) : undefined}
         />
@@ -543,7 +546,12 @@ export const COMPONENT_REGISTRY: BiComponentDef[] = [
     defaultSpan: 2,
     inputs: [],
     autoMap: () => ({}),
-    render: ({ title }) => <BrazilHeatMapComercialHost title={title} />,
+    render: ({ title, options }) => (
+      <BrazilHeatMapComercialHost
+        title={title}
+        colorStops={Array.isArray((options as any)?.colorStops) ? (options as any).colorStops : undefined}
+      />
+    ),
   },
   {
     id: 'treemap-chart',

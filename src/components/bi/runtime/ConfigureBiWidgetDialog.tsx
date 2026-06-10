@@ -27,8 +27,15 @@ import { TITLE_COLOR_PRESETS, type WidgetTitleColorPreset } from './WidgetTitleS
 import { ChartColorPicker, DEFAULT_CHART_COLOR } from '@/components/passagens/ChartColorPicker';
 import { VisualConfigEditor } from '@/components/bi/visual/VisualConfigEditor';
 import { DEFAULT_VISUAL_CONFIG, mergeVisualConfig, type VisualConfig } from '@/lib/bi/visualConfig';
+import { HeatPaletteEditor } from '@/components/bi/maps/HeatPaletteEditor';
+import { HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
 
 const COLOR_AWARE_LIB_IDS = new Set(['bar-chart', 'horizontal-bar-chart', 'line-chart', 'area-chart']);
+const HEAT_MAP_LIB_IDS = new Set(['brazil-heat-map', 'brazil-heat-map-comercial']);
+
+function stopsEqual(a: string[], b: string[]) {
+  return a.length === b.length && a.every((v, i) => v.toLowerCase() === b[i]?.toLowerCase());
+}
 
 export interface ConfigureValue {
   variant?: string | null;
@@ -91,6 +98,11 @@ export function ConfigureBiWidgetDialog({
   const [valueColor, setValueColor] = useState<string>(initial.valueColor ?? 'default');
   const [chartColor, setChartColor] = useState<string>(initial.options?.color ?? DEFAULT_CHART_COLOR);
   const [visual, setVisual] = useState<VisualConfig>(mergeVisualConfig(initial.options?.visual));
+  const [colorStops, setColorStops] = useState<string[]>(
+    Array.isArray(initial.options?.colorStops) && initial.options!.colorStops.length >= 2
+      ? initial.options!.colorStops
+      : HEAT_COLOR_STOPS,
+  );
 
 
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
@@ -112,6 +124,11 @@ export function ConfigureBiWidgetDialog({
     setValueColor(initial.valueColor ?? 'default');
     setChartColor(initial.options?.color ?? DEFAULT_CHART_COLOR);
     setVisual(mergeVisualConfig(initial.options?.visual));
+    setColorStops(
+      Array.isArray(initial.options?.colorStops) && initial.options!.colorStops.length >= 2
+        ? initial.options!.colorStops
+        : HEAT_COLOR_STOPS,
+    );
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -122,13 +139,15 @@ export function ConfigureBiWidgetDialog({
   const inputs = libDef?.inputs ?? [];
 
   const supportsChartColor = !!libDef && COLOR_AWARE_LIB_IDS.has(libDef.id);
+  const supportsHeatPalette = !!libDef && HEAT_MAP_LIB_IDS.has(libDef.id);
 
   const buildLibraryOptions = useCallback(() => {
     const opts: Record<string, any> = {};
     if (supportsChartColor && chartColor && chartColor !== DEFAULT_CHART_COLOR) opts.color = chartColor;
     if (JSON.stringify(visual) !== JSON.stringify(DEFAULT_VISUAL_CONFIG)) opts.visual = visual;
+    if (supportsHeatPalette && !stopsEqual(colorStops, HEAT_COLOR_STOPS)) opts.colorStops = colorStops;
     return opts;
-  }, [supportsChartColor, chartColor, visual]);
+  }, [supportsChartColor, chartColor, visual, supportsHeatPalette, colorStops]);
 
   const previewNode = useMemo(() => {
     if (mode !== 'library' || !libDef) return null;
@@ -370,6 +389,22 @@ export function ConfigureBiWidgetDialog({
                 </div>
                 {supportsChartColor && (
                   <ChartColorPicker value={chartColor} onChange={setChartColor} />
+                )}
+                {supportsHeatPalette && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Paleta do mapa</Label>
+                    <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5">
+                      <div
+                        className="h-4 flex-1 rounded border border-border"
+                        style={{ background: `linear-gradient(to right, ${colorStops.join(', ')})` }}
+                        aria-hidden
+                      />
+                      <HeatPaletteEditor value={colorStops} onChange={setColorStops} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      Escolha um preset ou customize os 5 stops (mín → máx).
+                    </p>
+                  </div>
                 )}
                 {titleAppearanceSection}
               </div>
