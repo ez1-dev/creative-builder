@@ -1,32 +1,38 @@
-## Ajustes no Relatório Executivo de Faturamento
+## Objetivo
 
-Dois ajustes pontuais em `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx` (somente apresentação, sem mudar API/backend nem outros relatórios).
+Hoje o botão **"Editar dashboard"** do BI Comercial só libera quando o usuário é **Administrador** ou está em **"Minha versão"** (pessoal). A regra ignora a permissão `can_edit` configurada em **Configurações → Permissões por tela**, então mesmo usuários explicitamente autorizados a editar `/bi/comercial` ficam bloqueados.
 
-### 1. Ocultar "Top Obras/Projetos" quando Unidade = GENIUS
+A solução é tornar a edição do dashboard oficial governada pela permissão por tela já existente (`can_edit` do caminho da página), sem mexer em backend nem em outras lógicas.
 
-Em `RankingsBloco`, usar `filtros.unidade_negocio` (já presente em `BlocoProps`) para renderizar o card `Top Obras/Projetos` apenas quando a unidade **não** for `GENIUS`. Quando GENIUS, a grade fica com Revendas + Estados (2 colunas continuam fazendo sentido).
+## Mudanças
 
-Justificativa: na unidade GENIUS o conceito de obra/projeto não se aplica como na Estrutural Zortea, então o ranking sempre vem vazio/irrelevante.
+### `src/pages/bi/ComercialPage.tsx`
+- Ler `canEdit` de `useUserPermissions()` (já importado/disponível).
+- Trocar:
+  ```ts
+  const canEditDashboard = layout.isPersonal || isAdmin;
+  ```
+  por:
+  ```ts
+  const canEditOfficial = isAdmin || canEdit('/bi/comercial');
+  const canEditDashboard = layout.isPersonal || canEditOfficial;
+  ```
+- Ajustar o `title` do botão para refletir o novo motivo do bloqueio:
+  - Se `!canEditDashboard`: "Sem permissão para editar este dashboard. Ative 'Minha versão' ou solicite permissão de edição em /bi/comercial."
+- Manter o bloqueio do toggle "Minha versão ↔ Oficial" enquanto em edição (sem alteração).
 
-### 2. Mostrar primeiro nome do cliente no Pareto e na Tabela Analítica
+### Nenhuma mudança em
+- `PermissionsContext`, `useUserPermissions`, `screenCatalog` (já expõem `can_edit` por tela e a entrada `/bi/comercial` já existe).
+- Layout, drafts, salvamento, fork pessoal, fluxo de admin.
+- Outras páginas BI (apenas Comercial tem esse botão hoje — verificado por busca; quando novas páginas BI ganharem o botão, aplicar o mesmo padrão).
 
-Hoje a UI exibe apenas `Cliente {cd_cliente}` (ex.: `Cliente 8865`) porque os endpoints comerciais ainda não devolvem `nm_cliente`. Já existe o hook `useBiClientesMap` (lê `bi_cliente` no Cloud, com `nm_cliente` e `nm_fantasia`).
+## Comportamento resultante
 
-Ajustes:
+| Cenário                                                      | Pode editar oficial? | Pode editar pessoal? |
+|--------------------------------------------------------------|----------------------|----------------------|
+| Administrador                                                | Sim                  | Sim                  |
+| Perfil com `can_edit` em `/bi/comercial`                     | **Sim (novo)**       | Sim                  |
+| Perfil só com `can_view` em `/bi/comercial`                  | Não                  | Sim (Minha versão)   |
+| Sem permissões cadastradas (modo preview / hasPermissions=false) | Sim (já era)     | Sim                  |
 
-- **`ParetoBloco`**: usar `useBiClientesMap()`. Em `formatLabel`, quando `dim === 'cliente'`, montar `${cd} - ${primeiroNome(nm_cliente ?? nm_fantasia)}`. Aplicar:
-  - no eixo X do gráfico Pareto (top 20),
-  - na lista "Principais (Poucos Vitais)",
-  - no `buildParetoPayload` para exportação PPTX (mesma função de label).
-- **`TabelaAnaliticaBloco`**: na coluna `Cliente`, exibir `${cd_cliente} — ${primeiroNome}` quando houver match no mapa; fallback para só o código.
-- Helper local `primeiroNome(s)`: pega o primeiro token alfabético do nome (`"FULANO DA SILVA"` → `"Fulano"`), aplica Title Case simples. Se o mapa ainda estiver carregando ou o cliente não existir, mantém o comportamento atual (só código).
-
-### Arquivos alterados
-
-- `src/components/bi/relatorio-executivo/RelatorioBlocos.tsx` — adicionar import de `useBiClientesMap`, helper `primeiroNomeCliente`, condicional no `RankingsBloco`, e usar o nome nos labels do Pareto + Tabela Analítica.
-
-### Fora de escopo
-
-- Não alterar `useRelatorioExecutivoFaturamento`, endpoints, `comercialApi.ts`, nem outros relatórios/dashboards.
-- Não mexer no PPTX além de o `buildParetoPayload` herdar o novo `formatLabel`.
-- Outras dimensões do Pareto (revenda/estado/obra) seguem como estão.
+Assim, o administrador configura quem pode editar cada dashboard via tela de **Permissões por tela**, marcando "Editar" para `/bi/comercial` (ou futuras telas BI) no perfil desejado.

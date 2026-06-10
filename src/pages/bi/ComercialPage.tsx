@@ -233,7 +233,7 @@ export default function ComercialPage() {
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching || qDetalhes.isFetching;
 
-  const { isAdmin } = useUserPermissions();
+  const { isAdmin, canEdit } = useUserPermissions();
   const [syncingClientes, setSyncingClientes] = useState(false);
   const handleSyncClientes = async () => {
     if (syncingClientes) return;
@@ -983,8 +983,9 @@ export default function ComercialPage() {
     setEditing(false);
   };
 
-  // Edição permitida se: modo pessoal (sempre pode) OU modo oficial e admin.
-  const canEditDashboard = layout.isPersonal || isAdmin;
+  // Edição permitida se: modo pessoal (sempre pode) OU admin OU usuário tem can_edit em /bi/comercial.
+  const canEditOfficial = isAdmin || canEdit('/bi/comercial');
+  const canEditDashboard = layout.isPersonal || canEditOfficial;
 
   const handleEnterEdit = () => {
     if (!canEditDashboard) {
@@ -1189,7 +1190,7 @@ export default function ComercialPage() {
                     className="h-8 gap-1"
                     onClick={handleEnterEdit}
                     disabled={!canEditDashboard}
-                    title={canEditDashboard ? 'Editar dashboard' : 'Ative "Minha versão" para editar (apenas administradores editam o oficial)'}
+                    title={canEditDashboard ? 'Editar dashboard' : 'Sem permissão para editar este dashboard. Ative "Minha versão" ou solicite permissão de edição em /bi/comercial.'}
                   >
                     <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
                   </Button>
