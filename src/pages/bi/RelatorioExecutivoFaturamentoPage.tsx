@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Download, FileSpreadsheet, Printer, Sparkles, ChevronLeft, Loader2,
-  Calendar, Filter, FileText, LayoutGrid, Gauge, TrendingUp, BarChart3, Percent, Table as TableIcon, Check,
+  Calendar, Filter, FileText, LayoutGrid, Gauge, TrendingUp, BarChart3, Percent, Table as TableIcon, Check, Target,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
