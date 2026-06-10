@@ -371,7 +371,9 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                 )}
               </div>
             )}
-            {blocks[w.type]}
+            <div className={cn('h-full w-full', editing && 'relative z-0')}>
+              {blocks[w.type]}
+            </div>
           </div>
         );
       })}
