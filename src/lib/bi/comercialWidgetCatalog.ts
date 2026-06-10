@@ -114,3 +114,24 @@ export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
 
 export const KPI_CATALOG = Object.values(COMERCIAL_WIDGETS).filter((w) => w.kind === 'kpi');
 export const NON_KPI_CATALOG = Object.values(COMERCIAL_WIDGETS).filter((w) => w.kind !== 'kpi');
+
+/** Sufixo que marca uma instância duplicada de um bloco do catálogo. */
+const DUP_SEP = '__c-';
+
+/** Retorna o "tipo base" de um widget, removendo qualquer sufixo de instância duplicada. */
+export function baseWidgetType(type: string): string {
+  if (!type) return type;
+  const i = type.indexOf(DUP_SEP);
+  return i >= 0 ? type.slice(0, i) : type;
+}
+
+/** Resolve a definição do catálogo aceitando tipos base OU derivados (duplicatas). */
+export function getWidgetDef(type: string): ComercialWidgetDef | undefined {
+  return COMERCIAL_WIDGETS[baseWidgetType(type)];
+}
+
+/** Gera um novo tipo derivado para uma duplicata do bloco do catálogo. */
+export function makeDuplicateType(baseType: string): string {
+  return `${baseWidgetType(baseType)}${DUP_SEP}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
