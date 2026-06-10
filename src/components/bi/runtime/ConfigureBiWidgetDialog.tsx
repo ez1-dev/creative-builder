@@ -221,12 +221,7 @@ export function ConfigureBiWidgetDialog({
         ...titleStyle,
       });
     } else {
-      const mapping: Record<string, string> = {};
-      inputs.forEach((inp) => {
-        if (inp.source === 'series') mapping[inp.key] = seriesKey || seriesOptions[0]?.key || '';
-        else if (inp.source === 'kpis') mapping[inp.key] = valueKey || kpiOptions[0]?.key || '';
-        else mapping[inp.key] = 'dados';
-      });
+      const mapping = resolveMapping();
       onApply({
         variant: null,
         componentId,
