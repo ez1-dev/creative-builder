@@ -1,37 +1,24 @@
-# Corrigir alinhamento dos rótulos com as fatias da pizza
+## Objetivo
+Deixar todos os gráficos de pizza/rosca exatamente como o exemplo "Por Motivo de Viagem" anexado: rótulos limpos (NOME em cima, R$ valor (%) embaixo), encostados na fatia, **sem linhas-guia** e sem deslocamentos visíveis. Aplicar no componente único — não criar novos gráficos.
 
-## Problema
-Os rótulos das fatias pequenas (TRATOR, CARREGADEIRA, EMPILHADEIRA, PASSEIO no "Por Tipo de Veículo") aparecem todos empilhados no topo do gráfico, longe das suas fatias reais. O motivo: depois da anti-colisão, o texto desliza no eixo Y mas continua sem nenhuma linha-guia ligando-o à fatia — então o usuário não consegue mapear o rótulo no resultado.
+## Mudanças
+Arquivo único: `src/components/bi/charts/PieChartCard.tsx` → `RichLabelsLayer`.
 
-## Solução
-No `RichLabelsLayer` de `src/components/bi/charts/PieChartCard.tsx`:
+1. **Remover leader lines** — apagar o `<polyline>` e toda a lógica de `displaced`/`anchorX`/`anchorY`/`elbowX`/`elbowY`/offset horizontal do texto. O texto fica sempre em `labelX` puro (igual ao exemplo).
 
-1. **Manter a âncora da fatia separada da posição do texto**
-   - `anchorX/anchorY` = ponto na borda externa da fatia (raio = `outerRadius`).
-   - `labelX/labelY` = posição do texto (raio = `outerRadius + 14`), partindo do mesmo ângulo.
-   - Hoje os dois pontos coincidem, perdendo a referência da fatia após a anti-colisão.
+2. **Anti-colisão suave (mantida, porém invisível)** — continua deslocando Y para não sobrepor, mas sem desenhar linha. Para reduzir deslocamentos perceptíveis em fatias muito pequenas:
+   - Aumentar `labelR` para `outerRadius + 18` (mais respiro).
+   - `minGap = blockH + 2` (gap mínimo justo).
+   - Reduzir `outerRadius` para `82` quando `rich` (sobra mais espaço lateral para os rótulos).
 
-2. **Desenhar leader line curta apenas quando o rótulo foi deslocado**
-   - Após `resolveCollisions`, comparar `it.y` com `it.targetY` original.
-   - Se `|it.y - it.targetY| > 2px`: desenhar `<polyline>` com 3 pontos:
-     - ponto 1: borda da fatia (`anchorX`, `anchorY`)
-     - ponto 2: cotovelo no raio do label (`labelX`, `targetY`)
-     - ponto 3: início do texto (`labelX ± 4`, `y`)
-   - Cor: `currentColor` da fatia com opacidade 0.5, `strokeWidth=1`, sem fill.
-   - Se não foi deslocado, nada é desenhado (visual igual ao exemplo limpo).
+3. **textAnchor** continua `start` (direita) / `end` (esquerda), baseado em `labelX >= cx`.
 
-3. **Pequeno offset horizontal do texto quando há linha**
-   - Right side: `textX = labelX + 6`
-   - Left side: `textX = labelX - 6`
-   - Só quando a linha é desenhada; quando não há linha, mantém `textX = labelX` (visual atual).
+4. **Nada muda** em: paleta, `formatRichLabel` (NOME negrito + valor/% muted), fonte, donut, tooltip, legend, modo simples (`rich=false`), `PieChart` margins.
 
-4. **Anti-colisão inalterada** — `minGap = blockH + 4`, somente Y, lados separados.
-
-5. **Nada muda** em: paleta, formatação `formatRichLabel`, fonte, donut, margens do `PieChart`, modo simples (`rich = false`).
+## Resultado esperado
+- Visual idêntico ao print enviado em qualquer pizza/rosca BI.
+- Fatias pequenas vizinhas continuam separadas verticalmente pela anti-colisão, mas sem linhas — exatamente como o exemplo "FÉRIAS / VIAGEM ADMINISTRA... / DEMISSÃO" do print.
+- Nenhum gráfico novo é criado; apenas o componente compartilhado é ajustado.
 
 ## Arquivos
 - `src/components/bi/charts/PieChartCard.tsx` (único)
-
-## Resultado esperado
-- Fatias grandes: rótulo encosta na fatia, sem linha (igual exemplo "Por Motivo de Viagem").
-- Fatias pequenas vizinhas: rótulos se separam verticalmente e cada um ganha uma linha-guia curta apontando para a sua fatia, eliminando a ambiguidade da imagem atual.

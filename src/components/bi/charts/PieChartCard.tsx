@@ -17,17 +17,13 @@ export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' 
 
 interface RichItem {
   side: 'left' | 'right';
-  anchorX: number;
-  anchorY: number;
-  elbowX: number;
-  elbowY: number;
-  targetY: number;
   y: number;
   labelX: number;
   line1: string;
   line2: string;
   color: string;
 }
+
 
 function resolveCollisions(items: RichItem[], minGap: number, top: number, bottom: number) {
   // Empurra para baixo
@@ -62,8 +58,8 @@ export function PieChartCard({
   const rich = vc.dataLabels.visible && !!vc.dataLabels.richLabel;
   const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
   const fs = vc.dataLabels.fontSize;
-  const outerRadius = rich ? 88 : 90;
-  const innerRadius = donut ? (rich ? 54 : 55) : 0;
+  const outerRadius = rich ? 82 : 90;
+  const innerRadius = donut ? (rich ? 50 : 55) : 0;
 
   const RichLabelsLayer = (props: any) => {
     if (!rich || !data?.length) return null;
@@ -75,8 +71,8 @@ export function PieChartCard({
     const layerFs = data.length > 6 ? Math.max(9, fs - 1) : fs;
     const lineH = layerFs * 1.2;
     const blockH = lineH * 2;
-    const minGap = blockH + 4;
-    const labelR = outerRadius + 14;
+    const minGap = blockH + 2;
+    const labelR = outerRadius + 18;
 
     let startAngle = 90;
     const left: RichItem[] = [];
@@ -90,14 +86,11 @@ export function PieChartCard({
       const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
       const cosA = Math.cos(-mid * RADIAN);
       const sinA = Math.sin(-mid * RADIAN);
-      const ax = cx + outerRadius * cosA;
-      const ay = cy + outerRadius * sinA;
       const lx = cx + labelR * cosA;
       const ly = cy + labelR * sinA;
       const side: 'left' | 'right' = lx >= cx ? 'right' : 'left';
       const item: RichItem = {
-        side, anchorX: ax, anchorY: ay, elbowX: lx, elbowY: ly,
-        targetY: ly, y: ly, labelX: lx,
+        side, y: ly, labelX: lx,
         line1, line2,
         color: BI_PALETTE[i % BI_PALETTE.length],
       };
@@ -110,20 +103,10 @@ export function PieChartCard({
     resolveCollisions(left, minGap, top, bot);
 
     const renderItem = (it: RichItem, k: number) => {
-      const displaced = Math.abs(it.y - it.targetY) > 2;
       const anchor = it.side === 'right' ? 'start' : 'end';
-      const textX = displaced ? (it.side === 'right' ? it.labelX + 6 : it.labelX - 6) : it.labelX;
+      const textX = it.labelX;
       return (
         <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
-          {displaced && (
-            <polyline
-              points={`${it.anchorX},${it.anchorY} ${it.labelX},${it.y} ${textX},${it.y}`}
-              fill="none"
-              stroke={it.color}
-              strokeOpacity={0.5}
-              strokeWidth={1}
-            />
-          )}
           <text
             x={textX}
             y={it.y}
@@ -137,6 +120,7 @@ export function PieChartCard({
           </text>
         </g>
       );
+
     };
 
     return <g>{right.map(renderItem)}{left.map(renderItem)}</g>;
