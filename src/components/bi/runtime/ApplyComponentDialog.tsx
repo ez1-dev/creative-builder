@@ -238,8 +238,9 @@ export function ApplyComponentDialog({
     if (metaTipo === 'kpi' && metaKpi) o.meta = { tipo: 'kpi', kpiKey: metaKpi } as WidgetMeta;
     if (topN > 0) o.topN = topN;
     if (sort !== '__none__') o.sort = sort;
+    if (supportsHeatPalette && !stopsEqual(colorStops, HEAT_COLOR_STOPS)) o.colorStops = colorStops;
     return o;
-  }, [unidadeNegocio, color, variant, icon, valueFormat, density, height, hideTitle, subtitle, footerNote, periodoTipo, periodoN, periodoIni, periodoFim, comparacao, metaTipo, metaValor, metaKpi, topN, sort]);
+  }, [unidadeNegocio, color, variant, icon, valueFormat, density, height, hideTitle, subtitle, footerNote, periodoTipo, periodoN, periodoIni, periodoFim, comparacao, metaTipo, metaValor, metaKpi, topN, sort, supportsHeatPalette, colorStops]);
 
   // ----- Preview -----
   const previewCtx = useMemo(() => (page ? buildPreviewCtx(page, liveCtx) : null), [page, liveCtx]);
