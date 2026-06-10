@@ -181,6 +181,7 @@ export function ApplyComponentDialog({
     setPeriodoTipo('__page__'); setPeriodoN(3); setPeriodoIni(''); setPeriodoFim('');
     setComparacao('nenhuma'); setMetaTipo('__none__'); setMetaValor(0); setMetaKpi('');
     setTopN(0); setSort('__none__');
+    setColorStops(HEAT_COLOR_STOPS);
     const liveUn = liveCtx?.filtros?.unidade_negocio as UnidadeNegocio | undefined;
     if (initial?.supportsUnidadeNegocio && liveUn && UNIDADES.some((u) => u.value === liveUn)) {
       setUnidadeNegocio(liveUn);
