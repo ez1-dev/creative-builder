@@ -72,6 +72,7 @@ export function BrazilHeatMapWidget({
       height={height}
       data={data}
       colorStops={colorStops}
+      onColorStopsChange={setColorStops}
       legendExtras={<HeatPaletteEditor value={colorStops} onChange={setColorStops} />}
       loading={query.isLoading}
       error={query.isError ? (query.error as Error)?.message ?? 'Erro ao carregar' : null}
