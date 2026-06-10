@@ -1,101 +1,84 @@
 
-# Plano — ATU_CONTABILIDADE na Central de Integrações / ETL
+# Plano — Pizza/Rosca: modo compacto automático e rótulo externo só com folga
 
-Adicionar painel administrativo "BI - Contabilidade / ATU_CONTABILIDADE" na tela `/etl`, no mesmo padrão visual do `TauxPanel` existente (já consumido por `EtlAdminPage`). Sem alterar dashboards comerciais nem o backend.
+Alvo único: `src/components/bi/charts/PieChartCard.tsx`. `DonutChartCard` herda; preview no `ConfigureChartDialog` herda; nada do backend/API/Cloud muda.
 
-## Arquivos novos
+## Decisão automática de modo
 
-### 1. `src/lib/bi/contabilidadeApi.ts`
-Cliente tipado dos 4 endpoints. Usa o `api` de `@/lib/api` (já anexa `Authorization: Bearer <token>` e trata 401 como logout/redirect — mesmo helper usado por `tauxApi.ts`).
+Medir largura real do container via `ResponsiveContainer`/`Customized` (já temos `props.width/height` no layer). A decisão é feita pelo SVG renderer com base no tamanho real e em `data.length`:
 
 ```ts
-export const ATU_CONTABILIDADE_ACOES = [
-  { ordem: 1,  nome: 'VM_ORC_DRE',                tabela: 'bi_vm_orc_dre' },
-  { ordem: 2,  nome: 'VM_LANC_CONTABIL',          tabela: 'bi_vm_lanc_contabil' },
-  { ordem: 3,  nome: 'ETL_V_BALANCO_PATRIMONIAL', tabela: 'bi_balanco_patrimonial' },
-  { ordem: 99, nome: 'ATU_CONTABILIDADE',         tabela: '—' },
-] as const;
+const COMPACT_WIDTH = 760;
+const COMPACT_HEIGHT = 360;
+const MAX_EXTERNAL_PIE_LABELS = 6;
+const MIN_EXTERNAL_LABEL_PERCENT = 4;     // antes era 3
+const MIN_INSIDE_LABEL_PERCENT = 6;       // fatias ≥ 6% recebem % dentro
+const MAX_DATA_FOR_EXTERNAL = 8;          // mais que isso → sempre compacto
 
-export interface ContabStatusItem {
-  ordem: number;
-  nome_acao: string;
-  tabela_supabase: string | null;
-  total_registros: number | null;
-  status: string;
-  ultima_execucao: string | null;
-  erro?: string | null;
-}
-export interface ContabLogItem { ordem; nome_acao; tabela_supabase; anomes_ini; anomes_fim; status; qtd_linhas; erro; acionado_por; iniciado_em; finalizado_em; }
-
-getContabilidadeStatus(anomes_ini, anomes_fim)        // GET /api/bi/contabilidade/status
-syncContabilidade(anomes_ini, anomes_fim, acoes?)     // POST /api/bi/contabilidade/sync
-getContabilidadeLog(limit=100)                        // GET /api/bi/contabilidade/log
-getContabilidadeData(nomeBase, anomes_ini, anomes_fim, limit, offset) // GET /api/bi/contabilidade/{base}
+const isCompactPie = cw < COMPACT_WIDTH || ch < COMPACT_HEIGHT || data.length > MAX_DATA_FOR_EXTERNAL;
+const allowExternal = rich && !isCompactPie && data.length <= MAX_DATA_FOR_EXTERNAL;
 ```
 
-Os nomes de tabela exibidos são apenas rótulos visuais — não usamos a tabela do Cloud diretamente.
+A escolha entre "compact" e "external" passa a ser feita dentro do componente `Customized` (que recebe o `width/height` reais). Quando compacto, não desenhamos a leader-line layer; quando externo permitido, desenhamos o `RichLabelsLayer` atual (com limite ainda de 6 e ≥4%).
 
-### 2. `src/components/etl/contabilidade/AtuContabilidadePanel.tsx`
-Painel principal (Card) com:
-- **Filtros no topo**: dois `Input` para `ANOMES_INI` / `ANOMES_FIM` (placeholder `202606`, validação `^\d{6}$`), botão "Atualizar status" e botão "Executar rotina completa".
-- Valor inicial: mês atual em `YYYYMM`.
-- **4 KPI cards** (mesmo padrão `KpiCard` do `EtlAdminPage`):
-  - Total VM_ORC_DRE
-  - Total VM_LANC_CONTABIL
-  - Total ETL_V_BALANCO_PATRIMONIAL
-  - Status geral (derivado: ERRO se algum status=ERRO; EXECUTANDO se algum INICIADO/EXECUTANDO; CONCLUIDO se todos OK; senão —)
-  - Quinto card pequeno: Última execução (max `ultima_execucao`).
-- **Tabela de ações** (`DataTable`) ordenada por `ordem` com colunas: Ordem · Ação · Tabela Supabase · Total · Status (badge colorido) · Ações.
-  - "Executar esta ação" (Play) → `syncContabilidade(ini, fim, [nome])`. Para a linha 99 (`ATU_CONTABILIDADE`) o botão chama `sync` sem `acoes`.
-  - "Visualizar dados" (Eye): só ativo para linhas 1/2/3, abre `ContabilidadeViewerDialog`.
-- **Botão "Ver log"** abre `ContabilidadeLogDialog`.
+Como a decisão depende da largura real, removemos as props `outerRadius/cy/margin` "estáticas" derivadas de `rich` e usamos valores **seguros para o pior caso** (modo compacto) por padrão, deixando o layer externo apenas pintar quando houver folga. O layer compacto roda dentro do mesmo `Customized` e desenha labels DENTRO das fatias (≥ 6%) ou nada.
 
-Comportamento:
-- `useQuery(['contab-status', ini, fim], …)` com `refetchInterval` ativo (5s) enquanto houver `INICIADO/EXECUTANDO`, igual ao `TauxPanel`.
-- Mutations exibem `toast` de sucesso/erro e invalidam a query de status.
-- Botões executando mostram `Loader2` spinning + ficam desabilitados (`syncingSet`).
+## Mudanças no `PieChartCard`
 
-### 3. `src/components/etl/contabilidade/ContabilidadeViewerDialog.tsx`
-Drawer/Dialog amplo com tabela dinâmica:
-- Aceita `nomeBase`, `anomesIni`, `anomesFim`.
-- Carrega `getContabilidadeData` com paginação simples (limit 100, botões Anterior/Próximo offset).
-- Renderiza colunas dinamicamente a partir das chaves do primeiro registro (ou `columns` do response, se vier).
-- Loading skeleton + estado vazio.
+1. **Constantes** no topo (substituem as atuais):
+   ```ts
+   export const COMPACT_PIE_WIDTH = 760;
+   export const COMPACT_PIE_HEIGHT = 360;
+   export const MAX_EXTERNAL_PIE_LABELS = 6;
+   export const MIN_EXTERNAL_LABEL_PERCENT = 4;
+   export const MIN_INSIDE_LABEL_PERCENT = 6;
+   export const MAX_DATA_FOR_EXTERNAL = 8;
+   export const MAX_LABEL_CHARS = 18;
+   ```
 
-### 4. `src/components/etl/contabilidade/ContabilidadeLogDialog.tsx`
-Dialog com `DataTable` consumindo `getContabilidadeLog(100)`. Colunas: ordem, nome_acao, tabela_supabase, anomes_ini, anomes_fim, status (badge), qtd_linhas, erro (truncado + tooltip), acionado_por, iniciado_em, finalizado_em. Botão "Atualizar".
+2. **Layout estático sempre seguro** (não tenta abrir margem para externo "preventivamente"):
+   ```ts
+   const outerRadius = rich ? '58%' : 90;
+   const innerRadius = donut ? (rich ? '35%' : 55) : 0;
+   const cy = '45%';
+   const margin = { top: 10, right: 20, bottom: 70, left: 20 };
+   ```
+   Quando o layer detectar `allowExternal`, ele desenha texto/leader fora do raio mas **dentro** dos 20px de margem horizontal — não há reflow.
 
-## Arquivo alterado
+3. **Novo `PieLabelsLayer`** (substitui `RichLabelsLayer`), invocado sempre que `vc.dataLabels.visible`. Decide modo internamente:
+   - `compact`: para cada fatia com `pct ≥ MIN_INSIDE_LABEL_PERCENT`, desenha `${pct}%` (uma linha) no centroide da fatia, cor branca/foreground com contraste sutil (`fill="hsl(var(--primary-foreground))"` quando dentro de fatia colorida; usar `fill="#fff"` simples já legível na paleta atual). Truncamento desnecessário pois é só %.
+   - `external` (somente se `rich && !isCompactPie && data.length ≤ 8`): comportamento atual do `RichLabelsLayer`, com `MIN_EXTERNAL_LABEL_PERCENT=4` e `MAX_EXTERNAL_PIE_LABELS=6`. Mantém leader lines, anti-colisão, truncamento `MAX_LABEL_CHARS`.
+   - Quando `rich && isCompactPie`: usa o modo compacto (só % dentro). O `richLabel` continua respeitado, mas o layout adaptativo decide a forma.
+   - Quando `!rich` e `vc.dataLabels.visible`: usa o `LabelList` atual (modo simples). Sem mudança.
 
-### `src/pages/EtlAdminPage.tsx`
-Inserir `<AtuContabilidadePanel />` logo abaixo de `<TauxPanel />`. Nenhuma outra mudança.
+4. **Remover** o `LabelList` de modo simples atual (mantém) e o uso atual de `RichLabelsLayer` (substituído pelo unificado). `outsideOnly` fica controlado pelo layer.
 
-## Estados visuais (mapeamento de cores)
+5. **Tooltip**: manter o `tooltipFormatter` atual (já mostra `valor (%) — nome completo`).
 
-Reaproveitar exatamente o `STATUS_COLOR` já usado em `TauxPanel`:
-- `CONCLUIDO`/`OK` → verde
-- `INICIADO`/`EXECUTANDO`/`EM_EXECUCAO` → azul/amarelo
-- `ERRO` → vermelho
-- `SEM_DADOS`/vazio → cinza (`bg-muted text-muted-foreground`)
+6. **Legenda**: sempre `verticalAlign: 'bottom'`, `align: 'center'`, `layout: 'horizontal'`, `wrapperStyle: { fontSize: 12, lineHeight: '16px', paddingTop: 8, maxHeight: 56, overflowY: 'auto', width: '100%' }`, `formatter` truncando para 22 chars. Não respeita mais `vc.legend.position` para Pizza/Rosca (regra do briefing: "legenda abaixo, sem invadir"). Mantém `vc.legend.visible`.
 
-Adicionar `SEM_DADOS` no mapeamento local com tom cinza.
+## Texto informativo na aba "Rótulos"
 
-## Segurança / Auth
+`src/components/bi/visual/VisualConfigEditor.tsx`: abaixo do toggle "Rótulos enriquecidos", adicionar uma única linha:
 
-`@/lib/api` já injeta `Authorization: Bearer <token>` e, em 401, dispara `logout()` + redirect para `/login` via interceptor existente. Não precisa código extra.
+```
+<p className="text-[11px] text-muted-foreground">
+  Em cards pequenos, rótulos externos são simplificados automaticamente para evitar sobreposição.
+</p>
+```
 
-## Fora do escopo
+Sem novos toggles.
 
-- Backend (`/api/bi/contabilidade/*` já existe — só consumimos).
-- Tabelas Cloud (`bi_*` contábeis): nomes aparecem só como texto.
-- Dashboards comerciais permanecem intactos.
-- Nenhuma alteração em `TauxPanel`, `tauxApi`, rotas ou sidebar (a tela `/etl` já está montada).
+## Escopo
+
+- Editar: `src/components/bi/charts/PieChartCard.tsx`, `src/components/bi/visual/VisualConfigEditor.tsx`.
+- Não tocar: `DonutChartCard`, `BarChartCard`, `LineChartCard`, `AreaChartCard`, `TreemapCard`, `MapCard`, KPIs, `visualConfig.ts`, backend, Cloud.
 
 ## Verificação
 
-1. Acessar `/etl`, ver painel "BI - Contabilidade" abaixo do TAUX.
-2. Preencher 202606/202606 → "Atualizar status" popula KPIs e tabela.
-3. "Executar esta ação" em `VM_ORC_DRE` → status muda para EXECUTANDO, refetch automático, finaliza CONCLUIDO.
-4. "Visualizar dados" abre dialog com linhas paginadas.
-5. "Ver log" abre dialog com últimas 100 execuções.
-6. Tirar o token (deslogar em outra aba) e tentar executar → API responde 401 → redirect para `/login`.
+1. `/manutencao-frota` (card "Por Segmento", "Por Tipo de Veículo") — labels não saem do card, apenas % dentro das fatias ≥ 6%, legenda abaixo.
+2. `/passagens-aereas` — mesmo comportamento.
+3. Abrir modal "Configurar gráfico" e ver que o preview (pequeno) também usa modo compacto.
+4. Caso exista visualização ampliada (≥ 760px de largura e ≤ 8 categorias e `richLabel` ligado), labels externos aparecem com leader line, máximo 6, ≥ 4%, sem corte.
+5. Tooltip continua mostrando nome completo + valor + %.
+6. Bar/Line/Area/Treemap intactos.
