@@ -119,8 +119,8 @@ export function BrazilHeatMap({
 
         {/* Mapa centralizado */}
         <div
-          className="relative flex-1 flex items-center justify-center"
-          style={{ maxWidth: 760 }}
+          className="relative flex-1 flex items-center justify-center h-full"
+          style={{ maxWidth: 720 }}
         >
           {/* Controles de zoom */}
           {geoQuery.data && (
@@ -155,10 +155,10 @@ export function BrazilHeatMap({
           {geoQuery.data && (
             <ComposableMap
               projection="geoMercator"
-              projectionConfig={{ scale: 760, center: DEFAULT_CENTER }}
-              width={680}
-              height={520}
-              style={{ width: '100%', maxWidth: '760px', height: 'auto' }}
+              projectionConfig={{ scale: 620, center: DEFAULT_CENTER }}
+              width={620}
+              height={620}
+              style={{ width: '100%', height: '100%', maxWidth: '720px', maxHeight: '100%' }}
             >
               <ZoomableGroup
                 zoom={position.zoom}
