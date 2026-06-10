@@ -217,14 +217,19 @@ export function TauxPanel() {
         <CardTitle className="text-sm flex items-center gap-2">
           <Database className="h-4 w-4" /> TAUX / Dimensões
         </CardTitle>
-        <Button size="sm" onClick={() => syncMutation.mutate(undefined)} disabled={syncingAll}>
-          {syncingAll ? (
-            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5 mr-1" />
-          )}
-          Sincronizar todas as TAUX
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setLogOpen(true)}>
+            <FileText className="h-3.5 w-3.5 mr-1" /> Ver log
+          </Button>
+          <Button size="sm" onClick={() => syncMutation.mutate(undefined)} disabled={syncingAll}>
+            {syncingAll ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            )}
+            Sincronizar todas as TAUX
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
