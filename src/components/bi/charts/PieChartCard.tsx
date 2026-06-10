@@ -4,7 +4,7 @@ import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { BI_PALETTE } from '../utils/chartHelpers';
 import { BarChartDatum } from './BarChartCard';
-import { mergeVisualConfig, formatDataLabel, formatRichLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, formatRichLabel, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' | 'isEmpty'> {
   data: BarChartDatum[];
@@ -15,31 +15,20 @@ export interface PieChartCardProps extends Omit<ChartCardShellProps, 'children' 
   onItemClick?: (d: BarChartDatum) => void;
 }
 
-// Limites internos para legibilidade dos rótulos externos em Pizza/Rosca.
-// Exportados para futura exposição no VisualConfigEditor.
-export const MIN_PIE_LABEL_PERCENT = 3;   // fatias < 3% não recebem rótulo externo
-export const MAX_VISIBLE_PIE_LABELS = 6;  // no máximo 6 rótulos externos
-export const MAX_LABEL_CHARS = 18;        // truncamento de nome longo
+// Pizza/Rosca: adaptive labels.
+// - Compacto (card pequeno ou muitas categorias): % dentro das fatias grandes.
+// - Externo (apenas com folga real e rótulos enriquecidos): leader-lines, top 6, ≥4%.
+export const COMPACT_PIE_WIDTH = 760;
+export const COMPACT_PIE_HEIGHT = 360;
+export const MAX_EXTERNAL_PIE_LABELS = 6;
+export const MIN_EXTERNAL_LABEL_PERCENT = 4;
+export const MIN_INSIDE_LABEL_PERCENT = 6;
+export const MAX_DATA_FOR_EXTERNAL = 8;
+export const MAX_LABEL_CHARS = 18;
 
 function truncateLabel(v: string, max = MAX_LABEL_CHARS) {
   if (!v) return '';
   return v.length > max ? `${v.slice(0, max - 1)}…` : v;
-}
-
-/**
- * Seleciona quais fatias podem mostrar rótulo externo:
- *  - exclui fatias abaixo de MIN_PIE_LABEL_PERCENT;
- *  - limita a MAX_VISIBLE_PIE_LABELS, priorizando as maiores.
- * Estrutura pronta para evoluir para "Agrupar em Outros".
- */
-function pickLabeledSlices(data: BarChartDatum[], total: number): Set<number> {
-  if (!data?.length || total <= 0) return new Set();
-  const eligible = data
-    .map((d, i) => ({ i, v: Number(d?.valor || 0) }))
-    .filter(({ v }) => (v / total) * 100 >= MIN_PIE_LABEL_PERCENT)
-    .sort((a, b) => b.v - a.v)
-    .slice(0, MAX_VISIBLE_PIE_LABELS);
-  return new Set(eligible.map((e) => e.i));
 }
 
 interface RichItem {
@@ -84,95 +73,139 @@ export function PieChartCard({
   const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
   const fs = vc.dataLabels.fontSize;
 
-  const labeledIdx = useMemo(
-    () => (rich ? pickLabeledSlices(data ?? [], total) : new Set<number>()),
-    [rich, data, total],
-  );
-  const hasExternal = rich && labeledIdx.size > 0;
+  // Layout estático (sempre seguro para modo compacto). Layer externo respeita os 20px de margem.
+  const outerRadius: number | string = rich ? '58%' : 90;
+  const innerRadius: number | string = donut ? (rich ? '35%' : 55) : 0;
+  const cy = '45%';
 
-  // Raios — % quando há rótulos externos para liberar margem; px no modo simples.
-  const outerRadius: number | string = hasExternal ? '58%' : (rich ? 82 : 90);
-  const innerRadius: number | string = donut ? (hasExternal ? '38%' : (rich ? 50 : 55)) : 0;
-  const cy = hasExternal ? '46%' : '50%';
-
-  const RichLabelsLayer = (props: any) => {
-    if (!hasExternal) return null;
+  const PieLabelsLayer = (props: any) => {
     const { width: cw, height: ch } = props;
-    if (!cw || !ch) return null;
-    const cx = cw / 2;
-    const cyPx = ch * (hasExternal ? 0.46 : 0.5);
-    const RADIAN = Math.PI / 180;
-    const lineH = fs * 1.2;
-    const blockH = lineH * 2;
-    const minGap = blockH + 4;
-    // raio aproximado em px (58% da menor dimensão da área plotada)
-    const rPx = Math.min(cw, ch) * 0.29;
-    const anchorR = rPx + 4;
-    const labelR = rPx + 18;
+    if (!cw || !ch || !total || !data?.length) return null;
 
+    const isCompact = cw < COMPACT_PIE_WIDTH || ch < COMPACT_PIE_HEIGHT || data.length > MAX_DATA_FOR_EXTERNAL;
+    const allowExternal = rich && !isCompact && data.length <= MAX_DATA_FOR_EXTERNAL;
+
+    const cx = cw / 2;
+    // cy = 45% precisa bater com o Pie cy="45%"
+    const cyPx = ch * 0.45;
+    const RADIAN = Math.PI / 180;
+    const rPx = Math.min(cw, ch) * 0.29;
+
+    // Geometria das fatias.
     let startAngle = 90;
-    const left: RichItem[] = [];
-    const right: RichItem[] = [];
-    (data ?? []).forEach((d, i) => {
+    const slices = (data ?? []).map((d, i) => {
       const v = Number(d?.valor || 0);
       const pct = total > 0 ? v / total : 0;
       const sweep = pct * 360;
       const mid = startAngle - sweep / 2;
       startAngle -= sweep;
-      if (!labeledIdx.has(i)) return;
-      const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
-      const cosA = Math.cos(-mid * RADIAN);
-      const sinA = Math.sin(-mid * RADIAN);
-      const ax = cx + anchorR * cosA;
-      const ay = cyPx + anchorR * sinA;
-      const lx = cx + labelR * cosA;
-      const ly = cyPx + labelR * sinA;
-      const side: 'left' | 'right' = lx >= cx ? 'right' : 'left';
-      const labelX = side === 'right' ? cx + cw * 0.42 : cx - cw * 0.42;
-      right; left; // noop
-      const item: RichItem = {
-        side, y: ly, labelX,
-        anchorX: ax, anchorY: ay,
-        line1: truncateLabel(line1), line2,
-        color: BI_PALETTE[i % BI_PALETTE.length],
-      };
-      (side === 'right' ? right : left).push(item);
+      return { i, d, v, pct, mid };
     });
 
-    const top = blockH / 2 + 2;
-    const bot = ch - blockH / 2 - 2;
-    resolveCollisions(right, minGap, top, bot);
-    resolveCollisions(left, minGap, top, bot);
-
-    const renderItem = (it: RichItem, k: number) => {
-      const anchor = it.side === 'right' ? 'start' : 'end';
-      const elbowX = it.side === 'right' ? it.labelX - 8 : it.labelX + 8;
-      const textX = it.labelX;
-      return (
-        <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
-          <polyline
-            points={`${it.anchorX},${it.anchorY} ${elbowX},${it.y} ${textX},${it.y}`}
-            fill="none"
-            stroke={it.color}
-            strokeOpacity={0.5}
-            strokeWidth={1}
-          />
-          <text
-            x={textX}
-            y={it.y}
-            textAnchor={anchor}
-            fontSize={fs}
-            fill="hsl(var(--foreground))"
-            style={{ fontFamily }}
-          >
-            {it.line1 && <tspan x={textX} dy="-0.25em" fill="hsl(var(--foreground))" style={{ fontWeight: 600 }}>{it.line1}</tspan>}
-            {it.line2 && <tspan x={textX} dy={it.line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{it.line2}</tspan>}
-          </text>
-        </g>
+    if (allowExternal) {
+      // Seleciona top N por valor com pct >= MIN_EXTERNAL_LABEL_PERCENT
+      const eligibleSet = new Set(
+        [...slices]
+          .filter((s) => s.pct * 100 >= MIN_EXTERNAL_LABEL_PERCENT)
+          .sort((a, b) => b.v - a.v)
+          .slice(0, MAX_EXTERNAL_PIE_LABELS)
+          .map((s) => s.i),
       );
-    };
 
-    return <g>{right.map(renderItem)}{left.map(renderItem)}</g>;
+      const lineH = fs * 1.2;
+      const blockH = lineH * 2;
+      const minGap = blockH + 4;
+      const anchorR = rPx + 4;
+      const labelR = rPx + 18;
+
+      const left: RichItem[] = [];
+      const right: RichItem[] = [];
+      slices.forEach(({ i, d, v, mid }) => {
+        if (!eligibleSet.has(i)) return;
+        const { line1, line2 } = formatRichLabel({ name: d?.label, value: v, total, cfg: vc.dataLabels });
+        const cosA = Math.cos(-mid * RADIAN);
+        const sinA = Math.sin(-mid * RADIAN);
+        const ax = cx + anchorR * cosA;
+        const ay = cyPx + anchorR * sinA;
+        const lx = cx + labelR * cosA;
+        const ly = cyPx + labelR * sinA;
+        const side: 'left' | 'right' = lx >= cx ? 'right' : 'left';
+        const labelX = side === 'right' ? cx + cw * 0.42 : cx - cw * 0.42;
+        (side === 'right' ? right : left).push({
+          side, y: ly, labelX,
+          anchorX: ax, anchorY: ay,
+          line1: truncateLabel(line1), line2,
+          color: BI_PALETTE[i % BI_PALETTE.length],
+        });
+      });
+
+      const top = blockH / 2 + 2;
+      const bot = ch - blockH / 2 - 2;
+      resolveCollisions(right, minGap, top, bot);
+      resolveCollisions(left, minGap, top, bot);
+
+      const renderItem = (it: RichItem, k: number) => {
+        const anchor = it.side === 'right' ? 'start' : 'end';
+        const elbowX = it.side === 'right' ? it.labelX - 8 : it.labelX + 8;
+        return (
+          <g key={`${it.side}-${k}`} style={{ pointerEvents: 'none' }}>
+            <polyline
+              points={`${it.anchorX},${it.anchorY} ${elbowX},${it.y} ${it.labelX},${it.y}`}
+              fill="none"
+              stroke={it.color}
+              strokeOpacity={0.5}
+              strokeWidth={1}
+            />
+            <text
+              x={it.labelX}
+              y={it.y}
+              textAnchor={anchor}
+              fontSize={fs}
+              fill="hsl(var(--foreground))"
+              style={{ fontFamily }}
+            >
+              {it.line1 && <tspan x={it.labelX} dy="-0.25em" fill="hsl(var(--foreground))" style={{ fontWeight: 600 }}>{it.line1}</tspan>}
+              {it.line2 && <tspan x={it.labelX} dy={it.line1 ? '1.15em' : '0'} fill="hsl(var(--muted-foreground))">{it.line2}</tspan>}
+            </text>
+          </g>
+        );
+      };
+
+      return <g>{right.map(renderItem)}{left.map(renderItem)}</g>;
+    }
+
+    // Modo compacto: só % dentro das fatias grandes.
+    if (!vc.dataLabels.visible) return null;
+    const insideR = donut
+      ? (Number(String(outerRadius).replace('%','')) / 100 + Number(String(innerRadius).replace('%','')) / 100) / 2 * Math.min(cw, ch) * 0.95
+      : rPx * 0.62;
+
+    return (
+      <g style={{ pointerEvents: 'none' }}>
+        {slices.map(({ i, pct, mid }) => {
+          if (pct * 100 < MIN_INSIDE_LABEL_PERCENT) return null;
+          const cosA = Math.cos(-mid * RADIAN);
+          const sinA = Math.sin(-mid * RADIAN);
+          const x = cx + insideR * cosA;
+          const y = cyPx + insideR * sinA;
+          const pctStr = (pct * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+          return (
+            <text
+              key={i}
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={fs}
+              fill="#fff"
+              style={{ fontFamily, fontWeight: 600, paintOrder: 'stroke', stroke: 'rgba(0,0,0,0.35)', strokeWidth: 2 }}
+            >
+              {pctStr}%
+            </text>
+          );
+        })}
+      </g>
+    );
   };
 
   // Tooltip enriquecido: nome + valor + %.
@@ -186,11 +219,14 @@ export function PieChartCard({
 
   const legendFormatter = (value: any) => truncateLabel(String(value ?? ''), 22);
 
+  // Quando rich e visível, suprimimos o LabelList simples (o layer cuida).
+  const useSimpleLabelList = vc.dataLabels.visible && !rich;
+
   return (
     <ChartCardShell {...shell} height={height} isEmpty={!data?.length} visualConfig={visualConfig}>
       <div className="relative">
         <ResponsiveContainer width="100%" height={height}>
-          <PieChart margin={hasExternal ? { top: 8, right: 32, bottom: 28, left: 32 } : (rich ? { top: 8, right: 24, bottom: 8, left: 24 } : undefined)}>
+          <PieChart margin={{ top: 10, right: 20, bottom: 70, left: 20 }}>
             <Pie data={data} dataKey="valor" nameKey="label" cx="50%" cy={cy}
               innerRadius={innerRadius} outerRadius={outerRadius} paddingAngle={donut ? 2 : 0}
               cursor={onItemClick ? 'pointer' : undefined}
@@ -199,28 +235,31 @@ export function PieChartCard({
               isAnimationActive={false}
             >
               {data.map((_, i) => <Cell key={i} fill={BI_PALETTE[i % BI_PALETTE.length]} />)}
-              {vc.dataLabels.visible && !rich && (
+              {useSimpleLabelList && (
                 <LabelList dataKey="valor" position={vc.dataLabels.position === 'inside' ? 'inside' : 'outside'}
                   style={{ fontSize: vc.dataLabels.fontSize, fontFamily, fill: 'hsl(var(--foreground))' }}
                   formatter={fmtLabel as any} />
               )}
             </Pie>
-            {hasExternal && <Customized component={RichLabelsLayer as any} />}
+            {vc.dataLabels.visible && <Customized component={PieLabelsLayer as any} />}
             {vc.tooltip.visible && (
               <Tooltip formatter={tooltipFormatter as any}
                 contentStyle={{ background: 'hsl(var(--popover))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 12 }} />
             )}
             {vc.legend.visible && (
               <Legend
-                {...(hasExternal
-                  ? { verticalAlign: 'bottom' as const, align: 'center' as const, layout: 'horizontal' as const }
-                  : legendPositionProps(vc.legend.position))}
+                verticalAlign="bottom"
+                align="center"
+                layout="horizontal"
                 formatter={legendFormatter}
                 wrapperStyle={{
-                  fontSize: hasExternal ? 12 : vc.legend.fontSize,
+                  fontSize: 12,
                   lineHeight: '16px',
                   fontFamily: fontFamilyCss(vc.legend.fontFamily),
-                  ...(hasExternal ? { paddingTop: 8, maxHeight: 40, overflow: 'hidden' } : {}),
+                  paddingTop: 8,
+                  maxHeight: 56,
+                  overflowY: 'auto',
+                  width: '100%',
                 }}
               />
             )}

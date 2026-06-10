@@ -183,6 +183,9 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
               <p className="text-[11px] text-muted-foreground leading-snug">
                 Mesmo estilo do gráfico "Por Motivo de Viagem". Funciona melhor em Pizza/Rosca, Barras, Treemap e Linha/Área.
               </p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Em cards pequenos, rótulos externos são simplificados automaticamente para evitar sobreposição.
+              </p>
               {cfg.dataLabels.richLabel && (
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <Row>
