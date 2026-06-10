@@ -38,21 +38,22 @@ export interface TauxDataResponse {
   columns?: string[];
 }
 
+function pickList(resp: any): any[] | null {
+  if (Array.isArray(resp)) return resp;
+  if (resp && Array.isArray(resp.data)) return resp.data;
+  if (resp && Array.isArray(resp.items)) return resp.items;
+  return null;
+}
+
 export async function getTauxStatus(): Promise<TauxStatus[]> {
-  const resp = await apiClient.request<any>('/api/bi/taux/status');
-  if (Array.isArray(resp)) return resp as TauxStatus[];
-  if (resp && Array.isArray(resp.data)) return resp.data as TauxStatus[];
-  if (resp && Array.isArray(resp.items)) return resp.items as TauxStatus[];
-  return [];
+  const resp = await api.get<any>('/api/bi/taux/status');
+  return (pickList(resp) ?? []) as TauxStatus[];
 }
 
 export async function syncTaux(tabelas?: string[]): Promise<any> {
-  return apiClient.request('/api/bi/taux/sync', {
-    method: 'POST',
-    body: JSON.stringify({
-      tabelas: tabelas ?? [],
-      acionado_por: 'MANUAL',
-    }),
+  return api.post('/api/bi/taux/sync', {
+    tabelas: tabelas ?? [],
+    acionado_por: 'MANUAL',
   });
 }
 
@@ -60,18 +61,14 @@ export async function getTauxData(
   nome: string,
   params: { q?: string; limit?: number; offset?: number } = {},
 ): Promise<TauxDataResponse> {
-  const qs = new URLSearchParams();
-  if (params.q) qs.set('q', params.q);
-  if (params.limit != null) qs.set('limit', String(params.limit));
-  if (params.offset != null) qs.set('offset', String(params.offset));
-  const suffix = qs.toString() ? `?${qs.toString()}` : '';
-  const resp = await apiClient.request<any>(`/api/bi/taux/${encodeURIComponent(nome)}${suffix}`);
-  if (Array.isArray(resp)) return { data: resp };
-  if (resp && Array.isArray(resp.data)) {
-    return { data: resp.data, total: resp.total, columns: resp.columns };
-  }
-  if (resp && Array.isArray(resp.items)) {
-    return { data: resp.items, total: resp.total, columns: resp.columns };
+  const resp = await api.get<any>(`/api/bi/taux/${encodeURIComponent(nome)}`, {
+    q: params.q ?? '',
+    limit: params.limit,
+    offset: params.offset,
+  });
+  const list = pickList(resp);
+  if (list) {
+    return { data: list, total: resp?.total, columns: resp?.columns };
   }
   return { data: [] };
 }
