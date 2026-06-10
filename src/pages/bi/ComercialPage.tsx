@@ -770,7 +770,7 @@ export default function ComercialPage() {
     if (w.componentId) return renderCustomLibrary(w);
 
     // Blocos compostos / fixos (sem variantes)
-    if (w.type === 'resumo-faturamento') {
+    if (baseWidgetType(w.type) === 'resumo-faturamento') {
       if (qKpis.isLoading) return <LoadingState height={200} />;
       if (qKpis.isError) return <BlocoErro err={qKpis.error} onRetry={() => qKpis.refetch()} />;
       const title = w.customTitle || w.title || 'Faturamento';
