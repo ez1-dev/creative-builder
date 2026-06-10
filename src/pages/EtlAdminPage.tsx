@@ -151,6 +151,8 @@ export default function EtlAdminPage() {
         </CardContent>
       </Card>
 
+      <TauxPanel />
+
       <ExecutarModal
         open={execModal.open}
         onOpenChange={(open) => setExecModal({ open })}
