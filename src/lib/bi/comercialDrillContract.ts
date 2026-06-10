@@ -136,15 +136,19 @@ export function extractDrillCtx(row: Record<string, any> | null | undefined, dri
     if (v) {
       const targetKey = DRILL_KEY_FROM_TYPE[drillType];
       if (!targetKey) return {};
+      // anomes_emissao só é aceito se for puramente numérico (YYYYMM).
+      if (targetKey === 'anomes_emissao' && !/^\d{6}$/.test(v)) return {};
       return { [targetKey]: v } as DrillContexto;
     }
   }
-  // último recurso: label (texto visual). Só usa se não for sentinela.
-  const lbl = cleanDrillValue(row.label);
+  // Último recurso: label (texto visual). Nunca aceitar como valor técnico
+  // para chaves cuja semântica exige código (anomes_emissao, cd_*),
+  // evitando gravar rótulos como "Maio" em filtros do backend.
   const targetKey = DRILL_KEY_FROM_TYPE[drillType];
-  if (targetKey && lbl) {
-    return { [targetKey]: lbl } as DrillContexto;
-  }
+  if (!targetKey) return {};
+  if (targetKey === 'anomes_emissao' || String(targetKey).startsWith('cd_')) return {};
+  const lbl = cleanDrillValue(row.label);
+  if (lbl) return { [targetKey]: lbl } as DrillContexto;
   return {};
 }
 
