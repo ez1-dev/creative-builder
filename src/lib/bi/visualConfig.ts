@@ -243,3 +243,32 @@ export function densitySpacing(density: CardDensity): { paddingClass: string; he
     default:          return { paddingClass: 'p-4',  heightDelta: 0   };
   }
 }
+
+/**
+ * Formata um rótulo enriquecido (nome + valor + percentual) no padrão do
+ * gráfico "Por Motivo de Viagem". Retorna as 2 linhas separadas para o
+ * componente renderizar em `<tspan>` (SVG) ou em duas <div>.
+ */
+export function formatRichLabel(opts: {
+  name?: string | number | null;
+  value: number;
+  total: number;
+  cfg: VisualConfig['dataLabels'];
+  maxNameChars?: number;
+}): { line1: string; line2: string } {
+  const { value, total, cfg } = opts;
+  const maxChars = opts.maxNameChars ?? 18;
+  const showName = cfg.showName !== false;
+  const showPct = cfg.showPercent !== false;
+
+  const rawName = String(opts.name ?? '');
+  const name = rawName.length > maxChars ? `${rawName.slice(0, maxChars - 1)}…` : rawName;
+
+  const valStr = formatDataLabel(value, cfg);
+  const pct = total > 0 ? (Number(value || 0) / total) * 100 : 0;
+  const pctStr = pct.toLocaleString('pt-BR', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+
+  const line1 = showName ? name : '';
+  const line2 = showPct ? `${valStr} (${pctStr}%)` : valStr;
+  return { line1, line2 };
+}
