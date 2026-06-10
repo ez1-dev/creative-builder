@@ -89,8 +89,7 @@ export function ConfigureBiWidgetDialog({
   const [activeTab, setActiveTab] = useState<'builtin' | 'library' | 'series'>(startsAsLibrary ? 'library' : 'builtin');
   const [variant, setVariant] = useState<string>(initial.variant ?? def?.variants[0]?.value ?? '');
   const [componentId, setComponentId] = useState<string>(initial.componentId ?? libDefs[0]?.id ?? '');
-  const [seriesKey, setSeriesKey] = useState<string>(initial.mapping?.series ?? '');
-  const [valueKey, setValueKey] = useState<string>(initial.mapping?.value ?? def?.kpiKey ?? '');
+  const [inputMapping, setInputMapping] = useState<Record<string, string>>(initial.mapping ?? {});
   const [customTitle, setCustomTitle] = useState<string>(initial.customTitle ?? '');
   const [seriesList, setSeriesList] = useState<MetricRef[]>(initial.series ?? []);
   const [titleColor, setTitleColor] = useState<string>(initial.titleColor ?? 'default');
@@ -108,15 +107,40 @@ export function ConfigureBiWidgetDialog({
   // Multi-séries só faz sentido em gráficos de série (não em KPI/tabela/mapa)
   const supportsSeries = !isCustom && def && (def.kind === 'serie-mensal' || def.kind === 'serie' || def.kind === 'ranking' || def.kind === 'map');
 
+  const libDef = useMemo(() => getComponent(componentId), [componentId]);
+  const seriesOptions = page?.schema.series ?? [];
+  const kpiOptions = page?.schema.kpis ?? [];
+  const inputs = libDef?.inputs ?? [];
+
+  const computeDefaultMapping = useCallback((compId: string, existing?: Record<string, string> | null) => {
+    const d = getComponent(compId);
+    if (!d) return existing ?? {};
+    let auto: Record<string, string> = {};
+    try {
+      auto = d.autoMap?.({ kpis: kpiOptions as any, series: seriesOptions as any } as any) ?? {};
+    } catch { /* noop */ }
+    const result: Record<string, string> = {};
+    d.inputs.forEach((inp) => {
+      const fromExisting = existing?.[inp.key];
+      if (fromExisting) { result[inp.key] = fromExisting; return; }
+      const fromAuto = auto[inp.key];
+      if (fromAuto) { result[inp.key] = fromAuto; return; }
+      if (inp.source === 'series') result[inp.key] = seriesOptions[0]?.key ?? '';
+      else if (inp.source === 'kpis') result[inp.key] = (def?.kpiKey as string) ?? kpiOptions[0]?.key ?? '';
+      else result[inp.key] = 'dados';
+    });
+    return result;
+  }, [kpiOptions, seriesOptions, def?.kpiKey]);
+
   useEffect(() => {
     if (!open) return;
     const lib = startsAsLibrary ? 'library' : 'builtin';
     setMode(lib);
     setActiveTab(lib);
     setVariant(initial.variant ?? def?.variants[0]?.value ?? '');
-    setComponentId(initial.componentId ?? libDefs[0]?.id ?? '');
-    setSeriesKey(initial.mapping?.series ?? '');
-    setValueKey(initial.mapping?.value ?? def?.kpiKey ?? '');
+    const initialCompId = initial.componentId ?? libDefs[0]?.id ?? '';
+    setComponentId(initialCompId);
+    setInputMapping(computeDefaultMapping(initialCompId, initial.mapping ?? undefined));
     setCustomTitle(initial.customTitle ?? '');
     setSeriesList(initial.series ?? []);
     setTitleColor(initial.titleColor ?? 'default');
@@ -133,10 +157,12 @@ export function ConfigureBiWidgetDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const libDef = useMemo(() => getComponent(componentId), [componentId]);
-  const seriesOptions = page?.schema.series ?? [];
-  const kpiOptions = page?.schema.kpis ?? [];
-  const inputs = libDef?.inputs ?? [];
+  // Quando troca de componente na aba Biblioteca, recalcula mapping default
+  useEffect(() => {
+    if (!open) return;
+    setInputMapping((prev) => computeDefaultMapping(componentId, prev));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [componentId]);
 
   const supportsChartColor = !!libDef && COLOR_AWARE_LIB_IDS.has(libDef.id);
   const supportsHeatPalette = !!libDef && HEAT_MAP_LIB_IDS.has(libDef.id);
@@ -149,25 +175,31 @@ export function ConfigureBiWidgetDialog({
     return opts;
   }, [supportsChartColor, chartColor, visual, supportsHeatPalette, colorStops]);
 
+  const resolveMapping = useCallback(() => {
+    const mapping: Record<string, string> = {};
+    inputs.forEach((inp) => {
+      const v = inputMapping[inp.key];
+      if (v) mapping[inp.key] = v;
+      else if (inp.source === 'series') mapping[inp.key] = seriesOptions[0]?.key ?? '';
+      else if (inp.source === 'kpis') mapping[inp.key] = kpiOptions[0]?.key ?? '';
+      else mapping[inp.key] = 'dados';
+    });
+    return mapping;
+  }, [inputs, inputMapping, seriesOptions, kpiOptions]);
+
   const previewNode = useMemo(() => {
     if (mode !== 'library' || !libDef) return null;
     try {
-      const mapping: Record<string, string> = {};
-      inputs.forEach((inp) => {
-        if (inp.source === 'series') mapping[inp.key] = seriesKey || seriesOptions[0]?.key || '';
-        else if (inp.source === 'kpis') mapping[inp.key] = valueKey || kpiOptions[0]?.key || '';
-        else mapping[inp.key] = 'dados';
-      });
       return libDef.render({
         title: customTitle || libDef.label,
-        mapping,
+        mapping: resolveMapping(),
         ctx: { kpis: kpis ?? {}, series: series ?? {}, rows: rows ?? [] },
         options: buildLibraryOptions(),
       });
     } catch (e) {
       return <div className="text-xs text-destructive">Erro: {(e as Error).message}</div>;
     }
-  }, [mode, libDef, inputs, seriesKey, valueKey, customTitle, kpis, series, rows, seriesOptions, kpiOptions, buildLibraryOptions]);
+  }, [mode, libDef, resolveMapping, customTitle, kpis, series, rows, buildLibraryOptions]);
 
   const handleApply = () => {
     const titleStyle = {
@@ -189,12 +221,7 @@ export function ConfigureBiWidgetDialog({
         ...titleStyle,
       });
     } else {
-      const mapping: Record<string, string> = {};
-      inputs.forEach((inp) => {
-        if (inp.source === 'series') mapping[inp.key] = seriesKey || seriesOptions[0]?.key || '';
-        else if (inp.source === 'kpis') mapping[inp.key] = valueKey || kpiOptions[0]?.key || '';
-        else mapping[inp.key] = 'dados';
-      });
+      const mapping = resolveMapping();
       onApply({
         variant: null,
         componentId,
@@ -357,32 +384,29 @@ export function ConfigureBiWidgetDialog({
                     </SelectContent>
                   </Select>
                 </div>
-                {inputs.some((i) => i.source === 'series') && (
-                  <div>
-                    <Label htmlFor={idLibSeries} className="text-xs">Série</Label>
-                    <Select value={seriesKey} onValueChange={setSeriesKey}>
-                      <SelectTrigger id={idLibSeries} name="library-series" aria-label="Série"><SelectValue placeholder="Escolha" /></SelectTrigger>
-                      <SelectContent>
-                        {seriesOptions.map((s) => (
-                          <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {inputs.some((i) => i.source === 'kpis') && (
-                  <div>
-                    <Label htmlFor={idLibKpi} className="text-xs">KPI</Label>
-                    <Select value={valueKey} onValueChange={setValueKey}>
-                      <SelectTrigger id={idLibKpi} name="library-kpi" aria-label="KPI"><SelectValue placeholder="Escolha" /></SelectTrigger>
-                      <SelectContent>
-                        {kpiOptions.map((k) => (
-                          <SelectItem key={k.key} value={k.key}>{k.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {inputs.filter((i) => i.source === 'series' || i.source === 'kpis').map((inp) => {
+                  const isSeries = inp.source === 'series';
+                  const opts = isSeries ? seriesOptions : kpiOptions;
+                  const selectId = `${uid}-lib-input-${inp.key}`;
+                  return (
+                    <div key={inp.key}>
+                      <Label htmlFor={selectId} className="text-xs">
+                        {inp.label}{inp.required ? ' *' : ''}
+                      </Label>
+                      <Select
+                        value={inputMapping[inp.key] ?? ''}
+                        onValueChange={(v) => setInputMapping((m) => ({ ...m, [inp.key]: v }))}
+                      >
+                        <SelectTrigger id={selectId} aria-label={inp.label}><SelectValue placeholder="Escolha" /></SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {opts.map((o: any) => (
+                            <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
                 <div>
                   <Label htmlFor={idLibTitle} className="text-xs">Título (opcional)</Label>
                   <Input id={idLibTitle} name="library-title" value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} placeholder={libDef?.label} />
