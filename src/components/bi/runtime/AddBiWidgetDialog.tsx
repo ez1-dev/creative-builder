@@ -123,8 +123,9 @@ export function AddBiWidgetDialog({ open, onOpenChange, presentTypes, onAdd, kpi
     if (tab === 'catalog') {
       const def = COMERCIAL_WIDGETS[catalogType];
       if (!def) return;
+      const alreadyPresent = presentTypes.some((t) => baseWidgetType(t) === def.type);
       onAdd({
-        type: def.type,
+        type: alreadyPresent ? makeDuplicateType(def.type) : def.type,
         title: title.trim() || def.title,
         variant: def.variants[0]?.value,
       });
