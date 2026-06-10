@@ -3,6 +3,7 @@ import type { RelatorioDados } from '@/hooks/useRelatorioExecutivoFaturamento';
 import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Cell, ReferenceLine } from 'recharts';
 import { useMemo, useState } from 'react';
+import { pickDimensionLabel, type LabelDimension } from '@/lib/bi/dimensionLabels';
 
 const pct = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(1)}%`;
 const num = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? 0 : Number(v);
