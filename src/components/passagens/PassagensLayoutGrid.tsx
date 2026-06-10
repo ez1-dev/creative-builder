@@ -221,13 +221,17 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
             tabIndex={editing ? 0 : -1}
             onKeyDown={(e) => handleKeyDown(e, w.type)}
             className={cn(
-              'overflow-auto relative outline-none',
+              'relative outline-none isolate',
+              // Em edição, overflow-visible garante que o chrome (drag bar + botões)
+              // nunca seja escondido por filhos com h-full/bg/sombra. Fora de edição,
+              // mantém overflow-auto para scroll interno normal.
+              editing ? 'overflow-visible' : 'overflow-auto',
               editing && 'rounded-lg ring-1 ring-primary/30 hover:ring-primary/60 focus-visible:ring-2 focus-visible:ring-primary transition-shadow pt-11',
             )}
           >
             {editing && (
               <div
-                className="drag-handle group absolute inset-x-0 top-0 z-10 flex h-10 items-center gap-2 rounded-t-lg border-b border-border/60 bg-muted/70 px-2 cursor-grab active:cursor-grabbing select-none backdrop-blur"
+                className="drag-handle group absolute inset-x-0 top-0 z-40 flex h-10 items-center gap-2 rounded-t-lg border-b border-border/60 bg-muted/95 px-2 cursor-grab active:cursor-grabbing select-none backdrop-blur shadow-sm"
                 title="Arraste daqui para mover este bloco"
               >
                 <div className="flex items-center gap-1.5 rounded-md bg-background/80 px-2 py-1 text-xs font-medium shadow-sm max-w-[55%]">
@@ -241,7 +245,7 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
               <div
                 data-no-drag
                 onMouseDown={(e) => e.stopPropagation()}
-                className="absolute right-2 top-2 z-20 flex items-center gap-1 rounded-md border bg-background/95 p-1 shadow-md backdrop-blur"
+                className="absolute right-2 top-2 z-50 flex items-center gap-1 rounded-md border bg-background/95 p-1 shadow-md backdrop-blur pointer-events-auto"
               >
                 <div className="flex items-center gap-0.5" title="Largura">
                   <MoveHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
@@ -367,7 +371,9 @@ export function PassagensLayoutGrid({ widgets, blocks, editing, onLayoutChange, 
                 )}
               </div>
             )}
-            {blocks[w.type]}
+            <div className={cn('h-full w-full', editing && 'relative z-0')}>
+              {blocks[w.type]}
+            </div>
           </div>
         );
       })}
