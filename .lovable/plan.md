@@ -1,27 +1,61 @@
 ## Objetivo
-Restabelecer a exportação em PDF do Relatório Executivo de Faturamento sem mexer no conteúdo do relatório, apenas no fluxo de impressão e nos estilos necessários para ele aparecer corretamente no diálogo “Salvar como PDF”.
+Reaproveitar a lógica do Relatório Executivo de Faturamento para gerar relatórios executivos análogos em **Passagens Aéreas**, **Manutenção de Frota** e **Manutenção de Máquinas**.
 
-## O que vou corrigir
-1. Ajustar a regra de impressão que hoje esconde elementos do `body` para não ocultar o próprio documento `#rel-doc` quando ele é movido para impressão.
-2. Tornar o fluxo `exportarPdf` mais resiliente, garantindo restauração do DOM mesmo se o `afterprint` não disparar ou o usuário cancelar a impressão.
-3. Revisar o container imprimível para evitar que o relatório fique invisível ou fora do fluxo na hora de gerar o PDF.
-4. Validar o comportamento no preview, especificamente se o clique em “Exportar PDF (Imprimir)” volta a abrir o diálogo de impressão e mantém o relatório íntegro.
+## Resposta curta
+Sim, dá pra fazer. A estrutura atual (wizard de período/filtros → preview com blocos → exportação PDF/PPTX + comentários IA) é genérica o bastante para virar um template reutilizável.
 
-## Resultado esperado
-- O botão “Exportar PDF (Imprimir)” volta a funcionar.
-- O navegador abre o fluxo de impressão/salvar como PDF.
-- O relatório visível no preview é o mesmo que entra no PDF.
-- O layout do cabeçalho e dos blocos continua preservado.
+## Estratégia
+Extrair a parte “chassi” do relatório executivo (que hoje vive em `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx` + `relatorio.css` + `RelatorioBlocos.tsx`) para um conjunto de componentes genéricos, e criar uma página de relatório específica por módulo consumindo os dados já existentes em cada dashboard.
 
-## Detalhes técnicos
-- Arquivos alvo: `src/pages/bi/relatorio.css` e `src/pages/bi/RelatorioExecutivoFaturamentoPage.tsx`
-- Causa provável encontrada: a regra `body.printing-rel-doc > *:not(#rel-print-portal)` usa `display: none`, mas o `#rel-doc` é anexado direto no `body`; como ele não é exceção da regra, acaba sendo escondido junto com o resto.
-- Ajuste previsto:
-  - excluir explicitamente `#rel-doc` da regra que oculta os irmãos do `body`
-  - adicionar fallback de restauração no `exportarPdf`
-  - manter o documento em fluxo visível durante `window.print()`
+### Componentes genéricos a criar (em `src/components/relatorio-executivo/`)
+- `RelatorioWizard` — período, filtros adicionais (slots), nível de detalhe, seleção de blocos.
+- `RelatorioDocument` — container `#rel-doc` com header (título, subtítulo, data), footer, e fluxo de impressão PDF já corrigido.
+- `RelatorioToolbar` — botões “Editar filtros”, “Exportar PDF”, “Exportar PPTX”.
+- Blocos reutilizáveis: `KpisBloco`, `EvolucaoBloco`, `RankingsBloco`, `ParetoBloco`, `ComentariosIaBloco`, `TabelaAnaliticaBloco` — recebendo dados via props tipadas (não mais acoplados a `RelatorioDados` do faturamento).
+- Hook `useRelatorioIa` genérico para chamar a edge function de comentários, parametrizando o contexto.
+
+### Por módulo (cada um vira uma página dedicada)
+1. **Passagens Aéreas** (`/passagens-aereas/relatorio-executivo`)
+   - KPIs: total de passagens, valor total, ticket médio, nº colaboradores, principais destinos.
+   - Evolução mensal de gasto e quantidade.
+   - Rankings: Top colaboradores, Top destinos, Top companhias.
+   - Tabela analítica: últimas passagens.
+   - Fonte: tabelas Cloud já usadas pelo `PassagensDashboard`.
+
+2. **Manutenção de Frota** (`/manutencao-frota/relatorio-executivo`)
+   - KPIs: total gasto, nº ordens, custo médio por veículo, km rodado, custo/km.
+   - Evolução mensal de custo e ordens.
+   - Rankings: Top veículos, Top tipos de serviço, Top fornecedores.
+   - Tabela analítica: últimas ordens de manutenção.
+
+3. **Manutenção de Máquinas** (`/manutencao-maquinas/relatorio-executivo`)
+   - KPIs: custo total, nº intervenções, MTBF/MTTR (se houver), top máquina por custo.
+   - Evolução mensal de custos e paradas.
+   - Rankings: Top máquinas, Top tipos de falha, Top responsáveis.
+   - Tabela analítica: últimas intervenções.
+
+### Comentários IA
+- Edge function `relatorio-executivo-ia` recebe hoje um payload específico de faturamento. Vou generalizar aceitando um campo `modulo` (`faturamento` | `passagens` | `frota` | `maquinas`) com prompt específico por módulo, mantendo retrocompatibilidade.
+
+### Exportação PDF
+- Mesma técnica já corrigida (mover `#rel-doc` para `body`, classe `printing-rel-doc`, fallback de restauração). Estilos `relatorio.css` viram compartilhados.
+
+### Exportação PPTX
+- Generalizar `exportPptx.ts` para receber a definição dos slides via props (título, KPIs, séries, rankings) em vez de assumir o shape de faturamento.
+
+## Entregáveis sugeridos (em ordem)
+1. Extrair chassi genérico + migrar Faturamento para usá-lo (regressão zero).
+2. Generalizar edge function IA e helper PPTX.
+3. Implementar Relatório Executivo de Passagens Aéreas.
+4. Implementar Relatório Executivo de Manutenção de Frota.
+5. Implementar Relatório Executivo de Manutenção de Máquinas.
+6. Adicionar entradas no menu lateral / botões “Relatório Executivo” em cada dashboard.
 
 ## Fora de escopo
-- Alterar dados do relatório
-- Mudar exportação PPTX
-- Refazer o layout visual do relatório
+- Mudar a UI dos dashboards existentes.
+- Criar novas tabelas ou ETL — vou usar as fontes de dados já existentes em cada módulo.
+
+## Perguntas antes de começar
+1. Quer que eu faça tudo de uma vez (passos 1 a 6) ou prefere ir por módulo, validando cada relatório?
+2. Para **cada** módulo, os blocos sugeridos cobrem o que você precisa, ou tem KPI/ranking específico que faltou?
+3. Os comentários IA devem usar o mesmo tom executivo (Destaques / Alertas / Recomendações) dos relatórios de faturamento?
