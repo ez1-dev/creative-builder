@@ -167,6 +167,33 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             <Switch checked={cfg.dataLabels.visible} onCheckedChange={(v) => update((d) => { d.dataLabels.visible = v; })} />
             <Label>Exibir valores no gráfico</Label>
           </Row>
+
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <Row>
+              <Switch
+                checked={!!cfg.dataLabels.richLabel}
+                disabled={!cfg.dataLabels.visible}
+                onCheckedChange={(v) => update((d) => { d.dataLabels.richLabel = v; })}
+              />
+              <Label>Rótulos enriquecidos (nome + valor + %)</Label>
+            </Row>
+            <p className="text-[11px] text-muted-foreground">
+              Mesmo estilo do gráfico "Por Motivo de Viagem". Funciona melhor em Pizza/Rosca, Barras, Treemap e Linha/Área.
+            </p>
+            {cfg.dataLabels.richLabel && (
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <Row>
+                  <Switch checked={cfg.dataLabels.showName !== false} onCheckedChange={(v) => update((d) => { d.dataLabels.showName = v; })} />
+                  <Label className="text-xs">Mostrar nome</Label>
+                </Row>
+                <Row>
+                  <Switch checked={cfg.dataLabels.showPercent !== false} onCheckedChange={(v) => update((d) => { d.dataLabels.showPercent = v; })} />
+                  <Label className="text-xs">Mostrar percentual</Label>
+                </Row>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Posição</Label>
@@ -202,16 +229,21 @@ export function VisualConfigEditor({ value, onChange, availableSeriesKeys = ['va
             </div>
             <NumberField label="Casas decimais" value={cfg.dataLabels.decimals} min={0} max={4}
               onChange={(n) => update((d) => { d.dataLabels.decimals = n; })} />
-            <div>
-              <Label className="text-xs">Prefixo</Label>
-              <Input value={cfg.dataLabels.prefix} onChange={(e) => update((d) => { d.dataLabels.prefix = e.target.value; })} placeholder="R$ " />
-            </div>
-            <div>
-              <Label className="text-xs">Sufixo</Label>
-              <Input value={cfg.dataLabels.suffix} onChange={(e) => update((d) => { d.dataLabels.suffix = e.target.value; })} placeholder="kg / un / %" />
-            </div>
+            {!cfg.dataLabels.richLabel && (
+              <>
+                <div>
+                  <Label className="text-xs">Prefixo</Label>
+                  <Input value={cfg.dataLabels.prefix} onChange={(e) => update((d) => { d.dataLabels.prefix = e.target.value; })} placeholder="R$ " />
+                </div>
+                <div>
+                  <Label className="text-xs">Sufixo</Label>
+                  <Input value={cfg.dataLabels.suffix} onChange={(e) => update((d) => { d.dataLabels.suffix = e.target.value; })} placeholder="kg / un / %" />
+                </div>
+              </>
+            )}
           </div>
         </TabsContent>
+
 
         {/* ===== Descrição do resultado ===== */}
         <TabsContent value="descricao" className="space-y-3 pt-3">

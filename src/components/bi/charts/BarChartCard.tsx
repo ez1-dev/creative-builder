@@ -1,8 +1,9 @@
+import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine, Legend, LabelList } from 'recharts';
 import { ChartCardShell, ChartCardShellProps } from './ChartCardShell';
 import { formatCurrency } from '../utils/formatters';
 import { tickCurrencyAbbrev } from '../utils/chartHelpers';
-import { mergeVisualConfig, formatDataLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
+import { mergeVisualConfig, formatDataLabel, formatRichLabel, legendPositionProps, fontFamilyCss } from '@/lib/bi/visualConfig';
 
 export interface BarChartDatum { label: string; valor: number; [k: string]: any }
 
@@ -22,10 +23,28 @@ export function BarChartCard({
   const avg = showAverage && data.length ? data.reduce((s, d) => s + d.valor, 0) / data.length : 0;
   const seriesLabel = vc.legend.seriesLabels['valor'] ?? 'Valor';
   const fmtLabel = (v: any) => formatDataLabel(v, vc.dataLabels);
+  const total = useMemo(() => (data ?? []).reduce((s, d) => s + Number(d?.valor || 0), 0), [data]);
+  const rich = vc.dataLabels.visible && !!vc.dataLabels.richLabel;
+  const fontFamily = fontFamilyCss(vc.dataLabels.fontFamily);
+
+  const renderRichBarLabel = (props: any) => {
+    const { x, y, width, value, index } = props;
+    const row = data[index];
+    const { line1, line2 } = formatRichLabel({ name: row?.label, value: Number(value || 0), total, cfg: vc.dataLabels });
+    const cx = (Number(x) || 0) + (Number(width) || 0) / 2;
+    const fs = vc.dataLabels.fontSize;
+    return (
+      <text x={cx} y={Number(y) - 6} textAnchor="middle" fontSize={fs} fill="hsl(var(--foreground))" style={{ fontFamily, pointerEvents: 'none' }}>
+        {line1 && <tspan x={cx} dy="-1em">{line1}</tspan>}
+        {line2 && <tspan x={cx} dy={line1 ? '1.1em' : '0'} fill="hsl(var(--muted-foreground))">{line2}</tspan>}
+      </text>
+    );
+  };
+
   return (
     <ChartCardShell {...shell} height={height} isEmpty={isEmpty} visualConfig={visualConfig}>
       <ResponsiveContainer width="100%" height={height}>
-        <BarChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <BarChart data={data} margin={{ top: rich ? 28 : 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="bi-bar-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.95} />
@@ -58,9 +77,11 @@ export function BarChartCard({
             cursor={onItemClick ? 'pointer' : undefined}
             onClick={(d: any) => onItemClick?.(d as BarChartDatum)}>
             {vc.dataLabels.visible && (
-              <LabelList dataKey="valor" position={vc.dataLabels.position as any}
-                style={{ fontSize: vc.dataLabels.fontSize, fontFamily: fontFamilyCss(vc.dataLabels.fontFamily), fill: 'hsl(var(--foreground))' }}
-                formatter={fmtLabel as any} />
+              rich
+                ? <LabelList dataKey="valor" content={renderRichBarLabel as any} />
+                : <LabelList dataKey="valor" position={vc.dataLabels.position as any}
+                    style={{ fontSize: vc.dataLabels.fontSize, fontFamily, fill: 'hsl(var(--foreground))' }}
+                    formatter={fmtLabel as any} />
             )}
           </Bar>
         </BarChart>
