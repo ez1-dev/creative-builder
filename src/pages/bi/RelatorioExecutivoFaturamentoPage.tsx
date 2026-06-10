@@ -407,6 +407,7 @@ export default function RelatorioExecutivoFaturamentoPage() {
             {blocos.kpis && <KpisBloco dados={dados} filtros={filtrosFinais} />}
             {blocos.evolucao && <EvolucaoBloco dados={dados} filtros={filtrosFinais} />}
             {blocos.rankings && <RankingsBloco dados={dados} filtros={filtrosFinais} />}
+            {blocos.pareto && <ParetoBloco dados={dados} filtros={filtrosFinais} analiseIa={paretoAnalise} />}
             {blocos.margem && <MargemImpostosBloco dados={dados} filtros={filtrosFinais} />}
             {blocos.comentariosIa && (
               <ComentariosIaBloco comentarios={comentarios} loading={iaLoading} error={iaError} />
