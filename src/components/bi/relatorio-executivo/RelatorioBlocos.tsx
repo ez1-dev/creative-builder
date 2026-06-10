@@ -4,6 +4,23 @@ import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid, BarChart, Cell, ReferenceLine } from 'recharts';
 import { useMemo, useState } from 'react';
 import { pickDimensionLabel, type LabelDimension } from '@/lib/bi/dimensionLabels';
+import { useBiClientesMap, type BiClienteInfo } from '@/hooks/useBiClientesMap';
+
+function primeiroNomeCliente(info?: BiClienteInfo): string {
+  const raw = (info?.nm_cliente ?? info?.nm_fantasia ?? '').trim();
+  if (!raw) return '';
+  const token = raw.split(/\s+/)[0] ?? '';
+  const limpo = token.replace(/[^\p{L}0-9]/gu, '');
+  if (!limpo) return '';
+  return limpo.charAt(0).toUpperCase() + limpo.slice(1).toLowerCase();
+}
+
+function rotuloCliente(cd: string, mapa?: Map<string, BiClienteInfo>): string {
+  const code = String(cd ?? '').trim();
+  if (!code) return '(sem identificação)';
+  const nome = primeiroNomeCliente(mapa?.get(code));
+  return nome ? `${code} - ${nome}` : `Cliente ${code}`;
+}
 
 const pct = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? '—' : `${v.toFixed(1)}%`;
 const num = (v: number | null | undefined) => v == null || !Number.isFinite(v) ? 0 : Number(v);
@@ -154,15 +171,17 @@ function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
   );
 }
 
-export function RankingsBloco({ dados }: BlocoProps) {
+export function RankingsBloco({ dados, filtros }: BlocoProps) {
+  const isGenius = filtros?.unidade_negocio === 'GENIUS';
   return (
     <section className="rel-bloco">
       <h2 className="rel-bloco-titulo">Rankings por Dimensão</h2>
       <div className="grid grid-cols-2 gap-4">
         <RankingTopN titulo="Top Revendas" rows={dados.rankings.revenda} dim="revenda" valueKey="faturamento" chartId="rk-rev" />
         <RankingTopN titulo="Top Estados" rows={dados.rankings.estado} dim="estado" valueKey="faturamento" chartId="rk-est" />
-        <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} dim="obra" valueKey="faturamento" chartId="rk-obr" />
-
+        {!isGenius && (
+          <RankingTopN titulo="Top Obras/Projetos" rows={dados.rankings.obras} dim="obra" valueKey="faturamento" chartId="rk-obr" />
+        )}
       </div>
     </section>
   );
@@ -235,6 +254,7 @@ export function ComentariosIaBloco({ comentarios, loading, error }: {
 // ---------- Tabela Analítica ----------
 export function TabelaAnaliticaBloco({ dados }: BlocoProps) {
   const rows = dados.detalhes.slice(0, 100);
+  const { data: clientesMap } = useBiClientesMap();
   if (!rows.length) return null;
   return (
     <section className="rel-bloco">
@@ -254,7 +274,7 @@ export function TabelaAnaliticaBloco({ dados }: BlocoProps) {
                 <td>{r.unidade_negocio ?? '—'}</td>
                 <td>{r.cd_nf ?? '—'}</td>
                 <td>{r.cd_estado ?? '—'}</td>
-                <td>{r.cd_cliente ?? '—'}</td>
+                <td>{r.cd_cliente ? rotuloCliente(String(r.cd_cliente), clientesMap) : '—'}</td>
                 <td>{r.ds_abr_prj ?? r.cd_prj ?? '—'}</td>
                 <td className="text-right tabular-nums">{formatCurrency(num(r.vl_bruto))}</td>
                 <td className="text-right tabular-nums">{formatCurrency(num(r.vl_impostos))}</td>
@@ -309,16 +329,17 @@ function agregarPorChave(rows: any[], labelKey: string, valueKey: string): Array
   return Array.from(map.entries()).map(([label, valor]) => ({ label, valor }));
 }
 
-function formatLabel(dim: ParetoDimensao, raw: string): string {
+function formatLabel(dim: ParetoDimensao, raw: string, clientesMap?: Map<string, BiClienteInfo>): string {
   const v = String(raw ?? '').trim();
   if (!v) return '(sem identificação)';
-  if (dim === 'cliente') return `Cliente ${v}`;
+  if (dim === 'cliente') return rotuloCliente(v, clientesMap);
   if (dim === 'estado') return `UF ${v}`;
   if (dim === 'obra') return v;
   return v;
 }
 
 export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: string | null }) {
+  const { data: clientesMap } = useBiClientesMap();
   const [dim, setDim] = useState<ParetoDimensao>('cliente');
 
   const baseRows = useMemo(() => {
@@ -332,7 +353,7 @@ export function ParetoBloco({ dados, analiseIa }: BlocoProps & { analiseIa?: str
   }, [dim, dados]);
 
   const { items, total, vitais } = useMemo(() => calcularPareto(baseRows), [baseRows]);
-  const top = items.slice(0, 20).map((it) => ({ ...it, label: formatLabel(dim, it.label) }));
+  const top = items.slice(0, 20).map((it) => ({ ...it, label: formatLabel(dim, it.label, clientesMap) }));
   const pctVitais = items.length > 0 ? (vitais / items.length) * 100 : 0;
   const pctVitaisFat = items.slice(0, vitais).reduce((s, i) => s + i.pct, 0);
   const valorVitais = items.slice(0, vitais).reduce((s, i) => s + i.valor, 0);
