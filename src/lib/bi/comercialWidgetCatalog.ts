@@ -79,6 +79,8 @@ const LIB_KPI_IDS = ['kpi-card','kpi-sparkline','kpi-target','kpi-variation','kp
 
 const LIB_TABLE_IDS = ['data-table'];
 
+const LIB_MAP_IDS = ['brazil-state-map', 'brazil-heat-map-comercial', 'brazil-heat-map'];
+
 export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
   // ===== KPIs =====
   'kpi-faturamento': { type:'kpi-faturamento', title:'Faturamento',  kind:'kpi', kpiKey:'faturamento',     variants:KPI_VARIANTS, libraryComponentIds:LIB_KPI_IDS },
@@ -100,11 +102,11 @@ export const COMERCIAL_WIDGETS: Record<string, ComercialWidgetDef> = {
 
 
   // ===== Séries =====
-  'serie-mensal':    { type:'serie-mensal', title:'Faturamento mensal x Meta', kind:'serie-mensal', variants:SERIE_MENSAL_VARIANTS, libraryComponentIds:LIB_CHART_IDS },
-  'mix':             { type:'mix',          title:'Mix acumulado',             kind:'serie',        variants:SERIE_VARIANTS,        libraryComponentIds:LIB_CHART_IDS },
-  'estados':         { type:'estados',      title:'Top estados',               kind:'map',          variants:MAP_VARIANTS,          libraryComponentIds:['brazil-state-map', 'brazil-heat-map-comercial', 'brazil-heat-map', ...LIB_CHART_IDS] },
-  'revendas':        { type:'revendas',     title:'Ranking de revendas',       kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:LIB_CHART_IDS },
-  'obras':           { type:'obras',        title:'Faturamento por obra',      kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:LIB_CHART_IDS },
+  'serie-mensal':    { type:'serie-mensal', title:'Faturamento mensal x Meta', kind:'serie-mensal', variants:SERIE_MENSAL_VARIANTS, libraryComponentIds:[...LIB_CHART_IDS, ...LIB_MAP_IDS] },
+  'mix':             { type:'mix',          title:'Mix acumulado',             kind:'serie',        variants:SERIE_VARIANTS,        libraryComponentIds:[...LIB_CHART_IDS, ...LIB_MAP_IDS] },
+  'estados':         { type:'estados',      title:'Top estados',               kind:'map',          variants:MAP_VARIANTS,          libraryComponentIds:[...LIB_MAP_IDS, ...LIB_CHART_IDS] },
+  'revendas':        { type:'revendas',     title:'Ranking de revendas',       kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:[...LIB_CHART_IDS, ...LIB_MAP_IDS] },
+  'obras':           { type:'obras',        title:'Faturamento por obra',      kind:'ranking',      variants:RANKING_VARIANTS,      libraryComponentIds:[...LIB_CHART_IDS, ...LIB_MAP_IDS] },
 
   // ===== Tabela =====
   'table-mensal':    { type:'table-mensal', title:'Detalhamento por Nota Fiscal', kind:'table', variants:[{value:'table',label:'Tabela'}], libraryComponentIds:LIB_TABLE_IDS },

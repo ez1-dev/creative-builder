@@ -1,26 +1,26 @@
-## Por que o mapa não aparece
+## O que mudar
 
-Quando você clica **Aplicar** no card do heatmap, o sistema salva um *user widget* vinculado à página `bi-comercial` (seção `charts`).
+Hoje os mapas (`brazil-state-map`, `brazil-heat-map`, `brazil-heat-map-comercial`) só aparecem no dropdown **Componente** da aba "Biblioteca BI" quando o bloco que você está configurando é o `estados`. Em qualquer outro bloco (Mix acumulado, Revendas, Obras, série mensal…) eles não aparecem.
 
-Porém, ao abrir `/bi/comercial`, descobri que essa página **não renderiza `<UserWidgetsSlot/>`** — diferente das páginas Faturamento Genius, Painel Compras, Contas a Pagar, Notas Recebimento, Estoque Min/Max e Produção, que já incluem esses slots.
+Você quer que os mapas fiquem disponíveis como opção em **todos** os blocos compatíveis.
 
-Resultado: o widget é salvo corretamente no Cloud, mas a página Comercial nunca o lê → o mapa não aparece.
+## Plano
 
-## O que vou fazer
+Em `src/lib/bi/comercialWidgetCatalog.ts`:
 
-1. Em `src/pages/bi/ComercialPage.tsx`, dentro do `<PageDataProvider>` (que já existe na linha 1110), adicionar os 3 slots padrão da Biblioteca BI logo após o último bloco fixo da página (antes dos diálogos de configuração):
+1. Criar uma constante `LIB_MAP_IDS = ['brazil-state-map', 'brazil-heat-map-comercial', 'brazil-heat-map']`.
 
-```tsx
-<UserWidgetsSlot section="kpis"   cols={4} emptyHint={false} />
-<UserWidgetsSlot section="charts" cols={3} emptyHint={false} />
-<UserWidgetsSlot section="tables" cols={2} emptyHint={false} />
-```
+2. Adicionar `...LIB_MAP_IDS` ao `libraryComponentIds` de todos os blocos não-KPI e não-tabela que produzem séries com dimensão geográfica plausível:
+   - `serie-mensal` (mantém charts + mapas — usuário pode trocar livremente)
+   - `mix`
+   - `estados` (já tem; só consolida via `LIB_MAP_IDS`)
+   - `revendas`
+   - `obras`
 
-2. Importar `UserWidgetsSlot` de `@/components/bi`.
+3. Não incluir nos blocos KPI (`kpi-*`) nem na tabela (`table-mensal`) — mapas não fazem sentido lá.
 
-3. Não mexer no `componentRegistry`, no `comercialWidgetCatalog` nem no BrazilHeatMap — eles já estão corretos. O `PageDataProvider` já fornece `kpis`, `series`, `rows` e `filtros`, então o `brazil-heat-map-comercial` (que lê `usePageData()`) renderiza com os dados/filtros vivos da página.
+Nada mais muda: o `componentRegistry` já expõe os 3 mapas, e o `BrazilHeatMap` genérico aceita qualquer série `{uf, valor}` via `autoMap`. Se a série do bloco não tiver UF (ex.: meses, revendas), o mapa renderiza vazio — mas isso é responsabilidade do usuário ao escolher.
 
 ## Resultado esperado
 
-- Heatmap (e qualquer outro componente que você aplicar via botão **Aplicar** do `BiComponentsDemoPage`) passa a aparecer em `/bi/comercial`, abaixo dos blocos fixos, reagindo aos mesmos filtros da página.
-- Demais páginas continuam funcionando como hoje (mudança isolada à página Comercial).
+Ao abrir "Configurar bloco" em qualquer gráfico do BI Comercial e ir na aba **Biblioteca BI**, o dropdown **Componente** lista também: `Mapa Brasil por Estado`, `Mapa de Calor (Comercial)` e `Mapa de Calor (Brasil)`.
