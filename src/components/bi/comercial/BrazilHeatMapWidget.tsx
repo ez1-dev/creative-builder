@@ -5,9 +5,11 @@
  * (`fetchComercialEstado`). Mantém a mesma assinatura de filtros do
  * `BrazilStateMapWidget` (cartograma), mas renderiza o mapa geográfico real.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BrazilHeatMap, type BrazilHeatMapDatum } from '@/components/bi/maps/BrazilHeatMap';
+import { HeatPaletteEditor } from '@/components/bi/maps/HeatPaletteEditor';
+import { HEAT_COLOR_STOPS } from '@/lib/bi/mapUtils';
 import { fetchComercialEstado } from '@/lib/bi/comercialApi';
 import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { ufName } from '@/lib/bi/ufLabels';
