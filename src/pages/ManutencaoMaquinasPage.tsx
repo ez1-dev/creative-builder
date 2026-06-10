@@ -132,6 +132,13 @@ export default function ManutencaoMaquinasPage() {
               </Link>
             </Button>
             {editAllowed && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/manutencao-maquinas/tipos">
+                  <Cog className="mr-1 h-4 w-4" /> Tipos de máquina
+                </Link>
+              </Button>
+            )}
+            {editAllowed && (
               <Button variant="outline" size="sm" onClick={() => setShareOpen(true)}>
                 <Share2 className="mr-1 h-4 w-4" /> Compartilhar
               </Button>
