@@ -105,11 +105,19 @@ export function EvolucaoBloco({ dados, filtros }: BlocoProps) {
 }
 
 // ---------- Rankings ----------
+function truncateLabel(s: string, max = 28) {
+  if (!s) return '—';
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
 function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
   titulo: string; rows: any[]; dim: LabelDimension; valueKey: string; chartId: string;
 }) {
   const top = [...rows]
-    .map((r) => ({ label: pickDimensionLabel(r, dim) || '—', value: num(r[valueKey]) }))
+    .map((r) => {
+      const full = pickDimensionLabel(r, dim) || '—';
+      return { label: truncateLabel(full, 28), fullLabel: full, value: num(r[valueKey]) };
+    })
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
   const total = top.reduce((acc, r) => acc + r.value, 0);
@@ -118,11 +126,11 @@ function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
       <h3 className="rel-ranking-titulo">{titulo}</h3>
       <div className="h-56 rel-chart" data-rel-chart={chartId}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={top} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}>
+          <BarChart data={top} layout="vertical" margin={{ top: 5, right: 30, left: 8, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
             <XAxis type="number" fontSize={10} tickFormatter={(v) => Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} />
-            <YAxis type="category" dataKey="label" fontSize={10} width={75} />
-            <Tooltip formatter={(v: any) => formatCurrency(Number(v))} />
+            <YAxis type="category" dataKey="label" fontSize={10} width={170} interval={0} />
+            <Tooltip formatter={(v: any) => formatCurrency(Number(v))} labelFormatter={(_, payload: any) => payload?.[0]?.payload?.fullLabel ?? ''} />
             <Bar dataKey="value" fill="hsl(var(--primary))">
               {top.map((_, i) => <Cell key={i} fill={`hsl(var(--primary) / ${1 - i * 0.06})`} />)}
             </Bar>
@@ -135,7 +143,7 @@ function RankingTopN({ titulo, rows, dim, valueKey, chartId }: {
           {top.slice(0, 5).map((r, i) => (
             <tr key={i}>
               <td>{i+1}</td>
-              <td>{r.label}</td>
+              <td>{r.fullLabel}</td>
               <td className="text-right tabular-nums">{formatCurrency(r.value)}</td>
               <td className="text-right tabular-nums">{total>0?((r.value/total)*100).toFixed(1):'0.0'}%</td>
             </tr>

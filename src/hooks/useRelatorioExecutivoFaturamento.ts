@@ -9,6 +9,7 @@ import {
 } from '@/lib/bi/comercialApi';
 import type { BiComercialFilters } from '@/lib/bi/comercialFilters';
 import { listMetas, type MetaFaturamento } from '@/lib/bi/metasFaturamentoApi';
+import { useRevendaCatalog, enrichRevendaRows } from '@/lib/bi/revendaCatalog';
 
 export type BlocoKey =
   | 'kpis'
@@ -96,11 +97,13 @@ export function useRelatorioExecutivoFaturamento(
     enabled: enabled && (blocos.evolucao || blocos.kpis),
   });
 
+  const qRevendaCatalog = useRevendaCatalog(enabled && (blocos.rankings || blocos.pareto));
+
   const dados: RelatorioDados = {
     kpis: qKpis.data ?? null,
     mensal: qMensal.data ?? [],
     rankings: {
-      revenda: qRevenda.data ?? [],
+      revenda: enrichRevendaRows(qRevenda.data ?? [], qRevendaCatalog.data),
       estado: qEstado.data ?? [],
       obras: qObras.data ?? [],
     },
