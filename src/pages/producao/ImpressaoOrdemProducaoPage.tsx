@@ -1120,24 +1120,62 @@ export default function ImpressaoOrdemProducaoPage() {
                       </Button>
                     )}
                     {pdfJob.status === "IDLE" || pdfJob.status === "ERRO" ? (
-                      <Button
-                        size="sm"
-                        onClick={gerarPdfCompleto}
-                        disabled={selectedKeys.size === 0 || pdfJob.isBusy}
-                        title="Gera no servidor um PDF único com todas as OPs selecionadas, incluindo desenhos."
-                      >
-                        <FileText className="mr-1 h-3 w-3" />
-                        Gerar PDF completo com desenhos
-                      </Button>
+                      <>
+                        <Select
+                          value={qualidadePdf}
+                          onValueChange={(v) => setQualidadePdf(v as "alta" | "normal")}
+                          disabled={pdfJob.isBusy}
+                        >
+                          <SelectTrigger
+                            className="h-8 w-[200px] text-xs"
+                            title="Qualidade dos desenhos no PDF. Normal gera mais rápido e arquivo menor."
+                          >
+                            <SelectValue placeholder="Qualidade dos desenhos" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="alta">Qualidade alta (200 DPI)</SelectItem>
+                            <SelectItem value="normal">Qualidade normal (150 DPI)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          onClick={gerarPdfCompleto}
+                          disabled={selectedKeys.size === 0 || pdfJob.isBusy}
+                          title="Gera no servidor um PDF único com todas as OPs selecionadas, incluindo desenhos."
+                        >
+                          <FileText className="mr-1 h-3 w-3" />
+                          Gerar PDF completo com desenhos
+                        </Button>
+                      </>
                     ) : pdfJob.isBusy ? (
-                      <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-xs">
-                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                        <span className="text-muted-foreground">
-                          Gerando PDF completo com desenhos. Aguarde
-                          {typeof pdfJob.progresso === "number"
-                            ? ` (${Math.round(pdfJob.progresso * 100)}%)`
-                            : "…"}
-                          {pdfJob.mensagem ? ` • ${pdfJob.mensagem}` : ""}
+                      <div className="flex min-w-[320px] flex-col gap-1.5 rounded-md border bg-muted/40 px-3 py-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                          <span className="font-medium text-foreground">
+                            Gerando PDF completo com desenhos
+                          </span>
+                          {typeof pdfJob.percentual === "number" && (
+                            <span className="ml-auto text-muted-foreground tabular-nums">
+                              {pdfJob.percentual}%
+                            </span>
+                          )}
+                        </div>
+                        <Progress value={pdfJob.percentual ?? 0} className="h-1.5" />
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground">
+                          <span>{labelEtapa(pdfJob.etapa)}</span>
+                          {typeof pdfJob.processadas === "number" &&
+                            typeof pdfJob.totalOps === "number" &&
+                            pdfJob.totalOps > 0 && (
+                              <span className="tabular-nums">
+                                {pdfJob.processadas} de {pdfJob.totalOps} OPs
+                              </span>
+                            )}
+                          {pdfJob.mensagem && pdfJob.mensagem !== labelEtapa(pdfJob.etapa) && (
+                            <span className="truncate">• {pdfJob.mensagem}</span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/80">
+                          Os desenhos não são renderizados no navegador. O PDF é gerado no servidor.
                         </span>
                       </div>
                     ) : pdfJob.status === "CONCLUIDO" && pdfJob.downloadUrl ? (
