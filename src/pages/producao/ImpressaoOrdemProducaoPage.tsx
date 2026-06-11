@@ -998,7 +998,7 @@ export default function ImpressaoOrdemProducaoPage() {
   // ausência do endpoint, processa todos os lotes sequencialmente e dispara
   // window.print uma única vez. Para seleções muito grandes, recomendamos
   // usar "Processar em lotes de 30".
-  const gerarPdfCompleto = async () => {
+  const gerarPdfCompleto = async (opts?: { forcarSemDesenhos?: boolean }) => {
     const alvos = getAlvosSelecionados();
     if (!alvos.length) {
       toast.info("Selecione ao menos uma OP válida.");
@@ -1007,24 +1007,46 @@ export default function ImpressaoOrdemProducaoPage() {
     setConfirmManyOpen(false);
     setLoteLoading(true);
     setFalhasLote([]);
+    setFalhaGlobal(null);
     const tid = toast.loading(`Gerando PDF de ${alvos.length} OP(s)...`);
     try {
       const todasOrdens: OpImpressao[] = [];
-      const todasFalhas: { cod_ori: string; num_orp: string }[] = [];
+      const todasFalhas: { cod_ori: string; num_orp: string; motivo?: string }[] = [];
       const tamanho = LIMITE_PREVIEW_DIRETO;
+      let abortouGlobal: string | null = null;
       for (let i = 0; i < alvos.length; i += tamanho) {
         const slice = alvos.slice(i, i + tamanho);
         toast.loading(
           `Carregando OPs ${i + 1}–${Math.min(i + tamanho, alvos.length)} de ${alvos.length}...`,
           { id: tid },
         );
-        const { ordens, falhas } = await carregarOps(slice);
+        const { ordens, falhas, abortado, motivoGlobal } = await carregarOps(slice, opts);
         todasOrdens.push(...ordens);
         todasFalhas.push(...falhas);
+        if (abortado && ordens.length === 0) {
+          abortouGlobal = motivoGlobal || "Backend indisponível.";
+          // Marca o restante como não tentado
+          for (let j = i + slice.length; j < alvos.length; j += 1) {
+            const op = alvos[j];
+            todasFalhas.push({
+              cod_ori: String(op.cod_ori ?? ""),
+              num_orp: String(op.num_orp ?? ""),
+              motivo: "Não tentado (carregamento abortado).",
+            });
+          }
+          break;
+        }
       }
       if (!todasOrdens.length) {
-        toast.error("Nenhuma OP pôde ser carregada.", { id: tid });
+        const msg = abortouGlobal || "Nenhuma OP pôde ser carregada.";
+        toast.error(msg, { id: tid });
         setFalhasLote(todasFalhas);
+        setFalhaGlobal({
+          motivo: msg,
+          testadas: todasFalhas.filter((f) => f.motivo && !f.motivo.startsWith("Não tentado")).length,
+          alvos,
+          usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+        });
         return;
       }
       reset();
@@ -1033,11 +1055,25 @@ export default function ImpressaoOrdemProducaoPage() {
       setLote({ quantidade_ops: todasOrdens.length, ordens: todasOrdens });
       setPreview(true);
       setFalhasLote(todasFalhas);
-      toast.success(`${todasOrdens.length} OP(s) prontas. Abrindo janela de impressão...`, { id: tid });
-      await aguardarDesenhosProntos();
-      window.print();
+      if (abortouGlobal) {
+        toast.warning(
+          `${todasOrdens.length} carregadas, processamento abortado: ${abortouGlobal}`,
+          { id: tid },
+        );
+      } else {
+        toast.success(`${todasOrdens.length} OP(s) prontas. Abrindo janela de impressão...`, { id: tid });
+        await aguardarDesenhosProntos();
+        window.print();
+      }
     } catch (e: any) {
-      toast.error(e?.message || "Falha ao gerar PDF completo.", { id: tid });
+      const info = describeError(e);
+      toast.error(info.motivo, { id: tid });
+      setFalhaGlobal({
+        motivo: info.motivo,
+        testadas: 0,
+        alvos,
+        usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+      });
     } finally {
       setLoteLoading(false);
     }
@@ -1058,6 +1094,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setFalhasLote([]);
     setPreview(false);
     setBatchMode(null);
+    setFalhaGlobal(null);
   };
 
   const toggleOne = (key: string, checked: boolean) => {
