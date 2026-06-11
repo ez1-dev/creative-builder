@@ -715,72 +715,156 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="documentacao" className="gap-1"><BookOpen className="h-4 w-4" /> Documentação</TabsTrigger>
         </TabsList>
         {/* === PERFIS === */}
-        <TabsContent value="profiles">
+        <TabsContent value="profiles" className="space-y-4">
+          {/* Header */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2.5"><Shield className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold leading-tight">Perfis de Acesso</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Crie e gerencie perfis que agrupam permissões e usuários.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 w-full md:w-auto">
+                <KpiMini label="Perfis" value={profiles.length} />
+                <KpiMini label="Telas liberadas" value={Array.from(screensPerProfile.values()).reduce((a, b) => a + b, 0)} />
+                <KpiMini label="Usuários vinculados" value={userAccess.length} />
+              </div>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base">Perfis de Acesso</CardTitle>
-              <Dialog open={profileDialogOpen} onOpenChange={(o) => { setProfileDialogOpen(o); if (!o) { setEditingProfile(null); setProfileName(''); setProfileDesc(''); } }}>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Perfil</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingProfile ? 'Editar Perfil' : 'Novo Perfil'}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>Nome</Label>
-                      <Input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Ex: Comprador" />
-                    </div>
-                    <div>
-                      <Label>Descrição</Label>
-                      <Input value={profileDesc} onChange={e => setProfileDesc(e.target.value)} placeholder="Descrição do perfil" />
-                    </div>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col lg:flex-row gap-2 lg:items-center lg:justify-between">
+                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={profileSearch} onChange={e => setProfileSearch(e.target.value)} placeholder="Buscar por nome ou descrição..." className="pl-8 h-9" />
                   </div>
-                  <DialogFooter>
-                    <Button onClick={handleSaveProfile}>Salvar</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <Select value={profileAiFilter} onValueChange={(v: any) => setProfileAiFilter(v)}>
+                    <SelectTrigger className="h-9 w-full sm:w-44"><Filter className="h-3.5 w-3.5 mr-1" /><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">IA: todos</SelectItem>
+                      <SelectItem value="with">Com IA habilitada</SelectItem>
+                      <SelectItem value="without">Sem IA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={profileSort} onValueChange={(v: any) => setProfileSort(v)}>
+                    <SelectTrigger className="h-9 w-full sm:w-44"><ArrowUpDown className="h-3.5 w-3.5 mr-1" /><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Ordenar por nome</SelectItem>
+                      <SelectItem value="users">Mais usuários</SelectItem>
+                      <SelectItem value="screens">Mais telas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Dialog open={profileDialogOpen} onOpenChange={(o) => { setProfileDialogOpen(o); if (!o) { setEditingProfile(null); setProfileName(''); setProfileDesc(''); } }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Perfil</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingProfile ? 'Editar Perfil' : 'Novo Perfil'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Nome</Label>
+                        <Input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Ex: Comprador" />
+                      </div>
+                      <div>
+                        <Label>Descrição</Label>
+                        <Input value={profileDesc} onChange={e => setProfileDesc(e.target.value)} placeholder="Descrição do perfil" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={handleSaveProfile}>Salvar</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-center">Telas</TableHead>
-                    <TableHead className="text-center">Usuários</TableHead>
-                    <TableHead className="w-24">Ações</TableHead>
+                    <TableHead>Perfil</TableHead>
+                    <TableHead className="hidden md:table-cell">Descrição</TableHead>
+                    <TableHead className="text-center w-24">Telas</TableHead>
+                    <TableHead className="text-center w-24">Usuários</TableHead>
+                    <TableHead className="text-center w-24">IA</TableHead>
+                    <TableHead className="text-right w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profiles.map(p => {
-                    const screenCount = profileScreens.filter(ps => ps.profile_id === p.id && ps.can_view).length;
-                    const userCount = userAccess.filter(ua => ua.profile_id === p.id).length;
+                  {filteredProfiles.map(p => {
+                    const screenCount = screensPerProfile.get(p.id) ?? 0;
+                    const userCount = usersPerProfile.get(p.id) ?? 0;
                     return (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{p.description || '—'}</TableCell>
-                        <TableCell className="text-center"><Badge variant="secondary">{screenCount}</Badge></TableCell>
-                        <TableCell className="text-center"><Badge variant="outline">{userCount}</Badge></TableCell>
+                      <TableRow key={p.id} className="hover:bg-muted/40">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div className="rounded-md bg-primary/10 p-1.5"><ShieldCheck className="h-3.5 w-3.5 text-primary" /></div>
+                            <span>{p.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{p.description || '—'}</TableCell>
+                        <TableCell className="text-center"><Badge variant={screenCount === 0 ? 'outline' : 'secondary'}>{screenCount}</Badge></TableCell>
+                        <TableCell className="text-center"><Badge variant={userCount === 0 ? 'outline' : 'secondary'}>{userCount}</Badge></TableCell>
+                        <TableCell className="text-center">
+                          {p.ai_enabled
+                            ? <Badge className="gap-1 bg-primary/15 text-primary hover:bg-primary/20 border-transparent"><Sparkles className="h-3 w-3" /> Ativa</Badge>
+                            : <Badge variant="outline" className="text-muted-foreground">—</Badge>}
+                        </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditProfile(p)}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteProfile(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <div className="flex gap-1 justify-end">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => openEditProfile(p)} aria-label="Editar perfil">
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar perfil</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => handleDeleteProfile(p.id)} aria-label="Excluir perfil">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Excluir perfil</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
-                  {profiles.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum perfil cadastrado</TableCell></TableRow>
+                  {filteredProfiles.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="p-0">
+                        <EmptyState
+                          icon={Shield}
+                          title={profiles.length === 0 ? 'Nenhum perfil cadastrado' : 'Nenhum perfil encontrado'}
+                          description={profiles.length === 0 ? 'Crie seu primeiro perfil de acesso para começar a configurar permissões.' : 'Ajuste a busca ou os filtros para encontrar o perfil desejado.'}
+                          action={profiles.length === 0 ? (
+                            <Button size="sm" onClick={() => { setEditingProfile(null); setProfileName(''); setProfileDesc(''); setProfileDialogOpen(true); }}>
+                              <Plus className="h-4 w-4 mr-1" /> Criar primeiro perfil
+                            </Button>
+                          ) : null}
+                        />
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
         </TabsContent>
+
 
         {/* === PERMISSÕES === */}
         <TabsContent value="permissions" className="space-y-4">
