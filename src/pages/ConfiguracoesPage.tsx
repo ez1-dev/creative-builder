@@ -274,6 +274,18 @@ export default function ConfiguracoesPage() {
   const [newUserProfileIds, setNewUserProfileIds] = useState<string[]>([]);
   const [passagensShareAllowNonAdmin, setPassagensShareAllowNonAdmin] = useState(false);
 
+  // ---- Filtros UI ----
+  const [profileSearch, setProfileSearch] = useState('');
+  const [profileAiFilter, setProfileAiFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [profileSort, setProfileSort] = useState<'name' | 'users' | 'screens'>('name');
+
+  const [userSearch, setUserSearch] = useState('');
+  const [userProfileFilters, setUserProfileFilters] = useState<string[]>([]);
+  const [userOnlyUnassigned, setUserOnlyUnassigned] = useState(false);
+
+  const [userComboOpen, setUserComboOpen] = useState(false);
+  const [userFilterPopoverOpen, setUserFilterPopoverOpen] = useState(false);
+
   // Visuais (gráficos e mapas) por perfil — chave canônica: visual_key denied = can_view false
   const [profileVisuals, setProfileVisuals] = useState<Array<{ id: string; profile_id: string; visual_key: string; can_view: boolean }>>([]);
   const [visualsSelectedProfile, setVisualsSelectedProfile] = useState<string>('');
