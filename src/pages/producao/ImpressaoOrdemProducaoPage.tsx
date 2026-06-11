@@ -1857,6 +1857,48 @@ export default function ImpressaoOrdemProducaoPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!falhaGlobal} onOpenChange={(o) => !o && setFalhaGlobal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Não foi possível carregar as OPs</DialogTitle>
+            <DialogDescription>
+              {falhaGlobal?.motivo}
+              {falhaGlobal?.usouDesenhos
+                ? " Os desenhos costumam aumentar muito o tamanho da resposta — tente sem eles."
+                : " Verifique se o backend do ERP está acessível e tente novamente."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              onClick={() => {
+                const alvos = falhaGlobal?.alvos ?? [];
+                setFalhaGlobal(null);
+                void executarVisualizacao(alvos);
+              }}
+              disabled={loteLoading}
+            >
+              Tentar novamente
+            </Button>
+            {falhaGlobal?.usouDesenhos && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const alvos = falhaGlobal?.alvos ?? [];
+                  setFalhaGlobal(null);
+                  void executarVisualizacao(alvos, { forcarSemDesenhos: true });
+                }}
+                disabled={loteLoading}
+              >
+                Tentar sem desenhos
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setFalhaGlobal(null)} disabled={loteLoading}>
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
