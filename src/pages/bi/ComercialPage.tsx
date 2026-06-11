@@ -1200,6 +1200,13 @@ export default function ComercialPage() {
                   <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1" onClick={handleResetLayout}>
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar padrão
                   </Button>
+                  <NumberRoundingToggle
+                    className="hidden md:block"
+                    value={draftRounding}
+                    onChange={setDraftRounding}
+                    onResetToGlobal={() => setDraftRounding(displayPrefs.prefs.numberRounding.global)}
+                    showResetButton
+                  />
                   <Button size="sm" variant="ghost" className="h-8" onClick={handleCancelEdit}>
                     Cancelar
                   </Button>
