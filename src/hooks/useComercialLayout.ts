@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 import type { MetricRef } from '@/lib/bi/comercialMetrics';
