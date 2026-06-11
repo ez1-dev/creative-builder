@@ -1,40 +1,48 @@
 ## Problema
 
-No BI Comercial (referenciado como "BI Financeiro"), quando um usuário não-admin edita layout/widgets e salva, as alterações **não persistem** na "versão dele". Os edits são descartados silenciosamente.
+No toggle de arredondamento de números do BI (botões **Sem decimais**, **Abreviado**, **Milhões (MI)** e o botão **Usar padrão**), as escolhas parecem aplicar na hora, mas ao recarregar a página o valor volta para o anterior. Ou seja: a persistência em `user_preferences.bi_display_prefs` não está acontecendo (ou falha silenciosamente).
 
 ### Causa raiz
 
-Em `src/hooks/useComercialLayout.ts`, o modo (`official` vs `personal`) é salvo apenas no `localStorage` e começa como `official`. Quando o usuário edita sem antes clicar em "criar minha versão", o `saveLayout` chama `ensureDashboard()` que retorna o **dashboard oficial** (`owner_id IS NULL`). 
+Em `src/hooks/useBiDisplayPrefs.ts`, a função `persist()` faz upsert mas:
 
-As políticas RLS de `dashboards` / `dashboard_widgets` / `dashboard_blocks` só permitem `UPDATE/INSERT/DELETE` no dashboard oficial para **admins** (módulos `frota` e `passagens-aereas` têm exceção, mas `bi-comercial` não). Resultado: o `UPDATE` é silenciosamente bloqueado pelo RLS (0 linhas afetadas, sem erro), o `load()` recarrega do banco e o usuário vê tudo voltar ao que era.
-
-Além disso, o código **não verifica o `error`** dos `supabase.from(...).update/insert/delete`, então nenhuma mensagem aparece.
+1. **Engole o erro** num `try/catch` com apenas `console.warn`. Se o upsert for rejeitado (RLS, payload inválido, sessão expirada, etc.) o usuário nunca vê — a UI fica otimista até dar refresh, então o valor "some".
+2. **Não checa `{ error }`** retornado pelo `supabase.from('user_preferences').upsert(...)`. PostgREST/Supabase não lança em erro de RLS — devolve `error` no objeto. Sem ler isso, nada é detectado.
+3. **Race com a carga inicial**: o botão "Usar padrão" (e o `ToggleGroup` durante alguns ms entre montagem e o fim do `reload()`) podem ser clicados antes de `userIdRef.current` estar preenchido. O `persist()` faz `if (!uid) return` e descarta o save silenciosamente. O `ToggleGroup` tem `disabled={loading}`, mas o botão "Usar padrão" **não**.
+4. **Sem re-leitura após salvar**, qualquer divergência entre estado otimista e o que ficou no banco só aparece em outro mount.
 
 ## Solução
 
-Garantir que qualquer edição de um não-admin sempre vá para um dashboard pessoal (auto-fork), e expor erros que aconteçam ao salvar.
+Apenas no hook `src/hooks/useBiDisplayPrefs.ts` e, complementar, no `NumberRoundingToggle.tsx` para travar o botão "Usar padrão" enquanto carrega.
 
 ### Mudanças
 
-**1. `src/hooks/useComercialLayout.ts`**
+**1. `src/hooks/useBiDisplayPrefs.ts`**
 
-- Adicionar helper `isAdmin()` (usar `supabase.rpc('is_admin', { _uid })` ou checar via `useIsSeniorAdmin` — preferir RPC já existente). Cachear o resultado em estado.
-- Em `ensureDashboard()`: antes de devolver o `dashId` oficial, se `effectiveMode === 'official'` e o usuário **não for admin**, chamar `forkToPersonal()` automaticamente e usar o id pessoal. Isso muda o modo para `personal` e cria o dashboard pessoal se não existir (a RPC `fork_bi_comercial_dashboard` já é idempotente).
-- Em `saveLayout`, `deleteWidget` e `resetLayout`: passar a checar `error` de cada chamada Supabase. Se houver erro, lançar para o caller mostrar toast (os callers já usam `try/catch` com `toast.error`).
-- Em `resetLayout` quando `isPersonalEffective` é falso e o usuário não é admin: redirecionar para `resetPersonal()` em vez de deletar widgets do oficial.
+- `persist(next)`:
+  - Se `userIdRef.current` for `null`, aguardar `supabase.auth.getUser()` uma vez antes de desistir — só sai com erro se realmente não houver sessão.
+  - Capturar `{ error }` do `upsert` (em vez de só `try/catch`). Em caso de erro:
+    - Reverter `setPrefs` para o valor anterior (snapshot tirado antes do `setPrefs(next)`).
+    - Mostrar `toast.error('Não foi possível salvar a preferência de números. Tente novamente.')` com a mensagem do erro no `description`.
+    - `console.error` para diagnóstico.
+  - Em caso de sucesso, sem toast (mudança é frequente, ruído indesejado).
+- Trocar o `console.warn` mudo por log estruturado.
 
-**2. UX — aviso explícito**
+**2. `src/components/bi/runtime/NumberRoundingToggle.tsx`**
 
-No componente que consome o hook (provavelmente `src/pages/BiComercialPage.tsx` ou similar — confirmar na implementação), exibir um `toast.info` (curto, uma vez por sessão) quando o auto-fork acontecer: *"Editamos sua versão pessoal do BI Comercial. As alterações não afetam a versão oficial."*
+- Passar `disabled={loading}` também no botão "Usar padrão" (hoje só o `ToggleGroup` está bloqueado durante o load).
 
 ### Fora de escopo
 
-- Não mexer em RLS nem em RPCs do banco — a infra de fork já existe.
-- Não mexer nos módulos Frota / Máquinas / Passagens (lá, editores não-admin já têm permissão no oficial via `can_edit_*`).
-- Sem mudanças visuais no layout dos cards.
+- Não mexer em RLS, migrations ou na coluna `bi_display_prefs` (a política `Users can update own preferences` já permite o upsert e foi validada na migration `20260605045949...`).
+- Não mexer no `numberFormatMode` singleton nem nos formatadores.
+- Não tocar em outros consumidores de `useBiDisplayPrefs` (página Biblioteca BI).
 
 ## Validação
 
-1. Logar como usuário não-admin, abrir BI Comercial, mover/redimensionar um widget, recarregar — alteração deve persistir.
-2. Confirmar no banco que foi criada uma linha em `dashboards` com `module='bi-comercial'` e `owner_id` = id do usuário.
-3. Logar como admin — comportamento atual preservado (edita o oficial quando em modo official).
+1. Logar como admin, abrir `/bi/comercial`.
+2. Trocar para "Sem decimais" → recarregar a página → continuar em "Sem decimais".
+3. Trocar para "Abreviado" → recarregar → continuar.
+4. Trocar para "Milhões (MI)" → recarregar → continuar.
+5. Clicar "Usar padrão" → recarregar → toggle exibe o padrão global e o botão "Usar padrão" some.
+6. Simular falha (DevTools → bloquear `user_preferences`) e confirmar que aparece toast de erro e o toggle volta para o estado anterior.
