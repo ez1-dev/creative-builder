@@ -1375,7 +1375,7 @@ export default function ImpressaoOrdemProducaoPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={gerarPdfCompleto}
+                      onClick={() => gerarPdfCompleto()}
                       disabled={loteLoading || selectedKeys.size === 0}
                       title="Carrega todas as OPs selecionadas em lotes e abre a impressão"
                     >
@@ -1827,7 +1827,7 @@ export default function ImpressaoOrdemProducaoPage() {
               <Printer className="mr-2 h-4 w-4" />
               Processar em lotes de {LIMITE_PREVIEW_DIRETO}
             </Button>
-            <Button variant="outline" onClick={gerarPdfCompleto} disabled={loteLoading}>
+            <Button variant="outline" onClick={() => gerarPdfCompleto()} disabled={loteLoading}>
               <FileDown className="mr-2 h-4 w-4" />
               Gerar PDF completo
             </Button>
