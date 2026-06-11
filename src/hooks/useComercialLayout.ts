@@ -192,6 +192,21 @@ export function useComercialLayout(enabled: boolean = true) {
 
   useEffect(() => { if (enabled) load(); }, [enabled, load]);
 
+  // Carrega flag de admin uma vez por sessão deste hook.
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id;
+      if (!uid) { if (!cancelled) setIsAdmin(false); return; }
+      const { data, error } = await supabase.rpc('is_admin', { _uid: uid });
+      if (cancelled) return;
+      setIsAdmin(!error && Boolean(data));
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+
   const setMode = useCallback((next: ComercialLayoutMode) => {
     setModeState(next);
     if (typeof window !== 'undefined') {
@@ -216,10 +231,20 @@ export function useComercialLayout(enabled: boolean = true) {
   }, [load, setMode]);
 
   const ensureDashboard = useCallback(async (): Promise<string> => {
-    if (isPersonalEffective) {
-      // Já temos personal, devolve o id atual; senão fork.
-      if (dashboardId) return dashboardId;
-      return await forkToPersonal();
+    // Não-admin nunca consegue gravar no oficial (RLS). Auto-fork para versão pessoal.
+    const needsPersonal = isPersonalEffective || isAdmin === false;
+    if (needsPersonal) {
+      if (isPersonalEffective && dashboardId) return dashboardId;
+      const personalId = await forkToPersonal();
+      setIsPersonalEffective(true);
+      setDashboardId(personalId);
+      if (!autoForkToastShownRef.current && isAdmin === false) {
+        autoForkToastShownRef.current = true;
+        toast.info('Suas edições foram salvas na sua versão pessoal do BI Comercial.', {
+          description: 'A versão oficial só pode ser alterada por administradores.',
+        });
+      }
+      return personalId;
     }
     const { data: dash } = await supabase
       .from('dashboards')
@@ -237,7 +262,7 @@ export function useComercialLayout(enabled: boolean = true) {
     const id = data as unknown as string;
     setDashboardId(id);
     return id;
-  }, [dashboardId, forkToPersonal, isPersonalEffective]);
+  }, [dashboardId, forkToPersonal, isPersonalEffective, isAdmin]);
 
 
   const saveLayout = useCallback(async (next: SaveLayoutItem[]) => {
