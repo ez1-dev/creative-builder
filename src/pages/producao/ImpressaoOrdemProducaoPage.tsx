@@ -109,6 +109,15 @@ export default function ImpressaoOrdemProducaoPage() {
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
   const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
 
+  // Confirmação quando a seleção excede o limite seguro de preview direto.
+  const [confirmManyOpen, setConfirmManyOpen] = useState(false);
+  // Modo paginado: usuário optou por "Processar em lotes de 30".
+  const [batchMode, setBatchMode] = useState<{
+    alvos: OpcaoOp[];
+    paginaAtual: number;
+    tamanhoLote: number;
+  } | null>(null);
+
   const [obsOpen, setObsOpen] = useState(false);
   const [obsLoading, setObsLoading] = useState(false);
   const [obsError, setObsError] = useState<string | null>(null);
