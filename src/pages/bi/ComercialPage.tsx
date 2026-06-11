@@ -39,6 +39,8 @@ import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
 import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingToggle';
+import { useBiDisplayPrefs } from '@/hooks/useBiDisplayPrefs';
+import { setNumberRoundingMode, type NumberRoundingMode } from '@/lib/bi/numberFormatMode';
 import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
