@@ -1015,17 +1015,27 @@ export default function ComercialPage() {
     setEditing(false);
   };
 
-  // Edição permitida se: modo pessoal (sempre pode) OU admin OU usuário tem can_edit em /bi/comercial.
-  const canEditOfficial = isAdmin || canEdit('/bi/comercial');
-  const canEditDashboard = layout.isPersonal || canEditOfficial;
+  // Edição do Configurar bloco / layout é restrita a admin — gravação sempre no Oficial,
+  // visível para todos os usuários. Não-admins podem ver Minha versão mas não editar config.
+  const canEditDashboard = isAdmin === true;
 
-  const handleEnterEdit = () => {
+  const handleEnterEdit = async () => {
     if (!canEditDashboard) {
-      toast.info('Para editar, ative "Minha versão" no topo da página.');
+      toast.info('Apenas administradores podem editar o dashboard.');
       return;
     }
+    // Se admin está vendo Minha versão, força Oficial antes de editar — mudanças aqui afetam todos.
+    if (layout.isPersonal) {
+      try {
+        layout.setMode('official');
+        await layout.reload();
+        toast.info('Edições são salvas no dashboard Oficial e ficam visíveis para todos.');
+      } catch (e: any) {
+        toast.error(`Erro ao alternar para Oficial: ${e?.message ?? e}`);
+        return;
+      }
+    }
     clearDrafts();
-    // Captura o valor atual como baseline do rascunho de números.
     initialRoundingRef.current = effectiveRounding;
     setDraftRounding(effectiveRounding);
     setEditing(true);
