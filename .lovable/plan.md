@@ -1,41 +1,49 @@
-Refinar visual e usabilidade das 3 abas em `/configuracoes`: **Perfis de Acesso**, **Permissões por Tela** e **Usuários**. Apenas frontend/UI — nenhuma mudança em backend, schema ou lógica de permissão.
+## Objetivo
+Tornar a página `/configuracoes` mais profissional como um todo — hoje há 13 abas espremidas numa única `TabsList` horizontal, sem hierarquia, sem busca e com superfícies inconsistentes entre as abas. Vamos manter o trabalho já feito nas 3 abas de acesso e elevar o restante ao mesmo padrão.
 
-## Arquivos
+## Escopo (somente UI/UX, sem mudar lógica nem backend)
 
-- `src/pages/ConfiguracoesPage.tsx` — abas `profiles`, `permissions` e `users`.
-- `src/components/configuracoes/PermissoesPorTelaPanel.tsx` — refinos visuais e filtros da matriz.
+### 1. Shell da página
+- Substituir a `TabsList` horizontal por uma **navegação lateral agrupada** (sidebar à esquerda em desktop, `Sheet` em mobile), com seções:
+  - **Acessos** — Perfis de Acesso, Permissões por Tela, Usuários, Aprovações
+  - **Plataforma** — API, Gráficos e Mapas, Versão, Documentação
+  - **Operação** — Logs, Monitoramento, Dashboard de Uso
+  - **Pessoal** — Minhas Preferências
+- Cada item lateral com ícone, label e *badge* (pendências de aprovação, logs 24h).
+- Busca rápida no topo da sidebar (`Filtrar configurações…`) que filtra os itens por nome.
+- `PageHeader` reformatado: título + descrição + barra de ações à direita (atalhos contextuais por aba, ex.: "Novo perfil", "Atribuir acesso", "Recarregar").
+- Breadcrumb leve: `Configurações › <Seção> › <Aba>`.
 
-## 1. Aba "Perfis de Acesso"
+### 2. Padronização visual das abas
+Aplicar o mesmo padrão já usado em Perfis/Permissões/Usuários nas demais:
+- Faixa de KPIs no topo (quando faz sentido: Aprovações, API, Logs, Monitoramento, Dashboard de Uso).
+- Toolbar com busca + filtros + ordenação.
+- Conteúdo dentro de `Card` com cabeçalho, divisores sutis e *empty states* padronizados (ícone + título + descrição + CTA).
+- Inputs `h-9`, badges semânticos, espaçamento uniforme.
 
-- Header da aba com título, subtítulo descritivo e mini-cards de KPIs (Total de perfis · Total de telas configuradas · Total de usuários).
-- Toolbar: busca por nome/descrição, filtro IA (todos / com IA / sem IA), ordenação (nome / mais usuários / mais telas).
-- Tabela: ícone Shield no nome, badge "IA" quando `ai_enabled`, hover destacado, badges semânticos para contagem (zero = `outline`, > 0 = `secondary`), ações em ghost icon com tooltip.
-- Estado vazio com ícone, texto orientativo e CTA "Criar primeiro perfil".
+### 3. Refinamentos específicos por aba (apenas apresentação)
+- **Aprovações:** KPIs (Pendentes, Aprovados 7d, Rejeitados 7d), busca por login/nome, filtro por status, ações em lote (aprovar/rejeitar selecionados) — sem mexer nos handlers existentes.
+- **API:** Cartões de status de conexão (FastAPI, ngrok), badge de latência, botão "Testar conexão" em destaque, agrupar campos em seções (Conexão, Cabeçalhos, Diagnóstico).
+- **Logs:** Toolbar com busca, filtro por severidade/origem, range de datas; linha do tempo + tabela com `ScrollArea` e empty state.
+- **Monitoramento / Dashboard de Uso:** Manter os componentes atuais, apenas envolver em `Card` com cabeçalho consistente e respiro.
+- **Gráficos e Mapas:** Cabeçalho de seção, prévia visual de cada tema/mapa em grid.
+- **Versão / Documentação / Minhas Preferências:** Cabeçalho consistente, conteúdo dentro de `Card`, tipografia alinhada.
 
-## 2. Aba "Permissões por Tela"
+### 4. Detalhes de qualidade
+- Somente tokens do design system (`bg-card`, `border`, `muted-foreground`, `primary`, `accent`) — sem cores hardcoded.
+- Skeletons leves nos blocos enquanto carregam.
+- Persistir a aba ativa em `?tab=` na URL (já existe `activeTab`, só plugar `searchParams`).
+- Acessibilidade: `aria-current` na sidebar, foco visível, ordem de tabulação.
 
-- Toolbar: busca por nome/path de tela, filtro por módulo (derivado do prefixo do path), filtro "somente com permissão / todas".
-- Agrupamento por módulo com cabeçalhos colapsáveis e contador "X de Y telas liberadas".
-- Ações em massa por módulo: "Liberar Ver todas" / "Bloquear todas" para o perfil atualmente focado.
-- Sticky header da matriz para rolagem longa.
-- Cards laterais (Assistente IA + Compartilhamento Passagens) reformatados como `Card` próprios com ícone, separados visualmente do bloco principal.
+## Fora de escopo
+- Schemas, RPCs, edge functions, lógica de permissões, `ALL_SCREENS`.
+- Mudanças nas regras de aprovação, autenticação, integração com FastAPI.
+- Refatoração das abas Perfis/Permissões/Usuários já entregues (só herdam o novo shell).
 
-## 3. Aba "Usuários"
+## Arquivos a editar
+- `src/pages/ConfiguracoesPage.tsx` (shell + toolbar + atalhos + integração com sidebar).
+- Novo: `src/components/configuracoes/ConfiguracoesSidebar.tsx` (navegação agrupada com busca e badges).
+- Polimento leve nos painéis existentes referenciados pelas abas (API, Logs, Aprovações, etc.) — apenas wrappers de `Card`/header, sem tocar em lógica.
 
-- Header com KPIs: Usuários atribuídos · Perfis distintos em uso · Usuários ERP aprovados sem atribuição.
-- Toolbar: busca por login, filtro por perfil (multi-select), filtro "sem perfil atribuído".
-- Tabela: avatar/inicial do login, badges de perfis com cor consistente derivada do nome (tokens semânticos), data formatada `dd/MM/yyyy HH:mm`, ação principal "Editar perfis" (abre o Dialog em modo edição pré-preenchido) e ação secundária "Remover todos".
-- Dialog "Atribuir Acesso" com `Combobox` para o usuário (busca por nome/login/email) substituindo o Select longo, e checkboxes de perfis com descrição ao lado.
-
-## Padrão visual (todas as 3 abas)
-
-- Apenas tokens do design system (`bg-card`, `text-muted-foreground`, `border`, `primary`, `accent`). Sem cores hardcoded.
-- Header de cada aba em bloco com ícone grande, título, descrição e KPIs em mini-cards à direita.
-- Inputs/Selects `h-9`, gaps consistentes, divisores sutis, estados vazios padronizados.
-
-## Fora do escopo
-
-- Schema, RPCs, edge functions — inalterados.
-- Demais abas (Visuals, API, Logs, Monitoramento, Aprovações, Versão, Documentação, etc.) — inalteradas.
-- Catálogo `ALL_SCREENS` — inalterado.
-- Lógica de carregamento (`fetchData`), salvamento e RLS — inalterada.
+## Resultado esperado
+Página com navegação lateral limpa, hierarquia clara entre seções, toolbar e KPIs consistentes em todas as abas, e visual coeso com o restante do ERP.
