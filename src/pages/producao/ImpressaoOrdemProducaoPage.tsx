@@ -909,6 +909,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setLote(null);
     setFalhasLote([]);
     setPreview(false);
+    setBatchMode(null);
   };
 
   const toggleOne = (key: string, checked: boolean) => {
