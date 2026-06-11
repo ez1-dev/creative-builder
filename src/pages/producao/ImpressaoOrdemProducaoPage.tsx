@@ -1623,6 +1623,37 @@ export default function ImpressaoOrdemProducaoPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={confirmManyOpen} onOpenChange={setConfirmManyOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Muitas OPs selecionadas</DialogTitle>
+            <DialogDescription>
+              Você selecionou {getAlvosSelecionados().length} OPs. Para melhor desempenho, visualize em lotes
+              ou gere o PDF completo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button onClick={visualizarPrimeiras} disabled={loteLoading}>
+              <Eye className="mr-2 h-4 w-4" />
+              Visualizar primeiras {LIMITE_PREVIEW_DIRETO}
+            </Button>
+            <Button variant="outline" onClick={iniciarLotes} disabled={loteLoading}>
+              <Printer className="mr-2 h-4 w-4" />
+              Processar em lotes de {LIMITE_PREVIEW_DIRETO}
+            </Button>
+            <Button variant="outline" onClick={gerarPdfCompleto} disabled={loteLoading}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Gerar PDF completo
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmManyOpen(false)} disabled={loteLoading}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
