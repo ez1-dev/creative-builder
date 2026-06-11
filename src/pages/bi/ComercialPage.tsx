@@ -552,6 +552,10 @@ export default function ComercialPage() {
   // ===== Layout / Builder =====
   const layout = useComercialLayout();
   const [editing, setEditing] = useState(false);
+  const displayPrefs = useBiDisplayPrefs();
+  const effectiveRounding = displayPrefs.effectiveRoundingFor(PAGE_KEY);
+  const [draftRounding, setDraftRounding] = useState<NumberRoundingMode>(effectiveRounding);
+  const initialRoundingRef = useRef<NumberRoundingMode>(effectiveRounding);
   const [configType, setConfigType] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [previewSeriesKey, setPreviewSeriesKey] = useState<string | null>(null);
