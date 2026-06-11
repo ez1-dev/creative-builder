@@ -15,39 +15,65 @@ const MODES: NumberRoundingMode[] = ['full', 'no-decimals', 'abbreviated', 'mill
 
 interface Props {
   /**
-   * Se informado, o toggle controla o override por página (e exibe o botão
-   * "Usar padrão"). Se ausente, controla o padrão global do usuário.
+   * Se informado (e sem `value`), o toggle controla o override por página
+   * persistindo direto em `user_preferences` (modo "auto-save" — usado
+   * fora do fluxo de edição com rascunho).
    */
   pageKey?: string;
   className?: string;
+  /**
+   * Modo controlado: quando `value` está definido, o toggle não persiste
+   * sozinho. Apenas chama `onChange`/`onResetToGlobal` e sincroniza o
+   * singleton para refletir a escolha no preview ao vivo.
+   */
+  value?: NumberRoundingMode;
+  onChange?: (mode: NumberRoundingMode) => void;
+  onResetToGlobal?: () => void;
+  /** Força exibir "Usar padrão" mesmo sem override salvo (útil no draft). */
+  showResetButton?: boolean;
 }
 
 /**
  * Toggle compacto de modo de arredondamento dos números do BI.
  *
- * Sem `pageKey`: controla o padrão global do usuário (usado na Biblioteca BI).
- * Com `pageKey`: controla o override por página (usado em /bi/comercial).
- *
- * Também sincroniza o singleton `numberFormatMode` para que os formatadores
- * em `components/bi/utils/formatters.ts` reflitam o modo efetivo da página atual.
+ * - Sem `pageKey` e sem `value`: controla o padrão global do usuário.
+ * - Com `pageKey` e sem `value`: persiste override por página direto.
+ * - Com `value`+`onChange`: modo controlado (rascunho); o pai decide
+ *   quando persistir (ex.: ao clicar em Salvar do dashboard).
  */
-export function NumberRoundingToggle({ pageKey, className }: Props) {
+export function NumberRoundingToggle({
+  pageKey, className, value, onChange, onResetToGlobal, showResetButton,
+}: Props) {
   const { prefs, loading, setGlobalRounding, setPageRounding, effectiveRoundingFor } =
     useBiDisplayPrefs();
 
-  const effective = effectiveRoundingFor(pageKey);
+  const isControlled = value !== undefined;
+  const effective = isControlled ? (value as NumberRoundingMode) : effectiveRoundingFor(pageKey);
   const hasPageOverride = !!pageKey && !!prefs.numberRounding.pages[pageKey];
+  const showReset = showResetButton ?? (hasPageOverride && !!pageKey);
 
   // Mantém o singleton sincronizado enquanto o componente está montado.
   useEffect(() => {
     setNumberRoundingMode(effective);
   }, [effective]);
 
-  const onChange = (value: string) => {
-    if (!value) return;
-    const mode = value as NumberRoundingMode;
+  const handleChange = (v: string) => {
+    if (!v) return;
+    const mode = v as NumberRoundingMode;
+    if (isControlled) {
+      onChange?.(mode);
+      return;
+    }
     if (pageKey) setPageRounding(pageKey, mode);
     else setGlobalRounding(mode);
+  };
+
+  const handleReset = () => {
+    if (isControlled) {
+      onResetToGlobal?.();
+      return;
+    }
+    if (pageKey) setPageRounding(pageKey, null);
   };
 
   return (
@@ -70,8 +96,8 @@ export function NumberRoundingToggle({ pageKey, className }: Props) {
             type="single"
             size="sm"
             value={effective}
-            onValueChange={onChange}
-            disabled={loading}
+            onValueChange={handleChange}
+            disabled={loading && !isControlled}
             className="h-8"
           >
             {MODES.map((m) => (
@@ -88,22 +114,21 @@ export function NumberRoundingToggle({ pageKey, className }: Props) {
             ))}
           </ToggleGroup>
 
-          {hasPageOverride && pageKey && (
+          {showReset && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-[11px] text-muted-foreground"
-                  disabled={loading}
-                  onClick={() => setPageRounding(pageKey, null)}
+                  disabled={loading && !isControlled}
+                  onClick={handleReset}
                 >
                   Usar padrão
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
-                Remover override desta página e voltar ao padrão global
-                ({NUMBER_ROUNDING_LABEL[prefs.numberRounding.global]}).
+                Voltar ao padrão global ({NUMBER_ROUNDING_LABEL[prefs.numberRounding.global]}).
               </TooltipContent>
             </Tooltip>
           )}
