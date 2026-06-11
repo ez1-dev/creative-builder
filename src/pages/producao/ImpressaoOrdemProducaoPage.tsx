@@ -1635,12 +1635,30 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
             </div>
             {falhasLote.length > 0 && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
-                {falhasLote.map((f, i) => (
-                  <div key={i}>
-                    Não foi possível carregar a OP {f.cod_ori}/{f.num_orp}
-                  </div>
-                ))}
+              <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{falhasLote.length} OP(s) falharam</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={retentarFalhas}
+                    disabled={loteLoading}
+                    className="h-7 text-xs"
+                  >
+                    Tentar novamente só estas
+                  </Button>
+                </div>
+                <div className="max-h-32 space-y-0.5 overflow-y-auto">
+                  {falhasLote.slice(0, 50).map((f, i) => (
+                    <div key={i}>
+                      OP {f.cod_ori}/{f.num_orp}
+                      {f.motivo ? ` — ${f.motivo}` : ""}
+                    </div>
+                  ))}
+                  {falhasLote.length > 50 && (
+                    <div className="italic opacity-70">… e mais {falhasLote.length - 50} OP(s).</div>
+                  )}
+                </div>
               </div>
             )}
             {batchMode && (() => {
