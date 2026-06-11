@@ -118,6 +118,7 @@ export default function ImpressaoOrdemProducaoPage() {
   );
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
+  const pdfJob = useImpressaoPdfJob();
 
   // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
   // e exibição de status por desenho na tabela de preview.
