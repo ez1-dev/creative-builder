@@ -80,6 +80,8 @@ export function useComercialLayout(enabled: boolean = true) {
   const [mode, setModeState] = useState<ComercialLayoutMode>(() => readStoredMode());
   const [hasPersonal, setHasPersonal] = useState(false);
   const [isPersonalEffective, setIsPersonalEffective] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const autoForkToastShownRef = useRef(false);
 
 
   const mergeWithDefaults = useCallback((rows: ComercialWidget[]): ComercialWidget[] => {
