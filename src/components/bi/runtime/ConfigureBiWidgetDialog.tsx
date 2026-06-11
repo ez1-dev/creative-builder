@@ -334,6 +334,9 @@ export function ConfigureBiWidgetDialog({
               ? 'Edite o componente da Biblioteca BI aplicado.'
               : `Customize "${fallbackTitle ?? blockType}" — escolha variante padrão ou substitua por componente da Biblioteca BI.`}
           </DialogDescription>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Alterações afetam todos os usuários (versão Oficial).
+          </p>
         </DialogHeader>
 
         <Tabs
