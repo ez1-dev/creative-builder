@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, Edit, Users, Shield, Eye, Wifi, WifiOff, UserCheck, UserX, FileWarning, Sparkles, Activity, Rocket, BarChart3, Brain, LineChart, PowerOff, BookOpen, Download, ExternalLink, Search, Filter, UserPlus, ChevronsUpDown, Check, ShieldCheck, X, ArrowUpDown, Inbox } from 'lucide-react';
 import { VISUAL_CATALOG } from '@/lib/visualCatalog';
 import { MonitoramentoUsuarios } from '@/components/erp/MonitoramentoUsuarios';
 
@@ -23,6 +23,10 @@ import { toast } from 'sonner';
 import { getApiUrl, setApiBaseUrl } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { PermissoesPorTelaPanel } from '@/components/configuracoes/PermissoesPorTelaPanel';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 
 const ALL_SCREENS = [
@@ -141,6 +145,26 @@ function getErrorExplanation(log: any): { explicacao: string; resolucao: string 
     return { explicacao: 'A requisição demorou demais para responder', resolucao: 'O servidor pode estar sobrecarregado. Tente novamente em alguns minutos.' };
   }
   return { explicacao: 'Erro não categorizado', resolucao: 'Verifique os detalhes e, se necessário, contate o suporte técnico.' };
+}
+
+function KpiMini({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
+  return (
+    <div className={cn('rounded-md border bg-card px-3 py-2 min-w-[110px]', accent && 'border-primary/40 bg-primary/5')}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('text-xl font-semibold tabular-nums', accent && 'text-primary')}>{value}</div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, description, action }: { icon: any; title: string; description?: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-10 px-4">
+      <div className="rounded-full bg-muted p-3 mb-3"><Icon className="h-6 w-6 text-muted-foreground" /></div>
+      <div className="text-sm font-medium">{title}</div>
+      {description && <div className="text-xs text-muted-foreground mt-1 max-w-md">{description}</div>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
 }
 
 export default function ConfiguracoesPage() {
@@ -269,6 +293,18 @@ export default function ConfiguracoesPage() {
   const [newUserLogin, setNewUserLogin] = useState('');
   const [newUserProfileIds, setNewUserProfileIds] = useState<string[]>([]);
   const [passagensShareAllowNonAdmin, setPassagensShareAllowNonAdmin] = useState(false);
+
+  // ---- Filtros UI ----
+  const [profileSearch, setProfileSearch] = useState('');
+  const [profileAiFilter, setProfileAiFilter] = useState<'all' | 'with' | 'without'>('all');
+  const [profileSort, setProfileSort] = useState<'name' | 'users' | 'screens'>('name');
+
+  const [userSearch, setUserSearch] = useState('');
+  const [userProfileFilters, setUserProfileFilters] = useState<string[]>([]);
+  const [userOnlyUnassigned, setUserOnlyUnassigned] = useState(false);
+
+  const [userComboOpen, setUserComboOpen] = useState(false);
+  const [userFilterPopoverOpen, setUserFilterPopoverOpen] = useState(false);
 
   // Visuais (gráficos e mapas) por perfil — chave canônica: visual_key denied = can_view false
   const [profileVisuals, setProfileVisuals] = useState<Array<{ id: string; profile_id: string; visual_key: string; can_view: boolean }>>([]);
@@ -530,7 +566,118 @@ export default function ConfiguracoesPage() {
     fetchData();
   };
 
+  const handleRemoveAllUserProfiles = async (login: string) => {
+    if (!confirm(`Remover TODOS os perfis do usuário ${login}?`)) return;
+    const { error } = await supabase.from('user_access').delete().ilike('user_login', login);
+    if (error) { toast.error('Erro ao remover'); return; }
+    toast.success('Todos os perfis removidos');
+    fetchData();
+  };
+
+  const openManageProfilesFor = (login: string) => {
+    setNewUserLogin(login);
+    setNewUserProfileIds([]);
+    setUserDialogOpen(true);
+  };
+
   const getProfileName = (profileId: string) => profiles.find(p => p.id === profileId)?.name || '—';
+
+  // ---- KPIs e listas derivadas ----
+  const screensPerProfile = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ps of profileScreens) {
+      if (!ps.can_view) continue;
+      map.set(ps.profile_id, (map.get(ps.profile_id) ?? 0) + 1);
+    }
+    return map;
+  }, [profileScreens]);
+
+  const usersPerProfile = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ua of userAccess) {
+      map.set(ua.profile_id, (map.get(ua.profile_id) ?? 0) + 1);
+    }
+    return map;
+  }, [userAccess]);
+
+  const filteredProfiles = useMemo(() => {
+    const q = profileSearch.trim().toLowerCase();
+    let list = profiles.filter(p => {
+      if (q && !p.name.toLowerCase().includes(q) && !(p.description ?? '').toLowerCase().includes(q)) return false;
+      if (profileAiFilter === 'with' && !p.ai_enabled) return false;
+      if (profileAiFilter === 'without' && p.ai_enabled) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      if (profileSort === 'users') return (usersPerProfile.get(b.id) ?? 0) - (usersPerProfile.get(a.id) ?? 0);
+      if (profileSort === 'screens') return (screensPerProfile.get(b.id) ?? 0) - (screensPerProfile.get(a.id) ?? 0);
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [profiles, profileSearch, profileAiFilter, profileSort, usersPerProfile, screensPerProfile]);
+
+  // Aggregated users (group user_access by login)
+  const groupedUsers = useMemo(() => {
+    const map = new Map<string, { login: string; rows: UserAccess[]; latest: string }>();
+    for (const ua of userAccess) {
+      const key = ua.user_login.toUpperCase();
+      const cur = map.get(key);
+      if (cur) {
+        cur.rows.push(ua);
+        if (ua.created_at > cur.latest) cur.latest = ua.created_at;
+      } else {
+        map.set(key, { login: ua.user_login, rows: [ua], latest: ua.created_at });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.login.localeCompare(b.login));
+  }, [userAccess]);
+
+  const approvedUserByLogin = useMemo(() => {
+    const map = new Map<string, ApprovedUser>();
+    for (const u of approvedUsers) {
+      if (u.erp_user) map.set(u.erp_user.toUpperCase(), u);
+    }
+    return map;
+  }, [approvedUsers]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    return groupedUsers.filter(g => {
+      const meta = approvedUserByLogin.get(g.login.toUpperCase());
+      if (q) {
+        const hay = `${g.login} ${meta?.display_name ?? ''} ${meta?.email ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (userProfileFilters.length > 0) {
+        const has = g.rows.some(r => userProfileFilters.includes(r.profile_id));
+        if (!has) return false;
+      }
+      return true;
+    });
+  }, [groupedUsers, userSearch, userProfileFilters, approvedUserByLogin]);
+
+  const usersWithoutAssignment = useMemo(() => {
+    const assignedLogins = new Set(groupedUsers.map(g => g.login.toUpperCase()));
+    return approvedUsers.filter(u => u.erp_user && !assignedLogins.has(u.erp_user.toUpperCase()));
+  }, [approvedUsers, groupedUsers]);
+
+  const distinctProfilesInUse = useMemo(() => new Set(userAccess.map(ua => ua.profile_id)).size, [userAccess]);
+
+  // Stable color token per profile name (semantic)
+  const PROFILE_BADGE_VARIANTS = ['default', 'secondary', 'outline'] as const;
+  const profileBadgeVariant = (name: string) => {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return PROFILE_BADGE_VARIANTS[h % PROFILE_BADGE_VARIANTS.length];
+  };
+
+  const userInitials = (login: string, meta?: ApprovedUser) => {
+    const src = meta?.display_name || login;
+    const parts = src.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
 
   if (loading && profiles.length === 0) {
     return (
@@ -568,66 +715,149 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="documentacao" className="gap-1"><BookOpen className="h-4 w-4" /> Documentação</TabsTrigger>
         </TabsList>
         {/* === PERFIS === */}
-        <TabsContent value="profiles">
+        <TabsContent value="profiles" className="space-y-4">
+          {/* Header */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2.5"><Shield className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold leading-tight">Perfis de Acesso</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Crie e gerencie perfis que agrupam permissões e usuários.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 w-full md:w-auto">
+                <KpiMini label="Perfis" value={profiles.length} />
+                <KpiMini label="Telas liberadas" value={Array.from(screensPerProfile.values()).reduce((a, b) => a + b, 0)} />
+                <KpiMini label="Usuários vinculados" value={userAccess.length} />
+              </div>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base">Perfis de Acesso</CardTitle>
-              <Dialog open={profileDialogOpen} onOpenChange={(o) => { setProfileDialogOpen(o); if (!o) { setEditingProfile(null); setProfileName(''); setProfileDesc(''); } }}>
-                <DialogTrigger asChild>
-                  <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Perfil</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{editingProfile ? 'Editar Perfil' : 'Novo Perfil'}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>Nome</Label>
-                      <Input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Ex: Comprador" />
-                    </div>
-                    <div>
-                      <Label>Descrição</Label>
-                      <Input value={profileDesc} onChange={e => setProfileDesc(e.target.value)} placeholder="Descrição do perfil" />
-                    </div>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col lg:flex-row gap-2 lg:items-center lg:justify-between">
+                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={profileSearch} onChange={e => setProfileSearch(e.target.value)} placeholder="Buscar por nome ou descrição..." className="pl-8 h-9" />
                   </div>
-                  <DialogFooter>
-                    <Button onClick={handleSaveProfile}>Salvar</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <Select value={profileAiFilter} onValueChange={(v: any) => setProfileAiFilter(v)}>
+                    <SelectTrigger className="h-9 w-full sm:w-44"><Filter className="h-3.5 w-3.5 mr-1" /><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">IA: todos</SelectItem>
+                      <SelectItem value="with">Com IA habilitada</SelectItem>
+                      <SelectItem value="without">Sem IA</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={profileSort} onValueChange={(v: any) => setProfileSort(v)}>
+                    <SelectTrigger className="h-9 w-full sm:w-44"><ArrowUpDown className="h-3.5 w-3.5 mr-1" /><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Ordenar por nome</SelectItem>
+                      <SelectItem value="users">Mais usuários</SelectItem>
+                      <SelectItem value="screens">Mais telas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Dialog open={profileDialogOpen} onOpenChange={(o) => { setProfileDialogOpen(o); if (!o) { setEditingProfile(null); setProfileName(''); setProfileDesc(''); } }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Novo Perfil</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingProfile ? 'Editar Perfil' : 'Novo Perfil'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Nome</Label>
+                        <Input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Ex: Comprador" />
+                      </div>
+                      <div>
+                        <Label>Descrição</Label>
+                        <Input value={profileDesc} onChange={e => setProfileDesc(e.target.value)} placeholder="Descrição do perfil" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={handleSaveProfile}>Salvar</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead className="text-center">Telas</TableHead>
-                    <TableHead className="text-center">Usuários</TableHead>
-                    <TableHead className="w-24">Ações</TableHead>
+                    <TableHead>Perfil</TableHead>
+                    <TableHead className="hidden md:table-cell">Descrição</TableHead>
+                    <TableHead className="text-center w-24">Telas</TableHead>
+                    <TableHead className="text-center w-24">Usuários</TableHead>
+                    <TableHead className="text-center w-24">IA</TableHead>
+                    <TableHead className="text-right w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profiles.map(p => {
-                    const screenCount = profileScreens.filter(ps => ps.profile_id === p.id && ps.can_view).length;
-                    const userCount = userAccess.filter(ua => ua.profile_id === p.id).length;
+                  {filteredProfiles.map(p => {
+                    const screenCount = screensPerProfile.get(p.id) ?? 0;
+                    const userCount = usersPerProfile.get(p.id) ?? 0;
                     return (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">{p.description || '—'}</TableCell>
-                        <TableCell className="text-center"><Badge variant="secondary">{screenCount}</Badge></TableCell>
-                        <TableCell className="text-center"><Badge variant="outline">{userCount}</Badge></TableCell>
+                      <TableRow key={p.id} className="hover:bg-muted/40">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div className="rounded-md bg-primary/10 p-1.5"><ShieldCheck className="h-3.5 w-3.5 text-primary" /></div>
+                            <span>{p.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-muted-foreground text-sm">{p.description || '—'}</TableCell>
+                        <TableCell className="text-center"><Badge variant={screenCount === 0 ? 'outline' : 'secondary'}>{screenCount}</Badge></TableCell>
+                        <TableCell className="text-center"><Badge variant={userCount === 0 ? 'outline' : 'secondary'}>{userCount}</Badge></TableCell>
+                        <TableCell className="text-center">
+                          {p.ai_enabled
+                            ? <Badge className="gap-1 bg-primary/15 text-primary hover:bg-primary/20 border-transparent"><Sparkles className="h-3 w-3" /> Ativa</Badge>
+                            : <Badge variant="outline" className="text-muted-foreground">—</Badge>}
+                        </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditProfile(p)}><Edit className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDeleteProfile(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          <div className="flex gap-1 justify-end">
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => openEditProfile(p)} aria-label="Editar perfil">
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar perfil</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => handleDeleteProfile(p.id)} aria-label="Excluir perfil">
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Excluir perfil</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           </div>
                         </TableCell>
                       </TableRow>
                     );
                   })}
-                  {profiles.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Nenhum perfil cadastrado</TableCell></TableRow>
+                  {filteredProfiles.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="p-0">
+                        <EmptyState
+                          icon={Shield}
+                          title={profiles.length === 0 ? 'Nenhum perfil cadastrado' : 'Nenhum perfil encontrado'}
+                          description={profiles.length === 0 ? 'Crie seu primeiro perfil de acesso para começar a configurar permissões.' : 'Ajuste a busca ou os filtros para encontrar o perfil desejado.'}
+                          action={profiles.length === 0 ? (
+                            <Button size="sm" onClick={() => { setEditingProfile(null); setProfileName(''); setProfileDesc(''); setProfileDialogOpen(true); }}>
+                              <Plus className="h-4 w-4 mr-1" /> Criar primeiro perfil
+                            </Button>
+                          ) : null}
+                        />
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -635,76 +865,108 @@ export default function ConfiguracoesPage() {
           </Card>
         </TabsContent>
 
+
         {/* === PERMISSÕES === */}
-        <TabsContent value="permissions">
+        <TabsContent value="permissions" className="space-y-4">
+          {/* Header */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2.5"><Eye className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold leading-tight">Permissões por Tela</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Defina, por perfil, quais telas podem ser visualizadas, editadas ou excluídas.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 w-full md:w-auto">
+                <KpiMini label="Telas" value={ALL_SCREENS.length} />
+                <KpiMini label="Perfis" value={profiles.length} />
+                <KpiMini label="Regras ativas" value={profileScreens.filter(ps => ps.can_view).length} />
+              </div>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Permissões por Tela</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {profiles.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">Crie um perfil primeiro na aba "Perfis de Acesso"</p>
+                <EmptyState
+                  icon={Shield}
+                  title="Nenhum perfil cadastrado"
+                  description='Crie um perfil primeiro na aba "Perfis de Acesso" para configurar permissões.'
+                  action={<Button size="sm" onClick={() => setActiveTab('profiles')}><Shield className="h-4 w-4 mr-1" /> Ir para Perfis</Button>}
+                />
               ) : (
-                <>
-                  <PermissoesPorTelaPanel
-                    screens={ALL_SCREENS}
-                    profiles={profiles.map(p => ({ id: p.id, name: p.name }))}
-                    profileScreens={profileScreens}
-                    onToggle={toggleScreen}
-                    onRefresh={fetchData}
-                  />
-
-
-                  <div className="mt-6 border-t pt-4">
-                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
-                      <Sparkles className="h-4 w-4 text-primary" /> Assistente IA
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      {profiles.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                          <span className="text-sm">{p.name}</span>
-                          <Switch
-                            checked={p.ai_enabled}
-                            onCheckedChange={async (checked) => {
-                              await supabase.from('access_profiles').update({ ai_enabled: checked } as any).eq('id', p.id);
-                              fetchData();
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 border-t pt-4">
-                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-                      <Shield className="h-4 w-4 text-primary" /> Compartilhamento de Passagens Aéreas
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Quando ativado, qualquer usuário com permissão de <strong>edição</strong> na tela "Passagens Aéreas" poderá criar e revogar links de compartilhamento. Administradores sempre têm acesso.
-                    </p>
-                    <div className="flex items-center gap-3 rounded-md border px-3 py-2 w-fit">
-                      <span className="text-sm">Permitir não-administradores</span>
-                      <Switch
-                        checked={passagensShareAllowNonAdmin}
-                        onCheckedChange={async (checked) => {
-                          const { error } = await supabase
-                            .from('app_settings')
-                            .upsert({ key: 'passagens_share_allow_non_admin', value: checked ? 'true' : 'false' }, { onConflict: 'key' });
-                          if (error) {
-                            toast.error('Erro ao salvar: ' + error.message);
-                          } else {
-                            setPassagensShareAllowNonAdmin(checked);
-                            toast.success(checked ? 'Compartilhamento liberado para usuários com permissão de edição' : 'Compartilhamento restrito a administradores');
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </>
+                <PermissoesPorTelaPanel
+                  screens={ALL_SCREENS}
+                  profiles={profiles.map(p => ({ id: p.id, name: p.name }))}
+                  profileScreens={profileScreens}
+                  onToggle={toggleScreen}
+                  onRefresh={fetchData}
+                />
               )}
             </CardContent>
           </Card>
+
+          {profiles.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <div className="rounded-md bg-primary/10 p-1.5"><Sparkles className="h-4 w-4 text-primary" /></div>
+                    Assistente IA por perfil
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Habilite o painel do Assistente IA para os perfis selecionados.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {profiles.map(p => (
+                      <div key={p.id} className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+                        <span className="text-sm">{p.name}</span>
+                        <Switch
+                          checked={p.ai_enabled}
+                          onCheckedChange={async (checked) => {
+                            await supabase.from('access_profiles').update({ ai_enabled: checked } as any).eq('id', p.id);
+                            fetchData();
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <div className="rounded-md bg-primary/10 p-1.5"><Shield className="h-4 w-4 text-primary" /></div>
+                    Compartilhamento de Passagens Aéreas
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Quando ativado, usuários com permissão de <strong>edição</strong> em Passagens Aéreas podem criar e revogar links de compartilhamento. Administradores sempre têm acesso.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3 rounded-md border bg-card px-3 py-2 w-fit">
+                    <span className="text-sm">Permitir não-administradores</span>
+                    <Switch
+                      checked={passagensShareAllowNonAdmin}
+                      onCheckedChange={async (checked) => {
+                        const { error } = await supabase
+                          .from('app_settings')
+                          .upsert({ key: 'passagens_share_allow_non_admin', value: checked ? 'true' : 'false' }, { onConflict: 'key' });
+                        if (error) {
+                          toast.error('Erro ao salvar: ' + error.message);
+                        } else {
+                          setPassagensShareAllowNonAdmin(checked);
+                          toast.success(checked ? 'Compartilhamento liberado para usuários com permissão de edição' : 'Compartilhamento restrito a administradores');
+                        }
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
+
 
         {/* === GRÁFICOS E MAPAS === */}
         <TabsContent value="visuals">
@@ -807,156 +1069,260 @@ export default function ConfiguracoesPage() {
         </TabsContent>
 
         {/* === USUÁRIOS === */}
-        <TabsContent value="users">
+        <TabsContent value="users" className="space-y-4">
+          {/* Header */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2.5"><Users className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold leading-tight">Atribuição de Usuários</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Vincule usuários do ERP aos perfis. Múltiplos perfis somam permissões.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 w-full md:w-auto">
+                <KpiMini label="Usuários" value={groupedUsers.length} />
+                <KpiMini label="Perfis em uso" value={distinctProfilesInUse} />
+                <KpiMini label="Sem perfil" value={usersWithoutAssignment.length} accent={usersWithoutAssignment.length > 0} />
+              </div>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base">Atribuição de Usuários</CardTitle>
-              <Dialog open={userDialogOpen} onOpenChange={(open) => {
-                setUserDialogOpen(open);
-                if (!open) {
-                  setNewUserLogin('');
-                  setNewUserProfileIds([]);
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button size="sm" onClick={() => { setNewUserLogin(''); setNewUserProfileIds([]); }}>
-                    <Plus className="h-4 w-4 mr-1" /> Atribuir Acesso
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Atribuir Perfis a Usuário</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>Usuário</Label>
-                      <Select value={newUserLogin} onValueChange={(v) => { setNewUserLogin(v); setNewUserProfileIds([]); }}>
-                        <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
-                        <SelectContent>
-                          {approvedUsers
-                            .filter(u => !!u.erp_user)
-                            .map(u => (
-                              <SelectItem key={u.id} value={u.erp_user!}>
-                                {u.display_name || u.email || u.erp_user} ({u.erp_user})
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Perfis de Acesso</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais perfis. As permissões serão somadas.</p>
-                      <div className="max-h-64 overflow-auto rounded-md border p-2 space-y-1">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col lg:flex-row gap-2 lg:items-center lg:justify-between">
+                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Buscar login, nome ou email..." className="pl-8 h-9" />
+                  </div>
+                  <Popover open={userFilterPopoverOpen} onOpenChange={setUserFilterPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                        <Filter className="h-3.5 w-3.5" />
+                        Filtrar perfis
+                        {userProfileFilters.length > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{userProfileFilters.length}</Badge>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="start">
+                      <div className="text-xs font-medium px-2 py-1 text-muted-foreground">Filtrar por perfil</div>
+                      <div className="max-h-60 overflow-auto space-y-0.5">
                         {profiles.map(p => {
-                          const alreadyAssigned = !!newUserLogin && userAccess.some(
-                            ua => ua.user_login.toUpperCase() === newUserLogin.toUpperCase() && ua.profile_id === p.id,
-                          );
-                          const checked = alreadyAssigned || newUserProfileIds.includes(p.id);
+                          const checked = userProfileFilters.includes(p.id);
                           return (
-                            <div
-                              key={p.id}
-                              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-accent/40"
-                            >
-                              <Checkbox
-                                id={`profile-${p.id}`}
-                                checked={checked}
-                                disabled={alreadyAssigned}
-                                onCheckedChange={(c) => {
-                                  setNewUserProfileIds(prev =>
-                                    c ? [...prev, p.id] : prev.filter(id => id !== p.id),
-                                  );
-                                }}
-                              />
-                              <Label
-                                htmlFor={`profile-${p.id}`}
-                                className={`flex-1 cursor-pointer text-sm ${alreadyAssigned ? 'text-muted-foreground' : ''}`}
-                              >
-                                {p.name}
-                                {alreadyAssigned && <span className="ml-2 text-xs">(já atribuído)</span>}
-                              </Label>
-                            </div>
+                            <label key={p.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer">
+                              <Checkbox checked={checked} onCheckedChange={(c) => setUserProfileFilters(prev => c ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
+                              <span className="text-sm">{p.name}</span>
+                            </label>
                           );
                         })}
-                        {profiles.length === 0 && (
-                          <p className="text-sm text-muted-foreground py-2 text-center">Nenhum perfil cadastrado</p>
-                        )}
+                      </div>
+                      {userProfileFilters.length > 0 && (
+                        <Button variant="ghost" size="sm" className="w-full mt-1 h-8" onClick={() => setUserProfileFilters([])}>Limpar filtros</Button>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  <Button variant={userOnlyUnassigned ? 'default' : 'outline'} size="sm" className="h-9 gap-1.5" onClick={() => setUserOnlyUnassigned(v => !v)}>
+                    <UserX className="h-3.5 w-3.5" />
+                    Sem perfil ({usersWithoutAssignment.length})
+                  </Button>
+                </div>
+                <Dialog open={userDialogOpen} onOpenChange={(open) => {
+                  setUserDialogOpen(open);
+                  if (!open) { setNewUserLogin(''); setNewUserProfileIds([]); setUserComboOpen(false); }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" onClick={() => { setNewUserLogin(''); setNewUserProfileIds([]); }}>
+                      <UserPlus className="h-4 w-4 mr-1" /> Atribuir Acesso
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Atribuir Perfis a Usuário</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Usuário</Label>
+                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal mt-1">
+                              {(() => {
+                                if (!newUserLogin) return <span className="text-muted-foreground">Selecione um usuário</span>;
+                                const u = approvedUsers.find(x => x.erp_user === newUserLogin);
+                                return <span className="truncate">{u?.display_name || u?.email || newUserLogin} <span className="text-muted-foreground">({newUserLogin})</span></span>;
+                              })()}
+                              <ChevronsUpDown className="h-4 w-4 opacity-50 ml-2 shrink-0" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar nome, login ou email..." />
+                              <CommandList>
+                                <CommandEmpty>Nenhum usuário encontrado</CommandEmpty>
+                                <CommandGroup>
+                                  {approvedUsers.filter(u => !!u.erp_user).map(u => (
+                                    <CommandItem
+                                      key={u.id}
+                                      value={`${u.erp_user} ${u.display_name ?? ''} ${u.email ?? ''}`}
+                                      onSelect={() => { setNewUserLogin(u.erp_user!); setNewUserProfileIds([]); setUserComboOpen(false); }}
+                                    >
+                                      <Check className={cn('h-4 w-4 mr-2', newUserLogin === u.erp_user ? 'opacity-100' : 'opacity-0')} />
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="truncate">{u.display_name || u.email || u.erp_user}</span>
+                                        <span className="text-xs text-muted-foreground font-mono truncate">{u.erp_user}{u.email ? ` · ${u.email}` : ''}</span>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div>
+                        <Label>Perfis de Acesso</Label>
+                        <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais perfis. As permissões serão somadas.</p>
+                        <div className="max-h-64 overflow-auto rounded-md border p-2 space-y-1">
+                          {profiles.map(p => {
+                            const alreadyAssigned = !!newUserLogin && userAccess.some(
+                              ua => ua.user_login.toUpperCase() === newUserLogin.toUpperCase() && ua.profile_id === p.id,
+                            );
+                            const checked = alreadyAssigned || newUserProfileIds.includes(p.id);
+                            return (
+                              <div key={p.id} className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-accent/40">
+                                <Checkbox
+                                  id={`profile-${p.id}`}
+                                  checked={checked}
+                                  disabled={alreadyAssigned}
+                                  className="mt-0.5"
+                                  onCheckedChange={(c) => {
+                                    setNewUserProfileIds(prev => c ? [...prev, p.id] : prev.filter(id => id !== p.id));
+                                  }}
+                                />
+                                <Label htmlFor={`profile-${p.id}`} className={cn('flex-1 cursor-pointer text-sm', alreadyAssigned && 'text-muted-foreground')}>
+                                  <span className="font-medium">{p.name}</span>
+                                  {p.description && <span className="block text-xs text-muted-foreground font-normal mt-0.5">{p.description}</span>}
+                                  {alreadyAssigned && <span className="block text-xs italic mt-0.5">Já atribuído</span>}
+                                </Label>
+                              </div>
+                            );
+                          })}
+                          {profiles.length === 0 && (
+                            <p className="text-sm text-muted-foreground py-2 text-center">Nenhum perfil cadastrado</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleAddUser} disabled={!newUserLogin || newUserProfileIds.length === 0}>
-                      Atribuir {newUserProfileIds.length > 0 ? `(${newUserProfileIds.length})` : ''}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button onClick={handleAddUser} disabled={!newUserLogin || newUserProfileIds.length === 0}>
+                        Atribuir {newUserProfileIds.length > 0 ? `(${newUserProfileIds.length})` : ''}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>Perfis</TableHead>
-                    <TableHead>Última atribuição</TableHead>
-                    <TableHead className="w-32">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const grouped = new Map<string, { login: string; rows: UserAccess[]; latest: string }>();
-                    for (const ua of userAccess) {
-                      const key = ua.user_login.toUpperCase();
-                      const cur = grouped.get(key);
-                      if (cur) {
-                        cur.rows.push(ua);
-                        if (ua.created_at > cur.latest) cur.latest = ua.created_at;
-                      } else {
-                        grouped.set(key, { login: ua.user_login, rows: [ua], latest: ua.created_at });
-                      }
-                    }
-                    const list = Array.from(grouped.values()).sort((a, b) => a.login.localeCompare(b.login));
-                    if (list.length === 0) {
-                      return (
-                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum usuário atribuído</TableCell></TableRow>
-                      );
-                    }
-                    return list.map(g => (
-                      <TableRow key={g.login}>
-                        <TableCell className="font-medium align-top">{g.login}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1.5">
-                            {g.rows.map(r => (
-                              <Badge key={r.id} variant="secondary" className="gap-1 pr-1">
-                                <span>{getProfileName(r.profile_id)}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveUser(r.id)}
-                                  className="ml-1 rounded-sm px-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                  aria-label={`Remover ${getProfileName(r.profile_id)}`}
-                                  title="Remover este perfil"
-                                >
-                                  ×
-                                </button>
-                              </Badge>
-                            ))}
+            <CardContent className="pt-0">
+              {userOnlyUnassigned ? (
+                <div className="space-y-2">
+                  {usersWithoutAssignment.length === 0 ? (
+                    <EmptyState icon={UserCheck} title="Todos os usuários têm perfil" description="Nenhum usuário aprovado está sem atribuição de perfil." />
+                  ) : (
+                    usersWithoutAssignment.map(u => (
+                      <div key={u.id} className="flex items-center justify-between rounded-md border bg-card px-3 py-2.5 hover:bg-muted/40">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center shrink-0">{userInitials(u.erp_user!, u)}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">{u.display_name || u.email || u.erp_user}</div>
+                            <div className="text-xs text-muted-foreground font-mono truncate">{u.erp_user}{u.email ? ` · ${u.email}` : ''}</div>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground align-top">
-                          {new Date(g.latest).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Button variant="outline" size="sm" onClick={() => openAddProfilesFor(g.login)}>
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Perfil
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
+                        </div>
+                        <Button size="sm" onClick={() => openManageProfilesFor(u.erp_user!)}>
+                          <UserPlus className="h-3.5 w-3.5 mr-1" /> Atribuir
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Perfis atribuídos</TableHead>
+                      <TableHead className="hidden md:table-cell w-44">Última atribuição</TableHead>
+                      <TableHead className="text-right w-40">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="p-0">
+                        <EmptyState icon={groupedUsers.length === 0 ? Inbox : Search} title={groupedUsers.length === 0 ? 'Nenhum usuário atribuído' : 'Nenhum usuário encontrado'} description={groupedUsers.length === 0 ? 'Clique em "Atribuir Acesso" para vincular o primeiro usuário a um perfil.' : 'Ajuste a busca ou os filtros.'} />
+                      </TableCell></TableRow>
+                    ) : filteredUsers.map(g => {
+                      const meta = approvedUserByLogin.get(g.login.toUpperCase());
+                      return (
+                        <TableRow key={g.login} className="hover:bg-muted/40">
+                          <TableCell className="align-top">
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center shrink-0">{userInitials(g.login, meta)}</div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm truncate">{meta?.display_name || meta?.email || g.login}</div>
+                                <div className="text-xs text-muted-foreground font-mono truncate">{g.login}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="flex flex-wrap gap-1.5">
+                              {g.rows.map(r => {
+                                const name = getProfileName(r.profile_id);
+                                return (
+                                  <Badge key={r.id} variant={profileBadgeVariant(name)} className="gap-1 pr-1">
+                                    <span>{name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveUser(r.id)}
+                                      className="ml-1 rounded-sm px-1 hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                      aria-label={`Remover ${name}`}
+                                      title="Remover este perfil"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground align-top">
+                            {new Date(g.latest).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => openManageProfilesFor(g.login)}>
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Perfil
+                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveAllUserProfiles(g.login)} aria-label="Remover todos os perfis">
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Remover todos os perfis</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         {/* === APROVAÇÕES === */}
         <TabsContent value="approvals">
