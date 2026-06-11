@@ -688,32 +688,147 @@ export default function ConfiguracoesPage() {
     );
   }
 
+  const NAV_GROUPS: Array<{
+    label: string;
+    items: Array<{ value: string; label: string; icon: any; badge?: number; description?: string }>;
+  }> = [
+    {
+      label: 'Acessos',
+      items: [
+        { value: 'profiles', label: 'Perfis de Acesso', icon: Shield, description: 'Perfis e telas liberadas' },
+        { value: 'permissions', label: 'Permissões por Tela', icon: Eye, description: 'Matriz perfil × tela' },
+        { value: 'users', label: 'Usuários', icon: Users, description: 'Atribuição de perfis' },
+        { value: 'approvals', label: 'Aprovações', icon: UserCheck, badge: pendingUsers.length, description: 'Solicitações de acesso' },
+      ],
+    },
+    {
+      label: 'Plataforma',
+      items: [
+        { value: 'api', label: 'API', icon: Wifi, description: 'Conexão com o backend' },
+        { value: 'visuals', label: 'Gráficos e Mapas', icon: LineChart, description: 'Catálogo visual' },
+        { value: 'versao', label: 'Versão', icon: Rocket, description: 'Build e changelog' },
+        { value: 'documentacao', label: 'Documentação', icon: BookOpen, description: 'Guias e referências' },
+      ],
+    },
+    {
+      label: 'Operação',
+      items: [
+        { value: 'logs', label: 'Logs', icon: FileWarning, badge: logsCount24h, description: 'Erros e auditoria' },
+        { value: 'monitoramento', label: 'Monitoramento', icon: Activity, description: 'Sessões ativas' },
+        { value: 'dashboard-uso', label: 'Dashboard de Uso', icon: BarChart3, description: 'Adoção e engajamento' },
+      ],
+    },
+    {
+      label: 'Pessoal',
+      items: [
+        { value: 'minhas-preferencias', label: 'Minhas Preferências', icon: Brain, description: 'Ajustes do seu usuário' },
+      ],
+    },
+  ];
+
+  const activeItem = NAV_GROUPS.flatMap(g => g.items.map(i => ({ ...i, group: g.label }))).find(i => i.value === activeTab);
+  const filteredGroups = NAV_GROUPS.map(g => ({
+    ...g,
+    items: g.items.filter(i => !navSearch || i.label.toLowerCase().includes(navSearch.toLowerCase()) || i.description?.toLowerCase().includes(navSearch.toLowerCase())),
+  })).filter(g => g.items.length > 0);
+
   return (
     <div className="p-6 space-y-4">
-      <PageHeader title="Configurações" description="Gerenciamento de perfis de acesso, permissões por tela e atribuição de usuários" />
+      <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            <span className="text-muted-foreground/70">Configurações</span>
+            <span className="mx-1.5 text-muted-foreground/40">›</span>
+            <span className="text-muted-foreground/70">{activeItem?.group ?? 'Geral'}</span>
+            <span className="mx-1.5 text-muted-foreground/40">›</span>
+            <span className="text-foreground">{activeItem?.label ?? ''}</span>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1 font-normal">
+            <Shield className="h-3.5 w-3.5 text-primary" />
+            {profiles.length} perfis
+          </Badge>
+          <Badge variant="outline" className="gap-1 font-normal">
+            <Users className="h-3.5 w-3.5 text-primary" />
+            {approvedUsers.length} usuários
+          </Badge>
+          {pendingUsers.length > 0 && (
+            <Badge variant="destructive" className="gap-1 font-normal">
+              <UserCheck className="h-3.5 w-3.5" />
+              {pendingUsers.length} pendentes
+            </Badge>
+          )}
+        </div>
+      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="profiles" className="gap-1"><Shield className="h-4 w-4" /> Perfis de Acesso</TabsTrigger>
-          <TabsTrigger value="permissions" className="gap-1"><Eye className="h-4 w-4" /> Permissões por Tela</TabsTrigger>
-          <TabsTrigger value="visuals" className="gap-1"><LineChart className="h-4 w-4" /> Gráficos e Mapas</TabsTrigger>
-          <TabsTrigger value="users" className="gap-1"><Users className="h-4 w-4" /> Usuários</TabsTrigger>
-          <TabsTrigger value="approvals" className="gap-1">
-            <UserCheck className="h-4 w-4" /> Aprovações
-            {pendingUsers.length > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{pendingUsers.length}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="api" className="gap-1"><Wifi className="h-4 w-4" /> API</TabsTrigger>
-          <TabsTrigger value="logs" className="gap-1">
-            <FileWarning className="h-4 w-4" /> Logs
-            {logsCount24h > 0 && <Badge variant="destructive" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">{logsCount24h}</Badge>}
-          </TabsTrigger>
-          <TabsTrigger value="monitoramento" className="gap-1"><Activity className="h-4 w-4" /> Monitoramento</TabsTrigger>
-          
-          <TabsTrigger value="dashboard-uso" className="gap-1"><BarChart3 className="h-4 w-4" /> Dashboard de Uso</TabsTrigger>
-          <TabsTrigger value="minhas-preferencias" className="gap-1"><Brain className="h-4 w-4" /> Minhas Preferências</TabsTrigger>
-          <TabsTrigger value="versao" className="gap-1"><Rocket className="h-4 w-4" /> Versão</TabsTrigger>
-          <TabsTrigger value="documentacao" className="gap-1"><BookOpen className="h-4 w-4" /> Documentação</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-0">
+        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+          {/* Sidebar */}
+          <aside className="lg:sticky lg:top-4 lg:self-start">
+            <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+              <div className="p-3 border-b bg-muted/30">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    value={navSearch}
+                    onChange={(e) => setNavSearch(e.target.value)}
+                    placeholder="Filtrar configurações…"
+                    className="h-9 pl-8 bg-background"
+                  />
+                </div>
+              </div>
+              <nav className="p-2 space-y-3 max-h-[calc(100vh-220px)] overflow-y-auto">
+                {filteredGroups.length === 0 && (
+                  <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                    Nenhuma configuração encontrada
+                  </div>
+                )}
+                {filteredGroups.map((group) => (
+                  <div key={group.label}>
+                    <div className="px-2 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                      {group.label}
+                    </div>
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = activeTab === item.value;
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            aria-current={isActive ? 'page' : undefined}
+                            onClick={() => setActiveTab(item.value)}
+                            className={cn(
+                              'group w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-left transition-colors',
+                              isActive
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'text-foreground/80 hover:bg-muted hover:text-foreground'
+                            )}
+                          >
+                            <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+                            <span className="flex-1 truncate">{item.label}</span>
+                            {item.badge ? (
+                              <Badge
+                                variant={isActive ? 'default' : 'destructive'}
+                                className="h-5 min-w-[20px] px-1.5 text-[10px]"
+                              >
+                                {item.badge}
+                              </Badge>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </nav>
+            </div>
+          </aside>
+
+          {/* Content */}
+          <div className="min-w-0 space-y-4">
         {/* === PERFIS === */}
         <TabsContent value="profiles" className="space-y-4">
           {/* Header */}
