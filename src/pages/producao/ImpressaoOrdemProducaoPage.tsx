@@ -710,18 +710,48 @@ export default function ImpressaoOrdemProducaoPage() {
 
   // (loteFalhas state declared near top via setFalhasLote)
 
+  // Extrai mensagem amigável do erro, distinguindo rede de erro do servidor.
+  const describeError = (
+    err: any,
+  ): { motivo: string; tipo: "rede" | "servidor" | "outro" } => {
+    const raw = err?.message || String(err ?? "");
+    const status = err?.status ?? err?.response?.status;
+    if (/Failed to fetch|NetworkError|net::ERR|TypeError/i.test(raw)) {
+      return {
+        motivo: "Não foi possível conectar ao backend (Failed to fetch).",
+        tipo: "rede",
+      };
+    }
+    if (status && Number(status) >= 500) {
+      return { motivo: `Erro ${status} no servidor: ${raw}`, tipo: "servidor" };
+    }
+    if (/timeout|aborted/i.test(raw)) {
+      return { motivo: "Tempo de resposta excedido.", tipo: "rede" };
+    }
+    return { motivo: raw || "Erro desconhecido.", tipo: "outro" };
+  };
+
   // Carrega um conjunto específico de OPs (já filtradas/válidas) em lotes
-  // controlados de concorrência. Não exibe diálogo: caller decide o tamanho.
+  // controlados de concorrência. Aborta cedo se ficar claro que o backend caiu.
   const carregarOps = async (
     alvos: OpcaoOp[],
-  ): Promise<{ ordens: OpImpressao[]; falhas: { cod_ori: string; num_orp: string }[] }> => {
+    opts?: { forcarSemDesenhos?: boolean },
+  ): Promise<{
+    ordens: OpImpressao[];
+    falhas: { cod_ori: string; num_orp: string; motivo?: string }[];
+    abortado?: boolean;
+    motivoGlobal?: string;
+  }> => {
     const listar_componentes = (filtros.listar_componentes as "S" | "N") || "S";
-    const listar_desenho = (filtros.listar_desenho as "S" | "N") || "N";
+    const listar_desenho = opts?.forcarSemDesenhos
+      ? ("N" as const)
+      : ((filtros.listar_desenho as "S" | "N") || "N");
+    const incluirDesenhos = opts?.forcarSemDesenhos ? false : filtros.incluir_desenhos === "S";
     const ordens: OpImpressao[] = [];
-    const falhas: { cod_ori: string; num_orp: string }[] = [];
+    const falhas: { cod_ori: string; num_orp: string; motivo?: string }[] = [];
 
-    // Tentativa 1: POST em lote (1 request por página). Se o backend ainda
-    // não publicou o endpoint, cai no fluxo unitário abaixo.
+    // Tentativa 1: POST em lote. Se for erro de rede (não 404/405), aborta
+    // imediatamente — não adianta cair em N GETs com o backend fora.
     try {
       const res = await fetchImpressaoLotePost({
         ops: alvos.map((op) => ({
@@ -731,43 +761,111 @@ export default function ImpressaoOrdemProducaoPage() {
         })),
         incluir_componentes: listar_componentes === "S",
         incluir_operacoes: true,
-        incluir_desenhos: filtros.incluir_desenhos === "S",
+        incluir_desenhos: incluirDesenhos,
         quebrar_por_operacao: filtros.quebrar_por_operacao === "S",
         modo: "preview",
       });
       if (Array.isArray(res?.ordens) && res.ordens.length > 0) {
         return { ordens: res.ordens, falhas: [] };
       }
-    } catch {
-      // segue para fallback unitário
+    } catch (err: any) {
+      const info = describeError(err);
+      if (info.tipo === "rede") {
+        return {
+          ordens: [],
+          falhas: alvos.map((op) => ({
+            cod_ori: String(op.cod_ori ?? ""),
+            num_orp: String(op.num_orp ?? ""),
+            motivo: info.motivo,
+          })),
+          abortado: true,
+          motivoGlobal: info.motivo,
+        };
+      }
+      // 404/405/etc.: cai no fallback de GETs unitários.
     }
 
-    // Fallback: GETs unitários com concorrência limitada.
-    const concurrency = 6;
+    // Fallback: GETs unitários com concorrência reduzida quando há desenhos.
+    const concurrency = incluirDesenhos ? 3 : 6;
+    let primeiroErro: { motivo: string; tipo: string } | null = null;
+    let totalTentados = 0;
+    let totalFalhasIniciais = 0;
+
+    const doFetch = async (op: OpcaoOp) => {
+      const payload: Record<string, any> = {
+        cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
+        cod_ori: String(op.cod_ori ?? ""),
+        num_orp: Number(op.num_orp ?? 0),
+        listar_componentes,
+        listar_desenho,
+        quebrar_por_operacao: filtros.quebrar_por_operacao === "S" ? "S" : "N",
+      };
+      if (incluirDesenhos) payload.incluir_desenhos = "S";
+      return api.get<OpImpressao>("/api/producao/ordem-producao/impressao", payload);
+    };
+
     for (let i = 0; i < alvos.length; i += concurrency) {
       const slice = alvos.slice(i, i + concurrency);
       const results = await Promise.all(
         slice.map(async (op) => {
           try {
-            const payload: Record<string, any> = {
-              cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
-              cod_ori: String(op.cod_ori ?? ""),
-              num_orp: Number(op.num_orp ?? 0),
-              listar_componentes,
-              listar_desenho,
-              quebrar_por_operacao: filtros.quebrar_por_operacao === "S" ? "S" : "N",
-            };
-            if (filtros.incluir_desenhos === "S") payload.incluir_desenhos = "S";
-            const res = await api.get<OpImpressao>("/api/producao/ordem-producao/impressao", payload);
+            const res = await doFetch(op);
             return { ok: true as const, op, res };
-          } catch {
-            return { ok: false as const, op };
+          } catch (err1: any) {
+            const info1 = describeError(err1);
+            // 1 retry só em erro de rede transitório
+            if (info1.tipo === "rede") {
+              try {
+                await new Promise((r) => setTimeout(r, 400));
+                const res = await doFetch(op);
+                return { ok: true as const, op, res };
+              } catch (err2: any) {
+                return { ok: false as const, op, info: describeError(err2) };
+              }
+            }
+            return { ok: false as const, op, info: info1 };
           }
         }),
       );
       for (const r of results) {
-        if (r.ok && r.res) ordens.push(r.res);
-        else falhas.push({ cod_ori: String(r.op.cod_ori ?? ""), num_orp: String(r.op.num_orp ?? "") });
+        totalTentados += 1;
+        if (r.ok && r.res) {
+          ordens.push(r.res);
+        } else {
+          const motivo = (r as any).info?.motivo;
+          if (!primeiroErro) primeiroErro = (r as any).info;
+          falhas.push({
+            cod_ori: String(r.op.cod_ori ?? ""),
+            num_orp: String(r.op.num_orp ?? ""),
+            motivo,
+          });
+          if (i === 0) totalFalhasIniciais += 1;
+        }
+      }
+      // Fail-fast: se o primeiro lote foi 100% falha e foi erro de rede/servidor,
+      // não martele o backend com o restante.
+      if (
+        i === 0 &&
+        ordens.length === 0 &&
+        totalFalhasIniciais >= Math.min(3, slice.length) &&
+        primeiroErro &&
+        (primeiroErro.tipo === "rede" || primeiroErro.tipo === "servidor")
+      ) {
+        // marcar o restante como não tentado
+        for (let j = totalTentados; j < alvos.length; j += 1) {
+          const op = alvos[j];
+          falhas.push({
+            cod_ori: String(op.cod_ori ?? ""),
+            num_orp: String(op.num_orp ?? ""),
+            motivo: "Não tentado (carregamento abortado após falhas iniciais).",
+          });
+        }
+        return {
+          ordens: [],
+          falhas,
+          abortado: true,
+          motivoGlobal: `${primeiroErro.motivo} (${totalFalhasIniciais} de ${slice.length} OPs testadas falharam).`,
+        };
       }
     }
     return { ordens, falhas };
@@ -780,18 +878,31 @@ export default function ImpressaoOrdemProducaoPage() {
       .filter((o) => String(o.cod_ori ?? "") !== "100" && String(o.sit_orp ?? "") !== "C");
 
   // Executa o carregamento e popula o estado de preview.
-  const executarVisualizacao = async (alvos: OpcaoOp[]) => {
+  const executarVisualizacao = async (
+    alvos: OpcaoOp[],
+    opts?: { forcarSemDesenhos?: boolean },
+  ) => {
     if (!alvos.length) {
       toast.info("Nenhuma OP válida para visualizar.");
       return;
     }
     setLoteLoading(true);
     setFalhasLote([]);
+    setFalhaGlobal(null);
     try {
-      const { ordens, falhas } = await carregarOps(alvos);
+      const { ordens, falhas, abortado, motivoGlobal } = await carregarOps(alvos, opts);
       if (!ordens.length) {
-        toast.error("Nenhuma OP pôde ser carregada.");
+        const msg = motivoGlobal || "Nenhuma OP pôde ser carregada.";
+        toast.error(msg);
         setFalhasLote(falhas);
+        if (abortado || motivoGlobal) {
+          setFalhaGlobal({
+            motivo: msg,
+            testadas: falhas.length,
+            alvos,
+            usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+          });
+        }
         return;
       }
       reset();
@@ -802,7 +913,39 @@ export default function ImpressaoOrdemProducaoPage() {
       if (falhas.length > 0) toast.warning(`${falhas.length} OP(s) falharam. ${ordens.length} carregadas.`);
       else toast.success(`${ordens.length} OP(s) carregadas.`);
     } catch (e: any) {
-      toast.error(e?.message || "Falha ao carregar OPs selecionadas.");
+      const info = describeError(e);
+      toast.error(info.motivo);
+      setFalhaGlobal({
+        motivo: info.motivo,
+        testadas: 0,
+        alvos,
+        usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+      });
+    } finally {
+      setLoteLoading(false);
+    }
+  };
+
+  // Reprocessa apenas as OPs que falharam no último carregamento.
+  const retentarFalhas = async () => {
+    if (falhasLote.length === 0) return;
+    const mapKey = (o: any) => `${o.cod_ori ?? ""}-${o.num_orp ?? ""}`;
+    const setKeys = new Set(falhasLote.map((f) => `${f.cod_ori}-${f.num_orp}`));
+    const alvos = opsFiltradas.filter((o) => setKeys.has(mapKey(o)));
+    if (!alvos.length) {
+      toast.info("Não foi possível localizar as OPs que falharam na lista atual.");
+      return;
+    }
+    setLoteLoading(true);
+    setFalhaGlobal(null);
+    try {
+      const { ordens, falhas } = await carregarOps(alvos);
+      const novasOrdens = [...(lote?.ordens ?? []), ...ordens];
+      setLote({ quantidade_ops: novasOrdens.length, ordens: novasOrdens });
+      setFalhasLote(falhas);
+      if (ordens.length === 0) toast.error("Nenhuma das OPs reprocessadas pôde ser carregada.");
+      else if (falhas.length > 0) toast.warning(`+${ordens.length} carregadas. ${falhas.length} ainda falharam.`);
+      else toast.success(`+${ordens.length} OP(s) carregadas.`);
     } finally {
       setLoteLoading(false);
     }
