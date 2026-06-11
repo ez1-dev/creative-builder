@@ -954,156 +954,260 @@ export default function ConfiguracoesPage() {
         </TabsContent>
 
         {/* === USUÁRIOS === */}
-        <TabsContent value="users">
+        <TabsContent value="users" className="space-y-4">
+          {/* Header */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2.5"><Users className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold leading-tight">Atribuição de Usuários</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Vincule usuários do ERP aos perfis. Múltiplos perfis somam permissões.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 w-full md:w-auto">
+                <KpiMini label="Usuários" value={groupedUsers.length} />
+                <KpiMini label="Perfis em uso" value={distinctProfilesInUse} />
+                <KpiMini label="Sem perfil" value={usersWithoutAssignment.length} accent={usersWithoutAssignment.length > 0} />
+              </div>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base">Atribuição de Usuários</CardTitle>
-              <Dialog open={userDialogOpen} onOpenChange={(open) => {
-                setUserDialogOpen(open);
-                if (!open) {
-                  setNewUserLogin('');
-                  setNewUserProfileIds([]);
-                }
-              }}>
-                <DialogTrigger asChild>
-                  <Button size="sm" onClick={() => { setNewUserLogin(''); setNewUserProfileIds([]); }}>
-                    <Plus className="h-4 w-4 mr-1" /> Atribuir Acesso
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Atribuir Perfis a Usuário</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>Usuário</Label>
-                      <Select value={newUserLogin} onValueChange={(v) => { setNewUserLogin(v); setNewUserProfileIds([]); }}>
-                        <SelectTrigger><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
-                        <SelectContent>
-                          {approvedUsers
-                            .filter(u => !!u.erp_user)
-                            .map(u => (
-                              <SelectItem key={u.id} value={u.erp_user!}>
-                                {u.display_name || u.email || u.erp_user} ({u.erp_user})
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Perfis de Acesso</Label>
-                      <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais perfis. As permissões serão somadas.</p>
-                      <div className="max-h-64 overflow-auto rounded-md border p-2 space-y-1">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col lg:flex-row gap-2 lg:items-center lg:justify-between">
+                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                  <div className="relative flex-1 max-w-md">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Buscar login, nome ou email..." className="pl-8 h-9" />
+                  </div>
+                  <Popover open={userFilterPopoverOpen} onOpenChange={setUserFilterPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                        <Filter className="h-3.5 w-3.5" />
+                        Filtrar perfis
+                        {userProfileFilters.length > 0 && <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{userProfileFilters.length}</Badge>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" align="start">
+                      <div className="text-xs font-medium px-2 py-1 text-muted-foreground">Filtrar por perfil</div>
+                      <div className="max-h-60 overflow-auto space-y-0.5">
                         {profiles.map(p => {
-                          const alreadyAssigned = !!newUserLogin && userAccess.some(
-                            ua => ua.user_login.toUpperCase() === newUserLogin.toUpperCase() && ua.profile_id === p.id,
-                          );
-                          const checked = alreadyAssigned || newUserProfileIds.includes(p.id);
+                          const checked = userProfileFilters.includes(p.id);
                           return (
-                            <div
-                              key={p.id}
-                              className="flex items-center gap-2 rounded px-2 py-1 hover:bg-accent/40"
-                            >
-                              <Checkbox
-                                id={`profile-${p.id}`}
-                                checked={checked}
-                                disabled={alreadyAssigned}
-                                onCheckedChange={(c) => {
-                                  setNewUserProfileIds(prev =>
-                                    c ? [...prev, p.id] : prev.filter(id => id !== p.id),
-                                  );
-                                }}
-                              />
-                              <Label
-                                htmlFor={`profile-${p.id}`}
-                                className={`flex-1 cursor-pointer text-sm ${alreadyAssigned ? 'text-muted-foreground' : ''}`}
-                              >
-                                {p.name}
-                                {alreadyAssigned && <span className="ml-2 text-xs">(já atribuído)</span>}
-                              </Label>
-                            </div>
+                            <label key={p.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent cursor-pointer">
+                              <Checkbox checked={checked} onCheckedChange={(c) => setUserProfileFilters(prev => c ? [...prev, p.id] : prev.filter(id => id !== p.id))} />
+                              <span className="text-sm">{p.name}</span>
+                            </label>
                           );
                         })}
-                        {profiles.length === 0 && (
-                          <p className="text-sm text-muted-foreground py-2 text-center">Nenhum perfil cadastrado</p>
-                        )}
+                      </div>
+                      {userProfileFilters.length > 0 && (
+                        <Button variant="ghost" size="sm" className="w-full mt-1 h-8" onClick={() => setUserProfileFilters([])}>Limpar filtros</Button>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                  <Button variant={userOnlyUnassigned ? 'default' : 'outline'} size="sm" className="h-9 gap-1.5" onClick={() => setUserOnlyUnassigned(v => !v)}>
+                    <UserX className="h-3.5 w-3.5" />
+                    Sem perfil ({usersWithoutAssignment.length})
+                  </Button>
+                </div>
+                <Dialog open={userDialogOpen} onOpenChange={(open) => {
+                  setUserDialogOpen(open);
+                  if (!open) { setNewUserLogin(''); setNewUserProfileIds([]); setUserComboOpen(false); }
+                }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" onClick={() => { setNewUserLogin(''); setNewUserProfileIds([]); }}>
+                      <UserPlus className="h-4 w-4 mr-1" /> Atribuir Acesso
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Atribuir Perfis a Usuário</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Usuário</Label>
+                        <Popover open={userComboOpen} onOpenChange={setUserComboOpen}>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" role="combobox" className="w-full justify-between font-normal mt-1">
+                              {(() => {
+                                if (!newUserLogin) return <span className="text-muted-foreground">Selecione um usuário</span>;
+                                const u = approvedUsers.find(x => x.erp_user === newUserLogin);
+                                return <span className="truncate">{u?.display_name || u?.email || newUserLogin} <span className="text-muted-foreground">({newUserLogin})</span></span>;
+                              })()}
+                              <ChevronsUpDown className="h-4 w-4 opacity-50 ml-2 shrink-0" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Buscar nome, login ou email..." />
+                              <CommandList>
+                                <CommandEmpty>Nenhum usuário encontrado</CommandEmpty>
+                                <CommandGroup>
+                                  {approvedUsers.filter(u => !!u.erp_user).map(u => (
+                                    <CommandItem
+                                      key={u.id}
+                                      value={`${u.erp_user} ${u.display_name ?? ''} ${u.email ?? ''}`}
+                                      onSelect={() => { setNewUserLogin(u.erp_user!); setNewUserProfileIds([]); setUserComboOpen(false); }}
+                                    >
+                                      <Check className={cn('h-4 w-4 mr-2', newUserLogin === u.erp_user ? 'opacity-100' : 'opacity-0')} />
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="truncate">{u.display_name || u.email || u.erp_user}</span>
+                                        <span className="text-xs text-muted-foreground font-mono truncate">{u.erp_user}{u.email ? ` · ${u.email}` : ''}</span>
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div>
+                        <Label>Perfis de Acesso</Label>
+                        <p className="text-xs text-muted-foreground mb-2">Selecione um ou mais perfis. As permissões serão somadas.</p>
+                        <div className="max-h-64 overflow-auto rounded-md border p-2 space-y-1">
+                          {profiles.map(p => {
+                            const alreadyAssigned = !!newUserLogin && userAccess.some(
+                              ua => ua.user_login.toUpperCase() === newUserLogin.toUpperCase() && ua.profile_id === p.id,
+                            );
+                            const checked = alreadyAssigned || newUserProfileIds.includes(p.id);
+                            return (
+                              <div key={p.id} className="flex items-start gap-2 rounded px-2 py-1.5 hover:bg-accent/40">
+                                <Checkbox
+                                  id={`profile-${p.id}`}
+                                  checked={checked}
+                                  disabled={alreadyAssigned}
+                                  className="mt-0.5"
+                                  onCheckedChange={(c) => {
+                                    setNewUserProfileIds(prev => c ? [...prev, p.id] : prev.filter(id => id !== p.id));
+                                  }}
+                                />
+                                <Label htmlFor={`profile-${p.id}`} className={cn('flex-1 cursor-pointer text-sm', alreadyAssigned && 'text-muted-foreground')}>
+                                  <span className="font-medium">{p.name}</span>
+                                  {p.description && <span className="block text-xs text-muted-foreground font-normal mt-0.5">{p.description}</span>}
+                                  {alreadyAssigned && <span className="block text-xs italic mt-0.5">Já atribuído</span>}
+                                </Label>
+                              </div>
+                            );
+                          })}
+                          {profiles.length === 0 && (
+                            <p className="text-sm text-muted-foreground py-2 text-center">Nenhum perfil cadastrado</p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleAddUser} disabled={!newUserLogin || newUserProfileIds.length === 0}>
-                      Atribuir {newUserProfileIds.length > 0 ? `(${newUserProfileIds.length})` : ''}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                    <DialogFooter>
+                      <Button onClick={handleAddUser} disabled={!newUserLogin || newUserProfileIds.length === 0}>
+                        Atribuir {newUserProfileIds.length > 0 ? `(${newUserProfileIds.length})` : ''}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Usuário</TableHead>
-                    <TableHead>Perfis</TableHead>
-                    <TableHead>Última atribuição</TableHead>
-                    <TableHead className="w-32">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    const grouped = new Map<string, { login: string; rows: UserAccess[]; latest: string }>();
-                    for (const ua of userAccess) {
-                      const key = ua.user_login.toUpperCase();
-                      const cur = grouped.get(key);
-                      if (cur) {
-                        cur.rows.push(ua);
-                        if (ua.created_at > cur.latest) cur.latest = ua.created_at;
-                      } else {
-                        grouped.set(key, { login: ua.user_login, rows: [ua], latest: ua.created_at });
-                      }
-                    }
-                    const list = Array.from(grouped.values()).sort((a, b) => a.login.localeCompare(b.login));
-                    if (list.length === 0) {
-                      return (
-                        <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhum usuário atribuído</TableCell></TableRow>
-                      );
-                    }
-                    return list.map(g => (
-                      <TableRow key={g.login}>
-                        <TableCell className="font-medium align-top">{g.login}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1.5">
-                            {g.rows.map(r => (
-                              <Badge key={r.id} variant="secondary" className="gap-1 pr-1">
-                                <span>{getProfileName(r.profile_id)}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveUser(r.id)}
-                                  className="ml-1 rounded-sm px-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                  aria-label={`Remover ${getProfileName(r.profile_id)}`}
-                                  title="Remover este perfil"
-                                >
-                                  ×
-                                </button>
-                              </Badge>
-                            ))}
+            <CardContent className="pt-0">
+              {userOnlyUnassigned ? (
+                <div className="space-y-2">
+                  {usersWithoutAssignment.length === 0 ? (
+                    <EmptyState icon={UserCheck} title="Todos os usuários têm perfil" description="Nenhum usuário aprovado está sem atribuição de perfil." />
+                  ) : (
+                    usersWithoutAssignment.map(u => (
+                      <div key={u.id} className="flex items-center justify-between rounded-md border bg-card px-3 py-2.5 hover:bg-muted/40">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-9 w-9 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center shrink-0">{userInitials(u.erp_user!, u)}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm truncate">{u.display_name || u.email || u.erp_user}</div>
+                            <div className="text-xs text-muted-foreground font-mono truncate">{u.erp_user}{u.email ? ` · ${u.email}` : ''}</div>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground align-top">
-                          {new Date(g.latest).toLocaleDateString('pt-BR')}
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Button variant="outline" size="sm" onClick={() => openAddProfilesFor(g.login)}>
-                            <Plus className="h-3.5 w-3.5 mr-1" /> Perfil
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
+                        </div>
+                        <Button size="sm" onClick={() => openManageProfilesFor(u.erp_user!)}>
+                          <UserPlus className="h-3.5 w-3.5 mr-1" /> Atribuir
+                        </Button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Usuário</TableHead>
+                      <TableHead>Perfis atribuídos</TableHead>
+                      <TableHead className="hidden md:table-cell w-44">Última atribuição</TableHead>
+                      <TableHead className="text-right w-40">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.length === 0 ? (
+                      <TableRow><TableCell colSpan={4} className="p-0">
+                        <EmptyState icon={groupedUsers.length === 0 ? Inbox : Search} title={groupedUsers.length === 0 ? 'Nenhum usuário atribuído' : 'Nenhum usuário encontrado'} description={groupedUsers.length === 0 ? 'Clique em "Atribuir Acesso" para vincular o primeiro usuário a um perfil.' : 'Ajuste a busca ou os filtros.'} />
+                      </TableCell></TableRow>
+                    ) : filteredUsers.map(g => {
+                      const meta = approvedUserByLogin.get(g.login.toUpperCase());
+                      return (
+                        <TableRow key={g.login} className="hover:bg-muted/40">
+                          <TableCell className="align-top">
+                            <div className="flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center shrink-0">{userInitials(g.login, meta)}</div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm truncate">{meta?.display_name || meta?.email || g.login}</div>
+                                <div className="text-xs text-muted-foreground font-mono truncate">{g.login}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="flex flex-wrap gap-1.5">
+                              {g.rows.map(r => {
+                                const name = getProfileName(r.profile_id);
+                                return (
+                                  <Badge key={r.id} variant={profileBadgeVariant(name)} className="gap-1 pr-1">
+                                    <span>{name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveUser(r.id)}
+                                      className="ml-1 rounded-sm px-1 hover:bg-destructive/20 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                      aria-label={`Remover ${name}`}
+                                      title="Remover este perfil"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell text-sm text-muted-foreground align-top">
+                            {new Date(g.latest).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <div className="flex gap-1 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => openManageProfilesFor(g.login)}>
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Perfil
+                              </Button>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveAllUserProfiles(g.login)} aria-label="Remover todos os perfis">
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Remover todos os perfis</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
 
         {/* === APROVAÇÕES === */}
         <TabsContent value="approvals">
