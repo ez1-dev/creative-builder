@@ -24,6 +24,9 @@ export interface UseImpressaoPdfJob {
   downloadUrl: string | null;
   quantidadeOps: number | null;
   tamanhoBytes: number | null;
+  temposPorEtapa: Record<string, number> | null;
+  tempoEtapaAtual: number | null;
+  tempoTotal: number | null;
   iniciar: (payload: PdfJobPayload) => Promise<void>;
   cancelar: () => void;
   isBusy: boolean;
@@ -157,6 +160,9 @@ export function useImpressaoPdfJob(): UseImpressaoPdfJob {
     downloadUrl,
     quantidadeOps: info?.quantidade_ops ?? info?.total_ops ?? null,
     tamanhoBytes: info?.tamanho_bytes ?? null,
+    temposPorEtapa: info?.tempos_por_etapa ?? null,
+    tempoEtapaAtual: info?.tempo_etapa_atual ?? null,
+    tempoTotal: info?.tempo_total ?? null,
     iniciar,
     cancelar,
     isBusy: status === "CRIANDO" || status === "PROCESSANDO",

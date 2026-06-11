@@ -6,15 +6,24 @@ export interface PdfJobOpRef {
   numorp: number;
 }
 
-export type PdfJobQualidade = "normal" | "alta";
+export type PdfJobQualidade = "rapida" | "normal" | "alta";
+
+/** Mapeamento canônico de qualidade → DPI usado para impressão A4. */
+export const QUALIDADE_DPI: Record<PdfJobQualidade, number> = {
+  rapida: 120,
+  normal: 150,
+  alta: 200,
+};
 
 export interface PdfJobPayload {
   ops: PdfJobOpRef[];
   incluir_desenhos: boolean;
   incluir_componentes: boolean;
   incluir_operacoes: boolean;
-  /** "alta" = 200 DPI (default no backend) | "normal" = 150 DPI */
+  /** "rapida" = 120 DPI | "normal" (default) = 150 DPI | "alta" = 200 DPI */
   qualidade_desenhos?: PdfJobQualidade;
+  /** DPI explícito; quando enviado, prevalece sobre qualidade_desenhos no backend. */
+  dpi?: number;
 }
 
 export interface PdfJobCreateResponse {
@@ -30,6 +39,7 @@ export type PdfJobEtapa =
   | "LOCALIZANDO_DESENHOS"
   | "NORMALIZANDO_DESENHOS"
   | "MONTANDO_PDF"
+  | "GRAVANDO_ARQUIVO"
   | "CONCLUIDO";
 
 export interface PdfJobStatus {
@@ -46,12 +56,24 @@ export interface PdfJobStatus {
   erro?: string | null;
   tamanho_bytes?: number | null;
   quantidade_ops?: number | null;
+  /** Duração em segundos por etapa já concluída. */
+  tempos_por_etapa?: Record<string, number> | null;
+  /** Segundos decorridos na etapa em andamento. */
+  tempo_etapa_atual?: number | null;
+  /** Segundos desde o início do job. */
+  tempo_total?: number | null;
 }
 
 const BASE = "/api/producao/ordem-producao/impressao/pdf-job";
 
 export function criarPdfJob(payload: PdfJobPayload): Promise<PdfJobCreateResponse> {
-  return api.post<PdfJobCreateResponse>(BASE, payload as unknown as Record<string, any>);
+  const qualidade = payload.qualidade_desenhos ?? "normal";
+  const body: PdfJobPayload = {
+    ...payload,
+    qualidade_desenhos: qualidade,
+    dpi: payload.dpi ?? QUALIDADE_DPI[qualidade],
+  };
+  return api.post<PdfJobCreateResponse>(BASE, body as unknown as Record<string, any>);
 }
 
 export function consultarPdfJob(jobId: string): Promise<PdfJobStatus> {

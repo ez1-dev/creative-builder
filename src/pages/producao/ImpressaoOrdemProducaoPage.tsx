@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare, Download, FileText, AlertCircle, RotateCcw } from "lucide-react";
+import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare, Download, FileText, AlertCircle, RotateCcw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useImpressaoOrdemProducao } from "@/hooks/useImpressaoOrdemProducao";
 import { useImpressaoPdfJob } from "@/hooks/useImpressaoPdfJob";
@@ -44,8 +44,25 @@ const ETAPA_LABELS: Record<PdfJobEtapa, string> = {
   LOCALIZANDO_DESENHOS: "Localizando desenhos",
   NORMALIZANDO_DESENHOS: "Normalizando desenhos",
   MONTANDO_PDF: "Montando PDF",
+  GRAVANDO_ARQUIVO: "Gravando arquivo",
   CONCLUIDO: "Concluído",
 };
+
+const ETAPA_ORDEM: PdfJobEtapa[] = [
+  "BUSCANDO_OPS",
+  "BUSCANDO_COMPONENTES",
+  "BUSCANDO_OPERACOES",
+  "LOCALIZANDO_DESENHOS",
+  "NORMALIZANDO_DESENHOS",
+  "MONTANDO_PDF",
+  "GRAVANDO_ARQUIVO",
+  "CONCLUIDO",
+];
+
+function fmtSeg(s: number | null | undefined): string {
+  if (typeof s !== "number" || !isFinite(s) || s < 0) return "";
+  return s < 10 ? `${s.toFixed(1)}s` : `${Math.round(s)}s`;
+}
 
 function labelEtapa(etapa: PdfJobEtapa | null | undefined): string {
   if (!etapa) return "Processando";
@@ -136,7 +153,7 @@ export default function ImpressaoOrdemProducaoPage() {
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
   const pdfJob = useImpressaoPdfJob();
-  const [qualidadePdf, setQualidadePdf] = useState<"alta" | "normal">("alta");
+  const [qualidadePdf, setQualidadePdf] = useState<"rapida" | "normal" | "alta">("normal");
 
   // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
   // e exibição de status por desenho na tabela de preview.
@@ -1123,18 +1140,19 @@ export default function ImpressaoOrdemProducaoPage() {
                       <>
                         <Select
                           value={qualidadePdf}
-                          onValueChange={(v) => setQualidadePdf(v as "alta" | "normal")}
+                          onValueChange={(v) => setQualidadePdf(v as "rapida" | "normal" | "alta")}
                           disabled={pdfJob.isBusy}
                         >
                           <SelectTrigger
-                            className="h-8 w-[200px] text-xs"
-                            title="Qualidade dos desenhos no PDF. Normal gera mais rápido e arquivo menor."
+                            className="h-8 w-[230px] text-xs"
+                            title="Qualidade dos desenhos no PDF. Menor DPI gera mais rápido e arquivo menor."
                           >
                             <SelectValue placeholder="Qualidade dos desenhos" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="alta">Qualidade alta (200 DPI)</SelectItem>
-                            <SelectItem value="normal">Qualidade normal (150 DPI)</SelectItem>
+                            <SelectItem value="rapida">Rápida (120 DPI)</SelectItem>
+                            <SelectItem value="normal">Normal (150 DPI) — recomendada</SelectItem>
+                            <SelectItem value="alta">Alta (200 DPI)</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button
@@ -1148,21 +1166,31 @@ export default function ImpressaoOrdemProducaoPage() {
                         </Button>
                       </>
                     ) : pdfJob.isBusy ? (
-                      <div className="flex min-w-[320px] flex-col gap-1.5 rounded-md border bg-muted/40 px-3 py-2 text-xs">
+                      <div className="flex min-w-[360px] flex-col gap-1.5 rounded-md border bg-muted/40 px-3 py-2 text-xs">
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                           <span className="font-medium text-foreground">
                             Gerando PDF completo com desenhos
                           </span>
-                          {typeof pdfJob.percentual === "number" && (
-                            <span className="ml-auto text-muted-foreground tabular-nums">
-                              {pdfJob.percentual}%
-                            </span>
-                          )}
+                          <span className="ml-auto flex items-center gap-2 text-muted-foreground tabular-nums">
+                            {typeof pdfJob.tempoTotal === "number" && (
+                              <span>{fmtSeg(pdfJob.tempoTotal)}</span>
+                            )}
+                            {typeof pdfJob.percentual === "number" && (
+                              <span>{pdfJob.percentual}%</span>
+                            )}
+                          </span>
                         </div>
                         <Progress value={pdfJob.percentual ?? 0} className="h-1.5" />
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-muted-foreground">
-                          <span>{labelEtapa(pdfJob.etapa)}</span>
+                          <span className="font-medium text-foreground">
+                            {labelEtapa(pdfJob.etapa)}
+                            {typeof pdfJob.tempoEtapaAtual === "number" && (
+                              <span className="ml-1 font-normal tabular-nums text-muted-foreground">
+                                — {fmtSeg(pdfJob.tempoEtapaAtual)}
+                              </span>
+                            )}
+                          </span>
                           {typeof pdfJob.processadas === "number" &&
                             typeof pdfJob.totalOps === "number" &&
                             pdfJob.totalOps > 0 && (
@@ -1174,6 +1202,18 @@ export default function ImpressaoOrdemProducaoPage() {
                             <span className="truncate">• {pdfJob.mensagem}</span>
                           )}
                         </div>
+                        {pdfJob.temposPorEtapa && Object.keys(pdfJob.temposPorEtapa).length > 0 && (
+                          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/90">
+                            {ETAPA_ORDEM.filter((e) => pdfJob.temposPorEtapa?.[e] != null).map(
+                              (e, idx, arr) => (
+                                <span key={e} className="tabular-nums">
+                                  {ETAPA_LABELS[e]} {fmtSeg(pdfJob.temposPorEtapa![e])}
+                                  {idx < arr.length - 1 && <span className="ml-2">•</span>}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        )}
                         <span className="text-[10px] text-muted-foreground/80">
                           Os desenhos não são renderizados no navegador. O PDF é gerado no servidor.
                         </span>
@@ -1194,6 +1234,19 @@ export default function ImpressaoOrdemProducaoPage() {
                     ) : null}
                   </div>
                 </div>
+
+                {(pdfJob.status === "IDLE" || pdfJob.status === "ERRO") &&
+                  selectedKeys.size > 100 && (
+                    <div className="border-b p-3">
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertTitle>Lote grande selecionado ({selectedKeys.size} OPs)</AlertTitle>
+                        <AlertDescription>
+                          A primeira geração pode demorar porque os desenhos estão sendo preparados em cache. As próximas gerações serão mais rápidas.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
 
                 {pdfJob.status === "ERRO" && pdfJob.erro && (
                   <div className="border-b p-3">
