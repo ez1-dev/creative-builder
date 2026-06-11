@@ -865,7 +865,8 @@ export default function ComercialPage() {
   const [configDraft, setConfigDraft] = useState<Map<string, Partial<SaveLayoutItem>>>(() => new Map());
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(() => new Set());
 
-  const dirty = !!(layoutDraft && layoutDraft.length > 0) || configDraft.size > 0 || pendingDeletes.size > 0;
+  const roundingDirty = editing && draftRounding !== initialRoundingRef.current;
+  const dirty = !!(layoutDraft && layoutDraft.length > 0) || configDraft.size > 0 || pendingDeletes.size > 0 || roundingDirty;
 
   // Aplica overrides dos drafts em cima dos widgets vindos do banco.
   const effectiveWidgets = useMemo(() => {
