@@ -705,50 +705,85 @@ export default function ImpressaoOrdemProducaoPage() {
 
   // (loteFalhas state declared near top via setFalhasLote)
 
-  const visualizarSelecionadas = async () => {
-    const alvos = opsFiltradas
+  // Carrega um conjunto específico de OPs (já filtradas/válidas) em lotes
+  // controlados de concorrência. Não exibe diálogo: caller decide o tamanho.
+  const carregarOps = async (
+    alvos: OpcaoOp[],
+  ): Promise<{ ordens: OpImpressao[]; falhas: { cod_ori: string; num_orp: string }[] }> => {
+    const listar_componentes = (filtros.listar_componentes as "S" | "N") || "S";
+    const listar_desenho = (filtros.listar_desenho as "S" | "N") || "N";
+    const ordens: OpImpressao[] = [];
+    const falhas: { cod_ori: string; num_orp: string }[] = [];
+
+    // Tentativa 1: POST em lote (1 request por página). Se o backend ainda
+    // não publicou o endpoint, cai no fluxo unitário abaixo.
+    try {
+      const res = await fetchImpressaoLotePost({
+        ops: alvos.map((op) => ({
+          codemp: Number(op.cod_emp ?? filtros.cod_emp ?? 1),
+          codori: String(op.cod_ori ?? ""),
+          numorp: Number(op.num_orp ?? 0),
+        })),
+        incluir_componentes: listar_componentes === "S",
+        incluir_operacoes: true,
+        incluir_desenhos: filtros.incluir_desenhos === "S",
+        quebrar_por_operacao: filtros.quebrar_por_operacao === "S",
+        modo: "preview",
+      });
+      if (Array.isArray(res?.ordens) && res.ordens.length > 0) {
+        return { ordens: res.ordens, falhas: [] };
+      }
+    } catch {
+      // segue para fallback unitário
+    }
+
+    // Fallback: GETs unitários com concorrência limitada.
+    const concurrency = 6;
+    for (let i = 0; i < alvos.length; i += concurrency) {
+      const slice = alvos.slice(i, i + concurrency);
+      const results = await Promise.all(
+        slice.map(async (op) => {
+          try {
+            const payload: Record<string, any> = {
+              cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
+              cod_ori: String(op.cod_ori ?? ""),
+              num_orp: Number(op.num_orp ?? 0),
+              listar_componentes,
+              listar_desenho,
+              quebrar_por_operacao: filtros.quebrar_por_operacao === "S" ? "S" : "N",
+            };
+            if (filtros.incluir_desenhos === "S") payload.incluir_desenhos = "S";
+            const res = await api.get<OpImpressao>("/api/producao/ordem-producao/impressao", payload);
+            return { ok: true as const, op, res };
+          } catch {
+            return { ok: false as const, op };
+          }
+        }),
+      );
+      for (const r of results) {
+        if (r.ok && r.res) ordens.push(r.res);
+        else falhas.push({ cod_ori: String(r.op.cod_ori ?? ""), num_orp: String(r.op.num_orp ?? "") });
+      }
+    }
+    return { ordens, falhas };
+  };
+
+  // Retorna a lista de OPs válidas atualmente marcadas no grid.
+  const getAlvosSelecionados = (): OpcaoOp[] =>
+    opsFiltradas
       .filter((o) => selectedKeys.has(opKey(o)))
       .filter((o) => String(o.cod_ori ?? "") !== "100" && String(o.sit_orp ?? "") !== "C");
+
+  // Executa o carregamento e popula o estado de preview.
+  const executarVisualizacao = async (alvos: OpcaoOp[]) => {
     if (!alvos.length) {
-      toast.info("Selecione ao menos uma OP válida (não cancelada e origem ≠ 100).");
+      toast.info("Nenhuma OP válida para visualizar.");
       return;
     }
     setLoteLoading(true);
     setFalhasLote([]);
     try {
-      const listar_componentes = (filtros.listar_componentes as "S" | "N") || "S";
-      const listar_desenho = (filtros.listar_desenho as "S" | "N") || "N";
-      const ordens: OpImpressao[] = [];
-      const falhas: { cod_ori: string; num_orp: string }[] = [];
-      const concurrency = 6;
-      for (let i = 0; i < alvos.length; i += concurrency) {
-        const slice = alvos.slice(i, i + concurrency);
-        const results = await Promise.all(
-          slice.map(async (op) => {
-            try {
-              const payload: Record<string, any> = {
-                cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
-                cod_ori: String(op.cod_ori ?? ""),
-                num_orp: Number(op.num_orp ?? 0),
-                listar_componentes,
-                listar_desenho,
-                quebrar_por_operacao: filtros.quebrar_por_operacao === "S" ? "S" : "N",
-              };
-              // cod_etg / cod_cre NÃO repassados: filtros da busca da lista
-              // não devem restringir conteúdo (componentes/operações) da impressão.
-              if (filtros.incluir_desenhos === "S") payload.incluir_desenhos = "S";
-              const res = await api.get<OpImpressao>("/api/producao/ordem-producao/impressao", payload);
-              return { ok: true as const, op, res };
-            } catch {
-              return { ok: false as const, op };
-            }
-          }),
-        );
-        for (const r of results) {
-          if (r.ok && r.res) ordens.push(r.res);
-          else falhas.push({ cod_ori: String(r.op.cod_ori ?? ""), num_orp: String(r.op.num_orp ?? "") });
-        }
-      }
+      const { ordens, falhas } = await carregarOps(alvos);
       if (!ordens.length) {
         toast.error("Nenhuma OP pôde ser carregada.");
         setFalhasLote(falhas);
@@ -760,9 +795,101 @@ export default function ImpressaoOrdemProducaoPage() {
       setPreview(true);
       setFalhasLote(falhas);
       if (falhas.length > 0) toast.warning(`${falhas.length} OP(s) falharam. ${ordens.length} carregadas.`);
-      else toast.success(`${ordens.length} OP(s) carregadas. Revise e clique em Imprimir visualização.`);
+      else toast.success(`${ordens.length} OP(s) carregadas.`);
     } catch (e: any) {
       toast.error(e?.message || "Falha ao carregar OPs selecionadas.");
+    } finally {
+      setLoteLoading(false);
+    }
+  };
+
+  const visualizarSelecionadas = async () => {
+    const alvos = getAlvosSelecionados();
+    if (!alvos.length) {
+      toast.info("Selecione ao menos uma OP válida (não cancelada e origem ≠ 100).");
+      return;
+    }
+    if (alvos.length > LIMITE_PREVIEW_DIRETO) {
+      setConfirmManyOpen(true);
+      return;
+    }
+    setBatchMode(null);
+    await executarVisualizacao(alvos);
+  };
+
+  // Visualiza apenas as primeiras N OPs da seleção (fluxo "muitas OPs").
+  const visualizarPrimeiras = async () => {
+    const alvos = getAlvosSelecionados().slice(0, LIMITE_PREVIEW_DIRETO);
+    setConfirmManyOpen(false);
+    setBatchMode(null);
+    await executarVisualizacao(alvos);
+  };
+
+  // Inicia modo paginado: carrega só o primeiro lote, deixa navegação ativa.
+  const iniciarLotes = async () => {
+    const alvos = getAlvosSelecionados();
+    if (!alvos.length) return;
+    setConfirmManyOpen(false);
+    const tamanho = LIMITE_PREVIEW_DIRETO;
+    setBatchMode({ alvos, paginaAtual: 0, tamanhoLote: tamanho });
+    await executarVisualizacao(alvos.slice(0, tamanho));
+  };
+
+  const irParaPaginaLote = async (pagina: number) => {
+    if (!batchMode) return;
+    const total = Math.ceil(batchMode.alvos.length / batchMode.tamanhoLote);
+    const novaPag = Math.max(0, Math.min(pagina, total - 1));
+    if (novaPag === batchMode.paginaAtual && lote) return;
+    setBatchMode({ ...batchMode, paginaAtual: novaPag });
+    const inicio = novaPag * batchMode.tamanhoLote;
+    const slice = batchMode.alvos.slice(inicio, inicio + batchMode.tamanhoLote);
+    await executarVisualizacao(slice);
+  };
+
+  // Gera PDF completo: chama o backend em modo "pdf" (binário) ou, na
+  // ausência do endpoint, processa todos os lotes sequencialmente e dispara
+  // window.print uma única vez. Para seleções muito grandes, recomendamos
+  // usar "Processar em lotes de 30".
+  const gerarPdfCompleto = async () => {
+    const alvos = getAlvosSelecionados();
+    if (!alvos.length) {
+      toast.info("Selecione ao menos uma OP válida.");
+      return;
+    }
+    setConfirmManyOpen(false);
+    setLoteLoading(true);
+    setFalhasLote([]);
+    const tid = toast.loading(`Gerando PDF de ${alvos.length} OP(s)...`);
+    try {
+      const todasOrdens: OpImpressao[] = [];
+      const todasFalhas: { cod_ori: string; num_orp: string }[] = [];
+      const tamanho = LIMITE_PREVIEW_DIRETO;
+      for (let i = 0; i < alvos.length; i += tamanho) {
+        const slice = alvos.slice(i, i + tamanho);
+        toast.loading(
+          `Carregando OPs ${i + 1}–${Math.min(i + tamanho, alvos.length)} de ${alvos.length}...`,
+          { id: tid },
+        );
+        const { ordens, falhas } = await carregarOps(slice);
+        todasOrdens.push(...ordens);
+        todasFalhas.push(...falhas);
+      }
+      if (!todasOrdens.length) {
+        toast.error("Nenhuma OP pôde ser carregada.", { id: tid });
+        setFalhasLote(todasFalhas);
+        return;
+      }
+      reset();
+      setSelectedRowKey(null);
+      setBatchMode(null);
+      setLote({ quantidade_ops: todasOrdens.length, ordens: todasOrdens });
+      setPreview(true);
+      setFalhasLote(todasFalhas);
+      toast.success(`${todasOrdens.length} OP(s) prontas. Abrindo janela de impressão...`, { id: tid });
+      await aguardarDesenhosProntos();
+      window.print();
+    } catch (e: any) {
+      toast.error(e?.message || "Falha ao gerar PDF completo.", { id: tid });
     } finally {
       setLoteLoading(false);
     }
