@@ -783,75 +783,106 @@ export default function ConfiguracoesPage() {
         </TabsContent>
 
         {/* === PERMISSÕES === */}
-        <TabsContent value="permissions">
+        <TabsContent value="permissions" className="space-y-4">
+          {/* Header */}
+          <div className="rounded-lg border bg-card p-4">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="rounded-lg bg-primary/10 p-2.5"><Eye className="h-5 w-5 text-primary" /></div>
+                <div>
+                  <h2 className="text-lg font-semibold leading-tight">Permissões por Tela</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Defina, por perfil, quais telas podem ser visualizadas, editadas ou excluídas.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 md:gap-3 w-full md:w-auto">
+                <KpiMini label="Telas" value={ALL_SCREENS.length} />
+                <KpiMini label="Perfis" value={profiles.length} />
+                <KpiMini label="Regras ativas" value={profileScreens.filter(ps => ps.can_view).length} />
+              </div>
+            </div>
+          </div>
+
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Permissões por Tela</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               {profiles.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">Crie um perfil primeiro na aba "Perfis de Acesso"</p>
+                <EmptyState
+                  icon={Shield}
+                  title="Nenhum perfil cadastrado"
+                  description='Crie um perfil primeiro na aba "Perfis de Acesso" para configurar permissões.'
+                  action={<Button size="sm" onClick={() => setActiveTab('profiles')}><Shield className="h-4 w-4 mr-1" /> Ir para Perfis</Button>}
+                />
               ) : (
-                <>
-                  <PermissoesPorTelaPanel
-                    screens={ALL_SCREENS}
-                    profiles={profiles.map(p => ({ id: p.id, name: p.name }))}
-                    profileScreens={profileScreens}
-                    onToggle={toggleScreen}
-                    onRefresh={fetchData}
-                  />
-
-
-                  <div className="mt-6 border-t pt-4">
-                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-3">
-                      <Sparkles className="h-4 w-4 text-primary" /> Assistente IA
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                      {profiles.map(p => (
-                        <div key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                          <span className="text-sm">{p.name}</span>
-                          <Switch
-                            checked={p.ai_enabled}
-                            onCheckedChange={async (checked) => {
-                              await supabase.from('access_profiles').update({ ai_enabled: checked } as any).eq('id', p.id);
-                              fetchData();
-                            }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mt-6 border-t pt-4">
-                    <h3 className="text-sm font-semibold flex items-center gap-2 mb-1">
-                      <Shield className="h-4 w-4 text-primary" /> Compartilhamento de Passagens Aéreas
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Quando ativado, qualquer usuário com permissão de <strong>edição</strong> na tela "Passagens Aéreas" poderá criar e revogar links de compartilhamento. Administradores sempre têm acesso.
-                    </p>
-                    <div className="flex items-center gap-3 rounded-md border px-3 py-2 w-fit">
-                      <span className="text-sm">Permitir não-administradores</span>
-                      <Switch
-                        checked={passagensShareAllowNonAdmin}
-                        onCheckedChange={async (checked) => {
-                          const { error } = await supabase
-                            .from('app_settings')
-                            .upsert({ key: 'passagens_share_allow_non_admin', value: checked ? 'true' : 'false' }, { onConflict: 'key' });
-                          if (error) {
-                            toast.error('Erro ao salvar: ' + error.message);
-                          } else {
-                            setPassagensShareAllowNonAdmin(checked);
-                            toast.success(checked ? 'Compartilhamento liberado para usuários com permissão de edição' : 'Compartilhamento restrito a administradores');
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-                </>
+                <PermissoesPorTelaPanel
+                  screens={ALL_SCREENS}
+                  profiles={profiles.map(p => ({ id: p.id, name: p.name }))}
+                  profileScreens={profileScreens}
+                  onToggle={toggleScreen}
+                  onRefresh={fetchData}
+                />
               )}
             </CardContent>
           </Card>
+
+          {profiles.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <div className="rounded-md bg-primary/10 p-1.5"><Sparkles className="h-4 w-4 text-primary" /></div>
+                    Assistente IA por perfil
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Habilite o painel do Assistente IA para os perfis selecionados.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {profiles.map(p => (
+                      <div key={p.id} className="flex items-center gap-2 rounded-md border bg-card px-3 py-2">
+                        <span className="text-sm">{p.name}</span>
+                        <Switch
+                          checked={p.ai_enabled}
+                          onCheckedChange={async (checked) => {
+                            await supabase.from('access_profiles').update({ ai_enabled: checked } as any).eq('id', p.id);
+                            fetchData();
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <div className="rounded-md bg-primary/10 p-1.5"><Shield className="h-4 w-4 text-primary" /></div>
+                    Compartilhamento de Passagens Aéreas
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">Quando ativado, usuários com permissão de <strong>edição</strong> em Passagens Aéreas podem criar e revogar links de compartilhamento. Administradores sempre têm acesso.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3 rounded-md border bg-card px-3 py-2 w-fit">
+                    <span className="text-sm">Permitir não-administradores</span>
+                    <Switch
+                      checked={passagensShareAllowNonAdmin}
+                      onCheckedChange={async (checked) => {
+                        const { error } = await supabase
+                          .from('app_settings')
+                          .upsert({ key: 'passagens_share_allow_non_admin', value: checked ? 'true' : 'false' }, { onConflict: 'key' });
+                        if (error) {
+                          toast.error('Erro ao salvar: ' + error.message);
+                        } else {
+                          setPassagensShareAllowNonAdmin(checked);
+                          toast.success(checked ? 'Compartilhamento liberado para usuários com permissão de edição' : 'Compartilhamento restrito a administradores');
+                        }
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </TabsContent>
+
 
         {/* === GRÁFICOS E MAPAS === */}
         <TabsContent value="visuals">
