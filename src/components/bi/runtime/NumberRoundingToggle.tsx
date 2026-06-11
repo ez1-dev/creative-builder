@@ -95,6 +95,7 @@ export function NumberRoundingToggle({ pageKey, className }: Props) {
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-[11px] text-muted-foreground"
+                  disabled={loading}
                   onClick={() => setPageRounding(pageKey, null)}
                 >
                   Usar padrão
