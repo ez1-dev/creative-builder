@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AuditoriaRevendaTab } from '@/components/faturamento/AuditoriaRevendaTab';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -52,27 +52,22 @@ import {
 } from 'lucide-react';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { UserWidgetsSlot } from '@/components/bi';
+import { formatCurrency, formatNumber, formatPercent } from '@/components/bi/utils/formatters';
+import { useBiDisplayPrefs } from '@/hooks/useBiDisplayPrefs';
+import { setNumberRoundingMode } from '@/lib/bi/numberFormatMode';
 
-const fmtBRL = (v: number | null | undefined) => {
-  if (v === null || v === undefined) return '-';
-  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
 
-const fmtNum = (v: number | null | undefined, dec = 0) => {
-  if (v === null || v === undefined) return '-';
-  return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-};
+// Delegam para os formatadores da Biblioteca BI, que respeitam o modo global
+// de arredondamento salvo em `user_preferences.bi_display_prefs`.
+const fmtBRL = (v: number | null | undefined) => formatCurrency(v);
+const fmtNum = (v: number | null | undefined, dec = 0) => formatNumber(v, dec);
+const fmtPct = (v: number | null | undefined) => formatPercent(v);
 
 const fmtAnomes = (anomes: string | number | null | undefined) => {
   if (!anomes) return '-';
   const s = String(anomes);
   if (s.length !== 6) return s;
   return `${s.slice(4, 6)}/${s.slice(0, 4)}`;
-};
-
-const fmtPct = (v: number | null | undefined) => {
-  if (v === null || v === undefined) return '-';
-  return `${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 };
 
 function currentYYYYMM(): string {
@@ -380,6 +375,16 @@ export default function FaturamentoGeniusPage() {
   const [avisoAtualizacao, setAvisoAtualizacao] = useState<string | null>(null);
   const [incluirOutros, setIncluirOutros] = useState(false);
   const [drill, setDrill] = useState<DrillState | null>(null);
+
+  // Aplica o modo global de arredondamento salvo (Biblioteca BI → Números)
+  // assim a tela respeita "Sem decimais / Abreviado / Milhões" também
+  // após logout/login, sem precisar passar pela Biblioteca BI antes.
+  const { prefs, loading: prefsLoading } = useBiDisplayPrefs();
+  useEffect(() => {
+    if (prefsLoading) return;
+    setNumberRoundingMode(prefs.numberRounding.global);
+  }, [prefsLoading, prefs.numberRounding.global]);
+
 
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
