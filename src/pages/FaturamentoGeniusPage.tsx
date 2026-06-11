@@ -376,6 +376,16 @@ export default function FaturamentoGeniusPage() {
   const [incluirOutros, setIncluirOutros] = useState(false);
   const [drill, setDrill] = useState<DrillState | null>(null);
 
+  // Aplica o modo global de arredondamento salvo (Biblioteca BI → Números)
+  // assim a tela respeita "Sem decimais / Abreviado / Milhões" também
+  // após logout/login, sem precisar passar pela Biblioteca BI antes.
+  const { prefs, loading: prefsLoading } = useBiDisplayPrefs();
+  useEffect(() => {
+    if (prefsLoading) return;
+    setNumberRoundingMode(prefs.numberRounding.global);
+  }, [prefsLoading, prefs.numberRounding.global]);
+
+
   const update = <K extends keyof Filters>(k: K, v: Filters[K]) => setFilters((f) => ({ ...f, [k]: v }));
 
   const MSG_404 = 'Backend de Faturamento Genius ainda não publicado. Verifique se os endpoints /api/faturamento-genius-dashboard e /api/faturamento-genius existem no FastAPI.';
