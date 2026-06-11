@@ -304,11 +304,12 @@ export function useComercialLayout(enabled: boolean = true) {
         const payload: any = { layout: item.layout as any, config: nextConfig };
         if (typeof item.position === 'number') payload.position = item.position;
         if (typeof item.title === 'string' && item.title) payload.title = item.title;
-        await supabase.from('dashboard_widgets').update(payload).eq('id', ex.id);
+        const { error } = await supabase.from('dashboard_widgets').update(payload).eq('id', ex.id);
+        if (error) throw error;
       } else {
         const def = COMERCIAL_DEFAULT_WIDGETS.find((d) => d.type === baseWidgetType(item.type));
         const blockId = await ensureDefaultBlockId(id);
-        await supabase.from('dashboard_widgets').insert({
+        const { error } = await supabase.from('dashboard_widgets').insert({
           dashboard_id: id,
           block_id: blockId,
           type: item.type,
@@ -317,29 +318,47 @@ export function useComercialLayout(enabled: boolean = true) {
           layout: item.layout as any,
           config: nextConfig as any,
         });
+        if (error) throw error;
       }
     }
     await load({ silent: true });
   }, [ensureDashboard, load]);
 
   const resetLayout = useCallback(async () => {
+    // Não-admin: resetar significa apagar a versão pessoal e voltar a ver a oficial.
+    if (isAdmin === false) {
+      if (hasPersonal) {
+        const { error } = await supabase.rpc('reset_bi_comercial_personal_dashboard');
+        if (error) throw error;
+        setHasPersonal(false);
+      }
+      setMode('official');
+      autoForkToastShownRef.current = false;
+      await load();
+      return;
+    }
     if (isPersonalEffective) {
-      await supabase.rpc('reset_bi_comercial_personal_dashboard');
-      await supabase.rpc('fork_bi_comercial_dashboard');
+      const r1 = await supabase.rpc('reset_bi_comercial_personal_dashboard');
+      if (r1.error) throw r1.error;
+      const r2 = await supabase.rpc('fork_bi_comercial_dashboard');
+      if (r2.error) throw r2.error;
       await load();
       return;
     }
     const id = await ensureDashboard();
-    await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
-    await supabase.rpc('upsert_bi_comercial_dashboard_default');
+    const del = await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
+    if (del.error) throw del.error;
+    const up = await supabase.rpc('upsert_bi_comercial_dashboard_default');
+    if (up.error) throw up.error;
     await load();
-  }, [ensureDashboard, isPersonalEffective, load]);
+  }, [ensureDashboard, hasPersonal, isAdmin, isPersonalEffective, load, setMode]);
 
   const deleteWidget = useCallback(async (widgetType: string) => {
-    const id = dashboardId ?? (await ensureDashboard());
-    await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id).eq('type', widgetType);
+    const id = await ensureDashboard();
+    const { error } = await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id).eq('type', widgetType);
+    if (error) throw error;
     await load();
-  }, [dashboardId, ensureDashboard, load]);
+  }, [ensureDashboard, load]);
 
   return {
     widgets, dashboardId, loading,
