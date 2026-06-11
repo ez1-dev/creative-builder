@@ -1,40 +1,67 @@
 ## Diagnóstico
 
-No `src/pages/bi/ComercialPage.tsx`, bloco `resumo-faturamento` (linhas 777-814), o card mostra **Fat. Bruto / Fat. Líquido / Meta / Diferença**, mas a linha 787 calcula:
+O card `resumo-faturamento` em `src/pages/bi/ComercialPage.tsx` (linhas 777-814) hoje mostra **4 linhas**: Fat. Bruto, Fat. Líquido, Meta, Diferença — e na turn anterior a Diferença passou a usar Líquido. Está incorreto: as **metas da UpQuery são em Faturamento Bruto**, portanto Realizado/Diferença/% Atingimento devem usar Bruto.
+
+## Mudanças
+
+### 1. `src/pages/bi/ComercialPage.tsx` — bloco `resumo-faturamento` (linhas 777-814)
+
+Reescrever para 3 linhas (Realizado / Meta / Diferença), todas em Bruto, removendo a linha Líquido:
 
 ```ts
-const diferenca = bruto - meta;
-```
-
-Ou seja, a Diferença usa o **Faturamento Bruto** em vez do Líquido (Realizado). Por isso `2.116.157 − 8.328.422` aparece como `-6.482.267` (que é `bruto − meta`, não `liquido − meta`).
-
-## Mudança
-
-Trocar o cálculo para usar o mesmo valor do Realizado (Fat. Líquido), priorizando o campo `diferenca` retornado pela API:
-
-```ts
-const fatLiquido = Number(
-  k?.faturamento_liquido ?? k?.fat_liquido ?? k?.realizado ?? 0
+const title = w.customTitle || w.title || 'Faturamento';
+const k: any = kpis;
+const realizado = Number(
+  k?.realizado ?? k?.faturamento ?? k?.faturamento_bruto ?? k?.fat_bruto ?? 0
 );
 const meta = Number(k?.meta ?? k?.vl_meta ?? 0);
 const diferenca =
   k?.diferenca !== undefined && k?.diferenca !== null
     ? Number(k.diferenca)
-    : fatLiquido - meta;
+    : k?.vl_diferenca !== undefined && k?.vl_diferenca !== null
+      ? Number(k.vl_diferenca)
+      : realizado - meta;
+
+return (
+  <Clickable title="Clique para detalhar" onClick={...}>
+    <KpiTriStackCard
+      title={title}
+      items={[
+        { label: 'Realizado', value: realizado, format: 'currency' },
+        { label: 'Meta',      value: meta,      format: 'currency' },
+        { label: 'Diferença', value: diferenca, format: 'currency' },
+      ]}
+      headerAction={...}  // (mantém o refresh de metas para admin)
+    />
+  </Clickable>
+);
 ```
 
-Proibido neste card: `k.diferenca_bruto`, `k.faturamento`, `k.faturamento_bruto`, `k.fat_bruto`, `k.valor`, `k.total` para compor a Diferença. O `bruto` segue sendo exibido apenas como item informativo "Fat. Bruto".
+Proibido neste card: `kpis.faturamento_liquido`, `kpis.fat_liquido`, `kpis.diferenca_liquido`. Esses ficam reservados para um card separado de Líquido/Margem.
 
-## Arquivo
+### 2. Título padrão do widget
 
-- `src/pages/bi/ComercialPage.tsx` — linha 787 (substituir cálculo de `diferenca`).
+Em `src/lib/bi/comercialWidgetCatalog.ts`, garantir que o widget `resumo-faturamento` tenha `title: 'Faturamento'` (ou `'Faturamento x Meta'`). Se já estiver assim, sem mudança. Caso esteja com outro rótulo, atualizar para "Faturamento".
+
+### 3. Gauge `gauge-atingimento` (linhas 815-828)
+
+Já usa `bruto / meta`. **Sem mudanças** — confirmar que continua correto com o padrão Bruto/Meta.
 
 ## Fora de escopo
 
+- `FaturamentoRealizadoMetaCard` (componente da Biblioteca BI): permanece genérico — quem define o `realizado` é o builder visual via mapeamento; sem alteração.
+- KPIs individuais (`kpi-liquido`, `kpi-bruto`, `kpi-diferenca`): sem alteração — exibem o valor cru da API.
+- `% Atingimento de Meta` no `RelatorioBlocos.tsx`/`exportPptx.ts`: já usa Bruto/Meta — sem mudança.
 - Backend `/api/bi/comercial/kpis`.
-- Demais cards/widgets (gauge, KPIs individuais).
+
+## Arquivos a editar
+
+- `src/pages/bi/ComercialPage.tsx`
+- `src/lib/bi/comercialWidgetCatalog.ts` (apenas se o título não estiver como "Faturamento")
 
 ## Critério de aceite
 
-- Com Realizado = `2.116.157` e Meta = `8.328.422`, Diferença = `-6.212.265`.
-- Se a API devolver `kpis.diferenca`, esse valor é usado diretamente.
+- Card "Faturamento" mostra 3 linhas: **Realizado / Meta / Diferença**, todas em Bruto.
+- A linha "Fat. Líquido" desaparece deste card.
+- Com Realizado (Bruto) = `X` e Meta = `Y`, Diferença = `X − Y` (ou `kpis.diferenca` quando a API retornar).
+- Gauge `% Atingimento` continua coerente (Bruto/Meta).
