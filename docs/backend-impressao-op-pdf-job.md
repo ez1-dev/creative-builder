@@ -26,7 +26,8 @@ Body JSON:
   "incluir_desenhos": true,
   "incluir_componentes": true,
   "incluir_operacoes": true,
-  "qualidade_desenhos": "alta"
+  "qualidade_desenhos": "normal",
+  "dpi": 150
 }
 ```
 
@@ -35,7 +36,8 @@ Regras:
 - Rejeitar `codori = "100"` e OPs com `sit_orp = "C"` (silenciosamente ou via `mensagem` no status).
 - `incluir_desenhos = true` → cada OP deve trazer suas páginas A4 retrato já normalizadas (mesma lógica de `/desenho/impressao-a4`) embutidas no PDF final.
 - `incluir_componentes`, `incluir_operacoes` controlam blocos do relatório (mesma semântica de `/impressao`).
-- `qualidade_desenhos` opcional: `"alta"` (default, 200 DPI — A4 1654×2338) ou `"normal"` (150 DPI — A4 1240×1754). Use a normal para impressão em massa com OPs muitas.
+- **`qualidade_desenhos`** opcional, valores aceitos: `"rapida"` (120 DPI), `"normal"` (150 DPI, **default**) ou `"alta"` (200 DPI). O default mudou para `"normal"` por causa de performance em lotes grandes.
+- **`dpi`** opcional (`number`). O frontend sempre envia `dpi` derivado de `qualidade_desenhos` (rapida→120, normal→150, alta→200). Quando `dpi` está presente, o backend deve usar esse valor diretamente e ignorar o mapeamento interno de `qualidade_desenhos`.
 
 Resposta `202`:
 
@@ -59,16 +61,27 @@ Resposta:
   "mensagem": "Normalizando desenhos 87 de 244",
   "erro": null,
   "quantidade_ops": 244,
-  "tamanho_bytes": 1234567
+  "tamanho_bytes": 1234567,
+  "tempos_por_etapa": {
+    "BUSCANDO_OPS": 1.2,
+    "BUSCANDO_COMPONENTES": 2.4,
+    "BUSCANDO_OPERACOES": 0.9,
+    "LOCALIZANDO_DESENHOS": 0.8
+  },
+  "tempo_etapa_atual": 14.8,
+  "tempo_total": 20.1
 }
 ```
 
-- `etapa`: enum — `BUSCANDO_OPS`, `BUSCANDO_COMPONENTES`, `BUSCANDO_OPERACOES`, `LOCALIZANDO_DESENHOS`, `NORMALIZANDO_DESENHOS`, `MONTANDO_PDF`, `CONCLUIDO`.
+- `etapa`: enum — `BUSCANDO_OPS`, `BUSCANDO_COMPONENTES`, `BUSCANDO_OPERACOES`, `LOCALIZANDO_DESENHOS`, `NORMALIZANDO_DESENHOS`, `MONTANDO_PDF`, `GRAVANDO_ARQUIVO`, `CONCLUIDO`.
 - `total_ops` / `processadas`: contagem ao vivo durante `NORMALIZANDO_DESENHOS` e `MONTANDO_PDF`.
 - `percentual`: 0..100 (preferido pelo frontend). `progresso` (0..1) continua aceito por compat — se ambos vierem, o frontend usa `percentual`.
 - `mensagem`: texto livre para exibição.
 - `erro`: preencher somente quando `status = "ERRO"`.
 - `tamanho_bytes`: preencher quando `status = "CONCLUIDO"`.
+- `tempos_por_etapa` (opcional): mapa `EtapaNome → segundos`, somente etapas **já concluídas**. O frontend exibe em linha compacta na ordem canônica.
+- `tempo_etapa_atual` (opcional): segundos decorridos na etapa em andamento. Exibido ao lado do label da etapa.
+- `tempo_total` (opcional): segundos desde o início do job. Exibido no canto direito do card de progresso.
 
 ### `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/download`
 
@@ -84,19 +97,19 @@ Resposta:
 
 ## Erros
 
-- `400` — payload inválido (sem `ops`, OP com `codori = 100`, etc.).
+- `400` — payload inválido (sem `ops`, OP com `codori = 100`, `dpi` fora de [72..400], etc.).
 - `404` — `job_id` desconhecido.
 - `500` — falha inesperada (também refletir em `status = "ERRO"` com `erro` descritivo).
 
 ## Recomendações de performance (não normativas)
 
-A versão inicial do endpoint trava com lotes grandes (244+ OPs) porque normaliza desenhos a cada chamada e roda tudo serial. O frontend já está pronto para mostrar progresso por etapa — basta o backend implementar:
+A versão inicial do endpoint trava com lotes grandes (244+ OPs) porque normaliza desenhos a cada chamada e roda tudo serial. O frontend já está pronto para mostrar progresso por etapa e tempo por etapa — basta o backend implementar:
 
 1. **Cache em disco dos A4 normalizados.**
    - Pasta dedicada (ex.: `./cache_desenhos_a4/`).
-   - Chave: `md5(nome_arquivo + mtime + size + pagina + dpi)`.
+   - **Chave inclui DPI**: `md5(nome_arquivo + mtime + size + pagina + dpi)`.
    - Se o cache existir e o arquivo de origem não mudou, reutiliza o JPG A4 pronto. Segunda geração de lotes parecidos cai de minutos para segundos.
-   - Lembre que o endpoint atual `/desenho/impressao-a4/pagina` responde `Cache-Control: no-store` — o cache **interno** do servidor é independente disso.
+   - O frontend exibe um aviso explícito para lotes > 100 OPs informando que a **primeira** geração demora e as próximas são mais rápidas — esse aviso depende do cache existir.
 
 2. **Não chamar HTTP interno para montar o PDF.**
    - Ler o desenho direto do filesystem via `Path(PASTA_DESENHOS_OP_PADRAO) / nome_arquivo`.
@@ -106,12 +119,16 @@ A versão inicial do endpoint trava com lotes grandes (244+ OPs) porque normaliz
    - `ThreadPoolExecutor(max_workers=4)` (2 em servidor fraco, 6 em servidor bom) para a etapa de normalização A4.
    - Atualizar `processadas` no status do job a cada desenho concluído (via lock).
 
-4. **DPI configurável via `qualidade_desenhos`.**
-   - `"alta"` → 200 DPI (1654×2338). `"normal"` → 150 DPI (1240×1754). 150 DPI reduz tempo e tamanho final significativamente para impressão em massa.
+4. **DPI configurável.**
+   - Aceitar `dpi` explícito do body; o frontend sempre envia. Faixa típica: 120/150/200.
+   - Quando ausente, mapear de `qualidade_desenhos`: rapida→120, normal→150 (default), alta→200.
+   - 120 DPI é o ideal para impressão em massa quando os desenhos são esquemáticos.
 
 5. **Montar o PDF sem HTML pesado.**
    - Para o miolo (capa + componentes + operações) use `reportlab` (`SimpleDocTemplate` ou Canvas).
    - Para as páginas de desenho, encaixe os JPGs A4 já normalizados diretamente — `reportlab.Canvas.drawImage` ou `img2pdf` (mais rápido por não reprocessar).
 
-6. **Atualização de status por etapa.**
-   Sequência sugerida: `BUSCANDO_OPS` → `BUSCANDO_COMPONENTES` → `BUSCANDO_OPERACOES` → `LOCALIZANDO_DESENHOS` → `NORMALIZANDO_DESENHOS` (com contador) → `MONTANDO_PDF` (com contador) → `CONCLUIDO`. Sempre preencher `percentual` e, quando aplicável, `processadas`/`total_ops` para o frontend mostrar barra + "X de Y OPs".
+6. **Atualização de status por etapa + tempo.**
+   Sequência canônica: `BUSCANDO_OPS` → `BUSCANDO_COMPONENTES` → `BUSCANDO_OPERACOES` → `LOCALIZANDO_DESENHOS` → `NORMALIZANDO_DESENHOS` (com contador) → `MONTANDO_PDF` (com contador) → `GRAVANDO_ARQUIVO` → `CONCLUIDO`.
+   - Sempre preencher `percentual` e, quando aplicável, `processadas`/`total_ops`.
+   - Ao concluir cada etapa, gravar `tempos_por_etapa[ETAPA] = segundos`. Durante a etapa corrente, atualizar `tempo_etapa_atual` e `tempo_total` a cada heartbeat.
