@@ -37,6 +37,21 @@ const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
 
 const DEFAULT_EMPRESA = "1";
 
+const ETAPA_LABELS: Record<PdfJobEtapa, string> = {
+  BUSCANDO_OPS: "Buscando ordens",
+  BUSCANDO_COMPONENTES: "Buscando componentes",
+  BUSCANDO_OPERACOES: "Buscando operações",
+  LOCALIZANDO_DESENHOS: "Localizando desenhos",
+  NORMALIZANDO_DESENHOS: "Normalizando desenhos",
+  MONTANDO_PDF: "Montando PDF",
+  CONCLUIDO: "Concluído",
+};
+
+function labelEtapa(etapa: PdfJobEtapa | null | undefined): string {
+  if (!etapa) return "Processando";
+  return ETAPA_LABELS[etapa] ?? "Processando";
+}
+
 const EMPTY: ImpressaoOpFiltros = {
   cod_emp: DEFAULT_EMPRESA,
   cod_ori: "",
