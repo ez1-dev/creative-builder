@@ -769,6 +769,28 @@ export default function ImpressaoOrdemProducaoPage() {
     window.print();
   };
 
+  const gerarPdfCompleto = async () => {
+    const alvos = opsFiltradas
+      .filter((o) => selectedKeys.has(opKey(o)))
+      .filter((o) => String(o.cod_ori ?? "") !== "100" && String(o.sit_orp ?? "").toUpperCase() !== "C");
+    if (!alvos.length) {
+      toast.info("Selecione ao menos uma OP válida para gerar o PDF.");
+      return;
+    }
+    const ops = alvos.map((o) => ({
+      codemp: Number(o.cod_emp ?? filtros.cod_emp ?? 0),
+      codori: String(o.cod_ori ?? ""),
+      numorp: Number(o.num_orp ?? 0),
+    }));
+    await pdfJob.iniciar({
+      ops,
+      incluir_desenhos: filtros.incluir_desenhos === "S",
+      incluir_componentes: filtros.listar_componentes === "S",
+      incluir_operacoes: true,
+    });
+  };
+
+
   const limparSelecao = () => {
     setSelectedKeys(new Set());
     setLote(null);
