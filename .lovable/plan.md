@@ -1,72 +1,57 @@
 ## Objetivo
 
-Hoje a tela de **Impressão de Ordem de Produção** mostra apenas "Gerando PDF completo com desenhos. Aguarde…" sem feedback de etapa nem de OPs processadas. O backend vai passar a expor progresso por etapa e o frontend precisa consumir isso, mostrar barra de progresso e permitir escolher a qualidade dos desenhos (150 ou 200 DPI). A renderização de desenhos no navegador continua proibida durante a geração — toda a montagem permanece no backend.
+Aumentar a performance percebida da impressão em massa de OPs com desenhos: padrão DPI mais leve (150), três níveis de qualidade (Rápida 120 / Normal 150 / Alta 200), exibição da etapa atual do job + tempo por etapa quando o backend retornar, aviso para lotes grandes (>100 OPs) e reforço de que desenhos nunca são renderizados no navegador.
 
-## Escopo desta entrega (somente frontend + docs)
-
-1. Ampliar contrato do status do job (novos campos opcionais).
-2. UI do bloco de progresso na página de impressão.
-3. Seletor de qualidade dos desenhos enviado ao backend.
-4. Atualizar `docs/backend-impressao-op-pdf-job.md` com as novas regras (cache A4, etapas, qualidade, sem HTTP interno).
-
-Backend (FastAPI) **não** é tocado aqui — apenas documentado. Implementação de cache, ThreadPool e geração via `reportlab`/`img2pdf` ficam por conta do time da API.
+Escopo: somente frontend + atualização da doc de contrato do backend. Geração continua 100% no servidor.
 
 ## Mudanças por arquivo
 
 ### `src/lib/producao/opImpressaoPdfJob.ts`
-- `PdfJobPayload` ganha campo opcional `qualidade_desenhos: "normal" | "alta"` (default `"alta"` = 200 DPI; `"normal"` = 150 DPI).
-- `PdfJobStatus` ganha campos opcionais já previstos pelo backend novo:
-  - `etapa?: "BUSCANDO_OPS" | "BUSCANDO_COMPONENTES" | "BUSCANDO_OPERACOES" | "LOCALIZANDO_DESENHOS" | "NORMALIZANDO_DESENHOS" | "MONTANDO_PDF" | "CONCLUIDO"`
-  - `total_ops?: number | null`
-  - `processadas?: number | null`
-  - `percentual?: number | null` (0..100, alternativa ao `progresso` 0..1; usar o que vier).
+- Substituir `PdfJobQualidade = "normal" | "alta"` por `"rapida" | "normal" | "alta"`.
+- Adicionar mapeamento de DPI no frontend (`QUALIDADE_DPI = { rapida: 120, normal: 150, alta: 200 }`) e enviar **também** `dpi` no body (além de `qualidade_desenhos`), para o backend poder usar diretamente sem mapear de novo.
+- Adicionar `"GRAVANDO_ARQUIVO"` em `PdfJobEtapa`.
+- `PdfJobStatus` ganha campo opcional:
+  - `tempos_por_etapa?: Record<string, number> | null` — duração em segundos por etapa já finalizada.
+  - `tempo_etapa_atual?: number | null` — segundos decorridos na etapa em andamento.
+  - `tempo_total?: number | null` — segundos desde o início do job.
 
 ### `src/hooks/useImpressaoPdfJob.ts`
-- Expor no retorno: `etapa`, `totalOps`, `processadas`, `percentual` (derivados de `info`).
-- Manter compat: se `percentual` ausente, calcular a partir de `processadas`/`total_ops`; se nada vier, cair no `progresso` antigo.
-- Sem mudança no polling de 3s nem em `iniciar`/`cancelar`.
+- Expor `temposPorEtapa`, `tempoEtapaAtual`, `tempoTotal` no retorno (derivados de `info`).
+- Sem mudança no polling.
 
 ### `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
-
-Bloco hoje em ~linhas 1103–1141 (botão "Gerar PDF completo com desenhos" + estado `pdfJob.isBusy`):
-
-- Quando `pdfJob.isBusy`, substituir o texto simples por um card compacto com:
-  - Ícone `Loader2` + título **"Gerando PDF completo com desenhos"**.
-  - Linha de **etapa atual** traduzida (`labelEtapa(etapa)` → "Buscando ordens", "Buscando componentes", "Buscando operações", "Localizando desenhos", "Normalizando desenhos", "Montando PDF", "Concluído"). Fallback: `pdfJob.mensagem` ou "Processando…".
-  - **Barra de progresso** (`<Progress value={pct} />` de `@/components/ui/progress`) com `pct` derivado de `percentual ?? Math.round((progresso ?? 0) * 100)`.
-  - Linha secundária: **"X de Y OPs"** quando `processadas` e `totalOps` existirem.
-  - Linha terciária opcional: `mensagem` do backend, quando ela acrescentar info (ex.: "Normalizando desenho 87 de 244").
-  - Texto auxiliar fixo: *"Os desenhos não serão renderizados no navegador. O PDF é gerado no servidor."*
-- Estados `IDLE`/`ERRO`/`CONCLUIDO` continuam como hoje (botão "Gerar…", `Alert` de erro com mensagem do campo `erro`, botão **Baixar PDF** + **Gerar novo**).
-- Acima do botão "Gerar PDF completo com desenhos", adicionar `Select` compacto **"Qualidade dos desenhos"** com opções **Alta (200 DPI)** e **Normal (150 DPI)** — estado local `qualidadePdf`, default `"alta"`. Esse valor é enviado em `pdfJob.iniciar({...qualidade_desenhos: qualidadePdf})`. Não afeta a visualização em tela.
-- `imprimirTodas` (`window.print` em massa) continua desabilitado quando `pdfJob.isBusy`, sem outras mudanças.
+- Estado `qualidadePdf` muda para `"rapida" | "normal" | "alta"`; **default agora é `"normal"`** (150 DPI).
+- `Select` de qualidade passa a ter 3 opções:
+  - "Rápida (120 DPI)"
+  - "Normal (150 DPI) — recomendada"
+  - "Alta (200 DPI)"
+- `ETAPA_LABELS` ganha `GRAVANDO_ARQUIVO: "Gravando arquivo"`.
+- Card de progresso (já existente):
+  - Mostrar a linha **"Etapa atual: {label} — {tempoEtapaAtual}s"** quando `tempo_etapa_atual` vier.
+  - Abaixo da barra, lista compacta de etapas concluídas com tempo: `Buscando ordens 1.2s • Normalizando 14.8s • Montando 3.1s` (renderizada apenas para chaves presentes em `temposPorEtapa`, na ordem canônica das etapas).
+  - Mostrar `tempo_total` ao lado do percentual quando disponível.
+- Acima do bloco do botão "Gerar PDF completo com desenhos", quando `selectedKeys.size > 100` e o job estiver em `IDLE`/`ERRO`, exibir um `Alert` informativo (variant default, ícone `Info`):
+  > "A primeira geração pode demorar porque os desenhos estão sendo preparados em cache. As próximas gerações serão mais rápidas."
+- Texto auxiliar do card de progresso continua: *"Os desenhos não são renderizados no navegador. O PDF é gerado no servidor."* (já está e fica reforçado).
+- Nenhuma mudança no `imprimirTodas`/`window.print` — desenhos continuam fora do DOM no fluxo de PDF completo.
 
 ### `docs/backend-impressao-op-pdf-job.md`
-Atualizar para refletir o contrato novo:
-
-- **POST** body aceita opcional `qualidade_desenhos: "normal" | "alta"` (default `"alta"`). Mapeia para 150 ou 200 DPI no normalizador A4.
-- **Recomendações de performance** (informativas, não normativas):
-  - Cache em disco dos JPGs A4 normalizados, chave `nome_arquivo + mtime + size + pagina + dpi`; segunda geração reaproveita.
-  - Backend lê os desenhos direto do filesystem (`PASTA_DESENHOS_OP_PADRAO`), **não** via HTTP interno em `/desenho/impressao-a4/pagina`.
-  - Normalização em paralelo com `ThreadPoolExecutor(max_workers=4)`.
-  - Montagem do PDF via `reportlab`/`img2pdf` (imagens A4 já prontas, sem HTML pesado).
-- **GET status** passa a poder retornar:
+- `qualidade_desenhos` aceita `"rapida" | "normal" | "alta"`; **default passa a ser `"normal"` (150 DPI)**. Mapeamento: rapida→120, normal→150, alta→200.
+- Body pode trazer `dpi: number` explícito (120/150/200); quando presente, prevalece sobre `qualidade_desenhos`.
+- Status pode retornar:
   ```json
   {
-    "job_id": "...",
-    "status": "PROCESSANDO",
     "etapa": "NORMALIZANDO_DESENHOS",
-    "total_ops": 244,
-    "processadas": 87,
-    "percentual": 35,
-    "mensagem": "Normalizando desenhos 87 de 244",
-    "erro": null
+    "tempos_por_etapa": { "BUSCANDO_OPS": 1.2, "LOCALIZANDO_DESENHOS": 0.8 },
+    "tempo_etapa_atual": 14.8,
+    "tempo_total": 17.0
   }
   ```
-  `progresso` (0..1) continua aceito para compat; frontend prioriza `percentual`. Etapas válidas: `BUSCANDO_OPS`, `BUSCANDO_COMPONENTES`, `BUSCANDO_OPERACOES`, `LOCALIZANDO_DESENHOS`, `NORMALIZANDO_DESENHOS`, `MONTANDO_PDF`, `CONCLUIDO`.
+- Etapa `GRAVANDO_ARQUIVO` adicionada à sequência canônica: `BUSCANDO_OPS → BUSCANDO_COMPONENTES → BUSCANDO_OPERACOES → LOCALIZANDO_DESENHOS → NORMALIZANDO_DESENHOS → MONTANDO_PDF → GRAVANDO_ARQUIVO → CONCLUIDO`.
+- Reforçar recomendação de cache A4 em disco — chave inclui `dpi`. Lotes grandes (>100 OPs) na primeira execução enchem cache; reexecuções devem ser dramaticamente mais rápidas.
 
 ## Fora de escopo
 
-- Implementar cache A4, ThreadPool, `reportlab`/`img2pdf` no FastAPI.
-- Mudar visualização em tela ou impressão de OP única (`window.print`).
-- Cancelamento server-side do job ou histórico persistido.
+- Implementação real do cache, do contador de tempo por etapa e do mapeamento DPI no FastAPI.
+- Cancelamento server-side, histórico persistido, mudanças na visualização em tela ou em `window.print`.
+- Renderização de desenhos no navegador (continua proibida no fluxo de PDF completo).
