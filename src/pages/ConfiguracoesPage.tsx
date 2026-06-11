@@ -147,6 +147,26 @@ function getErrorExplanation(log: any): { explicacao: string; resolucao: string 
   return { explicacao: 'Erro não categorizado', resolucao: 'Verifique os detalhes e, se necessário, contate o suporte técnico.' };
 }
 
+function KpiMini({ label, value, accent }: { label: string; value: number | string; accent?: boolean }) {
+  return (
+    <div className={cn('rounded-md border bg-card px-3 py-2 min-w-[110px]', accent && 'border-primary/40 bg-primary/5')}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={cn('text-xl font-semibold tabular-nums', accent && 'text-primary')}>{value}</div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, description, action }: { icon: any; title: string; description?: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center py-10 px-4">
+      <div className="rounded-full bg-muted p-3 mb-3"><Icon className="h-6 w-6 text-muted-foreground" /></div>
+      <div className="text-sm font-medium">{title}</div>
+      {description && <div className="text-xs text-muted-foreground mt-1 max-w-md">{description}</div>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 export default function ConfiguracoesPage() {
   const [profiles, setProfiles] = useState<AccessProfile[]>([]);
   const [profileScreens, setProfileScreens] = useState<ProfileScreen[]>([]);
