@@ -39,6 +39,8 @@ import { AddBiWidgetDialog } from '@/components/bi/runtime/AddBiWidgetDialog';
 import { MultiSeriesChartCard } from '@/components/bi/charts/MultiSeriesChartCard';
 import { SeriesChips } from '@/components/bi/runtime/SeriesChips';
 import { NumberRoundingToggle } from '@/components/bi/runtime/NumberRoundingToggle';
+import { useBiDisplayPrefs } from '@/hooks/useBiDisplayPrefs';
+import { setNumberRoundingMode, type NumberRoundingMode } from '@/lib/bi/numberFormatMode';
 import { useComercialLayout, type ComercialWidget, type WidgetLayout, type SaveLayoutItem } from '@/hooks/useComercialLayout';
 import { useDrillPresets } from '@/hooks/useDrillPresets';
 import { useCustomMetrics } from '@/hooks/useCustomMetrics';
@@ -550,6 +552,20 @@ export default function ComercialPage() {
   // ===== Layout / Builder =====
   const layout = useComercialLayout();
   const [editing, setEditing] = useState(false);
+  const displayPrefs = useBiDisplayPrefs();
+  const effectiveRounding = displayPrefs.effectiveRoundingFor(PAGE_KEY);
+  const [draftRounding, setDraftRounding] = useState<NumberRoundingMode>(effectiveRounding);
+  const initialRoundingRef = useRef<NumberRoundingMode>(effectiveRounding);
+
+  // Aplica o modo salvo ao singleton quando fora do modo edição (o toggle
+  // controlado já cuida disso enquanto está montado).
+  useEffect(() => {
+    if (!editing) {
+      setNumberRoundingMode(effectiveRounding);
+      initialRoundingRef.current = effectiveRounding;
+      setDraftRounding(effectiveRounding);
+    }
+  }, [editing, effectiveRounding]);
   const [configType, setConfigType] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [previewSeriesKey, setPreviewSeriesKey] = useState<string | null>(null);
@@ -859,7 +875,8 @@ export default function ComercialPage() {
   const [configDraft, setConfigDraft] = useState<Map<string, Partial<SaveLayoutItem>>>(() => new Map());
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(() => new Set());
 
-  const dirty = !!(layoutDraft && layoutDraft.length > 0) || configDraft.size > 0 || pendingDeletes.size > 0;
+  const roundingDirty = editing && draftRounding !== initialRoundingRef.current;
+  const dirty = !!(layoutDraft && layoutDraft.length > 0) || configDraft.size > 0 || pendingDeletes.size > 0 || roundingDirty;
 
   // Aplica overrides dos drafts em cima dos widgets vindos do banco.
   const effectiveWidgets = useMemo(() => {
@@ -976,6 +993,11 @@ export default function ComercialPage() {
     try {
       if (items.length > 0) await layout.saveLayout(items);
       for (const type of pendingDeletes) await layout.deleteWidget(type);
+      if (roundingDirty) {
+        const isDefault = draftRounding === displayPrefs.prefs.numberRounding.global;
+        await displayPrefs.setPageRounding(PAGE_KEY, isDefault ? null : draftRounding);
+        initialRoundingRef.current = draftRounding;
+      }
       if (dirty) toast.success('Dashboard salvo');
     } catch (e: any) {
       toast.error(`Erro ao salvar: ${e?.message ?? e}`);
@@ -987,6 +1009,9 @@ export default function ComercialPage() {
 
   const handleCancelEdit = () => {
     clearDrafts();
+    // Restaura preview de números ao valor salvo.
+    setDraftRounding(initialRoundingRef.current);
+    setNumberRoundingMode(initialRoundingRef.current);
     setEditing(false);
   };
 
@@ -1000,6 +1025,9 @@ export default function ComercialPage() {
       return;
     }
     clearDrafts();
+    // Captura o valor atual como baseline do rascunho de números.
+    initialRoundingRef.current = effectiveRounding;
+    setDraftRounding(effectiveRounding);
     setEditing(true);
   };
 
@@ -1182,6 +1210,13 @@ export default function ComercialPage() {
                   <Button size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1" onClick={handleResetLayout}>
                     <RotateCcw className="h-3.5 w-3.5" /> Restaurar padrão
                   </Button>
+                  <NumberRoundingToggle
+                    className="hidden md:block"
+                    value={draftRounding}
+                    onChange={setDraftRounding}
+                    onResetToGlobal={() => setDraftRounding(displayPrefs.prefs.numberRounding.global)}
+                    showResetButton
+                  />
                   <Button size="sm" variant="ghost" className="h-8" onClick={handleCancelEdit}>
                     Cancelar
                   </Button>
@@ -1260,7 +1295,7 @@ export default function ComercialPage() {
                   </Button>
                 </PopoverContent>
               </Popover>
-              {isAdmin && <NumberRoundingToggle pageKey={PAGE_KEY} className="hidden md:block" />}
+              
               {isAdmin && (
                 <Button asChild size="sm" variant="outline" className="hidden md:inline-flex h-8 gap-1">
                   <Link to="/biblioteca-bi"><Sparkles className="h-3.5 w-3.5" /> Biblioteca BI</Link>
