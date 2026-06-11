@@ -18,7 +18,7 @@ import { SelectBuscavel, type SelectOption } from "@/components/producao/SelectB
 import { OpAutocomplete } from "@/components/producao/OpAutocomplete";
 import { ProdutoAutocomplete } from "@/components/producao/ProdutoAutocomplete";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchImpressaoLote, type ImpressaoOpLoteResponse } from "@/lib/producao/opImpressaoLote";
+import { fetchImpressaoLote, fetchImpressaoLotePost, type ImpressaoOpLoteResponse } from "@/lib/producao/opImpressaoLote";
 import { Checkbox } from "@/components/ui/checkbox";
 import { api } from "@/lib/api";
 import type { OpImpressao } from "@/lib/producao/opImpressao";
