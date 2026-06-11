@@ -1091,7 +1091,7 @@ export default function ImpressaoOrdemProducaoPage() {
                       Limpar seleção
                     </Button>
                     {opsFiltradas.length > 1 && (
-                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading}>
+                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading || pdfJob.isBusy}>
                         {loteLoading ? (
                           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                         ) : (
@@ -1100,8 +1100,60 @@ export default function ImpressaoOrdemProducaoPage() {
                         Imprimir todas
                       </Button>
                     )}
+                    {pdfJob.status === "IDLE" || pdfJob.status === "ERRO" ? (
+                      <Button
+                        size="sm"
+                        onClick={gerarPdfCompleto}
+                        disabled={selectedKeys.size === 0 || pdfJob.isBusy}
+                        title="Gera no servidor um PDF único com todas as OPs selecionadas, incluindo desenhos."
+                      >
+                        <FileText className="mr-1 h-3 w-3" />
+                        Gerar PDF completo com desenhos
+                      </Button>
+                    ) : pdfJob.isBusy ? (
+                      <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-xs">
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                        <span className="text-muted-foreground">
+                          Gerando PDF completo com desenhos. Aguarde
+                          {typeof pdfJob.progresso === "number"
+                            ? ` (${Math.round(pdfJob.progresso * 100)}%)`
+                            : "…"}
+                          {pdfJob.mensagem ? ` • ${pdfJob.mensagem}` : ""}
+                        </span>
+                      </div>
+                    ) : pdfJob.status === "CONCLUIDO" && pdfJob.downloadUrl ? (
+                      <>
+                        <Button size="sm" asChild>
+                          <a href={pdfJob.downloadUrl} target="_blank" rel="noreferrer">
+                            <Download className="mr-1 h-3 w-3" />
+                            Baixar PDF
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={pdfJob.cancelar} title="Limpar PDF gerado">
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          Gerar novo
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
+
+                {pdfJob.status === "ERRO" && pdfJob.erro && (
+                  <div className="border-b p-3">
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Falha ao gerar PDF</AlertTitle>
+                      <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                        <span>{pdfJob.erro}</span>
+                        <Button size="sm" variant="outline" onClick={gerarPdfCompleto}>
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          Tentar novamente
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
 
                 <div className="overflow-x-auto">
                   <Table>
