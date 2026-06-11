@@ -1191,16 +1191,17 @@ export default function ComercialPage() {
                 </>
               ) : (
                 <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 gap-1"
-                    onClick={handleEnterEdit}
-                    disabled={!canEditDashboard}
-                    title={canEditDashboard ? 'Editar dashboard' : 'Sem permissão para editar este dashboard. Ative "Minha versão" ou solicite permissão de edição em /bi/comercial.'}
-                  >
-                    <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
-                  </Button>
+                  {canEditDashboard && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 gap-1"
+                      onClick={handleEnterEdit}
+                      title="Editar dashboard"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Editar dashboard</span>
+                    </Button>
+                  )}
                   {layout.isPersonal && (
                     <Button
                       size="sm"
