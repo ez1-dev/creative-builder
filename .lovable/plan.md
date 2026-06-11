@@ -1,49 +1,94 @@
 ## Objetivo
-Tornar a página `/configuracoes` mais profissional como um todo — hoje há 13 abas espremidas numa única `TabsList` horizontal, sem hierarquia, sem busca e com superfícies inconsistentes entre as abas. Vamos manter o trabalho já feito nas 3 abas de acesso e elevar o restante ao mesmo padrão.
 
-## Escopo (somente UI/UX, sem mudar lógica nem backend)
+Permitir impressão em massa de OPs **com desenhos** sem estourar o navegador. Hoje a impressão em lote chama `/api/producao/ordem-producao/impressao/lote`, baixa cada desenho A4 página a página via `useDesenhosA4` e renderiza tudo no React antes de `window.print()`. Acima de algumas dezenas de OPs com desenhos, isso trava o navegador.
 
-### 1. Shell da página
-- Substituir a `TabsList` horizontal por uma **navegação lateral agrupada** (sidebar à esquerda em desktop, `Sheet` em mobile), com seções:
-  - **Acessos** — Perfis de Acesso, Permissões por Tela, Usuários, Aprovações
-  - **Plataforma** — API, Gráficos e Mapas, Versão, Documentação
-  - **Operação** — Logs, Monitoramento, Dashboard de Uso
-  - **Pessoal** — Minhas Preferências
-- Cada item lateral com ícone, label e *badge* (pendências de aprovação, logs 24h).
-- Busca rápida no topo da sidebar (`Filtrar configurações…`) que filtra os itens por nome.
-- `PageHeader` reformatado: título + descrição + barra de ações à direita (atalhos contextuais por aba, ex.: "Novo perfil", "Atribuir acesso", "Recarregar").
-- Breadcrumb leve: `Configurações › <Seção> › <Aba>`.
+A solução é mover a geração do PDF completo (cabeçalho + componentes + operações + desenhos A4 já normalizados) para o backend, via job assíncrono, e o frontend apenas dispara, faz polling e baixa.
 
-### 2. Padronização visual das abas
-Aplicar o mesmo padrão já usado em Perfis/Permissões/Usuários nas demais:
-- Faixa de KPIs no topo (quando faz sentido: Aprovações, API, Logs, Monitoramento, Dashboard de Uso).
-- Toolbar com busca + filtros + ordenação.
-- Conteúdo dentro de `Card` com cabeçalho, divisores sutis e *empty states* padronizados (ícone + título + descrição + CTA).
-- Inputs `h-9`, badges semânticos, espaçamento uniforme.
+## Mudanças no frontend
 
-### 3. Refinamentos específicos por aba (apenas apresentação)
-- **Aprovações:** KPIs (Pendentes, Aprovados 7d, Rejeitados 7d), busca por login/nome, filtro por status, ações em lote (aprovar/rejeitar selecionados) — sem mexer nos handlers existentes.
-- **API:** Cartões de status de conexão (FastAPI, ngrok), badge de latência, botão "Testar conexão" em destaque, agrupar campos em seções (Conexão, Cabeçalhos, Diagnóstico).
-- **Logs:** Toolbar com busca, filtro por severidade/origem, range de datas; linha do tempo + tabela com `ScrollArea` e empty state.
-- **Monitoramento / Dashboard de Uso:** Manter os componentes atuais, apenas envolver em `Card` com cabeçalho consistente e respiro.
-- **Gráficos e Mapas:** Cabeçalho de seção, prévia visual de cada tema/mapa em grid.
-- **Versão / Documentação / Minhas Preferências:** Cabeçalho consistente, conteúdo dentro de `Card`, tipografia alinhada.
+**Arquivos afetados**
+- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` (UI + orquestração do job)
+- `src/lib/producao/opImpressaoPdfJob.ts` (novo — wrapper das 3 rotas do job)
+- `src/hooks/useImpressaoPdfJob.ts` (novo — estado do job + polling)
 
-### 4. Detalhes de qualidade
-- Somente tokens do design system (`bg-card`, `border`, `muted-foreground`, `primary`, `accent`) — sem cores hardcoded.
-- Skeletons leves nos blocos enquanto carregam.
-- Persistir a aba ativa em `?tab=` na URL (já existe `activeTab`, só plugar `searchParams`).
-- Acessibilidade: `aria-current` na sidebar, foco visível, ordem de tabulação.
+### 1. Novo módulo `opImpressaoPdfJob.ts`
+
+Expor:
+- `criarPdfJob({ ops, incluir_desenhos, incluir_componentes, incluir_operacoes }) → { job_id }`  
+  → `POST /api/producao/ordem-producao/impressao/pdf-job`
+- `consultarPdfJob(jobId) → { status, progresso?, mensagem?, erro?, quantidade_ops?, tamanho_bytes? }`  
+  → `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/status`
+- `urlDownloadPdfJob(jobId)` → string usada por `<a download>` / `window.open` chamando `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/download` (com headers de auth já tratados pelo `api`).
+
+`ops[]` montado a partir de `lote.ordens` mapeando `{ codemp: Number(cab.cod_emp), codori: String(cab.cod_ori), numorp: Number(cab.num_orp) }`. Sem limite de quantidade — não truncar a lista.
+
+### 2. Novo hook `useImpressaoPdfJob`
+
+Estados: `status: 'IDLE' | 'CRIANDO' | 'PROCESSANDO' | 'CONCLUIDO' | 'ERRO'`, `jobId`, `progresso`, `mensagem`, `erro`, `downloadUrl`.
+
+Comportamento:
+- `iniciar(payload)` → cria job, guarda `job_id`, vai para `PROCESSANDO` e dispara polling.
+- Polling a cada **3s** via `setInterval`, cancelável (cleanup no unmount e ao reiniciar).
+- Ao receber `status = "CONCLUIDO"` → para o polling, vai para `CONCLUIDO`, define `downloadUrl`.
+- Ao receber `status = "ERRO"` (ou erro HTTP) → para o polling, vai para `ERRO`, guarda mensagem; mostrar `toast.error`.
+- `cancelar()` para resetar estado (não cancela no backend nessa fase).
+
+### 3. UI em `ImpressaoOrdemProducaoPage.tsx`
+
+Na **barra de ações do lote** (perto de "Imprimir todas" / "Imprimir visualização"), adicionar:
+
+- Botão primário **"Gerar PDF completo com desenhos"**  
+  - Habilitado quando `lote?.ordens?.length > 0`.  
+  - Ao clicar: chama `iniciar` passando todas as `ops` selecionadas + flags atuais:
+    - `incluir_desenhos: filtros.incluir_desenhos === "S"`
+    - `incluir_componentes: filtros.listar_componentes === "S"`
+    - `incluir_operacoes: true` (a tela sempre lista operações hoje)
+- Enquanto `status` ∈ {CRIANDO, PROCESSANDO}: substituir o botão por um bloco com `Loader2` + texto **"Gerando PDF completo com desenhos. Aguarde…"** (e progresso/mensagem do backend quando vier). Demais botões de impressão em massa ficam desabilitados.
+- Quando `status === "CONCLUIDO"`: mostrar botão **"Baixar PDF"** (variant `default`, ícone `Download`) que abre `downloadUrl` em nova aba; manter um botão secundário "Gerar novo" que reseta o estado.
+- Quando `status === "ERRO"`: `Alert` com a mensagem do backend e botão "Tentar novamente".
+
+A versão para uma única OP (`Imprimir`) e a "Imprimir visualização" continuam usando `window.print()` como hoje — sem mudança. A visualização paginada em tela permanece igual; a geração completa **não** renderiza todas as OPs no React.
+
+### 4. Limites e ajustes correlatos
+
+- Remover qualquer truncamento implícito da seleção para o novo fluxo (revisar `imprimirTodas` / construção do payload do lote — manter o limite atual apenas para a impressão via navegador; o job aceita lista completa).
+- `useDesenhosA4` continua usado **apenas** para a visualização em tela / impressão via navegador. O job não usa esse hook.
+
+## Contrato esperado do backend (documentar)
+
+Criar `docs/backend-impressao-op-pdf-job.md` descrevendo:
+
+- `POST /api/producao/ordem-producao/impressao/pdf-job`  
+  Body:  
+  ```json
+  {
+    "ops": [{ "codemp": 1, "codori": "240", "numorp": 10171 }],
+    "incluir_desenhos": true,
+    "incluir_componentes": true,
+    "incluir_operacoes": true
+  }
+  ```  
+  Resposta `202`: `{ "job_id": "..." }`.
+
+- `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/status`  
+  Resposta:  
+  ```json
+  {
+    "job_id": "...",
+    "status": "PENDENTE | PROCESSANDO | CONCLUIDO | ERRO",
+    "progresso": 0.42,
+    "mensagem": "Processando OP 12 de 30",
+    "erro": null,
+    "quantidade_ops": 30,
+    "tamanho_bytes": 1234567
+  }
+  ```
+
+- `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/download`  
+  `application/pdf` com PDF final já contendo capas + componentes + operações + desenhos A4 retrato (mesma normalização de `/desenho/impressao-a4`). Frontend nunca chama `/desenho/impressao-a4/pagina` para esse fluxo.
 
 ## Fora de escopo
-- Schemas, RPCs, edge functions, lógica de permissões, `ALL_SCREENS`.
-- Mudanças nas regras de aprovação, autenticação, integração com FastAPI.
-- Refatoração das abas Perfis/Permissões/Usuários já entregues (só herdam o novo shell).
 
-## Arquivos a editar
-- `src/pages/ConfiguracoesPage.tsx` (shell + toolbar + atalhos + integração com sidebar).
-- Novo: `src/components/configuracoes/ConfiguracoesSidebar.tsx` (navegação agrupada com busca e badges).
-- Polimento leve nos painéis existentes referenciados pelas abas (API, Logs, Aprovações, etc.) — apenas wrappers de `Card`/header, sem tocar em lógica.
-
-## Resultado esperado
-Página com navegação lateral limpa, hierarquia clara entre seções, toolbar e KPIs consistentes em todas as abas, e visual coeso com o restante do ERP.
+- Implementação backend do job (FastAPI) — apenas documentar contrato.
+- Alterar visualização em tela / impressão de uma única OP.
+- Persistir histórico de jobs ou cancelamento server-side.

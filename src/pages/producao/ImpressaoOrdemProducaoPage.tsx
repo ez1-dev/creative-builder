@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare } from "lucide-react";
+import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare, Download, FileText, AlertCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useImpressaoOrdemProducao } from "@/hooks/useImpressaoOrdemProducao";
+import { useImpressaoPdfJob } from "@/hooks/useImpressaoPdfJob";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useOpcoesImpressaoOp } from "@/hooks/useOpcoesImpressaoOp";
 import type { ImpressaoOpFiltros } from "@/lib/producao/opImpressao";
 import type { OpcaoOp } from "@/lib/producao/opcoesImpressao";
@@ -116,6 +118,7 @@ export default function ImpressaoOrdemProducaoPage() {
   );
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
+  const pdfJob = useImpressaoPdfJob();
 
   // URLs dos desenhos da consulta atual (individual) — usadas para fetch autenticado
   // e exibição de status por desenho na tabela de preview.
@@ -766,6 +769,28 @@ export default function ImpressaoOrdemProducaoPage() {
     window.print();
   };
 
+  const gerarPdfCompleto = async () => {
+    const alvos = opsFiltradas
+      .filter((o) => selectedKeys.has(opKey(o)))
+      .filter((o) => String(o.cod_ori ?? "") !== "100" && String(o.sit_orp ?? "").toUpperCase() !== "C");
+    if (!alvos.length) {
+      toast.info("Selecione ao menos uma OP válida para gerar o PDF.");
+      return;
+    }
+    const ops = alvos.map((o) => ({
+      codemp: Number(o.cod_emp ?? filtros.cod_emp ?? 0),
+      codori: String(o.cod_ori ?? ""),
+      numorp: Number(o.num_orp ?? 0),
+    }));
+    await pdfJob.iniciar({
+      ops,
+      incluir_desenhos: filtros.incluir_desenhos === "S",
+      incluir_componentes: filtros.listar_componentes === "S",
+      incluir_operacoes: true,
+    });
+  };
+
+
   const limparSelecao = () => {
     setSelectedKeys(new Set());
     setLote(null);
@@ -1066,7 +1091,7 @@ export default function ImpressaoOrdemProducaoPage() {
                       Limpar seleção
                     </Button>
                     {opsFiltradas.length > 1 && (
-                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading}>
+                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading || pdfJob.isBusy}>
                         {loteLoading ? (
                           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                         ) : (
@@ -1075,8 +1100,60 @@ export default function ImpressaoOrdemProducaoPage() {
                         Imprimir todas
                       </Button>
                     )}
+                    {pdfJob.status === "IDLE" || pdfJob.status === "ERRO" ? (
+                      <Button
+                        size="sm"
+                        onClick={gerarPdfCompleto}
+                        disabled={selectedKeys.size === 0 || pdfJob.isBusy}
+                        title="Gera no servidor um PDF único com todas as OPs selecionadas, incluindo desenhos."
+                      >
+                        <FileText className="mr-1 h-3 w-3" />
+                        Gerar PDF completo com desenhos
+                      </Button>
+                    ) : pdfJob.isBusy ? (
+                      <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-1.5 text-xs">
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                        <span className="text-muted-foreground">
+                          Gerando PDF completo com desenhos. Aguarde
+                          {typeof pdfJob.progresso === "number"
+                            ? ` (${Math.round(pdfJob.progresso * 100)}%)`
+                            : "…"}
+                          {pdfJob.mensagem ? ` • ${pdfJob.mensagem}` : ""}
+                        </span>
+                      </div>
+                    ) : pdfJob.status === "CONCLUIDO" && pdfJob.downloadUrl ? (
+                      <>
+                        <Button size="sm" asChild>
+                          <a href={pdfJob.downloadUrl} target="_blank" rel="noreferrer">
+                            <Download className="mr-1 h-3 w-3" />
+                            Baixar PDF
+                          </a>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={pdfJob.cancelar} title="Limpar PDF gerado">
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          Gerar novo
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </div>
+
+                {pdfJob.status === "ERRO" && pdfJob.erro && (
+                  <div className="border-b p-3">
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Falha ao gerar PDF</AlertTitle>
+                      <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                        <span>{pdfJob.erro}</span>
+                        <Button size="sm" variant="outline" onClick={gerarPdfCompleto}>
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                          Tentar novamente
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
+
 
                 <div className="overflow-x-auto">
                   <Table>
