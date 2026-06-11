@@ -235,7 +235,7 @@ export default function ComercialPage() {
   };
   const carregando = qKpis.isFetching || qMensal.isFetching || qMix.isFetching || qEstado.isFetching || qRevenda.isFetching || qObras.isFetching || qDetalhes.isFetching;
 
-  const { isAdmin, canEdit } = useUserPermissions();
+  const { isAdmin } = useUserPermissions();
   const [syncingClientes, setSyncingClientes] = useState(false);
   const handleSyncClientes = async () => {
     if (syncingClientes) return;
