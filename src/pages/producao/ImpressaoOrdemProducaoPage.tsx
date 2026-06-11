@@ -1185,6 +1185,17 @@ export default function ImpressaoOrdemProducaoPage() {
                         <Eye className="mr-1 h-3 w-3" />
                       )}
                       Visualizar selecionadas
+                      {selectedKeys.size > 0 ? ` (${selectedKeys.size})` : ""}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={gerarPdfCompleto}
+                      disabled={loteLoading || selectedKeys.size === 0}
+                      title="Carrega todas as OPs selecionadas em lotes e abre a impressão"
+                    >
+                      <FileDown className="mr-1 h-3 w-3" />
+                      Gerar PDF completo
                     </Button>
                     <Button
                       size="sm"
