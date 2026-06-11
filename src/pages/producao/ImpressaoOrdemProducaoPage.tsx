@@ -1458,6 +1458,47 @@ export default function ImpressaoOrdemProducaoPage() {
                 ))}
               </div>
             )}
+            {batchMode && (() => {
+              const total = Math.max(1, Math.ceil(batchMode.alvos.length / batchMode.tamanhoLote));
+              const inicio = batchMode.paginaAtual * batchMode.tamanhoLote;
+              const fim = Math.min(inicio + batchMode.tamanhoLote, batchMode.alvos.length);
+              return (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-muted/30 p-2">
+                  <span className="text-xs text-muted-foreground">
+                    Exibindo OPs {inicio + 1}–{fim} de {batchMode.alvos.length}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={loteLoading || batchMode.paginaAtual <= 0}
+                      onClick={() => irParaPaginaLote(batchMode.paginaAtual - 1)}
+                    >
+                      ← Anterior
+                    </Button>
+                    <span className="px-2 text-xs font-medium">
+                      Lote {batchMode.paginaAtual + 1} / {total}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={loteLoading || batchMode.paginaAtual >= total - 1}
+                      onClick={() => irParaPaginaLote(batchMode.paginaAtual + 1)}
+                    >
+                      Próximo →
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={imprimirVisualizacao}
+                      disabled={loteLoading || !lote}
+                    >
+                      <Printer className="mr-1 h-3 w-3" /> Imprimir este lote
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}
