@@ -1015,6 +1015,9 @@ export default function ComercialPage() {
       return;
     }
     clearDrafts();
+    // Captura o valor atual como baseline do rascunho de números.
+    initialRoundingRef.current = effectiveRounding;
+    setDraftRounding(effectiveRounding);
     setEditing(true);
   };
 
