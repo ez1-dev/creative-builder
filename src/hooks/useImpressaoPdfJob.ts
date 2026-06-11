@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   consultarPdfJob,
   criarPdfJob,
   urlDownloadPdfJob,
+  type PdfJobEtapa,
   type PdfJobPayload,
   type PdfJobStatus,
 } from "@/lib/producao/opImpressaoPdfJob";
@@ -14,6 +15,10 @@ export interface UseImpressaoPdfJob {
   status: PdfJobUiStatus;
   jobId: string | null;
   progresso: number | null;
+  percentual: number | null;
+  etapa: PdfJobEtapa | null;
+  totalOps: number | null;
+  processadas: number | null;
   mensagem: string | null;
   erro: string | null;
   downloadUrl: string | null;
@@ -93,10 +98,8 @@ export function useImpressaoPdfJob(): UseImpressaoPdfJob {
         }
         setJobId(res.job_id);
         setStatus("PROCESSANDO");
-        // Primeira consulta imediata
         await pollOnce(res.job_id);
         if (!mountedRef.current) return;
-        // Inicia polling apenas se ainda está em andamento
         if (timerRef.current === null) {
           timerRef.current = window.setInterval(() => {
             pollOnce(res.job_id);
@@ -123,14 +126,36 @@ export function useImpressaoPdfJob(): UseImpressaoPdfJob {
 
   const downloadUrl = status === "CONCLUIDO" && jobId ? urlDownloadPdfJob(jobId) : null;
 
+  const percentual = useMemo<number | null>(() => {
+    if (!info) return null;
+    if (typeof info.percentual === "number") {
+      return Math.max(0, Math.min(100, Math.round(info.percentual)));
+    }
+    if (
+      typeof info.processadas === "number" &&
+      typeof info.total_ops === "number" &&
+      info.total_ops > 0
+    ) {
+      return Math.max(0, Math.min(100, Math.round((info.processadas / info.total_ops) * 100)));
+    }
+    if (typeof info.progresso === "number") {
+      return Math.max(0, Math.min(100, Math.round(info.progresso * 100)));
+    }
+    return null;
+  }, [info]);
+
   return {
     status,
     jobId,
     progresso: info?.progresso ?? null,
+    percentual,
+    etapa: (info?.etapa as PdfJobEtapa | undefined) ?? null,
+    totalOps: info?.total_ops ?? null,
+    processadas: info?.processadas ?? null,
     mensagem: info?.mensagem ?? null,
     erro,
     downloadUrl,
-    quantidadeOps: info?.quantidade_ops ?? null,
+    quantidadeOps: info?.quantidade_ops ?? info?.total_ops ?? null,
     tamanhoBytes: info?.tamanho_bytes ?? null,
     iniciar,
     cancelar,
