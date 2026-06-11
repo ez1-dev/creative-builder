@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AuditoriaRevendaTab } from '@/components/faturamento/AuditoriaRevendaTab';
 import { PageHeader } from '@/components/erp/PageHeader';
@@ -55,7 +55,7 @@ import { UserWidgetsSlot } from '@/components/bi';
 import { formatCurrency, formatNumber, formatPercent } from '@/components/bi/utils/formatters';
 import { useBiDisplayPrefs } from '@/hooks/useBiDisplayPrefs';
 import { setNumberRoundingMode } from '@/lib/bi/numberFormatMode';
-import { useEffect as useEffectFat } from 'react';
+
 
 // Delegam para os formatadores da Biblioteca BI, que respeitam o modo global
 // de arredondamento salvo em `user_preferences.bi_display_prefs`.
