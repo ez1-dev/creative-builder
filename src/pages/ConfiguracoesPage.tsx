@@ -179,6 +179,7 @@ export default function ConfiguracoesPage() {
   const [approvedErpEdits, setApprovedErpEdits] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profiles');
+  const [navSearch, setNavSearch] = useState('');
 
   // API config states
   const [apiUrl, setApiUrl] = useState('');
