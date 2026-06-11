@@ -26,7 +26,9 @@ import { useAuthedBlobUrls } from "@/hooks/useAuthedBlobUrls";
 import { useDesenhosA4 } from "@/hooks/useDesenhosA4";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+
+const LIMITE_PREVIEW_DIRETO = 30;
 
 const opKey = (op: { cod_emp?: any; cod_ori?: any; num_orp?: any }) =>
   `${op.cod_emp ?? ""}-${op.cod_ori ?? ""}-${op.num_orp ?? ""}`;
