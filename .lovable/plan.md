@@ -1,49 +1,75 @@
+# Impressão de OP — Visualizar selecionadas em lotes
+
 ## Objetivo
-Tornar a página `/configuracoes` mais profissional como um todo — hoje há 13 abas espremidas numa única `TabsList` horizontal, sem hierarquia, sem busca e com superfícies inconsistentes entre as abas. Vamos manter o trabalho já feito nas 3 abas de acesso e elevar o restante ao mesmo padrão.
 
-## Escopo (somente UI/UX, sem mudar lógica nem backend)
+Eliminar o erro "Failed to fetch" e a lentidão quando o usuário seleciona muitas OPs (ex.: 244), introduzindo um fluxo controlado em lotes de **30 OPs**, com renderização paginada e separação clara entre visualizar e gerar PDF.
 
-### 1. Shell da página
-- Substituir a `TabsList` horizontal por uma **navegação lateral agrupada** (sidebar à esquerda em desktop, `Sheet` em mobile), com seções:
-  - **Acessos** — Perfis de Acesso, Permissões por Tela, Usuários, Aprovações
-  - **Plataforma** — API, Gráficos e Mapas, Versão, Documentação
-  - **Operação** — Logs, Monitoramento, Dashboard de Uso
-  - **Pessoal** — Minhas Preferências
-- Cada item lateral com ícone, label e *badge* (pendências de aprovação, logs 24h).
-- Busca rápida no topo da sidebar (`Filtrar configurações…`) que filtra os itens por nome.
-- `PageHeader` reformatado: título + descrição + barra de ações à direita (atalhos contextuais por aba, ex.: "Novo perfil", "Atribuir acesso", "Recarregar").
-- Breadcrumb leve: `Configurações › <Seção> › <Aba>`.
+## Comportamento novo
 
-### 2. Padronização visual das abas
-Aplicar o mesmo padrão já usado em Perfis/Permissões/Usuários nas demais:
-- Faixa de KPIs no topo (quando faz sentido: Aprovações, API, Logs, Monitoramento, Dashboard de Uso).
-- Toolbar com busca + filtros + ordenação.
-- Conteúdo dentro de `Card` com cabeçalho, divisores sutis e *empty states* padronizados (ícone + título + descrição + CTA).
-- Inputs `h-9`, badges semânticos, espaçamento uniforme.
+1. **Seleção ≤ 30 OPs** → botão **"Visualizar selecionadas"** funciona como hoje (carrega tudo e renderiza).
+2. **Seleção > 30 OPs** → ao clicar em "Visualizar selecionadas", abrir um **diálogo de confirmação** (não dispara fetch imediato) com a mensagem:
+   > "Você selecionou N OPs. Para melhor desempenho, visualize em lotes ou gere o PDF completo."
+   
+   E três ações:
+   - **Visualizar primeiras 30** — carrega só as 30 primeiras da seleção.
+   - **Processar em lotes de 30** — habilita modo paginado (ver item 3).
+   - **Gerar PDF completo** — dispara fluxo dedicado de exportação (item 4).
 
-### 3. Refinamentos específicos por aba (apenas apresentação)
-- **Aprovações:** KPIs (Pendentes, Aprovados 7d, Rejeitados 7d), busca por login/nome, filtro por status, ações em lote (aprovar/rejeitar selecionados) — sem mexer nos handlers existentes.
-- **API:** Cartões de status de conexão (FastAPI, ngrok), badge de latência, botão "Testar conexão" em destaque, agrupar campos em seções (Conexão, Cabeçalhos, Diagnóstico).
-- **Logs:** Toolbar com busca, filtro por severidade/origem, range de datas; linha do tempo + tabela com `ScrollArea` e empty state.
-- **Monitoramento / Dashboard de Uso:** Manter os componentes atuais, apenas envolver em `Card` com cabeçalho consistente e respiro.
-- **Gráficos e Mapas:** Cabeçalho de seção, prévia visual de cada tema/mapa em grid.
-- **Versão / Documentação / Minhas Preferências:** Cabeçalho consistente, conteúdo dentro de `Card`, tipografia alinhada.
+3. **Modo paginado em tela** (lotes de 30):
+   - Estado novo `batchMode = { ativo, paginaAtual, totalPaginas, alvos[] }`.
+   - Carrega só o lote da página atual (concorrência 6, como hoje).
+   - Barra de navegação acima do preview: `← Anterior | Lote X de Y (OPs n–m de N) | Próximo →` + botão **"Imprimir este lote"**.
+   - `OpPrintBatch` recebe somente as 30 OPs do lote atual — DOM permanece leve.
+   - Loading indica apenas o lote em carregamento, não a tela inteira.
+   - Lazy de imagens/desenhos: já existe via `useAuthedBlobUrls`/`useDesenhosA4`; manter, apenas garantir que o hook só dispare para o lote montado.
 
-### 4. Detalhes de qualidade
-- Somente tokens do design system (`bg-card`, `border`, `muted-foreground`, `primary`, `accent`) — sem cores hardcoded.
-- Skeletons leves nos blocos enquanto carregam.
-- Persistir a aba ativa em `?tab=` na URL (já existe `activeTab`, só plugar `searchParams`).
-- Acessibilidade: `aria-current` na sidebar, foco visível, ordem de tabulação.
+4. **"Gerar PDF completo"** (botão separado, também na toolbar principal quando há seleção):
+   - Chama o endpoint de lote dedicado, fora da árvore de preview, e abre uma janela de impressão isolada (rota interna `/producao/impressao-op/pdf` montada off-screen ou via `window.open` com print automático) **OU** dispara download direto se backend retornar PDF binário.
+   - Não monta as N OPs na tela atual.
+
+5. **Toolbar do grid** passa a mostrar:
+   - `Visualizar selecionadas` (com badge da quantidade)
+   - `Gerar PDF completo` (novo)
+   - `Imprimir visualização` / `Limpar seleção` / `Imprimir todas` (mantidos)
+
+## Detalhes técnicos (frontend)
+
+Arquivos a alterar:
+
+- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
+  - Constante `LIMITE_PREVIEW_DIRETO = 30`.
+  - Refatorar `visualizarSelecionadas()` para:
+    - Se `alvos.length <= 30` → fluxo atual.
+    - Caso contrário → abrir `Dialog` (shadcn) com as 3 ações.
+  - Nova função `carregarLote(alvos, pagina)` que reaproveita o loop de concorrência 6 já existente, mas restrito ao slice da página.
+  - Novos estados: `confirmOpen`, `batchMode`, `batchLoading`.
+  - Novo componente inline `BatchPager` (navegação entre lotes).
+  - Novo handler `gerarPdfCompleto()`.
+
+- `src/lib/producao/opImpressaoLote.ts`
+  - Adicionar `fetchImpressaoLotePost(body)` chamando **POST** `/api/producao/ordem-producao/impressao/lote` com o payload solicitado:
+    ```json
+    {
+      "ops": [{ "codemp": 1, "codori": "240", "numorp": 10171 }],
+      "incluir_componentes": true,
+      "incluir_operacoes": true,
+      "incluir_desenhos": true,
+      "modo": "preview"
+    }
+    ```
+  - Manter o GET atual como fallback para os fluxos existentes ("Imprimir todas" por origem/pedido).
+  - Usar o novo POST tanto para "Visualizar primeiras 30" quanto para cada página do modo paginado (reduz N requisições por lote para 1).
+
+- Novo doc `docs/backend-impressao-op-lote-post.md` descrevendo o contrato POST + modo `pdf` para "Gerar PDF completo" (resposta `application/pdf` ou JSON com URL).
+
+## Dependência de backend
+
+O endpoint **POST** `/api/producao/ordem-producao/impressao/lote` ainda não existe (hoje só há GET por origem/pedido). O frontend será preparado com fallback: enquanto o POST não estiver disponível, "Visualizar primeiras 30" e "Processar em lotes" usam o loop atual de N chamadas GET unitárias (já com concorrência 6 e agora limitado a 30 por vez — o que sozinho já resolve o "Failed to fetch"). Ao subir o POST no FastAPI, basta trocar a função chamada.
+
+Para "Gerar PDF completo", o backend precisa expor um endpoint de exportação binária (ex.: `POST /api/producao/ordem-producao/impressao/lote/pdf`). Enquanto não existir, o botão dispara o mesmo fluxo de lotes encadeados + `window.print()` em janela dedicada.
 
 ## Fora de escopo
-- Schemas, RPCs, edge functions, lógica de permissões, `ALL_SCREENS`.
-- Mudanças nas regras de aprovação, autenticação, integração com FastAPI.
-- Refatoração das abas Perfis/Permissões/Usuários já entregues (só herdam o novo shell).
 
-## Arquivos a editar
-- `src/pages/ConfiguracoesPage.tsx` (shell + toolbar + atalhos + integração com sidebar).
-- Novo: `src/components/configuracoes/ConfiguracoesSidebar.tsx` (navegação agrupada com busca e badges).
-- Polimento leve nos painéis existentes referenciados pelas abas (API, Logs, Aprovações, etc.) — apenas wrappers de `Card`/header, sem tocar em lógica.
-
-## Resultado esperado
-Página com navegação lateral limpa, hierarquia clara entre seções, toolbar e KPIs consistentes em todas as abas, e visual coeso com o restante do ERP.
+- Alterar layout/estilo de `OpPrintSheet`.
+- Mudar o fluxo de "Imprimir todas" por origem (já usa lote GET).
+- Implementar o endpoint backend (documentado, não codificado aqui).
