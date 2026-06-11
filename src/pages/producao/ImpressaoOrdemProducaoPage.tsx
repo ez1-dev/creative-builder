@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { useImpressaoOrdemProducao } from "@/hooks/useImpressaoOrdemProducao";
 import { useImpressaoPdfJob } from "@/hooks/useImpressaoPdfJob";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import type { PdfJobEtapa } from "@/lib/producao/opImpressaoPdfJob";
 import { useOpcoesImpressaoOp } from "@/hooks/useOpcoesImpressaoOp";
 import type { ImpressaoOpFiltros } from "@/lib/producao/opImpressao";
 import type { OpcaoOp } from "@/lib/producao/opcoesImpressao";
