@@ -49,3 +49,47 @@ export async function fetchImpressaoLote(params: ImpressaoOpLoteParams): Promise
     ordens: Array.isArray(res?.ordens) ? res.ordens : [],
   };
 }
+
+// ---------------------------------------------------------------------------
+// Lote por seleção explícita (POST). Use quando o usuário selecionou OPs
+// específicas (ex.: 30 OPs). Evita N requisições GET unitárias.
+//
+// Backend ainda PODE não ter o POST publicado. Nesse caso o caller deve
+// capturar a exceção e cair no fluxo unitário (loop de GET /impressao).
+// ---------------------------------------------------------------------------
+
+export interface ImpressaoOpLoteItem {
+  codemp: number;
+  codori: string;
+  numorp: number;
+}
+
+export interface ImpressaoOpLotePostParams {
+  ops: ImpressaoOpLoteItem[];
+  incluir_componentes?: boolean;
+  incluir_operacoes?: boolean;
+  incluir_desenhos?: boolean;
+  quebrar_por_operacao?: boolean;
+  modo?: 'preview' | 'pdf' | 'batch';
+}
+
+export async function fetchImpressaoLotePost(
+  params: ImpressaoOpLotePostParams,
+): Promise<ImpressaoOpLoteResponse> {
+  const body: Record<string, any> = {
+    ops: params.ops,
+    incluir_componentes: params.incluir_componentes ?? true,
+    incluir_operacoes: params.incluir_operacoes ?? true,
+    incluir_desenhos: params.incluir_desenhos ?? false,
+    quebrar_por_operacao: params.quebrar_por_operacao ?? false,
+    modo: params.modo ?? 'preview',
+  };
+  const res = await api.post<ImpressaoOpLoteResponse>(
+    '/api/producao/ordem-producao/impressao/lote',
+    body,
+  );
+  return {
+    quantidade_ops: res?.quantidade_ops ?? (res?.ordens?.length ?? 0),
+    ordens: Array.isArray(res?.ordens) ? res.ordens : [],
+  };
+}
