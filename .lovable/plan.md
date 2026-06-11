@@ -1,94 +1,72 @@
 ## Objetivo
 
-Permitir impressão em massa de OPs **com desenhos** sem estourar o navegador. Hoje a impressão em lote chama `/api/producao/ordem-producao/impressao/lote`, baixa cada desenho A4 página a página via `useDesenhosA4` e renderiza tudo no React antes de `window.print()`. Acima de algumas dezenas de OPs com desenhos, isso trava o navegador.
+Hoje a tela de **Impressão de Ordem de Produção** mostra apenas "Gerando PDF completo com desenhos. Aguarde…" sem feedback de etapa nem de OPs processadas. O backend vai passar a expor progresso por etapa e o frontend precisa consumir isso, mostrar barra de progresso e permitir escolher a qualidade dos desenhos (150 ou 200 DPI). A renderização de desenhos no navegador continua proibida durante a geração — toda a montagem permanece no backend.
 
-A solução é mover a geração do PDF completo (cabeçalho + componentes + operações + desenhos A4 já normalizados) para o backend, via job assíncrono, e o frontend apenas dispara, faz polling e baixa.
+## Escopo desta entrega (somente frontend + docs)
 
-## Mudanças no frontend
+1. Ampliar contrato do status do job (novos campos opcionais).
+2. UI do bloco de progresso na página de impressão.
+3. Seletor de qualidade dos desenhos enviado ao backend.
+4. Atualizar `docs/backend-impressao-op-pdf-job.md` com as novas regras (cache A4, etapas, qualidade, sem HTTP interno).
 
-**Arquivos afetados**
-- `src/pages/producao/ImpressaoOrdemProducaoPage.tsx` (UI + orquestração do job)
-- `src/lib/producao/opImpressaoPdfJob.ts` (novo — wrapper das 3 rotas do job)
-- `src/hooks/useImpressaoPdfJob.ts` (novo — estado do job + polling)
+Backend (FastAPI) **não** é tocado aqui — apenas documentado. Implementação de cache, ThreadPool e geração via `reportlab`/`img2pdf` ficam por conta do time da API.
 
-### 1. Novo módulo `opImpressaoPdfJob.ts`
+## Mudanças por arquivo
 
-Expor:
-- `criarPdfJob({ ops, incluir_desenhos, incluir_componentes, incluir_operacoes }) → { job_id }`  
-  → `POST /api/producao/ordem-producao/impressao/pdf-job`
-- `consultarPdfJob(jobId) → { status, progresso?, mensagem?, erro?, quantidade_ops?, tamanho_bytes? }`  
-  → `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/status`
-- `urlDownloadPdfJob(jobId)` → string usada por `<a download>` / `window.open` chamando `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/download` (com headers de auth já tratados pelo `api`).
+### `src/lib/producao/opImpressaoPdfJob.ts`
+- `PdfJobPayload` ganha campo opcional `qualidade_desenhos: "normal" | "alta"` (default `"alta"` = 200 DPI; `"normal"` = 150 DPI).
+- `PdfJobStatus` ganha campos opcionais já previstos pelo backend novo:
+  - `etapa?: "BUSCANDO_OPS" | "BUSCANDO_COMPONENTES" | "BUSCANDO_OPERACOES" | "LOCALIZANDO_DESENHOS" | "NORMALIZANDO_DESENHOS" | "MONTANDO_PDF" | "CONCLUIDO"`
+  - `total_ops?: number | null`
+  - `processadas?: number | null`
+  - `percentual?: number | null` (0..100, alternativa ao `progresso` 0..1; usar o que vier).
 
-`ops[]` montado a partir de `lote.ordens` mapeando `{ codemp: Number(cab.cod_emp), codori: String(cab.cod_ori), numorp: Number(cab.num_orp) }`. Sem limite de quantidade — não truncar a lista.
+### `src/hooks/useImpressaoPdfJob.ts`
+- Expor no retorno: `etapa`, `totalOps`, `processadas`, `percentual` (derivados de `info`).
+- Manter compat: se `percentual` ausente, calcular a partir de `processadas`/`total_ops`; se nada vier, cair no `progresso` antigo.
+- Sem mudança no polling de 3s nem em `iniciar`/`cancelar`.
 
-### 2. Novo hook `useImpressaoPdfJob`
+### `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`
 
-Estados: `status: 'IDLE' | 'CRIANDO' | 'PROCESSANDO' | 'CONCLUIDO' | 'ERRO'`, `jobId`, `progresso`, `mensagem`, `erro`, `downloadUrl`.
+Bloco hoje em ~linhas 1103–1141 (botão "Gerar PDF completo com desenhos" + estado `pdfJob.isBusy`):
 
-Comportamento:
-- `iniciar(payload)` → cria job, guarda `job_id`, vai para `PROCESSANDO` e dispara polling.
-- Polling a cada **3s** via `setInterval`, cancelável (cleanup no unmount e ao reiniciar).
-- Ao receber `status = "CONCLUIDO"` → para o polling, vai para `CONCLUIDO`, define `downloadUrl`.
-- Ao receber `status = "ERRO"` (ou erro HTTP) → para o polling, vai para `ERRO`, guarda mensagem; mostrar `toast.error`.
-- `cancelar()` para resetar estado (não cancela no backend nessa fase).
+- Quando `pdfJob.isBusy`, substituir o texto simples por um card compacto com:
+  - Ícone `Loader2` + título **"Gerando PDF completo com desenhos"**.
+  - Linha de **etapa atual** traduzida (`labelEtapa(etapa)` → "Buscando ordens", "Buscando componentes", "Buscando operações", "Localizando desenhos", "Normalizando desenhos", "Montando PDF", "Concluído"). Fallback: `pdfJob.mensagem` ou "Processando…".
+  - **Barra de progresso** (`<Progress value={pct} />` de `@/components/ui/progress`) com `pct` derivado de `percentual ?? Math.round((progresso ?? 0) * 100)`.
+  - Linha secundária: **"X de Y OPs"** quando `processadas` e `totalOps` existirem.
+  - Linha terciária opcional: `mensagem` do backend, quando ela acrescentar info (ex.: "Normalizando desenho 87 de 244").
+  - Texto auxiliar fixo: *"Os desenhos não serão renderizados no navegador. O PDF é gerado no servidor."*
+- Estados `IDLE`/`ERRO`/`CONCLUIDO` continuam como hoje (botão "Gerar…", `Alert` de erro com mensagem do campo `erro`, botão **Baixar PDF** + **Gerar novo**).
+- Acima do botão "Gerar PDF completo com desenhos", adicionar `Select` compacto **"Qualidade dos desenhos"** com opções **Alta (200 DPI)** e **Normal (150 DPI)** — estado local `qualidadePdf`, default `"alta"`. Esse valor é enviado em `pdfJob.iniciar({...qualidade_desenhos: qualidadePdf})`. Não afeta a visualização em tela.
+- `imprimirTodas` (`window.print` em massa) continua desabilitado quando `pdfJob.isBusy`, sem outras mudanças.
 
-### 3. UI em `ImpressaoOrdemProducaoPage.tsx`
+### `docs/backend-impressao-op-pdf-job.md`
+Atualizar para refletir o contrato novo:
 
-Na **barra de ações do lote** (perto de "Imprimir todas" / "Imprimir visualização"), adicionar:
-
-- Botão primário **"Gerar PDF completo com desenhos"**  
-  - Habilitado quando `lote?.ordens?.length > 0`.  
-  - Ao clicar: chama `iniciar` passando todas as `ops` selecionadas + flags atuais:
-    - `incluir_desenhos: filtros.incluir_desenhos === "S"`
-    - `incluir_componentes: filtros.listar_componentes === "S"`
-    - `incluir_operacoes: true` (a tela sempre lista operações hoje)
-- Enquanto `status` ∈ {CRIANDO, PROCESSANDO}: substituir o botão por um bloco com `Loader2` + texto **"Gerando PDF completo com desenhos. Aguarde…"** (e progresso/mensagem do backend quando vier). Demais botões de impressão em massa ficam desabilitados.
-- Quando `status === "CONCLUIDO"`: mostrar botão **"Baixar PDF"** (variant `default`, ícone `Download`) que abre `downloadUrl` em nova aba; manter um botão secundário "Gerar novo" que reseta o estado.
-- Quando `status === "ERRO"`: `Alert` com a mensagem do backend e botão "Tentar novamente".
-
-A versão para uma única OP (`Imprimir`) e a "Imprimir visualização" continuam usando `window.print()` como hoje — sem mudança. A visualização paginada em tela permanece igual; a geração completa **não** renderiza todas as OPs no React.
-
-### 4. Limites e ajustes correlatos
-
-- Remover qualquer truncamento implícito da seleção para o novo fluxo (revisar `imprimirTodas` / construção do payload do lote — manter o limite atual apenas para a impressão via navegador; o job aceita lista completa).
-- `useDesenhosA4` continua usado **apenas** para a visualização em tela / impressão via navegador. O job não usa esse hook.
-
-## Contrato esperado do backend (documentar)
-
-Criar `docs/backend-impressao-op-pdf-job.md` descrevendo:
-
-- `POST /api/producao/ordem-producao/impressao/pdf-job`  
-  Body:  
-  ```json
-  {
-    "ops": [{ "codemp": 1, "codori": "240", "numorp": 10171 }],
-    "incluir_desenhos": true,
-    "incluir_componentes": true,
-    "incluir_operacoes": true
-  }
-  ```  
-  Resposta `202`: `{ "job_id": "..." }`.
-
-- `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/status`  
-  Resposta:  
+- **POST** body aceita opcional `qualidade_desenhos: "normal" | "alta"` (default `"alta"`). Mapeia para 150 ou 200 DPI no normalizador A4.
+- **Recomendações de performance** (informativas, não normativas):
+  - Cache em disco dos JPGs A4 normalizados, chave `nome_arquivo + mtime + size + pagina + dpi`; segunda geração reaproveita.
+  - Backend lê os desenhos direto do filesystem (`PASTA_DESENHOS_OP_PADRAO`), **não** via HTTP interno em `/desenho/impressao-a4/pagina`.
+  - Normalização em paralelo com `ThreadPoolExecutor(max_workers=4)`.
+  - Montagem do PDF via `reportlab`/`img2pdf` (imagens A4 já prontas, sem HTML pesado).
+- **GET status** passa a poder retornar:
   ```json
   {
     "job_id": "...",
-    "status": "PENDENTE | PROCESSANDO | CONCLUIDO | ERRO",
-    "progresso": 0.42,
-    "mensagem": "Processando OP 12 de 30",
-    "erro": null,
-    "quantidade_ops": 30,
-    "tamanho_bytes": 1234567
+    "status": "PROCESSANDO",
+    "etapa": "NORMALIZANDO_DESENHOS",
+    "total_ops": 244,
+    "processadas": 87,
+    "percentual": 35,
+    "mensagem": "Normalizando desenhos 87 de 244",
+    "erro": null
   }
   ```
-
-- `GET /api/producao/ordem-producao/impressao/pdf-job/{job_id}/download`  
-  `application/pdf` com PDF final já contendo capas + componentes + operações + desenhos A4 retrato (mesma normalização de `/desenho/impressao-a4`). Frontend nunca chama `/desenho/impressao-a4/pagina` para esse fluxo.
+  `progresso` (0..1) continua aceito para compat; frontend prioriza `percentual`. Etapas válidas: `BUSCANDO_OPS`, `BUSCANDO_COMPONENTES`, `BUSCANDO_OPERACOES`, `LOCALIZANDO_DESENHOS`, `NORMALIZANDO_DESENHOS`, `MONTANDO_PDF`, `CONCLUIDO`.
 
 ## Fora de escopo
 
-- Implementação backend do job (FastAPI) — apenas documentar contrato.
-- Alterar visualização em tela / impressão de uma única OP.
-- Persistir histórico de jobs ou cancelamento server-side.
+- Implementar cache A4, ThreadPool, `reportlab`/`img2pdf` no FastAPI.
+- Mudar visualização em tela ou impressão de OP única (`window.print`).
+- Cancelamento server-side do job ou histórico persistido.
