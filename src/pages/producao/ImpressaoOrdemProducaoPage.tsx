@@ -805,6 +805,7 @@ export default function ImpressaoOrdemProducaoPage() {
       incluir_desenhos: filtros.incluir_desenhos === "S",
       incluir_componentes: filtros.listar_componentes === "S",
       incluir_operacoes: true,
+      qualidade_desenhos: qualidadePdf,
     });
   };
 
