@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ensureDefaultBlockId } from '@/lib/bi/ensureDefaultBlock';
 import type { MetricRef } from '@/lib/bi/comercialMetrics';
@@ -79,6 +80,8 @@ export function useComercialLayout(enabled: boolean = true) {
   const [mode, setModeState] = useState<ComercialLayoutMode>(() => readStoredMode());
   const [hasPersonal, setHasPersonal] = useState(false);
   const [isPersonalEffective, setIsPersonalEffective] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const autoForkToastShownRef = useRef(false);
 
 
   const mergeWithDefaults = useCallback((rows: ComercialWidget[]): ComercialWidget[] => {
@@ -189,6 +192,21 @@ export function useComercialLayout(enabled: boolean = true) {
 
   useEffect(() => { if (enabled) load(); }, [enabled, load]);
 
+  // Carrega flag de admin uma vez por sessão deste hook.
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id;
+      if (!uid) { if (!cancelled) setIsAdmin(false); return; }
+      const { data, error } = await supabase.rpc('is_admin', { _uid: uid });
+      if (cancelled) return;
+      setIsAdmin(!error && Boolean(data));
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+
   const setMode = useCallback((next: ComercialLayoutMode) => {
     setModeState(next);
     if (typeof window !== 'undefined') {
@@ -213,10 +231,20 @@ export function useComercialLayout(enabled: boolean = true) {
   }, [load, setMode]);
 
   const ensureDashboard = useCallback(async (): Promise<string> => {
-    if (isPersonalEffective) {
-      // Já temos personal, devolve o id atual; senão fork.
-      if (dashboardId) return dashboardId;
-      return await forkToPersonal();
+    // Não-admin nunca consegue gravar no oficial (RLS). Auto-fork para versão pessoal.
+    const needsPersonal = isPersonalEffective || isAdmin === false;
+    if (needsPersonal) {
+      if (isPersonalEffective && dashboardId) return dashboardId;
+      const personalId = await forkToPersonal();
+      setIsPersonalEffective(true);
+      setDashboardId(personalId);
+      if (!autoForkToastShownRef.current && isAdmin === false) {
+        autoForkToastShownRef.current = true;
+        toast.info('Suas edições foram salvas na sua versão pessoal do BI Comercial.', {
+          description: 'A versão oficial só pode ser alterada por administradores.',
+        });
+      }
+      return personalId;
     }
     const { data: dash } = await supabase
       .from('dashboards')
@@ -234,7 +262,7 @@ export function useComercialLayout(enabled: boolean = true) {
     const id = data as unknown as string;
     setDashboardId(id);
     return id;
-  }, [dashboardId, forkToPersonal, isPersonalEffective]);
+  }, [dashboardId, forkToPersonal, isPersonalEffective, isAdmin]);
 
 
   const saveLayout = useCallback(async (next: SaveLayoutItem[]) => {
@@ -276,11 +304,12 @@ export function useComercialLayout(enabled: boolean = true) {
         const payload: any = { layout: item.layout as any, config: nextConfig };
         if (typeof item.position === 'number') payload.position = item.position;
         if (typeof item.title === 'string' && item.title) payload.title = item.title;
-        await supabase.from('dashboard_widgets').update(payload).eq('id', ex.id);
+        const { error } = await supabase.from('dashboard_widgets').update(payload).eq('id', ex.id);
+        if (error) throw error;
       } else {
         const def = COMERCIAL_DEFAULT_WIDGETS.find((d) => d.type === baseWidgetType(item.type));
         const blockId = await ensureDefaultBlockId(id);
-        await supabase.from('dashboard_widgets').insert({
+        const { error } = await supabase.from('dashboard_widgets').insert({
           dashboard_id: id,
           block_id: blockId,
           type: item.type,
@@ -289,29 +318,47 @@ export function useComercialLayout(enabled: boolean = true) {
           layout: item.layout as any,
           config: nextConfig as any,
         });
+        if (error) throw error;
       }
     }
     await load({ silent: true });
   }, [ensureDashboard, load]);
 
   const resetLayout = useCallback(async () => {
+    // Não-admin: resetar significa apagar a versão pessoal e voltar a ver a oficial.
+    if (isAdmin === false) {
+      if (hasPersonal) {
+        const { error } = await supabase.rpc('reset_bi_comercial_personal_dashboard');
+        if (error) throw error;
+        setHasPersonal(false);
+      }
+      setMode('official');
+      autoForkToastShownRef.current = false;
+      await load();
+      return;
+    }
     if (isPersonalEffective) {
-      await supabase.rpc('reset_bi_comercial_personal_dashboard');
-      await supabase.rpc('fork_bi_comercial_dashboard');
+      const r1 = await supabase.rpc('reset_bi_comercial_personal_dashboard');
+      if (r1.error) throw r1.error;
+      const r2 = await supabase.rpc('fork_bi_comercial_dashboard');
+      if (r2.error) throw r2.error;
       await load();
       return;
     }
     const id = await ensureDashboard();
-    await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
-    await supabase.rpc('upsert_bi_comercial_dashboard_default');
+    const del = await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id);
+    if (del.error) throw del.error;
+    const up = await supabase.rpc('upsert_bi_comercial_dashboard_default');
+    if (up.error) throw up.error;
     await load();
-  }, [ensureDashboard, isPersonalEffective, load]);
+  }, [ensureDashboard, hasPersonal, isAdmin, isPersonalEffective, load, setMode]);
 
   const deleteWidget = useCallback(async (widgetType: string) => {
-    const id = dashboardId ?? (await ensureDashboard());
-    await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id).eq('type', widgetType);
+    const id = await ensureDashboard();
+    const { error } = await supabase.from('dashboard_widgets').delete().eq('dashboard_id', id).eq('type', widgetType);
+    if (error) throw error;
     await load();
-  }, [dashboardId, ensureDashboard, load]);
+  }, [ensureDashboard, load]);
 
   return {
     widgets, dashboardId, loading,
