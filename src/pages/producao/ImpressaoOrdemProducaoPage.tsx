@@ -107,7 +107,12 @@ export default function ImpressaoOrdemProducaoPage() {
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
-  const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
+  const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string; motivo?: string }[]>([]);
+  // Bloco de falha global (todas as OPs do primeiro lote falharam — backend caiu)
+  const [falhaGlobal, setFalhaGlobal] = useState<
+    | { motivo: string; testadas: number; alvos: OpcaoOp[]; usouDesenhos: boolean }
+    | null
+  >(null);
 
   // Confirmação quando a seleção excede o limite seguro de preview direto.
   const [confirmManyOpen, setConfirmManyOpen] = useState(false);
@@ -705,18 +710,48 @@ export default function ImpressaoOrdemProducaoPage() {
 
   // (loteFalhas state declared near top via setFalhasLote)
 
+  // Extrai mensagem amigável do erro, distinguindo rede de erro do servidor.
+  const describeError = (
+    err: any,
+  ): { motivo: string; tipo: "rede" | "servidor" | "outro" } => {
+    const raw = err?.message || String(err ?? "");
+    const status = err?.status ?? err?.response?.status;
+    if (/Failed to fetch|NetworkError|net::ERR|TypeError/i.test(raw)) {
+      return {
+        motivo: "Não foi possível conectar ao backend (Failed to fetch).",
+        tipo: "rede",
+      };
+    }
+    if (status && Number(status) >= 500) {
+      return { motivo: `Erro ${status} no servidor: ${raw}`, tipo: "servidor" };
+    }
+    if (/timeout|aborted/i.test(raw)) {
+      return { motivo: "Tempo de resposta excedido.", tipo: "rede" };
+    }
+    return { motivo: raw || "Erro desconhecido.", tipo: "outro" };
+  };
+
   // Carrega um conjunto específico de OPs (já filtradas/válidas) em lotes
-  // controlados de concorrência. Não exibe diálogo: caller decide o tamanho.
+  // controlados de concorrência. Aborta cedo se ficar claro que o backend caiu.
   const carregarOps = async (
     alvos: OpcaoOp[],
-  ): Promise<{ ordens: OpImpressao[]; falhas: { cod_ori: string; num_orp: string }[] }> => {
+    opts?: { forcarSemDesenhos?: boolean },
+  ): Promise<{
+    ordens: OpImpressao[];
+    falhas: { cod_ori: string; num_orp: string; motivo?: string }[];
+    abortado?: boolean;
+    motivoGlobal?: string;
+  }> => {
     const listar_componentes = (filtros.listar_componentes as "S" | "N") || "S";
-    const listar_desenho = (filtros.listar_desenho as "S" | "N") || "N";
+    const listar_desenho = opts?.forcarSemDesenhos
+      ? ("N" as const)
+      : ((filtros.listar_desenho as "S" | "N") || "N");
+    const incluirDesenhos = opts?.forcarSemDesenhos ? false : filtros.incluir_desenhos === "S";
     const ordens: OpImpressao[] = [];
-    const falhas: { cod_ori: string; num_orp: string }[] = [];
+    const falhas: { cod_ori: string; num_orp: string; motivo?: string }[] = [];
 
-    // Tentativa 1: POST em lote (1 request por página). Se o backend ainda
-    // não publicou o endpoint, cai no fluxo unitário abaixo.
+    // Tentativa 1: POST em lote. Se for erro de rede (não 404/405), aborta
+    // imediatamente — não adianta cair em N GETs com o backend fora.
     try {
       const res = await fetchImpressaoLotePost({
         ops: alvos.map((op) => ({
@@ -726,43 +761,111 @@ export default function ImpressaoOrdemProducaoPage() {
         })),
         incluir_componentes: listar_componentes === "S",
         incluir_operacoes: true,
-        incluir_desenhos: filtros.incluir_desenhos === "S",
+        incluir_desenhos: incluirDesenhos,
         quebrar_por_operacao: filtros.quebrar_por_operacao === "S",
         modo: "preview",
       });
       if (Array.isArray(res?.ordens) && res.ordens.length > 0) {
         return { ordens: res.ordens, falhas: [] };
       }
-    } catch {
-      // segue para fallback unitário
+    } catch (err: any) {
+      const info = describeError(err);
+      if (info.tipo === "rede") {
+        return {
+          ordens: [],
+          falhas: alvos.map((op) => ({
+            cod_ori: String(op.cod_ori ?? ""),
+            num_orp: String(op.num_orp ?? ""),
+            motivo: info.motivo,
+          })),
+          abortado: true,
+          motivoGlobal: info.motivo,
+        };
+      }
+      // 404/405/etc.: cai no fallback de GETs unitários.
     }
 
-    // Fallback: GETs unitários com concorrência limitada.
-    const concurrency = 6;
+    // Fallback: GETs unitários com concorrência reduzida quando há desenhos.
+    const concurrency = incluirDesenhos ? 3 : 6;
+    let primeiroErro: { motivo: string; tipo: string } | null = null;
+    let totalTentados = 0;
+    let totalFalhasIniciais = 0;
+
+    const doFetch = async (op: OpcaoOp) => {
+      const payload: Record<string, any> = {
+        cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
+        cod_ori: String(op.cod_ori ?? ""),
+        num_orp: Number(op.num_orp ?? 0),
+        listar_componentes,
+        listar_desenho,
+        quebrar_por_operacao: filtros.quebrar_por_operacao === "S" ? "S" : "N",
+      };
+      if (incluirDesenhos) payload.incluir_desenhos = "S";
+      return api.get<OpImpressao>("/api/producao/ordem-producao/impressao", payload);
+    };
+
     for (let i = 0; i < alvos.length; i += concurrency) {
       const slice = alvos.slice(i, i + concurrency);
       const results = await Promise.all(
         slice.map(async (op) => {
           try {
-            const payload: Record<string, any> = {
-              cod_emp: Number(op.cod_emp ?? filtros.cod_emp),
-              cod_ori: String(op.cod_ori ?? ""),
-              num_orp: Number(op.num_orp ?? 0),
-              listar_componentes,
-              listar_desenho,
-              quebrar_por_operacao: filtros.quebrar_por_operacao === "S" ? "S" : "N",
-            };
-            if (filtros.incluir_desenhos === "S") payload.incluir_desenhos = "S";
-            const res = await api.get<OpImpressao>("/api/producao/ordem-producao/impressao", payload);
+            const res = await doFetch(op);
             return { ok: true as const, op, res };
-          } catch {
-            return { ok: false as const, op };
+          } catch (err1: any) {
+            const info1 = describeError(err1);
+            // 1 retry só em erro de rede transitório
+            if (info1.tipo === "rede") {
+              try {
+                await new Promise((r) => setTimeout(r, 400));
+                const res = await doFetch(op);
+                return { ok: true as const, op, res };
+              } catch (err2: any) {
+                return { ok: false as const, op, info: describeError(err2) };
+              }
+            }
+            return { ok: false as const, op, info: info1 };
           }
         }),
       );
       for (const r of results) {
-        if (r.ok && r.res) ordens.push(r.res);
-        else falhas.push({ cod_ori: String(r.op.cod_ori ?? ""), num_orp: String(r.op.num_orp ?? "") });
+        totalTentados += 1;
+        if (r.ok && r.res) {
+          ordens.push(r.res);
+        } else {
+          const motivo = (r as any).info?.motivo;
+          if (!primeiroErro) primeiroErro = (r as any).info;
+          falhas.push({
+            cod_ori: String(r.op.cod_ori ?? ""),
+            num_orp: String(r.op.num_orp ?? ""),
+            motivo,
+          });
+          if (i === 0) totalFalhasIniciais += 1;
+        }
+      }
+      // Fail-fast: se o primeiro lote foi 100% falha e foi erro de rede/servidor,
+      // não martele o backend com o restante.
+      if (
+        i === 0 &&
+        ordens.length === 0 &&
+        totalFalhasIniciais >= Math.min(3, slice.length) &&
+        primeiroErro &&
+        (primeiroErro.tipo === "rede" || primeiroErro.tipo === "servidor")
+      ) {
+        // marcar o restante como não tentado
+        for (let j = totalTentados; j < alvos.length; j += 1) {
+          const op = alvos[j];
+          falhas.push({
+            cod_ori: String(op.cod_ori ?? ""),
+            num_orp: String(op.num_orp ?? ""),
+            motivo: "Não tentado (carregamento abortado após falhas iniciais).",
+          });
+        }
+        return {
+          ordens: [],
+          falhas,
+          abortado: true,
+          motivoGlobal: `${primeiroErro.motivo} (${totalFalhasIniciais} de ${slice.length} OPs testadas falharam).`,
+        };
       }
     }
     return { ordens, falhas };
@@ -775,18 +878,31 @@ export default function ImpressaoOrdemProducaoPage() {
       .filter((o) => String(o.cod_ori ?? "") !== "100" && String(o.sit_orp ?? "") !== "C");
 
   // Executa o carregamento e popula o estado de preview.
-  const executarVisualizacao = async (alvos: OpcaoOp[]) => {
+  const executarVisualizacao = async (
+    alvos: OpcaoOp[],
+    opts?: { forcarSemDesenhos?: boolean },
+  ) => {
     if (!alvos.length) {
       toast.info("Nenhuma OP válida para visualizar.");
       return;
     }
     setLoteLoading(true);
     setFalhasLote([]);
+    setFalhaGlobal(null);
     try {
-      const { ordens, falhas } = await carregarOps(alvos);
+      const { ordens, falhas, abortado, motivoGlobal } = await carregarOps(alvos, opts);
       if (!ordens.length) {
-        toast.error("Nenhuma OP pôde ser carregada.");
+        const msg = motivoGlobal || "Nenhuma OP pôde ser carregada.";
+        toast.error(msg);
         setFalhasLote(falhas);
+        if (abortado || motivoGlobal) {
+          setFalhaGlobal({
+            motivo: msg,
+            testadas: falhas.length,
+            alvos,
+            usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+          });
+        }
         return;
       }
       reset();
@@ -797,7 +913,39 @@ export default function ImpressaoOrdemProducaoPage() {
       if (falhas.length > 0) toast.warning(`${falhas.length} OP(s) falharam. ${ordens.length} carregadas.`);
       else toast.success(`${ordens.length} OP(s) carregadas.`);
     } catch (e: any) {
-      toast.error(e?.message || "Falha ao carregar OPs selecionadas.");
+      const info = describeError(e);
+      toast.error(info.motivo);
+      setFalhaGlobal({
+        motivo: info.motivo,
+        testadas: 0,
+        alvos,
+        usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+      });
+    } finally {
+      setLoteLoading(false);
+    }
+  };
+
+  // Reprocessa apenas as OPs que falharam no último carregamento.
+  const retentarFalhas = async () => {
+    if (falhasLote.length === 0) return;
+    const mapKey = (o: any) => `${o.cod_ori ?? ""}-${o.num_orp ?? ""}`;
+    const setKeys = new Set(falhasLote.map((f) => `${f.cod_ori}-${f.num_orp}`));
+    const alvos = opsFiltradas.filter((o) => setKeys.has(mapKey(o)));
+    if (!alvos.length) {
+      toast.info("Não foi possível localizar as OPs que falharam na lista atual.");
+      return;
+    }
+    setLoteLoading(true);
+    setFalhaGlobal(null);
+    try {
+      const { ordens, falhas } = await carregarOps(alvos);
+      const novasOrdens = [...(lote?.ordens ?? []), ...ordens];
+      setLote({ quantidade_ops: novasOrdens.length, ordens: novasOrdens });
+      setFalhasLote(falhas);
+      if (ordens.length === 0) toast.error("Nenhuma das OPs reprocessadas pôde ser carregada.");
+      else if (falhas.length > 0) toast.warning(`+${ordens.length} carregadas. ${falhas.length} ainda falharam.`);
+      else toast.success(`+${ordens.length} OP(s) carregadas.`);
     } finally {
       setLoteLoading(false);
     }
@@ -850,7 +998,7 @@ export default function ImpressaoOrdemProducaoPage() {
   // ausência do endpoint, processa todos os lotes sequencialmente e dispara
   // window.print uma única vez. Para seleções muito grandes, recomendamos
   // usar "Processar em lotes de 30".
-  const gerarPdfCompleto = async () => {
+  const gerarPdfCompleto = async (opts?: { forcarSemDesenhos?: boolean }) => {
     const alvos = getAlvosSelecionados();
     if (!alvos.length) {
       toast.info("Selecione ao menos uma OP válida.");
@@ -859,24 +1007,46 @@ export default function ImpressaoOrdemProducaoPage() {
     setConfirmManyOpen(false);
     setLoteLoading(true);
     setFalhasLote([]);
+    setFalhaGlobal(null);
     const tid = toast.loading(`Gerando PDF de ${alvos.length} OP(s)...`);
     try {
       const todasOrdens: OpImpressao[] = [];
-      const todasFalhas: { cod_ori: string; num_orp: string }[] = [];
+      const todasFalhas: { cod_ori: string; num_orp: string; motivo?: string }[] = [];
       const tamanho = LIMITE_PREVIEW_DIRETO;
+      let abortouGlobal: string | null = null;
       for (let i = 0; i < alvos.length; i += tamanho) {
         const slice = alvos.slice(i, i + tamanho);
         toast.loading(
           `Carregando OPs ${i + 1}–${Math.min(i + tamanho, alvos.length)} de ${alvos.length}...`,
           { id: tid },
         );
-        const { ordens, falhas } = await carregarOps(slice);
+        const { ordens, falhas, abortado, motivoGlobal } = await carregarOps(slice, opts);
         todasOrdens.push(...ordens);
         todasFalhas.push(...falhas);
+        if (abortado && ordens.length === 0) {
+          abortouGlobal = motivoGlobal || "Backend indisponível.";
+          // Marca o restante como não tentado
+          for (let j = i + slice.length; j < alvos.length; j += 1) {
+            const op = alvos[j];
+            todasFalhas.push({
+              cod_ori: String(op.cod_ori ?? ""),
+              num_orp: String(op.num_orp ?? ""),
+              motivo: "Não tentado (carregamento abortado).",
+            });
+          }
+          break;
+        }
       }
       if (!todasOrdens.length) {
-        toast.error("Nenhuma OP pôde ser carregada.", { id: tid });
+        const msg = abortouGlobal || "Nenhuma OP pôde ser carregada.";
+        toast.error(msg, { id: tid });
         setFalhasLote(todasFalhas);
+        setFalhaGlobal({
+          motivo: msg,
+          testadas: todasFalhas.filter((f) => f.motivo && !f.motivo.startsWith("Não tentado")).length,
+          alvos,
+          usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+        });
         return;
       }
       reset();
@@ -885,11 +1055,25 @@ export default function ImpressaoOrdemProducaoPage() {
       setLote({ quantidade_ops: todasOrdens.length, ordens: todasOrdens });
       setPreview(true);
       setFalhasLote(todasFalhas);
-      toast.success(`${todasOrdens.length} OP(s) prontas. Abrindo janela de impressão...`, { id: tid });
-      await aguardarDesenhosProntos();
-      window.print();
+      if (abortouGlobal) {
+        toast.warning(
+          `${todasOrdens.length} carregadas, processamento abortado: ${abortouGlobal}`,
+          { id: tid },
+        );
+      } else {
+        toast.success(`${todasOrdens.length} OP(s) prontas. Abrindo janela de impressão...`, { id: tid });
+        await aguardarDesenhosProntos();
+        window.print();
+      }
     } catch (e: any) {
-      toast.error(e?.message || "Falha ao gerar PDF completo.", { id: tid });
+      const info = describeError(e);
+      toast.error(info.motivo, { id: tid });
+      setFalhaGlobal({
+        motivo: info.motivo,
+        testadas: 0,
+        alvos,
+        usouDesenhos: !opts?.forcarSemDesenhos && filtros.incluir_desenhos === "S",
+      });
     } finally {
       setLoteLoading(false);
     }
@@ -910,6 +1094,7 @@ export default function ImpressaoOrdemProducaoPage() {
     setFalhasLote([]);
     setPreview(false);
     setBatchMode(null);
+    setFalhaGlobal(null);
   };
 
   const toggleOne = (key: string, checked: boolean) => {
@@ -1190,7 +1375,7 @@ export default function ImpressaoOrdemProducaoPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={gerarPdfCompleto}
+                      onClick={() => gerarPdfCompleto()}
                       disabled={loteLoading || selectedKeys.size === 0}
                       title="Carrega todas as OPs selecionadas em lotes e abre a impressão"
                     >
@@ -1450,12 +1635,30 @@ export default function ImpressaoOrdemProducaoPage() {
               </div>
             </div>
             {falhasLote.length > 0 && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
-                {falhasLote.map((f, i) => (
-                  <div key={i}>
-                    Não foi possível carregar a OP {f.cod_ori}/{f.num_orp}
-                  </div>
-                ))}
+              <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{falhasLote.length} OP(s) falharam</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={retentarFalhas}
+                    disabled={loteLoading}
+                    className="h-7 text-xs"
+                  >
+                    Tentar novamente só estas
+                  </Button>
+                </div>
+                <div className="max-h-32 space-y-0.5 overflow-y-auto">
+                  {falhasLote.slice(0, 50).map((f, i) => (
+                    <div key={i}>
+                      OP {f.cod_ori}/{f.num_orp}
+                      {f.motivo ? ` — ${f.motivo}` : ""}
+                    </div>
+                  ))}
+                  {falhasLote.length > 50 && (
+                    <div className="italic opacity-70">… e mais {falhasLote.length - 50} OP(s).</div>
+                  )}
+                </div>
               </div>
             )}
             {batchMode && (() => {
@@ -1642,7 +1845,7 @@ export default function ImpressaoOrdemProducaoPage() {
               <Printer className="mr-2 h-4 w-4" />
               Processar em lotes de {LIMITE_PREVIEW_DIRETO}
             </Button>
-            <Button variant="outline" onClick={gerarPdfCompleto} disabled={loteLoading}>
+            <Button variant="outline" onClick={() => gerarPdfCompleto()} disabled={loteLoading}>
               <FileDown className="mr-2 h-4 w-4" />
               Gerar PDF completo
             </Button>
@@ -1652,6 +1855,48 @@ export default function ImpressaoOrdemProducaoPage() {
               Cancelar
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!falhaGlobal} onOpenChange={(o) => !o && setFalhaGlobal(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Não foi possível carregar as OPs</DialogTitle>
+            <DialogDescription>
+              {falhaGlobal?.motivo}
+              {falhaGlobal?.usouDesenhos
+                ? " Os desenhos costumam aumentar muito o tamanho da resposta — tente sem eles."
+                : " Verifique se o backend do ERP está acessível e tente novamente."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              onClick={() => {
+                const alvos = falhaGlobal?.alvos ?? [];
+                setFalhaGlobal(null);
+                void executarVisualizacao(alvos);
+              }}
+              disabled={loteLoading}
+            >
+              Tentar novamente
+            </Button>
+            {falhaGlobal?.usouDesenhos && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const alvos = falhaGlobal?.alvos ?? [];
+                  setFalhaGlobal(null);
+                  void executarVisualizacao(alvos, { forcarSemDesenhos: true });
+                }}
+                disabled={loteLoading}
+              >
+                Tentar sem desenhos
+              </Button>
+            )}
+            <Button variant="ghost" onClick={() => setFalhaGlobal(null)} disabled={loteLoading}>
+              Fechar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
