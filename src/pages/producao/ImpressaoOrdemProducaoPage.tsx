@@ -1434,6 +1434,12 @@ export default function ImpressaoOrdemProducaoPage() {
                 <p className="text-xs text-muted-foreground">
                   {lote.quantidade_ops} OP(s) carregadas
                   {falhasLote.length > 0 ? ` • ${falhasLote.length} falharam` : ""}
+                  {batchMode
+                    ? ` • Lote ${batchMode.paginaAtual + 1} de ${Math.max(
+                        1,
+                        Math.ceil(batchMode.alvos.length / batchMode.tamanhoLote),
+                      )} (${batchMode.alvos.length} OPs no total)`
+                    : ""}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1">
