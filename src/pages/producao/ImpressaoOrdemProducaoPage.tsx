@@ -107,7 +107,12 @@ export default function ImpressaoOrdemProducaoPage() {
   const [loteLoading, setLoteLoading] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectedRowKey, setSelectedRowKey] = useState<string | null>(null);
-  const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string }[]>([]);
+  const [falhasLote, setFalhasLote] = useState<{ cod_ori: string; num_orp: string; motivo?: string }[]>([]);
+  // Bloco de falha global (todas as OPs do primeiro lote falharam — backend caiu)
+  const [falhaGlobal, setFalhaGlobal] = useState<
+    | { motivo: string; testadas: number; alvos: OpcaoOp[]; usouDesenhos: boolean }
+    | null
+  >(null);
 
   // Confirmação quando a seleção excede o limite seguro de preview direto.
   const [confirmManyOpen, setConfirmManyOpen] = useState(false);
