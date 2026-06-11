@@ -52,27 +52,22 @@ import {
 } from 'lucide-react';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { UserWidgetsSlot } from '@/components/bi';
+import { formatCurrency, formatNumber, formatPercent } from '@/components/bi/utils/formatters';
+import { useBiDisplayPrefs } from '@/hooks/useBiDisplayPrefs';
+import { setNumberRoundingMode } from '@/lib/bi/numberFormatMode';
+import { useEffect as useEffectFat } from 'react';
 
-const fmtBRL = (v: number | null | undefined) => {
-  if (v === null || v === undefined) return '-';
-  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
-const fmtNum = (v: number | null | undefined, dec = 0) => {
-  if (v === null || v === undefined) return '-';
-  return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
-};
+// Delegam para os formatadores da Biblioteca BI, que respeitam o modo global
+// de arredondamento salvo em `user_preferences.bi_display_prefs`.
+const fmtBRL = (v: number | null | undefined) => formatCurrency(v);
+const fmtNum = (v: number | null | undefined, dec = 0) => formatNumber(v, dec);
+const fmtPct = (v: number | null | undefined) => formatPercent(v);
 
 const fmtAnomes = (anomes: string | number | null | undefined) => {
   if (!anomes) return '-';
   const s = String(anomes);
   if (s.length !== 6) return s;
   return `${s.slice(4, 6)}/${s.slice(0, 4)}`;
-};
-
-const fmtPct = (v: number | null | undefined) => {
-  if (v === null || v === undefined) return '-';
-  return `${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 };
 
 function currentYYYYMM(): string {
