@@ -546,7 +546,118 @@ export default function ConfiguracoesPage() {
     fetchData();
   };
 
+  const handleRemoveAllUserProfiles = async (login: string) => {
+    if (!confirm(`Remover TODOS os perfis do usuário ${login}?`)) return;
+    const { error } = await supabase.from('user_access').delete().ilike('user_login', login);
+    if (error) { toast.error('Erro ao remover'); return; }
+    toast.success('Todos os perfis removidos');
+    fetchData();
+  };
+
+  const openManageProfilesFor = (login: string) => {
+    setNewUserLogin(login);
+    setNewUserProfileIds([]);
+    setUserDialogOpen(true);
+  };
+
   const getProfileName = (profileId: string) => profiles.find(p => p.id === profileId)?.name || '—';
+
+  // ---- KPIs e listas derivadas ----
+  const screensPerProfile = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ps of profileScreens) {
+      if (!ps.can_view) continue;
+      map.set(ps.profile_id, (map.get(ps.profile_id) ?? 0) + 1);
+    }
+    return map;
+  }, [profileScreens]);
+
+  const usersPerProfile = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ua of userAccess) {
+      map.set(ua.profile_id, (map.get(ua.profile_id) ?? 0) + 1);
+    }
+    return map;
+  }, [userAccess]);
+
+  const filteredProfiles = useMemo(() => {
+    const q = profileSearch.trim().toLowerCase();
+    let list = profiles.filter(p => {
+      if (q && !p.name.toLowerCase().includes(q) && !(p.description ?? '').toLowerCase().includes(q)) return false;
+      if (profileAiFilter === 'with' && !p.ai_enabled) return false;
+      if (profileAiFilter === 'without' && p.ai_enabled) return false;
+      return true;
+    });
+    list = [...list].sort((a, b) => {
+      if (profileSort === 'users') return (usersPerProfile.get(b.id) ?? 0) - (usersPerProfile.get(a.id) ?? 0);
+      if (profileSort === 'screens') return (screensPerProfile.get(b.id) ?? 0) - (screensPerProfile.get(a.id) ?? 0);
+      return a.name.localeCompare(b.name);
+    });
+    return list;
+  }, [profiles, profileSearch, profileAiFilter, profileSort, usersPerProfile, screensPerProfile]);
+
+  // Aggregated users (group user_access by login)
+  const groupedUsers = useMemo(() => {
+    const map = new Map<string, { login: string; rows: UserAccess[]; latest: string }>();
+    for (const ua of userAccess) {
+      const key = ua.user_login.toUpperCase();
+      const cur = map.get(key);
+      if (cur) {
+        cur.rows.push(ua);
+        if (ua.created_at > cur.latest) cur.latest = ua.created_at;
+      } else {
+        map.set(key, { login: ua.user_login, rows: [ua], latest: ua.created_at });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.login.localeCompare(b.login));
+  }, [userAccess]);
+
+  const approvedUserByLogin = useMemo(() => {
+    const map = new Map<string, ApprovedUser>();
+    for (const u of approvedUsers) {
+      if (u.erp_user) map.set(u.erp_user.toUpperCase(), u);
+    }
+    return map;
+  }, [approvedUsers]);
+
+  const filteredUsers = useMemo(() => {
+    const q = userSearch.trim().toLowerCase();
+    return groupedUsers.filter(g => {
+      const meta = approvedUserByLogin.get(g.login.toUpperCase());
+      if (q) {
+        const hay = `${g.login} ${meta?.display_name ?? ''} ${meta?.email ?? ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (userProfileFilters.length > 0) {
+        const has = g.rows.some(r => userProfileFilters.includes(r.profile_id));
+        if (!has) return false;
+      }
+      return true;
+    });
+  }, [groupedUsers, userSearch, userProfileFilters, approvedUserByLogin]);
+
+  const usersWithoutAssignment = useMemo(() => {
+    const assignedLogins = new Set(groupedUsers.map(g => g.login.toUpperCase()));
+    return approvedUsers.filter(u => u.erp_user && !assignedLogins.has(u.erp_user.toUpperCase()));
+  }, [approvedUsers, groupedUsers]);
+
+  const distinctProfilesInUse = useMemo(() => new Set(userAccess.map(ua => ua.profile_id)).size, [userAccess]);
+
+  // Stable color token per profile name (semantic)
+  const PROFILE_BADGE_VARIANTS = ['default', 'secondary', 'outline'] as const;
+  const profileBadgeVariant = (name: string) => {
+    let h = 0;
+    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+    return PROFILE_BADGE_VARIANTS[h % PROFILE_BADGE_VARIANTS.length];
+  };
+
+  const userInitials = (login: string, meta?: ApprovedUser) => {
+    const src = meta?.display_name || login;
+    const parts = src.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
+
 
   if (loading && profiles.length === 0) {
     return (
