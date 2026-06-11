@@ -231,21 +231,9 @@ export function useComercialLayout(enabled: boolean = true) {
   }, [load, setMode]);
 
   const ensureDashboard = useCallback(async (): Promise<string> => {
-    // Não-admin nunca consegue gravar no oficial (RLS). Auto-fork para versão pessoal.
-    const needsPersonal = isPersonalEffective || isAdmin === false;
-    if (needsPersonal) {
-      if (isPersonalEffective && dashboardId) return dashboardId;
-      const personalId = await forkToPersonal();
-      setIsPersonalEffective(true);
-      setDashboardId(personalId);
-      if (!autoForkToastShownRef.current && isAdmin === false) {
-        autoForkToastShownRef.current = true;
-        toast.info('Suas edições foram salvas na sua versão pessoal do BI Comercial.', {
-          description: 'A versão oficial só pode ser alterada por administradores.',
-        });
-      }
-      return personalId;
-    }
+    // Edição é restrita a admin (validado na UI) gravando sempre no Oficial,
+    // exceto quando o admin escolheu explicitamente editar a própria Minha versão.
+    if (isPersonalEffective && dashboardId) return dashboardId;
     const { data: dash } = await supabase
       .from('dashboards')
       .select('id')
@@ -262,7 +250,7 @@ export function useComercialLayout(enabled: boolean = true) {
     const id = data as unknown as string;
     setDashboardId(id);
     return id;
-  }, [dashboardId, forkToPersonal, isPersonalEffective, isAdmin]);
+  }, [dashboardId, isPersonalEffective]);
 
 
   const saveLayout = useCallback(async (next: SaveLayoutItem[]) => {
