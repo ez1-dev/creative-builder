@@ -1,62 +1,49 @@
-# Impressão de OP — diagnosticar e degradar com elegância quando o backend falha
+## Objetivo
+Tornar a página `/configuracoes` mais profissional como um todo — hoje há 13 abas espremidas numa única `TabsList` horizontal, sem hierarquia, sem busca e com superfícies inconsistentes entre as abas. Vamos manter o trabalho já feito nas 3 abas de acesso e elevar o restante ao mesmo padrão.
 
-## Causa raiz
+## Escopo (somente UI/UX, sem mudar lógica nem backend)
 
-A mensagem "Nenhuma OP pôde ser carregada." aparece quando **todas** as chamadas a `/api/producao/ordem-producao/impressao` falham. Você confirmou que a aba Network mostra várias dessas chamadas estourando com CORS / 500 / timeout / Failed to fetch.
+### 1. Shell da página
+- Substituir a `TabsList` horizontal por uma **navegação lateral agrupada** (sidebar à esquerda em desktop, `Sheet` em mobile), com seções:
+  - **Acessos** — Perfis de Acesso, Permissões por Tela, Usuários, Aprovações
+  - **Plataforma** — API, Gráficos e Mapas, Versão, Documentação
+  - **Operação** — Logs, Monitoramento, Dashboard de Uso
+  - **Pessoal** — Minhas Preferências
+- Cada item lateral com ícone, label e *badge* (pendências de aprovação, logs 24h).
+- Busca rápida no topo da sidebar (`Filtrar configurações…`) que filtra os itens por nome.
+- `PageHeader` reformatado: título + descrição + barra de ações à direita (atalhos contextuais por aba, ex.: "Novo perfil", "Atribuir acesso", "Recarregar").
+- Breadcrumb leve: `Configurações › <Seção> › <Aba>`.
 
-Ou seja: o frontend está fazendo a coisa certa — quem está caindo é o backend FastAPI (provavelmente ngrok limitando concorrência, OOM no servidor ao montar payload de desenho, ou um 500 cru que mata o request). Lovable não pode "consertar o backend"; o que dá pra fazer é:
+### 2. Padronização visual das abas
+Aplicar o mesmo padrão já usado em Perfis/Permissões/Usuários nas demais:
+- Faixa de KPIs no topo (quando faz sentido: Aprovações, API, Logs, Monitoramento, Dashboard de Uso).
+- Toolbar com busca + filtros + ordenação.
+- Conteúdo dentro de `Card` com cabeçalho, divisores sutis e *empty states* padronizados (ícone + título + descrição + CTA).
+- Inputs `h-9`, badges semânticos, espaçamento uniforme.
 
-1. parar de engolir o erro real e mostrar pro usuário;
-2. evitar martelar o backend (concorrência menor + fail-fast);
-3. dar ao usuário uma saída manual (tentar de novo só os que falharam, ou desligar desenhos pra reduzir payload).
+### 3. Refinamentos específicos por aba (apenas apresentação)
+- **Aprovações:** KPIs (Pendentes, Aprovados 7d, Rejeitados 7d), busca por login/nome, filtro por status, ações em lote (aprovar/rejeitar selecionados) — sem mexer nos handlers existentes.
+- **API:** Cartões de status de conexão (FastAPI, ngrok), badge de latência, botão "Testar conexão" em destaque, agrupar campos em seções (Conexão, Cabeçalhos, Diagnóstico).
+- **Logs:** Toolbar com busca, filtro por severidade/origem, range de datas; linha do tempo + tabela com `ScrollArea` e empty state.
+- **Monitoramento / Dashboard de Uso:** Manter os componentes atuais, apenas envolver em `Card` com cabeçalho consistente e respiro.
+- **Gráficos e Mapas:** Cabeçalho de seção, prévia visual de cada tema/mapa em grid.
+- **Versão / Documentação / Minhas Preferências:** Cabeçalho consistente, conteúdo dentro de `Card`, tipografia alinhada.
 
-## O que muda no frontend
-
-### 1. Capturar e propagar o erro real
-
-Hoje o `carregarOps` engole tudo com `catch {}` e só guarda `{cod_ori, num_orp}`. Vou guardar também `motivo` (mensagem do erro) e expor o **primeiro** erro de rede no toast/UI:
-
-- "Não foi possível conectar ao backend (Failed to fetch). Verifique o ERP/ngrok."
-- "O servidor retornou erro 500 em todas as OPs. Causa: <detail>."
-- "Tempo de resposta excedido."
-
-### 2. Fail-fast quando claramente é o backend que caiu
-
-Se **todas** as OPs do **primeiro lote de concorrência** falharem (≥3 falhas seguidas, todas com erro de rede ou 5xx), abortar o loop imediatamente em vez de gastar 244 requests inúteis. Mostrar um diálogo:
-
-```
-Não foi possível carregar as OPs.
-Motivo: Failed to fetch (5 OPs testadas falharam).
-[ Tentar novamente ]  [ Tentar sem desenhos ]  [ Fechar ]
-```
-
-"Tentar sem desenhos" reexecuta forçando `incluir_desenhos=N` e `listar_desenho=N` — desenhos são quase sempre o que estoura tamanho/tempo no ERP via ngrok.
-
-### 3. Reduzir agressividade
-
-- Concorrência: cai de 6 → 3 quando `incluir_desenhos === "S"` (payload grande).
-- Tentar 1 retry automático por OP só em caso de erro de rede transitório (`TypeError: Failed to fetch`).
-
-### 4. Mostrar lista de falhas com botão "Tentar novamente só estas"
-
-O bloco vermelho de falhas (já existe) ganha um botão que reprocessa apenas os `falhasLote` — útil quando 230 de 244 deram certo e só algumas estouraram.
-
-## Detalhes técnicos
-
-Arquivo único: `src/pages/producao/ImpressaoOrdemProducaoPage.tsx`.
-
-- Tipar `falhasLote` como `{ cod_ori: string; num_orp: string; motivo?: string }[]`.
-- Em `carregarOps`:
-  - capturar `err?.message`/`err?.status` no catch unitário;
-  - depois do primeiro slice, se 100% falhou, retornar `{ ordens: [], falhas, abortado: true, motivoGlobal }`;
-  - retry simples (1x) em erro de rede.
-- Em `executarVisualizacao` / `gerarPdfCompleto`: se `abortado` ou `ordens.length === 0`, exibir o `motivoGlobal` no toast e popular `falhasLote` para a UI; nada de toast genérico.
-- Acrescentar handler `retentarSemDesenhos(alvos)` chamado pelo diálogo.
-- Acrescentar handler `retentarFalhas()` no bloco vermelho.
-- POST `/impressao/lote`: manter como tentativa, mas tratar `Failed to fetch` distinto de 404/405 — se for `Failed to fetch` (rede), também abortar global ao invés de cair em N GETs.
+### 4. Detalhes de qualidade
+- Somente tokens do design system (`bg-card`, `border`, `muted-foreground`, `primary`, `accent`) — sem cores hardcoded.
+- Skeletons leves nos blocos enquanto carregam.
+- Persistir a aba ativa em `?tab=` na URL (já existe `activeTab`, só plugar `searchParams`).
+- Acessibilidade: `aria-current` na sidebar, foco visível, ordem de tabulação.
 
 ## Fora de escopo
+- Schemas, RPCs, edge functions, lógica de permissões, `ALL_SCREENS`.
+- Mudanças nas regras de aprovação, autenticação, integração com FastAPI.
+- Refatoração das abas Perfis/Permissões/Usuários já entregues (só herdam o novo shell).
 
-- Consertar o backend FastAPI / ngrok (não é Lovable).
-- Mudar layout da tela.
-- Mexer em "Imprimir todas" (já usa GET de lote por origem, fluxo diferente).
+## Arquivos a editar
+- `src/pages/ConfiguracoesPage.tsx` (shell + toolbar + atalhos + integração com sidebar).
+- Novo: `src/components/configuracoes/ConfiguracoesSidebar.tsx` (navegação agrupada com busca e badges).
+- Polimento leve nos painéis existentes referenciados pelas abas (API, Logs, Aprovações, etc.) — apenas wrappers de `Card`/header, sem tocar em lógica.
+
+## Resultado esperado
+Página com navegação lateral limpa, hierarquia clara entre seções, toolbar e KPIs consistentes em todas as abas, e visual coeso com o restante do ERP.
