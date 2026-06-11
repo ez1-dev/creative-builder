@@ -556,6 +556,16 @@ export default function ComercialPage() {
   const effectiveRounding = displayPrefs.effectiveRoundingFor(PAGE_KEY);
   const [draftRounding, setDraftRounding] = useState<NumberRoundingMode>(effectiveRounding);
   const initialRoundingRef = useRef<NumberRoundingMode>(effectiveRounding);
+
+  // Aplica o modo salvo ao singleton quando fora do modo edição (o toggle
+  // controlado já cuida disso enquanto está montado).
+  useEffect(() => {
+    if (!editing) {
+      setNumberRoundingMode(effectiveRounding);
+      initialRoundingRef.current = effectiveRounding;
+      setDraftRounding(effectiveRounding);
+    }
+  }, [editing, effectiveRounding]);
   const [configType, setConfigType] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [previewSeriesKey, setPreviewSeriesKey] = useState<string | null>(null);
