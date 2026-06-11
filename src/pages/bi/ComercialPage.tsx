@@ -983,6 +983,11 @@ export default function ComercialPage() {
     try {
       if (items.length > 0) await layout.saveLayout(items);
       for (const type of pendingDeletes) await layout.deleteWidget(type);
+      if (roundingDirty) {
+        const isDefault = draftRounding === displayPrefs.prefs.numberRounding.global;
+        await displayPrefs.setPageRounding(PAGE_KEY, isDefault ? null : draftRounding);
+        initialRoundingRef.current = draftRounding;
+      }
       if (dirty) toast.success('Dashboard salvo');
     } catch (e: any) {
       toast.error(`Erro ao salvar: ${e?.message ?? e}`);
@@ -994,6 +999,9 @@ export default function ComercialPage() {
 
   const handleCancelEdit = () => {
     clearDrafts();
+    // Restaura preview de números ao valor salvo.
+    setDraftRounding(initialRoundingRef.current);
+    setNumberRoundingMode(initialRoundingRef.current);
     setEditing(false);
   };
 
