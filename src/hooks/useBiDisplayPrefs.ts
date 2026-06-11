@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import type { NumberRoundingMode } from '@/lib/bi/numberFormatMode';
 
@@ -36,6 +37,16 @@ export function useBiDisplayPrefs() {
   const [prefs, setPrefs] = useState<BiDisplayPrefs>(DEFAULT_PREFS);
   const [loading, setLoading] = useState(true);
   const userIdRef = useRef<string | null>(null);
+  const prefsRef = useRef<BiDisplayPrefs>(DEFAULT_PREFS);
+
+  useEffect(() => { prefsRef.current = prefs; }, [prefs]);
+
+  const ensureUserId = useCallback(async (): Promise<string | null> => {
+    if (userIdRef.current) return userIdRef.current;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) userIdRef.current = user.id;
+    return userIdRef.current;
+  }, []);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -60,17 +71,27 @@ export function useBiDisplayPrefs() {
   useEffect(() => { reload(); }, [reload]);
 
   const persist = useCallback(async (next: BiDisplayPrefs) => {
+    const previous = prefsRef.current;
     setPrefs(next);
-    const uid = userIdRef.current;
-    if (!uid) return;
-    try {
-      await supabase
-        .from('user_preferences')
-        .upsert({ user_id: uid, bi_display_prefs: next as any }, { onConflict: 'user_id' });
-    } catch (e) {
-      console.warn('[useBiDisplayPrefs] persist failed', e);
+    const uid = await ensureUserId();
+    if (!uid) {
+      setPrefs(previous);
+      toast.error('Não foi possível salvar a preferência de números.', {
+        description: 'Sessão não encontrada. Faça login novamente.',
+      });
+      return;
     }
-  }, []);
+    const { error } = await supabase
+      .from('user_preferences')
+      .upsert({ user_id: uid, bi_display_prefs: next as any }, { onConflict: 'user_id' });
+    if (error) {
+      console.error('[useBiDisplayPrefs] persist failed', error);
+      setPrefs(previous);
+      toast.error('Não foi possível salvar a preferência de números. Tente novamente.', {
+        description: error.message,
+      });
+    }
+  }, [ensureUserId]);
 
   const setGlobalRounding = useCallback(
     (mode: NumberRoundingMode) => persist({
