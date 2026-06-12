@@ -1,8 +1,8 @@
-import { logError } from './errorLogger';
+import { logError } from "./errorLogger";
 
 let _apiBaseUrl: string | null = null;
 
-const stripTrailingSlash = (u: string) => u.replace(/\/$/, '');
+const stripTrailingSlash = (u: string) => u.replace(/\/$/, "");
 
 const getApiBaseUrl = () => {
   if (_apiBaseUrl) return stripTrailingSlash(_apiBaseUrl);
@@ -11,8 +11,8 @@ const getApiBaseUrl = () => {
     (import.meta as any).env?.VITE_API_URL ||
     (import.meta as any).env?.VITE_ERP_API_URL;
   if (envBase) return stripTrailingSlash(envBase);
-  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return 'http://localhost:8000';
+  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
+  return "http://localhost:8001";
 };
 
 export const setApiBaseUrl = (url: string) => {
@@ -27,28 +27,28 @@ class ApiClient {
   setToken(token: string | null) {
     this.token = token;
     if (token) {
-      localStorage.setItem('erp_token', token);
+      localStorage.setItem("erp_token", token);
     } else {
-      localStorage.removeItem('erp_token');
+      localStorage.removeItem("erp_token");
     }
   }
 
   getToken(): string | null {
     if (!this.token) {
-      this.token = localStorage.getItem('erp_token');
+      this.token = localStorage.getItem("erp_token");
     }
     return this.token;
   }
 
   getUser(): string | null {
-    return localStorage.getItem('erp_user');
+    return localStorage.getItem("erp_user");
   }
 
   setUser(user: string | null) {
     if (user) {
-      localStorage.setItem('erp_user', user);
+      localStorage.setItem("erp_user", user);
     } else {
-      localStorage.removeItem('erp_user');
+      localStorage.removeItem("erp_user");
     }
   }
 
@@ -58,20 +58,20 @@ class ApiClient {
 
   logout() {
     this.token = null;
-    localStorage.removeItem('erp_token');
-    localStorage.removeItem('erp_user');
+    localStorage.removeItem("erp_token");
+    localStorage.removeItem("erp_user");
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true',
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
       ...((options.headers as Record<string, string>) || {}),
     };
 
     const token = this.getToken();
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     let response: Response;
@@ -101,7 +101,7 @@ class ApiClient {
     }
 
     if (response.status === 401) {
-      const msg = 'Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.';
+      const msg = "Sessão da API ERP expirada. Verifique a conexão da API nas Configurações.";
       logError({ module: endpoint, message: msg, statusCode: 401 });
       const err: any = new Error(msg);
       err.statusCode = 401;
@@ -109,26 +109,26 @@ class ApiClient {
     }
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Erro desconhecido' }));
+      const error = await response.json().catch(() => ({ detail: "Erro desconhecido" }));
       let msg: string;
       const detail = (error as any)?.detail;
       if (Array.isArray(detail)) {
         msg = detail
           .map((d: any) => {
-            if (!d || typeof d !== 'object') return String(d);
-            const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== 'query' && x !== 'body').join('.') : '';
-            return loc ? `${loc}: ${d.msg ?? 'erro'}` : String(d.msg ?? JSON.stringify(d));
+            if (!d || typeof d !== "object") return String(d);
+            const loc = Array.isArray(d.loc) ? d.loc.filter((x: any) => x !== "query" && x !== "body").join(".") : "";
+            return loc ? `${loc}: ${d.msg ?? "erro"}` : String(d.msg ?? JSON.stringify(d));
           })
-          .join('; ');
-      } else if (typeof detail === 'string') {
+          .join("; ");
+      } else if (typeof detail === "string") {
         msg = detail;
-      } else if (detail && typeof detail === 'object') {
+      } else if (detail && typeof detail === "object") {
         msg = JSON.stringify(detail);
       } else {
         msg = `Erro ${response.status}`;
       }
-      if (response.status === 404 && endpoint.startsWith('/api/senior/')) {
-        msg = 'Endpoint não encontrado na API. Verifique se o backend foi atualizado e reiniciado.';
+      if (response.status === 404 && endpoint.startsWith("/api/senior/")) {
+        msg = "Endpoint não encontrado na API. Verifique se o backend foi atualizado e reiniciado.";
       }
       logError({ module: endpoint, message: msg, statusCode: response.status, details: error });
       const err: any = new Error(msg);
@@ -143,13 +143,13 @@ class ApiClient {
   async login(usuario: string, senha: string) {
     const params = new URLSearchParams({ usuario, senha });
     const response = await fetch(`${getApiBaseUrl()}/login?${params}`, {
-      method: 'POST',
-      headers: { 'ngrok-skip-browser-warning': 'true' },
+      method: "POST",
+      headers: { "ngrok-skip-browser-warning": "true" },
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Login inválido' }));
-      throw new Error(error.detail || 'Login inválido');
+      const error = await response.json().catch(() => ({ detail: "Login inválido" }));
+      throw new Error(error.detail || "Login inválido");
     }
 
     const data = await response.json();
@@ -158,20 +158,16 @@ class ApiClient {
     return data;
   }
 
-  async get<T>(
-    endpoint: string,
-    params?: Record<string, any>,
-    options?: { keepEmpty?: string[] },
-  ): Promise<T> {
+  async get<T>(endpoint: string, params?: Record<string, any>, options?: { keepEmpty?: string[] }): Promise<T> {
     const searchParams = new URLSearchParams();
     const keepEmpty = new Set(options?.keepEmpty ?? []);
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        const isEmpty = value === null || value === undefined || value === '';
+        const isEmpty = value === null || value === undefined || value === "";
         if (!isEmpty) {
           searchParams.append(key, String(value));
         } else if (keepEmpty.has(key)) {
-          searchParams.append(key, '');
+          searchParams.append(key, "");
         }
       });
     }
@@ -182,31 +178,31 @@ class ApiClient {
 
   async post<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: body ? JSON.stringify(body) : undefined,
     });
   }
 
   async put<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
     return this.request<T>(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       body: body ? JSON.stringify(body) : undefined,
     });
   }
 
   async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 
   getExportUrl(endpoint: string, params?: Record<string, any>): string {
     const searchParams = new URLSearchParams();
     const token = this.getToken();
     if (token) {
-      searchParams.append('access_token', token);
+      searchParams.append("access_token", token);
     }
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
+        if (value !== null && value !== undefined && value !== "") {
           searchParams.append(key, String(value));
         }
       });
@@ -275,13 +271,18 @@ export interface PainelComprasDashboardResponse {
     por_mes: Array<{ mes: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
     por_tipo_despesa: Array<{ tipo: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
     por_centro_custo: Array<{ centro_custo: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
-    por_projeto: Array<{ numero_projeto?: string; projeto?: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
+    por_projeto: Array<{
+      numero_projeto?: string;
+      projeto?: string;
+      valor: number;
+      qtd_ocs?: number;
+      qtd_itens?: number;
+    }>;
     por_fornecedor: Array<{ fornecedor: string; valor: number; qtd_ocs?: number; qtd_itens?: number }>;
     comprado_recebido_pendente: Array<{ mes: string; comprado: number; recebido: number; pendente: number }>;
   };
   drill: any[];
 }
-
 
 export interface BomResponse {
   cabecalho: {
@@ -332,9 +333,27 @@ export interface NotasRecebimentoDashboardResponse {
   graficos: {
     por_mes: Array<{ mes: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
     por_tipo_despesa: Array<{ tipo: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
-    por_centro_custo: Array<{ codigo_centro_custo?: string; centro_custo?: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
-    por_projeto: Array<{ numero_projeto?: string; projeto?: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
-    por_fornecedor: Array<{ codigo_fornecedor?: string; fornecedor?: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
+    por_centro_custo: Array<{
+      codigo_centro_custo?: string;
+      centro_custo?: string;
+      valor: number;
+      qtd_nfs?: number;
+      qtd_itens?: number;
+    }>;
+    por_projeto: Array<{
+      numero_projeto?: string;
+      projeto?: string;
+      valor: number;
+      qtd_nfs?: number;
+      qtd_itens?: number;
+    }>;
+    por_fornecedor: Array<{
+      codigo_fornecedor?: string;
+      fornecedor?: string;
+      valor: number;
+      qtd_nfs?: number;
+      qtd_itens?: number;
+    }>;
     por_transacao_nf: Array<{ transacao: string; valor: number; qtd_nfs?: number; qtd_itens?: number }>;
   };
   drill: any[];
@@ -445,7 +464,7 @@ export interface AuditoriaResponse extends PaginatedResponse<any> {
 // Nota: cada item de `dados` pode incluir status nativo da OP vindo de E900COP:
 //   status_op?: 'E' | 'L' | 'A' | 'F' | 'C' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO' | 'SEM_STATUS'
 // OPs ativas = conjunto { E, L, A }. Finalizadas = F. Canceladas = C.
-export type StatusOpNativo = 'E' | 'L' | 'A' | 'F' | 'C' | 'EM_ANDAMENTO' | 'FINALIZADO' | 'CANCELADO' | 'SEM_STATUS';
+export type StatusOpNativo = "E" | "L" | "A" | "F" | "C" | "EM_ANDAMENTO" | "FINALIZADO" | "CANCELADO" | "SEM_STATUS";
 
 export interface AuditoriaApontGeniusEtapa {
   nome: string;
@@ -500,13 +519,13 @@ export interface AuditoriaApontamentoGeniusResponse extends PaginatedResponse<an
 // OPs Pintura/Jato (auditoria-apontamento-genius/ops-jato-peso)
 // ─────────────────────────────────────────────────────────────────────────────
 export type StatusPesoOp =
-  | 'OK'
-  | 'PESO_ZERO'
-  | 'PESO_PARCIAL'
-  | 'SEM_COMPONENTES_E900CMO'
-  | 'PRODUZIDO_SEM_MODELO'
-  | 'CICLO_BOM'
-  | 'SEM_CONVERSAO_UNIDADE';
+  | "OK"
+  | "PESO_ZERO"
+  | "PESO_PARCIAL"
+  | "SEM_COMPONENTES_E900CMO"
+  | "PRODUZIDO_SEM_MODELO"
+  | "CICLO_BOM"
+  | "SEM_CONVERSAO_UNIDADE";
 
 export interface OpJatoPesoItem {
   origem?: string | number;
@@ -592,9 +611,9 @@ export interface OpsJatoPesoFilters {
 function jatoQueryParams(f: OpsJatoPesoFilters): Record<string, any> {
   const out: Record<string, any> = {};
   Object.entries(f).forEach(([k, v]) => {
-    if (v === undefined || v === null || v === '') return;
-    if (typeof v === 'boolean') {
-      if (v) out[k] = 'true';
+    if (v === undefined || v === null || v === "") return;
+    if (typeof v === "boolean") {
+      if (v) out[k] = "true";
       return;
     }
     out[k] = v;
@@ -604,7 +623,7 @@ function jatoQueryParams(f: OpsJatoPesoFilters): Record<string, any> {
 
 export async function getOpsJatoPeso(filters: OpsJatoPesoFilters): Promise<OpJatoPesoResponse> {
   return api.get<OpJatoPesoResponse>(
-    '/api/auditoria-apontamento-genius/ops-jato-peso',
+    "/api/auditoria-apontamento-genius/ops-jato-peso",
     jatoQueryParams({ usar_multinivel: true, ...filters }),
   );
 }
@@ -650,22 +669,25 @@ export interface BalancoPatrimonialResposta {
   [k: string]: any;
 }
 
-export async function getBalancoPatrimonial(
-  filters: BalancoPatrimonialFilters,
-): Promise<BalancoPatrimonialResposta> {
-  return api.get<BalancoPatrimonialResposta>('/api/contabilidade/balanco', filters as Record<string, any>);
+export async function getBalancoPatrimonial(filters: BalancoPatrimonialFilters): Promise<BalancoPatrimonialResposta> {
+  return api.get<BalancoPatrimonialResposta>("/api/contabilidade/balanco", filters as Record<string, any>);
 }
-
-
 
 // ============================================================
 // Demonstrativo de Compras e Recebimentos
 // ============================================================
-export type DemonstrativoOrigem = 'TODOS' | 'COMPRAS' | 'RECEBIMENTOS';
+export type DemonstrativoOrigem = "TODOS" | "COMPRAS" | "RECEBIMENTOS";
 export type DemonstrativoNivel =
-  | 'projeto_macro' | 'numero_projeto' | 'centro_custo' | 'tipo_despesa'
-  | 'mes_competencia' | 'fornecedor' | 'documento' | 'item'
-  | 'transacao' | 'deposito';
+  | "projeto_macro"
+  | "numero_projeto"
+  | "centro_custo"
+  | "tipo_despesa"
+  | "mes_competencia"
+  | "fornecedor"
+  | "documento"
+  | "item"
+  | "transacao"
+  | "deposito";
 
 export interface DemonstrativoFilters {
   data_ini?: string;
@@ -787,10 +809,7 @@ export interface DemonstrativoResposta {
 export async function getDemonstrativoComprasRecebimentos(
   filters: DemonstrativoFilters,
 ): Promise<DemonstrativoResposta> {
-  return api.get<DemonstrativoResposta>(
-    '/api/demonstrativo-compras-recebimentos',
-    filters as Record<string, any>,
-  );
+  return api.get<DemonstrativoResposta>("/api/demonstrativo-compras-recebimentos", filters as Record<string, any>);
 }
 
 // ============ Cadastros / Consulta de Produtos ============
@@ -838,13 +857,8 @@ export interface ProdutoCadastroComboItem {
   descricao: string;
 }
 
-export async function getProdutosCadastro(
-  filters: ProdutoCadastroFilters,
-): Promise<ProdutoCadastroResponse> {
-  return api.get<ProdutoCadastroResponse>(
-    '/api/cadastros/produtos',
-    filters as Record<string, any>,
-  );
+export async function getProdutosCadastro(filters: ProdutoCadastroFilters): Promise<ProdutoCadastroResponse> {
+  return api.get<ProdutoCadastroResponse>("/api/cadastros/produtos", filters as Record<string, any>);
 }
 
 function normalizeComboList(raw: any): ProdutoCadastroComboItem[] {
@@ -853,27 +867,40 @@ function normalizeComboList(raw: any): ProdutoCadastroComboItem[] {
   const seen = new Set<string>();
   for (const it of list) {
     const codigo =
-      it?.codigo ?? it?.value ?? it?.codori ?? it?.codigo_origem ?? it?.codfam ?? it?.codigo_familia ?? it?.code ?? null;
+      it?.codigo ??
+      it?.value ??
+      it?.codori ??
+      it?.codigo_origem ??
+      it?.codfam ??
+      it?.codigo_familia ??
+      it?.code ??
+      null;
     const descricao =
-      it?.descricao ?? it?.desori ?? it?.descricao_origem ?? it?.desfam ?? it?.descricao_familia ?? it?.description ?? '';
-    if (codigo == null || codigo === '') continue;
+      it?.descricao ??
+      it?.desori ??
+      it?.descricao_origem ??
+      it?.desfam ??
+      it?.descricao_familia ??
+      it?.description ??
+      "";
+    if (codigo == null || codigo === "") continue;
     const c = String(codigo).trim();
     if (seen.has(c)) continue;
     seen.add(c);
-    out.push({ codigo: c, descricao: String(descricao ?? '').trim() });
+    out.push({ codigo: c, descricao: String(descricao ?? "").trim() });
   }
   return out;
 }
 
 export async function getProdutosOrigens(): Promise<ProdutoCadastroComboItem[]> {
-  const raw = await api.get<any>('/api/cadastros/produtos/origens');
+  const raw = await api.get<any>("/api/cadastros/produtos/origens");
   return normalizeComboList(raw);
 }
 
 export async function getProdutosFamilias(codori?: string): Promise<ProdutoCadastroComboItem[]> {
   const params: Record<string, any> = { somente_ativos: true };
   if (codori) params.codori = codori;
-  const raw = await api.get<any>('/api/cadastros/produtos/familias', params);
+  const raw = await api.get<any>("/api/cadastros/produtos/familias", params);
   return normalizeComboList(raw);
 }
 
@@ -882,10 +909,8 @@ export interface ProdutosFiltrosIniciais {
   familias: ProdutoCadastroComboItem[];
 }
 
-export async function getProdutosFiltrosIniciais(
-  somenteAtivos = true,
-): Promise<ProdutosFiltrosIniciais> {
-  const raw = await api.get<any>('/api/cadastros/produtos/filtros', {
+export async function getProdutosFiltrosIniciais(somenteAtivos = true): Promise<ProdutosFiltrosIniciais> {
+  const raw = await api.get<any>("/api/cadastros/produtos/filtros", {
     somente_ativos: somenteAtivos,
   });
   return {
@@ -893,5 +918,3 @@ export async function getProdutosFiltrosIniciais(
     familias: normalizeComboList(raw?.familias ?? raw?.data?.familias ?? []),
   };
 }
-
-
