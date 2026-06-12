@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
     (import.meta as any).env?.VITE_ERP_API_URL;
   if (envBase) return stripTrailingSlash(envBase);
   if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
-  return "https://localhost:8001";
+  return "http://localhost:8000";
 };
 
 export const setApiBaseUrl = (url: string) => {
