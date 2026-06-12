@@ -6,7 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Printer, FileDown, Search, Eraser, Loader2, MessageSquare, Download, FileText, AlertCircle, RotateCcw, Info } from "lucide-react";
+import {
+  Eye,
+  Printer,
+  FileDown,
+  Search,
+  Eraser,
+  Loader2,
+  MessageSquare,
+  Download,
+  FileText,
+  AlertCircle,
+  RotateCcw,
+  Info,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useImpressaoOrdemProducao } from "@/hooks/useImpressaoOrdemProducao";
 import { useImpressaoPdfJob } from "@/hooks/useImpressaoPdfJob";
@@ -152,6 +165,7 @@ export default function ImpressaoOrdemProducaoPage() {
   );
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
+  console.log(opcoes);
   const pdfJob = useImpressaoPdfJob();
   const [qualidadePdf, setQualidadePdf] = useState<"rapida" | "normal" | "alta">("normal");
 
@@ -826,7 +840,6 @@ export default function ImpressaoOrdemProducaoPage() {
     });
   };
 
-
   const limparSelecao = () => {
     setSelectedKeys(new Set());
     setLote(null);
@@ -1127,7 +1140,12 @@ export default function ImpressaoOrdemProducaoPage() {
                       Limpar seleção
                     </Button>
                     {opsFiltradas.length > 1 && (
-                      <Button size="sm" variant="outline" onClick={imprimirTodas} disabled={loteLoading || pdfJob.isBusy}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={imprimirTodas}
+                        disabled={loteLoading || pdfJob.isBusy}
+                      >
                         {loteLoading ? (
                           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                         ) : (
@@ -1169,16 +1187,10 @@ export default function ImpressaoOrdemProducaoPage() {
                       <div className="flex min-w-[360px] flex-col gap-1.5 rounded-md border bg-muted/40 px-3 py-2 text-xs">
                         <div className="flex items-center gap-2">
                           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                          <span className="font-medium text-foreground">
-                            Gerando PDF completo com desenhos
-                          </span>
+                          <span className="font-medium text-foreground">Gerando PDF completo com desenhos</span>
                           <span className="ml-auto flex items-center gap-2 text-muted-foreground tabular-nums">
-                            {typeof pdfJob.tempoTotal === "number" && (
-                              <span>{fmtSeg(pdfJob.tempoTotal)}</span>
-                            )}
-                            {typeof pdfJob.percentual === "number" && (
-                              <span>{pdfJob.percentual}%</span>
-                            )}
+                            {typeof pdfJob.tempoTotal === "number" && <span>{fmtSeg(pdfJob.tempoTotal)}</span>}
+                            {typeof pdfJob.percentual === "number" && <span>{pdfJob.percentual}%</span>}
                           </span>
                         </div>
                         <Progress value={pdfJob.percentual ?? 0} className="h-1.5" />
@@ -1204,14 +1216,12 @@ export default function ImpressaoOrdemProducaoPage() {
                         </div>
                         {pdfJob.temposPorEtapa && Object.keys(pdfJob.temposPorEtapa).length > 0 && (
                           <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground/90">
-                            {ETAPA_ORDEM.filter((e) => pdfJob.temposPorEtapa?.[e] != null).map(
-                              (e, idx, arr) => (
-                                <span key={e} className="tabular-nums">
-                                  {ETAPA_LABELS[e]} {fmtSeg(pdfJob.temposPorEtapa![e])}
-                                  {idx < arr.length - 1 && <span className="ml-2">•</span>}
-                                </span>
-                              ),
-                            )}
+                            {ETAPA_ORDEM.filter((e) => pdfJob.temposPorEtapa?.[e] != null).map((e, idx, arr) => (
+                              <span key={e} className="tabular-nums">
+                                {ETAPA_LABELS[e]} {fmtSeg(pdfJob.temposPorEtapa![e])}
+                                {idx < arr.length - 1 && <span className="ml-2">•</span>}
+                              </span>
+                            ))}
                           </div>
                         )}
                         <span className="text-[10px] text-muted-foreground/80">
@@ -1235,18 +1245,18 @@ export default function ImpressaoOrdemProducaoPage() {
                   </div>
                 </div>
 
-                {(pdfJob.status === "IDLE" || pdfJob.status === "ERRO") &&
-                  selectedKeys.size > 100 && (
-                    <div className="border-b p-3">
-                      <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertTitle>Lote grande selecionado ({selectedKeys.size} OPs)</AlertTitle>
-                        <AlertDescription>
-                          A primeira geração pode demorar porque os desenhos estão sendo preparados em cache. As próximas gerações serão mais rápidas.
-                        </AlertDescription>
-                      </Alert>
-                    </div>
-                  )}
+                {(pdfJob.status === "IDLE" || pdfJob.status === "ERRO") && selectedKeys.size > 100 && (
+                  <div className="border-b p-3">
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertTitle>Lote grande selecionado ({selectedKeys.size} OPs)</AlertTitle>
+                      <AlertDescription>
+                        A primeira geração pode demorar porque os desenhos estão sendo preparados em cache. As próximas
+                        gerações serão mais rápidas.
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                )}
 
                 {pdfJob.status === "ERRO" && pdfJob.erro && (
                   <div className="border-b p-3">
@@ -1263,7 +1273,6 @@ export default function ImpressaoOrdemProducaoPage() {
                     </Alert>
                   </div>
                 )}
-
 
                 <div className="overflow-x-auto">
                   <Table>
