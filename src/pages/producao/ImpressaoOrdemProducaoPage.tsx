@@ -165,7 +165,6 @@ export default function ImpressaoOrdemProducaoPage() {
   );
   const { data, loading, error, fetchData, reset, retry } = useImpressaoOrdemProducao();
   const opcoes = useOpcoesImpressaoOp();
-  console.log(opcoes);
   const pdfJob = useImpressaoPdfJob();
   const [qualidadePdf, setQualidadePdf] = useState<"rapida" | "normal" | "alta">("normal");
 
