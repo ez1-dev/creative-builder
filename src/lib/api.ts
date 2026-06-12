@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
     (import.meta as any).env?.VITE_ERP_API_URL;
   if (envBase) return stripTrailingSlash(envBase);
   if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
-  return "http://localhost:8000";
+  return "https://flakily-wanning-faye.ngrok-free.dev";
 };
 
 export const setApiBaseUrl = (url: string) => {
