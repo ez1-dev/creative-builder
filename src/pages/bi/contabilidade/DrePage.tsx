@@ -4,15 +4,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Checkbox } from '@/components/ui/checkbox';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
-import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank, Calendar } from 'lucide-react';
+import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { UserWidgetsSlot } from '@/components/bi';
@@ -23,10 +21,13 @@ interface DreLinha {
   ordem?: number;
   codigo_linha?: string;
   descricao?: string;
+  total_realizado?: number | null;
+  total_av?: number | null;
+  total_orcado?: number | null;
   [k: string]: any;
 }
 
-const MESES_BASE: { key: string; label: string }[] = [
+const MESES: { key: string; label: string }[] = [
   { key: 'jan', label: 'Janeiro' },
   { key: 'fev', label: 'Fevereiro' },
   { key: 'mar', label: 'Março' },
@@ -40,7 +41,6 @@ const MESES_BASE: { key: string; label: string }[] = [
   { key: 'nov', label: 'Novembro' },
   { key: 'dez', label: 'Dezembro' },
 ];
-const ALL_MES_KEYS = MESES_BASE.map((m) => m.key);
 
 const CODIGOS_TOTALIZADORES = new Set([
   'RECEITA_LIQUIDA', 'LUCRO_BRUTO', 'EBITDA', 'EBIT', 'RESULTADO_EXERCICIO',
@@ -66,11 +66,9 @@ function findByCodigo(linhas: DreLinha[], codigo: string): DreLinha | undefined 
   return linhas.find((l) => String(l.codigo_linha ?? '').trim().toUpperCase() === codigo);
 }
 
-
 export default function DrePage() {
   const [ano, setAno] = useState<number>(currentYear);
   const [unidade, setUnidade] = useState<Unidade>('TODOS');
-  const [mesesSel, setMesesSel] = useState<string[]>(ALL_MES_KEYS);
   const [loading, setLoading] = useState(false);
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
 
@@ -91,43 +89,9 @@ export default function DrePage() {
     }
   };
 
-  const mesesVisiveis = useMemo(
-    () => MESES_BASE.filter((m) => mesesSel.includes(m.key)),
-    [mesesSel],
-  );
-
-  // Recalcula TOTAL no frontend conforme meses selecionados
   const linhas = useMemo<DreLinha[]>(() => {
-    if (!linhasRaw.length) return [];
-    // primeiro: somar realizado/orcado por linha
-    const computed = linhasRaw.map((l) => {
-      let tr = 0, to = 0;
-      let hasR = false, hasO = false;
-      for (const m of mesesVisiveis) {
-        const r = l[`${m.key}_realizado`];
-        const o = l[`${m.key}_orcado`];
-        if (r != null && !Number.isNaN(Number(r))) { tr += Number(r); hasR = true; }
-        if (o != null && !Number.isNaN(Number(o))) { to += Number(o); hasO = true; }
-      }
-      return {
-        ...l,
-        total_realizado: hasR ? tr : null,
-        total_orcado: hasO ? to : null,
-        total_av: null as number | null,
-      };
-    });
-    // base receita líquida para A.V.
-    const base = computed.find(
-      (l) => String(l.codigo_linha ?? '').trim().toUpperCase() === 'RECEITA_LIQUIDA',
-    );
-    const baseTotal = base?.total_realizado != null ? Number(base.total_realizado) : 0;
-    const out = computed.map((l) => ({
-      ...l,
-      total_av: baseTotal && l.total_realizado != null ? (Number(l.total_realizado) / baseTotal) * 100 : null,
-    }));
-    out.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
-    return out;
-  }, [linhasRaw, mesesVisiveis]);
+    return [...linhasRaw].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+  }, [linhasRaw]);
 
   const isTotalizadora = (l: DreLinha) => {
     const cod = String(l.codigo_linha ?? '').trim().toUpperCase();
@@ -139,15 +103,10 @@ export default function DrePage() {
   const lEbitda = findByCodigo(linhas, 'EBITDA');
   const lLiquido = findByCodigo(linhas, 'RESULTADO_EXERCICIO');
 
-
   const negClass = (v: any) => (v != null && Number(v) < 0 ? 'text-destructive' : '');
 
-  const toggleMes = (key: string) => {
-    setMesesSel((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
-  };
-
   const colunas: { key: string; label: string; isTotal?: boolean }[] = [
-    ...mesesVisiveis,
+    ...MESES,
     { key: 'total', label: 'TOTAL', isTotal: true },
   ];
 
@@ -157,7 +116,7 @@ export default function DrePage() {
       kpis={{}}
       series={{}}
       rows={linhas}
-      filtros={{ ano, unidade, meses: mesesSel }}
+      filtros={{ ano, unidade }}
     >
       <div className="space-y-4 p-4">
         <PageHeader
@@ -170,7 +129,7 @@ export default function DrePage() {
             <CardTitle className="text-sm">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 items-end">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 items-end">
               <div>
                 <Label className="text-xs">Ano</Label>
                 <Input
@@ -191,53 +150,6 @@ export default function DrePage() {
                     <SelectItem value="OUTROS">Outros</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <Label className="text-xs">Meses</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-8 w-full justify-start text-xs font-normal">
-                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                      {mesesSel.length === 12
-                        ? 'Todos os meses'
-                        : mesesSel.length === 0
-                          ? 'Nenhum mês'
-                          : `${mesesSel.length} mês(es)`}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-2" align="start">
-                    <div className="flex items-center justify-between mb-2 px-1">
-                      <button
-                        type="button"
-                        className="text-[11px] text-primary hover:underline"
-                        onClick={() => setMesesSel(ALL_MES_KEYS)}
-                      >
-                        Todos
-                      </button>
-                      <button
-                        type="button"
-                        className="text-[11px] text-muted-foreground hover:underline"
-                        onClick={() => setMesesSel([])}
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-1">
-                      {MESES_BASE.map((m) => (
-                        <label
-                          key={m.key}
-                          className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-xs"
-                        >
-                          <Checkbox
-                            checked={mesesSel.includes(m.key)}
-                            onCheckedChange={() => toggleMes(m.key)}
-                          />
-                          <span>{m.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
               </div>
               <div>
                 <Button size="sm" className="h-8 w-full" onClick={fetchDre} disabled={loading}>
@@ -286,9 +198,9 @@ export default function DrePage() {
                   <tr className="bg-muted">
                     <th
                       rowSpan={2}
-                      className="sticky left-0 top-0 z-40 bg-muted px-3 py-2 text-left font-semibold border-b border-r min-w-[260px]"
+                      className="sticky left-0 top-0 z-40 bg-muted px-3 py-2 text-left font-semibold border-b border-r min-w-[280px]"
                     >
-                      Máscara / Linha
+                      Máscara
                     </th>
                     {colunas.map((m) => (
                       <th
@@ -339,14 +251,12 @@ export default function DrePage() {
                             stickyBg,
                           )}
                         >
-                          <span className="font-mono text-[10px] text-muted-foreground mr-2">{l.codigo_linha ?? ''}</span>
-                          <span>{l.descricao ?? ''}</span>
-
+                          {l.descricao ?? ''}
                         </td>
                         {colunas.map((m) => {
-                          const r = l[`${m.key}_realizado`];
-                          const av = l[`${m.key}_av`];
-                          const o = l[`${m.key}_orcado`];
+                          const r = m.isTotal ? l.total_realizado : l[`${m.key}_realizado`];
+                          const av = m.isTotal ? l.total_av : l[`${m.key}_av`];
+                          const o = m.isTotal ? l.total_orcado : l[`${m.key}_orcado`];
                           const totalCol = !!m.isTotal;
                           return (
                             <Fragment key={`${i}-${m.key}`}>
