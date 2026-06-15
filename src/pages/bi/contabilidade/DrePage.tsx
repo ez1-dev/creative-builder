@@ -331,7 +331,6 @@ export default function DrePage() {
                     const total = isTotalizadora(l);
                     const rowBg = total ? 'bg-primary/10 font-semibold' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30';
                     const stickyBg = total ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30';
-                    const indent = Math.max(0, (l.nivel ?? 0) - 1) * 12;
                     return (
                       <tr key={i} className={cn('border-t', rowBg)}>
                         <td
@@ -340,8 +339,9 @@ export default function DrePage() {
                             stickyBg,
                           )}
                         >
-                          <span className="font-mono text-[10px] text-muted-foreground mr-2">{l.mascara ?? ''}</span>
-                          <span style={{ paddingLeft: indent }}>{l.descricao ?? ''}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground mr-2">{l.codigo_linha ?? ''}</span>
+                          <span>{l.descricao ?? ''}</span>
+
                         </td>
                         {colunas.map((m) => {
                           const r = l[`${m.key}_realizado`];
