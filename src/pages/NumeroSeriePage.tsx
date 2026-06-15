@@ -607,7 +607,118 @@ export default function NumeroSeriePage() {
         </CardContent>
       </Card>
 
+      {/* OP Complementar — Manter GS */}
+      <Card>
+        <CardHeader className="py-3 px-4">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            OP Complementar — Manter GS
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Prepare uma OP complementar origem 250 para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 px-4 pb-4 space-y-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label className="text-xs">OP nova 250 <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                value={opcOpNova}
+                onChange={e => setOpcOpNova(e.target.value)}
+                className="h-8 text-xs"
+                placeholder="Ex.: 100500"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">OP origem</Label>
+              <Input
+                type="number"
+                value={opcOpOrigem}
+                onChange={e => setOpcOpOrigem(e.target.value)}
+                className="h-8 text-xs"
+                placeholder="Opcional"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Origem OP origem</Label>
+              <Input
+                value={opcOrigemOpOrigem}
+                onChange={e => setOpcOrigemOpOrigem(e.target.value)}
+                className="h-8 text-xs font-mono"
+                placeholder="250"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">GS original</Label>
+              <Input
+                value={opcNumeroSerie}
+                onChange={e => setOpcNumeroSerie(e.target.value)}
+                className="h-8 text-xs font-mono"
+                placeholder="Opcional (Ex.: GS-11705)"
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">
+              Justificativa <span className="text-destructive">*</span>
+              <span className="ml-1 text-muted-foreground">(mín. 20 caracteres — {opcJustificativa.trim().length}/20)</span>
+            </Label>
+            <Textarea
+              value={opcJustificativa}
+              onChange={e => setOpcJustificativa(e.target.value)}
+              className="text-xs min-h-[60px]"
+              placeholder="Descreva o motivo da OP complementar e da manutenção do GS..."
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => executarOpComplementar(false)}
+              disabled={opcLoading !== null}
+            >
+              <Search className="h-3.5 w-3.5 mr-1" />
+              {opcLoading === 'simular' ? 'Simulando...' : 'Simular'}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => executarOpComplementar(true)}
+              disabled={opcLoading !== null}
+            >
+              <Link2 className="h-3.5 w-3.5 mr-1" />
+              {opcLoading === 'manter' ? 'Aplicando...' : 'Manter GS na nova OP'}
+            </Button>
+          </div>
+
+          {opcResultado && (
+            <Alert>
+              <AlertTitle className="text-sm">Resultado</AlertTitle>
+              <AlertDescription>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3 text-xs mt-2">
+                  <div><span className="text-muted-foreground">GS encontrado:</span> <Badge variant="outline" className="font-mono ml-1">{opcResultado.numero_serie || '-'}</Badge></div>
+                  <div><span className="text-muted-foreground">OP nova:</span> <Badge variant="outline" className="ml-1">{opcResultado.numero_op_nova || '-'}</Badge></div>
+                  <div><span className="text-muted-foreground">Produto:</span> <span className="font-mono">{opcResultado.codigo_produto || '-'}</span></div>
+                  <div><span className="text-muted-foreground">Derivação:</span> <span className="font-mono">{opcResultado.derivacao || '-'}</span></div>
+                  <div><span className="text-muted-foreground">Pedido:</span> {opcResultado.numero_pedido ?? '-'}</div>
+                  <div><span className="text-muted-foreground">Item:</span> {opcResultado.item_pedido ?? '-'}</div>
+                  <div className="col-span-2 md:col-span-3"><span className="text-muted-foreground">Situação da OP:</span> <Badge variant="outline" className="ml-1">{opcResultado.situacao_op || '-'}</Badge></div>
+                </div>
+                {opcResultado.conflito && (
+                  <Alert variant="destructive" className="mt-3">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle className="text-sm">Conflito</AlertTitle>
+                    <AlertDescription className="text-xs">{opcResultado.conflito}</AlertDescription>
+                  </Alert>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Context card */}
+
       {contexto && (
         <Card>
           <CardHeader className="py-3 px-4">
