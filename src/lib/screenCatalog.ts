@@ -21,7 +21,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/biblioteca-bi':             { codigo: 'BIBLIO_BI',    nome: 'Biblioteca BI' },
   '/contabilidade/balanco':     { codigo: 'CONT_BAL',     nome: 'Contabilidade — Balanço Patrimonial' },
   '/bi/contabilidade/dre':      { codigo: 'CONT_DRE',     nome: 'Contabilidade — DRE' },
-  '/etl/tarefas/ATU_CONTABILIDADE': { codigo: 'CONT_ATU', nome: 'Contabilidade — Atualização' },
+  
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
   '/producao/carga/dashboard':  { codigo: 'PROD_CARGA_BI', nome: 'Carga de Produção — Dashboard BI' },
