@@ -1,24 +1,26 @@
 ## Plano
 
-Trocar a RPC usada em `src/pages/bi/contabilidade/DrePage.tsx` de `bi_dre_matriz_anual` para `bi_dre_matriz_anual_v2`. Toda a estrutura atual (filtros Ano / Mês inicial / Mês final / Unidade, recorte de colunas no frontend via `mesesVisiveis`, primeira coluna sticky, header sticky, scroll horizontal, formatação BRL / percentual / negativos em vermelho entre parênteses, ordenação por `ordem` no frontend) já está implementada como pedido e permanece inalterada.
+A página `src/pages/bi/contabilidade/DrePage.tsx` já chama `bi_dre_matriz_anual_v2` sem `.select()` / `.order()` encadeados e sem nenhuma referência a `bi_dre` ou `bi_dre_matriz_anual`. Só falta um pequeno ajuste para bater exatamente com o contrato pedido (ambos parâmetros como `text`, fallback `'2026'` como string):
 
-### Mudanças pontuais em `DrePage.tsx`
+### Alteração única em `DrePage.tsx` (fetchDre)
 
-1. Linha da chamada RPC:
-   ```ts
-   supabase.rpc('bi_dre_matriz_anual' as any, { ... })
-   ```
-   →
-   ```ts
-   supabase.rpc('bi_dre_matriz_anual_v2' as any, { ... })
-   ```
-   Continua sem `.select()` / `.order()` encadeados, com `p_ano: String(ano || 2026)` e `p_unidade_negocio: unidade === 'TODOS' ? null : unidade`.
+De:
+```ts
+const { data, error } = await supabase.rpc('bi_dre_matriz_anual_v2' as any, {
+  p_ano: String(ano || 2026),
+  p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+});
+```
 
-2. Mensagem de erro no console:
-   ```ts
-   console.error('Erro RPC bi_dre_matriz_anual_v2:', error);
-   ```
+Para:
+```ts
+const { data, error } = await supabase.rpc('bi_dre_matriz_anual_v2' as any, {
+  p_ano: String(ano || '2026'),
+  p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+});
+```
 
-3. Texto do `PageHeader.description`: atualizar a referência para `bi_dre_matriz_anual_v2`.
+Nada mais muda: filtros (Ano / Mês inicial / Mês final / Unidade), recorte de colunas no frontend, ordenação por `ordem` no `useMemo`, formatação BRL/percentual/negativos, sticky header/coluna, KPIs e `console.error('Erro RPC bi_dre_matriz_anual_v2:', error)` permanecem como estão.
 
-Nenhuma outra alteração — contrato de colunas (`<mes>_realizado/_av/_orcado`, `total_*`, `descricao`, `ordem`) é o mesmo. Não há referências remanescentes a `bi_dre` ou `bi_dre_matriz_anual` no arquivo após essas trocas.
+### Observação sobre "function not found in schema cache"
+Se o erro persistir após esse ajuste, o problema não está no frontend — é o PostgREST com cache de schema desatualizado. Nesse caso eu reporto e peço para recarregar o schema do backend (ou confirmar que o Lovable Cloud aponta para o mesmo projeto onde a função `bi_dre_matriz_anual_v2(text, text)` foi criada). O frontend já estará correto.

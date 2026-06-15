@@ -97,7 +97,7 @@ export default function DrePage() {
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc('bi_dre_matriz_anual_v2' as any, {
-        p_ano: String(ano || 2026),
+        p_ano: String(ano || '2026'),
         p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
       });
       if (error) {
