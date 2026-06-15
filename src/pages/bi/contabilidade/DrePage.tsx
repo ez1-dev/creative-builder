@@ -14,6 +14,8 @@ import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters'
 import { toast } from 'sonner';
 import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PageDataProvider } from '@/lib/bi/PageDataContext';
+import { UserWidgetsSlot } from '@/components/bi';
 
 type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
@@ -124,6 +126,20 @@ export default function DrePage() {
   };
 
   return (
+    <PageDataProvider
+      pageKey="contabilidade-dre"
+      kpis={cards}
+      series={series}
+      rows={linhas}
+      filtros={{
+        anomes_ini: anomesIni,
+        anomes_fim: anomesFim,
+        unidade,
+        codigo_empresa: codigoEmpresa,
+        codigo_filial: codigoFilial,
+        centro_custo: centroCusto,
+      }}
+    >
     <div className="space-y-4 p-4">
       <PageHeader
         title="Contabilidade — DRE"
@@ -289,6 +305,13 @@ export default function DrePage() {
           height={260}
         />
       </div>
+
+      <div className="space-y-4 mt-4">
+        <UserWidgetsSlot section="kpis" cols={4} emptyHint={false} />
+        <UserWidgetsSlot section="charts" cols={2} emptyHint={false} />
+        <UserWidgetsSlot section="tables" cols={1} emptyHint={false} />
+      </div>
     </div>
+    </PageDataProvider>
   );
 }

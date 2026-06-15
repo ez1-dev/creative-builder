@@ -39,7 +39,7 @@ const modules = [
   { title: 'Contas a Pagar', url: '/contas-pagar', icon: Landmark },
   { title: 'Contas a Receber', url: '/contas-receber', icon: HandCoins },
   { title: 'Contabilidade — Balanço', url: '/contabilidade/balanco', icon: Landmark },
-  { title: 'Contabilidade — DRE', url: '/contabilidade/dre', icon: BarChart3 },
+  
   { title: 'Passagens Aéreas', url: '/passagens-aereas', icon: Plane },
   { title: 'Manutenção de Frota', url: '/frota', icon: Truck },
   { title: 'Manutenção de Máquinas', url: '/manutencao-maquinas', icon: Cog },
@@ -53,6 +53,7 @@ const biSubItems = [
   { title: 'Metas de Faturamento', url: '/bi/comercial/metas', icon: BarChart3 },
   { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileCheck },
   { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
+  { title: 'Contabilidade — DRE', url: '/bi/contabilidade/dre', icon: BarChart3 },
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
   { title: 'Central ETL', url: '/etl', icon: Database },
 ];

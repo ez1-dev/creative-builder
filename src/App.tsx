@@ -60,7 +60,7 @@ import RelatorioExecutivoPassagensPage from "@/pages/relatorios/RelatorioExecuti
 import RelatorioExecutivoFrotaPage from "@/pages/relatorios/RelatorioExecutivoFrotaPage";
 import RelatorioExecutivoMaquinasPage from "@/pages/relatorios/RelatorioExecutivoMaquinasPage";
 import BalancoPatrimonialPage from "@/pages/contabilidade/BalancoPatrimonialPage";
-import DrePage from "@/pages/contabilidade/DrePage";
+import DrePage from "@/pages/bi/contabilidade/DrePage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
@@ -138,7 +138,7 @@ const App = () => (
               <Route path="/bi/faturamento/relatorio-executivo" element={<ProtectedRoute path="/bi/faturamento/relatorio-executivo"><RelatorioExecutivoFaturamentoPage /></ProtectedRoute>} />
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
-              <Route path="/contabilidade/dre" element={<ProtectedRoute path="/contabilidade/dre"><DrePage /></ProtectedRoute>} />
+              <Route path="/bi/contabilidade/dre" element={<ProtectedRoute path="/bi/contabilidade/dre"><DrePage /></ProtectedRoute>} />
               {/* Regras Senior */}
               <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />
