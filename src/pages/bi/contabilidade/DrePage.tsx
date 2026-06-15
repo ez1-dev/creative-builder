@@ -21,10 +21,8 @@ type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
 interface DreLinha {
   ordem?: number;
-  mascara?: string;
+  codigo_linha?: string;
   descricao?: string;
-  totalizadora?: boolean;
-  nivel?: number;
   [k: string]: any;
 }
 
@@ -44,10 +42,8 @@ const MESES_BASE: { key: string; label: string }[] = [
 ];
 const ALL_MES_KEYS = MESES_BASE.map((m) => m.key);
 
-const TOTALIZADORAS = new Set([
-  'RECEITA LÍQUIDA', 'RECEITA LIQUIDA',
-  'LUCRO BRUTO', 'EBITDA', 'EBIT',
-  'RESULTADO DO EXERCÍCIO', 'RESULTADO DO EXERCICIO',
+const CODIGOS_TOTALIZADORES = new Set([
+  'RECEITA_LIQUIDA', 'LUCRO_BRUTO', 'EBITDA', 'EBIT', 'RESULTADO_EXERCICIO',
 ]);
 
 const fmtSigned = (v: number | null | undefined) => {
@@ -66,12 +62,10 @@ const fmtSignedPct = (v: number | null | undefined) => {
 
 const currentYear = new Date().getFullYear();
 
-function findLinhaByDesc(linhas: DreLinha[], needles: string[]): DreLinha | undefined {
-  return linhas.find((l) => {
-    const d = String(l.descricao ?? '').trim().toUpperCase();
-    return needles.some((n) => d === n || d.startsWith(n));
-  });
+function findByCodigo(linhas: DreLinha[], codigo: string): DreLinha | undefined {
+  return linhas.find((l) => String(l.codigo_linha ?? '').trim().toUpperCase() === codigo);
 }
+
 
 export default function DrePage() {
   const [ano, setAno] = useState<number>(currentYear);
@@ -123,27 +117,28 @@ export default function DrePage() {
       };
     });
     // base receita líquida para A.V.
-    const base = computed.find((l) => {
-      const d = String(l.descricao ?? '').trim().toUpperCase();
-      return d === 'RECEITA LÍQUIDA' || d === 'RECEITA LIQUIDA' || d.startsWith('RECEITA LÍQUIDA') || d.startsWith('RECEITA LIQUIDA');
-    });
+    const base = computed.find(
+      (l) => String(l.codigo_linha ?? '').trim().toUpperCase() === 'RECEITA_LIQUIDA',
+    );
     const baseTotal = base?.total_realizado != null ? Number(base.total_realizado) : 0;
-    return computed.map((l) => ({
+    const out = computed.map((l) => ({
       ...l,
       total_av: baseTotal && l.total_realizado != null ? (Number(l.total_realizado) / baseTotal) * 100 : null,
     }));
+    out.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+    return out;
   }, [linhasRaw, mesesVisiveis]);
 
   const isTotalizadora = (l: DreLinha) => {
-    if (l.totalizadora) return true;
-    const nome = String(l.descricao ?? '').trim().toUpperCase();
-    return TOTALIZADORAS.has(nome);
+    const cod = String(l.codigo_linha ?? '').trim().toUpperCase();
+    return CODIGOS_TOTALIZADORES.has(cod);
   };
 
-  const lReceita = findLinhaByDesc(linhas, ['RECEITA BRUTA']);
-  const lLucroBruto = findLinhaByDesc(linhas, ['LUCRO BRUTO']);
-  const lEbitda = findLinhaByDesc(linhas, ['EBITDA']);
-  const lLiquido = findLinhaByDesc(linhas, ['RESULTADO DO EXERCÍCIO', 'RESULTADO DO EXERCICIO', 'LUCRO LÍQUIDO', 'LUCRO LIQUIDO']);
+  const lReceita = findByCodigo(linhas, 'RECEITA_BRUTA');
+  const lLucroBruto = findByCodigo(linhas, 'LUCRO_BRUTO');
+  const lEbitda = findByCodigo(linhas, 'EBITDA');
+  const lLiquido = findByCodigo(linhas, 'RESULTADO_EXERCICIO');
+
 
   const negClass = (v: any) => (v != null && Number(v) < 0 ? 'text-destructive' : '');
 
@@ -336,7 +331,6 @@ export default function DrePage() {
                     const total = isTotalizadora(l);
                     const rowBg = total ? 'bg-primary/10 font-semibold' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30';
                     const stickyBg = total ? 'bg-primary/10' : i % 2 === 0 ? 'bg-background' : 'bg-muted/30';
-                    const indent = Math.max(0, (l.nivel ?? 0) - 1) * 12;
                     return (
                       <tr key={i} className={cn('border-t', rowBg)}>
                         <td
@@ -345,8 +339,9 @@ export default function DrePage() {
                             stickyBg,
                           )}
                         >
-                          <span className="font-mono text-[10px] text-muted-foreground mr-2">{l.mascara ?? ''}</span>
-                          <span style={{ paddingLeft: indent }}>{l.descricao ?? ''}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground mr-2">{l.codigo_linha ?? ''}</span>
+                          <span>{l.descricao ?? ''}</span>
+
                         </td>
                         {colunas.map((m) => {
                           const r = l[`${m.key}_realizado`];

@@ -1,20 +1,29 @@
-# Filtro de Meses na DRE
+# Ajuste DrePage para contrato `codigo_linha` da RPC
 
-Adicionar filtro de meses (seleção múltipla) ao `src/pages/bi/contabilidade/DrePage.tsx`. Mudança 100% frontend — a RPC `bi_dre_matriz_anual` continua retornando todos os 12 meses, e o frontend apenas oculta as colunas não selecionadas e recalcula a coluna TOTAL.
+A página já chama `bi_dre_matriz_anual` e renderiza matriz mensal sticky. Os ajustes restantes alinham o frontend ao contrato real da RPC corrigida (que agora devolve `codigo_linha` em vez de `mascara`) e mudam o lookup dos KPIs para usar esses códigos.
 
-## Alterações
+## Alterações em `src/pages/bi/contabilidade/DrePage.tsx`
 
-**`src/pages/bi/contabilidade/DrePage.tsx`**
+1. **Tipo `DreLinha`**: trocar campo `mascara` por `codigo_linha` (manter `descricao`, `ordem`; remover `totalizadora`/`nivel` se não existirem mais no retorno — manter como opcionais, sem quebrar render).
+2. **Primeira coluna da tabela**:
+   - Cabeçalho continua "Máscara".
+   - Célula passa a mostrar `codigo_linha` no chip mono e `descricao` ao lado.
+   - Remover indent por `nivel` (não está no contrato listado).
+3. **Detecção de linha totalizadora** (para o destaque `bg-primary/10 font-semibold`): passar a usar `codigo_linha` em um set fixo:
+   `RECEITA_LIQUIDA`, `LUCRO_BRUTO`, `EBITDA`, `EBIT`, `RESULTADO_EXERCICIO`.
+4. **Base de A.V. recalculado pelo filtro de meses**: localizar a linha por `codigo_linha === 'RECEITA_LIQUIDA'` em vez de descrição.
+5. **KPIs**: substituir `findLinhaByDesc` por `findByCodigo(linhas, codigo)` e mapear:
+   - Receita Bruta → `RECEITA_BRUTA`
+   - Lucro Bruto → `LUCRO_BRUTO`
+   - EBITDA → `EBITDA`
+   - Lucro Líquido → `RESULTADO_EXERCICIO`
+6. **Ordenação**: aplicar `sort((a,b) => (a.ordem ?? 0) - (b.ordem ?? 0))` ao montar `linhas` (defensivo — a RPC já ordena).
+7. **`PageDataProvider` rows**: continua com `linhas`.
 
-1. Novo estado `mesesSelecionados: string[]` — default todos os 12 meses (`['jan',...,'dez']`).
-2. Novo controle de filtro ao lado de Unidade: dropdown popover com checkboxes (um por mês + "Todos" / "Limpar"). Usa `Popover` + `Checkbox` do shadcn já disponíveis. Label do botão: "Meses (N)" mostrando contagem.
-3. Derivar `MESES_VISIVEIS` filtrando o array `MESES` atual pelos selecionados, mantendo sempre o item `total` ao final.
-4. Recalcular a coluna TOTAL no frontend para cada linha: `total_realizado = soma(realizado dos meses visíveis)`, idem `total_orcado`. Para `total_av`, recomputar como `total_realizado_linha / total_realizado_da_linha_RECEITA_LIQUIDA * 100` (mesma lógica da RPC).
-5. KPIs (Receita Bruta, Lucro Bruto, EBITDA, Lucro Líquido) passam a usar esses totais recalculados em vez de `total_realizado` cru da RPC, para refletir o filtro.
-6. Cabeçalho e linhas iteram sobre `MESES_VISIVEIS` em vez de `MESES`. `colSpan`/contagem de colunas vazias ajustados automaticamente.
+Formatação, sticky header, filtro de Ano/Unidade/Meses, recálculo de TOTAL pelos meses selecionados e estilo de negativos (parênteses + `text-destructive`) permanecem como estão hoje.
 
 ## Fora de escopo
 
-- Mudar a RPC ou migrações.
-- Persistir seleção entre sessões.
-- Filtrar dados no backend (segue retornando 12 meses).
+- Mudanças na RPC ou migrações.
+- Restaurar gráficos antigos.
+- Drill-down por célula.
