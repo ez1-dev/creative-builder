@@ -206,6 +206,117 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_estrutura: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          id: string
+          mascara: string
+          nivel: number
+          ordem: number
+          sinal: number
+          totalizadora: boolean
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao: string
+          id?: string
+          mascara: string
+          nivel?: number
+          ordem?: number
+          sinal?: number
+          totalizadora?: boolean
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          id?: string
+          mascara?: string
+          nivel?: number
+          ordem?: number
+          sinal?: number
+          totalizadora?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bi_dre_mascara: {
+        Row: {
+          cd_conta: string
+          created_at: string
+          id: string
+          mascara: string
+          unidade_negocio: string | null
+          updated_at: string
+        }
+        Insert: {
+          cd_conta: string
+          created_at?: string
+          id?: string
+          mascara: string
+          unidade_negocio?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cd_conta?: string
+          created_at?: string
+          id?: string
+          mascara?: string
+          unidade_negocio?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bi_etl_v_balanco_patrimonial: {
+        Row: {
+          anomes_referente: number | null
+          cd_conta: string | null
+          cd_empresa: number | null
+          cd_filial: number | null
+          created_at: string
+          descricao_conta: string | null
+          extras: Json | null
+          grupo: string | null
+          id: string
+          mascara: string | null
+          updated_at: string
+          vl_saldo: number | null
+        }
+        Insert: {
+          anomes_referente?: number | null
+          cd_conta?: string | null
+          cd_empresa?: number | null
+          cd_filial?: number | null
+          created_at?: string
+          descricao_conta?: string | null
+          extras?: Json | null
+          grupo?: string | null
+          id?: string
+          mascara?: string | null
+          updated_at?: string
+          vl_saldo?: number | null
+        }
+        Update: {
+          anomes_referente?: number | null
+          cd_conta?: string | null
+          cd_empresa?: number | null
+          cd_filial?: number | null
+          created_at?: string
+          descricao_conta?: string | null
+          extras?: Json | null
+          grupo?: string | null
+          id?: string
+          mascara?: string | null
+          updated_at?: string
+          vl_saldo?: number | null
+        }
+        Relationships: []
+      }
       bi_faturamento: {
         Row: {
           ano_emissao: string | null
@@ -851,6 +962,102 @@ export type Database = {
           title?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      bi_vm_lanc_contabil: {
+        Row: {
+          anomes_referente: number | null
+          cd_conta: string | null
+          cd_empresa: number | null
+          cd_filial: number | null
+          centro_custo: string | null
+          created_at: string
+          extras: Json | null
+          id: string
+          mascara: string | null
+          unidade_negocio: string | null
+          updated_at: string
+          vl_credito: number | null
+          vl_debito: number | null
+          vl_saldo: number | null
+        }
+        Insert: {
+          anomes_referente?: number | null
+          cd_conta?: string | null
+          cd_empresa?: number | null
+          cd_filial?: number | null
+          centro_custo?: string | null
+          created_at?: string
+          extras?: Json | null
+          id?: string
+          mascara?: string | null
+          unidade_negocio?: string | null
+          updated_at?: string
+          vl_credito?: number | null
+          vl_debito?: number | null
+          vl_saldo?: number | null
+        }
+        Update: {
+          anomes_referente?: number | null
+          cd_conta?: string | null
+          cd_empresa?: number | null
+          cd_filial?: number | null
+          centro_custo?: string | null
+          created_at?: string
+          extras?: Json | null
+          id?: string
+          mascara?: string | null
+          unidade_negocio?: string | null
+          updated_at?: string
+          vl_credito?: number | null
+          vl_debito?: number | null
+          vl_saldo?: number | null
+        }
+        Relationships: []
+      }
+      bi_vm_orc_dre: {
+        Row: {
+          anomes_referente: number | null
+          cd_empresa: number | null
+          cd_filial: number | null
+          centro_custo: string | null
+          created_at: string
+          descricao_linha: string | null
+          extras: Json | null
+          id: string
+          mascara: string | null
+          unidade_negocio: string | null
+          updated_at: string
+          vl_orcado: number | null
+        }
+        Insert: {
+          anomes_referente?: number | null
+          cd_empresa?: number | null
+          cd_filial?: number | null
+          centro_custo?: string | null
+          created_at?: string
+          descricao_linha?: string | null
+          extras?: Json | null
+          id?: string
+          mascara?: string | null
+          unidade_negocio?: string | null
+          updated_at?: string
+          vl_orcado?: number | null
+        }
+        Update: {
+          anomes_referente?: number | null
+          cd_empresa?: number | null
+          cd_filial?: number | null
+          centro_custo?: string | null
+          created_at?: string
+          descricao_linha?: string | null
+          extras?: Json | null
+          id?: string
+          mascara?: string | null
+          unidade_negocio?: string | null
+          updated_at?: string
+          vl_orcado?: number | null
         }
         Relationships: []
       }

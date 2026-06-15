@@ -1,49 +1,54 @@
-## Contexto
+## Causa
 
-A tela já existe em `/etl/tarefas/ATU_CONTABILIDADE` (`src/pages/EtlTarefaDetalhePage.tsx`) e já carrega as 4 ações da tabela:
+O endpoint `GET /api/bi/contabilidade/dre` (FastAPI) lê 4 tabelas no Cloud — `bi_vm_orc_dre`, `bi_vm_lanc_contabil`, `bi_dre_estrutura`, `bi_dre_mascara` — e a `BalancoPatrimonialPage` consome dados de `bi_etl_v_balanco_patrimonial`. **Nenhuma dessas tabelas existe** ainda no banco. PostgREST então responde `PGRST205 / 404` para qualquer GET nelas (caso do `bi_dre_estrutura` que você viu).
 
-| ordem | id_acao | nome_acao | tabela_destino | estrategia | caso_erro | ativa |
-|---|---|---|---|---|---|---|
-| 1 | VM_ORC_DRE | Orçamento DRE | bi_vm_orc_dre | REPLACE_PERIODO | PARAR | sim |
-| 2 | VM_LANC_CONTABIL | Lançamentos contábeis | bi_vm_lanc_contabil | REPLACE_PERIODO | PARAR | sim |
-| 3 | ETL_V_BALANCO_PATRIMONIAL | Balanço patrimonial | bi_etl_v_balanco_patrimonial | REPLACE_PERIODO | PARAR | sim |
-| 99 | ATU_CONTABILIDADE | Finalização contabilidade | — | REPLACE_PERIODO | CONTINUAR | sim |
+As 3 tabelas de fato (`bi_vm_orc_dre`, `bi_vm_lanc_contabil`, `bi_etl_v_balanco_patrimonial`) são populadas pelo ETL (`ATU_CONTABILIDADE`), e as 2 dimensionais (`bi_dre_estrutura`, `bi_dre_mascara`) são tabelas de configuração mantidas manualmente.
 
-O botão **SQL** já abre `EditarSqlModal` lendo/gravando o SQL daquela ação isolada, e o botão **Executar** já chama `POST /api/etl/acoes/{id_acao}/executar` por linha. A ação 99 já contém apenas `BEGIN ezortea.ATU_CONTABILIDADE($[ANOMES_INI],$[ANOMES_FIM]); END`.
+## Plano (1 migration)
 
-## Diferença importante de nomenclatura (não precisa migração)
+Criar as 5 tabelas no schema `public`, com:
 
-Os nomes pedidos no chat **não existem** no banco — o frontend já usa os corretos:
+- Colunas padronizadas em minúsculo (compatível com `normalizar_rows_supabase` documentado em `docs/backend-etl-normalizacao-rows.md`).
+- `id uuid pk default gen_random_uuid()`, `created_at`/`updated_at`.
+- Índice em `(cd_empresa, anomes_referente)` para as tabelas de fato.
+- Coluna `extras jsonb` para campos que o ERP possa enviar fora do esquema mínimo (evita novo erro "Nenhuma coluna válida encontrada").
+- `GRANT SELECT ON ... TO authenticated`, `GRANT ALL ... TO service_role` (ETL e endpoints contábeis rodam com service role; UI lê via FastAPI, não direto).
+- `ENABLE RLS` + policy `SELECT` apenas para `authenticated` (somente admin via `is_admin(auth.uid())` para `bi_dre_estrutura` e `bi_dre_mascara`, que podem ser editáveis no futuro).
 
-| pedido no chat | coluna real |
-|---|---|
-| `codigo_tarefa` | `etl_tarefas.nome_tarefa` |
-| `codigo_acao` | `etl_acoes.id_acao` (text) |
-| `comando_sql` | `etl_acoes.sql_template` |
+### Esquema proposto
 
-`/api/etl/acoes/{acao_ref}/executar` recebe o `id_acao` como `{acao_ref}` (ver `docs/backend-etl-central.md`). Nada muda nesse contrato.
+```text
+bi_vm_orc_dre
+  cd_empresa int, cd_filial int, anomes_referente int,
+  mascara text, descricao_linha text, unidade_negocio text,
+  centro_custo text, vl_orcado numeric(18,2), extras jsonb
 
-## Ajustes a fazer (somente frontend, na `EtlTarefaDetalhePage`)
+bi_vm_lanc_contabil
+  cd_empresa int, cd_filial int, anomes_referente int,
+  cd_conta text, mascara text, centro_custo text,
+  unidade_negocio text, vl_debito numeric(18,2),
+  vl_credito numeric(18,2), vl_saldo numeric(18,2), extras jsonb
 
-1. **Renomear os cabeçalhos da tabela de Ações** para bater com o vocabulário pedido:
-   - `ID` → **Código** (continua mostrando `id_acao`)
-   - `Nome` → **Descrição** (continua mostrando `nome_acao`)
-   - `Tabela` → **Tabela destino**
-   - `Estratégia`, `Caso erro`, `Ativa` permanecem.
-2. **Remover as colunas extras** que não foram pedidas para esta tela: `Endpoint` e `SQL (versão)`. A versão do SQL continua visível dentro do modal `EditarSqlModal`.
-3. **Reordenar os botões da última coluna** para a ordem pedida: `SQL` e depois `Executar` (já está nessa ordem; manter).
-4. **Manter** o comportamento atual de:
-   - Modal `EditarSqlModal` carregando `sql_template` da ação clicada (visualizar/editar/salvar; admin edita, demais só leem).
-   - `POST /api/etl/acoes/{id_acao}/executar` por linha via `ExecutarModal`.
-   - Botão "Executar tarefa" no header, que dispara a tarefa inteira (ordem 1 → 2 → 3 → 99).
-5. **Não alterar** `EtlTarefaDetalhePage` para outras tarefas: o ajuste de colunas vale só quando `tarefa.nome_tarefa === 'ATU_CONTABILIDADE'` — para `ATU_COMERCIAL` e demais tarefas a tela continua mostrando Endpoint + versão de SQL como hoje.
+bi_etl_v_balanco_patrimonial
+  cd_empresa int, cd_filial int, anomes_referente int,
+  cd_conta text, mascara text, descricao_conta text,
+  grupo text, vl_saldo numeric(18,2), extras jsonb
 
-## Fora de escopo
+bi_dre_estrutura  (configuração)
+  ordem int, mascara text unique, descricao text,
+  totalizadora bool, sinal smallint, nivel smallint, ativo bool
 
-- Nenhuma migração de schema (não criar `codigo_acao`/`codigo_tarefa`/`comando_sql`).
-- Nenhuma mudança no backend FastAPI — o resolver de `{acao_ref}` por `id_acao` já está documentado em `docs/backend-etl-central.md` e `docs/backend-etl-contabilidade.md`.
-- Conteúdo do SQL do `ETL_V_BALANCO_PATRIMONIAL` (hoje vazio no banco) — o usuário cola via botão **SQL** da própria tela; não vamos chumbar SQL em código.
+bi_dre_mascara    (de→para conta→máscara DRE)
+  cd_conta text, mascara text, unidade_negocio text,
+  unique (cd_conta, coalesce(unidade_negocio,''))
+```
 
-## Arquivos afetados
+## O que NÃO faço
 
-- `src/pages/EtlTarefaDetalhePage.tsx` — apenas a definição de `acoesColumns` (condicional por `nome_tarefa`).
+- Não popular dados (será via ETL `ATU_CONTABILIDADE`).
+- Não tocar no FastAPI nem nas páginas existentes (`DrePage`, `BalancoPatrimonialPage`).
+- Não alterar `src/integrations/supabase/{client,types}.ts` (auto-gerado).
+
+## Confirmação
+
+Os campos exatos de `bi_dre_estrutura` e `bi_dre_mascara` dependem de como o backend FastAPI espera ler. O esquema acima é o mínimo razoável; se você tiver o DDL oficial do backend, me envie para eu usar literalmente.
