@@ -131,25 +131,44 @@ export default function EtlTarefaDetalhePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nome]);
 
+  const ehContabilidade = (tarefa?.nome_tarefa ?? nome).toUpperCase() === 'ATU_CONTABILIDADE';
   const acoesColumns: Column<EtlAcao>[] = [
     { key: 'ordem', header: 'Ordem' },
-    { key: 'id_acao', header: 'ID', render: (_v, r) => <span className="font-mono">{r.id_acao}</span> },
-    { key: 'nome_acao', header: 'Nome' },
-    { key: 'endpoint_api', header: 'Endpoint', render: (_v, r) => <span className="font-mono text-xs">{r.endpoint_api ?? '—'}</span> },
-    { key: 'tabela_destino', header: 'Tabela', render: (_v, r) => <span className="font-mono text-xs">{r.tabela_destino ?? '—'}</span> },
+    {
+      key: 'id_acao',
+      header: ehContabilidade ? 'Código' : 'ID',
+      render: (_v, r) => <span className="font-mono">{r.id_acao}</span>,
+    },
+    { key: 'nome_acao', header: ehContabilidade ? 'Descrição' : 'Nome' },
+    ...(ehContabilidade
+      ? []
+      : [{
+          key: 'endpoint_api',
+          header: 'Endpoint',
+          render: (_v: unknown, r: EtlAcao) => (
+            <span className="font-mono text-xs">{r.endpoint_api ?? '—'}</span>
+          ),
+        } as Column<EtlAcao>]),
+    {
+      key: 'tabela_destino',
+      header: ehContabilidade ? 'Tabela destino' : 'Tabela',
+      render: (_v, r) => <span className="font-mono text-xs">{r.tabela_destino ?? '—'}</span>,
+    },
     { key: 'estrategia_carga', header: 'Estratégia' },
     { key: 'caso_erro', header: 'Caso erro' },
     { key: 'ativa', header: 'Ativa', render: (_v, r) => (r.ativa ? <Badge>Sim</Badge> : <Badge variant="outline">Não</Badge>) },
-    {
-      key: 'sql_versao',
-      header: 'SQL',
-      render: (_v, r) =>
-        r.sql_template ? (
-          <Badge variant="outline" className="font-mono">v{r.sql_versao}</Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        ),
-    },
+    ...(ehContabilidade
+      ? []
+      : [{
+          key: 'sql_versao',
+          header: 'SQL',
+          render: (_v: unknown, r: EtlAcao) =>
+            r.sql_template ? (
+              <Badge variant="outline" className="font-mono">v{r.sql_versao}</Badge>
+            ) : (
+              <span className="text-xs text-muted-foreground">—</span>
+            ),
+        } as Column<EtlAcao>]),
     {
       key: 'exec',
       header: '',
