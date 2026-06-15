@@ -27,19 +27,19 @@ interface DreLinha {
   [k: string]: any;
 }
 
-const MESES: { key: string; label: string }[] = [
-  { key: 'jan', label: 'Janeiro' },
-  { key: 'fev', label: 'Fevereiro' },
-  { key: 'mar', label: 'Março' },
-  { key: 'abr', label: 'Abril' },
-  { key: 'mai', label: 'Maio' },
-  { key: 'jun', label: 'Junho' },
-  { key: 'jul', label: 'Julho' },
-  { key: 'ago', label: 'Agosto' },
-  { key: 'set', label: 'Setembro' },
-  { key: 'out', label: 'Outubro' },
-  { key: 'nov', label: 'Novembro' },
-  { key: 'dez', label: 'Dezembro' },
+const MESES: { key: string; numero: string; label: string }[] = [
+  { key: 'jan', numero: '01', label: 'Janeiro' },
+  { key: 'fev', numero: '02', label: 'Fevereiro' },
+  { key: 'mar', numero: '03', label: 'Março' },
+  { key: 'abr', numero: '04', label: 'Abril' },
+  { key: 'mai', numero: '05', label: 'Maio' },
+  { key: 'jun', numero: '06', label: 'Junho' },
+  { key: 'jul', numero: '07', label: 'Julho' },
+  { key: 'ago', numero: '08', label: 'Agosto' },
+  { key: 'set', numero: '09', label: 'Setembro' },
+  { key: 'out', numero: '10', label: 'Outubro' },
+  { key: 'nov', numero: '11', label: 'Novembro' },
+  { key: 'dez', numero: '12', label: 'Dezembro' },
 ];
 
 const CODIGOS_TOTALIZADORES = new Set([
@@ -69,8 +69,29 @@ function findByCodigo(linhas: DreLinha[], codigo: string): DreLinha | undefined 
 export default function DrePage() {
   const [ano, setAno] = useState<number>(currentYear);
   const [unidade, setUnidade] = useState<Unidade>('TODOS');
+  const [mesInicial, setMesInicial] = useState<string>('01');
+  const [mesFinal, setMesFinal] = useState<string>('12');
   const [loading, setLoading] = useState(false);
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
+
+  const handleMesInicialChange = (v: string) => {
+    setMesInicial(v);
+    if (v > mesFinal) {
+      const novoFim = MESES.find((m) => m.numero === v);
+      setMesFinal(v);
+      if (novoFim) toast.info(`Mês final ajustado para ${novoFim.label}.`);
+    }
+  };
+
+  const handleMesFinalChange = (v: string) => {
+    if (v < mesInicial) {
+      const novoIni = MESES.find((m) => m.numero === mesInicial);
+      setMesFinal(mesInicial);
+      if (novoIni) toast.info(`Mês final não pode ser anterior ao mês inicial (${novoIni.label}).`);
+      return;
+    }
+    setMesFinal(v);
+  };
 
   const fetchDre = async () => {
     setLoading(true);
@@ -115,7 +136,7 @@ export default function DrePage() {
   const negClass = (v: any) => (v != null && Number(v) < 0 ? 'text-destructive' : '');
 
   const colunas: { key: string; label: string; isTotal?: boolean }[] = [
-    ...MESES,
+    ...MESES.filter((m) => m.numero >= mesInicial && m.numero <= mesFinal),
     { key: 'total', label: 'TOTAL', isTotal: true },
   ];
 
@@ -138,7 +159,7 @@ export default function DrePage() {
             <CardTitle className="text-sm">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 items-end">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 items-end">
               <div>
                 <Label className="text-xs">Ano</Label>
                 <Input
@@ -147,6 +168,28 @@ export default function DrePage() {
                   value={ano}
                   onChange={(e) => setAno(Number(e.target.value) || currentYear)}
                 />
+              </div>
+              <div>
+                <Label className="text-xs">Mês inicial</Label>
+                <Select value={mesInicial} onValueChange={handleMesInicialChange}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MESES.map((m) => (
+                      <SelectItem key={m.numero} value={m.numero}>{m.numero} - {m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Mês final</Label>
+                <Select value={mesFinal} onValueChange={handleMesFinalChange}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MESES.map((m) => (
+                      <SelectItem key={m.numero} value={m.numero}>{m.numero} - {m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs">Unidade de negócio</Label>
