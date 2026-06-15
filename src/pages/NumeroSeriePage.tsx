@@ -122,6 +122,16 @@ export default function NumeroSeriePage() {
   const [trocarPedido, setTrocarPedido] = useState<string>('');
   const [trocarItem, setTrocarItem] = useState<string>('1');
 
+  // OP Complementar — Manter GS
+  const [opcOpNova, setOpcOpNova] = useState('');
+  const [opcOpOrigem, setOpcOpOrigem] = useState('');
+  const [opcOrigemOpOrigem, setOpcOrigemOpOrigem] = useState('250');
+  const [opcNumeroSerie, setOpcNumeroSerie] = useState('');
+  const [opcJustificativa, setOpcJustificativa] = useState('');
+  const [opcLoading, setOpcLoading] = useState<'simular' | 'manter' | null>(null);
+  const [opcResultado, setOpcResultado] = useState<ResultadoOpComplementar | null>(null);
+
+
   const erpReady = useErpReady();
 
   useAiPageContext({
