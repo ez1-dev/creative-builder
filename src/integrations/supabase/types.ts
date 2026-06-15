@@ -3243,6 +3243,55 @@ export type Database = {
       }
     }
     Functions: {
+      bi_dre_matriz_anual: {
+        Args: { p_ano: number; p_unidade_negocio?: string }
+        Returns: {
+          abr_av: number
+          abr_orcado: number
+          abr_realizado: number
+          ago_av: number
+          ago_orcado: number
+          ago_realizado: number
+          descricao: string
+          dez_av: number
+          dez_orcado: number
+          dez_realizado: number
+          fev_av: number
+          fev_orcado: number
+          fev_realizado: number
+          jan_av: number
+          jan_orcado: number
+          jan_realizado: number
+          jul_av: number
+          jul_orcado: number
+          jul_realizado: number
+          jun_av: number
+          jun_orcado: number
+          jun_realizado: number
+          mai_av: number
+          mai_orcado: number
+          mai_realizado: number
+          mar_av: number
+          mar_orcado: number
+          mar_realizado: number
+          mascara: string
+          nivel: number
+          nov_av: number
+          nov_orcado: number
+          nov_realizado: number
+          ordem: number
+          out_av: number
+          out_orcado: number
+          out_realizado: number
+          set_av: number
+          set_orcado: number
+          set_realizado: number
+          total_av: number
+          total_orcado: number
+          total_realizado: number
+          totalizadora: boolean
+        }[]
+      }
       can_delete_frota: { Args: { _uid: string }; Returns: boolean }
       can_edit_bi_meta: { Args: { _uid: string }; Returns: boolean }
       can_edit_dashboard: {
