@@ -1,16 +1,18 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
-import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank } from 'lucide-react';
+import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { UserWidgetsSlot } from '@/components/bi';
@@ -23,10 +25,10 @@ interface DreLinha {
   descricao?: string;
   totalizadora?: boolean;
   nivel?: number;
-  [k: string]: any; // jan_realizado, jan_av, jan_orcado, ..., total_realizado, total_av, total_orcado
+  [k: string]: any;
 }
 
-const MESES: { key: string; label: string }[] = [
+const MESES_BASE: { key: string; label: string }[] = [
   { key: 'jan', label: 'Janeiro' },
   { key: 'fev', label: 'Fevereiro' },
   { key: 'mar', label: 'Março' },
@@ -39,8 +41,8 @@ const MESES: { key: string; label: string }[] = [
   { key: 'out', label: 'Outubro' },
   { key: 'nov', label: 'Novembro' },
   { key: 'dez', label: 'Dezembro' },
-  { key: 'total', label: 'TOTAL' },
 ];
+const ALL_MES_KEYS = MESES_BASE.map((m) => m.key);
 
 const TOTALIZADORAS = new Set([
   'RECEITA LÍQUIDA', 'RECEITA LIQUIDA',
@@ -74,8 +76,9 @@ function findLinhaByDesc(linhas: DreLinha[], needles: string[]): DreLinha | unde
 export default function DrePage() {
   const [ano, setAno] = useState<number>(currentYear);
   const [unidade, setUnidade] = useState<Unidade>('TODOS');
+  const [mesesSel, setMesesSel] = useState<string[]>(ALL_MES_KEYS);
   const [loading, setLoading] = useState(false);
-  const [linhas, setLinhas] = useState<DreLinha[]>([]);
+  const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
 
   const fetchDre = async () => {
     setLoading(true);
@@ -85,14 +88,51 @@ export default function DrePage() {
         p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
       });
       if (error) throw error;
-      setLinhas((data as DreLinha[]) ?? []);
+      setLinhasRaw((data as DreLinha[]) ?? []);
     } catch (err: any) {
       toast.error(err?.message || 'Falha ao carregar DRE');
-      setLinhas([]);
+      setLinhasRaw([]);
     } finally {
       setLoading(false);
     }
   };
+
+  const mesesVisiveis = useMemo(
+    () => MESES_BASE.filter((m) => mesesSel.includes(m.key)),
+    [mesesSel],
+  );
+
+  // Recalcula TOTAL no frontend conforme meses selecionados
+  const linhas = useMemo<DreLinha[]>(() => {
+    if (!linhasRaw.length) return [];
+    // primeiro: somar realizado/orcado por linha
+    const computed = linhasRaw.map((l) => {
+      let tr = 0, to = 0;
+      let hasR = false, hasO = false;
+      for (const m of mesesVisiveis) {
+        const r = l[`${m.key}_realizado`];
+        const o = l[`${m.key}_orcado`];
+        if (r != null && !Number.isNaN(Number(r))) { tr += Number(r); hasR = true; }
+        if (o != null && !Number.isNaN(Number(o))) { to += Number(o); hasO = true; }
+      }
+      return {
+        ...l,
+        total_realizado: hasR ? tr : null,
+        total_orcado: hasO ? to : null,
+        total_av: null as number | null,
+      };
+    });
+    // base receita líquida para A.V.
+    const base = computed.find((l) => {
+      const d = String(l.descricao ?? '').trim().toUpperCase();
+      return d === 'RECEITA LÍQUIDA' || d === 'RECEITA LIQUIDA' || d.startsWith('RECEITA LÍQUIDA') || d.startsWith('RECEITA LIQUIDA');
+    });
+    const baseTotal = base?.total_realizado != null ? Number(base.total_realizado) : 0;
+    return computed.map((l) => ({
+      ...l,
+      total_av: baseTotal && l.total_realizado != null ? (Number(l.total_realizado) / baseTotal) * 100 : null,
+    }));
+  }, [linhasRaw, mesesVisiveis]);
 
   const isTotalizadora = (l: DreLinha) => {
     if (l.totalizadora) return true;
@@ -100,7 +140,6 @@ export default function DrePage() {
     return TOTALIZADORAS.has(nome);
   };
 
-  // KPIs derivados das linhas totalizadoras
   const lReceita = findLinhaByDesc(linhas, ['RECEITA BRUTA']);
   const lLucroBruto = findLinhaByDesc(linhas, ['LUCRO BRUTO']);
   const lEbitda = findLinhaByDesc(linhas, ['EBITDA']);
@@ -108,13 +147,22 @@ export default function DrePage() {
 
   const negClass = (v: any) => (v != null && Number(v) < 0 ? 'text-destructive' : '');
 
+  const toggleMes = (key: string) => {
+    setMesesSel((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  };
+
+  const colunas: { key: string; label: string; isTotal?: boolean }[] = [
+    ...mesesVisiveis,
+    { key: 'total', label: 'TOTAL', isTotal: true },
+  ];
+
   return (
     <PageDataProvider
       pageKey="contabilidade-dre"
       kpis={{}}
       series={{}}
       rows={linhas}
-      filtros={{ ano, unidade }}
+      filtros={{ ano, unidade, meses: mesesSel }}
     >
       <div className="space-y-4 p-4">
         <PageHeader
@@ -149,7 +197,54 @@ export default function DrePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="md:col-start-4">
+              <div>
+                <Label className="text-xs">Meses</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-8 w-full justify-start text-xs font-normal">
+                      <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                      {mesesSel.length === 12
+                        ? 'Todos os meses'
+                        : mesesSel.length === 0
+                          ? 'Nenhum mês'
+                          : `${mesesSel.length} mês(es)`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-2" align="start">
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <button
+                        type="button"
+                        className="text-[11px] text-primary hover:underline"
+                        onClick={() => setMesesSel(ALL_MES_KEYS)}
+                      >
+                        Todos
+                      </button>
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:underline"
+                        onClick={() => setMesesSel([])}
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      {MESES_BASE.map((m) => (
+                        <label
+                          key={m.key}
+                          className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted cursor-pointer text-xs"
+                        >
+                          <Checkbox
+                            checked={mesesSel.includes(m.key)}
+                            onCheckedChange={() => toggleMes(m.key)}
+                          />
+                          <span>{m.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
                 <Button size="sm" className="h-8 w-full" onClick={fetchDre} disabled={loading}>
                   <RefreshCw className={cn('h-3.5 w-3.5 mr-1', loading && 'animate-spin')} />
                   Atualizar
@@ -200,13 +295,13 @@ export default function DrePage() {
                     >
                       Máscara / Linha
                     </th>
-                    {MESES.map((m) => (
+                    {colunas.map((m) => (
                       <th
                         key={m.key}
                         colSpan={3}
                         className={cn(
                           'sticky top-0 z-30 bg-muted px-3 py-2 text-center font-semibold border-b border-l',
-                          m.key === 'total' && 'bg-primary/15',
+                          m.isTotal && 'bg-primary/15',
                         )}
                       >
                         {m.label}
@@ -214,15 +309,15 @@ export default function DrePage() {
                     ))}
                   </tr>
                   <tr className="bg-muted">
-                    {MESES.map((m) => (
+                    {colunas.map((m) => (
                       <Fragment key={m.key}>
-                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b border-l', m.key === 'total' && 'bg-primary/15')}>
+                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b border-l', m.isTotal && 'bg-primary/15')}>
                           Realizado
                         </th>
-                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.key === 'total' && 'bg-primary/15')}>
+                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.isTotal && 'bg-primary/15')}>
                           A.V.
                         </th>
-                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.key === 'total' && 'bg-primary/15')}>
+                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.isTotal && 'bg-primary/15')}>
                           Orçado
                         </th>
                       </Fragment>
@@ -232,7 +327,7 @@ export default function DrePage() {
                 <tbody>
                   {linhas.length === 0 && (
                     <tr>
-                      <td colSpan={1 + MESES.length * 3} className="px-3 py-6 text-center text-muted-foreground">
+                      <td colSpan={1 + colunas.length * 3} className="px-3 py-6 text-center text-muted-foreground">
                         {loading ? 'Carregando...' : 'Selecione o ano e clique em Atualizar.'}
                       </td>
                     </tr>
@@ -253,11 +348,11 @@ export default function DrePage() {
                           <span className="font-mono text-[10px] text-muted-foreground mr-2">{l.mascara ?? ''}</span>
                           <span style={{ paddingLeft: indent }}>{l.descricao ?? ''}</span>
                         </td>
-                        {MESES.map((m) => {
+                        {colunas.map((m) => {
                           const r = l[`${m.key}_realizado`];
                           const av = l[`${m.key}_av`];
                           const o = l[`${m.key}_orcado`];
-                          const totalCol = m.key === 'total';
+                          const totalCol = !!m.isTotal;
                           return (
                             <Fragment key={`${i}-${m.key}`}>
                               <td className={cn('px-2 py-1.5 text-right tabular-nums border-b border-l', negClass(r), totalCol && 'bg-primary/10 font-semibold')}>
