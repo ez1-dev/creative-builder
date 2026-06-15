@@ -1166,6 +1166,7 @@ export type Database = {
           ativa: boolean
           atualizado_em: string
           caso_erro: string
+          coluna_periodo: string | null
           criado_em: string
           endpoint_api: string | null
           estrategia_carga: string
@@ -1180,6 +1181,7 @@ export type Database = {
           sql_versao: number
           tabela_destino: string | null
           tarefa_id: string
+          tentativas: number
           timeout_segundos: number
           tipo_comando: string
           tipo_execucao: string
@@ -1188,6 +1190,7 @@ export type Database = {
           ativa?: boolean
           atualizado_em?: string
           caso_erro?: string
+          coluna_periodo?: string | null
           criado_em?: string
           endpoint_api?: string | null
           estrategia_carga?: string
@@ -1202,6 +1205,7 @@ export type Database = {
           sql_versao?: number
           tabela_destino?: string | null
           tarefa_id: string
+          tentativas?: number
           timeout_segundos?: number
           tipo_comando?: string
           tipo_execucao?: string
@@ -1210,6 +1214,7 @@ export type Database = {
           ativa?: boolean
           atualizado_em?: string
           caso_erro?: string
+          coluna_periodo?: string | null
           criado_em?: string
           endpoint_api?: string | null
           estrategia_carga?: string
@@ -1224,6 +1229,7 @@ export type Database = {
           sql_versao?: number
           tabela_destino?: string | null
           tarefa_id?: string
+          tentativas?: number
           timeout_segundos?: number
           tipo_comando?: string
           tipo_execucao?: string
