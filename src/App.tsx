@@ -138,6 +138,7 @@ const App = () => (
               <Route path="/bi/faturamento/relatorio-executivo" element={<ProtectedRoute path="/bi/faturamento/relatorio-executivo"><RelatorioExecutivoFaturamentoPage /></ProtectedRoute>} />
 
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
+              <Route path="/contabilidade/dre" element={<ProtectedRoute path="/contabilidade/dre"><DrePage /></ProtectedRoute>} />
               {/* Regras Senior */}
               <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />
