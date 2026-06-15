@@ -117,27 +117,28 @@ export default function DrePage() {
       };
     });
     // base receita líquida para A.V.
-    const base = computed.find((l) => {
-      const d = String(l.descricao ?? '').trim().toUpperCase();
-      return d === 'RECEITA LÍQUIDA' || d === 'RECEITA LIQUIDA' || d.startsWith('RECEITA LÍQUIDA') || d.startsWith('RECEITA LIQUIDA');
-    });
+    const base = computed.find(
+      (l) => String(l.codigo_linha ?? '').trim().toUpperCase() === 'RECEITA_LIQUIDA',
+    );
     const baseTotal = base?.total_realizado != null ? Number(base.total_realizado) : 0;
-    return computed.map((l) => ({
+    const out = computed.map((l) => ({
       ...l,
       total_av: baseTotal && l.total_realizado != null ? (Number(l.total_realizado) / baseTotal) * 100 : null,
     }));
+    out.sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
+    return out;
   }, [linhasRaw, mesesVisiveis]);
 
   const isTotalizadora = (l: DreLinha) => {
-    if (l.totalizadora) return true;
-    const nome = String(l.descricao ?? '').trim().toUpperCase();
-    return TOTALIZADORAS.has(nome);
+    const cod = String(l.codigo_linha ?? '').trim().toUpperCase();
+    return CODIGOS_TOTALIZADORES.has(cod);
   };
 
-  const lReceita = findLinhaByDesc(linhas, ['RECEITA BRUTA']);
-  const lLucroBruto = findLinhaByDesc(linhas, ['LUCRO BRUTO']);
-  const lEbitda = findLinhaByDesc(linhas, ['EBITDA']);
-  const lLiquido = findLinhaByDesc(linhas, ['RESULTADO DO EXERCÍCIO', 'RESULTADO DO EXERCICIO', 'LUCRO LÍQUIDO', 'LUCRO LIQUIDO']);
+  const lReceita = findByCodigo(linhas, 'RECEITA_BRUTA');
+  const lLucroBruto = findByCodigo(linhas, 'LUCRO_BRUTO');
+  const lEbitda = findByCodigo(linhas, 'EBITDA');
+  const lLiquido = findByCodigo(linhas, 'RESULTADO_EXERCICIO');
+
 
   const negClass = (v: any) => (v != null && Number(v) < 0 ? 'text-destructive' : '');
 
