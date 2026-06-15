@@ -49,9 +49,12 @@ def resolver_acao(acao_ref: str):
 
 Regras:
 
-- Comparar `id_acao` **somente como texto**, com `upper()` dos dois lados.
+- **Não existe** coluna `codigo_acao` em `etl_acoes`. Se algum trecho do backend ainda referenciar `codigo_acao`, remover — o identificador textual é `id_acao` (TEXT).
+- `id_acao` é **TEXT**, nunca bigint. Comparar `id_acao` **somente como texto**, com `upper()` dos dois lados.
+- `id` é **UUID**. Só tentar casar por `id` quando `ref` for um UUID válido.
 - Nunca casar por `nome_acao`, `descricao` ou rótulos compostos.
 - Nunca fazer `WHERE id_acao = :ref::bigint` ou `WHERE id::text = :ref` — quebra para qualquer ação textual.
+- Ao ler atributos da ação resolvida, usar `acao.get("estrategia")` (com fallback `acao.get("estrategia_carga")` se ainda existir nesse backend). **Nunca** `acao.get("metodo_carga")` — esse campo não existe no schema atual de `etl_acoes`.
 - Endpoints afetados (todos devem chamar `resolver_acao`):
   - `POST  /api/etl/acoes/{acao_ref}/executar`
   - `GET   /api/etl/acoes/{acao_ref}/comando-sql`
@@ -59,6 +62,8 @@ Regras:
   - `POST  /api/etl/acoes/{acao_ref}/testar-sql`
 
 O frontend Lovable já envia o `id_acao` textual (`r.id_acao`) — qualquer 404 indica resolver incorreto no backend.
+
+> Para o erro **"Nenhuma coluna válida encontrada entre p_rows e public.bi_*"** ver [`docs/backend-etl-normalizacao-rows.md`](./backend-etl-normalizacao-rows.md) — exige normalizar chaves para lowercase antes da RPC `etl_carga_periodo`.
 
 ## SQL versionado em `etl_acoes`
 

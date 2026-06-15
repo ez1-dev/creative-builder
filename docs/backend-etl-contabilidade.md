@@ -32,7 +32,9 @@ GET   /api/bi/contabilidade/dre  (já existe — lê bi_vm_orc_dre, bi_vm_lanc_c
 
 `acao_ref` aceita o `id_acao` (texto) **ou** o `id` (uuid) — resolvido pela função única descrita em [`docs/backend-etl-central.md` › "Resolução de `{acao_ref}`"](./backend-etl-central.md#resolução-de-acao_ref-regra-única-para-todos-os-endpoints-apietlacoesacao_ref).
 
-> ⚠️ **Bug conhecido (jun/2026):** versões antigas do backend devolvem `404 "Ação ETL não encontrada: ETL_V_BALANCO_PATRIMONIAL"` porque tentavam casar `id_acao` como número ou procuravam uma coluna inexistente `codigo_acao`. A coluna correta é `etl_acoes.id_acao` (TEXT). O frontend já envia o valor textual correto.
+> ℹ️ **Troubleshooting (jun/2026):**
+> - `404 "Ação ETL não encontrada: ..."` → resolver fora do padrão. Aplicar o resolver único de `backend-etl-central.md` (`id_acao` TEXT + `id` UUID; nunca `codigo_acao`).
+> - `"Nenhuma coluna válida encontrada entre p_rows e public.bi_etl_v_balanco_patrimonial"` (ou outra `bi_*`) → ERP devolve aliases em CAIXA ALTA e as colunas no Cloud são minúsculas. Aplicar `normalizar_rows_supabase(rows)` antes de `supabase.rpc("etl_carga_periodo", ...)` — passo a passo em [`docs/backend-etl-normalizacao-rows.md`](./backend-etl-normalizacao-rows.md).
 
 ### Smoke test (cada ação contábil)
 
