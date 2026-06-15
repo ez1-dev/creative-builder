@@ -4,6 +4,62 @@ Frontend Lovable só lê metadados do Cloud (Supabase) e dispara execuções via
 **Nunca** acessa o ERP Senior direto. **Nunca** usa `service_role_key`.
 A FastAPI é responsável por consultar o ERP e gravar nas tabelas `bi_*` e `etl_*` do Cloud usando o service role.
 
+## Resolução de `{acao_ref}` (regra única para todos os endpoints `/api/etl/acoes/{acao_ref}/...`)
+
+Schema real de `public.etl_acoes`:
+
+- `id uuid` — chave primária.
+- `id_acao text` — identificador textual (ex.: `VM_ORC_DRE`, `VM_LANC_CONTABIL`, `ETL_V_BALANCO_PATRIMONIAL`, `ATU_CONTABILIDADE`, `ATU_COMERCIAL`, etc.).
+- **Não existe** coluna `codigo_acao`. Qualquer referência a `codigo_acao` no backend deve ser removida.
+- `id_acao` é **TEXT** (nunca bigint) — não tente comparar como número.
+
+Resolver único a ser usado por `POST /executar`, `GET /comando-sql`, `PATCH /comando-sql` e `POST /testar-sql`:
+
+```python
+import uuid
+from fastapi import HTTPException
+
+def resolver_acao(acao_ref: str):
+    ref = (acao_ref or "").strip()
+    if not ref:
+        raise HTTPException(404, "Ação ETL não encontrada: <vazio>")
+
+    # 1) UUID exato em etl_acoes.id
+    try:
+        uuid.UUID(ref)
+        row = db.fetch_one(
+            "SELECT * FROM public.etl_acoes WHERE id = :id",
+            id=ref,
+        )
+        if row:
+            return row
+    except ValueError:
+        pass
+
+    # 2) id_acao textual, case-insensitive
+    row = db.fetch_one(
+        "SELECT * FROM public.etl_acoes WHERE upper(id_acao) = upper(:ref)",
+        ref=ref,
+    )
+    if row:
+        return row
+
+    raise HTTPException(404, f"Ação ETL não encontrada: {acao_ref}")
+```
+
+Regras:
+
+- Comparar `id_acao` **somente como texto**, com `upper()` dos dois lados.
+- Nunca casar por `nome_acao`, `descricao` ou rótulos compostos.
+- Nunca fazer `WHERE id_acao = :ref::bigint` ou `WHERE id::text = :ref` — quebra para qualquer ação textual.
+- Endpoints afetados (todos devem chamar `resolver_acao`):
+  - `POST  /api/etl/acoes/{acao_ref}/executar`
+  - `GET   /api/etl/acoes/{acao_ref}/comando-sql`
+  - `PATCH /api/etl/acoes/{acao_ref}/comando-sql`
+  - `POST  /api/etl/acoes/{acao_ref}/testar-sql`
+
+O frontend Lovable já envia o `id_acao` textual (`r.id_acao`) — qualquer 404 indica resolver incorreto no backend.
+
 ## SQL versionado em `etl_acoes`
 
 Cada ação agora tem 4 colunas extras no Cloud:
