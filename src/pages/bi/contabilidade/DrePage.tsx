@@ -159,7 +159,7 @@ export default function DrePage() {
             <CardTitle className="text-sm">Filtros</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 items-end">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 items-end">
               <div>
                 <Label className="text-xs">Ano</Label>
                 <Input
@@ -168,6 +168,28 @@ export default function DrePage() {
                   value={ano}
                   onChange={(e) => setAno(Number(e.target.value) || currentYear)}
                 />
+              </div>
+              <div>
+                <Label className="text-xs">Mês inicial</Label>
+                <Select value={mesInicial} onValueChange={handleMesInicialChange}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MESES.map((m) => (
+                      <SelectItem key={m.numero} value={m.numero}>{m.numero} - {m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Mês final</Label>
+                <Select value={mesFinal} onValueChange={handleMesFinalChange}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MESES.map((m) => (
+                      <SelectItem key={m.numero} value={m.numero}>{m.numero} - {m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="text-xs">Unidade de negócio</Label>
