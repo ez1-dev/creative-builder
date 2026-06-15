@@ -10,7 +10,7 @@ import { DataTable, type Column } from '@/components/erp/DataTable';
 import { ExecutarModal } from '@/components/etl/ExecutarModal';
 import { LogsModal } from '@/components/etl/LogsModal';
 import { TauxPanel } from '@/components/etl/TauxPanel';
-import { AtuContabilidadePanel } from '@/components/etl/contabilidade/AtuContabilidadePanel';
+
 import { listarTarefas, ultimasExecucoes, type EtlTarefa } from '@/lib/etl/api';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -139,7 +139,7 @@ export default function EtlAdminPage() {
         <KpiCard label="Última execução" value={fmtDate(ultimaExecucaoGlobal)} icon={<Clock className="h-4 w-4" />} small />
       </div>
 
-      <AtuContabilidadePanel />
+      
 
       <TauxPanel />
 

@@ -47,6 +47,7 @@ const ALL_SCREENS = [
   { path: '/contas-receber', name: 'Contas a Receber' },
   { path: '/contabilidade/balanco', name: 'Contabilidade — Balanço Patrimonial' },
   { path: '/bi/contabilidade/dre', name: 'Contabilidade — DRE' },
+  { path: '/etl/tarefas/ATU_CONTABILIDADE', name: 'Contabilidade — Atualização' },
   { path: '/numero-serie', name: 'Reserva Nº Série' },
   { path: '/producao/dashboard', name: 'Produção - Dashboard' },
   { path: '/producao/produzido', name: 'Produção - Produzido no Período' },
