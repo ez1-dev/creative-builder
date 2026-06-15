@@ -1,69 +1,66 @@
-## Diagnóstico
+# Correções no backend FastAPI ETL
 
-A causa real é diferente da hipótese inicial: **não existe coluna `codigo_acao`** em `public.etl_acoes`. O identificador textual da ação é a coluna `id_acao` (tipo `text`, não `bigint`):
+Trabalho 100% em documentação (`docs/`) — o backend FastAPI é externo e o time dele aplica as mudanças. Nenhuma alteração de frontend, migration ou edge function.
 
-```
-id (uuid) | id_acao (text) | nome_acao (text) | ordem (int) | ...
-75de7523… | ATU_CONTABILIDADE        | Finalização contabilidade | 99
-c7cdc45b… | ETL_V_BALANCO_PATRIMONIAL| Balanço patrimonial       | 3
-5a48e1ad… | VM_LANC_CONTABIL         | Lançamentos contábeis     | 2
-29a4e9f4… | VM_ORC_DRE               | Orçamento DRE             | 1
-```
+## Contexto do bug
 
-O frontend **já envia o valor correto** (`r.id_acao`, ex.: `ETL_V_BALANCO_PATRIMONIAL`) em `executarAcao(idAcao, payload)` → `POST /api/etl/acoes/{acao_ref}/executar`. Nenhuma tela manda label composto, nome ou descrição. Conferido em `EtlTarefaDetalhePage.tsx`, `ExecutarModal.tsx`, `EditarSqlModal.tsx`.
+Ao executar `ETL_V_BALANCO_PATRIMONIAL` (e demais ações que gravam em `bi_*`), a RPC `etl_carga_periodo` no Cloud responde:
 
-Logo, o erro `"Ação ETL não encontrada: ETL_V_BALANCO_PATRIMONIAL"` é **100% no backend FastAPI** — o resolver provavelmente está fazendo `WHERE id::text = :ref` ou tentando casar `id_acao` como número. **Nada precisa mudar no frontend nem no Supabase.**
+> "Nenhuma coluna válida encontrada entre p_rows e public.bi_etl_v_balanco_patrimonial"
 
-## Plano
+Causa: o ERP Senior devolve aliases em CAIXA ALTA (`ANOMES_REFERENTE`, `CD_EMPRESA`, `VL_SALDO`), mas as colunas reais em `public.bi_*` estão todas em minúsculo. A RPC compara chave a chave e descarta tudo.
 
-Atualizar somente a documentação de contrato consumida pelo time da FastAPI, deixando explícito o resolver correto e os endpoints afetados. Nenhuma migração, nenhuma alteração de código React.
+## Observação importante sobre o item 5 do pedido
 
-### 1. `docs/backend-etl-central.md` (ou criar `docs/backend-etl-resolver-acao.md` se a seção não existir)
+O usuário pede "buscar texto por `etl_acoes.codigo_acao`", mas essa coluna **não existe** — o schema real tem `id uuid` e `id_acao text` (já documentado em `docs/backend-etl-central.md`). Vou tratar a intenção (resolver textual robusto) usando `id_acao` (text) e `id` (uuid), mantendo a regra já vigente, e deixar isso explícito na doc para evitar confusão.
 
-Adicionar seção **"Resolução de `{acao_ref}`"** com a regra única usada por todos os endpoints `/api/etl/acoes/{acao_ref}/...`:
+## Entregáveis
 
-```
-def resolver_acao(acao_ref: str) -> EtlAcao:
-    ref = acao_ref.strip()
-    # 1) UUID exato
-    if is_uuid(ref):
-        row = db.fetch_one("SELECT * FROM public.etl_acoes WHERE id = :id", id=ref)
-        if row: return row
-    # 2) id_acao textual (case-insensitive)
-    row = db.fetch_one(
-        "SELECT * FROM public.etl_acoes WHERE upper(id_acao) = upper(:ref)",
-        ref=ref,
-    )
-    if row: return row
-    raise HTTPException(404, f"Ação ETL não encontrada: {acao_ref}")
-```
+### 1. Novo arquivo `docs/backend-etl-normalizacao-rows.md`
 
-Regras explícitas a documentar:
+Conteúdo:
 
-- `etl_acoes.id` é `uuid`; `etl_acoes.id_acao` é `text` (NÃO bigint).
-- **Não existe** coluna `codigo_acao` — qualquer referência no backend deve ser removida.
-- Comparar `id_acao` **somente como texto**, sempre com `upper()` dos dois lados.
-- Nunca casar por `nome_acao`, `descricao` ou labels compostos.
+- **Problema** com exemplo do erro real.
+- **Função utilitária** a ser adicionada no módulo de ETL do FastAPI:
 
-### 2. Endpoints que devem usar o mesmo resolver
+  ```python
+  def normalizar_rows_supabase(rows: list[dict]) -> list[dict]:
+      """Converte todas as chaves de cada row para lowercase antes de enviar à RPC etl_carga_periodo.
+      O ERP Senior devolve aliases em CAIXA ALTA; as tabelas bi_* têm colunas em minúsculo."""
+      if not rows:
+          return rows
+      return [
+          { (k.lower() if isinstance(k, str) else k): v for k, v in row.items() }
+          for row in rows
+      ]
+  ```
 
-Listar no doc, reforçando:
+- **Ponto de aplicação**: imediatamente antes de **toda** chamada `supabase.rpc("etl_carga_periodo", { "p_tabela": ..., "p_rows": rows, ... })`.
+- **Log temporário obrigatório** (remover depois de validar em prod):
 
-```
-POST  /api/etl/acoes/{acao_ref}/executar
-GET   /api/etl/acoes/{acao_ref}/comando-sql
-PATCH /api/etl/acoes/{acao_ref}/comando-sql
-POST  /api/etl/acoes/{acao_ref}/testar-sql
-```
+  ```python
+  if rows:
+      logger.info("etl_carga_periodo rows[0]=%s keys=%s", rows[0], list(rows[0].keys()))
+  ```
 
-`acao_ref` aceita: UUID (`id`) **ou** texto (`id_acao`, ex.: `VM_ORC_DRE`, `VM_LANC_CONTABIL`, `ETL_V_BALANCO_PATRIMONIAL`, `ATU_CONTABILIDADE`).
+- **Checklist de aplicação** nas ações que hoje quebram: `VM_ORC_DRE`, `VM_LANC_CONTABIL`, `ETL_V_BALANCO_PATRIMONIAL`, e qualquer outra que use `etl_carga_periodo`.
+- **Teste de fumaça** (curl) para `ETL_V_BALANCO_PATRIMONIAL` validando que `total_linhas > 0` e que não retorna mais "Nenhuma coluna válida encontrada".
 
-### 3. `docs/backend-etl-contabilidade.md`
+### 2. Atualizar `docs/backend-etl-central.md`
 
-Atualizar a frase final ("`acao_ref` aceita o `id_acao` (texto) ou o `id` (uuid)") para apontar para a nova seção do resolver e incluir um teste rápido `curl` por ação contábil, para o time da FastAPI validar o fix.
+Na seção "Resolução de `{acao_ref}`":
 
-### Fora de escopo (intencional)
+- Adicionar nota explícita: **"Não existe coluna `codigo_acao`. Se algum trecho do backend ainda referenciar `codigo_acao`, remover — o identificador textual é `id_acao` (text)."**
+- Reforçar: `id_acao` é **text**, não bigint; comparar sempre `upper(id_acao) = upper(:ref)`; `id` é uuid e só casa quando `ref` é UUID válido.
+- Acrescentar regra: ao ler atributos da ação resolvida, usar `acao.get("estrategia")` (e cair em `acao.get("estrategia_carga")` como fallback se ainda existir nesse backend) — **nunca** `acao.get("metodo_carga")`, que não existe no schema atual de `etl_acoes`.
 
-- Frontend (`src/components/etl/ExecutarModal.tsx`, `EtlTarefaDetalhePage.tsx`): já envia `id_acao` textual correto.
-- Migração: não há alteração de schema.
-- `src/integrations/supabase/*`: auto-gerado, não tocar.
+### 3. Atualizar `docs/backend-etl-contabilidade.md`
+
+- Apontar para o novo `docs/backend-etl-normalizacao-rows.md` na seção de troubleshooting.
+- Trocar o aviso "⚠️ Bug conhecido" do 404 por uma nota dizendo que o 404 já foi coberto pelo resolver e que o erro atual ("Nenhuma coluna válida…") é resolvido pela normalização lowercase.
+
+## Fora de escopo
+
+- Nenhuma mudança em `src/lib/etl/api.ts`, `EtlTarefaDetalhePage.tsx`, `EditarSqlModal.tsx`, `ExecutarModal.tsx`.
+- Nenhuma migration nem RPC nova — a `etl_carga_periodo` continua exigindo chaves minúsculas (o contrato do Cloud já está correto).
+- Nenhuma alteração em edge functions Lovable.
