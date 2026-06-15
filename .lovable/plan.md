@@ -1,32 +1,69 @@
-# Mover ATU_CONTABILIDADE para a Central de Integrações / ETL
+## Diagnóstico
 
-A tarefa `ATU_CONTABILIDADE` já está cadastrada em `etl_tarefas` (grupo `CONTABILIDADE`), portanto ela já aparece automaticamente na lista da página `/etl` (Central de Integrações / ETL), junto com `ATU_COMERCIAL` etc. O detalhe abre em `/etl/tarefas/ATU_CONTABILIDADE` via `EtlTarefaDetalhePage`.
+A causa real é diferente da hipótese inicial: **não existe coluna `codigo_acao`** em `public.etl_acoes`. O identificador textual da ação é a coluna `id_acao` (tipo `text`, não `bigint`):
 
-O que precisa ser removido é o atalho duplicado criado na sidebar e no catálogo de telas.
+```
+id (uuid) | id_acao (text) | nome_acao (text) | ordem (int) | ...
+75de7523… | ATU_CONTABILIDADE        | Finalização contabilidade | 99
+c7cdc45b… | ETL_V_BALANCO_PATRIMONIAL| Balanço patrimonial       | 3
+5a48e1ad… | VM_LANC_CONTABIL         | Lançamentos contábeis     | 2
+29a4e9f4… | VM_ORC_DRE               | Orçamento DRE             | 1
+```
 
-## Mudanças
+O frontend **já envia o valor correto** (`r.id_acao`, ex.: `ETL_V_BALANCO_PATRIMONIAL`) em `executarAcao(idAcao, payload)` → `POST /api/etl/acoes/{acao_ref}/executar`. Nenhuma tela manda label composto, nome ou descrição. Conferido em `EtlTarefaDetalhePage.tsx`, `ExecutarModal.tsx`, `EditarSqlModal.tsx`.
 
-1. **`src/components/AppSidebar.tsx`**
-   - Remover o item "Contabilidade — Atualização" (ícone `Database`, rota `/etl/tarefas/ATU_CONTABILIDADE`) que foi adicionado no grupo BI/Contabilidade.
-   - O acesso passa a ser exclusivamente pela Central ETL (`/etl` → clicar na linha `ATU_CONTABILIDADE`).
+Logo, o erro `"Ação ETL não encontrada: ETL_V_BALANCO_PATRIMONIAL"` é **100% no backend FastAPI** — o resolver provavelmente está fazendo `WHERE id::text = :ref` ou tentando casar `id_acao` como número. **Nada precisa mudar no frontend nem no Supabase.**
 
-2. **`src/lib/screenCatalog.ts`**
-   - Remover a entrada `/etl/tarefas/ATU_CONTABILIDADE` (código `CONT_ATU`). A rota continua existindo (registrada como `/etl/tarefas/:nome`), e a permissão é controlada pela tela genérica `/etl`.
+## Plano
 
-3. **`src/pages/ConfiguracoesPage.tsx`**
-   - Remover a entrada `/etl/tarefas/ATU_CONTABILIDADE` da lista de telas configuráveis (mesmo motivo do item 2).
+Atualizar somente a documentação de contrato consumida pelo time da FastAPI, deixando explícito o resolver correto e os endpoints afetados. Nenhuma migração, nenhuma alteração de código React.
 
-4. **Sidebar — grupo BI > Contabilidade**
-   - Mantém apenas "DRE" (`/bi/contabilidade/dre`). Sem atalho de atualização ali.
+### 1. `docs/backend-etl-central.md` (ou criar `docs/backend-etl-resolver-acao.md` se a seção não existir)
 
-## Não muda
+Adicionar seção **"Resolução de `{acao_ref}`"** com a regra única usada por todos os endpoints `/api/etl/acoes/{acao_ref}/...`:
 
-- A migration (`ATU_CONTABILIDADE` + 4 ações em `etl_acoes`) permanece intacta.
-- `EtlTarefaDetalhePage` continua servindo a tarefa (editar SQL, executar, ver logs, testar SQL).
-- Doc `docs/backend-etl-contabilidade.md` permanece (contrato dos endpoints).
-- Página DRE (`/bi/contabilidade/dre`) continua consumindo `GET /api/bi/contabilidade/dre`.
+```
+def resolver_acao(acao_ref: str) -> EtlAcao:
+    ref = acao_ref.strip()
+    # 1) UUID exato
+    if is_uuid(ref):
+        row = db.fetch_one("SELECT * FROM public.etl_acoes WHERE id = :id", id=ref)
+        if row: return row
+    # 2) id_acao textual (case-insensitive)
+    row = db.fetch_one(
+        "SELECT * FROM public.etl_acoes WHERE upper(id_acao) = upper(:ref)",
+        ref=ref,
+    )
+    if row: return row
+    raise HTTPException(404, f"Ação ETL não encontrada: {acao_ref}")
+```
 
-## Resultado
+Regras explícitas a documentar:
 
-- Usuário acessa **Central de Integrações / ETL** → vê `ATU_CONTABILIDADE` no grupo `CONTABILIDADE` → clica para abrir o detalhe com as 4 ações (`VM_ORC_DRE`, `VM_LANC_CONTABIL`, `ETL_V_BALANCO_PATRIMONIAL`, `ATU_CONTABILIDADE`).
-- Mesmo fluxo de `ATU_COMERCIAL`.
+- `etl_acoes.id` é `uuid`; `etl_acoes.id_acao` é `text` (NÃO bigint).
+- **Não existe** coluna `codigo_acao` — qualquer referência no backend deve ser removida.
+- Comparar `id_acao` **somente como texto**, sempre com `upper()` dos dois lados.
+- Nunca casar por `nome_acao`, `descricao` ou labels compostos.
+
+### 2. Endpoints que devem usar o mesmo resolver
+
+Listar no doc, reforçando:
+
+```
+POST  /api/etl/acoes/{acao_ref}/executar
+GET   /api/etl/acoes/{acao_ref}/comando-sql
+PATCH /api/etl/acoes/{acao_ref}/comando-sql
+POST  /api/etl/acoes/{acao_ref}/testar-sql
+```
+
+`acao_ref` aceita: UUID (`id`) **ou** texto (`id_acao`, ex.: `VM_ORC_DRE`, `VM_LANC_CONTABIL`, `ETL_V_BALANCO_PATRIMONIAL`, `ATU_CONTABILIDADE`).
+
+### 3. `docs/backend-etl-contabilidade.md`
+
+Atualizar a frase final ("`acao_ref` aceita o `id_acao` (texto) ou o `id` (uuid)") para apontar para a nova seção do resolver e incluir um teste rápido `curl` por ação contábil, para o time da FastAPI validar o fix.
+
+### Fora de escopo (intencional)
+
+- Frontend (`src/components/etl/ExecutarModal.tsx`, `EtlTarefaDetalhePage.tsx`): já envia `id_acao` textual correto.
+- Migração: não há alteração de schema.
+- `src/integrations/supabase/*`: auto-gerado, não tocar.
