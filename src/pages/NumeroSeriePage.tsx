@@ -83,6 +83,18 @@ interface ProximosResponse {
   dados: NumeroSerieItem[];
 }
 
+interface ResultadoOpComplementar {
+  numero_serie?: string;
+  numero_op_nova?: number | string;
+  codigo_produto?: string;
+  derivacao?: string;
+  numero_pedido?: number;
+  item_pedido?: number;
+  situacao_op?: string;
+  conflito?: string | null;
+  mensagem?: string;
+}
+
 const statusBadge = (status: string) => {
   switch (status) {
     case 'LIVRE': return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-300">LIVRE</Badge>;
