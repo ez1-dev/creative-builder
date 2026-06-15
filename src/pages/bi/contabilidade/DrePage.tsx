@@ -27,19 +27,19 @@ interface DreLinha {
   [k: string]: any;
 }
 
-const MESES: { key: string; label: string }[] = [
-  { key: 'jan', label: 'Janeiro' },
-  { key: 'fev', label: 'Fevereiro' },
-  { key: 'mar', label: 'Março' },
-  { key: 'abr', label: 'Abril' },
-  { key: 'mai', label: 'Maio' },
-  { key: 'jun', label: 'Junho' },
-  { key: 'jul', label: 'Julho' },
-  { key: 'ago', label: 'Agosto' },
-  { key: 'set', label: 'Setembro' },
-  { key: 'out', label: 'Outubro' },
-  { key: 'nov', label: 'Novembro' },
-  { key: 'dez', label: 'Dezembro' },
+const MESES: { key: string; numero: string; label: string }[] = [
+  { key: 'jan', numero: '01', label: 'Janeiro' },
+  { key: 'fev', numero: '02', label: 'Fevereiro' },
+  { key: 'mar', numero: '03', label: 'Março' },
+  { key: 'abr', numero: '04', label: 'Abril' },
+  { key: 'mai', numero: '05', label: 'Maio' },
+  { key: 'jun', numero: '06', label: 'Junho' },
+  { key: 'jul', numero: '07', label: 'Julho' },
+  { key: 'ago', numero: '08', label: 'Agosto' },
+  { key: 'set', numero: '09', label: 'Setembro' },
+  { key: 'out', numero: '10', label: 'Outubro' },
+  { key: 'nov', numero: '11', label: 'Novembro' },
+  { key: 'dez', numero: '12', label: 'Dezembro' },
 ];
 
 const CODIGOS_TOTALIZADORES = new Set([
