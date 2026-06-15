@@ -3244,7 +3244,7 @@ export type Database = {
     }
     Functions: {
       bi_dre_matriz_anual: {
-        Args: { p_ano: number; p_unidade_negocio?: string }
+        Args: { p_ano: string; p_unidade_negocio?: string }
         Returns: {
           abr_av: number
           abr_orcado: number
@@ -3252,6 +3252,7 @@ export type Database = {
           ago_av: number
           ago_orcado: number
           ago_realizado: number
+          codigo_linha: string
           descricao: string
           dez_av: number
           dez_orcado: number
