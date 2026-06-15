@@ -151,7 +151,7 @@ export default function DrePage() {
       <div className="space-y-4 p-4">
         <PageHeader
           title="Contabilidade — DRE"
-          description="Demonstração do Resultado em formato matriz mensal (RPC bi_dre_matriz_anual)."
+          description="Demonstração do Resultado em formato matriz mensal (RPC bi_dre_matriz_anual_v2)."
         />
 
         <Card>
