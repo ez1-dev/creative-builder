@@ -30,7 +30,33 @@ POST  /api/etl/tarefas/ATU_CONTABILIDADE/executar
 GET   /api/bi/contabilidade/dre  (já existe — lê bi_vm_orc_dre, bi_vm_lanc_contabil, bi_dre_estrutura, bi_dre_mascara)
 ```
 
-`acao_ref` aceita o `id_acao` (texto) ou o `id` (uuid).
+`acao_ref` aceita o `id_acao` (texto) **ou** o `id` (uuid) — resolvido pela função única descrita em [`docs/backend-etl-central.md` › "Resolução de `{acao_ref}`"](./backend-etl-central.md#resolução-de-acao_ref-regra-única-para-todos-os-endpoints-apietlacoesacao_ref).
+
+> ⚠️ **Bug conhecido (jun/2026):** versões antigas do backend devolvem `404 "Ação ETL não encontrada: ETL_V_BALANCO_PATRIMONIAL"` porque tentavam casar `id_acao` como número ou procuravam uma coluna inexistente `codigo_acao`. A coluna correta é `etl_acoes.id_acao` (TEXT). O frontend já envia o valor textual correto.
+
+### Smoke test (cada ação contábil)
+
+```bash
+BASE="https://<fastapi>"  # ex.: https://api.exemplo.ngrok.app
+TOKEN="<jwt>"
+
+for ACAO in VM_ORC_DRE VM_LANC_CONTABIL ETL_V_BALANCO_PATRIMONIAL ATU_CONTABILIDADE; do
+  echo "== $ACAO =="
+  curl -sS -X GET "$BASE/api/etl/acoes/$ACAO/comando-sql" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "ngrok-skip-browser-warning: true" | head -c 200
+  echo
+done
+
+# Executar 1 ação isolada
+curl -sS -X POST "$BASE/api/etl/acoes/ETL_V_BALANCO_PATRIMONIAL/executar" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "ngrok-skip-browser-warning: true" \
+  -H "Content-Type: application/json" \
+  -d '{"anomes_ini":202601,"anomes_fim":202601,"acionado_por":"SMOKE"}'
+```
+
+Esperado: HTTP 200 com `execucao_id`. Qualquer 404 indica resolver fora do padrão.
 
 ## Comportamento do executor (para cada ação SQL)
 
