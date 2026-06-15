@@ -46,7 +46,7 @@ const ALL_SCREENS = [
   { path: '/contas-pagar', name: 'Contas a Pagar' },
   { path: '/contas-receber', name: 'Contas a Receber' },
   { path: '/contabilidade/balanco', name: 'Contabilidade — Balanço Patrimonial' },
-  { path: '/contabilidade/dre', name: 'Contabilidade — DRE' },
+  { path: '/bi/contabilidade/dre', name: 'Contabilidade — DRE' },
   { path: '/numero-serie', name: 'Reserva Nº Série' },
   { path: '/producao/dashboard', name: 'Produção - Dashboard' },
   { path: '/producao/produzido', name: 'Produção - Produzido no Período' },

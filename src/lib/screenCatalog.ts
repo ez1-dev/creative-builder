@@ -20,7 +20,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/demonstrativo-compras-recebimentos': { codigo: 'DEM_COMP_REC', nome: 'Demonstrativo de Compras e Recebimentos' },
   '/biblioteca-bi':             { codigo: 'BIBLIO_BI',    nome: 'Biblioteca BI' },
   '/contabilidade/balanco':     { codigo: 'CONT_BAL',     nome: 'Contabilidade — Balanço Patrimonial' },
-  '/contabilidade/dre':         { codigo: 'CONT_DRE',     nome: 'Contabilidade — DRE' },
+  '/bi/contabilidade/dre':      { codigo: 'CONT_DRE',     nome: 'Contabilidade — DRE' },
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
   '/producao/carga/dashboard':  { codigo: 'PROD_CARGA_BI', nome: 'Carga de Produção — Dashboard BI' },
