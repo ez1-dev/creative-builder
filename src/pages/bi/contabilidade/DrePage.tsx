@@ -215,17 +215,17 @@ export default function DrePage() {
                   </tr>
                   <tr className="bg-muted">
                     {MESES.map((m) => (
-                      <>
-                        <th key={`${m.key}-r`} className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b border-l', m.key === 'total' && 'bg-primary/15')}>
+                      <Fragment key={m.key}>
+                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b border-l', m.key === 'total' && 'bg-primary/15')}>
                           Realizado
                         </th>
-                        <th key={`${m.key}-av`} className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.key === 'total' && 'bg-primary/15')}>
+                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.key === 'total' && 'bg-primary/15')}>
                           A.V.
                         </th>
-                        <th key={`${m.key}-o`} className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.key === 'total' && 'bg-primary/15')}>
+                        <th className={cn('sticky top-[34px] z-30 bg-muted px-2 py-1 text-right font-medium border-b', m.key === 'total' && 'bg-primary/15')}>
                           Orçado
                         </th>
-                      </>
+                      </Fragment>
                     ))}
                   </tr>
                 </thead>
