@@ -21,10 +21,8 @@ type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
 interface DreLinha {
   ordem?: number;
-  mascara?: string;
+  codigo_linha?: string;
   descricao?: string;
-  totalizadora?: boolean;
-  nivel?: number;
   [k: string]: any;
 }
 
@@ -44,10 +42,8 @@ const MESES_BASE: { key: string; label: string }[] = [
 ];
 const ALL_MES_KEYS = MESES_BASE.map((m) => m.key);
 
-const TOTALIZADORAS = new Set([
-  'RECEITA LÍQUIDA', 'RECEITA LIQUIDA',
-  'LUCRO BRUTO', 'EBITDA', 'EBIT',
-  'RESULTADO DO EXERCÍCIO', 'RESULTADO DO EXERCICIO',
+const CODIGOS_TOTALIZADORES = new Set([
+  'RECEITA_LIQUIDA', 'LUCRO_BRUTO', 'EBITDA', 'EBIT', 'RESULTADO_EXERCICIO',
 ]);
 
 const fmtSigned = (v: number | null | undefined) => {
@@ -66,12 +62,10 @@ const fmtSignedPct = (v: number | null | undefined) => {
 
 const currentYear = new Date().getFullYear();
 
-function findLinhaByDesc(linhas: DreLinha[], needles: string[]): DreLinha | undefined {
-  return linhas.find((l) => {
-    const d = String(l.descricao ?? '').trim().toUpperCase();
-    return needles.some((n) => d === n || d.startsWith(n));
-  });
+function findByCodigo(linhas: DreLinha[], codigo: string): DreLinha | undefined {
+  return linhas.find((l) => String(l.codigo_linha ?? '').trim().toUpperCase() === codigo);
 }
+
 
 export default function DrePage() {
   const [ano, setAno] = useState<number>(currentYear);
