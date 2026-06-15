@@ -1,26 +1,24 @@
 ## Plano
 
-A página `src/pages/bi/contabilidade/DrePage.tsx` já chama `bi_dre_matriz_anual_v2` sem `.select()` / `.order()` encadeados e sem nenhuma referência a `bi_dre` ou `bi_dre_matriz_anual`. Só falta um pequeno ajuste para bater exatamente com o contrato pedido (ambos parâmetros como `text`, fallback `'2026'` como string):
+Reverter a chamada da RPC em `src/pages/bi/contabilidade/DrePage.tsx` de `bi_dre_matriz_anual_v2` para `bi_dre_matriz_anual`.
 
-### Alteração única em `DrePage.tsx` (fetchDre)
+### Alterações em `DrePage.tsx`
 
-De:
+1. **fetchDre** — trocar o nome da RPC:
 ```ts
-const { data, error } = await supabase.rpc('bi_dre_matriz_anual_v2' as any, {
-  p_ano: String(ano || 2026),
-  p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
-});
-```
-
-Para:
-```ts
-const { data, error } = await supabase.rpc('bi_dre_matriz_anual_v2' as any, {
+const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
   p_ano: String(ano || '2026'),
   p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
 });
 ```
+Sem `.select()` / `.order()` encadeados (já está assim).
 
-Nada mais muda: filtros (Ano / Mês inicial / Mês final / Unidade), recorte de colunas no frontend, ordenação por `ordem` no `useMemo`, formatação BRL/percentual/negativos, sticky header/coluna, KPIs e `console.error('Erro RPC bi_dre_matriz_anual_v2:', error)` permanecem como estão.
+2. **console.error** — atualizar mensagem:
+```ts
+console.error('Erro RPC bi_dre_matriz_anual:', error);
+```
 
-### Observação sobre "function not found in schema cache"
-Se o erro persistir após esse ajuste, o problema não está no frontend — é o PostgREST com cache de schema desatualizado. Nesse caso eu reporto e peço para recarregar o schema do backend (ou confirmar que o Lovable Cloud aponta para o mesmo projeto onde a função `bi_dre_matriz_anual_v2(text, text)` foi criada). O frontend já estará correto.
+3. **PageHeader.description** — atualizar referência:
+`"Demonstração do Resultado em formato matriz mensal (RPC bi_dre_matriz_anual)."`
+
+Nada mais muda. O contrato de colunas (`ordem`, `codigo_linha`, `descricao`, `<mes>_realizado/_av/_orcado`, `total_*`) é o mesmo, então filtros, recorte de meses no frontend, ordenação por `ordem`, KPIs, formatação BRL/percentual, negativos em vermelho e sticky header/coluna permanecem como estão. Não há outras referências a `bi_dre_matriz_anual_v2` ou `bi_dre` na página.

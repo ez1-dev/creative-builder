@@ -96,12 +96,12 @@ export default function DrePage() {
   const fetchDre = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('bi_dre_matriz_anual_v2' as any, {
+      const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
         p_ano: String(ano || '2026'),
         p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
       });
       if (error) {
-        console.error('Erro RPC bi_dre_matriz_anual_v2:', error);
+        console.error('Erro RPC bi_dre_matriz_anual:', error);
         throw error;
       }
       setLinhasRaw((data as DreLinha[]) ?? []);
@@ -151,7 +151,7 @@ export default function DrePage() {
       <div className="space-y-4 p-4">
         <PageHeader
           title="Contabilidade — DRE"
-          description="Demonstração do Resultado em formato matriz mensal (RPC bi_dre_matriz_anual_v2)."
+          description="Demonstração do Resultado em formato matriz mensal (RPC bi_dre_matriz_anual)."
         />
 
         <Card>
