@@ -259,17 +259,17 @@ export default function DrePage() {
                           const o = l[`${m.key}_orcado`];
                           const totalCol = m.key === 'total';
                           return (
-                            <>
-                              <td key={`${i}-${m.key}-r`} className={cn('px-2 py-1.5 text-right tabular-nums border-b border-l', negClass(r), totalCol && 'bg-primary/10 font-semibold')}>
+                            <Fragment key={`${i}-${m.key}`}>
+                              <td className={cn('px-2 py-1.5 text-right tabular-nums border-b border-l', negClass(r), totalCol && 'bg-primary/10 font-semibold')}>
                                 {fmtSigned(r)}
                               </td>
-                              <td key={`${i}-${m.key}-av`} className={cn('px-2 py-1.5 text-right tabular-nums border-b', negClass(av), totalCol && 'bg-primary/10 font-semibold')}>
+                              <td className={cn('px-2 py-1.5 text-right tabular-nums border-b', negClass(av), totalCol && 'bg-primary/10 font-semibold')}>
                                 {av != null ? fmtSignedPct(Number(av)) : '-'}
                               </td>
-                              <td key={`${i}-${m.key}-o`} className={cn('px-2 py-1.5 text-right tabular-nums border-b', negClass(o), totalCol && 'bg-primary/10 font-semibold')}>
+                              <td className={cn('px-2 py-1.5 text-right tabular-nums border-b', negClass(o), totalCol && 'bg-primary/10 font-semibold')}>
                                 {fmtSigned(o)}
                               </td>
-                            </>
+                            </Fragment>
                           );
                         })}
                       </tr>
