@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -76,10 +76,13 @@ export default function DrePage() {
     setLoading(true);
     try {
       const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
-        p_ano: ano,
+        p_ano: String(ano || 2026),
         p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
       });
-      if (error) throw error;
+      if (error) {
+        console.error('Erro RPC bi_dre_matriz_anual:', error);
+        throw error;
+      }
       setLinhasRaw((data as DreLinha[]) ?? []);
     } catch (err: any) {
       toast.error(err?.message || 'Falha ao carregar DRE');
@@ -88,6 +91,12 @@ export default function DrePage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setLinhasRaw([]);
+    fetchDre();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ano, unidade]);
 
   const linhas = useMemo<DreLinha[]>(() => {
     return [...linhasRaw].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
