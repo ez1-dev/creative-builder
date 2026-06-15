@@ -521,6 +521,42 @@ export default function NumeroSeriePage() {
     }
   };
 
+  const executarOpComplementar = async (confirmar: boolean) => {
+    if (!opcOpNova.trim()) {
+      toast.error('Informe a OP nova 250.');
+      return;
+    }
+    if (opcJustificativa.trim().length < 20) {
+      toast.error('Justificativa deve ter pelo menos 20 caracteres.');
+      return;
+    }
+    setOpcLoading(confirmar ? 'manter' : 'simular');
+    try {
+      const body: Record<string, any> = {
+        codigo_empresa: 1,
+        numero_op_nova: Number(opcOpNova),
+        origem_op_origem: opcOrigemOpOrigem || '250',
+        confirmar,
+        justificativa: opcJustificativa.trim(),
+      };
+      if (opcOpOrigem.trim()) body.numero_op_origem = Number(opcOpOrigem);
+      if (opcNumeroSerie.trim()) body.numero_serie = opcNumeroSerie.trim().toUpperCase();
+
+      const endpoint = confirmar
+        ? '/api/numero-serie/op-complementar/manter-gs'
+        : '/api/numero-serie/op-complementar/simular';
+      const result = await api.post<ResultadoOpComplementar>(endpoint, body);
+      setOpcResultado(result);
+      toast.success(result?.mensagem || (confirmar ? 'GS mantido na nova OP.' : 'Simulação concluída.'));
+    } catch (e: any) {
+      toast.error(e?.message || 'Falha na operação.');
+    } finally {
+      setOpcLoading(null);
+    }
+  };
+
+
+
 
   const ctxField = (label: string, value: any) => (
     <div className="space-y-0.5">
