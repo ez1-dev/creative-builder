@@ -60,6 +60,7 @@ import RelatorioExecutivoPassagensPage from "@/pages/relatorios/RelatorioExecuti
 import RelatorioExecutivoFrotaPage from "@/pages/relatorios/RelatorioExecutivoFrotaPage";
 import RelatorioExecutivoMaquinasPage from "@/pages/relatorios/RelatorioExecutivoMaquinasPage";
 import BalancoPatrimonialPage from "@/pages/contabilidade/BalancoPatrimonialPage";
+import DrePage from "@/pages/contabilidade/DrePage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
