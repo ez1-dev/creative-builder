@@ -136,7 +136,7 @@ export default function DrePage() {
   const negClass = (v: any) => (v != null && Number(v) < 0 ? 'text-destructive' : '');
 
   const colunas: { key: string; label: string; isTotal?: boolean }[] = [
-    ...MESES,
+    ...MESES.filter((m) => m.numero >= mesInicial && m.numero <= mesFinal),
     { key: 'total', label: 'TOTAL', isTotal: true },
   ];
 
