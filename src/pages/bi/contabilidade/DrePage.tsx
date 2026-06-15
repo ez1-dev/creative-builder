@@ -69,8 +69,29 @@ function findByCodigo(linhas: DreLinha[], codigo: string): DreLinha | undefined 
 export default function DrePage() {
   const [ano, setAno] = useState<number>(currentYear);
   const [unidade, setUnidade] = useState<Unidade>('TODOS');
+  const [mesInicial, setMesInicial] = useState<string>('01');
+  const [mesFinal, setMesFinal] = useState<string>('12');
   const [loading, setLoading] = useState(false);
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
+
+  const handleMesInicialChange = (v: string) => {
+    setMesInicial(v);
+    if (v > mesFinal) {
+      const novoFim = MESES.find((m) => m.numero === v);
+      setMesFinal(v);
+      if (novoFim) toast.info(`Mês final ajustado para ${novoFim.label}.`);
+    }
+  };
+
+  const handleMesFinalChange = (v: string) => {
+    if (v < mesInicial) {
+      const novoIni = MESES.find((m) => m.numero === mesInicial);
+      setMesFinal(mesInicial);
+      if (novoIni) toast.info(`Mês final não pode ser anterior ao mês inicial (${novoIni.label}).`);
+      return;
+    }
+    setMesFinal(v);
+  };
 
   const fetchDre = async () => {
     setLoading(true);
