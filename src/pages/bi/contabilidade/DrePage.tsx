@@ -96,9 +96,20 @@ export default function DrePage() {
   const fetchDre = async () => {
     setLoading(true);
     try {
+      console.log('[DRE] Chamando RPC bi_dre_matriz_anual', {
+        ano,
+        unidade,
+        p_ano: String(ano || '2026'),
+        p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+      });
       const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
         p_ano: String(ano || '2026'),
         p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+      });
+      console.log('[DRE] Retorno RPC bi_dre_matriz_anual', {
+        error,
+        qtd: (data as any[] | null)?.length,
+        dataPreview: (data as any[] | null)?.slice?.(0, 3),
       });
       if (error) {
         console.error('Erro RPC bi_dre_matriz_anual:', error);
