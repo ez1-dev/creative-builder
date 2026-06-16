@@ -720,6 +720,7 @@ export default function NumeroSeriePage() {
         };
         setHistFiltros((prev) => ({ ...prev, ...novosFiltros }));
         void consultarHistorico(novosFiltros);
+        setMainTab('historico');
       } else {
         setOpcSimulacaoOk(true);
         toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
