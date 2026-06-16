@@ -100,16 +100,22 @@ export default function DrePage() {
     setErro(null);
     setBuscou(true);
 
-    console.log('[DRE] Chamando RPC bi_dre_matriz_anual', {
+    const unidadeParam =
+      !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
+        ? null
+        : unidade;
+
+    console.log('[DRE] Parametros RPC', {
       ano,
       unidade,
+      unidadeParam,
       p_ano: String(ano || '2026'),
-      p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+      p_unidade_negocio: unidadeParam,
     });
 
     const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
       p_ano: String(ano || '2026'),
-      p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+      p_unidade_negocio: unidadeParam,
     });
 
     console.log('[DRE] Retorno RPC bi_dre_matriz_anual', {
@@ -117,6 +123,7 @@ export default function DrePage() {
       qtd: (data as any[] | null)?.length,
       dataPreview: (data as any[] | null)?.slice?.(0, 3),
     });
+
 
     if (error) {
       console.error('Erro RPC bi_dre_matriz_anual:', error);
