@@ -1,24 +1,12 @@
 ## Objetivo
 
-Alinhar a seção "OP Complementar — Manter GS" (`src/pages/NumeroSeriePage.tsx`) à regra real: o usuário escolhe um **GS existente** e vincula esse GS a uma OP nova complementar **origem 250 / situação L**, para que, ao finalizar a OP no Senior, o produto acabado entre em estoque reutilizando esse mesmo GS. A rotina nunca gera nem busca próximo GS.
+Ajustar a seção "OP Complementar — Manter GS" (`src/pages/NumeroSeriePage.tsx`) para refletir a regra correta: reaproveitar um GS existente em uma OP nova complementar (origem 250, SITORP=L), mesmo que o GS pertença a outro produto/derivação. Adicionar suporte controlado a `forcar_vinculo` e tratar alertas de "GS em outro produto" como aviso (não bloqueio).
 
 ## Mudanças (arquivo único: `src/pages/NumeroSeriePage.tsx`)
 
-### 1. Tornar campos obrigatórios
+### 1. Payload — incluir `forcar_vinculo` (default `false`)
 
-Hoje "GS original" e "OP original" são opcionais. Passar a exigir:
-
-- **GS original** (`opcNumeroSerie`) — obrigatório. Placeholder muda para `Ex.: GS-11661`. Validação no início de `executarOpComplementar`: se vazio, `toast.error('Informe o GS original a ser reutilizado na nova OP.')`.
-- **OP original** (`opcOpOrigem`) — obrigatório. Validação: se vazio, `toast.error('Informe a OP original que possui o GS.')`. Sempre enviar `numero_op_origem: Number(opcOpOrigem)` no payload (remover o spread condicional).
-- **Origem da OP original** (`opcOrigemOpOrigem`) — obrigatório, default `250`.
-
-### 2. Origem da OP nova fixa em 250
-
-- Input "Origem da OP nova" passa a ser `readOnly` (mantém visual, `bg-muted`), valor default `250`, e o payload sempre envia `origem_op_nova: '250'`. Texto auxiliar reforça que esta rotina opera **somente origem 250**.
-
-### 3. Payload final
-
-Simular (`/api/numero-serie/op-complementar/simular`) e Executar (`/api/numero-serie/op-complementar/manter-gs`) passam a enviar exatamente:
+No `body` enviado em `simular` e `manter-gs`, adicionar `forcar_vinculo: opcForcarVinculo` (state novo, default `false`). Remover `situacao_op_nova: 'L'` do payload — a validação de SITORP=L é responsabilidade do backend; o frontend apenas valida o que vier na resposta. Payload final:
 
 ```json
 {
@@ -29,43 +17,55 @@ Simular (`/api/numero-serie/op-complementar/simular`) e Executar (`/api/numero-s
   "origem_op_origem": "250",
   "numero_serie": "GS-11661",
   "justificativa": "...",
-  "confirmar": false | true
+  "confirmar": false | true,
+  "forcar_vinculo": false
 }
 ```
 
-Manter `situacao_op_nova: "L"` no body (backend filtra OPs `CODEMP=1 + CODORI=250 + SITORP=L`).
+### 2. Novo state `opcForcarVinculo` (boolean, default `false`)
 
-### 4. Mensagem de sucesso padronizada
+- Não exibir como checkbox normal. Quando a API devolver erro/aviso indicando "GS não encontrado ativo na USU_T075SEP", abrir um `AlertDialog` ("Este GS não foi encontrado como ativo na USU_T075SEP. Deseja forçar o vínculo mesmo assim?"). Se o usuário confirmar, refazer a chamada com `forcar_vinculo: true` (mantendo `confirmar` do contexto). Caso contrário, abortar.
+- Após cada execução bem-sucedida, resetar `opcForcarVinculo` para `false`.
 
-Após `manter-gs` bem-sucedido (origem/sit. validadas), exibir:
+### 3. Tratar "GS pertence a outro produto/derivação" como aviso, não bloqueio
 
-```
-GS {numero_serie} vinculado à OP complementar {origem_op_nova}/{numero_op_nova}.
-Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque do produto acabado.
-```
+- Estender `ResultadoOpComplementar` com `aviso?: string` e/ou `outro_produto?: boolean` (campos opcionais — backend pode mandar em `aviso`, `mensagem`, ou `conflito`).
+- Detectar via heurística no texto retornado (`/outro produto|outra deriva/i`). Quando detectado, **não** mostrar `<Alert variant="destructive">` — exibir como `<Alert>` informativo amarelo com o texto: "GS localizado ativo, porém vinculado a outro produto/derivação. A rotina seguirá como reaproveitamento de GS em OP complementar."
+- O campo `opcResultado.conflito` continua sendo destrutivo apenas para conflitos reais (não relacionados a "outro produto").
 
-Usar `result.numero_serie || opcNumeroSerie`, `result.origem_op_nova || '250'`, `result.numero_op_nova || opcOpNova`. Se o backend devolver `mensagem`, ainda prevalece o template padrão (regra do usuário).
+### 4. Habilitar execução após simulação bem-sucedida
 
-### 5. Texto auxiliar do card
+- Novo state `opcSimulacaoOk` (boolean). Setar `true` após `simular` retornar sem erro e com origem/situação válidas. Botão "Manter GS na nova OP" passa a exibir `disabled={!opcSimulacaoOk || opcLoading !== null}`.
+- Mensagem de sucesso da simulação muda para: `"GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque."` (substitui o `result?.mensagem || 'Simulação concluída.'` atual).
+- Qualquer mudança nos inputs (`opcOpNova`, `opcOpOrigem`, `opcOrigemOpOrigem`, `opcNumeroSerie`, `opcJustificativa`) invalida `opcSimulacaoOk` (volta a `false`).
 
-Atualizar para deixar a regra explícita:
+### 5. Rótulos da tela
 
-> "Reutiliza um GS já existente em uma OP complementar (CODEMP=1, CODORI=250, SITORP=L). A rotina não gera novo GS — ao finalizar a OP nova no Senior, o produto acabado entra em estoque com o mesmo GS informado."
+Renomear labels:
+- "OP nova" (já está)
+- "Origem da OP nova" (já está, mantém readOnly "250")
+- "OP original" (já está)
+- "Origem da OP original" (já está)
+- "GS original" → **"GS existente"**
+- "Justificativa" (já está)
 
-### 6. Validação de resposta (já existe)
+Atualizar texto auxiliar do card para refletir a regra correta:
+> "Reaproveita um GS existente em uma OP nova complementar (origem 250, SITORP=L). O GS pode pertencer a outro produto/derivação — será usado para acompanhar a OP até a finalização e entrada em estoque."
 
-Manter o bloqueio quando `result.origem_op_nova !== '250'` ou `result.situacao_op_nova !== 'L'` com a mensagem:
-> "A rotina permite somente OP complementar da origem 250 com situação Liberada."
+### 6. Mensagem de execução
+
+Manter a mensagem padronizada já implementada após `manter-gs` (item 4 do plano anterior). Adicionalmente, se houver aviso de "outro produto", concatenar como linha informativa.
 
 ## Fora de escopo
 
-- Backend FastAPI (já deve filtrar por `CODEMP+CODORI+SITORP` e aceitar o payload acima).
-- Outras seções (Reservar, Vincular, Desvincular, filtros gerais).
-- Lovable Cloud / Supabase — sem mudanças.
+- Backend FastAPI (deve continuar filtrando OP por CODEMP+CODORI+SITORP=L e devolver `origem_op_nova`/`situacao_op_nova` na resposta).
+- Outras seções da página (Reservar, Vincular, Desvincular, contexto, filtros).
+- Lovable Cloud — sem mudanças.
 
 ## Validação
 
 - Build TS verde.
-- Network do "Simular" / "Manter GS" mostra o payload exato acima.
-- Submeter sem GS ou sem OP original bloqueia com toast.
-- Sucesso exibe a mensagem padronizada com `GS-XXXX vinculado à OP complementar 250/XXXX...`.
+- Network: payload exato com `forcar_vinculo: false` por padrão.
+- Simulação OK habilita o botão "Manter GS na nova OP" com a mensagem esperada.
+- Resposta com "outro produto" exibe aviso amarelo, **não** bloqueia.
+- Erro de "GS não encontrado ativo" abre AlertDialog perguntando se força; ao confirmar, refaz com `forcar_vinculo: true`.
