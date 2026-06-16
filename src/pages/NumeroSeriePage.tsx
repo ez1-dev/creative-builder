@@ -140,7 +140,7 @@ export default function NumeroSeriePage() {
 
   // OP Complementar — Manter GS
   const [opcOpNova, setOpcOpNovaRaw] = useState('');
-  const [opcOrigemOpNova] = useState('250');
+  
   const [opcOpOrigem, setOpcOpOrigemRaw] = useState('');
   const [opcOrigemOpOrigem, setOpcOrigemOpOrigemRaw] = useState('250');
   const [opcNumeroSerie, setOpcNumeroSerieRaw] = useState('');
