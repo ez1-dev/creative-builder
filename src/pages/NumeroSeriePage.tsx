@@ -214,12 +214,20 @@ export default function NumeroSeriePage() {
   const [opcAviso, setOpcAviso] = useState<string | null>(null);
   const [opcForcarConfirmOpen, setOpcForcarConfirmOpen] = useState(false);
   const [opcForcarPending, setOpcForcarPending] = useState<{ confirmar: boolean } | null>(null);
+  const [opcManutencao, setOpcManutencaoRaw] = useState(false);
   const invalidarSimulacao = () => { setOpcSimulacaoOk(false); setOpcAviso(null); };
   const setOpcOpNova = (v: string) => { setOpcOpNovaRaw(v); invalidarSimulacao(); };
   const setOpcOpOrigem = (v: string) => { setOpcOpOrigemRaw(v); invalidarSimulacao(); };
   const setOpcOrigemOpOrigem = (v: string) => { setOpcOrigemOpOrigemRaw(v); invalidarSimulacao(); };
   const setOpcNumeroSerie = (v: string) => { setOpcNumeroSerieRaw(v); invalidarSimulacao(); };
   const setOpcJustificativa = (v: string) => { setOpcJustificativaRaw(v); invalidarSimulacao(); };
+  const setOpcManutencao = (v: boolean) => {
+    setOpcManutencaoRaw(v);
+    invalidarSimulacao();
+    if (v && !opcJustificativa.trim()) {
+      setOpcJustificativaRaw('Máquina em manutenção/reforma. Reaproveitamento controlado do mesmo GS na OP complementar.');
+    }
+  };
 
   // Histórico do GS / Reserva OP Complementar
   const [histFiltros, setHistFiltros] = useState({
