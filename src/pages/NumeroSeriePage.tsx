@@ -756,12 +756,21 @@ export default function NumeroSeriePage() {
             <Button
               size="sm"
               onClick={() => executarOpComplementar(true)}
-              disabled={opcLoading !== null}
+              disabled={opcLoading !== null || !opcSimulacaoOk}
+              title={!opcSimulacaoOk ? 'Simule antes de executar' : undefined}
             >
               <Link2 className="h-3.5 w-3.5 mr-1" />
               {opcLoading === 'manter' ? 'Aplicando...' : 'Manter GS na nova OP'}
             </Button>
           </div>
+
+          {opcAviso && (
+            <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-sm">Aviso</AlertTitle>
+              <AlertDescription className="text-xs">{opcAviso}</AlertDescription>
+            </Alert>
+          )}
 
           {opcResultado && (
             <Alert>
@@ -776,7 +785,7 @@ export default function NumeroSeriePage() {
                   <div><span className="text-muted-foreground">Item:</span> {opcResultado.item_pedido ?? '-'}</div>
                   <div className="col-span-2 md:col-span-3"><span className="text-muted-foreground">Situação da OP:</span> <Badge variant="outline" className="ml-1">{opcResultado.situacao_op || '-'}</Badge></div>
                 </div>
-                {opcResultado.conflito && (
+                {opcResultado.conflito && !opcAviso && (
                   <Alert variant="destructive" className="mt-3">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle className="text-sm">Conflito</AlertTitle>
