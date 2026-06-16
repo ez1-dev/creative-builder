@@ -524,7 +524,11 @@ export default function NumeroSeriePage() {
 
   const executarOpComplementar = async (confirmar: boolean) => {
     if (!opcOpNova.trim()) {
-      toast.error('Informe a OP nova 250.');
+      toast.error('Informe a OP nova.');
+      return;
+    }
+    if (!opcOrigemOpNova.trim()) {
+      toast.error('Informe a origem da OP nova.');
       return;
     }
     if (opcJustificativa.trim().length < 20) {
@@ -536,12 +540,13 @@ export default function NumeroSeriePage() {
       const body: Record<string, any> = {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
-        origem_op_origem: opcOrigemOpOrigem || '250',
-        confirmar,
+        origem_op_nova: (opcOrigemOpNova || '250').trim(),
+        ...(opcOpOrigem.trim() ? { numero_op_origem: Number(opcOpOrigem) } : {}),
+        origem_op_origem: (opcOrigemOpOrigem || '250').trim(),
+        ...(opcNumeroSerie.trim() ? { numero_serie: opcNumeroSerie.trim().toUpperCase() } : {}),
         justificativa: opcJustificativa.trim(),
+        confirmar,
       };
-      if (opcOpOrigem.trim()) body.numero_op_origem = Number(opcOpOrigem);
-      if (opcNumeroSerie.trim()) body.numero_serie = opcNumeroSerie.trim().toUpperCase();
 
       const endpoint = confirmar
         ? '/api/numero-serie/op-complementar/manter-gs'
@@ -550,7 +555,8 @@ export default function NumeroSeriePage() {
       setOpcResultado(result);
       toast.success(result?.mensagem || (confirmar ? 'GS mantido na nova OP.' : 'Simulação concluída.'));
     } catch (e: any) {
-      toast.error(e?.message || 'Falha na operação.');
+      const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
+      toast.error(msg);
     } finally {
       setOpcLoading(null);
     }
