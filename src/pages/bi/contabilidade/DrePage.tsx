@@ -81,8 +81,8 @@ export default function DrePage() {
   const rodarDiagnostico = async () => {
     const [estrutura, lanc, orc, dreMensal, dreMatriz] = await Promise.all([
       supabase.from('bi_dre_estrutura').select('codigo_linha, descricao, ativo').limit(20),
-      supabase.from('bi_vm_lanc_contabil').select('anomes_referente, vl_realizado').eq('anomes_referente', '202606').limit(5),
-      supabase.from('bi_vm_orc_dre').select('anomes_referente, vl_orcado').eq('anomes_referente', '202606').limit(5),
+      supabase.from('bi_vm_lanc_contabil').select('anomes_referente, vl_realizado').eq('anomes_referente', 202606).limit(5),
+      supabase.from('bi_vm_orc_dre').select('anomes_referente, vl_orcado').eq('anomes_referente', 202606).limit(5),
       supabase.rpc('bi_dre' as any, { p_anomes_ini: '202606', p_anomes_fim: '202606', p_unidade_negocio: null }),
       supabase.rpc('bi_dre_matriz_anual' as any, { p_ano: '2026', p_unidade_negocio: null }),
     ]);
