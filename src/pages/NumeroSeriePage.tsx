@@ -1025,7 +1025,34 @@ export default function NumeroSeriePage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>      <BiAutoSlots pageKey="numero-serie" />
+      </AlertDialog>
+
+      <AlertDialog open={opcForcarConfirmOpen} onOpenChange={setOpcForcarConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Forçar vínculo do GS?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este GS não foi encontrado como ativo na USU_T075SEP. Deseja forçar o vínculo mesmo assim?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOpcForcarPending(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                const pend = opcForcarPending;
+                setOpcForcarConfirmOpen(false);
+                setOpcForcarPending(null);
+                if (pend) executarOpComplementar(pend.confirmar, true);
+              }}
+            >
+              Forçar vínculo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BiAutoSlots pageKey="numero-serie" />
     </div>
   );
 }
