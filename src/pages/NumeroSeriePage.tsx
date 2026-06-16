@@ -95,6 +95,8 @@ interface ResultadoOpComplementar {
   situacao_op?: string;
   conflito?: string | null;
   mensagem?: string;
+  aviso?: string;
+  outro_produto?: boolean;
 }
 
 const statusBadge = (status: string) => {
