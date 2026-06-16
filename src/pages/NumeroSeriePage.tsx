@@ -220,6 +220,44 @@ export default function NumeroSeriePage() {
   const setOpcNumeroSerie = (v: string) => { setOpcNumeroSerieRaw(v); invalidarSimulacao(); };
   const setOpcJustificativa = (v: string) => { setOpcJustificativaRaw(v); invalidarSimulacao(); };
 
+  // Histórico do GS / Reserva OP Complementar
+  const [histFiltros, setHistFiltros] = useState({
+    numero_serie: '', numero_op_nova: '', origem_op_nova: '250',
+    codigo_produto: '', data_inicio: '', data_fim: '', situacao: 'TODOS',
+  });
+  const [histLoading, setHistLoading] = useState(false);
+  const [histData, setHistData] = useState<HistoricoGsResponse | null>(null);
+  const [histErro, setHistErro] = useState<string | null>(null);
+
+  const consultarHistorico = useCallback(async (override?: Partial<typeof histFiltros>) => {
+    const f = { ...histFiltros, ...(override ?? {}) };
+    if (!f.numero_serie.trim() && !f.numero_op_nova.trim()) {
+      toast.error('Informe ao menos o GS ou a OP nova para consultar o histórico.');
+      return;
+    }
+    setHistLoading(true);
+    setHistErro(null);
+    try {
+      const params: Record<string, any> = {};
+      if (f.numero_serie.trim()) params.numero_serie = f.numero_serie.trim().toUpperCase();
+      if (f.numero_op_nova.trim()) params.numero_op_nova = Number(f.numero_op_nova);
+      if (f.origem_op_nova.trim()) params.origem_op_nova = f.origem_op_nova.trim();
+      if (f.codigo_produto.trim()) params.codigo_produto = f.codigo_produto.trim();
+      if (f.data_inicio) params.data_inicio = f.data_inicio;
+      if (f.data_fim) params.data_fim = f.data_fim;
+      if (f.situacao && f.situacao !== 'TODOS') params.situacao = f.situacao;
+      const result = await api.get<HistoricoGsResponse>('/api/numero-serie/gs-historico', params);
+      setHistData(result || {});
+    } catch (e: any) {
+      const msg = e?.message || e?.detail || 'Falha ao consultar histórico do GS.';
+      setHistErro(msg);
+      setHistData(null);
+    } finally {
+      setHistLoading(false);
+    }
+  }, [histFiltros]);
+
+
 
   const erpReady = useErpReady();
 
