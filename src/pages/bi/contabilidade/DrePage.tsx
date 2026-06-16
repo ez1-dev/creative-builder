@@ -177,6 +177,8 @@ export default function DrePage() {
     } finally {
       setLoading(false);
     }
+
+    rodarDiagnostico().catch((e) => console.error('[DRE][DIAG] falhou', e));
   };
 
   useEffect(() => {
