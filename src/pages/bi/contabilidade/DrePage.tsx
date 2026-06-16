@@ -280,6 +280,36 @@ export default function DrePage() {
           </CardContent>
         </Card>
 
+        {diag && (
+          <Card className="border-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs text-amber-700 dark:text-amber-300">
+                Diagnóstico temporário (Cloud)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <table className="text-xs w-full">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="py-1 pr-3">Teste</th>
+                    <th className="py-1 pr-3 text-right">Qtd</th>
+                    <th className="py-1">Erro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {diag.map((d) => (
+                    <tr key={d.label} className={cn('border-t', d.error && 'text-destructive')}>
+                      <td className="py-1 pr-3 font-mono">{d.label}</td>
+                      <td className="py-1 pr-3 text-right tabular-nums">{d.qtd ?? '—'}</td>
+                      <td className="py-1 break-all">{d.error ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </Card>
+        )}
+
 
 
 
