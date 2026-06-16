@@ -101,6 +101,64 @@ interface ResultadoOpComplementar {
   fonte_gs?: string | null;
   gs_existe_historico?: boolean;
   gs_existe?: boolean;
+  // Validação pós-execução
+  sucesso?: boolean;
+  vinculo_confirmado?: boolean;
+  pedido?: number;
+  produto_op_nova?: string;
+  validacoes?: {
+    e120ipd_confirmado?: boolean;
+    usu_tnsop_confirmado?: boolean;
+    e000cse_confirmado?: boolean;
+    historico_estoque_encontrado?: boolean;
+  };
+}
+
+interface HistoricoGsResumo {
+  numero_serie?: string;
+  fonte?: string;
+  produto_origem?: string;
+  derivacao_origem?: string;
+  produto_op_nova?: string;
+  derivacao_op_nova?: string;
+  status?: string;
+}
+interface HistoricoGsReserva {
+  codigo_empresa?: number;
+  origem_op_nova?: string;
+  numero_op_nova?: number | string;
+  numero_pedido?: number;
+  item_pedido?: number;
+  produto_op_nova?: string;
+  derivacao?: string;
+  numsep_e120ipd?: string;
+  data_reserva?: string;
+  usuario?: string;
+  justificativa?: string;
+}
+interface HistoricoGsMovimentacao {
+  data_movimento?: string;
+  produto?: string;
+  derivacao?: string;
+  deposito?: string;
+  transacao?: string;
+  tipo?: 'E' | 'S';
+  quantidade?: number;
+  origem_op?: string;
+  numero_op?: number;
+  fonte?: 'E210MVP' | 'E210DLS' | string;
+}
+interface HistoricoGsValidacao {
+  e120ipd_confirmado?: boolean;
+  usu_tnsop_confirmado?: boolean;
+  e000cse_confirmado?: boolean;
+  e900_confirmado?: boolean;
+}
+interface HistoricoGsResponse {
+  resumo?: HistoricoGsResumo;
+  reserva?: HistoricoGsReserva | null;
+  movimentacoes?: HistoricoGsMovimentacao[];
+  validacao?: HistoricoGsValidacao;
 }
 
 const statusBadge = (status: string) => {
