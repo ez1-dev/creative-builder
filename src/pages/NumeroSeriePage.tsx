@@ -622,33 +622,42 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Prepare uma OP complementar origem 250 para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
+            Prepare uma OP complementar (informe a origem, geralmente 250) para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1">
-              <Label className="text-xs">OP nova 250 <span className="text-destructive">*</span></Label>
+              <Label className="text-xs">OP nova <span className="text-destructive">*</span></Label>
               <Input
                 type="number"
                 value={opcOpNova}
                 onChange={e => setOpcOpNova(e.target.value)}
                 className="h-8 text-xs"
-                placeholder="Ex.: 100500"
+                placeholder="Ex.: 1113"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">OP origem</Label>
+              <Label className="text-xs">Origem da OP nova <span className="text-destructive">*</span></Label>
+              <Input
+                value={opcOrigemOpNova}
+                onChange={e => setOpcOrigemOpNova(e.target.value)}
+                className="h-8 text-xs font-mono"
+                placeholder="250"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">OP original</Label>
               <Input
                 type="number"
                 value={opcOpOrigem}
                 onChange={e => setOpcOpOrigem(e.target.value)}
                 className="h-8 text-xs"
-                placeholder="Opcional"
+                placeholder="Ex.: 250"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Origem OP origem</Label>
+              <Label className="text-xs">Origem da OP original</Label>
               <Input
                 value={opcOrigemOpOrigem}
                 onChange={e => setOpcOrigemOpOrigem(e.target.value)}
@@ -662,7 +671,7 @@ export default function NumeroSeriePage() {
                 value={opcNumeroSerie}
                 onChange={e => setOpcNumeroSerie(e.target.value)}
                 className="h-8 text-xs font-mono"
-                placeholder="Opcional (Ex.: GS-11705)"
+                placeholder="Opcional (Ex.: GS-11661)"
               />
             </div>
           </div>
