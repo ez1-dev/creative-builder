@@ -139,14 +139,24 @@ export default function NumeroSeriePage() {
   const [trocarItem, setTrocarItem] = useState<string>('1');
 
   // OP Complementar — Manter GS
-  const [opcOpNova, setOpcOpNova] = useState('');
-  const [opcOrigemOpNova, setOpcOrigemOpNova] = useState('250');
-  const [opcOpOrigem, setOpcOpOrigem] = useState('');
-  const [opcOrigemOpOrigem, setOpcOrigemOpOrigem] = useState('250');
-  const [opcNumeroSerie, setOpcNumeroSerie] = useState('');
-  const [opcJustificativa, setOpcJustificativa] = useState('');
+  const [opcOpNova, setOpcOpNovaRaw] = useState('');
+  const [opcOrigemOpNova] = useState('250');
+  const [opcOpOrigem, setOpcOpOrigemRaw] = useState('');
+  const [opcOrigemOpOrigem, setOpcOrigemOpOrigemRaw] = useState('250');
+  const [opcNumeroSerie, setOpcNumeroSerieRaw] = useState('');
+  const [opcJustificativa, setOpcJustificativaRaw] = useState('');
   const [opcLoading, setOpcLoading] = useState<'simular' | 'manter' | null>(null);
   const [opcResultado, setOpcResultado] = useState<ResultadoOpComplementar | null>(null);
+  const [opcSimulacaoOk, setOpcSimulacaoOk] = useState(false);
+  const [opcAviso, setOpcAviso] = useState<string | null>(null);
+  const [opcForcarConfirmOpen, setOpcForcarConfirmOpen] = useState(false);
+  const [opcForcarPending, setOpcForcarPending] = useState<{ confirmar: boolean } | null>(null);
+  const invalidarSimulacao = () => { setOpcSimulacaoOk(false); setOpcAviso(null); };
+  const setOpcOpNova = (v: string) => { setOpcOpNovaRaw(v); invalidarSimulacao(); };
+  const setOpcOpOrigem = (v: string) => { setOpcOpOrigemRaw(v); invalidarSimulacao(); };
+  const setOpcOrigemOpOrigem = (v: string) => { setOpcOrigemOpOrigemRaw(v); invalidarSimulacao(); };
+  const setOpcNumeroSerie = (v: string) => { setOpcNumeroSerieRaw(v); invalidarSimulacao(); };
+  const setOpcJustificativa = (v: string) => { setOpcJustificativaRaw(v); invalidarSimulacao(); };
 
 
   const erpReady = useErpReady();
