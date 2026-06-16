@@ -634,7 +634,7 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Prepare uma OP complementar (informe a origem, geralmente 250) para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
+            Prepare uma OP complementar para herdar o mesmo GS da OP/máquina original antes de finalizar a OP. Somente OPs origem 250 com situação L (Liberada).
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
