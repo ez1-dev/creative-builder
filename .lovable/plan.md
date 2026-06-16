@@ -1,46 +1,47 @@
-## Correção do parâmetro `unidade` na chamada da RPC `bi_dre_matriz_anual`
+## Objetivo
+Garantir que a tela `/bi/contabilidade/dre` envie `p_unidade_negocio: null` para a RPC quando a unidade selecionada for "Todos" (independente de caixa/acento) e instrumentar logs decisivos para confirmar parâmetros e retorno.
 
-### Contexto
-A página `/bi/contabilidade/dre` está exibindo "Nenhum dado encontrado" mesmo quando a RPC retorna linhas no backend. A hipótese é que o `Select` de unidade esteja entregando o label `"Todos"` (ou outro valor diferente de `"TODOS"`) e a comparação `unidade === 'TODOS'` falha, fazendo a RPC ser chamada com `p_unidade_negocio = "Todos"` em vez de `NULL`.
+## Alterações em `src/pages/bi/contabilidade/DrePage.tsx`
 
-> Observação de diagnóstico: ao executar `bi_dre_matriz_anual('2026', NULL)` via read_query as tabelas-fonte (`bi_dre_estrutura`, `bi_dre_mascara`, `bi_vm_lanc_contabil`, `bi_vm_orc_dre`) aparecem com 0 linhas — então mesmo após esta correção, se a tela continuar vazia, o próximo passo é checar a carga do ETL. Esta correção trata só o bug de parâmetro pedido pelo usuário.
-
-### Mudanças em `src/pages/bi/contabilidade/DrePage.tsx`
-
-1. **Normalizar o parâmetro `unidade`** dentro de `carregarDre()`:
+1. **Normalização robusta de unidade** dentro de `carregarDre()`:
    ```ts
+   const unidadeNormalizada = String(unidade || '').trim().toUpperCase();
    const unidadeParam =
-     !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
+     !unidade ||
+     unidadeNormalizada === 'TODOS' ||
+     unidadeNormalizada === 'TODAS' ||
+     unidadeNormalizada === 'ALL'
        ? null
        : unidade;
-
-   const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
-     p_ano: String(ano || '2026'),
-     p_unidade_negocio: unidadeParam,
-   });
+   const pAno = String(ano || '2026');
    ```
 
-2. **Garantir `value="TODOS"`** no item "Todos" do `<Select>` de unidade de negócio (e revisar o `defaultValue`/estado inicial `unidade` para também ser `"TODOS"`, mantendo consistência maiúscula).
+2. **Logs de diagnóstico** (substituir os atuais):
+   - `[DRE] PARAMETROS ENVIADOS PARA RPC` com `ano, unidade, unidadeNormalizada, unidadeParam, p_ano, p_unidade_negocio`.
+   - `[DRE] Supabase URL usada:` com `(supabase as any).supabaseUrl` para confirmar o ambiente.
+   - `[DRE] RETORNO RPC bi_dre_matriz_anual` com `error, qtd, dataPreview`.
+   - `[DRE] LINHAS QUE SERÃO SALVAS NO ESTADO` com `linhas.length`.
 
-3. **Atualizar o log de diagnóstico já existente** para incluir `unidadeParam`:
+3. **Tratamento do retorno**:
    ```ts
-   console.log('[DRE] Parametros RPC', {
-     ano,
-     unidade,
-     unidadeParam,
-     p_ano: String(ano || '2026'),
-     p_unidade_negocio: unidadeParam,
-   });
+   if (error) { setErro(...); setLinhasRaw([]); return; }
+   const linhas = Array.isArray(data) ? data : [];
+   setLinhasRaw(linhas);
    ```
-   O log "[DRE] Retorno RPC" permanece como está.
+   Sem `filter` ou descarte de linhas zeradas — a estrutura completa deve aparecer.
 
-### Fora de escopo
-- Não mexer no SQL/RPC.
-- Não mexer no template visual da tabela nem nos KPIs.
-- Não remover os logs `[DRE] ...` ainda — eles serão retirados depois que a tela confirmar exibição de dados.
+4. **Select de unidade**: confirmar que o item "Todos" usa `value="TODOS"` (já está correto no arquivo atual; manter).
 
-### Validação após implementação
-1. Abrir `/bi/contabilidade/dre`, console aberto.
-2. Confirmar log `[DRE] Parametros RPC` com `unidadeParam: null` quando o select está em "Todos".
-3. Confirmar log `[DRE] Retorno RPC` com `qtd > 0`.
-4. Se `qtd === 0` mesmo com `unidadeParam: null`, o problema é falta de carga ETL nas tabelas-fonte (próximo ticket).
+## Fora do escopo
+- Sem mudanças na RPC, em SQL, ou no ETL.
+- Sem alteração na renderização da matriz, KPIs ou filtros de mês.
+- Logs ficam até confirmação visual de `qtd > 0`; removidos em ticket seguinte.
+
+## Validação
+1. Abrir `/bi/contabilidade/dre` com filtro "Todos" / ano 2026.
+2. Conferir no console:
+   - `p_unidade_negocio: null`
+   - `p_ano: "2026"`
+   - `qtd: 18` (ou nº esperado)
+   - URL Supabase corresponde ao projeto Cloud do app.
+3. Tabela deve listar todas as linhas da estrutura DRE (mesmo zeradas).
