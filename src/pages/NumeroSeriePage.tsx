@@ -677,7 +677,7 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Reutiliza um GS já existente em uma OP complementar (CODEMP=1, CODORI=250, SITORP=L). A rotina não gera novo GS — ao finalizar a OP nova no Senior, o produto acabado entra em estoque com o mesmo GS informado.
+            Reaproveita um GS existente em uma OP nova complementar (origem 250, SITORP=L). O GS pode pertencer a outro produto/derivação — será usado para acompanhar a OP até a finalização e entrada em estoque.
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
