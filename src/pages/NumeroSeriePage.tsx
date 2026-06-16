@@ -672,6 +672,9 @@ export default function NumeroSeriePage() {
         justificativa: opcJustificativa.trim(),
         confirmar,
         forcar_vinculo: forcar,
+        manutencao: opcManutencao,
+        tipo_vinculo: opcManutencao ? 'MANUTENCAO' : 'NORMAL',
+        permitir_mesmo_gs_outro_produto: opcManutencao,
       };
 
       const endpoint = confirmar
