@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
-import { api } from '@/lib/api';
-import { supabase } from '@/integrations/supabase/client';
+import { getApiUrl } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
 import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank } from 'lucide-react';
@@ -76,40 +75,6 @@ export default function DrePage() {
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [buscou, setBuscou] = useState(false);
-  const [diag, setDiag] = useState<{ label: string; qtd: number | null; error: string | null }[] | null>(null);
-
-  const rodarDiagnostico = async () => {
-    const [estrutura, lanc, orc, dreMensal, dreMatriz] = await Promise.all([
-      supabase.from('bi_dre_estrutura').select('codigo_linha, descricao, ativo').limit(20),
-      supabase.from('bi_vm_lanc_contabil').select('anomes_referente, vl_realizado').eq('anomes_referente', 202606).limit(5),
-      supabase.from('bi_vm_orc_dre').select('anomes_referente, vl_orcado').eq('anomes_referente', 202606).limit(5),
-      supabase.rpc('bi_dre' as any, { p_anomes_ini: '202606', p_anomes_fim: '202606', p_unidade_negocio: null }),
-      supabase.rpc('bi_dre_matriz_anual' as any, { p_ano: '2026', p_unidade_negocio: null }),
-    ]);
-
-    console.log('[DRE][DIAG] estrutura', { error: estrutura.error, qtd: estrutura.data?.length, data: estrutura.data });
-    console.log('[DRE][DIAG] lancamentos 202606', { error: lanc.error, qtd: lanc.data?.length, data: lanc.data });
-    console.log('[DRE][DIAG] orcamento 202606', { error: orc.error, qtd: orc.data?.length, data: orc.data });
-    console.log('[DRE][DIAG] rpc bi_dre mensal', {
-      error: dreMensal.error,
-      qtd: Array.isArray(dreMensal.data) ? dreMensal.data.length : null,
-      dataPreview: Array.isArray(dreMensal.data) ? dreMensal.data.slice(0, 5) : dreMensal.data,
-    });
-    console.log('[DRE][DIAG] rpc bi_dre_matriz_anual', {
-      error: dreMatriz.error,
-      qtd: Array.isArray(dreMatriz.data) ? dreMatriz.data.length : null,
-      dataPreview: Array.isArray(dreMatriz.data) ? dreMatriz.data.slice(0, 5) : dreMatriz.data,
-    });
-
-    const errMsg = (e: any) => (e ? (e.message || JSON.stringify(e)) : null);
-    setDiag([
-      { label: 'bi_dre_estrutura', qtd: estrutura.data?.length ?? null, error: errMsg(estrutura.error) },
-      { label: "bi_vm_lanc_contabil (anomes=202606)", qtd: lanc.data?.length ?? null, error: errMsg(lanc.error) },
-      { label: 'bi_vm_orc_dre (anomes=202606)', qtd: orc.data?.length ?? null, error: errMsg(orc.error) },
-      { label: 'rpc bi_dre (mensal 202606)', qtd: Array.isArray(dreMensal.data) ? dreMensal.data.length : null, error: errMsg(dreMensal.error) },
-      { label: 'rpc bi_dre_matriz_anual (2026)', qtd: Array.isArray(dreMatriz.data) ? dreMatriz.data.length : null, error: errMsg(dreMatriz.error) },
-    ]);
-  };
 
   const handleMesInicialChange = (v: string) => {
     setMesInicial(v);
@@ -135,24 +100,39 @@ export default function DrePage() {
     setErro(null);
     setBuscou(true);
 
-    const unidadeNormalizada = String(unidade || '').trim().toUpperCase();
     const unidadeParam =
-      !unidade ||
-      unidadeNormalizada === 'TODOS' ||
-      unidadeNormalizada === 'TODAS' ||
-      unidadeNormalizada === 'ALL'
-        ? null
+      !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
+        ? ''
         : unidade;
-    const pAno = String(ano || '2026');
 
-    console.log('[DRE] api.get /api/bi/contabilidade/dre-matriz', { ano: pAno, unidade: unidadeParam });
+    const base = getApiUrl();
+    const url =
+      `${base}/api/bi/contabilidade/dre-matriz?ano=${ano || '2026'}` +
+      `&mes_ini=${mesInicial}&mes_fim=${mesFinal}` +
+      `&unidade=${encodeURIComponent(unidadeParam)}`;
+
+    console.log('[DRE] GET', url);
 
     try {
-      const json = await api.get<any>(
-        '/api/bi/contabilidade/dre-matriz',
-        { ano: pAno, unidade: unidadeParam ?? '' },
-        { keepEmpty: ['unidade'] },
-      );
+      const token = localStorage.getItem('erp_token');
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (response.status === 401) {
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+      if (!response.ok) {
+        throw new Error(`Erro ao carregar DRE: HTTP ${response.status}`);
+      }
+
+      const json = await response.json();
       const linhas: DreLinha[] = Array.isArray(json)
         ? json
         : Array.isArray(json?.data)
@@ -162,30 +142,17 @@ export default function DrePage() {
       setLinhasRaw(linhas);
     } catch (e: any) {
       console.error('[DRE] Falha ao buscar /api/bi/contabilidade/dre-matriz', e);
-      if (e?.statusCode === 401) {
-        setErro('Sessão expirada. Faça login novamente.');
-      } else {
-        setErro(e?.message || String(e));
-      }
+      setErro(e?.message || String(e));
       setLinhasRaw([]);
     } finally {
       setLoading(false);
     }
-
-    rodarDiagnostico().catch((e) => console.error('[DRE][DIAG] falhou', e));
   };
 
   useEffect(() => {
     carregarDre();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ano, unidade]);
-
-  // Diagnóstico temporário: roda automaticamente ao montar a página
-  useEffect(() => {
-    console.log('[DRE][DIAG] iniciando diagnóstico no mount');
-    rodarDiagnostico().catch((e) => console.error('[DRE][DIAG] falhou no mount', e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ano, unidade, mesInicial, mesFinal]);
 
   const linhas = useMemo<DreLinha[]>(() => {
     return [...linhasRaw].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
@@ -219,7 +186,7 @@ export default function DrePage() {
       <div className="space-y-4 p-4">
         <PageHeader
           title="Contabilidade — DRE"
-          description="Demonstração do Resultado em formato matriz mensal (RPC bi_dre_matriz_anual)."
+          description="Demonstração do Resultado em formato matriz mensal (API backend)."
         />
 
         <Card>
@@ -280,39 +247,6 @@ export default function DrePage() {
             </div>
           </CardContent>
         </Card>
-
-        {diag && (
-          <Card className="border-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs text-amber-700 dark:text-amber-300">
-                Diagnóstico temporário (Cloud)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <table className="text-xs w-full">
-                <thead>
-                  <tr className="text-left text-muted-foreground">
-                    <th className="py-1 pr-3">Teste</th>
-                    <th className="py-1 pr-3 text-right">Qtd</th>
-                    <th className="py-1">Erro</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {diag.map((d) => (
-                    <tr key={d.label} className={cn('border-t', d.error && 'text-destructive')}>
-                      <td className="py-1 pr-3 font-mono">{d.label}</td>
-                      <td className="py-1 pr-3 text-right tabular-nums">{d.qtd ?? '—'}</td>
-                      <td className="py-1 break-all">{d.error ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        )}
-
-
-
 
         <KpiGrid cols={4}>
           <KpiCard
