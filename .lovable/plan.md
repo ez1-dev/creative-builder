@@ -1,48 +1,43 @@
-# Diagnóstico temporário — DRE (RPC vs API antiga)
+# DRE Matriz — consumir API do backend em vez de RPC direta
 
-Objetivo: descobrir por que a RPC `bi_dre_matriz_anual` retorna vazio no front, comparando com a API antiga `/api/bi/contabilidade/dre` que sabidamente funciona.
+## Contexto
+Hoje `src/pages/bi/contabilidade/DrePage.tsx` chama `supabase.rpc('bi_dre_matriz_anual', ...)` direto do front. A RPC retorna dados no SQL Editor, mas não no preview. A tela antiga `/api/bi/contabilidade/dre` (FastAPI) funciona normalmente. Vamos seguir o mesmo padrão: o front consome a API; o backend chama a RPC.
 
-## Mudanças em `src/pages/bi/contabilidade/DrePage.tsx`
+## Backend (FastAPI — fora do repositório Lovable)
+Criar endpoint:
 
-### 1. Novo estado para diagnóstico
-Adicionar:
-```ts
-const [diag, setDiag] = useState<{
-  unidadeParam: string | null;
-  qtdRpc: number | null;
-  erroRpc: string | null;
-  qtdApi: number | null;
-  erroApi: string | null;
-} | null>(null);
+```
+GET /api/bi/contabilidade/dre-matriz?ano=2026&unidade=
 ```
 
-### 2. Refatorar `carregarDre()`
-Manter a normalização atual de `unidadeParam` / `pAno`. Adicionar logs e chamada paralela à API antiga:
+Comportamento:
+- `ano` (str, obrigatório, ex.: `2026`).
+- `unidade` (str, opcional). Vazio / ausente / `TODOS` / `TODAS` / `ALL` → enviar `NULL` para a RPC.
+- Internamente executar `SELECT * FROM public.bi_dre_matriz_anual(p_ano := %s, p_unidade_negocio := %s)`.
+- Retornar JSON: array de linhas exatamente como a RPC devolve (mesmos campos `ordem`, `codigo_linha`, `descricao`, `total_realizado`, `total_av`, `total_orcado`, `jan_realizado`, `jan_av`, `jan_orcado`, … `dez_*`).
+- CORS liberado para o preview Lovable; resposta sem necessidade do header `ngrok-skip-browser-warning` (mas o front já envia).
 
-- Log `[DRE][RPC] Parâmetros` com `{ ano, unidade, unidadeNormalizada, unidadeParam, p_ano, p_unidade_negocio }`.
-- Executar `supabase.rpc('bi_dre_matriz_anual', { p_ano, p_unidade_negocio: unidadeParam })` e logar `[DRE][RPC] Resultado` com `{ error, qtd, dataPreview }`.
-- Em seguida, chamada de diagnóstico à API antiga:
-  ```ts
-  const apiUrl = `/api/bi/contabilidade/dre?anomes_ini=202606&anomes_fim=202606&unidade=${unidadeParam || ''}`;
-  const apiResponse = await fetch(apiUrl);
-  const apiJson = await apiResponse.json().catch(() => null);
-  ```
-  Logar `[DRE][API ANTIGA] Resultado` com `{ status, ok, qtd, dataPreview }`. Envolto em try/catch para não quebrar a tela se a rota não estiver acessível pelo preview.
-- Popular `setDiag({...})` com `unidadeParam`, `qtdRpc`, `erroRpc`, `qtdApi`, `erroApi`.
-- Continuar populando `linhasRaw` a partir do retorno da RPC (comportamento atual preservado).
+Documentar em `docs/backend-bi-contabilidade-dre-matriz.md` (novo): contrato, exemplo de request/response, regra do `unidade` vazio = `NULL`.
 
-### 3. Painel de diagnóstico na UI
-Logo abaixo do `<Card>` de filtros, renderizar um pequeno card amarelo (`border-amber-400 bg-amber-50/40 dark:bg-amber-950/20`) marcado como “Diagnóstico temporário” quando `diag` não for null, exibindo em formato chave/valor:
+## Frontend (`src/pages/bi/contabilidade/DrePage.tsx`)
 
-- `unidadeParam`
-- `qtdRpc`
-- `erroRpc`
-- `qtdApi`
-- `erroApi`
-
-Sem alterar layout definitivo, KPIs, tabela DRE, filtros ou contratos da RPC.
+1. Substituir a chamada `supabase.rpc('bi_dre_matriz_anual', ...)` por `fetch` à API:
+   ```ts
+   const url = `${getApiUrl()}/api/bi/contabilidade/dre-matriz?ano=${pAno}&unidade=${unidadeParam || ''}`;
+   const resp = await fetch(url, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+   const json = await resp.json();
+   const linhas: DreLinha[] = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
+   setLinhasRaw(linhas);
+   ```
+2. Tratamento de erro: `!resp.ok` → `setErro(`HTTP ${resp.status}`)` e `setLinhasRaw([])`. Try/catch para falha de rede.
+3. Remover o import `supabase` se ficar sem uso (verificar).
+4. Remover o bloco de diagnóstico temporário (card amarelo + estado `diag` + logs `[DRE][RPC]` / `[DRE][API ANTIGA]`), já que a nova chamada substitui a investigação.
+5. Manter intactos:
+   - Filtros Ano, Mês inicial, Mês final, Unidade (mês continua apenas controlando colunas exibidas via `colunas`).
+   - `useEffect([ano, unidade])` continua disparando `carregarDre`.
+   - KPIs, totalizadoras, renderização da matriz, `PageDataProvider`, `UserWidgetsSlot`.
 
 ## Fora do escopo
-- Não alterar a RPC, ETL, SQL ou backend.
-- Não alterar a renderização da matriz, KPIs ou filtros de mês.
-- Diagnóstico será removido depois que confirmarmos a causa.
+- Não mexer na RPC, ETL, SQL, schema.
+- Não alterar a tela antiga `/api/bi/contabilidade/dre`.
+- Não mudar layout, KPIs ou cálculos.
