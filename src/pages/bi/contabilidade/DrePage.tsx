@@ -100,38 +100,48 @@ export default function DrePage() {
     setErro(null);
     setBuscou(true);
 
+    const unidadeNormalizada = String(unidade || '').trim().toUpperCase();
     const unidadeParam =
-      !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
+      !unidade ||
+      unidadeNormalizada === 'TODOS' ||
+      unidadeNormalizada === 'TODAS' ||
+      unidadeNormalizada === 'ALL'
         ? null
         : unidade;
+    const pAno = String(ano || '2026');
 
-    console.log('[DRE] Parametros RPC', {
+    console.log('[DRE] PARAMETROS ENVIADOS PARA RPC', {
       ano,
       unidade,
+      unidadeNormalizada,
       unidadeParam,
-      p_ano: String(ano || '2026'),
+      p_ano: pAno,
       p_unidade_negocio: unidadeParam,
     });
+    console.log('[DRE] Supabase URL usada:', (supabase as any).supabaseUrl);
 
     const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
-      p_ano: String(ano || '2026'),
+      p_ano: pAno,
       p_unidade_negocio: unidadeParam,
     });
 
-    console.log('[DRE] Retorno RPC bi_dre_matriz_anual', {
+    console.log('[DRE] RETORNO RPC bi_dre_matriz_anual', {
       error,
-      qtd: (data as any[] | null)?.length,
-      dataPreview: (data as any[] | null)?.slice?.(0, 3),
+      qtd: Array.isArray(data) ? data.length : null,
+      dataPreview: Array.isArray(data) ? data.slice(0, 3) : data,
     });
 
-
     if (error) {
-      console.error('Erro RPC bi_dre_matriz_anual:', error);
+      console.error('[DRE] ERRO RPC:', error);
       setErro(error.message || JSON.stringify(error));
       setLinhasRaw([]);
-    } else {
-      setLinhasRaw((data as DreLinha[]) || []);
+      setLoading(false);
+      return;
     }
+
+    const linhas = Array.isArray(data) ? (data as DreLinha[]) : [];
+    console.log('[DRE] LINHAS QUE SERÃO SALVAS NO ESTADO', linhas.length);
+    setLinhasRaw(linhas);
     setLoading(false);
   };
 
