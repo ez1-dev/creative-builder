@@ -802,6 +802,9 @@ export default function NumeroSeriePage() {
                   <div><span className="text-muted-foreground">Pedido:</span> {opcResultado.numero_pedido ?? '-'}</div>
                   <div><span className="text-muted-foreground">Item:</span> {opcResultado.item_pedido ?? '-'}</div>
                   <div className="col-span-2 md:col-span-3"><span className="text-muted-foreground">Situação da OP:</span> <Badge variant="outline" className="ml-1">{opcResultado.situacao_op || '-'}</Badge></div>
+                  {opcResultado.fonte_gs && (
+                    <div className="col-span-2 md:col-span-3"><span className="text-muted-foreground">Fonte do GS:</span> <Badge variant="outline" className="font-mono ml-1">{opcResultado.fonte_gs}</Badge></div>
+                  )}
                 </div>
                 {opcResultado.conflito && !opcAviso && (
                   <Alert variant="destructive" className="mt-3">
