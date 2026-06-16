@@ -1295,6 +1295,7 @@ export default function NumeroSeriePage() {
           />
         </CardContent>
       </Card>
+      </div>
 
       <AlertDialog open={confirmDesvincularOpen} onOpenChange={setConfirmDesvincularOpen}>
         <AlertDialogContent>
