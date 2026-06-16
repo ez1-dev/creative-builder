@@ -139,9 +139,42 @@ export default function DrePage() {
       dataPreview: Array.isArray(data) ? data.slice(0, 3) : data,
     });
 
+    const qtdRpc = Array.isArray(data) ? data.length : null;
+    const erroRpc = error ? (error.message || JSON.stringify(error)) : null;
+
+    // === Diagnóstico: chamada API antiga ===
+    let qtdApi: number | null = null;
+    let erroApi: string | null = null;
+    try {
+      const apiUrl = `${getApiUrl()}/api/bi/contabilidade/dre?anomes_ini=202606&anomes_fim=202606&unidade=${unidadeParam || ''}`;
+      const apiResponse = await fetch(apiUrl, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
+      const apiJson = await apiResponse.json().catch(() => null);
+      qtdApi = Array.isArray(apiJson)
+        ? apiJson.length
+        : Array.isArray(apiJson?.data)
+          ? apiJson.data.length
+          : null;
+      if (!apiResponse.ok) erroApi = `HTTP ${apiResponse.status}`;
+      console.log('[DRE][API ANTIGA] Resultado', {
+        status: apiResponse.status,
+        ok: apiResponse.ok,
+        qtd: qtdApi,
+        dataPreview: Array.isArray(apiJson)
+          ? apiJson.slice(0, 3)
+          : apiJson?.data?.slice?.(0, 3) || apiJson,
+      });
+    } catch (e: any) {
+      erroApi = e?.message || String(e);
+      console.error('[DRE][API ANTIGA] Erro', e);
+    }
+
+    setDiag({ unidadeParam, qtdRpc, erroRpc, qtdApi, erroApi });
+
     if (error) {
       console.error('[DRE] ERRO RPC:', error);
-      setErro(error.message || JSON.stringify(error));
+      setErro(erroRpc);
       setLinhasRaw([]);
       setLoading(false);
       return;
