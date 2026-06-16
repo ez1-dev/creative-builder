@@ -228,6 +228,7 @@ export default function NumeroSeriePage() {
   const [histLoading, setHistLoading] = useState(false);
   const [histData, setHistData] = useState<HistoricoGsResponse | null>(null);
   const [histErro, setHistErro] = useState<string | null>(null);
+  const [mainTab, setMainTab] = useState<'reserva' | 'historico'>('reserva');
 
   const consultarHistorico = useCallback(async (override?: Partial<typeof histFiltros>) => {
     const f = { ...histFiltros, ...(override ?? {}) };
