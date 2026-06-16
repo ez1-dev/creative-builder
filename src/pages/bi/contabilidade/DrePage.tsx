@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { supabase } from '@/integrations/supabase/client';
+import { getApiUrl } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
 import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank } from 'lucide-react';
@@ -75,6 +76,13 @@ export default function DrePage() {
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [buscou, setBuscou] = useState(false);
+  const [diag, setDiag] = useState<{
+    unidadeParam: string | null;
+    qtdRpc: number | null;
+    erroRpc: string | null;
+    qtdApi: number | null;
+    erroApi: string | null;
+  } | null>(null);
 
   const handleMesInicialChange = (v: string) => {
     setMesInicial(v);
@@ -131,9 +139,42 @@ export default function DrePage() {
       dataPreview: Array.isArray(data) ? data.slice(0, 3) : data,
     });
 
+    const qtdRpc = Array.isArray(data) ? data.length : null;
+    const erroRpc = error ? (error.message || JSON.stringify(error)) : null;
+
+    // === Diagnóstico: chamada API antiga ===
+    let qtdApi: number | null = null;
+    let erroApi: string | null = null;
+    try {
+      const apiUrl = `${getApiUrl()}/api/bi/contabilidade/dre?anomes_ini=202606&anomes_fim=202606&unidade=${unidadeParam || ''}`;
+      const apiResponse = await fetch(apiUrl, {
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
+      const apiJson = await apiResponse.json().catch(() => null);
+      qtdApi = Array.isArray(apiJson)
+        ? apiJson.length
+        : Array.isArray(apiJson?.data)
+          ? apiJson.data.length
+          : null;
+      if (!apiResponse.ok) erroApi = `HTTP ${apiResponse.status}`;
+      console.log('[DRE][API ANTIGA] Resultado', {
+        status: apiResponse.status,
+        ok: apiResponse.ok,
+        qtd: qtdApi,
+        dataPreview: Array.isArray(apiJson)
+          ? apiJson.slice(0, 3)
+          : apiJson?.data?.slice?.(0, 3) || apiJson,
+      });
+    } catch (e: any) {
+      erroApi = e?.message || String(e);
+      console.error('[DRE][API ANTIGA] Erro', e);
+    }
+
+    setDiag({ unidadeParam, qtdRpc, erroRpc, qtdApi, erroApi });
+
     if (error) {
       console.error('[DRE] ERRO RPC:', error);
-      setErro(error.message || JSON.stringify(error));
+      setErro(erroRpc);
       setLinhasRaw([]);
       setLoading(false);
       return;
@@ -243,6 +284,26 @@ export default function DrePage() {
             </div>
           </CardContent>
         </Card>
+
+        {diag && (
+          <Card className="border-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs text-amber-700 dark:text-amber-300">
+                Diagnóstico temporário (RPC vs API antiga)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono">
+                <div><div className="text-muted-foreground">unidadeParam</div><div>{String(diag.unidadeParam)}</div></div>
+                <div><div className="text-muted-foreground">qtdRpc</div><div>{String(diag.qtdRpc)}</div></div>
+                <div><div className="text-muted-foreground">erroRpc</div><div className="break-all">{diag.erroRpc ?? '—'}</div></div>
+                <div><div className="text-muted-foreground">qtdApi</div><div>{String(diag.qtdApi)}</div></div>
+                <div><div className="text-muted-foreground">erroApi</div><div className="break-all">{diag.erroApi ?? '—'}</div></div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
 
         <KpiGrid cols={4}>
           <KpiCard
