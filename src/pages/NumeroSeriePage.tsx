@@ -583,31 +583,46 @@ export default function NumeroSeriePage() {
         return;
       }
 
-      // Detecta aviso de "GS pertence a outro produto/derivação" (não bloqueia)
+      // GS não existe em nenhuma fonte → pedir confirmação para forçar vínculo
+      const fonteGs = (result?.fonte_gs || '').toString().toUpperCase();
+      const temHistorico = result?.gs_existe_historico === true || fonteGs === 'E210MVP' || fonteGs === 'E210DLS';
+      const existeEmAlguma = result?.gs_existe === true || !!fonteGs || temHistorico;
+      if (!forcar && result?.gs_existe === false && !temHistorico && !fonteGs) {
+        setOpcSimulacaoOk(false);
+        setOpcForcarPending({ confirmar });
+        setOpcForcarConfirmOpen(true);
+        return;
+      }
+
+      // Avisos não-bloqueantes
       const textoResp = `${result?.aviso ?? ''} ${result?.mensagem ?? ''} ${result?.conflito ?? ''}`;
       const outroProduto = result?.outro_produto === true || /outro produto|outra deriva/i.test(textoResp);
-      if (outroProduto) {
-        setOpcAviso('GS localizado ativo, porém vinculado a outro produto/derivação. A rotina seguirá como reaproveitamento de GS em OP complementar.');
-      } else {
-        setOpcAviso(null);
+      const avisos: string[] = [];
+      if (temHistorico) {
+        avisos.push('GS encontrado no histórico do ERP. Ele será reaproveitado e reservado para a OP nova.');
       }
+      if (outroProduto) {
+        avisos.push('GS encontrado em produto/derivação diferente. A rotina seguirá como reaproveitamento de GS em OP complementar.');
+      }
+      setOpcAviso(avisos.length ? avisos.join(' ') : null);
 
       if (confirmar) {
         const gs = result?.numero_serie || numeroSerieNorm;
         const origem = result?.origem_op_nova || '250';
         const opNova = result?.numero_op_nova || opcOpNova;
         toast.success(
-          `GS ${gs} vinculado à OP complementar ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque do produto acabado.`,
+          `GS ${gs} reservado para a OP nova ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque.`,
         );
         setOpcSimulacaoOk(false);
       } else {
         setOpcSimulacaoOk(true);
         toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
       }
+      void existeEmAlguma;
     } catch (e: any) {
       const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
-      // Se erro indicar GS não encontrado ativo em USU_T075SEP, oferecer forçar vínculo
-      if (!forcar && /USU_T075SEP|não encontrado ativo|nao encontrado ativo/i.test(msg)) {
+      // Compat: erro indicando GS inexistente em qualquer fonte
+      if (!forcar && /não encontrado no ERP|nao encontrado no ERP|não existe no ERP|nao existe no ERP|gs_existe.*false/i.test(msg)) {
         setOpcForcarPending({ confirmar });
         setOpcForcarConfirmOpen(true);
         return;
