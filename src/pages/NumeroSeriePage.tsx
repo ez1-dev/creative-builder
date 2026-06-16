@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle } from 'lucide-react';
+import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle, History, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
