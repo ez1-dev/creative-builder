@@ -529,8 +529,16 @@ export default function NumeroSeriePage() {
       toast.error('Informe a OP nova.');
       return;
     }
-    if (!opcOrigemOpNova.trim()) {
-      toast.error('Informe a origem da OP nova.');
+    if (!opcOpOrigem.trim()) {
+      toast.error('Informe a OP original que possui o GS.');
+      return;
+    }
+    if (!opcOrigemOpOrigem.trim()) {
+      toast.error('Informe a origem da OP original.');
+      return;
+    }
+    if (!opcNumeroSerie.trim()) {
+      toast.error('Informe o GS original a ser reutilizado na nova OP.');
       return;
     }
     if (opcJustificativa.trim().length < 20) {
@@ -539,14 +547,15 @@ export default function NumeroSeriePage() {
     }
     setOpcLoading(confirmar ? 'manter' : 'simular');
     try {
+      const numeroSerieNorm = opcNumeroSerie.trim().toUpperCase();
       const body: Record<string, any> = {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
-        origem_op_nova: (opcOrigemOpNova || '250').trim(),
+        origem_op_nova: '250',
         situacao_op_nova: 'L',
-        ...(opcOpOrigem.trim() ? { numero_op_origem: Number(opcOpOrigem) } : {}),
-        origem_op_origem: (opcOrigemOpOrigem || '250').trim(),
-        ...(opcNumeroSerie.trim() ? { numero_serie: opcNumeroSerie.trim().toUpperCase() } : {}),
+        numero_op_origem: Number(opcOpOrigem),
+        origem_op_origem: opcOrigemOpOrigem.trim(),
+        numero_serie: numeroSerieNorm,
         justificativa: opcJustificativa.trim(),
         confirmar,
       };
@@ -565,7 +574,16 @@ export default function NumeroSeriePage() {
         toast.error('A rotina permite somente OP complementar da origem 250 com situação Liberada.');
         return;
       }
-      toast.success(result?.mensagem || (confirmar ? 'GS mantido na nova OP.' : 'Simulação concluída.'));
+      if (confirmar) {
+        const gs = result?.numero_serie || numeroSerieNorm;
+        const origem = result?.origem_op_nova || '250';
+        const opNova = result?.numero_op_nova || opcOpNova;
+        toast.success(
+          `GS ${gs} vinculado à OP complementar ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque do produto acabado.`,
+        );
+      } else {
+        toast.success(result?.mensagem || 'Simulação concluída.');
+      }
     } catch (e: any) {
       const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
       toast.error(msg);
@@ -573,6 +591,7 @@ export default function NumeroSeriePage() {
       setOpcLoading(null);
     }
   };
+
 
 
 
