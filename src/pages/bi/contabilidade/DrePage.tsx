@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { supabase } from '@/integrations/supabase/client';
+import { getApiUrl } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
 import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank } from 'lucide-react';
