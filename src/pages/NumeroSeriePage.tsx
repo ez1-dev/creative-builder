@@ -760,6 +760,14 @@ export default function NumeroSeriePage() {
         description="Vincule e reserve números de série (GS) em pedidos e OPs"
       />
 
+      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'reserva' | 'historico')}>
+        <TabsList>
+          <TabsTrigger value="reserva">Reserva</TabsTrigger>
+          <TabsTrigger value="historico">Histórico do GS</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className={mainTab === 'historico' ? 'hidden' : 'space-y-4'}>
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 space-y-3">
