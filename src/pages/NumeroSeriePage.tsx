@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle, History, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
