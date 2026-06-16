@@ -711,6 +711,14 @@ export default function NumeroSeriePage() {
           `GS ${gs} reservado para a OP nova ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque.`,
         );
         setOpcSimulacaoOk(false);
+        // Pré-preencher e disparar a consulta de histórico para validar o vínculo
+        const novosFiltros = {
+          numero_serie: String(gs),
+          numero_op_nova: String(opNova),
+          origem_op_nova: String(origem),
+        };
+        setHistFiltros((prev) => ({ ...prev, ...novosFiltros }));
+        void consultarHistorico(novosFiltros);
       } else {
         setOpcSimulacaoOk(true);
         toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
