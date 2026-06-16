@@ -218,9 +218,9 @@ export default function DrePage() {
                 </Select>
               </div>
               <div>
-                <Button size="sm" className="h-8 w-full" onClick={fetchDre} disabled={loading}>
+                <Button size="sm" className="h-8 w-full" onClick={carregarDre} disabled={loading}>
                   <RefreshCw className={cn('h-3.5 w-3.5 mr-1', loading && 'animate-spin')} />
-                  Atualizar
+                  {loading ? 'Atualizando...' : 'Atualizar'}
                 </Button>
               </div>
             </div>
