@@ -298,10 +298,24 @@ export default function DrePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {linhas.length === 0 && (
+                  {loading && (
                     <tr>
                       <td colSpan={1 + colunas.length * 3} className="px-3 py-6 text-center text-muted-foreground">
-                        {loading ? 'Carregando...' : 'Selecione o ano e clique em Atualizar.'}
+                        Carregando DRE...
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && erro && (
+                    <tr>
+                      <td colSpan={1 + colunas.length * 3} className="px-3 py-6 text-center text-destructive bg-destructive/10 font-medium">
+                        Erro ao carregar DRE: {erro}
+                      </td>
+                    </tr>
+                  )}
+                  {!loading && !erro && buscou && linhas.length === 0 && (
+                    <tr>
+                      <td colSpan={1 + colunas.length * 3} className="px-3 py-6 text-center text-muted-foreground">
+                        Nenhum dado encontrado para os filtros selecionados.
                       </td>
                     </tr>
                   )}
