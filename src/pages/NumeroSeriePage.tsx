@@ -1128,7 +1128,9 @@ export default function NumeroSeriePage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
+      <div className={mainTab === 'historico' ? 'hidden' : 'space-y-4'}>
       {/* Context card */}
 
 
