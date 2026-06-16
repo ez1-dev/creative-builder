@@ -721,7 +721,7 @@ export default function NumeroSeriePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">GS original <span className="text-destructive">*</span></Label>
+              <Label className="text-xs">GS existente <span className="text-destructive">*</span></Label>
               <Input
                 value={opcNumeroSerie}
                 onChange={e => setOpcNumeroSerie(e.target.value)}
