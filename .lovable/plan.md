@@ -1,60 +1,60 @@
 ## Objetivo
 
-Remover toda dependência de `supabase` (Cloud) na tela `Contabilidade — DRE` e consumir exclusivamente a API backend, incluindo os filtros de mês inicial/final.
+Corrigir a seção "OP Complementar — Manter GS" em `src/pages/NumeroSeriePage.tsx` para sempre enviar `origem_op_nova` (padrão `"250"`) junto com `numero_op_nova`, evitando ambiguidade entre OPs de origens diferentes no Senior.
 
-## Mudanças em `src/pages/bi/contabilidade/DrePage.tsx`
+## Mudanças no frontend
 
-### 1. Remover imports e estado de diagnóstico Cloud
-- Remover `import { supabase } from '@/integrations/supabase/client'`.
-- Remover a função `rodarDiagnostico` (que usa `supabase.from(...)` e `supabase.rpc(...)`).
-- Remover o estado `diag` e o `<Card>` "Diagnóstico temporário (Cloud)".
-- Remover o `useEffect` de mount que dispara `rodarDiagnostico()`.
-- Remover a chamada a `rodarDiagnostico()` dentro de `carregarDre`.
+Arquivo único: `src/pages/NumeroSeriePage.tsx`.
 
-### 2. Substituir `api.get` por `fetch` direto, incluindo `mes_ini` / `mes_fim`
+### 1. Estado novo
 
-Em `carregarDre`, trocar o bloco atual por:
+Adicionar ao bloco "OP Complementar — Manter GS" (linhas 137–144):
+
+- `const [opcOrigemOpNova, setOpcOrigemOpNova] = useState('250');`
+
+### 2. Renomear rótulos da UI (linhas 623–660)
+
+- "OP nova 250" → **"OP nova"** (placeholder `Ex.: 1113`)
+- Novo campo logo após: **"Origem da OP nova"** (Input texto, mono, default `250`, placeholder `250`) — `opcOrigemOpNova` / `setOpcOrigemOpNova`
+- "OP origem" → **"OP original"** (placeholder `Ex.: 250`)
+- "Origem OP origem" → **"Origem da OP original"** (mantém `opcOrigemOpOrigem`, default `250`)
+- "GS original" → mantém rótulo, placeholder `Ex.: GS-11661`
+- Descrição do card: trocar "origem 250" por "informe a origem (geralmente 250)" para refletir que a origem agora é parametrizada.
+
+### 3. `executarOpComplementar` (linhas 524–556)
+
+Ajustar validação e payload:
+
+- Validar `opcOrigemOpNova.trim()` obrigatório (toast: "Informe a origem da OP nova.").
+- Trocar mensagem da validação de OP nova vazia para "Informe a OP nova.".
+- Montar payload na ordem do contrato:
 
 ```ts
-const unidadeParam =
-  !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
-    ? ''
-    : unidade;
-
-const url =
-  `/api/bi/contabilidade/dre-matriz?ano=${ano || '2026'}` +
-  `&mes_ini=${mesInicial}&mes_fim=${mesFinal}` +
-  `&unidade=${encodeURIComponent(unidadeParam)}`;
-
-const response = await fetch(url, {
-  method: 'GET',
-  credentials: 'include',
-  headers: { 'Content-Type': 'application/json' },
-});
-
-if (response.status === 401) {
-  throw new Error('Sessão expirada. Faça login novamente.');
-}
-if (!response.ok) {
-  throw new Error(`Erro ao carregar DRE: HTTP ${response.status}`);
-}
-
-const json = await response.json();
-const linhas: DreLinha[] = Array.isArray(json)
-  ? json
-  : Array.isArray(json?.data) ? json.data : [];
-setLinhasRaw(linhas);
+const body: Record<string, any> = {
+  codigo_empresa: 1,
+  numero_op_nova: Number(opcOpNova),
+  origem_op_nova: (opcOrigemOpNova || '250').trim(),
+  ...(opcOpOrigem.trim() ? { numero_op_origem: Number(opcOpOrigem) } : {}),
+  origem_op_origem: (opcOrigemOpOrigem || '250').trim(),
+  ...(opcNumeroSerie.trim() ? { numero_serie: opcNumeroSerie.trim().toUpperCase() } : {}),
+  justificativa: opcJustificativa.trim(),
+  confirmar,
+};
 ```
 
-Observação: a tela hoje usa `api.get` (helper que adiciona `Authorization: Bearer` a partir do `localStorage.erp_token` e prefixo do `getApiBaseUrl()`). O pedido pede `fetch` puro com `credentials: 'include'`. Vou seguir literalmente o pedido, mas isso pode quebrar a autenticação Bearer/ngrok que hoje funciona nas outras telas. **Confirmar:** seguir com `fetch` puro mesmo assim, ou manter o `api.get` (que já injeta Bearer + base URL correta) só trocando os parâmetros para incluir `mes_ini`/`mes_fim`?
+- Tratamento de erro: preservar mensagem completa do backend — usar `e?.message || e?.detail || JSON.stringify(e) || 'Falha na operação.'` no `toast.error`.
 
-### 3. Recarregar ao mudar mês
-- Atualizar `useEffect([ano, unidade])` → `useEffect([ano, unidade, mesInicial, mesFinal])` para refletir o novo contrato (mês passa a ser server-side).
+### 4. Preenchimento automático
 
-### 4. Limpar dead code
-- Remover estado `diag` e tipos relacionados.
-- Manter logs `console.log('[DRE] ...')` do fluxo principal (sem prefixo `[DIAG]`).
+Se houver algum efeito que preenche `opcOpNova` a partir do contexto, garantir que `opcOrigemOpNova` permaneça `'250'` (não sobrescrever). Hoje não há auto-fill desses campos, então basta manter o default `'250'` no `useState`.
 
 ## Fora de escopo
-- Backend FastAPI (`/api/bi/contabilidade/dre-matriz`) já existe conforme `docs/backend-bi-contabilidade-dre-matriz.md`. Se o backend ainda não aceita `mes_ini` / `mes_fim`, será necessário ajuste server-side — não coberto por este plano.
-- Nenhuma mudança em outras telas, RPC, ETL ou layout visual.
+
+- Backend FastAPI (já aceita `origem_op_nova`).
+- Outras seções da página (Reservar, Vincular, Desvincular).
+- Mudanças de layout/estilo além dos rótulos.
+
+## Validação
+
+- Build TypeScript verde.
+- Abrir `/numero-serie`, preencher OP nova `1113`, deixar origem `250`, simular e confirmar que a request em network contém `origem_op_nova: "250"`.
