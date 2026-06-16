@@ -228,6 +228,7 @@ export default function NumeroSeriePage() {
   const [histLoading, setHistLoading] = useState(false);
   const [histData, setHistData] = useState<HistoricoGsResponse | null>(null);
   const [histErro, setHistErro] = useState<string | null>(null);
+  const [mainTab, setMainTab] = useState<'reserva' | 'historico'>('reserva');
 
   const consultarHistorico = useCallback(async (override?: Partial<typeof histFiltros>) => {
     const f = { ...histFiltros, ...(override ?? {}) };
@@ -719,6 +720,7 @@ export default function NumeroSeriePage() {
         };
         setHistFiltros((prev) => ({ ...prev, ...novosFiltros }));
         void consultarHistorico(novosFiltros);
+        setMainTab('historico');
       } else {
         setOpcSimulacaoOk(true);
         toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
@@ -758,6 +760,14 @@ export default function NumeroSeriePage() {
         description="Vincule e reserve números de série (GS) em pedidos e OPs"
       />
 
+      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'reserva' | 'historico')}>
+        <TabsList>
+          <TabsTrigger value="reserva">Reserva</TabsTrigger>
+          <TabsTrigger value="historico">Histórico do GS</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      <div className={mainTab === 'historico' ? 'hidden' : 'space-y-4'}>
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 space-y-3">
@@ -962,6 +972,9 @@ export default function NumeroSeriePage() {
         </CardContent>
       </Card>
 
+      </div>
+
+      <div className={mainTab === 'reserva' ? 'hidden' : 'space-y-4'}>
       {/* Histórico do GS / Reserva OP Complementar */}
       <Card>
         <CardHeader className="py-3 px-4">
@@ -1115,7 +1128,9 @@ export default function NumeroSeriePage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
+      <div className={mainTab === 'historico' ? 'hidden' : 'space-y-4'}>
       {/* Context card */}
 
 
@@ -1280,6 +1295,7 @@ export default function NumeroSeriePage() {
           />
         </CardContent>
       </Card>
+      </div>
 
       <AlertDialog open={confirmDesvincularOpen} onOpenChange={setConfirmDesvincularOpen}>
         <AlertDialogContent>
