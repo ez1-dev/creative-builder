@@ -86,6 +86,8 @@ interface ProximosResponse {
 interface ResultadoOpComplementar {
   numero_serie?: string;
   numero_op_nova?: number | string;
+  origem_op_nova?: string;
+  situacao_op_nova?: string;
   codigo_produto?: string;
   derivacao?: string;
   numero_pedido?: number;
@@ -541,6 +543,7 @@ export default function NumeroSeriePage() {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
         origem_op_nova: (opcOrigemOpNova || '250').trim(),
+        situacao_op_nova: 'L',
         ...(opcOpOrigem.trim() ? { numero_op_origem: Number(opcOpOrigem) } : {}),
         origem_op_origem: (opcOrigemOpOrigem || '250').trim(),
         ...(opcNumeroSerie.trim() ? { numero_serie: opcNumeroSerie.trim().toUpperCase() } : {}),
@@ -553,6 +556,15 @@ export default function NumeroSeriePage() {
         : '/api/numero-serie/op-complementar/simular';
       const result = await api.post<ResultadoOpComplementar>(endpoint, body);
       setOpcResultado(result);
+
+      const origemRet = String(result?.origem_op_nova ?? '').trim();
+      const sitRet = String(result?.situacao_op_nova ?? '').trim().toUpperCase();
+      const origemDivergente = origemRet && origemRet !== '250';
+      const situacaoDivergente = sitRet && sitRet !== 'L';
+      if (origemDivergente || situacaoDivergente) {
+        toast.error('A rotina permite somente OP complementar da origem 250 com situação Liberada.');
+        return;
+      }
       toast.success(result?.mensagem || (confirmar ? 'GS mantido na nova OP.' : 'Simulação concluída.'));
     } catch (e: any) {
       const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
@@ -622,7 +634,7 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Prepare uma OP complementar (informe a origem, geralmente 250) para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
+            Prepare uma OP complementar para herdar o mesmo GS da OP/máquina original antes de finalizar a OP. Somente OPs origem 250 com situação L (Liberada).
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
