@@ -1,62 +1,100 @@
-## Objetivo
+# Plano — Histórico do GS / Reserva OP Complementar
 
-Ajustar a lógica do "OP Complementar — Manter GS" para reconhecer GS encontrado no histórico do ERP (`E210MVP` / `E210DLS`) como válido — sem exigir `forcar_vinculo=true`. A confirmação extra de "forçar vínculo" passa a ocorrer apenas quando o GS não existe em nenhuma fonte.
+Adicionar uma nova seção/tela em `src/pages/NumeroSeriePage.tsx` (logo abaixo do card "OP Complementar — Manter GS") para consulta de histórico do GS e validação pós-execução. Sem mudanças em outras telas.
 
-Arquivo único: `src/pages/NumeroSeriePage.tsx`.
+## 1. Validação pós-execução (no card existente)
 
-## Mudanças
-
-### 1. Estender `ResultadoOpComplementar`
-
-Adicionar campos opcionais devolvidos pela API:
+Estender `ResultadoOpComplementar` (mesmo arquivo) com os campos retornados pela API após `manter-gs`:
 
 ```ts
-fonte_gs?: string;              // "USU_T075SEP" | "E210MVP" | "E210DLS" | null
-gs_existe_historico?: boolean;  // true quando achou em E210MVP/E210DLS
-gs_existe?: boolean;            // true se existe em qualquer fonte
+vinculo_confirmado?: boolean;
+pedido?: number;
+item_pedido?: number;
+produto_op_nova?: string;
+validacoes?: {
+  e120ipd_confirmado?: boolean;
+  usu_tnsop_confirmado?: boolean;
+  e000cse_confirmado?: boolean;
+  historico_estoque_encontrado?: boolean;
+};
 ```
 
-### 2. Detectar "histórico" e exibir aviso (não bloqueia)
+Após sucesso da execução `manter-gs`, renderizar abaixo do toast, dentro do card de resultado:
 
-Em `executarOpComplementar`, após receber `result` da simulação/execução:
+- `vinculo_confirmado === true` → `<Alert>` verde: "Vínculo confirmado. O GS está reservado na OP nova."
+- `vinculo_confirmado === false` → `<Alert variant="destructive">`: "Reserva não confirmada. O GS não foi localizado no item do pedido da OP nova."
+- `validacoes.historico_estoque_encontrado === true` → `<Alert>` amarelo: "GS encontrado no histórico do ERP e reaproveitado para a OP complementar."
+- Grid com 4 badges (verde/cinza) para cada flag em `validacoes`.
 
-- Se `result.fonte_gs` for `E210MVP` ou `E210DLS`, OU `result.gs_existe_historico === true`:
-  - `setOpcAviso('GS encontrado no histórico do ERP. Ele será reaproveitado e reservado para a OP nova.')`
-  - **Não** abrir o `AlertDialog` de forçar vínculo. Seguir o fluxo normal (habilita execução após simular OK).
-- Aviso "outro produto/derivação" continua tratado em paralelo (texto: "GS encontrado em produto/derivação diferente. A rotina seguirá como reaproveitamento de GS em OP complementar."). Se ambos forem verdade, exibir os dois (concatenar ou mostrar dois `<Alert>`).
+Regras já vigentes mantidas: `forcar_vinculo=false` no fluxo normal; só `true` após o `AlertDialog` quando o GS não existir em nenhuma fonte.
 
-### 3. Disparar "forçar vínculo" apenas quando GS não existe em nenhuma fonte
+## 2. Nova seção "Histórico do GS"
 
-Hoje o dialog é aberto pela mensagem de erro contendo `/USU_T075SEP|não encontrado ativo/i`. Refinar:
+Card novo após o de OP Complementar, com filtros e `Tabs` (4 abas).
 
-- **Caminho preferido (resposta 200 com flags):** se a API responder sucesso mas com `result.gs_existe === false` e sem `fonte_gs`, abrir o dialog com texto novo: **"Este GS não foi encontrado no ERP. Deseja forçar o vínculo mesmo assim?"**. Não considerar simulação como OK enquanto não houver decisão.
-- **Caminho de erro (compatibilidade):** manter o catch atual, mas ampliar o regex para `/não encontrado no ERP|não existe no ERP|gs_existe.*false/i` além do já existente. Se o erro mencionar apenas `USU_T075SEP` mas a resposta paralela indicar histórico, **não** abrir o dialog — confiar nos campos `fonte_gs`/`gs_existe_historico`.
+### Filtros (linha superior)
+- `GS` (input texto)
+- `OP nova` (input numérico)
+- `Origem OP nova` (default "250")
+- `Produto` (input)
+- `Período` (date range — `DateRangeFilter`)
+- `Situação do vínculo` (`SelectFilter`: Encontrado / Reservado / Vinculado / Pendente / Erro / Todos)
+- Botão "Consultar" → `GET /api/numero-serie/gs-historico` com os filtros como query params.
 
-### 4. Mensagens finais
+Estado: `histLoading`, `histData: HistoricoGsResponse | null`, `histErro`.
 
-- **Simulação OK** (qualquer fonte válida, incluindo histórico): toast `"GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque."` (mantém).
-- **Execução OK** (`manter-gs`): trocar para o template solicitado:
-  > `GS {numero_serie} reservado para a OP nova {origem_op_nova}/{numero_op_nova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque.`
-- Texto do dialog "Forçar vínculo do GS?" atualizado para: **"Este GS não foi encontrado no ERP. Deseja forçar o vínculo mesmo assim?"** (substitui menção a USU_T075SEP).
+### Tipo de resposta esperada
 
-### 5. Payload — sem alteração
+```ts
+interface HistoricoGsResponse {
+  resumo: { numero_serie; fonte; produto_origem; derivacao_origem;
+            produto_op_nova; derivacao_op_nova; status };
+  reserva: { codigo_empresa; origem_op_nova; numero_op_nova; numero_pedido;
+             item_pedido; produto_op_nova; derivacao; numsep_e120ipd;
+             data_reserva; usuario; justificativa } | null;
+  movimentacoes: Array<{ data_movimento; produto; derivacao; deposito;
+                         transacao; tipo: 'E'|'S'; quantidade;
+                         origem_op; numero_op; fonte: 'E210MVP'|'E210DLS' }>;
+  validacao: { e120ipd_confirmado; usu_tnsop_confirmado;
+               e000cse_confirmado; e900_confirmado };
+}
+```
 
-`forcar_vinculo` continua `false` no fluxo normal; só vira `true` quando o usuário confirma o dialog. Demais campos seguem como já implementados.
+### Aba 1 — Resumo do GS
+Grid de chave/valor com badges para GS, fonte, produto/derivação origem, produto/derivação OP nova e `StatusBadge` para status.
 
-### 6. UI do card de resultado
+### Aba 2 — Reserva atual
+Grid de chave/valor com os campos da `reserva`. Se `null`, exibir empty state "Nenhuma reserva ativa para este GS".
 
-- Quando `fonte_gs` vier preenchido, exibir uma nova linha no grid de "Resultado": `Fonte do GS: <badge>` (ex.: `E210MVP`).
+### Aba 3 — Histórico de movimentações
+`DataTableBI` com colunas: Data, Produto, Derivação, Depósito, Transação, E/S (badge), Quantidade (formatada), Origem/OP, Fonte (badge `E210MVP`/`E210DLS`). Empty state se vazio.
 
-## Fora de escopo
+### Aba 4 — Validação técnica
+Lista de 4 itens com ícone verde/vermelho:
+- `E120IPD.USU_NUMSEP`
+- `USU_TNSOP.USU_NUMSEP`
+- `E000CSE.NUMSEP`
+- `E900COP / E900QDO`
 
-- Backend FastAPI (deve devolver `fonte_gs`, `gs_existe_historico`, `gs_existe`).
-- Outras seções da página.
+## 3. Integração com o fluxo de reserva
+
+Após `executarOpComplementar` em modo `manter-gs` retornar sucesso:
+- Pré-preencher os filtros do histórico com `numero_serie` e `numero_op_nova` retornados.
+- Disparar automaticamente a consulta de histórico para o usuário já ver as 4 abas.
+
+## 4. Fora de escopo
+- Backend FastAPI (deve expor `/api/numero-serie/gs-historico` e enriquecer a resposta de `manter-gs` com `vinculo_confirmado` + `validacoes`).
 - Lovable Cloud.
+- Outras seções da página.
+
+## 5. Documentação
+Adicionar `docs/backend-numero-serie-gs-historico.md` com:
+- Contrato da rota `GET /api/numero-serie/gs-historico` (filtros + resposta acima).
+- Campos extras esperados na resposta de `POST /api/numero-serie/op-complementar/manter-gs` (`vinculo_confirmado`, `pedido`, `item_pedido`, `produto_op_nova`, `validacoes.*`).
+- Regras de comportamento descritas pelo usuário (mensagens verde/vermelha/amarela, `forcar_vinculo` apenas com confirmação extra).
 
 ## Validação
-
 - Build TS verde.
-- Simulação que retorna `fonte_gs: "E210MVP"` exibe aviso amarelo e habilita "Manter GS na nova OP" sem abrir o dialog.
-- Simulação com `gs_existe: false` abre o dialog com o novo texto; ao confirmar, refaz com `forcar_vinculo: true`.
-- Execução bem-sucedida mostra o toast no formato `GS GS-XXXX reservado para a OP nova 250/XXXX...`.
-- Aviso "outro produto/derivação" continua não-bloqueante.
+- Após reservar um GS, o card mostra o `Alert` verde/vermelho conforme `vinculo_confirmado`, badges de validação e dispara automaticamente a consulta de histórico.
+- Trocar filtros e clicar em "Consultar" atualiza as 4 abas.
+- Mocks/respostas vazias renderizam empty states sem quebrar.
