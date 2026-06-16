@@ -75,13 +75,6 @@ export default function DrePage() {
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [buscou, setBuscou] = useState(false);
-  const [diag, setDiag] = useState<{
-    unidadeParam: string | null;
-    qtdRpc: number | null;
-    erroRpc: string | null;
-    qtdApi: number | null;
-    erroApi: string | null;
-  } | null>(null);
 
   const handleMesInicialChange = (v: string) => {
     setMesInicial(v);
