@@ -1050,7 +1050,7 @@ export default function NumeroSeriePage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Forçar vínculo do GS?</AlertDialogTitle>
             <AlertDialogDescription>
-              Este GS não foi encontrado como ativo na USU_T075SEP. Deseja forçar o vínculo mesmo assim?
+              Este GS não foi encontrado no ERP. Deseja forçar o vínculo mesmo assim?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
