@@ -285,6 +285,26 @@ export default function DrePage() {
           </CardContent>
         </Card>
 
+        {diag && (
+          <Card className="border-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs text-amber-700 dark:text-amber-300">
+                Diagnóstico temporário (RPC vs API antiga)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono">
+                <div><div className="text-muted-foreground">unidadeParam</div><div>{String(diag.unidadeParam)}</div></div>
+                <div><div className="text-muted-foreground">qtdRpc</div><div>{String(diag.qtdRpc)}</div></div>
+                <div><div className="text-muted-foreground">erroRpc</div><div className="break-all">{diag.erroRpc ?? '—'}</div></div>
+                <div><div className="text-muted-foreground">qtdApi</div><div>{String(diag.qtdApi)}</div></div>
+                <div><div className="text-muted-foreground">erroApi</div><div className="break-all">{diag.erroApi ?? '—'}</div></div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
         <KpiGrid cols={4}>
           <KpiCard
             title="Receita Bruta"
