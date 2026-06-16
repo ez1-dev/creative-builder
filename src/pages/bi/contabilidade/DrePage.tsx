@@ -76,6 +76,40 @@ export default function DrePage() {
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [buscou, setBuscou] = useState(false);
+  const [diag, setDiag] = useState<{ label: string; qtd: number | null; error: string | null }[] | null>(null);
+
+  const rodarDiagnostico = async () => {
+    const [estrutura, lanc, orc, dreMensal, dreMatriz] = await Promise.all([
+      supabase.from('bi_dre_estrutura').select('codigo_linha, descricao, ativo').limit(20),
+      supabase.from('bi_vm_lanc_contabil').select('anomes_referente, vl_realizado').eq('anomes_referente', '202606').limit(5),
+      supabase.from('bi_vm_orc_dre').select('anomes_referente, vl_orcado').eq('anomes_referente', '202606').limit(5),
+      supabase.rpc('bi_dre' as any, { p_anomes_ini: '202606', p_anomes_fim: '202606', p_unidade_negocio: null }),
+      supabase.rpc('bi_dre_matriz_anual' as any, { p_ano: '2026', p_unidade_negocio: null }),
+    ]);
+
+    console.log('[DRE][DIAG] estrutura', { error: estrutura.error, qtd: estrutura.data?.length, data: estrutura.data });
+    console.log('[DRE][DIAG] lancamentos 202606', { error: lanc.error, qtd: lanc.data?.length, data: lanc.data });
+    console.log('[DRE][DIAG] orcamento 202606', { error: orc.error, qtd: orc.data?.length, data: orc.data });
+    console.log('[DRE][DIAG] rpc bi_dre mensal', {
+      error: dreMensal.error,
+      qtd: Array.isArray(dreMensal.data) ? dreMensal.data.length : null,
+      dataPreview: Array.isArray(dreMensal.data) ? dreMensal.data.slice(0, 5) : dreMensal.data,
+    });
+    console.log('[DRE][DIAG] rpc bi_dre_matriz_anual', {
+      error: dreMatriz.error,
+      qtd: Array.isArray(dreMatriz.data) ? dreMatriz.data.length : null,
+      dataPreview: Array.isArray(dreMatriz.data) ? dreMatriz.data.slice(0, 5) : dreMatriz.data,
+    });
+
+    const errMsg = (e: any) => (e ? (e.message || JSON.stringify(e)) : null);
+    setDiag([
+      { label: 'bi_dre_estrutura', qtd: estrutura.data?.length ?? null, error: errMsg(estrutura.error) },
+      { label: "bi_vm_lanc_contabil (anomes=202606)", qtd: lanc.data?.length ?? null, error: errMsg(lanc.error) },
+      { label: 'bi_vm_orc_dre (anomes=202606)', qtd: orc.data?.length ?? null, error: errMsg(orc.error) },
+      { label: 'rpc bi_dre (mensal 202606)', qtd: Array.isArray(dreMensal.data) ? dreMensal.data.length : null, error: errMsg(dreMensal.error) },
+      { label: 'rpc bi_dre_matriz_anual (2026)', qtd: Array.isArray(dreMatriz.data) ? dreMatriz.data.length : null, error: errMsg(dreMatriz.error) },
+    ]);
+  };
 
   const handleMesInicialChange = (v: string) => {
     setMesInicial(v);
