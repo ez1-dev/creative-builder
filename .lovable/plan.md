@@ -1,39 +1,49 @@
-# Diagnóstico temporário no botão Atualizar da DRE
+# Corrigir "Not authenticated" na tela DRE matriz
 
-Adicionar 5 testes que rodam ao clicar **Atualizar** em `src/pages/bi/contabilidade/DrePage.tsx`, logam no console e mostram um resumo na tela. Não substitui a chamada principal à API `/api/bi/contabilidade/dre-matriz` — apenas roda em paralelo para diagnosticar.
+## Causa raiz
+A nova `DrePage.tsx` faz `fetch(...)` direto em `/api/bi/contabilidade/dre-matriz` sem token. As demais telas funcionam porque usam o helper `api.get(...)` exportado em `src/lib/api.ts`, que:
+- usa `getApiBaseUrl()`,
+- adiciona `Authorization: Bearer <token ERP>` automaticamente a partir do `erp_token` em localStorage,
+- inclui `ngrok-skip-browser-warning: true`,
+- trata 401 com mensagem amigável.
 
-## Mudanças em `DrePage.tsx`
+Sem isso, o backend FastAPI responde `Not authenticated`.
 
-### 1. Reintroduzir import do client do Cloud
-```ts
-import { supabase } from '@/integrations/supabase/client';
-```
+## Mudanças em `src/pages/bi/contabilidade/DrePage.tsx`
 
-### 2. Novo estado de diagnóstico
-```ts
-type DiagItem = { label: string; qtd: number | null; error: string | null };
-const [diag, setDiag] = useState<DiagItem[] | null>(null);
-```
+1. Importar o helper compartilhado:
+   ```ts
+   import { api } from '@/lib/api';
+   ```
+   Remover `getApiUrl` se ficar sem uso.
 
-### 3. Função `rodarDiagnostico()` chamada dentro de `carregarDre()` (após o fetch da API)
+2. Em `carregarDre`, substituir o bloco `fetch(url, ...)` por:
+   ```ts
+   try {
+     const json = await api.get<any>('/api/bi/contabilidade/dre-matriz', {
+       ano: pAno,
+       unidade: unidadeParam ?? '',
+     }, { keepEmpty: ['unidade'] });
+     const linhas: DreLinha[] = Array.isArray(json)
+       ? json
+       : Array.isArray(json?.data) ? json.data : [];
+     setLinhasRaw(linhas);
+   } catch (e: any) {
+     if (e?.statusCode === 401) {
+       setErro('Sessão expirada. Faça login novamente.');
+     } else {
+       setErro(e?.message || String(e));
+     }
+     setLinhasRaw([]);
+   } finally {
+     setLoading(false);
+   }
+   ```
+   Manter os `console.log` para acompanhamento.
 
-Executa em paralelo (`Promise.all`) os 5 testes exatamente como descritos:
-
-1. `bi_dre_estrutura` — `select codigo_linha, descricao, ativo limit 20`
-2. `bi_vm_lanc_contabil` — `select anomes_referente, vl_realizado where anomes_referente='202606' limit 5`
-3. `bi_vm_orc_dre` — `select anomes_referente, vl_orcado where anomes_referente='202606' limit 5`
-4. RPC `bi_dre` com `{ p_anomes_ini: '202606', p_anomes_fim: '202606', p_unidade_negocio: null }`
-5. RPC `bi_dre_matriz_anual` com `{ p_ano: '2026', p_unidade_negocio: null }`
-
-Cada um loga `[DRE][DIAG] <nome>` com `{ error, qtd, data/dataPreview }` exatamente como no pedido. Depois popula `setDiag([...])` com `label`, `qtd`, `error` (mensagem) para renderização.
-
-### 4. Painel de diagnóstico na UI
-Logo abaixo do card de filtros, quando `diag` não for null, renderizar `<Card className="border-amber-400 bg-amber-50/40 dark:bg-amber-950/20">` com título "Diagnóstico temporário" e uma tabela compacta com as colunas **Teste**, **Qtd**, **Erro** para os 5 itens. Linhas com erro destacadas em `text-destructive`.
-
-### 5. Manter intacto
-- Chamada `fetch(/api/bi/contabilidade/dre-matriz)` continua sendo a fonte das `linhasRaw`.
-- Filtros, KPIs, matriz, `useEffect([ano, unidade])` sem alteração.
+3. Manter o bloco `rodarDiagnostico` (usa `supabase` do Cloud, não passa pelo FastAPI) e os `useEffect` existentes.
 
 ## Fora do escopo
-- Não mexer em RPC, ETL, schema.
-- Não alterar layout definitivo. Painel é temporário, removível depois.
+- Não alterar a tela antiga.
+- Não mexer em RPC, ETL ou backend.
+- Não mudar layout.
