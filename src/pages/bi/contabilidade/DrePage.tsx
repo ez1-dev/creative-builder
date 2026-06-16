@@ -145,24 +145,14 @@ export default function DrePage() {
         : unidade;
     const pAno = String(ano || '2026');
 
-    const url = `${getApiUrl()}/api/bi/contabilidade/dre-matriz?ano=${encodeURIComponent(pAno)}&unidade=${encodeURIComponent(unidadeParam || '')}`;
-    console.log('[DRE] GET', url, { unidadeParam });
+    console.log('[DRE] api.get /api/bi/contabilidade/dre-matriz', { ano: pAno, unidade: unidadeParam });
 
     try {
-      const resp = await fetch(url, {
-        headers: { 'ngrok-skip-browser-warning': 'true' },
-      });
-      const json = await resp.json().catch(() => null);
-
-      if (!resp.ok) {
-        const msg = (json && (json.detail || json.message)) || `HTTP ${resp.status}`;
-        console.error('[DRE] Erro HTTP', resp.status, json);
-        setErro(typeof msg === 'string' ? msg : JSON.stringify(msg));
-        setLinhasRaw([]);
-        setLoading(false);
-        return;
-      }
-
+      const json = await api.get<any>(
+        '/api/bi/contabilidade/dre-matriz',
+        { ano: pAno, unidade: unidadeParam ?? '' },
+        { keepEmpty: ['unidade'] },
+      );
       const linhas: DreLinha[] = Array.isArray(json)
         ? json
         : Array.isArray(json?.data)
@@ -172,7 +162,11 @@ export default function DrePage() {
       setLinhasRaw(linhas);
     } catch (e: any) {
       console.error('[DRE] Falha ao buscar /api/bi/contabilidade/dre-matriz', e);
-      setErro(e?.message || String(e));
+      if (e?.statusCode === 401) {
+        setErro('Sessão expirada. Faça login novamente.');
+      } else {
+        setErro(e?.message || String(e));
+      }
       setLinhasRaw([]);
     } finally {
       setLoading(false);
