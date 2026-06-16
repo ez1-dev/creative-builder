@@ -543,6 +543,7 @@ export default function NumeroSeriePage() {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
         origem_op_nova: (opcOrigemOpNova || '250').trim(),
+        situacao_op_nova: 'L',
         ...(opcOpOrigem.trim() ? { numero_op_origem: Number(opcOpOrigem) } : {}),
         origem_op_origem: (opcOrigemOpOrigem || '250').trim(),
         ...(opcNumeroSerie.trim() ? { numero_serie: opcNumeroSerie.trim().toUpperCase() } : {}),
@@ -555,6 +556,15 @@ export default function NumeroSeriePage() {
         : '/api/numero-serie/op-complementar/simular';
       const result = await api.post<ResultadoOpComplementar>(endpoint, body);
       setOpcResultado(result);
+
+      const origemRet = String(result?.origem_op_nova ?? '').trim();
+      const sitRet = String(result?.situacao_op_nova ?? '').trim().toUpperCase();
+      const origemDivergente = origemRet && origemRet !== '250';
+      const situacaoDivergente = sitRet && sitRet !== 'L';
+      if (origemDivergente || situacaoDivergente) {
+        toast.error('A rotina permite somente OP complementar da origem 250 com situação Liberada.');
+        return;
+      }
       toast.success(result?.mensagem || (confirmar ? 'GS mantido na nova OP.' : 'Simulação concluída.'));
     } catch (e: any) {
       const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
