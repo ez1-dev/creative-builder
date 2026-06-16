@@ -653,7 +653,7 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Prepare uma OP complementar para herdar o mesmo GS da OP/máquina original antes de finalizar a OP. Somente OPs origem 250 com situação L (Liberada).
+            Reutiliza um GS já existente em uma OP complementar (CODEMP=1, CODORI=250, SITORP=L). A rotina não gera novo GS — ao finalizar a OP nova no Senior, o produto acabado entra em estoque com o mesmo GS informado.
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
@@ -671,14 +671,14 @@ export default function NumeroSeriePage() {
             <div className="space-y-1">
               <Label className="text-xs">Origem da OP nova <span className="text-destructive">*</span></Label>
               <Input
-                value={opcOrigemOpNova}
-                onChange={e => setOpcOrigemOpNova(e.target.value)}
-                className="h-8 text-xs font-mono"
-                placeholder="250"
+                value="250"
+                readOnly
+                className="h-8 text-xs font-mono bg-muted"
+                title="Esta rotina opera somente na origem 250"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">OP original</Label>
+              <Label className="text-xs">OP original <span className="text-destructive">*</span></Label>
               <Input
                 type="number"
                 value={opcOpOrigem}
@@ -688,7 +688,7 @@ export default function NumeroSeriePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Origem da OP original</Label>
+              <Label className="text-xs">Origem da OP original <span className="text-destructive">*</span></Label>
               <Input
                 value={opcOrigemOpOrigem}
                 onChange={e => setOpcOrigemOpOrigem(e.target.value)}
@@ -697,15 +697,16 @@ export default function NumeroSeriePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">GS original</Label>
+              <Label className="text-xs">GS original <span className="text-destructive">*</span></Label>
               <Input
                 value={opcNumeroSerie}
                 onChange={e => setOpcNumeroSerie(e.target.value)}
                 className="h-8 text-xs font-mono"
-                placeholder="Opcional (Ex.: GS-11661)"
+                placeholder="Ex.: GS-11661"
               />
             </div>
           </div>
+
           <div className="space-y-1">
             <Label className="text-xs">
               Justificativa <span className="text-destructive">*</span>
