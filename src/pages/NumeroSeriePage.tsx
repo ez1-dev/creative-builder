@@ -10,8 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, Column } from '@/components/erp/DataTable';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle } from 'lucide-react';
+import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle, History, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,6 +101,64 @@ interface ResultadoOpComplementar {
   fonte_gs?: string | null;
   gs_existe_historico?: boolean;
   gs_existe?: boolean;
+  // Validação pós-execução
+  sucesso?: boolean;
+  vinculo_confirmado?: boolean;
+  pedido?: number;
+  produto_op_nova?: string;
+  validacoes?: {
+    e120ipd_confirmado?: boolean;
+    usu_tnsop_confirmado?: boolean;
+    e000cse_confirmado?: boolean;
+    historico_estoque_encontrado?: boolean;
+  };
+}
+
+interface HistoricoGsResumo {
+  numero_serie?: string;
+  fonte?: string;
+  produto_origem?: string;
+  derivacao_origem?: string;
+  produto_op_nova?: string;
+  derivacao_op_nova?: string;
+  status?: string;
+}
+interface HistoricoGsReserva {
+  codigo_empresa?: number;
+  origem_op_nova?: string;
+  numero_op_nova?: number | string;
+  numero_pedido?: number;
+  item_pedido?: number;
+  produto_op_nova?: string;
+  derivacao?: string;
+  numsep_e120ipd?: string;
+  data_reserva?: string;
+  usuario?: string;
+  justificativa?: string;
+}
+interface HistoricoGsMovimentacao {
+  data_movimento?: string;
+  produto?: string;
+  derivacao?: string;
+  deposito?: string;
+  transacao?: string;
+  tipo?: 'E' | 'S';
+  quantidade?: number;
+  origem_op?: string;
+  numero_op?: number;
+  fonte?: 'E210MVP' | 'E210DLS' | string;
+}
+interface HistoricoGsValidacao {
+  e120ipd_confirmado?: boolean;
+  usu_tnsop_confirmado?: boolean;
+  e000cse_confirmado?: boolean;
+  e900_confirmado?: boolean;
+}
+interface HistoricoGsResponse {
+  resumo?: HistoricoGsResumo;
+  reserva?: HistoricoGsReserva | null;
+  movimentacoes?: HistoricoGsMovimentacao[];
+  validacao?: HistoricoGsValidacao;
 }
 
 const statusBadge = (status: string) => {
@@ -160,6 +219,44 @@ export default function NumeroSeriePage() {
   const setOpcOrigemOpOrigem = (v: string) => { setOpcOrigemOpOrigemRaw(v); invalidarSimulacao(); };
   const setOpcNumeroSerie = (v: string) => { setOpcNumeroSerieRaw(v); invalidarSimulacao(); };
   const setOpcJustificativa = (v: string) => { setOpcJustificativaRaw(v); invalidarSimulacao(); };
+
+  // Histórico do GS / Reserva OP Complementar
+  const [histFiltros, setHistFiltros] = useState({
+    numero_serie: '', numero_op_nova: '', origem_op_nova: '250',
+    codigo_produto: '', data_inicio: '', data_fim: '', situacao: 'TODOS',
+  });
+  const [histLoading, setHistLoading] = useState(false);
+  const [histData, setHistData] = useState<HistoricoGsResponse | null>(null);
+  const [histErro, setHistErro] = useState<string | null>(null);
+
+  const consultarHistorico = useCallback(async (override?: Partial<typeof histFiltros>) => {
+    const f = { ...histFiltros, ...(override ?? {}) };
+    if (!f.numero_serie.trim() && !f.numero_op_nova.trim()) {
+      toast.error('Informe ao menos o GS ou a OP nova para consultar o histórico.');
+      return;
+    }
+    setHistLoading(true);
+    setHistErro(null);
+    try {
+      const params: Record<string, any> = {};
+      if (f.numero_serie.trim()) params.numero_serie = f.numero_serie.trim().toUpperCase();
+      if (f.numero_op_nova.trim()) params.numero_op_nova = Number(f.numero_op_nova);
+      if (f.origem_op_nova.trim()) params.origem_op_nova = f.origem_op_nova.trim();
+      if (f.codigo_produto.trim()) params.codigo_produto = f.codigo_produto.trim();
+      if (f.data_inicio) params.data_inicio = f.data_inicio;
+      if (f.data_fim) params.data_fim = f.data_fim;
+      if (f.situacao && f.situacao !== 'TODOS') params.situacao = f.situacao;
+      const result = await api.get<HistoricoGsResponse>('/api/numero-serie/gs-historico', params);
+      setHistData(result || {});
+    } catch (e: any) {
+      const msg = e?.message || e?.detail || 'Falha ao consultar histórico do GS.';
+      setHistErro(msg);
+      setHistData(null);
+    } finally {
+      setHistLoading(false);
+    }
+  }, [histFiltros]);
+
 
 
   const erpReady = useErpReady();
@@ -614,6 +711,14 @@ export default function NumeroSeriePage() {
           `GS ${gs} reservado para a OP nova ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque.`,
         );
         setOpcSimulacaoOk(false);
+        // Pré-preencher e disparar a consulta de histórico para validar o vínculo
+        const novosFiltros = {
+          numero_serie: String(gs),
+          numero_op_nova: String(opNova),
+          origem_op_nova: String(origem),
+        };
+        setHistFiltros((prev) => ({ ...prev, ...novosFiltros }));
+        void consultarHistorico(novosFiltros);
       } else {
         setOpcSimulacaoOk(true);
         toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
@@ -813,13 +918,206 @@ export default function NumeroSeriePage() {
                     <AlertDescription className="text-xs">{opcResultado.conflito}</AlertDescription>
                   </Alert>
                 )}
+
+                {/* Validação pós-execução */}
+                {opcResultado.vinculo_confirmado === true && (
+                  <Alert className="mt-3 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <AlertTitle className="text-sm">Vínculo confirmado</AlertTitle>
+                    <AlertDescription className="text-xs">O GS está reservado na OP nova.</AlertDescription>
+                  </Alert>
+                )}
+                {opcResultado.vinculo_confirmado === false && (
+                  <Alert variant="destructive" className="mt-3">
+                    <XCircle className="h-4 w-4" />
+                    <AlertTitle className="text-sm">Reserva não confirmada</AlertTitle>
+                    <AlertDescription className="text-xs">O GS não foi localizado no item do pedido da OP nova.</AlertDescription>
+                  </Alert>
+                )}
+                {opcResultado.validacoes?.historico_estoque_encontrado === true && (
+                  <Alert className="mt-3 border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-sm">Aviso</AlertTitle>
+                    <AlertDescription className="text-xs">GS encontrado no histórico do ERP e reaproveitado para a OP complementar.</AlertDescription>
+                  </Alert>
+                )}
+                {opcResultado.validacoes && (
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs mt-3">
+                    {([
+                      ['E120IPD.USU_NUMSEP', opcResultado.validacoes.e120ipd_confirmado],
+                      ['USU_TNSOP.USU_NUMSEP', opcResultado.validacoes.usu_tnsop_confirmado],
+                      ['E000CSE.NUMSEP', opcResultado.validacoes.e000cse_confirmado],
+                      ['Histórico estoque', opcResultado.validacoes.historico_estoque_encontrado],
+                    ] as Array<[string, boolean | undefined]>).map(([label, ok]) => (
+                      <div key={label} className="flex items-center gap-1.5 rounded border bg-muted/30 px-2 py-1">
+                        {ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <span className="font-mono">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </AlertDescription>
             </Alert>
           )}
         </CardContent>
       </Card>
 
+      {/* Histórico do GS / Reserva OP Complementar */}
+      <Card>
+        <CardHeader className="py-3 px-4">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <History className="h-4 w-4 text-primary" />
+            Histórico do GS / Reserva OP Complementar
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Consulta o histórico do GS e valida se o vínculo foi gravado na OP nova.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-0 px-4 pb-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+            <div className="space-y-1">
+              <Label className="text-xs">GS</Label>
+              <Input value={histFiltros.numero_serie} onChange={e => setHistFiltros(f => ({ ...f, numero_serie: e.target.value }))} className="h-8 text-xs font-mono" placeholder="GS-11661" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">OP nova</Label>
+              <Input type="number" value={histFiltros.numero_op_nova} onChange={e => setHistFiltros(f => ({ ...f, numero_op_nova: e.target.value }))} className="h-8 text-xs" placeholder="1113" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Origem OP nova</Label>
+              <Input value={histFiltros.origem_op_nova} onChange={e => setHistFiltros(f => ({ ...f, origem_op_nova: e.target.value }))} className="h-8 text-xs font-mono" placeholder="250" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Produto</Label>
+              <Input value={histFiltros.codigo_produto} onChange={e => setHistFiltros(f => ({ ...f, codigo_produto: e.target.value }))} className="h-8 text-xs" placeholder="Ex.: 250000780" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Início</Label>
+              <Input type="date" value={histFiltros.data_inicio} onChange={e => setHistFiltros(f => ({ ...f, data_inicio: e.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Fim</Label>
+              <Input type="date" value={histFiltros.data_fim} onChange={e => setHistFiltros(f => ({ ...f, data_fim: e.target.value }))} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Situação</Label>
+              <Select value={histFiltros.situacao} onValueChange={(v) => setHistFiltros(f => ({ ...f, situacao: v }))}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Todos</SelectItem>
+                  <SelectItem value="ENCONTRADO">Encontrado</SelectItem>
+                  <SelectItem value="RESERVADO">Reservado</SelectItem>
+                  <SelectItem value="VINCULADO">Vinculado</SelectItem>
+                  <SelectItem value="PENDENTE">Pendente</SelectItem>
+                  <SelectItem value="ERRO">Erro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => consultarHistorico()} disabled={histLoading}>
+              <Search className="mr-1 h-3.5 w-3.5" />{histLoading ? 'Consultando...' : 'Consultar'}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => consultarHistorico()} disabled={histLoading || !histData}>
+              <RefreshCw className="mr-1 h-3.5 w-3.5" />Atualizar
+            </Button>
+          </div>
+
+          {histErro && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-sm">Erro</AlertTitle>
+              <AlertDescription className="text-xs">{histErro}</AlertDescription>
+            </Alert>
+          )}
+
+          {histData && (
+            <Tabs defaultValue="resumo" className="mt-2">
+              <TabsList>
+                <TabsTrigger value="resumo">Resumo</TabsTrigger>
+                <TabsTrigger value="reserva">Reserva atual</TabsTrigger>
+                <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
+                <TabsTrigger value="validacao">Validação técnica</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="resumo" className="mt-3">
+                {histData.resumo ? (
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3 text-xs">
+                    <div><span className="text-muted-foreground">GS:</span> <Badge variant="outline" className="font-mono ml-1">{histData.resumo.numero_serie || '-'}</Badge></div>
+                    <div><span className="text-muted-foreground">Fonte:</span> <Badge variant="outline" className="font-mono ml-1">{histData.resumo.fonte || '-'}</Badge></div>
+                    <div><span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="ml-1">{histData.resumo.status || '-'}</Badge></div>
+                    <div><span className="text-muted-foreground">Produto origem:</span> <span className="font-mono">{histData.resumo.produto_origem || '-'}</span> / {histData.resumo.derivacao_origem || '-'}</div>
+                    <div><span className="text-muted-foreground">Produto OP nova:</span> <span className="font-mono">{histData.resumo.produto_op_nova || '-'}</span> / {histData.resumo.derivacao_op_nova || '-'}</div>
+                  </div>
+                ) : <p className="text-xs text-muted-foreground">Nenhum resumo disponível.</p>}
+              </TabsContent>
+
+              <TabsContent value="reserva" className="mt-3">
+                {histData.reserva ? (
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3 text-xs">
+                    <div><span className="text-muted-foreground">Empresa:</span> {histData.reserva.codigo_empresa ?? '-'}</div>
+                    <div><span className="text-muted-foreground">Origem OP nova:</span> <span className="font-mono">{histData.reserva.origem_op_nova || '-'}</span></div>
+                    <div><span className="text-muted-foreground">Número OP nova:</span> {histData.reserva.numero_op_nova ?? '-'}</div>
+                    <div><span className="text-muted-foreground">Pedido:</span> {histData.reserva.numero_pedido ?? '-'}</div>
+                    <div><span className="text-muted-foreground">Item:</span> {histData.reserva.item_pedido ?? '-'}</div>
+                    <div><span className="text-muted-foreground">Produto:</span> <span className="font-mono">{histData.reserva.produto_op_nova || '-'}</span></div>
+                    <div><span className="text-muted-foreground">Derivação:</span> <span className="font-mono">{histData.reserva.derivacao || '-'}</span></div>
+                    <div><span className="text-muted-foreground">E120IPD.USU_NUMSEP:</span> <Badge variant="outline" className="font-mono ml-1">{histData.reserva.numsep_e120ipd || '-'}</Badge></div>
+                    <div><span className="text-muted-foreground">Data/hora:</span> {histData.reserva.data_reserva || '-'}</div>
+                    <div><span className="text-muted-foreground">Usuário:</span> {histData.reserva.usuario || '-'}</div>
+                    <div className="col-span-2 md:col-span-3"><span className="text-muted-foreground">Justificativa:</span> {histData.reserva.justificativa || '-'}</div>
+                  </div>
+                ) : <p className="text-xs text-muted-foreground">Nenhuma reserva ativa para este GS.</p>}
+              </TabsContent>
+
+              <TabsContent value="movimentacoes" className="mt-3">
+                {histData.movimentacoes && histData.movimentacoes.length > 0 ? (
+                  <DataTable
+                    columns={[
+                      { key: 'data_movimento', header: 'Data', render: (v) => formatDate(v) },
+                      { key: 'produto', header: 'Produto' },
+                      { key: 'derivacao', header: 'Derivação' },
+                      { key: 'deposito', header: 'Depósito' },
+                      { key: 'transacao', header: 'Transação' },
+                      { key: 'tipo', header: 'E/S', align: 'center', render: (v) => (
+                        <Badge variant="outline" className={v === 'E' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-300' : 'bg-amber-500/10 text-amber-700 border-amber-300'}>{v || '-'}</Badge>
+                      ) },
+                      { key: 'quantidade', header: 'Qtd', align: 'right', render: (v) => typeof v === 'number' ? v.toLocaleString('pt-BR') : '-' },
+                      { key: 'origem_op', header: 'Origem/OP', render: (_v, row: HistoricoGsMovimentacao) => `${row.origem_op || '-'}/${row.numero_op || '-'}` },
+                      { key: 'fonte', header: 'Fonte', render: (v) => <Badge variant="outline" className="font-mono">{v || '-'}</Badge> },
+                    ]}
+                    data={histData.movimentacoes}
+                  />
+                ) : <p className="text-xs text-muted-foreground">Nenhuma movimentação encontrada.</p>}
+              </TabsContent>
+
+              <TabsContent value="validacao" className="mt-3">
+                {histData.validacao ? (
+                  <div className="space-y-2">
+                    {([
+                      ['E120IPD.USU_NUMSEP', histData.validacao.e120ipd_confirmado],
+                      ['USU_TNSOP.USU_NUMSEP', histData.validacao.usu_tnsop_confirmado],
+                      ['E000CSE.NUMSEP', histData.validacao.e000cse_confirmado],
+                      ['E900COP / E900QDO da OP nova', histData.validacao.e900_confirmado],
+                    ] as Array<[string, boolean | undefined]>).map(([label, ok]) => (
+                      <div key={label} className="flex items-center gap-2 rounded border bg-muted/30 px-3 py-2 text-xs">
+                        {ok ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                        <span className="font-mono">{label}</span>
+                        <Badge variant="outline" className={`ml-auto ${ok ? 'bg-emerald-500/10 text-emerald-700 border-emerald-300' : 'bg-destructive/10 text-destructive border-destructive/30'}`}>
+                          {ok ? 'Confirmado' : 'Não confirmado'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p className="text-xs text-muted-foreground">Sem dados de validação.</p>}
+              </TabsContent>
+            </Tabs>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Context card */}
+
 
       {contexto && (
         <Card>
