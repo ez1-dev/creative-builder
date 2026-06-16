@@ -97,6 +97,9 @@ interface ResultadoOpComplementar {
   mensagem?: string;
   aviso?: string;
   outro_produto?: boolean;
+  fonte_gs?: string | null;
+  gs_existe_historico?: boolean;
+  gs_existe?: boolean;
 }
 
 const statusBadge = (status: string) => {
