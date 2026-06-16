@@ -73,6 +73,8 @@ export default function DrePage() {
   const [mesFinal, setMesFinal] = useState<string>('12');
   const [loading, setLoading] = useState(false);
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
+  const [erro, setErro] = useState<string | null>(null);
+  const [buscou, setBuscou] = useState(false);
 
   const handleMesInicialChange = (v: string) => {
     setMesInicial(v);
@@ -93,40 +95,41 @@ export default function DrePage() {
     setMesFinal(v);
   };
 
-  const fetchDre = async () => {
+  const carregarDre = async () => {
     setLoading(true);
-    try {
-      console.log('[DRE] Chamando RPC bi_dre_matriz_anual', {
-        ano,
-        unidade,
-        p_ano: String(ano || '2026'),
-        p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
-      });
-      const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
-        p_ano: String(ano || '2026'),
-        p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
-      });
-      console.log('[DRE] Retorno RPC bi_dre_matriz_anual', {
-        error,
-        qtd: (data as any[] | null)?.length,
-        dataPreview: (data as any[] | null)?.slice?.(0, 3),
-      });
-      if (error) {
-        console.error('Erro RPC bi_dre_matriz_anual:', error);
-        throw error;
-      }
-      setLinhasRaw((data as DreLinha[]) ?? []);
-    } catch (err: any) {
-      toast.error(err?.message || 'Falha ao carregar DRE');
+    setErro(null);
+    setBuscou(true);
+
+    console.log('[DRE] Chamando RPC bi_dre_matriz_anual', {
+      ano,
+      unidade,
+      p_ano: String(ano || '2026'),
+      p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+    });
+
+    const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
+      p_ano: String(ano || '2026'),
+      p_unidade_negocio: unidade === 'TODOS' ? null : unidade,
+    });
+
+    console.log('[DRE] Retorno RPC bi_dre_matriz_anual', {
+      error,
+      qtd: (data as any[] | null)?.length,
+      dataPreview: (data as any[] | null)?.slice?.(0, 3),
+    });
+
+    if (error) {
+      console.error('Erro RPC bi_dre_matriz_anual:', error);
+      setErro(error.message || JSON.stringify(error));
       setLinhasRaw([]);
-    } finally {
-      setLoading(false);
+    } else {
+      setLinhasRaw((data as DreLinha[]) || []);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
-    setLinhasRaw([]);
-    fetchDre();
+    carregarDre();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ano, unidade]);
 
