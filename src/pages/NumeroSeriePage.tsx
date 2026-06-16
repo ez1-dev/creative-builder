@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Search, Hash, Link2, Eraser, Radio, Unlink, AlertTriangle, History, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -213,12 +214,20 @@ export default function NumeroSeriePage() {
   const [opcAviso, setOpcAviso] = useState<string | null>(null);
   const [opcForcarConfirmOpen, setOpcForcarConfirmOpen] = useState(false);
   const [opcForcarPending, setOpcForcarPending] = useState<{ confirmar: boolean } | null>(null);
+  const [opcManutencao, setOpcManutencaoRaw] = useState(false);
   const invalidarSimulacao = () => { setOpcSimulacaoOk(false); setOpcAviso(null); };
   const setOpcOpNova = (v: string) => { setOpcOpNovaRaw(v); invalidarSimulacao(); };
   const setOpcOpOrigem = (v: string) => { setOpcOpOrigemRaw(v); invalidarSimulacao(); };
   const setOpcOrigemOpOrigem = (v: string) => { setOpcOrigemOpOrigemRaw(v); invalidarSimulacao(); };
   const setOpcNumeroSerie = (v: string) => { setOpcNumeroSerieRaw(v); invalidarSimulacao(); };
   const setOpcJustificativa = (v: string) => { setOpcJustificativaRaw(v); invalidarSimulacao(); };
+  const setOpcManutencao = (v: boolean) => {
+    setOpcManutencaoRaw(v);
+    invalidarSimulacao();
+    if (v && !opcJustificativa.trim()) {
+      setOpcJustificativaRaw('Máquina em manutenção/reforma. Reaproveitamento controlado do mesmo GS na OP complementar.');
+    }
+  };
 
   // Histórico do GS / Reserva OP Complementar
   const [histFiltros, setHistFiltros] = useState({
@@ -663,6 +672,9 @@ export default function NumeroSeriePage() {
         justificativa: opcJustificativa.trim(),
         confirmar,
         forcar_vinculo: forcar,
+        manutencao: opcManutencao,
+        tipo_vinculo: opcManutencao ? 'MANUTENCAO' : 'NORMAL',
+        permitir_mesmo_gs_outro_produto: opcManutencao,
       };
 
       const endpoint = confirmar
@@ -863,6 +875,33 @@ export default function NumeroSeriePage() {
               />
             </div>
           </div>
+
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+            <Checkbox
+              id="opc-manutencao"
+              checked={opcManutencao}
+              onCheckedChange={(v) => setOpcManutencao(v === true)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="opc-manutencao" className="text-xs font-medium cursor-pointer">
+                É manutenção/reforma?
+              </Label>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Marque quando o GS está sendo reaproveitado porque a máquina/equipamento está em manutenção ou reforma. Libera o vínculo do mesmo GS em produto/derivação diferente sem precisar de "Forçar vínculo".
+              </p>
+            </div>
+          </div>
+
+          {opcManutencao && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Modo manutenção/reforma — o mesmo GS poderá ser vinculado a um produto/derivação diferente.
+              </AlertDescription>
+            </Alert>
+          )}
+
 
           <div className="space-y-1">
             <Label className="text-xs">
