@@ -536,25 +536,17 @@ export default function NumeroSeriePage() {
     }
   };
 
-  const executarOpComplementar = async (confirmar: boolean) => {
-    if (!opcOpNova.trim()) {
-      toast.error('Informe a OP nova.');
-      return;
-    }
-    if (!opcOpOrigem.trim()) {
-      toast.error('Informe a OP original que possui o GS.');
-      return;
-    }
-    if (!opcOrigemOpOrigem.trim()) {
-      toast.error('Informe a origem da OP original.');
-      return;
-    }
-    if (!opcNumeroSerie.trim()) {
-      toast.error('Informe o GS original a ser reutilizado na nova OP.');
-      return;
-    }
+  const executarOpComplementar = async (confirmar: boolean, forcar: boolean = false) => {
+    if (!opcOpNova.trim()) { toast.error('Informe a OP nova.'); return; }
+    if (!opcOpOrigem.trim()) { toast.error('Informe a OP original que possui o GS.'); return; }
+    if (!opcOrigemOpOrigem.trim()) { toast.error('Informe a origem da OP original.'); return; }
+    if (!opcNumeroSerie.trim()) { toast.error('Informe o GS existente a ser reaproveitado na nova OP.'); return; }
     if (opcJustificativa.trim().length < 20) {
       toast.error('Justificativa deve ter pelo menos 20 caracteres.');
+      return;
+    }
+    if (confirmar && !forcar && !opcSimulacaoOk) {
+      toast.error('Simule a operação antes de executar.');
       return;
     }
     setOpcLoading(confirmar ? 'manter' : 'simular');
@@ -564,12 +556,12 @@ export default function NumeroSeriePage() {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
         origem_op_nova: '250',
-        situacao_op_nova: 'L',
         numero_op_origem: Number(opcOpOrigem),
         origem_op_origem: opcOrigemOpOrigem.trim(),
         numero_serie: numeroSerieNorm,
         justificativa: opcJustificativa.trim(),
         confirmar,
+        forcar_vinculo: forcar,
       };
 
       const endpoint = confirmar
@@ -583,9 +575,20 @@ export default function NumeroSeriePage() {
       const origemDivergente = origemRet && origemRet !== '250';
       const situacaoDivergente = sitRet && sitRet !== 'L';
       if (origemDivergente || situacaoDivergente) {
+        setOpcSimulacaoOk(false);
         toast.error('A rotina permite somente OP complementar da origem 250 com situação Liberada.');
         return;
       }
+
+      // Detecta aviso de "GS pertence a outro produto/derivação" (não bloqueia)
+      const textoResp = `${result?.aviso ?? ''} ${result?.mensagem ?? ''} ${result?.conflito ?? ''}`;
+      const outroProduto = result?.outro_produto === true || /outro produto|outra deriva/i.test(textoResp);
+      if (outroProduto) {
+        setOpcAviso('GS localizado ativo, porém vinculado a outro produto/derivação. A rotina seguirá como reaproveitamento de GS em OP complementar.');
+      } else {
+        setOpcAviso(null);
+      }
+
       if (confirmar) {
         const gs = result?.numero_serie || numeroSerieNorm;
         const origem = result?.origem_op_nova || '250';
@@ -593,11 +596,20 @@ export default function NumeroSeriePage() {
         toast.success(
           `GS ${gs} vinculado à OP complementar ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque do produto acabado.`,
         );
+        setOpcSimulacaoOk(false);
       } else {
-        toast.success(result?.mensagem || 'Simulação concluída.');
+        setOpcSimulacaoOk(true);
+        toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
       }
     } catch (e: any) {
       const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
+      // Se erro indicar GS não encontrado ativo em USU_T075SEP, oferecer forçar vínculo
+      if (!forcar && /USU_T075SEP|não encontrado ativo|nao encontrado ativo/i.test(msg)) {
+        setOpcForcarPending({ confirmar });
+        setOpcForcarConfirmOpen(true);
+        return;
+      }
+      setOpcSimulacaoOk(false);
       toast.error(msg);
     } finally {
       setOpcLoading(null);
