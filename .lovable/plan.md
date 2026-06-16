@@ -1,47 +1,48 @@
-## Objetivo
-Garantir que a tela `/bi/contabilidade/dre` envie `p_unidade_negocio: null` para a RPC quando a unidade selecionada for "Todos" (independente de caixa/acento) e instrumentar logs decisivos para confirmar parâmetros e retorno.
+# Diagnóstico temporário — DRE (RPC vs API antiga)
 
-## Alterações em `src/pages/bi/contabilidade/DrePage.tsx`
+Objetivo: descobrir por que a RPC `bi_dre_matriz_anual` retorna vazio no front, comparando com a API antiga `/api/bi/contabilidade/dre` que sabidamente funciona.
 
-1. **Normalização robusta de unidade** dentro de `carregarDre()`:
-   ```ts
-   const unidadeNormalizada = String(unidade || '').trim().toUpperCase();
-   const unidadeParam =
-     !unidade ||
-     unidadeNormalizada === 'TODOS' ||
-     unidadeNormalizada === 'TODAS' ||
-     unidadeNormalizada === 'ALL'
-       ? null
-       : unidade;
-   const pAno = String(ano || '2026');
-   ```
+## Mudanças em `src/pages/bi/contabilidade/DrePage.tsx`
 
-2. **Logs de diagnóstico** (substituir os atuais):
-   - `[DRE] PARAMETROS ENVIADOS PARA RPC` com `ano, unidade, unidadeNormalizada, unidadeParam, p_ano, p_unidade_negocio`.
-   - `[DRE] Supabase URL usada:` com `(supabase as any).supabaseUrl` para confirmar o ambiente.
-   - `[DRE] RETORNO RPC bi_dre_matriz_anual` com `error, qtd, dataPreview`.
-   - `[DRE] LINHAS QUE SERÃO SALVAS NO ESTADO` com `linhas.length`.
+### 1. Novo estado para diagnóstico
+Adicionar:
+```ts
+const [diag, setDiag] = useState<{
+  unidadeParam: string | null;
+  qtdRpc: number | null;
+  erroRpc: string | null;
+  qtdApi: number | null;
+  erroApi: string | null;
+} | null>(null);
+```
 
-3. **Tratamento do retorno**:
-   ```ts
-   if (error) { setErro(...); setLinhasRaw([]); return; }
-   const linhas = Array.isArray(data) ? data : [];
-   setLinhasRaw(linhas);
-   ```
-   Sem `filter` ou descarte de linhas zeradas — a estrutura completa deve aparecer.
+### 2. Refatorar `carregarDre()`
+Manter a normalização atual de `unidadeParam` / `pAno`. Adicionar logs e chamada paralela à API antiga:
 
-4. **Select de unidade**: confirmar que o item "Todos" usa `value="TODOS"` (já está correto no arquivo atual; manter).
+- Log `[DRE][RPC] Parâmetros` com `{ ano, unidade, unidadeNormalizada, unidadeParam, p_ano, p_unidade_negocio }`.
+- Executar `supabase.rpc('bi_dre_matriz_anual', { p_ano, p_unidade_negocio: unidadeParam })` e logar `[DRE][RPC] Resultado` com `{ error, qtd, dataPreview }`.
+- Em seguida, chamada de diagnóstico à API antiga:
+  ```ts
+  const apiUrl = `/api/bi/contabilidade/dre?anomes_ini=202606&anomes_fim=202606&unidade=${unidadeParam || ''}`;
+  const apiResponse = await fetch(apiUrl);
+  const apiJson = await apiResponse.json().catch(() => null);
+  ```
+  Logar `[DRE][API ANTIGA] Resultado` com `{ status, ok, qtd, dataPreview }`. Envolto em try/catch para não quebrar a tela se a rota não estiver acessível pelo preview.
+- Popular `setDiag({...})` com `unidadeParam`, `qtdRpc`, `erroRpc`, `qtdApi`, `erroApi`.
+- Continuar populando `linhasRaw` a partir do retorno da RPC (comportamento atual preservado).
+
+### 3. Painel de diagnóstico na UI
+Logo abaixo do `<Card>` de filtros, renderizar um pequeno card amarelo (`border-amber-400 bg-amber-50/40 dark:bg-amber-950/20`) marcado como “Diagnóstico temporário” quando `diag` não for null, exibindo em formato chave/valor:
+
+- `unidadeParam`
+- `qtdRpc`
+- `erroRpc`
+- `qtdApi`
+- `erroApi`
+
+Sem alterar layout definitivo, KPIs, tabela DRE, filtros ou contratos da RPC.
 
 ## Fora do escopo
-- Sem mudanças na RPC, em SQL, ou no ETL.
-- Sem alteração na renderização da matriz, KPIs ou filtros de mês.
-- Logs ficam até confirmação visual de `qtd > 0`; removidos em ticket seguinte.
-
-## Validação
-1. Abrir `/bi/contabilidade/dre` com filtro "Todos" / ano 2026.
-2. Conferir no console:
-   - `p_unidade_negocio: null`
-   - `p_ano: "2026"`
-   - `qtd: 18` (ou nº esperado)
-   - URL Supabase corresponde ao projeto Cloud do app.
-3. Tabela deve listar todas as linhas da estrutura DRE (mesmo zeradas).
+- Não alterar a RPC, ETL, SQL ou backend.
+- Não alterar a renderização da matriz, KPIs ou filtros de mês.
+- Diagnóstico será removido depois que confirmarmos a causa.
