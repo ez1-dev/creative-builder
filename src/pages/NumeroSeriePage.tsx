@@ -136,6 +136,7 @@ export default function NumeroSeriePage() {
 
   // OP Complementar — Manter GS
   const [opcOpNova, setOpcOpNova] = useState('');
+  const [opcOrigemOpNova, setOpcOrigemOpNova] = useState('250');
   const [opcOpOrigem, setOpcOpOrigem] = useState('');
   const [opcOrigemOpOrigem, setOpcOrigemOpOrigem] = useState('250');
   const [opcNumeroSerie, setOpcNumeroSerie] = useState('');
@@ -523,7 +524,11 @@ export default function NumeroSeriePage() {
 
   const executarOpComplementar = async (confirmar: boolean) => {
     if (!opcOpNova.trim()) {
-      toast.error('Informe a OP nova 250.');
+      toast.error('Informe a OP nova.');
+      return;
+    }
+    if (!opcOrigemOpNova.trim()) {
+      toast.error('Informe a origem da OP nova.');
       return;
     }
     if (opcJustificativa.trim().length < 20) {
@@ -535,12 +540,13 @@ export default function NumeroSeriePage() {
       const body: Record<string, any> = {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
-        origem_op_origem: opcOrigemOpOrigem || '250',
-        confirmar,
+        origem_op_nova: (opcOrigemOpNova || '250').trim(),
+        ...(opcOpOrigem.trim() ? { numero_op_origem: Number(opcOpOrigem) } : {}),
+        origem_op_origem: (opcOrigemOpOrigem || '250').trim(),
+        ...(opcNumeroSerie.trim() ? { numero_serie: opcNumeroSerie.trim().toUpperCase() } : {}),
         justificativa: opcJustificativa.trim(),
+        confirmar,
       };
-      if (opcOpOrigem.trim()) body.numero_op_origem = Number(opcOpOrigem);
-      if (opcNumeroSerie.trim()) body.numero_serie = opcNumeroSerie.trim().toUpperCase();
 
       const endpoint = confirmar
         ? '/api/numero-serie/op-complementar/manter-gs'
@@ -549,7 +555,8 @@ export default function NumeroSeriePage() {
       setOpcResultado(result);
       toast.success(result?.mensagem || (confirmar ? 'GS mantido na nova OP.' : 'Simulação concluída.'));
     } catch (e: any) {
-      toast.error(e?.message || 'Falha na operação.');
+      const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
+      toast.error(msg);
     } finally {
       setOpcLoading(null);
     }
@@ -615,33 +622,42 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Prepare uma OP complementar origem 250 para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
+            Prepare uma OP complementar (informe a origem, geralmente 250) para herdar o mesmo GS da OP/máquina original antes de finalizar a OP.
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1">
-              <Label className="text-xs">OP nova 250 <span className="text-destructive">*</span></Label>
+              <Label className="text-xs">OP nova <span className="text-destructive">*</span></Label>
               <Input
                 type="number"
                 value={opcOpNova}
                 onChange={e => setOpcOpNova(e.target.value)}
                 className="h-8 text-xs"
-                placeholder="Ex.: 100500"
+                placeholder="Ex.: 1113"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">OP origem</Label>
+              <Label className="text-xs">Origem da OP nova <span className="text-destructive">*</span></Label>
+              <Input
+                value={opcOrigemOpNova}
+                onChange={e => setOpcOrigemOpNova(e.target.value)}
+                className="h-8 text-xs font-mono"
+                placeholder="250"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">OP original</Label>
               <Input
                 type="number"
                 value={opcOpOrigem}
                 onChange={e => setOpcOpOrigem(e.target.value)}
                 className="h-8 text-xs"
-                placeholder="Opcional"
+                placeholder="Ex.: 250"
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Origem OP origem</Label>
+              <Label className="text-xs">Origem da OP original</Label>
               <Input
                 value={opcOrigemOpOrigem}
                 onChange={e => setOpcOrigemOpOrigem(e.target.value)}
@@ -655,7 +671,7 @@ export default function NumeroSeriePage() {
                 value={opcNumeroSerie}
                 onChange={e => setOpcNumeroSerie(e.target.value)}
                 className="h-8 text-xs font-mono"
-                placeholder="Opcional (Ex.: GS-11705)"
+                placeholder="Opcional (Ex.: GS-11661)"
               />
             </div>
           </div>
