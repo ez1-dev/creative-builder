@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
-import { supabase } from '@/integrations/supabase/client';
 import { getApiUrl } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
@@ -76,13 +75,6 @@ export default function DrePage() {
   const [linhasRaw, setLinhasRaw] = useState<DreLinha[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [buscou, setBuscou] = useState(false);
-  const [diag, setDiag] = useState<{
-    unidadeParam: string | null;
-    qtdRpc: number | null;
-    erroRpc: string | null;
-    qtdApi: number | null;
-    erroApi: string | null;
-  } | null>(null);
 
   const handleMesInicialChange = (v: string) => {
     setMesInicial(v);
@@ -118,72 +110,38 @@ export default function DrePage() {
         : unidade;
     const pAno = String(ano || '2026');
 
-    console.log('[DRE] PARAMETROS ENVIADOS PARA RPC', {
-      ano,
-      unidade,
-      unidadeNormalizada,
-      unidadeParam,
-      p_ano: pAno,
-      p_unidade_negocio: unidadeParam,
-    });
-    console.log('[DRE] Supabase URL usada:', (supabase as any).supabaseUrl);
+    const url = `${getApiUrl()}/api/bi/contabilidade/dre-matriz?ano=${encodeURIComponent(pAno)}&unidade=${encodeURIComponent(unidadeParam || '')}`;
+    console.log('[DRE] GET', url, { unidadeParam });
 
-    const { data, error } = await supabase.rpc('bi_dre_matriz_anual' as any, {
-      p_ano: pAno,
-      p_unidade_negocio: unidadeParam,
-    });
-
-    console.log('[DRE] RETORNO RPC bi_dre_matriz_anual', {
-      error,
-      qtd: Array.isArray(data) ? data.length : null,
-      dataPreview: Array.isArray(data) ? data.slice(0, 3) : data,
-    });
-
-    const qtdRpc = Array.isArray(data) ? data.length : null;
-    const erroRpc = error ? (error.message || JSON.stringify(error)) : null;
-
-    // === Diagnóstico: chamada API antiga ===
-    let qtdApi: number | null = null;
-    let erroApi: string | null = null;
     try {
-      const apiUrl = `${getApiUrl()}/api/bi/contabilidade/dre?anomes_ini=202606&anomes_fim=202606&unidade=${unidadeParam || ''}`;
-      const apiResponse = await fetch(apiUrl, {
+      const resp = await fetch(url, {
         headers: { 'ngrok-skip-browser-warning': 'true' },
       });
-      const apiJson = await apiResponse.json().catch(() => null);
-      qtdApi = Array.isArray(apiJson)
-        ? apiJson.length
-        : Array.isArray(apiJson?.data)
-          ? apiJson.data.length
-          : null;
-      if (!apiResponse.ok) erroApi = `HTTP ${apiResponse.status}`;
-      console.log('[DRE][API ANTIGA] Resultado', {
-        status: apiResponse.status,
-        ok: apiResponse.ok,
-        qtd: qtdApi,
-        dataPreview: Array.isArray(apiJson)
-          ? apiJson.slice(0, 3)
-          : apiJson?.data?.slice?.(0, 3) || apiJson,
-      });
+      const json = await resp.json().catch(() => null);
+
+      if (!resp.ok) {
+        const msg = (json && (json.detail || json.message)) || `HTTP ${resp.status}`;
+        console.error('[DRE] Erro HTTP', resp.status, json);
+        setErro(typeof msg === 'string' ? msg : JSON.stringify(msg));
+        setLinhasRaw([]);
+        setLoading(false);
+        return;
+      }
+
+      const linhas: DreLinha[] = Array.isArray(json)
+        ? json
+        : Array.isArray(json?.data)
+          ? json.data
+          : [];
+      console.log('[DRE] Linhas recebidas', linhas.length);
+      setLinhasRaw(linhas);
     } catch (e: any) {
-      erroApi = e?.message || String(e);
-      console.error('[DRE][API ANTIGA] Erro', e);
-    }
-
-    setDiag({ unidadeParam, qtdRpc, erroRpc, qtdApi, erroApi });
-
-    if (error) {
-      console.error('[DRE] ERRO RPC:', error);
-      setErro(erroRpc);
+      console.error('[DRE] Falha ao buscar /api/bi/contabilidade/dre-matriz', e);
+      setErro(e?.message || String(e));
       setLinhasRaw([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const linhas = Array.isArray(data) ? (data as DreLinha[]) : [];
-    console.log('[DRE] LINHAS QUE SERÃO SALVAS NO ESTADO', linhas.length);
-    setLinhasRaw(linhas);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -285,24 +243,7 @@ export default function DrePage() {
           </CardContent>
         </Card>
 
-        {diag && (
-          <Card className="border-amber-400 bg-amber-50/40 dark:bg-amber-950/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs text-amber-700 dark:text-amber-300">
-                Diagnóstico temporário (RPC vs API antiga)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 font-mono">
-                <div><div className="text-muted-foreground">unidadeParam</div><div>{String(diag.unidadeParam)}</div></div>
-                <div><div className="text-muted-foreground">qtdRpc</div><div>{String(diag.qtdRpc)}</div></div>
-                <div><div className="text-muted-foreground">erroRpc</div><div className="break-all">{diag.erroRpc ?? '—'}</div></div>
-                <div><div className="text-muted-foreground">qtdApi</div><div>{String(diag.qtdApi)}</div></div>
-                <div><div className="text-muted-foreground">erroApi</div><div className="break-all">{diag.erroApi ?? '—'}</div></div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
 
 
         <KpiGrid cols={4}>
