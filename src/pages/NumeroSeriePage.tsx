@@ -95,6 +95,8 @@ interface ResultadoOpComplementar {
   situacao_op?: string;
   conflito?: string | null;
   mensagem?: string;
+  aviso?: string;
+  outro_produto?: boolean;
 }
 
 const statusBadge = (status: string) => {
@@ -137,14 +139,24 @@ export default function NumeroSeriePage() {
   const [trocarItem, setTrocarItem] = useState<string>('1');
 
   // OP Complementar — Manter GS
-  const [opcOpNova, setOpcOpNova] = useState('');
-  const [opcOrigemOpNova, setOpcOrigemOpNova] = useState('250');
-  const [opcOpOrigem, setOpcOpOrigem] = useState('');
-  const [opcOrigemOpOrigem, setOpcOrigemOpOrigem] = useState('250');
-  const [opcNumeroSerie, setOpcNumeroSerie] = useState('');
-  const [opcJustificativa, setOpcJustificativa] = useState('');
+  const [opcOpNova, setOpcOpNovaRaw] = useState('');
+  
+  const [opcOpOrigem, setOpcOpOrigemRaw] = useState('');
+  const [opcOrigemOpOrigem, setOpcOrigemOpOrigemRaw] = useState('250');
+  const [opcNumeroSerie, setOpcNumeroSerieRaw] = useState('');
+  const [opcJustificativa, setOpcJustificativaRaw] = useState('');
   const [opcLoading, setOpcLoading] = useState<'simular' | 'manter' | null>(null);
   const [opcResultado, setOpcResultado] = useState<ResultadoOpComplementar | null>(null);
+  const [opcSimulacaoOk, setOpcSimulacaoOk] = useState(false);
+  const [opcAviso, setOpcAviso] = useState<string | null>(null);
+  const [opcForcarConfirmOpen, setOpcForcarConfirmOpen] = useState(false);
+  const [opcForcarPending, setOpcForcarPending] = useState<{ confirmar: boolean } | null>(null);
+  const invalidarSimulacao = () => { setOpcSimulacaoOk(false); setOpcAviso(null); };
+  const setOpcOpNova = (v: string) => { setOpcOpNovaRaw(v); invalidarSimulacao(); };
+  const setOpcOpOrigem = (v: string) => { setOpcOpOrigemRaw(v); invalidarSimulacao(); };
+  const setOpcOrigemOpOrigem = (v: string) => { setOpcOrigemOpOrigemRaw(v); invalidarSimulacao(); };
+  const setOpcNumeroSerie = (v: string) => { setOpcNumeroSerieRaw(v); invalidarSimulacao(); };
+  const setOpcJustificativa = (v: string) => { setOpcJustificativaRaw(v); invalidarSimulacao(); };
 
 
   const erpReady = useErpReady();
@@ -524,25 +536,17 @@ export default function NumeroSeriePage() {
     }
   };
 
-  const executarOpComplementar = async (confirmar: boolean) => {
-    if (!opcOpNova.trim()) {
-      toast.error('Informe a OP nova.');
-      return;
-    }
-    if (!opcOpOrigem.trim()) {
-      toast.error('Informe a OP original que possui o GS.');
-      return;
-    }
-    if (!opcOrigemOpOrigem.trim()) {
-      toast.error('Informe a origem da OP original.');
-      return;
-    }
-    if (!opcNumeroSerie.trim()) {
-      toast.error('Informe o GS original a ser reutilizado na nova OP.');
-      return;
-    }
+  const executarOpComplementar = async (confirmar: boolean, forcar: boolean = false) => {
+    if (!opcOpNova.trim()) { toast.error('Informe a OP nova.'); return; }
+    if (!opcOpOrigem.trim()) { toast.error('Informe a OP original que possui o GS.'); return; }
+    if (!opcOrigemOpOrigem.trim()) { toast.error('Informe a origem da OP original.'); return; }
+    if (!opcNumeroSerie.trim()) { toast.error('Informe o GS existente a ser reaproveitado na nova OP.'); return; }
     if (opcJustificativa.trim().length < 20) {
       toast.error('Justificativa deve ter pelo menos 20 caracteres.');
+      return;
+    }
+    if (confirmar && !forcar && !opcSimulacaoOk) {
+      toast.error('Simule a operação antes de executar.');
       return;
     }
     setOpcLoading(confirmar ? 'manter' : 'simular');
@@ -552,12 +556,12 @@ export default function NumeroSeriePage() {
         codigo_empresa: 1,
         numero_op_nova: Number(opcOpNova),
         origem_op_nova: '250',
-        situacao_op_nova: 'L',
         numero_op_origem: Number(opcOpOrigem),
         origem_op_origem: opcOrigemOpOrigem.trim(),
         numero_serie: numeroSerieNorm,
         justificativa: opcJustificativa.trim(),
         confirmar,
+        forcar_vinculo: forcar,
       };
 
       const endpoint = confirmar
@@ -571,9 +575,20 @@ export default function NumeroSeriePage() {
       const origemDivergente = origemRet && origemRet !== '250';
       const situacaoDivergente = sitRet && sitRet !== 'L';
       if (origemDivergente || situacaoDivergente) {
+        setOpcSimulacaoOk(false);
         toast.error('A rotina permite somente OP complementar da origem 250 com situação Liberada.');
         return;
       }
+
+      // Detecta aviso de "GS pertence a outro produto/derivação" (não bloqueia)
+      const textoResp = `${result?.aviso ?? ''} ${result?.mensagem ?? ''} ${result?.conflito ?? ''}`;
+      const outroProduto = result?.outro_produto === true || /outro produto|outra deriva/i.test(textoResp);
+      if (outroProduto) {
+        setOpcAviso('GS localizado ativo, porém vinculado a outro produto/derivação. A rotina seguirá como reaproveitamento de GS em OP complementar.');
+      } else {
+        setOpcAviso(null);
+      }
+
       if (confirmar) {
         const gs = result?.numero_serie || numeroSerieNorm;
         const origem = result?.origem_op_nova || '250';
@@ -581,11 +596,20 @@ export default function NumeroSeriePage() {
         toast.success(
           `GS ${gs} vinculado à OP complementar ${origem}/${opNova}. Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque do produto acabado.`,
         );
+        setOpcSimulacaoOk(false);
       } else {
-        toast.success(result?.mensagem || 'Simulação concluída.');
+        setOpcSimulacaoOk(true);
+        toast.success('GS validado para reaproveitamento na OP complementar. Ao finalizar a OP nova, o ERP deverá usar este GS na entrada de estoque.');
       }
     } catch (e: any) {
       const msg = e?.message || e?.detail || (typeof e === 'string' ? e : '') || 'Falha na operação.';
+      // Se erro indicar GS não encontrado ativo em USU_T075SEP, oferecer forçar vínculo
+      if (!forcar && /USU_T075SEP|não encontrado ativo|nao encontrado ativo/i.test(msg)) {
+        setOpcForcarPending({ confirmar });
+        setOpcForcarConfirmOpen(true);
+        return;
+      }
+      setOpcSimulacaoOk(false);
       toast.error(msg);
     } finally {
       setOpcLoading(null);
@@ -653,7 +677,7 @@ export default function NumeroSeriePage() {
             OP Complementar — Manter GS
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Reutiliza um GS já existente em uma OP complementar (CODEMP=1, CODORI=250, SITORP=L). A rotina não gera novo GS — ao finalizar a OP nova no Senior, o produto acabado entra em estoque com o mesmo GS informado.
+            Reaproveita um GS existente em uma OP nova complementar (origem 250, SITORP=L). O GS pode pertencer a outro produto/derivação — será usado para acompanhar a OP até a finalização e entrada em estoque.
           </p>
         </CardHeader>
         <CardContent className="pt-0 px-4 pb-4 space-y-3">
@@ -697,7 +721,7 @@ export default function NumeroSeriePage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">GS original <span className="text-destructive">*</span></Label>
+              <Label className="text-xs">GS existente <span className="text-destructive">*</span></Label>
               <Input
                 value={opcNumeroSerie}
                 onChange={e => setOpcNumeroSerie(e.target.value)}
@@ -732,12 +756,21 @@ export default function NumeroSeriePage() {
             <Button
               size="sm"
               onClick={() => executarOpComplementar(true)}
-              disabled={opcLoading !== null}
+              disabled={opcLoading !== null || !opcSimulacaoOk}
+              title={!opcSimulacaoOk ? 'Simule antes de executar' : undefined}
             >
               <Link2 className="h-3.5 w-3.5 mr-1" />
               {opcLoading === 'manter' ? 'Aplicando...' : 'Manter GS na nova OP'}
             </Button>
           </div>
+
+          {opcAviso && (
+            <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-sm">Aviso</AlertTitle>
+              <AlertDescription className="text-xs">{opcAviso}</AlertDescription>
+            </Alert>
+          )}
 
           {opcResultado && (
             <Alert>
@@ -752,7 +785,7 @@ export default function NumeroSeriePage() {
                   <div><span className="text-muted-foreground">Item:</span> {opcResultado.item_pedido ?? '-'}</div>
                   <div className="col-span-2 md:col-span-3"><span className="text-muted-foreground">Situação da OP:</span> <Badge variant="outline" className="ml-1">{opcResultado.situacao_op || '-'}</Badge></div>
                 </div>
-                {opcResultado.conflito && (
+                {opcResultado.conflito && !opcAviso && (
                   <Alert variant="destructive" className="mt-3">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertTitle className="text-sm">Conflito</AlertTitle>
@@ -992,7 +1025,34 @@ export default function NumeroSeriePage() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>      <BiAutoSlots pageKey="numero-serie" />
+      </AlertDialog>
+
+      <AlertDialog open={opcForcarConfirmOpen} onOpenChange={setOpcForcarConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Forçar vínculo do GS?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Este GS não foi encontrado como ativo na USU_T075SEP. Deseja forçar o vínculo mesmo assim?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setOpcForcarPending(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                const pend = opcForcarPending;
+                setOpcForcarConfirmOpen(false);
+                setOpcForcarPending(null);
+                if (pend) executarOpComplementar(pend.confirmar, true);
+              }}
+            >
+              Forçar vínculo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <BiAutoSlots pageKey="numero-serie" />
     </div>
   );
 }
