@@ -86,6 +86,8 @@ interface ProximosResponse {
 interface ResultadoOpComplementar {
   numero_serie?: string;
   numero_op_nova?: number | string;
+  origem_op_nova?: string;
+  situacao_op_nova?: string;
   codigo_produto?: string;
   derivacao?: string;
   numero_pedido?: number;
