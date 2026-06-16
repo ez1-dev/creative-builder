@@ -1,49 +1,60 @@
-# Corrigir "Not authenticated" na tela DRE matriz
+## Objetivo
 
-## Causa raiz
-A nova `DrePage.tsx` faz `fetch(...)` direto em `/api/bi/contabilidade/dre-matriz` sem token. As demais telas funcionam porque usam o helper `api.get(...)` exportado em `src/lib/api.ts`, que:
-- usa `getApiBaseUrl()`,
-- adiciona `Authorization: Bearer <token ERP>` automaticamente a partir do `erp_token` em localStorage,
-- inclui `ngrok-skip-browser-warning: true`,
-- trata 401 com mensagem amigável.
-
-Sem isso, o backend FastAPI responde `Not authenticated`.
+Remover toda dependência de `supabase` (Cloud) na tela `Contabilidade — DRE` e consumir exclusivamente a API backend, incluindo os filtros de mês inicial/final.
 
 ## Mudanças em `src/pages/bi/contabilidade/DrePage.tsx`
 
-1. Importar o helper compartilhado:
-   ```ts
-   import { api } from '@/lib/api';
-   ```
-   Remover `getApiUrl` se ficar sem uso.
+### 1. Remover imports e estado de diagnóstico Cloud
+- Remover `import { supabase } from '@/integrations/supabase/client'`.
+- Remover a função `rodarDiagnostico` (que usa `supabase.from(...)` e `supabase.rpc(...)`).
+- Remover o estado `diag` e o `<Card>` "Diagnóstico temporário (Cloud)".
+- Remover o `useEffect` de mount que dispara `rodarDiagnostico()`.
+- Remover a chamada a `rodarDiagnostico()` dentro de `carregarDre`.
 
-2. Em `carregarDre`, substituir o bloco `fetch(url, ...)` por:
-   ```ts
-   try {
-     const json = await api.get<any>('/api/bi/contabilidade/dre-matriz', {
-       ano: pAno,
-       unidade: unidadeParam ?? '',
-     }, { keepEmpty: ['unidade'] });
-     const linhas: DreLinha[] = Array.isArray(json)
-       ? json
-       : Array.isArray(json?.data) ? json.data : [];
-     setLinhasRaw(linhas);
-   } catch (e: any) {
-     if (e?.statusCode === 401) {
-       setErro('Sessão expirada. Faça login novamente.');
-     } else {
-       setErro(e?.message || String(e));
-     }
-     setLinhasRaw([]);
-   } finally {
-     setLoading(false);
-   }
-   ```
-   Manter os `console.log` para acompanhamento.
+### 2. Substituir `api.get` por `fetch` direto, incluindo `mes_ini` / `mes_fim`
 
-3. Manter o bloco `rodarDiagnostico` (usa `supabase` do Cloud, não passa pelo FastAPI) e os `useEffect` existentes.
+Em `carregarDre`, trocar o bloco atual por:
 
-## Fora do escopo
-- Não alterar a tela antiga.
-- Não mexer em RPC, ETL ou backend.
-- Não mudar layout.
+```ts
+const unidadeParam =
+  !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
+    ? ''
+    : unidade;
+
+const url =
+  `/api/bi/contabilidade/dre-matriz?ano=${ano || '2026'}` +
+  `&mes_ini=${mesInicial}&mes_fim=${mesFinal}` +
+  `&unidade=${encodeURIComponent(unidadeParam)}`;
+
+const response = await fetch(url, {
+  method: 'GET',
+  credentials: 'include',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+if (response.status === 401) {
+  throw new Error('Sessão expirada. Faça login novamente.');
+}
+if (!response.ok) {
+  throw new Error(`Erro ao carregar DRE: HTTP ${response.status}`);
+}
+
+const json = await response.json();
+const linhas: DreLinha[] = Array.isArray(json)
+  ? json
+  : Array.isArray(json?.data) ? json.data : [];
+setLinhasRaw(linhas);
+```
+
+Observação: a tela hoje usa `api.get` (helper que adiciona `Authorization: Bearer` a partir do `localStorage.erp_token` e prefixo do `getApiBaseUrl()`). O pedido pede `fetch` puro com `credentials: 'include'`. Vou seguir literalmente o pedido, mas isso pode quebrar a autenticação Bearer/ngrok que hoje funciona nas outras telas. **Confirmar:** seguir com `fetch` puro mesmo assim, ou manter o `api.get` (que já injeta Bearer + base URL correta) só trocando os parâmetros para incluir `mes_ini`/`mes_fim`?
+
+### 3. Recarregar ao mudar mês
+- Atualizar `useEffect([ano, unidade])` → `useEffect([ano, unidade, mesInicial, mesFinal])` para refletir o novo contrato (mês passa a ser server-side).
+
+### 4. Limpar dead code
+- Remover estado `diag` e tipos relacionados.
+- Manter logs `console.log('[DRE] ...')` do fluxo principal (sem prefixo `[DIAG]`).
+
+## Fora de escopo
+- Backend FastAPI (`/api/bi/contabilidade/dre-matriz`) já existe conforme `docs/backend-bi-contabilidade-dre-matriz.md`. Se o backend ainda não aceita `mes_ini` / `mes_fim`, será necessário ajuste server-side — não coberto por este plano.
+- Nenhuma mudança em outras telas, RPC, ETL ou layout visual.
