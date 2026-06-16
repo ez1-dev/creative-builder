@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
-import { getApiUrl } from '@/lib/api';
+import { api } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
