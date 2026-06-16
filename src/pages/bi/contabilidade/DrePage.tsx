@@ -186,6 +186,13 @@ export default function DrePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ano, unidade]);
 
+  // Diagnóstico temporário: roda automaticamente ao montar a página
+  useEffect(() => {
+    console.log('[DRE][DIAG] iniciando diagnóstico no mount');
+    rodarDiagnostico().catch((e) => console.error('[DRE][DIAG] falhou no mount', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const linhas = useMemo<DreLinha[]>(() => {
     return [...linhasRaw].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
   }, [linhasRaw]);
