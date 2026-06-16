@@ -876,6 +876,33 @@ export default function NumeroSeriePage() {
             </div>
           </div>
 
+          <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+            <Checkbox
+              id="opc-manutencao"
+              checked={opcManutencao}
+              onCheckedChange={(v) => setOpcManutencao(v === true)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <Label htmlFor="opc-manutencao" className="text-xs font-medium cursor-pointer">
+                É manutenção/reforma?
+              </Label>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Marque quando o GS está sendo reaproveitado porque a máquina/equipamento está em manutenção ou reforma. Libera o vínculo do mesmo GS em produto/derivação diferente sem precisar de "Forçar vínculo".
+              </p>
+            </div>
+          </div>
+
+          {opcManutencao && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Modo manutenção/reforma — o mesmo GS poderá ser vinculado a um produto/derivação diferente.
+              </AlertDescription>
+            </Alert>
+          )}
+
+
           <div className="space-y-1">
             <Label className="text-xs">
               Justificativa <span className="text-destructive">*</span>
