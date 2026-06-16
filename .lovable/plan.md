@@ -1,56 +1,71 @@
 ## Objetivo
 
-Forçar a rotina "OP Complementar — Manter GS" (`src/pages/NumeroSeriePage.tsx`) a tratar apenas OPs `CODEMP=1` + `CODORI=250` + `SITORP=L`, enviando explicitamente `situacao_op_nova: "L"` em todas as chamadas e bloqueando ações quando o backend retornar OP fora dessa regra.
+Alinhar a seção "OP Complementar — Manter GS" (`src/pages/NumeroSeriePage.tsx`) à regra real: o usuário escolhe um **GS existente** e vincula esse GS a uma OP nova complementar **origem 250 / situação L**, para que, ao finalizar a OP no Senior, o produto acabado entre em estoque reutilizando esse mesmo GS. A rotina nunca gera nem busca próximo GS.
 
-## Mudanças no frontend
+## Mudanças (arquivo único: `src/pages/NumeroSeriePage.tsx`)
 
-Arquivo único: `src/pages/NumeroSeriePage.tsx`.
+### 1. Tornar campos obrigatórios
 
-### 1. Payload de Simular / Manter GS (`executarOpComplementar`)
+Hoje "GS original" e "OP original" são opcionais. Passar a exigir:
 
-Adicionar `situacao_op_nova: 'L'` ao body enviado para:
-- `POST /api/numero-serie/op-complementar/simular`
-- `POST /api/numero-serie/op-complementar/manter-gs`
+- **GS original** (`opcNumeroSerie`) — obrigatório. Placeholder muda para `Ex.: GS-11661`. Validação no início de `executarOpComplementar`: se vazio, `toast.error('Informe o GS original a ser reutilizado na nova OP.')`.
+- **OP original** (`opcOpOrigem`) — obrigatório. Validação: se vazio, `toast.error('Informe a OP original que possui o GS.')`. Sempre enviar `numero_op_origem: Number(opcOpOrigem)` no payload (remover o spread condicional).
+- **Origem da OP original** (`opcOrigemOpOrigem`) — obrigatório, default `250`.
 
-Demais campos permanecem como já estão (`origem_op_nova`, `origem_op_origem`, etc).
+### 2. Origem da OP nova fixa em 250
 
-### 2. Busca de contexto da OP nova
+- Input "Origem da OP nova" passa a ser `readOnly` (mantém visual, `bg-muted`), valor default `250`, e o payload sempre envia `origem_op_nova: '250'`. Texto auxiliar reforça que esta rotina opera **somente origem 250**.
 
-Se já existir helper que busca contexto da OP complementar, incluir `situacao_op_nova=L` nos query params. Caso a página hoje não chame `GET /api/numero-serie/op-complementar/contexto`, criar uma chamada leve disparada ao sair do campo "OP nova" (onBlur) que faz:
+### 3. Payload final
+
+Simular (`/api/numero-serie/op-complementar/simular`) e Executar (`/api/numero-serie/op-complementar/manter-gs`) passam a enviar exatamente:
+
+```json
+{
+  "codigo_empresa": 1,
+  "numero_op_nova": 1113,
+  "origem_op_nova": "250",
+  "numero_op_origem": 250,
+  "origem_op_origem": "250",
+  "numero_serie": "GS-11661",
+  "justificativa": "...",
+  "confirmar": false | true
+}
+```
+
+Manter `situacao_op_nova: "L"` no body (backend filtra OPs `CODEMP=1 + CODORI=250 + SITORP=L`).
+
+### 4. Mensagem de sucesso padronizada
+
+Após `manter-gs` bem-sucedido (origem/sit. validadas), exibir:
 
 ```
-GET /api/numero-serie/op-complementar/contexto
-  ?numero_op_nova={opcOpNova}
-  &origem_op_nova={opcOrigemOpNova}
-  &situacao_op_nova=L
-  &numero_op_origem={opcOpOrigem||opcOpNova}
-  &origem_op_origem={opcOrigemOpOrigem}
+GS {numero_serie} vinculado à OP complementar {origem_op_nova}/{numero_op_nova}.
+Ao finalizar a OP, o ERP deverá usar esse GS na entrada de estoque do produto acabado.
 ```
 
-A resposta é apenas exibida via toast/alert se vier divergente — sem alterar o restante da UI.
+Usar `result.numero_serie || opcNumeroSerie`, `result.origem_op_nova || '250'`, `result.numero_op_nova || opcOpNova`. Se o backend devolver `mensagem`, ainda prevalece o template padrão (regra do usuário).
 
-### 3. Validação de resposta
+### 5. Texto auxiliar do card
 
-Após `simular` / `manter`:
-- Se `result.origem_op_nova` existir e for diferente de `"250"`, ou `result.situacao_op_nova` for diferente de `"L"`, exibir erro destrutivo e não considerar sucesso:
-  > "A rotina permite somente OP complementar da origem 250 com situação Liberada."
-- Aplicar a mesma validação ao retorno do contexto (item 2).
+Atualizar para deixar a regra explícita:
 
-Adicionar os campos opcionais `origem_op_nova?: string` e `situacao_op_nova?: string` à interface `ResultadoOpComplementar`.
+> "Reutiliza um GS já existente em uma OP complementar (CODEMP=1, CODORI=250, SITORP=L). A rotina não gera novo GS — ao finalizar a OP nova no Senior, o produto acabado entra em estoque com o mesmo GS informado."
 
-### 4. UX
+### 6. Validação de resposta (já existe)
 
-- Manter os inputs já existentes ("Origem da OP nova" default `250`).
-- Não adicionar novo input visível para situação — fixa em `"L"` no payload (o backend é a fonte da verdade; a tela apenas exige).
-- Texto auxiliar do card: acrescentar "Somente OPs origem 250 com situação L (Liberada)".
+Manter o bloqueio quando `result.origem_op_nova !== '250'` ou `result.situacao_op_nova !== 'L'` com a mensagem:
+> "A rotina permite somente OP complementar da origem 250 com situação Liberada."
 
 ## Fora de escopo
 
-- Backend FastAPI (já deve aplicar o filtro definitivo).
-- Outras seções da página (Reservar, Vincular, Desvincular, filtros gerais).
+- Backend FastAPI (já deve filtrar por `CODEMP+CODORI+SITORP` e aceitar o payload acima).
+- Outras seções (Reservar, Vincular, Desvincular, filtros gerais).
+- Lovable Cloud / Supabase — sem mudanças.
 
 ## Validação
 
 - Build TS verde.
-- Network do "Simular" mostra `situacao_op_nova: "L"` no body.
-- Se backend retornar OP origem ≠ 250 ou situação ≠ L, toast destrutivo aparece com a mensagem padronizada.
+- Network do "Simular" / "Manter GS" mostra o payload exato acima.
+- Submeter sem GS ou sem OP original bloqueia com toast.
+- Sucesso exibe a mensagem padronizada com `GS-XXXX vinculado à OP complementar 250/XXXX...`.
