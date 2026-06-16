@@ -972,6 +972,9 @@ export default function NumeroSeriePage() {
         </CardContent>
       </Card>
 
+      </div>
+
+      <div className={mainTab === 'reserva' ? 'hidden' : 'space-y-4'}>
       {/* Histórico do GS / Reserva OP Complementar */}
       <Card>
         <CardHeader className="py-3 px-4">
