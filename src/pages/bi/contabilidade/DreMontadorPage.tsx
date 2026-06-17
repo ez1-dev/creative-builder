@@ -154,6 +154,7 @@ export default function DreMontadorPage() {
       let cmp = 0;
       switch (sortBy) {
         case 'mascara': cmp = a.cd_mascara.localeCompare(b.cd_mascara); break;
+        case 'nivel': cmp = (a.nivel ?? 0) - (b.nivel ?? 0); break;
         case 'conta': cmp = a.cd_conta_contabil.localeCompare(b.cd_conta_contabil); break;
         case 'qtd': cmp = a.qtd_lancamentos - b.qtd_lancamentos; break;
         case 'valor': cmp = a.valor_total - b.valor_total; break;
