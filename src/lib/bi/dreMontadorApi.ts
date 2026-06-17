@@ -2,10 +2,10 @@ import { api, getApiUrl } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface PlanoContaCentroCusto {
-  cd_centro_custo: string;
-  ds_centro_custo?: string;
-  qtd: number;
-  valor: number;
+  cd_centro_custos: string;
+  cd_centro_custos_3: string;
+  qtd_lancamentos: number;
+  valor_total: number;
 }
 
 export interface PlanoContaErp {
