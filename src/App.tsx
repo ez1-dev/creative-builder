@@ -62,6 +62,7 @@ import RelatorioExecutivoMaquinasPage from "@/pages/relatorios/RelatorioExecutiv
 import BalancoPatrimonialPage from "@/pages/contabilidade/BalancoPatrimonialPage";
 import DrePage from "@/pages/bi/contabilidade/DrePage";
 import DreExcecoesPage from "@/pages/bi/contabilidade/DreExcecoesPage";
+import DreAprovacoesPage from "@/pages/bi/contabilidade/DreAprovacoesPage";
 import RegrasSeniorDashboardPage from "@/pages/regras-senior/RegrasSeniorDashboardPage";
 import RegrasListPage from "@/pages/regras-senior/RegrasListPage";
 import RegraNovaPage from "@/pages/regras-senior/RegraNovaPage";
