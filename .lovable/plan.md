@@ -1,85 +1,57 @@
+## Fix PGRST203 — RPC `bi_dre_drill_realizado` com duas assinaturas
 
-## Parametrização DRE (de/para conta + centro de custos)
+A RPC `public.bi_dre_drill_realizado` vive no Postgres do backend FastAPI (não no Lovable Cloud — `psql` no Cloud confirma que não existe lá). Por isso o `DROP FUNCTION` deve rodar lá, não como migration do Cloud. A correção tem duas pontas:
 
-Objetivo: classificar lançamentos da DRE por `cd_conta_contabil + cd_centro_custos → cd_mascara_dre` numa tabela própria do Cloud, mantida por uma tela admin. O drill da DRE ganha botão **"Criar regra de classificação"** quando o lançamento estiver `NAO_CLASSIFICADO`, evitando uso de exceção por lançamento para casos resolvíveis por de/para.
+### 1. Backend (spec em `docs/backend-bi-contabilidade-dre-drill.md`)
 
-A DRE continua consumindo `GET /api/bi/contabilidade/dre-matriz` — nenhuma consulta UpQuery/Oracle no Lovable.
+Adicionar bloco "Correção PGRST203" no topo do documento e ajustar a seção da RPC para deixar **uma única assinatura** com 6 parâmetros (todos `text`, na ordem fixada pelo usuário):
 
----
+```sql
+-- 1) Remover a versão antiga (5 parâmetros) que causa PGRST203
+DROP FUNCTION IF EXISTS public.bi_dre_drill_realizado(text, text, text, text, text);
 
-### 1. Lovable Cloud (migração)
+-- 2) (Re)criar somente esta assinatura
+CREATE OR REPLACE FUNCTION public.bi_dre_drill_realizado(
+  p_anomes_ini       text,
+  p_anomes_fim       text,
+  p_codigo_linha     text,
+  p_tipo_drill       text,
+  p_anomes_referente text,
+  p_unidade_negocio  text
+) RETURNS TABLE (...) AS $$ ... $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
-Nova tabela `public.bi_dre_depara_conta_ccu`:
+-- 3) Forçar PostgREST a recarregar o cache de schema
+NOTIFY pgrst, 'reload schema';
+```
 
-- `cd_conta_contabil text not null`
-- `cd_centro_custos text not null` — valor literal `'TODAS'` representa regra geral
-- `cd_mascara_dre text not null`
-- `descricao text`
-- `ativo boolean not null default true`
-- auditoria: `criado_por`, `criado_em`, `atualizado_em`
-- `unique (cd_conta_contabil, cd_centro_custos)` (case-insensitive via expressão `upper(...)`)
-- índices em `cd_conta_contabil`, `cd_centro_custos`, `cd_mascara_dre`
+Regras:
+- Sempre passar os 6 parâmetros do endpoint FastAPI; `p_anomes_referente` e `p_unidade_negocio` podem chegar como `NULL` (a função trata).
+- Não criar overloads em hipótese alguma — qualquer mudança futura deve `CREATE OR REPLACE` mantendo a mesma assinatura, ou seguir o ciclo `DROP` + recriar.
 
-GRANT `select/insert/update/delete` para `authenticated`, `all` para `service_role`. RLS:
-- `select`: qualquer authenticated
-- `insert/update/delete`: somente admin (`has_role(auth.uid(),'admin')`) — mesmo padrão das outras tabelas de parametrização DRE
-- Trigger `update_updated_at_column`
+### 2. Frontend (`src/lib/bi/dreDrillApi.ts`)
 
-Não mexer em `bi_dre_mascara`, `bi_dre_estrutura`, `bi_dre_excecoes`, `bi_dre_classificacoes`.
+Hoje o `fetchDreDrill` só envia `unidade` e `anomes_referente` quando têm valor. Trocar para enviar **sempre** os 6 parâmetros (string vazia vira `null` no backend, que já é o contrato):
 
----
+```ts
+const qs = new URLSearchParams({
+  ano: String(params.ano),
+  mes_ini: params.mes_ini,
+  mes_fim: params.mes_fim,
+  codigo_linha: params.codigo_linha,
+  tipo_drill: params.tipo_drill,
+  anomes_referente: params.anomes_referente ? String(params.anomes_referente) : '',
+  unidade: params.unidade && params.unidade.toUpperCase() !== 'TODOS' ? params.unidade : '',
+});
+```
 
-### 2. Backend (apenas especificação em `docs/`)
+Backend FastAPI deve converter `''` → `None` antes de chamar a RPC, garantindo que sempre invoque a assinatura de 6 parâmetros (evitando o overload).
 
-Atualizar `docs/backend-bi-contabilidade-dre-matriz.md` e `docs/backend-bi-contabilidade-dre-drill.md`:
+### 3. Não fazer
 
-- A RPC/consulta que monta a DRE passa a aplicar o de/para com prioridade:
-  1. `bi_dre_classificacoes` (LANCAMENTO > DOCUMENTO > COMBINACAO > REGRA_DEFINITIVA aprovada)
-  2. `bi_dre_excecoes` ativa
-  3. `bi_dre_depara_conta_ccu` ativa com `(cd_conta_contabil, cd_centro_custos)` exato
-  4. `bi_dre_depara_conta_ccu` ativa com `(cd_conta_contabil, 'TODAS')`
-  5. `bi_dre_mascara` (regra existente)
-  6. fallback `NAO_CLASSIFICADO`
-- O drill `LANCAMENTO` retorna campos já existentes + `cd_centro_custos` e `cd_mascara_sugerida` (máscara que `bi_dre_mascara` daria, se houver) para preencher o modal de criação de regra.
-- Nada de regra automática — toda inserção parte de ação explícita do usuário.
-
-Não criar endpoint de manutenção: a tela admin grava direto no Cloud via `supabase-js` (RLS controla acesso).
-
----
-
-### 3. Frontend
-
-**Nova página `/bi/contabilidade/dre/parametrizacao`** — `src/pages/bi/contabilidade/DreParametrizacaoPage.tsx`:
-
-- Tabela paginada das regras de `bi_dre_depara_conta_ccu` com colunas: Conta, Centro de Custos (badge "TODAS" quando geral), Máscara DRE (com descrição), Descrição, Ativo, Ações.
-- Filtros: busca por conta, por centro de custos, por máscara DRE, toggle "apenas ativos".
-- Botões: **Nova regra**, **Editar**, **Ativar/Desativar**, **Excluir** (com confirm).
-- Modal de criação/edição (`DreDeParaModal.tsx`): inputs `cd_conta_contabil`, `cd_centro_custos` (com checkbox "Aplicar a todos os centros de custos" → grava `TODAS`), select `cd_mascara_dre` com as 9 opções listadas pelo usuário, `descricao`, `ativo`. Valida unicidade `(conta, centro)`.
-- Ordenação padrão: específicas antes de `TODAS`, depois conta.
-
-**API helper `src/lib/bi/dreDeparaApi.ts`** — `listarRegras`, `criarRegra`, `atualizarRegra`, `alternarAtivo`, `excluirRegra` via `supabase` client.
-
-**Constante compartilhada `DRE_MASCARAS_DEPARA`** com as 9 máscaras (`01.00.000` … `49.00.000`) e suas descrições, usada no select tanto da tela admin quanto do modal do drill.
-
-**Drill — `DreDrillDrawer.tsx`**: quando `tipo_drill === 'LANCAMENTO'` e `codigo_linha === 'NAO_CLASSIFICADO'`, adicionar botão **"Criar regra"** (ícone `Wand2`) ao lado de "Exceção" e "Classificar". Abre novo `DreCriarRegraDeparaModal.tsx` pré-preenchido com `cd_conta_contabil`, `cd_centro_custos`, `cd_mascara` atual (read-only), histórico e valor, mais select de máscara DRE destino. Checkbox "Aplicar a todos os centros de custos da conta" para gravar como `TODAS`. Após salvar: invalidate `dre-matriz` + drill atual; toast "Regra criada — DRE será reclassificada".
-
-**Sidebar / App.tsx**: adicionar rota e item "Parametrização DRE" em Contabilidade (junto com Aprovações e Exceções).
-
-**`mem/features/dre-excecoes.md`**: atualizar registrando que de/para conta+centro é a via preferencial; exceção/lançamento fica para casos pontuais.
-
----
-
-### 4. Não fazer
-
-- Não consultar UpQuery/Oracle do frontend.
-- Não criar regra geral automaticamente — sempre via ação explícita.
-- Não tocar em `bi_dre_mascara`, `bi_dre_estrutura`.
-- Não usar exceção por lançamento quando o caso couber em de/para conta+centro.
-
----
+- Não criar migração no Lovable Cloud — a RPC não está lá.
+- Não tocar em `bi_dre_realizado_regras`, `bi_dre_estrutura`, `bi_dre_mascara`.
+- Não alterar a forma de montar a query string para outros endpoints.
 
 ### Arquivos
 
-Criar: migração `bi_dre_depara_conta_ccu`, `src/pages/bi/contabilidade/DreParametrizacaoPage.tsx`, `src/components/bi/contabilidade/DreDeParaModal.tsx`, `src/components/bi/contabilidade/DreCriarRegraDeparaModal.tsx`, `src/lib/bi/dreDeparaApi.ts`.
-
-Editar: `src/App.tsx`, `src/components/AppSidebar.tsx`, `src/components/bi/contabilidade/DreDrillDrawer.tsx`, `docs/backend-bi-contabilidade-dre-matriz.md`, `docs/backend-bi-contabilidade-dre-drill.md`, `mem/features/dre-excecoes.md`.
+Editar: `docs/backend-bi-contabilidade-dre-drill.md`, `src/lib/bi/dreDrillApi.ts`.
