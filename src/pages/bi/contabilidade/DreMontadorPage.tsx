@@ -391,6 +391,12 @@ export default function DreMontadorPage() {
                 </div>
               </div>
             </CardHeader>
+            {(diag.semNome || diag.semValor) && (
+              <div className="mx-4 mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                {diag.semNome && <div>Backend não está retornando <code className="font-mono">ds_conta</code>. Ajuste o endpoint <code className="font-mono">/plano-contas</code> para incluir a descrição da conta.</div>}
+                {diag.semValor && <div>Valores zerados — verifique se o endpoint agrega <code className="font-mono">bi_vm_lanc_contabil</code> no período selecionado.</div>}
+              </div>
+            )}
             <CardContent className="p-0">
               <div className="max-h-[55vh] overflow-y-auto">
                 <table className="w-full text-sm">
