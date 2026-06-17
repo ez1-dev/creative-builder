@@ -543,3 +543,117 @@ function SortableTh({
     </th>
   );
 }
+
+function FragmentRow({
+  conta,
+  k,
+  sel,
+  ccs,
+  isOpen,
+  onToggleExpand,
+  onToggleSel,
+}: {
+  conta: PlanoContaErp;
+  k: string;
+  sel: boolean;
+  ccs: PlanoContaErp['centros_custo'];
+  isOpen: boolean;
+  onToggleExpand: () => void;
+  onToggleSel: () => void;
+}) {
+  return (
+    <>
+      <tr className={`border-b hover:bg-muted/40 ${sel ? 'bg-primary/5' : ''}`}>
+        <td className="py-1 px-1">
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="p-0.5 rounded hover:bg-muted text-muted-foreground"
+            aria-label={isOpen ? 'Recolher' : 'Expandir'}
+          >
+            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+        </td>
+        <td className="py-1 px-2">
+          <Checkbox checked={sel} onCheckedChange={onToggleSel} />
+        </td>
+        <td className="py-1 px-2 font-mono text-xs">{conta.cd_mascara || '—'}</td>
+        <td className="py-1 px-2">
+          <Badge variant="outline" className="text-[10px]">N{conta.nivel ?? 0}</Badge>
+        </td>
+        <td className="py-1 px-2 font-mono text-xs">{conta.cd_conta_contabil || '—'}</td>
+        <td className="py-1 px-2 max-w-[260px]">
+          {conta.ds_conta ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="block truncate cursor-help">{conta.ds_conta}</span>
+              </TooltipTrigger>
+              <TooltipContent><span className="text-xs">{conta.ds_conta}</span></TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-xs text-muted-foreground italic" title="Backend não retornou ds_conta">{conta.cd_mascara || '—'}</span>
+          )}
+        </td>
+        <td className="py-1 px-2 text-right text-xs">
+          {ccs.length === 0 ? <span className="text-muted-foreground">—</span> : `${ccs.length} CC${ccs.length > 1 ? 's' : ''}`}
+        </td>
+        <td className="py-1 px-2 text-right">{conta.qtd_lancamentos}</td>
+        <td className={`py-1 px-2 text-right font-mono ${conta.valor_total < 0 ? 'text-destructive' : ''}`}>
+          {BRL.format(conta.valor_total)}
+        </td>
+        <td className="py-1 px-2">
+          {conta.ja_vinculada ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="cursor-help">Vinculada</Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs space-y-0.5">
+                  {conta.linhas_vinculadas.length
+                    ? conta.linhas_vinculadas.map((ln, i) => <div key={i} className="font-mono">{ln}</div>)
+                    : <div>Vinculada (sem detalhes)</div>}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          )}
+        </td>
+      </tr>
+      {isOpen && (
+        <tr className="border-b bg-muted/30">
+          <td colSpan={10} className="py-2 px-6">
+            {ccs.length === 0 ? (
+              <div className="text-xs text-muted-foreground italic">
+                Sem centro de custo informado nos lançamentos desta conta.
+              </div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted-foreground border-b">
+                    <th className="py-1 px-2">cd_centro_custos</th>
+                    <th className="py-1 px-2">cd_centro_custos_3</th>
+                    <th className="py-1 px-2 text-right">qtd_lancamentos</th>
+                    <th className="py-1 px-2 text-right">valor_total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ccs.map((cc, i) => (
+                    <tr key={i} className="border-b border-border/40 last:border-0">
+                      <td className="py-1 px-2 font-mono">{cc.cd_centro_custos || '—'}</td>
+                      <td className="py-1 px-2 font-mono">{cc.cd_centro_custos_3 || '—'}</td>
+                      <td className="py-1 px-2 text-right">{cc.qtd_lancamentos}</td>
+                      <td className={`py-1 px-2 text-right font-mono ${cc.valor_total < 0 ? 'text-destructive' : ''}`}>
+                        {BRL.format(cc.valor_total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
