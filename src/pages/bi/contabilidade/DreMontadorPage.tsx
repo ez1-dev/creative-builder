@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
-import { ArrowUpDown, Link2, Loader2, RefreshCw } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronRight, Link2, Loader2, RefreshCw } from 'lucide-react';
 import { fetchDreDinamica, type DreDinamicaLinha, montarAnomes } from '@/lib/bi/dreDinamicaApi';
 import {
   fetchPlanoContasDinamica,
