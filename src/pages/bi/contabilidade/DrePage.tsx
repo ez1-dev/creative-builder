@@ -658,6 +658,3 @@ export default function DrePage() {
     </PageDataProvider>
   );
 }
-
-  );
-}
