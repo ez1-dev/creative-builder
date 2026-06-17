@@ -111,6 +111,7 @@ export default function DreMontadorPage() {
         limite,
       });
       setContas(arr);
+      console.log('[MONTADOR DRE] contas recebidas:', arr.length);
     } catch (e: any) {
       toast.error(e?.message ?? 'Falha ao carregar plano de contas');
     } finally {
