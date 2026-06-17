@@ -382,9 +382,10 @@ export default function DreMontadorPage() {
                 </Select>
                 <div>
                   <label className="text-xs text-muted-foreground">Limite</label>
-                  <Select value={String(limite)} onValueChange={(v) => setLimite(Number(v))}>
+                  <Select value={String(limite)} onValueChange={(v) => setLimite(v === 'all' ? 'all' : Number(v))}>
                     <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
                       {[50, 100, 250, 500, 1000].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
                     </SelectContent>
                   </Select>
