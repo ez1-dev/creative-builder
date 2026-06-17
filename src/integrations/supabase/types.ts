@@ -245,6 +245,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_excecoes: {
+        Row: {
+          anomes_referente: number | null
+          ativo: boolean
+          atualizado_em: string
+          cd_cencus: string | null
+          cd_conta: string | null
+          cd_origem: string | null
+          cd_transacao: string | null
+          codigo_linha_destino: string
+          codigo_linha_origem: string
+          criado_em: string
+          criado_por: string | null
+          ds_historico: string | null
+          id: string
+          motivo: string
+          nr_documento: string | null
+          nr_lancamento: string
+          nr_lote: string | null
+          vl_realizado: number | null
+        }
+        Insert: {
+          anomes_referente?: number | null
+          ativo?: boolean
+          atualizado_em?: string
+          cd_cencus?: string | null
+          cd_conta?: string | null
+          cd_origem?: string | null
+          cd_transacao?: string | null
+          codigo_linha_destino?: string
+          codigo_linha_origem: string
+          criado_em?: string
+          criado_por?: string | null
+          ds_historico?: string | null
+          id?: string
+          motivo: string
+          nr_documento?: string | null
+          nr_lancamento: string
+          nr_lote?: string | null
+          vl_realizado?: number | null
+        }
+        Update: {
+          anomes_referente?: number | null
+          ativo?: boolean
+          atualizado_em?: string
+          cd_cencus?: string | null
+          cd_conta?: string | null
+          cd_origem?: string | null
+          cd_transacao?: string | null
+          codigo_linha_destino?: string
+          codigo_linha_origem?: string
+          criado_em?: string
+          criado_por?: string | null
+          ds_historico?: string | null
+          id?: string
+          motivo?: string
+          nr_documento?: string | null
+          nr_lancamento?: string
+          nr_lote?: string | null
+          vl_realizado?: number | null
+        }
+        Relationships: []
+      }
       bi_dre_mascara: {
         Row: {
           cd_conta: string
