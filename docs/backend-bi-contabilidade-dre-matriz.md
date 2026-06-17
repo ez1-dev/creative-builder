@@ -1,5 +1,17 @@
 # GET /api/bi/contabilidade/dre-matriz
 
+> **CRÍTICO — alinhamento matriz × drill:** a matriz DRE **DEVE** usar exatamente a mesma função/CTE de classificação de lançamento utilizada pela RPC `bi_dre_drill_realizado`. A cadeia de prioridade canônica é única e compartilhada:
+>
+> 1. `bi_dre_classificacoes` (lançamento específico aprovado)
+> 2. `bi_dre_excecoes` (lançamento específico)
+> 3. `bi_dre_depara_conta_ccu` — `cd_conta_contabil` + `cd_centro_custos` (match exato)
+> 4. `bi_dre_depara_conta_ccu` — `cd_centro_custos = 'TODAS'`
+> 5. `bi_dre_mascara` (regra por máscara de conta)
+> 6. fallback `NAO_CLASSIFICADO`
+>
+> Extrair essa lógica em uma única função SQL reutilizável (ex.: `bi_dre_classificar_lancamento(...)`) e chamá-la tanto da RPC da matriz quanto da RPC do drill. Qualquer alteração na cadeia precisa refletir nos dois endpoints ao mesmo tempo. Após atualizar a RPC: `NOTIFY pgrst, 'reload schema';`. Frontend não muda — a tela apenas recarrega `GET /api/bi/contabilidade/dre-matriz`.
+
+
 Endpoint usado pela tela **Contabilidade — DRE (matriz)** (`src/pages/bi/contabilidade/DrePage.tsx`).
 
 A implementação deve ser **100% em SQL no Postgres do FastAPI** (mesmo cluster que hospeda as tabelas `bi_*`), via RPC `public.rpc_bi_dre_realizado_regras`.
