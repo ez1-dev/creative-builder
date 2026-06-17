@@ -142,6 +142,7 @@ const App = () => (
               <Route path="/contabilidade/balanco" element={<ProtectedRoute path="/contabilidade/balanco"><BalancoPatrimonialPage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre" element={<ProtectedRoute path="/bi/contabilidade/dre"><DrePage /></ProtectedRoute>} />
               <Route path="/bi/contabilidade/dre/excecoes" element={<ProtectedRoute path="/bi/contabilidade/dre"><DreExcecoesPage /></ProtectedRoute>} />
+              <Route path="/bi/contabilidade/dre/aprovacoes" element={<ProtectedRoute path="/bi/contabilidade/dre"><DreAprovacoesPage /></ProtectedRoute>} />
               {/* Regras Senior */}
               <Route path="/regras-senior" element={<ProtectedRoute path="/regras-senior"><RegrasSeniorDashboardPage /></ProtectedRoute>} />
               <Route path="/regras-senior/regras" element={<ProtectedRoute path="/regras-senior/regras"><RegrasListPage /></ProtectedRoute>} />
