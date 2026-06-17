@@ -189,11 +189,11 @@ export async function atualizarStatusClassificacao(
 ): Promise<void> {
   const { data: userResp } = await supabase.auth.getUser();
   const uid = userResp.user?.id ?? null;
-  const patch: Record<string, any> = { status };
-  if (status === 'APROVADO' || status === 'REJEITADO') {
-    patch.aprovado_por = uid;
-    patch.aprovado_em = new Date().toISOString();
-  }
+  const finalize = status === 'APROVADO' || status === 'REJEITADO';
+  const patch = {
+    status,
+    ...(finalize ? { aprovado_por: uid, aprovado_em: new Date().toISOString() } : {}),
+  };
   const { error } = await supabase
     .from('bi_dre_classificacoes')
     .update(patch)
