@@ -173,6 +173,7 @@ export function DreDrillDrawer({
 
   const drillEmComponente = (cod: string) => {
     const proximoTipo: DreDrillTipo = isLinhaCalculada(cod) ? 'REABRIR' : 'LANCAMENTO';
+    console.log('[DRE DRILL] drill em componente REABRIR:', cod, '->', proximoTipo);
     onPush({
       ano: current!.ano,
       mes_ini: current!.mes_ini,
@@ -183,6 +184,7 @@ export function DreDrillDrawer({
       unidade: current!.unidade,
     });
   };
+
 
   if (!current) return null;
 
