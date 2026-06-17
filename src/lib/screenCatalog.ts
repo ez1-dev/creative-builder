@@ -23,6 +23,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/bi/contabilidade/dre':      { codigo: 'CONT_DRE',     nome: 'Contabilidade — DRE' },
   '/bi/contabilidade/dre/configuracao': { codigo: 'CONT_DRE_CFG', nome: 'Configuração da DRE Gerencial' },
   '/bi/contabilidade/dre-dinamica': { codigo: 'CONT_DRE_DIN', nome: 'DRE Dinâmica Gerencial' },
+  '/bi/contabilidade/dre-dinamica/montador': { codigo: 'CONT_DRE_MONTADOR', nome: 'Montador da DRE Gerencial' },
   
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
