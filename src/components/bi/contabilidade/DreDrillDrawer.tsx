@@ -415,6 +415,29 @@ export function DreDrillDrawer({
           }}
         />
       )}
+
+      {modalRegra.open && modalRegra.row && (
+        <DreCriarRegraDeparaModal
+          open={modalRegra.open}
+          onOpenChange={(o) => setModalRegra((s) => ({ ...s, open: o }))}
+          lancamento={{
+            cd_conta_contabil: String(
+              modalRegra.row.cd_conta ?? (modalRegra.row as any).cd_conta_contabil ?? '',
+            ),
+            cd_centro_custos: String(
+              modalRegra.row.cd_cencus ?? (modalRegra.row as any).cd_centro_custos ?? '',
+            ),
+            cd_mascara_atual: (modalRegra.row as any).cd_mascara ?? null,
+            cd_mascara_sugerida: (modalRegra.row as any).cd_mascara_sugerida ?? null,
+            ds_historico: modalRegra.row.ds_historico ?? null,
+            vl_realizado: Number(modalRegra.row.vl_realizado) || 0,
+            linha_origem: current.codigo_linha,
+          }}
+          onSaved={() => {
+            fetchAtual();
+          }}
+        />
+      )}
     </>
   );
 }
