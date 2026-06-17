@@ -80,7 +80,7 @@ export function DreDrillDrawer({
             const r = await fetchDreDrill({
               ...current,
               codigo_linha: cod,
-              tipo_drill: 'CONTA', // basta somar todos os lançamentos da linha
+              tipo_drill: 'CONTA_CONTABIL', // basta somar todos os lançamentos da linha
             }).catch(() => null);
             const total = (r?.rows ?? []).reduce(
               (acc, row) => acc + (Number(row.vl_realizado) || 0),
