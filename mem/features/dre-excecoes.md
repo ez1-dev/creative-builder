@@ -31,3 +31,6 @@ default destino `NAO_CLASSIFICADO`, motivo obrigatório, RLS autenticados.
 ## Regras
 - Correção é sempre por lançamento × linha origem. NUNCA criar regra geral por TNS.
 - Não bloquear todas as ocorrências de 1-5101S, 1-6101S, 1-6933S, 1-1201E, 1-2201; podem ter lançamentos válidos.
+
+## Atualização: De/Para conta + centro de custos
+Caminho preferencial agora: `bi_dre_depara_conta_ccu` (ver `mem/features/dre-depara-conta-ccu.md` e `/bi/contabilidade/dre/parametrizacao`). Drill do `LANCAMENTO` traz botão "Criar regra" (Wand2) que abre `DreCriarRegraDeparaModal`. Exceção por lançamento (`bi_dre_excecoes`) fica para casos pontuais e raros que não cabem em regra por conta+centro.
