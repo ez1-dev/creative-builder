@@ -558,13 +558,14 @@ export default function DrePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && (
+                  {loading && linhas.length === 0 && (
                     <tr>
                       <td colSpan={1 + colunas.length * 3} className="px-3 py-6 text-center text-muted-foreground">
                         Carregando DRE...
                       </td>
                     </tr>
                   )}
+
                   {!loading && erro && (
                     <tr>
                       <td colSpan={1 + colunas.length * 3} className="px-3 py-6 text-center text-destructive bg-destructive/10 font-medium">
