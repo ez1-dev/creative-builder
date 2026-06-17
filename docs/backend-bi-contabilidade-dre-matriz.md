@@ -173,20 +173,25 @@ def dre_matriz(ano: str, unidade: str | None = None):
     u = (unidade or "").strip().upper()
     p_unidade = None if u in ("", "TODOS", "TODAS", "ALL") else unidade  # reservado p/ futuro
 
-    p_ini = f"{ano}01"
-    p_fim = f"{ano}12"
+    p_ini, p_fim = f"{ano}01", f"{ano}12"
 
+    # Realizado: SOMENTE via RPC. Já vem agrupado por (codigo_linha, anomes_referente)
+    # com o sinal da regra aplicado em vl_realizado.
     realizado = pg.fetch(
-        "SELECT * FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
+        "SELECT codigo_linha, anomes_referente, vl_realizado "
+        "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
         {"ini": p_ini, "fim": p_fim},
     )
-    orcado = pg.fetch(SQL_ORCADO, {"ano": ano, "unidade": p_unidade})
 
-    # pivotar realizado/orçado por (codigo_linha, mes) → jan..dez
-    # juntar com public.bi_dre_estrutura (ordem, descricao, nivel, totalizadora, sinal)
+    orcado    = pg.fetch(SQL_ORCADO, {"ano": ano, "unidade": p_unidade})
+    estrutura = pg.fetch("SELECT * FROM public.bi_dre_estrutura ORDER BY ordem")
+
+    # pivotar realizado/orçado por (codigo_linha, mes = int(anomes_referente[-2:]))
+    # juntar com bi_dre_estrutura (ordem, descricao, nivel, totalizadora)
     # calcular A.V. contra a linha de Receita Líquida
-    return rows
+    return montar_matriz_anual(realizado, orcado, estrutura)
 ```
+
 
 ## SQL do orçamento (inalterado)
 
