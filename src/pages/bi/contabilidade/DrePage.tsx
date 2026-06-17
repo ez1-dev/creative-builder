@@ -376,7 +376,16 @@ export default function DrePage() {
         <PageHeader
           title="Contabilidade — DRE"
           description="Demonstração do Resultado em formato matriz mensal (API backend)."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link to="/bi/contabilidade/dre/excecoes">
+                <Flag className="h-3.5 w-3.5 mr-1" />
+                Exceções
+              </Link>
+            </Button>
+          }
         />
+
 
         <Card>
           <CardHeader className="pb-2">
