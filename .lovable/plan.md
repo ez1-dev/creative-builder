@@ -1,61 +1,82 @@
 ## Objetivo
 
-Criar a spec de um endpoint **temporário de diagnóstico** que apenas executa `public.rpc_bi_dre_realizado_regras('202601','202606')` e devolve o resultado bruto, sem orçamento, matriz, linhas sintéticas ou AV. Serve para isolar se o FastAPI consegue chamar a RPC.
+Reforçar `docs/backend-bi-contabilidade-dre-matriz.md` com dois requisitos que ainda não estão explícitos e que são prováveis causas do 502 atual:
 
-## Mudança
+1. **Nomes exatos dos parâmetros nomeados** na chamada da RPC (`p_anomes_ini` / `p_anomes_fim`) — proibido usar `anomes_ini`, `anomes_fim`, `ano`, `mes_ini`, `mes_fim`.
+2. **Conversão `Decimal → float`** antes de serializar JSON (causa comum de `TypeError: Object of type Decimal is not JSON serializable`, que vira 502 no proxy).
 
-Criar novo arquivo `docs/backend-bi-contabilidade-teste-rpc-dre.md` com a spec completa do endpoint:
+O logging com `traceback.print_exc()` + `detail=str(e)` já está documentado na seção "Tratamento de erros / Diagnóstico (obrigatório)" — apenas reforçar que é o **primeiro passo** antes de qualquer outra mudança.
 
-- **Rota:** `GET /api/bi/contabilidade/teste-rpc-dre`
-- **Sem parâmetros** (período fixo `202601`–`202606`).
-- **Sem auth extra** além do já usado pelos outros `/api/bi/*`.
-- **Body do handler:**
+## Mudanças no documento
 
-  ````python
-  import traceback
-  from fastapi import HTTPException
+### 1. Subseção "Contrato da RPC consumida" — endurecer os nomes dos parâmetros
 
-  @router.get("/api/bi/contabilidade/teste-rpc-dre")
-  def teste_rpc_dre():
-      try:
-          rows = pg.fetch(
-              "SELECT codigo_linha, anomes_referente, vl_realizado "
-              "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
-              {"ini": "202601", "fim": "202606"},
-          )
-          return rows
-      except Exception as e:
-          print("[ERRO TESTE RPC DRE]", repr(e), flush=True)
-          traceback.print_exc()
-          raise HTTPException(status_code=502, detail=str(e))
-  ````
+Adicionar bloco de aviso:
 
-- **Response:** array JSON bruto, exatamente como a RPC devolve:
+> **Nomes dos parâmetros (obrigatórios):** a RPC declara `p_anomes_ini` e `p_anomes_fim`.
+> A chamada deve usar **exatamente** esses nomes — tanto via parâmetros nomeados psycopg
+> (`%(p_anomes_ini)s`) quanto via SQL nomeado (`rpc_bi_dre_realizado_regras(p_anomes_ini => :ini, p_anomes_fim => :fim)`).
+> **Proibido** usar `anomes_ini`, `anomes_fim`, `ano`, `mes_ini`, `mes_fim` ou qualquer outra forma.
 
-  ```json
-  [
-    { "codigo_linha": "DEPRECIACAO",              "anomes_referente": "202601", "vl_realizado": -123456.78 },
-    { "codigo_linha": "DESPESAS_ADMINISTRATIVAS", "anomes_referente": "202601", "vl_realizado": -234567.89 }
-  ]
-  ```
+Atualizar o pseudocódigo do endpoint para deixar essa amarração óbvia:
 
-- **Proibições:**
-  - Não juntar com `bi_vm_orc_dre`.
-  - Não juntar com `bi_dre_estrutura`.
-  - Não pivotar por mês.
-  - Não calcular AV.
-  - Não criar linhas sintéticas / totalizadoras.
-  - Não montar SQL inline contra `bi_vm_lanc_contabil`.
+```python
+p_anomes_ini = f"{ano}01"
+p_anomes_fim = f"{ano}12"
+rows = pg.fetch(
+    "SELECT codigo_linha, anomes_referente, vl_realizado "
+    "FROM public.rpc_bi_dre_realizado_regras(%(p_anomes_ini)s, %(p_anomes_fim)s)",
+    {"p_anomes_ini": p_anomes_ini, "p_anomes_fim": p_anomes_fim},
+)
+```
 
-- **Status:** marcar explicitamente como **temporário / diagnóstico** — remover assim que o endpoint `/api/bi/contabilidade/dre-matriz` estabilizar.
+E aplicar o mesmo nome de parâmetro em `docs/backend-bi-contabilidade-teste-rpc-dre.md` para manter consistência.
 
-- **CORS:** liberar a mesma origem do preview Lovable que os demais `/api/bi/*`.
+### 2. Nova subseção "Serialização JSON (Decimal → float)"
+
+Logo após o pseudocódigo, antes de "Tratamento de erros":
+
+````markdown
+## Serialização JSON
+
+A RPC retorna `vl_realizado numeric` → no Python vira `decimal.Decimal`, que **não** é
+serializável pelo JSON do FastAPI e dispara `TypeError`, que o proxy traduz em **502**.
+
+Converter para `float` antes de devolver:
+
+```python
+def _to_float(v):
+    return float(v) if v is not None else None
+
+return [
+    {
+        "codigo_linha":     r["codigo_linha"],
+        "anomes_referente": r["anomes_referente"],
+        "vl_realizado":     _to_float(r["vl_realizado"]),
+    }
+    for r in rows
+]
+```
+
+Aplicar a mesma conversão a **todos** os campos numéricos do response final do
+`/dre-matriz` (`*_realizado`, `*_av`, `*_orcado`, `total_*`).
+````
+
+### 3. Reordenar a seção "Tratamento de erros / Diagnóstico"
+
+Adicionar uma nota no topo dela:
+
+> **Fazer isso primeiro.** Antes de qualquer outra alteração no endpoint, plugar o
+> `traceback.print_exc()` + `detail=str(e)` e reproduzir o 502 — o stdout do uvicorn
+> vai apontar exatamente onde quebra (nome de parâmetro errado, Decimal não serializável,
+> coluna inexistente, etc.).
 
 ## Arquivos alterados
 
-- novo: `docs/backend-bi-contabilidade-teste-rpc-dre.md`
+- `docs/backend-bi-contabilidade-dre-matriz.md`
+- `docs/backend-bi-contabilidade-teste-rpc-dre.md` (alinhar para `%(p_anomes_ini)s` / `%(p_anomes_fim)s`)
 
 ## Fora de escopo
 
-- Frontend — nenhuma tela consome este endpoint; será testado direto via `curl` / DevTools.
+- Frontend (`DrePage.tsx`) — contrato HTTP preservado, sem mudanças.
 - Lovable Cloud — nenhuma alteração.
