@@ -651,7 +651,7 @@ export default function DrePage() {
                                       negClass(r),
                                       totalCol && 'bg-primary/10 font-semibold',
                                     )}
-                                    onDoubleClick={() => codLinha && abrirDrill(codLinha, 'LANCAMENTO', m.key)}
+                                    onDoubleClick={() => codLinha && abrirDrill(l, podeReabrir ? 'REABRIR' : 'LANCAMENTO', m.key)}
                                     title="Clique direito para opções de drill; duplo clique = Lançamentos"
                                   >
                                     {fmtSigned(r)}
@@ -669,9 +669,10 @@ export default function DrePage() {
                                       disabled={!codLinha}
                                       onSelect={(e) => {
                                         e.preventDefault();
-                                        if (codLinha) abrirDrill(codLinha, opt.tipo, m.key);
+                                        if (codLinha) abrirDrill(l, opt.tipo, m.key);
                                       }}
                                     >
+
                                       {opt.label}
                                     </ContextMenuItem>
                                   ))}
