@@ -6,6 +6,19 @@ A implementação deve ser **100% em SQL no Postgres do FastAPI** (mesmo cluster
 **NÃO usar** Oracle / UpQuery, **NÃO consultar** `EZORTEA.V_DRE_V1`, e **NÃO** manter regra fixa por `cd_mascara` dentro do código Python.
 A classificação do realizado é totalmente orientada pela tabela `public.bi_dre_regras`.
 
+> **Nota de implementação (obrigatória):** o endpoint **deve** obter o realizado exclusivamente via
+> `SELECT codigo_linha, anomes_referente, vl_realizado FROM public.rpc_bi_dre_realizado_regras(:ini, :fim)`.
+> Proibido SQL inline contra `public.bi_vm_lanc_contabil` no Python e proibido chamar qualquer outra RPC para o realizado.
+
+## Contrato da RPC consumida
+
+- **Assinatura:** `public.rpc_bi_dre_realizado_regras(p_anomes_ini text, p_anomes_fim text)`
+- **Retorno:** linhas `(codigo_linha text, anomes_referente text, vl_realizado numeric)` já **agrupadas por `codigo_linha × anomes_referente`** e com o `sinal` da regra já aplicado em `vl_realizado`.
+- **Mapeamento dos parâmetros:** `p_anomes_ini = f"{ano}01"`, `p_anomes_fim = f"{ano}12"`.
+- **Mês:** `anomes_referente` é texto `YYYYMM` → `mes = int(anomes_referente[-2:])`.
+- Lançamentos sem regra casada **não vêm no resultado** (a RPC filtra `codigo_linha IS NOT NULL`).
+
+
 ## Request
 
 ```
@@ -160,20 +173,25 @@ def dre_matriz(ano: str, unidade: str | None = None):
     u = (unidade or "").strip().upper()
     p_unidade = None if u in ("", "TODOS", "TODAS", "ALL") else unidade  # reservado p/ futuro
 
-    p_ini = f"{ano}01"
-    p_fim = f"{ano}12"
+    p_ini, p_fim = f"{ano}01", f"{ano}12"
 
+    # Realizado: SOMENTE via RPC. Já vem agrupado por (codigo_linha, anomes_referente)
+    # com o sinal da regra aplicado em vl_realizado.
     realizado = pg.fetch(
-        "SELECT * FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
+        "SELECT codigo_linha, anomes_referente, vl_realizado "
+        "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
         {"ini": p_ini, "fim": p_fim},
     )
-    orcado = pg.fetch(SQL_ORCADO, {"ano": ano, "unidade": p_unidade})
 
-    # pivotar realizado/orçado por (codigo_linha, mes) → jan..dez
-    # juntar com public.bi_dre_estrutura (ordem, descricao, nivel, totalizadora, sinal)
+    orcado    = pg.fetch(SQL_ORCADO, {"ano": ano, "unidade": p_unidade})
+    estrutura = pg.fetch("SELECT * FROM public.bi_dre_estrutura ORDER BY ordem")
+
+    # pivotar realizado/orçado por (codigo_linha, mes = int(anomes_referente[-2:]))
+    # juntar com bi_dre_estrutura (ordem, descricao, nivel, totalizadora)
     # calcular A.V. contra a linha de Receita Líquida
-    return rows
+    return montar_matriz_anual(realizado, orcado, estrutura)
 ```
+
 
 ## SQL do orçamento (inalterado)
 
@@ -226,6 +244,7 @@ Campos esperados por linha:
 - Não usar Oracle / UpQuery, nem `EZORTEA.V_DRE_V1`.
 - Não manter regra fixa por `cd_mascara` no código Python — toda classificação vem de `bi_dre_regras` via RPC.
 - Não referenciar `cd_conta`, `centro_custo`, `extras->>'cd_origem_lcto'`, `extras->>'cd_tns'`, `vl_debito`, `vl_credito` nem `vl_saldo` na SQL deste endpoint.
+- **Não montar SQL inline contra `public.bi_vm_lanc_contabil` no Python** — o realizado vem **exclusivamente** de `public.rpc_bi_dre_realizado_regras`.
 - Não criar essa RPC no Lovable Cloud — ela vive no Postgres do FastAPI.
 
 ## CORS
