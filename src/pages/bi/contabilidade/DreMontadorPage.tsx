@@ -108,7 +108,7 @@ export default function DreMontadorPage() {
         busca: busca || undefined,
         somente_nao_vinculadas: filtroVinculo === 'nao_vinculadas' || undefined,
         somente_vinculadas: filtroVinculo === 'vinculadas' || undefined,
-        limite,
+        limite: limite === 'all' ? undefined : limite,
       });
       setContas(arr);
       console.log('[MONTADOR DRE] contas recebidas:', arr.length);
