@@ -285,16 +285,28 @@ export function DreDrillDrawer({
                         })}
                         {current.tipo_drill === 'LANCAMENTO' && (
                           <td className="px-2 py-1.5 text-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 text-[11px]"
-                              onClick={() => setModal({ open: true, row })}
-                              title="Marcar como exceção DRE"
-                            >
-                              <Flag className="h-3 w-3 mr-1" />
-                              Exceção
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setModal({ open: true, row })}
+                                title="Marcar como exceção DRE"
+                              >
+                                <Flag className="h-3 w-3 mr-1" />
+                                Exceção
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setModalClass({ open: true, row })}
+                                title="Classificar lançamento na DRE"
+                              >
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                Classificar
+                              </Button>
+                            </div>
                           </td>
                         )}
                         {current.tipo_drill === 'REABRIR' && (
