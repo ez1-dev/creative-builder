@@ -1,50 +1,23 @@
-## Objetivo
-Fazer o Montador da DRE Gerencial reconhecer corretamente o array `centros_custo` que o backend já envia em `/api/bi/contabilidade/dre-dinamica/plano-contas`, parando de exibir o falso alerta "Backend não retornou centros_custo[] em nenhuma conta".
+## Status
+O fix solicitado já foi aplicado no turno anterior em `src/lib/bi/dreMontadorApi.ts` e `src/pages/bi/contabilidade/DreMontadorPage.tsx`. Validando contra os 6 requisitos:
 
-## Causa
-O mapper atual em `src/lib/bi/dreMontadorApi.ts` só aceita `centros_custo` se já for `Array.isArray(...)`. Quando o backend serializa como string JSON (caso comum em respostas vindas de `json_agg`/`to_json` repassadas por algumas rotas FastAPI), o array é descartado e o diagnóstico `semCcu` dispara mesmo havendo dados válidos.
+1. Leitura prioritária de `conta.centros_custo` — OK (`coerceCentrosCusto(r?.centros_custo)` é a primeira tentativa).
+2. `JSON.parse` quando vier string — OK (helper trata `typeof raw === 'string'` com `try/catch`).
+3. `null`/`undefined` viram `[]` — OK.
+4. Aliases (`ccu`, `centroscusto`, etc.) só são usados como fallback, nunca substituindo o array principal — OK.
+5. Array preenchido não é descartado — OK (sem `&&` que zera tudo).
+6. Normalização por centro com `cd_centro_custos_3 || cd.slice(0,3)`, `valor_total ?? vl_realizado ?? 0`, `vl_realizado ?? valor_total ?? 0`, `ds_centro_custos` — OK.
 
-## Mudanças
+Logs `[MONTADOR DRE]` também já mostram `typeof`, length e primeiro centro. O banner âmbar só dispara quando `mapped.every(m => m.centros_custo.length === 0)`.
 
-### 1. `src/lib/bi/dreMontadorApi.ts`
-- Criar helper `coerceCentrosCusto(raw)` que:
-  - retorna `[]` para `null`/`undefined`;
-  - se for `string`, faz `JSON.parse` dentro de `try/catch` e segue;
-  - se for array, usa direto;
-  - caso contrário, `[]`.
-- Substituir a leitura atual (`Array.isArray(r.centros_custo) && r.centros_custo || ...`) por:
-  - prioridade absoluta para `r.centros_custo` via `coerceCentrosCusto`;
-  - só cair nos aliases (`ccu`, `centroscusto`, `centros`, `cc`, `centros_de_custo`) se `centros_custo` estiver totalmente ausente.
-- Normalizar cada centro conforme o contrato pedido:
-  ```ts
-  {
-    cd_centro_custos,
-    cd_centro_custos_3: cd_centro_custos_3 || cd_centro_custos.slice(0,3),
-    qtd_lancamentos: Number(qtd_lancamentos || 0),
-    valor_total: Number(valor_total ?? vl_realizado ?? 0),
-    vl_realizado: Number(vl_realizado ?? valor_total ?? 0),
-    ds_centro_custos,
-  }
-  ```
-- Adicionar campos opcionais `vl_realizado?: number` e `ds_centro_custos?: string` em `PlanoContaCentroCusto`.
-- Trocar os logs `[MONTADOR DRE]` para mostrar:
-  - `Object.keys(arr[0])` (chaves brutas da primeira conta);
-  - `typeof arr[0].centros_custo`;
-  - `mapped[0].centros_custo.length`;
-  - `mapped[0].centros_custo[0]` quando existir.
-- Manter o `console.warn` `semCcu`, porém só dispará-lo se **toda** conta mapeada continuar com `centros_custo.length === 0` após a normalização.
+## Plano proposto
+Como o pedido atual é idêntico ao que já está em código, nenhuma alteração adicional de implementação é necessária.
 
-### 2. `src/pages/bi/contabilidade/DreMontadorPage.tsx`
-- Recalcular `diag.semCcu` em cima do array já normalizado vindo do mapper (sem mudança de contrato — já é `contas.every(...)`).
-- Atualizar o `console.log('[PLANO CONTAS] ...')` da linha expandida para incluir `typeof c.centros_custo`, `c.centros_custo.length` e o primeiro item.
-- Nenhuma mudança visual na tabela; o aviso âmbar só aparecerá quando realmente não houver centros após a normalização.
+**Etapas:**
+1. Após aprovar este plano, abrir `/bi/contabilidade/dre-montador`, carregar com `anomes_ini=202601&anomes_fim=202601` e verificar no console:
+   - `[MONTADOR DRE] typeof centros_custo (raw):` → deve ser `object` ou `string`.
+   - `[MONTADOR DRE] mapped[0].centros_custo length:` → deve ser > 0 em pelo menos uma conta.
+2. Expandir a conta `311020006` e confirmar `centros_custo.length = 17`.
+3. Se algum requisito falhar (ex.: backend mandando chave diferente), aplicar ajuste pontual no mapper.
 
-### 3. Sem alterações em
-- Endpoint, edge functions, esquema de banco.
-- Tela "Contas disponíveis do ERP" (consome o mesmo `fetchPlanoContasDinamica`, então herda o fix automaticamente).
-- Docs já criados; nenhum ajuste necessário no checklist.
-
-## Critério de aceite
-- Ao chamar `/plano-contas` com `anomes_ini=202601&anomes_fim=202601`, o banner âmbar "Backend não retornou centros_custo[]" não aparece quando houver pelo menos uma conta com centros.
-- Expandindo a conta `311020006` na tabela do Montador, a sub-tabela lista vários centros de custo com `cd_centro_custos`, `cd_centro_custos_3`, `qtd_lancamentos` e `valor_total`.
-- Logs `[MONTADOR DRE]` no console mostram tipo, quantidade e o primeiro centro.
+**Sem mudanças de arquivo neste momento** — caso o usuário esteja vendo cache antigo, basta dar refresh. Se reproduzir falha mesmo após refresh, envie o print do console com as linhas `[MONTADOR DRE]` para eu identificar onde o contrato divergiu.
