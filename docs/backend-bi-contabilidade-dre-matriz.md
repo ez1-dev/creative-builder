@@ -244,6 +244,7 @@ Campos esperados por linha:
 - Não usar Oracle / UpQuery, nem `EZORTEA.V_DRE_V1`.
 - Não manter regra fixa por `cd_mascara` no código Python — toda classificação vem de `bi_dre_regras` via RPC.
 - Não referenciar `cd_conta`, `centro_custo`, `extras->>'cd_origem_lcto'`, `extras->>'cd_tns'`, `vl_debito`, `vl_credito` nem `vl_saldo` na SQL deste endpoint.
+- **Não montar SQL inline contra `public.bi_vm_lanc_contabil` no Python** — o realizado vem **exclusivamente** de `public.rpc_bi_dre_realizado_regras`.
 - Não criar essa RPC no Lovable Cloud — ela vive no Postgres do FastAPI.
 
 ## CORS
