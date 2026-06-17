@@ -28,7 +28,7 @@ const MESES = [
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-type SortKey = 'mascara' | 'conta' | 'qtd' | 'valor';
+type SortKey = 'mascara' | 'nivel' | 'conta' | 'qtd' | 'valor';
 type SortDir = 'asc' | 'desc';
 type FiltroVinculo = 'todas' | 'nao_vinculadas' | 'vinculadas';
 
