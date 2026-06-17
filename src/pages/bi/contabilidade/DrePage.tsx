@@ -1,19 +1,28 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { getApiUrl } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
-import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank, FileSpreadsheet, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { UserWidgetsSlot } from '@/components/bi';
+import { useDreDrill } from '@/hooks/useDreDrill';
+import { DreDrillDrawer } from '@/components/bi/contabilidade/DreDrillDrawer';
+import { DRE_DRILL_LABELS, type DreDrillTipo } from '@/lib/bi/dreDrillApi';
+import { isLinhaCalculada } from '@/lib/bi/dreReabrir';
+
 
 type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
