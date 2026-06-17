@@ -254,12 +254,12 @@ export function DreDrillDrawer({
                 {erro}
               </div>
             )}
-            {!loading && !erro && data && data.rows.length === 0 && (
+            {!loading && !erro && data && !hasRows && (
               <div className="text-center text-muted-foreground py-10 text-xs">
                 Sem registros para esta combinação.
               </div>
             )}
-            {!loading && !erro && data && data.rows.length > 0 && (
+            {!loading && !erro && data && hasRows && (
               <div className="overflow-x-auto rounded-md border bg-card">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 text-muted-foreground sticky top-0">
