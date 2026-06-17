@@ -6,6 +6,19 @@ A implementação deve ser **100% em SQL no Postgres do FastAPI** (mesmo cluster
 **NÃO usar** Oracle / UpQuery, **NÃO consultar** `EZORTEA.V_DRE_V1`, e **NÃO** manter regra fixa por `cd_mascara` dentro do código Python.
 A classificação do realizado é totalmente orientada pela tabela `public.bi_dre_regras`.
 
+> **Nota de implementação (obrigatória):** o endpoint **deve** obter o realizado exclusivamente via
+> `SELECT codigo_linha, anomes_referente, vl_realizado FROM public.rpc_bi_dre_realizado_regras(:ini, :fim)`.
+> Proibido SQL inline contra `public.bi_vm_lanc_contabil` no Python e proibido chamar qualquer outra RPC para o realizado.
+
+## Contrato da RPC consumida
+
+- **Assinatura:** `public.rpc_bi_dre_realizado_regras(p_anomes_ini text, p_anomes_fim text)`
+- **Retorno:** linhas `(codigo_linha text, anomes_referente text, vl_realizado numeric)` já **agrupadas por `codigo_linha × anomes_referente`** e com o `sinal` da regra já aplicado em `vl_realizado`.
+- **Mapeamento dos parâmetros:** `p_anomes_ini = f"{ano}01"`, `p_anomes_fim = f"{ano}12"`.
+- **Mês:** `anomes_referente` é texto `YYYYMM` → `mes = int(anomes_referente[-2:])`.
+- Lançamentos sem regra casada **não vêm no resultado** (a RPC filtra `codigo_linha IS NOT NULL`).
+
+
 ## Request
 
 ```
