@@ -59,6 +59,9 @@ export function DreDrillDrawer({
   const [modal, setModal] = useState<{ open: boolean; row: DreDrillRow | null }>({
     open: false, row: null,
   });
+  const [modalClass, setModalClass] = useState<{ open: boolean; row: DreDrillRow | null }>({
+    open: false, row: null,
+  });
 
   const fetchAtual = useCallback(async () => {
     if (!current) return;
