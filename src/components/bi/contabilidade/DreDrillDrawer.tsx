@@ -4,7 +4,7 @@ import {
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronRight, Flag, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Flag, RefreshCw, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -18,6 +18,7 @@ import {
 import { formatCurrency } from '@/components/bi/utils/formatters';
 import { isLinhaCalculada, componentesDaLinha } from '@/lib/bi/dreReabrir';
 import { DreExcecaoModal } from './DreExcecaoModal';
+import { DreClassificarModal } from './DreClassificarModal';
 
 interface Level extends DreDrillParams {
   /** Cache do resultado para evitar refetch ao navegar pela pilha. */
@@ -56,6 +57,9 @@ export function DreDrillDrawer({
   const [data, setData] = useState<DreDrillResponse | null>(current?.result ?? null);
 
   const [modal, setModal] = useState<{ open: boolean; row: DreDrillRow | null }>({
+    open: false, row: null,
+  });
+  const [modalClass, setModalClass] = useState<{ open: boolean; row: DreDrillRow | null }>({
     open: false, row: null,
   });
 
@@ -257,7 +261,7 @@ export function DreDrillDrawer({
                           {c.label}
                         </th>
                       ))}
-                      {current.tipo_drill === 'LANCAMENTO' && <th className="px-2 py-2 text-center w-10">Ação</th>}
+                      {current.tipo_drill === 'LANCAMENTO' && <th className="px-2 py-2 text-center w-44">Ações</th>}
                       {current.tipo_drill === 'REABRIR' && <th className="px-2 py-2 text-center w-10">Drill</th>}
                     </tr>
                   </thead>
@@ -281,16 +285,28 @@ export function DreDrillDrawer({
                         })}
                         {current.tipo_drill === 'LANCAMENTO' && (
                           <td className="px-2 py-1.5 text-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 px-2 text-[11px]"
-                              onClick={() => setModal({ open: true, row })}
-                              title="Marcar como exceção DRE"
-                            >
-                              <Flag className="h-3 w-3 mr-1" />
-                              Exceção
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setModal({ open: true, row })}
+                                title="Marcar como exceção DRE"
+                              >
+                                <Flag className="h-3 w-3 mr-1" />
+                                Exceção
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setModalClass({ open: true, row })}
+                                title="Classificar lançamento na DRE"
+                              >
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                Classificar
+                              </Button>
+                            </div>
                           </td>
                         )}
                         {current.tipo_drill === 'REABRIR' && (
@@ -349,6 +365,38 @@ export function DreDrillDrawer({
           }}
           onSaved={() => {
             toast.success('Exceção registrada. Recarregue a DRE para refletir o valor.');
+            fetchAtual();
+          }}
+        />
+      )}
+
+      {modalClass.open && modalClass.row && (
+        <DreClassificarModal
+          open={modalClass.open}
+          onOpenChange={(o) => setModalClass((s) => ({ ...s, open: o }))}
+          codigoLinhaOrigem={current.codigo_linha}
+          periodo={{
+            ano: current.ano,
+            mes_ini: current.mes_ini,
+            mes_fim: current.mes_fim,
+            unidade: current.unidade,
+          }}
+          lancamento={{
+            anomes_referente: modalClass.row.anomes_referente ?? current.anomes_referente ?? null,
+            nr_lancamento: modalClass.row.nr_lancamento ?? String(modalClass.row.chave ?? ''),
+            nr_lote: modalClass.row.nr_lote ?? null,
+            nr_documento: modalClass.row.nr_documento ?? null,
+            cd_mascara: (modalClass.row as any).cd_mascara ?? null,
+            cd_conta_contabil: modalClass.row.cd_conta ?? (modalClass.row as any).cd_conta_contabil ?? null,
+            cd_centro_custos: modalClass.row.cd_cencus ?? (modalClass.row as any).cd_centro_custos ?? null,
+            cd_centro_custos_3: (modalClass.row as any).cd_centro_custos_3 ?? null,
+            cd_origem_lcto: modalClass.row.cd_origem ?? (modalClass.row as any).cd_origem_lcto ?? null,
+            cd_tns: modalClass.row.cd_transacao ?? (modalClass.row as any).cd_tns ?? null,
+            ds_historico: modalClass.row.ds_historico ?? null,
+            vl_realizado: Number(modalClass.row.vl_realizado) || 0,
+          }}
+          onSaved={() => {
+            toast.success('Classificação registrada. Recarregue a DRE para refletir o impacto.');
             fetchAtual();
           }}
         />

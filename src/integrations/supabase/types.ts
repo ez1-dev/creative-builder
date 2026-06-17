@@ -206,6 +206,84 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_classificacoes: {
+        Row: {
+          anomes_referente: number | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          cd_centro_custos: string | null
+          cd_centro_custos_3: string | null
+          cd_conta_contabil: string | null
+          cd_mascara: string | null
+          cd_origem_lcto: string | null
+          cd_tns: string | null
+          codigo_linha_destino: string
+          codigo_linha_origem: string
+          created_at: string
+          criado_por: string | null
+          ds_historico: string | null
+          escopo: Database["public"]["Enums"]["dre_classificacao_escopo"]
+          id: string
+          motivo: string
+          nr_documento: string | null
+          nr_lancamento: string | null
+          nr_lote: string | null
+          status: Database["public"]["Enums"]["dre_classificacao_status"]
+          updated_at: string
+          vl_realizado: number | null
+        }
+        Insert: {
+          anomes_referente?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          cd_centro_custos?: string | null
+          cd_centro_custos_3?: string | null
+          cd_conta_contabil?: string | null
+          cd_mascara?: string | null
+          cd_origem_lcto?: string | null
+          cd_tns?: string | null
+          codigo_linha_destino: string
+          codigo_linha_origem: string
+          created_at?: string
+          criado_por?: string | null
+          ds_historico?: string | null
+          escopo: Database["public"]["Enums"]["dre_classificacao_escopo"]
+          id?: string
+          motivo: string
+          nr_documento?: string | null
+          nr_lancamento?: string | null
+          nr_lote?: string | null
+          status?: Database["public"]["Enums"]["dre_classificacao_status"]
+          updated_at?: string
+          vl_realizado?: number | null
+        }
+        Update: {
+          anomes_referente?: number | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          cd_centro_custos?: string | null
+          cd_centro_custos_3?: string | null
+          cd_conta_contabil?: string | null
+          cd_mascara?: string | null
+          cd_origem_lcto?: string | null
+          cd_tns?: string | null
+          codigo_linha_destino?: string
+          codigo_linha_origem?: string
+          created_at?: string
+          criado_por?: string | null
+          ds_historico?: string | null
+          escopo?: Database["public"]["Enums"]["dre_classificacao_escopo"]
+          id?: string
+          motivo?: string
+          nr_documento?: string | null
+          nr_lancamento?: string | null
+          nr_lote?: string | null
+          status?: Database["public"]["Enums"]["dre_classificacao_status"]
+          updated_at?: string
+          vl_realizado?: number | null
+        }
+        Relationships: []
+      }
       bi_dre_estrutura: {
         Row: {
           ativo: boolean
@@ -3669,6 +3747,17 @@ export type Database = {
       }
     }
     Enums: {
+      dre_classificacao_escopo:
+        | "LANCAMENTO"
+        | "DOCUMENTO"
+        | "COMBINACAO"
+        | "REGRA_DEFINITIVA"
+      dre_classificacao_status:
+        | "ATIVO"
+        | "PENDENTE_APROVACAO"
+        | "APROVADO"
+        | "REJEITADO"
+        | "INATIVO"
       navegacao_acao:
         | "entrar"
         | "sair"
@@ -3805,6 +3894,19 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      dre_classificacao_escopo: [
+        "LANCAMENTO",
+        "DOCUMENTO",
+        "COMBINACAO",
+        "REGRA_DEFINITIVA",
+      ],
+      dre_classificacao_status: [
+        "ATIVO",
+        "PENDENTE_APROVACAO",
+        "APROVADO",
+        "REJEITADO",
+        "INATIVO",
+      ],
       navegacao_acao: [
         "entrar",
         "sair",
