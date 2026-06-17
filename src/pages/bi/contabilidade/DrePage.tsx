@@ -104,10 +104,18 @@ export default function DrePage() {
     setMesFinal(v);
   };
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const carregarDre = async () => {
+    // Cancela requisição anterior em voo para evitar race condition.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setErro(null);
     setBuscou(true);
+    // NÃO limpar linhasRaw aqui — mantém a tabela visível enquanto recarrega.
 
     const unidadeParam =
       !unidade || String(unidade).trim().toUpperCase() === 'TODOS'
@@ -127,6 +135,7 @@ export default function DrePage() {
       const response = await fetch(url, {
         method: 'GET',
         credentials: 'include',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true',
@@ -147,21 +156,41 @@ export default function DrePage() {
         : Array.isArray(json?.data)
           ? json.data
           : [];
+      if (controller.signal.aborted) return;
       console.log('[DRE] Linhas recebidas', linhas.length);
       setLinhasRaw(linhas);
     } catch (e: any) {
+      if (e?.name === 'AbortError' || controller.signal.aborted) {
+        // Requisição substituída — ignorar.
+        return;
+      }
       console.error('[DRE] Falha ao buscar /api/bi/contabilidade/dre-matriz', e);
       setErro(e?.message || String(e));
-      setLinhasRaw([]);
+      // Mantém linhasRaw anterior para a UI não "esvaziar".
     } finally {
-      setLoading(false);
+      if (abortRef.current === controller) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    carregarDre();
+    // Debounce 250ms para coalescer múltiplas mudanças de filtro.
+    const t = setTimeout(() => {
+      carregarDre();
+    }, 250);
+    return () => {
+      clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ano, unidade, mesInicial, mesFinal]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
 
   const linhas = useMemo<DreLinha[]>(() => {
     return [...linhasRaw].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0));
