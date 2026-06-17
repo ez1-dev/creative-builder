@@ -1,145 +1,134 @@
-# DRE Dinâmica Gerencial
+# Montador da DRE Gerencial
 
-Nova página que consome o endpoint `GET /api/bi/contabilidade/dre-dinamica` e reusa a infraestrutura de configuração já criada (tabelas `bi_dre_modelos`, `bi_dre_estrutura_v2`, `bi_dre_linha_regra`).
+Tela em duas colunas para o usuário vincular contas/máscaras do ERP a linhas da DRE Dinâmica. Toda a lógica de cálculo e vínculo fica no FastAPI.
 
-## Observação sobre nomes de tabela
+## Rota e navegação
+- Rota: `/bi/contabilidade/dre-dinamica/montador`
+- Sidebar: novo item "Montador DRE Gerencial" abaixo de "DRE Dinâmica Gerencial"
+- `screenCatalog`: código `CONT_DRE_MONTADOR`
 
-O pedido cita `bi_dre_modelo` e `bi_dre_linha` (singular). No Cloud já existem, com o mesmo papel:
-- `bi_dre_modelos` (modelos/versões)
-- `bi_dre_estrutura_v2` (linhas da DRE com todas as flags pedidas: `tipo_linha`, `formula`, `flag_inverte_sinal`, `flag_exibe_dre`, `flag_permite_drill`, `flag_negrito`, `flag_totalizadora`, `ativo`)
-- `bi_dre_linha_regra` (regras — já no nome certo)
+## Arquivos
 
-O plano usa as tabelas existentes (sem criar duplicatas). O backend FastAPI deve usar as mesmas tabelas ao montar `/dre-dinamica`.
+### `src/lib/bi/dreMontadorApi.ts` (novo)
+Cliente FastAPI (Bearer + `ngrok-skip-browser-warning`):
 
-## 1. Frontend — Página de visualização
-
-Arquivo novo: `src/pages/bi/contabilidade/DreDinamicaPage.tsx`
-Rota: `/bi/contabilidade/dre-dinamica` (adicionar em `App.tsx`, `AppSidebar.tsx` e `screenCatalog.ts`).
-
-Filtros no topo:
-- Ano (select, default ano corrente)
-- Mês inicial (1–12)
-- Mês final (1–12, default = mês corrente)
-- Modelo da DRE (carregado de `bi_dre_modelos` via Supabase; default = publicado mais recente; opção "Padrão (sem modelo)" envia sem `modelo_id`)
-- Botão **Recalcular DRE** (refetch sem reload)
-
-Montagem dos params:
-```
-anomes_ini = `${ano}${mes_ini.padStart(2,'0')}`
-anomes_fim = `${ano}${mes_fim.padStart(2,'0')}`
-```
-Validação: `mes_fim >= mes_ini`. Nunca enviar descrição visual; só códigos técnicos.
-
-Logs obrigatórios antes do fetch:
-```
-console.log("[DRE DINAMICA] filtros:", filtros);
-console.log("[DRE DINAMICA] url:", url);
-console.log("[DRE DINAMICA] retorno:", data);
-```
-
-Tabela de exibição:
-- Colunas: Descrição, Tipo, Realizado
-- Ordenação por `ordem`
-- Indentação à esquerda = `(nivel - 1) * 16px`
-- Negrito quando `tipo_linha ∈ {CALCULO, TOTAL}` ou `flag_negrito = true` (se vier no retorno)
-- Valores formatados em BRL (`Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' })`); negativos com sinal `-`
-- Drill: ícone na linha quando `flag_permite_drill !== false`, reusando `DreDrillDrawer` existente
-
-Diagnóstico:
-- `dados.length === 0` → alerta amarelo:
-  "Nenhuma linha retornada. Verifique se existe modelo ativo, linhas ativas e regras cadastradas."
-- `realizado === 0` → exibe normalmente (R$ 0,00); não tratar como erro
-
-## 2. Cliente API
-
-Arquivo novo: `src/lib/bi/dreDinamicaApi.ts`
 ```ts
-export interface DreDinamicaLinha {
-  modelo_id: string | null;
-  codigo_linha: string;
-  descricao: string;
-  ordem: number;
-  nivel: number;
-  tipo_linha: "TITULO"|"ANALITICA"|"AGRUPADORA"|"TOTAL"|"CALCULO";
-  formula: string | null;
-  realizado: number;
-  flag_negrito?: boolean;
-  flag_permite_drill?: boolean;
+export interface PlanoContaErp {
+  cd_mascara: string;
+  cd_conta_contabil: string;
+  qtd_lancamentos: number;
+  valor_total: number;
+  ja_vinculada: boolean;
+  linhas_vinculadas: string[]; // descrições/códigos das linhas
 }
-export interface DreDinamicaResponse {
+export interface PlanoContasParams {
   anomes_ini: string; anomes_fim: string;
-  modelo_id: string | null; dados: DreDinamicaLinha[];
+  modelo_id?: string | null;
+  busca?: string;
+  somente_nao_vinculadas?: boolean;
+  somente_vinculadas?: boolean;
+  limite?: number;
 }
-export async function fetchDreDinamica(p: {
-  anomes_ini: string; anomes_fim: string; modelo_id?: string | null;
-}): Promise<DreDinamicaResponse>
+export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<PlanoContaErp[]>;
+
+export interface VincularContasPayload {
+  modelo_id: string;
+  linha_id: string;
+  tipo_regra: 'MASCARA_CONTA' | 'CONTA_CONTABIL';
+  operador: 'COMECA_COM' | 'IGUAL';
+  sinal: 1 | -1;
+  prioridade: number;
+  contas: { cd_mascara: string; cd_conta_contabil: string }[];
+}
+export async function vincularContasDinamica(payload: VincularContasPayload): Promise<{ vinculadas: number }>;
 ```
-- Usa `apiFetch` padrão do projeto (FastAPI via ngrok, header `ngrok-skip-browser-warning: true`, Bearer token).
-- Inclui os três `console.log` exigidos.
+- `GET /api/bi/contabilidade/dre-dinamica/plano-contas` com os params acima
+- `POST /api/bi/contabilidade/dre-dinamica/vincular-contas` com o body especificado
+- Console logs antes do POST: `[MONTADOR DRE] payload vínculo:`
 
-## 3. Configuração da DRE (4 abas)
+### `src/pages/bi/contabilidade/DreMontadorPage.tsx` (novo)
 
-Reaproveitar `DreConfiguracaoPage.tsx` já existente e estender. Cada aba é arquivo separado em `src/components/bi/contabilidade/configuracao/`.
+Header fixo com filtros globais:
+- Ano, Mês inicial, Mês final (montam `anomes_ini`/`anomes_fim` `YYYYMM`)
+- Modelo (carregado de `bi_dre_modelos`; default = rascunho mais recente; obrigatório para vincular)
+- Botão "Recarregar tudo"
 
-### Aba Modelos (nova: `ModelosTab.tsx`)
-- Lista `bi_dre_modelos` (versao, status, descrição, publicado_em)
-- Criar rascunho, duplicar de publicado, marcar como publicado, arquivar
-- Audit em `bi_dre_auditoria`
+#### Coluna esquerda — "Linhas da DRE" (col-span 5/12)
+- `fetchDreDinamica({ano,mes_ini,mes_fim,modelo_id})` (endpoint que já existe na sessão anterior)
+- Lista virtualizada com:
+  - `ordem`, `descrição`, badge `tipo_linha`, `realizado` em BRL
+  - Indentação `(nivel-1)*16px`
+  - Row clicável → marca `linhaSelecionada` (precisa de `id` da linha — vem de `bi_dre_estrutura_v2.id`; pedimos ao backend incluir `linha_id` no payload da DRE Dinâmica; fallback: consulta direta `bi_dre_estrutura_v2` por `modelo_id`+`codigo_linha` no Cloud para resolver o `id`)
+  - Destaque visual: `bg-primary/10 border-l-4 border-primary` na linha selecionada
+  - Log: `console.log("[MONTADOR DRE] linha selecionada:", linhaSelecionada);`
 
-### Aba Linhas (`EstruturaTreeTab.tsx` já existe — ajustar)
-- Listar `bi_dre_estrutura_v2` do modelo selecionado, ordenado por `ordem`
-- Campos editáveis: codigo_linha, descricao, ordem, nivel, tipo_linha, formula, ativo, flag_inverte_sinal, flag_exibe_dre, flag_permite_drill, flag_negrito, flag_totalizadora
-- Criar / editar / inativar (`ativo = false`). **Nunca DELETE físico.**
-- Validação: `codigo_linha` em `UPPER_SNAKE`, único por modelo
+#### Coluna direita — "Contas disponíveis do ERP" (col-span 7/12)
+- Filtros locais (acima da tabela): busca (debounce 300ms), "Somente não vinculadas", "Somente vinculadas" (radio mutuamente exclusivo + "Todas"), "Limite" (50/100/250/500/1000, default 250)
+- Tabela com cabeçalho sortable (máscara, conta, qtd, valor):
+  - Checkbox de seleção (cabeçalho com "selecionar todos visíveis")
+  - `cd_mascara` (mono)
+  - `cd_conta_contabil` (mono)
+  - `qtd_lancamentos` (right)
+  - `valor_total` em BRL; vermelho (`text-destructive`) quando < 0
+  - `ja_vinculada` → badge "Vinculada" (`variant=secondary`)
+  - `linhas_vinculadas` → tooltip / lista de chips com códigos
+- Rodapé de ação:
+  - Select "Tipo de vínculo": MASCARA_CONTA / CONTA_CONTABIL
+  - Radio "Sinal": `+1 Somar como está` / `-1 Inverter sinal`
+  - Input "Prioridade" (default 100)
+  - Botão `Vincular contas à linha selecionada` (disabled sem linha OU sem contas)
+  - Log: `console.log("[MONTADOR DRE] contas selecionadas:", contasSelecionadas);`
 
-### Aba Regras (`RegrasLinhaTab.tsx` já existe — ajustar)
-- Selecionar uma linha → lista regras de `bi_dre_linha_regra`
-- Campos do formulário: tipo_regra, operador, cd_mascara, cd_conta_contabil, cd_centro_custos, cd_centro_custos_3, cd_origem_lcto, cd_tns, ds_historico, sinal (1/-1), prioridade, ativo
-- Tipos: `MASCARA_CONTA | CONTA_CONTABIL | CENTRO_CUSTOS | CENTRO_CUSTOS_3 | ORIGEM | TRANSACAO | HISTORICO`
-- Operadores: `COMECA_COM | IGUAL | CONTEM`
-- UI mostra apenas o campo "principal" relevante por `tipo_regra` (máscara→cd_mascara, conta→cd_conta_contabil, transação→cd_tns, histórico→ds_historico) + campos opcionais como avançado
+#### Fluxo de vínculo
+1. Validações:
+   - `modeloId` definido
+   - `linhaSelecionada` definido (toast destructive: "Selecione uma linha da DRE")
+   - `contasSelecionadas.length > 0` (toast destructive: "Selecione ao menos uma conta")
+2. Montar payload exato do spec (operador derivado do tipo: `MASCARA_CONTA→COMECA_COM`, `CONTA_CONTABIL→IGUAL`)
+3. Logar payload
+4. `await vincularContasDinamica(payload)`
+5. Em sucesso:
+   - `toast.success("Contas vinculadas com sucesso.")`
+   - Limpar `contasSelecionadas`
+   - Re-fetch `plano-contas` + `dre-dinamica` em paralelo
+6. Em erro: toast destructive com `error.message`
 
-### Aba Plano de Contas (nova: `PlanoContasTab.tsx` — substitui mock do `ContasErpTab`)
-- Query agregada em `bi_vm_lanc_contabil`:
-  ```sql
-  select cd_mascara, cd_mascara_1, cd_mascara_2, cd_mascara_3, cd_mascara_4,
-         cd_conta_contabil, count(*) qtde, sum(coalesce(vl_saldo, vl_credito - vl_debito)) total
-  from bi_vm_lanc_contabil
-  group by 1,2,3,4,5,6
-  ```
-  Exposta via Supabase RPC `get_plano_contas_dre()` (security definer, GRANT to authenticated) — incluída na migration.
-- Tabela com multi-seleção
-- Filtro por nível de máscara
-- Botão **Vincular à linha selecionada** (precisa de linha ativa na aba Linhas):
-  - Para cada item selecionado:
-    - se máscara → tipo_regra=`MASCARA_CONTA`, operador=`COMECA_COM`, cd_mascara preenchido
-    - se conta contábil → tipo_regra=`CONTA_CONTABIL`, operador=`IGUAL`, cd_conta_contabil preenchido
-  - Escolha de `sinal` (1/-1) num radio no rodapé
-  - `ativo = true`, `prioridade` auto-incrementada
-  - Audit em `bi_dre_auditoria`
+## Estado da página
+```
+{ ano, mesIni, mesFim, modeloId,
+  linhas, linhaSelecionada,
+  contas, contasSelecionadas: Set<string>,
+  filtroBusca, filtroVinculo, limite,
+  sortBy, sortDir,
+  tipoRegra: 'MASCARA_CONTA', sinal: 1, prioridade: 100,
+  loadingLinhas, loadingContas, vinculando }
+```
+Key da conta: `${cd_mascara}||${cd_conta_contabil}`.
 
-## 4. Migration (mínima)
+## Backend (documentação)
+Criar `docs/backend-bi-contabilidade-dre-dinamica-montador.md` com os contratos dos dois endpoints novos:
 
-```sql
-create or replace function public.get_plano_contas_dre()
-returns table(cd_mascara text, cd_mascara_1 text, cd_mascara_2 text,
-              cd_mascara_3 text, cd_mascara_4 text, cd_conta_contabil text,
-              qtde bigint, total numeric)
-language sql stable security definer set search_path = public as $$
-  select ... from bi_vm_lanc_contabil group by ...
-$$;
-grant execute on function public.get_plano_contas_dre() to authenticated;
+```
+GET /api/bi/contabilidade/dre-dinamica/plano-contas
+  query: anomes_ini, anomes_fim, modelo_id?, busca?,
+         somente_nao_vinculadas?, somente_vinculadas?, limite?
+  resp: [{ cd_mascara, cd_conta_contabil, qtd_lancamentos,
+           valor_total, ja_vinculada, linhas_vinculadas[] }]
+
+POST /api/bi/contabilidade/dre-dinamica/vincular-contas
+  body: { modelo_id, linha_id, tipo_regra, operador, sinal,
+          prioridade, contas: [{cd_mascara, cd_conta_contabil}] }
+  resp: { vinculadas: number }
+  efeito: insere N linhas em bi_dre_linha_regra (idempotente por
+          modelo_id + linha + chave da conta), registra auditoria.
 ```
 
-## 5. Documentação backend
-
-`docs/backend-bi-contabilidade-dre-dinamica.md` — contrato do endpoint, exemplo de request/response, regras de avaliação (sinal, agregação por modelo, fórmulas, indentação, ordem).
+Também adicionar campo `linha_id` (uuid) ao payload de `/dre-dinamica` ou, alternativamente, o front resolve via consulta Cloud em `bi_dre_estrutura_v2`.
 
 ## Fora de escopo
-- Drill-down novo (reusa `DreDrillDrawer` atual)
-- Parser de fórmulas server-side (responsabilidade do FastAPI)
-- Renomear tabelas para o nome singular pedido
+- Edição/inclusão de linhas da DRE (já existe em `/dre/configuracao`)
+- Drill no realizado (já em `DreDrillDrawer`)
+- Cálculo no front (proibido pelo spec)
 
-## Confirmações pedidas
-1. OK usar `bi_dre_modelos` / `bi_dre_estrutura_v2` (existentes) em vez de criar `bi_dre_modelo` / `bi_dre_linha` no singular?
-2. O endpoint `/api/bi/contabilidade/dre-dinamica` já existe no FastAPI ou devo deixar a tela funcionando mesmo que o backend ainda retorne 404 (com mensagem de diagnóstico)?
+## Pergunta única
+O endpoint `/dre-dinamica` precisa devolver `linha_id` (uuid de `bi_dre_estrutura_v2`) para que o front mande no `vincular-contas`. Posso assumir que sim e documentar essa exigência? Caso contrário, o front faz lookup adicional no Cloud por `modelo_id + codigo_linha` — mais lento, porém funciona.
