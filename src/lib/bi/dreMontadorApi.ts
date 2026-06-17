@@ -1,9 +1,19 @@
 import { api, getApiUrl } from '@/lib/api';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface PlanoContaCentroCusto {
+  cd_centro_custo: string;
+  ds_centro_custo?: string;
+  qtd: number;
+  valor: number;
+}
+
 export interface PlanoContaErp {
   cd_mascara: string;
   cd_conta_contabil: string;
+  ds_conta: string;
+  nivel: number;
+  centros_custo: PlanoContaCentroCusto[];
   qtd_lancamentos: number;
   valor_total: number;
   ja_vinculada: boolean;
@@ -60,14 +70,27 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   }
   const data = await resp.json().catch(() => []);
   const arr = Array.isArray(data) ? data : Array.isArray((data as any)?.dados) ? (data as any).dados : [];
-  return arr.map((r: any) => ({
-    cd_mascara: r.cd_mascara ?? '',
-    cd_conta_contabil: r.cd_conta_contabil ?? '',
-    qtd_lancamentos: Number(r.qtd_lancamentos ?? 0),
-    valor_total: Number(r.valor_total ?? 0),
-    ja_vinculada: !!r.ja_vinculada,
-    linhas_vinculadas: Array.isArray(r.linhas_vinculadas) ? r.linhas_vinculadas : [],
-  })) as PlanoContaErp[];
+  return arr.map((r: any) => {
+    const cd_mascara: string = r.cd_mascara ?? '';
+    const nivelFallback = cd_mascara ? cd_mascara.split('.').filter(Boolean).length : 0;
+    const cc = Array.isArray(r.centros_custo) ? r.centros_custo : [];
+    return {
+      cd_mascara,
+      cd_conta_contabil: r.cd_conta_contabil ?? '',
+      ds_conta: r.ds_conta ?? r.descricao ?? r.nome_conta ?? '',
+      nivel: Number(r.nivel ?? nivelFallback),
+      centros_custo: cc.map((x: any) => ({
+        cd_centro_custo: x.cd_centro_custo ?? x.centro_custo ?? '',
+        ds_centro_custo: x.ds_centro_custo ?? x.descricao ?? undefined,
+        qtd: Number(x.qtd ?? x.qtd_lancamentos ?? 0),
+        valor: Number(x.valor ?? x.valor_total ?? 0),
+      })),
+      qtd_lancamentos: Number(r.qtd_lancamentos ?? 0),
+      valor_total: Number(r.valor_total ?? 0),
+      ja_vinculada: !!r.ja_vinculada,
+      linhas_vinculadas: Array.isArray(r.linhas_vinculadas) ? r.linhas_vinculadas : [],
+    };
+  }) as PlanoContaErp[];
 }
 
 export async function vincularContasDinamica(payload: VincularContasPayload): Promise<{ vinculadas: number }> {

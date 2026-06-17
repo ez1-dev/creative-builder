@@ -23,6 +23,12 @@ Lista as contas/máscaras do ERP com totais agregados e indicador de vínculo no
   {
     "cd_mascara": "3.01.01",
     "cd_conta_contabil": "3010101001",
+    "ds_conta": "RECEITA DE VENDAS NO MERCADO INTERNO",
+    "nivel": 3,
+    "centros_custo": [
+      { "cd_centro_custo": "1001", "ds_centro_custo": "ADMINISTRATIVO", "qtd": 12, "valor": -1500.00 },
+      { "cd_centro_custo": "2002", "ds_centro_custo": "COMERCIAL", "qtd": 5, "valor": -800.00 }
+    ],
     "qtd_lancamentos": 124,
     "valor_total": -53210.55,
     "ja_vinculada": true,
@@ -30,6 +36,11 @@ Lista as contas/máscaras do ERP com totais agregados e indicador de vínculo no
   }
 ]
 ```
+
+Regras adicionais:
+- `ds_conta`: descrição vinda do plano de contas do ERP. Pode vir vazia.
+- `nivel`: número de segmentos da `cd_mascara` separados por `.` (ex.: `3.01.01` → 3).
+- `centros_custo`: agregado por `centro_custo` em `bi_vm_lanc_contabil` no período, top 10 por `valor DESC`.
 
 ### Implementação esperada
 - Agregar `bi_vm_lanc_contabil` por `mascara`/`cd_conta` no período.

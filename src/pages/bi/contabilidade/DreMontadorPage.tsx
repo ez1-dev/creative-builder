@@ -28,7 +28,7 @@ const MESES = [
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-type SortKey = 'mascara' | 'conta' | 'qtd' | 'valor';
+type SortKey = 'mascara' | 'nivel' | 'conta' | 'qtd' | 'valor';
 type SortDir = 'asc' | 'desc';
 type FiltroVinculo = 'todas' | 'nao_vinculadas' | 'vinculadas';
 
@@ -154,6 +154,7 @@ export default function DreMontadorPage() {
       let cmp = 0;
       switch (sortBy) {
         case 'mascara': cmp = a.cd_mascara.localeCompare(b.cd_mascara); break;
+        case 'nivel': cmp = (a.nivel ?? 0) - (b.nivel ?? 0); break;
         case 'conta': cmp = a.cd_conta_contabil.localeCompare(b.cd_conta_contabil); break;
         case 'qtd': cmp = a.qtd_lancamentos - b.qtd_lancamentos; break;
         case 'valor': cmp = a.valor_total - b.valor_total; break;
@@ -293,6 +294,7 @@ export default function DreMontadorPage() {
                   <thead className="sticky top-0 bg-background border-b">
                     <tr className="text-left">
                       <th className="py-2 px-2 w-12">Ord.</th>
+                      <th className="py-2 px-2 w-14">Nív.</th>
                       <th className="py-2 px-2">Descrição</th>
                       <th className="py-2 px-2 w-24">Tipo</th>
                       <th className="py-2 px-2 w-32 text-right">Realizado</th>
@@ -314,6 +316,9 @@ export default function DreMontadorPage() {
                         >
                           <td className="py-1.5 px-2 text-xs text-muted-foreground">{l.ordem}</td>
                           <td className="py-1.5 px-2">
+                            <Badge variant="outline" className="text-[10px]">N{l.nivel ?? 1}</Badge>
+                          </td>
+                          <td className="py-1.5 px-2">
                             <div style={{ paddingLeft: indent }} className="flex items-center gap-2">
                               <span>{l.descricao}</span>
                               <span className="text-[10px] text-muted-foreground font-mono">{l.codigo_linha}</span>
@@ -329,7 +334,7 @@ export default function DreMontadorPage() {
                       );
                     })}
                     {!loadingLinhas && linhas.length === 0 && (
-                      <tr><td colSpan={4} className="py-8 text-center text-muted-foreground text-sm">
+                      <tr><td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
                         Nenhuma linha. Verifique modelo e período.
                       </td></tr>
                     )}
@@ -389,7 +394,10 @@ export default function DreMontadorPage() {
                         />
                       </th>
                       <SortableTh label="Máscara" k="mascara" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
+                      <SortableTh label="Nív." k="nivel" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
                       <SortableTh label="Conta" k="conta" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} />
+                      <th className="py-2 px-2">Nome da conta</th>
+                      <th className="py-2 px-2">Centros de custo</th>
                       <SortableTh label="Qtd." k="qtd" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} align="right" />
                       <SortableTh label="Valor" k="valor" sortBy={sortBy} sortDir={sortDir} onClick={toggleSort} align="right" />
                       <th className="py-2 px-2 w-40">Status</th>
@@ -399,13 +407,61 @@ export default function DreMontadorPage() {
                     {contasOrdenadas.map((c) => {
                       const k = contaKey(c);
                       const sel = contasSelecionadas.has(k);
+                      const ccs = c.centros_custo ?? [];
+                      const ccsHead = ccs.slice(0, 2);
+                      const ccsExtra = ccs.length - ccsHead.length;
                       return (
                         <tr key={k} className={`border-b hover:bg-muted/40 ${sel ? 'bg-primary/5' : ''}`}>
                           <td className="py-1 px-2">
                             <Checkbox checked={sel} onCheckedChange={() => toggleConta(k)} />
                           </td>
                           <td className="py-1 px-2 font-mono text-xs">{c.cd_mascara || '—'}</td>
+                          <td className="py-1 px-2">
+                            <Badge variant="outline" className="text-[10px]">N{c.nivel ?? 0}</Badge>
+                          </td>
                           <td className="py-1 px-2 font-mono text-xs">{c.cd_conta_contabil || '—'}</td>
+                          <td className="py-1 px-2 max-w-[260px]">
+                            {c.ds_conta ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="block truncate cursor-help">{c.ds_conta}</span>
+                                </TooltipTrigger>
+                                <TooltipContent><span className="text-xs">{c.ds_conta}</span></TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-1 px-2">
+                            {ccs.length === 0 ? (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1">
+                                {ccsHead.map((cc, i) => (
+                                  <Badge key={i} variant="outline" className="text-[10px] font-mono">
+                                    {cc.cd_centro_custo}{cc.ds_centro_custo ? ` · ${cc.ds_centro_custo}` : ''}
+                                  </Badge>
+                                ))}
+                                {ccsExtra > 0 && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Badge variant="secondary" className="text-[10px] cursor-help">+{ccsExtra}</Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="text-xs space-y-0.5 max-w-xs">
+                                        {ccs.map((cc, i) => (
+                                          <div key={i} className="font-mono">
+                                            {cc.cd_centro_custo}{cc.ds_centro_custo ? ` · ${cc.ds_centro_custo}` : ''}
+                                            <span className="text-muted-foreground"> — {BRL.format(cc.valor)} ({cc.qtd})</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            )}
+                          </td>
                           <td className="py-1 px-2 text-right">{c.qtd_lancamentos}</td>
                           <td className={`py-1 px-2 text-right font-mono ${c.valor_total < 0 ? 'text-destructive' : ''}`}>
                             {BRL.format(c.valor_total)}
@@ -432,7 +488,7 @@ export default function DreMontadorPage() {
                       );
                     })}
                     {!loadingContas && contasOrdenadas.length === 0 && (
-                      <tr><td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
+                      <tr><td colSpan={9} className="py-8 text-center text-muted-foreground text-sm">
                         Nenhuma conta encontrada.
                       </td></tr>
                     )}
