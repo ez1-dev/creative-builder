@@ -3,6 +3,15 @@
 Endpoint **novo**, sem alterar `/api/bi/contabilidade/dre-matriz` nem `bi_dre_regras` /
 `bi_dre_mascara` / `bi_dre_estrutura`.
 
+> **⚠️ Valores aceitos para `tipo_drill` (padronização frontend):**
+> `CENTRO_CUSTOS`, `CONTA_CONTABIL`, `HISTORICO`, `LANCAMENTO`, `ORIGEM`,
+> `TRANSACAO`, `UNIDADE`, `REABRIR`. Os antigos `CENTRO_CUSTO` (sem S) e
+> `CONTA` foram renomeados — a RPC `bi_dre_drill_realizado` precisa mapear os
+> novos nomes (`CENTRO_CUSTOS` → group by `cd_cencus`, `CONTA_CONTABIL` →
+> group by `cd_conta`). Qualquer outro valor (label, `undefined`, `null`) é
+> sanitizado no frontend para `CONTA_CONTABIL`.
+
+
 ## 0. Correção PGRST203 — assinatura única da RPC
 
 O PostgREST retorna `PGRST203` quando existem dois overloads de `public.bi_dre_drill_realizado`. Manter **apenas uma** assinatura, com 6 parâmetros `text`, e recarregar o cache do PostgREST:
