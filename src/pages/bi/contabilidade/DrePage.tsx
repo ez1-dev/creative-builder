@@ -30,11 +30,13 @@ interface DreLinha {
   ordem?: number;
   codigo_linha?: string;
   descricao?: string;
+  tipo_linha?: string;
   total_realizado?: number | null;
   total_av?: number | null;
   total_orcado?: number | null;
   [k: string]: any;
 }
+
 
 const MESES: { key: string; numero: string; label: string }[] = [
   { key: 'jan', numero: '01', label: 'Janeiro' },
