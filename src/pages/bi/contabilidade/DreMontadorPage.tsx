@@ -166,12 +166,14 @@ export default function DreMontadorPage() {
   }, [contas, sortBy, sortDir]);
 
   const diag = useMemo(() => {
-    if (!contas.length) return { semNome: false, semValor: false };
+    if (!contas.length) return { semNome: false, semValor: false, semCcu: false };
     return {
       semNome: contas.every((c) => !c.ds_conta),
       semValor: contas.every((c) => c.valor_total === 0),
+      semCcu: contas.every((c) => !c.centros_custo || c.centros_custo.length === 0),
     };
   }, [contas]);
+
 
   const toggleSort = (k: SortKey) => {
     if (sortBy === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
