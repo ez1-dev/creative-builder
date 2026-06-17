@@ -399,7 +399,11 @@ export default function DreMontadorPage() {
               <div className="mx-4 mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-300 space-y-1">
                 {diag.semNome && <div>Backend não está retornando <code className="font-mono">ds_conta</code>. Ajuste o endpoint <code className="font-mono">/plano-contas</code> para incluir a descrição da conta.</div>}
                 {diag.semValor && <div>Valores zerados — verifique se o endpoint agrega <code className="font-mono">bi_vm_lanc_contabil</code> no período selecionado.</div>}
-                {diag.semCcu && <div>Backend não retornou <code className="font-mono">centros_custo[]</code> em nenhuma conta. Verifique o endpoint <code className="font-mono">/plano-contas</code> (agregação por <code className="font-mono">centro_custo</code> em <code className="font-mono">bi_vm_lanc_contabil</code>).</div>}
+                {diag.semCcu && (
+                  <div>
+                    Backend não retornou o array <code className="font-mono">centros_custo</code> em nenhuma conta. Cada item de <code className="font-mono">/plano-contas</code> deve incluir <code className="font-mono">centros_custo: [{`{ cd_centro_custos, cd_centro_custos_3, qtd_lancamentos, valor_total }`}]</code> agregado por <code className="font-mono">centro_custo</code> em <code className="font-mono">bi_vm_lanc_contabil</code>. Veja o checklist em <code className="font-mono">docs/backend-bi-contabilidade-dre-dinamica-montador.md</code> e os logs <code className="font-mono">[MONTADOR DRE]</code> no console (mostram as chaves brutas devolvidas).
+                  </div>
+                )}
               </div>
             )}
 

@@ -117,8 +117,15 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     const semCcu = mapped.every((m) => !m.centros_custo || m.centros_custo.length === 0);
     if (semNome) console.warn('[MONTADOR DRE] backend não retornou ds_conta em nenhum item');
     if (semValor) console.warn('[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens');
-    if (semCcu) console.warn('[MONTADOR DRE] backend não retornou centros_custo em nenhum item');
-    else {
+    if (semCcu) {
+      console.warn(
+        '[MONTADOR DRE] backend NÃO retornou o array `centros_custo` em nenhum dos',
+        mapped.length,
+        'itens. Esperado: centros_custo: [{ cd_centro_custos, cd_centro_custos_3, qtd_lancamentos, valor_total }]. Aliases aceitos: ccu, centroscusto, centros, cc, centros_de_custo.',
+      );
+      console.warn('[MONTADOR DRE] chaves do primeiro item bruto recebido:', arr[0] ? Object.keys(arr[0]) : '(payload vazio)');
+      console.warn('[MONTADOR DRE] primeiro item bruto (debug):', arr[0]);
+    } else {
       const first = mapped.find((m) => m.centros_custo && m.centros_custo.length > 0);
       if (first) console.log('[MONTADOR DRE] centros_custo sample:', first.centros_custo[0]);
     }

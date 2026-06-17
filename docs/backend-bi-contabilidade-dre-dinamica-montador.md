@@ -129,6 +129,53 @@ FROM ranked
 GROUP BY 1,2;
 ```
 
+### Checklist de investigação quando `centros_custo` vem vazio
+
+Quando o frontend mostra o banner "Backend não retornou o array `centros_custo` em nenhuma conta", o time de backend deve seguir esta ordem:
+
+1. **A query de agregação por `centro_custo` está sendo executada?** Confirmar que o endpoint roda DUAS agregações: uma por `mascara`/`cd_conta` (totais da conta) e outra por `mascara`/`cd_conta`/`centro_custo` (array `centros_custo`). É comum esquecer a segunda.
+2. **O JOIN com o cadastro de CCU é `LEFT JOIN`?** Nunca `INNER`, senão contas com CCU não cadastrado somem.
+3. **O `json_agg(...) FILTER (WHERE rn <= 10)` está saindo como array no JSON final?** Em alguns drivers ele vira string — garantir que é serializado como `list[dict]` (FastAPI/Pydantic) e não `str`.
+4. **O nome do campo está exatamente `centros_custo`** (snake_case, plural). Aliases que o frontend aceita defensivamente: `ccu`, `centroscusto`, `centros`, `cc`, `centros_de_custo`. Prefira o canônico.
+5. **O período `[anomes_ini, anomes_fim]` recebido tem lançamentos com `centro_custo IS NOT NULL`?** Rodar o smoke-test abaixo direto no banco.
+6. **Cada item do array tem os 4 campos canônicos:** `cd_centro_custos`, `cd_centro_custos_3`, `qtd_lancamentos`, `valor_total`.
+
+Smoke-test SQL para validar que existem dados no período:
+
+```sql
+SELECT mascara, cd_conta, centro_custo, count(*) AS qtd, sum(vl_saldo) AS valor
+FROM bi_vm_lanc_contabil
+WHERE anomes_referente BETWEEN :ini AND :fim
+  AND centro_custo IS NOT NULL
+GROUP BY 1,2,3
+ORDER BY abs(sum(vl_saldo)) DESC
+LIMIT 20;
+```
+
+Resposta mínima válida (1 conta com 1 CCU) — o backend deve devolver pelo menos algo neste formato:
+
+```json
+[
+  {
+    "cd_mascara": "3.01.01",
+    "cd_conta_contabil": "3010101001",
+    "ds_conta": "RECEITA DE VENDAS",
+    "nivel": 3,
+    "qtd_lancamentos": 124,
+    "valor_total": -53210.55,
+    "ja_vinculada": false,
+    "linhas_vinculadas": [],
+    "centros_custo": [
+      { "cd_centro_custos": "1001", "cd_centro_custos_3": "100", "qtd_lancamentos": 12, "valor_total": -1500.00 }
+    ]
+  }
+]
+```
+
+**Diagnóstico rápido no frontend:** abrir o console do navegador e procurar pelos logs `[MONTADOR DRE]`. Quando `centros_custo` vem ausente, o front loga `chaves do primeiro item bruto recebido: [...]` — isso mostra exatamente quais campos o endpoint está devolvendo (útil para flagrar diferença de nome).
+
+
+
 
 ### Implementação esperada
 
