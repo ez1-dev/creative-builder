@@ -1,19 +1,28 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator,
+} from '@/components/ui/context-menu';
 import { PageHeader } from '@/components/erp/PageHeader';
 import { KpiGrid } from '@/components/bi/kpis/KpiGrid';
 import { KpiCard } from '@/components/bi/kpis/KpiCard';
 import { getApiUrl } from '@/lib/api';
 import { formatCurrency, formatPercent } from '@/components/bi/utils/formatters';
 import { toast } from 'sonner';
-import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, TrendingUp, DollarSign, BarChart3, PiggyBank, FileSpreadsheet, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageDataProvider } from '@/lib/bi/PageDataContext';
 import { UserWidgetsSlot } from '@/components/bi';
+import { useDreDrill } from '@/hooks/useDreDrill';
+import { DreDrillDrawer } from '@/components/bi/contabilidade/DreDrillDrawer';
+import { DRE_DRILL_LABELS, type DreDrillTipo } from '@/lib/bi/dreDrillApi';
+import { isLinhaCalculada } from '@/lib/bi/dreReabrir';
+
 
 type Unidade = 'TODOS' | 'GENIUS' | 'ESTRUTURAL' | 'OUTROS';
 
@@ -175,11 +184,54 @@ export default function DrePage() {
     { key: 'total', label: 'TOTAL', isTotal: true },
   ];
 
+  // ---- Drill-down -----------------------------------------------------------
+  const drill = useDreDrill();
+  const codigosLinha = useMemo(
+    () => Array.from(
+      new Set(
+        linhas
+          .map((l) => String(l.codigo_linha ?? '').trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ),
+    [linhas],
+  );
+  const descricoesLinha = useMemo(() => {
+    const map: Record<string, string> = {};
+    linhas.forEach((l) => {
+      const cod = String(l.codigo_linha ?? '').trim().toUpperCase();
+      if (cod) map[cod] = l.descricao ?? cod;
+    });
+    return map;
+  }, [linhas]);
+
+  const abrirDrill = (
+    codigoLinha: string,
+    tipo: DreDrillTipo,
+    mesKey: string,
+  ) => {
+    let anomes_referente: string | null = null;
+    if (mesKey !== 'total') {
+      const numero = MESES.find((m) => m.key === mesKey)?.numero;
+      if (numero) anomes_referente = `${ano}${numero}`;
+    }
+    drill.openWith({
+      ano,
+      mes_ini: mesInicial,
+      mes_fim: mesFinal,
+      codigo_linha: codigoLinha,
+      tipo_drill: tipo,
+      unidade: unidade === 'TODOS' ? undefined : unidade,
+      anomes_referente,
+    });
+  };
+
   const exportarXlsx = async () => {
     if (!linhas.length) {
       toast.info('Nada para exportar.');
       return;
     }
+
     try {
       const ExcelJS = (await import('exceljs')).default;
       const wb = new ExcelJS.Workbook();
@@ -324,7 +376,16 @@ export default function DrePage() {
         <PageHeader
           title="Contabilidade — DRE"
           description="Demonstração do Resultado em formato matriz mensal (API backend)."
+          actions={
+            <Button asChild variant="outline" size="sm">
+              <Link to="/bi/contabilidade/dre/excecoes">
+                <Flag className="h-3.5 w-3.5 mr-1" />
+                Exceções
+              </Link>
+            </Button>
+          }
         />
+
 
         <Card>
           <CardHeader className="pb-2">
@@ -508,11 +569,56 @@ export default function DrePage() {
                           const av = m.isTotal ? l.total_av : l[`${m.key}_av`];
                           const o = m.isTotal ? l.total_orcado : l[`${m.key}_orcado`];
                           const totalCol = !!m.isTotal;
+                          const codLinha = String(l.codigo_linha ?? '').trim().toUpperCase();
+                          const podeReabrir = isLinhaCalculada(codLinha);
+                          const drillOpts: { tipo: DreDrillTipo; label: string }[] = [
+                            ...(podeReabrir
+                              ? [{ tipo: 'REABRIR' as DreDrillTipo, label: DRE_DRILL_LABELS.REABRIR }]
+                              : []),
+                            { tipo: 'CENTRO_CUSTO', label: DRE_DRILL_LABELS.CENTRO_CUSTO },
+                            { tipo: 'CONTA', label: DRE_DRILL_LABELS.CONTA },
+                            { tipo: 'ORIGEM', label: DRE_DRILL_LABELS.ORIGEM },
+                            { tipo: 'TRANSACAO', label: DRE_DRILL_LABELS.TRANSACAO },
+                            { tipo: 'HISTORICO', label: DRE_DRILL_LABELS.HISTORICO },
+                            { tipo: 'LANCAMENTO', label: DRE_DRILL_LABELS.LANCAMENTO },
+                            { tipo: 'UNIDADE', label: DRE_DRILL_LABELS.UNIDADE },
+                          ];
                           return (
                             <Fragment key={`${i}-${m.key}`}>
-                              <td className={cn('px-2 py-1.5 text-right tabular-nums border-b border-l', negClass(r), totalCol && 'bg-primary/10 font-semibold')}>
-                                {fmtSigned(r)}
-                              </td>
+                              <ContextMenu>
+                                <ContextMenuTrigger asChild>
+                                  <td
+                                    className={cn(
+                                      'px-2 py-1.5 text-right tabular-nums border-b border-l cursor-context-menu hover:bg-accent/30',
+                                      negClass(r),
+                                      totalCol && 'bg-primary/10 font-semibold',
+                                    )}
+                                    onDoubleClick={() => codLinha && abrirDrill(codLinha, 'LANCAMENTO', m.key)}
+                                    title="Clique direito para opções de drill; duplo clique = Lançamentos"
+                                  >
+                                    {fmtSigned(r)}
+                                  </td>
+                                </ContextMenuTrigger>
+                                <ContextMenuContent className="w-56">
+                                  <ContextMenuLabel className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                    {l.descricao} — {m.label}
+                                  </ContextMenuLabel>
+                                  <ContextMenuSeparator />
+                                  {drillOpts.map((opt) => (
+                                    <ContextMenuItem
+                                      key={opt.tipo}
+                                      className="text-xs"
+                                      disabled={!codLinha}
+                                      onSelect={(e) => {
+                                        e.preventDefault();
+                                        if (codLinha) abrirDrill(codLinha, opt.tipo, m.key);
+                                      }}
+                                    >
+                                      {opt.label}
+                                    </ContextMenuItem>
+                                  ))}
+                                </ContextMenuContent>
+                              </ContextMenu>
                               <td className={cn('px-2 py-1.5 text-right tabular-nums border-b', negClass(av), totalCol && 'bg-primary/10 font-semibold')}>
                                 {av != null ? fmtSignedPct(Number(av)) : '-'}
                               </td>
@@ -522,6 +628,7 @@ export default function DrePage() {
                             </Fragment>
                           );
                         })}
+
                       </tr>
                     );
                   })}
@@ -536,6 +643,17 @@ export default function DrePage() {
           <UserWidgetsSlot section="charts" cols={2} emptyHint={false} />
           <UserWidgetsSlot section="tables" cols={1} emptyHint={false} />
         </div>
+
+        <DreDrillDrawer
+          open={drill.open}
+          onOpenChange={drill.setOpen}
+          stack={drill.stack}
+          onPush={drill.push}
+          onPop={drill.pop}
+          onGoTo={drill.goTo}
+          codigosLinha={codigosLinha}
+          descricoesLinha={descricoesLinha}
+        />
       </div>
     </PageDataProvider>
   );
