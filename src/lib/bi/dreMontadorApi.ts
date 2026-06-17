@@ -72,7 +72,11 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   }
   const data = await resp.json().catch(() => []);
   const arr = Array.isArray(data) ? data : Array.isArray((data as any)?.dados) ? (data as any).dados : [];
-  if (arr.length) console.log('[MONTADOR DRE] plano-contas raw sample:', arr[0]);
+  if (arr.length) {
+    console.log('[MONTADOR DRE] plano-contas raw sample:', arr[0]);
+    console.log('[MONTADOR DRE] chaves brutas do primeiro item:', Object.keys(arr[0] || {}));
+    console.log('[MONTADOR DRE] typeof centros_custo (raw):', typeof arr[0]?.centros_custo);
+  }
 
   const pickStr = (o: any, keys: string[]): string => {
     for (const k of keys) { const v = o?.[k]; if (v !== undefined && v !== null && String(v) !== '') return String(v); }
@@ -83,28 +87,51 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     return 0;
   };
 
+  const coerceCentrosCusto = (raw: any): any[] => {
+    if (raw === null || raw === undefined) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') {
+      const s = raw.trim();
+      if (!s) return [];
+      try {
+        const parsed = JSON.parse(s);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const mapped = arr.map((r: any) => {
     const cd_mascara: string = pickStr(r, ['cd_mascara', 'mascara']);
     const nivelFallback = cd_mascara ? cd_mascara.split('.').filter(Boolean).length : 0;
-    const ccRaw =
-      (Array.isArray(r.centros_custo) && r.centros_custo) ||
-      (Array.isArray(r.ccu) && r.ccu) ||
-      (Array.isArray(r.centroscusto) && r.centroscusto) ||
-      (Array.isArray(r.centros) && r.centros) ||
-      (Array.isArray(r.cc) && r.cc) ||
-      (Array.isArray(r.centros_de_custo) && r.centros_de_custo) ||
-      [];
+    let ccRaw = coerceCentrosCusto(r?.centros_custo);
+    if (!ccRaw.length) {
+      for (const alias of ['ccu', 'centroscusto', 'centros', 'cc', 'centros_de_custo']) {
+        const v = coerceCentrosCusto(r?.[alias]);
+        if (v.length) { ccRaw = v; break; }
+      }
+    }
     return {
       cd_mascara,
       cd_conta_contabil: pickStr(r, ['cd_conta_contabil', 'cd_conta', 'conta']),
       ds_conta: pickStr(r, ['ds_conta', 'descricao', 'nome_conta', 'nome', 'conta_descricao', 'ds_conta_contabil', 'ds_conta_descricao']),
       nivel: pickNum(r, ['nivel']) || nivelFallback,
-      centros_custo: ccRaw.map((x: any) => ({
-        cd_centro_custos: pickStr(x, ['cd_centro_custos', 'cd_centro_custo', 'centro_custo', 'cd_ccu', 'codigo', 'cod_ccu', 'cod']),
-        cd_centro_custos_3: pickStr(x, ['cd_centro_custos_3', 'cd_ccu_3', 'ccu_3', 'nivel_3', 'cd_centro_custo_3']),
-        qtd_lancamentos: pickNum(x, ['qtd_lancamentos', 'qtd', 'qtde', 'quantidade']),
-        valor_total: pickNum(x, ['valor_total', 'valor', 'total', 'vl_saldo', 'saldo']),
-      })),
+      centros_custo: ccRaw.map((x: any) => {
+        const cd = pickStr(x, ['cd_centro_custos', 'cd_centro_custo', 'centro_custo', 'cd_ccu', 'codigo', 'cod_ccu', 'cod']);
+        const cd3 = pickStr(x, ['cd_centro_custos_3', 'cd_ccu_3', 'ccu_3', 'nivel_3', 'cd_centro_custo_3']) || (cd ? cd.slice(0, 3) : '');
+        const valor = pickNum(x, ['valor_total', 'valor', 'total', 'vl_saldo', 'saldo']);
+        const realizado = pickNum(x, ['vl_realizado', 'valor_realizado', 'realizado']);
+        return {
+          cd_centro_custos: cd,
+          cd_centro_custos_3: cd3,
+          qtd_lancamentos: pickNum(x, ['qtd_lancamentos', 'qtd', 'qtde', 'quantidade']),
+          valor_total: valor || realizado || 0,
+          vl_realizado: realizado || valor || 0,
+          ds_centro_custos: pickStr(x, ['ds_centro_custos', 'ds_centro_custo', 'descricao', 'nome', 'ds_ccu']),
+        } as PlanoContaCentroCusto;
+      }),
       qtd_lancamentos: pickNum(r, ['qtd_lancamentos', 'qtde', 'qtd', 'quantidade', 'qtd_lanc']),
       valor_total: pickNum(r, ['valor_total', 'total', 'valor', 'vl_saldo', 'saldo']),
       ja_vinculada: !!(r.ja_vinculada ?? r.vinculada),
@@ -114,6 +141,10 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
 
   if (mapped.length) {
     console.log('[MONTADOR DRE] plano-contas mapped sample:', mapped[0]);
+    console.log('[MONTADOR DRE] mapped[0].centros_custo length:', mapped[0].centros_custo?.length ?? 0);
+    if (mapped[0].centros_custo?.length) {
+      console.log('[MONTADOR DRE] mapped[0].centros_custo[0]:', mapped[0].centros_custo[0]);
+    }
     const semNome = mapped.every((m) => !m.ds_conta);
     const semValor = mapped.every((m) => m.valor_total === 0);
     const semCcu = mapped.every((m) => !m.centros_custo || m.centros_custo.length === 0);
@@ -121,9 +152,9 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
     if (semValor) console.warn('[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens');
     if (semCcu) {
       console.warn(
-        '[MONTADOR DRE] backend NÃO retornou o array `centros_custo` em nenhum dos',
+        '[MONTADOR DRE] backend NÃO retornou `centros_custo` válido em nenhum dos',
         mapped.length,
-        'itens. Esperado: centros_custo: [{ cd_centro_custos, cd_centro_custos_3, qtd_lancamentos, valor_total }]. Aliases aceitos: ccu, centroscusto, centros, cc, centros_de_custo.',
+        'itens. Esperado: centros_custo: [{ cd_centro_custos, cd_centro_custos_3, qtd_lancamentos, valor_total }] (array ou string JSON).',
       );
       console.warn('[MONTADOR DRE] chaves do primeiro item bruto recebido:', arr[0] ? Object.keys(arr[0]) : '(payload vazio)');
       console.warn('[MONTADOR DRE] primeiro item bruto (debug):', arr[0]);
