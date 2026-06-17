@@ -264,6 +264,8 @@ Campos esperados por linha:
 
 ## Tratamento de erros / Diagnóstico (obrigatório)
 
+**Fazer isso primeiro.** Antes de qualquer outra alteração no endpoint, plugar o `traceback.print_exc()` + `detail=str(e)` e reproduzir o 502 — o stdout do uvicorn vai apontar exatamente onde quebra (nome de parâmetro errado, `Decimal` não serializável, coluna inexistente, permissão, etc.).
+
 Enquanto o 502 persistir, o handler **deve** logar o traceback completo e devolver a mensagem real da exceção no `detail`. **Proibido** mascarar com strings genéricas como `"Erro ao carregar DRE"`.
 
 ```python
