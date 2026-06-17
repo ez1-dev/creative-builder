@@ -284,6 +284,42 @@ export type Database = {
         }
         Relationships: []
       }
+      bi_dre_depara_conta_ccu: {
+        Row: {
+          ativo: boolean
+          cd_centro_custos: string
+          cd_conta_contabil: string
+          cd_mascara_dre: string
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cd_centro_custos: string
+          cd_conta_contabil: string
+          cd_mascara_dre: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cd_centro_custos?: string
+          cd_conta_contabil?: string
+          cd_mascara_dre?: string
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bi_dre_estrutura: {
         Row: {
           ativo: boolean

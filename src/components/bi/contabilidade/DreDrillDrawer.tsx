@@ -4,7 +4,7 @@ import {
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronRight, Flag, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Flag, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -19,6 +19,7 @@ import { formatCurrency } from '@/components/bi/utils/formatters';
 import { isLinhaCalculada, componentesDaLinha } from '@/lib/bi/dreReabrir';
 import { DreExcecaoModal } from './DreExcecaoModal';
 import { DreClassificarModal } from './DreClassificarModal';
+import { DreCriarRegraDeparaModal } from './DreCriarRegraDeparaModal';
 
 interface Level extends DreDrillParams {
   /** Cache do resultado para evitar refetch ao navegar pela pilha. */
@@ -60,6 +61,9 @@ export function DreDrillDrawer({
     open: false, row: null,
   });
   const [modalClass, setModalClass] = useState<{ open: boolean; row: DreDrillRow | null }>({
+    open: false, row: null,
+  });
+  const [modalRegra, setModalRegra] = useState<{ open: boolean; row: DreDrillRow | null }>({
     open: false, row: null,
   });
 
@@ -261,7 +265,7 @@ export function DreDrillDrawer({
                           {c.label}
                         </th>
                       ))}
-                      {current.tipo_drill === 'LANCAMENTO' && <th className="px-2 py-2 text-center w-44">Ações</th>}
+                      {current.tipo_drill === 'LANCAMENTO' && <th className="px-2 py-2 text-center w-64">Ações</th>}
                       {current.tipo_drill === 'REABRIR' && <th className="px-2 py-2 text-center w-10">Drill</th>}
                     </tr>
                   </thead>
@@ -305,6 +309,16 @@ export function DreDrillDrawer({
                               >
                                 <Sparkles className="h-3 w-3 mr-1" />
                                 Classificar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setModalRegra({ open: true, row })}
+                                title="Criar regra de classificação (conta + centro de custos)"
+                              >
+                                <Wand2 className="h-3 w-3 mr-1" />
+                                Criar regra
                               </Button>
                             </div>
                           </td>
@@ -397,6 +411,29 @@ export function DreDrillDrawer({
           }}
           onSaved={() => {
             toast.success('Classificação registrada. Recarregue a DRE para refletir o impacto.');
+            fetchAtual();
+          }}
+        />
+      )}
+
+      {modalRegra.open && modalRegra.row && (
+        <DreCriarRegraDeparaModal
+          open={modalRegra.open}
+          onOpenChange={(o) => setModalRegra((s) => ({ ...s, open: o }))}
+          lancamento={{
+            cd_conta_contabil: String(
+              modalRegra.row.cd_conta ?? (modalRegra.row as any).cd_conta_contabil ?? '',
+            ),
+            cd_centro_custos: String(
+              modalRegra.row.cd_cencus ?? (modalRegra.row as any).cd_centro_custos ?? '',
+            ),
+            cd_mascara_atual: (modalRegra.row as any).cd_mascara ?? null,
+            cd_mascara_sugerida: (modalRegra.row as any).cd_mascara_sugerida ?? null,
+            ds_historico: modalRegra.row.ds_historico ?? null,
+            vl_realizado: Number(modalRegra.row.vl_realizado) || 0,
+            linha_origem: current.codigo_linha,
+          }}
+          onSaved={() => {
             fetchAtual();
           }}
         />
