@@ -381,6 +381,18 @@ export default function DrePage() {
                   {loading ? 'Atualizando...' : 'Atualizar'}
                 </Button>
               </div>
+              <div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 w-full"
+                  onClick={exportarXlsx}
+                  disabled={loading || linhas.length === 0}
+                >
+                  <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />
+                  Exportar XLSX
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
