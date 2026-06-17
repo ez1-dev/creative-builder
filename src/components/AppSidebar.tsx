@@ -57,6 +57,7 @@ const biSubItems = [
   { title: 'DRE — Exceções', url: '/bi/contabilidade/dre/excecoes', icon: FileCheck },
   { title: 'DRE — Aprovações', url: '/bi/contabilidade/dre/aprovacoes', icon: FileCheck },
   { title: 'Parametrização DRE', url: '/bi/contabilidade/dre/parametrizacao', icon: FileCheck },
+  { title: 'Config. DRE Gerencial', url: '/bi/contabilidade/dre/configuracao', icon: Cog },
   { title: 'Sincronização De/Para DRE', url: '/bi/contabilidade/dre/sincronizacao-depara', icon: Database },
   
   { title: 'Biblioteca BI', url: '/biblioteca-bi', icon: Palette },
