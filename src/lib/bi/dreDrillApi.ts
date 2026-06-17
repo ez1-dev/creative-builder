@@ -1,19 +1,31 @@
 import { getApiUrl } from '@/lib/api';
 
-export type DreDrillTipo =
-  | 'REABRIR'
-  | 'CENTRO_CUSTO'
-  | 'CONTA'
-  | 'ORIGEM'
-  | 'TRANSACAO'
-  | 'HISTORICO'
-  | 'LANCAMENTO'
-  | 'UNIDADE';
+export const DRE_DRILL_TYPES = {
+  CENTRO_CUSTOS: 'CENTRO_CUSTOS',
+  CONTA_CONTABIL: 'CONTA_CONTABIL',
+  HISTORICO: 'HISTORICO',
+  LANCAMENTO: 'LANCAMENTO',
+  ORIGEM: 'ORIGEM',
+  TRANSACAO: 'TRANSACAO',
+  UNIDADE: 'UNIDADE',
+  REABRIR: 'REABRIR',
+} as const;
+
+export type DreDrillTipo = keyof typeof DRE_DRILL_TYPES;
+
+const DRE_DRILL_ALLOWED = Object.keys(DRE_DRILL_TYPES) as DreDrillTipo[];
+
+export function normalizeDreDrillType(value?: string | null): DreDrillTipo {
+  const normalized = String(value || 'CONTA_CONTABIL').trim().toUpperCase();
+  return (DRE_DRILL_ALLOWED as string[]).includes(normalized)
+    ? (normalized as DreDrillTipo)
+    : 'CONTA_CONTABIL';
+}
 
 export const DRE_DRILL_LABELS: Record<DreDrillTipo, string> = {
   REABRIR: 'Reabrir',
-  CENTRO_CUSTO: 'Centro de Custos',
-  CONTA: 'Conta Contábil',
+  CENTRO_CUSTOS: 'Centro de Custos',
+  CONTA_CONTABIL: 'Conta Contábil',
   ORIGEM: 'Origem do Lançamento',
   TRANSACAO: 'Transação',
   HISTORICO: 'Histórico',
