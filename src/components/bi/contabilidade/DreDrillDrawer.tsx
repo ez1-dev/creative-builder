@@ -156,10 +156,20 @@ export function DreDrillDrawer({
     return out;
   }, [current, descricoesLinha]);
 
+  const rows: DreDrillRow[] = useMemo(
+    () => (Array.isArray(data?.rows) ? data!.rows : []),
+    [data],
+  );
+  const columns = useMemo(
+    () => (Array.isArray(data?.columns) ? data!.columns : []),
+    [data],
+  );
+  const hasRows = rows.length > 0;
+
   const totalRodape = useMemo(() => {
     if (data?.total != null) return data.total;
-    return (data?.rows ?? []).reduce((s, r) => s + (Number(r.vl_realizado) || 0), 0);
-  }, [data]);
+    return rows.reduce((s, r) => s + (Number(r?.vl_realizado) || 0), 0);
+  }, [data, rows]);
 
   const drillEmComponente = (cod: string) => {
     const proximoTipo: DreDrillTipo = isLinhaCalculada(cod) ? 'REABRIR' : 'LANCAMENTO';
@@ -244,17 +254,17 @@ export function DreDrillDrawer({
                 {erro}
               </div>
             )}
-            {!loading && !erro && data && data.rows.length === 0 && (
+            {!loading && !erro && data && !hasRows && (
               <div className="text-center text-muted-foreground py-10 text-xs">
                 Sem registros para esta combinação.
               </div>
             )}
-            {!loading && !erro && data && data.rows.length > 0 && (
+            {!loading && !erro && data && hasRows && (
               <div className="overflow-x-auto rounded-md border bg-card">
                 <table className="w-full text-xs">
                   <thead className="bg-muted/40 text-muted-foreground sticky top-0">
                     <tr>
-                      {data.columns.map((c) => (
+                      {columns.map((c) => (
                         <th
                           key={c.key}
                           className={cn(
@@ -270,10 +280,10 @@ export function DreDrillDrawer({
                     </tr>
                   </thead>
                   <tbody>
-                    {data.rows.map((row, i) => (
+                    {rows.map((row, i) => (
                       <tr key={i} className="border-t hover:bg-accent/40">
-                        {data.columns.map((c) => {
-                          const v = row[c.key];
+                        {columns.map((c) => {
+                          const v = row?.[c.key];
                           const isCur = c.format === 'currency';
                           return (
                             <td
@@ -283,7 +293,7 @@ export function DreDrillDrawer({
                                 isCur && 'text-right',
                               )}
                             >
-                              {isCur ? fmtSigned(Number(v)) : (v ?? '-')}
+                              {isCur ? fmtSigned(Number(v ?? 0)) : (v ?? '-')}
                             </td>
                           );
                         })}
@@ -341,7 +351,7 @@ export function DreDrillDrawer({
                   </tbody>
                   <tfoot className="bg-muted/30 border-t">
                     <tr>
-                      <td colSpan={data.columns.length - 1} className="px-3 py-2 text-right font-semibold">
+                      <td colSpan={Math.max(1, columns.length - 1)} className="px-3 py-2 text-right font-semibold">
                         Total
                       </td>
                       <td className="px-3 py-2 text-right font-semibold tabular-nums">

@@ -103,5 +103,20 @@ export async function fetchDreDrill(params: DreDrillParams): Promise<DreDrillRes
     }
     throw new Error(detail);
   }
-  return (await resp.json()) as DreDrillResponse;
+  const raw = await resp.json().catch(() => ({}));
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<DreDrillResponse>;
+  return {
+    tipo_drill: (r.tipo_drill ?? params.tipo_drill) as DreDrillTipo,
+    codigo_linha: r.codigo_linha ?? params.codigo_linha,
+    periodo: r.periodo ?? {
+      ano: params.ano,
+      mes_ini: params.mes_ini,
+      mes_fim: params.mes_fim,
+      anomes_referente: params.anomes_referente ?? null,
+    },
+    unidade: r.unidade ?? null,
+    columns: Array.isArray(r.columns) ? r.columns : [],
+    rows: Array.isArray(r.rows) ? r.rows : [],
+    total: typeof r.total === 'number' ? r.total : 0,
+  };
 }
