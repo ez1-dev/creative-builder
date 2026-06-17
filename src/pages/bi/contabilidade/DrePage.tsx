@@ -175,6 +175,143 @@ export default function DrePage() {
     { key: 'total', label: 'TOTAL', isTotal: true },
   ];
 
+  const exportarXlsx = async () => {
+    if (!linhas.length) {
+      toast.info('Nada para exportar.');
+      return;
+    }
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'Sapiens Control Center';
+      wb.created = new Date();
+      const ws = wb.addWorksheet(`DRE ${ano}`, { views: [{ state: 'frozen', xSplit: 1, ySplit: 6 }] });
+
+      const FMT_MOEDA = '#,##0.00;[Red](#,##0.00);"-"';
+      const FMT_PCT = '0.0%;[Red](0.0%);"-"';
+      const FILL_HEADER = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFF1F5F9' } };
+      const FILL_TOTAL_LINHA = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFDBEAFE' } };
+      const FILL_TOTAL_COL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FFEFF6FF' } };
+      const FONT_TOTAL = { bold: true, color: { argb: 'FF1E3A8A' } };
+      const BORDER_THIN = { style: 'thin' as const, color: { argb: 'FFE2E8F0' } };
+      const ALL_BORDERS = { top: BORDER_THIN, left: BORDER_THIN, bottom: BORDER_THIN, right: BORDER_THIN };
+
+      const unidadeLabel = unidade === 'TODOS' ? 'Todas' : unidade;
+      const mesIniLabel = MESES.find((m) => m.numero === mesInicial)?.label ?? mesInicial;
+      const mesFimLabel = MESES.find((m) => m.numero === mesFinal)?.label ?? mesFinal;
+
+      // Cabeçalho relatório
+      ws.mergeCells(1, 1, 1, 1 + colunas.length * 3);
+      ws.getCell(1, 1).value = 'Sapiens Control Center';
+      ws.getCell(1, 1).font = { bold: true, size: 14, color: { argb: 'FF1E3A8A' } };
+
+      ws.mergeCells(2, 1, 2, 1 + colunas.length * 3);
+      ws.getCell(2, 1).value = `Demonstração do Resultado — ${ano}`;
+      ws.getCell(2, 1).font = { bold: true, size: 12 };
+
+      ws.mergeCells(3, 1, 3, 1 + colunas.length * 3);
+      ws.getCell(3, 1).value = `Unidade: ${unidadeLabel}   |   Período: ${mesIniLabel} a ${mesFimLabel}   |   Gerado em ${new Date().toLocaleString('pt-BR')}`;
+      ws.getCell(3, 1).font = { italic: true, color: { argb: 'FF64748B' } };
+
+      // Linha 5: cabeçalho de meses (merge 3 colunas cada)
+      const rowMes = ws.getRow(5);
+      const rowSub = ws.getRow(6);
+      rowMes.getCell(1).value = 'Máscara';
+      ws.mergeCells(5, 1, 6, 1);
+      colunas.forEach((m, idx) => {
+        const c0 = 2 + idx * 3;
+        ws.mergeCells(5, c0, 5, c0 + 2);
+        const cell = ws.getCell(5, c0);
+        cell.value = m.label;
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.font = { bold: true };
+        cell.fill = m.isTotal ? FILL_TOTAL_COL : FILL_HEADER;
+        cell.border = ALL_BORDERS;
+        ['Realizado', 'A.V.', 'Orçado'].forEach((lbl, j) => {
+          const sc = rowSub.getCell(c0 + j);
+          sc.value = lbl;
+          sc.alignment = { horizontal: 'right' };
+          sc.font = { bold: true };
+          sc.fill = m.isTotal ? FILL_TOTAL_COL : FILL_HEADER;
+          sc.border = ALL_BORDERS;
+        });
+      });
+      rowMes.getCell(1).alignment = { horizontal: 'left', vertical: 'middle' };
+      rowMes.getCell(1).font = { bold: true };
+      rowMes.getCell(1).fill = FILL_HEADER;
+      rowMes.getCell(1).border = ALL_BORDERS;
+
+      // Dados
+      linhas.forEach((l, i) => {
+        const rowIdx = 7 + i;
+        const row = ws.getRow(rowIdx);
+        const total = isTotalizadora(l);
+        row.getCell(1).value = l.descricao ?? '';
+        row.getCell(1).border = ALL_BORDERS;
+        if (total) {
+          row.getCell(1).font = FONT_TOTAL;
+          row.getCell(1).fill = FILL_TOTAL_LINHA;
+        }
+        colunas.forEach((m, idx) => {
+          const c0 = 2 + idx * 3;
+          const r = m.isTotal ? l.total_realizado : l[`${m.key}_realizado`];
+          const av = m.isTotal ? l.total_av : l[`${m.key}_av`];
+          const o = m.isTotal ? l.total_orcado : l[`${m.key}_orcado`];
+
+          const cR = row.getCell(c0);
+          const cA = row.getCell(c0 + 1);
+          const cO = row.getCell(c0 + 2);
+
+          cR.value = r == null || r === '' ? null : Number(r);
+          cR.numFmt = FMT_MOEDA;
+          cA.value = av == null || av === '' ? null : Number(av) / 100;
+          cA.numFmt = FMT_PCT;
+          cO.value = o == null || o === '' ? null : Number(o);
+          cO.numFmt = FMT_MOEDA;
+
+          [cR, cA, cO].forEach((c) => {
+            c.alignment = { horizontal: 'right' };
+            c.border = ALL_BORDERS;
+            if (total) {
+              c.font = FONT_TOTAL;
+              c.fill = FILL_TOTAL_LINHA;
+            } else if (m.isTotal) {
+              c.fill = FILL_TOTAL_COL;
+              if (total === false) c.font = { bold: true };
+            }
+          });
+        });
+      });
+
+      // Larguras
+      ws.getColumn(1).width = 42;
+      for (let i = 0; i < colunas.length * 3; i++) {
+        ws.getColumn(2 + i).width = 14;
+      }
+
+      // Auto-filter na linha 6
+      ws.autoFilter = {
+        from: { row: 6, column: 1 },
+        to: { row: 6 + linhas.length, column: 1 + colunas.length * 3 },
+      };
+
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dre_${ano}_${unidade}_${mesInicial}-${mesFinal}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('XLSX gerado.');
+    } catch (e: any) {
+      console.error('[DRE] export xlsx', e);
+      toast.error(e?.message || 'Falha ao gerar XLSX');
+    }
+  };
+
   return (
     <PageDataProvider
       pageKey="contabilidade-dre"
