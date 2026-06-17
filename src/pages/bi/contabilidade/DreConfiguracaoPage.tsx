@@ -10,6 +10,7 @@ import type { DreLinhaConfig, DreModelo } from '@/lib/bi/dreConfigTypes';
 import { EstruturaTreeTab } from '@/components/bi/contabilidade/configuracao/EstruturaTreeTab';
 import { RegrasLinhaTab } from '@/components/bi/contabilidade/configuracao/RegrasLinhaTab';
 import { ContasErpTab } from '@/components/bi/contabilidade/configuracao/ContasErpTab';
+import { PlanoContasTab } from '@/components/bi/contabilidade/configuracao/PlanoContasTab';
 import { SimulacaoTab } from '@/components/bi/contabilidade/configuracao/SimulacaoTab';
 
 export default function DreConfiguracaoPage() {
@@ -90,8 +91,9 @@ export default function DreConfiguracaoPage() {
               <TabsList>
                 <TabsTrigger value="estrutura">1. Estrutura da DRE</TabsTrigger>
                 <TabsTrigger value="regras">2. Regras da Linha {codigoSelecionado && <span className="ml-1 text-muted-foreground">({codigoSelecionado})</span>}</TabsTrigger>
-                <TabsTrigger value="contas">3. Contas do ERP</TabsTrigger>
-                <TabsTrigger value="simulacao">4. Simulação</TabsTrigger>
+                <TabsTrigger value="plano">3. Plano de Contas</TabsTrigger>
+                <TabsTrigger value="contas">4. Contas do ERP</TabsTrigger>
+                <TabsTrigger value="simulacao">5. Simulação</TabsTrigger>
               </TabsList>
               <TabsContent value="estrutura" className="mt-3">
                 <EstruturaTreeTab
@@ -104,6 +106,9 @@ export default function DreConfiguracaoPage() {
               </TabsContent>
               <TabsContent value="regras" className="mt-3">
                 <RegrasLinhaTab modeloId={modelo.id} codigoLinha={codigoSelecionado} />
+              </TabsContent>
+              <TabsContent value="plano" className="mt-3">
+                <PlanoContasTab modeloId={modelo.id} codigoLinhaSelecionada={codigoSelecionado} onAposVincular={() => setTab('regras')} />
               </TabsContent>
               <TabsContent value="contas" className="mt-3">
                 <ContasErpTab modeloId={modelo.id} codigoLinhaSelecionada={codigoSelecionado} onAposVincular={() => setTab('regras')} />

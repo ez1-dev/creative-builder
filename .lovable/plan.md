@@ -1,63 +1,145 @@
+# DRE Dinâmica Gerencial
 
-## Objetivo
-Criar o módulo **Configuração da DRE Gerencial** em `/bi/contabilidade/dre/configuracao`, com 4 abas, fluxo rascunho → simulação → publicação, e auditoria. Todas as gravações de configuração ficam no Lovable Cloud; consultas ao ERP (plano de contas) e simulação contínuam via FastAPI.
+Nova página que consome o endpoint `GET /api/bi/contabilidade/dre-dinamica` e reusa a infraestrutura de configuração já criada (tabelas `bi_dre_modelos`, `bi_dre_estrutura_v2`, `bi_dre_linha_regra`).
 
-## Escopo
-- Frontend: nova página, navegação, hooks, libs e tipos.
-- Backend Cloud: tabelas novas para versionamento (rascunho/publicado) + auditoria.
-- Backend FastAPI: 2 endpoints novos (plano de contas + simulação). Documentar em `docs/` para o time de backend implementar.
+## Observação sobre nomes de tabela
 
-## Estrutura técnica
+O pedido cita `bi_dre_modelo` e `bi_dre_linha` (singular). No Cloud já existem, com o mesmo papel:
+- `bi_dre_modelos` (modelos/versões)
+- `bi_dre_estrutura_v2` (linhas da DRE com todas as flags pedidas: `tipo_linha`, `formula`, `flag_inverte_sinal`, `flag_exibe_dre`, `flag_permite_drill`, `flag_negrito`, `flag_totalizadora`, `ativo`)
+- `bi_dre_linha_regra` (regras — já no nome certo)
 
-### 1) Tabelas no Lovable Cloud (migração)
-- `bi_dre_modelos` — versionamento do modelo (`id`, `nome`, `status: rascunho|publicado|arquivado`, `versao`, `publicado_em`, `publicado_por`, `descricao`).
-- `bi_dre_estrutura_v2` — substitui/estende `bi_dre_estrutura` por linha:
-  `modelo_id`, `ordem`, `codigo_linha` (UNIQUE no modelo), `descricao`, `nivel`, `linha_pai_codigo`, `tipo_linha (TITULO|ANALITICA|AGRUPADORA|TOTAL|CALCULO)`, `formula`, `ativo`, e flags: `flag_soma`, `flag_inverte_sinal`, `flag_exibe_dre`, `flag_permite_drill`, `flag_negrito`, `flag_totalizadora`.
-- `bi_dre_linha_regra` — `modelo_id`, `codigo_linha`, `tipo_regra (CONTA_CONTABIL|MASCARA_CONTA|CENTRO_CUSTOS|CENTRO_CUSTOS_3|ORIGEM|TRANSACAO|HISTORICO|COMBINACAO|EXCECAO_LANCAMENTO)`, `operador (=|LIKE|IN|<>)`, `valor`, `cd_empresa`, `cd_filial`, `cd_conta_contabil`, `cd_mascara`, `cd_centro_custos`, `cd_centro_custos_3`, `cd_origem_lcto`, `cd_tns`, `ds_historico`, `sinal smallint`, `prioridade int`, `ativo`.
-- `bi_dre_auditoria` — `entidade`, `entidade_id`, `acao (CRIAR|EDITAR|INATIVAR|DUPLICAR|PUBLICAR|REORDENAR|VINCULAR)`, `payload_antes jsonb`, `payload_depois jsonb`, `usuario_id`, `created_at`.
-- RLS: leitura `authenticated`; escrita restrita por `is_admin(auth.uid())` OR `can_edit('/bi/contabilidade/dre/configuracao')`. GRANTs para `authenticated` e `service_role`.
-- A migração mantém `bi_dre_estrutura` antiga como compatibilidade (usada em outras telas) — não removida nesta entrega.
+O plano usa as tabelas existentes (sem criar duplicatas). O backend FastAPI deve usar as mesmas tabelas ao montar `/dre-dinamica`.
 
-### 2) Endpoints FastAPI (novos — documentar em `docs/`)
-- `GET /api/erp/plano-contas` — params: `busca`, `pagina`, `tamanho`. Retorna `cd_conta`, `cd_reduzido`, `mascara`, `ds_conta`, `analitica`, `nivel`. Para a aba "Contas do ERP".
-- `POST /api/bi/contabilidade/dre/simular` — body: `{ modelo_id, ano, mes_ini, mes_fim, unidade }`. Aplica regras do **rascunho** sem afetar o publicado. Retorna por linha: `codigo_linha`, `realizado`, `orcado`, `diferenca`, `pct`, `qtd_lancamentos`. Reaproveita drill existente `GET /api/bi/contabilidade/dre-drill` passando `modelo_id` opcional (default = publicado).
-- `POST /api/bi/contabilidade/dre/publicar` — promove rascunho → publicado (versão N+1) e dispara `NOTIFY pgrst, 'reload schema'`. Idempotente.
+## 1. Frontend — Página de visualização
 
-### 3) Frontend
+Arquivo novo: `src/pages/bi/contabilidade/DreDinamicaPage.tsx`
+Rota: `/bi/contabilidade/dre-dinamica` (adicionar em `App.tsx`, `AppSidebar.tsx` e `screenCatalog.ts`).
 
-Arquivos novos:
-- `src/pages/bi/contabilidade/DreConfiguracaoPage.tsx` — shell com `DashboardTabs` (4 abas).
-- `src/components/bi/contabilidade/configuracao/`
-  - `EstruturaTreeTab.tsx` — TreeView com drag-drop de ordem, modal Add/Edit linha (codigo_linha técnico obrigatório, validação de unicidade), botões Duplicar/Inativar.
-  - `RegrasLinhaTab.tsx` — drawer/painel lateral; tabela `DataTableBI` das regras da linha selecionada; CRUD por regra; combos para tipo_regra/operador.
-  - `ContasErpTab.tsx` — busca paginada do plano de contas, multi-seleção, botão "Vincular à linha selecionada" (cria N registros `bi_dre_linha_regra`).
-  - `SimulacaoTab.tsx` — filtros (período, modelo=rascunho, unidade), tabela com KPIs por linha, drill reaproveita `DreDrillDrawer` existente, botão **Publicar modelo** (habilita só depois da simulação rodar nesta sessão).
-- `src/lib/bi/dreConfigApi.ts` — funções: `listModelos`, `getModeloAtivo`, `criarRascunho`, `listLinhas`, `upsertLinha`, `reordenarLinhas`, `duplicarLinha`, `listRegras(codigoLinha)`, `upsertRegra`, `deleteRegra`, `vincularContasComoRegras(linhaCodigo, contas[], tipo)`, `buscarPlanoContas(query)`, `simular(payload)`, `publicarModelo(modeloId)`, `listAuditoria(entidade,id)`.
-- `src/hooks/useDreConfig.ts` — estado do modelo rascunho corrente + cache de linhas/regras.
-- `src/lib/bi/dreConfigTypes.ts` — enums e DTOs.
+Filtros no topo:
+- Ano (select, default ano corrente)
+- Mês inicial (1–12)
+- Mês final (1–12, default = mês corrente)
+- Modelo da DRE (carregado de `bi_dre_modelos` via Supabase; default = publicado mais recente; opção "Padrão (sem modelo)" envia sem `modelo_id`)
+- Botão **Recalcular DRE** (refetch sem reload)
 
-Atualizações:
-- `src/components/AppSidebar.tsx`: adicionar item "Config. DRE Gerencial" → `/bi/contabilidade/dre/configuracao` no grupo BI.
-- `src/App.tsx`: rota nova protegida.
-- `src/lib/screenCatalog.ts`: registrar tela para permissões.
+Montagem dos params:
+```
+anomes_ini = `${ano}${mes_ini.padStart(2,'0')}`
+anomes_fim = `${ano}${mes_fim.padStart(2,'0')}`
+```
+Validação: `mes_fim >= mes_ini`. Nunca enviar descrição visual; só códigos técnicos.
 
-### 4) Regras invariantes (obrigatórias)
-- `codigo_linha` técnico em TODA chamada (criação, vinculação, simulação, drill). Nunca enviar `descricao`/label.
-- Validar no submit: `codigo_linha` obrigatório, sem espaços, UPPER_SNAKE; falha → toast com motivo.
-- Toda mutação cria registro em `bi_dre_auditoria` (usuário, antes/depois).
-- "Publicar modelo" só fica habilitado se houver simulação bem-sucedida na sessão atual; após publicar, modelo vira `publicado`, novo rascunho clonado.
-- Logs `console.log('[DRE CONFIG] ...')` antes de cada chamada para diagnóstico.
+Logs obrigatórios antes do fetch:
+```
+console.log("[DRE DINAMICA] filtros:", filtros);
+console.log("[DRE DINAMICA] url:", url);
+console.log("[DRE DINAMICA] retorno:", data);
+```
+
+Tabela de exibição:
+- Colunas: Descrição, Tipo, Realizado
+- Ordenação por `ordem`
+- Indentação à esquerda = `(nivel - 1) * 16px`
+- Negrito quando `tipo_linha ∈ {CALCULO, TOTAL}` ou `flag_negrito = true` (se vier no retorno)
+- Valores formatados em BRL (`Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' })`); negativos com sinal `-`
+- Drill: ícone na linha quando `flag_permite_drill !== false`, reusando `DreDrillDrawer` existente
+
+Diagnóstico:
+- `dados.length === 0` → alerta amarelo:
+  "Nenhuma linha retornada. Verifique se existe modelo ativo, linhas ativas e regras cadastradas."
+- `realizado === 0` → exibe normalmente (R$ 0,00); não tratar como erro
+
+## 2. Cliente API
+
+Arquivo novo: `src/lib/bi/dreDinamicaApi.ts`
+```ts
+export interface DreDinamicaLinha {
+  modelo_id: string | null;
+  codigo_linha: string;
+  descricao: string;
+  ordem: number;
+  nivel: number;
+  tipo_linha: "TITULO"|"ANALITICA"|"AGRUPADORA"|"TOTAL"|"CALCULO";
+  formula: string | null;
+  realizado: number;
+  flag_negrito?: boolean;
+  flag_permite_drill?: boolean;
+}
+export interface DreDinamicaResponse {
+  anomes_ini: string; anomes_fim: string;
+  modelo_id: string | null; dados: DreDinamicaLinha[];
+}
+export async function fetchDreDinamica(p: {
+  anomes_ini: string; anomes_fim: string; modelo_id?: string | null;
+}): Promise<DreDinamicaResponse>
+```
+- Usa `apiFetch` padrão do projeto (FastAPI via ngrok, header `ngrok-skip-browser-warning: true`, Bearer token).
+- Inclui os três `console.log` exigidos.
+
+## 3. Configuração da DRE (4 abas)
+
+Reaproveitar `DreConfiguracaoPage.tsx` já existente e estender. Cada aba é arquivo separado em `src/components/bi/contabilidade/configuracao/`.
+
+### Aba Modelos (nova: `ModelosTab.tsx`)
+- Lista `bi_dre_modelos` (versao, status, descrição, publicado_em)
+- Criar rascunho, duplicar de publicado, marcar como publicado, arquivar
+- Audit em `bi_dre_auditoria`
+
+### Aba Linhas (`EstruturaTreeTab.tsx` já existe — ajustar)
+- Listar `bi_dre_estrutura_v2` do modelo selecionado, ordenado por `ordem`
+- Campos editáveis: codigo_linha, descricao, ordem, nivel, tipo_linha, formula, ativo, flag_inverte_sinal, flag_exibe_dre, flag_permite_drill, flag_negrito, flag_totalizadora
+- Criar / editar / inativar (`ativo = false`). **Nunca DELETE físico.**
+- Validação: `codigo_linha` em `UPPER_SNAKE`, único por modelo
+
+### Aba Regras (`RegrasLinhaTab.tsx` já existe — ajustar)
+- Selecionar uma linha → lista regras de `bi_dre_linha_regra`
+- Campos do formulário: tipo_regra, operador, cd_mascara, cd_conta_contabil, cd_centro_custos, cd_centro_custos_3, cd_origem_lcto, cd_tns, ds_historico, sinal (1/-1), prioridade, ativo
+- Tipos: `MASCARA_CONTA | CONTA_CONTABIL | CENTRO_CUSTOS | CENTRO_CUSTOS_3 | ORIGEM | TRANSACAO | HISTORICO`
+- Operadores: `COMECA_COM | IGUAL | CONTEM`
+- UI mostra apenas o campo "principal" relevante por `tipo_regra` (máscara→cd_mascara, conta→cd_conta_contabil, transação→cd_tns, histórico→ds_historico) + campos opcionais como avançado
+
+### Aba Plano de Contas (nova: `PlanoContasTab.tsx` — substitui mock do `ContasErpTab`)
+- Query agregada em `bi_vm_lanc_contabil`:
+  ```sql
+  select cd_mascara, cd_mascara_1, cd_mascara_2, cd_mascara_3, cd_mascara_4,
+         cd_conta_contabil, count(*) qtde, sum(coalesce(vl_saldo, vl_credito - vl_debito)) total
+  from bi_vm_lanc_contabil
+  group by 1,2,3,4,5,6
+  ```
+  Exposta via Supabase RPC `get_plano_contas_dre()` (security definer, GRANT to authenticated) — incluída na migration.
+- Tabela com multi-seleção
+- Filtro por nível de máscara
+- Botão **Vincular à linha selecionada** (precisa de linha ativa na aba Linhas):
+  - Para cada item selecionado:
+    - se máscara → tipo_regra=`MASCARA_CONTA`, operador=`COMECA_COM`, cd_mascara preenchido
+    - se conta contábil → tipo_regra=`CONTA_CONTABIL`, operador=`IGUAL`, cd_conta_contabil preenchido
+  - Escolha de `sinal` (1/-1) num radio no rodapé
+  - `ativo = true`, `prioridade` auto-incrementada
+  - Audit em `bi_dre_auditoria`
+
+## 4. Migration (mínima)
+
+```sql
+create or replace function public.get_plano_contas_dre()
+returns table(cd_mascara text, cd_mascara_1 text, cd_mascara_2 text,
+              cd_mascara_3 text, cd_mascara_4 text, cd_conta_contabil text,
+              qtde bigint, total numeric)
+language sql stable security definer set search_path = public as $$
+  select ... from bi_vm_lanc_contabil group by ...
+$$;
+grant execute on function public.get_plano_contas_dre() to authenticated;
+```
+
+## 5. Documentação backend
+
+`docs/backend-bi-contabilidade-dre-dinamica.md` — contrato do endpoint, exemplo de request/response, regras de avaliação (sinal, agregação por modelo, fórmulas, indentação, ordem).
 
 ## Fora de escopo
-- Migrar telas existentes de DRE (matriz, exceções, aprovações, sincronização) para o novo modelo versionado — entrega futura.
-- Edição visual de fórmulas (parser); manter `formula` como texto livre por enquanto.
-- Internacionalização / temas.
+- Drill-down novo (reusa `DreDrillDrawer` atual)
+- Parser de fórmulas server-side (responsabilidade do FastAPI)
+- Renomear tabelas para o nome singular pedido
 
-## Validação
-- Criar rascunho, adicionar linha `RECEITA_BRUTA` (ANALITICA), vincular máscara `3.1.%` → simular ano corrente → publicar → matriz `/bi/contabilidade/dre` reflete o novo modelo.
-- Tentar salvar linha com `descricao` como código → bloqueado por validação.
-- Auditoria mostra entradas CRIAR/VINCULAR/PUBLICAR.
-
-## Pendências para o usuário confirmar antes de implementar
-1. Confirmar que o backend FastAPI vai expor `plano-contas`, `simular` e `publicar`, ou se devo deixar mocks no front até estarem prontos.
-2. Confirmar se posso criar as novas tabelas no Cloud sem migrar a `bi_dre_estrutura` atual (compatibilidade lado-a-lado).
+## Confirmações pedidas
+1. OK usar `bi_dre_modelos` / `bi_dre_estrutura_v2` (existentes) em vez de criar `bi_dre_modelo` / `bi_dre_linha` no singular?
+2. O endpoint `/api/bi/contabilidade/dre-dinamica` já existe no FastAPI ou devo deixar a tela funcionando mesmo que o backend ainda retorne 404 (com mensagem de diagnóstico)?

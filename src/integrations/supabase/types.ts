@@ -3939,6 +3939,15 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_plano_contas_dre: {
+        Args: never
+        Returns: {
+          cd_conta_contabil: string
+          cd_mascara: string
+          qtde: number
+          total: number
+        }[]
+      }
       get_programacao_gargalos: {
         Args: {
           p_codcre?: string
