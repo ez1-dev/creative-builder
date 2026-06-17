@@ -156,10 +156,20 @@ export function DreDrillDrawer({
     return out;
   }, [current, descricoesLinha]);
 
+  const rows: DreDrillRow[] = useMemo(
+    () => (Array.isArray(data?.rows) ? data!.rows : []),
+    [data],
+  );
+  const columns = useMemo(
+    () => (Array.isArray(data?.columns) ? data!.columns : []),
+    [data],
+  );
+  const hasRows = rows.length > 0;
+
   const totalRodape = useMemo(() => {
     if (data?.total != null) return data.total;
-    return (data?.rows ?? []).reduce((s, r) => s + (Number(r.vl_realizado) || 0), 0);
-  }, [data]);
+    return rows.reduce((s, r) => s + (Number(r?.vl_realizado) || 0), 0);
+  }, [data, rows]);
 
   const drillEmComponente = (cod: string) => {
     const proximoTipo: DreDrillTipo = isLinhaCalculada(cod) ? 'REABRIR' : 'LANCAMENTO';
