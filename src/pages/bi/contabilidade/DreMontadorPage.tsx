@@ -294,6 +294,7 @@ export default function DreMontadorPage() {
                   <thead className="sticky top-0 bg-background border-b">
                     <tr className="text-left">
                       <th className="py-2 px-2 w-12">Ord.</th>
+                      <th className="py-2 px-2 w-14">Nív.</th>
                       <th className="py-2 px-2">Descrição</th>
                       <th className="py-2 px-2 w-24">Tipo</th>
                       <th className="py-2 px-2 w-32 text-right">Realizado</th>
@@ -315,6 +316,9 @@ export default function DreMontadorPage() {
                         >
                           <td className="py-1.5 px-2 text-xs text-muted-foreground">{l.ordem}</td>
                           <td className="py-1.5 px-2">
+                            <Badge variant="outline" className="text-[10px]">N{l.nivel ?? 1}</Badge>
+                          </td>
+                          <td className="py-1.5 px-2">
                             <div style={{ paddingLeft: indent }} className="flex items-center gap-2">
                               <span>{l.descricao}</span>
                               <span className="text-[10px] text-muted-foreground font-mono">{l.codigo_linha}</span>
@@ -330,7 +334,7 @@ export default function DreMontadorPage() {
                       );
                     })}
                     {!loadingLinhas && linhas.length === 0 && (
-                      <tr><td colSpan={4} className="py-8 text-center text-muted-foreground text-sm">
+                      <tr><td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
                         Nenhuma linha. Verifique modelo e período.
                       </td></tr>
                     )}
