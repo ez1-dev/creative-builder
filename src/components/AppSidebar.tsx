@@ -54,6 +54,7 @@ const biSubItems = [
   { title: 'Relatório Executivo', url: '/bi/faturamento/relatorio-executivo', icon: FileCheck },
   { title: 'Validação BI Faturamento', url: '/bi/faturamento-validacao', icon: FileCheck },
   { title: 'Contabilidade — DRE', url: '/bi/contabilidade/dre', icon: BarChart3 },
+  { title: 'DRE Dinâmica Gerencial', url: '/bi/contabilidade/dre-dinamica', icon: BarChart3 },
   { title: 'DRE — Exceções', url: '/bi/contabilidade/dre/excecoes', icon: FileCheck },
   { title: 'DRE — Aprovações', url: '/bi/contabilidade/dre/aprovacoes', icon: FileCheck },
   { title: 'Parametrização DRE', url: '/bi/contabilidade/dre/parametrizacao', icon: FileCheck },

@@ -22,6 +22,7 @@ const EXACT: Record<string, ScreenInfo> = {
   '/contabilidade/balanco':     { codigo: 'CONT_BAL',     nome: 'Contabilidade — Balanço Patrimonial' },
   '/bi/contabilidade/dre':      { codigo: 'CONT_DRE',     nome: 'Contabilidade — DRE' },
   '/bi/contabilidade/dre/configuracao': { codigo: 'CONT_DRE_CFG', nome: 'Configuração da DRE Gerencial' },
+  '/bi/contabilidade/dre-dinamica': { codigo: 'CONT_DRE_DIN', nome: 'DRE Dinâmica Gerencial' },
   
   '/producao/impressao-op':     { codigo: 'PROD_IMP_OP',  nome: 'Impressão de Ordem de Produção' },
   '/producao/carga':            { codigo: 'PROD_CARGA',   nome: 'Carga de Produção' },
