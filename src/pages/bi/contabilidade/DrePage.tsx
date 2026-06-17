@@ -605,8 +605,8 @@ export default function DrePage() {
                             ...(podeReabrir
                               ? [{ tipo: 'REABRIR' as DreDrillTipo, label: DRE_DRILL_LABELS.REABRIR }]
                               : []),
-                            { tipo: 'CENTRO_CUSTO', label: DRE_DRILL_LABELS.CENTRO_CUSTO },
-                            { tipo: 'CONTA', label: DRE_DRILL_LABELS.CONTA },
+                            { tipo: 'CENTRO_CUSTOS', label: DRE_DRILL_LABELS.CENTRO_CUSTOS },
+                            { tipo: 'CONTA_CONTABIL', label: DRE_DRILL_LABELS.CONTA_CONTABIL },
                             { tipo: 'ORIGEM', label: DRE_DRILL_LABELS.ORIGEM },
                             { tipo: 'TRANSACAO', label: DRE_DRILL_LABELS.TRANSACAO },
                             { tipo: 'HISTORICO', label: DRE_DRILL_LABELS.HISTORICO },
