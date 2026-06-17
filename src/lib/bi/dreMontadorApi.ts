@@ -70,27 +70,47 @@ export async function fetchPlanoContasDinamica(p: PlanoContasParams): Promise<Pl
   }
   const data = await resp.json().catch(() => []);
   const arr = Array.isArray(data) ? data : Array.isArray((data as any)?.dados) ? (data as any).dados : [];
-  return arr.map((r: any) => {
-    const cd_mascara: string = r.cd_mascara ?? '';
+  if (arr.length) console.log('[MONTADOR DRE] plano-contas raw sample:', arr[0]);
+
+  const pickStr = (o: any, keys: string[]): string => {
+    for (const k of keys) { const v = o?.[k]; if (v !== undefined && v !== null && String(v) !== '') return String(v); }
+    return '';
+  };
+  const pickNum = (o: any, keys: string[]): number => {
+    for (const k of keys) { const v = o?.[k]; if (v !== undefined && v !== null && v !== '') { const n = Number(v); if (!Number.isNaN(n)) return n; } }
+    return 0;
+  };
+
+  const mapped = arr.map((r: any) => {
+    const cd_mascara: string = pickStr(r, ['cd_mascara', 'mascara']);
     const nivelFallback = cd_mascara ? cd_mascara.split('.').filter(Boolean).length : 0;
-    const cc = Array.isArray(r.centros_custo) ? r.centros_custo : [];
+    const cc = Array.isArray(r.centros_custo) ? r.centros_custo : Array.isArray(r.ccu) ? r.ccu : [];
     return {
       cd_mascara,
-      cd_conta_contabil: r.cd_conta_contabil ?? '',
-      ds_conta: r.ds_conta ?? r.descricao ?? r.nome_conta ?? '',
-      nivel: Number(r.nivel ?? nivelFallback),
+      cd_conta_contabil: pickStr(r, ['cd_conta_contabil', 'cd_conta', 'conta']),
+      ds_conta: pickStr(r, ['ds_conta', 'descricao', 'nome_conta', 'nome', 'conta_descricao', 'ds_conta_contabil', 'ds_conta_descricao']),
+      nivel: pickNum(r, ['nivel']) || nivelFallback,
       centros_custo: cc.map((x: any) => ({
-        cd_centro_custo: x.cd_centro_custo ?? x.centro_custo ?? '',
-        ds_centro_custo: x.ds_centro_custo ?? x.descricao ?? undefined,
-        qtd: Number(x.qtd ?? x.qtd_lancamentos ?? 0),
-        valor: Number(x.valor ?? x.valor_total ?? 0),
+        cd_centro_custo: pickStr(x, ['cd_centro_custo', 'centro_custo', 'cd_ccu']),
+        ds_centro_custo: pickStr(x, ['ds_centro_custo', 'descricao', 'nome', 'ds_ccu']) || undefined,
+        qtd: pickNum(x, ['qtd', 'qtde', 'qtd_lancamentos', 'quantidade']),
+        valor: pickNum(x, ['valor', 'valor_total', 'total', 'vl_saldo', 'saldo']),
       })),
-      qtd_lancamentos: Number(r.qtd_lancamentos ?? 0),
-      valor_total: Number(r.valor_total ?? 0),
-      ja_vinculada: !!r.ja_vinculada,
+      qtd_lancamentos: pickNum(r, ['qtd_lancamentos', 'qtde', 'qtd', 'quantidade', 'qtd_lanc']),
+      valor_total: pickNum(r, ['valor_total', 'total', 'valor', 'vl_saldo', 'saldo']),
+      ja_vinculada: !!(r.ja_vinculada ?? r.vinculada),
       linhas_vinculadas: Array.isArray(r.linhas_vinculadas) ? r.linhas_vinculadas : [],
-    };
-  }) as PlanoContaErp[];
+    } as PlanoContaErp;
+  });
+
+  if (mapped.length) {
+    console.log('[MONTADOR DRE] plano-contas mapped sample:', mapped[0]);
+    const semNome = mapped.every((m) => !m.ds_conta);
+    const semValor = mapped.every((m) => m.valor_total === 0);
+    if (semNome) console.warn('[MONTADOR DRE] backend não retornou ds_conta em nenhum item');
+    if (semValor) console.warn('[MONTADOR DRE] backend retornou valor_total = 0 em todos os itens');
+  }
+  return mapped;
 }
 
 export async function vincularContasDinamica(payload: VincularContasPayload): Promise<{ vinculadas: number }> {
