@@ -6,6 +6,8 @@ export interface PlanoContaCentroCusto {
   cd_centro_custos_3: string;
   qtd_lancamentos: number;
   valor_total: number;
+  vl_realizado?: number;
+  ds_centro_custos?: string;
 }
 
 export interface PlanoContaErp {
