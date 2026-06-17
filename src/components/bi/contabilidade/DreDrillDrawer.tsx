@@ -4,7 +4,7 @@ import {
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ChevronRight, Flag, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Flag, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -19,6 +19,7 @@ import { formatCurrency } from '@/components/bi/utils/formatters';
 import { isLinhaCalculada, componentesDaLinha } from '@/lib/bi/dreReabrir';
 import { DreExcecaoModal } from './DreExcecaoModal';
 import { DreClassificarModal } from './DreClassificarModal';
+import { DreCriarRegraDeparaModal } from './DreCriarRegraDeparaModal';
 
 interface Level extends DreDrillParams {
   /** Cache do resultado para evitar refetch ao navegar pela pilha. */
