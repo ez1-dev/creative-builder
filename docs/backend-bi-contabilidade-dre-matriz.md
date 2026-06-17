@@ -22,21 +22,29 @@ Headers:
 | `ano`     | string | sim    | Ex.: `2026`.                                                                                |
 | `unidade` | string | não    | Vazio / ausente / `TODOS` / `TODAS` / `ALL` (case-insensitive) → tratar como `NULL`.       |
 
-## Fontes de dados (somente `public.*`)
+## Fontes de dados (somente `public.*` no Postgres do FastAPI)
 
 | Tabela                       | Papel                                                                  |
 |------------------------------|------------------------------------------------------------------------|
-| `public.bi_vm_lanc_contabil` | Lançamentos contábeis (realizado).                                     |
-| `public.bi_dre_mascara`      | Mapeia `cd_conta → mascara` (apenas para resolver `mascara` e como fallback). |
+| `public.bi_vm_lanc_contabil` | Lançamentos contábeis (realizado). Já traz `cd_mascara`, `cd_centro_custos`, `cd_centro_custos_3`, `cd_origem_lcto`, `cd_tns`, `vl_realizado`, `anomes_referente`, `unidade_negocio`. |
 | `public.bi_dre_regras`       | Regras de classificação do realizado em `codigo_linha` da DRE.         |
 | `public.bi_vm_orc_dre`       | Orçamento por `mascara × anomes`.                                      |
 | `public.bi_dre_estrutura`    | Estrutura/ordem/descrição/nivel/totalizadora das linhas da DRE.        |
 
-### Campos auxiliares lidos de `bi_vm_lanc_contabil.extras` (jsonb)
+### Colunas usadas de `public.bi_vm_lanc_contabil`
 
-- `extras->>'cd_origem_lcto'`
-- `extras->>'cd_tns'`
-- (caso necessário no futuro) `extras->>'cd_centro_custos'` — porém `centro_custo` da coluna direta é o canônico.
+Usar **somente as colunas diretas** abaixo:
+
+- `l.cd_mascara`
+- `l.cd_centro_custos`
+- `l.cd_centro_custos_3`
+- `l.cd_origem_lcto`
+- `l.cd_tns`
+- `l.vl_realizado`
+- `l.anomes_referente`
+- `l.unidade_negocio` (para o filtro de unidade)
+
+**NÃO usar** `cd_conta`, `centro_custo`, `extras->>'cd_origem_lcto'`, `extras->>'cd_tns'`, `vl_debito`, `vl_credito`, `vl_saldo`, nem fazer JOIN com `bi_dre_mascara` para resolver a máscara (a máscara já está em `l.cd_mascara`). Tentativas anteriores estavam causando **502** porque a SQL referenciava colunas inexistentes nesta tabela.
 
 ## Classificação por `public.bi_dre_regras`
 
@@ -45,11 +53,11 @@ Schema esperado (ajuste nomes se diferentes na sua base, mantendo a semântica):
 | Coluna                 | Tipo  | Match                                                              |
 |------------------------|-------|--------------------------------------------------------------------|
 | `codigo_linha`         | text  | Linha-alvo da DRE quando a regra casar.                             |
-| `cd_mascara_like`      | text  | `m.mascara LIKE r.cd_mascara_like`                                  |
-| `cd_centro_custos_3`   | text  | `left(l.centro_custo, 3) = r.cd_centro_custos_3`                    |
-| `cd_centro_custos_like`| text  | `l.centro_custo LIKE r.cd_centro_custos_like`                       |
-| `cd_origem_lcto`       | text  | `l.extras->>'cd_origem_lcto' = r.cd_origem_lcto`                    |
-| `cd_tns_like`          | text  | `l.extras->>'cd_tns' LIKE r.cd_tns_like`                            |
+| `cd_mascara_like`      | text  | `l.cd_mascara         LIKE r.cd_mascara_like`                       |
+| `cd_centro_custos_3`   | text  | `l.cd_centro_custos_3 =    r.cd_centro_custos_3`                    |
+| `cd_centro_custos_like`| text  | `l.cd_centro_custos   LIKE r.cd_centro_custos_like`                 |
+| `cd_origem_lcto`       | text  | `l.cd_origem_lcto     =    r.cd_origem_lcto`                        |
+| `cd_tns_like`          | text  | `l.cd_tns             LIKE r.cd_tns_like`                           |
 | `prioridade`           | int   | Menor vence (`ORDER BY prioridade ASC, id`).                        |
 | `ativo`                | bool  | Apenas regras `ativo = true` participam.                            |
 
@@ -58,11 +66,10 @@ Regras com colunas `NULL` significam "não restringe por esse critério". Todos 
 ## Algoritmo
 
 1. Para cada lançamento de `bi_vm_lanc_contabil` no ano filtrado:
-   - Resolver `mascara` via `bi_dre_mascara` (LEFT JOIN por `cd_conta`).
-   - `LEFT JOIN LATERAL` em `bi_dre_regras` filtrando `ativo = true` e aplicando os predicados acima.
+   - `LEFT JOIN LATERAL` em `bi_dre_regras` filtrando `ativo = true` e aplicando os predicados acima diretamente sobre as colunas de `l`.
    - `ORDER BY r.prioridade ASC, r.id LIMIT 1` → **primeira regra vence**.
-2. `codigo_linha_efetivo := COALESCE(r.codigo_linha, m.mascara)` — fallback para o comportamento atual quando nenhuma regra casa.
-3. Agregar `SUM(vl_saldo)` (ou `vl_credito - vl_debito` se `vl_saldo` for nulo) por `codigo_linha_efetivo` e `anomes_referente`.
+2. `codigo_linha_efetivo := COALESCE(r.codigo_linha, l.cd_mascara)` — fallback para a própria máscara do lançamento quando nenhuma regra casa.
+3. Agregar `SUM(COALESCE(l.vl_realizado, 0))` por `codigo_linha_efetivo` e `(l.anomes_referente % 100)`.
 4. Pivotar por mês (jan..dez) e juntar com:
    - Orçamento: `public.bi_vm_orc_dre` por `mascara × mês`.
    - Estrutura: `public.bi_dre_estrutura` (ordem, descrição, nivel, totalizadora, sinal).
@@ -73,28 +80,26 @@ Regras com colunas `NULL` significam "não restringe por esse critério". Todos 
 ```sql
 WITH lanc AS (
   SELECT
-    COALESCE(r.codigo_linha, m.mascara)                       AS codigo_linha,
-    (l.anomes_referente % 100)::int                            AS mes,
-    SUM(COALESCE(l.vl_saldo,
-                 COALESCE(l.vl_credito, 0) - COALESCE(l.vl_debito, 0))) AS valor
+    COALESCE(r.codigo_linha, l.cd_mascara)        AS codigo_linha,
+    (l.anomes_referente % 100)::int               AS mes,
+    SUM(COALESCE(l.vl_realizado, 0))              AS valor
   FROM public.bi_vm_lanc_contabil l
-  LEFT JOIN public.bi_dre_mascara m ON m.cd_conta = l.cd_conta
   LEFT JOIN LATERAL (
     SELECT r.codigo_linha, r.prioridade
     FROM public.bi_dre_regras r
     WHERE r.ativo
-      AND (r.cd_mascara_like       IS NULL OR m.mascara                   LIKE r.cd_mascara_like)
-      AND (r.cd_centro_custos_3    IS NULL OR left(l.centro_custo, 3)     =    r.cd_centro_custos_3)
-      AND (r.cd_centro_custos_like IS NULL OR l.centro_custo              LIKE r.cd_centro_custos_like)
-      AND (r.cd_origem_lcto        IS NULL OR l.extras->>'cd_origem_lcto' =    r.cd_origem_lcto)
-      AND (r.cd_tns_like           IS NULL OR l.extras->>'cd_tns'         LIKE r.cd_tns_like)
+      AND (r.cd_mascara_like       IS NULL OR l.cd_mascara         LIKE r.cd_mascara_like)
+      AND (r.cd_centro_custos_3    IS NULL OR l.cd_centro_custos_3 =    r.cd_centro_custos_3)
+      AND (r.cd_centro_custos_like IS NULL OR l.cd_centro_custos   LIKE r.cd_centro_custos_like)
+      AND (r.cd_origem_lcto        IS NULL OR l.cd_origem_lcto     =    r.cd_origem_lcto)
+      AND (r.cd_tns_like           IS NULL OR l.cd_tns             LIKE r.cd_tns_like)
     ORDER BY r.prioridade ASC, r.id
     LIMIT 1
   ) r ON true
   WHERE (l.anomes_referente / 100)::int = %(ano)s::int
     AND (%(unidade)s::text IS NULL
-         OR m.unidade_negocio IS NULL
-         OR m.unidade_negocio = %(unidade)s::text)
+         OR l.unidade_negocio IS NULL
+         OR l.unidade_negocio = %(unidade)s::text)
   GROUP BY 1, 2
 ),
 orc AS (
@@ -157,6 +162,12 @@ Campos esperados por linha:
 
 - `400` — `ano` inválido.
 - `5xx` — `{ "detail": "mensagem" }`. O front exibe `detail`/`message` quando disponível.
+
+## Proibições (resumo)
+
+- Não usar Oracle / UpQuery, nem `EZORTEA.V_DRE_V1`.
+- Não manter regra fixa por `cd_mascara` no código Python — toda classificação vem de `bi_dre_regras`.
+- Não referenciar `cd_conta`, `centro_custo`, `extras->>'cd_origem_lcto'`, `extras->>'cd_tns'`, `vl_debito`, `vl_credito` nem `vl_saldo` na SQL deste endpoint.
 
 ## CORS
 
