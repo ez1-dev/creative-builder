@@ -444,7 +444,7 @@ export default function DreMontadorPage() {
                                 <TooltipContent><span className="text-xs">{c.ds_conta}</span></TooltipContent>
                               </Tooltip>
                             ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <span className="text-xs text-muted-foreground italic" title="Backend não retornou ds_conta">{c.cd_mascara || '—'}</span>
                             )}
                           </td>
                           <td className="py-1 px-2">
