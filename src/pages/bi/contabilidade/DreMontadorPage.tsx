@@ -165,6 +165,14 @@ export default function DreMontadorPage() {
     return arr;
   }, [contas, sortBy, sortDir]);
 
+  const diag = useMemo(() => {
+    if (!contas.length) return { semNome: false, semValor: false };
+    return {
+      semNome: contas.every((c) => !c.ds_conta),
+      semValor: contas.every((c) => c.valor_total === 0),
+    };
+  }, [contas]);
+
   const toggleSort = (k: SortKey) => {
     if (sortBy === k) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else { setSortBy(k); setSortDir(k === 'valor' || k === 'qtd' ? 'desc' : 'asc'); }
