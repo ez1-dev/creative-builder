@@ -1,61 +1,46 @@
-## Objetivo
-Enriquecer o "Montador da DRE Gerencial" para mostrar, ao lado de cada conta/máscara do ERP: **nome da conta**, **nível** (profundidade da máscara) e **centros de custo** onde a conta tem lançamentos. As linhas da DRE à esquerda também passam a exibir o **nível** explicitamente.
+## Problema
 
-## Mudanças no contrato do backend (`/dre-dinamica/plano-contas`)
-Cada item passa a retornar 3 campos novos. Backend já tem `bi_vm_lanc_contabil.centro_custo` e o ERP tem a descrição da conta — só precisa expor.
+Na tela `/bi/contabilidade/dre-dinamica/montador`, a coluna **Nome da conta** aparece como `—` e os **valores** ficam zerados ou em branco. Verifiquei o Cloud: `bi_vm_lanc_contabil` está vazio (0 linhas), portanto toda a tela depende do endpoint FastAPI `GET /api/bi/contabilidade/dre-dinamica/plano-contas`. Hoje o mapper espera campos específicos (`ds_conta`, `valor_total`, `qtd_lancamentos`) e, se o backend devolver outros nomes (ex.: `descricao`, `total`, `qtde`, `saldo`, `vl_saldo`), tudo cai pra default vazio/zero.
 
-```json
-{
-  "cd_mascara": "3.01.01",
-  "cd_conta_contabil": "3010101001",
-  "ds_conta": "RECEITA DE VENDAS NO MERCADO INTERNO",
-  "nivel": 3,
-  "centros_custo": [
-    { "cd_centro_custo": "1001", "ds_centro_custo": "ADMINISTRATIVO", "qtd": 12, "valor": -1500.00 },
-    { "cd_centro_custo": "2002", "ds_centro_custo": "COMERCIAL", "qtd": 5, "valor": -800.00 }
-  ],
-  "qtd_lancamentos": 124,
-  "valor_total": -53210.55,
-  "ja_vinculada": true,
-  "linhas_vinculadas": ["RECEITA_BRUTA"]
-}
-```
+## Ajustes (somente frontend + doc)
 
-Regras:
-- `ds_conta`: descrição vinda do plano de contas do ERP (Senior). Pode vir vazia — front mostra "—".
-- `nivel`: número de segmentos de `cd_mascara` separados por `.` (ex.: `3.01.01` → 3). Calcular no backend.
-- `centros_custo`: agregado por `centro_custo` de `bi_vm_lanc_contabil` no período, ordenado por `valor DESC`, top 10. Vazio quando não houver.
-- Atualizar `docs/backend-bi-contabilidade-dre-dinamica-montador.md` com o novo schema.
+### 1. `src/lib/bi/dreMontadorApi.ts` — mapper tolerante e diagnóstico
 
-## Mudanças na tela (`DreMontadorPage.tsx`)
+- Aceitar aliases de campos do backend, sem mudar o contrato exposto:
+  - `ds_conta` ← `ds_conta | descricao | nome_conta | nome | conta_descricao | ds_conta_contabil`
+  - `valor_total` ← `valor_total | total | valor | vl_saldo | saldo`
+  - `qtd_lancamentos` ← `qtd_lancamentos | qtde | qtd | quantidade | qtd_lanc`
+  - `centros_custo[].ds_centro_custo` ← `ds_centro_custo | descricao | nome | ds_ccu`
+  - `centros_custo[].valor` ← `valor | valor_total | total | vl_saldo`
+  - `centros_custo[].qtd` ← `qtd | qtd_lancamentos | qtde`
+- Logar uma amostra do primeiro item cru e do mapeado:
+  ```ts
+  console.log('[MONTADOR DRE] plano-contas raw sample:', arr[0]);
+  console.log('[MONTADOR DRE] plano-contas mapped sample:', mapped[0]);
+  ```
+- Logar `console.warn` quando 100% dos itens vierem com `ds_conta` vazio ou `valor_total === 0`, indicando claramente que o backend não está retornando esses campos.
 
-### Coluna esquerda (Linhas da DRE)
-- Nova coluna `Nível` antes de `Descrição`, mostrando `l.nivel` como badge pequeno.
-- Mantém a indentação visual atual.
+### 2. `src/pages/bi/contabilidade/DreMontadorPage.tsx` — UX de diagnóstico
 
-### Coluna direita (Contas do ERP)
-Novo layout de tabela:
+- Acima da tabela de contas, banner discreto (amber) quando detectarmos:
+  - Todas as contas com `ds_conta` vazio → texto: *"Backend não está retornando `ds_conta`. Ajuste o endpoint `/plano-contas` para incluir a descrição da conta."*
+  - Todas as contas com `valor_total === 0` → texto: *"Valores zerados — verifique se o endpoint agrega `bi_vm_lanc_contabil` no período selecionado."*
+- Quando `ds_conta` vier vazio, exibir a `cd_mascara` como fallback visível no lugar do `—` (em itálico muted), pra usuário não achar que está bugado.
+- Mostrar o `valor_total` em vermelho quando negativo (já existe) e exibir `R$ 0,00` explícito (já existe).
+- Manter os logs atuais e adicionar `console.log('[MONTADOR DRE] contas recebidas:', contas.length)` após cada `setContas`.
 
-| ☑ | Máscara | Nível | Conta | Nome da conta | Centros de custo | Qtd. | Valor | Status |
+### 3. `docs/backend-bi-contabilidade-dre-dinamica-montador.md`
 
-- **Nome da conta**: `ds_conta` truncado com tooltip mostrando o nome completo.
-- **Nível**: badge `outline` com o número.
-- **Centros de custo**: mostra até 2 chips `cd - ds` inline; se houver mais, chip extra `+N` com tooltip listando todos (`cd - ds: BRL valor`). Vazio → "—".
-- Ordenação: adicionar `nivel` como chave de ordenação opcional. Manter ordenação por `mascara`, `conta`, `qtd`, `valor`.
-
-### Tipos no front
-- `src/lib/bi/dreMontadorApi.ts`: estender `PlanoContaErp` com `ds_conta?: string`, `nivel?: number`, `centros_custo?: { cd_centro_custo: string; ds_centro_custo?: string; qtd: number; valor: number; }[]`. Mapper trata `null`/`undefined` com defaults (`''`, `mascara.split('.').length`, `[]`).
-
-### Comportamento
-- Sem alteração em filtros, vinculação ou payload — apenas exibição.
-- Logs mantidos.
+- Adicionar seção **"Campos obrigatórios na resposta"** listando explicitamente:
+  - `ds_conta` (string) — descrição da conta no plano de contas do ERP
+  - `valor_total` (numeric) — soma de `vl_saldo` (ou equivalente) no período
+  - `qtd_lancamentos` (int) — `count(*)` no período
+  - `nivel` (int) — segmentos da máscara
+  - `centros_custo[]` (array) — agregado por centro de custo no período
+- Incluir SQL de referência usando `bi_vm_lanc_contabil` + join com plano de contas do ERP Senior para `ds_conta`.
 
 ## Fora de escopo
-- Filtros por nível ou por centro de custo (pode ser próximo passo).
-- Edição/cadastro de descrição de conta.
-- Mudanças no payload de `vincular-contas`.
 
-## Arquivos afetados
-- `src/lib/bi/dreMontadorApi.ts` — estender tipo e mapper.
-- `src/pages/bi/contabilidade/DreMontadorPage.tsx` — colunas novas + render de chips com tooltip.
-- `docs/backend-bi-contabilidade-dre-dinamica-montador.md` — atualizar contrato.
+- Não criar fallback Cloud — `bi_vm_lanc_contabil` está vazio no Cloud, não há de onde puxar localmente.
+- Não alterar payload de `vincular-contas`.
+- Não mexer no endpoint `/dre-dinamica` (linhas à esquerda).
