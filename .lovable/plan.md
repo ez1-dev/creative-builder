@@ -1,49 +1,37 @@
-## Problema
+## Decisão
 
-`DreDrillDrawer.tsx` faz `data.rows.length` e `data.columns.length` direto. Quando o endpoint `/api/bi/contabilidade/dre-drill` retorna `null`, erro, ou um objeto sem `rows`/`columns`, quebra com `Cannot read properties of undefined (reading 'length')`.
+Não alterar a tela da DRE agora. A correção é no backend.
 
-## Correções (escopo mínimo, só frontend)
+## Causa raiz
 
-### 1. `src/lib/bi/dreDrillApi.ts` — normalizar resposta
+Matriz (`/api/bi/contabilidade/dre-matriz`) e drill (`/api/bi/contabilidade/dre-drill`) estão classificando lançamentos por regras diferentes. A matriz não está aplicando a mesma cadeia do drill (classificações > exceções > de/para conta+centro exato > de/para "TODAS" > `bi_dre_mascara` > `NAO_CLASSIFICADO`), o que produz totais divergentes entre tela e drill.
 
-No final de `fetchDreDrill`, em vez de `return (await resp.json()) as DreDrillResponse`, fazer parsing tolerante:
+## Ação no backend (FastAPI / RPC)
 
-```ts
-const raw = await resp.json().catch(() => ({}));
-const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<DreDrillResponse>;
-return {
-  tipo_drill: r.tipo_drill ?? params.tipo_drill,
-  codigo_linha: r.codigo_linha ?? params.codigo_linha,
-  periodo: r.periodo ?? {
-    ano: params.ano, mes_ini: params.mes_ini, mes_fim: params.mes_fim,
-    anomes_referente: params.anomes_referente ?? null,
-  },
-  unidade: r.unidade ?? null,
-  columns: Array.isArray(r.columns) ? r.columns : [],
-  rows: Array.isArray(r.rows) ? r.rows : [],
-  total: typeof r.total === 'number' ? r.total : 0,
-};
-```
+Atualizar a RPC que alimenta `/api/bi/contabilidade/dre-matriz` para reusar exatamente a mesma função/CTE de classificação usada por `bi_dre_drill_realizado`:
 
-Assim o resto do código sempre recebe arrays.
+1. Extrair a lógica de classificação por lançamento em uma única função SQL reutilizável (ex.: `bi_dre_classificar_lancamento(...)` retornando `cd_mascara_dre`).
+2. Tanto a matriz quanto o drill devem chamar essa função — nenhuma duplicação de regras.
+3. Garantir a ordem de prioridade canônica:
+   - `bi_dre_classificacoes` (lançamento específico aprovado)
+   - `bi_dre_excecoes` (lançamento específico)
+   - `bi_dre_depara_conta_ccu` com `cd_conta_contabil` + `cd_centro_custos` exato
+   - `bi_dre_depara_conta_ccu` com `cd_centro_custos = 'TODAS'`
+   - `bi_dre_mascara` (regra por máscara de conta)
+   - fallback `NAO_CLASSIFICADO`
+4. Após atualizar a RPC: `NOTIFY pgrst, 'reload schema';`
 
-### 2. `src/components/bi/contabilidade/DreDrillDrawer.tsx` — render defensivo
+## Ação no frontend (Lovable)
 
-- Linhas 247 e 252: trocar `data && data.rows.length === 0` / `> 0` por variáveis locais derivadas com fallback seguro:
-  ```ts
-  const rows = Array.isArray(data?.rows) ? data!.rows : [];
-  const columns = Array.isArray(data?.columns) ? data!.columns : [];
-  const hasRows = rows.length > 0;
-  ```
-- Usar `rows`/`columns` em todos os pontos do JSX (map de header, body, tfoot `colSpan={Math.max(1, columns.length - 1)}`).
-- Em cada célula, manter `v ?? '-'` (já existe) e `Number(v ?? 0)` para currency.
-- Garantir que `totalRodape` continue calculado a partir de `rows`.
+Nenhuma alteração de código. Após o deploy do backend, `DrePage` apenas chama de novo `GET /api/bi/contabilidade/dre-matriz` (o botão "Atualizar" já existente faz isso). Quando a matriz e o drill bater, a divergência some.
 
-### 3. Verificar `useDreDrill.ts`
+## Documentação
 
-Já usa `stack.length` mas `stack` é sempre inicializado como `[]` — sem alteração.
+Adicionar nota em `docs/backend-bi-contabilidade-dre-matriz.md` deixando explícito:
+
+> A matriz DRE DEVE usar a mesma função de classificação de lançamento que a RPC `bi_dre_drill_realizado`. Qualquer mudança na cadeia de prioridade precisa refletir nos dois endpoints ao mesmo tempo.
 
 ## Fora de escopo
 
-- Não mexer em DrePage / DreExcecoesPage / DreAprovacoesPage (essas usam `linhas` que já é array local).
-- Não alterar backend, contratos, ou outros módulos de drill.
+- Não mexer em `DrePage.tsx`, `DreDrillDrawer.tsx`, hooks, ou contratos do frontend.
+- Não criar migrações no Lovable Cloud (a RPC fica no Postgres do FastAPI, não no Cloud).
