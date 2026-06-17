@@ -7,7 +7,7 @@ A implementação deve ser **100% em SQL no Postgres do FastAPI** (mesmo cluster
 A classificação do realizado é totalmente orientada pela tabela `public.bi_dre_regras`.
 
 > **Nota de implementação (obrigatória):** o endpoint **deve** obter o realizado exclusivamente via
-> `SELECT codigo_linha, anomes_referente, vl_realizado FROM public.rpc_bi_dre_realizado_regras(:ini, :fim)`.
+> `SELECT codigo_linha, anomes_referente, vl_realizado FROM public.rpc_bi_dre_realizado_regras(%(p_anomes_ini)s, %(p_anomes_fim)s)`.
 > Proibido SQL inline contra `public.bi_vm_lanc_contabil` no Python e proibido chamar qualquer outra RPC para o realizado.
 
 ## Contrato da RPC consumida
@@ -17,6 +17,11 @@ A classificação do realizado é totalmente orientada pela tabela `public.bi_dr
 - **Mapeamento dos parâmetros:** `p_anomes_ini = f"{ano}01"`, `p_anomes_fim = f"{ano}12"`.
 - **Mês:** `anomes_referente` é texto `YYYYMM` → `mes = int(anomes_referente[-2:])`.
 - Lançamentos sem regra casada **não vêm no resultado** (a RPC filtra `codigo_linha IS NOT NULL`).
+
+> **Nomes dos parâmetros (obrigatórios):** a RPC declara `p_anomes_ini` e `p_anomes_fim`.
+> A chamada deve usar **exatamente** esses nomes nos parâmetros enviados ao driver:
+> `%(p_anomes_ini)s` e `%(p_anomes_fim)s`.
+> **Proibido** usar `anomes_ini`, `anomes_fim`, `ano`, `mes_ini`, `mes_fim` ou qualquer outro nome.
 
 
 ## Request
@@ -173,14 +178,15 @@ def dre_matriz(ano: str, unidade: str | None = None):
     u = (unidade or "").strip().upper()
     p_unidade = None if u in ("", "TODOS", "TODAS", "ALL") else unidade  # reservado p/ futuro
 
-    p_ini, p_fim = f"{ano}01", f"{ano}12"
+    p_anomes_ini = f"{ano}01"
+    p_anomes_fim = f"{ano}12"
 
     # Realizado: SOMENTE via RPC. Já vem agrupado por (codigo_linha, anomes_referente)
     # com o sinal da regra aplicado em vl_realizado.
     realizado = pg.fetch(
         "SELECT codigo_linha, anomes_referente, vl_realizado "
-        "FROM public.rpc_bi_dre_realizado_regras(%(ini)s, %(fim)s)",
-        {"ini": p_ini, "fim": p_fim},
+        "FROM public.rpc_bi_dre_realizado_regras(%(p_anomes_ini)s, %(p_anomes_fim)s)",
+        {"p_anomes_ini": p_anomes_ini, "p_anomes_fim": p_anomes_fim},
     )
 
     orcado    = pg.fetch(SQL_ORCADO, {"ano": ano, "unidade": p_unidade})
@@ -191,6 +197,28 @@ def dre_matriz(ano: str, unidade: str | None = None):
     # calcular A.V. contra a linha de Receita Líquida
     return montar_matriz_anual(realizado, orcado, estrutura)
 ```
+
+## Serialização JSON (Decimal → float)
+
+A RPC retorna `vl_realizado numeric` → no Python vira `decimal.Decimal`, que **não** é serializável pelo JSON do FastAPI e pode disparar `TypeError: Object of type Decimal is not JSON serializable`, resultando em **502**.
+
+Converter para `float` antes de devolver qualquer JSON:
+
+```python
+def _to_float(v):
+    return float(v) if v is not None else None
+
+return [
+    {
+        "codigo_linha": r["codigo_linha"],
+        "anomes_referente": r["anomes_referente"],
+        "vl_realizado": _to_float(r["vl_realizado"]),
+    }
+    for r in rows
+]
+```
+
+Aplicar a mesma conversão a **todos** os campos numéricos do response final do `/dre-matriz`: `*_realizado`, `*_av`, `*_orcado`, `total_realizado`, `total_av`, `total_orcado`, além de qualquer valor vindo de `numeric`/`Decimal` no orçamento ou na estrutura.
 
 
 ## SQL do orçamento (inalterado)
@@ -235,6 +263,8 @@ Campos esperados por linha:
 - Totais: `total_realizado`, `total_av`, `total_orcado`
 
 ## Tratamento de erros / Diagnóstico (obrigatório)
+
+**Fazer isso primeiro.** Antes de qualquer outra alteração no endpoint, plugar o `traceback.print_exc()` + `detail=str(e)` e reproduzir o 502 — o stdout do uvicorn vai apontar exatamente onde quebra (nome de parâmetro errado, `Decimal` não serializável, coluna inexistente, permissão, etc.).
 
 Enquanto o 502 persistir, o handler **deve** logar o traceback completo e devolver a mensagem real da exceção no `detail`. **Proibido** mascarar com strings genéricas como `"Erro ao carregar DRE"`.
 
