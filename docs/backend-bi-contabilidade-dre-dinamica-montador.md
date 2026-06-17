@@ -26,8 +26,8 @@ Lista as contas/máscaras do ERP com totais agregados e indicador de vínculo no
     "ds_conta": "RECEITA DE VENDAS NO MERCADO INTERNO",
     "nivel": 3,
     "centros_custo": [
-      { "cd_centro_custo": "1001", "ds_centro_custo": "ADMINISTRATIVO", "qtd": 12, "valor": -1500.00 },
-      { "cd_centro_custo": "2002", "ds_centro_custo": "COMERCIAL", "qtd": 5, "valor": -800.00 }
+      { "cd_centro_custos": "1001", "cd_centro_custos_3": "100", "qtd_lancamentos": 12, "valor_total": -1500.00 },
+      { "cd_centro_custos": "2002", "cd_centro_custos_3": "200", "qtd_lancamentos": 5, "valor_total": -800.00 }
     ],
     "qtd_lancamentos": 124,
     "valor_total": -53210.55,
