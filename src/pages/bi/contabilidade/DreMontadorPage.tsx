@@ -48,6 +48,7 @@ export default function DreMontadorPage() {
 
   const [contas, setContas] = useState<PlanoContaErp[]>([]);
   const [contasSelecionadas, setContasSelecionadas] = useState<Set<string>>(new Set());
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [loadingContas, setLoadingContas] = useState(false);
 
   const [busca, setBusca] = useState('');
