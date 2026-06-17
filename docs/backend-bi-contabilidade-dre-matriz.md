@@ -234,10 +234,35 @@ Campos esperados por linha:
 - Para cada mês `jan..dez`: `<mes>_realizado`, `<mes>_av`, `<mes>_orcado`
 - Totais: `total_realizado`, `total_av`, `total_orcado`
 
+## Tratamento de erros / Diagnóstico (obrigatório)
+
+Enquanto o 502 persistir, o handler **deve** logar o traceback completo e devolver a mensagem real da exceção no `detail`. **Proibido** mascarar com strings genéricas como `"Erro ao carregar DRE"`.
+
+```python
+import traceback
+from fastapi import HTTPException
+
+@router.get("/api/bi/contabilidade/dre-matriz")
+def dre_matriz(ano: str, unidade: str | None = None):
+    try:
+        ...  # chamada à RPC + montagem da matriz
+    except Exception as e:
+        print("[ERRO DRE MATRIZ]", repr(e), flush=True)
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=str(e))
+```
+
+Requisitos:
+
+- Usar `print(..., flush=True)` (ou logger equivalente) para garantir que o traceback apareça no stdout do uvicorn / `journalctl`.
+- `detail=str(e)` — **não** usar mensagem fixa. O front já exibe `detail` / `message` quando presentes.
+- Manter o `traceback.print_exc()` permanentemente. Após estabilizar, no máximo sanitizar o `detail` para o cliente, mas o log do traceback continua.
+
 ### Erros
 
 - `400` — `ano` inválido.
-- `5xx` — `{ "detail": "mensagem" }`. O front exibe `detail`/`message` quando disponível.
+- `5xx` — `{ "detail": "<mensagem real da exceção Python/SQL>" }`. Front exibe `detail`/`message`.
+
 
 ## Proibições (resumo)
 
